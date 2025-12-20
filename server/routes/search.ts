@@ -17,8 +17,66 @@ import {
   type TargetAddress,
   type SearchJob 
 } from "@shared/schema";
+import { googleWebSearchAdapter } from "../geometric-discovery/google-web-search-adapter";
 
 export const searchRouter = Router();
+
+searchRouter.get("/web", generousLimiter, async (req: Request, res: Response) => {
+  try {
+    const query = req.query.q as string;
+    const limit = Math.min(parseInt(req.query.limit as string) || 5, 10);
+    
+    if (!query || query.trim().length === 0) {
+      return res.status(400).json({ error: 'Query parameter "q" is required' });
+    }
+    
+    console.log(`[WebSearch API] Query: "${query}" (limit: ${limit})`);
+    
+    const response = await googleWebSearchAdapter.simpleSearch(query, limit);
+    
+    res.json({
+      query,
+      results: response.results,
+      count: response.results.length,
+      status: response.status,
+      error: response.error,
+      source: 'google-web-search',
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    console.error('[WebSearch API] Error:', error.message);
+    res.status(500).json({ error: error.message, status: 'error' });
+  }
+});
+
+searchRouter.post("/web", generousLimiter, async (req: Request, res: Response) => {
+  try {
+    const { query, limit = 5 } = req.body;
+    
+    if (!query || typeof query !== 'string' || query.trim().length === 0) {
+      return res.status(400).json({ error: 'Query string is required in request body' });
+    }
+    
+    const maxLimit = Math.min(limit, 10);
+    
+    console.log(`[WebSearch API] POST Query: "${query}" (limit: ${maxLimit})`);
+    
+    const response = await googleWebSearchAdapter.simpleSearch(query, maxLimit);
+    
+    res.json({
+      query,
+      results: response.results,
+      count: response.results.length,
+      status: response.status,
+      error: response.error,
+      source: 'google-web-search',
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    console.error('[WebSearch API] Error:', error.message);
+    res.status(500).json({ error: error.message, status: 'error' });
+  }
+});
 
 searchRouter.get("/known-phrases", generousLimiter, (req: Request, res: Response) => {
   try {
