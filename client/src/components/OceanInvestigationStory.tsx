@@ -13,13 +13,13 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Brain, Search, Play, Pause, Moon, Sparkles, Cloud, Zap,
-  ChevronDown, ChevronUp, RefreshCw, Radio, Users, Wallet, Copy, Check
+  ChevronDown, ChevronUp, RefreshCw, Radio, Users
 } from 'lucide-react';
 import { Button, Card, CardContent, Badge, Tooltip, TooltipContent, TooltipTrigger, Collapsible, CollapsibleContent, CollapsibleTrigger, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui';
 import { queryClient } from '@/lib/queryClient';
 import { API_ROUTES, QUERY_KEYS, api } from '@/api';
 import { useToast } from '@/hooks/use-toast';
-import type { TargetAddress } from '@shared/schema';
+// Bitcoin-specific imports removed for agentic platform pivot
 
 interface ConsciousnessState {
   phi: number;
@@ -57,14 +57,7 @@ interface Discovery {
   significance: number;
 }
 
-interface RecoveryCandidate {
-  id: number;
-  phrase: string;
-  address: string;
-  verified: boolean;
-  qigScore?: { phi: number };
-  testedAt?: string;
-}
+// RecoveryCandidate interface removed for agentic platform pivot
 
 interface ManifoldState {
   totalProbes: number;
@@ -135,37 +128,7 @@ interface BasinSyncStatus {
   message?: string;
 }
 
-interface BalanceHit {
-  address: string;
-  passphrase: string;
-  wif: string;
-  balanceSats: number;
-  balanceBTC: string;
-  txCount: number;
-  discoveredAt: string;
-  isCompressed: boolean;
-  lastChecked?: string;
-  balanceChanged?: boolean;
-  changeDetectedAt?: string;
-  previousBalanceSats?: number;
-}
-
-interface BalanceMonitorStatus {
-  enabled: boolean;
-  isRefreshing: boolean;
-  refreshIntervalMinutes: number;
-  lastRefreshTime: string | null;
-  monitoredAddresses: number;
-  activeAddresses: number;
-  staleAddresses: number;
-  recentChanges: Array<{
-    address: string;
-    previousBalance: number;
-    newBalance: number;
-    difference: number;
-    detectedAt: string;
-  }>;
-}
+// BalanceHit and BalanceMonitorStatus interfaces removed for agentic platform pivot
 
 export function OceanInvestigationStory() {
   const { toast } = useToast();
@@ -197,11 +160,6 @@ export function OceanInvestigationStory() {
   });
 
   // DISABLED: Balance monitoring removed for agentic platform pivot
-  // const { data: balanceHitsData, isLoading: balanceHitsLoading } = useQuery({ queryKey: QUERY_KEYS.balance.hits() });
-  const balanceHits: BalanceHit[] = [];
-  const balanceHitsLoading = false;
-
-  const [balanceHitsOpen, setBalanceHitsOpen] = useState(false);
 
   const startMutation = useMutation({
     mutationFn: async (_targetAddress: string) => {
@@ -522,13 +480,7 @@ export function OceanInvestigationStory() {
             </Card>
           )}
 
-          {/* Balance Hits - Addresses with coins/activity */}
-          <BalanceHitsPanel 
-            hits={balanceHits} 
-            isLoading={balanceHitsLoading}
-            isOpen={balanceHitsOpen}
-            onOpenChange={setBalanceHitsOpen}
-          />
+          {/* Balance monitoring removed for agentic platform pivot */}
         </div>
       </div>
 
@@ -554,6 +506,13 @@ interface AutoCycleStatus {
   position: string;
 }
 
+// Target address interface simplified for agentic platform
+interface SimpleAddress {
+  id: number;
+  address: string;
+  label?: string;
+}
+
 function ControlRow({ 
   isRunning, 
   targetAddresses, 
@@ -563,14 +522,14 @@ function ControlRow({
   thought 
 }: {
   isRunning: boolean;
-  targetAddresses: TargetAddress[];
+  targetAddresses: SimpleAddress[];
   onStart: (address: string) => void;
   onStop: () => void;
   isPending: boolean;
   thought: string;
 }) {
   const [selectedAddress, setSelectedAddress] = useState(targetAddresses[0]?.address || '');
-  const [newAddress, setNewAddress] = useState('');
+  const [_newAddress, setNewAddress] = useState('');
   const [showAddNew, setShowAddNew] = useState(false);
   const { toast } = useToast();
 
@@ -955,297 +914,7 @@ function ActivityCompact({
   );
 }
 
-function BalanceHitsPanel({
-  hits,
-  isLoading,
-  isOpen,
-  onOpenChange
-}: {
-  hits: BalanceHit[];
-  isLoading?: boolean;
-  isOpen: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  const [copiedField, setCopiedField] = useState<string | null>(null);
-  const { toast } = useToast();
-  
-  const { data: monitorStatus } = useQuery<BalanceMonitorStatus>({
-    queryKey: QUERY_KEYS.balanceMonitor.status(),
-    refetchInterval: 10000,
-  });
-  
-  const refreshMutation = useMutation({
-    mutationFn: async () => {
-      return Promise.resolve({ success: true, message: 'Refresh disabled' });
-    },
-    onSuccess: () => {
-      toast({ title: 'Refresh feature disabled in agentic mode' });
-    },
-    onError: (error: any) => {
-      toast({
-        title: 'Refresh Failed',
-        description: error.message || 'Could not refresh',
-        variant: 'destructive',
-      });
-    },
-  });
-  
-  const copyToClipboard = async (text: string, fieldId: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopiedField(fieldId);
-      setTimeout(() => setCopiedField(null), 2000);
-    } catch (err) {
-      console.error('Failed to copy:', err);
-    }
-  };
-
-  const hitsWithBalance = hits.filter(h => h.balanceSats > 0);
-  const hitsWithActivity = hits.filter(h => h.balanceSats === 0 && h.txCount > 0);
-  const hitsWithChanges = hits.filter(h => h.balanceChanged);
-  
-  const formatTimeAgo = (dateStr?: string) => {
-    if (!dateStr) return 'Never';
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `${diffHours}h ago`;
-    return date.toLocaleDateString();
-  };
-
-  const CopyableField = ({ label, value, fieldId }: { label: string; value: string; fieldId: string }) => (
-    <div className="space-y-1">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-muted-foreground">{label}</span>
-        <Button 
-          size="sm"
-          variant="outline"
-          className="h-6 px-2 gap-1"
-          onClick={() => copyToClipboard(value, fieldId)}
-          data-testid={`button-copy-${fieldId}`}
-        >
-          {copiedField === fieldId ? (
-            <>
-              <Check className="w-3 h-3 text-green-400" />
-              <span className="text-xs text-green-400">Copied!</span>
-            </>
-          ) : (
-            <>
-              <Copy className="w-3 h-3" />
-              <span className="text-xs">Copy</span>
-            </>
-          )}
-        </Button>
-      </div>
-      <div 
-        className="p-2 bg-muted/50 rounded border font-mono text-xs break-all select-all cursor-text"
-        onClick={(e) => {
-          const selection = window.getSelection();
-          const range = document.createRange();
-          range.selectNodeContents(e.currentTarget);
-          selection?.removeAllRanges();
-          selection?.addRange(range);
-        }}
-        data-testid={`text-${fieldId}`}
-      >
-        {value}
-      </div>
-    </div>
-  );
-
-  return (
-    <Collapsible open={isOpen} onOpenChange={onOpenChange}>
-      <Card className={`shrink-0 ${hitsWithBalance.length > 0 ? 'border-green-500/50 bg-green-500/5' : ''} ${hitsWithChanges.length > 0 ? 'ring-2 ring-yellow-500/50' : ''}`}>
-        <CollapsibleTrigger asChild>
-          <div className="flex items-center justify-between p-3 cursor-pointer hover-elevate">
-            <div className="flex items-center gap-2">
-              <Wallet className={`w-4 h-4 ${hitsWithBalance.length > 0 ? 'text-green-400' : 'text-muted-foreground'}`} />
-              <span className="font-medium text-sm">Balance Hits</span>
-              {hitsWithBalance.length > 0 && (
-                <Badge className="bg-green-500 text-xs">{hitsWithBalance.length} with coins!</Badge>
-              )}
-              {hitsWithChanges.length > 0 && (
-                <Badge variant="destructive" className="text-xs animate-pulse">{hitsWithChanges.length} changed!</Badge>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              {monitorStatus?.lastRefreshTime && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="text-xs text-muted-foreground">
-                      Checked: {formatTimeAgo(monitorStatus.lastRefreshTime)}
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Auto-refresh every {monitorStatus.refreshIntervalMinutes}min</p>
-                    <p className="text-xs text-muted-foreground">
-                      {monitorStatus.staleAddresses > 0 
-                        ? `${monitorStatus.staleAddresses} stale addresses` 
-                        : 'All addresses up to date'}
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-              )}
-              <Badge variant="outline" className="text-xs">{hits.length} total</Badge>
-              {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-            </div>
-          </div>
-        </CollapsibleTrigger>
-        <CollapsibleContent>
-          <CardContent className="p-3 pt-0 max-h-[500px] overflow-y-auto">
-            {/* Refresh button and status */}
-            <div className="flex items-center justify-between mb-3 pb-2 border-b">
-              <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    refreshMutation.mutate();
-                  }}
-                  disabled={refreshMutation.isPending || monitorStatus?.isRefreshing}
-                  data-testid="button-refresh-balances"
-                >
-                  <RefreshCw className={`w-3 h-3 mr-1 ${(refreshMutation.isPending || monitorStatus?.isRefreshing) ? 'animate-spin' : ''}`} />
-                  {refreshMutation.isPending || monitorStatus?.isRefreshing ? 'Refreshing...' : 'Refresh All'}
-                </Button>
-                {monitorStatus?.enabled && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Badge variant="secondary" className="text-xs">
-                        Auto: {monitorStatus.refreshIntervalMinutes}min
-                      </Badge>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      Automatic balance monitoring is enabled
-                    </TooltipContent>
-                  </Tooltip>
-                )}
-              </div>
-              {monitorStatus?.recentChanges && monitorStatus.recentChanges.length > 0 && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Badge variant="destructive" className="text-xs">
-                      {monitorStatus.recentChanges.length} recent changes
-                    </Badge>
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-xs">
-                    <div className="space-y-1">
-                      {monitorStatus.recentChanges.slice(0, 3).map((change, i) => (
-                        <div key={i} className="text-xs">
-                          {change.address.slice(0, 12)}... {change.difference > 0 ? '+' : ''}{(change.difference / 100000000).toFixed(8)} BTC
-                        </div>
-                      ))}
-                    </div>
-                  </TooltipContent>
-                </Tooltip>
-              )}
-            </div>
-            
-            {isLoading ? (
-              <div className="text-sm text-muted-foreground text-center py-4 flex items-center justify-center gap-2">
-                <RefreshCw className="w-4 h-4 animate-spin" />
-                Loading balance data...
-              </div>
-            ) : hits.length === 0 ? (
-              <div className="text-sm text-muted-foreground text-center py-4">
-                No addresses with balances found yet. Ocean checks every 3rd generated address.
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {/* Addresses with balance first - FULL RECOVERY DATA */}
-                {hitsWithBalance.map((hit, i) => (
-                  <div key={`bal-${i}`} className={`p-4 rounded-lg bg-green-500/10 border-2 space-y-3 ${hit.balanceChanged ? 'border-yellow-500 ring-2 ring-yellow-500/30' : 'border-green-500/50'}`}>
-                    <div className="flex items-center justify-between flex-wrap gap-2">
-                      <div className="flex items-center gap-2">
-                        <Badge className="bg-green-500 text-base px-3 py-1">{hit.balanceBTC} BTC</Badge>
-                        {hit.balanceChanged && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Badge variant="destructive" className="text-xs animate-pulse">Changed!</Badge>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Balance changed at {hit.changeDetectedAt ? new Date(hit.changeDetectedAt).toLocaleString() : 'Unknown'}</p>
-                              {hit.previousBalanceSats !== undefined && (
-                                <p className="text-xs">Previous: {(hit.previousBalanceSats / 100000000).toFixed(8)} BTC</p>
-                              )}
-                            </TooltipContent>
-                          </Tooltip>
-                        )}
-                      </div>
-                      <div className="text-xs text-muted-foreground text-right">
-                        <div>{new Date(hit.discoveredAt).toLocaleString()}</div>
-                        <div>{hit.txCount} txs | {hit.isCompressed ? 'Compressed' : 'Uncompressed'}</div>
-                        {hit.lastChecked && (
-                          <div className="text-green-600 dark:text-green-400">Verified: {formatTimeAgo(hit.lastChecked)}</div>
-                        )}
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-3 pt-2 border-t border-green-500/30">
-                      <CopyableField 
-                        label="PASSPHRASE (for recovery)" 
-                        value={hit.passphrase} 
-                        fieldId={`pass-${i}`} 
-                      />
-                      <CopyableField 
-                        label="WIF PRIVATE KEY (import to wallet)" 
-                        value={hit.wif} 
-                        fieldId={`wif-${i}`} 
-                      />
-                      <CopyableField 
-                        label="Bitcoin Address" 
-                        value={hit.address} 
-                        fieldId={`addr-${i}`} 
-                      />
-                    </div>
-                  </div>
-                ))}
-
-                {/* Addresses with historical activity (0 balance) - FULL DATA TOO */}
-                {hitsWithActivity.length > 0 && (
-                  <div className="pt-2 border-t">
-                    <div className="text-sm font-medium text-muted-foreground mb-3">
-                      Historical Activity (emptied - 0 balance):
-                    </div>
-                    {hitsWithActivity.map((hit, i) => (
-                      <div key={`hist-${i}`} className="p-3 rounded-lg bg-muted/30 border space-y-3 mb-3">
-                        <div className="flex items-center justify-between text-xs text-muted-foreground">
-                          <span>{hit.txCount} transactions</span>
-                          <span>{hit.isCompressed ? 'Compressed' : 'Uncompressed'}</span>
-                        </div>
-                        
-                        <CopyableField 
-                          label="Passphrase" 
-                          value={hit.passphrase} 
-                          fieldId={`histpass-${i}`} 
-                        />
-                        <CopyableField 
-                          label="WIF Private Key" 
-                          value={hit.wif} 
-                          fieldId={`histwif-${i}`} 
-                        />
-                        <CopyableField 
-                          label="Address" 
-                          value={hit.address} 
-                          fieldId={`histaddr-${i}`} 
-                        />
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </CardContent>
-        </CollapsibleContent>
-      </Card>
-    </Collapsible>
-  );
-}
+// BalanceHitsPanel component removed for agentic platform pivot
 
 function StatsRow({ 
   tested, 
