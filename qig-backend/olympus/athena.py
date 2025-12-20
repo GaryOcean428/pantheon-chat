@@ -26,13 +26,13 @@ class Athena(BaseGod):
         super().__init__("Athena", "Strategy")
         self.learned_patterns: Dict[str, Dict] = {}
         self.strategy_success_rates: Dict[str, float] = {
-            'brainwallet_common': 0.45,
-            'brainwallet_phrase': 0.35,
-            'bip39_partial': 0.55,
+            'semantic_search': 0.45,
+            'pattern_matching': 0.35,
+            'knowledge_graph': 0.55,
             'temporal_pattern': 0.40,
-            'cultural_reference': 0.30,
-            'name_date_combo': 0.25,
-            'dictionary_attack': 0.20,
+            'contextual_analysis': 0.30,
+            'entity_extraction': 0.25,
+            'keyword_search': 0.20,
             'mutation_search': 0.60,
         }
         self.target_assessments: Dict[str, Dict] = {}
@@ -120,7 +120,7 @@ class Athena(BaseGod):
                 }
         
         if target_norm < 0.3:
-            return {'name': 'brainwallet_common', 'success_rate': 0.45}
+            return {'name': 'semantic_search', 'success_rate': 0.45}
         elif target_norm < 0.6:
             return {'name': 'mutation_search', 'success_rate': 0.60}
         else:

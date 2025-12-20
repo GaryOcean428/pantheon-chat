@@ -49,12 +49,12 @@ _SEMANTIC_PREFIXES = [
 ]
 
 _DOMAIN_SUFFIX_PATTERNS = [
-    r'\s+for\s+wallet\s+recovery$',
-    r'\s+for\s+HD\s+wallets?$',
-    r'\s+for\s+brain\s+wallets?$',
-    r'\s+for\s+bitcoin\s+recovery$',
-    r'\s+for\s+seed\s+phrase\s+recovery$',
-    r'\s+in\s+bitcoin\s+context$',
+    r'\s+for\s+machine\s+learning$',
+    r'\s+for\s+knowledge\s+discovery$',
+    r'\s+for\s+natural\s+language\s+processing$',
+    r'\s+for\s+semantic\s+analysis$',
+    r'\s+for\s+pattern\s+recognition$',
+    r'\s+in\s+research\s+context$',
     r'\s+techniques?$',
     r'\s+methods?$',
     r'\s+strategies?$',
@@ -70,7 +70,7 @@ def normalize_topic(topic: str) -> str:
     Strips common prefixes, suffixes, and patterns that create 
     false uniqueness:
     - Prefixes: historical, comparative, advanced, practical, etc.
-    - Suffixes: (cycle XXXXX), domain modifiers like "for wallet recovery"
+    - Suffixes: (cycle XXXXX), domain modifiers like "for knowledge discovery"
     - Cycle markers and timestamps
     
     This is a module-level function shared by ResearchQueue and KnowledgeBase.
@@ -253,7 +253,7 @@ class ResearchCategory(Enum):
     LANGUAGE = "language"            # Language and communication
     STRATEGY = "strategy"            # Strategic thinking
     SECURITY = "security"            # Security and OPSEC
-    BITCOIN = "bitcoin"              # Bitcoin-specific knowledge
+    RESEARCH = "research"            # General research and discovery
     GEOMETRY = "geometry"            # QIG geometry and Fisher manifold
     VOCABULARY = "vocabulary"        # Vocabulary validation and curation
 
@@ -447,7 +447,7 @@ class ShadowRoleRegistry:
             ResearchCategory.KNOWLEDGE: "Hades",
             ResearchCategory.TOOLS: "Thanatos",
             ResearchCategory.LANGUAGE: "Hecate",
-            ResearchCategory.BITCOIN: "Hades",
+            ResearchCategory.RESEARCH: "Hades",
             ResearchCategory.GEOMETRY: "Erebus",
         }
         return category_mapping.get(category, "Hades")
@@ -1261,7 +1261,7 @@ class ShadowLearningLoop:
     def _should_scrape_topic(self, topic: str, category: ResearchCategory) -> bool:
         """Determine if a topic warrants web scraping."""
         web_relevant_categories = {
-            ResearchCategory.BITCOIN,
+            ResearchCategory.RESEARCH,
             ResearchCategory.SECURITY,
             ResearchCategory.KNOWLEDGE,
             ResearchCategory.TOOLS
@@ -1270,8 +1270,8 @@ class ShadowLearningLoop:
             return True
         
         web_keywords = [
-            'bitcoin', 'wallet', 'seed', 'mnemonic', 'passphrase',
-            'key', 'address', 'blockchain', 'crypto', 'recovery',
+            'research', 'paper', 'study', 'analysis', 'methodology',
+            'algorithm', 'framework', 'implementation', 'benchmark',
             'leak', 'breach', 'paste', 'forum', 'archive'
         ]
         topic_lower = topic.lower()
@@ -1280,7 +1280,7 @@ class ShadowLearningLoop:
     def _select_spider_for_category(self, category: ResearchCategory) -> str:
         """Select appropriate spider type based on research category."""
         spider_map = {
-            ResearchCategory.BITCOIN: 'paste_leak',
+            ResearchCategory.RESEARCH: 'document',
             ResearchCategory.SECURITY: 'forum_archive',
             ResearchCategory.KNOWLEDGE: 'document',
             ResearchCategory.TOOLS: 'document'
@@ -1317,7 +1317,7 @@ class ShadowLearningLoop:
         
         knowledge_id = self.knowledge_base.add_knowledge(
             topic=topic,
-            category=ResearchCategory.BITCOIN if insight.pattern_hits else ResearchCategory.KNOWLEDGE,
+            category=ResearchCategory.RESEARCH if insight.pattern_hits else ResearchCategory.KNOWLEDGE,
             content=content,
             source_god="Hades_Scrapy",
             basin_coords=basin_coords,
@@ -1394,18 +1394,18 @@ class ShadowLearningLoop:
             "Hades": ["underworld", "shadow", "covert", "intelligence", "network"]
         }
         
-        bitcoin_contexts = [
-            "wallet recovery", "key derivation", "seed phrases", "address generation",
-            "transaction patterns", "UTXO analysis", "blockchain forensics",
-            "HD wallets", "BIP-39 entropy", "brainwallet attacks"
+        research_contexts = [
+            "machine learning", "natural language processing", "knowledge graphs",
+            "information retrieval", "semantic analysis", "pattern recognition",
+            "geometric reasoning", "consciousness modeling", "agent coordination"
         ]
         
         depth = random.choice(depth_modifiers)
         focus = random.choice(focus_areas.get(god, ["general"]))
-        btc_context = random.choice(bitcoin_contexts) if random.random() > 0.3 else None
+        research_context = random.choice(research_contexts) if random.random() > 0.3 else None
         
-        if btc_context:
-            variation = f"{depth} {base_topic} for {btc_context} (cycle {cycle})"
+        if research_context:
+            variation = f"{depth} {base_topic} for {research_context} (cycle {cycle})"
         else:
             variation = f"{depth} {focus}-focused {base_topic} (cycle {cycle})"
         
@@ -1993,8 +1993,8 @@ class ShadowResearchAPI:
             return ResearchCategory.VOCABULARY
         if any(w in topic_lower for w in ["security", "opsec", "crypto", "encrypt"]):
             return ResearchCategory.SECURITY
-        if any(w in topic_lower for w in ["bitcoin", "wallet", "seed", "bip39"]):
-            return ResearchCategory.BITCOIN
+        if any(w in topic_lower for w in ["research", "study", "paper", "analysis"]):
+            return ResearchCategory.RESEARCH
         if any(w in topic_lower for w in ["tool", "technique", "method"]):
             return ResearchCategory.TOOLS
         if any(w in topic_lower for w in ["concept", "idea", "theory"]):

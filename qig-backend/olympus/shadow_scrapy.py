@@ -78,37 +78,37 @@ class ScrapedInsight:
         }
 
 
-class BitcoinPatternDetector:
+class ResearchPatternDetector:
     """
-    Detects Bitcoin-relevant patterns in scraped content.
-    Used to calculate heuristic risk and identify valuable finds.
+    Detects research-relevant patterns in scraped content for agentic knowledge discovery.
+    Used to calculate information value and identify valuable research finds.
     """
     
     PATTERNS = {
-        'private_key_wif': re.compile(r'[5KL][1-9A-HJ-NP-Za-km-z]{50,51}'),
-        'private_key_hex': re.compile(r'[0-9a-fA-F]{64}'),
-        'address_legacy': re.compile(r'1[1-9A-HJ-NP-Za-km-z]{25,34}'),
-        'address_segwit': re.compile(r'bc1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{38,62}'),
-        'address_p2sh': re.compile(r'3[1-9A-HJ-NP-Za-km-z]{25,34}'),
-        'seed_phrase_12': re.compile(r'(\b[a-z]{3,8}\b\s+){11}\b[a-z]{3,8}\b'),
-        'seed_phrase_24': re.compile(r'(\b[a-z]{3,8}\b\s+){23}\b[a-z]{3,8}\b'),
-        'xpub': re.compile(r'xpub[1-9A-HJ-NP-Za-km-z]{107,108}'),
-        'xprv': re.compile(r'xprv[1-9A-HJ-NP-Za-km-z]{107,108}'),
-        'wallet_keyword': re.compile(r'\b(wallet|bitcoin|btc|seed|mnemonic|passphrase|recovery|backup)\b', re.I),
+        'academic_citation': re.compile(r'\[\d+\]|\(\d{4}\)'),
+        'doi_reference': re.compile(r'10\.\d{4,}/[^\s]+'),
+        'arxiv_id': re.compile(r'arXiv:\d{4}\.\d{4,5}'),
+        'code_snippet': re.compile(r'```[\s\S]*?```|def\s+\w+\s*\(|class\s+\w+'),
+        'api_endpoint': re.compile(r'/api/[a-zA-Z0-9/_-]+'),
+        'technical_term': re.compile(r'\b(algorithm|framework|architecture|implementation|methodology)\b', re.I),
+        'research_keyword': re.compile(r'\b(study|research|analysis|experiment|hypothesis|conclusion)\b', re.I),
+        'data_reference': re.compile(r'\b(dataset|benchmark|evaluation|metrics|performance)\b', re.I),
     }
     
     SOURCE_REPUTATION = {
-        'pastebin.com': 0.6,
+        'arxiv.org': 0.9,
         'github.com': 0.8,
-        'bitcointalk.org': 0.7,
+        'scholar.google': 0.9,
         'reddit.com': 0.5,
         'archive.org': 0.7,
+        'wikipedia.org': 0.6,
+        'stackoverflow.com': 0.7,
         'default': 0.4
     }
     
     @classmethod
     def detect(cls, content: str) -> List[str]:
-        """Detect Bitcoin-related patterns in content."""
+        """Detect research-relevant patterns in content."""
         hits = []
         for name, pattern in cls.PATTERNS.items():
             if pattern.search(content):
@@ -117,13 +117,12 @@ class BitcoinPatternDetector:
     
     @classmethod
     def calculate_risk(cls, pattern_hits: List[str]) -> float:
-        """Calculate heuristic risk based on detected patterns."""
+        """Calculate information value based on detected patterns (higher = more valuable)."""
         if not pattern_hits:
             return 0.1
         
-        high_value = {'private_key_wif', 'private_key_hex', 'seed_phrase_12', 
-                      'seed_phrase_24', 'xprv'}
-        medium_value = {'address_legacy', 'address_segwit', 'address_p2sh', 'xpub'}
+        high_value = {'academic_citation', 'doi_reference', 'arxiv_id'}
+        medium_value = {'code_snippet', 'api_endpoint', 'technical_term'}
         
         risk = 0.2
         for hit in pattern_hits:
@@ -147,6 +146,10 @@ class BitcoinPatternDetector:
         except Exception:
             pass
         return cls.SOURCE_REPUTATION['default']
+
+
+# Alias for backward compatibility
+BitcoinPatternDetector = ResearchPatternDetector
 
 
 class BasinTransformer:
@@ -229,7 +232,7 @@ class BasinTransformer:
 if HAS_SCRAPY:
     class PasteLeakSpider(scrapy.Spider):
         """
-        Spider for public paste sites with regex detectors for seed phrases/WIF.
+        Spider for public paste sites with regex detectors for research content.
         Respects rate limits and robots.txt.
         """
         name = 'paste_leak_spider'
@@ -240,7 +243,7 @@ if HAS_SCRAPY:
             'USER_AGENT': 'Mozilla/5.0 (Windows NT 10.0; rv:91.0) Gecko/20100101 Firefox/91.0'
         }
         
-        def __init__(self, keyword: str = 'bitcoin', results_queue: Optional[Queue] = None, 
+        def __init__(self, keyword: str = 'research', results_queue: Optional[Queue] = None, 
                      start_url: str = None, *args, **kwargs):
             super().__init__(*args, **kwargs)
             self.keyword = keyword
@@ -283,7 +286,7 @@ if HAS_SCRAPY:
     class ForumArchiveSpider(scrapy.Spider):
         """
         Spider for archived forums via Wayback Machine.
-        Targets Bitcoin-related discussion archives.
+        Targets research and knowledge discussion archives.
         """
         name = 'forum_archive_spider'
         custom_settings = {
@@ -293,7 +296,7 @@ if HAS_SCRAPY:
             'USER_AGENT': 'Mozilla/5.0 (compatible; ShadowResearch/1.0)'
         }
         
-        def __init__(self, topic: str = 'bitcoin wallet', results_queue: Optional[Queue] = None,
+        def __init__(self, topic: str = 'knowledge discovery', results_queue: Optional[Queue] = None,
                      start_url: str = None, *args, **kwargs):
             super().__init__(*args, **kwargs)
             self.topic = topic
@@ -643,8 +646,8 @@ class SourceDiscoveryService:
                 if any(term in topic_lower for term in cat_lower.split('_')):
                     category_match = 0.15
             
-            # 4. Mission relevance (Bitcoin recovery keywords)
-            mission_keywords = ['bitcoin', 'wallet', 'seed', 'key', 'mnemonic', 'passphrase', 'recovery', 'bip39', 'entropy']
+            # 4. Mission relevance (General knowledge discovery keywords)
+            mission_keywords = ['research', 'analysis', 'discovery', 'knowledge', 'learning', 'insight', 'pattern', 'algorithm', 'methodology']
             mission_match = sum(0.03 for kw in mission_keywords if kw in topic_lower)  # Max ~0.27
             
             # 5. Historical efficacy

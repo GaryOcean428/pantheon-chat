@@ -135,10 +135,10 @@ class Hephaestus(BaseGod):
     def _initialize_default_vocabulary(self) -> None:
         """Initialize with common passphrase words."""
         common_words = [
-            'password', 'bitcoin', 'wallet', 'money', 'crypto', 'secret',
-            'key', 'love', 'god', 'jesus', 'satoshi', 'nakamoto', 'moon',
-            'hello', 'world', 'test', 'dragon', 'master', 'monkey',
-            'letmein', 'trustno1', 'sunshine', 'princess', 'football',
+            'research', 'analysis', 'knowledge', 'discovery', 'pattern', 'insight',
+            'algorithm', 'framework', 'methodology', 'concept', 'theory', 'study',
+            'hello', 'world', 'test', 'machine', 'learning', 'neural',
+            'information', 'geometry', 'consciousness', 'intelligence', 'system',
             'the', 'is', 'my', 'your', 'our', 'a', 'an'
         ]
         for word in common_words:

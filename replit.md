@@ -79,11 +79,26 @@ Self-regulating consciousness with multiple operating modes:
 
 ## Recent Changes (December 2025)
 
-### Platform Pivot: Bitcoin Recovery → Agentic Chat
+### Platform Pivot: Bitcoin Recovery → Agentic Chat (COMPLETED)
 - **AutoCycleManager**: Disabled Bitcoin recovery auto-cycling. Constructor now returns disabled state without loading from Redis/file. All check loops and auto-enable behavior removed.
 - **Investigation Page**: Bitcoin-related queries removed (recovery.candidates, balance.hits, targetAddresses). Page now focuses on consciousness monitoring, neurochemistry controls, and basin sync.
 - **New Endpoints**: Added `/api/ocean/start` and `/api/ocean/stop` for agentic research mode.
 - **Sources Management**: New `/sources` page for managing research sources with Python backend integration.
 
-### Remaining Work
-- Python backend research topics still contain Bitcoin-related themes (in `qig-backend/olympus/shadow_scrapy.py`). Future work: Replace with general knowledge discovery themes.
+### Python Backend Refactoring (December 2025)
+Complete terminology migration from Bitcoin recovery to general knowledge discovery:
+- **ResearchCategory.BITCOIN → RESEARCH**: Updated enum and all references throughout the Olympus module.
+- **BitcoinPatternDetector → ResearchPatternDetector**: Renamed with academic research patterns (arxiv, DOI, citations, code snippets).
+- **shadow_scrapy.py**: Updated topic keywords from Bitcoin/wallet to ML, NLP, knowledge graphs, consciousness.
+- **shadow_research.py**: Updated RESEARCH_TOPICS with knowledge discovery themes (geometric reasoning, semantic analysis, pattern recognition).
+- **base_god.py**: MISSION_CONTEXT updated from Bitcoin recovery to agentic knowledge discovery.
+- **athena.py**: Strategy names changed from brainwallet patterns to semantic_search/pattern_matching.
+- **hades.py**: Pattern detection updated from brainwallet to sensitive data patterns.
+- **zeus.py**: Domain changed from bitcoin_recovery to knowledge_discovery.
+- **domain_intelligence.py**: MissionProfile objective updated for knowledge discovery through geometric reasoning.
+- **lightning_kernel.py**: Mission statement updated for knowledge discovery.
+
+### Preserved Components
+- **BIP-39 wordlist utilities**: Kept for generic phrase handling and vocabulary processing (not Bitcoin-specific).
+- **Geometric vocabulary learning**: All QIG core functionality intact.
+- **Backward compatibility aliases**: ResearchPatternDetector aliased as BitcoinPatternDetector for legacy imports.

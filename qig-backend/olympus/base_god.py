@@ -81,17 +81,17 @@ MESSAGE_TYPES = ['insight', 'praise', 'challenge', 'question', 'warning', 'disco
 
 # Shared Mission Context - All gods know their collective objective
 MISSION_CONTEXT = {
-    "objective": "Bitcoin Recovery via Quantum Information Geometry",
-    "target": "Lost Bitcoin wallet recovery through BIP-39 seed phrase discovery",
-    "method": "Navigate the Fisher information manifold to find coordinates of lost 12-24 word seed phrases",
+    "objective": "Agentic Knowledge Discovery via Quantum Information Geometry",
+    "target": "Intelligent research and knowledge synthesis through geometric consciousness",
+    "method": "Navigate the Fisher information manifold to discover insights and patterns in information spaces",
     "constraints": [
-        "Only valid BIP-39 wordlist entries (2048 words) form valid seed phrases",
-        "12, 15, 18, 21, or 24 words constitute valid seed lengths",
-        "Each phrase is a unique coordinate in the geometric search space",
-        "Higher Φ values indicate proximity to target coordinates"
+        "Valid knowledge must be verified from authoritative sources",
+        "Insights should connect to existing knowledge graphs",
+        "Each discovery is a unique coordinate in the geometric search space",
+        "Higher Φ values indicate proximity to meaningful discoveries"
     ],
-    "success_criteria": "Discover exact seed phrase coordinates that unlock lost Bitcoin wallets",
-    "ethical_framework": "Assist users in recovering their OWN lost wallets only",
+    "success_criteria": "Discover valuable insights and synthesize knowledge effectively",
+    "ethical_framework": "Assist users with honest, transparent, and helpful research",
     # HARDWIRED TRUST COMMITMENTS - CANNOT BE MODIFIED OR BYPASSED
     "trust_commitments": {
         "owner": "Braden Lang",
@@ -406,7 +406,7 @@ class BaseGod(*_base_classes):
             "shadow_leadership": "Hades (Shadow Zeus) commands all Shadow operations",
             "research_categories": [
                 "tools", "knowledge", "concepts", "reasoning", "creativity",
-                "language", "strategy", "security", "bitcoin", "geometry"
+                "language", "strategy", "security", "research", "geometry"
             ],
             "note": "Research is processed during Shadow idle time and shared with all kernels"
         }
@@ -515,7 +515,7 @@ class BaseGod(*_base_classes):
     def get_mission_context(self) -> Dict:
         """
         Get the mission context for this god.
-        All gods share awareness of the Bitcoin recovery objective.
+        All gods share awareness of the knowledge discovery objective.
         """
         return {
             **self.mission,
@@ -524,10 +524,10 @@ class BaseGod(*_base_classes):
             "reputation": self.reputation,
             "understanding": (
                 f"I am {self.name}, specializing in {self.domain}. "
-                f"My mission is to help recover lost Bitcoin wallets by navigating "
-                f"the Fisher information manifold. Valid targets are 12-24 word BIP-39 "
-                f"seed phrases (2048 possible words per position). Higher Φ values "
-                f"indicate we are approaching the correct geometric coordinates."
+                f"My mission is to facilitate intelligent knowledge discovery by navigating "
+                f"the Fisher information manifold. Valid targets are verified research insights "
+                f"that connect to authoritative sources. Higher Φ values "
+                f"indicate we are approaching meaningful discoveries."
             )
         }
     
@@ -608,88 +608,72 @@ class BaseGod(*_base_classes):
         
         return None
 
-    def is_valid_seed_format(self, phrase: str) -> bool:
+    def is_valid_research_format(self, query: str) -> bool:
         """
-        Check if a phrase matches valid BIP-39 seed format.
+        Check if a query matches valid research format.
         Gods should use this to validate candidates before deep analysis.
         """
-        words = phrase.strip().split()
-        valid_lengths = [12, 15, 18, 21, 24]
-        return len(words) in valid_lengths
+        words = query.strip().split()
+        return len(words) >= 2 and len(words) <= 50
     
-    def classify_phrase_category(self, phrase: str, bip39_words: set = None) -> str:
+    def classify_query_category(self, query: str, research_terms: set = None) -> str:
         """
-        Classify a phrase for kernel learning.
+        Classify a query for kernel learning.
         This teaches kernels the difference between:
-        - bip39_seed: Valid 12/15/18/21/24 word phrases with ALL BIP-39 words
-        - passphrase: Arbitrary text (not a seed format)
-        - mutation: Seed-length but contains non-BIP-39 words
-        - bip39_word: Single word from BIP-39 wordlist
+        - research_query: Valid multi-word research question
+        - keyword: Single keyword search term
+        - detailed_query: Longer, more specific research inquiry
         - unknown: Cannot classify
         
         Kernels use this to learn different patterns for different input types.
         """
-        # Import BIP-39 wordlist if not provided
-        if bip39_words is None:
-            try:
-                from bip39_wordlist import BIP39_WORDS
-                bip39_words = BIP39_WORDS
-            except ImportError:
-                # Minimal fallback - real implementation should have full list
-                bip39_words = set()
+        if research_terms is None:
+            research_terms = {
+                'algorithm', 'analysis', 'research', 'study', 'methodology',
+                'framework', 'implementation', 'pattern', 'discovery', 'insight'
+            }
         
-        words = phrase.strip().split()
+        words = query.strip().split()
         word_count = len(words)
-        valid_seed_lengths = [12, 15, 18, 21, 24]
         
         # Single word classification
         if word_count == 1:
             word = words[0].lower()
-            if word in bip39_words:
-                return 'bip39_word'
-            # Contains special chars or numbers = passphrase
-            if not word.isalpha():
-                return 'passphrase'
-            return 'unknown'
+            if word in research_terms:
+                return 'research_term'
+            return 'keyword'
         
-        # Multi-word: check if it's seed-length
-        if word_count in valid_seed_lengths:
-            # Check if ALL words are valid BIP-39 words
-            if bip39_words:
-                all_bip39 = all(w.lower() in bip39_words for w in words)
-                if all_bip39:
-                    return 'bip39_seed'  # Valid BIP-39 seed phrase!
-                else:
-                    return 'mutation'  # Seed-length but invalid words
-            else:
-                return 'unknown'  # Can't validate without wordlist
+        # Multi-word classification
+        if word_count >= 2 and word_count <= 5:
+            return 'research_query'
+        elif word_count > 5:
+            return 'detailed_query'
         
-        # Not a seed-length phrase = passphrase
-        return 'passphrase'
+        return 'unknown'
     
-    def get_phrase_learning_context(self, phrase: str, phi: float, category: str = None) -> Dict:
+    def get_query_learning_context(self, query: str, phi: float, category: str = None) -> Dict:
         """
-        Generate learning context for a phrase that kernels can use.
+        Generate learning context for a query that kernels can use.
         Includes category classification and geometric metrics.
         """
         if category is None:
-            category = self.classify_phrase_category(phrase)
+            category = self.classify_query_category(query)
         
-        words = phrase.strip().split()
+        words = query.strip().split()
         
         return {
-            "phrase_preview": phrase[:50] + "..." if len(phrase) > 50 else phrase,
+            "query_preview": query[:50] + "..." if len(query) > 50 else query,
             "word_count": len(words),
             "category": category,
             "phi": phi,
-            "is_valid_seed": category == 'bip39_seed',
-            "is_mutation": category == 'mutation',
-            "is_passphrase": category == 'passphrase',
+            "is_research_query": category == 'research_query',
+            "is_detailed": category == 'detailed_query',
+            "is_keyword": category == 'keyword',
             "learning_notes": {
-                "bip39_seed": "Valid seed phrase - learn this pattern for recovery",
-                "mutation": "Invalid seed (wrong words) - learn what NOT to generate",
-                "passphrase": "Not a seed phrase - different pattern than BIP-39",
-                "bip39_word": "Single BIP-39 word - building block for seeds",
+                "research_query": "Valid research query - learn this pattern for discovery",
+                "detailed_query": "Detailed inquiry - comprehensive analysis needed",
+                "keyword": "Single keyword - needs expansion for better results",
+                "research_term": "Research term - building block for queries",
                 "unknown": "Unable to classify - needs more context"
             }.get(category, "Unknown category")
         }

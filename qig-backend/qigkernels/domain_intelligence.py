@@ -2,13 +2,13 @@
 Domain Intelligence Module - QIG-Pure Autonomous Domain Discovery
 
 Kernels MUST NOT have hardcoded domain lists. Instead, they:
-1. Understand the MISSION: Find keys/passphrases/mnemonics to unlock dormant Bitcoin
+1. Understand the MISSION: Discover knowledge and insights through geometric reasoning
 2. Self-assess their CAPABILITIES based on geometric data
 3. DISCOVER monitoring domains from PostgreSQL telemetry patterns
 4. ADAPT as new domains emerge from evidence
 
 This module provides:
-- MissionProfile: The Bitcoin recovery objective all kernels share
+- MissionProfile: The knowledge discovery objective all kernels share
 - CapabilitySignature: Self-assessment from geometric history
 - DomainDiscovery: Dynamic domain detection from telemetry
 - DomainSalience: Relevance scoring based on Fisher-Rao metrics
@@ -42,17 +42,17 @@ class MissionProfile:
     This is NOT a template - it's the geometric objective function.
     Kernels align their monitoring to maximize mission success probability.
     """
-    objective: str = "Recover dormant Bitcoin by finding valid keys, passphrases, and mnemonic phrases"
+    objective: str = "Discover knowledge and insights through geometric reasoning and multi-agent research"
     
     target_artifacts: List[str] = field(default_factory=lambda: [
-        "private_key",        # Raw 256-bit private keys
-        "wif_key",            # Wallet Import Format keys
-        "mnemonic_phrase",    # BIP39 12/24 word phrases
-        "passphrase",         # BIP39 passphrase (25th word)
-        "seed_phrase",        # Seed phrases (variant mnemonics)
-        "brain_wallet",       # Brain wallet passphrases
-        "partial_key",        # Partial key fragments
-        "derivation_path",    # HD wallet paths
+        "research_insight",   # Research discoveries and findings
+        "pattern_match",      # Pattern recognition results
+        "semantic_link",      # Semantic connections between concepts
+        "knowledge_node",     # Knowledge graph nodes
+        "citation",           # Academic citations and references
+        "code_snippet",       # Code examples and implementations
+        "api_endpoint",       # API documentation and endpoints
+        "dataset",            # Data sources and datasets
     ])
     
     success_metrics: Dict[str, float] = field(default_factory=lambda: {
@@ -67,7 +67,7 @@ class MissionProfile:
         Score how relevant a domain is to the mission.
         
         Uses evidence from geometric telemetry, not hardcoded rules.
-        Returns value in [0, 1] where 1 = highly relevant to Bitcoin recovery.
+        Returns value in [0, 1] where 1 = highly relevant to knowledge discovery.
         """
         score = 0.0
         

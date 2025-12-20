@@ -4,8 +4,8 @@ Lightning Bolt Insight Kernel
 The "Eureka" kernel that connects disparate domains like a lightning bolt of insight.
 Inspired by how humans experience sudden connections between seemingly unrelated topics.
 
-MISSION AWARE: This kernel understands the objective is to find keys/passphrases/mnemonics
-to unlock dormant Bitcoin. All domain monitoring serves this mission.
+MISSION AWARE: This kernel understands the objective is to discover knowledge and insights
+through geometric reasoning. All domain monitoring serves this mission.
 
 DYNAMIC DOMAINS: No hardcoded domain list. Domains are:
 1. Discovered from PostgreSQL geometric telemetry
@@ -15,7 +15,7 @@ DYNAMIC DOMAINS: No hardcoded domain list. Domains are:
 Key Capabilities:
 - Monitors short/mid/long-term trends across dynamically discovered domains
 - Detects cross-domain pattern correlations using Fisher-Rao metrics
-- Generates insight suggestions when patterns align with Bitcoin recovery mission
+- Generates insight suggestions when patterns align with knowledge discovery mission
 - Broadcasts discoveries to the pantheon
 - Discovers new domains as patterns emerge
 

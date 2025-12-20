@@ -133,11 +133,11 @@ class WaybackArchive:
         except Exception as e:
             return []
     
-    async def search_bitcoin_forums(self, query: str) -> List[Dict]:
-        """Search archived Bitcoin forums."""
+    async def search_research_forums(self, query: str) -> List[Dict]:
+        """Search archived research and knowledge forums."""
         forums = [
-            'bitcointalk.org',
-            'bitcoin.org/forum',
+            'stackoverflow.com',
+            'reddit.com/r/programming',
         ]
         
         all_findings = []
@@ -145,8 +145,8 @@ class WaybackArchive:
             findings = await self.search_archived_site(
                 url=forum,
                 keyword=query,
-                from_date='20090101',
-                to_date='20151231',
+                from_date='20100101',
+                to_date='20241231',
                 limit=5
             )
             all_findings.extend(findings)
@@ -192,12 +192,12 @@ class PublicPasteScraper:
             })
         self.rate_limit_delay = 2.0
         
-        self.bitcoin_patterns = {
-            'private_key_wif': re.compile(r'[5KL][1-9A-HJ-NP-Za-km-z]{50,51}'),
-            'private_key_hex': re.compile(r'[0-9a-fA-F]{64}'),
-            'address_legacy': re.compile(r'1[1-9A-HJ-NP-Za-km-z]{25,34}'),
-            'address_segwit': re.compile(r'bc1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{38,62}'),
-            'seed_phrase': re.compile(r'(\b[a-z]+\b\s+){11,23}\b[a-z]+\b'),
+        self.research_patterns = {
+            'academic_citation': re.compile(r'\[\d+\]|\(\d{4}\)'),
+            'doi_reference': re.compile(r'10\.\d{4,}/[^\s]+'),
+            'arxiv_id': re.compile(r'arXiv:\d{4}\.\d{4,5}'),
+            'code_snippet': re.compile(r'```[\s\S]*?```|def\s+\w+\s*\(|class\s+\w+'),
+            'api_endpoint': re.compile(r'/api/[a-zA-Z0-9/_-]+'),
         }
     
     async def scrape_pastebin_recent(self, keyword: str) -> List[Dict]:
@@ -235,15 +235,15 @@ class PublicPasteScraper:
                     content = paste_response.text
                     
                     if keyword.lower() in content.lower():
-                        crypto_patterns = self._detect_crypto_patterns(content)
+                        research_patterns = self._detect_research_patterns(content)
                         
                         findings.append({
                             'type': 'paste',
                             'source': 'pastebin',
                             'url': f'https://pastebin.com/{paste_id}',
                             'content_preview': content[:300],
-                            'crypto_patterns': crypto_patterns,
-                            'risk': 'high' if crypto_patterns else 'medium',
+                            'research_patterns': research_patterns,
+                            'value': 'high' if research_patterns else 'medium',
                         })
                         
                 except Exception:
@@ -254,11 +254,11 @@ class PublicPasteScraper:
         
         return findings
     
-    def _detect_crypto_patterns(self, content: str) -> List[str]:
-        """Detect Bitcoin-related patterns in content."""
+    def _detect_research_patterns(self, content: str) -> List[str]:
+        """Detect research-relevant patterns in content."""
         detected = []
         
-        for pattern_name, pattern in self.bitcoin_patterns.items():
+        for pattern_name, pattern in self.research_patterns.items():
             if pattern.search(content):
                 detected.append(pattern_name)
         
@@ -267,15 +267,15 @@ class PublicPasteScraper:
 
 class PublicRSSFeeds:
     """
-    Monitor public RSS feeds for Bitcoin-related content.
+    Monitor public RSS feeds for research-related content.
     No authentication required.
     """
     
     def __init__(self):
         self.enabled = os.getenv('HADES_RSS_ENABLED', 'true').lower() == 'true'
         self.feeds = {
-            'bitcointalk': 'https://bitcointalk.org/index.php?board=1.0;action=.xml',
-            'reddit_bitcoin': 'https://www.reddit.com/r/Bitcoin/.rss',
+            'hackernews': 'https://news.ycombinator.com/rss',
+            'reddit_programming': 'https://www.reddit.com/r/programming/.rss',
         }
     
     async def search_feeds(self, keyword: str) -> List[Dict]:
@@ -370,14 +370,14 @@ class LocalBreachDatabase:
                             'source': db_name,
                             'username': parts[0][:50],
                             'password': parts[1][:100],
-                            'looks_like_brainwallet': self._looks_like_brainwallet(parts[1]),
-                            'risk': 'critical' if self._looks_like_brainwallet(parts[1]) else 'high',
+                            'looks_like_sensitive': self._looks_like_sensitive(parts[1]),
+                            'risk': 'critical' if self._looks_like_sensitive(parts[1]) else 'high',
                         })
         
         return findings[:50]
     
-    def _looks_like_brainwallet(self, password: str) -> bool:
-        """Heuristic: Does password look like brainwallet seed?"""
+    def _looks_like_sensitive(self, password: str) -> bool:
+        """Heuristic: Does password look like sensitive passphrase?"""
         words = password.split()
         if len(words) >= 4:
             return True
@@ -506,7 +506,7 @@ class Hades(BaseGod):
         Search underworld using ONLY anonymous tools.
         
         Args:
-            target: Bitcoin address or search query
+            target: Search query
             search_type: 'comprehensive', 'archives', 'pastes', 'rss', 'breaches'
         
         Returns:
@@ -518,7 +518,7 @@ class Hades(BaseGod):
         
         if search_type in ['comprehensive', 'archives']:
             try:
-                wayback_intel = await self.wayback.search_bitcoin_forums(target)
+                wayback_intel = await self.wayback.search_research_forums(target)
                 intelligence.extend(wayback_intel)
                 if wayback_intel:
                     sources_used.append('wayback')
@@ -834,16 +834,16 @@ class Hades(BaseGod):
         """Get cached intelligence for a target."""
         return self.intelligence_cache.get(target)
     
-    def extract_wallet_patterns(self, intelligence: List[Dict]) -> List[Dict]:
+    def extract_research_patterns(self, intelligence: List[Dict]) -> List[Dict]:
         """
-        Extract wallet-related patterns from intelligence.
+        Extract research-relevant patterns from intelligence.
         """
         patterns = []
         
         pattern_keywords = [
-            'brainwallet', 'passphrase', 'seed phrase', 'recovery phrase',
-            'bip39', 'wallet backup', 'encrypted wallet', 'paper wallet',
-            'cold storage', 'multisig', 'vanity address', 'private key'
+            'algorithm', 'methodology', 'framework', 'implementation',
+            'study', 'research', 'analysis', 'benchmark',
+            'dataset', 'evaluation', 'experiment', 'results'
         ]
         
         for intel in intelligence:
@@ -860,7 +860,7 @@ class Hades(BaseGod):
                         'context': content[start:end],
                         'source': intel.get('source', 'unknown'),
                         'type': intel.get('type', 'unknown'),
-                        'risk': intel.get('risk', 'medium'),
+                        'value': intel.get('value', 'medium'),
                     })
         
         return patterns

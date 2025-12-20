@@ -79,8 +79,8 @@ DEFAULT_CONVERSATION_VOCAB = [
     "kappa",
     "integration",
     "search",
-    "bitcoin",
-    "address",
+    "research",
+    "discovery",
     "zeus",
 ]
 

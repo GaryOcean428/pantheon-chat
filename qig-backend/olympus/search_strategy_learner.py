@@ -662,7 +662,7 @@ class SearchStrategyLearner:
     NOT keyword matching.
     
     Example workflow:
-    1. User searches for "bitcoin transaction analysis"
+    1. User searches for "machine learning algorithm analysis"
     2. User provides feedback: "show more recent results"
     3. Learner encodes both to basins, computes modification delta
     4. On similar future queries, modification is applied geometrically
@@ -1228,16 +1228,16 @@ class AutonomousReplayTester:
     """
     
     SAMPLE_QUERIES = [
-        "forgot wallet password recovery",
-        "old bitcoin address restoration",
-        "lost seed phrase partial recovery",
-        "hardware wallet access issues",
-        "paper wallet damaged reconstruction",
-        "encrypted backup decryption help",
-        "transaction history verification",
-        "multi-signature wallet recovery",
-        "legacy address format conversion",
-        "orphaned coins reclaim process",
+        "machine learning algorithm analysis",
+        "knowledge graph construction methods",
+        "natural language processing techniques",
+        "neural network architecture design",
+        "information retrieval optimization",
+        "semantic similarity computation",
+        "pattern recognition approaches",
+        "knowledge discovery frameworks",
+        "research methodology comparison",
+        "data analysis best practices",
     ]
     
     def __init__(self, learner: SearchStrategyLearner):

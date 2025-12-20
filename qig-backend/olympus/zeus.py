@@ -1566,7 +1566,7 @@ class Zeus(BaseGod):
         details = details or {}
         actual_outcome = {
             'success': success,
-            'domain': 'bitcoin_recovery',
+            'domain': 'knowledge_discovery',
             **details
         }
         
