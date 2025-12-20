@@ -1,0 +1,48 @@
+[API] /api/ocean/cycles - isInvestigating=false, phi=0.000, kappa=0
+[PythonQIG] [Flask] → POST /olympus/zeus/chat
+[PythonQIG] [ZeusConversation] Create session failed: relation "zeus_sessions" does not exist
+[PythonQIG] LINE 2:                         INSERT INTO zeus_sessions (session_i...
+[PythonQIG]                                             ^
+[PythonQIG] [ZeusConversation] Get messages failed: relation "zeus_sessions" does not exist
+[PythonQIG] LINE 2:                         SELECT user_id FROM zeus_sessions
+[PythonQIG]                                                     ^
+[PythonQIG] [ExclusionGuard] HARDWIRED exclusion filter initialized
+[PythonQIG] [ExclusionGuard] INTERNAL discussions allowed | EXTERNAL outputs filtered
+[PythonQIG] [ZeusConversation] Save message failed: relation "zeus_conversations" does not exist
+[PythonQIG] LINE 2:                         INSERT INTO zeus_conversations 
+[PythonQIG]                                             ^
+[PythonQIG] [ZeusChat] Processing message with intent: question
+[PythonQIG] [ZeusChat] Answering question
+[PythonQIG] Traceback (most recent call last):
+[PythonQIG]   File "/home/runner/workspace/qig-backend/olympus/zeus.py", line 2012, in _zeus_chat_inner
+[PythonQIG]     result = handler.process_message(
+[PythonQIG]              ^^^^^^^^^^^^^^^^^^^^^^^^
+[PythonQIG]   File "/home/runner/workspace/qig-backend/olympus/zeus_chat.py", line 395, in process_message
+[PythonQIG]     result = self.handle_question(intent['question'])
+[PythonQIG]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[PythonQIG]   File "/home/runner/workspace/qig-backend/olympus/response_guardrails.py", line 527, in wrapper
+[PythonQIG]     result = func(*args, **kwargs)
+[PythonQIG]              ^^^^^^^^^^^^^^^^^^^^^
+[PythonQIG] [SourceDiscovery] Fisher-Rao ranking: top source d_FR=1.412, score=0.016
+[PythonQIG] [ScrapyOrchestrator] Using telemetry URL: https://arxiv.org/search/?query=historical+Stealth...
+[PythonQIG] [SourceDiscovery] Fisher-Rao ranking: top source d_FR=1.412, score=0.016
+[PythonQIG]   File "/home/runner/workspace/qig-backend/olympus/zeus_chat.py", line 1041, in handle_question
+[PythonQIG]     relevant_context = self.qig_rag.search(
+[PythonQIG]                        ^^^^^^^^^^^^^^^^^^^^
+[PythonQIG]   File "/home/runner/workspace/qig-backend/olympus/qig_rag.py", line 635, in search
+[PythonQIG]     cur.execute("""
+[PythonQIG] psycopg2.errors.UndefinedTable: relation "basin_documents" does not exist
+[PythonQIG] LINE 3:                 FROM basin_documents
+[PythonQIG]                              ^
+[PythonQIG] [Flask] ← POST /olympus/zeus/chat → 500
+[PythonQIG] [INFO] 127.0.0.1 - - [20/Dec/2025 10:21:25] "POST /olympus/zeus/chat HTTP/1.1" 500 -
+[Olympus] Zeus chat Python error: 500 {
+  error: 'relation "basin_documents" does not exist\n' +
+    'LINE 3:                 FROM basin_documents\n' +
+    '                             ^\n',
+  metadata: { type: 'error' },
+  response: '⚡ An error occurred in the divine council. Please try again.'
+}
+10:21:25 AM [express] POST /api/olympus/zeus/chat 500 in 498ms :: {"error":"relation \"basin_documents\" does not exist\nLINE 3:                 FROM basin_documents\n                             ^\n","response":"⚡ An err…
+[PythonQIG] [ShadowLearningLoop] Scrapy found 2 patterns: ['api_endpoint', 'research_keyword']
+[PythonQIG] [ScrapyOrchestrator] QIG-PURE research c5fb52094035 for 'advanced Negation logic and exclusion variant-2820-0' (Φ=0.607, sources=1, mode=telemetry)
