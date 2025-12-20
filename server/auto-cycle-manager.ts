@@ -67,60 +67,26 @@ class AutoCycleManager {
 
   constructor() {
     this.state = this.loadState();
+    
+    // DISABLED: Force disabled on startup - Bitcoin recovery is deprecated
+    // Clear any persisted enabled state
+    if (this.state.enabled) {
+      console.log('[AutoCycleManager] DISABLED: Clearing persisted enabled state - Bitcoin recovery deprecated');
+      this.state.enabled = false;
+      this.saveState();
+    }
+    
     console.log(
-      `[AutoCycleManager] Initialized - enabled=${this.state.enabled}, currentIndex=${this.state.currentIndex}`
+      `[AutoCycleManager] Initialized - DISABLED for platform pivot to agentic chat`
     );
     console.log(
       `[AutoCycleManager] Mode: ${
-        IS_DEV ? "DEVELOPMENT (reduced frequency)" : "PRODUCTION"
-      }`
+        IS_DEV ? "DEVELOPMENT" : "PRODUCTION"
+      } - Bitcoin recovery auto-cycling disabled`
     );
-    if (ALWAYS_ON) {
-      console.log(
-        `[AutoCycleManager] ALWAYS-ON mode enabled - system will auto-restart if stopped`
-      );
-    }
-
-    // Start the check loop if auto-cycle was enabled before restart
-    if (this.state.enabled) {
-      // On restart, if we have a stale currentAddressId but no active session,
-      // clear it so the cycle can resume
-      if (this.state.currentAddressId) {
-        console.log(
-          `[AutoCycleManager] Clearing stale currentAddressId after restart`
-        );
-        this.state.currentAddressId = null;
-        this.isCurrentlyRunning = false;
-        this.saveState();
-      }
-
-      // Always auto-resume on server restart
-      this.startCheckLoop();
-
-      // Trigger the cycle to resume after Python backend has time to start
-      // Python starts 5s after server ready, then needs ~5-10s to be fully available
-      setTimeout(async () => {
-        if (this.state.enabled && !this.isCurrentlyRunning) {
-          console.log(
-            `[AutoCycleManager] Resuming auto-cycle after server restart`
-          );
-          await this.triggerNextCycle();
-        }
-      }, 15000);
-    } else {
-      // If not enabled, try to auto-enable on first startup
-      console.log(
-        `[AutoCycleManager] Auto-cycle not enabled - will auto-enable on startup`
-      );
-      setTimeout(async () => {
-        await this.autoEnableOnStartup();
-      }, 5000);
-    }
-
-    // Start the always-on guardian if ALWAYS_ON is enabled
-    if (ALWAYS_ON) {
-      this.startAlwaysOnGuardian();
-    }
+    
+    // DISABLED: Do not start any check loops or auto-enable
+    // Bitcoin recovery functionality is deprecated in favor of agentic chat
   }
 
   /**

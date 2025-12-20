@@ -86,6 +86,60 @@ oceanRouter.get(
   }
 );
 
+// Start agentic research session (replaces legacy Bitcoin recovery)
+oceanRouter.post(
+  "/start",
+  isAuthenticated,
+  standardLimiter,
+  async (req: any, res: Response) => {
+    try {
+      console.log("[Ocean] Starting agentic research session");
+      
+      // Agentic mode: research happens through Zeus Chat, autonomic manager runs passively
+      // Future: integrate with Shadow Pantheon proactive research
+      
+      res.json({
+        success: true,
+        message: "Agentic research mode active - use Zeus Chat for directed research",
+        mode: "research",
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error: any) {
+      console.error("[Ocean] Start error:", error);
+      res.status(500).json({ 
+        success: false, 
+        error: error.message 
+      });
+    }
+  }
+);
+
+// Stop agentic research session
+oceanRouter.post(
+  "/stop",
+  isAuthenticated,
+  standardLimiter,
+  async (req: any, res: Response) => {
+    try {
+      console.log("[Ocean] Stopping agentic research session");
+      
+      // In agentic mode, "stop" puts the system in passive observation mode
+      
+      res.json({
+        success: true,
+        message: "Research paused - consciousness continues passive observation",
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error: any) {
+      console.error("[Ocean] Stop error:", error);
+      res.status(500).json({ 
+        success: false, 
+        error: error.message 
+      });
+    }
+  }
+);
+
 oceanRouter.get(
   "/neurochemistry",
   generousLimiter,
