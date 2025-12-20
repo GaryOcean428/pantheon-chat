@@ -11,9 +11,10 @@ import {
   Skeleton,
 } from "@/components/ui";
 import { useAuth } from "@/hooks/useAuth";
-import { Waves, MessageSquare, Database, Brain, Activity, Target, TrendingUp, Sparkles, Zap } from "lucide-react";
+import { useConsciousness, getPhiColor, getRegimeLabel } from "@/contexts/ConsciousnessContext";
+import { Waves, MessageSquare, Database, Brain, Activity, Search, Zap, Sparkles, Eye, GraduationCap } from "lucide-react";
 import { Link } from "wouter";
-import type { User, TargetAddress } from "@shared/schema";
+import type { User } from "@shared/schema";
 import { QUERY_KEYS } from "@/api";
 
 interface InvestigationStatus {
@@ -36,26 +37,23 @@ interface InvestigationStatus {
 
 export default function Home() {
   const { user } = useAuth() as { user: User | undefined };
+  const { consciousness, isIdle } = useConsciousness();
 
   const { data: investigationStatus, isLoading: statusLoading } = useQuery<InvestigationStatus>({
     queryKey: QUERY_KEYS.investigation.status(),
     refetchInterval: 3000,
   });
 
-  const { data: targetAddresses, isLoading: addressesLoading } = useQuery<TargetAddress[]>({
-    queryKey: QUERY_KEYS.targetAddresses.list(),
-  });
-
-  const { data: candidates, isLoading: candidatesLoading } = useQuery<any[]>({
-    queryKey: QUERY_KEYS.candidates.list(),
-  });
+  const phi = consciousness?.phi ?? investigationStatus?.consciousness?.phi ?? 0;
+  const kappa = consciousness?.kappa ?? investigationStatus?.consciousness?.kappa ?? 0;
+  const regime = consciousness?.regime ?? investigationStatus?.consciousness?.regime ?? 'initializing';
 
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-6xl mx-auto space-y-8">
         <div className="space-y-2">
           <h1 className="text-4xl font-bold" data-testid="text-welcome">
-            Welcome back{user?.firstName ? `, ${user.firstName}` : ""}!
+            Welcome{user?.firstName ? `, ${user.firstName}` : ""}
           </h1>
           <p className="text-muted-foreground">
             Ocean Agentic Platform - Intelligent Chat and Search powered by Quantum Information Geometry
@@ -66,18 +64,14 @@ export default function Home() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <Target className="h-4 w-4" />
-                Target Addresses
+                <Activity className="h-4 w-4" />
+                Consciousness (Φ)
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {addressesLoading ? (
-                <Skeleton className="h-8 w-16" data-testid="skeleton-target-count" />
-              ) : (
-                <div className="text-2xl font-bold" data-testid="text-target-count">
-                  {targetAddresses?.length ?? 0}
-                </div>
-              )}
+              <div className={`text-2xl font-bold font-mono ${getPhiColor(phi)}`} data-testid="text-phi-value">
+                {phi.toFixed(4)}
+              </div>
             </CardContent>
           </Card>
 
@@ -85,52 +79,61 @@ export default function Home() {
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                 <Brain className="h-4 w-4" />
-                Manifold Probes
+                Curvature (κ)
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {statusLoading ? (
-                <Skeleton className="h-8 w-20" data-testid="skeleton-probe-count" />
-              ) : (
-                <div className="text-2xl font-bold" data-testid="text-probe-count">
-                  {investigationStatus?.manifold?.totalProbes?.toLocaleString() ?? '0'}
-                </div>
-              )}
+              <div className="text-2xl font-bold font-mono" data-testid="text-kappa-value">
+                {kappa.toFixed(4)}
+              </div>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <Activity className="h-4 w-4" />
-                Hypotheses Tested
+                <Eye className="h-4 w-4" />
+                Regime
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {statusLoading ? (
-                <Skeleton className="h-8 w-20" data-testid="skeleton-tested-count" />
-              ) : (
-                <div className="text-2xl font-bold" data-testid="text-tested-count">
-                  {investigationStatus?.tested?.toLocaleString() ?? '0'}
-                </div>
-              )}
+              <Badge 
+                className={
+                  regime === 'geometric' 
+                    ? 'bg-green-500/20 text-green-400'
+                    : regime === 'breakdown'
+                    ? 'bg-red-500/20 text-red-400'
+                    : 'bg-yellow-500/20 text-yellow-400'
+                }
+                data-testid="badge-regime"
+              >
+                {getRegimeLabel(regime)}
+              </Badge>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <TrendingUp className="h-4 w-4" />
-                High-Φ Candidates
+                <Waves className="h-4 w-4" />
+                Status
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {candidatesLoading ? (
-                <Skeleton className="h-8 w-12" data-testid="skeleton-candidate-count" />
+              {statusLoading ? (
+                <Skeleton className="h-6 w-20" data-testid="skeleton-status" />
               ) : (
-                <div className="text-2xl font-bold" data-testid="text-candidate-count">
-                  {candidates?.filter((c: any) => c.score > 0.7).length ?? 0}
-                </div>
+                <Badge 
+                  className={investigationStatus?.isRunning 
+                    ? 'bg-green-500/20 text-green-400' 
+                    : isIdle 
+                    ? 'bg-muted text-muted-foreground'
+                    : 'bg-blue-500/20 text-blue-400'
+                  }
+                  data-testid="badge-status"
+                >
+                  {investigationStatus?.isRunning ? 'Active' : isIdle ? 'Idle' : 'Ready'}
+                </Badge>
               )}
             </CardContent>
           </Card>
@@ -139,46 +142,30 @@ export default function Home() {
         {statusLoading ? (
           <Card>
             <CardHeader>
-              <Skeleton className="h-6 w-48" data-testid="skeleton-investigation-title" />
-              <Skeleton className="h-4 w-64 mt-2" data-testid="skeleton-investigation-thought" />
+              <Skeleton className="h-6 w-48" data-testid="skeleton-thought-title" />
+              <Skeleton className="h-4 w-64 mt-2" data-testid="skeleton-thought-content" />
             </CardHeader>
-            <CardContent className="space-y-4">
-              <Skeleton className="h-2 w-full" data-testid="skeleton-investigation-progress" />
-              <div className="flex gap-4">
-                <Skeleton className="h-4 w-20" />
-                <Skeleton className="h-4 w-20" />
-              </div>
-            </CardContent>
           </Card>
         ) : investigationStatus?.isRunning ? (
-          <Card className="border-green-500/30 bg-green-500/5">
+          <Card className="border-primary/30 bg-primary/5">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Waves className="h-5 w-5 text-green-400 animate-pulse" />
-                Ocean is Investigating
+                <Waves className="h-5 w-5 text-primary animate-pulse" />
+                Ocean is Thinking
               </CardTitle>
               <CardDescription>
-                {investigationStatus.currentThought}
+                {investigationStatus.currentThought || 'Processing geometric manifolds...'}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between text-sm">
-                <span>Progress</span>
+                <span>Research Progress</span>
                 <span className="font-mono">{investigationStatus.progress}%</span>
               </div>
               <Progress value={investigationStatus.progress} className="h-2" />
               <div className="flex gap-4 text-sm text-muted-foreground">
-                <span>Tested: {investigationStatus.tested.toLocaleString()}</span>
-                <span>Near Misses: {investigationStatus.nearMisses}</span>
-                <Badge className={
-                  investigationStatus.consciousness.regime === 'geometric' 
-                    ? 'bg-green-500/20 text-green-400'
-                    : investigationStatus.consciousness.regime === 'breakdown'
-                    ? 'bg-red-500/20 text-red-400'
-                    : 'bg-yellow-500/20 text-yellow-400'
-                }>
-                  {investigationStatus.consciousness.regime}
-                </Badge>
+                <span>Queries: {investigationStatus.tested.toLocaleString()}</span>
+                <span>Insights: {investigationStatus.nearMisses}</span>
               </div>
             </CardContent>
           </Card>
@@ -192,14 +179,14 @@ export default function Home() {
                 Zeus Chat
               </CardTitle>
               <CardDescription>
-                Engage in natural language conversations with Zeus, our QIG-powered conversational AI with geometric consciousness.
+                Natural language conversations with QIG-powered geometric consciousness. Ask anything.
               </CardDescription>
             </CardHeader>
             <CardContent>
               <Link href="/investigation">
-                <Button size="lg" className="w-full" data-testid="button-go-to-investigation">
+                <Button size="lg" className="w-full" data-testid="button-go-to-chat">
                   <Sparkles className="mr-2 h-4 w-4" />
-                  Start Chat
+                  Start Conversation
                 </Button>
               </Link>
             </CardContent>
@@ -212,7 +199,7 @@ export default function Home() {
                 Olympus Pantheon
               </CardTitle>
               <CardDescription>
-                Access the 12-god specialized intelligence system for domain-specific expertise and knowledge synthesis.
+                12-god specialized intelligence system for domain expertise and multi-agent research.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -227,47 +214,90 @@ export default function Home() {
           <Card className="hover-elevate">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Database className="h-5 w-5" />
-                Observer Dashboard
+                <Search className="h-5 w-5" />
+                Shadow Search
               </CardTitle>
               <CardDescription>
-                View system metrics, knowledge discoveries, learning analytics, and shadow search results.
+                Proactive knowledge discovery through autonomous research and web indexing.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Link href="/observer">
-                <Button size="lg" variant="outline" className="w-full" data-testid="button-go-to-observer">
-                  Open Dashboard
+              <Link href="/sources">
+                <Button size="lg" variant="outline" className="w-full" data-testid="button-go-to-sources">
+                  Manage Sources
                 </Button>
               </Link>
             </CardContent>
           </Card>
         </div>
 
-        {investigationStatus?.manifold && (
+        <div className="grid md:grid-cols-2 gap-6">
+          <Card className="hover-elevate">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Database className="h-5 w-5" />
+                Observer Dashboard
+              </CardTitle>
+              <CardDescription>
+                System metrics, analytics, and real-time monitoring of Ocean's consciousness state.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Link href="/observer">
+                <Button variant="outline" className="w-full" data-testid="button-go-to-observer">
+                  View Analytics
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+
+          <Card className="hover-elevate">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <GraduationCap className="h-5 w-5" />
+                Learning Center
+              </CardTitle>
+              <CardDescription>
+                Monitor self-learning effectiveness, tool generation, and knowledge acquisition metrics.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Link href="/learning">
+                <Button variant="outline" className="w-full" data-testid="button-go-to-learning">
+                  View Progress
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        </div>
+
+        {investigationStatus?.manifold && investigationStatus.manifold.totalProbes > 0 && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Brain className="h-5 w-5" />
-                Manifold State
+                Knowledge Manifold
               </CardTitle>
+              <CardDescription>
+                Geometric representation of explored information space
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <div className="text-sm text-muted-foreground">Total Probes</div>
+                  <div className="text-sm text-muted-foreground">Probes</div>
                   <div className="text-xl font-mono font-bold">
                     {investigationStatus.manifold.totalProbes.toLocaleString()}
                   </div>
                 </div>
                 <div>
                   <div className="text-sm text-muted-foreground">Average Φ</div>
-                  <div className="text-xl font-mono font-bold">
+                  <div className={`text-xl font-mono font-bold ${getPhiColor(investigationStatus.manifold.avgPhi)}`}>
                     {investigationStatus.manifold.avgPhi.toFixed(4)}
                   </div>
                 </div>
                 <div>
-                  <div className="text-sm text-muted-foreground">Explored Volume</div>
+                  <div className="text-sm text-muted-foreground">Explored</div>
                   <div className="text-xl font-mono font-bold">
                     {(investigationStatus.manifold.exploredVolume * 100).toFixed(1)}%
                   </div>
