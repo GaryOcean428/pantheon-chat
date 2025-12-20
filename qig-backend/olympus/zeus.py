@@ -181,6 +181,12 @@ class Zeus(BaseGod):
                         research_api = ShadowResearchAPI.get_instance()
                         bridge.wire_research_api(research_api)
                         print("[ToolResearchBridge] Research API connected")
+                        
+                        # Also wire CuriosityResearchBridge for curiosity-driven research
+                        from .shadow_research import CuriosityResearchBridge
+                        curiosity_bridge = CuriosityResearchBridge.get_instance()
+                        curiosity_bridge.wire_research_api(research_api)
+                        print("[CuriosityResearchBridge] Research API connected")
                     except Exception as api_err:
                         print(f"⚠️ Research API wiring failed: {api_err}")
                     

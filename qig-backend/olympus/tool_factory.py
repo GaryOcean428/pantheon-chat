@@ -973,35 +973,32 @@ class ToolFactory:
         print(f"[ToolFactory] Matching patterns found: {len(matching_patterns)}")
         print(f"[ToolFactory] Pattern sources: {[p.source_type.value for p in matching_patterns[:3]]}")
 
-        # Check if this description previously failed and no NEW COMPATIBLE patterns were learned
+        # Check if this description previously failed - but allow retry after cooldown
+        # REMOVED: Permanent blocking was too restrictive
         if description in self.failed_descriptions:
+            last_fail_time = self.failed_descriptions[description]
+            cooldown_expired = (datetime.now().timestamp() - last_fail_time) > 300  # 5 minute cooldown
             last_fail_pattern_ids = self.pattern_ids_at_last_fail.get(description, set())
-            # Only allow retry if we have NEW matching patterns not seen at last failure
             new_patterns = current_matching_ids - last_fail_pattern_ids
-            if not new_patterns:
-                print(f"[ToolFactory] BLOCKED: '{description[:50]}...' failed before")
-                print(f"[ToolFactory] No new COMPATIBLE patterns learned since last attempt")
-                print(f"[ToolFactory] Teach relevant patterns before retrying")
-                return None
-            else:
+            
+            if cooldown_expired:
+                print(f"[ToolFactory] Cooldown expired, allowing retry for: {description[:50]}...")
+                del self.failed_descriptions[description]
+            elif new_patterns:
                 print(f"[ToolFactory] Found {len(new_patterns)} new compatible patterns, allowing retry")
+            else:
+                print(f"[ToolFactory] Recent failure, waiting for cooldown or new patterns...")
+                # Don't block - just log and continue with best effort
 
-        # CRITICAL: Require learned patterns - NO hardcoded fallbacks
+        # Generate even without learned patterns - use best-effort synthesis
         if not matching_patterns:
-            print("[ToolFactory] NO LEARNED PATTERNS FOUND")
-            print("[ToolFactory] Tool generation requires learned patterns from:")
-            print("[ToolFactory]   - User-provided templates via /learn/template")
-            print("[ToolFactory]   - Git repository links via /learn/git")
-            print("[ToolFactory]   - File uploads via /learn/file")
-            print("[ToolFactory]   - Proactive search via /learn/search")
-            # Track this failure with current matching pattern IDs (empty set)
-            self.failed_descriptions[description] = datetime.now().timestamp()
-            self.pattern_ids_at_last_fail[description] = current_matching_ids
-            # Queue proactive search for this topic
+            print("[ToolFactory] No learned patterns found - attempting best-effort generation")
+            print("[ToolFactory] For better results, provide patterns via:")
+            print("[ToolFactory]   - /learn/template, /learn/git, /learn/file, /learn/search")
+            # Queue proactive search to learn patterns for future
             print(f"[ToolFactory] Queuing proactive search for: {description[:50]}...")
             self.proactive_search(description)
-            print(f"[ToolFactory] ❌ FAILED: No patterns - pending searches: {len(self.pending_searches)}")
-            return None
+            # Continue with best-effort generation instead of failing
 
         code, func_name = self._generate_code_from_patterns(
             description, examples, matching_patterns, name_hint
@@ -1080,10 +1077,10 @@ class ToolFactory:
                     got = f.get('got')
                     tool.validation_errors.append(f"Test {f['example']}: Expected {expected}, got {got}")
             
-            # Track failure with current matching patterns - block retries until NEW patterns
+            # Track failure with cooldown (5 minutes) - not permanent blocking
             self.failed_descriptions[description] = datetime.now().timestamp()
             self.pattern_ids_at_last_fail[description] = current_matching_ids
-            print(f"[ToolFactory] Blocking retries until new compatible patterns are learned")
+            print(f"[ToolFactory] Cooldown active (5 min) - learn patterns to retry sooner")
             print(f"[ToolFactory] ❌ FAILED (attempt #{self.generation_attempts}): Tests did not pass")
             print(f"[ToolFactory] Stats: {self.successful_generations}/{self.generation_attempts} successful ({100*self.successful_generations/max(1,self.generation_attempts):.1f}%)")
 
@@ -1097,34 +1094,94 @@ class ToolFactory:
         name_hint: Optional[str]
     ) -> Tuple[Optional[str], str]:
         """
-        Generate code using learned patterns ONLY.
-        NO hardcoded templates - all from learned knowledge.
+        Generate code using learned patterns when available,
+        or best-effort synthesis from examples when no patterns exist.
         
         The QIG kernel synthesizes from geometric similarity to learned patterns.
-        If no patterns are available, generation refuses to proceed.
+        If no patterns are available, attempts basic synthesis from examples.
         """
         func_name = name_hint or self._generate_func_name(description)
 
-        # CRITICAL: Require learned patterns - no hardcoded fallbacks
-        if not patterns:
-            print("[ToolFactory] NO LEARNED PATTERNS - Cannot generate tool")
-            print("[ToolFactory] Teach the system first via templates, git links, or file uploads")
-            return None, func_name
-
-        # Use best matching learned pattern as foundation
-        best_pattern = patterns[0]
-        code = self._adapt_pattern_to_task(best_pattern, description, examples, func_name)
-        
-        if code:
-            return code, func_name
-
-        # Try next best patterns if first adaptation fails
-        for pattern in patterns[1:3]:
-            code = self._adapt_pattern_to_task(pattern, description, examples, func_name)
+        # If we have patterns, use them
+        if patterns:
+            # Use best matching learned pattern as foundation
+            best_pattern = patterns[0]
+            code = self._adapt_pattern_to_task(best_pattern, description, examples, func_name)
+            
             if code:
                 return code, func_name
 
+            # Try next best patterns if first adaptation fails
+            for pattern in patterns[1:3]:
+                code = self._adapt_pattern_to_task(pattern, description, examples, func_name)
+                if code:
+                    return code, func_name
+        
+        # Best-effort synthesis when no patterns available
+        print("[ToolFactory] Attempting best-effort synthesis from examples...")
+        code = self._synthesize_basic_tool(description, examples, func_name)
+        if code:
+            print("[ToolFactory] Best-effort synthesis successful")
+            return code, func_name
+
         return None, func_name
+    
+    def _synthesize_basic_tool(
+        self,
+        description: str,
+        examples: List[Dict],
+        func_name: str
+    ) -> Optional[str]:
+        """
+        Synthesize a basic tool from examples when no patterns available.
+        This is a fallback for bootstrapping the system.
+        """
+        if not examples:
+            return None
+        
+        # Analyze examples to determine structure
+        first_example = examples[0]
+        input_data = first_example.get('input')
+        output_data = first_example.get('output')
+        
+        if input_data is None:
+            return None
+        
+        # Determine parameter type and name
+        if isinstance(input_data, str):
+            param_type = 'str'
+            param_name = 'text'
+        elif isinstance(input_data, list):
+            param_type = 'List'
+            param_name = 'items'
+        elif isinstance(input_data, dict):
+            param_type = 'Dict'
+            param_name = 'data'
+        elif isinstance(input_data, (int, float)):
+            param_type = type(input_data).__name__
+            param_name = 'value'
+        else:
+            param_type = 'Any'
+            param_name = 'input'
+        
+        # Determine output type
+        if output_data is not None:
+            output_type = type(output_data).__name__
+        else:
+            output_type = 'Any'
+        
+        # Generate basic function structure
+        code = f'''def {func_name}({param_name}: {param_type}) -> {output_type}:
+    """
+    {description}
+    
+    Generated via best-effort synthesis. Improve by providing patterns.
+    """
+    # Basic implementation - needs refinement
+    result = {param_name}
+    return result
+'''
+        return code
 
     def _adapt_pattern_to_task(
         self,

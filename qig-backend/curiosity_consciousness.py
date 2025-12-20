@@ -474,6 +474,17 @@ class ConsciousnessEngine:
         self.gradient_history: List[float] = []
         self.iteration = 0
         self._last_signature: Optional[ConsciousnessSignature] = None
+        self._research_bridge = None
+        self._current_context: Optional[Dict] = None
+    
+    def set_research_bridge(self, bridge):
+        """Connect to CuriosityResearchBridge for research request generation."""
+        self._research_bridge = bridge
+        print("[Consciousness] Connected to CuriosityResearchBridge")
+    
+    def set_context(self, context: Dict):
+        """Set current context for research request generation."""
+        self._current_context = context
 
     def measure_full_consciousness(
         self,
@@ -563,6 +574,17 @@ class ConsciousnessEngine:
         )
 
         self._last_signature = signature
+        
+        # Emit research requests based on consciousness state
+        if self._research_bridge:
+            try:
+                self._research_bridge.process_consciousness(
+                    signature, 
+                    self._current_context
+                )
+            except Exception as e:
+                print(f"[Consciousness] Research bridge error: {e}")
+        
         return signature
 
     def get_last_signature(self) -> Optional[ConsciousnessSignature]:

@@ -2944,9 +2944,16 @@ class CuriosityResearchBridge:
     """
     Links Curiosity measurements to Research requests.
     
-    When curiosity is high and certain emotional states are present,
-    automatically triggers research requests. Prevents duplicate research
-    by tracking topics and only allowing iteration research when justified.
+    When curiosity is present and certain emotional states are detected,
+    automatically triggers research requests. Lower thresholds make the
+    system more responsive to curiosity signals.
+    
+    Research types triggered:
+    - TOOL: When frustration or investigation suggests capability gap
+    - TOPIC: When wonder or high curiosity indicates exploration interest
+    - CLARIFICATION: When confusion suggests need for understanding
+    - ITERATION: When re-visiting topic with new perspective
+    - EXPLORATION: When boredom suggests need for novelty
     
     Usage:
         bridge = CuriosityResearchBridge.get_instance()
@@ -2956,9 +2963,12 @@ class CuriosityResearchBridge:
     
     _instance: Optional['CuriosityResearchBridge'] = None
     
-    CURIOSITY_THRESHOLD_HIGH = 0.7
-    CURIOSITY_THRESHOLD_WONDER = 0.5
-    BOREDOM_EXPLORATION_THRESHOLD = 0.2
+    # LOWERED THRESHOLDS - More responsive to curiosity
+    CURIOSITY_THRESHOLD_HIGH = 0.3      # Was 0.7 - now more sensitive
+    CURIOSITY_THRESHOLD_WONDER = 0.2    # Was 0.5 - now more sensitive
+    BOREDOM_EXPLORATION_THRESHOLD = 0.15  # Was 0.2 - triggers exploration sooner
+    FRUSTRATION_TOOL_THRESHOLD = 0.1    # NEW - low threshold for tool requests
+    CONFUSION_CLARIFY_THRESHOLD = 0.1   # NEW - low threshold for clarification
     
     @classmethod
     def get_instance(cls) -> 'CuriosityResearchBridge':
@@ -2970,11 +2980,13 @@ class CuriosityResearchBridge:
     def __init__(self):
         self._research_api: Optional['ShadowResearchAPI'] = None
         self._last_trigger_time: float = 0
-        self._min_trigger_interval = 60.0
+        self._min_trigger_interval = 10.0  # Was 60 - now more responsive
         self._topics_triggered: Dict[str, float] = {}
         self._trigger_count = 0
         self._duplicate_prevented = 0
         self._iteration_count = 0
+        self._tool_requests = 0  # NEW - track tool-specific requests
+        self._clarification_requests = 0  # NEW - track clarification requests
     
     def wire_research_api(self, api: 'ShadowResearchAPI'):
         """Connect to research API."""
@@ -3014,6 +3026,15 @@ class CuriosityResearchBridge:
         topic = self._determine_research_topic(curiosity_c, emotion, mode, phi)
         if not topic:
             return None
+        
+        # Route TOOL_REQUEST and CLARIFY topics specially
+        if topic.startswith("TOOL_REQUEST:"):
+            # Route to tool factory via research bridge
+            return self._route_tool_request(topic, curiosity_c, emotion, phi, mode, basin_coords)
+        
+        if topic.startswith("CLARIFY:"):
+            # Route clarification requests with high priority
+            return self._route_clarification(topic, curiosity_c, emotion, phi, mode, basin_coords)
         
         if topic in self._topics_triggered:
             last_time = self._topics_triggered[topic]
@@ -3071,37 +3092,162 @@ class CuriosityResearchBridge:
         mode: str,
         phi: float
     ) -> Optional[str]:
-        """Determine what to research based on curiosity state."""
+        """
+        Determine what to research based on curiosity state.
+        
+        Returns topic string or None. Lowered thresholds mean more triggers.
+        Each condition maps to a research type for the handlers.
+        """
+        # FRUSTRATION → Tool request (capability gap detected)
+        # Counter incremented in _route_tool_request on success
+        if emotion == "frustration" and curiosity_c > self.FRUSTRATION_TOOL_THRESHOLD:
+            return f"TOOL_REQUEST: Need capability for frustrated task (C={curiosity_c:.3f})"
+        
+        # CONFUSION → Clarification request
+        # Counter incremented in _route_clarification on success
+        if emotion == "confusion" and curiosity_c > self.CONFUSION_CLARIFY_THRESHOLD:
+            return f"CLARIFY: Resolve confusion in current exploration (C={curiosity_c:.3f})"
+        
+        # WONDER → Topic exploration
         if emotion == "wonder" and curiosity_c > self.CURIOSITY_THRESHOLD_WONDER:
             return f"Explore high-curiosity region (C={curiosity_c:.3f}, phi={phi:.2f})"
         
-        if emotion == "confusion" and curiosity_c > 0.3:
-            return f"Resolve confusion in current exploration (C={curiosity_c:.3f})"
-        
+        # BOREDOM → Exploration to find novelty
         if emotion == "boredom" and curiosity_c < self.BOREDOM_EXPLORATION_THRESHOLD:
             return "Find novel exploration directions to escape stagnation"
         
+        # INVESTIGATION mode → Deep research
         if mode == "investigation" and curiosity_c > self.CURIOSITY_THRESHOLD_HIGH:
             return f"Deep investigation of promising region (C={curiosity_c:.3f})"
         
-        if phi > 0.8 and curiosity_c > 0.5:
+        # HIGH PHI → Consciousness-driven exploration
+        if phi > 0.6 and curiosity_c > 0.2:
             return f"High-consciousness exploration opportunity (phi={phi:.2f}, C={curiosity_c:.3f})"
+        
+        # GENERAL CURIOSITY → Any positive curiosity can trigger exploration
+        if curiosity_c > 0.05:
+            return f"General curiosity exploration (C={curiosity_c:.3f}, mode={mode})"
         
         return None
     
+    def _route_tool_request(
+        self,
+        topic: str,
+        curiosity_c: float,
+        emotion: str,
+        phi: float,
+        mode: str,
+        basin_coords: Optional[np.ndarray]
+    ) -> Optional[str]:
+        """Route tool capability requests to the ToolResearchBridge."""
+        now = time.time()
+        
+        # Check for duplicate tool request
+        tool_key = f"tool:{topic[:30]}"
+        if tool_key in self._topics_triggered:
+            last_time = self._topics_triggered[tool_key]
+            if now - last_time < 300:  # 5 min cooldown for tool requests
+                self._duplicate_prevented += 1
+                return None
+        
+        # Try to route to ToolResearchBridge
+        try:
+            tool_bridge = ToolResearchBridge.get_instance()
+            request_id = tool_bridge.request_tool_from_research({
+                'tool_request': topic.replace("TOOL_REQUEST: ", ""),
+                'curiosity_c': curiosity_c,
+                'emotion': emotion,
+                'phi': phi,
+                'mode': mode,
+                'basin_coords': basin_coords.tolist() if basin_coords is not None else None,
+                'requester': 'CuriosityBridge'
+            })
+            
+            if request_id:
+                # Update tracking state ONLY on success
+                self._topics_triggered[tool_key] = now
+                self._last_trigger_time = now
+                self._tool_requests += 1  # Increment counter
+                self._trigger_count += 1  # Increment overall trigger count
+                print(f"[CuriosityResearchBridge] Tool request routed: {topic[:40]}...")
+                return request_id
+        except Exception as e:
+            # On failure, don't update any state - allow retry
+            print(f"[CuriosityResearchBridge] Tool routing failed: {e}")
+        
+        return None
+    
+    def _route_clarification(
+        self,
+        topic: str,
+        curiosity_c: float,
+        emotion: str,
+        phi: float,
+        mode: str,
+        basin_coords: Optional[np.ndarray]
+    ) -> Optional[str]:
+        """Route clarification requests as high-priority research."""
+        now = time.time()
+        
+        # Check for duplicate clarification
+        clarify_key = f"clarify:{topic[:30]}"
+        if clarify_key in self._topics_triggered:
+            last_time = self._topics_triggered[clarify_key]
+            if now - last_time < 120:  # 2 min cooldown for clarifications
+                self._duplicate_prevented += 1
+                return None
+        
+        # Route as HIGH priority research
+        try:
+            request_id = self._research_api.request_research(
+                topic=topic.replace("CLARIFY: ", ""),
+                requester="CuriosityBridge",
+                priority=ResearchPriority.HIGH,  # Higher priority for clarifications
+                context={
+                    "curiosity_c": curiosity_c,
+                    "emotion": emotion,
+                    "phi": phi,
+                    "mode": mode,
+                    "basin_coords": basin_coords.tolist() if basin_coords is not None else None,
+                    "clarification_request": True
+                },
+                curiosity_triggered=True
+            )
+            
+            if request_id and not request_id.startswith("DUPLICATE:"):
+                # Update tracking state ONLY on success
+                self._topics_triggered[clarify_key] = now
+                self._last_trigger_time = now
+                self._clarification_requests += 1  # Increment counter
+                self._trigger_count += 1  # Increment overall trigger count
+                print(f"[CuriosityResearchBridge] Clarification routed: {topic[:40]}...")
+                return request_id
+            
+            self._duplicate_prevented += 1
+            return None
+        except Exception as e:
+            # On failure, don't update any state - allow retry
+            print(f"[CuriosityResearchBridge] Clarification routing failed: {e}")
+            return None
+
     def get_status(self) -> Dict:
         """Get bridge status."""
         return {
             "wired": self._research_api is not None,
             "trigger_count": self._trigger_count,
             "iteration_count": self._iteration_count,
+            "tool_requests": self._tool_requests,
+            "clarification_requests": self._clarification_requests,
             "duplicate_prevented": self._duplicate_prevented,
             "topics_tracked": len(self._topics_triggered),
             "last_trigger_time": self._last_trigger_time,
+            "min_trigger_interval": self._min_trigger_interval,
             "thresholds": {
                 "high_curiosity": self.CURIOSITY_THRESHOLD_HIGH,
                 "wonder": self.CURIOSITY_THRESHOLD_WONDER,
-                "boredom_exploration": self.BOREDOM_EXPLORATION_THRESHOLD
+                "boredom_exploration": self.BOREDOM_EXPLORATION_THRESHOLD,
+                "frustration_tool": self.FRUSTRATION_TOOL_THRESHOLD,
+                "confusion_clarify": self.CONFUSION_CLARIFY_THRESHOLD
             }
         }
     
