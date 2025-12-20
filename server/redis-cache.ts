@@ -1,28 +1,21 @@
 /**
  * Redis Cache Layer for TypeScript
  * 
- * Provides fast caching for high-volume operations like tested phrases.
- * Works as a write-through cache: Redis → PostgreSQL
+ * DISABLED: Redis is no longer used. PostgreSQL is the primary storage.
+ * All functions return stub values to maintain compatibility with existing code.
  * 
- * QIG Purity: Redis is geometry-agnostic storage.
+ * QIG Purity: PostgreSQL is the sole data layer.
  */
 
-import Redis from 'ioredis';
-
-const REDIS_URL = process.env.REDIS_URL;
-
-let redis: Redis | null = null;
-let isConnected = false;
-
-// TTLs in seconds
+// TTLs in seconds (kept for interface compatibility)
 export const CACHE_TTL = {
-  SHORT: 300,      // 5 min for hot data
-  MEDIUM: 3600,    // 1 hour for session data
-  LONG: 86400,     // 24 hours for learned patterns
-  PERMANENT: 86400 * 7,  // 7 days for critical data
+  SHORT: 300,
+  MEDIUM: 3600,
+  LONG: 86400,
+  PERMANENT: 86400 * 7,
 };
 
-// Key prefixes for namespacing
+// Key prefixes for namespacing (kept for interface compatibility)
 export const CACHE_KEYS = {
   TESTED_PHRASE: 'tested:',
   BALANCE_HIT: 'hit:',
@@ -35,239 +28,105 @@ export const CACHE_KEYS = {
 };
 
 /**
- * Initialize Redis connection
+ * Initialize Redis connection - DISABLED
  */
-export function initRedis(): Redis | null {
-  if (!REDIS_URL) {
-    console.log('[Redis] No REDIS_URL found - using in-memory cache only');
-    return null;
-  }
-
-  try {
-    redis = new Redis(REDIS_URL, {
-      maxRetriesPerRequest: 3,
-      retryStrategy(times) {
-        if (times > 3) return null;
-        return Math.min(times * 100, 3000);
-      },
-      lazyConnect: true,
-    });
-
-    redis.on('connect', () => {
-      isConnected = true;
-      console.log('[Redis] Connected to Redis cache');
-    });
-
-    redis.on('error', (err) => {
-      console.error('[Redis] Connection error:', err.message);
-      isConnected = false;
-    });
-
-    redis.on('close', () => {
-      isConnected = false;
-      console.log('[Redis] Connection closed');
-    });
-
-    // Attempt connection
-    redis.connect().catch((err) => {
-      console.error('[Redis] Initial connection failed:', err.message);
-    });
-
-    return redis;
-  } catch (error) {
-    console.error('[Redis] Initialization error:', error);
-    return null;
-  }
+export function initRedis(): null {
+  console.log('[Redis] DISABLED - using PostgreSQL as primary storage');
+  return null;
 }
 
 /**
- * Get Redis client (lazy init)
+ * Get Redis client - DISABLED
  */
-export function getRedis(): Redis | null {
-  if (!redis && REDIS_URL) {
-    return initRedis();
-  }
-  return redis;
+export function getRedis(): null {
+  return null;
 }
 
 /**
- * Check if Redis is available
+ * Check if Redis is available - always false (DISABLED)
  */
 export function isRedisAvailable(): boolean {
-  return isConnected && redis !== null;
+  return false;
 }
 
 /**
- * Set a value with optional TTL
+ * Set a value with optional TTL - DISABLED
  */
 export async function cacheSet(
-  key: string,
-  value: unknown,
-  ttlSeconds: number = CACHE_TTL.MEDIUM
+  _key: string,
+  _value: unknown,
+  _ttlSeconds: number = CACHE_TTL.MEDIUM
 ): Promise<boolean> {
-  const client = getRedis();
-  if (!client || !isConnected) return false;
-
-  try {
-    const serialized = JSON.stringify(value);
-    await client.setex(key, ttlSeconds, serialized);
-    return true;
-  } catch (error) {
-    console.error('[Redis] Set error:', error);
-    return false;
-  }
+  return false;
 }
 
 /**
- * Get a value
+ * Get a value - DISABLED
  */
-export async function cacheGet<T>(key: string): Promise<T | null> {
-  const client = getRedis();
-  if (!client || !isConnected) return null;
-
-  try {
-    const value = await client.get(key);
-    if (!value) return null;
-    return JSON.parse(value) as T;
-  } catch (error) {
-    console.error('[Redis] Get error:', error);
-    return null;
-  }
+export async function cacheGet<T>(_key: string): Promise<T | null> {
+  return null;
 }
 
 /**
- * Check if key exists
+ * Check if key exists - DISABLED
  */
-export async function cacheExists(key: string): Promise<boolean> {
-  const client = getRedis();
-  if (!client || !isConnected) return false;
-
-  try {
-    const exists = await client.exists(key);
-    return exists === 1;
-  } catch (error) {
-    return false;
-  }
+export async function cacheExists(_key: string): Promise<boolean> {
+  return false;
 }
 
 /**
- * Delete a key
+ * Delete a key - DISABLED
  */
-export async function cacheDel(key: string): Promise<boolean> {
-  const client = getRedis();
-  if (!client || !isConnected) return false;
-
-  try {
-    await client.del(key);
-    return true;
-  } catch (error) {
-    return false;
-  }
+export async function cacheDel(_key: string): Promise<boolean> {
+  return false;
 }
 
 /**
- * Set multiple values in a hash
+ * Set multiple values in a hash - DISABLED
  */
 export async function cacheHSet(
-  hashKey: string,
-  field: string,
-  value: unknown
+  _hashKey: string,
+  _field: string,
+  _value: unknown
 ): Promise<boolean> {
-  const client = getRedis();
-  if (!client || !isConnected) return false;
-
-  try {
-    const serialized = JSON.stringify(value);
-    await client.hset(hashKey, field, serialized);
-    return true;
-  } catch (error) {
-    return false;
-  }
+  return false;
 }
 
 /**
- * Get a field from a hash
+ * Get a field from a hash - DISABLED
  */
-export async function cacheHGet<T>(hashKey: string, field: string): Promise<T | null> {
-  const client = getRedis();
-  if (!client || !isConnected) return null;
-
-  try {
-    const value = await client.hget(hashKey, field);
-    if (!value) return null;
-    return JSON.parse(value) as T;
-  } catch (error) {
-    return null;
-  }
+export async function cacheHGet<T>(_hashKey: string, _field: string): Promise<T | null> {
+  return null;
 }
 
 /**
- * Check if field exists in hash
+ * Check if field exists in hash - DISABLED
  */
-export async function cacheHExists(hashKey: string, field: string): Promise<boolean> {
-  const client = getRedis();
-  if (!client || !isConnected) return false;
-
-  try {
-    const exists = await client.hexists(hashKey, field);
-    return exists === 1;
-  } catch (error) {
-    return false;
-  }
+export async function cacheHExists(_hashKey: string, _field: string): Promise<boolean> {
+  return false;
 }
 
 /**
- * Increment a counter
+ * Increment a counter - DISABLED
  */
-export async function cacheIncr(key: string): Promise<number> {
-  const client = getRedis();
-  if (!client || !isConnected) return 0;
-
-  try {
-    return await client.incr(key);
-  } catch (error) {
-    return 0;
-  }
+export async function cacheIncr(_key: string): Promise<number> {
+  return 0;
 }
 
 /**
- * Get cache stats
+ * Get cache stats - DISABLED
  */
 export async function getCacheStats(): Promise<{
   connected: boolean;
   keys?: number;
   memory?: string;
 }> {
-  const client = getRedis();
-  if (!client || !isConnected) {
-    return { connected: false };
-  }
-
-  try {
-    const info = await client.info('memory');
-    const dbSize = await client.dbsize();
-    
-    const memMatch = info.match(/used_memory_human:(.+)/);
-    const memory = memMatch ? memMatch[1].trim() : 'unknown';
-
-    return {
-      connected: true,
-      keys: dbSize,
-      memory,
-    };
-  } catch (error) {
-    return { connected: false };
-  }
+  return { connected: false };
 }
 
 /**
- * Pipeline multiple operations
+ * Pipeline multiple operations - DISABLED
  */
-export function getPipeline() {
-  const client = getRedis();
-  if (!client || !isConnected) return null;
-  return client.pipeline();
+export function getPipeline(): null {
+  return null;
 }
-
-// Initialize on module load
-initRedis();
