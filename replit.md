@@ -102,3 +102,12 @@ Complete terminology migration from Bitcoin recovery to general knowledge discov
 - **BIP-39 wordlist utilities**: Kept for generic phrase handling and vocabulary processing (not Bitcoin-specific).
 - **Geometric vocabulary learning**: All QIG core functionality intact.
 - **Backward compatibility aliases**: ResearchPatternDetector aliased as BitcoinPatternDetector for legacy imports.
+
+### Database Schema Synchronization (December 2025)
+Complete synchronization between TypeScript (Drizzle) and Python persistence layers:
+- **kernel_geometry table**: Added id field generation in Python persistence, made snapshot_data nullable, fixed array_length() function usage (was vector_dims for real[] arrays).
+- **tested_phrases table**: Added regime column for geometric classification.
+- **search_feedback table**: Added search_params and source columns for source discovery.
+- **chaos_events table**: Added phi_before, phi_after, success, outcome columns.
+- **Kernel Persistence Working**: Python code generates unique id values (kg_UUID format) for kernel_geometry inserts with ON CONFLICT (kernel_id) upsert support.
+- **Evolution System Active**: Kernels now persist, restore, breed, and evolve across restarts.

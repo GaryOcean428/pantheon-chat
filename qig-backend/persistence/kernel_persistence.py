@@ -50,15 +50,18 @@ class KernelPersistence(BasePersistence):
         metadata: Optional[Dict] = None,
     ) -> bool:
         """Save a kernel snapshot to the database."""
+        import uuid
+        record_id = f"kg_{uuid.uuid4().hex[:16]}"
+        
         query = """
             INSERT INTO kernel_geometry (
-                kernel_id, god_name, domain, generation, basin_coordinates,
+                id, kernel_id, god_name, domain, generation, basin_coordinates,
                 phi, kappa, regime, success_count, failure_count,
                 primitive_root, element_group, ecological_niche,
                 target_function, valence, breeding_target,
                 parent_kernels, metadata, spawned_at
             ) VALUES (
-                %s, %s, %s, %s, %s,
+                %s, %s, %s, %s, %s, %s,
                 %s, %s, %s, %s, %s,
                 %s, %s, %s,
                 %s, %s, %s,
@@ -84,7 +87,7 @@ class KernelPersistence(BasePersistence):
         coords_64d = ensure_64d_coords(basin_coords)
         
         params = (
-            kernel_id, god_name, domain, generation, coords_64d,
+            record_id, kernel_id, god_name, domain, generation, coords_64d,
             phi, kappa, regime, success_count, failure_count,
             e8_root_index, element_group, ecological_niche,
             target_function, valence, breeding_target,
@@ -140,7 +143,7 @@ class KernelPersistence(BasePersistence):
             SELECT * FROM kernel_geometry
             WHERE phi >= %s
               AND basin_coordinates IS NOT NULL 
-              AND vector_dims(basin_coordinates) = 64
+              AND array_length(basin_coordinates, 1) = 64
             ORDER BY phi DESC, success_count DESC
             LIMIT %s
         """
@@ -151,12 +154,12 @@ class KernelPersistence(BasePersistence):
         """Load most recently active kernels for startup restoration.
         
         Only returns kernels with valid 64-dimensional basin_coordinates.
-        Uses vector_dims() for pgvector column type.
+        Uses array_length() for real[] column type.
         """
         query = """
             SELECT * FROM kernel_geometry
             WHERE basin_coordinates IS NOT NULL 
-              AND vector_dims(basin_coordinates) = 64
+              AND array_length(basin_coordinates, 1) = 64
             ORDER BY spawned_at DESC, success_count DESC
             LIMIT %s
         """
