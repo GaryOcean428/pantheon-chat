@@ -15,10 +15,11 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Switch,
 } from "@/components/ui";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Globe, Plus, Trash2, RefreshCw, Activity, TrendingUp, Clock, ExternalLink } from "lucide-react";
+import { Globe, Plus, Trash2, RefreshCw, Activity, TrendingUp, Clock, ExternalLink, Search, Key, AlertTriangle } from "lucide-react";
 
 interface Source {
   url: string;
@@ -36,6 +37,21 @@ interface SourcesResponse {
   success: boolean;
   sources: Source[];
   total: number;
+}
+
+interface ProviderInfo {
+  available: boolean;
+  enabled: boolean;
+  requires_key: boolean;
+  has_key?: boolean;
+}
+
+interface ProvidersResponse {
+  success: boolean;
+  data: {
+    google_free: ProviderInfo;
+    tavily: ProviderInfo;
+  };
 }
 
 const CATEGORIES = [
@@ -71,6 +87,28 @@ export default function Sources() {
 
   const { data, isLoading, refetch } = useQuery<SourcesResponse>({
     queryKey: ["/api/python/research/sources"],
+  });
+
+  const { data: providersData, isLoading: providersLoading, refetch: refetchProviders } = useQuery<ProvidersResponse>({
+    queryKey: ["/api/search/providers"],
+  });
+
+  const toggleProviderMutation = useMutation({
+    mutationFn: async ({ provider, enabled }: { provider: string; enabled: boolean }) => {
+      const res = await apiRequest("POST", `/api/search/providers/${provider}/toggle`, { enabled });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        toast({ title: "Provider Updated", description: data.message });
+        queryClient.invalidateQueries({ queryKey: ["/api/search/providers"] });
+      } else {
+        toast({ title: "Error", description: data.error, variant: "destructive" });
+      }
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
   });
 
   const addSourceMutation = useMutation({
@@ -141,12 +179,89 @@ export default function Sources() {
           <Button
             variant="outline"
             size="icon"
-            onClick={() => refetch()}
+            onClick={() => { refetch(); refetchProviders(); }}
             data-testid="button-refresh-sources"
           >
-            <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+            <RefreshCw className={`h-4 w-4 ${isLoading || providersLoading ? "animate-spin" : ""}`} />
           </Button>
         </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Search className="h-5 w-5" />
+              Search Providers
+            </CardTitle>
+            <CardDescription>Configure which search engines to use for Shadow Search</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {providersLoading ? (
+              <div className="space-y-4">
+                <Skeleton className="h-16 w-full" />
+                <Skeleton className="h-16 w-full" />
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="flex items-center justify-between p-4 rounded-lg border">
+                  <div className="flex items-start gap-3">
+                    <Globe className="h-5 w-5 mt-0.5 text-blue-500" />
+                    <div>
+                      <div className="font-medium">Google Free Search</div>
+                      <p className="text-sm text-muted-foreground">
+                        Web search via scraping (no API key needed)
+                      </p>
+                      {providersData?.data?.google_free?.available === false && (
+                        <Badge variant="outline" className="mt-1 text-amber-500 border-amber-500">
+                          <AlertTriangle className="h-3 w-3 mr-1" />
+                          Unavailable
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                  <Switch
+                    checked={providersData?.data?.google_free?.enabled ?? true}
+                    disabled={!providersData?.data?.google_free?.available || toggleProviderMutation.isPending}
+                    onCheckedChange={(checked) => 
+                      toggleProviderMutation.mutate({ provider: 'google_free', enabled: checked })
+                    }
+                    data-testid="switch-google-free"
+                  />
+                </div>
+                
+                <div className="flex items-center justify-between p-4 rounded-lg border">
+                  <div className="flex items-start gap-3">
+                    <Key className="h-5 w-5 mt-0.5 text-purple-500" />
+                    <div>
+                      <div className="font-medium">Tavily Search</div>
+                      <p className="text-sm text-muted-foreground">
+                        AI-powered web search (requires API key)
+                      </p>
+                      {!providersData?.data?.tavily?.has_key && (
+                        <Badge variant="outline" className="mt-1 text-amber-500 border-amber-500">
+                          <Key className="h-3 w-3 mr-1" />
+                          API Key Not Set
+                        </Badge>
+                      )}
+                      {providersData?.data?.tavily?.has_key && providersData?.data?.tavily?.available && (
+                        <Badge variant="outline" className="mt-1 text-green-500 border-green-500">
+                          Ready
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                  <Switch
+                    checked={providersData?.data?.tavily?.enabled ?? false}
+                    disabled={!providersData?.data?.tavily?.has_key || toggleProviderMutation.isPending}
+                    onCheckedChange={(checked) => 
+                      toggleProviderMutation.mutate({ provider: 'tavily', enabled: checked })
+                    }
+                    data-testid="switch-tavily"
+                  />
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader>

@@ -42,7 +42,12 @@ The frontend utilizes React with Vite, Radix UI components, and Tailwind CSS. St
 Natural language interface to the Olympian Pantheon. Translates human intuition to geometric coordinates and coordinates multi-agent responses.
 
 ### Shadow Search
-Proactive knowledge discovery through Tavily search and SearXNG metasearch integration. The Shadow Pantheon operates autonomously to gather relevant information.
+Proactive knowledge discovery through multiple search providers:
+- **Google Free Search**: Web scraping-based search (no API key required), based on pskill9/web-search approach. TypeScript implementation in `server/geometric-discovery/google-web-search-adapter.ts` with QIG integration (Fisher-Rao distance, block universe coordinates).
+- **Tavily Search**: AI-powered web search (requires TAVILY_API_KEY, user-toggleable). Only available when explicitly enabled by user in Sources page.
+- **SearXNG**: Self-hosted metasearch instances as fallback.
+
+Search providers can be toggled in the Sources page (`/sources`). The Shadow Pantheon operates autonomously to gather relevant information.
 
 ### Olympus Pantheon
 12-god system for specialized intelligence:

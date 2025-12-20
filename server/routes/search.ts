@@ -19,6 +19,17 @@ import {
 } from "@shared/schema";
 import { googleWebSearchAdapter } from "../geometric-discovery/google-web-search-adapter";
 
+// Search provider state (in-memory, persists until restart)
+// Exported so other modules can check provider state
+export const searchProviderState = {
+  google_free: { enabled: true },
+  tavily: { enabled: false },
+};
+
+export function isProviderEnabled(provider: 'google_free' | 'tavily'): boolean {
+  return searchProviderState[provider].enabled;
+}
+
 export const searchRouter = Router();
 
 searchRouter.get("/web", generousLimiter, async (req: Request, res: Response) => {
@@ -28,6 +39,19 @@ searchRouter.get("/web", generousLimiter, async (req: Request, res: Response) =>
     
     if (!query || query.trim().length === 0) {
       return res.status(400).json({ error: 'Query parameter "q" is required' });
+    }
+    
+    // Check if Google Free Search is enabled
+    if (!searchProviderState.google_free.enabled) {
+      return res.json({
+        query,
+        results: [],
+        count: 0,
+        status: 'disabled',
+        message: 'Google Free Search is disabled. Enable it in Sources page.',
+        source: 'google-web-search',
+        timestamp: new Date().toISOString(),
+      });
     }
     
     console.log(`[WebSearch API] Query: "${query}" (limit: ${limit})`);
@@ -59,6 +83,19 @@ searchRouter.post("/web", generousLimiter, async (req: Request, res: Response) =
     
     const maxLimit = Math.min(limit, 10);
     
+    // Check if Google Free Search is enabled
+    if (!searchProviderState.google_free.enabled) {
+      return res.json({
+        query,
+        results: [],
+        count: 0,
+        status: 'disabled',
+        message: 'Google Free Search is disabled. Enable it in Sources page.',
+        source: 'google-web-search',
+        timestamp: new Date().toISOString(),
+      });
+    }
+    
     console.log(`[WebSearch API] POST Query: "${query}" (limit: ${maxLimit})`);
     
     const response = await googleWebSearchAdapter.simpleSearch(query, maxLimit);
@@ -75,6 +112,80 @@ searchRouter.post("/web", generousLimiter, async (req: Request, res: Response) =
   } catch (error: any) {
     console.error('[WebSearch API] Error:', error.message);
     res.status(500).json({ error: error.message, status: 'error' });
+  }
+});
+
+searchRouter.get("/providers", generousLimiter, async (req: Request, res: Response) => {
+  try {
+    const tavilyKey = process.env.TAVILY_API_KEY;
+    
+    res.json({
+      success: true,
+      data: {
+        google_free: {
+          available: true,
+          enabled: searchProviderState.google_free.enabled,
+          requires_key: false,
+        },
+        tavily: {
+          available: !!tavilyKey,
+          enabled: searchProviderState.tavily.enabled,
+          requires_key: true,
+          has_key: !!tavilyKey,
+        },
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+searchRouter.post("/providers/:provider/toggle", generousLimiter, async (req: Request, res: Response) => {
+  try {
+    const { provider } = req.params;
+    const { enabled } = req.body;
+    
+    if (provider !== 'google_free' && provider !== 'tavily') {
+      return res.status(400).json({ success: false, error: `Unknown provider: ${provider}` });
+    }
+    
+    if (provider === 'tavily' && enabled && !process.env.TAVILY_API_KEY) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'TAVILY_API_KEY not set. Please add it to your secrets.',
+        error_code: 'MISSING_API_KEY'
+      });
+    }
+    
+    searchProviderState[provider].enabled = enabled;
+    
+    console.log(`[SearchProviders] ${provider} ${enabled ? 'enabled' : 'disabled'}`);
+    
+    const tavilyKey = process.env.TAVILY_API_KEY;
+    
+    res.json({
+      success: true,
+      message: `${provider} ${enabled ? 'enabled' : 'disabled'}`,
+      data: {
+        provider,
+        enabled,
+        status: {
+          google_free: {
+            available: true,
+            enabled: searchProviderState.google_free.enabled,
+            requires_key: false,
+          },
+          tavily: {
+            available: !!tavilyKey,
+            enabled: searchProviderState.tavily.enabled,
+            requires_key: true,
+            has_key: !!tavilyKey,
+          },
+        },
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
