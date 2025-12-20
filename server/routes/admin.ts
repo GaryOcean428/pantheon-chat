@@ -4,8 +4,6 @@ import { generousLimiter, standardLimiter } from "../rate-limiters";
 import { storage } from "../storage";
 import { oceanSessionManager } from "../ocean-session-manager";
 import { activityLogStore } from "../activity-log-store";
-import { getQueueIntegrationStats } from "../balance-queue-integration";
-import { getActiveBalanceHits } from "../blockchain-scanner";
 
 export const adminRouter = Router();
 

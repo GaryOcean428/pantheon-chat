@@ -37,6 +37,7 @@ import {
   GraduationCap,
   Hammer,
   HeartPulse,
+  Globe,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useConsciousness, getPhiColor, getRegimeLabel } from "@/contexts/ConsciousnessContext";
@@ -98,6 +99,12 @@ export function AppSidebar() {
       url: "/tool-factory",
       icon: Hammer,
       description: "Self-learning tool generation",
+    },
+    {
+      title: "Indexing Sources",
+      url: "/sources",
+      icon: Globe,
+      description: "Manage research sources",
     },
     {
       title: "Autonomic Agency",

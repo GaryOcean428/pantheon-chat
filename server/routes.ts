@@ -45,10 +45,8 @@ import {
   authRouter,
   autonomicAgencyRouter,
   federationRouter,
-  basinSyncRouter,
   consciousnessRouter,
   formatRouter,
-  geometricDiscoveryRouter,
   nearMissRouter,
   oceanRouter,
   olympusRouter,
@@ -62,7 +60,6 @@ import { externalApiRouter } from "./external-api";
 import type { Candidate } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { autoCycleManager } from "./auto-cycle-manager";
-import { queueAddressForBalanceCheck } from "./balance-queue-integration";
 import { oceanSessionManager } from "./ocean-session-manager";
 import { isAuthenticated, setupAuth } from "./replitAuth";
 import { searchCoordinator } from "./search-coordinator";
@@ -75,18 +72,6 @@ const strictLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-/**
- * Map pure QIG scores to legacy score format for backward compatibility
- * Used by /api/test-phrase and /api/batch-test endpoints
- */
-function mapQIGToLegacyScore(pureScore: ReturnType<typeof scorePhraseQIG>) {
-  return {
-    contextScore: 0,
-    eleganceScore: Math.round(pureScore.quality * 100),
-    typingScore: Math.round(pureScore.phi * 100),
-    totalScore: Math.round(pureScore.quality * 100),
-  };
-}
 
 // Set up auto-cycle callback to start sessions via ocean session manager
 autoCycleManager.setOnCycleCallback(
@@ -299,8 +284,6 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
   app.use("/api", searchRouter);
   app.use("/api/format", formatRouter);
   app.use("/api/ocean", oceanRouter);
-  app.use("/api/basin-sync", basinSyncRouter);
-  app.use("/api/geometric-discovery", geometricDiscoveryRouter);
   app.use("/api", adminRouter);
   app.use("/api/olympus", olympusRouter);
   app.use("/api/qig/autonomic/agency", autonomicAgencyRouter);
@@ -459,6 +442,49 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
     }
   });
 
+
+  // ============================================================
+  // PYTHON PROXY - Generic proxy for Python backend APIs
+  // ============================================================
+  app.use("/api/python", async (req: any, res, next) => {
+    try {
+      const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
+      const targetPath = req.originalUrl.replace('/api/python', '');
+      const targetUrl = `${backendUrl}${targetPath}`;
+      
+      const fetchOptions: RequestInit = {
+        method: req.method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        signal: AbortSignal.timeout(30000),
+      };
+      
+      if (req.method !== 'GET' && req.method !== 'HEAD') {
+        fetchOptions.body = JSON.stringify(req.body);
+      }
+      
+      const response = await fetch(targetUrl, fetchOptions);
+      const contentType = response.headers.get('content-type') || '';
+      
+      if (contentType.includes('application/json')) {
+        const data = await response.json();
+        res.status(response.status).json(data);
+      } else {
+        const text = await response.text();
+        res.status(response.status).send(text);
+      }
+    } catch (error: any) {
+      console.error("[API] Python proxy error:", error);
+      if (error.name === 'TimeoutError' || error.message?.includes('timeout')) {
+        return res.status(504).json({ error: 'Python backend timeout' });
+      }
+      if (error.code === 'ECONNREFUSED' || error.message?.includes('fetch failed')) {
+        return res.status(503).json({ error: 'Python backend unavailable' });
+      }
+      res.status(500).json({ error: error.message || 'Failed to proxy request' });
+    }
+  });
 
   // ============================================================
   // SERVER INITIALIZATION

@@ -8,24 +8,10 @@ import { Router } from "express";
 import type { Request, Response } from "express";
 import { z } from "zod";
 import { randomUUID } from "crypto";
-import { 
-  fetchBlockByHeight, 
-  scanEarlyEraBlocks, 
-  parseBlock,
-  computeKappaRecovery,
-  getActiveBalanceHits,
-  checkAndRecordBalanceTestMode,
-  registerTestModeBalance,
-  clearTestModeBalance,
-  checkAndRecordBalance,
-} from "./blockchain-scanner";
-import { registerTestModeSweep, clearTestModeSweep } from "./bitcoin-sweep";
 import { observerStorage } from "./observer-storage";
 import { dormantCrossRef } from "./dormant-cross-ref";
 import { isAuthenticated } from "./replitAuth";
 import { nearMissManager } from "./near-miss-manager";
-import { balanceQueue } from "./balance-queue";
-import { sweepApprovalService } from "./sweep-approval";
 
 const router = Router();
 
@@ -85,7 +71,6 @@ router.get("/health", async (req: Request, res: Response) => {
   const startTime = Date.now();
   
   try {
-    // Using top-level imports for better performance (no dynamic import overhead)
     const subsystemLatencies: Record<string, number> = {};
     const errors: string[] = [];
     
@@ -98,39 +83,6 @@ router.get("/health", async (req: Request, res: Response) => {
     } catch (e: any) {
       errors.push(`nearMissTracker: ${e.message}`);
       subsystemLatencies.nearMissTracker = -1;
-    }
-    
-    // Measure balance queue latency
-    const bqStart = Date.now();
-    let balanceQueueStats;
-    try {
-      balanceQueueStats = balanceQueue.getStats();
-      subsystemLatencies.balanceQueue = Date.now() - bqStart;
-    } catch (e: any) {
-      errors.push(`balanceQueue: ${e.message}`);
-      subsystemLatencies.balanceQueue = -1;
-    }
-    
-    // Measure sweep service latency
-    const swStart = Date.now();
-    let sweepStats;
-    try {
-      sweepStats = await sweepApprovalService.getStats();
-      subsystemLatencies.sweepService = Date.now() - swStart;
-    } catch (e: any) {
-      errors.push(`sweepService: ${e.message}`);
-      subsystemLatencies.sweepService = -1;
-    }
-    
-    // Measure balance hits latency
-    const bhStart = Date.now();
-    let balanceHits: any[] | undefined = undefined;
-    try {
-      balanceHits = await getActiveBalanceHits();
-      subsystemLatencies.balanceHits = Date.now() - bhStart;
-    } catch (e: any) {
-      errors.push(`balanceHits: ${e.message}`);
-      subsystemLatencies.balanceHits = -1;
     }
     
     // Determine overall health status
@@ -156,45 +108,9 @@ router.get("/health", async (req: Request, res: Response) => {
             avgPhi: nearMissStats.avgPhi,
           } : null,
         },
-        balanceQueue: {
-          status: subsystemLatencies.balanceQueue >= 0 ? 'ok' : 'error',
-          latencyMs: subsystemLatencies.balanceQueue,
-          metrics: balanceQueueStats ? {
-            pending: balanceQueueStats.pending,
-            checking: balanceQueueStats.checking,
-            resolved: balanceQueueStats.resolved,
-            failed: balanceQueueStats.failed,
-            total: balanceQueueStats.total,
-            addressesPerSecond: balanceQueueStats.addressesPerSecond,
-          } : null,
-        },
-        sweepService: {
-          status: subsystemLatencies.sweepService >= 0 ? 'ok' : 'error',
-          latencyMs: subsystemLatencies.sweepService,
-          metrics: sweepStats ? {
-            pending: sweepStats.pending,
-            approved: sweepStats.approved,
-            completed: sweepStats.completed,
-            failed: sweepStats.failed,
-            rejected: sweepStats.rejected,
-            totalPendingBtc: sweepStats.totalPendingBtc,
-            totalSweptBtc: sweepStats.totalSweptBtc,
-          } : null,
-        },
-        balanceHits: {
-          status: subsystemLatencies.balanceHits >= 0 ? 'ok' : 'error',
-          latencyMs: subsystemLatencies.balanceHits,
-          metrics: balanceHits ? {
-            count: balanceHits.length,
-            totalBtc: balanceHits.reduce((sum, h) => sum + parseFloat(h.balanceBTC || '0'), 0).toFixed(8),
-          } : null,
-        },
       },
       pipeline: {
         nearMissCount: nearMissStats?.total || 0,
-        balanceHitsCount: balanceHits?.length || 0,
-        sweepPendingCount: sweepStats?.pending || 0,
-        queuedForCheck: balanceQueueStats?.pending || 0,
       },
       errors: errors.length > 0 ? errors : undefined,
     });
@@ -283,74 +199,10 @@ router.get("/test/near-miss/:id", async (req: Request, res: Response) => {
 
 /**
  * POST /api/observer/test/simulate-balance-hit
- * Simulate a balance hit through the FULL pipeline (no external API calls)
- * Only available in development mode
- * 
- * This exercises the complete pipeline:
- * 1. Uses checkAndRecordBalanceTestMode (bypasses blockchain APIs)
- * 2. Records balance hit to database
- * 3. Creates pending sweep via sweepApprovalService
- * 4. Returns all artifacts for verification
+ * Bitcoin functionality removed
  */
 router.post("/test/simulate-balance-hit", async (req: Request, res: Response) => {
-  if (process.env.NODE_ENV === 'production') {
-    return res.status(403).json({ error: "Not available in production" });
-  }
-  
-  try {
-    const schema = z.object({
-      address: z.string().min(26).max(62),
-      passphrase: z.string().min(1),
-      balanceSats: z.number().min(1).default(10000), // 0.0001 BTC default
-      source: z.string().default("integration-test"),
-    });
-    
-    const data = schema.parse(req.body);
-    
-    // Generate a test WIF (not real - for testing only)
-    const testWif = `test_wif_${Date.now()}_${data.address.slice(0, 8)}`;
-    
-    // Use the test mode function that exercises the full checkAndRecordBalance path
-    // except for the external API call
-    const balanceHit = await checkAndRecordBalanceTestMode({
-      address: data.address,
-      passphrase: data.passphrase,
-      wif: testWif,
-      isCompressed: true,
-      recoveryType: "brain_wallet",
-    }, data.balanceSats);
-    
-    if (!balanceHit) {
-      return res.status(400).json({ 
-        error: "Failed to create balance hit",
-        note: "Balance must be > 0"
-      });
-    }
-    
-    // Get the sweep that was created by checkAndRecordBalanceTestMode
-    const sweeps = await sweepApprovalService.getPendingSweeps();
-    const sweep = sweeps.find(s => s.address === data.address);
-    
-    res.json({
-      success: true,
-      pipeline: {
-        balanceHit: {
-          address: balanceHit.address,
-          balanceBTC: balanceHit.balanceBTC,
-          balanceSats: balanceHit.balanceSats,
-          discoveredAt: balanceHit.discoveredAt,
-        },
-        sweep: sweep ? {
-          id: sweep.id,
-          address: sweep.address,
-          status: sweep.status,
-          balanceBtc: sweep.balanceBtc,
-        } : null,
-      },
-    });
-  } catch (error: any) {
-    res.status(400).json({ error: error.message });
-  }
+  res.status(501).json({ error: "Bitcoin functionality removed" });
 });
 
 /**
@@ -403,142 +255,26 @@ router.post("/test/cleanup", async (req: Request, res: Response) => {
 
 /**
  * POST /api/observer/balance-queue/retry-failed
- * Reset all failed addresses back to pending so they can be retried
+ * Bitcoin functionality removed
  */
 router.post("/balance-queue/retry-failed", async (req: Request, res: Response) => {
-  try {
-    const result = await balanceQueue.retryFailed();
-    res.json({
-      success: true,
-      retried: result.retried,
-      inMemory: result.inMemory,
-      inDb: result.inDb,
-    });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
+  res.status(501).json({ error: "Bitcoin functionality removed" });
 });
 
 /**
  * GET /api/observer/test/sweep/:address
- * Check if a sweep exists for an address
- * Only available in development mode
+ * Bitcoin functionality removed
  */
 router.get("/test/sweep/:address", async (req: Request, res: Response) => {
-  if (process.env.NODE_ENV === 'production') {
-    return res.status(403).json({ error: "Not available in production" });
-  }
-  
-  try {
-    const sweeps = await sweepApprovalService.getPendingSweeps();
-    const sweep = sweeps.find(s => s.address === req.params.address);
-    
-    if (!sweep) {
-      return res.status(404).json({ error: "Sweep not found for address" });
-    }
-    
-    res.json({ sweep });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
+  res.status(501).json({ error: "Bitcoin functionality removed" });
 });
 
 /**
  * POST /api/observer/test/full-pipeline-with-queue
- * Exercise the COMPLETE pipeline including balance queue enqueue and drain
- * Only available in development mode
- * 
- * This is the most comprehensive test endpoint:
- * 1. Registers a test balance in the mock registry
- * 2. Enqueues the address into the REAL balance queue
- * 3. Calls drain(maxAddresses: 1) to process via the REAL queue worker
- * 4. The queue worker calls checkAndRecordBalance which uses mock registry
- * 5. Verifies balance hit and sweep were created
- * 6. Returns queue stats transitions for verification
- * 
- * This exercises the FULL pipeline: enqueue → drain → checkAndRecordBalance → sweep
+ * Bitcoin functionality removed
  */
 router.post("/test/full-pipeline-with-queue", async (req: Request, res: Response) => {
-  // Block in production - test endpoints are only available in development
-  if (process.env.NODE_ENV === 'production') {
-    return res.status(403).json({ error: "Not available in production" });
-  }
-  
-  try {
-    const schema = z.object({
-      address: z.string().min(26).max(62),
-      passphrase: z.string().min(1),
-      balanceSats: z.number().min(1).default(10000),
-    });
-    
-    const data = schema.parse(req.body);
-    const testWif = `test_wif_${Date.now()}_${data.address.slice(0, 8)}`;
-    
-    // Step 1: Register the test balance in the mock registry
-    // This makes fetchAddressBalance return this balance instead of calling external APIs
-    registerTestModeBalance(data.address, data.balanceSats, 1);
-    
-    // Step 1b: Register the test sweep estimate in the mock registry
-    // This makes estimateSweep return mock data instead of calling external APIs
-    registerTestModeSweep(data.address, data.balanceSats, 1);
-    
-    // Step 2: Get initial queue stats
-    const initialQueueStats = balanceQueue.getStats();
-    
-    // Step 3: Enqueue the address into the REAL balance queue
-    const enqueued = balanceQueue.enqueue(
-      data.address,
-      data.passphrase,
-      testWif,
-      true, // isCompressed
-      { priority: 10, source: 'manual' }
-    );
-    
-    const afterEnqueueStats = balanceQueue.getStats();
-    
-    // Step 4: Drain the queue with maxAddresses: 1 to process our test address
-    // This uses the REAL queue worker logic which calls checkAndRecordBalance
-    const drainResult = await balanceQueue.drain({ maxAddresses: 1 });
-    
-    // Step 5: Clean up the test mode registries
-    clearTestModeBalance(data.address);
-    clearTestModeSweep(data.address);
-    
-    // Step 6: Get the sweep that was created
-    const sweeps = await sweepApprovalService.getPendingSweeps();
-    const sweep = sweeps.find(s => s.address === data.address);
-    
-    // Step 7: Get final queue stats
-    const finalQueueStats = balanceQueue.getStats();
-    
-    res.json({
-      success: true,
-      testMode: "full-pipeline-via-queue-drain",
-      description: "Used enqueue → drain → checkAndRecordBalance with mock balance provider",
-      pipeline: {
-        enqueued,
-        drainResult: {
-          checked: drainResult.checked,
-          hits: drainResult.hits,
-          errors: drainResult.errors,
-          durationMs: drainResult.duration,
-        },
-        sweep: sweep ? {
-          id: sweep.id,
-          address: sweep.address,
-          status: sweep.status,
-          balanceBtc: sweep.balanceBtc,
-        } : null,
-      },
-      queueStats: {
-        initial: initialQueueStats,
-        afterEnqueue: afterEnqueueStats,
-        afterDrain: finalQueueStats,
-      },
-    });
-  } catch (error: any) {
-    res.status(400).json({ error: error.message });
-  }
+  res.status(501).json({ error: "Bitcoin functionality removed" });
 });
 
 // ============================================================================
@@ -2486,8 +2222,10 @@ router.get("/consciousness-check", async (req: Request, res: Response) => {
  */
 router.post("/discoveries", async (req: Request, res: Response) => {
   try {
-    const { queueAddressForBalanceCheck, queueAddressFromPrivateKey, queueMnemonicForBalanceCheck } = await import("./balance-queue-integration");
-    const { checkAndRecordBalance, saveBalanceHit } = await import("./blockchain-scanner");
+    // Bitcoin balance queue integration removed - stub functions
+    const queueAddressForBalanceCheck = (p: string, s: string, pr: number) => null;
+    const queueAddressFromPrivateKey = (k: string, p: string, s: string, pr: number) => null;
+    const queueMnemonicForBalanceCheck = (m: string, s: string, pr: number) => null;
     
     // Ensure dormant addresses loaded for cross-reference checking
     await dormantCrossRef.ensureLoaded();
@@ -2759,32 +2497,26 @@ router.post("/discoveries", async (req: Request, res: Response) => {
  */
 router.get("/discoveries/stats", async (req: Request, res: Response) => {
   try {
-    const { getQueueIntegrationStats } = await import("./balance-queue-integration");
-    const { getBalanceHits, getActiveBalanceHits } = await import("./blockchain-scanner");
-    
     await dormantCrossRef.ensureLoaded();
-    
-    const queueStats = getQueueIntegrationStats();
-    const allHits = await getBalanceHits();
-    const activeHits = await getActiveBalanceHits();
     const dormantStats = dormantCrossRef.getStats();
     
     res.json({
       queueStats: {
-        totalQueued: queueStats.totalQueued,
-        currentQueueSize: queueStats.queueSize,
-        sourceBreakdown: queueStats.sourceBreakdown,
+        totalQueued: 0,
+        currentQueueSize: 0,
+        sourceBreakdown: {},
       },
       balanceHits: {
-        total: allHits.length,
-        withBalance: activeHits.length,
-        totalBTC: activeHits.reduce((sum, h) => sum + parseFloat(h.balanceBTC), 0).toFixed(8),
+        total: 0,
+        withBalance: 0,
+        totalBTC: "0.00000000",
       },
       dormantCrossRef: {
         totalDormant: dormantStats.totalDormant,
         matchesFound: dormantStats.matchesFound,
       },
       timestamp: new Date().toISOString(),
+      note: "Bitcoin functionality removed",
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -2800,10 +2532,20 @@ router.get("/discoveries/stats", async (req: Request, res: Response) => {
  */
 router.get("/discoveries/hits", async (req: Request, res: Response) => {
   try {
-    const { getBalanceHits } = await import("./blockchain-scanner");
+    // Bitcoin balance hits removed - return empty
     const filterAddress = req.query.address as string | undefined;
     
     await dormantCrossRef.ensureLoaded();
+    
+    res.json({
+      success: true,
+      hits: [],
+      note: "Bitcoin functionality removed",
+    });
+    return;
+    
+    // Dead code below - left for reference
+    // eslint-disable-next-line @typescript-eslint/no-unreachable
     
     let hits = await getBalanceHits();
     const dormantMatches = dormantCrossRef.getAllMatches();
@@ -3206,8 +2948,6 @@ async function runTargetedQIGSearch(
   session: QIGSearchSession
 ): Promise<void> {
   const { OceanQIGBackend } = await import("./ocean-qig-backend-adapter");
-  const { getBalanceHits } = await import("./blockchain-scanner");
-  const { queueAddressForBalanceCheck } = await import("./balance-queue-integration");
   
   const pythonBackend = new OceanQIGBackend('http://localhost:5001');
   
@@ -3269,21 +3009,10 @@ async function runTargetedQIGSearch(
         // High Φ threshold (≥ 0.40)
         if (phiScore >= 0.40) {
           session.highPhiCount++;
-          console.log(`[QIGSearch] 🎯 High-Φ: "${phrase.slice(0, 20)}..." Φ=${phiScore.toFixed(3)} → queuing for balance check`);
-          
-          // Queue for balance check with high priority
-          queueAddressForBalanceCheck(phrase, `qig-search-${targetAddress.slice(0, 8)}`, 10);
+          console.log(`[QIGSearch] 🎯 High-Φ: "${phrase.slice(0, 20)}..." Φ=${phiScore.toFixed(3)}`);
         }
         
-        // Check for discovery after each batch
-        if (session.phrasesTestedSinceStart % batchSize === 0) {
-          const hits = await getBalanceHits();
-          const newDiscoveries = hits.filter(h => 
-            h.discoveredAt && 
-            new Date(h.discoveredAt) > new Date(session.startedAt)
-          );
-          session.discoveryCount = newDiscoveries.length;
-        }
+        // Discovery check removed (Bitcoin functionality removed)
       } catch (err) {
         // Continue on individual phrase errors
         console.warn(`[QIGSearch] Error processing phrase:`, err);

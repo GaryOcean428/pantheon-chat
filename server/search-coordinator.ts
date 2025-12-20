@@ -1,19 +1,15 @@
 import { QIG_CONSTANTS } from "@shared/constants";
 import type { Candidate, SearchJob } from "@shared/schema";
 import { randomUUID } from "crypto";
-import {
-  queueAddressForBalanceCheck,
-  queueAddressFromPrivateKey,
-} from "./balance-queue-integration";
 import { BasinVelocityMonitor } from "./basin-velocity-monitor.js";
 import { generateRandomBIP39Phrase } from "./bip39-words";
 import { getSharedController } from "./consciousness-search-controller";
-import {
-  generateBitcoinAddress,
-  generateBitcoinAddressFromPrivateKey,
-  generateMasterPrivateKey,
-} from "./crypto";
 import { DiscoveryTracker } from "./discovery-tracker";
+
+// Bitcoin crypto functions removed - stub implementations
+function generateBitcoinAddress(phrase: string): string { return ''; }
+function generateBitcoinAddressFromPrivateKey(key: string): string { return ''; }
+function generateMasterPrivateKey(): string { return ''; }
 import "./known-phrases";
 import { generateLocalSearchVariations } from "./local-search";
 import {
@@ -677,13 +673,6 @@ class SearchCoordinator {
       const address = generateBitcoinAddress(phrase);
       const pureScore = scorePhraseQIG(phrase);
 
-      // Queue address for balance checking (CRITICAL - every address gets checked)
-      queueAddressForBalanceCheck(
-        phrase,
-        "search-batch",
-        pureScore.quality >= 0.75 ? 5 : 1
-      );
-
       const matchedAddress = targetAddresses.find((t) => t.address === address);
 
       // TELEMETRY: Record snapshot for every phrase tested
@@ -777,18 +766,9 @@ class SearchCoordinator {
 
       if (item.type === "master-key") {
         address = generateBitcoinAddressFromPrivateKey(item.value);
-        // Queue for balance checking (master-key = private key hex)
-        queueAddressFromPrivateKey(
-          item.value,
-          item.value,
-          "search-masterkey",
-          3
-        );
       } else {
         // Both BIP-39 and arbitrary passphrases use the same SHA-256 → address flow
         address = generateBitcoinAddress(item.value);
-        // Queue for balance checking (passphrase)
-        queueAddressForBalanceCheck(item.value, `search-${item.type}`, 3);
       }
 
       const matchedAddress = targetAddresses.find((t) => t.address === address);

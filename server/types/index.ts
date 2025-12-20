@@ -5,4 +5,4 @@
  * Import from 'server/types' for all server type definitions.
  */
 
-export * from './address-verification-types';
+// Bitcoin address verification types removed

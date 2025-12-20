@@ -7,7 +7,6 @@ import { registerRoutes } from "./routes";
 import { log, serveStatic, setupVite } from "./vite";
 
 // Import for Python sync
-import { queueAddressForBalanceCheck } from "./balance-queue-integration";
 import { geometricMemory } from "./geometric-memory";
 import { oceanAgent } from "./ocean-agent";
 import { oceanConstellation } from "./ocean-constellation-stub";
@@ -238,44 +237,12 @@ async function syncFromPythonToNodeJS(): Promise<void> {
           totalAdded++;
         }
 
-        // Queue high-Φ basins for balance checking
-        // Skip addresses that have already been tested and found empty
-        if (basin.phi >= 0.7) {
-          // Check if any derived addresses from this passphrase are tested-empty
-          // The queueAddressForBalanceCheck generates addresses from the passphrase
-          // We check the passphrase-derived addresses via the tracker
-          const priority = getPriority(basin.phi);
-          const queueResult = queueAddressForBalanceCheck(
-            basin.input,
-            "python-high-phi",
-            priority
+        // High-Φ basins logged (balance queue removed)
+        if (basin.phi >= 0.9) {
+          console.log(
+            `[PythonSync] 🎯 HIGH-Φ: "${basin.input.substring(0, 30)}..." Φ=${basin.phi.toFixed(3)}`
           );
-
-          if (
-            queueResult &&
-            (queueResult.compressedQueued || queueResult.uncompressedQueued)
-          ) {
-            totalPrioritized++;
-
-            if (basin.phi >= 0.9) {
-              console.log(
-                `[PythonSync] 🎯 HIGH-Φ: "${basin.input.substring(
-                  0,
-                  30
-                )}..." Φ=${basin.phi.toFixed(3)} → priority ${priority}`
-              );
-            }
-          } else if (queueResult && queueResult.skippedTestedEmpty) {
-            // Log when we skip tested-empty addresses (helps debug the 148 address issue)
-            if (basin.phi >= 0.9) {
-              console.log(
-                `[PythonSync] ⊗ Skipped tested-empty: "${basin.input.substring(
-                  0,
-                  25
-                )}..." Φ=${basin.phi.toFixed(3)}`
-              );
-            }
-          }
+          totalPrioritized++;
         }
       }
 

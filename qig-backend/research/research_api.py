@@ -827,8 +827,168 @@ def poll_scrapy_results():
         }), 500
 
 
+@research_bp.route('/sources', methods=['GET'])
+def list_sources():
+    """
+    List all discovered sources for Scrapy indexing.
+    Returns sources with their efficacy metrics and categories.
+    """
+    try:
+        from olympus.shadow_scrapy import get_scrapy_orchestrator
+        orchestrator = get_scrapy_orchestrator()
+        source_discovery = orchestrator.source_discovery
+        
+        sources = []
+        for url, info in source_discovery.discovered_sources.items():
+            efficacy = source_discovery.source_efficacy.get(url, {})
+            sources.append({
+                'url': url,
+                'category': info.get('category', 'unknown'),
+                'phi_avg': info.get('phi_avg', 0.0),
+                'hit_count': info.get('hit_count', 0),
+                'origin': info.get('origin', 'unknown'),
+                'discovered_at': info.get('discovered_at', 0),
+                'success_count': efficacy.get('success_count', 0),
+                'failure_count': efficacy.get('failure_count', 0),
+                'last_used': efficacy.get('last_used', 0)
+            })
+        
+        sources.sort(key=lambda x: x['phi_avg'], reverse=True)
+        
+        return jsonify({
+            'success': True,
+            'sources': sources,
+            'total': len(sources)
+        })
+        
+    except ImportError:
+        return jsonify({
+            'success': False,
+            'error': 'Scrapy module not available',
+            'sources': []
+        }), 503
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'sources': []
+        }), 500
+
+
+@research_bp.route('/sources', methods=['POST'])
+def add_source():
+    """
+    Add a new source for Scrapy indexing.
+    
+    Body: {
+        "url": string (required) - The source URL
+        "category": string (optional) - Category like 'research', 'documentation', 'forum'
+    }
+    """
+    try:
+        from olympus.shadow_scrapy import get_scrapy_orchestrator
+        
+        data = request.get_json() or {}
+        url = data.get('url', '').strip()
+        category = data.get('category', 'manual')
+        
+        if not url:
+            return jsonify({
+                'success': False,
+                'error': 'URL is required'
+            }), 400
+        
+        if not url.startswith('http'):
+            return jsonify({
+                'success': False,
+                'error': 'URL must start with http:// or https://'
+            }), 400
+        
+        orchestrator = get_scrapy_orchestrator()
+        source_discovery = orchestrator.source_discovery
+        
+        if url in source_discovery.discovered_sources:
+            return jsonify({
+                'success': False,
+                'error': 'Source already exists'
+            }), 409
+        
+        source_discovery._register_source(
+            source_url=url,
+            category=category,
+            hit_count=0,
+            phi_avg=0.5,
+            phi_max=0.5,
+            origin='manual_add'
+        )
+        
+        return jsonify({
+            'success': True,
+            'message': f'Source added: {url}',
+            'source': {
+                'url': url,
+                'category': category,
+                'origin': 'manual_add'
+            }
+        })
+        
+    except ImportError:
+        return jsonify({
+            'success': False,
+            'error': 'Scrapy module not available'
+        }), 503
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@research_bp.route('/sources/<path:url>', methods=['DELETE'])
+def delete_source(url):
+    """
+    Remove a source from Scrapy indexing.
+    URL should be the full source URL (URL-encoded if needed).
+    """
+    try:
+        from olympus.shadow_scrapy import get_scrapy_orchestrator
+        
+        if not url.startswith('http'):
+            url = 'https://' + url
+        
+        orchestrator = get_scrapy_orchestrator()
+        source_discovery = orchestrator.source_discovery
+        
+        if url not in source_discovery.discovered_sources:
+            return jsonify({
+                'success': False,
+                'error': 'Source not found'
+            }), 404
+        
+        del source_discovery.discovered_sources[url]
+        if url in source_discovery.source_efficacy:
+            del source_discovery.source_efficacy[url]
+        
+        return jsonify({
+            'success': True,
+            'message': f'Source removed: {url}'
+        })
+        
+    except ImportError:
+        return jsonify({
+            'success': False,
+            'error': 'Scrapy module not available'
+        }), 503
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 def register_research_routes(app):
     """Register research blueprint with Flask app."""
     app.register_blueprint(research_bp)
     print("[ResearchAPI] Research routes registered at /api/research")
     print("[ResearchAPI] Scrapy endpoints: /api/research/scrapy, /api/research/scrapy/status, /api/research/scrapy/poll")
+    print("[ResearchAPI] Sources endpoints: /api/research/sources (GET, POST, DELETE)")

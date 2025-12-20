@@ -1,8 +1,6 @@
 import { getSharedController } from './consciousness-search-controller';
 import { scoreUniversalQIGAsync } from './qig-universal';
-import { generateBitcoinAddress, deriveBIP32Address } from './crypto';
 import { historicalDataMiner, type Era } from './historical-data-miner';
-import { queueAddressForBalanceCheck } from './balance-queue-integration';
 
 export interface EvidenceLink {
   source: string;
@@ -263,16 +261,9 @@ export class InvestigationAgent {
       if (!this.isRunning) break;
       
       try {
-        if (hypo.format === 'master' && hypo.derivationPath) {
-          hypo.address = deriveBIP32Address(hypo.phrase, hypo.derivationPath);
-        } else {
-          hypo.address = generateBitcoinAddress(hypo.phrase);
-        }
-        
-        // Queue for balance checking
-        queueAddressForBalanceCheck(hypo.phrase, 'investigation-agent', 4);
-        
-        hypo.match = (hypo.address === this.targetAddress);
+        // Bitcoin address generation removed
+        hypo.address = '';
+        hypo.match = false;
         hypo.testedAt = new Date();
         
         const qigResult = await scoreUniversalQIGAsync(

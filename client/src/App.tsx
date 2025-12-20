@@ -17,6 +17,7 @@ import {
   Observer as ObserverPage,
   Investigation as InvestigationPage,
   Olympus as OlympusPage,
+  Sources as SourcesPage,
   Spawning as SpawningPage,
   LearningDashboard,
   ToolFactoryDashboard,
@@ -85,6 +86,7 @@ function Router() {
         <Route path="/spawning" component={SpawningPage} />
         <Route path="/learning" component={LearningDashboard} />
         <Route path="/tool-factory" component={ToolFactoryDashboard} />
+        <Route path="/sources" component={SourcesPage} />
         <Route path="/autonomic" component={AutonomicAgencyPage} />
         <Route path="/federation" component={FederationPage} />
         <Route component={NotFound} />

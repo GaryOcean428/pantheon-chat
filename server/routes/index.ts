@@ -15,11 +15,6 @@ export {
 
 export { oceanRouter } from "./ocean";
 
-export { 
-  basinSyncRouter, 
-  geometricDiscoveryRouter 
-} from "./blockchain";
-
 export { adminRouter } from "./admin";
 
 export { default as olympusRouter } from "./olympus";

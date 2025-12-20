@@ -22,7 +22,6 @@
 import { fisherGeodesicDistance, fisherCoordDistance } from './qig-universal';
 import { oceanPersistence, type ProbeInsertData } from './ocean/ocean-persistence';
 import { getKappaAtScale, BASIN_DIMENSION } from '@shared/constants';
-import { queueAddressForBalanceCheck } from './balance-queue-integration';
 import { testedPhrasesUnified } from './tested-phrases-unified';
 
 // Extracted modules for modularity
@@ -638,10 +637,6 @@ class GeometricMemory {
     this.updateManifoldStats();
     this.detectResonance(probe);
     this.detectRegimeBoundaries(probe);
-    
-    // CRITICAL: Queue addresses for balance checking
-    // This ensures every tested passphrase gets its addresses checked
-    queueAddressForBalanceCheck(input, `probe-${source}`, probe.phi >= 0.7 ? 5 : 1);
     
     // Write directly to PostgreSQL (fire-and-forget with error logging)
     // Note: Probe is already in memory, DB write is for persistence

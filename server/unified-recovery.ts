@@ -14,12 +14,10 @@ import {
   OceanAgentState,
   MemoryFragment
 } from '@shared/schema';
-import { generateBitcoinAddress, deriveBIP32Address } from './crypto';
 import { scoreUniversalQIGAsync } from './qig-universal';
 import { blockchainForensics } from './blockchain-forensics';
 import { historicalDataMiner, type Era } from './historical-data-miner';
 import { OceanAgent, type OceanHypothesis } from './ocean-agent';
-import { queueAddressForBalanceCheck } from './balance-queue-integration';
 
 // Evidence chain type for tracking WHY candidates are ranked
 interface EvidenceLink {
@@ -550,18 +548,9 @@ class UnifiedRecoveryOrchestrator {
     derivationPath?: string
   ): Promise<RecoveryCandidate | null> {
     try {
-      let address: string;
-      
-      if (format === 'master' && derivationPath) {
-        address = deriveBIP32Address(phrase, derivationPath);
-      } else {
-        address = generateBitcoinAddress(phrase);
-      }
-      
-      // Queue for balance checking
-      queueAddressForBalanceCheck(phrase, 'unified-recovery', 5);
-
-      const match = address === targetAddress;
+      // Bitcoin address generation removed
+      const address = '';
+      const match = false;
       const qigResult = await scoreUniversalQIGAsync(
         phrase, 
         format === 'bip39' ? 'bip39' : format === 'master' ? 'master-key' : 'arbitrary'
@@ -990,18 +979,9 @@ class UnifiedRecoveryOrchestrator {
     derivationPath?: string
   ): Promise<RecoveryCandidate | null> {
     try {
-      let address: string;
-      
-      if (format === 'master' && derivationPath) {
-        address = deriveBIP32Address(phrase, derivationPath);
-      } else {
-        address = generateBitcoinAddress(phrase);
-      }
-      
-      // Queue for balance checking
-      queueAddressForBalanceCheck(phrase, 'unified-recovery', 5);
-
-      const match = address === targetAddress;
+      // Bitcoin address generation removed
+      const address = '';
+      const match = false;
       const qigResult = await scoreUniversalQIGAsync(
         phrase, 
         format === 'bip39' ? 'bip39' : format === 'master' ? 'master-key' : 'arbitrary'

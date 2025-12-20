@@ -410,31 +410,8 @@ export class OceanDiscoveryController {
     targetAddress: string
   ): Promise<{ success: boolean; wifKey?: string; address?: string }> {
     try {
-      // Import crypto functions dynamically to avoid circular deps
-      const { generateBothAddresses, derivePrivateKeyFromPassphrase, privateKeyToWIF } = 
-        await import('../crypto');
-      const { queueAddressForBalanceCheck } = await import('../balance-queue-integration');
-      
-      // Derive address from hypothesis (passphrase)
-      // NOTE: generateBitcoinAddress takes passphrase, NOT private key hex
-      const addresses = generateBothAddresses(hypothesis);
-      const privateKey = derivePrivateKeyFromPassphrase(hypothesis);
-      
-      // Queue BOTH addresses for balance checking (critical!)
-      queueAddressForBalanceCheck(hypothesis, 'ocean-discovery', 3);
-      
-      // Check both compressed and uncompressed against target
-      if (addresses.compressed === targetAddress) {
-        const wifKey = privateKeyToWIF(privateKey, true);
-        return { success: true, wifKey, address: addresses.compressed };
-      }
-      
-      if (addresses.uncompressed === targetAddress) {
-        const wifKey = privateKeyToWIF(privateKey, false);
-        return { success: true, wifKey, address: addresses.uncompressed };
-      }
-      
-      return { success: false, address: addresses.compressed };
+      // Bitcoin functionality removed - hypothesis testing disabled
+      return { success: false };
     } catch {
       return { success: false };
     }

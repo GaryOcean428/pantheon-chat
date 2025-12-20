@@ -15,8 +15,6 @@ import {
   GeodesicCandidate,
 } from './cultural-manifold';
 import { scoreUniversalQIGAsync, fisherCoordDistance } from './qig-geometry';
-import { generateBitcoinAddress } from './crypto';
-import { queueAddressForBalanceCheck } from './balance-queue-integration';
 import { E8_CONSTANTS } from '../shared/constants/index.js';
 
 export interface GeodesicSearchConfig {
@@ -185,17 +183,14 @@ export class GeodesicNavigator {
     targetAddress: string
   ): Promise<{ matched: boolean; phi: number; kappa: number }> {
     try {
-      const generatedAddress = generateBitcoinAddress(candidate.phrase);
-      const matched = generatedAddress === targetAddress;
-
-      // Queue for balance checking
-      queueAddressForBalanceCheck(candidate.phrase, 'geodesic-navigator', 3);
+      // Bitcoin address generation removed
+      const matched = false;
 
       const qigScore = await scoreUniversalQIGAsync(candidate.phrase, 'arbitrary');
       
       return {
         matched,
-        phi: matched ? 1.0 : qigScore.phi * candidate.combinedScore,
+        phi: qigScore.phi * candidate.combinedScore,
         kappa: qigScore.kappa
       };
     } catch {

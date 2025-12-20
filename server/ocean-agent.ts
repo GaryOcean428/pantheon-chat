@@ -15,22 +15,21 @@ import {
   logOceanStart,
   logOceanStrategy,
 } from "./activity-log-store";
-import { balanceQueue } from "./balance-queue";
-import { queueMnemonicForBalanceCheck } from "./balance-queue-integration";
 import { generateRandomBIP39Phrase, isValidBIP39Phrase } from "./bip39-words";
 import { BlockchainForensics } from "./blockchain-forensics";
-import "./blockchain-scanner";
 import { getSharedController } from "./consciousness-search-controller";
-import {
-  deriveBIP32Address,
-  derivePrivateKeyFromPassphrase,
-  generateBothAddressesFromPrivateKey,
-  generateRecoveryBundle,
-  privateKeyToWIF,
-  type RecoveryBundle,
-  type VerificationResult,
-} from "./crypto";
 import { culturalManifold } from "./cultural-manifold";
+
+// Bitcoin crypto functions removed - stub implementations
+function deriveBIP32Address(phrase: string, path: string): string { return ''; }
+function derivePrivateKeyFromPassphrase(phrase: string): string { return ''; }
+function generateBothAddressesFromPrivateKey(key: string): { compressed: string; uncompressed: string } { 
+  return { compressed: '', uncompressed: '' }; 
+}
+function generateRecoveryBundle(key: string, compressed: boolean): any { return null; }
+function privateKeyToWIF(key: string, compressed?: boolean): string { return ''; }
+type RecoveryBundle = any;
+type VerificationResult = any;
 import {
   generateTemporalHypotheses,
   getPrioritizedDormantWallets,
@@ -48,10 +47,6 @@ import {
   type Era,
 } from "./historical-data-miner";
 import { knowledgeCompressionEngine } from "./knowledge-compression-engine";
-import {
-  checkMnemonicAgainstDormant,
-  deriveMnemonicAddresses,
-} from "./mnemonic-wallet";
 import { nearMissManager } from "./near-miss-manager";
 import { negativeKnowledgeUnified as negativeKnowledgeRegistry } from "./negative-knowledge-unified";
 import { oceanAutonomicManager } from "./ocean-autonomic-manager";
@@ -2403,42 +2398,6 @@ export class OceanAgent {
         console.log(
           `[Ocean] Test: "${hypo.phrase}" -> ${hypo.address} [${wif}]`
         );
-
-        // Queue ALL generated addresses for balance checking
-        // The BalanceQueue handles rate limiting internally with token bucket
-        if (hypo.format === "bip39" || isValidBIP39Phrase(hypo.phrase)) {
-          // BIP-39 mnemonic: Queue ALL 50+ HD-derived addresses
-          queueMnemonicForBalanceCheck(
-            hypo.phrase,
-            "ocean-bip39",
-            hypo.qigScore?.phi || 1
-          );
-          console.log(
-            `[Ocean] Queued BIP-39 mnemonic "${hypo.phrase}" for HD balance check`
-          );
-        } else if (hypo.address && hypo.privateKeyHex) {
-          const compressedAddr =
-            (hypo as any).addressCompressed || hypo.address;
-          const uncompressedAddr = (hypo as any).addressUncompressed;
-
-          // Generate WIFs for both formats
-          const compressedWif = privateKeyToWIF(hypo.privateKeyHex, true);
-          const uncompressedWif = privateKeyToWIF(hypo.privateKeyHex, false);
-
-          // Queue both compressed and uncompressed addresses
-          balanceQueue.enqueueBoth(
-            compressedAddr,
-            uncompressedAddr,
-            hypo.phrase,
-            compressedWif,
-            uncompressedWif,
-            {
-              cycleId: `cycle-${Date.now()}`,
-              priority: hypo.qigScore?.phi || 1,
-              source: "typescript",
-            }
-          );
-        }
 
         const qigResult = await scoreUniversalQIGAsync(
           hypo.phrase,
