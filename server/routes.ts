@@ -449,7 +449,7 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
   app.use("/api/python", async (req: any, res, next) => {
     try {
       const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
-      const targetPath = req.originalUrl.replace('/api/python', '');
+      const targetPath = req.originalUrl.replace('/api/python', '/api');
       const targetUrl = `${backendUrl}${targetPath}`;
       
       const fetchOptions: RequestInit = {
