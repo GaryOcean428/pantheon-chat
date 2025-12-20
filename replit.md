@@ -108,6 +108,7 @@ Complete synchronization between TypeScript (Drizzle) and Python persistence lay
 - **kernel_geometry table**: Added id field generation in Python persistence, made snapshot_data nullable, fixed array_length() function usage (was vector_dims for real[] arrays).
 - **tested_phrases table**: Added regime column for geometric classification.
 - **search_feedback table**: Added search_params and source columns for source discovery.
+- **learning_events table**: Added source, kappa, basin_coords, details, context, instance_id columns for SourceDiscovery bootstrap.
 - **chaos_events table**: Added phi_before, phi_after, success, outcome columns.
 - **Kernel Persistence Working**: Python code generates unique id values (kg_UUID format) for kernel_geometry inserts with ON CONFLICT (kernel_id) upsert support.
 - **Evolution System Active**: Kernels now persist, restore, breed, and evolve across restarts.
