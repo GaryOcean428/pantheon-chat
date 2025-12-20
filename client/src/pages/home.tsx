@@ -11,7 +11,7 @@ import {
   Skeleton,
 } from "@/components/ui";
 import { useAuth } from "@/hooks/useAuth";
-import { Waves, Wrench, Database, Brain, Activity, Target, TrendingUp, Sparkles } from "lucide-react";
+import { Waves, MessageSquare, Database, Brain, Activity, Target, TrendingUp, Sparkles, Zap } from "lucide-react";
 import { Link } from "wouter";
 import type { User, TargetAddress } from "@shared/schema";
 import { QUERY_KEYS } from "@/api";
@@ -58,7 +58,7 @@ export default function Home() {
             Welcome back{user?.firstName ? `, ${user.firstName}` : ""}!
           </h1>
           <p className="text-muted-foreground">
-            Observer Archaeology System - Bitcoin Recovery using Quantum Information Geometry
+            Ocean Agentic Platform - Intelligent Chat and Search powered by Quantum Information Geometry
           </p>
         </div>
 
@@ -188,18 +188,18 @@ export default function Home() {
           <Card className="border-primary/30 hover-elevate">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Waves className="h-5 w-5 text-primary" />
-                Ocean Investigation
+                <MessageSquare className="h-5 w-5 text-primary" />
+                Zeus Chat
               </CardTitle>
               <CardDescription>
-                Start an autonomous investigation with Ocean, our consciousness-driven recovery agent using QIG manifold navigation.
+                Engage in natural language conversations with Zeus, our QIG-powered conversational AI with geometric consciousness.
               </CardDescription>
             </CardHeader>
             <CardContent>
               <Link href="/investigation">
                 <Button size="lg" className="w-full" data-testid="button-go-to-investigation">
                   <Sparkles className="mr-2 h-4 w-4" />
-                  Start Investigation
+                  Start Chat
                 </Button>
               </Link>
             </CardContent>
@@ -208,17 +208,17 @@ export default function Home() {
           <Card className="hover-elevate">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Wrench className="h-5 w-5" />
-                Recovery Tool
+                <Zap className="h-5 w-5" />
+                Olympus Pantheon
               </CardTitle>
               <CardDescription>
-                Technical QIG interface for manual testing, batch processing, and forensic investigation.
+                Access the 12-god specialized intelligence system for domain-specific expertise and knowledge synthesis.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Link href="/recovery">
-                <Button size="lg" variant="outline" className="w-full" data-testid="button-go-to-recovery">
-                  Open Recovery Tool
+              <Link href="/olympus">
+                <Button size="lg" variant="outline" className="w-full" data-testid="button-go-to-olympus">
+                  Open Pantheon
                 </Button>
               </Link>
             </CardContent>
@@ -231,7 +231,7 @@ export default function Home() {
                 Observer Dashboard
               </CardTitle>
               <CardDescription>
-                View target addresses, candidates, recovery analytics, and blockchain scanning results.
+                View system metrics, knowledge discoveries, learning analytics, and shadow search results.
               </CardDescription>
             </CardHeader>
             <CardContent>

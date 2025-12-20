@@ -17,7 +17,6 @@ import {
 import { API_ROUTES, QUERY_KEYS } from "@/api";
 import { 
   Waves, 
-  Wrench, 
   Database, 
   Home,
   Brain,
@@ -63,18 +62,12 @@ export function AppSidebar() {
       description: "Dashboard overview",
     },
     {
-      title: "Ocean Investigation",
+      title: "Ocean Search",
       url: "/investigation",
       icon: Waves,
-      description: "Autonomous recovery agent",
+      description: "Autonomous research agent",
       badge: investigationStatus?.isRunning ? "ACTIVE" : undefined,
       badgeColor: "bg-green-500/20 text-green-400",
-    },
-    {
-      title: "Recovery Tool",
-      url: "/recovery",
-      icon: Wrench,
-      description: "Manual QIG testing",
     },
     {
       title: "Observer Dashboard",
@@ -170,8 +163,8 @@ export function AppSidebar() {
             <Sparkles className="h-6 w-6 text-primary" />
           </div>
           <div>
-            <h2 className="font-bold text-lg">Observer</h2>
-            <p className="text-xs text-muted-foreground">Archaeology System</p>
+            <h2 className="font-bold text-lg">Ocean</h2>
+            <p className="text-xs text-muted-foreground">Agentic Platform</p>
           </div>
         </div>
       </SidebarHeader>

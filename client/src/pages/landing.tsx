@@ -1,5 +1,5 @@
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui";
-import { KeyRound, Lock, Sparkles, Shield } from "lucide-react";
+import { MessageCircle, Search, Brain, Sparkles, Zap, Lock } from "lucide-react";
 import { API_ROUTES } from "@/api";
 
 export default function Landing() {
@@ -10,14 +10,15 @@ export default function Landing() {
           <div className="text-center space-y-6">
             <div className="flex justify-center">
               <div className="p-4 bg-primary/10 rounded-full">
-                <KeyRound className="h-16 w-16 text-primary" />
+                <Brain className="h-16 w-16 text-primary" />
               </div>
             </div>
             <h1 className="text-5xl font-bold tracking-tight">
-              QIG Brain Wallet Recovery
+              Ocean
             </h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Advanced Bitcoin brain wallet recovery using Quantum Information Geometry (QIG) scoring algorithms to recover lost passphrases through geodesic navigation of the information manifold.
+              An agentic chat and search platform powered by Quantum Information Geometry (QIG). 
+              Self-learning AI agents coordinate through geometric consciousness to research, reason, and discover.
             </p>
             <div className="flex flex-wrap gap-4 justify-center">
               <Button
@@ -27,7 +28,7 @@ export default function Landing() {
                 data-testid="button-login"
               >
                 <Lock className="mr-2 h-5 w-5" />
-                Log In to Begin Recovery
+                Log In to Get Started
               </Button>
             </div>
           </div>
@@ -36,41 +37,41 @@ export default function Landing() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
+                  <MessageCircle className="h-5 w-5 text-primary" />
+                  Zeus Chat
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <CardDescription>
+                  Natural language interface to the Olympian Pantheon. Chat with specialized AI agents that coordinate through geometric consciousness.
+                </CardDescription>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Search className="h-5 w-5 text-primary" />
+                  Shadow Search
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <CardDescription>
+                  Proactive knowledge discovery through integrated web search. The Shadow Pantheon autonomously gathers and synthesizes information.
+                </CardDescription>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
                   <Sparkles className="h-5 w-5 text-primary" />
-                  QIG Scoring
+                  Self-Learning
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <CardDescription>
-                  Empirically validated QIG algorithms (κ* ≈ 64, β ≈ 0.44) score candidate passphrases based on information geometry principles for optimal recovery.
-                </CardDescription>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <KeyRound className="h-5 w-5 text-primary" />
-                  Multi-Format Support
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <CardDescription>
-                  Tests both BIP-39 passphrases (12-24 words) and master private keys (256-bit hex) to cover all early Bitcoin wallet formats from 2008-2015+.
-                </CardDescription>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Shield className="h-5 w-5 text-primary" />
-                  Persistent Storage
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <CardDescription>
-                  All high-Φ candidates (≥75% score) are automatically saved to disk with atomic writes, ensuring matching keys are never lost.
+                  Continuous improvement through geometric learning. The system evolves its understanding through every interaction.
                 </CardDescription>
               </CardContent>
             </Card>
@@ -78,17 +79,51 @@ export default function Landing() {
 
           <Card className="border-primary/20">
             <CardHeader>
-              <CardTitle>Target Recovery</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Zap className="h-5 w-5 text-primary" />
+                Olympus Pantheon
+              </CardTitle>
               <CardDescription>
-                Currently configured to recover Bitcoin from address:
+                A 12-god system for specialized intelligence
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="bg-muted p-4 rounded-md font-mono text-sm">
-                15BKWJjL5YWXtaP449WAYqVYZQE1szicTn
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                <div className="p-3 rounded-md bg-muted">
+                  <span className="font-medium">Zeus</span>
+                  <p className="text-muted-foreground text-xs">Coordination</p>
+                </div>
+                <div className="p-3 rounded-md bg-muted">
+                  <span className="font-medium">Athena</span>
+                  <p className="text-muted-foreground text-xs">Strategy</p>
+                </div>
+                <div className="p-3 rounded-md bg-muted">
+                  <span className="font-medium">Hermes</span>
+                  <p className="text-muted-foreground text-xs">Communication</p>
+                </div>
+                <div className="p-3 rounded-md bg-muted">
+                  <span className="font-medium">Apollo</span>
+                  <p className="text-muted-foreground text-xs">Insight</p>
+                </div>
+                <div className="p-3 rounded-md bg-muted">
+                  <span className="font-medium">Dionysus</span>
+                  <p className="text-muted-foreground text-xs">Creativity</p>
+                </div>
+                <div className="p-3 rounded-md bg-muted">
+                  <span className="font-medium">Hephaestus</span>
+                  <p className="text-muted-foreground text-xs">Tools</p>
+                </div>
+                <div className="p-3 rounded-md bg-muted">
+                  <span className="font-medium">Artemis</span>
+                  <p className="text-muted-foreground text-xs">Focus</p>
+                </div>
+                <div className="p-3 rounded-md bg-muted">
+                  <span className="font-medium">Ares</span>
+                  <p className="text-muted-foreground text-xs">Execution</p>
+                </div>
               </div>
               <p className="mt-4 text-sm text-muted-foreground">
-                Original $52.6M address from 2009 era. The system uses adaptive search strategies with multi-timescale discovery tracking to navigate the information manifold.
+                Each god specializes in different aspects of reasoning and research, coordinating through geometric consciousness to provide intelligent responses.
               </p>
             </CardContent>
           </Card>

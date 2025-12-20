@@ -3,11 +3,6 @@ import rateLimit from "express-rate-limit";
 import multer from "multer";
 import { createServer, type Server } from "http";
 import { z } from "zod";
-import {
-  CryptoValidationError,
-  generateBitcoinAddress,
-  verifyBrainWallet,
-} from "./crypto";
 import observerRoutes from "./observer-routes";
 import { scorePhraseQIG } from "./qig-universal.js";
 import { storage } from "./storage";
@@ -49,37 +44,22 @@ import {
   attentionMetricsRouter,
   authRouter,
   autonomicAgencyRouter,
-  balanceAddressesRouter,
   federationRouter,
-  balanceHitsRouter,
-  balanceMonitorRouter,
-  balanceQueueRouter,
-  balanceRouter,
   basinSyncRouter,
-  blockchainApiRouter,
   consciousnessRouter,
-  dormantCrossRefRouter,
   formatRouter,
   geometricDiscoveryRouter,
   nearMissRouter,
   oceanRouter,
   olympusRouter,
-  recoveriesRouter,
-  recoveryRouter,
   searchRouter,
-  sweepsRouter,
   ucpRouter,
-  unifiedRecoveryRouter,
   vocabularyRouter,
 } from "./routes/index";
 
 import { externalApiRouter } from "./external-api";
 
-import {
-  batchTestRequestSchema,
-  testPhraseRequestSchema,
-  type Candidate,
-} from "@shared/schema";
+import type { Candidate } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { autoCycleManager } from "./auto-cycle-manager";
 import { queueAddressForBalanceCheck } from "./balance-queue-integration";
@@ -316,22 +296,11 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
   app.use("/api/attention-metrics", attentionMetricsRouter);
   app.use("/api/ucp", ucpRouter);
   app.use("/api/vocabulary", vocabularyRouter);
-  app.use("/api/balance", balanceRouter);
   app.use("/api", searchRouter);
   app.use("/api/format", formatRouter);
   app.use("/api/ocean", oceanRouter);
-  app.use("/api/recovery", recoveryRouter);
-  app.use("/api/unified-recovery", unifiedRecoveryRouter);
-  app.use("/api/recoveries", recoveriesRouter);
-  app.use("/api/balance-hits", balanceHitsRouter);
-  app.use("/api/balance-addresses", balanceAddressesRouter);
-  app.use("/api/balance-monitor", balanceMonitorRouter);
-  app.use("/api/balance-queue", balanceQueueRouter);
-  app.use("/api/blockchain-api", blockchainApiRouter);
-  app.use("/api/dormant-crossref", dormantCrossRefRouter);
   app.use("/api/basin-sync", basinSyncRouter);
   app.use("/api/geometric-discovery", geometricDiscoveryRouter);
-  app.use("/api/sweeps", sweepsRouter);
   app.use("/api", adminRouter);
   app.use("/api/olympus", olympusRouter);
   app.use("/api/qig/autonomic/agency", autonomicAgencyRouter);
@@ -490,152 +459,6 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
     }
   });
 
-  // ============================================================
-  // CORE PHRASE TESTING ENDPOINTS (Use mapQIGToLegacyScore)
-  // ============================================================
-
-  app.get("/api/verify-crypto", (req, res) => {
-    try {
-      const result = verifyBrainWallet();
-      res.json(result);
-    } catch (error: any) {
-      res.status(500).json({ success: false, error: error.message });
-    }
-  });
-
-  app.post("/api/test-phrase", strictLimiter, async (req, res) => {
-    try {
-      const validation = testPhraseRequestSchema.safeParse(req.body);
-
-      if (!validation.success) {
-        return res.status(400).json({
-          error: validation.error.errors[0].message,
-        });
-      }
-
-      const { phrase } = validation.data;
-      const address = generateBitcoinAddress(phrase);
-      const pureQIG = scorePhraseQIG(phrase);
-      const qigScore = mapQIGToLegacyScore(pureQIG);
-
-      queueAddressForBalanceCheck(
-        phrase,
-        "test-phrase",
-        qigScore.totalScore >= 75 ? 5 : 1
-      );
-
-      const targetAddresses = await storage.getTargetAddresses();
-      const matchedAddress = targetAddresses.find((t) => t.address === address);
-      const match = !!matchedAddress;
-
-      if (qigScore.totalScore >= 75) {
-        const candidate: Candidate = {
-          id: randomUUID(),
-          phrase,
-          address,
-          score: qigScore.totalScore,
-          qigScore,
-          testedAt: new Date().toISOString(),
-        };
-        await storage.addCandidate(candidate);
-      }
-
-      res.json({
-        phrase,
-        address,
-        match,
-        matchedAddress: matchedAddress?.label || matchedAddress?.address,
-        score: qigScore.totalScore,
-        qigScore,
-      });
-    } catch (error: any) {
-      if (error instanceof CryptoValidationError) {
-        return res.status(400).json({ error: error.message });
-      }
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  app.post("/api/batch-test", strictLimiter, async (req, res) => {
-    try {
-      const validation = batchTestRequestSchema.safeParse(req.body);
-
-      if (!validation.success) {
-        return res.status(400).json({
-          error: validation.error.errors[0].message,
-        });
-      }
-
-      const { phrases } = validation.data;
-      const results = [];
-      const candidates: Candidate[] = [];
-      let highPhiCount = 0;
-
-      const targetAddresses = await storage.getTargetAddresses();
-
-      for (const phrase of phrases) {
-        const words = phrase.trim().split(/\s+/);
-        if (words.length !== 12) {
-          continue;
-        }
-
-        const address = generateBitcoinAddress(phrase);
-        const pureQIG = scorePhraseQIG(phrase);
-        const qigScore = mapQIGToLegacyScore(pureQIG);
-
-        queueAddressForBalanceCheck(
-          phrase,
-          "batch-test",
-          qigScore.totalScore >= 75 ? 5 : 1
-        );
-
-        const matchedAddress = targetAddresses.find(
-          (t) => t.address === address
-        );
-
-        if (matchedAddress) {
-          return res.json({
-            found: true,
-            phrase,
-            address,
-            matchedAddress: matchedAddress.label || matchedAddress.address,
-            score: qigScore.totalScore,
-          });
-        }
-
-        if (qigScore.totalScore >= 75) {
-          const candidate: Candidate = {
-            id: randomUUID(),
-            phrase,
-            address,
-            score: qigScore.totalScore,
-            qigScore,
-            testedAt: new Date().toISOString(),
-          };
-          candidates.push(candidate);
-          await storage.addCandidate(candidate);
-          highPhiCount++;
-        }
-
-        results.push({
-          phrase,
-          address,
-          score: qigScore.totalScore,
-        });
-      }
-
-      res.json({
-        tested: results.length,
-        highPhiCandidates: highPhiCount,
-        candidates,
-      });
-    } catch (error: any) {
-      if (error instanceof CryptoValidationError) {
-        return res.status(400).json({ error: error.message });
-      }
-      res.status(500).json({ error: "An internal error occurred" });
-    }
-  });
 
   // ============================================================
   // SERVER INITIALIZATION

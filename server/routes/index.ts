@@ -8,8 +8,6 @@ export {
   vocabularyRouter
 } from "./consciousness";
 
-export { balanceRouter } from "./balance";
-
 export { 
   searchRouter, 
   formatRouter 
@@ -18,23 +16,9 @@ export {
 export { oceanRouter } from "./ocean";
 
 export { 
-  recoveryRouter, 
-  unifiedRecoveryRouter, 
-  recoveriesRouter 
-} from "./recovery";
-
-export { 
-  balanceHitsRouter, 
-  balanceAddressesRouter, 
-  balanceMonitorRouter, 
-  balanceQueueRouter, 
-  blockchainApiRouter, 
-  dormantCrossRefRouter, 
   basinSyncRouter, 
   geometricDiscoveryRouter 
 } from "./blockchain";
-
-export { sweepsRouter } from "./sweeps";
 
 export { adminRouter } from "./admin";
 

@@ -12,7 +12,6 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import {
   AutonomicAgency as AutonomicAgencyPage,
   Federation as FederationPage,
-  Recovery as RecoveryPage,
   Landing,
   Home,
   Observer as ObserverPage,
@@ -38,7 +37,7 @@ function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
           <header className="flex items-center justify-between gap-2 p-2 border-b h-12 shrink-0">
             <div className="flex items-center gap-2">
               <SidebarTrigger data-testid="button-sidebar-toggle" />
-              <span className="text-sm text-muted-foreground">Observer Archaeology System</span>
+              <span className="text-sm text-muted-foreground">Ocean Agentic Platform</span>
             </div>
             <div className="flex items-center gap-2">
               <HealthIndicator />
@@ -80,7 +79,6 @@ function Router() {
     <AuthenticatedLayout>
       <Switch>
         <Route path="/" component={Home} />
-        <Route path="/recovery" component={RecoveryPage} />
         <Route path="/observer" component={ObserverPage} />
         <Route path="/investigation" component={InvestigationPage} />
         <Route path="/olympus" component={OlympusPage} />
