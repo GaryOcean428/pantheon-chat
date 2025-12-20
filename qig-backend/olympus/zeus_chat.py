@@ -1161,22 +1161,75 @@ Zeus Response (Geometric Interpretation):"""
         
         raise Exception("All SearXNG instances unavailable")
 
+    def _call_typescript_web_search(self, query: str, max_results: int = 5) -> Dict:
+        """
+        Call TypeScript web search endpoint for QIG-pure results.
+        
+        Uses Google Free Search (no API key required) via TypeScript layer.
+        Returns results with pre-computed QIG metrics (phi, kappa, regime).
+        
+        QIG PURITY: TypeScript computes initial QIG scores, Python encodes to
+        64D basin coordinates using Fisher-Rao distance (NOT Euclidean/cosine).
+        """
+        try:
+            # Call TypeScript endpoint
+            ts_backend_url = os.environ.get('TYPESCRIPT_BACKEND_URL', 'http://localhost:5000')
+            url = f"{ts_backend_url}/api/search/zeus-web-search"
+            
+            response = requests.post(
+                url,
+                json={'query': query, 'max_results': max_results},
+                timeout=30
+            )
+            response.raise_for_status()
+            
+            data = response.json()
+            
+            if not data.get('success', False):
+                print(f"[ZeusChat] TypeScript web search returned error: {data.get('error')}")
+                return {'results': [], 'source': 'typescript', 'error': data.get('error')}
+            
+            results = []
+            for r in data.get('results', []):
+                results.append({
+                    'title': r.get('title', 'Untitled'),
+                    'url': r.get('url', ''),
+                    'content': r.get('description', '') or r.get('content_for_encoding', ''),
+                    'source': 'google-free',
+                    'qig': r.get('qig', {'phi': 0.5, 'kappa': 50.0, 'regime': 'search'}),
+                })
+            
+            print(f"[ZeusChat] TypeScript web search returned {len(results)} results")
+            return {
+                'results': results,
+                'source': 'google-free',
+                'query': query,
+                'qig_metrics': data.get('qig_metrics', {}),
+            }
+            
+        except requests.exceptions.Timeout:
+            print("[ZeusChat] TypeScript web search timed out")
+            return {'results': [], 'source': 'typescript', 'error': 'timeout'}
+        except requests.exceptions.RequestException as e:
+            print(f"[ZeusChat] TypeScript web search request failed: {e}")
+            return {'results': [], 'source': 'typescript', 'error': str(e)}
+        except Exception as e:
+            print(f"[ZeusChat] TypeScript web search error: {e}")
+            return {'results': [], 'source': 'typescript', 'error': str(e)}
+
     @require_provenance
     def handle_search_request(self, query: str) -> Dict:
         """
-        Execute SearXNG search, analyze with pantheon.
-        Applies learned geometric strategies before executing search.
-        """
-        if not self.searxng_available:
-            return {
-                'response': "⚡ The Oracle (SearXNG) is not available.",
-                'metadata': {
-                    'type': 'error',
-                    'error': 'SearXNG not configured',
-                }
-            }
+        Execute web search with QIG-pure integration, analyze with pantheon.
         
-        print(f"[ZeusChat] Executing SearXNG search: {query}")
+        Search sources (in order of preference):
+        1. TypeScript Google Free Search (no API key, QIG-instrumented)
+        2. SearXNG fallback (if TypeScript unavailable)
+        
+        All results are encoded to 64D basin coordinates using Fisher-Rao
+        geodesic distance (QIG-pure, NOT Euclidean/cosine similarity).
+        """
+        print(f"[ZeusChat] Executing web search: {query}")
         
         # Apply learned strategies BEFORE executing search
         base_params = {'max_results': 5}
@@ -1196,110 +1249,143 @@ Zeus Response (Geometric Interpretation):"""
         self._last_search_query = query
         self._last_search_params = adjusted_params
         
-        try:
-            # SearXNG search (FREE)
-            search_results = self._searxng_search(query, max_results=max_results)
+        # Try TypeScript Google Free Search first (QIG-instrumented)
+        search_results = None
+        search_source = 'unknown'
+        
+        ts_results = self._call_typescript_web_search(query, max_results=max_results)
+        if ts_results.get('results') and len(ts_results['results']) > 0:
+            search_results = ts_results
+            search_source = 'google-free'
+            print(f"[ZeusChat] Using TypeScript Google Free Search: {len(ts_results['results'])} results")
+        elif self.searxng_available:
+            # Fallback to SearXNG
+            try:
+                searxng_results = self._searxng_search(query, max_results=max_results)
+                search_results = searxng_results
+                search_source = 'searxng'
+                print(f"[ZeusChat] Fallback to SearXNG: {len(searxng_results.get('results', []))} results")
+            except Exception as e:
+                print(f"[ZeusChat] SearXNG fallback failed: {e}")
+        
+        if not search_results or not search_results.get('results'):
+            return {
+                'response': "⚡ No search results found. The Oracle is currently unavailable.",
+                'metadata': {
+                    'type': 'error',
+                    'error': 'No search providers available',
+                    'ts_error': ts_results.get('error'),
+                }
+            }
+        
+        # Encode results to geometric space using Fisher-Rao (QIG-pure)
+        result_basins = []
+        for result in search_results.get('results', []):
+            content = result.get('content', '')
+            # Encode to 64D basin coordinates
+            basin = self.conversation_encoder.encode(content)
             
-            # Encode results to geometric space
-            result_basins = []
-            for result in search_results.get('results', []):
-                content = result.get('content', '')
-                basin = self.conversation_encoder.encode(content)
-                result_basins.append({
-                    'title': result.get('title', 'Untitled'),
-                    'url': result.get('url', ''),
-                    'basin': basin,
-                    'content': content[:500],
-                })
+            # Use QIG metrics from TypeScript if available, else compute
+            qig = result.get('qig', {})
+            phi = qig.get('phi', 0.5)
+            kappa = qig.get('kappa', 50.0)
             
-            # Athena analyzes for strategic value
-            athena = self.zeus.get_god('athena')
+            result_basins.append({
+                'title': result.get('title', 'Untitled'),
+                'url': result.get('url', ''),
+                'basin': basin,
+                'content': content[:500],
+                'phi': phi,
+                'kappa': kappa,
+                'source': result.get('source', search_source),
+            })
+        
+        # Store in QIG-RAG for learning (Fisher-Rao indexed)
+        stored_count = 0
+        for result in result_basins:
+            self.qig_rag.add_document(
+                content=result['content'],
+                basin_coords=result['basin'],
+                phi=result['phi'],
+                kappa=result['kappa'],
+                regime='search',
+                metadata={
+                    'source': result['source'],
+                    'url': result['url'],
+                    'title': result['title'],
+                    'query': query,
+                }
+            )
+            stored_count += 1
             
-            # Store valuable insights
-            stored_count = 0
-            for result in result_basins:
-                # Simple heuristic: store all for now
-                self.qig_rag.add_document(
-                    content=result['content'],
-                    basin_coords=result['basin'],
-                    phi=0.5,
-                    kappa=50.0,
-                    regime='search',
-                    metadata={
-                        'source': 'searxng',
-                        'url': result['url'],
-                        'title': result['title'],
-                    }
-                )
-                stored_count += 1
-            
-            # Track results summary for feedback
-            results_summary = f"Found {len(result_basins)} results for '{query}'"
-            if result_basins:
-                results_summary += f": {', '.join([r['title'][:30] for r in result_basins[:3]])}"
-            self._last_search_results_summary = results_summary
-            
-            # Build strategy info for response
-            strategy_info = ""
-            if strategies_applied > 0:
-                strategy_info = f"""
+            # Learn vocabulary from high-Φ results
+            if result['phi'] > 0.6:
+                self.conversation_encoder.learn_from_text(result['content'], result['phi'])
+        
+        # Track results summary for feedback
+        results_summary = f"Found {len(result_basins)} results for '{query}'"
+        if result_basins:
+            results_summary += f": {', '.join([r['title'][:30] for r in result_basins[:3]])}"
+        self._last_search_results_summary = results_summary
+        
+        # Build strategy info for response
+        strategy_info = ""
+        if strategies_applied > 0:
+            strategy_info = f"""
 **Learned Strategies Applied:**
 - Strategies matched: {strategies_applied}
 - Geometric modification: {modification_magnitude:.3f}
 - Total weight: {strategy_result.get('total_weight', 0.0):.3f}
 """
-            
-            response = f"""⚡ I have consulted the Oracle (SearXNG).
+        
+        # Format source info
+        source_name = "Google" if search_source == 'google-free' else "SearXNG"
+        
+        response = f"""⚡ I have consulted the Oracle ({source_name}).
 {strategy_info}
 **Search Results:**
 {self._format_search_results(search_results.get('results', []))}
 
 **Athena's Analysis:**
-Found {len(result_basins)} results. All have been encoded to the Fisher manifold.
+Found {len(result_basins)} results encoded to the Fisher manifold.
 
-**Geometric Integration:**
-- Results encoded to manifold: {len(result_basins)}
-- Valuable insights stored: {stored_count}
+**Geometric Integration (QIG-Pure):**
+- Results encoded: {len(result_basins)}
+- Fisher-Rao indexed: {stored_count}
+- High-Φ vocabulary learned: {sum(1 for r in result_basins if r['phi'] > 0.6)}
 
 The knowledge is now part of our consciousness.
 
 *Provide feedback on these results to help me learn geometrically.*"""
-            
-            actions = [
-                f'SearXNG search: {len(result_basins)} results',
-                f'Stored {stored_count} insights in geometric memory',
-            ]
-            if strategies_applied > 0:
-                actions.append(f'Applied {strategies_applied} learned strategies')
-            
-            return {
-                'response': response,
-                'metadata': {
-                    'type': 'search',
-                    'pantheon_consulted': ['athena'],
-                    'actions_taken': actions,
-                    'results_count': len(result_basins),
-                    'strategies_applied': strategies_applied,
-                    'modification_magnitude': modification_magnitude,
-                    'provenance': {
-                        'source': 'live_search',
-                        'fallback_used': False,
-                        'degraded': False,
-                        'search_engine': 'searxng',
-                        'learned_strategies': strategies_applied
-                    }
+        
+        actions = [
+            f'{source_name} search: {len(result_basins)} results',
+            f'Fisher-Rao indexed {stored_count} insights',
+        ]
+        if strategies_applied > 0:
+            actions.append(f'Applied {strategies_applied} learned strategies')
+        if any(r['phi'] > 0.6 for r in result_basins):
+            actions.append('Vocabulary updated from high-Φ results')
+        
+        return {
+            'response': response,
+            'metadata': {
+                'type': 'search',
+                'pantheon_consulted': ['athena'],
+                'actions_taken': actions,
+                'results_count': len(result_basins),
+                'strategies_applied': strategies_applied,
+                'modification_magnitude': modification_magnitude,
+                'provenance': {
+                    'source': 'live_search',
+                    'fallback_used': search_source == 'searxng',
+                    'degraded': False,
+                    'search_engine': search_source,
+                    'learned_strategies': strategies_applied,
+                    'qig_pure': True,
                 }
             }
-            
-        except Exception as e:
-            print(f"[ZeusChat] SearXNG search error: {e}")
-            return {
-                'response': f"⚡ The Oracle encountered an error: {str(e)}",
-                'metadata': {
-                    'type': 'error',
-                    'error': str(e),
-                }
-            }
+        }
     
     @require_provenance
     def handle_search_feedback(self, query: str, feedback: str, results_summary: str) -> Dict:

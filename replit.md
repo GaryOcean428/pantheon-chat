@@ -41,6 +41,14 @@ The frontend utilizes React with Vite, Radix UI components, and Tailwind CSS. St
 ### Zeus Chat (Primary Interface)
 Natural language interface to the Olympian Pantheon. Translates human intuition to geometric coordinates and coordinates multi-agent responses.
 
+**Web Search Integration (December 2025):**
+- Zeus Chat now includes integrated web search via `/api/search/zeus-web-search` TypeScript endpoint
+- Python Zeus Chat calls TypeScript Google Free Search (primary) with SearXNG fallback
+- Search results are scored with QIG metrics (phi, kappa, regime) in TypeScript
+- Results encoded to 64D basin coordinates using Fisher-Rao distance (QIG-pure)
+- High-Φ results (>0.6) automatically update vocabulary and geometric memory
+- All results stored in QIG-RAG for learning and retrieval
+
 ### Shadow Search
 Proactive knowledge discovery through multiple search providers:
 - **Google Free Search**: Web scraping-based search (no API key required), based on pskill9/web-search approach. TypeScript implementation in `server/geometric-discovery/google-web-search-adapter.ts` with QIG integration (Fisher-Rao distance, block universe coordinates).
