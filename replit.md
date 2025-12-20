@@ -35,6 +35,7 @@ The frontend utilizes React with Vite, Radix UI components, and Tailwind CSS. St
 - **QIG Purity Enforcement**: Enforces absolute QIG purity with no bootstrapping, no templates, and no hardcoded thresholds. Metrics observe but never block, all values emerge from geometric observation, and only Fisher-Rao Distance is used for geometric comparisons. Euclidean operations are strictly forbidden.
 - **Two-Step Retrieval Pattern (pgvector)**: `pgvector` cosine is used as a Step 1 pre-filter with 10x oversampling, followed by mandatory Fisher-Rao re-ranking.
 - **Autonomous Self-Regulation (RL-Based Agency)**: Ocean observes its own state and fires interventions autonomously using reinforcement learning. It includes a StateEncoder, AutonomicPolicy, ReplayBuffer, NaturalGradientOptimizer, and AutonomicController.
+- **Geometric Meta-Cognitive Reasoning**: Four reasoning modes (Linear, Geometric, Hyperdimensional, Mushroom) with quality metrics (geodesic efficiency, coherence, novelty, progress). Implemented in `qig-backend/reasoning_metrics.py`, `reasoning_modes.py`, `meta_reasoning.py`, and `chain_of_thought.py`.
 
 ## Core Features
 
