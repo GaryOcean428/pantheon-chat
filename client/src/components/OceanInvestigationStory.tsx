@@ -177,14 +177,9 @@ export function OceanInvestigationStory() {
     refetchInterval: 2000,
   });
 
-  const { data: targetAddresses } = useQuery<TargetAddress[]>({
-    queryKey: QUERY_KEYS.targetAddresses.list(),
-  });
-
-  const { data: candidates } = useQuery<RecoveryCandidate[]>({
-    queryKey: QUERY_KEYS.recovery.candidates(),
-    refetchInterval: 3000,
-  });
+  // DISABLED: Bitcoin-related queries removed for agentic platform pivot
+  // const { data: targetAddresses } = useQuery<TargetAddress[]>({ queryKey: QUERY_KEYS.targetAddresses.list() });
+  // const { data: candidates } = useQuery<RecoveryCandidate[]>({ queryKey: QUERY_KEYS.recovery.candidates() });
 
   const { data: neurochemistryData } = useQuery<{ neurochemistry: NeurochemistryData }>({
     queryKey: QUERY_KEYS.ocean.neurochemistry(),
@@ -201,14 +196,12 @@ export function OceanInvestigationStory() {
     refetchInterval: 5000,
   });
 
-  const { data: balanceHitsData, isLoading: balanceHitsLoading } = useQuery<{ hits: BalanceHit[]; count: number; activeCount: number }>({
-    queryKey: QUERY_KEYS.balance.hits(),
-    refetchInterval: 10000,
-    staleTime: 0,
-  });
-  const balanceHits = balanceHitsData?.hits || [];
+  // DISABLED: Balance monitoring removed for agentic platform pivot
+  // const { data: balanceHitsData, isLoading: balanceHitsLoading } = useQuery({ queryKey: QUERY_KEYS.balance.hits() });
+  const balanceHits: BalanceHit[] = [];
+  const balanceHitsLoading = false;
 
-  const [balanceHitsOpen, setBalanceHitsOpen] = useState(true);
+  const [balanceHitsOpen, setBalanceHitsOpen] = useState(false);
 
   const startMutation = useMutation({
     mutationFn: async (_targetAddress: string) => {

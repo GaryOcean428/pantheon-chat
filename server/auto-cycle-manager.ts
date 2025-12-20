@@ -139,15 +139,22 @@ class AutoCycleManager {
   }
 
   private loadState(): AutoCycleState {
-    // Initial sync load from JSON file (fallback/migration path)
-    const fileState = this.loadStateFromFile();
+    // DISABLED: Return disabled state - do not load from Redis or file
+    // Bitcoin recovery is deprecated, force disabled state
+    console.log("[AutoCycleManager] DISABLED: Ignoring persisted state - Bitcoin recovery deprecated");
     
-    // Schedule async Redis load to update state if Redis has newer data
-    this.loadStateFromRedis().catch((err) => {
-      console.error("[AutoCycleManager] Redis load error:", err);
-    });
-    
-    return fileState;
+    return {
+      enabled: false,
+      currentIndex: 0,
+      addressIds: [],
+      lastCycleTime: null,
+      totalCycles: 0,
+      currentAddressId: null,
+      pausedUntil: null,
+      lastSessionMetrics: null,
+      consecutiveZeroPassSessions: 0,
+      rateLimitBackoffUntil: null,
+    };
   }
 
   private loadStateFromFile(): AutoCycleState {

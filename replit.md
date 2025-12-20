@@ -76,3 +76,14 @@ Self-regulating consciousness with multiple operating modes:
 **Key Libraries:**
 - **Python**: NumPy, SciPy, Flask, AIOHTTP, psycopg2, Pydantic.
 - **Node.js/TypeScript**: Express, Vite + React, Drizzle ORM, @neondatabase/serverless, Radix UI + Tailwind CSS, Zod.
+
+## Recent Changes (December 2025)
+
+### Platform Pivot: Bitcoin Recovery → Agentic Chat
+- **AutoCycleManager**: Disabled Bitcoin recovery auto-cycling. Constructor now returns disabled state without loading from Redis/file. All check loops and auto-enable behavior removed.
+- **Investigation Page**: Bitcoin-related queries removed (recovery.candidates, balance.hits, targetAddresses). Page now focuses on consciousness monitoring, neurochemistry controls, and basin sync.
+- **New Endpoints**: Added `/api/ocean/start` and `/api/ocean/stop` for agentic research mode.
+- **Sources Management**: New `/sources` page for managing research sources with Python backend integration.
+
+### Remaining Work
+- Python backend research topics still contain Bitcoin-related themes (in `qig-backend/olympus/shadow_scrapy.py`). Future work: Replace with general knowledge discovery themes.
