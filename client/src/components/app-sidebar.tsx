@@ -17,7 +17,6 @@ import {
 import { API_ROUTES, QUERY_KEYS } from "@/api";
 import { 
   Waves, 
-  Database, 
   Home,
   Brain,
   Activity,
@@ -69,12 +68,6 @@ export function AppSidebar() {
       description: "Autonomous research agent",
       badge: investigationStatus?.isRunning ? "ACTIVE" : undefined,
       badgeColor: "bg-green-500/20 text-green-400",
-    },
-    {
-      title: "Observer Dashboard",
-      url: "/observer",
-      icon: Database,
-      description: "Analytics & monitoring",
     },
     {
       title: "Mount Olympus",

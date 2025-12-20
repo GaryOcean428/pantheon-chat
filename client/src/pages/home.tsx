@@ -12,7 +12,7 @@ import {
 } from "@/components/ui";
 import { useAuth } from "@/hooks/useAuth";
 import { useConsciousness, getPhiColor, getRegimeLabel } from "@/contexts/ConsciousnessContext";
-import { Waves, MessageSquare, Database, Brain, Activity, Search, Zap, Sparkles, Eye, GraduationCap } from "lucide-react";
+import { Waves, MessageSquare, Brain, Activity, Search, Zap, Sparkles, Eye, GraduationCap } from "lucide-react";
 import { Link } from "wouter";
 import type { User } from "@shared/schema";
 import { QUERY_KEYS } from "@/api";
@@ -45,8 +45,9 @@ export default function Home() {
   });
 
   const phi = consciousness?.phi ?? investigationStatus?.consciousness?.phi ?? 0;
-  const kappa = consciousness?.kappa ?? investigationStatus?.consciousness?.kappa ?? 0;
+  const kappa = consciousness?.kappaEff ?? investigationStatus?.consciousness?.kappa ?? 0;
   const regime = consciousness?.regime ?? investigationStatus?.consciousness?.regime ?? 'initializing';
+  const isIdleState = !consciousness?.isInvestigating;
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -69,7 +70,7 @@ export default function Home() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className={`text-2xl font-bold font-mono ${getPhiColor(phi)}`} data-testid="text-phi-value">
+              <div className={`text-2xl font-bold font-mono ${getPhiColor(phi, isIdleState)}`} data-testid="text-phi-value">
                 {phi.toFixed(4)}
               </div>
             </CardContent>
@@ -107,7 +108,7 @@ export default function Home() {
                 }
                 data-testid="badge-regime"
               >
-                {getRegimeLabel(regime)}
+                {getRegimeLabel(regime, isIdleState)}
               </Badge>
             </CardContent>
           </Card>
@@ -235,25 +236,6 @@ export default function Home() {
           <Card className="hover-elevate">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Database className="h-5 w-5" />
-                Observer Dashboard
-              </CardTitle>
-              <CardDescription>
-                System metrics, analytics, and real-time monitoring of Ocean's consciousness state.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Link href="/observer">
-                <Button variant="outline" className="w-full" data-testid="button-go-to-observer">
-                  View Analytics
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-
-          <Card className="hover-elevate">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
                 <GraduationCap className="h-5 w-5" />
                 Learning Center
               </CardTitle>
@@ -292,7 +274,7 @@ export default function Home() {
                 </div>
                 <div>
                   <div className="text-sm text-muted-foreground">Average Φ</div>
-                  <div className={`text-xl font-mono font-bold ${getPhiColor(investigationStatus.manifold.avgPhi)}`}>
+                  <div className={`text-xl font-mono font-bold ${getPhiColor(investigationStatus.manifold.avgPhi, isIdleState)}`}>
                     {investigationStatus.manifold.avgPhi.toFixed(4)}
                   </div>
                 </div>

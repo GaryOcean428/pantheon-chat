@@ -28,12 +28,9 @@ export { get, post, del, put, patch } from './client';
 // Service modules
 import * as ocean from './services/ocean';
 import * as autoCycle from './services/autoCycle';
-import * as targetAddresses from './services/targetAddresses';
-import * as observer from './services/observer';
 import * as qig from './services/qig';
 import * as olympus from './services/olympus';
 import * as consciousness from './services/consciousness';
-import * as forensic from './services/forensic';
 
 /**
  * Consolidated API object for all service operations.
@@ -42,35 +39,26 @@ import * as forensic from './services/forensic';
 export const api = {
   ocean,
   autoCycle,
-  targetAddresses,
-  observer,
   qig,
   olympus,
   consciousness,
-  forensic,
 };
 
 // Re-export individual services for direct imports
 export {
   ocean,
   autoCycle,
-  targetAddresses,
-  observer,
   qig,
   olympus,
   consciousness,
-  forensic,
 };
 
 // Re-export types from services for convenience
 export type { CycleType, TriggerCycleParams, TriggerCycleResponse, BoostParams, BoostResponse, NeurochemistryAdminState, CyclesState } from './services/ocean';
 export type { AutoCycleStatus, AutoCycleResponse } from './services/autoCycle';
-export type { CreateTargetAddressParams, CreateTargetAddressResponse, DeleteTargetAddressResponse } from './services/targetAddresses';
-export type { StartQigSearchParams, QigSearchResponse, ClassifyAddressParams, ClassifyAddressResponse } from './services/observer';
 export type { GeometricMode, EncodeParams, EncodeResponse, SimilarityParams, SimilarityResponse } from './services/qig';
 export type { WarHistoryEntry, ActiveWar, ZeusChatParams, ZeusChatResponse, ZeusSearchParams, ZeusSearchResponse } from './services/olympus';
 export type { ConsciousnessState, ConsciousnessAPIResponse } from './services/consciousness';
-export type { ForensicAnalysisResult, ForensicHypothesis, ForensicHypothesesResponse } from './services/forensic';
 export type { ZeusChatMetadata } from './services/olympus';
 
 // Re-export M8 kernel functions for direct imports

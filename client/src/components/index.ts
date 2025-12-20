@@ -20,7 +20,6 @@ export { ConsciousnessMonitoringDemo } from './ConsciousnessMonitoringDemo';
 export { EmptyDebatesState } from './EmptyDebatesState';
 export { EmotionalStatePanel } from './EmotionalStatePanel';
 export { ErrorBoundary } from './ErrorBoundary';
-export { ForensicInvestigation } from './ForensicInvestigation';
 export { HealthIndicator } from './HealthIndicator';
 export { InnateDrivesDisplay } from './InnateDrivesDisplay';
 export { MarkdownRenderer, MarkdownExample } from './MarkdownRenderer';
@@ -29,7 +28,6 @@ export { default as NeurochemistryAdminPanel } from './NeurochemistryAdminPanel'
 export { default as NeurochemistryDisplay } from './NeurochemistryDisplay';
 export { OceanInvestigationStory } from './OceanInvestigationStory';
 export { PhiVisualization } from './PhiVisualization';
-export { default as RecoveryResults } from './RecoveryResults';
 export { SessionExpirationModal } from './SessionExpirationModal';
 export { WarStatusPanel } from './war-status-panel';
 export { default as ZeusChat } from './ZeusChat';

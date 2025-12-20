@@ -288,15 +288,15 @@ export function OceanInvestigationStory() {
   const consciousness = cyclesData?.consciousness || currentStatus.fullConsciousness || null;
   const neuro = neurochemistryData?.neurochemistry;
   
-  // Combine discoveries from status and candidates
-  const topCandidates = (candidates || []).slice(0, 5);
+  // Candidates disabled for agentic platform pivot
+  const topCandidates: any[] = [];
 
   return (
     <div className="h-full flex flex-col p-3 gap-3 overflow-hidden" data-testid="investigation-page">
       {/* Row 1: Controls */}
       <ControlRow
         isRunning={currentStatus.isRunning}
-        targetAddresses={targetAddresses || []}
+        targetAddresses={[]}
         onStart={(addr) => startMutation.mutate(addr)}
         onStop={() => stopMutation.mutate()}
         isPending={startMutation.isPending || stopMutation.isPending}
@@ -618,25 +618,11 @@ function ControlRow({
     },
   });
 
+  // DISABLED: Target address management removed for agentic platform pivot
   const addAddressMutation = useMutation({
-    mutationFn: async (address: string) => {
-      return api.targetAddresses.createTargetAddress({ 
-        address, 
-        label: `Custom ${new Date().toLocaleDateString()}` 
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.targetAddresses.list() });
-      setNewAddress('');
-      setShowAddNew(false);
-      toast({ title: 'Address Added', description: 'New target address added successfully' });
-    },
-    onError: (error: Error) => {
-      toast({ 
-        title: 'Error Adding Address', 
-        description: error.message, 
-        variant: 'destructive' 
-      });
+    mutationFn: async (_address: string) => {
+      toast({ title: 'Feature disabled', description: 'Target addresses removed for agentic platform', variant: 'destructive' });
+      throw new Error('Feature disabled');
     },
   });
 
