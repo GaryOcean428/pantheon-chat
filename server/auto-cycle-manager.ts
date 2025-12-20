@@ -33,13 +33,13 @@ const DATA_FILE = path.join(process.cwd(), "data", "auto-cycle-state.json");
 
 // Development mode detection
 const IS_DEV = process.env.NODE_ENV === "development";
-// ALWAYS auto-resume on restart - user requested always-on behavior
-const AUTO_RESUME_ON_RESTART = true;
+// DISABLED: Bitcoin recovery auto-cycling is disabled as platform pivots to agentic chat
+// This can be repurposed for research cycles in the future
+const AUTO_RESUME_ON_RESTART = false;
 // Longer check interval in development to reduce CPU usage
 const CHECK_INTERVAL = IS_DEV ? 15000 : 5000; // 15s in dev, 5s in prod
-// ALWAYS_ON mode - system must run continuously, cannot be disabled
-// Ensures the system auto-restarts if somehow stopped
-const ALWAYS_ON = true;
+// DISABLED: Always-on mode disabled for platform pivot
+const ALWAYS_ON = false;
 
 // Session quality gates
 const ZERO_PASS_PAUSE_MS = 30000; // 30s pause after 0-pass session

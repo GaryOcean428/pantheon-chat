@@ -211,25 +211,27 @@ export function OceanInvestigationStory() {
   const [balanceHitsOpen, setBalanceHitsOpen] = useState(true);
 
   const startMutation = useMutation({
-    mutationFn: async (targetAddress: string) => {
-      return api.recovery.startRecovery({ targetAddress });
+    mutationFn: async (_targetAddress: string) => {
+      const response = await fetch('/api/ocean/start', { method: 'POST' });
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.investigation.status() });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.ocean.cycles() });
-      toast({ title: 'Investigation Started' });
+      toast({ title: 'Ocean Research Started' });
     },
   });
 
   const stopMutation = useMutation({
     mutationFn: async () => {
-      return api.recovery.stopRecovery();
+      const response = await fetch('/api/ocean/stop', { method: 'POST' });
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.investigation.status() });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.ocean.cycles() });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.autoCycle.status() });
-      toast({ title: 'Investigation Stopped' });
+      toast({ title: 'Ocean Research Stopped' });
     },
     onError: (error: Error) => {
       toast({ 
@@ -995,20 +997,15 @@ function BalanceHitsPanel({
   
   const refreshMutation = useMutation({
     mutationFn: async () => {
-      return api.balanceMonitor.refreshBalanceMonitor();
+      return Promise.resolve({ success: true, message: 'Refresh disabled' });
     },
-    onSuccess: (data: any) => {
-      toast({
-        title: 'Balance Refresh Complete',
-        description: data.message || `Refreshed ${data.refreshedCount || 0} addresses`,
-      });
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.balance.hits() });
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.balanceMonitor.status() });
+    onSuccess: () => {
+      toast({ title: 'Refresh feature disabled in agentic mode' });
     },
     onError: (error: any) => {
       toast({
         title: 'Refresh Failed',
-        description: error.message || 'Could not refresh balances',
+        description: error.message || 'Could not refresh',
         variant: 'destructive',
       });
     },
