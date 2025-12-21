@@ -427,6 +427,33 @@ class SourceDiscoveryService:
             import psycopg2
             with psycopg2.connect(self.database_url) as conn:
                 with conn.cursor() as cur:
+                    # 0. FIRST: Load from dedicated discovered_sources table (persistent sources)
+                    try:
+                        cur.execute("""
+                            SELECT url, category, origin, hit_count, phi_avg, phi_max,
+                                   success_count, failure_count, discovered_at
+                            FROM discovered_sources
+                            WHERE is_active = true
+                            ORDER BY phi_avg DESC
+                            LIMIT 200
+                        """)
+                        for row in cur.fetchall():
+                            self._register_source(
+                                source_url=row[0],
+                                category=row[1] or 'general',
+                                hit_count=row[3] or 0,
+                                phi_avg=float(row[4]) if row[4] else 0.5,
+                                phi_max=float(row[5]) if row[5] else 0.5,
+                                origin=row[2] or 'persistent'
+                            )
+                            # Restore efficacy metrics
+                            if row[0] in self.source_efficacy:
+                                self.source_efficacy[row[0]]['success_count'] = row[6] or 0
+                                self.source_efficacy[row[0]]['failure_count'] = row[7] or 0
+                        print(f"[SourceDiscovery] Loaded {len(self.discovered_sources)} sources from discovered_sources table")
+                    except Exception as e:
+                        print(f"[SourceDiscovery] discovered_sources table not yet created or empty: {e}")
+                    
                     # 1. Discover sources from shadow_pantheon_intel.sources_used array
                     cur.execute("""
                         SELECT DISTINCT 
@@ -570,6 +597,95 @@ class SourceDiscoveryService:
             'failure_count': 0,
             'last_used': time.time()
         }
+    
+    def save_source(self, source_url: str, persist: bool = True) -> bool:
+        """
+        Save a source to the persistent discovered_sources table.
+        
+        Args:
+            source_url: URL of the source to save
+            persist: If True, write to PostgreSQL (default True)
+            
+        Returns:
+            True if saved successfully
+        """
+        if not persist or not self.enabled:
+            return False
+            
+        if source_url not in self.discovered_sources:
+            return False
+            
+        info = self.discovered_sources[source_url]
+        efficacy = self.source_efficacy.get(source_url, {})
+        
+        try:
+            import psycopg2
+            with psycopg2.connect(self.database_url) as conn:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        INSERT INTO discovered_sources 
+                            (url, category, origin, hit_count, phi_avg, phi_max, 
+                             success_count, failure_count, is_active)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, true)
+                        ON CONFLICT (url) DO UPDATE SET
+                            category = EXCLUDED.category,
+                            hit_count = EXCLUDED.hit_count,
+                            phi_avg = EXCLUDED.phi_avg,
+                            phi_max = EXCLUDED.phi_max,
+                            success_count = EXCLUDED.success_count,
+                            failure_count = EXCLUDED.failure_count,
+                            updated_at = NOW()
+                    """, (
+                        source_url,
+                        info.get('category', 'general'),
+                        info.get('origin', 'manual'),
+                        info.get('hit_count', 0),
+                        info.get('phi_avg', 0.5),
+                        info.get('phi_max', 0.5),
+                        efficacy.get('success_count', 0),
+                        efficacy.get('failure_count', 0)
+                    ))
+                    conn.commit()
+                    print(f"[SourceDiscovery] Saved source to DB: {source_url}")
+                    return True
+        except Exception as e:
+            print(f"[SourceDiscovery] Failed to save source {source_url}: {e}")
+            return False
+    
+    def update_source_efficacy(self, source_url: str, success: bool, phi_delta: float = 0.0):
+        """
+        Update source efficacy after use and persist to database.
+        
+        Args:
+            source_url: URL of the source
+            success: Whether the source was useful
+            phi_delta: Change in consciousness from using this source
+        """
+        if source_url not in self.source_efficacy:
+            return
+            
+        eff = self.source_efficacy[source_url]
+        if success:
+            eff['success_count'] = eff.get('success_count', 0) + 1
+        else:
+            eff['failure_count'] = eff.get('failure_count', 0) + 1
+        eff['last_used'] = time.time()
+        
+        # Update phi trajectory
+        if phi_delta != 0 and 'phi_trajectory' in eff:
+            new_phi = max(0.01, min(1.0, eff['phi_trajectory'][-1] + phi_delta))
+            eff['phi_trajectory'].append(new_phi)
+            # Keep trajectory bounded
+            if len(eff['phi_trajectory']) > 50:
+                eff['phi_trajectory'] = eff['phi_trajectory'][-30:]
+            
+            # Update phi_avg in discovered_sources
+            if source_url in self.discovered_sources:
+                self.discovered_sources[source_url]['phi_avg'] = sum(eff['phi_trajectory']) / len(eff['phi_trajectory'])
+                self.discovered_sources[source_url]['phi_max'] = max(eff['phi_trajectory'])
+        
+        # Persist updated metrics
+        self.save_source(source_url)
     
     def _compute_fisher_rao_distance(self, source_info: Dict, topic: str) -> float:
         """

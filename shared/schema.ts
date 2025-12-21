@@ -3479,3 +3479,38 @@ export const federatedInstances = pgTable(
 
 export type FederatedInstanceRow = typeof federatedInstances.$inferSelect;
 export type InsertFederatedInstance = typeof federatedInstances.$inferInsert;
+
+/**
+ * DISCOVERED SOURCES - Persistent source registry for research indexing
+ * Sources discovered through research that should persist across restarts
+ * and be bootstrapped automatically when SourceDiscoveryService initializes.
+ */
+export const discoveredSources = pgTable(
+  "discovered_sources",
+  {
+    id: serial("id").primaryKey(),
+    url: text("url").notNull().unique(),
+    category: varchar("category", { length: 64 }).default("general").notNull(),
+    origin: varchar("origin", { length: 64 }).default("manual").notNull(),
+    hitCount: integer("hit_count").default(0).notNull(),
+    phiAvg: doublePrecision("phi_avg").default(0.5).notNull(),
+    phiMax: doublePrecision("phi_max").default(0.5).notNull(),
+    successCount: integer("success_count").default(0).notNull(),
+    failureCount: integer("failure_count").default(0).notNull(),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    discoveredAt: timestamp("discovered_at", { withTimezone: true }).defaultNow().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+    isActive: boolean("is_active").default(true).notNull(),
+    metadata: jsonb("metadata"),
+  },
+  (table) => [
+    index("idx_discovered_sources_url").on(table.url),
+    index("idx_discovered_sources_category").on(table.category),
+    index("idx_discovered_sources_active").on(table.isActive),
+    index("idx_discovered_sources_phi_avg").on(table.phiAvg),
+  ]
+);
+
+export type DiscoveredSourceRow = typeof discoveredSources.$inferSelect;
+export type InsertDiscoveredSource = typeof discoveredSources.$inferInsert;

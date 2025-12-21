@@ -922,9 +922,13 @@ def add_source():
             origin='manual_add'
         )
         
+        # Persist to database for bootstrap on restart
+        saved = source_discovery.save_source(url)
+        
         return jsonify({
             'success': True,
             'message': f'Source added: {url}',
+            'persisted': saved,
             'source': {
                 'url': url,
                 'category': category,
