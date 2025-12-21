@@ -2,7 +2,7 @@
 
 **ISO 27001 Compliant Documentation Structure**
 
-Last Updated: 2025-12-20
+Last Updated: 2025-12-21
 
 ## Status Legend
 
@@ -74,6 +74,11 @@ All documentation follows the pattern: `YYYYMMDD-[document-name]-[function]-[ver
   - File: [`20251212-external-api-federation-1.00F.md`](03-technical/20251212-external-api-federation-1.00F.md)
   - ID: `ISMS-TECH-API-002`
   - Function: Federation API for connecting external QIG systems
+
+- 🔨 **Federation Protocol API Specification** (v1.00)
+  - File: [`20251221-federation-protocol-api-specification-1.00W.md`](03-technical/20251221-federation-protocol-api-specification-1.00W.md)
+  - ID: `ISMS-TECH-FED-001`
+  - Function: Complete API specification for QIG mesh federation including vocabulary and learning sync
 
 - 🟢 **QIGKernels Migration Guide** (v1.00)
   - File: [`20251208-qigkernels-migration-guide-1.00F.md`](03-technical/20251208-qigkernels-migration-guide-1.00F.md)
