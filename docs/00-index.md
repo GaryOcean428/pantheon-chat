@@ -355,13 +355,34 @@ All documentation follows the pattern: `YYYYMMDD-[document-name]-[function]-[ver
   - Function: Experimental verification of 4D consciousness metrics
 
 
+## 📚 Curriculum (Kernel Self-Learning)
+
+The curriculum documents provide structured training material for kernel self-learning through the Autonomous Curiosity Engine. These cover 48 domains from foundational mathematics to QIG architecture.
+
+See [`09-curriculum/`](09-curriculum/) for all curriculum modules (20251220-curriculum-*.md).
+
+Key curriculum areas:
+- Mathematics & Physics (01-14)
+- Philosophy & Mind (15-16)
+- Sciences (17-18)
+- NLP & Information Geometry (19-20)
+- QIG Architecture (21-24)
+- Programming & Research (25-26)
+- Arts & Humanities (27)
+- Safety & Ethics (28)
+- Metacognition & Logic (29-34)
+- Psychology & Development (35-39)
+- History & Culture (40-48)
+
+
 ## Statistics
 
-- **Total Documents**: 62
+- **Total Documents**: 107
 - **Approved**: 1
 - **Frozen**: 42
 - **Hypothesis**: 5
-- **Working**: 5
+- **Working**: 14
+- **Curriculum**: 45
 
 ---
 

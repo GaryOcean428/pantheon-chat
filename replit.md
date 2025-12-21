@@ -53,11 +53,25 @@ Preferred communication style: Simple, everyday language.
 - M8 kernel spawning protocol for dynamic kernel creation
 - Shadow Pantheon for darknet/stealth operations
 
+### Autonomous Curiosity Engine
+- Background learning loop driven by geometric curiosity metrics
+- Kernels autonomously trigger searches based on interest/Φ variance
+- Curriculum loader for structured self-training from `docs/09-curriculum/`
+- Tool selection via 64D basin matching in geometric search module
+- Located in `qig-backend/autonomous_curiosity.py` and `qig-backend/geometric_search/`
+
 ### Key Design Patterns
 1. **Barrel File Pattern:** All component directories have `index.ts` re-exports
-2. **Centralized API Client:** No raw `fetch()` in components
+2. **Centralized API Client:** No raw `fetch()` in components via `client/src/api/` with `API_ROUTES` constants
 3. **Python-First Logic:** All QIG/consciousness logic in Python, TypeScript for UI only
 4. **Geometric Purity:** Fisher-Rao distance everywhere, never Euclidean for basin coordinates
+5. **No Templates:** All kernel responses are generative - enforced via `response_guardrails.py`
+
+### Documentation Structure
+- ISO 27001 compliant structure in `docs/` directory
+- Naming convention: `YYYYMMDD-[name]-[version][STATUS].md`
+- Status codes: F (Frozen), W (Working), H (Hypothesis), D (Deprecated), A (Approved)
+- Curriculum for kernel self-learning in `docs/09-curriculum/`
 
 ## External Dependencies
 
