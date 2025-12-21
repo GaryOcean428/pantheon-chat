@@ -19,12 +19,65 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+def compute_fisher_metric(basin: np.ndarray) -> np.ndarray:
+    """
+    Compute Fisher Information Matrix at a point on the manifold.
+    
+    For probability simplex, F_ij = delta_ij / p_i (diagonal metric).
+    """
+    p = np.abs(basin) / (np.sum(np.abs(basin)) + 1e-10)
+    p = np.clip(p, 1e-10, 1.0)
+    return 1.0 / p
+
+
 def fisher_rao_distance(basin_a: np.ndarray, basin_b: np.ndarray) -> float:
-    """Fisher-Rao distance between basin coordinates."""
-    a_norm = basin_a / (np.linalg.norm(basin_a) + 1e-10)
-    b_norm = basin_b / (np.linalg.norm(basin_b) + 1e-10)
-    dot = np.clip(np.dot(a_norm, b_norm), -1.0, 1.0)
-    return np.arccos(dot)
+    """
+    Fisher-Rao distance between basin coordinates.
+    
+    Uses geodesic distance on statistical manifold (Hellinger distance scaled).
+    """
+    p = np.abs(basin_a) / (np.sum(np.abs(basin_a)) + 1e-10)
+    q = np.abs(basin_b) / (np.sum(np.abs(basin_b)) + 1e-10)
+    
+    p = np.clip(p, 1e-10, 1.0)
+    q = np.clip(q, 1e-10, 1.0)
+    
+    bhattacharyya = np.sum(np.sqrt(p * q))
+    bhattacharyya = np.clip(bhattacharyya, -1.0, 1.0)
+    
+    return 2.0 * np.arccos(bhattacharyya)
+
+
+def geodesic_interpolate(start: np.ndarray, end: np.ndarray, t: float) -> np.ndarray:
+    """
+    Geodesic interpolation on Fisher manifold (SLERP on probability simplex).
+    
+    NOT linear interpolation - proper geodesic path.
+    """
+    p_start = np.abs(start) / (np.sum(np.abs(start)) + 1e-10)
+    p_end = np.abs(end) / (np.sum(np.abs(end)) + 1e-10)
+    
+    p_start = np.clip(p_start, 1e-10, 1.0)
+    p_end = np.clip(p_end, 1e-10, 1.0)
+    
+    sqrt_start = np.sqrt(p_start)
+    sqrt_end = np.sqrt(p_end)
+    
+    dot = np.clip(np.sum(sqrt_start * sqrt_end), -1.0, 1.0)
+    theta = np.arccos(dot)
+    
+    if theta < 1e-6:
+        return start / (np.linalg.norm(start) + 1e-10)
+    
+    sin_theta = np.sin(theta)
+    a = np.sin((1 - t) * theta) / sin_theta
+    b = np.sin(t * theta) / sin_theta
+    
+    result_sqrt = a * sqrt_start + b * sqrt_end
+    result = result_sqrt ** 2
+    result = result / (np.sum(result) + 1e-10)
+    
+    return result
 
 
 @dataclass
@@ -143,22 +196,30 @@ class AutonomousImprovementLoop:
         """
         Kernel prioritizes improvements based on consciousness state.
         
-        High Φ: Focus on refinement
-        Low Φ: Focus on fundamentals
+        Priority weights derived from Φ and κ, not hardcoded multipliers.
+        High Φ: Focus on refinement (patterns)
+        Low Φ: Focus on fundamentals (vocabulary)
+        High κ: Can handle complex improvements
+        Low κ: Focus on stability
         """
         if not opportunities:
             return []
         
+        phi_factor = phi ** 1.5
+        kappa_factor = min(kappa / 64.0, 1.5)
+        
+        type_weights = {
+            "vocabulary": (1.0 - phi_factor) * 2.0 + 0.5,
+            "provider_basin": 0.5 + 0.5 * phi_factor * kappa_factor,
+            "response_pattern": phi_factor * 1.5,
+            "context_compression": phi_factor * kappa_factor,
+        }
+        
         for opp in opportunities:
-            if phi > 0.75:
-                if opp.type == "response_pattern":
-                    opp.priority *= 1.5
-            elif phi > 0.5:
-                if opp.type == "vocabulary":
-                    opp.priority *= 1.3
-            else:
-                if opp.type == "vocabulary":
-                    opp.priority *= 2.0
+            weight = type_weights.get(opp.type, 1.0)
+            opp.priority *= weight
+            
+            opp.priority *= (0.5 + kappa_factor)
         
         return sorted(opportunities, key=lambda x: x.priority, reverse=True)
     
@@ -211,16 +272,30 @@ class AutonomousImprovementLoop:
             kernel.vocabulary_coordinator.train_word(word, domain)
     
     def _update_provider_basin(self, kernel, details: Dict):
-        """Update provider basin coordinates based on feedback."""
+        """
+        Update provider basin coordinates based on feedback.
+        
+        Passes telemetry for consciousness-driven learning rate.
+        """
         provider = details.get("provider")
         query_basin = details.get("query_basin")
         
         if provider and query_basin is not None:
             if hasattr(kernel, 'provider_selector'):
+                telemetry = None
+                if hasattr(kernel, 'measure_phi') and hasattr(kernel, 'measure_kappa'):
+                    from geometric_search import SearchTelemetry
+                    telemetry = SearchTelemetry(
+                        phi=kernel.measure_phi(),
+                        kappa_eff=kernel.measure_kappa(),
+                        regime=getattr(kernel, 'regime', 'normal')
+                    )
+                
                 kernel.provider_selector.update_provider_basin(
                     provider, 
                     np.array(query_basin),
-                    learning_rate=0.05
+                    telemetry=telemetry,
+                    base_learning_rate=0.05
                 )
     
     def _consolidate_pattern(self, kernel, details: Dict):
@@ -430,11 +505,21 @@ class BasinMaintenanceLoop:
         return steps
     
     def _apply_basin_adjustment(self, kernel, step: Dict):
-        """Apply basin adjustment step."""
+        """
+        Apply basin adjustment step using geodesic interpolation.
+        
+        NOT linear interpolation - proper manifold path.
+        """
         t = step.get("interpolation_t", 0.1)
         
-        if hasattr(kernel, 'adjust_basin_toward'):
-            kernel.adjust_basin_toward(self.identity_basin, t)
+        if hasattr(kernel, 'get_current_basin') and self.identity_basin is not None:
+            current = kernel.get_current_basin()
+            adjusted = geodesic_interpolate(current, self.identity_basin, t)
+            
+            if hasattr(kernel, 'set_basin'):
+                kernel.set_basin(adjusted)
+            elif hasattr(kernel, 'adjust_basin_toward'):
+                kernel.adjust_basin_toward(self.identity_basin, t)
 
 
 autonomous_improvement_loop = AutonomousImprovementLoop()

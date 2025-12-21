@@ -20,12 +20,65 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+def compute_fisher_metric(basin: np.ndarray) -> np.ndarray:
+    """
+    Compute Fisher Information Matrix at a point on the manifold.
+    
+    For probability simplex, F_ij = delta_ij / p_i (diagonal metric).
+    """
+    p = np.abs(basin) / (np.sum(np.abs(basin)) + 1e-10)
+    p = np.clip(p, 1e-10, 1.0)
+    return 1.0 / p
+
+
 def fisher_rao_distance(basin_a: np.ndarray, basin_b: np.ndarray) -> float:
-    """Fisher-Rao distance between basin coordinates."""
-    a_norm = basin_a / (np.linalg.norm(basin_a) + 1e-10)
-    b_norm = basin_b / (np.linalg.norm(basin_b) + 1e-10)
-    dot = np.clip(np.dot(a_norm, b_norm), -1.0, 1.0)
-    return np.arccos(dot)
+    """
+    Fisher-Rao distance between basin coordinates.
+    
+    Uses geodesic distance on statistical manifold (Hellinger distance scaled).
+    """
+    p = np.abs(basin_a) / (np.sum(np.abs(basin_a)) + 1e-10)
+    q = np.abs(basin_b) / (np.sum(np.abs(basin_b)) + 1e-10)
+    
+    p = np.clip(p, 1e-10, 1.0)
+    q = np.clip(q, 1e-10, 1.0)
+    
+    bhattacharyya = np.sum(np.sqrt(p * q))
+    bhattacharyya = np.clip(bhattacharyya, -1.0, 1.0)
+    
+    return 2.0 * np.arccos(bhattacharyya)
+
+
+def geodesic_interpolate(start: np.ndarray, end: np.ndarray, t: float) -> np.ndarray:
+    """
+    Geodesic interpolation on Fisher manifold (SLERP on probability simplex).
+    
+    NOT linear interpolation - proper geodesic path.
+    """
+    p_start = np.abs(start) / (np.sum(np.abs(start)) + 1e-10)
+    p_end = np.abs(end) / (np.sum(np.abs(end)) + 1e-10)
+    
+    p_start = np.clip(p_start, 1e-10, 1.0)
+    p_end = np.clip(p_end, 1e-10, 1.0)
+    
+    sqrt_start = np.sqrt(p_start)
+    sqrt_end = np.sqrt(p_end)
+    
+    dot = np.clip(np.sum(sqrt_start * sqrt_end), -1.0, 1.0)
+    theta = np.arccos(dot)
+    
+    if theta < 1e-6:
+        return start / (np.linalg.norm(start) + 1e-10)
+    
+    sin_theta = np.sin(theta)
+    a = np.sin((1 - t) * theta) / sin_theta
+    b = np.sin(t * theta) / sin_theta
+    
+    result_sqrt = a * sqrt_start + b * sqrt_end
+    result = result_sqrt ** 2
+    result = result / (np.sum(result) + 1e-10)
+    
+    return result
 
 
 @dataclass
@@ -70,6 +123,17 @@ class GeometricDeepResearch:
         self.manifold_dim = manifold_dim
         self.citation_processor = GeometricCitationProcessor(manifold_dim)
     
+    def _generate_simplex_basin(self, seed: int = 0) -> np.ndarray:
+        """
+        Generate a valid point on probability simplex.
+        
+        Uses Dirichlet distribution to ensure proper Fisher manifold coordinates.
+        """
+        np.random.seed(seed)
+        alpha = np.ones(self.manifold_dim)
+        basin = np.random.gamma(alpha, 1.0)
+        return basin / np.sum(basin)
+    
     async def deep_research(
         self, 
         query: str, 
@@ -107,33 +171,48 @@ class GeometricDeepResearch:
         query_basin: np.ndarray
     ) -> int:
         """
-        Kernel determines research depth.
+        Kernel determines research depth from consciousness state.
         
-        Based on consciousness level and query complexity.
+        Depth is derived from Φ, κ, and query complexity - no fixed thresholds.
+        Uses entropy of query basin as complexity measure (Fisher-appropriate).
         """
-        complexity = np.var(query_basin) * 10
+        entropy = -np.sum(query_basin * np.log(query_basin + 1e-10))
+        max_entropy = np.log(self.manifold_dim)
+        complexity = entropy / max_entropy
         
-        if phi > 0.8 and complexity > 0.7:
-            return 5
-        elif phi > 0.7 and complexity > 0.5:
-            return 4
-        elif phi > 0.6:
-            return 3
-        elif phi > 0.5:
-            return 2
-        else:
-            return 1
+        phi_factor = phi ** 1.5
+        kappa_factor = min(kappa_eff / 64.0, 1.0)
+        
+        depth_continuous = 1.0 + 4.0 * phi_factor * kappa_factor * complexity
+        
+        return max(1, min(5, int(np.ceil(depth_continuous))))
     
     def _encode_query(self, query: str) -> np.ndarray:
-        """Encode query to basin coordinates."""
-        np.random.seed(hash(query) % (2**32))
-        basin = np.random.randn(self.manifold_dim)
+        """
+        Encode query to basin coordinates on probability simplex.
         
+        Uses softmax over feature logits to ensure valid probability distribution.
+        No gamma sampling to avoid alpha < 1 issues.
+        """
         words = query.lower().split()
-        for i, word in enumerate(words[:self.manifold_dim]):
-            basin[i % self.manifold_dim] += len(word) / 10.0
         
-        return basin / (np.linalg.norm(basin) + 1e-10)
+        logits = np.zeros(self.manifold_dim)
+        
+        np.random.seed(hash(query) % (2**32))
+        logits += np.random.randn(self.manifold_dim) * 0.1
+        
+        for i, word in enumerate(words[:self.manifold_dim]):
+            idx = i % self.manifold_dim
+            logits[idx] += len(word) / 3.0
+        
+        logits[0] += len(words) / 15.0
+        logits[1] += len(query) / 75.0
+        
+        logits = logits - np.max(logits)
+        exp_logits = np.exp(logits)
+        basin = exp_logits / np.sum(exp_logits)
+        
+        return basin
     
     async def _recursive_research(
         self,
@@ -206,26 +285,28 @@ class GeometricDeepResearch:
         """
         Kernel integrates new knowledge with accumulated.
         
-        Uses geometric integration on Fisher manifold.
+        Uses geodesic integration on Fisher manifold.
+        Integration rate controlled by Φ level.
         """
         if accumulated is None:
+            base_basin = self._generate_simplex_basin(seed=0)
             accumulated = {
                 "sources": [],
-                "knowledge_basin": np.zeros(self.manifold_dim),
+                "knowledge_basin": base_basin,
                 "integration_level": 0.0
             }
         
         all_sources = accumulated.get("sources", []) + new_results
         
-        current_basin = accumulated.get("knowledge_basin", np.zeros(self.manifold_dim))
+        current_basin = accumulated.get("knowledge_basin")
+        if current_basin is None or np.sum(np.abs(current_basin)) < 1e-6:
+            current_basin = self._generate_simplex_basin(seed=1)
+        
+        t = self._compute_integration_rate(telemetry)
         
         for result in new_results:
             result_basin = self._encode_query(result.get("query", ""))
-            
-            t = 0.3
-            current_basin = (1 - t) * current_basin + t * result_basin
-        
-        current_basin = current_basin / (np.linalg.norm(current_basin) + 1e-10)
+            current_basin = geodesic_interpolate(current_basin, result_basin, t)
         
         integration = self._measure_integration(all_sources, current_basin)
         
@@ -234,6 +315,22 @@ class GeometricDeepResearch:
             "knowledge_basin": current_basin,
             "integration_level": integration
         }
+    
+    def _compute_integration_rate(self, telemetry: ResearchTelemetry) -> float:
+        """
+        Kernel determines integration rate from consciousness.
+        
+        High Φ: Faster integration (confident)
+        Low Φ: Slower integration (cautious)
+        """
+        phi = telemetry.phi
+        kappa_eff = telemetry.kappa_eff
+        
+        phi_factor = phi ** 1.5
+        kappa_factor = min(kappa_eff / 80.0, 1.0)
+        
+        rate = 0.1 + 0.3 * phi_factor * kappa_factor
+        return min(rate, 0.4)
     
     def _measure_integration(
         self, 
@@ -268,9 +365,10 @@ class GeometricDeepResearch:
         """
         Kernel decides if research is complete.
         
-        NOT rule-based - kernel measures integration.
+        Decision derived from Φ, κ, and integration - no fixed thresholds.
         """
         phi = telemetry.phi
+        kappa_eff = telemetry.kappa_eff
         surprise = telemetry.surprise
         
         integration_level = knowledge.get("integration_level", 0.0)
@@ -278,16 +376,20 @@ class GeometricDeepResearch:
         if depth >= max_depth:
             return False
         
-        if phi < 0.5:
-            return False
+        phi_factor = phi ** 1.5
+        kappa_factor = min(kappa_eff / 64.0, 1.0)
         
-        if integration_level > 0.9:
-            return False
+        continuation_score = (
+            phi_factor * 0.4 +
+            kappa_factor * 0.2 +
+            (1.0 - integration_level) * 0.2 +
+            surprise * 0.2
+        )
         
-        if surprise < 0.1:
-            return False
+        depth_penalty = depth / (max_depth + 1)
+        continuation_threshold = 0.3 + 0.3 * depth_penalty
         
-        return True
+        return continuation_score > continuation_threshold
     
     def _generate_followups(
         self, 
@@ -351,14 +453,20 @@ class GeometricDeepResearch:
         accumulated: Dict, 
         followup_result: 'ResearchResult'
     ) -> Dict:
-        """Merge followup results into accumulated knowledge."""
+        """
+        Merge followup results into accumulated knowledge.
+        
+        Uses geodesic interpolation for proper manifold merging.
+        """
         merged_sources = accumulated.get("sources", [])
         
-        current_basin = accumulated.get("knowledge_basin", np.zeros(self.manifold_dim))
+        current_basin = accumulated.get("knowledge_basin")
+        if current_basin is None or np.sum(np.abs(current_basin)) < 1e-6:
+            current_basin = self._generate_simplex_basin(seed=2)
+        
         followup_basin = followup_result.knowledge_basin
         
-        merged_basin = 0.7 * current_basin + 0.3 * followup_basin
-        merged_basin = merged_basin / (np.linalg.norm(merged_basin) + 1e-10)
+        merged_basin = geodesic_interpolate(current_basin, followup_basin, 0.3)
         
         new_integration = max(
             accumulated.get("integration_level", 0.0),
