@@ -9,6 +9,7 @@ import { storage } from "./storage";
 import { telemetryRouter } from "./telemetry-api";
 import { backendTelemetryRouter } from "./backend-telemetry-api";
 import TelemetryStreamer from "./telemetry-websocket";
+import telemetryDashboardRouter from "./routes/telemetry";
 
 // WebSocket message validation schema (addresses Issue 13/14 from bottleneck report)
 const wsMessageSchema = z.object({
@@ -294,6 +295,9 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
   app.use("/api/observer", observerRoutes);
   app.use("/api/telemetry", telemetryRouter);
   app.use("/api/backend-telemetry", backendTelemetryRouter);
+  
+  // Mount versioned telemetry dashboard API (unified metrics)
+  app.use("/api/v1/telemetry", telemetryDashboardRouter);
   
   // Mount external API router (for federated instances, headless clients, integrations)
   app.use("/api/v1/external", externalApiRouter);

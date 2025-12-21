@@ -34,6 +34,7 @@ import {
   Hammer,
   HeartPulse,
   Globe,
+  Activity,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useConsciousness, getPhiColor, getRegimeLabel } from "@/contexts/ConsciousnessContext";
@@ -94,6 +95,12 @@ export function AppSidebar() {
       url: "/federation",
       icon: Radio,
       description: "Connect QIG constellations",
+    },
+    {
+      title: "Telemetry",
+      url: "/telemetry",
+      icon: Activity,
+      description: "Real-time QIG metrics and monitoring",
     },
   ];
 

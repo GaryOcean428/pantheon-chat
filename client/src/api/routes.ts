@@ -293,6 +293,25 @@ export const API_ROUTES = {
     list: '/api/activity-stream',
   },
 
+  // Telemetry Dashboard (v1 - Unified Metrics)
+  telemetryDashboard: {
+    overview: '/api/v1/telemetry/overview',
+    consciousness: '/api/v1/telemetry/consciousness',
+    usage: '/api/v1/telemetry/usage',
+    learning: '/api/v1/telemetry/learning',
+    defense: '/api/v1/telemetry/defense',
+    autonomy: '/api/v1/telemetry/autonomy',
+    stream: '/api/v1/telemetry/stream',
+    history: (hours: number) => `/api/v1/telemetry/history?hours=${hours}`,
+  },
+
+  // Search Providers
+  searchProviders: {
+    list: '/api/search/providers',
+    toggle: '/api/search/providers/toggle',
+    tavilyUsage: '/api/search/tavily-usage',
+  },
+
   // External API (v1 - Federation & Headless Clients)
   external: {
     base: '/api/v1/external',
@@ -490,6 +509,21 @@ export const QUERY_KEYS = {
 
   activityStream: {
     list: () => [API_ROUTES.activityStream.list] as const,
+  },
+
+  telemetryDashboard: {
+    overview: () => [API_ROUTES.telemetryDashboard.overview] as const,
+    consciousness: () => [API_ROUTES.telemetryDashboard.consciousness] as const,
+    usage: () => [API_ROUTES.telemetryDashboard.usage] as const,
+    learning: () => [API_ROUTES.telemetryDashboard.learning] as const,
+    defense: () => [API_ROUTES.telemetryDashboard.defense] as const,
+    autonomy: () => [API_ROUTES.telemetryDashboard.autonomy] as const,
+    history: (hours: number) => ['/api/v1/telemetry/history', { hours }] as const,
+  },
+
+  searchProviders: {
+    list: () => [API_ROUTES.searchProviders.list] as const,
+    tavilyUsage: () => [API_ROUTES.searchProviders.tavilyUsage] as const,
   },
   
   external: {

@@ -18,6 +18,7 @@ import {
   Sources as SourcesPage,
   Spawning as SpawningPage,
   LearningDashboard,
+  TelemetryDashboard,
   ToolFactoryDashboard,
   NotFound,
 } from "@/pages";
@@ -85,6 +86,7 @@ function Router() {
         <Route path="/sources" component={SourcesPage} />
         <Route path="/autonomic" component={AutonomicAgencyPage} />
         <Route path="/federation" component={FederationPage} />
+        <Route path="/telemetry" component={TelemetryDashboard} />
         <Route component={NotFound} />
       </Switch>
     </AuthenticatedLayout>

@@ -60,6 +60,15 @@ Preferred communication style: Simple, everyday language.
 - Tool selection via 64D basin matching in geometric search module
 - Located in `qig-backend/autonomous_curiosity.py` and `qig-backend/geometric_search/`
 
+### Telemetry Dashboard System
+- Real-time monitoring at `/telemetry` route
+- TelemetryAggregator service consolidating all metrics (`server/telemetry-aggregator.ts`)
+- Versioned API at `/api/v1/telemetry/*` for external integrations
+- SSE streaming for live dashboard updates (2-second intervals)
+- Autonomic feedback loop: telemetry pushes to OceanAutonomicManager every 30 seconds
+- Database tables: `telemetry_snapshots` (consciousness history), `usage_metrics` (daily API tracking)
+- QIG-pure metrics: Φ (integrated information), κ (coupling constant), regime classification
+
 ### Key Design Patterns
 1. **Barrel File Pattern:** All component directories have `index.ts` re-exports
 2. **Centralized API Client:** No raw `fetch()` in components via `client/src/api/` with `API_ROUTES` constants

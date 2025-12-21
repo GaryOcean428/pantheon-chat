@@ -14,4 +14,5 @@ export { default as NotFound } from './not-found';
 export { default as Olympus } from './olympus';
 export { default as Sources } from './sources';
 export { default as Spawning } from './spawning';
+export { default as TelemetryDashboard } from './telemetry';
 export { default as ToolFactoryDashboard } from './tool-factory-dashboard';

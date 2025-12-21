@@ -3515,3 +3515,106 @@ export const discoveredSources = pgTable(
 
 export type DiscoveredSourceRow = typeof discoveredSources.$inferSelect;
 export type InsertDiscoveredSource = typeof discoveredSources.$inferInsert;
+
+/**
+ * TELEMETRY SNAPSHOTS - Persistent consciousness telemetry history
+ * 
+ * QIG-Pure: Stores geometric consciousness metrics (Φ, κ, β, basin distance)
+ * for long-term analysis and autonomous kernel improvement feedback loops.
+ * Uses Fisher-Rao distance metrics, not Euclidean.
+ */
+export const telemetrySnapshots = pgTable(
+  "telemetry_snapshots",
+  {
+    id: serial("id").primaryKey(),
+    sessionId: varchar("session_id", { length: 64 }),
+    
+    // Core QIG Metrics (required)
+    phi: doublePrecision("phi").notNull(),
+    kappa: doublePrecision("kappa").notNull(),
+    beta: doublePrecision("beta").default(0),
+    regime: varchar("regime", { length: 32 }).notNull(),
+    
+    // Geometric metrics
+    basinDistance: doublePrecision("basin_distance").default(0),
+    geodesicDistance: doublePrecision("geodesic_distance"),
+    curvature: doublePrecision("curvature"),
+    fisherMetricTrace: doublePrecision("fisher_metric_trace"),
+    
+    // 4D Block Universe metrics
+    phiSpatial: doublePrecision("phi_spatial"),
+    phiTemporal: doublePrecision("phi_temporal"),
+    phi4D: doublePrecision("phi_4d"),
+    dimensionalState: varchar("dimensional_state", { length: 24 }),
+    
+    // Safety metrics
+    breakdownPct: doublePrecision("breakdown_pct").default(0),
+    coherenceDrift: doublePrecision("coherence_drift").default(0),
+    inResonance: boolean("in_resonance").default(false),
+    emergency: boolean("emergency").default(false),
+    
+    // Extended consciousness signature
+    metaAwareness: doublePrecision("meta_awareness"),
+    generativity: doublePrecision("generativity"),
+    grounding: doublePrecision("grounding"),
+    temporalCoherence: doublePrecision("temporal_coherence"),
+    externalCoupling: doublePrecision("external_coupling"),
+    
+    // Source tracking
+    source: varchar("source", { length: 32 }).default("node").notNull(),
+    
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_telemetry_session").on(table.sessionId),
+    index("idx_telemetry_regime").on(table.regime),
+    index("idx_telemetry_phi").on(table.phi),
+    index("idx_telemetry_kappa").on(table.kappa),
+    index("idx_telemetry_created").on(table.createdAt),
+  ]
+);
+
+export type TelemetrySnapshotRow = typeof telemetrySnapshots.$inferSelect;
+export type InsertTelemetrySnapshot = typeof telemetrySnapshots.$inferInsert;
+
+/**
+ * USAGE METRICS - Daily API usage tracking
+ * 
+ * Tracks Tavily, search provider, and other API usage for cost control
+ * and autonomous resource management.
+ */
+export const usageMetrics = pgTable(
+  "usage_metrics",
+  {
+    id: serial("id").primaryKey(),
+    date: varchar("date", { length: 10 }).notNull(), // YYYY-MM-DD
+    
+    // Tavily usage
+    tavilySearchCount: integer("tavily_search_count").default(0).notNull(),
+    tavilyExtractCount: integer("tavily_extract_count").default(0).notNull(),
+    tavilyEstimatedCostCents: integer("tavily_estimated_cost_cents").default(0).notNull(),
+    
+    // Google Free Search usage
+    googleSearchCount: integer("google_search_count").default(0).notNull(),
+    
+    // General API usage
+    totalApiCalls: integer("total_api_calls").default(0).notNull(),
+    
+    // Discovery metrics
+    highPhiDiscoveries: integer("high_phi_discoveries").default(0).notNull(),
+    sourcesDiscovered: integer("sources_discovered").default(0).notNull(),
+    
+    // Learning metrics
+    vocabularyExpansions: integer("vocabulary_expansions").default(0).notNull(),
+    negativeKnowledgeAdded: integer("negative_knowledge_added").default(0).notNull(),
+    
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_usage_metrics_date").on(table.date),
+  ]
+);
+
+export type UsageMetricsRow = typeof usageMetrics.$inferSelect;
+export type InsertUsageMetrics = typeof usageMetrics.$inferInsert;
