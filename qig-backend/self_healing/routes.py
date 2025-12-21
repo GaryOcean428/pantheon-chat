@@ -17,6 +17,7 @@ Endpoints:
 from flask import Blueprint, request, jsonify
 from typing import Dict
 import numpy as np
+import logging
 
 from ..self_healing import (
     GeometricHealthMonitor,
@@ -25,6 +26,7 @@ from ..self_healing import (
     create_self_healing_system
 )
 
+logger = logging.getLogger(__name__)
 
 # Create blueprint
 self_healing_bp = Blueprint('self_healing', __name__, url_prefix='/self-healing')
@@ -85,10 +87,11 @@ def capture_snapshot():
             }
         })
     
-    except Exception as e:
+    except Exception:
+        logger.exception("Error capturing self-healing snapshot")
         return jsonify({
             "success": False,
-            "error": str(e)
+            "error": "An internal error occurred while capturing the snapshot."
         }), 400
 
 
@@ -105,10 +108,11 @@ def get_health():
             "health": summary
         })
     
-    except Exception as e:
+    except Exception:
+        logger.exception("Error retrieving self-healing health summary")
         return jsonify({
             "success": False,
-            "error": str(e)
+            "error": "An internal error occurred while retrieving the health summary."
         }), 400
 
 
@@ -125,10 +129,11 @@ def check_degradation():
             "degradation": degradation
         })
     
-    except Exception as e:
+    except Exception:
+        logger.exception("Error checking geometric degradation")
         return jsonify({
             "success": False,
-            "error": str(e)
+            "error": "An internal error occurred while checking degradation."
         }), 400
 
 
