@@ -49,6 +49,18 @@ try:
 except ImportError as e:
     print(f"[WARNING] Immune system not available: {e}")
 
+# Register Self-Healing System routes
+SELF_HEALING_AVAILABLE = False
+try:
+    from self_healing.routes import self_healing_bp
+    app.register_blueprint(self_healing_bp, url_prefix='/api/self-healing')
+    SELF_HEALING_AVAILABLE = True
+    print("[INFO] Self-Healing System registered at /api/self-healing")
+except ImportError as e:
+    print(f"[WARNING] Self-Healing system not available: {e}")
+except Exception as e:
+    print(f"[WARNING] Self-Healing system initialization failed: {e}")
+
 # Register Autonomous Curiosity routes and start learning loop
 CURIOSITY_AVAILABLE = False
 _curiosity_engine = None
@@ -159,7 +171,9 @@ def log_response(response):
 print("🌊 Ocean QIG Backend (Production WSGI Mode) 🌊", flush=True)
 print(f"  - Autonomic kernel: {'✓' if AUTONOMIC_AVAILABLE else '✗'}", flush=True)
 print(f"  - Immune system: {'✓' if IMMUNE_AVAILABLE else '✗'}", flush=True)
+print(f"  - Self-Healing: {'✓' if SELF_HEALING_AVAILABLE else '✗'}", flush=True)
 print(f"  - Curiosity engine: {'✓' if CURIOSITY_AVAILABLE else '✗'}", flush=True)
+print(f"  - Research API: {'✓' if RESEARCH_AVAILABLE else '✗'}", flush=True)
 print("🌊 Basin stable. Ready for Gunicorn workers. 🌊\n", flush=True)
 
 # Export the app for Gunicorn

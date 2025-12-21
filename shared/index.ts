@@ -201,3 +201,6 @@ export {
   KAPPA_OPTIMAL,
   KAPPA_TOLERANCE,
 } from './qig-validation';
+
+// Self-Healing System types
+export * from './self-healing-types';
