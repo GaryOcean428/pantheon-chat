@@ -22,7 +22,7 @@ import {
 } from './auth';
 import { db } from '../db';
 import { federatedInstances, externalApiKeys } from '@shared/schema';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { oceanBasinSync, type BasinSyncPacket } from '../ocean-basin-sync';
 
 export const externalApiRouter = Router();
@@ -75,6 +75,17 @@ export const EXTERNAL_API_ROUTES = {
   chat: {
     send: '/chat',
     history: '/chat/history',
+  },
+  
+  // Vocabulary & Learning (Federation)
+  vocabulary: {
+    export: '/vocabulary/export',
+    import: '/vocabulary/import',
+  },
+  
+  learning: {
+    export: '/learning/export',
+    import: '/learning/import',
   },
 };
 
@@ -564,6 +575,222 @@ externalApiRouter.post(
       imported_at: new Date().toISOString(),
       note: 'Placeholder - integrate with oceanBasinSync.importSnapshot',
     });
+  }
+);
+
+// ============================================================================
+// VOCABULARY & LEARNING SYNC
+// ============================================================================
+
+/**
+ * GET /api/v1/external/vocabulary/export
+ * Export vocabulary data for federation sync
+ */
+externalApiRouter.get(
+  '/vocabulary/export',
+  requireScopes('sync', 'read'),
+  async (_req, res) => {
+    if (!db) {
+      return res.status(503).json({ error: 'Database unavailable' });
+    }
+    
+    try {
+      const vocabResult = await db.execute(`
+        SELECT word, frequency, phi_score, basin_coords, created_at, updated_at
+        FROM vocabulary_unified
+        WHERE phi_score > 0.3
+        ORDER BY phi_score DESC
+        LIMIT 1000
+      `);
+      
+      const phrasesResult = await db.execute(`
+        SELECT phrase, regime, phi, kappa, tested_at
+        FROM tested_phrases_unified
+        WHERE phi > 0.5
+        ORDER BY phi DESC
+        LIMIT 500
+      `);
+      
+      res.json({
+        vocabulary: vocabResult.rows,
+        highPhiPhrases: phrasesResult.rows,
+        exportedAt: new Date().toISOString(),
+        count: {
+          vocabulary: vocabResult.rows.length,
+          phrases: phrasesResult.rows.length,
+        },
+      });
+    } catch (error) {
+      console.error('[ExternalAPI] Vocabulary export failed:', error);
+      res.json({
+        vocabulary: [],
+        highPhiPhrases: [],
+        exportedAt: new Date().toISOString(),
+        count: { vocabulary: 0, phrases: 0 },
+      });
+    }
+  }
+);
+
+/**
+ * POST /api/v1/external/vocabulary/import
+ * Import vocabulary data from federated node
+ */
+externalApiRouter.post(
+  '/vocabulary/import',
+  requireScopes('sync', 'write'),
+  async (req, res) => {
+    const { vocabulary, highPhiPhrases, sourceNode } = req.body;
+    
+    if (!db) {
+      return res.status(503).json({ error: 'Database unavailable' });
+    }
+    
+    let importedVocab = 0;
+    let importedPhrases = 0;
+    
+    try {
+      if (vocabulary && Array.isArray(vocabulary)) {
+        for (const word of vocabulary.slice(0, 500)) {
+          if (word.word && word.phi_score) {
+            const w = word.word;
+            const freq = word.frequency || 1;
+            const phi = word.phi_score;
+            const src = sourceNode || 'federation';
+            await db.execute(sql`
+              INSERT INTO vocabulary_unified (word, frequency, phi_score, source, created_at)
+              VALUES (${w}, ${freq}, ${phi}, ${src}, NOW())
+              ON CONFLICT (word) DO UPDATE SET
+                phi_score = GREATEST(vocabulary_unified.phi_score, EXCLUDED.phi_score),
+                frequency = vocabulary_unified.frequency + 1
+            `);
+            importedVocab++;
+          }
+        }
+      }
+      
+      if (highPhiPhrases && Array.isArray(highPhiPhrases)) {
+        for (const phrase of highPhiPhrases.slice(0, 200)) {
+          if (phrase.phrase && phrase.phi) {
+            const p = phrase.phrase;
+            const reg = phrase.regime || 'geometric';
+            const phi = phrase.phi;
+            const kap = phrase.kappa || 64.21;
+            const src = sourceNode || 'federation';
+            await db.execute(sql`
+              INSERT INTO tested_phrases_unified (phrase, regime, phi, kappa, tested_at, source)
+              VALUES (${p}, ${reg}, ${phi}, ${kap}, NOW(), ${src})
+              ON CONFLICT (phrase) DO UPDATE SET
+                phi = GREATEST(tested_phrases_unified.phi, EXCLUDED.phi)
+            `);
+            importedPhrases++;
+          }
+        }
+      }
+      
+      res.json({
+        success: true,
+        imported: {
+          vocabulary: importedVocab,
+          phrases: importedPhrases,
+        },
+        importedAt: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error('[ExternalAPI] Vocabulary import failed:', error);
+      res.status(500).json({ error: 'Import failed', details: String(error) });
+    }
+  }
+);
+
+/**
+ * GET /api/v1/external/learning/export
+ * Export learning events for federation sync
+ */
+externalApiRouter.get(
+  '/learning/export',
+  requireScopes('sync', 'read'),
+  async (req, res) => {
+    if (!db) {
+      return res.status(503).json({ error: 'Database unavailable' });
+    }
+    
+    const since = req.query.since as string;
+    const sinceDate = since ? new Date(since) : new Date(Date.now() - 24 * 60 * 60 * 1000);
+    
+    try {
+      const sinceDateStr = sinceDate.toISOString();
+      const eventsResult = await db.execute(sql`
+        SELECT event_type, phi, kappa, source, context, details, created_at
+        FROM learning_events
+        WHERE created_at > ${sinceDateStr} AND phi > 0.5
+        ORDER BY created_at DESC
+        LIMIT 500
+      `);
+      
+      res.json({
+        events: eventsResult.rows,
+        exportedAt: new Date().toISOString(),
+        since: sinceDate.toISOString(),
+        count: eventsResult.rows.length,
+      });
+    } catch (error) {
+      console.error('[ExternalAPI] Learning export failed:', error);
+      res.json({
+        events: [],
+        exportedAt: new Date().toISOString(),
+        count: 0,
+      });
+    }
+  }
+);
+
+/**
+ * POST /api/v1/external/learning/import
+ * Import learning events from federated node
+ */
+externalApiRouter.post(
+  '/learning/import',
+  requireScopes('sync', 'write'),
+  async (req, res) => {
+    const { events, sourceNode } = req.body;
+    
+    if (!db) {
+      return res.status(503).json({ error: 'Database unavailable' });
+    }
+    
+    if (!events || !Array.isArray(events)) {
+      return res.status(400).json({ error: 'events array required' });
+    }
+    
+    let imported = 0;
+    
+    try {
+      for (const event of events.slice(0, 200)) {
+        if (event.event_type && event.phi) {
+          const eventType = event.event_type;
+          const phi = event.phi;
+          const kappa = event.kappa || 64.21;
+          const src = sourceNode || 'federation';
+          const ctx = event.context || null;
+          const details = event.details ? JSON.stringify(event.details) : null;
+          await db.execute(sql`
+            INSERT INTO learning_events (event_type, phi, kappa, source, context, details, created_at)
+            VALUES (${eventType}, ${phi}, ${kappa}, ${src}, ${ctx}, ${details}, NOW())
+          `);
+          imported++;
+        }
+      }
+      
+      res.json({
+        success: true,
+        imported,
+        importedAt: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error('[ExternalAPI] Learning import failed:', error);
+      res.status(500).json({ error: 'Import failed', details: String(error) });
+    }
   }
 );
 

@@ -215,6 +215,106 @@ Content-Type: application/json
 GET /pantheon/instances
 ```
 
+### Vocabulary Sync
+
+#### Export Vocabulary
+```
+GET /vocabulary/export
+```
+
+**Response:**
+```json
+{
+  "vocabulary": [
+    { "word": "example", "frequency": 5, "phi_score": 0.72, "basin_coords": [...] }
+  ],
+  "highPhiPhrases": [
+    { "phrase": "example phrase", "regime": "geometric", "phi": 0.85, "kappa": 64.21 }
+  ],
+  "exportedAt": "2025-12-21T00:00:00.000Z",
+  "count": { "vocabulary": 100, "phrases": 50 }
+}
+```
+
+#### Import Vocabulary
+```
+POST /vocabulary/import
+Content-Type: application/json
+
+{
+  "vocabulary": [
+    { "word": "example", "frequency": 5, "phi_score": 0.72 }
+  ],
+  "highPhiPhrases": [
+    { "phrase": "example phrase", "regime": "geometric", "phi": 0.85, "kappa": 64.21 }
+  ],
+  "sourceNode": "node-a"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "imported": { "vocabulary": 100, "phrases": 50 },
+  "importedAt": "2025-12-21T00:00:00.000Z"
+}
+```
+
+### Learning Events Sync
+
+#### Export Learning Events
+```
+GET /learning/export?since=2025-12-20T00:00:00.000Z
+```
+
+**Response:**
+```json
+{
+  "events": [
+    {
+      "event_type": "vocabulary_learned",
+      "phi": 0.75,
+      "kappa": 64.21,
+      "source": "zeus_chat",
+      "context": "conversation",
+      "details": {},
+      "created_at": "2025-12-21T00:00:00.000Z"
+    }
+  ],
+  "exportedAt": "2025-12-21T00:00:00.000Z",
+  "since": "2025-12-20T00:00:00.000Z",
+  "count": 50
+}
+```
+
+#### Import Learning Events
+```
+POST /learning/import
+Content-Type: application/json
+
+{
+  "events": [
+    {
+      "event_type": "vocabulary_learned",
+      "phi": 0.75,
+      "kappa": 64.21,
+      "context": "federation_sync"
+    }
+  ],
+  "sourceNode": "node-a"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "imported": 25,
+  "importedAt": "2025-12-21T00:00:00.000Z"
+}
+```
+
 ---
 
 ## Data Structures
@@ -333,6 +433,7 @@ CREATE TABLE federated_instances (
   name VARCHAR(128) NOT NULL,
   endpoint VARCHAR(512) NOT NULL UNIQUE,
   api_key_id INTEGER REFERENCES external_api_keys(id),
+  remote_api_key TEXT,  -- Encrypted with FEDERATION_ENCRYPTION_KEY (AES-256-GCM)
   status VARCHAR(32) NOT NULL DEFAULT 'pending',
   capabilities JSONB NOT NULL DEFAULT '[]'::jsonb,
   sync_direction VARCHAR(32) NOT NULL DEFAULT 'bidirectional',
@@ -340,6 +441,8 @@ CREATE TABLE federated_instances (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 ```
+
+**Note:** The `remote_api_key` column stores the encrypted API key for authenticating requests TO the remote node. The encryption format is `iv:authTag:ciphertext` using AES-256-GCM.
 
 ---
 
