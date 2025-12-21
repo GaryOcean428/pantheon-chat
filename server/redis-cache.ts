@@ -1,21 +1,26 @@
 /**
  * Redis Cache Layer for TypeScript
  * 
- * DISABLED: Redis is no longer used. PostgreSQL is the primary storage.
- * All functions return stub values to maintain compatibility with existing code.
+ * Universal caching layer that:
+ * 1. Buffers hot data for fast reads
+ * 2. Reduces database load
+ * 3. Provides consistent caching interface
  * 
- * QIG Purity: PostgreSQL is the sole data layer.
+ * QIG Purity: Redis is geometry-agnostic storage, all geometric ops 
+ * happen in qig-*.ts modules before data reaches here.
  */
 
-// TTLs in seconds (kept for interface compatibility)
+import Redis from 'ioredis';
+
+// TTLs in seconds
 export const CACHE_TTL = {
-  SHORT: 300,
-  MEDIUM: 3600,
-  LONG: 86400,
-  PERMANENT: 86400 * 7,
+  SHORT: 300,        // 5 min for hot data
+  MEDIUM: 3600,      // 1 hour for session data
+  LONG: 86400,       // 24 hours for learned patterns
+  PERMANENT: 86400 * 7, // 7 days for critical data
 };
 
-// Key prefixes for namespacing (kept for interface compatibility)
+// Key prefixes for namespacing
 export const CACHE_KEYS = {
   TESTED_PHRASE: 'tested:',
   BALANCE_HIT: 'hit:',
@@ -25,78 +30,245 @@ export const CACHE_KEYS = {
   AUTO_CYCLE: 'autocycle:state',
   NEAR_MISS: 'nearmiss:state',
   OCEAN_MEMORY: 'ocean:memory',
+  CONSCIOUSNESS_METRICS: 'consciousness:metrics:',
+  BASIN_STATE: 'basin:state:',
 };
 
+let redisClient: Redis | null = null;
+let redisAvailable = false;
+
 /**
- * Initialize Redis connection - DISABLED
+ * Initialize Redis connection
  */
-export function initRedis(): null {
-  console.log('[Redis] DISABLED - using PostgreSQL as primary storage');
-  return null;
+export function initRedis(): Redis | null {
+  if (redisClient) {
+    return redisClient;
+  }
+
+  const redisUrl = process.env.REDIS_URL;
+  
+  if (!redisUrl) {
+    console.log('[Redis] REDIS_URL not configured - caching disabled');
+    return null;
+  }
+
+  try {
+    redisClient = new Redis(redisUrl, {
+      maxRetriesPerRequest: 3,
+      enableOfflineQueue: false,
+      lazyConnect: true,
+    });
+
+    redisClient.on('connect', () => {
+      console.log('[Redis] Connected successfully');
+      redisAvailable = true;
+    });
+
+    redisClient.on('error', (err) => {
+      console.error('[Redis] Connection error:', err.message);
+      redisAvailable = false;
+    });
+
+    redisClient.on('close', () => {
+      console.log('[Redis] Connection closed');
+      redisAvailable = false;
+    });
+
+    // Attempt connection
+    redisClient.connect().catch((err) => {
+      console.error('[Redis] Failed to connect:', err.message);
+      redisAvailable = false;
+    });
+
+    return redisClient;
+  } catch (error) {
+    console.error('[Redis] Initialization error:', error);
+    return null;
+  }
 }
 
 /**
- * Get Redis client - DISABLED
+ * Get Redis client
  */
-export function getRedis(): null {
-  return null;
+export function getRedis(): Redis | null {
+  return redisClient;
 }
 
 /**
- * Check if Redis is available - always false (DISABLED)
+ * Check if Redis is available
  */
 export function isRedisAvailable(): boolean {
-  return false;
+  return redisAvailable && redisClient !== null;
 }
 
 /**
- * Set a value with optional TTL - DISABLED
+ * Set a value with optional TTL
  */
 export async function cacheSet(
-  _key: string,
-  _value: unknown,
-  _ttlSeconds: number = CACHE_TTL.MEDIUM
+  key: string,
+  value: unknown,
+  ttlSeconds: number = CACHE_TTL.MEDIUM
 ): Promise<boolean> {
-  return false;
+  if (!isRedisAvailable() || !redisClient) {
+    return false;
+  }
+
+  try {
+    const serialized = JSON.stringify(value);
+    await redisClient.setex(key, ttlSeconds, serialized);
+    return true;
+  } catch (error) {
+    console.error('[Redis] Set error:', error);
+    return false;
+  }
 }
 
 /**
- * Get a value - DISABLED
+ * Get a value
  */
-export async function cacheGet<T>(_key: string): Promise<T | null> {
-  return null;
+export async function cacheGet<T>(key: string): Promise<T | null> {
+  if (!isRedisAvailable() || !redisClient) {
+    return null;
+  }
+
+  try {
+    const data = await redisClient.get(key);
+    if (!data) {
+      return null;
+    }
+    return JSON.parse(data) as T;
+  } catch (error) {
+    console.error('[Redis] Get error:', error);
+    return null;
+  }
 }
 
 /**
- * Check if key exists - DISABLED
+ * Check if key exists
  */
-export async function cacheExists(_key: string): Promise<boolean> {
-  return false;
+export async function cacheExists(key: string): Promise<boolean> {
+  if (!isRedisAvailable() || !redisClient) {
+    return false;
+  }
+
+  try {
+    const exists = await redisClient.exists(key);
+    return exists === 1;
+  } catch (error) {
+    console.error('[Redis] Exists error:', error);
+    return false;
+  }
 }
 
 /**
- * Delete a key - DISABLED
+ * Delete a key
  */
-export async function cacheDel(_key: string): Promise<boolean> {
-  return false;
+export async function cacheDel(key: string): Promise<boolean> {
+  if (!isRedisAvailable() || !redisClient) {
+    return false;
+  }
+
+  try {
+    await redisClient.del(key);
+    return true;
+  } catch (error) {
+    console.error('[Redis] Del error:', error);
+    return false;
+  }
 }
 
 /**
- * Set multiple values in a hash - DISABLED
+ * Set a field in a hash
  */
 export async function cacheHSet(
-  _hashKey: string,
-  _field: string,
-  _value: unknown
+  hashKey: string,
+  field: string,
+  value: unknown
 ): Promise<boolean> {
-  return false;
+  if (!isRedisAvailable() || !redisClient) {
+    return false;
+  }
+
+  try {
+    const serialized = JSON.stringify(value);
+    await redisClient.hset(hashKey, field, serialized);
+    return true;
+  } catch (error) {
+    console.error('[Redis] HSet error:', error);
+    return false;
+  }
 }
 
 /**
- * Get a field from a hash - DISABLED
+ * Get a field from a hash
  */
-export async function cacheHGet<T>(_hashKey: string, _field: string): Promise<T | null> {
-  return null;
+export async function cacheHGet<T>(hashKey: string, field: string): Promise<T | null> {
+  if (!isRedisAvailable() || !redisClient) {
+    return null;
+  }
+
+  try {
+    const data = await redisClient.hget(hashKey, field);
+    if (!data) {
+      return null;
+    }
+    return JSON.parse(data) as T;
+  } catch (error) {
+    console.error('[Redis] HGet error:', error);
+    return null;
+  }
+}
+
+/**
+ * Get all fields from a hash
+ */
+export async function cacheHGetAll<T>(hashKey: string): Promise<Record<string, T> | null> {
+  if (!isRedisAvailable() || !redisClient) {
+    return null;
+  }
+
+  try {
+    const data = await redisClient.hgetall(hashKey);
+    if (!data || Object.keys(data).length === 0) {
+      return null;
+    }
+    
+    const parsed: Record<string, T> = {};
+    for (const [key, value] of Object.entries(data)) {
+      parsed[key] = JSON.parse(value) as T;
+    }
+    return parsed;
+  } catch (error) {
+    console.error('[Redis] HGetAll error:', error);
+    return null;
+  }
+}
+
+/**
+ * Increment a counter
+ */
+export async function cacheIncr(key: string): Promise<number | null> {
+  if (!isRedisAvailable() || !redisClient) {
+    return null;
+  }
+
+  try {
+    return await redisClient.incr(key);
+  } catch (error) {
+    console.error('[Redis] Incr error:', error);
+    return null;
+  }
+}
+
+/**
+ * Close Redis connection
+ */
+export async function closeRedis(): Promise<void> {
+  if (redisClient) {
+    await redisClient.quit();
+    redisClient = null;
+    redisAvailable = false;
+  }
 }
 
 /**
