@@ -22,9 +22,9 @@ import os
 
 # Import physics constants
 try:
-    from frozen_physics import PHI_THRESHOLD, KAPPA_STAR
+    from qigkernels.physics_constants import PHI_THRESHOLD, KAPPA_STAR
 except ImportError:
-    # Fallback values if frozen_physics not available
+    # Fallback values if qigkernels not available
     PHI_THRESHOLD = 0.70
     KAPPA_STAR = 64.21
 

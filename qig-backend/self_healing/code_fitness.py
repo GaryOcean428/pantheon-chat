@@ -347,6 +347,3 @@ except Exception as e:
             self.test_more_threshold = test_more
         
         print(f"[CodeFitnessEvaluator] Thresholds: apply={self.apply_threshold}, test_more={self.test_more_threshold}")
-
-
-import sys
