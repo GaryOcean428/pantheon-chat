@@ -168,7 +168,7 @@ class DomainDescriptor:
     first_seen: float                            # Timestamp of first observation
     event_count: int = 0                         # Events observed in this domain
     phi_statistics: Dict[str, float] = field(default_factory=dict)
-    mission_relevance: float = 0.0               # Relevance to Bitcoin recovery
+    mission_relevance: float = 0.0               # Relevance to knowledge discovery
     geometric_signature: Optional[np.ndarray] = None  # Basin coordinates if available
     parent_domains: List[str] = field(default_factory=list)  # Emerged from these
     

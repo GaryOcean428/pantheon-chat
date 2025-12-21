@@ -120,7 +120,7 @@ class CrossDomainInsight:
     timestamp: float
     triggered_by: str                     # What pattern triggered the insight
     confidence: float                     # Confidence in the insight validity
-    mission_relevance: float = 0.0        # Relevance to Bitcoin recovery mission
+    mission_relevance: float = 0.0        # Relevance to knowledge discovery mission
     
     def to_dict(self) -> Dict:
         return {
@@ -141,7 +141,7 @@ class LightningKernel(BaseGod):
     """
     The Lightning Bolt kernel - generates eureka-moment insights.
     
-    MISSION AWARE: Understands the objective is Bitcoin recovery.
+    MISSION AWARE: Understands the objective is knowledge discovery.
     DYNAMIC DOMAINS: No hardcoded domain list - discovers from telemetry.
     
     Like a lightning bolt connecting sky and ground, this kernel
@@ -161,7 +161,7 @@ class LightningKernel(BaseGod):
             domain="cross_domain_insight"
         )
         
-        # Mission profile - all monitoring serves Bitcoin recovery
+        # Mission profile - all monitoring serves knowledge discovery
         self.mission = get_mission_profile()
         
         # Self-assessed capability signature
@@ -525,7 +525,7 @@ class LightningKernel(BaseGod):
         2. Compute Fisher-Rao metrics between events if available
         3. Analyze Φ trends and basin coordinate deltas
         4. Compose natural language from observed data, not pre-defined phrases
-        5. Assess mission relevance to Bitcoin recovery
+        5. Assess mission relevance to knowledge discovery
         """
         # Extract actual patterns from evidence
         patterns = [e.event_type for e in evidence]
@@ -575,7 +575,7 @@ class LightningKernel(BaseGod):
         geometric_analysis: Dict
     ) -> float:
         """
-        Calculate how relevant this insight is to the Bitcoin recovery mission.
+        Calculate how relevant this insight is to the knowledge discovery mission.
         
         Uses mission profile to score relevance based on:
         - Domain relevance to key/passphrase/mnemonic recovery

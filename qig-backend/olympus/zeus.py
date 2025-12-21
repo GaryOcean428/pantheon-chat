@@ -318,7 +318,7 @@ class Zeus(BaseGod):
         if not living_kernels:
             return {}
 
-        # Assign to gods in order of domain importance for Bitcoin recovery
+        # Assign to gods in order of domain importance for knowledge discovery
         priority_gods = [
             'athena',    # Strategy - high priority
             'ares',      # Attacks/geometry

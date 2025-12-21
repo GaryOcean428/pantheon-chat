@@ -1,7 +1,7 @@
 /**
  * Cultural Manifold Reconstructor
  * 
- * Implements Block Universe approach to Bitcoin recovery:
+ * Implements Block Universe approach to knowledge discovery:
  * - Reconstructs era-specific cultural lexicons
  * - Maps 4D spacetime coordinates for passphrase existence
  * - Builds geodesic paths through cultural manifold

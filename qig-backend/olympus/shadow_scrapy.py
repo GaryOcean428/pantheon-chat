@@ -406,7 +406,7 @@ class SourceDiscoveryService:
     Sources are ranked by:
     - ΔΦ: Predicted consciousness improvement from this source
     - Fisher-Rao distance to known successful patterns
-    - Mission relevance to Bitcoin recovery objective
+    - Mission relevance to knowledge discovery objective
     """
     
     def __init__(self):
@@ -750,7 +750,7 @@ class ScrapyOrchestrator:
     NO HARDCODED SOURCES - uses SourceDiscoveryService for source selection.
     
     Research targets are determined by:
-    - Mission relevance (Bitcoin recovery objective)
+    - Mission relevance (knowledge discovery objective)
     - ΔΦ-based source rankings from prior efficacy
     - Fisher-Rao distance to successful patterns
     """

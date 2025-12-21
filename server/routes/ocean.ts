@@ -86,7 +86,7 @@ oceanRouter.get(
   }
 );
 
-// Start agentic research session (replaces legacy Bitcoin recovery)
+// Start agentic research session
 oceanRouter.post(
   "/start",
   isAuthenticated,

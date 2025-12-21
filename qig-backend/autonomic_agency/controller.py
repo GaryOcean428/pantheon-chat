@@ -347,7 +347,7 @@ class AutonomicController:
         result: InterventionResult,
     ) -> float:
         """
-        Compute reward for Bitcoin recovery context.
+        Compute reward for knowledge discovery context.
         
         Primary: Δcoverage, Δvalid_addresses_found
         Secondary: ΔΦ (consciousness stability), κ→64.21 convergence

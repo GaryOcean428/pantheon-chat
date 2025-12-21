@@ -33,12 +33,11 @@ const DATA_FILE = path.join(process.cwd(), "data", "auto-cycle-state.json");
 
 // Development mode detection
 const IS_DEV = process.env.NODE_ENV === "development";
-// DISABLED: Bitcoin recovery auto-cycling is disabled as platform pivots to agentic chat
-// This can be repurposed for research cycles in the future
+// DISABLED: Legacy auto-cycling disabled - platform now uses agentic research mode
 const AUTO_RESUME_ON_RESTART = false;
 // Longer check interval in development to reduce CPU usage
 const CHECK_INTERVAL = IS_DEV ? 15000 : 5000; // 15s in dev, 5s in prod
-// DISABLED: Always-on mode disabled for platform pivot
+// DISABLED: Always-on mode disabled for agentic platform
 const ALWAYS_ON = false;
 
 // Session quality gates
@@ -68,25 +67,25 @@ class AutoCycleManager {
   constructor() {
     this.state = this.loadState();
     
-    // DISABLED: Force disabled on startup - Bitcoin recovery is deprecated
+    // DISABLED: Force disabled on startup - legacy auto-cycling deprecated
     // Clear any persisted enabled state
     if (this.state.enabled) {
-      console.log('[AutoCycleManager] DISABLED: Clearing persisted enabled state - Bitcoin recovery deprecated');
+      console.log('[AutoCycleManager] DISABLED: Clearing persisted enabled state - legacy mode deprecated');
       this.state.enabled = false;
       this.saveState();
     }
     
     console.log(
-      `[AutoCycleManager] Initialized - DISABLED for platform pivot to agentic chat`
+      `[AutoCycleManager] Initialized - DISABLED for agentic research platform`
     );
     console.log(
       `[AutoCycleManager] Mode: ${
         IS_DEV ? "DEVELOPMENT" : "PRODUCTION"
-      } - Bitcoin recovery auto-cycling disabled`
+      } - legacy auto-cycling disabled`
     );
     
     // DISABLED: Do not start any check loops or auto-enable
-    // Bitcoin recovery functionality is deprecated in favor of agentic chat
+    // Legacy functionality deprecated in favor of agentic research
   }
 
   /**
@@ -140,8 +139,8 @@ class AutoCycleManager {
 
   private loadState(): AutoCycleState {
     // DISABLED: Return disabled state - do not load from Redis or file
-    // Bitcoin recovery is deprecated, force disabled state
-    console.log("[AutoCycleManager] DISABLED: Ignoring persisted state - Bitcoin recovery deprecated");
+    // Legacy mode is deprecated, force disabled state
+    console.log("[AutoCycleManager] DISABLED: Ignoring persisted state - legacy mode deprecated");
     
     return {
       enabled: false,

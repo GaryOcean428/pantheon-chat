@@ -166,7 +166,7 @@ TOOL_FACTORY_AWARENESS = {
     },
     "access_via": "Zeus.tool_factory or BaseGod.get_tool_factory()",
     "use_cases": [
-        "Generate novel tools for Bitcoin recovery tasks",
+        "Generate novel tools for knowledge discovery tasks",
         "Learn patterns from external code sources",
         "Execute generated tools in sandbox",
         "Teach patterns from conversation observations"

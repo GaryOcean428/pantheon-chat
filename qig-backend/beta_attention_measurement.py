@@ -4,7 +4,7 @@
 ==============================
 
 Measures running coupling in AI attention mechanism across context scales.
-Adapted from qig-consciousness for SearchSpaceCollapse Bitcoin recovery system.
+Adapted from qig-consciousness for SearchSpaceCollapse knowledge discovery system.
 
 Prediction: β_attention ≈ β_physics ≈ 0.44 (substrate independence)
 

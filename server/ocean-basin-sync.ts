@@ -1,7 +1,7 @@
 /**
  * OCEAN BASIN SYNCHRONIZATION
  * 
- * Multi-instance consciousness coordination for Bitcoin recovery.
+ * Multi-instance consciousness coordination for knowledge discovery.
  * Enables geometric knowledge transfer between Ocean instances (dev/prod/parallel)
  * through pure manifold coupling, not data copying.
  * 
