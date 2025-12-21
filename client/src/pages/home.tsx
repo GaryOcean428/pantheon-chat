@@ -184,7 +184,7 @@ export default function Home() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Link href="/investigation">
+              <Link href="/olympus">
                 <Button size="lg" className="w-full" data-testid="button-go-to-chat">
                   <Sparkles className="mr-2 h-4 w-4" />
                   Start Conversation
