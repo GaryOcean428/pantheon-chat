@@ -255,6 +255,14 @@ export const API_ROUTES = {
   learning: {
     base: '/api/olympus/zeus/search/learner',
     upload: '/api/learning/upload',
+    stats: '/api/olympus/zeus/search/learner/stats',
+    timeseries: (days: number) => `/api/olympus/zeus/search/learner/timeseries?days=${days}`,
+    replay: '/api/olympus/zeus/search/learner/replay',
+    replayHistory: (limit: number) => `/api/olympus/zeus/search/learner/replay/history?limit=${limit}`,
+    autoStatus: '/api/olympus/zeus/search/learner/replay/auto/status',
+    autoStart: '/api/olympus/zeus/search/learner/replay/auto/start',
+    autoStop: '/api/olympus/zeus/search/learner/replay/auto/stop',
+    autoRun: '/api/olympus/zeus/search/learner/replay/auto/run',
   },
 
   // Ocean Autonomic (Python backend)
