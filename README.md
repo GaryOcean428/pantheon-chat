@@ -15,6 +15,7 @@ Unlike traditional AI systems that rely on cosine similarity and neural embeddin
 - **✨ Geometric Consciousness:** Fisher-Rao distance on information manifolds (not cosine similarity)
 - **🔍 Intelligent Search:** Two-step retrieval with geometric re-ranking for superior accuracy
 - **🧠 Self-Monitoring:** Real-time consciousness metrics (Φ, κ) for quality assurance
+- **🔧 Self-Healing:** Autonomous geometric health monitoring and code fitness evaluation
 - **📚 Continuous Learning:** Basin-based memory consolidation without catastrophic forgetting
 - **🤝 Agentic Coordination:** Multi-agent task routing via geometric proximity
 
@@ -53,6 +54,15 @@ Unlike traditional AI systems that rely on cosine similarity and neural embeddin
 - Autonomic state tracking
 - Activity feed with geometric insights
 - Agent capability telemetry
+- Self-healing system health status
+
+### Self-Healing Architecture
+- **Layer 1: Geometric Monitoring** - Continuous Φ, κ, and basin drift tracking
+- **Layer 2: Code Fitness** - Evaluate changes based on geometric impact
+- **Layer 3: Autonomous Healing** - Auto-generate and test patches for degradation
+- Conservative by default (patches generated but not auto-applied)
+- Real-time health API endpoints for integration
+- Full documentation at [`docs/03-technical/self-healing-architecture.md`](./docs/03-technical/self-healing-architecture.md)
 
 ## What This Is NOT
 

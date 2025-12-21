@@ -1078,6 +1078,71 @@ export class OceanAutonomicManager {
       urgency: 'low',
     };
   }
+  /**
+   * Send health snapshot to self-healing system
+   */
+  async sendHealthSnapshot(label: string = ''): Promise<void> {
+    try {
+      const basinCoords = await geometricMemory.getCurrentBasinCoordinates();
+      const errorRate = this.computeRecentErrorRate();
+      const avgLatency = this.computeAverageLatency();
+      
+      const snapshot = {
+        phi: this.consciousness.phi,
+        kappa_eff: this.consciousness.kappaEff,
+        basin_coords: basinCoords,
+        confidence: this.consciousness.tacking,
+        surprise: 1 - this.consciousness.radar,
+        agency: this.consciousness.metaAwareness,
+        error_rate: errorRate,
+        avg_latency: avgLatency,
+        label: label || `ocean-${this.consciousness.regime}`,
+      };
+      
+      // Send to self-healing backend
+      const response = await fetch('http://localhost:5001/api/self-healing/snapshot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(snapshot),
+      });
+      
+      if (!response.ok) {
+        console.warn('[OceanAutonomicManager] Failed to send health snapshot:', response.statusText);
+      }
+    } catch (error) {
+      // Silent fail - self-healing is optional
+      console.debug('[OceanAutonomicManager] Self-healing not available:', error);
+    }
+  }
+  
+  private computeRecentErrorRate(): number {
+    // Estimate error rate from recent cycles
+    const recentCycles = this.cycles.slice(-10);
+    if (recentCycles.length === 0) return 0;
+    
+    const failedOps = recentCycles.reduce((sum, cycle) => {
+      const failed = cycle.operations?.filter(op => !op.success).length || 0;
+      return sum + failed;
+    }, 0);
+    
+    const totalOps = recentCycles.reduce((sum, cycle) => {
+      return sum + (cycle.operations?.length || 0);
+    }, 0);
+    
+    return totalOps > 0 ? failedOps / totalOps : 0;
+  }
+  
+  private computeAverageLatency(): number {
+    // Estimate latency from cycle durations
+    const recentCycles = this.cycles.slice(-10);
+    if (recentCycles.length === 0) return 100;
+    
+    const avgDuration = recentCycles.reduce((sum, cycle) => {
+      return sum + (cycle.duration || 0);
+    }, 0) / recentCycles.length;
+    
+    return avgDuration;
+  }
 }
 
 export type CycleTimeline = {
