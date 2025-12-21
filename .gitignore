@@ -20,4 +20,4 @@ package-lock.json
 # Exclude draft documentation
 docs/_drafts/*.md
 .env
-
+data/backups/geometric-memory_20251128_062436.json
