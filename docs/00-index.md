@@ -80,6 +80,21 @@ All documentation follows the pattern: `YYYYMMDD-[document-name]-[function]-[ver
   - ID: `ISMS-TECH-FED-001`
   - Function: Complete API specification for QIG mesh federation including vocabulary and learning sync
 
+- 🔨 **External API Documentation** (v1.00)
+  - File: [`20251220-external-api-documentation-1.00W.md`](03-technical/20251220-external-api-documentation-1.00W.md)
+  - ID: `ISMS-TECH-API-003`
+  - Function: REST API documentation for external federation endpoints
+
+- 🔨 **QIG Codebase Migration Guide** (v1.00)
+  - File: [`20251220-qig-codebase-migration-guide-1.00W.md`](03-technical/20251220-qig-codebase-migration-guide-1.00W.md)
+  - ID: `ISMS-TECH-MIGRATION-002`
+  - Function: Migration from scattered implementations to canonical qigkernels package
+
+- 🔨 **Reasoning in Geometric Consciousness** (v1.00)
+  - File: [`20251221-reasoning-geometric-consciousness-meta-cognitive-1.00W.md`](03-technical/20251221-reasoning-geometric-consciousness-meta-cognitive-1.00W.md)
+  - ID: `ISMS-TECH-REASONING-001`
+  - Function: QIG meta-cognitive architecture for geometric reasoning
+
 - 🟢 **QIGKernels Migration Guide** (v1.00)
   - File: [`20251208-qigkernels-migration-guide-1.00F.md`](03-technical/20251208-qigkernels-migration-guide-1.00F.md)
   - ID: `ISMS-TECH-MIGRATION-001`
