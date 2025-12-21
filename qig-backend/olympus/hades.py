@@ -48,6 +48,13 @@ except ImportError:
     HAS_DDG = False
     DuckDuckGoSearch = None
 
+try:
+    from search.provider_selector import get_provider_selector
+    HAS_PROVIDER_SELECTOR = True
+except ImportError:
+    HAS_PROVIDER_SELECTOR = False
+    get_provider_selector = None
+
 
 class WaybackArchive:
     """
@@ -457,6 +464,8 @@ class Hades(BaseGod):
         self.ddg = get_ddg_search(use_tor=True) if HAS_DDG else None
         self.ddg_enabled = os.getenv('HADES_DDG_ENABLED', 'true').lower() == 'true'
         
+        self.provider_selector = get_provider_selector(mode='shadow') if HAS_PROVIDER_SELECTOR else None
+        
         self.search_history: List[Dict] = []
         self.intelligence_cache: Dict[str, Dict] = {}
         self.last_search_time: Optional[datetime] = None
@@ -513,76 +522,127 @@ class Hades(BaseGod):
         search_type: str = 'comprehensive'
     ) -> Dict:
         """
-        Search underworld using ONLY anonymous tools.
+        Search underworld using ONLY anonymous tools with geometric provider selection.
+        
+        Uses geometric reasoning to select the best providers based on:
+        - Query domain (security, crypto, academic, etc.)
+        - Provider historical effectiveness
+        - Current availability
         
         Args:
             target: Search query
-            search_type: 'comprehensive', 'archives', 'pastes', 'rss', 'breaches'
+            search_type: 'comprehensive', 'archives', 'pastes', 'rss', 'breaches', 'web'
         
         Returns:
-            Intelligence report with findings
+            Intelligence report with findings and provider selection metadata
         """
         self.last_search_time = datetime.now()
         intelligence: List[Dict] = []
         sources_used: List[str] = []
+        provider_ranking: List[Dict] = []
         
-        if search_type in ['comprehensive', 'archives']:
+        if self.provider_selector:
+            ranked_providers = self.provider_selector.select_providers_ranked(target, max_providers=5)
+            provider_ranking = [{'provider': p, 'fitness': f} for p, f in ranked_providers]
+            print(f"[Hades] Geometric shadow provider ranking: {[(p, f'{s:.3f}') for p, s in ranked_providers]}")
+        else:
+            ranked_providers = [
+                ('duckduckgo-tor', 0.7), ('wayback', 0.6), ('pastebin', 0.5), 
+                ('rss', 0.4), ('breach', 0.3)
+            ]
+        
+        provider_to_search = {p: s for p, s in ranked_providers}
+        
+        if search_type in ['comprehensive', 'archives'] or 'wayback' in provider_to_search:
+            start_time = time.time()
             try:
                 wayback_intel = await self.wayback.search_research_forums(target)
                 intelligence.extend(wayback_intel)
                 if wayback_intel:
                     sources_used.append('wayback')
+                    if self.provider_selector:
+                        self.provider_selector.record_result('wayback', target, True, len(wayback_intel), time.time() - start_time)
+                else:
+                    if self.provider_selector:
+                        self.provider_selector.record_result('wayback', target, False)
             except Exception as e:
-                pass
+                if self.provider_selector:
+                    self.provider_selector.record_result('wayback', target, False)
         
-        if search_type in ['comprehensive', 'pastes']:
+        if search_type in ['comprehensive', 'pastes'] or 'pastebin' in provider_to_search:
+            start_time = time.time()
             try:
                 paste_intel = await self.paste_scraper.scrape_pastebin_recent(target)
                 intelligence.extend(paste_intel)
                 if paste_intel:
                     sources_used.append('pastebin')
+                    if self.provider_selector:
+                        self.provider_selector.record_result('pastebin', target, True, len(paste_intel), time.time() - start_time)
+                else:
+                    if self.provider_selector:
+                        self.provider_selector.record_result('pastebin', target, False)
             except Exception as e:
-                pass
+                if self.provider_selector:
+                    self.provider_selector.record_result('pastebin', target, False)
         
-        if search_type in ['comprehensive', 'rss']:
+        if search_type in ['comprehensive', 'rss'] or 'rss' in provider_to_search:
+            start_time = time.time()
             try:
                 rss_intel = await self.rss.search_feeds(target)
                 intelligence.extend(rss_intel)
                 if rss_intel:
                     sources_used.append('rss')
+                    if self.provider_selector:
+                        self.provider_selector.record_result('rss', target, True, len(rss_intel), time.time() - start_time)
+                else:
+                    if self.provider_selector:
+                        self.provider_selector.record_result('rss', target, False)
             except Exception as e:
-                pass
+                if self.provider_selector:
+                    self.provider_selector.record_result('rss', target, False)
         
-        if search_type in ['comprehensive', 'breaches']:
+        if search_type in ['comprehensive', 'breaches'] or 'breach' in provider_to_search:
+            start_time = time.time()
             try:
                 breach_intel = self.breach_db.search(target)
                 intelligence.extend(breach_intel)
                 if breach_intel:
                     sources_used.append('local_breach')
+                    if self.provider_selector:
+                        self.provider_selector.record_result('breach', target, True, len(breach_intel), time.time() - start_time)
             except Exception as e:
                 pass
         
-        if search_type in ['comprehensive', 'web', 'duckduckgo'] and self.ddg and self.ddg_enabled:
+        if (search_type in ['comprehensive', 'web', 'duckduckgo'] or 'duckduckgo-tor' in provider_to_search) and self.ddg and self.ddg_enabled:
+            start_time = time.time()
             try:
                 ddg_result = self.ddg.search_for_shadow(target, max_results=15, include_news=True)
                 if ddg_result.get('success'):
                     for item in ddg_result.get('intelligence', []):
                         item['type'] = 'web' if item.get('search_type') != 'news' else 'news'
-                        item['source'] = 'duckduckgo'
+                        item['source'] = 'duckduckgo-tor'
                         item['risk'] = 'low'
                         intelligence.append(item)
                     if ddg_result.get('intelligence'):
-                        sources_used.append('duckduckgo')
+                        sources_used.append('duckduckgo-tor')
                         if 'duckduckgo_news' in ddg_result.get('sources', []):
                             sources_used.append('duckduckgo_news')
+                        if self.provider_selector:
+                            self.provider_selector.record_result('duckduckgo-tor', target, True, len(ddg_result.get('intelligence', [])), time.time() - start_time)
+                else:
+                    if self.provider_selector:
+                        self.provider_selector.record_result('duckduckgo-tor', target, False)
             except Exception as e:
-                pass
+                if self.provider_selector:
+                    self.provider_selector.record_result('duckduckgo-tor', target, False)
         
         risk_level = self._assess_risk(intelligence)
         
         result = {
             'target': target,
             'search_type': search_type,
+            'provider_ranking': provider_ranking,
+            'geometric_selection': bool(self.provider_selector),
             'intelligence': intelligence,
             'source_count': len(intelligence),
             'sources_used': sources_used,

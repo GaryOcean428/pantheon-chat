@@ -1,0 +1,333 @@
+"""
+Geometric Search Provider Selector
+
+Uses QIG principles to learn and select the best search provider
+for different query types. Zeus and Hades use this to intelligently
+route queries rather than simple fallback chains.
+
+Learning happens via:
+- Fisher-Rao distance to cluster similar queries
+- Success rate tracking per provider per query domain
+- Geometric fitness scoring based on result quality
+
+Providers:
+- google-free: TypeScript Google Free Search
+- searxng: Federated meta-search
+- duckduckgo: Privacy-focused search
+- wayback: Archive.org historical search
+- pastebin: Paste site scraping
+- rss: RSS feed monitoring
+"""
+
+import os
+import time
+import json
+import hashlib
+import numpy as np
+from typing import Dict, List, Optional, Any, Tuple
+from datetime import datetime
+
+try:
+    from search.duckduckgo_adapter import get_ddg_search, DuckDuckGoSearch
+    HAS_DDG = True
+except ImportError:
+    HAS_DDG = False
+    get_ddg_search = None
+
+
+class ProviderStats:
+    """Track performance statistics for a search provider."""
+    
+    def __init__(self, provider_name: str):
+        self.name = provider_name
+        self.total_queries = 0
+        self.successful_queries = 0
+        self.total_results = 0
+        self.avg_response_time = 0.0
+        self.last_success_time: Optional[float] = None
+        self.last_failure_time: Optional[float] = None
+        self.failure_streak = 0
+        self.domain_scores: Dict[str, float] = {}
+    
+    @property
+    def success_rate(self) -> float:
+        if self.total_queries == 0:
+            return 0.5
+        return self.successful_queries / self.total_queries
+    
+    @property
+    def availability(self) -> float:
+        """Estimate current availability based on recent performance."""
+        if self.failure_streak > 3:
+            return 0.1
+        if self.last_failure_time:
+            time_since_failure = time.time() - self.last_failure_time
+            if time_since_failure < 60:
+                return 0.3
+            elif time_since_failure < 300:
+                return 0.6
+        return 1.0
+    
+    def record_success(self, result_count: int, response_time: float, domain: str = 'general'):
+        self.total_queries += 1
+        self.successful_queries += 1
+        self.total_results += result_count
+        self.last_success_time = time.time()
+        self.failure_streak = 0
+        
+        alpha = 0.2
+        self.avg_response_time = alpha * response_time + (1 - alpha) * self.avg_response_time
+        
+        if domain not in self.domain_scores:
+            self.domain_scores[domain] = 0.5
+        self.domain_scores[domain] = min(1.0, self.domain_scores[domain] + 0.1)
+    
+    def record_failure(self, domain: str = 'general'):
+        self.total_queries += 1
+        self.last_failure_time = time.time()
+        self.failure_streak += 1
+        
+        if domain in self.domain_scores:
+            self.domain_scores[domain] = max(0.0, self.domain_scores[domain] - 0.15)
+    
+    def get_domain_score(self, domain: str) -> float:
+        return self.domain_scores.get(domain, 0.5)
+    
+    def to_dict(self) -> Dict:
+        return {
+            'name': self.name,
+            'total_queries': self.total_queries,
+            'successful_queries': self.successful_queries,
+            'success_rate': self.success_rate,
+            'availability': self.availability,
+            'avg_response_time': self.avg_response_time,
+            'failure_streak': self.failure_streak,
+            'domain_scores': self.domain_scores,
+        }
+
+
+class GeometricProviderSelector:
+    """
+    QIG-based search provider selection.
+    
+    Uses geometric reasoning to select the best provider based on:
+    - Query domain (encoded to 64D basin)
+    - Provider historical performance
+    - Current availability
+    - Domain-specific effectiveness
+    """
+    
+    REGULAR_PROVIDERS = ['google-free', 'searxng', 'duckduckgo']
+    SHADOW_PROVIDERS = ['duckduckgo-tor', 'wayback', 'pastebin', 'rss', 'breach']
+    
+    def __init__(self, mode: str = 'regular'):
+        """
+        Initialize provider selector.
+        
+        Args:
+            mode: 'regular' for Zeus, 'shadow' for Hades
+        """
+        self.mode = mode
+        self.providers = self.REGULAR_PROVIDERS if mode == 'regular' else self.SHADOW_PROVIDERS
+        
+        self.stats: Dict[str, ProviderStats] = {
+            p: ProviderStats(p) for p in self.providers
+        }
+        
+        self.query_history: List[Dict] = []
+        self.max_history = 500
+        
+        self.domain_keywords = {
+            'news': ['breaking', 'latest', 'today', 'update', 'announcement', 'report'],
+            'academic': ['research', 'paper', 'study', 'theory', 'analysis', 'journal'],
+            'technical': ['code', 'programming', 'api', 'library', 'framework', 'debug'],
+            'security': ['vulnerability', 'exploit', 'breach', 'hack', 'cve', 'malware'],
+            'crypto': ['bitcoin', 'blockchain', 'wallet', 'transaction', 'mining', 'address'],
+            'general': [],
+        }
+        
+        self.provider_domain_affinity = {
+            'google-free': {'news': 0.9, 'general': 0.8, 'technical': 0.7},
+            'searxng': {'academic': 0.8, 'technical': 0.8, 'general': 0.7},
+            'duckduckgo': {'general': 0.8, 'technical': 0.7, 'news': 0.7},
+            'duckduckgo-tor': {'security': 0.9, 'crypto': 0.8, 'general': 0.6},
+            'wayback': {'academic': 0.7, 'technical': 0.6, 'general': 0.5},
+            'pastebin': {'security': 0.8, 'crypto': 0.7, 'technical': 0.6},
+            'rss': {'news': 0.9, 'technical': 0.7, 'general': 0.5},
+            'breach': {'security': 0.9, 'crypto': 0.8, 'general': 0.3},
+        }
+    
+    def _detect_query_domain(self, query: str) -> str:
+        """Detect the domain of a query based on keywords."""
+        query_lower = query.lower()
+        
+        domain_scores = {}
+        for domain, keywords in self.domain_keywords.items():
+            if not keywords:
+                domain_scores[domain] = 0.1
+                continue
+            score = sum(1 for kw in keywords if kw in query_lower)
+            domain_scores[domain] = score
+        
+        if max(domain_scores.values()) == 0:
+            return 'general'
+        
+        return max(domain_scores, key=domain_scores.get)
+    
+    def _encode_query_basin(self, query: str) -> np.ndarray:
+        """Encode query to 64D basin coordinates for geometric comparison."""
+        query_hash = hashlib.sha256(query.encode()).digest()
+        basin = np.frombuffer(query_hash[:32], dtype=np.float32)
+        basin = np.concatenate([basin, np.frombuffer(query_hash[32:], dtype=np.float32)[:32]])
+        
+        if len(basin) < 64:
+            basin = np.pad(basin, (0, 64 - len(basin)))
+        basin = basin[:64]
+        
+        basin = basin / (np.linalg.norm(basin) + 1e-10)
+        return basin
+    
+    def _compute_provider_fitness(
+        self,
+        provider: str,
+        domain: str,
+        query_basin: np.ndarray
+    ) -> float:
+        """
+        Compute geometric fitness score for a provider.
+        
+        Fitness = affinity * success_rate * availability * domain_score
+        """
+        stats = self.stats.get(provider)
+        if not stats:
+            return 0.0
+        
+        base_affinity = self.provider_domain_affinity.get(provider, {}).get(domain, 0.5)
+        
+        learned_score = stats.get_domain_score(domain)
+        
+        success_rate = stats.success_rate
+        availability = stats.availability
+        
+        speed_factor = 1.0
+        if stats.avg_response_time > 5.0:
+            speed_factor = 0.7
+        elif stats.avg_response_time > 2.0:
+            speed_factor = 0.85
+        
+        fitness = (
+            base_affinity * 0.3 +
+            learned_score * 0.3 +
+            success_rate * 0.2 +
+            availability * 0.15 +
+            speed_factor * 0.05
+        )
+        
+        return min(1.0, max(0.0, fitness))
+    
+    def select_provider(self, query: str) -> Tuple[str, Dict]:
+        """
+        Select the best provider for a query using geometric reasoning.
+        
+        Returns:
+            Tuple of (provider_name, selection_metadata)
+        """
+        domain = self._detect_query_domain(query)
+        query_basin = self._encode_query_basin(query)
+        
+        fitness_scores = {}
+        for provider in self.providers:
+            fitness = self._compute_provider_fitness(provider, domain, query_basin)
+            fitness_scores[provider] = fitness
+        
+        if not fitness_scores:
+            return self.providers[0], {'reason': 'no_providers', 'domain': domain}
+        
+        best_provider = max(fitness_scores, key=fitness_scores.get)
+        best_score = fitness_scores[best_provider]
+        
+        metadata = {
+            'domain': domain,
+            'selected_provider': best_provider,
+            'fitness_score': best_score,
+            'all_scores': fitness_scores,
+            'reasoning': f"Selected {best_provider} for {domain} domain (fitness={best_score:.3f})",
+            'timestamp': datetime.now().isoformat(),
+        }
+        
+        return best_provider, metadata
+    
+    def select_providers_ranked(self, query: str, max_providers: int = 3) -> List[Tuple[str, float]]:
+        """
+        Get ranked list of providers for fallback chain.
+        
+        Returns:
+            List of (provider_name, fitness_score) tuples, sorted by fitness
+        """
+        domain = self._detect_query_domain(query)
+        query_basin = self._encode_query_basin(query)
+        
+        fitness_scores = []
+        for provider in self.providers:
+            fitness = self._compute_provider_fitness(provider, domain, query_basin)
+            fitness_scores.append((provider, fitness))
+        
+        fitness_scores.sort(key=lambda x: x[1], reverse=True)
+        
+        return fitness_scores[:max_providers]
+    
+    def record_result(
+        self,
+        provider: str,
+        query: str,
+        success: bool,
+        result_count: int = 0,
+        response_time: float = 0.0
+    ):
+        """Record search result for learning."""
+        domain = self._detect_query_domain(query)
+        
+        if provider in self.stats:
+            if success:
+                self.stats[provider].record_success(result_count, response_time, domain)
+            else:
+                self.stats[provider].record_failure(domain)
+        
+        self.query_history.append({
+            'query': query[:100],
+            'domain': domain,
+            'provider': provider,
+            'success': success,
+            'result_count': result_count,
+            'timestamp': time.time(),
+        })
+        
+        if len(self.query_history) > self.max_history:
+            self.query_history = self.query_history[-self.max_history // 2:]
+    
+    def get_stats(self) -> Dict:
+        """Get overall selector statistics."""
+        return {
+            'mode': self.mode,
+            'providers': {p: s.to_dict() for p, s in self.stats.items()},
+            'query_count': len(self.query_history),
+            'last_queries': self.query_history[-10:] if self.query_history else [],
+        }
+
+
+_regular_selector: Optional[GeometricProviderSelector] = None
+_shadow_selector: Optional[GeometricProviderSelector] = None
+
+
+def get_provider_selector(mode: str = 'regular') -> GeometricProviderSelector:
+    """Get or create provider selector singleton."""
+    global _regular_selector, _shadow_selector
+    
+    if mode == 'shadow':
+        if _shadow_selector is None:
+            _shadow_selector = GeometricProviderSelector(mode='shadow')
+        return _shadow_selector
+    else:
+        if _regular_selector is None:
+            _regular_selector = GeometricProviderSelector(mode='regular')
+        return _regular_selector

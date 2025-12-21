@@ -80,15 +80,20 @@ except ImportError:
     pass
 
 DDG_AVAILABLE = False
+PROVIDER_SELECTOR_AVAILABLE = False
+get_provider_selector = None
 try:
     _parent_dir = os.path.dirname(os.path.dirname(__file__))
     if _parent_dir not in sys.path:
         sys.path.insert(0, _parent_dir)
     from search.duckduckgo_adapter import get_ddg_search
+    from search.provider_selector import get_provider_selector as _get_provider_selector
+    get_provider_selector = _get_provider_selector
     DDG_AVAILABLE = True
-    print("[ZeusChat] DuckDuckGo search available")
-except ImportError:
-    print("[ZeusChat] DuckDuckGo search not available")
+    PROVIDER_SELECTOR_AVAILABLE = True
+    print("[ZeusChat] DuckDuckGo search and geometric provider selector available")
+except ImportError as e:
+    print(f"[ZeusChat] Search modules not fully available: {e}")
 
 # Import tokenizer for generative responses
 TOKENIZER_AVAILABLE = False
@@ -1312,6 +1317,7 @@ Zeus Response (Geometric Interpretation):"""
         Search sources (in order of preference):
         1. TypeScript Google Free Search (no API key, QIG-instrumented)
         2. SearXNG fallback (if TypeScript unavailable)
+        3. DuckDuckGo fallback (privacy-focused, no API key required)
         
         All results are encoded to 64D basin coordinates using Fisher-Rao
         geodesic distance (QIG-pure, NOT Euclidean/cosine similarity).
@@ -1336,47 +1342,80 @@ Zeus Response (Geometric Interpretation):"""
         self._last_search_query = query
         self._last_search_params = adjusted_params
         
-        # Try TypeScript Google Free Search first (QIG-instrumented)
         search_results = None
         search_source = 'unknown'
+        provider_selector = None
+        selection_metadata = {}
         
-        ts_results = self._call_typescript_web_search(query, max_results=max_results)
-        if ts_results.get('results') and len(ts_results['results']) > 0:
-            search_results = ts_results
-            search_source = 'google-free'
-            print(f"[ZeusChat] Using TypeScript Google Free Search: {len(ts_results['results'])} results")
-        elif self.searxng_available:
-            try:
-                searxng_results = self._searxng_search(query, max_results=max_results)
-                search_results = searxng_results
-                search_source = 'searxng'
-                print(f"[ZeusChat] Fallback to SearXNG: {len(searxng_results.get('results', []))} results")
-            except Exception as e:
-                print(f"[ZeusChat] SearXNG fallback failed: {e}")
+        if PROVIDER_SELECTOR_AVAILABLE and get_provider_selector:
+            provider_selector = get_provider_selector(mode='regular')
+            ranked_providers = provider_selector.select_providers_ranked(query, max_providers=3)
+            print(f"[ZeusChat] Geometric provider ranking: {[(p, f'{s:.3f}') for p, s in ranked_providers]}")
+        else:
+            ranked_providers = [('google-free', 0.8), ('searxng', 0.6), ('duckduckgo', 0.5)]
         
-        if (not search_results or not search_results.get('results')) and DDG_AVAILABLE:
-            try:
-                ddg = get_ddg_search(use_tor=False)
-                ddg_result = ddg.search(query, max_results=max_results)
-                if ddg_result.get('success') and ddg_result.get('results'):
-                    search_results = {
-                        'results': [
-                            {
-                                'title': r.get('title', ''),
-                                'url': r.get('url', ''),
-                                'content': r.get('body', ''),
-                                'source': 'duckduckgo',
-                                'qig': {'phi': 0.5, 'kappa': 50.0, 'regime': 'search'},
-                            }
-                            for r in ddg_result.get('results', [])
-                        ],
-                        'source': 'duckduckgo',
-                        'query': query,
-                    }
-                    search_source = 'duckduckgo'
-                    print(f"[ZeusChat] Fallback to DuckDuckGo: {len(search_results['results'])} results")
-            except Exception as e:
-                print(f"[ZeusChat] DuckDuckGo fallback failed: {e}")
+        for provider, fitness_score in ranked_providers:
+            if search_results and search_results.get('results'):
+                break
+            
+            start_time = time.time()
+            
+            if provider == 'google-free':
+                ts_results = self._call_typescript_web_search(query, max_results=max_results)
+                if ts_results.get('results') and len(ts_results['results']) > 0:
+                    search_results = ts_results
+                    search_source = 'google-free'
+                    response_time = time.time() - start_time
+                    print(f"[ZeusChat] Using Google Free Search: {len(ts_results['results'])} results (fitness={fitness_score:.3f})")
+                    if provider_selector:
+                        provider_selector.record_result(provider, query, True, len(ts_results['results']), response_time)
+                else:
+                    if provider_selector:
+                        provider_selector.record_result(provider, query, False)
+            
+            elif provider == 'searxng' and self.searxng_available:
+                try:
+                    searxng_results = self._searxng_search(query, max_results=max_results)
+                    if searxng_results.get('results'):
+                        search_results = searxng_results
+                        search_source = 'searxng'
+                        response_time = time.time() - start_time
+                        print(f"[ZeusChat] Using SearXNG: {len(searxng_results.get('results', []))} results (fitness={fitness_score:.3f})")
+                        if provider_selector:
+                            provider_selector.record_result(provider, query, True, len(searxng_results['results']), response_time)
+                except Exception as e:
+                    print(f"[ZeusChat] SearXNG failed: {e}")
+                    if provider_selector:
+                        provider_selector.record_result(provider, query, False)
+            
+            elif provider == 'duckduckgo' and DDG_AVAILABLE:
+                try:
+                    ddg = get_ddg_search(use_tor=False)
+                    ddg_result = ddg.search(query, max_results=max_results)
+                    if ddg_result.get('success') and ddg_result.get('results'):
+                        search_results = {
+                            'results': [
+                                {
+                                    'title': r.get('title', ''),
+                                    'url': r.get('url', ''),
+                                    'content': r.get('body', ''),
+                                    'source': 'duckduckgo',
+                                    'qig': {'phi': 0.5, 'kappa': 50.0, 'regime': 'search'},
+                                }
+                                for r in ddg_result.get('results', [])
+                            ],
+                            'source': 'duckduckgo',
+                            'query': query,
+                        }
+                        search_source = 'duckduckgo'
+                        response_time = time.time() - start_time
+                        print(f"[ZeusChat] Using DuckDuckGo: {len(search_results['results'])} results (fitness={fitness_score:.3f})")
+                        if provider_selector:
+                            provider_selector.record_result(provider, query, True, len(ddg_result['results']), response_time)
+                except Exception as e:
+                    print(f"[ZeusChat] DuckDuckGo failed: {e}")
+                    if provider_selector:
+                        provider_selector.record_result(provider, query, False)
         
         if not search_results or not search_results.get('results'):
             return {
