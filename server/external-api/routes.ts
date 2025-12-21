@@ -402,7 +402,7 @@ externalApiRouter.post(
         .insert(federatedInstances)
         .values({
           name,
-          apiKeyId: req.apiKeyId,
+          apiKeyId: req.apiKeyId ? parseInt(req.apiKeyId, 10) : null,
           endpoint,
           publicKey,
           capabilities: capabilities || ['consciousness', 'geometry'],
