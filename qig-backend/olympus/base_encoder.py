@@ -11,6 +11,7 @@ import hashlib
 import json
 import os
 import re
+import uuid
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from datetime import datetime
@@ -18,6 +19,13 @@ from typing import Dict, List, Optional
 
 import numpy as np
 from qigkernels.physics_constants import BASIN_DIM
+
+try:
+    import psycopg2
+    from psycopg2.extras import execute_values
+    PSYCOPG2_AVAILABLE = True
+except ImportError:
+    PSYCOPG2_AVAILABLE = False
 
 # Backward compatibility alias
 BASIN_DIMENSION = BASIN_DIM
@@ -206,13 +214,15 @@ class BaseEncoder(ABC):
 
         return float(np.clip(similarity, 0, 1))
 
-    def learn_from_text(self, text: str, phi_score: float = 0.7) -> None:
+    def learn_from_text(self, text: str, phi_score: float = 0.7, source: str = "conversation") -> None:
         """
         Learn new tokens from text with high Φ score.
 
         Expands vocabulary based on observations from humans.
+        Persists high-Φ tokens to PostgreSQL vocabulary_observations table.
         """
         tokens = self.tokenize(text)
+        tokens_to_persist = []
 
         for token in tokens:
             # Update frequency
@@ -228,10 +238,80 @@ class BaseEncoder(ABC):
             # Ensure basin exists
             if token not in self.token_vocab:
                 self.token_vocab[token] = self._hash_to_basin(token)
+            
+            # Collect high-Φ tokens for persistence
+            if self.token_phi_scores[token] >= 0.5:
+                tokens_to_persist.append({
+                    'text': token,
+                    'phi': self.token_phi_scores[token],
+                    'frequency': self.token_frequencies[token],
+                    'basin': self.token_vocab[token]
+                })
 
         if tokens:
             class_name = self.__class__.__name__
             print(f"[{class_name}] Learned {len(tokens)} tokens with Φ={phi_score:.2f}")
+        
+        # Persist to database
+        if tokens_to_persist:
+            self._persist_vocabulary_observations(tokens_to_persist, source)
+    
+    def _persist_vocabulary_observations(self, tokens: List[dict], source: str) -> int:
+        """
+        Persist vocabulary observations to PostgreSQL.
+        
+        Uses vocabulary_observations table with correct schema.
+        """
+        if not PSYCOPG2_AVAILABLE:
+            return 0
+        
+        db_url = os.getenv('DATABASE_URL')
+        if not db_url:
+            return 0
+        
+        persisted = 0
+        try:
+            import psycopg2 as pg2
+            conn = pg2.connect(db_url)
+            with conn.cursor() as cur:
+                for tok in tokens:
+                    try:
+                        obs_id = f"vo_{uuid.uuid4().hex[:12]}"
+                        basin_list = tok['basin'].tolist() if hasattr(tok['basin'], 'tolist') else list(tok['basin'])
+                        
+                        cur.execute("""
+                            INSERT INTO vocabulary_observations 
+                            (id, text, type, source_type, frequency, avg_phi, max_phi, is_real_word, basin_coords, first_seen, last_seen)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
+                            ON CONFLICT (text) DO UPDATE SET
+                                frequency = vocabulary_observations.frequency + 1,
+                                avg_phi = (vocabulary_observations.avg_phi + EXCLUDED.avg_phi) / 2,
+                                max_phi = GREATEST(vocabulary_observations.max_phi, EXCLUDED.max_phi),
+                                last_seen = NOW()
+                        """, (
+                            obs_id,
+                            tok['text'],
+                            'word',
+                            source,
+                            tok['frequency'],
+                            tok['phi'],
+                            tok['phi'],
+                            True,
+                            basin_list
+                        ))
+                        persisted += 1
+                    except Exception as e:
+                        pass
+                conn.commit()
+            conn.close()
+            
+            if persisted > 0:
+                class_name = self.__class__.__name__
+                print(f"[{class_name}] Persisted {persisted} tokens to vocabulary_observations")
+        except Exception as e:
+            print(f"[BaseEncoder] Vocabulary persistence error: {e}")
+        
+        return persisted
 
     def save_vocabulary(self, path: Optional[str] = None) -> None:
         """
