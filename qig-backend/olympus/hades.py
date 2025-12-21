@@ -41,6 +41,13 @@ try:
 except ImportError:
     HAS_FEEDPARSER = False
 
+try:
+    from search.duckduckgo_adapter import DuckDuckGoSearch, get_ddg_search
+    HAS_DDG = True
+except ImportError:
+    HAS_DDG = False
+    DuckDuckGoSearch = None
+
 
 class WaybackArchive:
     """
@@ -447,6 +454,9 @@ class Hades(BaseGod):
         self.rss = PublicRSSFeeds()
         self.breach_db = LocalBreachDatabase()
         
+        self.ddg = get_ddg_search(use_tor=True) if HAS_DDG else None
+        self.ddg_enabled = os.getenv('HADES_DDG_ENABLED', 'true').lower() == 'true'
+        
         self.search_history: List[Dict] = []
         self.intelligence_cache: Dict[str, Dict] = {}
         self.last_search_time: Optional[datetime] = None
@@ -549,6 +559,22 @@ class Hades(BaseGod):
                 intelligence.extend(breach_intel)
                 if breach_intel:
                     sources_used.append('local_breach')
+            except Exception as e:
+                pass
+        
+        if search_type in ['comprehensive', 'web', 'duckduckgo'] and self.ddg and self.ddg_enabled:
+            try:
+                ddg_result = self.ddg.search_for_shadow(target, max_results=15, include_news=True)
+                if ddg_result.get('success'):
+                    for item in ddg_result.get('intelligence', []):
+                        item['type'] = 'web' if item.get('search_type') != 'news' else 'news'
+                        item['source'] = 'duckduckgo'
+                        item['risk'] = 'low'
+                        intelligence.append(item)
+                    if ddg_result.get('intelligence'):
+                        sources_used.append('duckduckgo')
+                        if 'duckduckgo_news' in ddg_result.get('sources', []):
+                            sources_used.append('duckduckgo_news')
             except Exception as e:
                 pass
         

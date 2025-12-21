@@ -5788,13 +5788,16 @@ def m8_merge_kernels():
 @app.route('/m8/kernel/auto-cannibalize', methods=['POST'])
 def m8_auto_cannibalize():
     """
-    Automatically cannibalize the most idle kernel into the most active one.
-
-    Selects source (most idle) and target (highest Φ) kernels automatically
-    and performs cannibalization without manual selection.
+    QIG-Pure Auto-Cannibalization using geometric fitness metrics.
+    
+    Selection based on genuine evolution principles:
+    - Source: Lowest geometric fitness (Φ gradient + κ stability + diversity)
+    - Target: Highest geometric fitness kernel
+    
+    Geometric fitness = Φ_gradient * 0.4 + κ_stability * 0.3 + fisher_diversity * 0.3
 
     Body: {
-        idle_threshold?: number  # Seconds of inactivity (default: 300)
+        use_geometric_fitness?: boolean  # Use QIG metrics (default: true)
     }
 
     Returns: {
@@ -5807,10 +5810,10 @@ def m8_auto_cannibalize():
 
     try:
         data = request.get_json() or {}
-        idle_threshold = float(data.get('idle_threshold', 300.0))
+        use_geometric_fitness = data.get('use_geometric_fitness', True)
 
         spawner = get_spawner()
-        result = spawner.auto_cannibalize(idle_threshold_seconds=idle_threshold)
+        result = spawner.auto_cannibalize(use_geometric_fitness=use_geometric_fitness)
 
         if not result.get('success'):
             return jsonify(result), 400
@@ -5823,14 +5826,14 @@ def m8_auto_cannibalize():
 @app.route('/m8/kernels/auto-merge', methods=['POST'])
 def m8_auto_merge():
     """
-    Automatically merge idle kernels into a new composite kernel.
+    Automatically merge geometrically similar kernels using Fisher distance.
 
-    Selects idle kernels and merges them with an auto-generated name
-    based on their combined domains.
+    Uses QIG-pure geometric clustering to find and merge similar kernels.
+    No arbitrary time thresholds - pure geometric selection.
 
     Body: {
-        idle_threshold?: number,  # Seconds of inactivity (default: 300)
-        max_to_merge?: number     # Max kernels to merge (default: 5)
+        max_to_merge?: number,              # Max kernels to merge (default: 5)
+        fisher_similarity_threshold?: number # Fisher distance threshold (default: 0.3)
     }
 
     Returns: {
@@ -5843,13 +5846,13 @@ def m8_auto_merge():
 
     try:
         data = request.get_json() or {}
-        idle_threshold = float(data.get('idle_threshold', 300.0))
         max_to_merge = int(data.get('max_to_merge', 5))
+        fisher_threshold = float(data.get('fisher_similarity_threshold', 0.3))
 
         spawner = get_spawner()
         result = spawner.auto_merge(
-            idle_threshold_seconds=idle_threshold,
-            max_to_merge=max_to_merge
+            max_to_merge=max_to_merge,
+            fisher_similarity_threshold=fisher_threshold
         )
 
         if not result.get('success'):
