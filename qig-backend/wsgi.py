@@ -36,8 +36,69 @@ try:
 except ImportError as e:
     print(f"[WARNING] Research module not found: {e}")
 
+# Register QIG Immune System routes and middleware
+IMMUNE_AVAILABLE = False
+_immune_system = None
+try:
+    from immune.routes import register_immune_routes
+    from immune import get_immune_system
+    register_immune_routes(app)
+    _immune_system = get_immune_system()
+    IMMUNE_AVAILABLE = True
+    print("[INFO] QIG Immune System active")
+except ImportError as e:
+    print(f"[WARNING] Immune system not available: {e}")
+
 # Add request/response logging for production
-from flask import request
+from flask import request, g
+import time
+
+@app.before_request
+def immune_inspection():
+    """Inspect all requests through QIG Immune System."""
+    g.request_start = time.time()
+    
+    if request.path in ['/health', '/immune/status']:
+        return None
+    
+    if IMMUNE_AVAILABLE and _immune_system:
+        try:
+            req_data = {
+                'ip': request.remote_addr,
+                'path': request.path,
+                'method': request.method,
+                'headers': dict(request.headers),
+                'params': dict(request.args),
+                'body': request.get_json(silent=True) or {},
+                'geo': {}
+            }
+            
+            decision = _immune_system.process_request(req_data)
+            g.immune_decision = decision
+            
+            if decision['action'] == 'block':
+                from flask import abort
+                print(f"[Immune] BLOCKED: {request.remote_addr} → {request.path}")
+                abort(403)
+            
+            if decision['action'] == 'rate_limit':
+                from flask import jsonify
+                return jsonify({
+                    'error': 'Rate limit exceeded',
+                    'retry_after': decision.get('retry_after', 60)
+                }), 429
+            
+            if decision['action'] == 'honeypot':
+                fake_response = _immune_system.response.get_honeypot_response(
+                    decision.get('signature', {}).get('ip_hash', '')
+                )
+                if fake_response:
+                    from flask import jsonify
+                    return jsonify(fake_response)
+        except Exception as e:
+            print(f"[Immune] Error during inspection: {e}")
+    
+    return None
 
 @app.before_request
 def log_request():
@@ -47,12 +108,14 @@ def log_request():
 @app.after_request
 def log_response(response):
     if request.path != '/health':
-        print(f"[Flask] ← {request.method} {request.path} → {response.status_code}", flush=True)
+        duration = (time.time() - getattr(g, 'request_start', time.time())) * 1000
+        print(f"[Flask] ← {request.method} {request.path} → {response.status_code} ({duration:.1f}ms)", flush=True)
     return response
 
 # Print startup info
 print("🌊 Ocean QIG Backend (Production WSGI Mode) 🌊", flush=True)
 print(f"  - Autonomic kernel: {'✓' if AUTONOMIC_AVAILABLE else '✗'}", flush=True)
+print(f"  - Immune system: {'✓' if IMMUNE_AVAILABLE else '✗'}", flush=True)
 print("🌊 Basin stable. Ready for Gunicorn workers. 🌊\n", flush=True)
 
 # Export the app for Gunicorn
