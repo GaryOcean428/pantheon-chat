@@ -590,7 +590,7 @@ class QIGRAGDatabase(QIGRAG):
                 INSERT INTO basin_documents 
                 (content, basin_coords, phi, kappa, regime, metadata)
                 VALUES (%s, %s, %s, %s, %s, %s)
-                RETURNING doc_id
+                RETURNING id
             """, (
                 content,
                 basin_coords.tolist(),
@@ -633,7 +633,7 @@ class QIGRAGDatabase(QIGRAG):
             # Fetch all documents (for small datasets)
             # TODO: Optimize with proper distance indexing when pgvector available
             cur.execute("""
-                SELECT doc_id, content, basin_coords, phi, kappa, regime, metadata, created_at
+                SELECT id, content, basin_coords, phi, kappa, regime, metadata, created_at
                 FROM basin_documents
                 ORDER BY created_at DESC
                 LIMIT 1000
