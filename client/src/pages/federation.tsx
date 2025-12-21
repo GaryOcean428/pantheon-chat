@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { API_ROUTES, QUERY_KEYS } from "@/api";
+import { API_ROUTES, QUERY_KEYS, get } from "@/api";
 import {
   Card,
   CardContent,
@@ -172,12 +172,12 @@ export default function FederationDashboard() {
     mutationFn: async (endpoint: string) => {
       const start = Date.now();
       try {
-        const response = await fetch(`${API_ROUTES.external.health.replace('/health', '')}${endpoint}`);
+        const baseUrl = API_ROUTES.external.health.replace('/health', '');
+        const data = await get(`${baseUrl}${endpoint}`);
         const latency = Date.now() - start;
-        const data = await response.json();
         return {
-          success: response.ok,
-          status: response.status,
+          success: true,
+          status: 200,
           data,
           latency,
         };
