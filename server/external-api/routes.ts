@@ -595,17 +595,17 @@ externalApiRouter.get(
     }
     
     try {
-      const vocabResult = await db.execute(`
-        SELECT word, frequency, phi_score, basin_coords, created_at, updated_at
-        FROM vocabulary_unified
-        WHERE phi_score > 0.3
-        ORDER BY phi_score DESC
+      const vocabResult = await db.execute(sql`
+        SELECT text as word, frequency, max_phi as phi_score, basin_coords, first_seen as created_at, last_seen as updated_at
+        FROM vocabulary_observations
+        WHERE max_phi > 0.3
+        ORDER BY max_phi DESC
         LIMIT 1000
       `);
       
-      const phrasesResult = await db.execute(`
+      const phrasesResult = await db.execute(sql`
         SELECT phrase, regime, phi, kappa, tested_at
-        FROM tested_phrases_unified
+        FROM tested_phrases
         WHERE phi > 0.5
         ORDER BY phi DESC
         LIMIT 500
@@ -658,11 +658,11 @@ externalApiRouter.post(
             const phi = word.phi_score;
             const src = sourceNode || 'federation';
             await db.execute(sql`
-              INSERT INTO vocabulary_unified (word, frequency, phi_score, source, created_at)
+              INSERT INTO vocabulary_observations (text, frequency, max_phi, source_type, first_seen)
               VALUES (${w}, ${freq}, ${phi}, ${src}, NOW())
-              ON CONFLICT (word) DO UPDATE SET
-                phi_score = GREATEST(vocabulary_unified.phi_score, EXCLUDED.phi_score),
-                frequency = vocabulary_unified.frequency + 1
+              ON CONFLICT (text) DO UPDATE SET
+                max_phi = GREATEST(vocabulary_observations.max_phi, EXCLUDED.max_phi),
+                frequency = vocabulary_observations.frequency + 1
             `);
             importedVocab++;
           }
@@ -678,10 +678,10 @@ externalApiRouter.post(
             const kap = phrase.kappa || 64.21;
             const src = sourceNode || 'federation';
             await db.execute(sql`
-              INSERT INTO tested_phrases_unified (phrase, regime, phi, kappa, tested_at, source)
+              INSERT INTO tested_phrases (phrase, regime, phi, kappa, tested_at, source)
               VALUES (${p}, ${reg}, ${phi}, ${kap}, NOW(), ${src})
               ON CONFLICT (phrase) DO UPDATE SET
-                phi = GREATEST(tested_phrases_unified.phi, EXCLUDED.phi)
+                phi = GREATEST(tested_phrases.phi, EXCLUDED.phi)
             `);
             importedPhrases++;
           }
