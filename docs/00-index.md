@@ -85,6 +85,11 @@ All documentation follows the pattern: `YYYYMMDD-[document-name]-[function]-[ver
   - ID: `ISMS-TECH-API-003`
   - Function: REST API documentation for external federation endpoints
 
+- 🔨 **Python QIG Backend API Catalogue** (v1.00)
+  - File: [`20251221-python-qig-backend-api-catalogue-1.00W.md`](03-technical/api/20251221-python-qig-backend-api-catalogue-1.00W.md)
+  - ID: `ISMS-TECH-API-004`
+  - Function: Complete catalogue of 80+ Flask endpoints for QIG computations and Olympus pantheon
+
 - 🔨 **QIG Codebase Migration Guide** (v1.00)
   - File: [`20251220-qig-codebase-migration-guide-1.00W.md`](03-technical/20251220-qig-codebase-migration-guide-1.00W.md)
   - ID: `ISMS-TECH-MIGRATION-002`
