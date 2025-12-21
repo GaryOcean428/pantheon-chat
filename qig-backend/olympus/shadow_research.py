@@ -39,6 +39,17 @@ from .shadow_scrapy import (
 )
 HAS_SCRAPY = True
 
+# Import VocabularyCoordinator for continuous learning
+try:
+    import sys
+    import os
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from vocabulary_coordinator import VocabularyCoordinator
+    HAS_VOCAB_COORDINATOR = True
+except ImportError:
+    HAS_VOCAB_COORDINATOR = False
+    print("[ShadowResearch] VocabularyCoordinator not available - vocabulary learning disabled")
+
 # Topic normalization patterns (shared between ResearchQueue and KnowledgeBase)
 _SEMANTIC_PREFIXES = [
     'historical', 'comparative', 'advanced', 'practical',
@@ -1066,6 +1077,19 @@ class ShadowLearningLoop:
             )
             self._scrapy_orchestrator.set_insights_callback(self._handle_scrapy_insight)
             print("[ShadowLearningLoop] Scrapy research enabled")
+        
+        # Initialize VocabularyCoordinator for continuous learning
+        self.vocab_coordinator = None
+        if HAS_VOCAB_COORDINATOR:
+            try:
+                self.vocab_coordinator = VocabularyCoordinator()
+                print("[ShadowLearningLoop] VocabularyCoordinator initialized for continuous learning")
+                
+                # Register vocabulary insight callback with KnowledgeBase
+                self.knowledge_base.set_insight_callback(self._on_vocabulary_insight)
+                print("[ShadowLearningLoop] Vocabulary insight callback registered")
+            except Exception as e:
+                print(f"[ShadowLearningLoop] Failed to initialize VocabularyCoordinator: {e}")
     
     def _init_study_topics(self) -> Dict[str, List[str]]:
         """Initialize study topics for each god."""
@@ -1205,6 +1229,22 @@ class ShadowLearningLoop:
             variation=topic
         )
         
+        # Train vocabulary from research content
+        # (callback will be triggered automatically via KnowledgeBase.set_insight_callback)
+        # But also do explicit training for immediate feedback
+        vocab_metrics = {}
+        if self.vocab_coordinator:
+            try:
+                summary = content.get("summary", "")
+                if summary:
+                    vocab_metrics = self.vocab_coordinator.train_from_text(
+                        text=summary,
+                        domain=base_topic[:50]
+                    )
+                    print(f"[VocabularyLearning] Explicit training metrics: {vocab_metrics}")
+            except Exception as e:
+                print(f"[VocabularyLearning] Explicit training failed: {e}")
+        
         return {
             "knowledge_id": knowledge_id,
             "topic": topic,
@@ -1214,7 +1254,8 @@ class ShadowLearningLoop:
             "phi": phi,
             "confidence": confidence,
             "content_summary": content.get("summary", ""),
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
+            "vocab_metrics": vocab_metrics
         }
     
     def _research_topic(self, topic: str, category: ResearchCategory, god: str) -> Dict:
@@ -1222,20 +1263,38 @@ class ShadowLearningLoop:
         Research a topic using Scrapy web scraping when available.
         Falls back to conceptual connection finding when Scrapy is not available.
         """
+        # Optional: Enhance query with learned vocabulary
+        enhanced_topic = topic
+        if self.vocab_coordinator:
+            try:
+                enhancement = self.vocab_coordinator.enhance_search_query(
+                    query=topic,
+                    domain=category.value,
+                    max_expansions=3,
+                    min_phi=0.6
+                )
+                enhanced_topic = enhancement.get('enhanced_query', topic)
+                if enhanced_topic != topic:
+                    print(f"[VocabularyLearning] Enhanced query: '{topic}' → '{enhanced_topic}'")
+            except Exception as e:
+                print(f"[VocabularyLearning] Query enhancement failed: {e}, using original query")
+        
         connections = self._find_conceptual_connections(topic)
         scrapy_results = []
         
         if self._scrapy_orchestrator and self._should_scrape_topic(topic, category):
             spider_type = self._select_spider_for_category(category)
+            # Use enhanced topic for scraping if available
             crawl_id = self._scrapy_orchestrator.submit_crawl(
                 spider_type=spider_type,
-                topic=topic
+                topic=enhanced_topic
             )
             if crawl_id:
                 scrapy_results.append({
                     "crawl_id": crawl_id,
                     "spider_type": spider_type,
-                    "topic": topic
+                    "topic": enhanced_topic,
+                    "original_topic": topic if enhanced_topic != topic else None
                 })
                 self._scrapy_orchestrator.poll_results()
         
@@ -1255,7 +1314,8 @@ class ShadowLearningLoop:
             "relevance": min(1.0, base_relevance),
             "confidence": 0.6 + random.random() * 0.3,
             "timestamp": datetime.now().isoformat(),
-            "scrapy_enabled": self._scrapy_orchestrator is not None
+            "scrapy_enabled": self._scrapy_orchestrator is not None,
+            "query_enhanced": enhanced_topic != topic
         }
     
     def _should_scrape_topic(self, topic: str, category: ResearchCategory) -> bool:
@@ -1328,6 +1388,66 @@ class ShadowLearningLoop:
         
         if insight.pattern_hits:
             print(f"[ShadowLearningLoop] Scrapy found {len(insight.pattern_hits)} patterns: {insight.pattern_hits}")
+    
+    def _on_vocabulary_insight(self, knowledge: Dict[str, Any]) -> None:
+        """
+        Extract and learn vocabulary from research discoveries.
+        
+        Called automatically when knowledge is added to KnowledgeBase.
+        Trains VocabularyCoordinator on high-confidence content.
+        
+        Args:
+            knowledge: Knowledge dictionary with content, topic, phi
+        """
+        if not self.vocab_coordinator:
+            return
+        
+        try:
+            # Extract relevant fields
+            topic = knowledge.get('topic', 'general')
+            phi = knowledge.get('phi', 0.0)
+            content = knowledge.get('content', {})
+            
+            # Only learn from high-confidence discoveries
+            if phi < 0.5:
+                return
+            
+            # Extract text content from various sources
+            text_content = ""
+            
+            # From summary
+            if isinstance(content, dict) and 'summary' in content:
+                text_content += content['summary'] + " "
+            
+            # From insights
+            if isinstance(content, dict) and 'insights' in content:
+                insights = content['insights']
+                if isinstance(insights, list):
+                    text_content += " ".join(str(i) for i in insights) + " "
+            
+            # From raw_content (Scrapy results)
+            if isinstance(content, dict) and 'raw_content' in content:
+                text_content += content['raw_content'] + " "
+            
+            # Fallback to topic itself
+            if not text_content.strip():
+                text_content = topic
+            
+            # Train vocabulary from content
+            if text_content.strip():
+                metrics = self.vocab_coordinator.train_from_text(
+                    text=text_content,
+                    domain=topic[:50]  # Use truncated topic as domain
+                )
+                
+                print(
+                    f"[VocabularyLearning] Learned from '{topic[:50]}...': "
+                    f"{metrics.get('new_words_learned', 0)} new words, "
+                    f"phi={phi:.3f}"
+                )
+        
+        except Exception as e:
+            print(f"[VocabularyLearning] Error in vocabulary insight callback: {e}")
     
     def _find_conceptual_connections(self, topic: str) -> List[Dict]:
         """Find connections to existing knowledge."""
