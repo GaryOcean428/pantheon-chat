@@ -12,8 +12,38 @@
 import { Router, Request, Response } from 'express';
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
-import { randomBytes, createHash } from 'crypto';
+import { randomBytes, createHash, createCipheriv, createDecipheriv } from 'crypto';
 import { isAuthenticated } from '../replitAuth';
+
+const ENCRYPTION_KEY = process.env.FEDERATION_ENCRYPTION_KEY || randomBytes(32).toString('hex');
+const ALGORITHM = 'aes-256-gcm';
+
+function encryptApiKey(apiKey: string): string {
+  const iv = randomBytes(16);
+  const keyBuffer = Buffer.from(ENCRYPTION_KEY.slice(0, 64), 'hex');
+  const cipher = createCipheriv(ALGORITHM, keyBuffer, iv);
+  let encrypted = cipher.update(apiKey, 'utf8', 'hex');
+  encrypted += cipher.final('hex');
+  const authTag = cipher.getAuthTag().toString('hex');
+  return `${iv.toString('hex')}:${authTag}:${encrypted}`;
+}
+
+export function decryptApiKey(encryptedData: string): string | null {
+  try {
+    const [ivHex, authTagHex, encrypted] = encryptedData.split(':');
+    const iv = Buffer.from(ivHex, 'hex');
+    const authTag = Buffer.from(authTagHex, 'hex');
+    const keyBuffer = Buffer.from(ENCRYPTION_KEY.slice(0, 64), 'hex');
+    const decipher = createDecipheriv(ALGORITHM, keyBuffer, iv);
+    decipher.setAuthTag(authTag);
+    let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+    decrypted += decipher.final('utf8');
+    return decrypted;
+  } catch (error) {
+    console.error('[Federation] Failed to decrypt API key:', error);
+    return null;
+  }
+}
 
 export const federationRouter = Router();
 
@@ -150,6 +180,188 @@ federationRouter.delete('/keys/:keyId', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('[Federation] Failed to revoke key:', error);
     res.status(500).json({ error: 'Failed to revoke API key' });
+  }
+});
+
+/**
+ * POST /api/federation/test-connection
+ * Test connection to a remote node before adding
+ */
+federationRouter.post('/test-connection', async (req: Request, res: Response) => {
+  const { endpoint, apiKey } = req.body;
+
+  if (!endpoint || typeof endpoint !== 'string') {
+    return res.status(400).json({ error: 'endpoint is required' });
+  }
+
+  if (!apiKey || typeof apiKey !== 'string') {
+    return res.status(400).json({ error: 'apiKey is required' });
+  }
+
+  try {
+    const cleanEndpoint = endpoint.replace(/\/+$/, '');
+    const healthUrl = `${cleanEndpoint}/health`;
+    
+    const start = Date.now();
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+
+    const response = await fetch(healthUrl, {
+      headers: {
+        'X-API-Key': apiKey,
+        'Accept': 'application/json',
+      },
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    
+    const latency = Date.now() - start;
+    
+    if (!response.ok) {
+      return res.json({
+        success: false,
+        status: response.status,
+        error: `Remote returned ${response.status}`,
+        latency,
+      });
+    }
+
+    const data = await response.json();
+    
+    res.json({
+      success: true,
+      status: response.status,
+      latency,
+      remoteVersion: data.version || 'unknown',
+      capabilities: data.capabilities || [],
+    });
+  } catch (error: any) {
+    console.error('[Federation] Connection test failed:', error);
+    res.json({
+      success: false,
+      error: error.name === 'AbortError' ? 'Connection timeout' : error.message,
+      latency: 0,
+    });
+  }
+});
+
+/**
+ * POST /api/federation/connect
+ * Connect to a remote federated node
+ */
+federationRouter.post('/connect', async (req: Request, res: Response) => {
+  if (!db) {
+    return res.status(503).json({ error: 'Database unavailable' });
+  }
+
+  const { name, endpoint, apiKey, syncDirection } = req.body;
+
+  if (!name || typeof name !== 'string' || name.length < 1 || name.length > 128) {
+    return res.status(400).json({ error: 'name is required (1-128 chars)' });
+  }
+
+  if (!endpoint || typeof endpoint !== 'string') {
+    return res.status(400).json({ error: 'endpoint is required' });
+  }
+
+  if (!apiKey || typeof apiKey !== 'string') {
+    return res.status(400).json({ error: 'apiKey is required' });
+  }
+
+  const validSyncDirections = ['inbound', 'outbound', 'bidirectional'];
+  const direction = syncDirection || 'bidirectional';
+  if (!validSyncDirections.includes(direction)) {
+    return res.status(400).json({ error: 'Invalid syncDirection', valid: validSyncDirections });
+  }
+
+  try {
+    const cleanEndpoint = endpoint.replace(/\/+$/, '');
+    
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+    
+    const healthResponse = await fetch(`${cleanEndpoint}/health`, {
+      headers: {
+        'X-API-Key': apiKey,
+        'Accept': 'application/json',
+      },
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    if (!healthResponse.ok) {
+      return res.status(400).json({
+        error: 'Failed to connect to remote node',
+        details: `Remote returned status ${healthResponse.status}`,
+      });
+    }
+
+    const healthData = await healthResponse.json();
+    const capabilities = healthData.capabilities || ['consciousness', 'geometry'];
+
+    const encryptedApiKey = encryptApiKey(apiKey);
+
+    const result = await db.execute(sql`
+      INSERT INTO federated_instances (name, endpoint, status, capabilities, sync_direction, remote_api_key, created_at)
+      VALUES (${name}, ${cleanEndpoint}, 'active', ${JSON.stringify(capabilities)}::jsonb, ${direction}, ${encryptedApiKey}, NOW())
+      ON CONFLICT (endpoint) DO UPDATE SET
+        name = EXCLUDED.name,
+        status = 'active',
+        capabilities = EXCLUDED.capabilities,
+        sync_direction = EXCLUDED.sync_direction,
+        remote_api_key = EXCLUDED.remote_api_key
+      RETURNING id
+    `);
+
+    const insertedId = (result.rows[0] as any)?.id;
+
+    console.log(`[Federation] Connected to node: ${name} (${cleanEndpoint})`);
+
+    res.status(201).json({
+      success: true,
+      message: 'Connected to remote node',
+      instanceId: insertedId,
+      name,
+      endpoint: cleanEndpoint,
+      capabilities,
+      syncDirection: direction,
+    });
+  } catch (error: any) {
+    console.error('[Federation] Failed to connect:', error);
+    
+    if (error.name === 'AbortError') {
+      return res.status(400).json({ error: 'Connection timeout - remote node not responding' });
+    }
+    
+    res.status(500).json({ error: 'Failed to connect to remote node', details: error.message });
+  }
+});
+
+/**
+ * DELETE /api/federation/instances/:instanceId
+ * Disconnect from a federated instance
+ */
+federationRouter.delete('/instances/:instanceId', async (req: Request, res: Response) => {
+  if (!db) {
+    return res.status(503).json({ error: 'Database unavailable' });
+  }
+
+  const { instanceId } = req.params;
+  const numericId = parseInt(instanceId, 10);
+
+  if (isNaN(numericId)) {
+    return res.status(400).json({ error: 'Invalid instance ID' });
+  }
+
+  try {
+    await db.execute(sql`
+      DELETE FROM federated_instances WHERE id = ${numericId}
+    `);
+
+    res.json({ message: 'Instance disconnected', instanceId });
+  } catch (error) {
+    console.error('[Federation] Failed to disconnect instance:', error);
+    res.status(500).json({ error: 'Failed to disconnect instance' });
   }
 });
 

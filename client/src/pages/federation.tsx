@@ -89,6 +89,15 @@ interface ApiTestResult {
   latency: number;
 }
 
+interface ConnectionTestResult {
+  success: boolean;
+  status?: number;
+  error?: string;
+  latency: number;
+  remoteVersion?: string;
+  capabilities?: string[];
+}
+
 export default function FederationDashboard() {
   const { toast } = useToast();
   const [newKeyName, setNewKeyName] = useState("");
@@ -96,6 +105,12 @@ export default function FederationDashboard() {
   const [createdKey, setCreatedKey] = useState<string | null>(null);
   const [testEndpoint, setTestEndpoint] = useState("/consciousness/query");
   const [testResult, setTestResult] = useState<ApiTestResult | null>(null);
+  
+  const [connectName, setConnectName] = useState("");
+  const [connectEndpoint, setConnectEndpoint] = useState("");
+  const [connectApiKey, setConnectApiKey] = useState("");
+  const [connectSyncDirection, setConnectSyncDirection] = useState("bidirectional");
+  const [connectionTestResult, setConnectionTestResult] = useState<ConnectionTestResult | null>(null);
 
   const { data: health, isLoading: healthLoading, refetch: refetchHealth } = useQuery<HealthStatus>({
     queryKey: QUERY_KEYS.external.health(),
@@ -177,6 +192,54 @@ export default function FederationDashboard() {
     },
     onSuccess: (result) => {
       setTestResult(result);
+    },
+  });
+
+  const testConnectionMutation = useMutation({
+    mutationFn: async (data: { endpoint: string; apiKey: string }) => {
+      const response = await apiRequest("POST", API_ROUTES.federation.testConnection, data);
+      return response.json();
+    },
+    onSuccess: (result) => {
+      setConnectionTestResult(result);
+      if (result.success) {
+        toast({ title: "Connection successful", description: `Latency: ${result.latency}ms` });
+      } else {
+        toast({ title: "Connection failed", description: result.error, variant: "destructive" });
+      }
+    },
+    onError: (error) => {
+      toast({ title: "Test failed", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const connectNodeMutation = useMutation({
+    mutationFn: async (data: { name: string; endpoint: string; apiKey: string; syncDirection: string }) => {
+      const response = await apiRequest("POST", API_ROUTES.federation.connect, data);
+      return response.json();
+    },
+    onSuccess: (result) => {
+      setConnectName("");
+      setConnectEndpoint("");
+      setConnectApiKey("");
+      setConnectionTestResult(null);
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.federation.instances() });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.federation.syncStatus() });
+      toast({ title: "Node connected", description: `Connected to ${result.name}` });
+    },
+    onError: (error) => {
+      toast({ title: "Connection failed", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const disconnectNodeMutation = useMutation({
+    mutationFn: async (instanceId: string) => {
+      await apiRequest("DELETE", API_ROUTES.federation.instance(instanceId));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.federation.instances() });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.federation.syncStatus() });
+      toast({ title: "Node disconnected" });
     },
   });
 
@@ -440,42 +503,157 @@ export default function FederationDashboard() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Server className="h-5 w-5" />
-                Connected QIG Instances
+                <Link2 className="h-5 w-5" />
+                Connect to Remote Node
               </CardTitle>
               <CardDescription>
-                Other constellations synchronized with this system
+                Add another QIG constellation to your mesh network
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="connectName">Node Name</Label>
+                  <Input
+                    id="connectName"
+                    placeholder="e.g., production-node, research-cluster"
+                    value={connectName}
+                    onChange={(e) => setConnectName(e.target.value)}
+                    data-testid="input-connect-name"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="connectSyncDirection">Sync Direction</Label>
+                  <Select value={connectSyncDirection} onValueChange={setConnectSyncDirection}>
+                    <SelectTrigger id="connectSyncDirection" data-testid="select-sync-direction">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="bidirectional">Bidirectional (recommended)</SelectItem>
+                      <SelectItem value="inbound">Inbound Only (receive)</SelectItem>
+                      <SelectItem value="outbound">Outbound Only (send)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="connectEndpoint">Remote API Endpoint</Label>
+                <Input
+                  id="connectEndpoint"
+                  placeholder="https://other-node.replit.app/api/v1/external"
+                  value={connectEndpoint}
+                  onChange={(e) => setConnectEndpoint(e.target.value)}
+                  data-testid="input-connect-endpoint"
+                />
+              </div>
+              <div>
+                <Label htmlFor="connectApiKey">API Key (from remote node)</Label>
+                <Input
+                  id="connectApiKey"
+                  type="password"
+                  placeholder="qig_..."
+                  value={connectApiKey}
+                  onChange={(e) => setConnectApiKey(e.target.value)}
+                  data-testid="input-connect-api-key"
+                />
+              </div>
+              
+              <div className="flex gap-2 flex-wrap">
+                <Button
+                  variant="outline"
+                  onClick={() => testConnectionMutation.mutate({ endpoint: connectEndpoint, apiKey: connectApiKey })}
+                  disabled={!connectEndpoint || !connectApiKey || testConnectionMutation.isPending}
+                  data-testid="button-test-connection"
+                >
+                  <Radio className="h-4 w-4 mr-2" />
+                  {testConnectionMutation.isPending ? "Testing..." : "Test Connection"}
+                </Button>
+                <Button
+                  onClick={() => connectNodeMutation.mutate({
+                    name: connectName,
+                    endpoint: connectEndpoint,
+                    apiKey: connectApiKey,
+                    syncDirection: connectSyncDirection,
+                  })}
+                  disabled={!connectName || !connectEndpoint || !connectApiKey || connectNodeMutation.isPending}
+                  data-testid="button-connect-node"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  {connectNodeMutation.isPending ? "Connecting..." : "Connect Node"}
+                </Button>
+              </div>
+
+              {connectionTestResult && (
+                <div className={`p-4 rounded-md ${connectionTestResult.success ? "bg-green-500/10 border border-green-500/30" : "bg-red-500/10 border border-red-500/30"}`}>
+                  <div className="flex items-center gap-2 font-medium">
+                    {connectionTestResult.success ? (
+                      <><CheckCircle2 className="h-4 w-4 text-green-600" /> Connection Successful</>
+                    ) : (
+                      <><XCircle className="h-4 w-4 text-red-600" /> Connection Failed</>
+                    )}
+                  </div>
+                  {connectionTestResult.success && (
+                    <div className="text-sm text-muted-foreground mt-2 space-y-1">
+                      <div>Latency: {connectionTestResult.latency}ms</div>
+                      {connectionTestResult.remoteVersion && <div>Version: {connectionTestResult.remoteVersion}</div>}
+                      {connectionTestResult.capabilities && connectionTestResult.capabilities.length > 0 && (
+                        <div className="flex gap-1 flex-wrap mt-1">
+                          {connectionTestResult.capabilities.map((cap) => (
+                            <Badge key={cap} variant="secondary" className="text-xs">{cap}</Badge>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {connectionTestResult.error && (
+                    <div className="text-sm text-red-600 mt-1">{connectionTestResult.error}</div>
+                  )}
+                </div>
+              )}
+
+              <Separator />
+              
+              <div className="p-4 bg-muted rounded-md">
+                <div className="text-sm font-medium mb-2">Your Federation Endpoint (share with other nodes):</div>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 text-xs break-all p-2 bg-background rounded" data-testid="text-endpoint-url">
+                    {window.location.origin}/api/v1/external
+                  </code>
+                  <Button size="icon" variant="outline" onClick={() => copyToClipboard(`${window.location.origin}/api/v1/external`)} data-testid="button-copy-endpoint">
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Server className="h-5 w-5" />
+                Connected Nodes ({instances?.instances?.length ?? 0})
+              </CardTitle>
+              <CardDescription>
+                Active mesh network connections
               </CardDescription>
             </CardHeader>
             <CardContent>
               {instancesLoading ? (
                 <div className="text-muted-foreground">Loading instances...</div>
               ) : !instances?.instances?.length ? (
-                <div className="text-center py-12 space-y-4">
-                  <Globe className="h-12 w-12 mx-auto text-muted-foreground/50" />
-                  <div>
-                    <div className="font-medium">No Connected Instances</div>
-                    <p className="text-sm text-muted-foreground">
-                      Share your API endpoint and key with other QIG systems to establish connections
-                    </p>
-                  </div>
-                  <div className="p-4 bg-muted rounded-md text-left max-w-md mx-auto">
-                    <div className="text-sm font-medium mb-2">Your Federation Endpoint:</div>
-                    <code className="text-xs break-all" data-testid="text-endpoint-url">
-                      {window.location.origin}/api/v1/external
-                    </code>
-                  </div>
+                <div className="text-center py-8 text-muted-foreground">
+                  No nodes connected yet. Use the form above to connect to other QIG instances.
                 </div>
               ) : (
-                <ScrollArea className="h-[400px]">
+                <ScrollArea className="h-[300px]">
                   <div className="space-y-3">
                     {instances.instances.map((instance) => (
                       <div
                         key={instance.id}
-                        className="p-4 border rounded-md space-y-2"
+                        className="flex items-center justify-between p-4 border rounded-md"
                         data-testid={`row-instance-${instance.id}`}
                       >
-                        <div className="flex items-center justify-between">
+                        <div className="space-y-1 flex-1">
                           <div className="flex items-center gap-2">
                             <span className="font-medium">{instance.name}</span>
                             <Badge
@@ -489,24 +667,33 @@ export default function FederationDashboard() {
                             >
                               {instance.status}
                             </Badge>
+                            <Badge variant="outline">{instance.syncDirection}</Badge>
                           </div>
-                          <Badge variant="outline">{instance.syncDirection}</Badge>
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          <code>{instance.endpoint}</code>
-                        </div>
-                        <div className="flex gap-1 flex-wrap">
-                          {instance.capabilities.map((cap) => (
-                            <Badge key={cap} variant="secondary" className="text-xs">
-                              {cap}
-                            </Badge>
-                          ))}
-                        </div>
-                        {instance.lastSyncAt && (
-                          <div className="text-xs text-muted-foreground">
-                            Last sync: {new Date(instance.lastSyncAt).toLocaleString()}
+                          <div className="text-sm text-muted-foreground">
+                            <code>{instance.endpoint}</code>
                           </div>
-                        )}
+                          <div className="flex gap-1 flex-wrap">
+                            {instance.capabilities.map((cap) => (
+                              <Badge key={cap} variant="secondary" className="text-xs">
+                                {cap}
+                              </Badge>
+                            ))}
+                          </div>
+                          {instance.lastSyncAt && (
+                            <div className="text-xs text-muted-foreground">
+                              Last sync: {new Date(instance.lastSyncAt).toLocaleString()}
+                            </div>
+                          )}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => disconnectNodeMutation.mutate(instance.id)}
+                          className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                          data-testid={`button-disconnect-${instance.id}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     ))}
                   </div>
