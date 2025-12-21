@@ -79,6 +79,17 @@ try:
 except ImportError:
     pass
 
+DDG_AVAILABLE = False
+try:
+    _parent_dir = os.path.dirname(os.path.dirname(__file__))
+    if _parent_dir not in sys.path:
+        sys.path.insert(0, _parent_dir)
+    from search.duckduckgo_adapter import get_ddg_search
+    DDG_AVAILABLE = True
+    print("[ZeusChat] DuckDuckGo search available")
+except ImportError:
+    print("[ZeusChat] DuckDuckGo search not available")
+
 # Import tokenizer for generative responses
 TOKENIZER_AVAILABLE = False
 get_tokenizer = None
@@ -1335,7 +1346,6 @@ Zeus Response (Geometric Interpretation):"""
             search_source = 'google-free'
             print(f"[ZeusChat] Using TypeScript Google Free Search: {len(ts_results['results'])} results")
         elif self.searxng_available:
-            # Fallback to SearXNG
             try:
                 searxng_results = self._searxng_search(query, max_results=max_results)
                 search_results = searxng_results
@@ -1343,6 +1353,30 @@ Zeus Response (Geometric Interpretation):"""
                 print(f"[ZeusChat] Fallback to SearXNG: {len(searxng_results.get('results', []))} results")
             except Exception as e:
                 print(f"[ZeusChat] SearXNG fallback failed: {e}")
+        
+        if (not search_results or not search_results.get('results')) and DDG_AVAILABLE:
+            try:
+                ddg = get_ddg_search(use_tor=False)
+                ddg_result = ddg.search(query, max_results=max_results)
+                if ddg_result.get('success') and ddg_result.get('results'):
+                    search_results = {
+                        'results': [
+                            {
+                                'title': r.get('title', ''),
+                                'url': r.get('url', ''),
+                                'content': r.get('body', ''),
+                                'source': 'duckduckgo',
+                                'qig': {'phi': 0.5, 'kappa': 50.0, 'regime': 'search'},
+                            }
+                            for r in ddg_result.get('results', [])
+                        ],
+                        'source': 'duckduckgo',
+                        'query': query,
+                    }
+                    search_source = 'duckduckgo'
+                    print(f"[ZeusChat] Fallback to DuckDuckGo: {len(search_results['results'])} results")
+            except Exception as e:
+                print(f"[ZeusChat] DuckDuckGo fallback failed: {e}")
         
         if not search_results or not search_results.get('results'):
             return {
