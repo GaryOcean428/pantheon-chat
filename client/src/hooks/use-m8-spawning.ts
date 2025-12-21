@@ -79,7 +79,7 @@ const M8_KEYS = {
   activeWar: ['m8', 'activeWar'] as const,
 };
 
-export type WarMode = 'BLITZKRIEG' | 'SIEGE' | 'HUNT';
+export type WarMode = 'FLOW' | 'DEEP_FOCUS' | 'INSIGHT_HUNT' | 'BLITZKRIEG' | 'SIEGE' | 'HUNT';
 export type WarOutcome = 'success' | 'partial_success' | 'failure' | 'aborted';
 export type WarStatus = 'active' | 'completed' | 'aborted';
 

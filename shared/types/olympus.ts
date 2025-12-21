@@ -95,11 +95,11 @@ export const PollResultSchema = z.object({
 
 export type PollResult = z.infer<typeof PollResultSchema>;
 
-// War modes for focused attacks
+// Flow state modes for enhanced learning
 export const WarModeSchema = z.enum([
-  'BLITZKRIEG', // Fast parallel attacks, maximize throughput
-  'SIEGE',      // Systematic coverage, no stone unturned
-  'HUNT',       // Focused pursuit, geometric narrowing
+  'FLOW',         // Hyper-focus flow state for deep learning and knowledge consolidation
+  'DEEP_FOCUS',   // Concentrated insight discovery with enhanced reasoning
+  'INSIGHT_HUNT', // Active pursuit of novel knowledge and breakthrough discoveries
 ]);
 
 export type WarMode = z.infer<typeof WarModeSchema>;

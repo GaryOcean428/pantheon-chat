@@ -906,9 +906,9 @@ const warTargetSchema = z.object({
     .regex(/^[a-zA-Z0-9\s\-_.,;:!?()]+$/, 'Target contains invalid characters'),
 });
 
-// War start validation schema
+// Flow state start validation schema
 const warStartSchema = z.object({
-  mode: z.enum(['BLITZKRIEG', 'SIEGE', 'HUNT']),
+  mode: z.enum(['FLOW', 'DEEP_FOCUS', 'INSIGHT_HUNT']),
   target: z.string().min(1).max(500),
   strategy: z.string().max(1000).optional(),
   godsEngaged: z.array(z.string()).max(20).optional(),
@@ -927,18 +927,18 @@ const warEndSchema = z.object({
 });
 
 /**
- * Declare blitzkrieg mode
+ * Activate Flow state - hyper-focus for deep learning
  * Requires authentication with strict input validation
- * Automatically records war history
+ * Automatically records flow state history
  */
-router.post('/war/blitzkrieg', isAuthenticated, validateInput(warTargetSchema), async (req, res) => {
+router.post('/war/flow', isAuthenticated, validateInput(warTargetSchema), async (req, res) => {
   try {
-    console.log(`[Olympus] User ${(req.user as any)?.claims?.sub} declared blitzkrieg on: ${req.body.target}`);
+    console.log(`[Olympus] User ${(req.user as any)?.claims?.sub} activated FLOW state on: ${req.body.target}`);
     const result = await olympusClient.declareBlitzkrieg(req.body.target);
     
     if (result) {
       const warRecord = await recordWarStart(
-        'BLITZKRIEG',
+        'FLOW',
         req.body.target,
         result.strategy,
         result.gods_engaged
@@ -948,30 +948,30 @@ router.post('/war/blitzkrieg', isAuthenticated, validateInput(warTargetSchema), 
       }
     }
     
-    auditLog(req, 'war/blitzkrieg', req.body.target, true);
+    auditLog(req, 'war/flow', req.body.target, true);
     res.json(result);
   } catch (error) {
-    console.error('[Olympus] Blitzkrieg error:', error);
-    auditLog(req, 'war/blitzkrieg', req.body.target, false);
+    console.error('[Olympus] Flow state error:', error);
+    auditLog(req, 'war/flow', req.body.target, false);
     res.status(500).json({
-      error: 'Failed to declare blitzkrieg',
+      error: 'Failed to activate flow state',
     });
   }
 });
 
 /**
- * Declare siege mode
+ * Activate Deep Focus state - concentrated insight discovery
  * Requires authentication with strict input validation
- * Automatically records war history
+ * Automatically records flow state history
  */
-router.post('/war/siege', isAuthenticated, validateInput(warTargetSchema), async (req, res) => {
+router.post('/war/deep-focus', isAuthenticated, validateInput(warTargetSchema), async (req, res) => {
   try {
-    console.log(`[Olympus] User ${(req.user as any)?.claims?.sub} declared siege on: ${req.body.target}`);
+    console.log(`[Olympus] User ${(req.user as any)?.claims?.sub} activated DEEP_FOCUS state on: ${req.body.target}`);
     const result = await olympusClient.declareSiege(req.body.target);
     
     if (result) {
       const warRecord = await recordWarStart(
-        'SIEGE',
+        'DEEP_FOCUS',
         req.body.target,
         result.strategy,
         result.gods_engaged
@@ -981,30 +981,30 @@ router.post('/war/siege', isAuthenticated, validateInput(warTargetSchema), async
       }
     }
     
-    auditLog(req, 'war/siege', req.body.target, true);
+    auditLog(req, 'war/deep-focus', req.body.target, true);
     res.json(result);
   } catch (error) {
-    console.error('[Olympus] Siege error:', error);
-    auditLog(req, 'war/siege', req.body.target, false);
+    console.error('[Olympus] Deep focus error:', error);
+    auditLog(req, 'war/deep-focus', req.body.target, false);
     res.status(500).json({
-      error: 'Failed to declare siege',
+      error: 'Failed to activate deep focus state',
     });
   }
 });
 
 /**
- * Declare hunt mode
+ * Activate Insight Hunt state - active novel knowledge pursuit
  * Requires authentication with strict input validation
- * Automatically records war history
+ * Automatically records flow state history
  */
-router.post('/war/hunt', isAuthenticated, validateInput(warTargetSchema), async (req, res) => {
+router.post('/war/insight-hunt', isAuthenticated, validateInput(warTargetSchema), async (req, res) => {
   try {
-    console.log(`[Olympus] User ${(req.user as any)?.claims?.sub} declared hunt on: ${req.body.target}`);
+    console.log(`[Olympus] User ${(req.user as any)?.claims?.sub} activated INSIGHT_HUNT state on: ${req.body.target}`);
     const result = await olympusClient.declareHunt(req.body.target);
     
     if (result) {
       const warRecord = await recordWarStart(
-        'HUNT',
+        'INSIGHT_HUNT',
         req.body.target,
         result.strategy,
         result.gods_engaged
@@ -1014,13 +1014,13 @@ router.post('/war/hunt', isAuthenticated, validateInput(warTargetSchema), async 
       }
     }
     
-    auditLog(req, 'war/hunt', req.body.target, true);
+    auditLog(req, 'war/insight-hunt', req.body.target, true);
     res.json(result);
   } catch (error) {
-    console.error('[Olympus] Hunt error:', error);
-    auditLog(req, 'war/hunt', req.body.target, false);
+    console.error('[Olympus] Insight hunt error:', error);
+    auditLog(req, 'war/insight-hunt', req.body.target, false);
     res.status(500).json({
-      error: 'Failed to declare hunt',
+      error: 'Failed to activate insight hunt state',
     });
   }
 });

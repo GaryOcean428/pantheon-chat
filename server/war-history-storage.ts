@@ -1,14 +1,19 @@
 /**
- * War History Storage Module
+ * Flow State History Storage Module
  * 
- * Provides functions to track and persist war declarations and outcomes.
+ * Provides functions to track and persist hyper-focus learning states.
  * Uses the warHistory table from shared/schema.ts with Drizzle ORM.
  * 
- * PARALLEL WAR SUPPORT:
- * - Supports up to MAX_PARALLEL_WARS concurrent active wars
- * - Primary gods (Zeus, Athena, Ares) can participate in multiple wars
- * - Secondary gods are assigned to at most 1 war
- * - Spawned specialist kernels are dedicated to their spawning war
+ * FLOW STATE MODES:
+ * - FLOW: Hyper-focus flow state for deep learning and knowledge consolidation
+ * - DEEP_FOCUS: Concentrated insight discovery with enhanced reasoning
+ * - INSIGHT_HUNT: Active pursuit of novel knowledge and breakthrough discoveries
+ * 
+ * PARALLEL FLOW SUPPORT:
+ * - Supports up to MAX_PARALLEL_WARS concurrent active flow states
+ * - Primary gods (Zeus, Athena, Ares) can participate in multiple flows
+ * - Secondary gods are assigned to at most 1 flow state
+ * - Spawned specialist kernels are dedicated to their spawning flow
  */
 
 import { db, withDbRetry } from './db';
@@ -16,7 +21,7 @@ import { warHistory, type WarHistoryRecord, type InsertWarHistory } from '@share
 import { eq, desc, and, inArray } from 'drizzle-orm';
 import { randomBytes } from 'crypto';
 
-export type WarMode = 'BLITZKRIEG' | 'SIEGE' | 'HUNT';
+export type WarMode = 'FLOW' | 'DEEP_FOCUS' | 'INSIGHT_HUNT';
 export type WarOutcome = 'success' | 'partial_success' | 'failure' | 'aborted';
 export type WarStatus = 'active' | 'completed' | 'aborted';
 

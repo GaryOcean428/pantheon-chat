@@ -86,16 +86,34 @@ const STATUS_COLORS: Record<ProposalStatus, string> = {
   spawned: 'bg-purple-500/20 text-purple-400',
 };
 
-const WAR_MODE_ICONS: Record<WarMode, typeof Swords> = {
-  BLITZKRIEG: Zap,
-  SIEGE: Shield,
-  HUNT: Target,
+const WAR_MODE_ICONS: Record<string, typeof Swords> = {
+  FLOW: Sparkles,
+  DEEP_FOCUS: Target,
+  INSIGHT_HUNT: Zap,
+  // Legacy support
+  BLITZKRIEG: Sparkles,
+  SIEGE: Target,
+  HUNT: Zap,
 };
 
-const WAR_MODE_COLORS: Record<WarMode, string> = {
-  BLITZKRIEG: 'text-yellow-400',
-  SIEGE: 'text-orange-500',
-  HUNT: 'text-red-500',
+const WAR_MODE_COLORS: Record<string, string> = {
+  FLOW: 'text-cyan-400',
+  DEEP_FOCUS: 'text-violet-400',
+  INSIGHT_HUNT: 'text-amber-400',
+  // Legacy support
+  BLITZKRIEG: 'text-cyan-400',
+  SIEGE: 'text-violet-400',
+  HUNT: 'text-amber-400',
+};
+
+const WAR_MODE_LABELS: Record<string, string> = {
+  FLOW: 'Flow State',
+  DEEP_FOCUS: 'Deep Focus',
+  INSIGHT_HUNT: 'Insight Hunt',
+  // Legacy support
+  BLITZKRIEG: 'Flow State',
+  SIEGE: 'Deep Focus',
+  HUNT: 'Insight Hunt',
 };
 
 const WAR_OUTCOME_COLORS: Record<WarOutcome, string> = {
@@ -411,9 +429,9 @@ function KernelCard({ kernel }: { kernel: PostgresKernel }) {
         )}
 
         {kernel.spawned_during_war_id && (
-          <div className="flex items-center gap-1 text-xs text-amber-400">
-            <Swords className="h-3 w-3" />
-            Spawned during war
+          <div className="flex items-center gap-1 text-xs text-cyan-400">
+            <Sparkles className="h-3 w-3" />
+            Spawned during flow
           </div>
         )}
 
@@ -1713,8 +1731,8 @@ export default function SpawningPage() {
             {activeWar && (
               <div className="space-y-2">
                 <h3 className="text-lg font-semibold flex items-center gap-2">
-                  <Activity className="h-5 w-5 text-amber-400 animate-pulse" />
-                  Active War
+                  <Activity className="h-5 w-5 text-cyan-400 animate-pulse" />
+                  Active Flow State
                 </h3>
                 <WarCard war={activeWar} isActive />
               </div>
@@ -1722,13 +1740,13 @@ export default function SpawningPage() {
 
             <div className="space-y-2">
               <h3 className="text-lg font-semibold flex items-center gap-2">
-                <Swords className="h-5 w-5 text-muted-foreground" />
-                War History
+                <Sparkles className="h-5 w-5 text-muted-foreground" />
+                Flow State History
               </h3>
               {warHistoryLoading ? (
                 <div className="flex flex-col items-center justify-center py-12 gap-3">
                   <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
-                  <p className="text-muted-foreground">Loading war history...</p>
+                  <p className="text-muted-foreground">Loading flow state history...</p>
                 </div>
               ) : warHistory && warHistory.length > 0 ? (
                 <ScrollArea className="h-[500px]">
@@ -1742,9 +1760,9 @@ export default function SpawningPage() {
                 </ScrollArea>
               ) : (
                 <div className="text-center text-muted-foreground py-12">
-                  <Swords className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p className="text-lg">No war history yet</p>
-                  <p className="text-sm">Wars declared via BLITZKRIEG, SIEGE, or HUNT will appear here</p>
+                  <Sparkles className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p className="text-lg">No flow state history yet</p>
+                  <p className="text-sm">Flow states (FLOW, DEEP_FOCUS, INSIGHT_HUNT) will appear here</p>
                 </div>
               )}
             </div>

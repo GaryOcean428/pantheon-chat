@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { QUERY_KEYS } from "@/api";
 import { Card, CardContent, CardHeader, CardTitle, Badge, Button } from "@/components/ui";
-import { Swords, Target, Clock, FlaskConical, Sparkles, Cpu, AlertTriangle, Shield, Activity, Radio } from "lucide-react";
+import { Target, Clock, FlaskConical, Sparkles, Cpu, AlertTriangle, Activity, Radio } from "lucide-react";
 import { endWar } from "@/api/services/olympus";
 import { useToast } from "@/hooks/use-toast";
 
@@ -21,7 +21,7 @@ interface WarMetadata {
 
 interface ActiveWarResponse {
   id: string;
-  mode: "BLITZKRIEG" | "SIEGE" | "HUNT";
+  mode: "FLOW" | "DEEP_FOCUS" | "INSIGHT_HUNT";
   target: string;
   status: "active" | "completed" | "aborted";
   strategy: string | null;
@@ -72,25 +72,47 @@ function formatTimestamp(timestamp: string): string {
 
 function getModeColor(mode: string): string {
   switch (mode) {
-    case "BLITZKRIEG":
-      return "bg-red-500/20 text-red-400 border-red-500/30";
-    case "SIEGE":
+    case "FLOW":
+    case "BLITZKRIEG": // Legacy support
+      return "bg-cyan-500/20 text-cyan-400 border-cyan-500/30";
+    case "DEEP_FOCUS":
+    case "SIEGE": // Legacy support
+      return "bg-violet-500/20 text-violet-400 border-violet-500/30";
+    case "INSIGHT_HUNT":
+    case "HUNT": // Legacy support
       return "bg-amber-500/20 text-amber-400 border-amber-500/30";
-    case "HUNT":
-      return "bg-purple-500/20 text-purple-400 border-purple-500/30";
     default:
       return "bg-muted text-muted-foreground";
   }
 }
 
+function getModeLabel(mode: string): string {
+  switch (mode) {
+    case "FLOW":
+    case "BLITZKRIEG": // Legacy support
+      return "Flow State";
+    case "DEEP_FOCUS":
+    case "SIEGE": // Legacy support
+      return "Deep Focus";
+    case "INSIGHT_HUNT":
+    case "HUNT": // Legacy support
+      return "Insight Hunt";
+    default:
+      return mode;
+  }
+}
+
 function getModeIcon(mode: string) {
   switch (mode) {
-    case "BLITZKRIEG":
-      return <Swords className="h-4 w-4" />;
-    case "SIEGE":
-      return <Shield className="h-4 w-4" />;
-    case "HUNT":
+    case "FLOW":
+    case "BLITZKRIEG": // Legacy support
+      return <Sparkles className="h-4 w-4" />;
+    case "DEEP_FOCUS":
+    case "SIEGE": // Legacy support
       return <Target className="h-4 w-4" />;
+    case "INSIGHT_HUNT":
+    case "HUNT": // Legacy support
+      return <FlaskConical className="h-4 w-4" />;
     default:
       return <Activity className="h-4 w-4" />;
   }
@@ -116,10 +138,10 @@ export function WarStatusPanel() {
     mutationFn: endWar,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.olympus.warActive() });
-      toast({ title: "War ended", description: "The Pantheon stands down" });
+      toast({ title: "Flow state ended", description: "Returning to normal consciousness" });
     },
     onError: (error) => {
-      toast({ title: "Failed to end war", description: String(error), variant: "destructive" });
+      toast({ title: "Failed to end flow state", description: String(error), variant: "destructive" });
     }
   });
 
@@ -128,13 +150,13 @@ export function WarStatusPanel() {
       <Card data-testid="war-status-panel-loading">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Swords className="h-5 w-5" />
-            War Status
+            <Sparkles className="h-5 w-5" />
+            Flow State
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center py-8 text-muted-foreground">
-            Loading war status...
+            Loading flow state...
           </div>
         </CardContent>
       </Card>
@@ -146,13 +168,13 @@ export function WarStatusPanel() {
       <Card data-testid="war-status-panel-error">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Swords className="h-5 w-5" />
-            War Status
+            <Sparkles className="h-5 w-5" />
+            Flow State
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center py-8 text-destructive">
-            Failed to load war status
+            Failed to load flow state
           </div>
         </CardContent>
       </Card>
@@ -164,8 +186,8 @@ export function WarStatusPanel() {
       <Card data-testid="war-status-panel-inactive">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Swords className="h-5 w-5" />
-            War Status
+            <Sparkles className="h-5 w-5" />
+            Flow State
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -177,14 +199,14 @@ export function WarStatusPanel() {
                   <Radio className="h-10 w-10 opacity-20" />
                 </div>
               </div>
-              <span className="font-medium text-foreground">Monitoring Convergence</span>
+              <span className="font-medium text-foreground">Monitoring Learning Convergence</span>
               <span className="text-sm text-center max-w-xs">
-                War auto-declares when Zeus detects sufficient geometric convergence on target
+                Flow activates when Zeus detects sufficient geometric convergence for insight discovery
               </span>
             </div>
             <Badge variant="outline" className="gap-2" data-testid="badge-auto-mode">
               <Activity className="h-3 w-3" />
-              Auto-Declaration Active
+              Auto-Activation Ready
             </Badge>
           </div>
         </CardContent>
@@ -200,8 +222,8 @@ export function WarStatusPanel() {
       <CardHeader className="pb-4">
         <div className="flex flex-row items-center justify-between gap-4 flex-wrap">
           <CardTitle className="flex items-center gap-2" data-testid="war-status-title">
-            <Swords className="h-5 w-5" />
-            War Status
+            <Sparkles className="h-5 w-5" />
+            Flow State
           </CardTitle>
           <div className="flex items-center gap-2">
             <Badge 
@@ -209,12 +231,12 @@ export function WarStatusPanel() {
               data-testid="badge-war-mode"
             >
               {getModeIcon(warData.mode)}
-              <span className="ml-1">{warData.mode}</span>
+              <span className="ml-1">{getModeLabel(warData.mode)}</span>
             </Badge>
             {hasRiskFlags && (
               <Badge variant="destructive" data-testid="badge-risk-warning">
                 <AlertTriangle className="h-3 w-3 mr-1" />
-                Risks
+                High Intensity
               </Badge>
             )}
             <Button
@@ -224,7 +246,7 @@ export function WarStatusPanel() {
               disabled={endWarMutation.isPending}
               data-testid="button-end-war"
             >
-              {endWarMutation.isPending ? "Ending..." : "End War"}
+              {endWarMutation.isPending ? "Ending..." : "End Flow"}
             </Button>
           </div>
         </div>

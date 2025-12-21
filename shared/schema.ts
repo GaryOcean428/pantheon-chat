@@ -2395,15 +2395,18 @@ export type NearMissAdaptiveStateRecord =
   typeof nearMissAdaptiveState.$inferSelect;
 
 /**
- * WAR HISTORY - Tracks Olympus war mode declarations and outcomes
- * Records BLITZKRIEG, SIEGE, and HUNT operations with results
- * Supports parallel wars with god/kernel assignments per war
+ * FLOW STATE HISTORY - Tracks hyper-focus learning states and outcomes
+ * Records FLOW, DEEP_FOCUS, and INSIGHT_HUNT states with results
+ * Supports parallel flow states with god/kernel assignments
+ * 
+ * Flow states enable enhanced learning, foresight, lightning kernel activation,
+ * insight discovery, knowledge solidification, and meta-reflection.
  */
 export const warHistory = pgTable(
   "war_history",
   {
     id: varchar("id", { length: 64 }).primaryKey(),
-    mode: varchar("mode", { length: 32 }).notNull(), // BLITZKRIEG, SIEGE, HUNT
+    mode: varchar("mode", { length: 32 }).notNull(), // FLOW, DEEP_FOCUS, INSIGHT_HUNT
     target: text("target").notNull(),
     declaredAt: timestamp("declared_at").defaultNow().notNull(),
     endedAt: timestamp("ended_at"),
