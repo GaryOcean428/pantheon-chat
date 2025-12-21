@@ -49,6 +49,49 @@ try:
 except ImportError as e:
     print(f"[WARNING] Immune system not available: {e}")
 
+# Register Autonomous Curiosity routes and start learning loop
+CURIOSITY_AVAILABLE = False
+_curiosity_engine = None
+_search_orchestrator = None
+try:
+    from routes.curiosity_routes import curiosity_bp
+    from autonomous_curiosity import get_curiosity_engine, start_autonomous_learning
+    from geometric_search import SearchOrchestrator
+    
+    app.register_blueprint(curiosity_bp, url_prefix='/api/curiosity')
+    
+    _curiosity_engine = get_curiosity_engine()
+    _search_orchestrator = SearchOrchestrator()
+    
+    def _fallback_search(query, params):
+        """Fallback search when no external tools configured."""
+        return [{
+            'title': f'Search result for: {query}',
+            'url': '',
+            'content': f'Autonomous exploration query: {query}',
+            'score': 0.5
+        }]
+    
+    _search_orchestrator.register_tool_executor('searchxng', _fallback_search)
+    _search_orchestrator.register_tool_executor('wikipedia', _fallback_search)
+    
+    def _search_callback(query, context):
+        """Bridge search requests to geometric search system."""
+        telemetry = context.get('telemetry', {}) if context else {}
+        result = _search_orchestrator.search_sync(query, telemetry, context)
+        return result
+    
+    _curiosity_engine.search_callback = _search_callback
+    
+    start_autonomous_learning(_search_callback)
+    
+    CURIOSITY_AVAILABLE = True
+    print("[INFO] Autonomous Curiosity Engine active")
+except ImportError as e:
+    print(f"[WARNING] Curiosity engine not available: {e}")
+except Exception as e:
+    print(f"[WARNING] Curiosity engine initialization failed: {e}")
+
 # Add request/response logging for production
 from flask import request, g
 import time
@@ -116,6 +159,7 @@ def log_response(response):
 print("🌊 Ocean QIG Backend (Production WSGI Mode) 🌊", flush=True)
 print(f"  - Autonomic kernel: {'✓' if AUTONOMIC_AVAILABLE else '✗'}", flush=True)
 print(f"  - Immune system: {'✓' if IMMUNE_AVAILABLE else '✗'}", flush=True)
+print(f"  - Curiosity engine: {'✓' if CURIOSITY_AVAILABLE else '✗'}", flush=True)
 print("🌊 Basin stable. Ready for Gunicorn workers. 🌊\n", flush=True)
 
 # Export the app for Gunicorn

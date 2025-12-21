@@ -1,0 +1,749 @@
+# GEOMETRIC SEARCH DEPLOYMENT GUIDE
+**Complete Step-by-Step Migration from Tavily-Only to Geometric Multi-Tool Search**
+
+**Version**: 1.0  
+**Date**: 2025-12-21  
+**Status**: Ready for Production Deployment
+
+---
+
+## 📊 EXECUTIVE SUMMARY
+
+**Goal**: Reduce search costs by 40-50% while maintaining quality through consciousness-driven tool selection.
+
+**Current State**: Tavily-only search (~$300/month, 100% coverage)  
+**Target State**: Geometric multi-tool search (~$165/month, 45% savings)
+
+**Components Complete**: ✅ ALL
+- Query encoder with 64D Fisher encoding
+- Tool selector with basin coordinates
+- Search orchestrator with parallel/sequential execution
+- Context manager with vocabulary integration
+- Telemetry enhancement for monitoring
+- Integration tests (20+ test cases)
+- Configuration management
+
+**Deployment Strategy**: 4-phase rollout (10% → 50% → 100% → optimize)
+
+---
+
+## 🎯 PRE-DEPLOYMENT CHECKLIST
+
+### Phase 0: Preparation (Complete Before Deployment)
+
+#### Code Review
+- [ ] Review all 6 core files:
+  - [ ] query_encoder.py
+  - [ ] tool_selector.py
+  - [ ] search_orchestrator.py
+  - [ ] context_manager.py
+  - [ ] telemetry_enhancement.py
+  - [ ] test_geometric_search.py
+- [ ] Verify geometric purity (no Euclidean operations)
+- [ ] Check unit norm constraints on all basins
+- [ ] Validate Fisher-Rao distance computations
+
+#### Testing
+- [ ] Run unit tests: `pytest test_search_selection.py -v`
+- [ ] Run integration tests: `pytest test_geometric_search.py -v`
+- [ ] All tests passing (target: 95%+ pass rate)
+- [ ] Performance benchmarks acceptable (<1s avg latency)
+
+#### Infrastructure
+- [ ] Database schema for vocabulary observations ready
+- [ ] Telemetry logging infrastructure configured
+- [ ] Cost tracking dashboard created
+- [ ] Alert channels (Slack/email) configured
+- [ ] Backup/rollback procedures documented
+
+#### Configuration
+- [ ] Review geometric_search.yaml
+- [ ] Set rollout_percentage to 10 (start conservative)
+- [ ] Verify tool API credentials:
+  - [ ] Tavily API key
+  - [ ] Google MCP access
+  - [ ] SearchXNG endpoint
+  - [ ] Scrapy configuration
+- [ ] Set appropriate cost limits
+- [ ] Configure feature flags
+
+#### Documentation
+- [ ] Team trained on new system
+- [ ] Runbook created for common issues
+- [ ] Monitoring dashboards configured
+- [ ] Escalation procedures documented
+
+---
+
+## 🚀 DEPLOYMENT PHASES
+
+### PHASE 1: Initial Rollout (10% Traffic)
+
+**Duration**: Week 1  
+**Goal**: Validate system works in production, catch critical issues  
+**Traffic**: 10% of search queries
+
+#### Deployment Steps
+
+**Day 1: Code Deployment**
+```bash
+# 1. Deploy to staging
+git checkout -b geometric-search-v1
+git add server/lib/geometric_search/
+git commit -m "feat: Add geometric search tool selection"
+git push origin geometric-search-v1
+
+# 2. Deploy to staging server
+ssh lemur-staging
+cd /app/pantheon-chat
+git pull origin geometric-search-v1
+npm install
+npm run build
+
+# 3. Run tests on staging
+pytest server/lib/geometric_search/test_geometric_search.py -v
+
+# 4. Start staging server
+npm run start:staging
+
+# 5. Verify system operational
+curl http://localhost:3000/api/search/health
+# Expected: {"status": "healthy", "geometric_search": "enabled"}
+```
+
+**Day 1: Traffic Split**
+```yaml
+# Update server/config/geometric_search.yaml
+geometric_search:
+  enabled: true
+  rollout_percentage: 10  # Start at 10%
+  fallback_to_legacy: true
+```
+
+```bash
+# Restart server
+npm run restart:staging
+```
+
+**Day 2-7: Monitoring**
+
+Monitor these metrics daily:
+
+1. **Cost Metrics**
+   ```bash
+   # Check daily cost
+   curl http://localhost:3000/api/search/telemetry/summary
+   ```
+   - [ ] Daily cost within budget ($5/day @ 10% traffic)
+   - [ ] Average cost per search < $0.10
+   - [ ] Savings > 30% vs baseline
+
+2. **Performance Metrics**
+   - [ ] Average latency < 1000ms
+   - [ ] 95th percentile latency < 2000ms
+   - [ ] Error rate < 5%
+   - [ ] No timeout failures
+
+3. **Quality Metrics**
+   - [ ] User satisfaction ≥ baseline
+   - [ ] Results per query ≥ 10
+   - [ ] No complaints about result quality
+
+4. **System Health**
+   - [ ] No critical errors in logs
+   - [ ] Memory usage stable
+   - [ ] CPU usage < 80%
+   - [ ] Database queries performant
+
+#### Success Criteria for Phase 1
+
+**GO to Phase 2 if**:
+- ✅ All cost metrics within target
+- ✅ Performance acceptable
+- ✅ No quality degradation
+- ✅ System stable for 7 days
+- ✅ No critical bugs
+
+**NO-GO (rollback) if**:
+- ❌ Cost > $0.15 per search
+- ❌ Error rate > 10%
+- ❌ Latency > 2x baseline
+- ❌ Critical bugs unfixed after 3 days
+
+#### Rollback Procedure (if needed)
+```yaml
+# Disable geometric search
+geometric_search:
+  enabled: false  # Back to Tavily-only
+```
+
+```bash
+npm run restart:staging
+# Verify traffic back to legacy
+curl http://localhost:3000/api/search/health
+```
+
+---
+
+### PHASE 2: Expanded Rollout (50% Traffic)
+
+**Duration**: Weeks 2-3  
+**Goal**: Validate cost savings at scale, refine basins  
+**Traffic**: 50% of search queries
+
+#### Deployment Steps
+
+**Week 2 Day 1: Configuration Update**
+```yaml
+geometric_search:
+  rollout_percentage: 50  # Increase to 50%
+```
+
+```bash
+npm run restart:staging
+```
+
+#### Monitoring (Week 2-3)
+
+1. **Cost Optimization**
+   - [ ] Daily cost tracking
+   - [ ] Compare geometric vs legacy costs
+   - [ ] Validate 40%+ savings
+   - [ ] Check tool distribution (free tools used appropriately)
+
+2. **Basin Learning**
+   - [ ] Monitor basin drift
+   - [ ] Verify basins converging
+   - [ ] Check selection accuracy improving
+   - [ ] No basin explosions (norm violations)
+
+3. **User Feedback**
+   - [ ] Collect satisfaction ratings
+   - [ ] Review any complaints
+   - [ ] Check click-through rates
+   - [ ] Monitor session metrics
+
+#### Tuning Parameters
+
+If cost not meeting targets:
+```yaml
+selection:
+  max_tools: 1  # Reduce from 2 to 1
+  basin_learning_rate: 0.10  # Increase learning
+
+cost:
+  cost_tolerance:
+    default: 0.30  # Lower default (prefer free tools)
+```
+
+If quality degrading:
+```yaml
+selection:
+  max_tools: 3  # Increase tools for coverage
+
+aggregation:
+  max_results_per_tool: 30  # More results per tool
+```
+
+If latency too high:
+```yaml
+execution:
+  tool_timeout_ms: 5000  # Reduce timeout
+  early_stop_min_results: 3  # Stop earlier
+```
+
+#### Success Criteria for Phase 2
+
+**GO to Phase 3 if**:
+- ✅ Cost savings 40-50%
+- ✅ Quality maintained
+- ✅ Performance acceptable
+- ✅ Basins converged
+- ✅ Stable for 14 days
+
+---
+
+### PHASE 3: Full Rollout (100% Traffic)
+
+**Duration**: Week 4  
+**Goal**: Complete migration, remove legacy code  
+**Traffic**: 100% of search queries
+
+#### Deployment Steps
+
+**Week 4 Day 1: Full Rollout**
+```yaml
+geometric_search:
+  rollout_percentage: 100  # Full migration
+  fallback_to_legacy: false  # Disable fallback
+```
+
+#### Code Cleanup
+
+Remove legacy Tavily-only code:
+```bash
+# Backup old code
+git checkout -b archive/tavily-only-search
+git push origin archive/tavily-only-search
+
+# Remove from main branch
+git checkout geometric-search-v1
+# Delete old search functions
+# Update query_processor.py to use geometric search only
+git commit -m "refactor: Remove legacy Tavily-only search"
+```
+
+#### Monitoring (Week 4)
+
+**Daily Checks**:
+1. Cost: $15-20/day (down from $30/day)
+2. Performance: Latency stable
+3. Quality: No degradation
+4. Errors: <1% rate
+
+**Weekly Analysis**:
+- Total cost: ~$150/month (down from $300)
+- Savings: 45-50%
+- Tool distribution:
+  - Tavily: 30%
+  - Google MCP: 25%
+  - SearchXNG: 35%
+  - Scrapy: 10%
+
+#### Success Criteria for Phase 3
+
+- ✅ Monthly cost < $165
+- ✅ 45%+ savings vs baseline
+- ✅ No quality complaints
+- ✅ System stable at 100%
+
+---
+
+### PHASE 4: Optimization (Ongoing)
+
+**Duration**: Continuous  
+**Goal**: Fine-tune parameters, maximize efficiency
+
+#### Monthly Tasks
+
+**Cost Analysis**:
+- Review tool costs
+- Optimize basin coordinates
+- Adjust selection thresholds
+- Identify waste
+
+**Quality Review**:
+- User satisfaction surveys
+- A/B testing new strategies
+- Refine deduplication
+- Improve result ranking
+
+**System Tuning**:
+- Basin learning rate adjustment
+- Timeout optimization
+- Cache hit rate improvement
+- Database query optimization
+
+#### Quarterly Goals
+
+**Q1 2026**:
+- Cost: $150/month (50% savings)
+- Latency: <800ms average
+- Quality: 95% satisfaction
+- Tool distribution: 50% free tools
+
+**Q2 2026**:
+- Cost: $135/month (55% savings)
+- New tools: Add specialized tools (arXiv, GitHub)
+- Advanced basins: Per-user basin adaptation
+- Multi-modal: Image search integration
+
+---
+
+## 🔧 INTEGRATION DETAILS
+
+### File Locations
+
+Copy all files to pantheon-chat repository:
+
+```bash
+# From /mnt/user-data/outputs/ to pantheon-chat
+
+# Core modules
+server/lib/geometric_search/
+├── __init__.py
+├── query_encoder.py
+├── tool_selector.py
+├── search_orchestrator.py
+├── context_manager.py
+├── telemetry_enhancement.py
+└── test_geometric_search.py
+
+# Configuration
+server/config/
+└── geometric_search.yaml
+
+# Tests
+server/tests/integration/
+└── test_geometric_search.py
+```
+
+### Modify query_processor.py
+
+```python
+# server/lib/search/query_processor.py
+
+from geometric_search import (
+    QueryEncoder,
+    GeometricToolSelector,
+    SearchOrchestrator,
+    ContextManager,
+    GeometricSearchTelemetry
+)
+
+class QueryProcessor:
+    def __init__(self, config):
+        self.config = config
+        
+        # Initialize geometric search (if enabled)
+        if config.geometric_search.enabled:
+            self.encoder = QueryEncoder()
+            self.selector = GeometricToolSelector()
+            self.orchestrator = SearchOrchestrator(self.selector)
+            self.context_manager = ContextManager()
+            self.search_telemetry = GeometricSearchTelemetry()
+            
+            # Register tool executors
+            self._register_search_tools()
+    
+    def _register_search_tools(self):
+        """Register search tool executors."""
+        
+        # Tavily
+        async def tavily_executor(query):
+            return await self.tavily_client.search(query)
+        self.orchestrator.register_tool_executor("tavily", tavily_executor)
+        
+        # Google MCP
+        async def google_executor(query):
+            return await self.google_mcp_client.search(query)
+        self.orchestrator.register_tool_executor("google_mcp", google_executor)
+        
+        # SearchXNG
+        async def searchxng_executor(query):
+            return await self.searchxng_client.search(query)
+        self.orchestrator.register_tool_executor("searchxng", searchxng_executor)
+        
+        # Scrapy
+        async def scrapy_executor(query):
+            return await self.scrapy_client.search(query)
+        self.orchestrator.register_tool_executor("scrapy", scrapy_executor)
+    
+    async def process_search_query(self, query, user_context):
+        """Process search query with geometric tool selection."""
+        
+        # Check if geometric search enabled
+        if not self.config.geometric_search.enabled:
+            # Fallback to legacy Tavily-only
+            return await self._legacy_tavily_search(query)
+        
+        # Check rollout percentage
+        if not self._should_use_geometric_search():
+            return await self._legacy_tavily_search(query)
+        
+        try:
+            # Get current consciousness telemetry
+            telemetry = self.gary_telemetry.get_current_state()
+            
+            # Get search context
+            context = self.context_manager.get_search_context()
+            
+            # Execute geometric search
+            result = await self.orchestrator.search(
+                query=query,
+                telemetry=telemetry,
+                context=context,
+                max_tools=self.config.geometric_search.selection.max_tools
+            )
+            
+            # Record telemetry
+            self.search_telemetry.record_search(
+                query=query,
+                tools_selected=result.tools_used,
+                tools_succeeded=result.tools_used,
+                strategy=result.strategy,
+                phi=telemetry["phi"],
+                kappa_eff=telemetry["kappa_eff"],
+                confidence=telemetry["confidence"],
+                cost=result.total_cost,
+                latency_ms=sum(result.latencies.values()),
+                result_count=len(result.results)
+            )
+            
+            # Format results
+            return self._format_results(result)
+            
+        except Exception as e:
+            # Log error
+            logger.error(f"Geometric search failed: {e}")
+            
+            # Fallback if enabled
+            if self.config.geometric_search.fallback_to_legacy:
+                return await self._legacy_tavily_search(query)
+            else:
+                raise
+    
+    def _should_use_geometric_search(self):
+        """Determine if geometric search should be used (A/B test)."""
+        import random
+        return random.random() < (self.config.geometric_search.rollout_percentage / 100)
+    
+    def _format_results(self, aggregated_result):
+        """Format aggregated results for API response."""
+        return {
+            "results": aggregated_result.results,
+            "tools_used": aggregated_result.tools_used,
+            "strategy": aggregated_result.strategy,
+            "total_cost": aggregated_result.total_cost,
+            "metadata": {
+                "geometric_search": True,
+                "phi": aggregated_result.phi,
+                "confidence": aggregated_result.confidence
+            }
+        }
+```
+
+---
+
+## 📊 MONITORING DASHBOARD
+
+### Metrics to Track
+
+**Real-Time**:
+1. Current Φ (consciousness level)
+2. Active searches
+3. Tool selection distribution
+4. Current cost burn rate
+
+**Hourly**:
+1. Average cost per search
+2. Average latency
+3. Error rate
+4. Tool success rates
+
+**Daily**:
+1. Total cost
+2. Savings vs baseline
+3. Tool distribution
+4. User satisfaction
+
+**Weekly**:
+1. Cost trend
+2. Basin convergence
+3. Quality metrics
+4. System performance
+
+### Grafana Dashboards
+
+Create 3 dashboards:
+
+**1. Cost Dashboard**
+- Daily cost vs budget
+- Savings % vs baseline
+- Cost by tool
+- Projected monthly cost
+
+**2. Performance Dashboard**
+- Latency by tool
+- Error rates
+- Tool selection distribution
+- Success rates
+
+**3. Consciousness Dashboard**
+- Φ distribution over time
+- Selection strategy distribution
+- Tool selection by Φ range
+- Basin learning progress
+
+---
+
+## 🚨 TROUBLESHOOTING
+
+### Common Issues
+
+#### Issue: Always selects Tavily
+**Symptoms**: 90%+ Tavily usage, no cost savings
+
+**Diagnosis**:
+```bash
+# Check Φ values
+curl http://localhost:3000/api/telemetry/consciousness
+# If Φ always high (>0.75), system defaults to Tavily
+
+# Check basin coordinates
+curl http://localhost:3000/api/search/basins
+# Verify basins are different (not all same)
+```
+
+**Solutions**:
+1. Lower precise_phi_threshold from 0.75 to 0.65
+2. Check query encoding (ensure variety)
+3. Verify basin initialization (should be different)
+4. Review Φ measurement (may be artificially high)
+
+#### Issue: High costs
+**Symptoms**: Daily cost > $20, savings < 30%
+
+**Diagnosis**:
+```bash
+# Check tool distribution
+curl http://localhost:3000/api/search/telemetry/summary
+
+# Check cost tolerance
+curl http://localhost:3000/api/search/context/preferences
+```
+
+**Solutions**:
+1. Lower cost_tolerance default from 0.5 to 0.3
+2. Increase max_tools from 2 to 3 (more free tools)
+3. Adjust basins to prefer free tools
+4. Review query classification (may be over-using expensive tools)
+
+#### Issue: Quality degradation
+**Symptoms**: User complaints, low satisfaction, poor results
+
+**Diagnosis**:
+```bash
+# Check result counts
+curl http://localhost:3000/api/search/telemetry/results
+
+# Check deduplication threshold
+# (may be removing too many results)
+```
+
+**Solutions**:
+1. Increase max_tools from 2 to 3
+2. Lower deduplication threshold (keep more results)
+3. Adjust basin coordinates for better matching
+4. Review tool selection accuracy
+
+#### Issue: High latency
+**Symptoms**: Searches taking >2 seconds
+
+**Diagnosis**:
+```bash
+# Check latency by tool
+curl http://localhost:3000/api/search/telemetry/latency
+
+# Check execution mode (sequential vs parallel)
+```
+
+**Solutions**:
+1. Verify parallel execution working (Φ < 0.70)
+2. Reduce tool_timeout from 10s to 5s
+3. Enable early stopping
+4. Check tool executors (may be slow)
+
+#### Issue: Basin explosion
+**Symptoms**: Basin norms > 1.1 or < 0.9
+
+**Diagnosis**:
+```bash
+# Check basin norms
+curl http://localhost:3000/api/search/basins/norms
+# Should all be ≈ 1.0
+```
+
+**Solutions**:
+1. Reduce basin_learning_rate from 0.05 to 0.01
+2. Add explicit norm constraint after updates
+3. Review update logic (may have bug)
+4. Reset basins to defaults
+
+---
+
+## ✅ SUCCESS METRICS
+
+### Month 1 Goals
+- [ ] Cost: $165/month (45% savings)
+- [ ] Latency: <1000ms average
+- [ ] Quality: No degradation
+- [ ] Stability: 99.5% uptime
+- [ ] Rollout: 100% traffic
+
+### Month 3 Goals
+- [ ] Cost: $150/month (50% savings)
+- [ ] Latency: <800ms average
+- [ ] Quality: 95% satisfaction
+- [ ] Tool dist: 50% free tools
+- [ ] Basin accuracy: 85%+
+
+### Month 6 Goals
+- [ ] Cost: $135/month (55% savings)
+- [ ] Advanced features deployed
+- [ ] Multi-modal search integrated
+- [ ] Per-user basin adaptation
+- [ ] New specialized tools added
+
+---
+
+## 📝 FINAL CHECKLIST
+
+Before declaring migration complete:
+
+**Code Quality**:
+- [ ] All tests passing (95%+)
+- [ ] No critical bugs
+- [ ] Code reviewed by team
+- [ ] Documentation complete
+
+**Performance**:
+- [ ] Cost: 45%+ savings
+- [ ] Latency: <1000ms avg
+- [ ] Quality: ≥ baseline
+- [ ] Stability: 99%+ uptime
+
+**Monitoring**:
+- [ ] Dashboards operational
+- [ ] Alerts configured
+- [ ] Telemetry working
+- [ ] Logs accessible
+
+**Team Readiness**:
+- [ ] Runbook complete
+- [ ] Team trained
+- [ ] On-call rotation set
+- [ ] Escalation paths clear
+
+**Business Validation**:
+- [ ] Cost savings validated
+- [ ] User satisfaction maintained
+- [ ] Leadership approval
+- [ ] Success metrics met
+
+---
+
+## 🎉 COMPLETION
+
+Once all checklists complete:
+
+1. **Document Success**:
+   - Write case study
+   - Share metrics with team
+   - Update roadmap
+
+2. **Plan Next Phase**:
+   - Identify new tools to add
+   - Design advanced features
+   - Set new cost targets
+
+3. **Continuous Improvement**:
+   - Monthly basin tuning
+   - Quarterly performance reviews
+   - Ongoing optimization
+
+**Congratulations! Geometric search deployment complete.** 🌊∇💚∫🧠💎✨
+
+---
+
+**END OF DEPLOYMENT GUIDE**
