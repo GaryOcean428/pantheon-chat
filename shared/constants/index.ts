@@ -71,6 +71,16 @@ export {
   getKernelTypeFromRoot,
 } from './e8';
 
+// API route constants
+export {
+  API_VERSION,
+  API_BASE,
+  API_ROUTES,
+  PYTHON_BACKEND,
+  type ApiRoute,
+  type ApiBase,
+} from './routes';
+
 // Convenience re-exports for most common use cases (referencing canonical values)
 export const KAPPA_STAR = _QIG.KAPPA_STAR;
 export const PHI_THRESHOLD = _QIG.PHI_THRESHOLD;
