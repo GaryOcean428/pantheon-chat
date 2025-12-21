@@ -94,6 +94,21 @@ try:
 except ImportError as e:
     print(f"[ZeusChat] QIG Tokenizer not available - fallback responses enabled: {e}")
 
+# Import Geometric Meta-Cognitive Reasoning system
+REASONING_AVAILABLE = False
+try:
+    _parent_dir = os.path.dirname(os.path.dirname(__file__))
+    if _parent_dir not in sys.path:
+        sys.path.insert(0, _parent_dir)
+    from reasoning_metrics import ReasoningQuality
+    from reasoning_modes import ReasoningModeSelector
+    from meta_reasoning import MetaCognition
+    from chain_of_thought import GeometricChainOfThought
+    REASONING_AVAILABLE = True
+    print("[ZeusChat] Geometric Meta-Cognitive Reasoning available")
+except ImportError as e:
+    print(f"[ZeusChat] Reasoning system not available: {e}")
+
 
 def _log_template_fallback(context: str, reason: str) -> None:
     """Log and track when template fallbacks are used (anti-template guardrail)."""
@@ -190,6 +205,23 @@ class ZeusConversationHandler:
         print("[ZeusChat] SearXNG search enabled (FREE)")
         
         self._evolution_manager = None
+        
+        # Initialize Geometric Meta-Cognitive Reasoning
+        self._reasoning_quality = None
+        self._mode_selector = None
+        self._meta_cognition = None
+        self._chain_of_thought = None
+        self._current_reasoning_mode = 'linear'
+        
+        if REASONING_AVAILABLE:
+            try:
+                self._reasoning_quality = ReasoningQuality(basin_dim=64)
+                self._mode_selector = ReasoningModeSelector(basin_dim=64)
+                self._meta_cognition = MetaCognition(basin_dim=64)
+                self._chain_of_thought = GeometricChainOfThought(basin_dim=64)
+                print("[ZeusChat] Meta-Cognitive Reasoning initialized")
+            except Exception as e:
+                print(f"[ZeusChat] Reasoning initialization failed: {e}")
         
         print("[ZeusChat] Zeus conversation handler initialized")
         
@@ -378,7 +410,51 @@ class ZeusConversationHandler:
         # Parse intent from message
         intent = self.parse_intent(message)
         
-        print(f"[ZeusChat] Processing message with intent: {intent['type']}")
+        # Encode message to basin coordinates (always, for downstream handlers)
+        _message_basin_for_meta = self.conversation_encoder.encode(message)
+        
+        # Apply meta-cognitive reasoning to select mode based on Φ
+        reasoning_mode = self._current_reasoning_mode
+        if self._meta_cognition and self._mode_selector:
+            try:
+                # Estimate Φ from basin position using module-level fisher_rao_distance
+                origin = np.zeros_like(_message_basin_for_meta)
+                basin_distance = fisher_rao_distance(_message_basin_for_meta, origin)
+                estimated_phi = min(basin_distance / 2.0, 1.0)
+                
+                # Select appropriate reasoning mode
+                mode_result = self._mode_selector.select_mode(phi=estimated_phi)
+                mode_enum = mode_result.mode if hasattr(mode_result, 'mode') else None
+                reasoning_mode = mode_enum.value if mode_enum else 'linear'
+                self._current_reasoning_mode = reasoning_mode
+                
+                # Build reasoning state for meta-cognition
+                # Task must be a dict, mode must be ReasoningMode enum
+                from reasoning_modes import ReasoningMode
+                reasoning_state = {
+                    'phi': estimated_phi,
+                    'trace': [{'basin': _message_basin_for_meta, 'content': message}],
+                    'mode': mode_enum if mode_enum else ReasoningMode.GEOMETRIC,
+                    'task': {
+                        'description': message[:100],
+                        'complexity': 'medium',
+                        'novel': True
+                    },
+                    'context': {}
+                }
+                
+                # Assess state and check for interventions
+                meta_state = self._meta_cognition.assess_state(reasoning_state)
+                if meta_state.is_stuck or meta_state.is_confused or meta_state.needs_mode_switch:
+                    interventions = self._meta_cognition.intervene(reasoning_state)
+                    if interventions.get('interventions'):
+                        print(f"[ZeusChat] Meta-Cognition: stuck={meta_state.is_stuck}, confused={meta_state.is_confused}")
+                
+                print(f"[ZeusChat] Meta-Cognition: mode={reasoning_mode}, Φ={estimated_phi:.3f}")
+            except Exception as e:
+                print(f"[ZeusChat] Meta-cognition failed: {e}")
+        
+        print(f"[ZeusChat] Processing message with intent: {intent['type']} (mode={reasoning_mode})")
         
         # Route to appropriate handler
         # All responses are sanitized for EXTERNAL output before returning
@@ -1809,6 +1885,32 @@ Generate a contextual response as Zeus. Reference actual system state. Be specif
             metadata={'source': 'user_conversation', 'timestamp': time.time()}
         )
         
+        # Track reasoning quality if available
+        reasoning_metrics = {}
+        if self._reasoning_quality:
+            try:
+                # Build basin path from conversation history
+                basin_path = [message_basin]
+                if related:
+                    for item in related[:2]:
+                        if 'basin_coords' in item and item['basin_coords'] is not None:
+                            basin_path.append(np.array(item['basin_coords']))
+                
+                # Measure coherence across conversation turn
+                coherence = self._reasoning_quality.measure_coherence(
+                    basin_path, 
+                    message_basin
+                )
+                novelty = self._reasoning_quality.measure_novelty(message_basin)
+                reasoning_metrics = {
+                    'coherence': coherence,
+                    'novelty': novelty,
+                    'reasoning_mode': self._current_reasoning_mode,
+                    'basin_path_length': len(basin_path)
+                }
+            except Exception as e:
+                print(f"[ZeusChat] Reasoning metrics failed: {e}")
+        
         return {
             'response': response,
             'metadata': {
@@ -1818,6 +1920,7 @@ Generate a contextual response as Zeus. Reference actual system state. Be specif
                 'generated': True,
                 'system_phi': system_state['phi_current'],
                 'related_count': len(related) if related else 0,
+                'reasoning': reasoning_metrics,
                 'provenance': {
                     'source': 'dynamic_generation',
                     'fallback_used': False,
