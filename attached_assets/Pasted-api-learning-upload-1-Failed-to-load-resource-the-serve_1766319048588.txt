@@ -1,0 +1,77 @@
+api/learning/upload:1  Failed to load resource: the server responded with a status of 502 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 502 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 502 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 502 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 502 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 502 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 502 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 502 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 503 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 502 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 502 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 502 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 502 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 502 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 502 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 502 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 502 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 502 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 502 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 502 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 502 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 502 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 502 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 502 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 502 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 502 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 502 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 502 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 502 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 502 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 502 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 502 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 503 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 502 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 502 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 502 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 502 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 502 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 502 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 502 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 502 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 502 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 502 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 503 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 502 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 502 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 502 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 502 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 502 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 502 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 502 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 502 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 502 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 502 ()
+api/learning/upload:1  Failed to load resource: the server responded with a status of 502 ()
+index-CWDon3aK.js:665 Fetch finished loading: GET "https://pantheon-chat.replit.app/api/ocean/cycles".
+or @ index-CWDon3aK.js:665
+(anonymous) @ index-CWDon3aK.js:665
+index-CWDon3aK.js:665 Fetch finished loading: GET "https://pantheon-chat.replit.app/api/ocean/neurochemistry".
+or @ index-CWDon3aK.js:665
+(anonymous) @ index-CWDon3aK.js:665
+index-CWDon3aK.js:48 Fetch finished loading: GET "https://pantheon-chat.replit.app/api/olympus/zeus/search/learner/replay/auto/status".
+(anonymous) @ index-CWDon3aK.js:48
+o @ index-CWDon3aK.js:48
+g @ index-CWDon3aK.js:48
+start @ index-CWDon3aK.js:48
+fetch @ index-CWDon3aK.js:48
+Vd @ index-CWDon3aK.js:48
+(anonymous) @ index-CWDon3aK.js:48
+index-CWDon3aK.js:48 Fetch finished loading: GET "https://pantheon-chat.replit.app/api/olympus/shadow/foresight".
+(anonymous) @ index-CWDon3aK.js:48
+o @ index-CWDon3aK.js:48
+g @ index-CWDon3aK.js:48
+start @ index-CWDon3aK.js:48
+fetch @ index-CWDon3aK.js:48
+Vd @ index-CWDon3aK.js:48
+(anonymous) @ index-CWDon3aK.js:48
