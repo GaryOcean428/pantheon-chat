@@ -8,11 +8,16 @@
  * 
  * Key insight: Nothing is truly "unrecoverable" - exchanges/institutions
  * just require different recovery approaches (legal, estate, etc.)
+ * 
+ * CRITICAL: Uses TavilyUsageLimiter to prevent excessive API costs.
+ * Previous project incurred $450 in Tavily charges from uncontrolled usage.
  */
 
 import { db, withDbRetry } from './db';
 import { balanceHits } from '@shared/schema';
 import { eq } from 'drizzle-orm';
+import { tavilyUsageLimiter } from './tavily-usage-limiter';
+import { isProviderEnabled } from './routes/search';
 
 const TAVILY_API_BASE = 'https://api.tavily.com';
 
@@ -93,9 +98,23 @@ export class AddressEntityClassifier {
 
   /**
    * Classify an address using Tavily search + heuristics
+   * 
+   * PROTECTED: Uses rate limiting and respects Tavily toggle to prevent API cost overruns.
    */
   async classifyAddress(address: string): Promise<EntityClassification> {
     console.log(`[EntityClassifier] Classifying address: ${address}`);
+
+    // Check if Tavily is enabled via the Sources page toggle
+    if (!isProviderEnabled('tavily')) {
+      console.log(`[EntityClassifier] Tavily disabled - using heuristics only`);
+      return {
+        entityType: 'unknown',
+        entityName: null,
+        confidence: 'pending',
+        sources: [],
+        searchResults: 0
+      };
+    }
 
     if (!this.apiKey) {
       return {
@@ -107,8 +126,24 @@ export class AddressEntityClassifier {
       };
     }
 
+    // Check rate limits BEFORE making request
+    const limitCheck = tavilyUsageLimiter.canMakeRequest('search');
+    if (!limitCheck.allowed) {
+      console.warn(`[EntityClassifier] BLOCKED by rate limiter: ${limitCheck.reason}`);
+      return {
+        entityType: 'unknown',
+        entityName: null,
+        confidence: 'pending',
+        sources: [],
+        searchResults: 0
+      };
+    }
+
     try {
       const searchResults = await this.searchForAddress(address);
+      
+      // Record the request AFTER it completes
+      tavilyUsageLimiter.recordRequest('search', `address: ${address.slice(0, 12)}...`);
       
       if (searchResults.length === 0) {
         console.log(`[EntityClassifier] No results found for ${address.slice(0, 12)}...`);

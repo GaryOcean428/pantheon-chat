@@ -191,6 +191,47 @@ searchRouter.post("/providers/:provider/toggle", generousLimiter, async (req: Re
 });
 
 /**
+ * Tavily Usage Statistics Endpoint
+ * 
+ * Returns current Tavily API usage stats including:
+ * - Daily request counts
+ * - Estimated costs
+ * - Rate limit status
+ * 
+ * CRITICAL: Monitor this to prevent API cost overruns.
+ */
+searchRouter.get("/tavily-usage", generousLimiter, async (req: Request, res: Response) => {
+  try {
+    const { tavilyUsageLimiter } = await import("../tavily-usage-limiter");
+    const stats = tavilyUsageLimiter.getStats();
+    
+    res.json({
+      success: true,
+      data: {
+        enabled: stats.enabled,
+        limits: {
+          perMinute: stats.limits.perMinute,
+          perDay: stats.limits.perDay,
+          dailyCostLimit: `$${(stats.limits.dailyCostCents / 100).toFixed(2)}`,
+        },
+        today: {
+          date: stats.today.date,
+          searchCount: stats.today.searchCount,
+          extractCount: stats.today.extractCount,
+          totalRequests: stats.today.searchCount + stats.today.extractCount,
+          estimatedCost: `$${(stats.today.estimatedCostCents / 100).toFixed(2)}`,
+        },
+        recentRequestsInLastMinute: stats.recentRequestsCount,
+        rateStatus: stats.recentRequestsCount >= stats.limits.perMinute ? 'RATE_LIMITED' : 'OK',
+        dailyStatus: (stats.today.searchCount + stats.today.extractCount) >= stats.limits.perDay ? 'DAILY_LIMIT_REACHED' : 'OK',
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
  * Zeus Web Search Endpoint - QIG-Pure Integration
  * 
  * Called by Python Zeus Chat to get web search results with QIG metrics.

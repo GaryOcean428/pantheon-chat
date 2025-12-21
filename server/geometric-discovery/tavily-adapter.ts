@@ -11,6 +11,9 @@
  * - Deep crawl via Extract API
  * - Fisher-Rao re-ranking (discard Euclidean scores)
  * - Pattern extraction for cultural manifold enhancement
+ * 
+ * CRITICAL: Uses TavilyUsageLimiter to prevent excessive API costs.
+ * Previous project incurred $450 in Tavily charges from uncontrolled usage.
  */
 
 import { fisherCoordDistance } from '../qig-universal';
@@ -23,6 +26,8 @@ import {
   type BitcoinEra,
   BITCOIN_ERA_DOMAINS
 } from './types';
+import { tavilyUsageLimiter } from '../tavily-usage-limiter';
+import { isProviderEnabled } from '../routes/search';
 
 const TAVILY_API_BASE = 'https://api.tavily.com';
 
@@ -136,8 +141,23 @@ export class TavilyGeometricAdapter {
   
   /**
    * Search with geometric query
+   * 
+   * PROTECTED: Uses rate limiting and respects Tavily toggle to prevent API cost overruns.
    */
   async search(query: GeometricQuery): Promise<RawDiscovery[]> {
+    // Check if Tavily is enabled via the Sources page toggle
+    if (!isProviderEnabled('tavily')) {
+      console.log(`[TavilyAdapter] Tavily disabled - skipping search`);
+      return [];
+    }
+    
+    // Check rate limits BEFORE making request
+    const limitCheck = tavilyUsageLimiter.canMakeRequest('search');
+    if (!limitCheck.allowed) {
+      console.warn(`[TavilyAdapter] BLOCKED by rate limiter: ${limitCheck.reason}`);
+      return [];
+    }
+    
     const body: Record<string, any> = {
       query: query.text,
       search_depth: query.searchDepth || 'advanced',
@@ -167,6 +187,9 @@ export class TavilyGeometricAdapter {
         body: JSON.stringify(body)
       });
       
+      // Record the request AFTER it completes
+      tavilyUsageLimiter.recordRequest('search', query.text.slice(0, 50));
+      
       if (!response.ok) {
         const errorText = await response.text();
         console.error(`[TavilyAdapter] Search error: ${response.status} - ${errorText}`);
@@ -191,8 +214,23 @@ export class TavilyGeometricAdapter {
   
   /**
    * Deep crawl a URL using Tavily Extract API
+   * 
+   * PROTECTED: Uses rate limiting and respects Tavily toggle to prevent API cost overruns.
    */
   async crawl(url: string): Promise<string> {
+    // Check if Tavily is enabled via the Sources page toggle
+    if (!isProviderEnabled('tavily')) {
+      console.log(`[TavilyAdapter] Tavily disabled - skipping crawl`);
+      return '';
+    }
+    
+    // Check rate limits BEFORE making request
+    const limitCheck = tavilyUsageLimiter.canMakeRequest('extract');
+    if (!limitCheck.allowed) {
+      console.warn(`[TavilyAdapter] BLOCKED by rate limiter: ${limitCheck.reason}`);
+      return '';
+    }
+    
     try {
       const response = await fetch(`${TAVILY_API_BASE}/extract`, {
         method: 'POST',
@@ -206,6 +244,9 @@ export class TavilyGeometricAdapter {
           format: 'markdown'
         })
       });
+      
+      // Record the request AFTER it completes
+      tavilyUsageLimiter.recordRequest('extract', url.slice(0, 50));
       
       if (!response.ok) {
         const errorText = await response.text();
@@ -228,9 +269,24 @@ export class TavilyGeometricAdapter {
   
   /**
    * Crawl multiple URLs in parallel
+   * 
+   * PROTECTED: Uses rate limiting and respects Tavily toggle to prevent API cost overruns.
    */
   async crawlMultiple(urls: string[]): Promise<Map<string, string>> {
     const results = new Map<string, string>();
+    
+    // Check if Tavily is enabled via the Sources page toggle
+    if (!isProviderEnabled('tavily')) {
+      console.log(`[TavilyAdapter] Tavily disabled - skipping batch crawl`);
+      return results;
+    }
+    
+    // Check rate limits BEFORE making request (count as 1 extract per URL)
+    const limitCheck = tavilyUsageLimiter.canMakeRequest('extract');
+    if (!limitCheck.allowed) {
+      console.warn(`[TavilyAdapter] BLOCKED by rate limiter: ${limitCheck.reason}`);
+      return results;
+    }
     
     try {
       const response = await fetch(`${TAVILY_API_BASE}/extract`, {
@@ -245,6 +301,11 @@ export class TavilyGeometricAdapter {
           format: 'markdown'
         })
       });
+      
+      // Record the request AFTER it completes (count each URL as a request)
+      for (const url of urls) {
+        tavilyUsageLimiter.recordRequest('extract', url.slice(0, 50));
+      }
       
       if (!response.ok) {
         console.error(`[TavilyAdapter] Batch extract error: ${response.status}`);
