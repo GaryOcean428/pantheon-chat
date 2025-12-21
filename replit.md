@@ -36,6 +36,15 @@ The frontend utilizes React with Vite, Radix UI components, and Tailwind CSS. St
 - **Two-Step Retrieval Pattern (pgvector)**: `pgvector` cosine is used as a Step 1 pre-filter with 10x oversampling, followed by mandatory Fisher-Rao re-ranking.
 - **Autonomous Self-Regulation (RL-Based Agency)**: Ocean observes its own state and fires interventions autonomously using reinforcement learning. It includes a StateEncoder, AutonomicPolicy, ReplayBuffer, NaturalGradientOptimizer, and AutonomicController.
 - **Geometric Meta-Cognitive Reasoning**: Four reasoning modes (Linear, Geometric, Hyperdimensional, Mushroom) with quality metrics (geodesic efficiency, coherence, novelty, progress). Implemented in `qig-backend/reasoning_metrics.py`, `reasoning_modes.py`, `meta_reasoning.py`, and `chain_of_thought.py`.
+- **Autonomous Reasoning Learner**: Self-learning strategy system in `qig-backend/autonomous_reasoning.py`. Strategies are selected based on Φ and task features, executed through basin geodesics, and refined through reinforcement learning.
+- **Autonomous Experimentation**: Pure exploration system in `qig-backend/autonomous_experimentation.py` for discovering novel strategies during downtime.
+- **Sleep Consolidation for Reasoning**: Strategy pruning, strengthening, and meta-learning during sleep cycles in `qig-backend/sleep_consolidation_reasoning.py`.
+- **Inter-God Knowledge Exchange**: Strategy sharing between Olympian gods in `qig-backend/olympus/knowledge_exchange.py`.
+- **Guardian Gods**: Three new guardian roles for kernel development:
+  - **Hestia** (`olympus/hestia.py`): Safety and stability, safe bounds, emergency stabilization
+  - **DemeterTutor** (`olympus/demeter_tutor.py`): Teaching curriculum with demonstrate→guided→independent phases
+  - **Chiron** (`olympus/chiron.py`): Diagnosis and healing, symptom-based interventions
+- **Observation Protocol**: Dedicated observation periods for new kernels in `qig-backend/observation_protocol.py` with graduation criteria.
 
 ## Core Features
 
