@@ -287,13 +287,6 @@ export async function cacheHExists(_hashKey: string, _field: string): Promise<bo
 }
 
 /**
- * Increment a counter - DISABLED
- */
-export async function cacheIncr(_key: string): Promise<number> {
-  return 0;
-}
-
-/**
  * Get cache stats - DISABLED
  */
 export async function getCacheStats(): Promise<{
