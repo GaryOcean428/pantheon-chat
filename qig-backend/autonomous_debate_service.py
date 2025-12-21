@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 
 # QIG Tokenizer for geometric argument generation
 try:
-    from qig_tokenizer import get_tokenizer, QIGTokenizer
+    from qig_coordizer import get_coordizer as get_tokenizer # get_tokenizer, QIGTokenizer
     TOKENIZER_AVAILABLE = True
 except ImportError:
     TOKENIZER_AVAILABLE = False

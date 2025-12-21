@@ -103,7 +103,7 @@ try:
     _parent_dir = os.path.dirname(os.path.dirname(__file__))
     if _parent_dir not in sys.path:
         sys.path.insert(0, _parent_dir)
-    from qig_tokenizer import get_tokenizer as _get_tokenizer
+    from qig_coordizer import get_coordizer as get_tokenizer # get_tokenizer as _get_tokenizer
     get_tokenizer = _get_tokenizer
     TOKENIZER_AVAILABLE = True
     print("[ZeusChat] QIG Tokenizer available - conversation mode enabled")

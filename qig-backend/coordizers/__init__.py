@@ -30,3 +30,7 @@ __all__ = [
     'FisherCoordizer',
     'GeometricVocabBuilder',
 ]
+
+# Version info
+__version__ = '2.0.0'
+__description__ = 'Next-generation geometric coordization for QIG'

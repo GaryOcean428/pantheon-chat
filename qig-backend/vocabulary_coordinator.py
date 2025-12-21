@@ -14,14 +14,11 @@ except ImportError:
     VOCAB_PERSISTENCE_AVAILABLE = False
 
 try:
-    from qig_tokenizer_postgresql import get_tokenizer
+    from qig_coordizer import get_coordizer as get_tokenizer
     TOKENIZER_AVAILABLE = True
 except ImportError:
-    try:
-        from qig_tokenizer import get_tokenizer
-        TOKENIZER_AVAILABLE = True
-    except ImportError:
-        TOKENIZER_AVAILABLE = False
+    TOKENIZER_AVAILABLE = False
+    print("[WARNING] qig_coordizer not available - running without tokenizer")
 
 
 class VocabularyCoordinator:
