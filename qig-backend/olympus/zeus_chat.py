@@ -1412,6 +1412,9 @@ Zeus Response (Geometric Interpretation):"""
                         print(f"[ZeusChat] Using DuckDuckGo: {len(search_results['results'])} results (fitness={fitness_score:.3f})")
                         if provider_selector:
                             provider_selector.record_result(provider, query, True, len(ddg_result['results']), response_time)
+                    else:
+                        if provider_selector:
+                            provider_selector.record_result(provider, query, False)
                 except Exception as e:
                     print(f"[ZeusChat] DuckDuckGo failed: {e}")
                     if provider_selector:

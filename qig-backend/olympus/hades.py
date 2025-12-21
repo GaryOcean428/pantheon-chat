@@ -610,8 +610,12 @@ class Hades(BaseGod):
                     sources_used.append('local_breach')
                     if self.provider_selector:
                         self.provider_selector.record_result('breach', target, True, len(breach_intel), time.time() - start_time)
+                else:
+                    if self.provider_selector:
+                        self.provider_selector.record_result('breach', target, False)
             except Exception as e:
-                pass
+                if self.provider_selector:
+                    self.provider_selector.record_result('breach', target, False)
         
         if (search_type in ['comprehensive', 'web', 'duckduckgo'] or 'duckduckgo-tor' in provider_to_search) and self.ddg and self.ddg_enabled:
             start_time = time.time()

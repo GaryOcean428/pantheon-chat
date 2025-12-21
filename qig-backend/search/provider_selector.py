@@ -24,7 +24,7 @@ import time
 import json
 import hashlib
 import numpy as np
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Optional, Any, Tuple, TYPE_CHECKING
 from datetime import datetime
 
 try:
@@ -134,6 +134,11 @@ class GeometricProviderSelector:
             p: ProviderStats(p) for p in self.providers
         }
         
+        self.provider_basins: Dict[str, List[Tuple[np.ndarray, bool]]] = {
+            p: [] for p in self.providers
+        }
+        self.max_basin_history = 100
+        
         self.query_history: List[Dict] = []
         self.max_history = 500
         
@@ -187,6 +192,53 @@ class GeometricProviderSelector:
         basin = basin / (np.linalg.norm(basin) + 1e-10)
         return basin
     
+    def _fisher_rao_distance(self, p1: np.ndarray, p2: np.ndarray) -> float:
+        """
+        Compute Fisher-Rao distance between two probability distributions.
+        
+        For distributions represented as unit vectors (on the probability simplex),
+        the Fisher-Rao distance is related to the geodesic distance on the
+        statistical manifold.
+        
+        d_FR = 2 * arccos(sqrt(sum(sqrt(p1_i * p2_i))))
+        
+        For unit vectors in embedding space, we use Bures-style metric:
+        d_B = arccos(|<p1, p2>|)
+        """
+        p1_norm = p1 / (np.linalg.norm(p1) + 1e-10)
+        p2_norm = p2 / (np.linalg.norm(p2) + 1e-10)
+        
+        inner_product = np.abs(np.dot(p1_norm, p2_norm))
+        inner_product = np.clip(inner_product, 0.0, 1.0)
+        
+        distance = np.arccos(inner_product)
+        return float(distance)
+    
+    def _compute_geometric_similarity(self, query_basin: np.ndarray, provider: str) -> float:
+        """
+        Compute geometric similarity between query and provider's historical basins.
+        
+        Uses Fisher-Rao distance to find how well this provider has performed
+        on geometrically similar queries in the past.
+        """
+        if provider not in self.provider_basins or not self.provider_basins[provider]:
+            return 0.5
+        
+        provider_history = self.provider_basins[provider]
+        
+        similarities = []
+        for hist_basin, success in provider_history[-20:]:
+            distance = self._fisher_rao_distance(query_basin, hist_basin)
+            similarity = 1.0 / (1.0 + distance)
+            weight = 1.0 if success else -0.5
+            similarities.append(similarity * weight)
+        
+        if not similarities:
+            return 0.5
+        
+        avg_similarity = np.mean(similarities)
+        return float(0.5 + 0.5 * np.tanh(avg_similarity))
+    
     def _compute_provider_fitness(
         self,
         provider: str,
@@ -194,19 +246,24 @@ class GeometricProviderSelector:
         query_basin: np.ndarray
     ) -> float:
         """
-        Compute geometric fitness score for a provider.
+        Compute geometric fitness score for a provider using Fisher-Rao distance.
         
-        Fitness = affinity * success_rate * availability * domain_score
+        Fitness combines:
+        - Geometric similarity: Fisher-Rao distance to successful query basins (40%)
+        - Base affinity: Prior knowledge about provider-domain fit (20%)
+        - Learned domain score: Success rate in this domain (20%)
+        - Availability: Current provider health (15%)
+        - Speed factor: Response time performance (5%)
         """
         stats = self.stats.get(provider)
         if not stats:
             return 0.0
         
+        geometric_similarity = self._compute_geometric_similarity(query_basin, provider)
+        
         base_affinity = self.provider_domain_affinity.get(provider, {}).get(domain, 0.5)
         
         learned_score = stats.get_domain_score(domain)
-        
-        success_rate = stats.success_rate
         availability = stats.availability
         
         speed_factor = 1.0
@@ -216,9 +273,9 @@ class GeometricProviderSelector:
             speed_factor = 0.85
         
         fitness = (
-            base_affinity * 0.3 +
-            learned_score * 0.3 +
-            success_rate * 0.2 +
+            geometric_similarity * 0.40 +
+            base_affinity * 0.20 +
+            learned_score * 0.20 +
             availability * 0.15 +
             speed_factor * 0.05
         )
@@ -284,14 +341,27 @@ class GeometricProviderSelector:
         result_count: int = 0,
         response_time: float = 0.0
     ):
-        """Record search result for learning."""
+        """
+        Record search result for geometric learning.
+        
+        Stores the query basin coordinates along with success/failure
+        to enable Fisher-Rao distance-based similarity matching for
+        future queries.
+        """
         domain = self._detect_query_domain(query)
+        query_basin = self._encode_query_basin(query)
         
         if provider in self.stats:
             if success:
                 self.stats[provider].record_success(result_count, response_time, domain)
             else:
                 self.stats[provider].record_failure(domain)
+        
+        if provider in self.provider_basins:
+            self.provider_basins[provider].append((query_basin, success))
+            
+            if len(self.provider_basins[provider]) > self.max_basin_history:
+                self.provider_basins[provider] = self.provider_basins[provider][-self.max_basin_history // 2:]
         
         self.query_history.append({
             'query': query[:100],
