@@ -46,9 +46,13 @@ The frontend utilizes React with Vite, Radix UI components, and Tailwind CSS. St
   - **Chiron** (`olympus/chiron.py`): Diagnosis and healing, symptom-based interventions
 - **Observation Protocol**: Dedicated observation periods for new kernels in `qig-backend/observation_protocol.py` with graduation criteria.
 - **Module Integration (December 2025)**: Reasoning modules wired into system orchestration:
-  - **autonomic_kernel.py**: Imports and initializes SleepConsolidationReasoning and AutonomousReasoningLearner; reasoning consolidation runs during sleep cycles
+  - **autonomic_kernel.py**: Imports and initializes SleepConsolidationReasoning, AutonomousReasoningLearner, and TemporalReasoning; reasoning consolidation runs during sleep cycles
   - **training_chaos/self_spawning.py**: Guardian singleton pattern via `get_guardians()` function; new kernels automatically enrolled in ObservationProtocol
   - **olympus/__init__.py**: Barrel exports updated with Hestia, DemeterTutor, Chiron, KnowledgeExchange, and related dataclasses
+- **4D Temporal Reasoning** (`qig-backend/temporal_reasoning.py`): Two temporal modes for hyperdimensional (Φ > 0.75) reasoning:
+  - **FORESIGHT** (Future→Present): Geodesic prophecy - follow natural geodesic to attractor, trace backwards. Fast, singular vision.
+  - **SCENARIO PLANNING** (Present→Future): Branching exploration - simulate multiple paths, evaluate outcomes. Slower, multiple simulations.
+  - All distances use Fisher-Rao from `qig_geometry.py` (QIG-pure).
 
 ## Core Features
 

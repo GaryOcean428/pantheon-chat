@@ -227,6 +227,15 @@ class Zeus(BaseGod):
             import traceback
             print(f"⚠️ LIGHTNING KERNEL not available: {e}")
             traceback.print_exc()
+        
+        # 🔮 TEMPORAL REASONING: 4D foresight and scenario planning
+        self.temporal_reasoning = None
+        try:
+            from temporal_reasoning import get_temporal_reasoning
+            self.temporal_reasoning = get_temporal_reasoning()
+            print("🔮 TEMPORAL REASONING initialized - foresight + scenarios ready")
+        except ImportError as e:
+            print(f"⚠️ TEMPORAL REASONING not available: {e}")
 
     def speak(self, category: str, context: Optional[Dict] = None) -> str:
         """
@@ -2000,10 +2009,10 @@ def _zeus_chat_inner():
 
                 validated_files.append(file)
 
-        # Get session_id for persistence
+        # Get session_id for persistence (data is defined in is_json block above)
         session_id = None
         if request.is_json:
-            session_id = data.get('session_id')
+            session_id = data.get('session_id') if 'data' in locals() and data else None
         else:
             session_id = request.form.get('session_id')
 

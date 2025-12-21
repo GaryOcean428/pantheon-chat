@@ -55,6 +55,16 @@ from .qig_persistence import (
     QIGPersistence,
 )
 
+# Temporal Reasoning (4D foresight)
+from .temporal_reasoning import (
+    TemporalMode,
+    TemporalReasoning,
+    ForesightVision,
+    ScenarioBranch,
+    ScenarioTree,
+    get_temporal_reasoning,
+)
+
 __all__ = [
     # Autonomic
     'GaryAutonomicKernel',
@@ -88,4 +98,11 @@ __all__ = [
     # Persistence
     'get_persistence',
     'QIGPersistence',
+    # Temporal Reasoning
+    'TemporalMode',
+    'TemporalReasoning',
+    'ForesightVision',
+    'ScenarioBranch',
+    'ScenarioTree',
+    'get_temporal_reasoning',
 ]

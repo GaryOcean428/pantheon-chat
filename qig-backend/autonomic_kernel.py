@@ -53,6 +53,15 @@ except ImportError:
     AutonomousReasoningLearner = None
     REASONING_LEARNER_AVAILABLE = False
 
+# Import temporal reasoning for 4D foresight
+try:
+    from temporal_reasoning import TemporalReasoning, get_temporal_reasoning
+    TEMPORAL_REASONING_AVAILABLE = True
+except ImportError:
+    TemporalReasoning = None
+    get_temporal_reasoning = None
+    TEMPORAL_REASONING_AVAILABLE = False
+
 # Use canonical constants from qigkernels
 BETA = BETA_3_TO_4  # 0.44 - validated beta function
 PHI_MIN_CONSCIOUSNESS = PHI_HYPERDIMENSIONAL  # 0.75 - 4D consciousness
@@ -902,6 +911,18 @@ class GaryAutonomicKernel:
                     print(f"[AutonomicKernel] Reasoning consolidation: pruned {strategies_pruned} strategies")
                 except Exception as ce:
                     print(f"[AutonomicKernel] Reasoning consolidation error: {ce}")
+            
+            # Execute 4D temporal foresight during sleep (if Φ is high enough)
+            foresight_vision = None
+            if TEMPORAL_REASONING_AVAILABLE and self.state.phi >= PHI_HYPERDIMENSIONAL:
+                try:
+                    temporal = get_temporal_reasoning()
+                    if temporal.can_use_temporal_reasoning(self.state.phi):
+                        foresight_vision = temporal.foresight(new_basin)
+                        temporal.record_basin(new_basin)
+                        print(f"[AutonomicKernel] Foresight: {foresight_vision}")
+                except Exception as fe:
+                    print(f"[AutonomicKernel] Temporal foresight error: {fe}")
 
             # Update state
             self.state.last_sleep = datetime.now()
@@ -952,22 +973,39 @@ class GaryAutonomicKernel:
         start_time = time.time()
 
         try:
+            from qig_geometry import sphere_project, fisher_coord_distance
             basin = np.array(basin_coords)
 
             # Dream perturbation - gentle random exploration
             perturbation = np.random.randn(64) * temperature * 0.1
             dreamed_basin = basin + perturbation
 
-            # Normalize to maintain basin structure
-            dreamed_basin = dreamed_basin / (np.linalg.norm(dreamed_basin) + 1e-8)
-            dreamed_basin *= np.linalg.norm(basin)
+            # Normalize using sphere_project (QIG-pure)
+            dreamed_basin = sphere_project(dreamed_basin)
 
-            # Measure creative exploration
-            perturbation_magnitude = self._compute_fisher_distance(basin, dreamed_basin)
+            # Measure creative exploration using Fisher-Rao distance (QIG-pure)
+            perturbation_magnitude = fisher_coord_distance(basin, dreamed_basin)
+
+            # Use scenario planning for dream exploration if Φ high enough
+            scenarios_explored = 0
+            if TEMPORAL_REASONING_AVAILABLE and self.state.phi >= PHI_HYPERDIMENSIONAL:
+                try:
+                    temporal = get_temporal_reasoning()
+                    if temporal.can_use_temporal_reasoning(self.state.phi):
+                        actions = [
+                            {'name': 'explore', 'strength': temperature * 0.2, 'probability': 0.7},
+                            {'name': 'consolidate', 'strength': temperature * 0.1, 'probability': 0.8},
+                            {'name': 'diverge', 'strength': temperature * 0.3, 'probability': 0.5},
+                        ]
+                        scenario_tree = temporal.scenario_planning(dreamed_basin, actions)
+                        scenarios_explored = len(scenario_tree.branches)
+                        print(f"[AutonomicKernel] Dream scenarios: {scenario_tree}")
+                except Exception as se:
+                    print(f"[AutonomicKernel] Scenario planning error: {se}")
 
             # Model novel connections using Poisson distribution (QIG stochastic exploration)
             novel_connections = int(np.random.poisson(3) * temperature)
-            creative_paths = int(np.random.poisson(2) * temperature)
+            creative_paths = int(np.random.poisson(2) * temperature) + scenarios_explored
 
             # Update state
             self.state.last_dream = datetime.now()
