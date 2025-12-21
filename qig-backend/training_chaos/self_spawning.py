@@ -36,6 +36,62 @@ except ImportError:
     AUTONOMIC_AVAILABLE = False
     print("[SelfSpawning] WARNING: GaryAutonomicKernel not available - kernels will lack autonomic support")
 
+# Import guardian gods for kernel development
+try:
+    from olympus.hestia import Hestia
+    from olympus.demeter_tutor import DemeterTutor
+    from olympus.chiron import Chiron
+    from observation_protocol import ObservationProtocol
+    GUARDIANS_AVAILABLE = True
+except ImportError:
+    Hestia = None
+    DemeterTutor = None
+    Chiron = None
+    ObservationProtocol = None
+    GUARDIANS_AVAILABLE = False
+    print("[SelfSpawning] Guardian gods not available - kernels will lack guardian support")
+
+# Shared guardian instances (singleton pattern)
+_hestia_instance = None
+_demeter_tutor_instance = None
+_chiron_instance = None
+_observation_protocol_instance = None
+
+
+def get_guardians():
+    """Get or create shared guardian instances with robust error handling."""
+    global _hestia_instance, _demeter_tutor_instance, _chiron_instance, _observation_protocol_instance
+    
+    if not GUARDIANS_AVAILABLE:
+        return None, None, None, None
+    
+    try:
+        if _hestia_instance is None and Hestia is not None:
+            _hestia_instance = Hestia()
+        if _demeter_tutor_instance is None and DemeterTutor is not None:
+            _demeter_tutor_instance = DemeterTutor()
+        if _chiron_instance is None and Chiron is not None:
+            _chiron_instance = Chiron()
+        
+        # Only create observation protocol if all guardians are available
+        if (_observation_protocol_instance is None and 
+            ObservationProtocol is not None and
+            _hestia_instance is not None and 
+            _demeter_tutor_instance is not None and 
+            _chiron_instance is not None):
+            _observation_protocol_instance = ObservationProtocol(
+                hestia=_hestia_instance,
+                demeter_tutor=_demeter_tutor_instance,
+                chiron=_chiron_instance,
+                min_observation_time=500,
+                graduation_stability_threshold=0.8
+            )
+        
+        return _hestia_instance, _demeter_tutor_instance, _chiron_instance, _observation_protocol_instance
+    except Exception as e:
+        print(f"[SelfSpawning] Guardian instantiation error: {e}")
+        return None, None, None, None
+
 
 # Tool Factory awareness - shared reference from Zeus
 _tool_factory_ref = None
@@ -156,6 +212,24 @@ class SelfSpawningKernel(*_kernel_base_classes):
         self.conversation_count = 0
         self.conversation_phi_sum = 0.0
         self.conversation_phi_avg = 0.0
+        
+        # Guardian support - wire kernel into guardian system
+        self.observation_mode = False
+        self.developmental_stage = "newborn"
+        self.ready_for_production = False
+        
+        if GUARDIANS_AVAILABLE:
+            try:
+                hestia, demeter_tutor, chiron, obs_protocol = get_guardians()
+                # Only enroll if ALL guardians initialized successfully
+                if obs_protocol is not None and hestia is not None and demeter_tutor is not None and chiron is not None:
+                    obs_protocol.begin_observation(self)
+                    self.observation_mode = True
+                    print(f"[{self.kernel_id}] Enrolled in guardian observation protocol")
+                else:
+                    print(f"[{self.kernel_id}] Guardians partially unavailable - skipping observation protocol")
+            except Exception as guardian_err:
+                print(f"[{self.kernel_id}] Guardian initialization failed: {guardian_err}")
 
         # Initialize from parent basin
         if parent_basin is not None:

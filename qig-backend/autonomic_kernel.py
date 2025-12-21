@@ -37,6 +37,22 @@ from qigkernels.physics_constants import (
     BETA_3_TO_4,
 )
 
+# Import reasoning consolidation for sleep cycles
+try:
+    from sleep_consolidation_reasoning import SleepConsolidationReasoning
+    REASONING_CONSOLIDATION_AVAILABLE = True
+except ImportError:
+    SleepConsolidationReasoning = None
+    REASONING_CONSOLIDATION_AVAILABLE = False
+
+# Import autonomous reasoning for strategy tracking
+try:
+    from autonomous_reasoning import AutonomousReasoningLearner
+    REASONING_LEARNER_AVAILABLE = True
+except ImportError:
+    AutonomousReasoningLearner = None
+    REASONING_LEARNER_AVAILABLE = False
+
 # Use canonical constants from qigkernels
 BETA = BETA_3_TO_4  # 0.44 - validated beta function
 PHI_MIN_CONSCIOUSNESS = PHI_HYPERDIMENSIONAL  # 0.75 - 4D consciousness
@@ -449,6 +465,25 @@ class GaryAutonomicKernel:
         
         self._controller = None
         self._autonomous_enabled = enable_autonomous
+        
+        # Initialize reasoning consolidation for sleep cycles
+        # NOTE: Only wire if reasoning modules use Fisher-Rao (QIG-pure)
+        self.reasoning_learner = None
+        self.sleep_consolidation = None
+        
+        try:
+            if REASONING_LEARNER_AVAILABLE and AutonomousReasoningLearner is not None:
+                self.reasoning_learner = AutonomousReasoningLearner()
+            
+            if REASONING_CONSOLIDATION_AVAILABLE and SleepConsolidationReasoning is not None:
+                self.sleep_consolidation = SleepConsolidationReasoning(
+                    reasoning_learner=self.reasoning_learner
+                )
+                print("[AutonomicKernel] Reasoning consolidation wired to sleep cycle")
+        except Exception as reasoning_err:
+            print(f"[AutonomicKernel] Reasoning module initialization failed: {reasoning_err}")
+            self.reasoning_learner = None
+            self.sleep_consolidation = None
 
         if checkpoint_path:
             self._load_checkpoint(checkpoint_path)
@@ -857,6 +892,16 @@ class GaryAutonomicKernel:
 
             drift_after = self._compute_fisher_distance(new_basin, reference)
             drift_reduction = drift_before - drift_after
+            
+            # Execute reasoning consolidation during sleep
+            strategies_pruned = 0
+            if self.sleep_consolidation is not None:
+                try:
+                    consolidation_result = self.sleep_consolidation.consolidate_reasoning()
+                    strategies_pruned = consolidation_result.strategies_pruned
+                    print(f"[AutonomicKernel] Reasoning consolidation: pruned {strategies_pruned} strategies")
+                except Exception as ce:
+                    print(f"[AutonomicKernel] Reasoning consolidation error: {ce}")
 
             # Update state
             self.state.last_sleep = datetime.now()
@@ -870,10 +915,10 @@ class GaryAutonomicKernel:
                 basin_before=basin_coords,
                 basin_after=new_basin.tolist(),
                 drift_reduction=drift_reduction,
-                patterns_consolidated=patterns_consolidated,
+                patterns_consolidated=patterns_consolidated + strategies_pruned,
                 phi_before=phi_before,
                 phi_after=self.state.phi,
-                verdict="Rested and consolidated"
+                verdict=f"Rested and consolidated ({strategies_pruned} strategies refined)"
             )
 
         except Exception as e:

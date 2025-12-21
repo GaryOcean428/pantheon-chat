@@ -77,6 +77,16 @@ from .zeus import Zeus, olympus_app, zeus
 # Zeus Chat (voice integration)
 from .zeus_chat import ZeusConversationHandler
 
+# Guardian Gods for kernel development
+try:
+    from .hestia import Hestia, SafetyConfig, SafetyVitals
+    from .demeter_tutor import DemeterTutor, Lesson, StudentProgress
+    from .chiron import Chiron, DiagnosticIssue, PatientRecord
+    from .knowledge_exchange import KnowledgeExchange, SharedStrategy
+    GUARDIANS_AVAILABLE = True
+except ImportError:
+    GUARDIANS_AVAILABLE = False
+
 # Conversational Kernel System
 try:
     from conversational_kernel import (
@@ -180,4 +190,18 @@ __all__ = [
     'RequestPriority',
     'PatternDiscovery',
     'get_tool_request_persistence',
+    
+    # Guardian Gods
+    'Hestia',
+    'SafetyConfig',
+    'SafetyVitals',
+    'DemeterTutor',
+    'Lesson',
+    'StudentProgress',
+    'Chiron',
+    'DiagnosticIssue',
+    'PatientRecord',
+    'KnowledgeExchange',
+    'SharedStrategy',
+    'GUARDIANS_AVAILABLE',
 ]
