@@ -25,9 +25,10 @@ import { scoreUniversalQIGAsync } from "../qig-universal";
 export const searchProviderState = {
   google_free: { enabled: true },
   tavily: { enabled: false },
+  duckduckgo: { enabled: true, torEnabled: true },
 };
 
-export function isProviderEnabled(provider: 'google_free' | 'tavily'): boolean {
+export function isProviderEnabled(provider: 'google_free' | 'tavily' | 'duckduckgo'): boolean {
   return searchProviderState[provider].enabled;
 }
 

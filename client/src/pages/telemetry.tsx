@@ -47,6 +47,11 @@ interface TelemetryOverview {
         enabled: boolean;
         todaySearches: number;
       };
+      duckDuckGo?: {
+        enabled: boolean;
+        todaySearches: number;
+        torEnabled: boolean;
+      };
       totalApiCalls: number;
     };
     learning: {
@@ -246,6 +251,25 @@ function ApiUsageCard({ usage }: { usage: TelemetryOverview['data']['usage'] }) 
             {usage.googleFree.todaySearches} searches today
           </div>
         </div>
+        
+        {usage.duckDuckGo && (
+          <div className="space-y-2 pt-4 border-t">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">DuckDuckGo</span>
+              <div className="flex items-center gap-2">
+                {usage.duckDuckGo.torEnabled && (
+                  <Badge variant="outline" className="text-xs">Tor</Badge>
+                )}
+                <Badge variant={usage.duckDuckGo.enabled ? "default" : "secondary"}>
+                  {usage.duckDuckGo.enabled ? "Active" : "Disabled"}
+                </Badge>
+              </div>
+            </div>
+            <div className="text-sm text-muted-foreground">
+              {usage.duckDuckGo.todaySearches} searches today (via Shadow Pantheon)
+            </div>
+          </div>
+        )}
         
         <div className="pt-4 border-t">
           <div className="text-2xl font-bold font-mono" data-testid="metric-total-api">

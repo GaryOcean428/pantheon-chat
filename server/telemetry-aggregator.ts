@@ -71,6 +71,11 @@ export interface UsageStats {
     enabled: boolean;
     todaySearches: number;
   };
+  duckDuckGo: {
+    enabled: boolean;
+    todaySearches: number;
+    torEnabled: boolean;
+  };
   totalApiCalls: number;
 }
 
@@ -286,6 +291,11 @@ class TelemetryAggregator {
       googleFree: {
         enabled: isProviderEnabled('google_free'),
         todaySearches: googleSearches,
+      },
+      duckDuckGo: {
+        enabled: isProviderEnabled('duckduckgo'),
+        todaySearches: 0,
+        torEnabled: true,
       },
       totalApiCalls,
     };
