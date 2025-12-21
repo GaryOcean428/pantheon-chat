@@ -172,8 +172,9 @@ export default function FederationDashboard() {
     mutationFn: async (endpoint: string) => {
       const start = Date.now();
       try {
-        const baseUrl = API_ROUTES.external.health.replace('/health', '');
-        const data = await get(`${baseUrl}${endpoint}`);
+        // Construct URL properly using base path
+        const url = `${API_ROUTES.external.base}${endpoint}`;
+        const data = await get(url);
         const latency = Date.now() - start;
         return {
           success: true,

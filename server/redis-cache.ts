@@ -12,6 +12,18 @@
 
 import Redis from 'ioredis';
 
+// Redis configuration
+const REDIS_CONFIG = {
+  maxRetriesPerRequest: 3,
+  enableOfflineQueue: false,
+  lazyConnect: true,
+  connectTimeout: 10000,
+  retryStrategy: (times: number) => {
+    const delay = Math.min(times * 50, 2000);
+    return delay;
+  },
+} as const;
+
 // TTLs in seconds
 export const CACHE_TTL = {
   SHORT: 300,        // 5 min for hot data
@@ -53,11 +65,7 @@ export function initRedis(): Redis | null {
   }
 
   try {
-    redisClient = new Redis(redisUrl, {
-      maxRetriesPerRequest: 3,
-      enableOfflineQueue: false,
-      lazyConnect: true,
-    });
+    redisClient = new Redis(redisUrl, REDIS_CONFIG);
 
     redisClient.on('connect', () => {
       console.log('[Redis] Connected successfully');
@@ -65,7 +73,7 @@ export function initRedis(): Redis | null {
     });
 
     redisClient.on('error', (err) => {
-      console.error('[Redis] Connection error:', err.message);
+      console.error('[Redis] Connection error:', err);
       redisAvailable = false;
     });
 
@@ -76,7 +84,7 @@ export function initRedis(): Redis | null {
 
     // Attempt connection
     redisClient.connect().catch((err) => {
-      console.error('[Redis] Failed to connect:', err.message);
+      console.error('[Redis] Failed to connect:', err);
       redisAvailable = false;
     });
 
