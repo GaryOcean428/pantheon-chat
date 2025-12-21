@@ -26,3 +26,7 @@ package-lock.json
 docs/_drafts/*.md
 .env
 data/backups/geometric-memory_20251128_062436.json
+# Legacy tokenizer files (replaced by coordizer)
+qig-backend/qig_tokenizer.py
+qig-backend/qig_tokenizer_postgresql.py
+qig-backend/data/qig_tokenizer_state.json
