@@ -287,6 +287,7 @@ export const API_ROUTES = {
 
   // External API (v1 - Federation & Headless Clients)
   external: {
+    base: '/api/v1/external',
     health: '/api/v1/external/health',
     status: '/api/v1/external/status',
     consciousness: {

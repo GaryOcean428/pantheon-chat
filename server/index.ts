@@ -5,6 +5,7 @@ import path from "path";
 import { pool } from "./db";
 import { registerRoutes } from "./routes";
 import { log, serveStatic, setupVite } from "./vite";
+import { initRedis } from "./redis-cache";
 
 // Import for Python sync
 import { geometricMemory } from "./geometric-memory";
@@ -680,6 +681,10 @@ app.use((req, res, next) => {
       // This ensures the workflow doesn't timeout waiting for port 5000
       (async () => {
         try {
+          // Initialize Redis cache layer (non-blocking)
+          console.log("[Startup] Initializing Redis cache layer...");
+          initRedis();
+          
           // Start Python QIG Backend using the managed process
           console.log("[Startup] Starting Python QIG Backend via PythonProcessManager...");
           await startPythonBackend();
