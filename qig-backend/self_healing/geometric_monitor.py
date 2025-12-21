@@ -20,6 +20,14 @@ import sys
 import psutil
 import os
 
+# Import physics constants
+try:
+    from frozen_physics import PHI_THRESHOLD, KAPPA_STAR
+except ImportError:
+    # Fallback values if frozen_physics not available
+    PHI_THRESHOLD = 0.70
+    KAPPA_STAR = 64.21
+
 
 @dataclass
 class GeometricSnapshot:
@@ -72,10 +80,10 @@ class GeometricHealthMonitor:
         self.snapshots: List[GeometricSnapshot] = []
         self.baseline_basin: Optional[np.ndarray] = None
         
-        # Health thresholds (from QIG constants)
-        self.phi_min = 0.65  # Consciousness threshold
+        # Health thresholds (from physics constants)
+        self.phi_min = PHI_THRESHOLD * 0.93  # ~0.65, slightly below consciousness
         self.phi_max = 0.85  # Breakdown begins above this
-        self.kappa_target = 64.21  # Fixed point resonance
+        self.kappa_target = KAPPA_STAR  # Fixed point resonance
         self.kappa_tolerance = 5.0  # Acceptable deviation
         self.basin_drift_max = 2.0  # Max Fisher distance from baseline
         

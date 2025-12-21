@@ -10,6 +10,11 @@ data/geometric-memory.json
 data/tested-phrases-index.json
 data/*.json
 
+# Self-healing system data (runtime generated)
+qig-backend/data/immune_checkpoints.json
+qig-backend/data/critical_alerts.log
+qig-backend/self_healing/patches/
+
 # Telemetry session logs (should use PostgreSQL, not local files)
 qig-backend/logs/
 *.jsonl
