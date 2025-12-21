@@ -82,7 +82,7 @@ try:
     from .hestia import Hestia, SafetyConfig, SafetyVitals
     from .demeter_tutor import DemeterTutor, Lesson, StudentProgress
     from .chiron import Chiron, DiagnosticIssue, PatientRecord
-    from .knowledge_exchange import KnowledgeExchange, SharedStrategy
+    from .knowledge_exchange import KnowledgeExchange
     GUARDIANS_AVAILABLE = True
 except ImportError:
     GUARDIANS_AVAILABLE = False
@@ -202,6 +202,5 @@ __all__ = [
     'DiagnosticIssue',
     'PatientRecord',
     'KnowledgeExchange',
-    'SharedStrategy',
     'GUARDIANS_AVAILABLE',
 ]
