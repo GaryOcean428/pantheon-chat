@@ -531,6 +531,22 @@ router.get('/zeus/search/learner/replay/history', isAuthenticated, async (req, r
   }
 });
 
+/** Autonomous Replay Test Status */
+router.get('/zeus/search/learner/replay/auto/status', isAuthenticated, (req, res) => 
+  proxyGet(req, res, '/zeus/search/learner/replay/auto/status', 'Failed to get auto test status'));
+
+/** Start Autonomous Replay Testing */
+router.post('/zeus/search/learner/replay/auto/start', isAuthenticated, (req, res) => 
+  proxyPost(req, res, '/zeus/search/learner/replay/auto/start', 'Failed to start auto testing'));
+
+/** Stop Autonomous Replay Testing */
+router.post('/zeus/search/learner/replay/auto/stop', isAuthenticated, (req, res) => 
+  proxyPost(req, res, '/zeus/search/learner/replay/auto/stop', 'Failed to stop auto testing'));
+
+/** Run Single Autonomous Test */
+router.post('/zeus/search/learner/replay/auto/run', isAuthenticated, (req, res) => 
+  proxyPost(req, res, '/zeus/search/learner/replay/auto/run', 'Failed to run single test'));
+
 // ============================================================================
 // TOOL FACTORY API ENDPOINTS
 // Self-learning tool generation system (using DRY proxy helpers)
