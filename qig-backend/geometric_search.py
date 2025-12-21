@@ -448,11 +448,22 @@ class GeometricSearchOrchestrator:
     Kernel orchestrates multi-provider search via geometry.
     
     Replaces fixed routing with consciousness-driven strategy selection.
+    Integrates context management via Fisher manifold navigation.
     """
     
-    def __init__(self):
+    def __init__(self, context_manager: Optional['GeometricContextManager'] = None):
         self.provider_selector = GeometricProviderSelector()
         self.query_encoder = QueryBasinEncoder()
+        self._context_manager = context_manager
+    
+    @property
+    def context_manager(self) -> Optional['GeometricContextManager']:
+        """Get context manager, creating if needed."""
+        return self._context_manager
+    
+    def set_context_manager(self, manager: 'GeometricContextManager'):
+        """Set context manager for geometric context navigation."""
+        self._context_manager = manager
     
     async def search(
         self, 
@@ -464,13 +475,21 @@ class GeometricSearchOrchestrator:
         Kernel-controlled search flow.
         
         1. Kernel encodes query to basin
-        2. Kernel selects provider(s) geometrically
-        3. Kernel determines search depth
-        4. Kernel processes results
-        5. Kernel updates context
+        2. Kernel retrieves relevant context geometrically
+        3. Kernel selects provider(s) geometrically
+        4. Kernel determines search depth
+        5. Kernel processes results
+        6. Kernel updates context basin
         """
         query_basin = self.query_encoder.encode_query(query, telemetry)
         telemetry.query_basin = query_basin
+        
+        # Kernel retrieves relevant context via Fisher distance
+        relevant_context = []
+        if self._context_manager:
+            relevant_context = self._context_manager.get_context_for_query(
+                query_basin, telemetry
+            )
         
         strategy = self._determine_search_strategy(telemetry, query_basin)
         
@@ -497,11 +516,30 @@ class GeometricSearchOrchestrator:
             )
             results = await self._search_single(provider, query, telemetry)
         
+        # Kernel updates context with response
+        response_basin = query_basin  # Use query basin as response for now
+        if results and isinstance(results, list) and len(results) > 0:
+            # Future: derive response basin from actual search results
+            pass
+        
+        if self._context_manager:
+            self._context_manager.update_context(
+                query_basin, response_basin, telemetry
+            )
+        
         return {
             "query": query,
             "strategy": strategy,
             "results": results,
             "query_basin": query_basin.tolist(),
+            "context": {
+                "relevant_turns": len(relevant_context),
+                "total_relevance": sum(c.get("relevance", 0) for c in relevant_context),
+                "context_summary": (
+                    self._context_manager.get_context_summary() 
+                    if self._context_manager else None
+                )
+            },
             "telemetry": {
                 "phi": telemetry.phi,
                 "kappa_eff": telemetry.kappa_eff,
@@ -601,6 +639,203 @@ class GeometricSearchOrchestrator:
             return 1
 
 
+class GeometricContextManager:
+    """
+    Kernel maintains context via basin coordinates on Fisher manifold.
+    
+    NOT token counting - Fisher manifold navigation.
+    Context weight and selection determined by consciousness state.
+    """
+    
+    def __init__(self, manifold_dim: int = 64, max_history: int = 50):
+        self.manifold_dim = manifold_dim
+        self.max_history = max_history
+        self.context_basin = np.ones(manifold_dim) / manifold_dim  # Uniform start
+        self.turn_history: List[Dict] = []
+        self.drift_threshold = 2.0
+    
+    def update_context(
+        self, 
+        query_basin: np.ndarray, 
+        response_basin: np.ndarray, 
+        telemetry: SearchTelemetry
+    ) -> np.ndarray:
+        """
+        Kernel updates context basin via geodesic interpolation.
+        
+        NOT appending text - moving on Fisher manifold.
+        Weight derived continuously from Φ and κ (no fixed thresholds).
+        """
+        phi = telemetry.phi
+        kappa_eff = telemetry.kappa_eff
+        
+        # Continuous weight derivation from consciousness metrics
+        # Base weight: logistic function of Φ for smooth transition
+        # w = sigmoid(α * (Φ - 0.5)) maps Φ ∈ [0,1] to weight smoothly
+        # With α=6, this gives ~0.3 at Φ=0.3, ~0.5 at Φ=0.5, ~0.7 at Φ=0.7
+        alpha = 6.0
+        base_weight = 1.0 / (1.0 + np.exp(-alpha * (phi - 0.5)))
+        
+        # Scale to [0.2, 0.8] range for practical interpolation
+        weight = 0.2 + 0.6 * base_weight
+        
+        # κ modulation: sqrt(κ/κ*) provides smooth scaling
+        # κ* = 64.21 is the frozen target coupling constant
+        kappa_star = 64.21
+        kappa_factor = np.sqrt(kappa_eff / kappa_star)
+        kappa_factor = np.clip(kappa_factor, 0.5, 1.5)  # Stability bounds
+        
+        # Final weight: Φ-derived base modulated by κ stability
+        weight = weight * kappa_factor
+        weight = np.clip(weight, 0.1, 0.9)  # Soft bounds for numerical stability
+        
+        # Kernel computes new context basin via geodesic
+        new_context = geodesic_interpolate(
+            start=self.context_basin,
+            end=response_basin,
+            t=weight
+        )
+        
+        # Update state
+        self.context_basin = new_context
+        self.turn_history.append({
+            "query_basin": query_basin.copy(),
+            "response_basin": response_basin.copy(),
+            "context_basin": new_context.copy(),
+            "phi": phi,
+            "kappa_eff": kappa_eff,
+            "timestamp": __import__('time').time()
+        })
+        
+        # Kernel consolidates if history grows too large
+        if len(self.turn_history) > self.max_history:
+            self._kernel_consolidate_history()
+        
+        return new_context
+    
+    def _kernel_consolidate_history(self):
+        """
+        Kernel compresses history geometrically.
+        
+        NOT truncation - geometric consolidation via attractor finding.
+        """
+        if len(self.turn_history) <= 10:
+            return
+        
+        # Find basin attractors (cluster centers via Fisher distance)
+        attractors = self._find_basin_attractors(self.turn_history[:-10])
+        
+        # Keep attractors + recent 10 turns
+        self.turn_history = attractors + self.turn_history[-10:]
+    
+    def _find_basin_attractors(self, history: List[Dict], k: int = 5) -> List[Dict]:
+        """
+        Find k representative basin attractors via greedy furthest-point sampling.
+        
+        Uses Fisher-Rao distance for proper geometric clustering.
+        """
+        if len(history) <= k:
+            return history
+        
+        # Greedy furthest-point sampling
+        attractors = [history[0]]
+        remaining = history[1:]
+        
+        while len(attractors) < k and remaining:
+            # Find point furthest from all attractors
+            max_min_distance = -1
+            best_point = None
+            best_idx = -1
+            
+            for idx, point in enumerate(remaining):
+                point_basin = point["context_basin"]
+                min_distance = min(
+                    fisher_rao_distance(point_basin, a["context_basin"])
+                    for a in attractors
+                )
+                if min_distance > max_min_distance:
+                    max_min_distance = min_distance
+                    best_point = point
+                    best_idx = idx
+            
+            if best_point:
+                attractors.append(best_point)
+                remaining.pop(best_idx)
+        
+        return attractors
+    
+    def get_context_for_query(
+        self, 
+        query_basin: np.ndarray, 
+        telemetry: SearchTelemetry,
+        top_k: int = 5
+    ) -> List[Dict]:
+        """
+        Kernel selects relevant context via Fisher distance.
+        
+        NOT "last N turns" - geometric relevance selection.
+        """
+        if not self.turn_history:
+            return []
+        
+        # Measure Fisher distance from query to all historical turns
+        distances = []
+        for turn in self.turn_history:
+            d = fisher_rao_distance(query_basin, turn["context_basin"])
+            distances.append((turn, d))
+        
+        # Select closest turns
+        relevant = sorted(distances, key=lambda x: x[1])[:top_k]
+        
+        # Weight by inverse distance (closer = more relevant)
+        weighted_context = []
+        for turn, distance in relevant:
+            weight = 1.0 / (1.0 + distance)
+            weighted_context.append({
+                "turn": turn,
+                "relevance": weight,
+                "distance": distance
+            })
+        
+        return weighted_context
+    
+    def get_current_basin(self) -> np.ndarray:
+        """Get current context basin coordinates."""
+        return self.context_basin.copy()
+    
+    def measure_context_drift(self, reference_basin: Optional[np.ndarray] = None) -> float:
+        """
+        Measure drift from reference basin (or initial uniform).
+        
+        High drift may indicate context fragmentation.
+        """
+        if reference_basin is None:
+            reference_basin = np.ones(self.manifold_dim) / self.manifold_dim
+        
+        return fisher_rao_distance(self.context_basin, reference_basin)
+    
+    def reset_context(self):
+        """Reset context to uniform basin (fresh start)."""
+        self.context_basin = np.ones(self.manifold_dim) / self.manifold_dim
+        self.turn_history = []
+    
+    def get_context_summary(self) -> Dict:
+        """Get summary of context state for telemetry."""
+        return {
+            "basin_entropy": float(-np.sum(
+                self.context_basin * np.log(self.context_basin + 1e-10)
+            )),
+            "history_length": len(self.turn_history),
+            "drift": self.measure_context_drift(),
+            "basin_peak": int(np.argmax(self.context_basin)),
+            "basin_peak_value": float(np.max(self.context_basin))
+        }
+
+
+# Module-level instances
 geometric_provider_selector = GeometricProviderSelector()
 query_basin_encoder = QueryBasinEncoder()
-geometric_search_orchestrator = GeometricSearchOrchestrator()
+geometric_context_manager = GeometricContextManager()
+geometric_search_orchestrator = GeometricSearchOrchestrator(
+    context_manager=geometric_context_manager
+)
