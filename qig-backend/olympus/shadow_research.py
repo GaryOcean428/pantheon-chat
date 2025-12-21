@@ -1769,21 +1769,24 @@ class ShadowLearningLoop:
         last_reflection = self._meta_reflections[-1] if self._meta_reflections else None
         foresight = last_reflection.get("foresight_4d", {}) if last_reflection else {}
         
+        # Convert any numpy types to Python primitives for JSON serialization
+        kb_stats = self.knowledge_base.get_stats()
+        
         return {
-            "running": self._running,
-            "war_mode": self._war_mode,
-            "learning_cycles": self._learning_cycles,
-            "pending_research": self.research_queue.get_pending_count(),
-            "completed_research": self.research_queue.get_completed_count(),
-            "knowledge_items": self.knowledge_base.get_stats()['total_items'],
-            "unique_discoveries": self.knowledge_base.get_unique_discoveries_count(),
+            "running": bool(self._running),
+            "war_mode": bool(self._war_mode),
+            "learning_cycles": int(self._learning_cycles),
+            "pending_research": int(self.research_queue.get_pending_count()),
+            "completed_research": int(self.research_queue.get_completed_count()),
+            "knowledge_items": int(kb_stats.get('total_items', 0)),
+            "unique_discoveries": int(self.knowledge_base.get_unique_discoveries_count()),
             "meta_reflections": len(self._meta_reflections),
             "last_reflection": last_reflection,
             "foresight_4d": {
-                "status": foresight.get("status", "not_computed"),
+                "status": str(foresight.get("status", "not_computed")),
                 "trajectory": foresight.get("trajectory", {}),
                 "next_prediction": foresight.get("predictions", [{}])[0] if foresight.get("predictions") else None,
-                "temporal_coherence": foresight.get("temporal_coherence", 0.0)
+                "temporal_coherence": float(foresight.get("temporal_coherence", 0.0))
             }
         }
     
