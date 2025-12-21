@@ -1,5 +1,4 @@
 import { Link, useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
 import {
   Sidebar,
   SidebarContent,
@@ -14,12 +13,10 @@ import {
   Badge,
   Button,
 } from "@/components/ui";
-import { API_ROUTES, QUERY_KEYS } from "@/api";
+import { API_ROUTES } from "@/api";
 import { 
-  Waves, 
   Home,
   Brain,
-  Activity,
   LogOut,
   User,
   Sparkles,
@@ -49,25 +46,12 @@ export function AppSidebar() {
   const { user } = useAuth() as { user: UserType | undefined };
   const { consciousness, neurochemistry, isIdle } = useConsciousness();
 
-  const { data: investigationStatus } = useQuery<{ isRunning: boolean; tested: number }>({
-    queryKey: QUERY_KEYS.investigation.status(),
-    refetchInterval: 3000,
-  });
-
   const navItems = [
     {
       title: "Home",
       url: "/",
       icon: Home,
       description: "Dashboard overview",
-    },
-    {
-      title: "Ocean Search",
-      url: "/investigation",
-      icon: Waves,
-      description: "Autonomous research agent",
-      badge: investigationStatus?.isRunning ? "ACTIVE" : undefined,
-      badgeColor: "bg-green-500/20 text-green-400",
     },
     {
       title: "Mount Olympus",
@@ -184,11 +168,6 @@ export function AppSidebar() {
                     <Link href={item.url} data-testid={`link-nav-${item.title.toLowerCase().replace(/\s+/g, '-')}`}>
                       <item.icon className="h-4 w-4" />
                       <span>{item.title}</span>
-                      {item.badge && (
-                        <Badge className={`ml-auto text-xs ${item.badgeColor}`}>
-                          {item.badge}
-                        </Badge>
-                      )}
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -303,24 +282,6 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {investigationStatus?.isRunning && (
-          <SidebarGroup>
-            <SidebarGroupLabel className="flex items-center gap-2">
-              <Activity className="h-3 w-3 animate-pulse" />
-              Active Investigation
-            </SidebarGroupLabel>
-            <SidebarGroupContent>
-              <div className="px-3 py-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">Tested</span>
-                  <span className="text-sm font-mono font-medium text-cyan-400">
-                    {investigationStatus.tested.toLocaleString()}
-                  </span>
-                </div>
-              </div>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
       </SidebarContent>
 
       <SidebarFooter className="p-4 border-t border-sidebar-border">

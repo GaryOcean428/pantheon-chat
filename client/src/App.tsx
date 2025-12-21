@@ -14,7 +14,6 @@ import {
   Federation as FederationPage,
   Landing,
   Home,
-  Investigation as InvestigationPage,
   Olympus as OlympusPage,
   Sources as SourcesPage,
   Spawning as SpawningPage,
@@ -79,7 +78,6 @@ function Router() {
     <AuthenticatedLayout>
       <Switch>
         <Route path="/" component={Home} />
-        <Route path="/investigation" component={InvestigationPage} />
         <Route path="/olympus" component={OlympusPage} />
         <Route path="/spawning" component={SpawningPage} />
         <Route path="/learning" component={LearningDashboard} />
