@@ -50,12 +50,16 @@ class GeometricVocabBuilder:
         compute_cluster_stability(cluster) -> float: Measure geometric stability
     """
     
+    # Clustering configuration constants
+    DEFAULT_CLUSTER_THRESHOLD = np.pi / 4  # 45 degrees in Fisher space
+    
     def __init__(
         self,
         min_cluster_size: int = 3,
         stability_threshold: float = 0.8,
         phi_threshold: float = 0.7,
         max_token_length: int = 5,
+        cluster_threshold: Optional[float] = None,
     ):
         """
         Initialize GeometricVocabBuilder.
@@ -65,11 +69,13 @@ class GeometricVocabBuilder:
             stability_threshold: Minimum Fisher stability for token promotion
             phi_threshold: Minimum Φ score for consciousness-guided promotion
             max_token_length: Maximum length (in tokens) for merged sequences
+            cluster_threshold: Fisher distance threshold for clustering (default: π/4)
         """
         self.min_cluster_size = min_cluster_size
         self.stability_threshold = stability_threshold
         self.phi_threshold = phi_threshold
         self.max_token_length = max_token_length
+        self.cluster_threshold = cluster_threshold or self.DEFAULT_CLUSTER_THRESHOLD
         
         # Track discovered clusters
         self.clusters: Dict[int, List[Tuple[np.ndarray, str]]] = {}
@@ -169,7 +175,6 @@ class GeometricVocabBuilder:
                 distance_matrix[j, i] = avg_dist
         
         # Simple clustering: group sequences with distance < threshold
-        cluster_threshold = np.pi / 4  # 45 degrees in Fisher space
         clusters: Dict[int, List[Tuple[str, List[np.ndarray]]]] = defaultdict(list)
         assigned = set()
         
@@ -187,7 +192,7 @@ class GeometricVocabBuilder:
                 if j in assigned:
                     continue
                 
-                if distance_matrix[i, j] < cluster_threshold:
+                if distance_matrix[i, j] < self.cluster_threshold:
                     cluster.append(sequences[j])
                     assigned.add(j)
             

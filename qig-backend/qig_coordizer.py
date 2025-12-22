@@ -103,8 +103,16 @@ class QIGCoordizer(FisherCoordizer):
             with open(bip39_path, 'r') as f:
                 words = [line.strip() for line in f if line.strip()]
         else:
-            # Minimal fallback
-            words = ["abandon", "ability", "able", "about", "above"]
+            # Extended fallback - first 50 BIP39 words for basic functionality
+            words = [
+                "abandon", "ability", "able", "about", "above", "absent", "absorb", "abstract",
+                "absurd", "abuse", "access", "accident", "account", "accuse", "achieve", "acid",
+                "acoustic", "acquire", "across", "act", "action", "actor", "actress", "actual",
+                "adapt", "add", "addict", "address", "adjust", "admit", "adult", "advance",
+                "adverse", "advertise", "advice", "aerobic", "afford", "afraid", "again", "age",
+                "agent", "agree", "ahead", "aim", "air", "airport", "aisle", "alarm",
+                "album", "alcohol"
+            ]
         
         start_id = len(self.special_tokens)
         for i, word in enumerate(words):

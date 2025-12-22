@@ -267,7 +267,7 @@ class FisherCoordizer:
     
     def add_token(
         self, token: str, coordinate: Optional[np.ndarray] = None
-    ) -> int:
+    ) -> Optional[int]:
         """
         Add new token to vocabulary with basin coordinate.
         
@@ -276,14 +276,21 @@ class FisherCoordizer:
             coordinate: Optional basin coordinate (if None, auto-generate)
         
         Returns:
-            Token ID
+            Token ID if added successfully, None if vocabulary is full
+        
+        Raises:
+            ValueError: Only if token is empty or invalid
         """
+        if not token:
+            raise ValueError("Token cannot be empty")
+        
         if token in self.vocab:
             return self.vocab[token]
         
         token_id = len(self.vocab)
         if token_id >= self.vocab_size:
-            raise ValueError(f"Vocabulary full (max size: {self.vocab_size})")
+            # Vocabulary full - return None for graceful handling
+            return None
         
         self.vocab[token] = token_id
         self.id_to_token[token_id] = token
@@ -308,10 +315,16 @@ class FisherCoordizer:
             token: Token string
         
         Returns:
-            64D basin coordinate (returns UNK coordinate if not found)
+            64D basin coordinate (returns UNK coordinate if token not found)
         """
         if token in self.basin_coords:
             return self.basin_coords[token]
+        
+        # Safety check: ensure UNK exists
+        if "<UNK>" not in self.basin_coords:
+            # Fallback to zero vector if UNK is somehow missing
+            return np.zeros(self.coordinate_dim)
+        
         return self.basin_coords["<UNK>"]
     
     def update_phi_scores(self, phi_scores: Dict[str, float]) -> None:
