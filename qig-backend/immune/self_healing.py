@@ -35,23 +35,28 @@ class SelfHealing:
         self._load_checkpoints()
     
     def _load_checkpoints(self):
-        """Load saved checkpoints from disk."""
-        checkpoint_file = 'qig-backend/data/immune_checkpoints.json'
-        if os.path.exists(checkpoint_file):
-            try:
-                with open(checkpoint_file, 'r') as f:
-                    self.checkpoints = json.load(f)
-                print(f"[SelfHealing] Loaded {len(self.checkpoints)} checkpoints")
-            except:
-                self.checkpoints = []
+        """Load saved checkpoints from Redis."""
+        try:
+            from redis_cache import UniversalCache
+            data = UniversalCache.get('qig:immune:checkpoints')
+            if data and isinstance(data, list):
+                self.checkpoints = data
+                print(f"[SelfHealing] Loaded {len(self.checkpoints)} checkpoints from Redis")
+                return
+        except ImportError:
+            pass
+        except Exception as e:
+            print(f"[SelfHealing] Redis load failed: {e}")
+        
+        self.checkpoints = []
     
     def _save_checkpoints(self):
-        """Save checkpoints to disk."""
-        os.makedirs('qig-backend/data', exist_ok=True)
-        checkpoint_file = 'qig-backend/data/immune_checkpoints.json'
+        """Save checkpoints to Redis."""
         try:
-            with open(checkpoint_file, 'w') as f:
-                json.dump(self.checkpoints[-100:], f)
+            from redis_cache import UniversalCache, CACHE_TTL_PERMANENT
+            UniversalCache.set('qig:immune:checkpoints', self.checkpoints[-100:], CACHE_TTL_PERMANENT)
+        except ImportError:
+            print("[SelfHealing] Redis not available for checkpoint save")
         except Exception as e:
             print(f"[SelfHealing] Failed to save checkpoints: {e}")
     
@@ -65,16 +70,22 @@ class SelfHealing:
             f"{datetime.now().isoformat()}{label}".encode()
         ).hexdigest()[:16]
         
+        basin_coords = state.get('basin_coordinates', [])
+        if hasattr(basin_coords, 'tolist'):
+            basin_coords = basin_coords.tolist()
+        elif isinstance(basin_coords, (list, tuple)):
+            basin_coords = [float(x) if hasattr(x, 'item') else x for x in basin_coords]
+        
         checkpoint = {
             'id': checkpoint_id,
             'label': label,
             'timestamp': datetime.now().isoformat(),
             'state_hash': self._compute_state_hash(state),
-            'phi': state.get('phi', self.phi_baseline),
-            'kappa': state.get('kappa', self.kappa_baseline),
+            'phi': float(state.get('phi', self.phi_baseline)),
+            'kappa': float(state.get('kappa', self.kappa_baseline)),
             'regime': state.get('regime', 'geometric'),
-            'health_score': self.current_health,
-            'basin_coordinates': state.get('basin_coordinates', [])
+            'health_score': float(self.current_health),
+            'basin_coordinates': basin_coords
         }
         
         self.checkpoints.append(checkpoint)

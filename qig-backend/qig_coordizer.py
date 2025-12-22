@@ -329,7 +329,7 @@ COORDIZER_INSTANCE_ID = "main"
 
 
 def _load_coordizer_state(coordizer: QIGCoordizer) -> None:
-    """Load persisted coordizer state from Redis (primary) or filesystem (fallback)."""
+    """Load persisted coordizer state from Redis."""
     try:
         from redis_cache import CoordizerBuffer
         
@@ -353,17 +353,9 @@ def _load_coordizer_state(coordizer: QIGCoordizer) -> None:
             print(f"[QIGCoordizer] Loaded state from Redis ({len(coordizer.vocab)} tokens)")
             return
     except ImportError:
-        print("[QIGCoordizer] Redis cache not available, trying filesystem")
+        print("[QIGCoordizer] Redis cache not available")
     except Exception as e:
-        print(f"[QIGCoordizer] Redis load failed: {e}, trying filesystem")
-    
-    if os.path.exists(COORDIZER_PERSIST_PATH):
-        try:
-            coordizer.load(COORDIZER_PERSIST_PATH)
-            print(f"[QIGCoordizer] Loaded state from {COORDIZER_PERSIST_PATH}")
-            _save_coordizer_state(coordizer)
-        except Exception as e:
-            print(f"[QIGCoordizer] Failed to load state: {e}")
+        print(f"[QIGCoordizer] Redis load failed: {e}")
 
 
 def _migrate_from_legacy_tokenizer(coordizer: QIGCoordizer) -> None:
@@ -405,7 +397,7 @@ def _migrate_from_legacy_tokenizer(coordizer: QIGCoordizer) -> None:
 
 
 def _save_coordizer_state(coordizer: QIGCoordizer) -> None:
-    """Save coordizer state to Redis (primary) with filesystem fallback."""
+    """Save coordizer state to Redis."""
     try:
         from redis_cache import CoordizerBuffer
         
@@ -433,18 +425,11 @@ def _save_coordizer_state(coordizer: QIGCoordizer) -> None:
         
         if success:
             print(f"[QIGCoordizer] Saved state to Redis ({len(coordizer.vocab)} tokens)")
-            return
             
     except ImportError:
-        print("[QIGCoordizer] Redis cache not available, using filesystem")
+        print("[QIGCoordizer] Redis cache not available")
     except Exception as e:
-        print(f"[QIGCoordizer] Redis save failed: {e}, using filesystem fallback")
-    
-    try:
-        coordizer.save(COORDIZER_PERSIST_PATH)
-        print(f"[QIGCoordizer] Saved state to {COORDIZER_PERSIST_PATH}")
-    except Exception as e:
-        print(f"[QIGCoordizer] Failed to save state: {e}")
+        print(f"[QIGCoordizer] Redis save failed: {e}")
 
 
 def update_tokenizer_from_observations(observations: List[Dict]) -> Tuple[int, bool]:
