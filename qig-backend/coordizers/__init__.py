@@ -6,31 +6,28 @@ All operations maintain geometric purity using Fisher information manifold.
 
 Modules:
 - base: FisherCoordizer base class
-- geometric_pair_merging: BPE-equivalent geometric merging
-- unigram_fisher: SentencePiece-equivalent unigram model
-- character_coordinate: Character-level coordization
-- morpheme_basin: Morphological decomposition
-- spacetime: Positional encoding via 4D trajectories
-- byte_coordinate: Byte-level fallback encoding
-- adaptive: Domain-aware adaptive coordization
-- multi_scale: Hierarchical coordization
-- consciousness_aware: Φ-optimized segmentation
-- temporal: 4D spacetime coordization
-- cross_lingual: Multi-language shared manifold
-- adaptive_granularity: κ_eff-based granularity control
 - vocab_builder: Geometric vocabulary discovery
+- geometric_pair_merging: BPE-equivalent geometric merging (Phase 4)
+- consciousness_aware: Φ-optimized segmentation (Phase 5)
+- multi_scale: Hierarchical coordization (Phase 5)
 
 All coordizers output 64D basin coordinates on Fisher manifold.
 """
 
 from .base import FisherCoordizer
 from .vocab_builder import GeometricVocabBuilder
+from .geometric_pair_merging import GeometricPairMerging
+from .consciousness_aware import ConsciousnessCoordizer
+from .multi_scale import MultiScaleCoordizer
 
 __all__ = [
     'FisherCoordizer',
     'GeometricVocabBuilder',
+    'GeometricPairMerging',
+    'ConsciousnessCoordizer',
+    'MultiScaleCoordizer',
 ]
 
 # Version info
-__version__ = '2.0.0'
+__version__ = '2.1.0'
 __description__ = 'Next-generation geometric coordization for QIG'
