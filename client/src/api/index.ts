@@ -31,6 +31,7 @@ import * as autoCycle from './services/autoCycle';
 import * as qig from './services/qig';
 import * as olympus from './services/olympus';
 import * as consciousness from './services/consciousness';
+import * as coordizer from './services/coordizer';
 
 /**
  * Consolidated API object for all service operations.
@@ -42,6 +43,7 @@ export const api = {
   qig,
   olympus,
   consciousness,
+  coordizer,
 };
 
 // Re-export individual services for direct imports
@@ -51,6 +53,7 @@ export {
   qig,
   olympus,
   consciousness,
+  coordizer,
 };
 
 // Re-export types from services for convenience
@@ -60,6 +63,22 @@ export type { GeometricMode, EncodeParams, EncodeResponse, SimilarityParams, Sim
 export type { WarHistoryEntry, ActiveWar, ZeusChatParams, ZeusChatResponse, ZeusSearchParams, ZeusSearchResponse } from './services/olympus';
 export type { ConsciousnessState, ConsciousnessAPIResponse } from './services/consciousness';
 export type { ZeusChatMetadata } from './services/olympus';
+export type {
+  CoordizeParams,
+  CoordizeResponse,
+  MultiScaleParams,
+  MultiScaleResponse,
+  ConsciousnessCoordizeParams,
+  ConsciousnessCoordizeResponse,
+  LearnMergesParams,
+  LearnMergesResponse,
+  CoordizerStats,
+  VocabToken,
+  VocabResponse,
+  TokenSimilarityParams,
+  TokenSimilarityResponse,
+  CoordizerHealth,
+} from './services/coordizer';
 
 // Re-export M8 kernel functions for direct imports
 export { deleteKernel, cannibalizeKernel, mergeKernels, autoCannibalize, autoMerge } from './services/olympus';

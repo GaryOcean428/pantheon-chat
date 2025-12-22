@@ -140,6 +140,18 @@ export const API_ROUTES = {
     },
   },
 
+  // Geometric Coordizer (Next-Gen Tokenization)
+  coordizer: {
+    coordize: '/api/coordize',
+    multiScale: '/api/coordize/multi-scale',
+    consciousness: '/api/coordize/consciousness',
+    learnMerges: '/api/coordize/merge/learn',
+    stats: '/api/coordize/stats',
+    vocab: '/api/coordize/vocab',
+    similarity: '/api/coordize/similarity',
+    health: '/api/coordize/health',
+  },
+
   // Federation
   federation: {
     keys: '/api/federation/keys',
@@ -438,6 +450,15 @@ export const QUERY_KEYS = {
   qig: {
     geometricStatus: () => [API_ROUTES.qig.geometricStatus] as const,
     autonomicAgencyStatus: () => [API_ROUTES.qig.autonomic.agencyStatus] as const,
+  },
+
+  coordizer: {
+    stats: () => [API_ROUTES.coordizer.stats] as const,
+    vocab: (search?: string, limit?: number) => 
+      search || limit 
+        ? [API_ROUTES.coordizer.vocab, { search, limit }] as const
+        : [API_ROUTES.coordizer.vocab] as const,
+    health: () => [API_ROUTES.coordizer.health] as const,
   },
 
   federation: {

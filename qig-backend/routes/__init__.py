@@ -960,6 +960,14 @@ def safety_abort():
 
 ALL_BLUEPRINTS = [internal_bp, curiosity_bp, telemetry_bp, capability_mesh_bp, natural_gradient_bp, beta_attention_bp, tool_factory_bp, safety_bp]
 
+# Register coordizer API if available
+try:
+    from api_coordizers import coordizer_api
+    ALL_BLUEPRINTS.append(coordizer_api)
+    print("[Routes] Coordizer API will be registered")
+except ImportError as e:
+    print(f"[Routes] Coordizer API not available: {e}")
+
 # NOTE: research_bp is registered separately in ocean_qig_core.py
 # Don't add it here to avoid duplicate registration
 

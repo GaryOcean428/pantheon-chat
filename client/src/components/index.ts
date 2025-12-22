@@ -12,6 +12,7 @@ export * from './ui';
 export { AppSidebar } from './app-sidebar';
 export { BasinCoordinateViewer } from './BasinCoordinateViewer';
 export { BetaAttentionDisplay } from './BetaAttentionDisplay';
+export { CoordizerDemo } from './CoordizerDemo';
 export { ThemeProvider } from './ThemeProvider';
 export { ThemeToggle } from './ThemeToggle';
 export { default as CapabilityTelemetryPanel } from './CapabilityTelemetryPanel';
