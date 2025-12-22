@@ -1,0 +1,30 @@
+api/olympus/shadow/learning:1  Failed to load resource: the server responded with a status of 500 ()
+api/olympus/shadow/foresight:1  Failed to load resource: the server responded with a status of 500 ()
+api/olympus/shadow/learning:1  Failed to load resource: the server responded with a status of 500 ()
+api/olympus/shadow/foresight:1  Failed to load resource: the server responded with a status of 500 ()
+api/olympus/shadow/learning:1  Failed to load resource: the server responded with a status of 500 ()
+api/olympus/shadow/learning:1  Failed to load resource: the server responded with a status of 500 ()
+api/olympus/shadow/foresight:1  Failed to load resource: the server responded with a status of 500 ()
+api/olympus/shadow/learning:1  Failed to load resource: the server responded with a status of 500 ()
+api/olympus/shadow/foresight:1  Failed to load resource: the server responded with a status of 500 ()
+api/olympus/shadow/learning:1  Failed to load resource: the server responded with a status of 500 ()
+learning:1 Uncaught (in promise) Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received
+learning:1 Uncaught (in promise) Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received
+learning:1 Uncaught (in promise) Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received
+learning:1 Uncaught (in promise) Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received
+learning:1 Uncaught (in promise) Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received
+learning:1 Uncaught (in promise) Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received
+learning:1 Uncaught (in promise) Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received
+learning:1 Uncaught (in promise) Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received
+api/olympus/shadow/learning:1  Failed to load resource: the server responded with a status of 500 ()
+api/olympus/shadow/foresight:1  Failed to load resource: the server responded with a status of 500 ()
+api/python/research/sources:1  Failed to load resource: the server responded with a status of 404 ()
+api/python/research/sources:1  Failed to load resource: the server responded with a status of 404 ()
+api/python/research/sources:1  Failed to load resource: the server responded with a status of 404 ()
+api/python/research/sources:1  Failed to load resource: the server responded with a status of 404 ()
+index-CsjmsOEc.js:665 Fetch finished loading: GET "https://pantheon-chat.replit.app/api/ocean/cycles".
+ir @ index-CsjmsOEc.js:665
+(anonymous) @ index-CsjmsOEc.js:665
+index-CsjmsOEc.js:665 Fetch finished loading: GET "https://pantheon-chat.replit.app/api/ocean/neurochemistry".
+ir @ index-CsjmsOEc.js:665
+(anonymous) @ index-CsjmsOEc.js:665
