@@ -16,6 +16,10 @@ Endpoints:
 from flask import Blueprint, request, jsonify
 from typing import Dict, List, Optional
 import numpy as np
+import logging
+
+# Logger for this module
+logger = logging.getLogger(__name__)
 
 # Import coordizers
 try:
@@ -112,7 +116,8 @@ def coordize_text():
         return jsonify(response)
     
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        logger.exception("Error in coordize_text: %s", e)
+        return jsonify({'error': 'Internal server error'}), 500
 
 
 @coordizer_api.route('/api/coordize/multi-scale', methods=['POST'])
