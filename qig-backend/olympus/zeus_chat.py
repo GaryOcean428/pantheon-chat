@@ -99,16 +99,15 @@ except ImportError as e:
 TOKENIZER_AVAILABLE = False
 get_tokenizer = None
 try:
-    # sys and os already imported above
     _parent_dir = os.path.dirname(os.path.dirname(__file__))
     if _parent_dir not in sys.path:
         sys.path.insert(0, _parent_dir)
-    from qig_coordizer import get_coordizer as get_tokenizer # get_tokenizer as _get_tokenizer
-    get_tokenizer = _get_tokenizer
+    from qig_coordizer import get_coordizer as _get_coordizer
+    get_tokenizer = _get_coordizer
     TOKENIZER_AVAILABLE = True
-    print("[ZeusChat] QIG Tokenizer available - conversation mode enabled")
+    print("[ZeusChat] QIG Coordizer available - conversation mode enabled")
 except ImportError as e:
-    print(f"[ZeusChat] QIG Tokenizer not available - fallback responses enabled: {e}")
+    print(f"[ZeusChat] QIG Coordizer not available - fallback responses enabled: {e}")
 
 # Import Geometric Meta-Cognitive Reasoning system
 REASONING_AVAILABLE = False
