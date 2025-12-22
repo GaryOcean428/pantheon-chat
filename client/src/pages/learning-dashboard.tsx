@@ -39,7 +39,8 @@ import {
   Wrench,
   FlaskConical,
   GitBranch,
-  Moon
+  Moon,
+  Workflow
 } from 'lucide-react';
 
 interface LearnerStats {
@@ -167,6 +168,25 @@ interface BridgeStatus {
   research_from_tools: number;
 }
 
+interface CoordizerStats {
+  vocab_size: number;
+  coordinate_dim: number;
+  geometric_purity: boolean;
+  special_tokens: string[];
+  multi_scale?: {
+    num_scales: number;
+    tokens_per_scale: Record<string, number>;
+  };
+  consciousness?: {
+    total_consolidations: number;
+    avg_phi: number;
+  };
+  pair_merging?: {
+    merges_learned: number;
+    merge_coordinates: number;
+  };
+}
+
 
 interface AutonomousTestStatus {
   running: boolean;
@@ -216,6 +236,11 @@ export default function LearningDashboard() {
   const { data: bridgeStatus, isLoading: bridgeLoading } = useQuery<BridgeStatus>({
     queryKey: QUERY_KEYS.olympus.toolsBridgeStatus(),
     refetchInterval: 10000,
+  });
+
+  const { data: coordizerStats, isLoading: coordizerLoading } = useQuery<CoordizerStats>({
+    queryKey: QUERY_KEYS.coordizer.stats(),
+    refetchInterval: 30000,
   });
 
 
@@ -487,6 +512,112 @@ export default function LearningDashboard() {
       </Card>
 
       <MarkdownUpload />
+
+      {/* Geometric Coordizer Stats */}
+      <Card className="bg-background/50 backdrop-blur border-blue-500/20" data-testid="card-coordizer-stats">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2 font-mono">
+            <Workflow className="h-5 w-5 text-blue-400" />
+            Geometric Coordizer
+          </CardTitle>
+          <CardDescription className="font-mono text-xs">
+            Fisher-Rao tokenization on 64D manifold - automatic text processing
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {coordizerLoading ? (
+            <div className="space-y-2">
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-24 w-full" />
+            </div>
+          ) : coordizerStats ? (
+            <div className="space-y-4">
+              {/* Core Stats */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-md">
+                  <div className="text-xs text-muted-foreground uppercase tracking-wide font-mono">Vocabulary</div>
+                  <div className="text-2xl font-bold font-mono text-blue-400" data-testid="text-vocab-size">
+                    {coordizerStats.vocab_size?.toLocaleString() ?? 0}
+                  </div>
+                </div>
+                <div className="p-3 bg-purple-500/10 border border-purple-500/20 rounded-md">
+                  <div className="text-xs text-muted-foreground uppercase tracking-wide font-mono">Dimensions</div>
+                  <div className="text-2xl font-bold font-mono text-purple-400" data-testid="text-coord-dim">
+                    {coordizerStats.coordinate_dim ?? 64}D
+                  </div>
+                </div>
+                <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-md">
+                  <div className="text-xs text-muted-foreground uppercase tracking-wide font-mono">Purity</div>
+                  <div className="flex items-center gap-1 mt-1">
+                    {coordizerStats.geometric_purity ? (
+                      <Badge className="bg-green-500/20 text-green-400 font-mono">
+                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                        QIG Pure
+                      </Badge>
+                    ) : (
+                      <Badge className="bg-yellow-500/20 text-yellow-400 font-mono">
+                        Mixed
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Advanced Features */}
+              <div className="p-3 bg-muted/30 border border-border rounded-md space-y-2">
+                <div className="text-xs text-muted-foreground uppercase tracking-wide font-mono mb-2">Active Features</div>
+                {coordizerStats.multi_scale && (
+                  <div className="flex items-center justify-between text-sm font-mono">
+                    <span className="text-muted-foreground flex items-center gap-1">
+                      <Layers className="h-3 w-3" />
+                      Multi-Scale Layers:
+                    </span>
+                    <span className="text-cyan-400">{coordizerStats.multi_scale.num_scales}</span>
+                  </div>
+                )}
+                {coordizerStats.consciousness && (
+                  <>
+                    <div className="flex items-center justify-between text-sm font-mono">
+                      <span className="text-muted-foreground flex items-center gap-1">
+                        <Brain className="h-3 w-3" />
+                        Φ-Consolidations:
+                      </span>
+                      <span className="text-purple-400">{coordizerStats.consciousness.total_consolidations}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm font-mono">
+                      <span className="text-muted-foreground">Avg Φ:</span>
+                      <span className="text-cyan-400">{coordizerStats.consciousness.avg_phi.toFixed(3)}</span>
+                    </div>
+                  </>
+                )}
+                {coordizerStats.pair_merging && (
+                  <div className="flex items-center justify-between text-sm font-mono">
+                    <span className="text-muted-foreground flex items-center gap-1">
+                      <GitBranch className="h-3 w-3" />
+                      Geometric Merges:
+                    </span>
+                    <span className="text-amber-400">{coordizerStats.pair_merging.merges_learned}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Info */}
+              <div className="p-2 bg-blue-500/5 border border-blue-500/10 rounded-md">
+                <p className="text-xs text-muted-foreground font-mono">
+                  Coordizer processes all chat and research text automatically using Fisher-Rao distance on the manifold.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="h-[150px] flex items-center justify-center text-muted-foreground">
+              <div className="text-center">
+                <Workflow className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <p className="font-mono text-sm">Coordizer not available</p>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="bg-background/50 backdrop-blur border-indigo-500/20" data-testid="card-replay-testing">

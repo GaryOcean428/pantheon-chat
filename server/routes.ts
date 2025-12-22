@@ -302,6 +302,33 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
   // Mount external API router (for federated instances, headless clients, integrations)
   app.use("/api/v1/external", externalApiRouter);
 
+  // ============================================================
+  // COORDIZER STATS PROXY (Routes to Python Backend)
+  // ============================================================
+  app.get("/api/coordize/stats", async (req, res) => {
+    try {
+      const pythonUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
+      const response = await fetch(`${pythonUrl}/api/coordize/stats`);
+      
+      if (!response.ok) {
+        throw new Error(`Python backend returned ${response.status}`);
+      }
+      
+      const stats = await response.json();
+      res.json(stats);
+    } catch (error: any) {
+      console.error("[Coordizer] Stats proxy error:", error.message);
+      res.json({
+        vocab_size: 0,
+        coordinate_dim: 64,
+        geometric_purity: true,
+        special_tokens: ['[PAD]', '[UNK]', '[BOS]', '[EOS]'],
+        status: 'backend_unavailable',
+        error: error.message
+      });
+    }
+  });
+
   // Investigation status endpoint - used by investigation page
   app.get("/api/investigation/status", (req, res) => {
     try {

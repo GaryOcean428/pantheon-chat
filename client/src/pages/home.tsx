@@ -10,7 +10,6 @@ import {
   Progress,
   Skeleton,
 } from "@/components/ui";
-import { CoordizerDemo } from "@/components";
 import { useAuth } from "@/hooks/useAuth";
 import { useConsciousness, getPhiColor, getRegimeLabel } from "@/contexts/ConsciousnessContext";
 import { Waves, MessageSquare, Brain, Activity, Search, Zap, Sparkles, Eye, GraduationCap } from "lucide-react";
@@ -290,8 +289,6 @@ export default function Home() {
           </Card>
         )}
 
-        {/* Geometric Coordizer Demo */}
-        <CoordizerDemo />
       </div>
     </div>
   );
