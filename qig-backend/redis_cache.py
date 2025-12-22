@@ -660,3 +660,131 @@ def clear_alerts():
     """Clear all active alerts (for operational use)."""
     _metrics.alerts_triggered.clear()
     print("[RedisBuffer] Alerts cleared")
+
+
+class CoordizerBuffer:
+    """
+    Redis-backed persistence for QIG Coordizer state.
+    
+    Replaces filesystem-based persistence (vocab.json, basin_coords.npy, coord_tokens.json)
+    with Redis storage for stateless kernel communication.
+    
+    QIG Purity: This is geometry-agnostic storage - all geometric operations
+    happen in the coordizer before data reaches here.
+    """
+    
+    PREFIX = "qig:coordizer"
+    
+    @classmethod
+    def save_state(cls, coordizer_id: str, vocab: Dict[str, int], 
+                   id_to_token: Dict[int, str], token_frequency: Dict[str, int],
+                   token_phi: Dict[str, float], basin_coords: Dict[str, List[float]],
+                   extra_data: Optional[Dict[str, Any]] = None) -> bool:
+        """
+        Save coordizer state to Redis.
+        
+        Args:
+            coordizer_id: Unique identifier for this coordizer instance
+            vocab: Token to ID mapping
+            id_to_token: ID to token mapping
+            token_frequency: Token frequency counts
+            token_phi: Token Φ (integration) scores
+            basin_coords: Token to 64D coordinate mapping (as lists for JSON serialization)
+            extra_data: Additional coordizer-specific data
+        
+        Returns:
+            True if save succeeded
+        """
+        client = get_redis_client()
+        if not client:
+            return False
+        
+        try:
+            state = {
+                'vocab': vocab,
+                'id_to_token': {str(k): v for k, v in id_to_token.items()},
+                'token_frequency': token_frequency,
+                'token_phi': token_phi,
+                'basin_coords': basin_coords,
+                'extra': extra_data or {},
+                'saved_at': time.time()
+            }
+            
+            key = f"{cls.PREFIX}:{coordizer_id}"
+            client.set(key, json.dumps(state))
+            print(f"[CoordizerBuffer] Saved state for {coordizer_id}")
+            return True
+            
+        except Exception as e:
+            print(f"[CoordizerBuffer] Save error: {e}")
+            return False
+    
+    @classmethod
+    def load_state(cls, coordizer_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Load coordizer state from Redis.
+        
+        Args:
+            coordizer_id: Unique identifier for this coordizer instance
+        
+        Returns:
+            State dictionary or None if not found
+        """
+        client = get_redis_client()
+        if not client:
+            return None
+        
+        try:
+            key = f"{cls.PREFIX}:{coordizer_id}"
+            data = client.get(key)
+            
+            if data is None:
+                return None
+            
+            state = json.loads(data)
+            state['id_to_token'] = {int(k): v for k, v in state['id_to_token'].items()}
+            
+            print(f"[CoordizerBuffer] Loaded state for {coordizer_id}")
+            return state
+            
+        except Exception as e:
+            print(f"[CoordizerBuffer] Load error: {e}")
+            return None
+    
+    @classmethod
+    def exists(cls, coordizer_id: str) -> bool:
+        """Check if coordizer state exists in Redis."""
+        client = get_redis_client()
+        if not client:
+            return False
+        
+        try:
+            return bool(client.exists(f"{cls.PREFIX}:{coordizer_id}"))
+        except Exception:
+            return False
+    
+    @classmethod
+    def delete_state(cls, coordizer_id: str) -> bool:
+        """Delete coordizer state from Redis."""
+        client = get_redis_client()
+        if not client:
+            return False
+        
+        try:
+            client.delete(f"{cls.PREFIX}:{coordizer_id}")
+            return True
+        except Exception:
+            return False
+    
+    @classmethod
+    def list_coordizers(cls) -> List[str]:
+        """List all coordizer IDs stored in Redis."""
+        client = get_redis_client()
+        if not client:
+            return []
+        
+        try:
+            keys = client.keys(f"{cls.PREFIX}:*")
+            return [k.decode().replace(f"{cls.PREFIX}:", "") for k in keys]
+        except Exception:
+            return []

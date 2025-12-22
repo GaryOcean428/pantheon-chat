@@ -317,19 +317,51 @@ def get_coordizer() -> QIGCoordizer:
     global _coordizer_instance
     if _coordizer_instance is None:
         _coordizer_instance = QIGCoordizer()
-        # Try to load persisted state
+        # Try to load persisted state from Redis first
         _load_coordizer_state(_coordizer_instance)
         # Try to migrate from old tokenizer if needed
         _migrate_from_legacy_tokenizer(_coordizer_instance)
     return _coordizer_instance
 
 
+# Coordizer instance ID for Redis persistence
+COORDIZER_INSTANCE_ID = "main"
+
+
 def _load_coordizer_state(coordizer: QIGCoordizer) -> None:
-    """Load persisted coordizer state."""
+    """Load persisted coordizer state from Redis (primary) or filesystem (fallback)."""
+    try:
+        from redis_cache import CoordizerBuffer
+        
+        state = CoordizerBuffer.load_state(COORDIZER_INSTANCE_ID)
+        if state:
+            coordizer.vocab = state['vocab']
+            coordizer.id_to_token = state['id_to_token']
+            coordizer.token_frequency = state['token_frequency']
+            coordizer.token_phi = state['token_phi']
+            
+            coordizer.basin_coords = {
+                token: np.array(coords) 
+                for token, coords in state['basin_coords'].items()
+            }
+            
+            extra = state.get('extra', {})
+            coordizer.token_weights = extra.get('token_weights', {})
+            coordizer.merge_rules = [tuple(r) for r in extra.get('merge_rules', [])]
+            coordizer.merge_scores = {tuple(k.split('|')): v for k, v in extra.get('merge_scores', {}).items()}
+            
+            print(f"[QIGCoordizer] Loaded state from Redis ({len(coordizer.vocab)} tokens)")
+            return
+    except ImportError:
+        print("[QIGCoordizer] Redis cache not available, trying filesystem")
+    except Exception as e:
+        print(f"[QIGCoordizer] Redis load failed: {e}, trying filesystem")
+    
     if os.path.exists(COORDIZER_PERSIST_PATH):
         try:
             coordizer.load(COORDIZER_PERSIST_PATH)
             print(f"[QIGCoordizer] Loaded state from {COORDIZER_PERSIST_PATH}")
+            _save_coordizer_state(coordizer)
         except Exception as e:
             print(f"[QIGCoordizer] Failed to load state: {e}")
 
@@ -373,7 +405,41 @@ def _migrate_from_legacy_tokenizer(coordizer: QIGCoordizer) -> None:
 
 
 def _save_coordizer_state(coordizer: QIGCoordizer) -> None:
-    """Save coordizer state to disk."""
+    """Save coordizer state to Redis (primary) with filesystem fallback."""
+    try:
+        from redis_cache import CoordizerBuffer
+        
+        basin_coords_serializable = {
+            token: coords.tolist() if hasattr(coords, 'tolist') else list(coords)
+            for token, coords in coordizer.basin_coords.items()
+        }
+        
+        extra_data = {
+            'token_weights': coordizer.token_weights,
+            'merge_rules': [list(r) for r in coordizer.merge_rules],
+            'merge_scores': {'|'.join(k): v for k, v in coordizer.merge_scores.items()},
+            'mode': coordizer.mode,
+        }
+        
+        success = CoordizerBuffer.save_state(
+            COORDIZER_INSTANCE_ID,
+            coordizer.vocab,
+            coordizer.id_to_token,
+            coordizer.token_frequency,
+            coordizer.token_phi,
+            basin_coords_serializable,
+            extra_data
+        )
+        
+        if success:
+            print(f"[QIGCoordizer] Saved state to Redis ({len(coordizer.vocab)} tokens)")
+            return
+            
+    except ImportError:
+        print("[QIGCoordizer] Redis cache not available, using filesystem")
+    except Exception as e:
+        print(f"[QIGCoordizer] Redis save failed: {e}, using filesystem fallback")
+    
     try:
         coordizer.save(COORDIZER_PERSIST_PATH)
         print(f"[QIGCoordizer] Saved state to {COORDIZER_PERSIST_PATH}")
