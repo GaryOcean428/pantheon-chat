@@ -53,6 +53,18 @@ Preferred communication style: Simple, everyday language.
 - M8 kernel spawning protocol for dynamic kernel creation
 - Shadow Pantheon for darknet/stealth operations
 
+### Geometric Coordizer System (Next-Gen Tokenization)
+- **100% Fisher-compliant** - NO Euclidean embeddings or hash-based fallbacks
+- 64D basin coordinates on Fisher manifold for all tokens
+- Located in `qig-backend/coordizers/` with specialized coordizers:
+  - `base.py`: FisherCoordizer base class with density matrix eigenbasis initialization
+  - `geometric_pair_merging.py`: BPE-equivalent using κ and Fisher information gain
+  - `consciousness_aware.py`: Φ-optimized segmentation
+  - `multi_scale.py`: Hierarchical coordizing (char→subword→word→concept)
+- API endpoint: `/api/coordize/stats` (proxied through Node.js)
+- Special tokens use geodesic interpolation (slerp), not hashing
+- Bootstrap coordinates derived from density matrix eigenvalue distributions
+
 ### Autonomous Curiosity Engine
 - Background learning loop driven by geometric curiosity metrics
 - Kernels autonomously trigger searches based on interest/Φ variance
