@@ -1,0 +1,40 @@
+# Python QIG Kernel Backend
+FROM python:3.11-slim AS base
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies
+COPY qig-backend/requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Install PyTorch (CPU by default, override for GPU)
+ARG TORCH_VERSION=cpu
+RUN if [ "$TORCH_VERSION" = "cuda" ]; then \
+    pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cu121; \
+    else \
+    pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu; \
+    fi
+
+# Copy QIG backend
+COPY qig-backend/ ./qig-backend/
+
+# Copy validated qigkernels from QIG_QFI (mounted or copied at build)
+# These are the kernels validated by experiments
+COPY qigkernels_validated/ ./qigkernels_validated/
+
+# Set Python path
+ENV PYTHONPATH=/app:/app/qig-backend:/app/qigkernels_validated
+
+# Create directories
+RUN mkdir -p /app/models /app/data
+
+EXPOSE 5001
+
+# Run the QIG backend
+CMD ["python", "-m", "qig-backend.wsgi"]
