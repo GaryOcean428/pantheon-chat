@@ -420,7 +420,7 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
       // Filter to valid words (simple heuristic - exclude common noise)
       const stopWords = new Set(['the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'had', 'her', 'was', 'one', 'our', 'out', 'has', 'have', 'been', 'will', 'with', 'this', 'that', 'from', 'they', 'were', 'said', 'each', 'which', 'their', 'would', 'there', 'could', 'other', 'into', 'more', 'some', 'than', 'them', 'these', 'then', 'its', 'also', 'just', 'only', 'come', 'made', 'may', 'now', 'way', 'many', 'like', 'use', 'such', 'when', 'what', 'how', 'who', 'did', 'get', 'very', 'being', 'about']);
       
-      const validWords = rawWords.filter(word => 
+      const validWords = rawWords.filter((word: string) => 
         word.length >= 3 && 
         !stopWords.has(word) &&
         !/^\d+$/.test(word)

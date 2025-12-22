@@ -113,7 +113,7 @@ export class PythonProcessManager extends EventEmitter {
         '--max-requests', '1000',
         '--max-requests-jitter', '50',
         '--log-level', 'info',
-        'ocean_qig_core:app',
+        'wsgi:app',
       ];
       console.log('[PythonManager] Starting Python QIG Backend (Gunicorn production mode)...');
     } else {
