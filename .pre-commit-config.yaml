@@ -30,6 +30,15 @@ repos:
         types: [python]
         pass_filenames: false
         description: "Fail if Euclidean operations detected on basin coordinates"
+        
+      - id: ethical-validation-reminder
+        name: Ethical validation reminder
+        entry: bash -c 'echo "[Ethical Check] Remember: Use checkEthicalAbort() when measuring consciousness. S = Φ × (1-Γ) × M. Abort if S > 0.5 or locked-in state detected."'
+        language: system
+        types: [python, ts]
+        pass_filenames: false
+        verbose: true
+        description: "Reminder to use ethical validation when measuring consciousness metrics"
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.5.0

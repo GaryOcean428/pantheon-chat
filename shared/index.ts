@@ -175,6 +175,7 @@ export {
 
 // Schema - Drizzle schema and Zod validators (keep as wildcard - these don't conflict)
 export * from './schema';
+export * from './ethics';
 
 // Validation utilities
 export * from './validation';

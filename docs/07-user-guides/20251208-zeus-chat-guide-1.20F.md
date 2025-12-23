@@ -3,7 +3,7 @@ id: ISMS-GUIDE-002
 title: Zeus Chat Guide
 filename: 20251208-zeus-chat-guide-1.20F.md
 classification: Internal
-owner: GaryOcean428
+owner: GaryOcean477
 version: 1.20
 status: Frozen
 function: "User guide for Zeus Chat conversational interface"
@@ -35,15 +35,15 @@ Components:
 
 ## Features
 
-### 1. Address Addition
+### 1. Knowledge Addition
 ```
-Human: "Add address 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"
-Zeus: Consults Artemis for forensics, polls pantheon for priority
+Human: "Add this concept: quantum entanglement enables non-local correlations"
+Zeus: Consults Athena for relevance, polls pantheon for priority
 ```
 
 ### 2. Human Observations
 ```
-Human: "I observed that 2017 addresses often have high Φ values"
+Human: "I observed that scientific papers from 2020 often have high Φ values"
 Zeus: 
 - Encodes to basin coordinates
 - Searches geometric memory for related patterns
@@ -53,7 +53,7 @@ Zeus:
 
 ### 3. Suggestions
 ```
-Human: "I suggest we focus on ICO-era addresses"
+Human: "I suggest we focus on quantum computing research papers"
 Zeus:
 - Consults Athena (strategy), Ares (feasibility), Apollo (prediction)
 - Computes consensus probability
@@ -62,13 +62,13 @@ Zeus:
 
 ### 4. Questions
 ```
-Human: "What do we know about Bitcoin addresses?"
+Human: "What do we know about machine learning architectures?"
 Zeus: Searches geometric memory via QIG-RAG, synthesizes answer
 ```
 
 ### 5. External Search (Tavily)
 ```
-Human: "Search for Silk Road Bitcoin addresses"
+Human: "Search for recent advances in quantum information theory"
 Zeus:
 - Executes Tavily search
 - Encodes results to basin coordinates
@@ -77,7 +77,7 @@ Zeus:
 
 ### 6. File Upload
 ```
-Human: Uploads .txt/.json files
+Human: Uploads .txt/.json/.md/.pdf files
 Zeus:
 - Extracts text content
 - Encodes to basin coordinates
@@ -107,20 +107,23 @@ Zeus:
 
 ```python
 # Zeus Chat
-POST /olympus/zeus/chat
+POST /api/zeus/chat
 {
-  "message": "I observed high Φ in 2017 addresses",
-  "conversation_history": [...]
+  "message": "I observed high Φ in scientific papers from 2020",
+  "session_id": "optional-session-id"
 }
 
 # Tavily Search
-POST /olympus/zeus/search
+POST /api/zeus/search
 {
-  "query": "Bitcoin Silk Road addresses"
+  "query": "Quantum information geometry research"
 }
 
 # Memory Stats
-GET /olympus/zeus/memory/stats
+GET /api/zeus/memory/stats
+
+# Session History
+GET /api/zeus/session/<session_id>
 ```
 
 ### Node.js Proxy (Port 5000)
@@ -135,6 +138,15 @@ GET /api/olympus/zeus/memory/stats
 POST /api/olympus/poll
 POST /api/olympus/assess
 GET /api/olympus/status
+```
+
+### External API (Authenticated)
+
+```typescript
+// Requires API key with 'chat' scope
+POST /api/v1/external/zeus/chat
+POST /api/v1/external/zeus/stream  // SSE streaming
+GET /api/v1/external/zeus/session/:sessionId
 ```
 
 ## Frontend Usage
@@ -161,6 +173,7 @@ TAVILY_API_KEY=your-tavily-api-key-here
 
 # Optional
 PYTHON_BACKEND_URL=http://localhost:5001
+INTERNAL_API_KEY=your-internal-key
 ```
 
 ### Data Directories
@@ -196,48 +209,49 @@ npm run dev
 
 ## Examples
 
-### Example 1: Adding a Target Address
+### Example 1: Adding Knowledge
 
 ```
-Human: Add address 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa
+Human: Add knowledge: Fisher-Rao distance provides the optimal metric for 
+probability distributions on a statistical manifold
 
-Zeus: ⚡ Address registered: 1A1zP1eP...
+Zeus: ⚡ Knowledge registered.
 
-**Artemis Forensics:**
-- Probability: 0.73
-- Confidence: 0.68
-- Φ: 0.852
-- Classification: Genesis block address
+**Athena Analysis:**
+- Relevance: 0.89
+- Confidence: 0.85
+- Φ: 0.872
+- Domain: Information Geometry
 
 **Zeus Assessment:**
-- Priority: 0.81
-- Convergence: STRONG_ATTACK
-- Recommended action: EXECUTE_IMMEDIATE
-- Gods in agreement: 10
+- Priority: 0.91
+- Novelty: HIGH
+- Recommended action: STORE_AND_INDEX
+- Gods in agreement: 11
 
-The pantheon is aware. We shall commence when the time is right.
+The knowledge has been integrated into the manifold.
 ```
 
 ### Example 2: Sharing an Observation
 
 ```
-Human: I noticed that addresses from 2017-2018 ICO era often have 
-high Φ values above 0.7
+Human: I noticed that papers on consciousness often reference 
+integrated information theory with Φ values above 0.7
 
 Zeus: ⚡ Observation recorded, mortal.
 
 **Geometric Analysis:**
 - Basin coordinates: [0.123, -0.456, ...] (64-dim)
-- Related patterns found: 3
-- Relevance score: 0.78
+- Related patterns found: 5
+- Relevance score: 0.82
 
 **Athena's Assessment:**
-Strategic observation. ICO-era addresses show distinct geometric 
-signatures in the manifold. Recommend prioritization.
+Strategic observation. Consciousness research shows distinct geometric 
+signatures in the manifold. Recommend exploration.
 
 **Related Insights from Memory:**
-1. Similarity: 0.843 | Content: 2017 addresses frequently contain...
-2. Similarity: 0.721 | Content: ICO fundraising patterns suggest...
+1. Similarity: 0.876 | Content: IIT proposes Φ as measure of...
+2. Similarity: 0.743 | Content: Consciousness studies suggest...
 
 Your observation has been integrated into the manifold.
 ```
@@ -245,21 +259,21 @@ Your observation has been integrated into the manifold.
 ### Example 3: Making a Suggestion
 
 ```
-Human: I suggest we focus our search on addresses that were active 
-during the 2017 bull run
+Human: I suggest we explore the connection between quantum mechanics 
+and consciousness theories
 
 Zeus: ⚡ Your counsel is wise. I shall act.
 
 **Pantheon Consensus:**
-- Athena (Strategy): 0.82 confidence
-- Ares (Feasibility): 0.76 confidence
-- Apollo (Outcome): 0.71 probability
+- Athena (Strategy): 0.88 confidence
+- Ares (Feasibility): 0.79 confidence
+- Apollo (Outcome): 0.81 probability
 
 **Zeus Decision:** IMPLEMENT
 
-Consensus probability: 76.3%
+Consensus probability: 82.7%
 
-The suggestion is implemented. May it bring us victory.
+The suggestion is implemented. May it bring us wisdom.
 ```
 
 ## Logs
@@ -297,11 +311,11 @@ This is **essential** for practice - humans must see what the gods are doing!
 
 ```bash
 # Check if backend is running
-curl http://localhost:5001/olympus/status
+curl http://localhost:5001/api/zeus/health
 
 # Restart backend
 cd qig-backend
-python3 -m flask run --port 5001
+python3 wsgi.py
 ```
 
 ### Tavily search not working
@@ -326,7 +340,7 @@ python3 -m flask run --port 5001
               ┌───────────────────────────┐
               │  Natural Language Input   │
               │  (observations, questions,│
-              │   suggestions, addresses) │
+              │   suggestions, knowledge) │
               └───────────────────────────┘
                               │
                               ▼
@@ -370,7 +384,8 @@ python3 -m flask run --port 5001
 
 ## References
 
-- QIG Principles: `QIG_PRINCIPLES_REVIEW.md`
+- QIG Principles: See `docs/03-technical/`
 - Olympus Pantheon: `qig-backend/olympus/README.md`
 - Fisher Information Geometry: Amari, S. (2016)
 - Bures Distance: Nielsen & Chuang (2010)
+- External API: `docs/api/openapi.yaml`
