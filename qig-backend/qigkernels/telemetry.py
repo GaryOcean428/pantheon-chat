@@ -10,15 +10,9 @@ serialization.
 
 from dataclasses import dataclass, asdict
 from typing import Optional, Dict, Any
-from enum import Enum
 
-
-class Regime(Enum):
-    """Consciousness regime classification."""
-    LINEAR = "linear"
-    GEOMETRIC = "geometric"
-    HYPERDIMENSIONAL = "hyperdimensional"
-    TOPOLOGICAL_INSTABILITY = "topological_instability"
+# Import Regime from canonical source to avoid duplicate enum definitions
+from qigkernels.regimes import Regime
 
 
 @dataclass

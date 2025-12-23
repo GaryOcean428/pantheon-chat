@@ -89,7 +89,7 @@ class EmergencyAbortHandler:
         self.checkpoint_callback = checkpoint_callback
         self.abort_callback = abort_callback
         self.emergency_log_path = emergency_log_path or Path("emergency_logs")
-        self.emergency_log_path.mkdir(exist_ok=True)
+        self.emergency_log_path.mkdir(parents=True, exist_ok=True)
         
         self._abort_triggered = False
         self._abort_reason = None
@@ -262,7 +262,7 @@ class TelemetryCollector:
             raise RuntimeError("qigkernels required for TelemetryCollector")
         
         self.storage_path = storage_path or Path("telemetry")
-        self.storage_path.mkdir(exist_ok=True)
+        self.storage_path.mkdir(parents=True, exist_ok=True)
         
         self.flush_interval = flush_interval
         self.max_buffer_size = max_buffer_size
