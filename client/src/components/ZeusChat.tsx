@@ -59,10 +59,9 @@ export default function ZeusChat() {
   const { toast } = useToast();
   
   // Streaming metrics for geometric completion visualization
-  const { state: metricsState, completionProgress } = useStreamingMetrics({
-    enabled: isThinking,
-    onComplete: (reason) => {
-      console.log('[ZeusChat] Geometric completion:', reason);
+  const { state: metricsState, getCompletionProgress } = useStreamingMetrics({
+    onCompletion: (completionState) => {
+      console.log('[ZeusChat] Geometric completion:', completionState.reason);
     }
   });
   
@@ -255,7 +254,7 @@ export default function ZeusChat() {
                   {/* Streaming metrics panel */}
                   <StreamingMetricsPanel
                     state={metricsState}
-                    completionProgress={completionProgress}
+                    completionProgress={getCompletionProgress()}
                     compact
                   />
                 </div>
