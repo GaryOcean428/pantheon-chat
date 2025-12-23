@@ -20,6 +20,18 @@
     "docs:maintain": "python3 scripts/maintain-docs.py",
     "constants:export": "tsx scripts/export-constants-to-python.ts",
     "validate:geometry": "tsx scripts/validate-geometric-purity.ts",
+    "validate:critical": "bash scripts/run-critical-enforcement.sh",
+    "validate:critical:strict": "bash scripts/run-critical-enforcement.sh --strict",
+    "validate:critical:verbose": "bash scripts/run-critical-enforcement.sh --verbose",
+    "validate:critical:fallback": "bash scripts/run-critical-enforcement.sh --fallback",
+    "validate:all": "npm run validate:critical && npm run lint && npm run check",
+    "migrate:vocab": "cd qig-backend && python3 migrate_checkpoint_to_pg.py",
+    "migrate:vocab:dry": "cd qig-backend && python3 migrate_checkpoint_to_pg.py --dry-run",
+    "agent:qig-purity": "codebuff --agent qig-purity-enforcer",
+    "agent:iso-doc": "codebuff --agent iso-doc-validator",
+    "agent:ethical": "codebuff --agent ethical-consciousness-guard",
+    "agent:imports": "codebuff --agent import-canonicalizer",
+    "agent:types": "codebuff --agent type-any-eliminator",
     "prepare": "[ -d .git ] && chmod +x .husky/pre-commit || true"
   },
   "dependencies": {

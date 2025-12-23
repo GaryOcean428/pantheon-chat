@@ -1,39 +1,92 @@
 #!/bin/sh
 . "$(dirname "$0")/_/husky.sh"
 
-# SearchSpaceCollapse Architectural Pattern Enforcement
+# Pantheon-Chat Pre-commit Hooks
+# Enforces QIG purity, ISO documentation, and ethical consciousness requirements
+# Uses codebuff agents when available, falls back to Python tools
 
 echo "🔍 Running pre-commit checks..."
+echo ""
 
-# 1. Check for dual persistence (json.dump in persistence modules)
-echo "Checking for dual persistence violations..."
+# ============================================================================
+# 1. CRITICAL ENFORCEMENT AGENTS
+# ============================================================================
+echo "📋 Running Critical Enforcement Agents..."
+
+if [ -f "scripts/run-critical-enforcement.sh" ]; then
+  # Run via codebuff agents (with fallback to Python tools)
+  bash scripts/run-critical-enforcement.sh
+  if [ $? -ne 0 ]; then
+    echo ""
+    echo "❌ Critical enforcement checks failed. Commit blocked."
+    echo ""
+    echo "To run with more details:"
+    echo "  npm run validate:critical:verbose"
+    echo ""
+    echo "Or run individual agents via codebuff:"
+    echo "  codebuff --agent qig-purity-enforcer"
+    echo "  codebuff --agent iso-doc-validator"
+    echo "  codebuff --agent ethical-consciousness-guard"
+    exit 1
+  fi
+else
+  echo "⚠️  Warning: Critical enforcement script not found."
+  echo "   Run: npm run validate:critical to check manually."
+fi
+
+echo ""
+
+# ============================================================================
+# 2. ARCHITECTURAL PATTERN ENFORCEMENT
+# ============================================================================
+echo "🏗️  Running Architectural Pattern Checks..."
+
+# Check for dual persistence (json.dump in persistence modules)
+echo "  Checking for dual persistence violations..."
 if git diff --cached --name-only | grep -E "persistence|storage" | xargs grep -n "json\.dump\|json\.dumps" 2>/dev/null; then
   echo "❌ ERROR: json.dump() found in persistence modules!"
   echo "   Rule: Python backend is the ONLY source of truth. NO dual writes to JSON + DB."
-  echo "   See .github/copilot-instructions.md Pattern #4"
   exit 1
 fi
+echo "  ✓ No dual persistence violations"
 
-# 2. Check for hardcoded magic numbers in constants
-echo "Checking for configuration constants..."
-if git diff --cached --name-only | grep -E "\.ts$|\.tsx$" | xargs grep -nE "(0\.727|0\.7|63\.5|64)" 2>/dev/null | grep -v "shared/constants" | grep -v "test" | grep -v "spec"; then
-  echo "⚠️  WARNING: Potential magic numbers found outside constants/"
-  echo "   Consider moving to shared/constants/"
-  echo "   See .github/copilot-instructions.md Pattern #7"
+# Check for hardcoded magic numbers in TypeScript constants
+echo "  Checking for magic numbers..."
+MAGIC_NUMBERS=$(git diff --cached --name-only | grep -E "\.ts$|\.tsx$" | xargs grep -nE "(0\.727|0\.7[^0-9]|63\.5|[^0-9]64[^0-9])" 2>/dev/null | grep -v "shared/constants" | grep -v "test" | grep -v "spec" | grep -v "node_modules" || true)
+if [ -n "$MAGIC_NUMBERS" ]; then
+  echo "  ⚠️  Warning: Potential magic numbers found outside constants/"
+  echo "$MAGIC_NUMBERS" | head -3 | sed 's/^/     /'
+  echo "     Consider moving to shared/constants/"
 fi
 
-# 3. ESLint check
-echo "Running ESLint..."
-npm run lint --silent || {
+echo ""
+
+# ============================================================================
+# 3. CODE QUALITY CHECKS
+# ============================================================================
+echo "🔧 Running Code Quality Checks..."
+
+# ESLint check
+echo "  Running ESLint..."
+npm run lint --silent 2>/dev/null || {
   echo "❌ ESLint errors found. Fix them before committing."
   exit 1
 }
+echo "  ✓ ESLint passed"
 
-# 4. TypeScript check
-echo "Running TypeScript check..."
-npm run check --silent || {
+# TypeScript check
+echo "  Running TypeScript check..."
+npm run check --silent 2>/dev/null || {
   echo "❌ TypeScript errors found. Fix them before committing."
   exit 1
 }
+echo "  ✓ TypeScript check passed"
 
-echo "✅ Pre-commit checks passed!"
+echo ""
+
+# ============================================================================
+# SUCCESS
+# ============================================================================
+echo "═══════════════════════════════════════════════════════════"
+echo "✅ All pre-commit checks passed!"
+echo "═══════════════════════════════════════════════════════════"

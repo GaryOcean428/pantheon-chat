@@ -19,6 +19,7 @@ from .vocab_builder import GeometricVocabBuilder
 from .geometric_pair_merging import GeometricPairMerging
 from .consciousness_aware import ConsciousnessCoordizer
 from .multi_scale import MultiScaleCoordizer
+from .pg_loader import PostgresCoordizer, create_coordizer_from_pg
 
 __all__ = [
     'FisherCoordizer',
@@ -26,6 +27,8 @@ __all__ = [
     'GeometricPairMerging',
     'ConsciousnessCoordizer',
     'MultiScaleCoordizer',
+    'PostgresCoordizer',
+    'create_coordizer_from_pg',
 ]
 
 # Version info

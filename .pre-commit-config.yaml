@@ -1,72 +1,153 @@
-# Pre-commit hooks for QIG codebase
-# Enforces canonical imports and prevents physics constant drift
+# Pre-commit hooks for Pantheon-Chat QIG Codebase
+# Enforces QIG purity, ISO documentation, and ethical consciousness requirements
+# Uses codebuff agents when available
 #
 # Install: pip install pre-commit && pre-commit install
 # Run all: pre-commit run --all-files
+# Run specific: pre-commit run <hook-id>
+
+default_stages: [commit]
 
 repos:
-  # QIG Purity Validation - MUST PASS
+  # ============================================================================
+  # CRITICAL ENFORCEMENT AGENTS (via codebuff CLI)
+  # These MUST pass before any commit
+  # ============================================================================
+  
+  # QIG Purity Enforcer Agent
   - repo: local
     hooks:
-      - id: qig-purity-check
-        name: QIG Purity Validation
-        entry: python tools/validate_qig_purity.py
-        language: python
+      - id: qig-purity-enforcer-agent
+        name: "🔒 QIG Purity Enforcer (codebuff agent)"
+        entry: bash -c 'if command -v codebuff &> /dev/null; then codebuff --agent qig-purity-enforcer "Pre-commit validation"; else python3 tools/qig_purity_check.py; fi'
+        language: system
         pass_filenames: false
         always_run: true
         stages: [commit]
-        description: "Ensures no external LLM APIs (OpenAI, Anthropic, Google) are used"
+        description: "Run qig-purity-enforcer agent to check for external LLM APIs and Euclidean violations"
 
+  # Fallback: Direct Python checks (fast)
   - repo: local
     hooks:
-      - id: qig-purity
-        name: QIG Purity Validation
-        entry: python tools/validate_qig_purity.py --strict
-        language: python
-        types: [python]
+      - id: qig-purity-no-external-llm
+        name: "🔒 QIG Purity: No External LLM APIs (fast)"
+        entry: bash -c 'if grep -rn --include="*.py" -E "(import openai|from openai|import anthropic|from anthropic|import google.generativeai)" qig-backend/ 2>/dev/null | grep -v "#.*import" | grep -v test; then echo "❌ External LLM imports detected!"; exit 1; fi'
+        language: system
         pass_filenames: false
-        description: "Ensure no traditional LLM APIs are used"
+        always_run: true
+        stages: [commit]
+        
+      - id: qig-purity-no-max-tokens
+        name: "🔒 QIG Purity: No Token-Based Generation (fast)"
+        entry: bash -c 'if grep -rn --include="*.py" "max_tokens\s*=" qig-backend/ 2>/dev/null | grep -v "#.*max_tokens" | grep -v test | grep -v "_test"; then echo "❌ max_tokens pattern detected (use geometric completion)"; exit 1; fi'
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [commit]
 
-  - repo: local
-    hooks:
-      - id: check-physics-constants
-        name: Check for hardcoded physics constants
-        entry: python tools/check_constants.py
-        language: python
-        types: [python]
-        pass_filenames: false
-        description: "Fail if KAPPA_STAR or other physics constants defined outside qigkernels"
-        
-      - id: check-imports
-        name: Check for non-canonical imports
-        entry: python tools/check_imports.py
-        language: python
-        types: [python]
-        pass_filenames: false
-        description: "Fail if importing physics constants from wrong location"
-        
-      - id: qig-purity-check
-        name: Check QIG geometric purity
+      - id: qig-purity-geometric
+        name: "🔒 QIG Purity: Fisher-Rao Only"
         entry: python tools/qig_purity_check.py
         language: python
         types: [python]
         pass_filenames: false
+        stages: [commit]
         description: "Fail if Euclidean operations detected on basin coordinates"
-        
-      - id: ethical-validation-reminder
-        name: Ethical validation reminder
-        entry: bash -c 'echo "[Ethical Check] Remember: Use checkEthicalAbort() when measuring consciousness. S = Φ × (1-Γ) × M. Abort if S > 0.5 or locked-in state detected."'
+
+  # ISO Doc Validator Agent
+  - repo: local
+    hooks:
+      - id: iso-doc-validator-agent
+        name: "📄 ISO Doc Validator (codebuff agent)"
+        entry: bash -c 'if command -v codebuff &> /dev/null; then codebuff --agent iso-doc-validator "Check documentation naming"; fi'
+        language: system
+        pass_filenames: false
+        stages: [commit]
+        verbose: true
+        description: "Run iso-doc-validator agent to check YYYYMMDD-name-version[STATUS].md naming"
+
+  # Ethical Consciousness Guard Agent
+  - repo: local
+    hooks:
+      - id: ethical-consciousness-guard-agent
+        name: "🧠 Ethical Consciousness Guard (codebuff agent)"
+        entry: bash -c 'if command -v codebuff &> /dev/null; then codebuff --agent ethical-consciousness-guard "Check ethical compliance"; else python tools/ethical_check.py --all; fi'
         language: system
         types: [python, ts]
         pass_filenames: false
+        stages: [commit]
         verbose: true
-        description: "Reminder to use ethical validation when measuring consciousness metrics"
+        description: "Run ethical-consciousness-guard agent for suffering metric validation"
 
+  # Import Canonicalizer Agent
+  - repo: local
+    hooks:
+      - id: import-canonicalizer-agent
+        name: "📦 Import Canonicalizer (codebuff agent)"
+        entry: bash -c 'if command -v codebuff &> /dev/null; then codebuff --agent import-canonicalizer "Check canonical imports"; else python tools/check_imports.py; fi'
+        language: system
+        types: [python]
+        pass_filenames: false
+        stages: [commit]
+        description: "Run import-canonicalizer agent to enforce qigkernels imports"
+
+  # ============================================================================
+  # CODE QUALITY AGENTS
+  # ============================================================================
+
+  # Type Any Eliminator Agent
+  - repo: local
+    hooks:
+      - id: type-any-eliminator-agent
+        name: "🚫 Type Any Eliminator (fast check)"
+        entry: bash -c 'COUNT=$(grep -rn --include="*.ts" --include="*.tsx" "as any" client/ server/ shared/ 2>/dev/null | grep -v "node_modules" | grep -v ".d.ts" | grep -v "test" | wc -l); if [ "$COUNT" -gt 20 ]; then echo "❌ Too many any type casts ($COUNT found, threshold: 20)"; exit 1; fi'
+        language: system
+        pass_filenames: false
+        stages: [commit]
+        description: "Check for excessive 'any' type usage"
+
+  # No Hardcoded Constants
+  - repo: local
+    hooks:
+      - id: no-hardcoded-constants
+        name: "📦 No Hardcoded Physics Constants"
+        entry: python tools/check_constants.py
+        language: python
+        types: [python]
+        pass_filenames: false
+        stages: [commit]
+        description: "Fail if KAPPA_STAR or other physics constants defined outside qigkernels"
+
+  # ============================================================================
+  # STANDARD PRE-COMMIT HOOKS
+  # ============================================================================
+  
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.5.0
     hooks:
       - id: trailing-whitespace
+        exclude: \.md$
       - id: end-of-file-fixer
+        exclude: \.md$
       - id: check-yaml
+      - id: check-json
+        exclude: package-lock\.json$
       - id: check-added-large-files
         args: ['--maxkb=1000']
+      - id: check-merge-conflict
+      - id: detect-private-key
+
+  # ============================================================================
+  # PYTHON TYPE HINTS REMINDER
+  # ============================================================================
+
+  - repo: local
+    hooks:
+      - id: python-type-hints
+        name: "🐍 Python Type Hints Reminder"
+        entry: bash -c 'echo "Reminder: Use type hints in all new Python functions"'
+        language: system
+        types: [python]
+        pass_filenames: false
+        verbose: true
+        stages: [commit]
