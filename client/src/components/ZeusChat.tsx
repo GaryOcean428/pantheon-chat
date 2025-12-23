@@ -63,7 +63,7 @@ export default function ZeusChat() {
   const [showMetrics, setShowMetrics] = useState(true);
   
   // Streaming metrics for geometric completion visualization
-  const { state: metricsState, getCompletionProgress, processSSEChunk, reset: resetMetrics } = useStreamingMetrics({
+  const { state: metricsState, getCompletionProgress, processSSEEvent, reset: resetMetrics } = useStreamingMetrics({
     onCompletion: (completionState) => {
       console.log('[ZeusChat] Geometric completion:', completionState.reason);
     }
