@@ -1857,8 +1857,16 @@ class AutonomousToolPipeline:
     
     def _process_loop(self):
         """Background loop that processes pending requests."""
+        loop_count = 0
         while self._running:
             try:
+                loop_count += 1
+                # Log periodically to show pipeline is alive
+                if loop_count % 60 == 1:  # Every ~60 intervals (5 min at 5s interval)
+                    with self._lock:
+                        pending = sum(1 for r in self._requests.values() 
+                                    if r.state not in [ToolLifecycleState.DEPLOYED, ToolLifecycleState.FAILED])
+                    print(f"[AutonomousPipeline] Heartbeat: {len(self._requests)} total requests, {pending} pending, {self.tool_factory.get_learning_stats().get('patterns_learned', 0)} patterns learned")
                 self._process_pending_requests()
             except Exception as e:
                 print(f"[AutonomousPipeline] Process loop error: {e}")
