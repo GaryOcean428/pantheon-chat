@@ -28,6 +28,12 @@ function generateBothAddressesFromPrivateKey(key: string): { compressed: string;
 }
 function generateRecoveryBundle(key: string, compressed: boolean): any { return null; }
 function privateKeyToWIF(key: string, compressed?: boolean): string { return ''; }
+function deriveMnemonicAddresses(phrase: string): { addresses: { address: string; privateKeyHex: string; derivationPath: string; pathType: string }[]; totalDerived: number } {
+  return { addresses: [], totalDerived: 0 };
+}
+function checkMnemonicAgainstDormant(phrase: string): { hasMatch: boolean; matches: any[] } {
+  return { hasMatch: false, matches: [] };
+}
 type RecoveryBundle = any;
 type VerificationResult = any;
 import {
@@ -4446,24 +4452,22 @@ export class OceanAgent {
     }
 
     // Create Block Universe coordinate from temporal anchor
-    const coordinate = culturalManifold.createCoordinate(
-      timestamp,
-      "never-spent"
-    );
+    // Note: Using 'general-knowledge' domain as knowledge exploration replaces Bitcoin recovery
+    const coordinate = culturalManifold.createCoordinate('general-knowledge');
     console.log(
-      `[BlockUniverse] Coordinate: era=${
-        coordinate.era
+      `[BlockUniverse] Coordinate: domain=${
+        coordinate.domain
       }, temporal=${timestamp.toISOString()}`
     );
     console.log(
-      `[BlockUniverse] Software constraint: ${coordinate.softwareConstraint.keyDerivationMethods.join(
+      `[BlockUniverse] Complexity level: ${coordinate.complexityLevel?.derivationMethods?.join(
         ", "
-      )}`
+      ) || 'geometric'}`
     );
     console.log(
-      `[BlockUniverse] Cultural context: ${coordinate.culturalContext.primaryInfluences.join(
+      `[BlockUniverse] Concept context: ${coordinate.conceptContext?.primaryInfluences?.join(
         ", "
-      )}`
+      ) || 'exploring'}`
     );
 
     // Generate geodesic candidates from cultural manifold
@@ -4476,15 +4480,15 @@ export class OceanAgent {
     // Convert to hypotheses, sorted by combined score
     for (const candidate of geodesicCandidates.slice(0, remainingCount)) {
       const hypothesis = this.createHypothesis(
-        candidate.phrase,
+        candidate.phrase || candidate.concept,
         "arbitrary",
         "block_universe_geodesic",
         `4D coordinate (${
-          coordinate.era
-        }): Cultural fit=${candidate.culturalFit.toFixed(2)}, ` +
-          `Temporal fit=${candidate.temporalFit.toFixed(
+          coordinate.domain
+        }): Domain fit=${(candidate.culturalFit ?? candidate.domainFit).toFixed(2)}, ` +
+          `Temporal fit=${(candidate.temporalFit ?? 0.7).toFixed(
             2
-          )}, QFI distance=${candidate.qfiDistance.toFixed(3)}`,
+          )}, Fisher distance=${(candidate.qfiDistance ?? candidate.fisherDistance).toFixed(3)}`,
         candidate.combinedScore
       );
 
@@ -4493,29 +4497,26 @@ export class OceanAgent {
         source: "cultural_manifold",
         type: "geodesic_navigation",
         reasoning:
-          `Era: ${coordinate.era} | Cultural: ${coordinate.culturalContext.technicalLevel} | ` +
-          `Software: ${coordinate.softwareConstraint.keyDerivationMethods[0]}`,
+          `Domain: ${coordinate.domain} | Abstraction: ${coordinate.conceptContext?.abstractionLevel || 'intermediate'} | ` +
+          `Methods: ${coordinate.complexityLevel?.derivationMethods?.[0] || 'geometric'}`,
         confidence: candidate.combinedScore,
       });
 
       hypotheses.push(hypothesis);
     }
 
-    // Also get high-resonance terms from the era-specific lexicon
-    const highResonance = culturalManifold.getHighResonanceCandidates(
-      coordinate.era,
-      0.6
-    );
+    // Also get high-resonance terms from the domain-specific lexicon
+    const highResonance = culturalManifold.getHighResonanceCandidates(0.6);
     for (const entry of highResonance.slice(0, 10)) {
       hypotheses.push(
         this.createHypothesis(
-          entry.term,
+          entry.phrase || entry.concept,
           "arbitrary",
           "block_universe_resonance",
-          `High QFI resonance (${entry.qfiResonance.toFixed(2)}) in ${
-            coordinate.era
+          `High Fisher resonance (${entry.domainFit.toFixed(2)}) in ${
+            coordinate.domain
           } lexicon`,
-          0.75 + entry.qfiResonance * 0.2
+          0.75 + entry.domainFit * 0.2
         )
       );
     }
@@ -4523,9 +4524,9 @@ export class OceanAgent {
     // Log manifold statistics
     const stats = culturalManifold.getStatistics();
     console.log(
-      `[BlockUniverse] Manifold: tested=${stats.testedPhrases}, geodesicPath=${
-        stats.geodesicPathLength
-      }, curvature=${stats.averageCurvature.toFixed(3)}`
+      `[BlockUniverse] Manifold: tested=${stats.testedPhrases ?? stats.exploredConcepts}, geodesicPath=${
+        stats.geodesicPathLength ?? 0
+      }, curvature=${(stats.averageCurvature ?? 0).toFixed(3)}`
     );
     console.log(
       `[BlockUniverse] Constraint surface defined: ${

@@ -86,13 +86,13 @@ export class GeodesicNavigator {
         
         const result = await this.testCandidate(candidate, targetAddress);
         
-        culturalManifold.updateManifoldCurvature(candidate, result);
+        culturalManifold.updateManifoldCurvature(candidate.coordinate.manifoldPosition, result.phi);
         
         this.learnFromResult(candidate, result);
 
         if (result.matched) {
           found = true;
-          matchedPhrase = candidate.phrase;
+          matchedPhrase = candidate.phrase || candidate.concept;
           console.log(`[GeodesicNavigator] ✅ MATCH FOUND: "${matchedPhrase}"`);
           break;
         }
@@ -104,7 +104,8 @@ export class GeodesicNavigator {
         if (result.phi > this.bestPhiSeen) {
           this.bestPhiSeen = result.phi;
           this.bestCandidate = candidate;
-          console.log(`[GeodesicNavigator] New best phi: ${result.phi.toFixed(4)} for "${candidate.phrase.substring(0, 30)}..."`);
+          const displayPhrase = (candidate.phrase || candidate.concept).substring(0, 30);
+          console.log(`[GeodesicNavigator] New best phi: ${result.phi.toFixed(4)} for "${displayPhrase}..."`);
         }
 
         if (candidatesTested % 100 === 0) {
@@ -186,7 +187,7 @@ export class GeodesicNavigator {
       // Bitcoin address generation removed
       const matched = false;
 
-      const qigScore = await scoreUniversalQIGAsync(candidate.phrase, 'arbitrary');
+      const qigScore = await scoreUniversalQIGAsync(candidate.phrase || candidate.concept, 'arbitrary');
       
       return {
         matched,
@@ -278,10 +279,10 @@ export class GeodesicNavigator {
   }
 
   /**
-   * Generate candidates specifically for Satoshi Genesis era
+   * Generate candidates specifically for a knowledge domain
    */
-  generateSatoshiEraCandidates(timestamp: Date, count: number = 50): GeodesicCandidate[] {
-    const coordinate = culturalManifold.createCoordinate(timestamp, 'never-spent');
+  generateDomainCandidates(domain: string = 'general-knowledge', count: number = 50): GeodesicCandidate[] {
+    const coordinate = culturalManifold.createCoordinate(domain as any);
     return culturalManifold.generateGeodesicCandidates(coordinate, count);
   }
 
@@ -301,7 +302,7 @@ export class GeodesicNavigator {
       currentPosition: [...this.currentPosition],
       velocity: [...this.velocity],
       bestPhiSeen: this.bestPhiSeen,
-      bestCandidatePhrase: this.bestCandidate?.phrase || null,
+      bestCandidatePhrase: this.bestCandidate?.phrase || this.bestCandidate?.concept || null,
       curvatureHistoryLength: this.curvatureHistory.length,
       explorationTemperature: this.explorationTemperature,
       manifoldStats: culturalManifold.getStatistics()
