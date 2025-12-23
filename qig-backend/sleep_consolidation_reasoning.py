@@ -73,16 +73,18 @@ class SleepConsolidationReasoning:
                 success_rate=0.0
             )
         
-        print("Sleep: Consolidating reasoning strategies...")
-        
         strategies_before = len(self.reasoning_learner.strategies)
         exploration_before = self.reasoning_learner.exploration_rate
+        total_episodes = len(self.reasoning_learner.reasoning_episodes)
+        
+        print("Sleep: Consolidating reasoning strategies...")
+        print(f"  Total episodes in memory: {total_episodes}")
+        print(f"  Current strategies: {strategies_before}")
         
         print("  Stage 1 (NREM): Pruning failed strategies...")
         self.reasoning_learner.consolidate_strategies()
         strategies_after_prune = len(self.reasoning_learner.strategies)
         strategies_pruned = strategies_before - strategies_after_prune
-        
         print(f"  Pruned {strategies_pruned} ineffective strategies")
         
         print("  Stage 2 (REM): Strengthening successful patterns...")
@@ -90,31 +92,41 @@ class SleepConsolidationReasoning:
             ep for ep in self.reasoning_learner.reasoning_episodes
             if ep.success and ep.efficiency > 0.7
         ]
+        print(f"  Found {len(successful_episodes)} high-efficiency episodes (success + efficiency > 0.7)")
         
-        print(f"  Replaying {len(successful_episodes)} successful episodes...")
+        if successful_episodes:
+            print(f"  Replaying {len(successful_episodes)} successful episodes...")
+            for i, episode in enumerate(successful_episodes):
+                print(f"    Episode {i+1}: efficiency={episode.efficiency:.2f}")
+                self.reasoning_learner.learn_from_episode(episode)
+        else:
+            print("  No high-efficiency episodes available yet - need successful reasoning with efficiency > 0.7")
         
-        for episode in successful_episodes:
-            self.reasoning_learner.learn_from_episode(episode)
-        
-        print("  Stage 3 (Deep): Meta-learning...")
+        print("  Stage 3 (Deep): Meta-learning adjustments...")
         recent_episodes = self.reasoning_learner.reasoning_episodes[-100:]
+        print(f"  Analyzing last {len(recent_episodes)} episodes for meta-learning")
         
         if recent_episodes:
-            recent_success_rate = sum(
-                1 for ep in recent_episodes if ep.success
-            ) / len(recent_episodes)
+            successful_count = sum(1 for ep in recent_episodes if ep.success)
+            recent_success_rate = successful_count / len(recent_episodes)
+            print(f"  Success count: {successful_count}/{len(recent_episodes)} = {recent_success_rate:.1%}")
             
             if recent_success_rate > self.high_success_threshold:
+                old_rate = self.reasoning_learner.exploration_rate
                 self.reasoning_learner.exploration_rate *= 0.9
-                print(f"  Reducing exploration (success rate: {recent_success_rate:.1%})")
+                print(f"  Reducing exploration: {old_rate:.2%} -> {self.reasoning_learner.exploration_rate:.2%} (success > {self.high_success_threshold:.0%})")
             elif recent_success_rate < self.low_success_threshold:
+                old_rate = self.reasoning_learner.exploration_rate
                 self.reasoning_learner.exploration_rate = min(
                     0.5,
                     self.reasoning_learner.exploration_rate * 1.1
                 )
-                print(f"  Increasing exploration (success rate: {recent_success_rate:.1%})")
+                print(f"  Increasing exploration: {old_rate:.2%} -> {self.reasoning_learner.exploration_rate:.2%} (success < {self.low_success_threshold:.0%})")
+            else:
+                print(f"  Exploration rate unchanged (success rate {recent_success_rate:.1%} within [{self.low_success_threshold:.0%}, {self.high_success_threshold:.0%}])")
         else:
             recent_success_rate = 0.5
+            print("  No recent episodes - using default success rate of 50%")
         
         strategies_after = len(self.reasoning_learner.strategies)
         exploration_after = self.reasoning_learner.exploration_rate
@@ -132,9 +144,11 @@ class SleepConsolidationReasoning:
         self.consolidation_history.append(result)
         
         print(f"Sleep consolidation complete:")
-        print(f"  Strategies: {strategies_after}")
-        print(f"  Exploration rate: {exploration_after:.2%}")
-        print(f"  Episodes in memory: {len(self.reasoning_learner.reasoning_episodes)}")
+        print(f"  Strategies before: {strategies_before} -> after: {strategies_after}")
+        print(f"  Exploration rate: {exploration_before:.2%} -> {exploration_after:.2%}")
+        print(f"  Episodes in memory: {total_episodes}")
+        print(f"  Episodes replayed: {len(successful_episodes)}")
+        print(f"  Recent success rate: {recent_success_rate:.1%}")
         
         return result
     

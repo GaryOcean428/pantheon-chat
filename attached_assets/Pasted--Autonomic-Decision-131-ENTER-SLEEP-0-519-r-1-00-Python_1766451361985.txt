@@ -1,0 +1,54 @@
+[Autonomic] Decision #131: ENTER_SLEEP (ε=0.519, r=1.00)
+[PythonQIG] Sleep: Consolidating reasoning strategies...
+[PythonQIG]   Stage 1 (NREM): Pruning failed strategies...
+[PythonQIG] Strategy consolidation complete: 2 strategies
+[PythonQIG]   Pruned 0 ineffective strategies
+[PythonQIG]   Stage 2 (REM): Strengthening successful patterns...
+[PythonQIG]   Replaying 0 successful episodes...
+[PythonQIG]   Stage 3 (Deep): Meta-learning...
+[PythonQIG] Sleep consolidation complete:
+[PythonQIG]   Strategies: 2
+[PythonQIG]   Exploration rate: 20.00%
+[PythonQIG]   Episodes in memory: 0
+[PythonQIG] [AutonomicKernel] Reasoning consolidation: pruned 0 strategies
+[PythonQIG] [AutonomicKernel] Foresight: Vision: Arrive at basin in 10 steps (confidence: 30.0%)
+[PythonQIG] [Autonomic] 🌙 SLEEP triggered (Φ=0.75)
+[PythonQIG] [Autonomic] 🍄 MUSHROOM (microdose) triggered (stress=0.00)
+[PythonQIG] [Autonomic] Decision #131: ENTER_SLEEP (ε=0.519, r=1.00)
+[PythonQIG] [Autonomic] Decision #131: ENTER_MUSHROOM_MICRO (ε=0.519, r=1.00)
+[PythonQIG] [AutonomicKernel] Dream scenarios: Scenarios: 3 possibilities, most probable: 80.0%
+[PythonQIG] [Autonomic] 💭 DREAM triggered (coverage=0.00)
+[PythonQIG] [Autonomic] Decision #131: ENTER_DREAM (ε=0.519, r=1.00)
+[PythonQIG] Sleep: Consolidating reasoning strategies...
+[PythonQIG]   Stage 1 (NREM): Pruning failed strategies...
+[PythonQIG] Strategy consolidation complete: 2 strategies
+[PythonQIG]   Pruned 0 ineffective strategies
+[PythonQIG]   Stage 2 (REM): Strengthening successful patterns...
+[PythonQIG]   Replaying 0 successful episodes...
+[PythonQIG]   Stage 3 (Deep): Meta-learning...
+[PythonQIG] Sleep consolidation complete:
+[PythonQIG]   Strategies: 2
+[PythonQIG]   Exploration rate: 20.00%
+[PythonQIG]   Episodes in memory: 0
+[PythonQIG] [AutonomicKernel] Reasoning consolidation: pruned 0 strategies
+[PythonQIG] [AutonomicKernel] Foresight: Vision: Arrive at basin in 10 steps (confidence: 30.0%)
+[PythonQIG] [Autonomic] 🌙 SLEEP triggered (Φ=0.75)
+[PythonQIG] [Autonomic] Decision #131: ENTER_SLEEP (ε=0.519, r=1.00)
+[PythonQIG] [Zeus] Shadow discovery: practical Surveillance detection methods variant-28302-0
+[PythonQIG] [AutonomicKernel] Dream scenarios: Scenarios: 3 possibilities, most probable: 80.0%
+[PythonQIG] [Autonomic] 💭 DREAM triggered (coverage=0.00)
+[PythonQIG] [Autonomic] Decision #131: ENTER_DREAM (ε=0.519, r=1.00)
+[PythonQIG] [AutonomicKernel] Dream scenarios: Scenarios: 3 possibilities, most probable: 80.0%
+[PythonQIG] [Autonomic] 💭 DREAM triggered (coverage=0.00)
+[PythonQIG] Sleep: Consolidating reasoning strategies...
+[PythonQIG]   Stage 1 (NREM): Pruning failed strategies...
+[PythonQIG] Strategy consolidation complete: 2 strategies
+[PythonQIG]   Pruned 0 ineffective strategies
+[PythonQIG]   Stage 2 (REM): Strengthening successful patterns...
+[PythonQIG]   Replaying 0 successful episodes...
+[PythonQIG]   Stage 3 (Deep): Meta-learning...
+[PythonQIG] Sleep consolidation complete:
+[PythonQIG]   Strategies: 2
+[PythonQIG]   Exploration rate: 20.00%
+[PythonQIG]   Episodes in memory: 0
+[PythonQIG] [AutonomicKernel] Reasoning consolidation: pruned 0 strategies
