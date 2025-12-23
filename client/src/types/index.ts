@@ -5,3 +5,12 @@
  */
 
 export * from './streaming-metrics';
+
+// Re-export commonly used types for convenience
+export type {
+  StreamingMetrics,
+  StreamingChunk,
+  GeometricCompletionState,
+  CompletionReason,
+  Regime
+} from './streaming-metrics';

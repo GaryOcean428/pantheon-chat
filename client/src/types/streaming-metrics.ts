@@ -109,3 +109,33 @@ export function getRegimeLabel(regime: Regime): string {
     case 'breakdown': return 'Breakdown (Stabilizing)';
   }
 }
+
+// External API types for chat integrations
+export interface ExternalChatRequest {
+  message: string;
+  sessionId?: string;
+  stream?: boolean;
+  context?: {
+    previousMessages?: Array<{ role: 'user' | 'assistant'; content: string }>;
+    systemPrompt?: string;
+    temperature?: number;
+  };
+  metadata?: {
+    instanceId?: string;
+    clientName?: string;
+    clientVersion?: string;
+  };
+}
+
+export interface ExternalChatResponse {
+  success: boolean;
+  response: string;
+  sessionId: string;
+  metrics?: StreamingMetrics;
+  sources?: Array<{
+    title: string;
+    url?: string;
+    relevance: number;
+  }>;
+  error?: string;
+}

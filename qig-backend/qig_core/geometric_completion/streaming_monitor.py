@@ -9,7 +9,7 @@ emitting metrics updates and completion signals in real-time.
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any, Generator, Callable
+from typing import Dict, List, Optional, Any, Generator, Callable, Tuple
 import numpy as np
 import time
 import json

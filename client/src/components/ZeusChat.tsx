@@ -19,7 +19,7 @@
  * - Content treated as plain text (no HTML rendering)
  */
 
-import { useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Send, Upload, Search, Sparkles, Brain, CheckCircle, Loader2, AlertCircle } from 'lucide-react';
 import { useZeusChat, type ZeusMessage, type SyncStatus } from '@/hooks/useZeusChat';
 
@@ -36,7 +36,8 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, Button, Badg
 import { useToast } from '@/hooks/use-toast';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { StreamingMetricsPanel } from './StreamingMetricsPanel';
-import { useStreamingMetrics } from '@/hooks/useStreamingMetrics';
+import { useStreamingMetrics, type UseStreamingMetricsReturn } from '@/hooks/useStreamingMetrics';
+import { Activity } from 'lucide-react';
 
 export default function ZeusChat() {
   const {
@@ -58,8 +59,11 @@ export default function ZeusChat() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   
+  // Toggle for metrics panel visibility
+  const [showMetrics, setShowMetrics] = useState(true);
+  
   // Streaming metrics for geometric completion visualization
-  const { state: metricsState, getCompletionProgress } = useStreamingMetrics({
+  const { state: metricsState, getCompletionProgress, processSSEChunk, reset: resetMetrics } = useStreamingMetrics({
     onCompletion: (completionState) => {
       console.log('[ZeusChat] Geometric completion:', completionState.reason);
     }
@@ -247,16 +251,29 @@ export default function ZeusChat() {
             {isThinking && (
               <div className="flex justify-start">
                 <div className="bg-muted rounded-lg p-3 w-full max-w-md">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Sparkles className="h-4 w-4 text-yellow-500 animate-pulse" />
-                    <span className="text-sm">Zeus is consulting the pantheon...</span>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-yellow-500 animate-pulse" />
+                      <span className="text-sm">Zeus is consulting the pantheon...</span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowMetrics(!showMetrics)}
+                      className="h-6 w-6 p-0"
+                      title={showMetrics ? 'Hide metrics' : 'Show metrics'}
+                    >
+                      <Activity className={`h-3 w-3 ${showMetrics ? 'text-blue-500' : 'text-muted-foreground'}`} />
+                    </Button>
                   </div>
-                  {/* Streaming metrics panel */}
-                  <StreamingMetricsPanel
-                    state={metricsState}
-                    completionProgress={getCompletionProgress()}
-                    compact
-                  />
+                  {/* Streaming metrics panel - toggleable */}
+                  {showMetrics && (
+                    <StreamingMetricsPanel
+                      state={metricsState}
+                      completionProgress={getCompletionProgress()}
+                      compact
+                    />
+                  )}
                 </div>
               </div>
             )}
