@@ -75,7 +75,7 @@ from .tool_request_persistence import (
 from .zeus import Zeus, olympus_app, zeus
 
 # Zeus Chat (voice integration)
-from .zeus_chat import ZeusConversationHandler
+from .zeus_chat import ZeusConversationHandler, GeometricGenerationMixin
 
 # Guardian Gods for kernel development
 try:

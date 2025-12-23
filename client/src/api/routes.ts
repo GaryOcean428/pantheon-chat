@@ -327,8 +327,11 @@ export const API_ROUTES = {
   // External API (v1 - Federation & Headless Clients)
   external: {
     base: '/api/v1/external',
+    // Unified API - recommended single entry point for external integrations
+    unified: '/api/v1/external/v1',
     health: '/api/v1/external/health',
     status: '/api/v1/external/status',
+    chat: '/api/v1/external/chat',
     consciousness: {
       state: '/api/v1/external/consciousness/state',
       stream: '/api/v1/external/consciousness/stream',
@@ -522,6 +525,8 @@ export const QUERY_KEYS = {
     // Telemetry
     telemetryFleet: () => [API_ROUTES.olympus.telemetry.fleet] as const,
     telemetryKernelCapabilities: (kernelId: string) => ['/api/olympus/telemetry/kernel', kernelId, 'capabilities'] as const,
+    // Kernel Activity Stream
+    activity: () => ['olympus', 'pantheon', 'activity'] as const,
   },
   
   oceanAutonomic: {

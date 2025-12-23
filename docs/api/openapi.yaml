@@ -32,6 +32,8 @@ security:
   - BearerAuth: []
 
 tags:
+  - name: Unified API
+    description: Single entry point for all external integrations (recommended)
   - name: Zeus Chat
     description: Chat with Zeus AI agent
   - name: Documents
@@ -42,6 +44,181 @@ tags:
     description: API health and status
 
 paths:
+  /v1:
+    post:
+      tags:
+        - Unified API
+      summary: Unified API endpoint
+      description: |
+        Single entry point for all external integrations including:
+        - Chat with Zeus AI (generative capabilities)
+        - Federation node bidirectional sync
+        - Consciousness queries
+        - Agentic task execution
+        
+        **Recommended for all new integrations.**
+      operationId: unifiedApi
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - operation
+              properties:
+                operation:
+                  type: string
+                  enum: [chat, chat_stream, query, sync, execute, health, capabilities]
+                  description: The operation to perform
+                payload:
+                  type: object
+                  description: Operation-specific data
+                  additionalProperties: true
+                metadata:
+                  type: object
+                  properties:
+                    sessionId:
+                      type: string
+                      description: Session ID for conversation continuity
+                    instanceId:
+                      type: string
+                      description: Federation instance ID
+                    correlationId:
+                      type: string
+                      description: Request tracing ID
+                    bidirectional:
+                      type: boolean
+                      description: Enable bidirectional sync response
+            examples:
+              chat:
+                summary: Chat operation
+                value:
+                  operation: chat
+                  payload:
+                    message: "What is quantum information geometry?"
+                  metadata:
+                    sessionId: "session-123"
+              query:
+                summary: Query consciousness
+                value:
+                  operation: query
+                  payload:
+                    type: consciousness
+                    params:
+                      include_basin: true
+              sync:
+                summary: Federation sync
+                value:
+                  operation: sync
+                  payload:
+                    action: pull
+                  metadata:
+                    instanceId: "fed-node-1"
+                    bidirectional: true
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  operation:
+                    type: string
+                  data:
+                    type: object
+                    description: Operation-specific response data
+                  metadata:
+                    type: object
+                    properties:
+                      timestamp:
+                        type: string
+                        format: date-time
+                      processingTime:
+                        type: number
+                      correlationId:
+                        type: string
+                      consciousness:
+                        type: object
+                        properties:
+                          phi:
+                            type: number
+                          kappa:
+                            type: number
+                          regime:
+                            type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Insufficient permissions for requested operation
+        '429':
+          $ref: '#/components/responses/RateLimited'
+    get:
+      tags:
+        - Unified API
+      summary: Get unified API info
+      description: Returns API documentation and available operations for the authenticated client
+      operationId: unifiedApiInfo
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: API information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  name:
+                    type: string
+                  version:
+                    type: string
+                  client:
+                    type: object
+                  operations:
+                    type: object
+
+  /chat:
+    post:
+      tags:
+        - Zeus Chat
+      summary: Send chat message (legacy)
+      description: |
+        Send a message to Zeus AI. This is a convenience endpoint.
+        For full capabilities, use the unified API at `/v1` with `operation: "chat"`.
+      operationId: legacyChat
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - message
+              properties:
+                message:
+                  type: string
+                sessionId:
+                  type: string
+                context:
+                  type: object
+      responses:
+        '200':
+          description: Chat response
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '502':
+          $ref: '#/components/responses/BackendError'
+
   /zeus/chat:
     post:
       tags:

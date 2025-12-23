@@ -985,7 +985,7 @@ class AutonomousDebateService:
         result = tokenizer.generate_response(
             context=context,
             agent_role="navigator",  # Balanced exploration
-            max_tokens=50,
+            # No max_tokens - geometry determines when debate argument completes
             allow_silence=False
         )
 

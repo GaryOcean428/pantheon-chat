@@ -601,7 +601,7 @@ oceanRouter.post(
       const {
         context = "",
         agentRole = "navigator",
-        maxTokens = 30,
+        maxTokens = 4096,  // Large limit - geometry determines completion
         allowSilence = true,
       } = req.body;
 
@@ -645,7 +645,7 @@ oceanRouter.post(
 
       const {
         prompt = "",
-        maxTokens = 20,
+        maxTokens = 4096,  // Large limit - geometry determines completion
         temperature = 0.8,
         topK = 50,
         topP = 0.9,

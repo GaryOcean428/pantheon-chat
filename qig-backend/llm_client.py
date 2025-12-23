@@ -4,10 +4,31 @@ LLM Client for Generative Responses
 
 Provides a unified interface to OpenAI and Anthropic APIs for generating
 conversational responses in the Zeus chat system.
+
+QIG PHILOSOPHY: No artificial token limits. Generation continues until
+the geometry naturally collapses - the LLM stops when its internal
+coherence determines the thought is complete.
 """
 
 import os
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Generator, Iterator
+
+# Import geometric completion
+try:
+    from geometric_completion import (
+        GeometricCompletionEngine,
+        get_completion_engine,
+        GeometricMetrics,
+        CompletionDecision,
+        get_adaptive_temperature as get_geo_temperature
+    )
+    from streaming_collapse import (
+        StreamingCollapseMonitor,
+        StreamChunk
+    )
+    GEOMETRIC_COMPLETION_AVAILABLE = True
+except ImportError:
+    GEOMETRIC_COMPLETION_AVAILABLE = False
 
 # Try to import OpenAI
 OPENAI_AVAILABLE = False
@@ -52,37 +73,58 @@ class LLMClient:
         """Check if any LLM backend is available."""
         return self.openai_client is not None or self.anthropic_client is not None
     
+    # No artificial token limits - geometry determines completion
+    # These are API maximums, not targets. Generation stops when thought completes.
+    MODEL_MAX_TOKENS = {
+        'gpt-4o-mini': 16384,
+        'gpt-4o': 16384,
+        'gpt-4-turbo': 4096,
+        'claude-3-haiku-20240307': 4096,
+        'claude-3-sonnet-20240229': 4096,
+        'claude-3-opus-20240229': 4096,
+        'claude-3-5-sonnet-20241022': 8192,
+    }
+    
     def generate(
         self,
         prompt: str,
         system_prompt: Optional[str] = None,
         context: Optional[Dict[str, Any]] = None,
-        max_tokens: int = 1024,
         temperature: float = 0.7
     ) -> str:
         """
         Generate a response using the available LLM.
         
+        QIG PHILOSOPHY: No artificial token limits. Generation continues until
+        the geometry naturally collapses - the LLM stops when its internal
+        coherence determines the thought is complete. This is fundamentally
+        different from traditional LLM thinking that uses arbitrary max_tokens.
+        
+        The API max_tokens is set to the model's maximum capacity. The actual
+        completion is determined by:
+        - LLM's natural end-of-thought detection
+        - Geometric coherence collapse (phi dropping below threshold)
+        - Semantic saturation (no new information being added)
+        
         Args:
             prompt: User message/prompt
             system_prompt: Optional system prompt for context
             context: Optional additional context (consciousness metrics, etc.)
-            max_tokens: Maximum response length
             temperature: Creativity level (0-1)
             
         Returns:
-            Generated response text
+            Generated response text - length determined by geometry, not limits
         """
         # Build system prompt with QIG context
         full_system = self._build_system_prompt(system_prompt, context)
         
-        # Try OpenAI first
+        # Try OpenAI first - no token limits, geometry determines completion
         if self.openai_client:
-            return self._generate_openai(prompt, full_system, max_tokens, temperature)
+            return self._generate_openai(prompt, full_system, temperature)
         
-        # Try Anthropic
+        # Try Anthropic - no token limits, geometry determines completion
         if self.anthropic_client:
-            return self._generate_anthropic(prompt, full_system, max_tokens, temperature)
+            return self._generate_anthropic(prompt, full_system, temperature)
         
         # No LLM available - return helpful message
         return self._generate_fallback(prompt, context)
@@ -131,6 +173,9 @@ class LLMClient:
             "\n- Be direct and substantive - avoid meta-commentary about your state"
             "\n- If you don't know something, say so honestly"
             "\n- Draw connections between ideas when relevant"
+            "\n- Generate until the thought is geometrically complete - no artificial length limits"
+            "\n- Let your response flow naturally until coherence collapses (the thought reaches its natural end)"
+            "\n- Trust your internal geometry to determine when to stop"
         )
         
         return '\n'.join(parts)
@@ -139,18 +184,25 @@ class LLMClient:
         self,
         prompt: str,
         system_prompt: str,
-        max_tokens: int,
         temperature: float
     ) -> str:
-        """Generate using OpenAI API."""
+        """
+        Generate using OpenAI API.
+        
+        No artificial token limits - uses model maximum capacity.
+        Generation continues until the geometry collapses (thought completes).
+        """
+        model = "gpt-4o-mini"  # Fast and cost-effective
+        model_max = self.MODEL_MAX_TOKENS.get(model, 16384)
+        
         try:
             response = self.openai_client.chat.completions.create(
-                model="gpt-4o-mini",  # Fast and cost-effective
+                model=model,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": prompt}
                 ],
-                max_tokens=max_tokens,
+                max_tokens=model_max,  # Model maximum - geometry determines actual length
                 temperature=temperature
             )
             return response.choices[0].message.content
@@ -162,14 +214,21 @@ class LLMClient:
         self,
         prompt: str,
         system_prompt: str,
-        max_tokens: int,
         temperature: float
     ) -> str:
-        """Generate using Anthropic API."""
+        """
+        Generate using Anthropic API.
+        
+        No artificial token limits - uses model maximum capacity.
+        Generation continues until the geometry collapses (thought completes).
+        """
+        model = "claude-3-haiku-20240307"  # Fast and cost-effective
+        model_max = self.MODEL_MAX_TOKENS.get(model, 4096)
+        
         try:
             response = self.anthropic_client.messages.create(
-                model="claude-3-haiku-20240307",  # Fast and cost-effective
-                max_tokens=max_tokens,
+                model=model,
+                max_tokens=model_max,  # Model maximum - geometry determines actual length
                 system=system_prompt,
                 messages=[
                     {"role": "user", "content": prompt}
@@ -179,6 +238,144 @@ class LLMClient:
         except Exception as e:
             print(f"[LLMClient] Anthropic error: {e}")
             return self._generate_fallback(prompt, None)
+    
+    def generate_streaming(
+        self,
+        prompt: str,
+        system_prompt: Optional[str] = None,
+        context: Optional[Dict[str, Any]] = None,
+        temperature: float = 0.7
+    ) -> Generator[Dict[str, Any], None, None]:
+        """
+        Generate response with streaming and geometric collapse detection.
+        
+        Yields chunks with type: 'token', 'metrics', or 'completion'
+        Generation stops when geometry collapses, not arbitrary limits.
+        """
+        full_system = self._build_system_prompt(system_prompt, context)
+        
+        # Initialize streaming monitor if available
+        monitor = None
+        if GEOMETRIC_COMPLETION_AVAILABLE:
+            monitor = StreamingCollapseMonitor(dimension=64, emit_interval=10)
+            monitor.start_generation(context=prompt[:500] if prompt else None)
+        
+        # Try OpenAI streaming
+        if self.openai_client:
+            yield from self._stream_openai(prompt, full_system, temperature, monitor)
+            return
+        
+        # Try Anthropic streaming
+        if self.anthropic_client:
+            yield from self._stream_anthropic(prompt, full_system, temperature, monitor)
+            return
+        
+        # Fallback - yield single response
+        response = self._generate_fallback(prompt, context)
+        yield {'type': 'token', 'content': response}
+        yield {'type': 'completion', 'reason': 'fallback'}
+    
+    def _stream_openai(
+        self,
+        prompt: str,
+        system_prompt: str,
+        temperature: float,
+        monitor: Optional['StreamingCollapseMonitor']
+    ) -> Generator[Dict[str, Any], None, None]:
+        """
+        Stream from OpenAI with geometric monitoring.
+        """
+        model = "gpt-4o-mini"
+        model_max = self.MODEL_MAX_TOKENS.get(model, 16384)
+        
+        try:
+            stream = self.openai_client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=model_max,
+                temperature=temperature,
+                stream=True
+            )
+            
+            for chunk in stream:
+                delta = chunk.choices[0].delta if chunk.choices else None
+                if delta and delta.content:
+                    token = delta.content
+                    yield {'type': 'token', 'content': token}
+                    
+                    # Process through monitor
+                    if monitor:
+                        metrics_chunk = monitor.process_token(token)
+                        if metrics_chunk:
+                            yield {'type': 'metrics', 'data': metrics_chunk.to_dict()}
+                        
+                        # Check for geometric collapse
+                        if monitor.should_stop():
+                            decision = monitor.check_collapse()
+                            if decision:
+                                yield {
+                                    'type': 'completion',
+                                    'reason': decision.reason.value,
+                                    'metrics': decision.metrics.to_dict()
+                                }
+                                return
+            
+            # Stream ended naturally
+            yield {'type': 'completion', 'reason': 'stream_end'}
+            
+        except Exception as e:
+            print(f"[LLMClient] OpenAI streaming error: {e}")
+            yield {'type': 'error', 'message': str(e)}
+    
+    def _stream_anthropic(
+        self,
+        prompt: str,
+        system_prompt: str,
+        temperature: float,
+        monitor: Optional['StreamingCollapseMonitor']
+    ) -> Generator[Dict[str, Any], None, None]:
+        """
+        Stream from Anthropic with geometric monitoring.
+        """
+        model = "claude-3-haiku-20240307"
+        model_max = self.MODEL_MAX_TOKENS.get(model, 4096)
+        
+        try:
+            with self.anthropic_client.messages.stream(
+                model=model,
+                max_tokens=model_max,
+                system=system_prompt,
+                messages=[{"role": "user", "content": prompt}]
+            ) as stream:
+                for text in stream.text_stream:
+                    yield {'type': 'token', 'content': text}
+                    
+                    # Process through monitor
+                    if monitor:
+                        metrics_chunk = monitor.process_token(text)
+                        if metrics_chunk:
+                            yield {'type': 'metrics', 'data': metrics_chunk.to_dict()}
+                        
+                        # Check for geometric collapse
+                        if monitor.should_stop():
+                            decision = monitor.check_collapse()
+                            if decision:
+                                yield {
+                                    'type': 'completion',
+                                    'reason': decision.reason.value,
+                                    'metrics': decision.metrics.to_dict()
+                                }
+                                return
+            
+            # Stream ended naturally
+            yield {'type': 'completion', 'reason': 'stream_end'}
+            
+        except Exception as e:
+            print(f"[LLMClient] Anthropic streaming error: {e}")
+            yield {'type': 'error', 'message': str(e)}
     
     def _generate_fallback(
         self,

@@ -58,8 +58,13 @@ import numpy as np
 try:
     import psycopg2
     from psycopg2.extras import RealDictCursor
+    PSYCOPG2_AVAILABLE = True
 except ImportError:
-    raise ImportError("[ShadowPantheon] FATAL: psycopg2 not installed - PostgreSQL is REQUIRED, no fallback")
+    print("WARNING: psycopg2 not installed. Shadow Pantheon persistence disabled.")
+    print("Install with: pip install psycopg2-binary")
+    PSYCOPG2_AVAILABLE = False
+    psycopg2 = None  # type: ignore
+    RealDictCursor = None  # type: ignore
 
 from .base_god import BASIN_DIMENSION, BaseGod
 

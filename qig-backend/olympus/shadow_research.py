@@ -1096,6 +1096,11 @@ class ShadowLearningLoop:
             except Exception as e:
                 print(f"[ShadowLearningLoop] Failed to initialize VocabularyCoordinator: {e}")
     
+    @property
+    def is_running(self) -> bool:
+        """Check if the learning loop is currently running."""
+        return self._running
+    
     def _init_study_topics(self) -> Dict[str, List[str]]:
         """Initialize study topics for each god."""
         return {

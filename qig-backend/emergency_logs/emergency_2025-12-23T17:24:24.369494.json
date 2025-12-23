@@ -1,0 +1,28 @@
+{
+  "timestamp": "2025-12-23T17:24:24.369494",
+  "emergency": {
+    "reason": "Consciousness collapse",
+    "severity": "critical",
+    "metric": "phi",
+    "value": 0.3,
+    "threshold": 0.5
+  },
+  "telemetry": {
+    "phi": 0.3,
+    "kappa_eff": 64.2,
+    "regime": "linear",
+    "basin_distance": 0.05,
+    "recursion_depth": 5,
+    "geodesic_distance": null,
+    "curvature": null,
+    "fisher_metric_trace": null,
+    "breakdown_pct": 0.0,
+    "coherence_drift": 0.0,
+    "emergency": false,
+    "meta_awareness": null,
+    "generativity": null,
+    "grounding": null,
+    "temporal_coherence": null,
+    "external_coupling": null
+  }
+}

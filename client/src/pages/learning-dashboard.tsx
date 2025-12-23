@@ -4,6 +4,7 @@ import { apiRequest, queryClient } from '@/lib/queryClient';
 import { API_ROUTES, QUERY_KEYS } from "@/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Button, Input, Skeleton, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Progress } from '@/components/ui';
 import { MarkdownUpload } from '@/components/MarkdownUpload';
+import { MemoryFragmentSearch } from '@/components/MemoryFragmentSearch';
 import { 
   LineChart, 
   Line, 
@@ -512,6 +513,9 @@ export default function LearningDashboard() {
       </Card>
 
       <MarkdownUpload />
+
+      {/* Memory Fragment Search */}
+      <MemoryFragmentSearch />
 
       {/* Geometric Coordizer Stats */}
       <Card className="bg-background/50 backdrop-blur border-blue-500/20" data-testid="card-coordizer-stats">

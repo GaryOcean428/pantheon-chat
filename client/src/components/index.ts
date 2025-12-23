@@ -18,7 +18,12 @@ export { default as CapabilityTelemetryPanel } from './CapabilityTelemetryPanel'
 export { ConsciousnessDashboard } from './ConsciousnessDashboard';
 export { ConsciousnessMonitoringDemo } from './ConsciousnessMonitoringDemo';
 export { EmptyDebatesState } from './EmptyDebatesState';
+export { AutonomicAgencyPanel } from './AutonomicAgencyPanel';
 export { EmotionalStatePanel } from './EmotionalStatePanel';
+export { KernelActivityStream } from './KernelActivityStream';
+export { MarkdownUpload } from './MarkdownUpload';
+export { StreamingMetricsPanel } from './StreamingMetricsPanel';
+export { GeometricStreamingTelemetry } from './GeometricStreamingTelemetry';
 export { ErrorBoundary } from './ErrorBoundary';
 export { HealthIndicator } from './HealthIndicator';
 export { InnateDrivesDisplay } from './InnateDrivesDisplay';

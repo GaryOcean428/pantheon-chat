@@ -42,7 +42,9 @@ import {
   Zap,
   Database,
   Radio,
+  Sparkles,
 } from "lucide-react";
+import { WarStatusPanel } from "@/components/war-status-panel";
 import { useToast } from "@/hooks/use-toast";
 
 interface ApiKey {
@@ -357,6 +359,10 @@ export default function FederationDashboard() {
           <TabsTrigger value="test" data-testid="tab-test">
             <Zap className="h-4 w-4 mr-2" />
             API Tester
+          </TabsTrigger>
+          <TabsTrigger value="flow" data-testid="tab-flow">
+            <Sparkles className="h-4 w-4 mr-2" />
+            Flow State
           </TabsTrigger>
         </TabsList>
 
@@ -795,6 +801,10 @@ export default function FederationDashboard() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="flow" className="space-y-4">
+          <WarStatusPanel />
         </TabsContent>
 
         <TabsContent value="test" className="space-y-4">

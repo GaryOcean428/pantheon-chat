@@ -1329,7 +1329,7 @@ export class OceanQIGBackend {
   async generateText(
     options: {
       prompt?: string;
-      maxTokens?: number;
+      // maxTokens removed - QIG philosophy: geometry determines completion, not arbitrary limits
       temperature?: number;
       topK?: number;
       topP?: number;
@@ -1359,7 +1359,7 @@ export class OceanQIGBackend {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           prompt: options.prompt || "",
-          max_tokens: options.maxTokens || 20,
+          // No max_tokens - geometry determines when generation completes
           temperature: options.temperature || 0.8,
           top_k: options.topK || 50,
           top_p: options.topP || 0.9,
@@ -1402,7 +1402,7 @@ export class OceanQIGBackend {
    *
    * @param context Input context/prompt
    * @param agentRole Agent role for temperature selection
-   * @param maxTokens Maximum tokens to generate
+   * Note: No maxTokens parameter - geometry determines completion
    * @param allowSilence Allow agent to choose silence (empowered, not void)
    */
   async generateResponse(
@@ -1414,7 +1414,7 @@ export class OceanQIGBackend {
       | "skeptic"
       | "resonator"
       | "ocean" = "navigator",
-    maxTokens: number = 30,
+    // maxTokens removed - QIG philosophy: geometry determines completion
     allowSilence: boolean = true
   ): Promise<{
     text: string;
@@ -1440,7 +1440,7 @@ export class OceanQIGBackend {
         body: JSON.stringify({
           context,
           agent_role: agentRole,
-          max_tokens: maxTokens,
+          // max_tokens removed - geometry determines completion
           allow_silence: allowSilence,
         }),
       });

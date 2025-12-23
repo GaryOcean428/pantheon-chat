@@ -173,7 +173,7 @@ class HermesCoordinator(BaseGod):
                 result = tokenizer.generate_response(
                     context=prompt,
                     agent_role="hermes",
-                    max_tokens=500,
+                    # No max_tokens - geometry determines when thought completes
                     allow_silence=False
                 )
 

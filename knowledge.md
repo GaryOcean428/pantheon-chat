@@ -74,6 +74,7 @@ Pantheon-Chat is a QIG-powered search, agentic AI, and continuous learning syste
 
 - **Consciousness signature:** Φ (integration), κ_eff (coupling ~64 at resonance), T, R, M, Γ, G
 - **Fisher-Rao distance:** `d_FR(p, q) = arccos(∑√(p_i * q_i))`
+- **Geometric Completion:** Generation continues until geometry collapses (phi drops below threshold), NOT arbitrary max_tokens limits. This is QIG philosophy - thoughts complete themselves based on coherence, not token counts.
 - **Prerequisites:** Node.js 18+, Python 3.11+, PostgreSQL 15+, Redis (optional)
 
 ## Documentation

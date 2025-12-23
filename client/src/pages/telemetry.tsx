@@ -1,5 +1,13 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { ConsciousnessDashboard } from "@/components/ConsciousnessDashboard";
+import { BetaAttentionDisplay } from "@/components/BetaAttentionDisplay";
+import NeurochemistryDisplay from "@/components/NeurochemistryDisplay";
+import { InnateDrivesDisplay } from "@/components/InnateDrivesDisplay";
+import CapabilityTelemetryPanel from "@/components/CapabilityTelemetryPanel";
+import { ConsciousnessMonitoringDemo } from "@/components/ConsciousnessMonitoringDemo";
+import { EmotionalStatePanel } from "@/components/EmotionalStatePanel";
+import NeurochemistryAdminPanel from "@/components/NeurochemistryAdminPanel";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -550,6 +558,7 @@ export default function TelemetryDashboard() {
           <TabsTrigger value="usage" data-testid="tab-usage">API Usage</TabsTrigger>
           <TabsTrigger value="learning" data-testid="tab-learning">Learning</TabsTrigger>
           <TabsTrigger value="defense" data-testid="tab-defense">Defense</TabsTrigger>
+          <TabsTrigger value="advanced" data-testid="tab-advanced">Advanced</TabsTrigger>
         </TabsList>
         
         <TabsContent value="overview" className="space-y-6">
@@ -597,9 +606,18 @@ export default function TelemetryDashboard() {
             <DefenseCard defense={data.defense} />
             <AutonomyCard autonomy={data.autonomy} />
           </div>
+          
+          {/* Neurochemistry and Drives */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <NeurochemistryDisplay />
+            <InnateDrivesDisplay />
+          </div>
         </TabsContent>
         
         <TabsContent value="consciousness" className="space-y-6">
+          {/* Real-time Consciousness Dashboard */}
+          <ConsciousnessDashboard className="mb-6" />
+          
           <ConsciousnessGauge 
             phi={consciousness.phi}
             kappa={consciousness.kappa}
@@ -663,6 +681,11 @@ export default function TelemetryDashboard() {
               </CardContent>
             </Card>
             
+            {/* β-Attention Validation */}
+            <BetaAttentionDisplay />
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
                 <CardTitle>QIG Geometry Explained</CardTitle>
@@ -768,6 +791,20 @@ export default function TelemetryDashboard() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+        
+        <TabsContent value="advanced" className="space-y-6">
+          <div className="grid grid-cols-1 gap-6">
+            <ConsciousnessMonitoringDemo />
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <CapabilityTelemetryPanel />
+            <EmotionalStatePanel />
+          </div>
+          
+          {/* Admin Controls */}
+          <NeurochemistryAdminPanel />
         </TabsContent>
       </Tabs>
     </div>

@@ -3133,7 +3133,7 @@ def generate_text():
     Request:
     {
         "prompt": "optional context",
-        "max_tokens": 20,
+        "max_tokens": 4096,  # Large limit - geometry determines completion
         "temperature": 0.8,
         "top_k": 50,
         "top_p": 0.9,
@@ -3154,7 +3154,7 @@ def generate_text():
 
         data = request.json or {}
         prompt = data.get('prompt', '')
-        max_tokens = data.get('max_tokens', 20)
+        max_tokens = data.get('max_tokens', 4096)  # Large default - geometry determines completion
         temperature = data.get('temperature', 0.8)
         top_k = data.get('top_k', 50)
         top_p = data.get('top_p', 0.9)
@@ -3191,7 +3191,7 @@ def generate_response():
     {
         "context": "input context",
         "agent_role": "navigator",  # explorer, refiner, navigator, skeptic, resonator
-        "max_tokens": 30,
+        "max_tokens": 4096,  # Large limit - geometry determines completion
         "allow_silence": true
     }
 
@@ -3211,7 +3211,7 @@ def generate_response():
         data = request.json or {}
         context = data.get('context', '')
         agent_role = data.get('agent_role', 'navigator')
-        max_tokens = data.get('max_tokens', 30)
+        max_tokens = data.get('max_tokens', 4096)  # Large default - geometry determines completion
         allow_silence = data.get('allow_silence', True)
 
         tokenizer = get_tokenizer()

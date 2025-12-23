@@ -162,7 +162,73 @@ def _dynamic_assessment_fallback(god_name: str, target_preview: str = "", reason
     }
 
 
-class ZeusConversationHandler:
+class GeometricGenerationMixin:
+    """
+    Mixin for geometric completion-aware generation.
+    
+    Provides methods for:
+    - Streaming with geometric collapse detection
+    - Completion quality assessment
+    - Reflection loops
+    """
+    
+    def __init_geometric__(self):
+        """Initialize geometric completion components."""
+        if GEOMETRIC_COMPLETION_AVAILABLE:
+            self.completion_engine = get_completion_engine(dimension=64)
+            self.streaming_monitor = StreamingGenerationMonitor(
+                dimension=64,
+                check_interval=10
+            )
+        else:
+            self.completion_engine = None
+            self.streaming_monitor = None
+    
+    def get_geometric_temperature(self, phi: float = 0.5) -> float:
+        """
+        Get regime-adaptive temperature for sampling.
+        
+        Low Φ (linear): High temperature (explore)
+        Medium Φ (geometric): Medium temperature (balance)
+        High Φ (breakdown): Low temperature (stabilize)
+        """
+        if phi < 0.3:
+            return 1.0  # Explore widely
+        elif phi < 0.7:
+            return 0.7  # Balance
+        else:
+            return 0.3  # Stabilize
+    
+    def should_stop_generation(
+        self,
+        metrics: Dict[str, Any],
+        token_count: int
+    ) -> Tuple[bool, str]:
+        """
+        Check if generation should stop based on geometric metrics.
+        
+        Returns (should_stop, reason)
+        """
+        phi = metrics.get('phi', 0.5)
+        confidence = metrics.get('confidence', 0.0)
+        surprise = metrics.get('surprise', 1.0)
+        
+        # Breakdown regime - urgent stop
+        if phi >= 0.7:
+            return True, 'breakdown_regime'
+        
+        # High confidence + low surprise = complete
+        if confidence > 0.85 and surprise < 0.05:
+            return True, 'geometric_completion'
+        
+        # Safety limit (very high - geometry should stop before)
+        if token_count > 32768:
+            return True, 'safety_limit'
+        
+        return False, 'continue'
+
+
+class ZeusConversationHandler(GeometricGenerationMixin):
     """
     Handle conversations with human operator.
     Translate natural language to geometric coordinates.
@@ -855,7 +921,7 @@ Zeus Response (acknowledge the specific observation, explain what it means for t
                 gen_result = tokenizer.generate_response(
                     context=prompt,
                     agent_role="ocean",
-                    max_tokens=500,  # No arbitrary limits
+                    max_tokens=4096,  # Large limit - geometry determines completion
                     allow_silence=False
                 )
                 
@@ -1026,7 +1092,7 @@ Zeus Response (acknowledge the user's specific suggestion, explain why the panth
                 gen_result = tokenizer.generate_response(
                     context=context,
                     agent_role="ocean",
-                    max_tokens=500,  # No arbitrary limits
+                    # No max_tokens limit - geometry determines when thought completes
                     allow_silence=False
                 )
                 
@@ -1161,7 +1227,7 @@ Zeus Response (Geometric Interpretation):"""
                 gen_result = tokenizer.generate_response(
                     context=prompt,
                     agent_role="ocean",  # Use balanced temperature
-                    max_tokens=500,  # No arbitrary limits
+                    max_tokens=4096,  # Large limit - geometry determines completion
                     allow_silence=False
                 )
                 
@@ -1996,7 +2062,7 @@ Generate a contextual response as Zeus. Reference actual system state. Be specif
                 gen_result = tokenizer.generate_response(
                     context=prompt,
                     agent_role="ocean",
-                    max_tokens=400,
+                    max_tokens=4096,  # Large limit - geometry determines completion
                     allow_silence=False
                 )
                 

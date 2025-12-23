@@ -27,7 +27,7 @@ import {
   Users
 } from 'lucide-react';
 import ZeusChat from '@/components/ZeusChat';
-import { EmptyDebatesState } from '@/components';
+import { KernelActivityStream } from '@/components/KernelActivityStream';
 
 interface GodStatus {
   name: string;
@@ -62,16 +62,6 @@ interface ChatMessage {
   content: string;
   timestamp: string;
   read: boolean;
-}
-
-interface Debate {
-  id: string;
-  topic: string;
-  initiator: string;
-  opponent: string;
-  status: string;
-  arguments: Array<{god: string; argument: string; timestamp: string}>;
-  winner?: string;
 }
 
 const GOD_ICONS: Record<string, typeof Sparkles> = {
@@ -243,63 +233,6 @@ function ChatActivity({ messages }: { messages: ChatMessage[] }) {
   );
 }
 
-function DebateViewer({ debates }: { debates: Debate[] }) {
-  const safeDebates = Array.isArray(debates) ? debates : [];
-  if (safeDebates.length === 0) {
-    return <EmptyDebatesState />;
-  }
-
-  return (
-    <ScrollArea className="h-[400px]">
-      <div className="space-y-4 pr-4">
-        {safeDebates.map((debate) => {
-          const InitiatorIcon = GOD_ICONS[debate.initiator.toLowerCase()] || Sparkles;
-          const OpponentIcon = GOD_ICONS[debate.opponent.toLowerCase()] || Sparkles;
-          
-          return (
-            <Card key={debate.id} data-testid={`debate-${debate.id}`}>
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm">{debate.topic}</CardTitle>
-                  <Badge variant={debate.status === 'active' ? 'default' : 'secondary'}>
-                    {debate.status}
-                  </Badge>
-                </div>
-                <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1 capitalize">
-                    <InitiatorIcon className="h-3 w-3" />
-                    {debate.initiator}
-                  </span>
-                  <span>vs</span>
-                  <span className="flex items-center gap-1 capitalize">
-                    <OpponentIcon className="h-3 w-3" />
-                    {debate.opponent}
-                  </span>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {debate.arguments.slice(-3).map((arg, i) => (
-                    <div key={i} className="text-xs p-2 bg-muted/50 rounded">
-                      <span className="font-medium capitalize">{arg.god}:</span>{' '}
-                      {arg.argument.slice(0, 150)}...
-                    </div>
-                  ))}
-                </div>
-                {debate.winner && (
-                  <div className="mt-2 text-xs text-green-400">
-                    Winner: <span className="capitalize">{debate.winner}</span>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-    </ScrollArea>
-  );
-}
-
 export default function OlympusPage() {
   const [activeTab, setActiveTab] = useState('activity');
 
@@ -311,12 +244,6 @@ export default function OlympusPage() {
   const { data: recentActivity } = useQuery<ChatMessage[]>({
     queryKey: QUERY_KEYS.olympus.chatRecent(),
     refetchInterval: 5000,
-  });
-
-  const { data: activeDebates } = useQuery<{debates: Debate[], count: number}, Error, Debate[]>({
-    queryKey: QUERY_KEYS.olympus.debatesActive(),
-    refetchInterval: 10000,
-    select: (data) => data?.debates || [],
   });
 
   return (
@@ -426,7 +353,7 @@ export default function OlympusPage() {
           </TabsTrigger>
           <TabsTrigger value="debates" data-testid="tab-debates">
             <Sword className="h-4 w-4 mr-2" />
-            Debates
+            Kernel Activity
           </TabsTrigger>
           <TabsTrigger value="shadow" data-testid="tab-shadow">
             <Moon className="h-4 w-4 mr-2 text-purple-400" />
@@ -476,20 +403,7 @@ export default function OlympusPage() {
         </TabsContent>
 
         <TabsContent value="debates" className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Sword className="h-5 w-5" />
-                Divine Debates
-              </CardTitle>
-              <CardDescription>
-                Formal disagreements between gods - watch Athena vs Ares
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <DebateViewer debates={activeDebates || []} />
-            </CardContent>
-          </Card>
+          <KernelActivityStream limit={100} maxHeight="calc(100vh - 350px)" />
         </TabsContent>
 
         <TabsContent value="shadow" className="mt-4">

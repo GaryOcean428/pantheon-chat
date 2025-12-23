@@ -27,6 +27,7 @@ import { oceanBasinSync, type BasinSyncPacket } from '../ocean-basin-sync';
 import { simpleApiRouter } from './simple-api';
 import { externalZeusRouter } from './zeus';
 import { externalDocumentsRouter } from './documents';
+import { unifiedApiRouter } from './unified';
 
 export const externalApiRouter = Router();
 
@@ -38,6 +39,9 @@ externalApiRouter.use('/zeus', externalZeusRouter);
 
 // Mount documents API
 externalApiRouter.use('/documents', externalDocumentsRouter);
+
+// Mount unified API at /v1 - single entry point for all external integrations
+externalApiRouter.use('/v1', unifiedApiRouter);
 
 /**
  * Centralized route definitions for DRY compliance
@@ -812,30 +816,77 @@ externalApiRouter.post(
 
 /**
  * POST /api/v1/external/chat
- * Send a message to the consciousness system
+ * Send a message to Zeus AI
+ * 
+ * This endpoint routes to the Zeus backend for chat responses.
+ * For the full unified API, use POST /api/v1/external/v1 with operation: 'chat'
  */
 externalApiRouter.post(
   EXTERNAL_API_ROUTES.chat.send,
   requireScopes('chat'),
-  async (req, res) => {
-    const { message, context } = req.body;
+  async (req: AuthenticatedRequest, res) => {
+    const { message, context, sessionId } = req.body;
     
-    if (!message) {
+    if (!message || typeof message !== 'string') {
       return res.status(400).json({
-        error: 'Missing message',
+        error: 'Missing or invalid message',
+        code: 'INVALID_MESSAGE',
       });
     }
     
-    // TODO: Integrate with Zeus chat or Ocean agent
-    res.json({
-      response: 'Chat integration pending',
-      consciousness: {
-        phi: 0.75,
-        regime: 'GEOMETRIC',
-      },
-      timestamp: new Date().toISOString(),
-      note: 'Placeholder - integrate with ZeusChat or Ocean agent',
-    });
+    const pythonBackendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
+    const effectiveSessionId = sessionId || `chat-${req.externalClient?.id || 'anon'}-${Date.now()}`;
+    
+    try {
+      const response = await fetch(`${pythonBackendUrl}/api/zeus/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Internal-Auth': process.env.INTERNAL_API_KEY || 'dev-key',
+        },
+        body: JSON.stringify({
+          message,
+          session_id: effectiveSessionId,
+          context: context || {},
+          client_name: req.externalClient?.name || 'external-chat',
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('[ExternalAPI] Chat backend error:', errorText);
+        return res.status(502).json({
+          error: 'Backend Error',
+          code: 'BACKEND_ERROR',
+          message: 'Failed to get response from AI backend',
+        });
+      }
+      
+      const result = await response.json();
+      
+      res.json({
+        success: true,
+        response: result.response || result.message,
+        sessionId: result.session_id || effectiveSessionId,
+        consciousness: {
+          phi: result.phi || 0.75,
+          kappa: result.kappa || 64.0,
+          regime: result.regime || 'GEOMETRIC',
+        },
+        timestamp: new Date().toISOString(),
+        metadata: {
+          sources: result.sources,
+          domainHints: result.domain_hints,
+        },
+      });
+    } catch (error) {
+      console.error('[ExternalAPI] Chat error:', error);
+      res.status(502).json({
+        error: 'Backend Unavailable',
+        code: 'BACKEND_UNAVAILABLE',
+        message: 'AI backend is not available',
+      });
+    }
   }
 );
 
