@@ -199,6 +199,19 @@ class ObservationProtocol:
             obs_data.stable_count += 1
         else:
             obs_data.unstable_count += 1
+            # PROACTIVE NURTURING: If unstable, have Hestia intervene immediately
+            if self.hestia and hasattr(kernel, 'stress') and kernel.stress > 0.6:
+                print(f"🏠 Hestia: Proactive nurturing for stressed kernel {kernel_id}")
+                try:
+                    self.hestia.nurture(kernel)
+                    # Also help with failure recovery if needed
+                    if hasattr(kernel, 'failure_count') and hasattr(kernel, 'death_threshold'):
+                        if kernel.failure_count > kernel.death_threshold * 0.7:
+                            print(f"   Hestia: Reducing failure burden for {kernel_id}")
+                            kernel.failure_count = max(0, kernel.failure_count - 5)
+                            kernel.stress = max(0.0, kernel.stress - 0.2)
+                except Exception as e:
+                    print(f"   Hestia nurturing error: {e}")
         
         if self._ready_for_graduation(obs_data):
             self.end_observation(kernel_id)

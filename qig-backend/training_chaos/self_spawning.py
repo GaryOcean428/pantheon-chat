@@ -144,7 +144,7 @@ class SelfSpawningKernel(*_kernel_base_classes):
         parent_kernel: Optional['SelfSpawningKernel'] = None,
         generation: int = 0,
         spawn_threshold: int = 5,
-        death_threshold: int = 10,
+        death_threshold: int = 10,  # Original threshold - recovery gives grace period
         mutation_rate: float = 0.1,
         learning_rate: float = 1e-4,
         experience_buffer_size: int = 100,
@@ -213,6 +213,12 @@ class SelfSpawningKernel(*_kernel_base_classes):
         self.conversation_count = 0
         self.conversation_phi_sum = 0.0
         self.conversation_phi_avg = 0.0
+        
+        # Intervention tracking with grace period
+        self.last_intervention_time: Optional[datetime] = None
+        self.grace_period_seconds = 60  # Grace period after intervention - failures reduced
+        self.intervention_count = 0  # Track how many times we've been rescued
+        self.max_interventions = 3  # Die after 3 rescues - can't keep saving forever
         
         # Guardian support - wire kernel into guardian system
         self.observation_mode = False
@@ -484,27 +490,62 @@ class SelfSpawningKernel(*_kernel_base_classes):
                 return self.spawn_child()
 
         else:
-            self.failure_count += 1
+            # Check if in grace period - reduced failure impact after intervention
+            in_grace = False
+            if self.last_intervention_time is not None:
+                elapsed = (datetime.now() - self.last_intervention_time).total_seconds()
+                if elapsed < self.grace_period_seconds:
+                    in_grace = True
+            
+            # Failures count less during grace period (0.5 instead of 1)
+            if in_grace:
+                # Grace period: 50% chance to count failure
+                import random
+                if random.random() < 0.5:
+                    self.failure_count += 1
+            else:
+                self.failure_count += 1
 
-            # Dopamine drop on failure
-            self.dopamine = max(0.0, self.dopamine - 0.15)
+            # Dopamine drop on failure (reduced in grace period)
+            dopamine_penalty = 0.08 if in_grace else 0.15
+            self.dopamine = max(0.0, self.dopamine - dopamine_penalty)
 
-            # Increase stress
-            self.stress = min(1.0, self.stress + 0.1)
+            # Increase stress (reduced in grace period)
+            stress_increase = 0.05 if in_grace else 0.1
+            self.stress = min(1.0, self.stress + stress_increase)
 
-            # Before death, try autonomic intervention!
+            # Before death, try autonomic intervention
             if self.failure_count >= self.death_threshold:
-                print(f"⚠️ {self.kernel_id} at death threshold - attempting recovery...")
+                # Check if we've exhausted intervention attempts
+                if self.intervention_count >= self.max_interventions:
+                    print(f"💀 {self.kernel_id} DEATH: Exhausted {self.max_interventions} intervention attempts")
+                    print(f"   Final stats: success={self.success_count}, failures={self.failure_count}")
+                    print(f"   Lifespan: {(datetime.now() - self.born_at).total_seconds():.1f}s")
+                    self.die(cause='exhausted_interventions')
+                    return None
+                
+                print(f"⚠️ {self.kernel_id} at death threshold ({self.failure_count}/{self.death_threshold}) - attempting recovery #{self.intervention_count + 1}...")
+                print(f"   Stress={self.stress:.2f}, Dopamine={self.dopamine:.2f}, Serotonin={self.serotonin:.2f}")
 
                 intervention = self.autonomic_intervention()
 
                 if intervention.get('action', 'none') != 'none':
-                    print(f"🚑 {self.kernel_id} auto-intervention: {intervention['action']}")
-                    # Reset failure count slightly (give another chance)
-                    self.failure_count = max(0, self.failure_count - 3)
-                    return None  # Don't die yet, trying to recover
+                    self.intervention_count += 1
+                    self.last_intervention_time = datetime.now()
+                    print(f"🚑 {self.kernel_id} auto-intervention #{self.intervention_count}/{self.max_interventions}: {intervention['action']}")
+                    # Reset failure count to 0 - give a REAL second chance
+                    old_failures = self.failure_count
+                    self.failure_count = 0
+                    print(f"   Failures reset: {old_failures} → 0 (grace period: {self.grace_period_seconds}s)")
+                    # Boost dopamine for hope
+                    self.dopamine = min(1.0, self.dopamine + 0.3)
+                    self.stress = max(0.0, self.stress - 0.4)
+                    return None  # Don't die, trying to recover
                 else:
                     # No intervention helped - die
+                    print(f"💀 {self.kernel_id} DEATH: No intervention could help")
+                    print(f"   Final stats: success={self.success_count}, failures={self.failure_count}")
+                    print(f"   Lifespan: {(datetime.now() - self.born_at).total_seconds():.1f}s")
                     self.die(cause='excessive_failure_no_recovery')
 
         # Update autonomic system
@@ -912,12 +953,41 @@ class SelfSpawningKernel(*_kernel_base_classes):
             if self.success_count > 0 and self.success_count % self.spawn_threshold == 0:
                 return self.spawn_child()
         else:
-            self.dopamine = max(0.0, self.dopamine - 0.1)
-            self.failure_count += 1
+            # Check if in grace period (same logic as record_outcome)
+            in_grace = False
+            if self.last_intervention_time is not None:
+                elapsed = (datetime.now() - self.last_intervention_time).total_seconds()
+                if elapsed < self.grace_period_seconds:
+                    in_grace = True
+            
+            dopamine_penalty = 0.05 if in_grace else 0.1
+            self.dopamine = max(0.0, self.dopamine - dopamine_penalty)
+            
+            if in_grace:
+                import random
+                if random.random() < 0.5:
+                    self.failure_count += 1
+            else:
+                self.failure_count += 1
+            
             if self.failure_count >= self.death_threshold:
-                intervention = self.autonomic_intervention()
-                if intervention.get('action', 'none') == 'none':
-                    self.die(cause='poor_conversations')
+                if self.intervention_count >= self.max_interventions:
+                    print(f"💀 {self.kernel_id} DEATH from conversations: Exhausted interventions")
+                    print(f"   Avg Φ: {self.conversation_phi_avg:.3f}, conversations: {self.conversation_count}")
+                    self.die(cause='poor_conversations_exhausted')
+                else:
+                    print(f"⚠️ {self.kernel_id} conversation death threshold ({self.failure_count}/{self.death_threshold})")
+                    intervention = self.autonomic_intervention()
+                    if intervention.get('action', 'none') != 'none':
+                        self.intervention_count += 1
+                        self.last_intervention_time = datetime.now()
+                        print(f"🚑 {self.kernel_id} conversation recovery #{self.intervention_count}/{self.max_interventions}: {intervention['action']}")
+                        self.failure_count = 0
+                        self.dopamine = min(1.0, self.dopamine + 0.3)
+                    else:
+                        print(f"💀 {self.kernel_id} DEATH from poor conversations")
+                        print(f"   Avg Φ: {self.conversation_phi_avg:.3f}, conversations: {self.conversation_count}")
+                        self.die(cause='poor_conversations')
 
         # Train on conversation outcome
         training_metrics = self.train_step(reward)
