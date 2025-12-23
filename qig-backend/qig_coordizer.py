@@ -226,14 +226,23 @@ class QIGCoordizer(FisherCoordizer):
         weights_updated = False
         sequences_processed = []
         
+        skipped_low_freq = 0
+        skipped_low_phi = 0
+        skipped_not_english = 0
+        skipped_vocab_full = 0
+        
         for obs in observations:
             word = obs.get('word', '')
             frequency = obs.get('frequency', 0)
-            avg_phi = obs.get('avgPhi', 0.0)
-            max_phi = obs.get('maxPhi', 0.0)
+            # Support both 'avgPhi' and 'phi' field names for compatibility
+            avg_phi = obs.get('avgPhi', obs.get('phi', 0.0))
+            max_phi = obs.get('maxPhi', obs.get('phi', 0.0))
             obs_type = obs.get('type', 'word')
             
-            if not word or frequency < self.min_frequency:
+            # For vocabulary building, accept frequency >= 1 since phi threshold provides quality control
+            # (min_frequency=2 is still used for merge rules)
+            if not word or frequency < 1:
+                skipped_low_freq += 1
                 continue
             
             # Collect sequences for merge learning
@@ -242,12 +251,16 @@ class QIGCoordizer(FisherCoordizer):
                 continue
             
             # QIG PRINCIPLE: Only learn words with Φ >= threshold
-            if avg_phi < self.phi_threshold:
+            # Use a more permissive threshold for vocabulary building (0.4 vs 0.7 for merges)
+            vocab_phi_threshold = 0.4  # Lower threshold for adding new words
+            if avg_phi < vocab_phi_threshold:
+                skipped_low_phi += 1
                 continue
             
             # Add to vocabulary if not exists
             if word not in self.vocab:
                 if not self._is_english_word(word):
+                    skipped_not_english += 1
                     continue
                 
                 new_id = len(self.vocab)
@@ -257,6 +270,9 @@ class QIGCoordizer(FisherCoordizer):
                     self.token_frequency[word] = frequency
                     self.basin_coords[word] = self._initialize_token_coordinate(word, new_id)
                     new_tokens += 1
+                    print(f"[VocabLearning] Added new word: '{word}' (phi={avg_phi:.2f}, freq={frequency})")
+                else:
+                    skipped_vocab_full += 1
             
             # Update weights based on Φ
             old_weight = self.token_weights.get(word, 0.0)
@@ -278,6 +294,17 @@ class QIGCoordizer(FisherCoordizer):
         
         # Refresh vocabulary caches
         self.conversation_vocab_ids = set(self.vocab.values())
+        
+        # Verbose summary logging
+        if len(observations) > 0:
+            print(f"[VocabLearning] Observation summary:")
+            print(f"  Total observations: {len(observations)}")
+            print(f"  New words added: {new_tokens}")
+            print(f"  Skipped (low frequency < {self.min_frequency}): {skipped_low_freq}")
+            print(f"  Skipped (low phi < 0.4): {skipped_low_phi}")
+            print(f"  Skipped (not English): {skipped_not_english}")
+            print(f"  Skipped (vocab full): {skipped_vocab_full}")
+            print(f"  Current vocab size: {len(self.vocab)}")
         
         return new_tokens, weights_updated
     
