@@ -2663,6 +2663,23 @@ class ToolResearchBridge:
         self._tools_requested = 0
         self._research_from_tools = 0
         self._patterns_from_research = 0
+        
+        # Proactive tool request tracking
+        self._topic_frequency: Dict[str, int] = {}
+        self._topic_phi_sum: Dict[str, float] = {}
+        self._requested_tool_topics: Set[str] = set()
+        self._insight_count = 0
+        self._last_proactive_check = time.time()
+        
+        # Infrastructure improvement topics to research
+        self._infrastructure_topics = [
+            "Python tool validation patterns",
+            "Code generation best practices",
+            "Geometric pattern matching algorithms",
+            "Tool composition and chaining",
+            "Autonomous system self-improvement",
+        ]
+        self._infrastructure_index = 0
     
     @classmethod
     def get_instance(cls) -> 'ToolResearchBridge':
@@ -2875,6 +2892,11 @@ class ToolResearchBridge:
         - Implementation patterns
         - Algorithm descriptions
         - Technical procedures
+        
+        PROACTIVE TOOL REQUESTS:
+        - Identifies recurring capability gaps from research
+        - Requests tool invention when patterns suggest need
+        - Seeks to improve system infrastructure continuously
         """
         try:
             content = insight.get('content', {})
@@ -2882,6 +2904,9 @@ class ToolResearchBridge:
             category = insight.get('category', '')
             basin_coords = insight.get('basin_coords')
             phi = insight.get('phi', 0.5)
+            
+            # Track topics for proactive tool requests
+            self._track_topic_for_tool_needs(topic, category, phi)
             
             # Extract potential code patterns from content
             patterns_extracted = self._extract_patterns_from_insight(
@@ -2915,6 +2940,87 @@ class ToolResearchBridge:
                 
         except Exception as e:
             print(f"[ToolResearchBridge] Auto-learning error: {e}")
+    
+    def _track_topic_for_tool_needs(self, topic: str, category: str, phi: float) -> None:
+        """
+        Track topics from research for proactive tool requests.
+        
+        When topics appear frequently with high Φ, request tool invention.
+        This enables the system to identify capability gaps and fill them.
+        """
+        if not topic or len(topic) < 5:
+            return
+        
+        # Normalize topic for tracking
+        key = topic.lower()[:50]
+        
+        # Update frequency and phi tracking
+        self._topic_frequency[key] = self._topic_frequency.get(key, 0) + 1
+        self._topic_phi_sum[key] = self._topic_phi_sum.get(key, 0.0) + phi
+        self._insight_count += 1
+        
+        # Check if we should request a tool for this topic (every 20 insights)
+        if self._insight_count % 20 == 0:
+            self._check_for_proactive_tool_requests()
+        
+        # Periodic infrastructure improvement (every 100 insights)
+        if self._insight_count % 100 == 0:
+            self._trigger_infrastructure_improvement()
+    
+    def _check_for_proactive_tool_requests(self) -> None:
+        """
+        Check accumulated topics and request tools for recurring high-Φ needs.
+        """
+        from olympus.tool_factory import AutonomousToolPipeline
+        
+        pipeline = AutonomousToolPipeline.get_instance()
+        if not pipeline:
+            return
+        
+        # Find topics that appear frequently with high average Φ
+        for topic, count in self._topic_frequency.items():
+            if topic in self._requested_tool_topics:
+                continue
+            
+            if count >= 5:  # Topic appeared at least 5 times
+                avg_phi = self._topic_phi_sum.get(topic, 0) / count
+                if avg_phi >= 0.5:  # Average Φ >= 0.5
+                    # Request a tool for this topic
+                    try:
+                        request_id = pipeline.invent_new_tool(
+                            concept=f"Tool for processing and analyzing: {topic}",
+                            requester="ToolResearchBridge:ProactiveDiscovery",
+                            inspiration=f"Appeared {count} times in research with avg Φ={avg_phi:.2f}"
+                        )
+                        self._requested_tool_topics.add(topic)
+                        self._tools_requested += 1
+                        print(f"[ToolResearchBridge] 🔧 PROACTIVE tool request: '{topic}' (count={count}, φ={avg_phi:.2f})")
+                    except Exception as e:
+                        print(f"[ToolResearchBridge] Proactive tool request failed: {e}")
+    
+    def _trigger_infrastructure_improvement(self) -> None:
+        """
+        Periodically trigger research on infrastructure improvement topics.
+        
+        The system seeks to continuously improve itself.
+        """
+        if not self._research_api:
+            return
+        
+        # Rotate through infrastructure topics
+        topic = self._infrastructure_topics[self._infrastructure_index % len(self._infrastructure_topics)]
+        self._infrastructure_index += 1
+        
+        try:
+            self._research_api.request_research(
+                topic=f"Best practices: {topic}",
+                requester="ToolResearchBridge:InfrastructureImprovement",
+                category=ResearchCategory.TOOLS,
+                context={"purpose": "system_self_improvement"}
+            )
+            print(f"[ToolResearchBridge] 🔄 Infrastructure improvement research: {topic}")
+        except Exception as e:
+            print(f"[ToolResearchBridge] Infrastructure research failed: {e}")
     
     def _extract_patterns_from_insight(
         self,

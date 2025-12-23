@@ -1861,17 +1861,54 @@ class AutonomousToolPipeline:
         while self._running:
             try:
                 loop_count += 1
+                
+                # VERBOSE LOGGING: Show full pipeline state every 30 intervals (~5 min)
+                if loop_count % 30 == 1:
+                    self._log_pipeline_state_verbose()
+                
                 # Log periodically to show pipeline is alive
                 if loop_count % 60 == 1:  # Every ~60 intervals (5 min at 5s interval)
                     with self._lock:
                         pending = sum(1 for r in self._requests.values() 
                                     if r.state not in [ToolLifecycleState.DEPLOYED, ToolLifecycleState.FAILED])
                     print(f"[AutonomousPipeline] Heartbeat: {len(self._requests)} total requests, {pending} pending, {self.tool_factory.get_learning_stats().get('patterns_learned', 0)} patterns learned")
+                
                 self._process_pending_requests()
             except Exception as e:
                 print(f"[AutonomousPipeline] Process loop error: {e}")
             
             time.sleep(self._process_interval)
+    
+    def _log_pipeline_state_verbose(self):
+        """Verbose logging of full pipeline state for debugging."""
+        with self._lock:
+            requests = list(self._requests.values())
+        
+        # Log by state
+        by_state = {}
+        for state in ToolLifecycleState:
+            reqs = [r for r in requests if r.state == state]
+            if reqs:
+                by_state[state.value] = len(reqs)
+        
+        if requests:
+            print(f"[AutonomousPipeline] VERBOSE STATE:")
+            print(f"  Total requests: {len(requests)}")
+            for state, count in by_state.items():
+                print(f"    {state}: {count}")
+            
+            # Show last 3 active requests
+            active = [r for r in requests if r.state not in [ToolLifecycleState.DEPLOYED, ToolLifecycleState.FAILED]][-3:]
+            for r in active:
+                print(f"  Request {r.request_id[:8]}... ({r.state.value}): '{r.description[:40]}...'")
+                print(f"    Requester: {r.requester}, Iteration: {r.iteration}/{r.max_iterations}")
+                if r.error_history:
+                    print(f"    Last error: {r.error_history[-1][:60]}...")
+        
+        # Show factory patterns
+        stats = self.tool_factory.get_learning_stats()
+        print(f"  ToolFactory patterns: {stats.get('patterns_learned', 0)}")
+        print(f"  Tools deployed: {len(self.tool_factory.tool_registry)}")
     
     def _process_pending_requests(self):
         """Process all pending tool requests."""
