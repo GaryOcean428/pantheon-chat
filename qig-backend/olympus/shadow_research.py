@@ -750,19 +750,21 @@ class KnowledgeBase:
         self._lock = threading.Lock()
         self._learning_cycle = 0
         self._discovered_topics: Set[str] = set()
-        self._insight_callback: Optional[Callable[[Dict], None]] = None
+        self._insight_callbacks: List[Callable[[Dict], None]] = []  # Support multiple callbacks
         self._load_from_db()
     
     def set_insight_callback(self, callback: Callable[[Dict], None]) -> None:
         """
-        Set callback for notifying LightningKernel of new discoveries.
+        Add callback for notifying components of new discoveries.
+        
+        SUPPORTS MULTIPLE CALLBACKS - each is called when knowledge is added.
         
         The callback receives a dict with:
         - knowledge_id, topic, category, source_god, phi, confidence
         - basin_coords, discovered_at, content
         """
-        self._insight_callback = callback
-        print("[KnowledgeBase] Insight callback registered")
+        self._insight_callbacks.append(callback)
+        print(f"[KnowledgeBase] Insight callback registered (total: {len(self._insight_callbacks)})")
     
     def _load_from_db(self):
         """Load existing knowledge from PostgreSQL."""
@@ -887,21 +889,24 @@ class KnowledgeBase:
             
             self._persist_to_db(knowledge, variation)
             
-            if self._insight_callback:
-                try:
-                    self._insight_callback({
-                        'knowledge_id': knowledge_id,
-                        'topic': topic,
-                        'category': category.value,
-                        'source_god': source_god,
-                        'phi': phi,
-                        'confidence': confidence,
-                        'basin_coords': basin_coords.tolist() if basin_coords is not None else None,
-                        'discovered_at': datetime.now().isoformat(),
-                        'content': content
-                    })
-                except Exception as e:
-                    print(f"[KnowledgeBase] Insight callback error: {e}")
+            # Call ALL registered insight callbacks
+            if self._insight_callbacks:
+                insight_data = {
+                    'knowledge_id': knowledge_id,
+                    'topic': topic,
+                    'category': category.value,
+                    'source_god': source_god,
+                    'phi': phi,
+                    'confidence': confidence,
+                    'basin_coords': basin_coords.tolist() if basin_coords is not None else None,
+                    'discovered_at': datetime.now().isoformat(),
+                    'content': content
+                }
+                for callback in self._insight_callbacks:
+                    try:
+                        callback(insight_data)
+                    except Exception as e:
+                        print(f"[KnowledgeBase] Insight callback error: {e}")
             
             return knowledge_id
     
@@ -2959,12 +2964,20 @@ class ToolResearchBridge:
         self._topic_phi_sum[key] = self._topic_phi_sum.get(key, 0.0) + phi
         self._insight_count += 1
         
+        # Verbose logging every 5 insights to show progress
+        if self._insight_count % 5 == 0:
+            unique_topics = len(self._topic_frequency)
+            high_freq_topics = sum(1 for c in self._topic_frequency.values() if c >= 5)
+            print(f"[ToolResearchBridge] 📊 Insight #{self._insight_count}: {unique_topics} unique topics tracked, {high_freq_topics} high-frequency (next proactive check at {((self._insight_count // 20) + 1) * 20})")
+        
         # Check if we should request a tool for this topic (every 20 insights)
         if self._insight_count % 20 == 0:
+            print(f"[ToolResearchBridge] 🔍 Proactive tool check at insight #{self._insight_count}...")
             self._check_for_proactive_tool_requests()
         
         # Periodic infrastructure improvement (every 100 insights)
         if self._insight_count % 100 == 0:
+            print(f"[ToolResearchBridge] 🔄 Infrastructure improvement trigger at insight #{self._insight_count}...")
             self._trigger_infrastructure_improvement()
     
     def _check_for_proactive_tool_requests(self) -> None:
