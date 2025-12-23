@@ -191,10 +191,13 @@ def test_basin_coordinate_geometry():
         print("❌ FAIL: Basin coordinates not computed")
         return False
     
-    # Compute distances
-    import numpy as np
-    dist_consciousness_awareness = np.linalg.norm(basin_consciousness - basin_awareness)
-    dist_consciousness_banana = np.linalg.norm(basin_consciousness - basin_banana)
+    # Compute distances using Fisher-Rao (QIG-pure)
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / 'qig-backend'))
+    from qig_geometry import fisher_coord_distance
+    
+    dist_consciousness_awareness = fisher_coord_distance(basin_consciousness, basin_awareness)
+    dist_consciousness_banana = fisher_coord_distance(basin_consciousness, basin_banana)
     
     print(f"Basin coordinates computed:")
     print(f"  consciousness: {basin_consciousness[:5]}... (64D)")
