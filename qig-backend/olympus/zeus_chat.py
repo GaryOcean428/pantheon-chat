@@ -473,7 +473,14 @@ class ZeusConversationHandler:
         
         # Route to appropriate handler
         # All responses are sanitized for EXTERNAL output before returning
-        if intent['type'] == 'add_address':
+        
+        # IMPORTANT: Check for file uploads FIRST - files take priority over intent parsing
+        # This ensures uploaded files are always processed regardless of message text
+        if files and len(files) > 0:
+            print(f"[ZeusChat] FILES DETECTED: {len(files)} files attached - routing to file_upload handler")
+            result = self.handle_file_upload(files, message)
+        
+        elif intent['type'] == 'add_address':
             result = self.handle_add_address(intent['address'])
         
         elif intent['type'] == 'observation':
@@ -500,9 +507,6 @@ class ZeusConversationHandler:
                 query=self._last_search_query or "",
                 improved=intent['improved']
             )
-        
-        elif intent['type'] == 'file_upload' and files:
-            result = self.handle_file_upload(files, message)
         
         else:
             # General conversation
