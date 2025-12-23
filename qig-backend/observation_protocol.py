@@ -11,6 +11,7 @@ import numpy as np
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass, field
 import time
+import threading
 
 
 @dataclass
@@ -80,6 +81,11 @@ class ObservationProtocol:
         
         self.observing: Dict[str, KernelObservation] = {}
         self.graduated: List[str] = []
+        
+        self._lock = threading.Lock()
+        self._running = False
+        self._thread: Optional[threading.Thread] = None
+        self._observation_interval = 5.0
         
         print("ObservationProtocol: Observation system initialized")
     
@@ -270,17 +276,99 @@ class ObservationProtocol:
     
     def get_observation_stats(self) -> Dict[str, Any]:
         """Get statistics about all observations."""
+        with self._lock:
+            return {
+                'currently_observing': len(self.observing),
+                'total_graduated': len(self.graduated),
+                'min_observation_time': self.min_observation_time,
+                'monitor_running': self._running,
+                'kernels': [
+                    {
+                        'kernel_id': kid,
+                        'observations': len(obs.observations),
+                        'stable_count': obs.stable_count,
+                        'unstable_count': obs.unstable_count
+                    }
+                    for kid, obs in self.observing.items()
+                ]
+            }
+    
+    def start_monitor(self) -> None:
+        """Start background observation monitor thread."""
+        if self._running:
+            return
+        
+        self._running = True
+        self._thread = threading.Thread(target=self._monitor_loop, daemon=True)
+        self._thread.start()
+        print("[ObservationProtocol] 👁️ Background monitor STARTED - watching all enrolled kernels")
+    
+    def stop_monitor(self) -> None:
+        """Stop background observation monitor."""
+        self._running = False
+        if self._thread:
+            self._thread.join(timeout=2.0)
+            self._thread = None
+        print("[ObservationProtocol] Monitor stopped")
+    
+    def _monitor_loop(self) -> None:
+        """Background loop that runs observation cycles for all enrolled kernels."""
+        cycle_count = 0
+        
+        while self._running:
+            try:
+                time.sleep(self._observation_interval)
+                cycle_count += 1
+                
+                with self._lock:
+                    kernel_ids = list(self.observing.keys())
+                
+                if not kernel_ids:
+                    continue
+                
+                graduated_this_cycle = []
+                observations_run = 0
+                
+                for kernel_id in kernel_ids:
+                    try:
+                        result = self.observe_cycle(kernel_id)
+                        if result:
+                            observations_run += 1
+                            if result.get('graduated'):
+                                graduated_this_cycle.append(kernel_id)
+                    except Exception as e:
+                        print(f"[ObservationProtocol] Error observing {kernel_id}: {e}")
+                
+                if cycle_count % 10 == 0:
+                    print(f"[ObservationProtocol] Cycle {cycle_count}: "
+                          f"observing {len(kernel_ids)} kernels, "
+                          f"{observations_run} observations run, "
+                          f"{len(graduated_this_cycle)} graduated")
+                
+            except Exception as e:
+                print(f"[ObservationProtocol] Monitor error: {e}")
+                time.sleep(1.0)
+    
+    def run_all_observations(self) -> Dict[str, Any]:
+        """Manually run one observation cycle for all enrolled kernels."""
+        with self._lock:
+            kernel_ids = list(self.observing.keys())
+        
+        results = []
+        graduated = []
+        
+        for kernel_id in kernel_ids:
+            try:
+                result = self.observe_cycle(kernel_id)
+                if result:
+                    results.append(result)
+                    if result.get('graduated'):
+                        graduated.append(kernel_id)
+            except Exception as e:
+                results.append({'kernel_id': kernel_id, 'error': str(e)})
+        
         return {
-            'currently_observing': len(self.observing),
-            'total_graduated': len(self.graduated),
-            'min_observation_time': self.min_observation_time,
-            'kernels': [
-                {
-                    'kernel_id': kid,
-                    'observations': len(obs.observations),
-                    'stable_count': obs.stable_count,
-                    'unstable_count': obs.unstable_count
-                }
-                for kid, obs in self.observing.items()
-            ]
+            'kernels_observed': len(results),
+            'graduated': graduated,
+            'results': results
         }

@@ -5,6 +5,7 @@
  * Import from '@/pages' for all page components.
  */
 
+export { default as ApiDocs } from './api-docs';
 export { default as AutonomicAgency } from './autonomic-agency';
 export { default as Federation } from './federation';
 export { default as Home } from './home';

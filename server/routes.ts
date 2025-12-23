@@ -60,6 +60,7 @@ import {
 } from "./routes/index";
 
 import { externalRouter as externalApiRouter, documentsRouter as externalDocsRouter, initExternalWebSocket } from "./external-api";
+import apiDocsRouter from "./routes/api-docs";
 
 import type { Candidate } from "@shared/schema";
 import { randomUUID } from "crypto";
@@ -292,7 +293,7 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
   app.use("/api", adminRouter);
   app.use("/api/olympus", olympusRouter);
   app.use("/api/documents", externalDocsRouter);
-  // apiDocsRouter removed - API docs served via OpenAPI spec
+  app.use("/api/docs", apiDocsRouter);
   app.use("/api/qig/autonomic/agency", autonomicAgencyRouter);
   app.use("/api/federation", federationRouter);
 

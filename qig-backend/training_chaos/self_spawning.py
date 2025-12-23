@@ -86,6 +86,7 @@ def get_guardians():
                 min_observation_time=500,
                 graduation_stability_threshold=0.8
             )
+            _observation_protocol_instance.start_monitor()
         
         return _hestia_instance, _demeter_tutor_instance, _chiron_instance, _observation_protocol_instance
     except Exception as e:

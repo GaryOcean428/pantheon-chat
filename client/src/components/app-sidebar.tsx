@@ -35,6 +35,7 @@ import {
   HeartPulse,
   Globe,
   Activity,
+  FileCode,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useConsciousness, getPhiColor, getRegimeLabel } from "@/contexts/ConsciousnessContext";
@@ -101,6 +102,12 @@ export function AppSidebar() {
       url: "/telemetry",
       icon: Activity,
       description: "Real-time QIG metrics and monitoring",
+    },
+    {
+      title: "API Docs",
+      url: "/api-docs",
+      icon: FileCode,
+      description: "External API documentation",
     },
   ];
 

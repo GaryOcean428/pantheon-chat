@@ -10,6 +10,7 @@ import { HealthIndicator } from "@/components/HealthIndicator";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import {
+  ApiDocs as ApiDocsPage,
   AutonomicAgency as AutonomicAgencyPage,
   Federation as FederationPage,
   Landing,
@@ -87,6 +88,7 @@ function Router() {
         <Route path="/autonomic" component={AutonomicAgencyPage} />
         <Route path="/federation" component={FederationPage} />
         <Route path="/telemetry" component={TelemetryDashboard} />
+        <Route path="/api-docs" component={ApiDocsPage} />
         <Route component={NotFound} />
       </Switch>
     </AuthenticatedLayout>
