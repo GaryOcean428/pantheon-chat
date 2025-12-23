@@ -1701,6 +1701,18 @@ class RoleRefinement:
         }
 
 
+# Global spawner instance for singleton pattern
+_spawner_instance = None
+
+
+def get_spawner_instance():
+    """Get or create the global M8 spawner instance."""
+    global _spawner_instance
+    if _spawner_instance is None:
+        _spawner_instance = M8KernelSpawner()
+    return _spawner_instance
+
+
 class M8KernelSpawner:
     """
     The M8 Kernel Spawning System.

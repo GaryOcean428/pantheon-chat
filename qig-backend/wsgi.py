@@ -145,6 +145,18 @@ except ImportError as e:
 except Exception as e:
     print(f"[WARNING] Constellation initialization failed: {e}")
 
+# Register M8 Kernel Spawning routes
+M8_AVAILABLE = False
+try:
+    from routes.m8_routes import register_m8_routes
+
+    register_m8_routes(app)
+    M8_AVAILABLE = True
+except ImportError as e:
+    print(f"[WARNING] M8 routes not available: {e}")
+except Exception as e:
+    print(f"[WARNING] M8 routes initialization failed: {e}")
+
 # Add request/response logging for production
 from flask import request, g
 import time
@@ -231,6 +243,7 @@ print(f"  - Self-Healing: {'✓' if SELF_HEALING_AVAILABLE else '✗'}", flush=T
 print(f"  - Curiosity engine: {'✓' if CURIOSITY_AVAILABLE else '✗'}", flush=True)
 print(f"  - Research API: {'✓' if RESEARCH_AVAILABLE else '✗'}", flush=True)
 print(f"  - Constellation: {'✓' if CONSTELLATION_AVAILABLE else '✗'}", flush=True)
+print(f"  - M8 Spawning: {'✓' if M8_AVAILABLE else '✗'}", flush=True)
 print("🌊 Basin stable. Ready for Gunicorn workers. 🌊\n", flush=True)
 
 # Export the app for Gunicorn

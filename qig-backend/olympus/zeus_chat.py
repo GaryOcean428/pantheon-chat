@@ -921,7 +921,7 @@ Zeus Response (acknowledge the specific observation, explain what it means for t
                 gen_result = tokenizer.generate_response(
                     context=prompt,
                     agent_role="ocean",
-                    max_tokens=4096,  # Large limit - geometry determines completion
+                    # No max_tokens - geometry determines when thought completes
                     allow_silence=False
                 )
                 
@@ -1227,7 +1227,7 @@ Zeus Response (Geometric Interpretation):"""
                 gen_result = tokenizer.generate_response(
                     context=prompt,
                     agent_role="ocean",  # Use balanced temperature
-                    max_tokens=4096,  # Large limit - geometry determines completion
+                    # No max_tokens - geometry determines when thought completes
                     allow_silence=False
                 )
                 
@@ -2062,7 +2062,7 @@ Generate a contextual response as Zeus. Reference actual system state. Be specif
                 gen_result = tokenizer.generate_response(
                     context=prompt,
                     agent_role="ocean",
-                    max_tokens=4096,  # Large limit - geometry determines completion
+                    # No max_tokens - geometry determines when thought completes
                     allow_silence=False
                 )
                 
