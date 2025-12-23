@@ -58,41 +58,54 @@ export function MarkdownRenderer({ content, className = '' }: MarkdownRendererPr
             );
           },
           // Custom styling for various elements
-          h1: ({ node, ...props }) => <h1 className="text-3xl font-bold mt-6 mb-4" {...props} />,
-          h2: ({ node, ...props }) => <h2 className="text-2xl font-bold mt-5 mb-3" {...props} />,
-          h3: ({ node, ...props }) => <h3 className="text-xl font-bold mt-4 mb-2" {...props} />,
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          h1: ({ node, children, ...props }) => <h1 className="text-3xl font-bold mt-6 mb-4" {...props}>{children}</h1>,
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          h2: ({ node, children, ...props }) => <h2 className="text-2xl font-bold mt-5 mb-3" {...props}>{children}</h2>,
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          h3: ({ node, children, ...props }) => <h3 className="text-xl font-bold mt-4 mb-2" {...props}>{children}</h3>,
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           p: ({ node, ...props }) => <p className="mb-4 leading-7" {...props} />,
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           ul: ({ node, ...props }) => <ul className="list-disc list-inside mb-4 ml-4" {...props} />,
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           ol: ({ node, ...props }) => <ol className="list-decimal list-inside mb-4 ml-4" {...props} />,
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           li: ({ node, ...props }) => <li className="mb-1" {...props} />,
-          a: ({ node, ...props }) => (
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          a: ({ node, children, ...props }) => (
             <a
               className="text-blue-600 dark:text-blue-400 hover:underline"
               target="_blank"
               rel="noopener noreferrer"
               {...props}
-            />
+            >{children}</a>
           ),
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           blockquote: ({ node, ...props }) => (
             <blockquote
               className="border-l-4 border-gray-300 dark:border-gray-600 pl-4 italic my-4"
               {...props}
             />
           ),
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           table: ({ node, ...props }) => (
             <div className="overflow-x-auto mb-4">
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700" {...props} />
             </div>
           ),
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           thead: ({ node, ...props }) => (
             <thead className="bg-gray-50 dark:bg-gray-800" {...props} />
           ),
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           th: ({ node, ...props }) => (
             <th
               className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
               {...props}
             />
           ),
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           td: ({ node, ...props }) => (
             <td className="px-4 py-2 whitespace-nowrap text-sm" {...props} />
           ),

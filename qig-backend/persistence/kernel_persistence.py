@@ -7,7 +7,7 @@ Tracks kernel snapshots, breeding history, and evolution statistics.
 """
 
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, List, Optional
 
 from .base_persistence import BasePersistence
@@ -92,7 +92,7 @@ class KernelPersistence(BasePersistence):
             e8_root_index, element_group, ecological_niche,
             target_function, valence, breeding_target,
             parent_ids, json.dumps(metadata) if metadata else None,
-            datetime.utcnow()
+            datetime.now(timezone.utc)
         )
 
         try:
@@ -277,7 +277,7 @@ class KernelPersistence(BasePersistence):
         try:
             self.execute_query(
                 query,
-                (event_id, 'breeding', child_id, child_phi, json.dumps(event_metadata), datetime.utcnow()),
+                (event_id, 'breeding', child_id, child_phi, json.dumps(event_metadata), datetime.now(timezone.utc)),
                 fetch=False
             )
             return True
@@ -312,7 +312,7 @@ class KernelPersistence(BasePersistence):
         try:
             self.execute_query(
                 query,
-                (event_id, 'death', kernel_id, final_phi, json.dumps(event_metadata), datetime.utcnow()),
+                (event_id, 'death', kernel_id, final_phi, json.dumps(event_metadata), datetime.now(timezone.utc)),
                 fetch=False
             )
             return True
@@ -348,7 +348,7 @@ class KernelPersistence(BasePersistence):
         try:
             self.execute_query(
                 query,
-                (event_id, 'merge', new_kernel_id, merged_phi, json.dumps(event_metadata), datetime.utcnow()),
+                (event_id, 'merge', new_kernel_id, merged_phi, json.dumps(event_metadata), datetime.now(timezone.utc)),
                 fetch=False
             )
             return True
@@ -385,7 +385,7 @@ class KernelPersistence(BasePersistence):
         try:
             self.execute_query(
                 query,
-                (event_id, 'cannibalize', target_id, transferred_phi, json.dumps(event_metadata), datetime.utcnow()),
+                (event_id, 'cannibalize', target_id, transferred_phi, json.dumps(event_metadata), datetime.now(timezone.utc)),
                 fetch=False
             )
             return True
@@ -425,7 +425,7 @@ class KernelPersistence(BasePersistence):
         try:
             self.execute_query(
                 query,
-                (event_id, 'convergence', f'gen_{generation}', avg_phi, json.dumps(event_metadata), datetime.utcnow()),
+                (event_id, 'convergence', f'gen_{generation}', avg_phi, json.dumps(event_metadata), datetime.now(timezone.utc)),
                 fetch=False
             )
             return True
@@ -487,7 +487,7 @@ class KernelPersistence(BasePersistence):
         try:
             self.execute_query(
                 query,
-                (event_id, 'm8_spawn', kernel_id, phi, json.dumps(event_metadata), datetime.utcnow()),
+                (event_id, 'm8_spawn', kernel_id, phi, json.dumps(event_metadata), datetime.now(timezone.utc)),
                 fetch=False
             )
             return True
@@ -529,7 +529,7 @@ class KernelPersistence(BasePersistence):
         try:
             self.execute_query(
                 query,
-                (event_id, 'm8_proposal', proposal_id, 0.0, json.dumps(event_metadata), datetime.utcnow()),
+                (event_id, 'm8_proposal', proposal_id, 0.0, json.dumps(event_metadata), datetime.now(timezone.utc)),
                 fetch=False
             )
             return True
@@ -580,7 +580,7 @@ class KernelPersistence(BasePersistence):
             self.execute_query(
                 query,
                 (event_id, 'kernel_awareness', kernel_id, phi_value, 
-                 json.dumps(awareness_data), datetime.utcnow()),
+                 json.dumps(awareness_data), datetime.now(timezone.utc)),
                 fetch=False
             )
             return True
@@ -877,7 +877,7 @@ class KernelPersistence(BasePersistence):
             WHERE kernel_id = %s
         """
         try:
-            self.execute_query(query, (datetime.utcnow().isoformat(), cause, kernel_id), fetch=False)
+            self.execute_query(query, (datetime.now(timezone.utc).isoformat(), cause, kernel_id), fetch=False)
             print(f"[KernelPersistence] Marked kernel {kernel_id} as dead: {cause}")
             return True
         except Exception as e:
@@ -900,7 +900,7 @@ class KernelPersistence(BasePersistence):
         if not kernel_ids:
             return {'success_count': 0, 'failed_ids': [], 'error': None}
         
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         
         # Use a single UPDATE with IN clause for efficiency
         query = """
@@ -953,7 +953,7 @@ class KernelPersistence(BasePersistence):
         try:
             self.execute_query(
                 query, 
-                (datetime.utcnow().isoformat(), merged_into, kernel_id), 
+                (datetime.now(timezone.utc).isoformat(), merged_into, kernel_id), 
                 fetch=False
             )
             print(f"[KernelPersistence] Marked kernel {kernel_id} as cannibalized -> {merged_into}")
@@ -975,7 +975,7 @@ class KernelPersistence(BasePersistence):
         Returns:
             Dict with archived_count and any errors
         """
-        cutoff = datetime.utcnow() - timedelta(hours=hours_old)
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=hours_old)
         
         check_archive_table = """
             CREATE TABLE IF NOT EXISTS kernel_archive (

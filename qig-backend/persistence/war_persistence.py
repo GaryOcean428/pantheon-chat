@@ -7,7 +7,7 @@ Persists war mode state for analysis and resumption.
 """
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from .base_persistence import BasePersistence
@@ -42,7 +42,7 @@ class WarPersistence(BasePersistence):
                 query,
                 (
                     war_id, mode, target, 'active', strategy,
-                    gods_engaged, datetime.utcnow(),
+                    gods_engaged, datetime.now(timezone.utc),
                     json.dumps(metadata) if metadata else None
                 )
             )
@@ -80,7 +80,7 @@ class WarPersistence(BasePersistence):
                 query,
                 (
                     outcome, convergence_score, phrases_tested,
-                    discoveries, kernels_spawned, datetime.utcnow(),
+                    discoveries, kernels_spawned, datetime.now(timezone.utc),
                     json.dumps(metadata) if metadata else '{}',
                     war_id
                 ),

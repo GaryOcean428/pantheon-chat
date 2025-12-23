@@ -46,7 +46,7 @@ import subprocess
 import sys
 import uuid
 from contextlib import contextmanager
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional
 
 # Add parent directory to path for darknet_proxy import
@@ -1040,7 +1040,7 @@ class Nyx(ShadowGod):
         - Avoid business hours
         - Random intervals to avoid pattern detection
         """
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         next_2am = now.replace(hour=2, minute=0, second=0, microsecond=0)
         if next_2am <= now:
