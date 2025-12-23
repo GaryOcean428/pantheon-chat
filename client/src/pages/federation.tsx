@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { API_ROUTES, QUERY_KEYS, get } from "@/api";
@@ -50,9 +50,14 @@ import {
   Brain,
   Network,
   ArrowLeftRight,
+  Bell,
+  BellOff,
+  Volume2,
+  VolumeX
 } from "lucide-react";
 import { WarStatusPanel } from "@/components/war-status-panel";
 import { useToast } from "@/hooks/use-toast";
+import { useMeshNetworkWebSocket } from "@/hooks/useMeshNetworkWebSocket";
 
 interface ApiKey {
   id: string;
@@ -107,8 +112,150 @@ interface ConnectionTestResult {
   capabilities?: string[];
 }
 
+// Sound notification utility
+const playNotificationSound = (type: 'connect' | 'sync' | 'disconnect') => {
+  try {
+    const audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    // Different sounds for different events
+    const frequencies: Record<string, number[]> = {
+      connect: [523, 659, 784],    // C-E-G (happy chord)
+      sync: [440, 554, 659],       // A-C#-E (knowledge sync)
+      disconnect: [392, 349, 330]  // G-F-E (descending)
+    };
+    
+    const freqs = frequencies[type];
+    let time = audioContext.currentTime;
+    
+    freqs.forEach((freq, i) => {
+      oscillator.frequency.setValueAtTime(freq, time + i * 0.15);
+    });
+    
+    gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+    
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + 0.5);
+  } catch {
+    // Audio not available, silently fail
+  }
+};
+
 export default function FederationDashboard() {
   const { toast } = useToast();
+  
+  // Notification settings with localStorage persistence
+  const [notificationSettings, setNotificationSettings] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('pantheon-mesh-notification-settings');
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    }
+    return { sound: false, toasts: true };
+  });
+  
+  // Track processed events to avoid duplicate notifications
+  const processedEventsRef = useRef<Set<string>>(new Set());
+  
+  // Connect to mesh network WebSocket for real-time updates
+  const { status: meshStatus, events: meshEvents, isConnected: meshConnected, peers } = useMeshNetworkWebSocket();
+  
+  // Process mesh network events and show notifications
+  useEffect(() => {
+    if (!meshEvents || meshEvents.length === 0) return;
+    
+    meshEvents.forEach((event) => {
+      const eventId = `${event.type}-${event.timestamp}`;
+      if (processedEventsRef.current.has(eventId)) return;
+      processedEventsRef.current.add(eventId);
+      
+      // Limit processed events memory
+      if (processedEventsRef.current.size > 100) {
+        const entries = Array.from(processedEventsRef.current);
+        entries.slice(0, 50).forEach(e => processedEventsRef.current.delete(e));
+      }
+      
+      if (!notificationSettings.toasts) return;
+      
+      switch (event.type) {
+        case 'peer_connected':
+          toast({
+            title: '🌐 New Peer Connected',
+            description: `Node ${String(event.peerId || 'unknown').slice(0, 8)}... joined the mesh`,
+          });
+          if (notificationSettings.sound) playNotificationSound('connect');
+          break;
+          
+        case 'peer_disconnected':
+          toast({
+            title: '📴 Peer Disconnected',
+            description: `Node ${String(event.peerId || 'unknown').slice(0, 8)}... left the mesh`,
+            variant: 'destructive',
+          });
+          if (notificationSettings.sound) playNotificationSound('sync');
+          break;
+          
+        case 'knowledge_sync':
+          toast({
+            title: '🧠 Knowledge Synced',
+            description: `Received knowledge from ${event.peerName || 'peer'}`,
+          });
+          if (notificationSettings.sound) playNotificationSound('sync');
+          break;
+          
+        case 'capability_broadcast':
+          toast({
+            title: '🔧 New Capability',
+            description: `Peer ${event.peerName || 'unknown'} shared new capability`,
+          });
+          if (notificationSettings.sound) playNotificationSound('sync');
+          break;
+      }
+    });
+  }, [meshEvents, notificationSettings, toast]);
+  
+  // Play notification sound
+  const playNotificationSound = useCallback((type: 'connect' | 'sync') => {
+    if (!notificationSettings.sound) return;
+    
+    try {
+      // Use Web Audio API for simple notification sounds
+      const audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      // Different tones for different events
+      if (type === 'connect') {
+        oscillator.frequency.value = 880; // A5 - higher pitch for connection
+        oscillator.type = 'sine';
+      } else {
+        oscillator.frequency.value = 660; // E5 - lower pitch for sync
+        oscillator.type = 'triangle';
+      }
+      
+      gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+      
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.3);
+    } catch {
+      // Audio not available - silently fail
+    }
+  }, [notificationSettings.sound]);
+  
+  // Save notification settings to localStorage
+  useEffect(() => {
+    localStorage.setItem('pantheon-mesh-notification-settings', JSON.stringify(notificationSettings));
+  }, [notificationSettings]);
   const [newKeyName, setNewKeyName] = useState("");
   const [newKeyType, setNewKeyType] = useState("external");
   const [createdKey, setCreatedKey] = useState<string | null>(null);

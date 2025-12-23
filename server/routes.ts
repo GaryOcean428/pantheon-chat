@@ -10,6 +10,7 @@ import { telemetryRouter } from "./telemetry-api";
 import { backendTelemetryRouter } from "./backend-telemetry-api";
 import TelemetryStreamer from "./telemetry-websocket";
 import KernelActivityStreamer from "./kernel-activity-websocket";
+import MeshNetworkStreamer from "./mesh-network-websocket";
 import telemetryDashboardRouter from "./routes/telemetry";
 
 // WebSocket message validation schema (addresses Issue 13/14 from bottleneck report)

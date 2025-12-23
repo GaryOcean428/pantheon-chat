@@ -1,5 +1,5 @@
 /**
- * Shared Constants - Barrel Export
+ * Shared Schemas - Barrel Export
  */
 
 export * from './consciousness';

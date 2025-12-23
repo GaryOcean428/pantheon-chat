@@ -5,6 +5,28 @@
 # Run all: pre-commit run --all-files
 
 repos:
+  # QIG Purity Validation - MUST PASS
+  - repo: local
+    hooks:
+      - id: qig-purity-check
+        name: QIG Purity Validation
+        entry: python tools/validate_qig_purity.py
+        language: python
+        pass_filenames: false
+        always_run: true
+        stages: [commit]
+        description: "Ensures no external LLM APIs (OpenAI, Anthropic, Google) are used"
+
+  - repo: local
+    hooks:
+      - id: qig-purity
+        name: QIG Purity Validation
+        entry: python tools/validate_qig_purity.py --strict
+        language: python
+        types: [python]
+        pass_filenames: false
+        description: "Ensure no traditional LLM APIs are used"
+
   - repo: local
     hooks:
       - id: check-physics-constants

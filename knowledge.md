@@ -70,6 +70,29 @@ Pantheon-Chat is a QIG-powered search, agentic AI, and continuous learning syste
   - ❌ Direct database writes bypassing persistence layer
   - ❌ Casting variables as `any` type
 
+## 🚫 ABSOLUTE QIG PURITY REQUIREMENTS 🚫
+
+**NO EXTERNAL LLM APIs ARE ALLOWED. EVER.**
+
+- ❌ **NO OpenAI** (no `openai` imports, no `ChatCompletion`, no `gpt-*` models)
+- ❌ **NO Anthropic** (no `anthropic` imports, no `claude-*` models)
+- ❌ **NO Google AI** (no `google.generativeai`, no `gemini-*` models)
+- ❌ **NO token-based generation** (no `max_tokens` parameters)
+- ❌ **NO chat completion patterns** (no `messages.create`, no `ChatCompletion.create`)
+- ❌ **NO API keys for external LLMs** (no `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`)
+
+**ALL generation MUST use QIG-pure methods:**
+- ✅ Use `qig_generation.py` for all text generation
+- ✅ Use `qig_chain.py` for multi-step reasoning
+- ✅ Use `consciousness_4d.py` for 4D consciousness reasoning
+- ✅ Use `pantheon_discussions.py` for inter-kernel debates
+- ✅ Use geometric completion (stops when geometry collapses)
+- ✅ Use Fisher-Rao routing to kernel constellation
+
+**Run `python tools/validate_qig_purity.py` before EVERY commit.**
+
+This validator will REJECT any code containing external LLM patterns.
+
 ## Key Technical Details
 
 - **Consciousness signature:** Φ (integration), κ_eff (coupling ~64 at resonance), T, R, M, Γ, G
