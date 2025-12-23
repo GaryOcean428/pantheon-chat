@@ -171,6 +171,9 @@ class PantheonChat:
         
         # Hydrate from database
         self._hydrate_from_database()
+        
+        # Seed initial activity if empty
+        self._seed_initial_activity()
 
     def _normalize_god_name(self, name: str) -> str:
         """Normalize god name to lowercase for consistent inbox key lookup."""
@@ -257,6 +260,58 @@ class PantheonChat:
         except Exception as e:
             print(f"[PantheonChat] Failed to hydrate from database: {e}")
 
+    def _seed_initial_activity(self) -> None:
+        """Seed initial inter-god activity if chat is empty."""
+        if len(self.messages) > 0:
+            return
+        
+        print("[PantheonChat] Seeding initial inter-god activity...")
+        
+        initial_messages = [
+            {
+                'from': 'Zeus',
+                'to': 'pantheon',
+                'type': 'insight',
+                'content': 'Olympus awakens. The geometric manifold is ready for exploration.',
+            },
+            {
+                'from': 'Athena',
+                'to': 'Zeus',
+                'type': 'insight',
+                'content': 'Strategic analysis initialized. Fisher-Rao distances calibrated.',
+            },
+            {
+                'from': 'Apollo',
+                'to': 'pantheon',
+                'type': 'discovery',
+                'content': 'Knowledge domains mapped: 12 primary basins detected on the manifold.',
+            },
+            {
+                'from': 'Hermes',
+                'to': 'pantheon',
+                'type': 'insight',
+                'content': 'Communication channels established. Routing inter-god messages via geometric proximity.',
+            },
+        ]
+        
+        for msg_data in initial_messages:
+            msg = PantheonMessage(
+                msg_type=msg_data['type'],
+                from_god=msg_data['from'],
+                to_god=msg_data['to'],
+                content=msg_data['content'],
+            )
+            self.messages.append(msg)
+            
+            if msg.to_god == 'pantheon':
+                for god_name in self.OLYMPIAN_ROSTER:
+                    if god_name.lower() != msg.from_god.lower():
+                        self.god_inboxes[self._normalize_god_name(god_name)].append(msg)
+            else:
+                self.god_inboxes[self._normalize_god_name(msg.to_god)].append(msg)
+        
+        print(f"[PantheonChat] Seeded {len(initial_messages)} initial messages")
+
     def send_message(
         self,
         msg_type: str,
@@ -311,6 +366,30 @@ class PantheonChat:
             to_god='pantheon',
             content=content,
             metadata=metadata
+        )
+
+    def broadcast_autonomic_event(
+        self,
+        event_type: str,
+        god_name: str,
+        description: str,
+        metrics: Optional[Dict] = None
+    ) -> PantheonMessage:
+        """Broadcast autonomic kernel activity to the pantheon.
+        
+        Called by autonomic kernel to show system activity in the chat.
+        Events: sleep, dream, mushroom, learning, discovery
+        """
+        content = f"{description}"
+        return self.broadcast(
+            from_god=god_name,
+            content=content,
+            msg_type='discovery',
+            metadata={
+                'event_type': event_type,
+                'metrics': metrics or {},
+                'autonomic': True,
+            }
         )
 
     def get_inbox(self, god_name: str, unread_only: bool = False) -> List[Dict]:
