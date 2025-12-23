@@ -35,7 +35,7 @@ externalZeusRouter.post('/chat', requireScopes('chat'), async (req: Authenticate
     // Call Python backend Zeus chat
     const pythonBackendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
     
-    const response = await fetch(`${pythonBackendUrl}/api/zeus/chat`, {
+    const response = await fetch(`${pythonBackendUrl}/olympus/zeus/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -101,7 +101,7 @@ externalZeusRouter.post('/stream', requireScopes('chat'), async (req: Authentica
     
     const pythonBackendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
     
-    const response = await fetch(`${pythonBackendUrl}/api/zeus/chat/stream`, {
+    const response = await fetch(`${pythonBackendUrl}/olympus/zeus/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -111,6 +111,7 @@ externalZeusRouter.post('/stream', requireScopes('chat'), async (req: Authentica
         message,
         session_id: sessionId || `ext-${req.externalClient?.id || 'anonymous'}-${Date.now()}`,
         context: context || {},
+        stream: true,
       }),
     });
     
