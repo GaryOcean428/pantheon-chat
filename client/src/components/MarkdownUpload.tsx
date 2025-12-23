@@ -117,15 +117,20 @@ export function MarkdownUpload() {
     }
   }, []);
 
+  const ACCEPTED_EXTENSIONS = ['.md', '.txt', '.csv', '.pdf', '.json', '.doc', '.docx', '.rtf', '.xml', '.html', '.htm', '.yaml', '.yml', '.log'];
+  
+  const isAcceptedFile = (file: File) => {
+    const name = file.name.toLowerCase();
+    return ACCEPTED_EXTENSIONS.some(ext => name.endsWith(ext));
+  };
+
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
 
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const files = Array.from(e.dataTransfer.files).filter(
-        file => file.name.toLowerCase().endsWith('.md')
-      );
+      const files = Array.from(e.dataTransfer.files).filter(isAcceptedFile);
       if (files.length > 0) {
         setSelectedFiles(prev => [...prev, ...files]);
         setResult(null);
@@ -135,9 +140,7 @@ export function MarkdownUpload() {
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      const files = Array.from(e.target.files).filter(
-        file => file.name.toLowerCase().endsWith('.md')
-      );
+      const files = Array.from(e.target.files).filter(isAcceptedFile);
       if (files.length > 0) {
         setSelectedFiles(prev => [...prev, ...files]);
         setResult(null);
@@ -152,7 +155,7 @@ export function MarkdownUpload() {
             filename: 'selected files',
             words_processed: 0,
             words_learned: 0,
-            error: 'Only .md (markdown) files are accepted',
+            error: 'Only text documents (txt, csv, pdf, doc, md, json, etc.) are accepted',
           }],
         });
       }
@@ -174,10 +177,10 @@ export function MarkdownUpload() {
       <CardHeader>
         <CardTitle className="text-lg flex items-center gap-2 font-mono">
           <FileText className="h-5 w-5 text-emerald-400" />
-          Markdown Vocabulary Upload
+          Document Vocabulary Upload
         </CardTitle>
         <CardDescription className="font-mono text-xs">
-          Upload multiple .md files to extract and learn vocabulary
+          Upload text docs, CSV, PDF, markdown and more to extract vocabulary
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -195,12 +198,12 @@ export function MarkdownUpload() {
         >
           <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
           <p className="text-sm text-muted-foreground font-mono">
-            Drag and drop .md files here, or
+            Drag and drop files here (txt, csv, pdf, doc, md, json...), or
           </p>
           <label className="cursor-pointer">
             <input
               type="file"
-              accept=".md"
+              accept=".md,.txt,.csv,.pdf,.json,.doc,.docx,.rtf,.xml,.html,.htm,.yaml,.yml,.log"
               multiple
               className="hidden"
               onChange={handleFileSelect}
