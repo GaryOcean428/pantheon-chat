@@ -12,7 +12,7 @@ export { useTelemetry } from './useTelemetry';
 export { useTelemetryStream } from './useTelemetryStream';
 export { useZeusValidation } from './use-zeus-validation';
 export { useZeusChat } from './useZeusChat';
-export { useKernelActivity } from './use-kernel-activity';
+export { useKernelActivity, useKernelActivityWebSocket } from './use-kernel-activity';
 export { useStreamingMetrics } from './useStreamingMetrics';
 export { useGeometricStreaming } from './use-geometric-streaming';
 export { useGeometricKernel } from './use-geometric-kernel';

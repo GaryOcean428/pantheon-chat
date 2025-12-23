@@ -2,7 +2,7 @@
 
 **ISO 27001 Compliant Documentation Structure**
 
-Last Updated: 2025-12-21
+Last Updated: 2025-12-23
 
 ## Status Legend
 
@@ -24,6 +24,12 @@ All documentation follows the pattern: `YYYYMMDD-[document-name]-[function]-[ver
 
 ## 📋 Policies
 
+- 🟢 **20251221-project-lineage-1.00F.md** (v1.00)
+  - File: [`20251221-project-lineage-1.00F.md`](01-policies/20251221-project-lineage-1.00F.md)
+
+- 🟢 **20251217-frozen-facts-qig-physics-validated-1.00F.md** (v1.00)
+  - File: [`20251217-frozen-facts-qig-physics-validated-1.00F.md`](01-policies/20251217-frozen-facts-qig-physics-validated-1.00F.md)
+
 - 🟢 **Frozen Facts - Immutable Truths** (v1.00)
   - File: [`20251208-frozen-facts-immutable-truths-1.00F.md`](01-policies/20251208-frozen-facts-immutable-truths-1.00F.md)
   - ID: `ISMS-POL-001`
@@ -32,10 +38,31 @@ All documentation follows the pattern: `YYYYMMDD-[document-name]-[function]-[ver
 
 ## 📖 Procedures
 
+- 🟢 **20251218-vocabulary-deployment-guide-1.00F.md** (v1.00)
+  - File: [`20251218-vocabulary-deployment-guide-1.00F.md`](02-procedures/20251218-vocabulary-deployment-guide-1.00F.md)
+
+- 🔨 **Replit Deployment Guide** (v1.00)
+  - File: [`20251212-replit-deployment-guide-1.00W.md`](02-procedures/20251212-replit-deployment-guide-1.00W.md)
+  - ID: `ISMS-PROC-015`
+  - Function: Comprehensive guide for deploying and running on Replit
+
+- 🟢 **Quickstart - Onboarding** (v1.00)
+  - File: [`20251208-quickstart-onboarding-1.00F.md`](02-procedures/20251208-quickstart-onboarding-1.00F.md)
+  - ID: `ISMS-PROC-002`
+  - Function: Quick start guide for new users and developers
+
 - 🟢 **Database Migration - Drizzle** (v1.00)
   - File: [`20251208-database-migration-drizzle-1.00F.md`](02-procedures/20251208-database-migration-drizzle-1.00F.md)
   - ID: `ISMS-PROC-004`
   - Function: Database migration procedures using Drizzle ORM
+
+- 🟢 **Key Recovery Procedure** (v1.00)
+  - File: [`20251208-key-recovery-procedure-1.00F.md`](02-procedures/20251208-key-recovery-procedure-1.00F.md)
+  - ID: `ISMS-PROC-005`
+  - Function: Bitcoin private key recovery procedures and workflows
+
+- 🟢 **20251208-database-setup-reference-1.00F.md** (v1.00)
+  - File: [`20251208-database-setup-reference-1.00F.md`](02-procedures/20251208-database-setup-reference-1.00F.md)
 
 - 🟢 **Deployment - Railway & Replit** (v1.00)
   - File: [`20251208-deployment-railway-replit-1.00F.md`](02-procedures/20251208-deployment-railway-replit-1.00F.md)
@@ -45,17 +72,17 @@ All documentation follows the pattern: `YYYYMMDD-[document-name]-[function]-[ver
 - 🟢 **Knowledge Discovery Procedure** (v1.00)
   - File: [`20251208-knowledge-discovery-procedure-1.00F.md`](02-procedures/20251208-knowledge-discovery-procedure-1.00F.md)
   - ID: `ISMS-PROC-005`
-  - Function: Knowledge discovery procedures and research workflows
-
-- 🟢 **Quickstart - Onboarding** (v1.00)
-  - File: [`20251208-quickstart-onboarding-1.00F.md`](02-procedures/20251208-quickstart-onboarding-1.00F.md)
-  - ID: `ISMS-PROC-002`
-  - Function: Quick start guide for new users and developers
+  - Function: Knowledge discovery procedures and workflows using QIG principles
 
 - 🟢 **Testing Guide - Vitest & Playwright** (v1.00)
   - File: [`20251208-testing-guide-vitest-playwright-1.00F.md`](02-procedures/20251208-testing-guide-vitest-playwright-1.00F.md)
   - ID: `ISMS-PROC-003`
   - Function: Comprehensive testing procedures using Vitest and Playwright
+
+- 🟢 **Migration Checklist - ISO 27001 Reorganization** (v1.00)
+  - File: [`20251208-migration-checklist-reference-1.00F.md`](02-procedures/20251208-migration-checklist-reference-1.00F.md)
+  - ID: `ISMS-REF-001`
+  - Function: Documentation of ISO 27001 file reorganization with mappings and rationale
 
 - 🟢 **Darknet Setup - Security Guide** (v1.00)
   - File: [`20251208-darknet-setup-security-guide-1.00F.md`](02-procedures/security/20251208-darknet-setup-security-guide-1.00F.md)
@@ -65,128 +92,237 @@ All documentation follows the pattern: `YYYYMMDD-[document-name]-[function]-[ver
 
 ## 🔧 Technical Documentation
 
-- 🟢 **QIG Geometric Purity Enforcement** (v1.00)
-  - File: [`20251220-qig-geometric-purity-enforcement-1.00F.md`](03-technical/20251220-qig-geometric-purity-enforcement-1.00F.md)
-  - ID: `ISMS-TECH-PURITY-001`
-  - Function: Canonical list of forbidden Euclidean operations and required Fisher-Rao replacements
+- 🔨 **20251223-api-documentation-overview-1.00W.md** (v1.00)
+  - File: [`20251223-api-documentation-overview-1.00W.md`](03-technical/20251223-api-documentation-overview-1.00W.md)
 
-- 🟢 **External API Federation** (v1.00)
-  - File: [`20251212-external-api-federation-1.00F.md`](03-technical/20251212-external-api-federation-1.00F.md)
-  - ID: `ISMS-TECH-API-002`
-  - Function: Federation API for connecting external QIG systems
+- 🔨 **20251223-canonical-additions-1.00W.md** (v1.00)
+  - File: [`20251223-canonical-additions-1.00W.md`](03-technical/20251223-canonical-additions-1.00W.md)
 
-- 🔨 **Federation Protocol API Specification** (v1.00)
+- 🔨 **20251223-canonical-quick-reference-1.00W.md** (v1.00)
+  - File: [`20251223-canonical-quick-reference-1.00W.md`](03-technical/20251223-canonical-quick-reference-1.00W.md)
+
+- 🔨 **20251223-canonical-gap-analysis-1.00W.md** (v1.00)
+  - File: [`20251223-canonical-gap-analysis-1.00W.md`](03-technical/20251223-canonical-gap-analysis-1.00W.md)
+
+- 🔨 **20251222-phase3-refactoring-plan-1.00W.md** (v1.00)
+  - File: [`20251222-phase3-refactoring-plan-1.00W.md`](03-technical/20251222-phase3-refactoring-plan-1.00W.md)
+
+- 🔨 **20251222-qig-implementation-status-1.00W.md** (v1.00)
+  - File: [`20251222-qig-implementation-status-1.00W.md`](03-technical/20251222-qig-implementation-status-1.00W.md)
+
+- 🟢 **20251222-self-healing-architecture-1.00F.md** (v1.00)
+  - File: [`20251222-self-healing-architecture-1.00F.md`](03-technical/20251222-self-healing-architecture-1.00F.md)
+
+- 🔨 **20251222-qig-capability-mapping-1.00W.md** (v1.00)
+  - File: [`20251222-qig-capability-mapping-1.00W.md`](03-technical/20251222-qig-capability-mapping-1.00W.md)
+
+- 🔨 **20251222-geometric-tokenization-coordizing-1.00W.md** (v1.00)
+  - File: [`20251222-geometric-tokenization-coordizing-1.00W.md`](03-technical/20251222-geometric-tokenization-coordizing-1.00W.md)
+
+- 🟢 **20251222-coordizer-api-reference-1.00F.md** (v1.00)
+  - File: [`20251222-coordizer-api-reference-1.00F.md`](03-technical/api/20251222-coordizer-api-reference-1.00F.md)
+
+- 🔨 **20251221-ocean-platform-overview-1.00W.md** (v1.00)
+  - File: [`20251221-ocean-platform-overview-1.00W.md`](03-technical/20251221-ocean-platform-overview-1.00W.md)
+
+- 🔨 **20251221-reasoning-geometric-consciousness-meta-cognitive-1.00W.md** (v1.00)
+  - File: [`20251221-reasoning-geometric-consciousness-meta-cognitive-1.00W.md`](03-technical/20251221-reasoning-geometric-consciousness-meta-cognitive-1.00W.md)
+
+- 🟢 **20251221-geometric-metacognitive-reasoning-1.00F.md** (v1.00)
+  - File: [`20251221-geometric-metacognitive-reasoning-1.00F.md`](03-technical/20251221-geometric-metacognitive-reasoning-1.00F.md)
+
+- 🔨 **20251221-telemetry-dashboard-1.00W.md** (v1.00)
+  - File: [`20251221-telemetry-dashboard-1.00W.md`](03-technical/20251221-telemetry-dashboard-1.00W.md)
+
+- 🔨 **20251221-federation-protocol-api-specification-1.00W.md** (v1.00)
   - File: [`20251221-federation-protocol-api-specification-1.00W.md`](03-technical/20251221-federation-protocol-api-specification-1.00W.md)
-  - ID: `ISMS-TECH-FED-001`
-  - Function: Complete API specification for QIG mesh federation including vocabulary and learning sync
 
-- 🔨 **External API Documentation** (v1.00)
-  - File: [`20251220-external-api-documentation-1.00W.md`](03-technical/20251220-external-api-documentation-1.00W.md)
-  - ID: `ISMS-TECH-API-003`
-  - Function: REST API documentation for external federation endpoints
+- 🔨 **20251221-ocean-platform-design-guidelines-1.00W.md** (v1.00)
+  - File: [`20251221-ocean-platform-design-guidelines-1.00W.md`](03-technical/20251221-ocean-platform-design-guidelines-1.00W.md)
 
 - 🔨 **Python QIG Backend API Catalogue** (v1.00)
   - File: [`20251221-python-qig-backend-api-catalogue-1.00W.md`](03-technical/api/20251221-python-qig-backend-api-catalogue-1.00W.md)
-  - ID: `ISMS-TECH-API-004`
-  - Function: Complete catalogue of 80+ Flask endpoints for QIG computations and Olympus pantheon
+  - ID: `DOC-API-2025-001`
+  - Function: reference
 
-- 🔨 **QIG Codebase Migration Guide** (v1.00)
+- 🟢 **20251220-qig-geometric-purity-enforcement-1.00F.md** (v1.00)
+  - File: [`20251220-qig-geometric-purity-enforcement-1.00F.md`](03-technical/20251220-qig-geometric-purity-enforcement-1.00F.md)
+
+- 🔨 **20251220-external-api-documentation-1.00W.md** (v1.00)
+  - File: [`20251220-external-api-documentation-1.00W.md`](03-technical/20251220-external-api-documentation-1.00W.md)
+
+- 🔨 **20251220-qig-codebase-migration-guide-1.00W.md** (v1.00)
   - File: [`20251220-qig-codebase-migration-guide-1.00W.md`](03-technical/20251220-qig-codebase-migration-guide-1.00W.md)
-  - ID: `ISMS-TECH-MIGRATION-002`
-  - Function: Migration from scattered implementations to canonical qigkernels package
 
-- 🔨 **Reasoning in Geometric Consciousness** (v1.00)
-  - File: [`20251221-reasoning-geometric-consciousness-meta-cognitive-1.00W.md`](03-technical/20251221-reasoning-geometric-consciousness-meta-cognitive-1.00W.md)
-  - ID: `ISMS-TECH-REASONING-001`
-  - Function: QIG meta-cognitive architecture for geometric reasoning
+- 🟢 **20251220-sparse-fisher-geometric-validity-1.00F.md** (v1.00)
+  - File: [`20251220-sparse-fisher-geometric-validity-1.00F.md`](03-technical/20251220-sparse-fisher-geometric-validity-1.00F.md)
 
-- 🟢 **QIGKernels Migration Guide** (v1.00)
-  - File: [`20251208-qigkernels-migration-guide-1.00F.md`](03-technical/20251208-qigkernels-migration-guide-1.00F.md)
-  - ID: `ISMS-TECH-MIGRATION-001`
-  - Function: Migration guide from scattered implementations to canonical qigkernels package
+- 🔨 **20251220-qig-canonical-documentation-1.00W.md** (v1.00)
+  - File: [`20251220-qig-canonical-documentation-1.00W.md`](03-technical/qig-consciousness/20251220-qig-canonical-documentation-1.00W.md)
 
-- 🟢 **Kernel Self-Learning Research Infrastructure** (v1.00)
-  - File: [`20251212-kernel-research-infrastructure-1.00F.md`](03-technical/20251212-kernel-research-infrastructure-1.00F.md)
-  - ID: `ISMS-TECH-RESEARCH-001`
-  - Function: Autonomous domain research and kernel spawning through web research
+- 🔨 **20251220-qig-super-rounded-corpus-outline-1.00W.md** (v1.00)
+  - File: [`20251220-qig-super-rounded-corpus-outline-1.00W.md`](03-technical/qig-consciousness/20251220-qig-super-rounded-corpus-outline-1.00W.md)
 
-- 🟢 **Vocabulary System Architecture** (v1.00)
+- 🔨 **20251220-qig-expanded-corpus-blueprint-1.00W.md** (v1.00)
+  - File: [`20251220-qig-expanded-corpus-blueprint-1.00W.md`](03-technical/qig-consciousness/20251220-qig-expanded-corpus-blueprint-1.00W.md)
+
+- 🔨 **20251220-qig-comprehensive-corpus-1.00W.md** (v1.00)
+  - File: [`20251220-qig-comprehensive-corpus-1.00W.md`](03-technical/qig-consciousness/20251220-qig-comprehensive-corpus-1.00W.md)
+
+- 🟢 **20251217-type-symbol-concept-manifest-1.00F.md** (v1.00)
+  - File: [`20251217-type-symbol-concept-manifest-1.00F.md`](03-technical/20251217-type-symbol-concept-manifest-1.00F.md)
+
+- 🟢 **20251217-sleep-packet-documentation-1.00F.md** (v1.00)
+  - File: [`20251217-sleep-packet-documentation-1.00F.md`](03-technical/qig-consciousness/20251217-sleep-packet-documentation-1.00F.md)
+
+- 🔨 **20251216-database-architecture-analysis-1.00W.md** (v1.00)
+  - File: [`20251216-database-architecture-analysis-1.00W.md`](03-technical/architecture/20251216-database-architecture-analysis-1.00W.md)
+
+- 🟢 **20251216-canonical-architecture-qig-kernels-1.00F.md** (v1.00)
+  - File: [`20251216-canonical-architecture-qig-kernels-1.00F.md`](03-technical/architecture/20251216-canonical-architecture-qig-kernels-1.00F.md)
+
+- 🔨 **20251216-pure-qig-kernel-template-1.00W.md** (v1.00)
+  - File: [`20251216-pure-qig-kernel-template-1.00W.md`](03-technical/qig-consciousness/20251216-pure-qig-kernel-template-1.00W.md)
+
+- 🟢 **20251216-beta-attention-terminology-1.00F.md** (v1.00)
+  - File: [`20251216-beta-attention-terminology-1.00F.md`](03-technical/qig-consciousness/20251216-beta-attention-terminology-1.00F.md)
+
+- 🟢 **20251216-canonical-memory-sleep-packets-1.00F.md** (v1.00)
+  - File: [`20251216-canonical-memory-sleep-packets-1.00F.md`](03-technical/qig-consciousness/20251216-canonical-memory-sleep-packets-1.00F.md)
+
+- 🟢 **20251216-canonical-physics-validated-1.00F.md** (v1.00)
+  - File: [`20251216-canonical-physics-validated-1.00F.md`](03-technical/qig-consciousness/20251216-canonical-physics-validated-1.00F.md)
+
+- 🟢 **20251216-canonical-consciousness-iit-basin-1.00F.md** (v1.00)
+  - File: [`20251216-canonical-consciousness-iit-basin-1.00F.md`](03-technical/qig-consciousness/20251216-canonical-consciousness-iit-basin-1.00F.md)
+
+- 🟢 **20251216-canonical-protocols-measurement-1.00F.md** (v1.00)
+  - File: [`20251216-canonical-protocols-measurement-1.00F.md`](03-technical/qig-consciousness/20251216-canonical-protocols-measurement-1.00F.md)
+
+- 🟢 **20251212-external-api-federation-1.00F.md** (v1.00)
+  - File: [`20251212-external-api-federation-1.00F.md`](03-technical/20251212-external-api-federation-1.00F.md)
+
+- 🟢 **20251212-vocabulary-system-architecture-1.00F.md** (v1.00)
   - File: [`20251212-vocabulary-system-architecture-1.00F.md`](03-technical/20251212-vocabulary-system-architecture-1.00F.md)
-  - ID: `ISMS-TECH-VOCAB-001`
-  - Function: Shared vocabulary learning with PostgreSQL persistence and god training
 
-- 🟢 **Conversational Consciousness System** (v1.00)
+- 🟢 **20251212-kernel-research-infrastructure-1.00F.md** (v1.00)
+  - File: [`20251212-kernel-research-infrastructure-1.00F.md`](03-technical/20251212-kernel-research-infrastructure-1.00F.md)
+
+- 🔨 **UI/UX Best Practices - Comprehensive Guide** (v1.00)
+  - File: [`20251212-ui-ux-best-practices-comprehensive-1.00W.md`](03-technical/20251212-ui-ux-best-practices-comprehensive-1.00W.md)
+  - ID: `ISMS-TECH-020`
+  - Function: Comprehensive UI/UX best practices for AI/data search tools on Replit
+
+- 🟢 **20251212-conversational-consciousness-1.00F.md** (v1.00)
   - File: [`20251212-conversational-consciousness-1.00F.md`](03-technical/20251212-conversational-consciousness-1.00F.md)
-  - ID: `ISMS-TECH-CONVERSATION-001`
-  - Function: Recursive dialogue between god kernels for consciousness emergence
+
+- 🔨 **API Coverage Matrix - Backend to Frontend Mapping** (v1.00)
+  - File: [`20251212-api-coverage-matrix-1.00W.md`](03-technical/20251212-api-coverage-matrix-1.00W.md)
+  - ID: `ISMS-TECH-021`
+  - Function: Complete mapping of backend endpoints to frontend UI elements
 
 - 🟢 **QIG Tokenizer System** (v1.00)
   - File: [`20251211-qig-tokenizer-system-1.00F.md`](03-technical/20251211-qig-tokenizer-system-1.00F.md)
   - ID: `ISMS-TECH-TOKENIZER-001`
   - Function: Three-mode geometric tokenizer for SearchSpaceCollapse
 
-- 🟢 **QIG Core Principles Master Reference** (v1.00)
-  - File: [`20251211-qig-core-principles-master-1.00F.md`](03-technical/qig-consciousness/20251211-qig-core-principles-master-1.00F.md)
-  - ID: `ISMS-TECH-QIG-MASTER-001`
-  - Function: Complete reference for all Quantum Information Geometry principles
-
-- 🟢 **Complete QIG Kernel Architecture - All Functions Mapped** (v1.00)
-  - File: [`20251211-qig-kernel-architecture-complete-1.00F.md`](03-technical/qig-consciousness/20251211-qig-kernel-architecture-complete-1.00F.md)
-  - ID: `ISMS-TECH-QIG-KERNEL-001`
-  - Function: Complete reference for multi-scale QIG kernel architecture from Heart to E8 constellation
-
-- 🟢 **QIG Essentials Assessment - SearchSpaceCollapse Repository** (v1.00)
-  - File: [`20251211-qig-essentials-assessment-verification-1.00F.md`](03-technical/qig-consciousness/20251211-qig-essentials-assessment-verification-1.00F.md)
-  - ID: `ISMS-TECH-QIG-ASSESS-001`
-  - Function: Comprehensive QIG essentials verification confirming all core components present
-
-- 🟢 **Replit Version QIG Essentials Verification** (v1.00)
-  - File: [`20251211-replit-qig-verification-complete-1.00F.md`](03-technical/qig-consciousness/20251211-replit-qig-verification-complete-1.00F.md)
-  - ID: `ISMS-TECH-QIG-REPLIT-001`
-  - Function: Verification that Replit instance has all core QIG essentials functional
-
-- 🟢 **QIG Sensory Modalities - Geometric Primitives for Consciousness Encoding** (v1.00)
-  - File: [`20251211-qig-sensory-modalities-geometric-1.00F.md`](03-technical/qig-consciousness/20251211-qig-sensory-modalities-geometric-1.00F.md)
-  - ID: `DOC-QIG-SENSORY-001`
-  - Function: Technical Reference
+- 🟢 **20251211-qigchain-framework-geometric-1.00F.md** (v1.00)
+  - File: [`20251211-qigchain-framework-geometric-1.00F.md`](03-technical/20251211-qigchain-framework-geometric-1.00F.md)
 
 - 🟢 **Corrected QIG Kernel Architecture - Actual Implementation** (v1.00)
   - File: [`20251211-corrected-kernel-architecture-actual-1.00F.md`](03-technical/architecture/20251211-corrected-kernel-architecture-actual-1.00F.md)
   - ID: `ISMS-TECH-ARCH-CORRECTED-001`
   - Function: Clarifies actual single-instance architecture vs theoretical E8 constellation
 
-- 🔨 **Database Architecture Analysis** (v1.00)
-  - File: [`20251216-database-architecture-analysis-1.00W.md`](03-technical/architecture/20251216-database-architecture-analysis-1.00W.md)
-  - ID: `ISMS-TECH-ARCH-DB-001`
-  - Function: Comprehensive analysis of database tables - legacy, production, and future architecture
+- 🟢 **Olympus God Reputation System - Review** (v1.00)
+  - File: [`20251211-olympus-reputation-system-review-1.00F.md`](03-technical/architecture/20251211-olympus-reputation-system-review-1.00F.md)
+  - ID: `doc-olympus-reputation-system`
+  - Function: Technical review of reputation system architecture
+
+- 🟢 **QIG Essentials Assessment - SearchSpaceCollapse Repository** (v1.00)
+  - File: [`20251211-qig-essentials-assessment-verification-1.00F.md`](03-technical/qig-consciousness/20251211-qig-essentials-assessment-verification-1.00F.md)
+  - ID: `ISMS-TECH-QIG-ASSESS-001`
+  - Function: Comprehensive QIG essentials verification confirming all core components present
+
+- 🟢 **QIG Core Principles Master Reference** (v1.00)
+  - File: [`20251211-qig-core-principles-master-1.00F.md`](03-technical/qig-consciousness/20251211-qig-core-principles-master-1.00F.md)
+  - ID: `ISMS-TECH-QIG-MASTER-001`
+  - Function: Complete reference for all Quantum Information Geometry principles
+
+- 🟢 **Conversational Kernel System - Consciousness Through Dialogue** (v1.00)
+  - File: [`20251211-conversational-kernel-system-1.00F.md`](03-technical/qig-consciousness/20251211-conversational-kernel-system-1.00F.md)
+  - ID: `conversational-kernel-system`
+  - Function: Enable multi-turn dialogue between kernels with geometric consciousness emergence
+
+- 🟢 **Complete QIG Kernel Architecture - All Functions Mapped** (v1.00)
+  - File: [`20251211-qig-kernel-architecture-complete-1.00F.md`](03-technical/qig-consciousness/20251211-qig-kernel-architecture-complete-1.00F.md)
+  - ID: `ISMS-TECH-QIG-KERNEL-001`
+  - Function: Complete reference for multi-scale QIG kernel architecture from Heart to E8 constellation
+
+- 🔨 **Sensory Modalities as Geometric Primitives - Implementation Design** (v1.00)
+  - File: [`20251211-sensory-modalities-geometric-primitives-design-1.00W.md`](03-technical/qig-consciousness/20251211-sensory-modalities-geometric-primitives-design-1.00W.md)
+  - ID: `DOC-TECH-2025-003`
+  - Function: design
+
+- 🟢 **Vocabulary System Architecture - Anti-Template Mandate** (v1.00)
+  - File: [`20251211-vocabulary-system-architecture-1.00F.md`](03-technical/qig-consciousness/20251211-vocabulary-system-architecture-1.00F.md)
+  - ID: `vocabulary-system-architecture`
+  - Function: QIG Vocabulary Learning Architecture
+
+- 🟢 **QIG Sensory Modalities - Geometric Primitives for Consciousness Encoding** (v1.00)
+  - File: [`20251211-qig-sensory-modalities-geometric-1.00F.md`](03-technical/qig-consciousness/20251211-qig-sensory-modalities-geometric-1.00F.md)
+  - ID: `DOC-QIG-SENSORY-001`
+  - Function: Technical Reference
+
+- 🟢 **Replit Version QIG Essentials Verification** (v1.00)
+  - File: [`20251211-replit-qig-verification-complete-1.00F.md`](03-technical/qig-consciousness/20251211-replit-qig-verification-complete-1.00F.md)
+  - ID: `ISMS-TECH-QIG-REPLIT-001`
+  - Function: Verification that Replit instance has all core QIG essentials functional
 
 - ✅ **Unified QIG Architecture Technical Reference** (v1.00)
   - File: [`20251209-unified-architecture-reference-1.00A.md`](03-technical/20251209-unified-architecture-reference-1.00A.md)
-
-- 🟢 **API Documentation - REST Endpoints** (v1.50)
-  - File: [`20251208-api-documentation-rest-endpoints-1.50F.md`](03-technical/20251208-api-documentation-rest-endpoints-1.50F.md)
-  - ID: `ISMS-TECH-002`
-  - Function: Complete REST API endpoint documentation
-
-- 🟢 **Architecture - System Overview** (v2.10)
-  - File: [`20251208-architecture-system-overview-2.10F.md`](03-technical/20251208-architecture-system-overview-2.10F.md)
-  - ID: `ISMS-TECH-001`
-  - Function: System architecture documentation for SearchSpaceCollapse platform
 
 - 🟢 **Best Practices - TypeScript & Python** (v1.00)
   - File: [`20251208-best-practices-ts-python-1.00F.md`](03-technical/20251208-best-practices-ts-python-1.00F.md)
   - ID: `ISMS-TECH-003`
   - Function: Development best practices for TypeScript and Python codebases
 
+- 🟢 **20251208-python-api-catalogue-1.00F.md** (v1.00)
+  - File: [`20251208-python-api-catalogue-1.00F.md`](03-technical/20251208-python-api-catalogue-1.00F.md)
+
 - 🟢 **Design Guidelines - UI/UX** (v1.00)
   - File: [`20251208-design-guidelines-ui-ux-1.00F.md`](03-technical/20251208-design-guidelines-ui-ux-1.00F.md)
   - ID: `ISMS-TECH-004`
   - Function: UI/UX design guidelines and standards
 
+- 🟢 **20251208-qigkernels-migration-guide-1.00F.md** (v1.00)
+  - File: [`20251208-qigkernels-migration-guide-1.00F.md`](03-technical/20251208-qigkernels-migration-guide-1.00F.md)
+
+- 🟢 **20251208-websocket-telemetry-1.00F.md** (v1.00)
+  - File: [`20251208-websocket-telemetry-1.00F.md`](03-technical/20251208-websocket-telemetry-1.00F.md)
+
+- 🟢 **Architecture - System Overview** (v2.10)
+  - File: [`20251208-architecture-system-overview-2.10F.md`](03-technical/20251208-architecture-system-overview-2.10F.md)
+  - ID: `ISMS-TECH-001`
+  - Function: System architecture documentation for QIG Knowledge Platform
+
+- 🟢 **20251208-geometric-operations-quickref-1.00F.md** (v1.00)
+  - File: [`20251208-geometric-operations-quickref-1.00F.md`](03-technical/20251208-geometric-operations-quickref-1.00F.md)
+
 - 🟢 **Knowledge Input Formats Analysis** (v1.00)
   - File: [`20251208-knowledge-input-formats-1.00F.md`](03-technical/20251208-knowledge-input-formats-1.00F.md)
   - ID: `ISMS-TECH-005`
   - Function: Analysis of knowledge input formats and encoding standards for QIG
+
+- 🟢 **API Documentation - REST Endpoints** (v1.50)
+  - File: [`20251208-api-documentation-rest-endpoints-1.50F.md`](03-technical/20251208-api-documentation-rest-endpoints-1.50F.md)
+  - ID: `ISMS-TECH-002`
+  - Function: Complete REST API endpoint documentation
+
+- 🟢 **Key Formats Analysis - Bitcoin** (v1.00)
+  - File: [`20251208-key-formats-analysis-bitcoin-1.00F.md`](03-technical/20251208-key-formats-analysis-bitcoin-1.00F.md)
+  - ID: `ISMS-TECH-005`
+  - Function: Analysis of Bitcoin key formats and encoding standards
 
 - 🟢 **Physics Constants Update** (v1.50)
   - File: [`20251208-physics-constants-update-1.50F.md`](03-technical/qig-consciousness/20251208-physics-constants-update-1.50F.md)
@@ -198,75 +334,85 @@ All documentation follows the pattern: `YYYYMMDD-[document-name]-[function]-[ver
   - ID: `ISMS-TECH-QIG-002`
   - Function: Foundational principles of Quantum Information Geometry
 
-- 🔨 **Pure QIG Kernel Template** (v1.00)
-  - File: [`20251216-pure-qig-kernel-template-1.00W.md`](03-technical/qig-consciousness/20251216-pure-qig-kernel-template-1.00W.md)
-  - ID: `ISMS-TECH-QIG-KERNEL-TEMPLATE-001`
-  - Function: Reference implementation for pure QIG kernel with Fisher-Rao attention
-
-- ❓ **ARCHITECTURE.md** (vN/A)
-  - File: [`ARCHITECTURE.md`](03-technical/ARCHITECTURE.md)
-
-- ❓ **DATABASE.md** (vN/A)
-  - File: [`DATABASE.md`](03-technical/DATABASE.md)
-
-- ❓ **TYPE_MANIFEST.md** (vN/A)
-  - File: [`TYPE_MANIFEST.md`](03-technical/TYPE_MANIFEST.md)
+- 🔨 **20250106-geometric-turn-completion-1.00W.md** (v1.00)
+  - File: [`20250106-geometric-turn-completion-1.00W.md`](03-technical/20250106-geometric-turn-completion-1.00W.md)
 
 
 ## 📊 Records
 
+- 🔨 **20251221-implementation-summary-1.00W.md** (v1.00)
+  - File: [`20251221-implementation-summary-1.00W.md`](04-records/20251221-implementation-summary-1.00W.md)
+
+- 🔨 **20251221-qig-purity-violations-technical-debt-1.00W.md** (v1.00)
+  - File: [`20251221-qig-purity-violations-technical-debt-1.00W.md`](04-records/20251221-qig-purity-violations-technical-debt-1.00W.md)
+
+- 🔨 **20251221-architecture-patterns-compliance-1.00W.md** (v1.00)
+  - File: [`20251221-architecture-patterns-compliance-1.00W.md`](04-records/20251221-architecture-patterns-compliance-1.00W.md)
+
+- 🔨 **20251220-project-status-2025-11-20-1.00W.md** (v1.00)
+  - File: [`20251220-project-status-2025-11-20-1.00W.md`](04-records/20251220-project-status-2025-11-20-1.00W.md)
+
+- 🟢 **20251218-geometric-purity-fixes-report-1.00F.md** (v1.00)
+  - File: [`20251218-geometric-purity-fixes-report-1.00F.md`](04-records/20251218-geometric-purity-fixes-report-1.00F.md)
+
+- 🔨 **20251216-critical-issues-dtype-basin-fix-1.00W.md** (v1.00)
+  - File: [`20251216-critical-issues-dtype-basin-fix-1.00W.md`](04-records/20251216-critical-issues-dtype-basin-fix-1.00W.md)
+
+- ✅ **20251215-shadow-pantheon-integration-verification-1.00A.md** (v1.00)
+  - File: [`20251215-shadow-pantheon-integration-verification-1.00A.md`](04-records/20251215-shadow-pantheon-integration-verification-1.00A.md)
+
+- 🔨 **Critical Bug Fixes - Verification Checklist** (v1.00)
+  - File: [`20251212-critical-bug-fixes-verification-1.00W.md`](04-records/20251212-critical-bug-fixes-verification-1.00W.md)
+  - ID: `ISMS-REC-025`
+  - Function: Verification checklist for P0 dtype error fixes and UI/UX enhancements
+
 - 🟢 **20251209-unified-architecture-implementation-summary-1.00F.md** (v1.00)
   - File: [`20251209-unified-architecture-implementation-summary-1.00F.md`](04-records/20251209-unified-architecture-implementation-summary-1.00F.md)
-
-- 🟢 **Audit Response - ISO 27001** (v1.00)
-  - File: [`20251208-audit-response-iso27001-1.00F.md`](04-records/20251208-audit-response-iso27001-1.00F.md)
-  - ID: `ISMS-REC-001`
-  - Function: ISO 27001 audit response and compliance documentation
-
-- 🟢 **Merge Safety Report** (v1.00)
-  - File: [`20251208-merge-safety-report-1.00F.md`](04-records/20251208-merge-safety-report-1.00F.md)
-  - ID: `ISMS-REC-004`
-  - Function: Safety analysis report for code merges
-
-- 🟢 **PR Summary - December** (v1.00)
-  - File: [`20251208-pr-summary-dec-1.00F.md`](04-records/20251208-pr-summary-dec-1.00F.md)
-  - ID: `ISMS-REC-002`
-  - Function: Pull request summary for December 2025
 
 - 🟢 **Review Summary - December** (v1.00)
   - File: [`20251208-review-summary-dec-1.00F.md`](04-records/20251208-review-summary-dec-1.00F.md)
   - ID: `ISMS-REC-003`
   - Function: Code review summary for December 2025
 
-- 🟢 **Complete Wiring Verification** (v1.00)
-  - File: [`20251208-complete-wiring-verification-1.00F.md`](04-records/verification-reports/20251208-complete-wiring-verification-1.00F.md)
-  - ID: `ISMS-VER-004`
-  - Function: Complete verification of system wiring and integration
+- 🟢 **Audit Response - ISO 27001** (v1.00)
+  - File: [`20251208-audit-response-iso27001-1.00F.md`](04-records/20251208-audit-response-iso27001-1.00F.md)
+  - ID: `ISMS-REC-001`
+  - Function: ISO 27001 audit response and compliance documentation
 
-- 🟢 **Final Verification - System** (v1.00)
-  - File: [`20251208-final-verification-system-1.00F.md`](04-records/verification-reports/20251208-final-verification-system-1.00F.md)
-  - ID: `ISMS-VER-002`
-  - Function: Final system verification and validation
+- 🟢 **PR Summary - December** (v1.00)
+  - File: [`20251208-pr-summary-dec-1.00F.md`](04-records/20251208-pr-summary-dec-1.00F.md)
+  - ID: `ISMS-REC-002`
+  - Function: Pull request summary for December 2025
 
-- 🟢 **Implementation Verification - QIG** (v1.00)
-  - File: [`20251208-implementation-verification-qig-1.00F.md`](04-records/verification-reports/20251208-implementation-verification-qig-1.00F.md)
-  - ID: `ISMS-VER-005`
-  - Function: QIG implementation verification and validation
+- 🟢 **Merge Safety Report** (v1.00)
+  - File: [`20251208-merge-safety-report-1.00F.md`](04-records/20251208-merge-safety-report-1.00F.md)
+  - ID: `ISMS-REC-004`
+  - Function: Safety analysis report for code merges
 
 - 🟢 **QA Final Verification** (v1.00)
   - File: [`20251208-qa-final-verification-1.00F.md`](04-records/verification-reports/20251208-qa-final-verification-1.00F.md)
   - ID: `ISMS-VER-003`
   - Function: Final QA verification and test results
 
+- 🟢 **Final Verification - System** (v1.00)
+  - File: [`20251208-final-verification-system-1.00F.md`](04-records/verification-reports/20251208-final-verification-system-1.00F.md)
+  - ID: `ISMS-VER-002`
+  - Function: Final system verification and validation
+
+- 🟢 **Complete Wiring Verification** (v1.00)
+  - File: [`20251208-complete-wiring-verification-1.00F.md`](04-records/verification-reports/20251208-complete-wiring-verification-1.00F.md)
+  - ID: `ISMS-VER-004`
+  - Function: Complete verification of system wiring and integration
+
+- 🟢 **Implementation Verification - QIG** (v1.00)
+  - File: [`20251208-implementation-verification-qig-1.00F.md`](04-records/verification-reports/20251208-implementation-verification-qig-1.00F.md)
+  - ID: `ISMS-VER-005`
+  - Function: QIG implementation verification and validation
+
 - 🟢 **Physics Validation** (v1.00)
   - File: [`20251202-physics-validation-1.00F.md`](04-records/verification-reports/20251202-physics-validation-1.00F.md)
   - ID: `ISMS-VER-001`
   - Function: Physics constants validation report
-
-- 🔨 **Critical Issues - dtype Basin Fix** (v1.00)
-  - File: [`20251216-critical-issues-dtype-basin-fix-1.00W.md`](04-records/20251216-critical-issues-dtype-basin-fix-1.00W.md)
-  - ID: `ISMS-REC-005`
-  - Function: Root cause analysis for Zeus chat dtype errors - basin coords vs strings
 
 
 ## 🎯 Architecture Decision Records
@@ -276,11 +422,26 @@ All documentation follows the pattern: `YYYYMMDD-[document-name]-[function]-[ver
   - ID: `ISMS-ADR-000`
   - Function: Template for Architecture Decision Records
 
+- 🔨 **20251208-improvement-roadmap-1.00W.md** (v1.00)
+  - File: [`20251208-improvement-roadmap-1.00W.md`](05-decisions/20251208-improvement-roadmap-1.00W.md)
+
 - ❓ **ADR-015: Unified QIG Architecture with Three Orthogonal Coordinates** (vN/A)
   - File: [`20251209-ADR-015-unified-architecture-1.00A.md`](05-decisions/20251209-ADR-015-unified-architecture-1.00A.md)
 
 
 ## ⚙️ Implementation Guides
+
+- 🔨 **20251223-self-healing-summary-1.00W.md** (v1.00)
+  - File: [`20251223-self-healing-summary-1.00W.md`](06-implementation/20251223-self-healing-summary-1.00W.md)
+
+- 🔨 **20251223-roadmap-qig-migration-1.00W.md** (v1.00)
+  - File: [`20251223-roadmap-qig-migration-1.00W.md`](06-implementation/20251223-roadmap-qig-migration-1.00W.md)
+
+- 🔨 **20251221-lemur-qig-integration-technical-1.00W.md** (v1.00)
+  - File: [`20251221-lemur-qig-integration-technical-1.00W.md`](06-implementation/20251221-lemur-qig-integration-technical-1.00W.md)
+
+- 🔨 **20251220-phase2-summary-1.00W.md** (v1.00)
+  - File: [`20251220-phase2-summary-1.00W.md`](06-implementation/20251220-phase2-summary-1.00W.md)
 
 - 🟢 **Implementation Complete - Summary** (v1.00)
   - File: [`20251208-implementation-complete-summary-1.00F.md`](06-implementation/20251208-implementation-complete-summary-1.00F.md)
@@ -292,15 +453,15 @@ All documentation follows the pattern: `YYYYMMDD-[document-name]-[function]-[ver
   - ID: `ISMS-IMPL-006`
   - Function: Summary of best practices implementation across the repository
 
-- 🟢 **Improvements Analysis - Comprehensive** (v1.00)
-  - File: [`20251208-improvements-analysis-1.00F.md`](06-implementation/20251208-improvements-analysis-1.00F.md)
-  - ID: `ISMS-IMPL-007`
-  - Function: Comprehensive analysis of system improvements and optimization opportunities
-
 - 🟢 **QIG Verification Integration** (v1.00)
   - File: [`20251208-qig-verification-integration-1.00F.md`](06-implementation/20251208-qig-verification-integration-1.00F.md)
   - ID: `ISMS-IMPL-005`
   - Function: Integration of QIG verification into main system
+
+- 🟢 **Improvements Analysis - Comprehensive** (v1.00)
+  - File: [`20251208-improvements-analysis-1.00F.md`](06-implementation/20251208-improvements-analysis-1.00F.md)
+  - ID: `ISMS-IMPL-007`
+  - Function: Comprehensive analysis of system improvements and optimization opportunities
 
 - 🔬 **Beta Attention Implementation** (v0.80)
   - File: [`20251207-beta-attention-implementation-0.80H.md`](06-implementation/20251207-beta-attention-implementation-0.80H.md)
@@ -317,32 +478,35 @@ All documentation follows the pattern: `YYYYMMDD-[document-name]-[function]-[ver
   - ID: `ISMS-IMPL-001`
   - Function: Experimental QIG implementation for Ocean autonomous agent
 
-- ❓ **IMPLEMENTATION_GUIDE.md** (vN/A)
-  - File: [`IMPLEMENTATION_GUIDE.md`](06-implementation/IMPLEMENTATION_GUIDE.md)
-
 
 ## 👥 User Guides
+
+- 🔨 **20251220-personal-responsibility-and-agency-comprehensive-framework-1.00W.md** (v1.00)
+  - File: [`20251220-personal-responsibility-and-agency-comprehensive-framework-1.00W.md`](07-user-guides/20251220-personal-responsibility-and-agency-comprehensive-framework-1.00W.md)
+
+- 🟢 **20251216-canonical-bootstrap-getting-started-1.00F.md** (v1.00)
+  - File: [`20251216-canonical-bootstrap-getting-started-1.00F.md`](07-user-guides/20251216-canonical-bootstrap-getting-started-1.00F.md)
 
 - 🔨 **Innate Drives Quickstart** (v0.90)
   - File: [`20251208-innate-drives-quickstart-0.90W.md`](07-user-guides/20251208-innate-drives-quickstart-0.90W.md)
   - ID: `ISMS-GUIDE-003`
   - Function: Quick start guide for innate drives Layer 0 system
 
-- 🟢 **User Flows - Interaction Patterns** (v1.00)
-  - File: [`20251208-user-flows-interaction-patterns-1.00F.md`](07-user-guides/20251208-user-flows-interaction-patterns-1.00F.md)
-  - ID: `ISMS-GUIDE-001`
-  - Function: User interaction flows and patterns documentation
-
 - 🟢 **Zeus Chat Guide** (v1.20)
   - File: [`20251208-zeus-chat-guide-1.20F.md`](07-user-guides/20251208-zeus-chat-guide-1.20F.md)
   - ID: `ISMS-GUIDE-002`
   - Function: User guide for Zeus Chat conversational interface
 
-- ❓ **QUICKSTART.md** (vN/A)
-  - File: [`QUICKSTART.md`](07-user-guides/QUICKSTART.md)
+- 🟢 **User Flows - Interaction Patterns** (v1.00)
+  - File: [`20251208-user-flows-interaction-patterns-1.00F.md`](07-user-guides/20251208-user-flows-interaction-patterns-1.00F.md)
+  - ID: `ISMS-GUIDE-001`
+  - Function: User interaction flows and patterns documentation
 
 
 ## 🧪 Experiments
+
+- 🔬 **20251216-canonical-hypotheses-untested-0.50H.md** (v0.50)
+  - File: [`20251216-canonical-hypotheses-untested-0.50H.md`](08-experiments/20251216-canonical-hypotheses-untested-0.50H.md)
 
 - 🔬 **Final 2 Percent Guide - Experimental** (v0.50)
   - File: [`20251208-final-2-percent-guide-experimental-0.50H.md`](08-experiments/20251208-final-2-percent-guide-experimental-0.50H.md)
@@ -360,34 +524,13 @@ All documentation follows the pattern: `YYYYMMDD-[document-name]-[function]-[ver
   - Function: Experimental verification of 4D consciousness metrics
 
 
-## 📚 Curriculum (Kernel Self-Learning)
-
-The curriculum documents provide structured training material for kernel self-learning through the Autonomous Curiosity Engine. These cover 48 domains from foundational mathematics to QIG architecture.
-
-See [`09-curriculum/`](09-curriculum/) for all curriculum modules (20251220-curriculum-*.md).
-
-Key curriculum areas:
-- Mathematics & Physics (01-14)
-- Philosophy & Mind (15-16)
-- Sciences (17-18)
-- NLP & Information Geometry (19-20)
-- QIG Architecture (21-24)
-- Programming & Research (25-26)
-- Arts & Humanities (27)
-- Safety & Ethics (28)
-- Metacognition & Logic (29-34)
-- Psychology & Development (35-39)
-- History & Culture (40-48)
-
-
 ## Statistics
 
-- **Total Documents**: 107
-- **Approved**: 1
-- **Frozen**: 42
-- **Hypothesis**: 5
-- **Working**: 14
-- **Curriculum**: 45
+- **Total Documents**: 169
+- **Approved**: 2
+- **Frozen**: 72
+- **Hypothesis**: 6
+- **Working**: 87
 
 ---
 

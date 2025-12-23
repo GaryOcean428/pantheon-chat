@@ -3,10 +3,16 @@
  * 
  * Fetches all inter-god communications, debates, discoveries,
  * and kernel activity from the Pantheon chat system.
+ * 
+ * Provides both polling-based (useKernelActivity) and 
+ * WebSocket-based (useKernelActivityWebSocket) options.
  */
 
 import { useQuery } from '@tanstack/react-query';
 import { QUERY_KEYS } from '@/api';
+
+// Re-export WebSocket hook
+export { useKernelActivityWebSocket } from './useKernelActivityWebSocket';
 
 export type ActivityType = 
   | 'insight'
@@ -77,6 +83,12 @@ export interface KernelActivityResponse {
   };
 }
 
+/**
+ * Polling-based kernel activity hook.
+ * Use this for simple cases or as fallback.
+ * 
+ * @deprecated Prefer useKernelActivityWebSocket for real-time updates
+ */
 export function useKernelActivity(limit: number = 50) {
   return useQuery<KernelActivityResponse>({
     queryKey: [...QUERY_KEYS.olympus.activity(), limit],
@@ -85,6 +97,11 @@ export function useKernelActivity(limit: number = 50) {
   });
 }
 
+/**
+ * Polling-based kernel activity stream hook.
+ * 
+ * @deprecated Prefer useKernelActivityWebSocket for real-time updates
+ */
 export function useKernelActivityStream(limit: number = 100) {
   return useQuery<KernelActivityItem[]>({
     queryKey: [...QUERY_KEYS.olympus.activity(), 'stream', limit],

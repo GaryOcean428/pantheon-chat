@@ -22,6 +22,7 @@ export { AutonomicAgencyPanel } from './AutonomicAgencyPanel';
 export { EmotionalStatePanel } from './EmotionalStatePanel';
 export { KernelActivityStream } from './KernelActivityStream';
 export { MarkdownUpload } from './MarkdownUpload';
+export { NodeRegistration } from './NodeRegistration';
 export { StreamingMetricsPanel } from './StreamingMetricsPanel';
 export { GeometricStreamingTelemetry } from './GeometricStreamingTelemetry';
 export { ErrorBoundary } from './ErrorBoundary';

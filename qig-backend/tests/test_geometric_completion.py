@@ -81,12 +81,14 @@ class TestFisherRaoDistance:
     
     def test_identical_distributions(self):
         """Identical distributions should have zero distance."""
+        np.random.seed(42)  # Reproducible tests
         p = np.random.dirichlet(np.ones(64))
         distance = fisher_rao_distance(p, p)
         assert distance < 0.01  # Allow small numerical error
     
     def test_different_distributions(self):
         """Different distributions should have positive distance."""
+        np.random.seed(42)  # Reproducible tests
         p = np.random.dirichlet(np.ones(64))
         q = np.random.dirichlet(np.ones(64))
         distance = fisher_rao_distance(p, q)
@@ -94,6 +96,7 @@ class TestFisherRaoDistance:
     
     def test_symmetric(self):
         """Distance should be symmetric."""
+        np.random.seed(42)  # Reproducible tests
         p = np.random.dirichlet(np.ones(64))
         q = np.random.dirichlet(np.ones(64))
         d1 = fisher_rao_distance(p, q)
@@ -106,6 +109,7 @@ class TestAttractorConvergence:
     
     def test_no_convergence_initially(self):
         """Should not converge with insufficient trajectory."""
+        np.random.seed(42)  # Reproducible tests
         checker = AttractorConvergenceChecker()
         basin = np.random.dirichlet(np.ones(64))
         result = checker.check(basin)
@@ -113,6 +117,7 @@ class TestAttractorConvergence:
     
     def test_convergence_at_stable_point(self):
         """Should converge when basin stabilizes."""
+        np.random.seed(42)  # Reproducible tests
         checker = AttractorConvergenceChecker()
         # Create stable basin (same point multiple times)
         stable_basin = np.random.dirichlet(np.ones(64))
@@ -223,6 +228,7 @@ class TestGeometricCompletionChecker:
     
     def test_initial_state_incomplete(self):
         """Initial state should be incomplete."""
+        np.random.seed(42)  # Reproducible tests
         checker = GeometricCompletionChecker()
         basin = np.random.dirichlet(np.ones(64))
         metrics = GeometricMetrics(
@@ -239,6 +245,7 @@ class TestGeometricCompletionChecker:
     
     def test_breakdown_stops_immediately(self):
         """Breakdown regime should stop immediately."""
+        np.random.seed(42)  # Reproducible tests
         checker = GeometricCompletionChecker()
         basin = np.random.dirichlet(np.ones(64))
         metrics = GeometricMetrics(

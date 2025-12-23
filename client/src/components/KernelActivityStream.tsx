@@ -11,7 +11,7 @@
  */
 
 import { useState, useMemo } from 'react';
-import { useKernelActivity, KernelActivityItem, ActivityType } from '@/hooks/use-kernel-activity';
+import { useKernelActivityWebSocket, KernelActivityItem, ActivityType } from '@/hooks/use-kernel-activity';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -180,7 +180,17 @@ export function KernelActivityStream({
   showFilters = true,
   maxHeight = '600px'
 }: KernelActivityStreamProps) {
-  const { data, isLoading, error, refetch, isFetching } = useKernelActivity(limit);
+  const { 
+    data, 
+    isLoading, 
+    isConnected,
+    error: wsError,
+    refetch, 
+    isFetching,
+    clearActivities 
+  } = useKernelActivityWebSocket({ maxItems: limit });
+  
+  const error = wsError ? new Error(wsError) : null;
   const [activeFilter, setActiveFilter] = useState<ActivityType | 'all'>('all');
   const [activeTab, setActiveTab] = useState('all');
 
@@ -240,6 +250,9 @@ export function KernelActivityStream({
             Kernel Activity Stream
           </CardTitle>
           <div className="flex items-center gap-2">
+            {/* Connection status indicator */}
+            <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} 
+                 title={isConnected ? 'Connected (real-time)' : 'Disconnected'} />
             {data?.status && (
               <div className="text-xs text-muted-foreground">
                 {data.status.total_messages} messages • 
@@ -251,6 +264,7 @@ export function KernelActivityStream({
               size="sm" 
               onClick={() => refetch()}
               disabled={isFetching}
+              title={isConnected ? 'Reconnect' : 'Connect'}
             >
               <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
             </Button>

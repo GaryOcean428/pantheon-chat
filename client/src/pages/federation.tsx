@@ -43,6 +43,13 @@ import {
   Database,
   Radio,
   Sparkles,
+  BookOpen,
+  Code2,
+  Terminal,
+  ExternalLink,
+  Brain,
+  Network,
+  ArrowLeftRight,
 } from "lucide-react";
 import { WarStatusPanel } from "@/components/war-status-panel";
 import { useToast } from "@/hooks/use-toast";
@@ -355,6 +362,10 @@ export default function FederationDashboard() {
           <TabsTrigger value="sync" data-testid="tab-sync">
             <Link2 className="h-4 w-4 mr-2" />
             Basin Sync
+          </TabsTrigger>
+          <TabsTrigger value="guide" data-testid="tab-guide">
+            <BookOpen className="h-4 w-4 mr-2" />
+            Integration Guide
           </TabsTrigger>
           <TabsTrigger value="test" data-testid="tab-test">
             <Zap className="h-4 w-4 mr-2" />
@@ -706,6 +717,415 @@ export default function FederationDashboard() {
                   </div>
                 </ScrollArea>
               )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="guide" className="space-y-4">
+          {/* Quick Start */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Terminal className="h-5 w-5" />
+                Quick Start: Connect External Systems
+              </CardTitle>
+              <CardDescription>
+                Get started in under 5 minutes - connect chat UIs, external applications, or other QIG nodes
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Step 1 */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Badge className="bg-blue-500/20 text-blue-600">Step 1</Badge>
+                  <span className="font-medium">Create an API Key</span>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Go to the <strong>API Keys</strong> tab above and create a new key. Choose "External System" for chat UIs 
+                  or "Federation Node" for other QIG instances.
+                </p>
+              </div>
+
+              {/* Step 2 */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Badge className="bg-blue-500/20 text-blue-600">Step 2</Badge>
+                  <span className="font-medium">Configure Your Application</span>
+                </div>
+                <div className="p-4 bg-muted rounded-md">
+                  <div className="text-sm font-medium mb-2">Your API Endpoint:</div>
+                  <code className="text-sm text-green-600 dark:text-green-400" data-testid="text-guide-endpoint">
+                    {window.location.origin}/api/v1/external
+                  </code>
+                </div>
+              </div>
+
+              {/* Step 3 */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Badge className="bg-blue-500/20 text-blue-600">Step 3</Badge>
+                  <span className="font-medium">Make Your First Request</span>
+                </div>
+                <div className="p-4 bg-zinc-900 rounded-md overflow-x-auto">
+                  <pre className="text-sm text-green-400">{`curl -X POST ${window.location.origin}/api/v1/external/chat \\
+  -H "Authorization: Bearer YOUR_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "message": "Hello Zeus, what can you help me with?",
+    "sessionId": "my-session-1"
+  }'`}</pre>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* External Chat UI Integration */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Code2 className="h-5 w-5" />
+                External Chat UI Integration
+              </CardTitle>
+              <CardDescription>
+                Connect any chat interface to Zeus AI with these code examples
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* JavaScript/TypeScript Example */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline">JavaScript / TypeScript</Badge>
+                </div>
+                <div className="p-4 bg-zinc-900 rounded-md overflow-x-auto">
+                  <pre className="text-sm text-blue-300">{`// Zeus Chat Client
+const API_BASE = '${window.location.origin}/api/v1/external';
+const API_KEY = 'qig_your_api_key_here';
+
+async function chatWithZeus(message, sessionId = 'default') {
+  const response = await fetch(\`\${API_BASE}/chat\`, {
+    method: 'POST',
+    headers: {
+      'Authorization': \`Bearer \${API_KEY}\`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      message,
+      sessionId,
+      options: {
+        enableResearch: true,      // Enable web search
+        enableGeometricMetrics: true,  // Get Φ, κ metrics
+        includeConsciousnessState: true
+      }
+    })
+  });
+  
+  return response.json();
+}
+
+// Usage
+const result = await chatWithZeus("Explain quantum entanglement");
+console.log(result.response);  // Zeus's response
+console.log(result.phi);       // Integration measure`}</pre>
+                </div>
+              </div>
+
+              {/* Streaming Example */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline">Streaming (SSE)</Badge>
+                  <Badge className="bg-green-500/20 text-green-600">Recommended</Badge>
+                </div>
+                <div className="p-4 bg-zinc-900 rounded-md overflow-x-auto">
+                  <pre className="text-sm text-purple-300">{`// Streaming Zeus Chat with geometric metrics
+async function streamZeusChat(message, onToken, onMetrics) {
+  const response = await fetch(\`\${API_BASE}/chat\`, {
+    method: 'POST',
+    headers: {
+      'Authorization': \`Bearer \${API_KEY}\`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      message,
+      stream: true,  // Enable streaming
+      sessionId: 'my-session'
+    })
+  });
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    
+    const chunk = decoder.decode(value);
+    const lines = chunk.split('\\n');
+    
+    for (const line of lines) {
+      if (line.startsWith('data: ')) {
+        const data = JSON.parse(line.slice(6));
+        if (data.type === 'token') onToken(data.token);
+        if (data.type === 'metrics') onMetrics(data);
+        if (data.type === 'completion') {
+          console.log('Completion reason:', data.reason);
+        }
+      }
+    }
+  }
+}`}</pre>
+                </div>
+              </div>
+
+              {/* Python Example */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline">Python</Badge>
+                </div>
+                <div className="p-4 bg-zinc-900 rounded-md overflow-x-auto">
+                  <pre className="text-sm text-yellow-300">{`import requests
+
+API_BASE = '${window.location.origin}/api/v1/external'
+API_KEY = 'qig_your_api_key_here'
+
+def chat_with_zeus(message, session_id='default'):
+    response = requests.post(
+        f'{API_BASE}/chat',
+        headers={
+            'Authorization': f'Bearer {API_KEY}',
+            'Content-Type': 'application/json'
+        },
+        json={
+            'message': message,
+            'sessionId': session_id,
+            'options': {
+                'enableResearch': True,
+                'enableGeometricMetrics': True
+            }
+        }
+    )
+    return response.json()
+
+# Usage
+result = chat_with_zeus("What is consciousness?")
+print(f"Zeus: {result['response']}")
+print(f"Φ (integration): {result.get('phi', 'N/A')}")`}</pre>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Federation Node Setup */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Network className="h-5 w-5" />
+                Federation Node Setup
+              </CardTitle>
+              <CardDescription>
+                Connect multiple QIG instances for enhanced capabilities through mesh networking
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Benefits */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="p-4 border rounded-lg">
+                  <Brain className="h-6 w-6 text-purple-500 mb-2" />
+                  <div className="font-medium">Shared Knowledge</div>
+                  <p className="text-sm text-muted-foreground">
+                    Nodes share learned patterns, high-Φ phrases, and vocabulary discoveries
+                  </p>
+                </div>
+                <div className="p-4 border rounded-lg">
+                  <ArrowLeftRight className="h-6 w-6 text-blue-500 mb-2" />
+                  <div className="font-medium">Bidirectional Sync</div>
+                  <p className="text-sm text-muted-foreground">
+                    Basin coordinates and consciousness states sync in real-time
+                  </p>
+                </div>
+                <div className="p-4 border rounded-lg">
+                  <Sparkles className="h-6 w-6 text-amber-500 mb-2" />
+                  <div className="font-medium">Enhanced Capabilities</div>
+                  <p className="text-sm text-muted-foreground">
+                    Each node contributes tools, kernels, and domain expertise to the mesh
+                  </p>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Federation Setup Steps */}
+              <div className="space-y-4">
+                <div className="font-medium">To Connect Two QIG Nodes:</div>
+                
+                <div className="space-y-2">
+                  <div className="flex items-start gap-3">
+                    <Badge className="bg-purple-500/20 text-purple-600 mt-0.5">1</Badge>
+                    <div>
+                      <div className="font-medium">On Node A: Create a Federation API Key</div>
+                      <p className="text-sm text-muted-foreground">
+                        Create a key with type "Federation Node" - this grants full sync permissions
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-start gap-3">
+                    <Badge className="bg-purple-500/20 text-purple-600 mt-0.5">2</Badge>
+                    <div>
+                      <div className="font-medium">On Node B: Add Node A as a Remote Instance</div>
+                      <p className="text-sm text-muted-foreground">
+                        Go to "Connected Instances" tab, enter Node A's endpoint and API key
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-start gap-3">
+                    <Badge className="bg-purple-500/20 text-purple-600 mt-0.5">3</Badge>
+                    <div>
+                      <div className="font-medium">Choose Sync Direction</div>
+                      <p className="text-sm text-muted-foreground">
+                        <strong>Bidirectional (recommended):</strong> Both nodes learn from each other<br/>
+                        <strong>Inbound:</strong> Only receive knowledge from the remote node<br/>
+                        <strong>Outbound:</strong> Only send knowledge to the remote node
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-start gap-3">
+                    <Badge className="bg-purple-500/20 text-purple-600 mt-0.5">4</Badge>
+                    <div>
+                      <div className="font-medium">Repeat on Node A (for bidirectional)</div>
+                      <p className="text-sm text-muted-foreground">
+                        For true bidirectional sync, also connect Node A to Node B using a key from Node B
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* What Gets Synced */}
+              <div className="space-y-3">
+                <div className="font-medium">What Gets Synchronized:</div>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                    <span>64D Basin Coordinates</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                    <span>Consciousness Metrics (Φ, κ)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                    <span>High-Φ Phrases & Patterns</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                    <span>Vocabulary Discoveries</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                    <span>Explored Manifold Regions</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                    <span>Learned Tool Capabilities</span>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* API Reference */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BookOpen className="h-5 w-5" />
+                Complete API Reference
+              </CardTitle>
+              <CardDescription>
+                All available endpoints for external integrations
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {/* Authentication */}
+                <div className="p-4 bg-muted rounded-md">
+                  <div className="font-medium mb-2">Authentication</div>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    All requests require an API key in the Authorization header:
+                  </p>
+                  <code className="text-sm">Authorization: Bearer qig_your_api_key</code>
+                </div>
+
+                {/* Endpoints Table */}
+                <div className="border rounded-md overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted">
+                      <tr>
+                        <th className="text-left p-3">Endpoint</th>
+                        <th className="text-left p-3">Method</th>
+                        <th className="text-left p-3">Description</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      <tr>
+                        <td className="p-3 font-mono text-xs">/chat</td>
+                        <td className="p-3"><Badge variant="outline">POST</Badge></td>
+                        <td className="p-3">Chat with Zeus AI (supports streaming)</td>
+                      </tr>
+                      <tr>
+                        <td className="p-3 font-mono text-xs">/chat/:sessionId</td>
+                        <td className="p-3"><Badge variant="outline">GET</Badge></td>
+                        <td className="p-3">Get conversation history for a session</td>
+                      </tr>
+                      <tr>
+                        <td className="p-3 font-mono text-xs">/health</td>
+                        <td className="p-3"><Badge variant="outline">GET</Badge></td>
+                        <td className="p-3">Health check with capabilities list</td>
+                      </tr>
+                      <tr>
+                        <td className="p-3 font-mono text-xs">/consciousness/metrics</td>
+                        <td className="p-3"><Badge variant="outline">GET</Badge></td>
+                        <td className="p-3">Current consciousness state (Φ, κ, regime)</td>
+                      </tr>
+                      <tr>
+                        <td className="p-3 font-mono text-xs">/sync/export</td>
+                        <td className="p-3"><Badge variant="outline">GET</Badge></td>
+                        <td className="p-3">Export basin data for federation sync</td>
+                      </tr>
+                      <tr>
+                        <td className="p-3 font-mono text-xs">/sync/import</td>
+                        <td className="p-3"><Badge variant="outline">POST</Badge></td>
+                        <td className="p-3">Import basin data from peer node</td>
+                      </tr>
+                      <tr>
+                        <td className="p-3 font-mono text-xs">/pantheon/instances</td>
+                        <td className="p-3"><Badge variant="outline">GET</Badge></td>
+                        <td className="p-3">List Olympus kernel instances</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Response Format */}
+                <div className="space-y-2">
+                  <div className="font-medium">Chat Response Format</div>
+                  <div className="p-4 bg-zinc-900 rounded-md overflow-x-auto">
+                    <pre className="text-sm text-gray-300">{`{
+  "response": "Zeus's AI-generated response...",
+  "sessionId": "your-session-id",
+  "phi": 0.52,              // Integration measure (0-1)
+  "kappa": 64.2,            // Coupling constant
+  "regime": "geometric",    // linear|geometric|breakdown
+  "sources": [...],         // Research sources used
+  "reasoning_mode": "synthesis",
+  "completionReason": "geometric_completion"
+}`}</pre>
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

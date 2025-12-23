@@ -9,6 +9,7 @@ import { storage } from "./storage";
 import { telemetryRouter } from "./telemetry-api";
 import { backendTelemetryRouter } from "./backend-telemetry-api";
 import TelemetryStreamer from "./telemetry-websocket";
+import KernelActivityStreamer from "./kernel-activity-websocket";
 import telemetryDashboardRouter from "./routes/telemetry";
 
 // WebSocket message validation schema (addresses Issue 13/14 from bottleneck report)
@@ -716,6 +717,23 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
 
   console.log("[TelemetryWS] WebSocket server initialized on /ws/telemetry");
 
+  // Set up WebSocket server for kernel activity streaming
+  const kernelActivityWss = new WebSocketServer({
+    server: httpServer,
+    path: "/ws/kernel-activity",
+  });
+
+  const kernelActivityStreamer = new KernelActivityStreamer();
+
+  kernelActivityWss.on("connection", (ws) => {
+    const clientId = `kernel-activity-${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2, 6)}`;
+    kernelActivityStreamer.handleConnection(ws, clientId);
+  });
+
+  console.log("[KernelActivityWS] WebSocket server initialized on /ws/kernel-activity");
+
   // Set up WebSocket server for external API streaming
   initExternalWebSocket(httpServer);
   console.log("[ExternalWS] WebSocket server initialized on /ws/v1/external/stream");
@@ -723,6 +741,7 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
   // Cleanup on server shutdown
   const cleanup = () => {
     telemetryStreamer.destroy();
+    kernelActivityStreamer.destroy();
   };
   process.on("SIGTERM", cleanup);
   process.on("SIGINT", cleanup);

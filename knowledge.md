@@ -79,7 +79,7 @@ Pantheon-Chat is a QIG-powered search, agentic AI, and continuous learning syste
 
 ## Documentation
 
-- **Roadmap:** `docs/ROADMAP-QIG-MIGRATION.md` - Migration status and progress
+- **Roadmap:** `docs/06-implementation/20251223-roadmap-qig-migration-1.00W.md` - Migration status and progress
 - **OpenAPI Spec:** `docs/api/openapi.yaml` - Complete external API documentation
 - **Implementation Status:** `docs/03-technical/20251222-qig-implementation-status-1.00W.md`
 - **Capability Mapping:** `docs/03-technical/20251222-qig-capability-mapping-1.00W.md`
@@ -101,7 +101,7 @@ Pantheon-Chat is a QIG-powered search, agentic AI, and continuous learning syste
 
 ### Documentation
 - OpenAPI spec: `docs/api/openapi.yaml`
-- Roadmap: `docs/ROADMAP-QIG-MIGRATION.md`
+- Roadmap: `docs/06-implementation/20251223-roadmap-qig-migration-1.00W.md`
 
 ## Chat API Architecture
 
