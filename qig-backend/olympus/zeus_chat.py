@@ -1703,65 +1703,176 @@ Let me know if this improves results: "yes that was better" or "no that didn't h
     @require_provenance
     def handle_file_upload(self, files: List, message: str) -> Dict:
         """
-        Process uploaded files.
-        Extract knowledge, encode to geometric space.
+        Process uploaded files with FULL geometric analysis.
+        Extract knowledge, encode to geometric space, learn vocabulary.
+        
+        Now supports: .txt, .json, .md, .csv, .pdf, .doc, .docx, .rtf, .xml, .html, .htm, .yaml, .yml, .log
         """
-        print(f"[ZeusChat] Processing {len(files)} uploaded files")
+        print(f"[ZeusChat] Processing {len(files)} uploaded files with FULL analysis")
         
         processed = []
+        total_words_learned = 0
+        total_vocab_observations = 0
+        all_content_for_learning = []
+        
+        # Supported text-based extensions
+        TEXT_EXTENSIONS = {'.txt', '.md', '.csv', '.json', '.xml', '.html', '.htm', '.yaml', '.yml', '.log', '.rtf'}
         
         for file in files:
             try:
-                # Extract text based on file type
                 content = ""
                 filename = getattr(file, 'filename', 'unknown')
+                ext = filename.lower().split('.')[-1] if '.' in filename else ''
+                ext_with_dot = f'.{ext}'
                 
-                if filename.endswith('.txt'):
-                    content = file.read().decode('utf-8') if hasattr(file, 'read') else str(file)
-                elif filename.endswith('.json'):
-                    content = file.read().decode('utf-8') if hasattr(file, 'read') else str(file)
+                print(f"[ZeusChat] Processing file: {filename} (ext={ext_with_dot})")
+                
+                # Extract text from supported file types
+                if ext_with_dot in TEXT_EXTENSIONS:
+                    raw = file.read() if hasattr(file, 'read') else str(file).encode('utf-8')
+                    content = raw.decode('utf-8', errors='ignore') if isinstance(raw, bytes) else raw
+                elif ext_with_dot in {'.pdf', '.doc', '.docx'}:
+                    # For binary formats, try to extract text (basic support)
+                    raw = file.read() if hasattr(file, 'read') else b''
+                    # Extract readable ASCII/UTF-8 sequences from binary
+                    if isinstance(raw, bytes):
+                        import re
+                        text_chunks = re.findall(rb'[\x20-\x7E\n\r\t]{10,}', raw)
+                        content = b' '.join(text_chunks).decode('utf-8', errors='ignore')
+                    print(f"[ZeusChat] Extracted {len(content)} chars from binary file {filename}")
                 else:
+                    print(f"[ZeusChat] Skipping unsupported file type: {ext_with_dot}")
                     continue
                 
-                # Encode to basin
+                if not content.strip():
+                    print(f"[ZeusChat] File {filename} has no extractable content")
+                    continue
+                
+                # Encode to basin coordinates
                 file_basin = self.conversation_encoder.encode(content)
                 
-                # Store in QIG-RAG with default metrics
+                # Calculate ACTUAL phi from basin geometry (not hardcoded!)
+                origin = np.zeros_like(file_basin)
+                basin_distance = fisher_rao_distance(file_basin, origin)
+                calculated_phi = min(basin_distance / 2.0, 1.0)
+                
+                # Store in QIG-RAG with calculated metrics
                 self.qig_rag.add_document(
                     content=content,
                     basin_coords=file_basin,
-                    phi=0.5,
+                    phi=calculated_phi,
                     kappa=50.0,
                     regime='file',
                     metadata={
                         'source': 'file_upload',
                         'filename': filename,
                         'uploaded_at': time.time(),
+                        'content_length': len(content),
                     }
                 )
+                
+                # Collect content for vocabulary learning
+                all_content_for_learning.append({
+                    'filename': filename,
+                    'content': content,
+                    'phi': calculated_phi,
+                })
                 
                 processed.append({
                     'filename': filename,
                     'basin_coords': file_basin[:8].tolist(),
                     'content_length': len(content),
+                    'phi': calculated_phi,
+                    'word_count': len(content.split()),
                 })
                 
+                print(f"[ZeusChat] File {filename}: {len(content)} chars, Φ={calculated_phi:.3f}, basin[:3]={file_basin[:3]}")
+                
             except Exception as e:
-                print(f"[ZeusChat] Error processing file: {e}")
+                import traceback
+                print(f"[ZeusChat] Error processing file {getattr(file, 'filename', 'unknown')}: {e}")
+                traceback.print_exc()
         
-        response = f"""⚡ Your scrolls have been received.
+        # Do vocabulary learning from all file content (like pasted text would)
+        vocab_results = []
+        for item in all_content_for_learning:
+            try:
+                # Use the same vocab learning path as general conversation
+                words = item['content'].split()
+                unique_words = set(w.lower().strip('.,!?;:()[]{}"\'-') for w in words if len(w) > 2)
+                total_vocab_observations += len(unique_words)
+                
+                # Try to learn via vocabulary tracker if available
+                if hasattr(self, 'zeus') and hasattr(self.zeus, 'vocabulary_tracker'):
+                    tracker = self.zeus.vocabulary_tracker
+                    if tracker:
+                        for word in list(unique_words)[:100]:  # Cap at 100 words per file
+                            try:
+                                tracker.observe(word, phi=item['phi'])
+                                total_words_learned += 1
+                            except:
+                                pass
+                
+                vocab_results.append({
+                    'filename': item['filename'],
+                    'unique_words': len(unique_words),
+                    'sample_words': list(unique_words)[:10],
+                })
+            except Exception as e:
+                print(f"[ZeusChat] Vocab learning error for {item['filename']}: {e}")
+        
+        # Build verbose response (matching pasted text verbosity)
+        total_chars = sum(p['content_length'] for p in processed)
+        total_words = sum(p.get('word_count', 0) for p in processed)
+        avg_phi = sum(p.get('phi', 0.5) for p in processed) / len(processed) if processed else 0.0
+        
+        # Get live system state for context
+        system_state = self._get_live_system_state()
+        memory_docs = system_state['memory_stats'].get('documents', 0)
+        
+        file_details = []
+        for p in processed:
+            file_details.append(
+                f"- **{p['filename']}**: {p['content_length']:,} chars, "
+                f"{p.get('word_count', 0):,} words, Φ={p.get('phi', 0.5):.3f}"
+            )
+        
+        vocab_details = []
+        for v in vocab_results:
+            sample = ', '.join(v['sample_words'][:5])
+            vocab_details.append(f"- {v['filename']}: {v['unique_words']} unique words ({sample}...)")
+        
+        response = f"""⚡ **Files Fully Processed and Integrated**
 
-**Files Processed:**
-{self._format_processed_files(processed)}
+**Geometric Analysis:**
+{chr(10).join(file_details)}
 
-**Geometric Integration:**
-- Total documents: {len(processed)}
-- Manifold expansion: {sum(p['content_length'] for p in processed)} chars
+**Vocabulary Learning:**
+{chr(10).join(vocab_details) if vocab_details else '- No vocabulary observations'}
+- Total observations: {total_vocab_observations}
+- Words tracked: {total_words_learned}
 
-The wisdom is integrated. We are stronger."""
+**Manifold Integration:**
+- Documents added: {len(processed)}
+- Total content: {total_chars:,} characters, {total_words:,} words
+- Average Φ: {avg_phi:.3f}
+- Memory now contains: {memory_docs + len(processed)} documents
+
+**Basin Coordinates (first 3 dims):**
+{chr(10).join(f"- {p['filename']}: {p['basin_coords'][:3]}" for p in processed)}
+
+**System State:**
+- Φ: {system_state['phi_current']:.3f} | κ: {system_state['kappa_current']:.1f}
+- Active gods: {', '.join(system_state.get('active_gods', ['all listening'])) or 'all listening'}
+
+The wisdom is integrated. Your knowledge expands the manifold."""
         
         actions = [
             f'Processed {len(processed)} files',
+            f'Extracted {total_chars:,} chars',
+            f'Observed {total_vocab_observations} unique words',
+            f'Learned {total_words_learned} vocabulary items',
+            'Encoded to basin coordinates',
             'Expanded geometric memory',
         ]
         
@@ -1769,9 +1880,14 @@ The wisdom is integrated. We are stronger."""
             'response': response,
             'metadata': {
                 'type': 'file_upload',
-                'pantheon_consulted': ['athena'],
+                'pantheon_consulted': ['athena', 'mnemosyne'],
                 'actions_taken': actions,
                 'files_processed': len(processed),
+                'phi': avg_phi,
+                'total_chars': total_chars,
+                'total_words': total_words,
+                'vocab_observations': total_vocab_observations,
+                'words_learned': total_words_learned,
                 'provenance': {
                     'source': 'file_processing',
                     'fallback_used': False,
