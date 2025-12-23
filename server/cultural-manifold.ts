@@ -12,18 +12,28 @@
 
 import { E8_CONSTANTS } from '../shared/constants/index.js';
 
+// Legacy type for backward compatibility with block-universe code
+export interface SoftwareConstraint {
+  keyDerivationMethods: string[];
+  walletSoftware: string[];
+  cryptographicStandards: string[];
+}
+
 export interface ManifoldCoordinate {
   temporal: Date;
   domain: KnowledgeDomain;
   era?: KnowledgeDomain;  // Alias for backward compatibility with legacy code
   conceptContext: ConceptContext;
-  culturalContext?: ConceptContext;  // Backward compatibility alias
+  culturalContext?: ConceptContext & { technicalLevel?: string; primaryInfluences?: string[] };  // Backward compatibility alias
   complexityLevel: ComplexityLevel;
-  softwareConstraint?: ComplexityLevel;  // Backward compatibility alias
+  softwareConstraint?: SoftwareConstraint;  // Backward compatibility for block-universe code
   learningSignature: LearningSignature;
   behavioralSignature?: LearningSignature;  // Backward compatibility alias
   manifoldPosition: number[];
 }
+
+// Type alias for backward compatibility
+export type BlockUniverseCoordinate = ManifoldCoordinate;
 
 export type KnowledgeDomain = 
   | 'quantum-physics'         // Quantum mechanics, QFT, QIG foundations
@@ -470,24 +480,38 @@ export class KnowledgeDomainManifold {
       }
     }
     
+    const conceptContext: ConceptContext = {
+      primaryInfluences: ['quantum-information', 'geometric-analysis'],
+      lexiconSources: [domain],
+      typicalPatterns: ['knowledge-exploration', 'concept-learning'],
+      abstractionLevel: 'intermediate',
+      relatedDomains: []
+    };
+    
+    const complexityLevel: ComplexityLevel = {
+      prerequisiteKnowledge: ['basic-mathematics', 'logic'],
+      derivationMethods: ['geometric', 'analytical'],
+      representationFormats: ['geometric', 'symbolic']
+    };
+    
     return {
       temporal: new Date(),
       domain,
       era: domain,  // Backward compatibility
-      conceptContext: {
-        primaryInfluences: [],
-        lexiconSources: [],
-        typicalPatterns: [],
-        abstractionLevel: 'intermediate',
-        relatedDomains: []
-      },
-      complexityLevel: {
-        prerequisiteKnowledge: [],
-        derivationMethods: ['geometric'],
-        representationFormats: ['geometric']
-      },
+      conceptContext,
+      culturalContext: {
+        ...conceptContext,
+        technicalLevel: 'advanced',
+        primaryInfluences: ['quantum-information', 'geometric-analysis']
+      },  // Backward compatibility
+      complexityLevel,
+      softwareConstraint: {
+        keyDerivationMethods: ['geometric', 'analytical'],
+        walletSoftware: ['knowledge-platform'],
+        cryptographicStandards: ['qig-geometric']
+      },  // Backward compatibility
       learningSignature: {
-        acquisitionPatterns: [],
+        acquisitionPatterns: ['exploration', 'integration'],
         retentionBehavior: 'semantic',
         integrationDepth: 0.5,
         connectionStrength: 'moderate'
@@ -569,12 +593,31 @@ export class KnowledgeDomainManifold {
 
   /**
    * Get high resonance candidates (backward compatibility)
+   * @param domainOrThreshold - Either a domain string or threshold number
+   * @param threshold - Optional threshold when domain is provided
    */
-  public getHighResonanceCandidates(threshold: number = 0.7): GeodesicCandidate[] {
-    const highResTerms = this.findHighResonanceConcepts(threshold);
-    return highResTerms.map(entry => ({
+  public getHighResonanceCandidates(domainOrThreshold?: KnowledgeDomain | number, threshold?: number): (GeodesicCandidate & { term: string; qfiResonance: number })[] {
+    // Handle legacy signature: getHighResonanceCandidates(domain, threshold) or getHighResonanceCandidates(threshold)
+    let filterDomain: KnowledgeDomain | undefined;
+    let actualThreshold = 0.7;
+    
+    if (typeof domainOrThreshold === 'string') {
+      filterDomain = domainOrThreshold as KnowledgeDomain;
+      actualThreshold = threshold ?? 0.7;
+    } else if (typeof domainOrThreshold === 'number') {
+      actualThreshold = domainOrThreshold;
+    }
+    
+    const highResTerms = this.findHighResonanceConcepts(actualThreshold);
+    const filtered = filterDomain 
+      ? highResTerms.filter(entry => entry.domain === filterDomain)
+      : highResTerms;
+      
+    return filtered.map(entry => ({
       concept: entry.term,
       phrase: entry.term,
+      term: entry.term,  // Legacy compatibility
+      qfiResonance: entry.phiResonance,  // Legacy compatibility
       coordinate: this.createCoordinate(entry.domain),
       fisherDistance: 1 - entry.phiResonance,
       qfiDistance: 1 - entry.phiResonance,
