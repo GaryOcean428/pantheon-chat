@@ -297,30 +297,15 @@ export interface DeleteKernelResponse {
   message: string;
 }
 
-export interface CannibalizeRequest {
-  source_kernel_id: string;
-  target_kernel_id: string;
-}
-
-export interface CannibalizeResponse {
-  success: boolean;
-  source_kernel_id: string;
-  target_kernel_id: string;
-  traits_absorbed: string[];
-  message: string;
-}
-
-export interface MergeKernelsRequest {
-  kernel_ids: string[];
-  new_name: string;
-}
-
-export interface MergeKernelsResponse {
-  success: boolean;
-  merged_kernel: PostgresKernel;
-  source_kernel_ids: string[];
-  message: string;
-}
+// Import types from API service
+import type {
+  CannibalizeResponse,
+  MergeKernelsResponse,
+  AutoCannibalizeRequest,
+  AutoCannibalizeResponse,
+  AutoMergeRequest,
+  AutoMergeResponse,
+} from '@/api/services/olympus';
 
 export function useIdleKernels(threshold_seconds: number = 300) {
   const { isAuthenticated } = useAuth();
@@ -358,7 +343,7 @@ export function useDeleteKernel() {
 export function useCannibalizeKernel() {
   const queryClient = useQueryClient();
 
-  return useMutation<CannibalizeResponse, Error, CannibalizeRequest>({
+  return useMutation<CannibalizeResponse, Error, { source_kernel_id: string; target_kernel_id: string }>({
     mutationFn: (request) => cannibalizeKernel({ source_id: request.source_kernel_id, target_id: request.target_kernel_id }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: M8_KEYS.kernels });
@@ -372,7 +357,7 @@ export function useCannibalizeKernel() {
 export function useMergeKernels() {
   const queryClient = useQueryClient();
 
-  return useMutation<MergeKernelsResponse, Error, MergeKernelsRequest>({
+  return useMutation<MergeKernelsResponse, Error, { kernel_ids: string[]; new_name?: string }>({
     mutationFn: (request) => mergeKernels({ kernel_ids: request.kernel_ids }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: M8_KEYS.kernels });
@@ -381,28 +366,6 @@ export function useMergeKernels() {
       queryClient.invalidateQueries({ queryKey: M8_KEYS.status });
     },
   });
-}
-
-export interface AutoCannibalizeRequest {
-  idle_threshold?: number;
-}
-
-export interface AutoCannibalizeResponse {
-  success: boolean;
-  source_id?: string;
-  source_god?: string;
-  target_id?: string;
-  target_god?: string;
-  auto_selected: boolean;
-  selection_criteria: {
-    source: string;
-    target: string;
-    idle_count: number;
-    active_count: number;
-  };
-  fisher_distance?: number;
-  merged_metrics?: Record<string, number>;
-  error?: string;
 }
 
 export function useAutoCannibalize() {
@@ -417,30 +380,6 @@ export function useAutoCannibalize() {
       queryClient.invalidateQueries({ queryKey: M8_KEYS.status });
     },
   });
-}
-
-export interface AutoMergeRequest {
-  idle_threshold?: number;
-  max_to_merge?: number;
-}
-
-export interface AutoMergeResponse {
-  success: boolean;
-  new_kernel?: Record<string, unknown>;
-  merged_from?: {
-    kernel_ids: string[];
-    god_names: string[];
-  };
-  auto_selected: boolean;
-  selection_criteria: {
-    method: string;
-    idle_threshold: number;
-    total_idle: number;
-    merged_count: number;
-  };
-  merged_metrics?: Record<string, number>;
-  deleted_originals?: string[];
-  error?: string;
 }
 
 export function useAutoMerge() {

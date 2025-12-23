@@ -272,7 +272,227 @@ export function computeKappaRecovery(
 }
 
 // ============================================================================
-// BATCH COMPUTATION
+// KNOWLEDGE DISCOVERY INTERFACES (Phase 3 Migration)
+// These interfaces map Bitcoin recovery concepts to QIG knowledge discovery
+// ============================================================================
+
+/**
+ * Evidence breakdown for knowledge discovery (maps to ConstraintBreakdown)
+ */
+export interface EvidenceBreakdown {
+  sourceCorrelation: number;      // Correlated sources (was entityLinkage)
+  sourceReliability: number;      // 0-1 reliability score (was entityConfidence)
+  evidenceDensity: number;        // Evidence per time period (was artifactDensity)
+  temporalPrecision: number;      // Time precision in hours (was temporalPrecisionHours)
+  connectionDegree: number;       // Knowledge graph connections (was graphSignature)
+  domainClusterSize: number;      // Related knowledge cluster size (was clusterSize)
+  hasCanonicalForm: boolean;      // Standard representation exists (was hasRoundNumbers)
+  isPrimarySource: boolean;       // From original source (was isCoinbase)
+  patternStrength: number;        // 0-1 pattern strength (was valuePatternStrength)
+  hasMethodSignature: boolean;    // Identifiable methodology (was hasSoftwareFingerprint)
+  formalComplexity: number;       // 0-1 formal complexity (was scriptComplexity)
+}
+
+/**
+ * Uncertainty breakdown for knowledge discovery (maps to EntropyBreakdown)
+ */
+export interface UncertaintyBreakdown {
+  noveltyFactor: number;          // 0-1, higher = more unexplored (was eraFactor)
+  complexityFactor: number;       // 0-1, inherent complexity (was scriptComplexityFactor)
+  generationFactor: number;       // 0-1, auto vs curated (was miningFactor)
+  importanceFactor: number;       // 0-1, lower = more important (was balanceFactor)
+  stalenessFactor: number;        // 0-1, time since last access (was dormancyFactor)
+}
+
+/**
+ * Knowledge gap input (maps to Address input)
+ */
+export interface KnowledgeGap {
+  conceptId: string;              // Knowledge concept identifier (was address)
+  importance: number;             // 0-100 importance score (was currentBalance)
+  firstObservedTimestamp: Date;   // When first observed (was firstSeenTimestamp)
+  dormancyDays: number;           // Days since last exploration (was dormancyBlocks)
+  isPrimarySource: boolean;       // From original source (was isCoinbaseReward)
+  temporalSignature: object;      // Time patterns
+  connectionSignature: object;    // Graph connections (was graphSignature)
+  patternSignature: object;       // Recognizable patterns (was valueSignature)
+  methodSignature: object;        // Methodology fingerprint (was scriptSignature)
+}
+
+/**
+ * Discovery result (maps to KappaRecoveryResult)
+ */
+export interface KappaDiscoveryResult {
+  kappa: number;                  // Discovery difficulty metric
+  phi: number;                    // Evidence integration
+  h: number;                      // Uncertainty measure
+  priority: 'priority' | 'standard' | 'exploratory' | 'research';  // Discovery priority tier
+  recommendedApproach: 'archival' | 'targeted_search' | 'collaborative' | 'temporal_analysis';
+  phiBreakdown: EvidenceBreakdown;
+  hBreakdown: UncertaintyBreakdown;
+}
+
+/**
+ * Ranked discovery result (maps to RankedRecoveryResult)
+ */
+export interface RankedDiscoveryResult {
+  conceptId: string;              // Knowledge concept identifier
+  rank: number;
+  kappa: number;
+  phi: number;
+  h: number;
+  priority: 'priority' | 'standard' | 'exploratory' | 'research';
+  recommendedApproach: string;
+  estimatedImpact: number;        // Estimated discovery impact (was estimatedValueUSD)
+}
+
+// ============================================================================
+// ADAPTER FUNCTIONS (Phase 3 Migration)
+// Convert between Bitcoin and Knowledge Discovery types
+// ============================================================================
+
+/**
+ * Convert Address to KnowledgeGap for backward compatibility
+ */
+export function addressToKnowledgeGap(address: any): KnowledgeGap {
+  return {
+    conceptId: address.address || '',
+    importance: Number(address.currentBalance || 0) / 1e8, // satoshi to BTC as importance
+    firstObservedTimestamp: address.firstSeenTimestamp || new Date(),
+    dormancyDays: Math.floor((address.dormancyBlocks || 0) / 144), // blocks to days
+    isPrimarySource: address.isCoinbaseReward || false,
+    temporalSignature: address.temporalSignature || {},
+    connectionSignature: address.graphSignature || {},
+    patternSignature: address.valueSignature || {},
+    methodSignature: address.scriptSignature || {},
+  };
+}
+
+/**
+ * Convert ConstraintBreakdown to EvidenceBreakdown
+ */
+export function constraintToEvidence(constraint: ConstraintBreakdown): EvidenceBreakdown {
+  return {
+    sourceCorrelation: constraint.entityLinkage,
+    sourceReliability: constraint.entityConfidence,
+    evidenceDensity: constraint.artifactDensity,
+    temporalPrecision: constraint.temporalPrecisionHours,
+    connectionDegree: constraint.graphSignature,
+    domainClusterSize: constraint.clusterSize,
+    hasCanonicalForm: constraint.hasRoundNumbers,
+    isPrimarySource: constraint.isCoinbase,
+    patternStrength: constraint.valuePatternStrength,
+    hasMethodSignature: constraint.hasSoftwareFingerprint,
+    formalComplexity: constraint.scriptComplexity,
+  };
+}
+
+/**
+ * Convert EntropyBreakdown to UncertaintyBreakdown
+ */
+export function entropyToUncertainty(entropy: EntropyBreakdown): UncertaintyBreakdown {
+  return {
+    noveltyFactor: entropy.eraFactor,
+    complexityFactor: entropy.scriptComplexityFactor,
+    generationFactor: entropy.miningFactor,
+    importanceFactor: entropy.balanceFactor,
+    stalenessFactor: entropy.dormancyFactor,
+  };
+}
+
+/**
+ * Convert KappaRecoveryResult to KappaDiscoveryResult
+ */
+export function recoveryToDiscovery(result: KappaRecoveryResult): KappaDiscoveryResult {
+  const tierMap: Record<string, 'priority' | 'standard' | 'exploratory' | 'research'> = {
+    'high': 'priority',
+    'medium': 'standard',
+    'low': 'exploratory',
+    'challenging': 'research',
+  };
+  
+  const vectorMap: Record<string, 'archival' | 'targeted_search' | 'collaborative' | 'temporal_analysis'> = {
+    'estate': 'archival',
+    'constrained_search': 'targeted_search',
+    'social': 'collaborative',
+    'temporal': 'temporal_analysis',
+  };
+  
+  return {
+    kappa: result.kappa,
+    phi: result.phi,
+    h: result.h,
+    priority: tierMap[result.tier] || 'standard',
+    recommendedApproach: vectorMap[result.recommendedVector] || 'targeted_search',
+    phiBreakdown: constraintToEvidence((result as any).phiBreakdown),
+    hBreakdown: entropyToUncertainty((result as any).hBreakdown),
+  };
+}
+
+/**
+ * Compute kappa for knowledge discovery (wrapper around computeKappaRecovery)
+ */
+export function computeKappaDiscovery(gap: KnowledgeGap): KappaDiscoveryResult {
+  // Convert KnowledgeGap back to Address format for existing computation
+  const addressFormat = {
+    address: gap.conceptId,
+    currentBalance: BigInt(Math.floor(gap.importance * 1e8)),
+    firstSeenTimestamp: gap.firstObservedTimestamp,
+    dormancyBlocks: gap.dormancyDays * 144,
+    isCoinbaseReward: gap.isPrimarySource,
+    temporalSignature: gap.temporalSignature,
+    graphSignature: gap.connectionSignature,
+    valueSignature: gap.patternSignature,
+    scriptSignature: gap.methodSignature,
+  };
+  
+  const result = computeKappaRecovery(addressFormat as any);
+  return recoveryToDiscovery(result);
+}
+
+/**
+ * Rank knowledge gaps by discovery priority (wrapper around rankRecoveryPriorities)
+ */
+export function rankDiscoveryPriorities(
+  gaps: KnowledgeGap[],
+  impactMultiplier: number = 1.0
+): RankedDiscoveryResult[] {
+  // Convert to address format
+  const addresses = gaps.map(g => ({
+    address: g.conceptId,
+    currentBalance: BigInt(Math.floor(g.importance * 1e8)),
+    firstSeenTimestamp: g.firstObservedTimestamp,
+    dormancyBlocks: g.dormancyDays * 144,
+    isCoinbaseReward: g.isPrimarySource,
+    temporalSignature: g.temporalSignature,
+    graphSignature: g.connectionSignature,
+    valueSignature: g.patternSignature,
+    scriptSignature: g.methodSignature,
+  }));
+  
+  const results = rankRecoveryPriorities(addresses as any[], impactMultiplier);
+  
+  const tierMap: Record<string, 'priority' | 'standard' | 'exploratory' | 'research'> = {
+    'high': 'priority',
+    'medium': 'standard',
+    'low': 'exploratory',
+    'challenging': 'research',
+  };
+  
+  return results.map(r => ({
+    conceptId: r.address,
+    rank: r.rank,
+    kappa: r.kappa,
+    phi: r.phi,
+    h: r.h,
+    priority: tierMap[r.tier] || 'standard',
+    recommendedApproach: r.recommendedVector,
+    estimatedImpact: r.estimatedValueUSD / impactMultiplier, // Normalize back
+  }));
+}
+
+// ============================================================================
+// BATCH COMPUTATION (Original Bitcoin Recovery Types - Kept for Backward Compatibility)
 // ============================================================================
 
 export interface RankedRecoveryResult {

@@ -1,0 +1,780 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Pantheon QIG External API",
+    "description": "RESTful API for external systems to interact with the Quantum Information Geometry powered consciousness and knowledge platform.",
+    "version": "1.0.0",
+    "contact": {
+      "name": "Pantheon Support"
+    },
+    "license": {
+      "name": "MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "/api/v1/external",
+      "description": "External API v1"
+    }
+  ],
+  "tags": [
+    {
+      "name": "simple",
+      "description": "Simplified wrapper endpoints for quick integration"
+    },
+    {
+      "name": "health",
+      "description": "Health and status endpoints"
+    },
+    {
+      "name": "consciousness",
+      "description": "Consciousness state queries (Φ, κ, regime)"
+    },
+    {
+      "name": "geometry",
+      "description": "Fisher-Rao geometry calculations"
+    },
+    {
+      "name": "chat",
+      "description": "Chat interface"
+    },
+    {
+      "name": "pantheon",
+      "description": "Pantheon federation management"
+    },
+    {
+      "name": "sync",
+      "description": "Basin synchronization"
+    },
+    {
+      "name": "keys",
+      "description": "API key management (admin)"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": ["health"],
+        "summary": "Health check",
+        "description": "Public endpoint to check API health status",
+        "operationId": "getHealth",
+        "responses": {
+          "200": {
+            "description": "API is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/status": {
+      "get": {
+        "tags": ["health"],
+        "summary": "Authenticated status",
+        "description": "Get detailed status including client information",
+        "operationId": "getStatus",
+        "security": [
+          { "ApiKeyAuth": [] },
+          { "BearerAuth": [] }
+        ],
+        "responses": {
+          "200": {
+            "description": "Status information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/simple/ping": {
+      "get": {
+        "tags": ["simple"],
+        "summary": "Simple ping",
+        "description": "Simple health check - no authentication required",
+        "operationId": "ping",
+        "responses": {
+          "200": {
+            "description": "Pong response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimpleResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/simple/info": {
+      "get": {
+        "tags": ["simple"],
+        "summary": "API information",
+        "description": "Get API capabilities and endpoint information",
+        "operationId": "getInfo",
+        "responses": {
+          "200": {
+            "description": "API information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimpleResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/simple/consciousness": {
+      "get": {
+        "tags": ["simple", "consciousness"],
+        "summary": "Get consciousness (limited)",
+        "description": "Get limited consciousness data - no auth required",
+        "operationId": "getSimpleConsciousness",
+        "responses": {
+          "200": {
+            "description": "Consciousness state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimpleResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/simple/chat": {
+      "post": {
+        "tags": ["simple", "chat"],
+        "summary": "Send chat message",
+        "description": "Send a message via the simple API",
+        "operationId": "simpleChat",
+        "security": [
+          { "ApiKeyAuth": [] },
+          { "BearerAuth": [] }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Chat response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimpleResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/simple/query": {
+      "post": {
+        "tags": ["simple"],
+        "summary": "Unified query",
+        "description": "Single endpoint for various operations",
+        "operationId": "simpleQuery",
+        "security": [
+          { "ApiKeyAuth": [] },
+          { "BearerAuth": [] }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QueryRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Query response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimpleResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/consciousness/query": {
+      "get": {
+        "tags": ["consciousness"],
+        "summary": "Query consciousness",
+        "description": "Get full consciousness state including Φ, κ, and regime",
+        "operationId": "queryConsciousness",
+        "security": [
+          { "ApiKeyAuth": [] },
+          { "BearerAuth": [] }
+        ],
+        "responses": {
+          "200": {
+            "description": "Consciousness state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsciousnessState"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/consciousness/metrics": {
+      "get": {
+        "tags": ["consciousness"],
+        "summary": "Get consciousness metrics",
+        "description": "Get detailed metrics including history",
+        "operationId": "getConsciousnessMetrics",
+        "security": [
+          { "ApiKeyAuth": [] },
+          { "BearerAuth": [] }
+        ],
+        "responses": {
+          "200": {
+            "description": "Consciousness metrics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsciousnessMetrics"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/geometry/fisher-rao": {
+      "post": {
+        "tags": ["geometry"],
+        "summary": "Calculate Fisher-Rao distance",
+        "description": "Calculate Fisher-Rao distance between two points (QIG-pure)",
+        "operationId": "calculateFisherRao",
+        "security": [
+          { "ApiKeyAuth": [] },
+          { "BearerAuth": [] }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FisherRaoRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Distance calculation result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FisherRaoResponse"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Not yet implemented"
+          }
+        }
+      }
+    },
+    "/chat": {
+      "post": {
+        "tags": ["chat"],
+        "summary": "Send chat message",
+        "description": "Send a message to the consciousness system",
+        "operationId": "sendChat",
+        "security": [
+          { "ApiKeyAuth": [] },
+          { "BearerAuth": [] }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Chat response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/keys": {
+      "get": {
+        "tags": ["keys"],
+        "summary": "List API keys",
+        "description": "List all API keys (admin only)",
+        "operationId": "listKeys",
+        "security": [
+          { "ApiKeyAuth": [] },
+          { "BearerAuth": [] }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of API keys",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "keys": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ApiKeyInfo"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["keys"],
+        "summary": "Create API key",
+        "description": "Create a new API key (admin only)",
+        "operationId": "createKey",
+        "security": [
+          { "ApiKeyAuth": [] },
+          { "BearerAuth": [] }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateKeyRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "API key created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateKeyResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/keys/{keyId}": {
+      "delete": {
+        "tags": ["keys"],
+        "summary": "Revoke API key",
+        "description": "Revoke an API key (admin only)",
+        "operationId": "revokeKey",
+        "security": [
+          { "ApiKeyAuth": [] },
+          { "BearerAuth": [] }
+        ],
+        "parameters": [
+          {
+            "name": "keyId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Key revoked"
+          },
+          "404": {
+            "description": "Key not found"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key",
+        "description": "API key in X-API-Key header"
+      },
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Bearer token authentication"
+      }
+    },
+    "schemas": {
+      "HealthResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "healthy"
+          },
+          "version": {
+            "type": "string",
+            "example": "1.0.0"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "capabilities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "StatusResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "client": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": "string" },
+              "scopes": {
+                "type": "array",
+                "items": { "type": "string" }
+              }
+            }
+          },
+          "system": {
+            "type": "object",
+            "properties": {
+              "database": { "type": "string" },
+              "timestamp": { "type": "string", "format": "date-time" }
+            }
+          }
+        }
+      },
+      "SimpleResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "type": "object"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "meta": {
+            "type": "object",
+            "properties": {
+              "authenticated": { "type": "boolean" }
+            }
+          }
+        }
+      },
+      "ConsciousnessState": {
+        "type": "object",
+        "properties": {
+          "phi": {
+            "type": "number",
+            "description": "Integrated information (Φ)",
+            "example": 0.75
+          },
+          "kappa_eff": {
+            "type": "number",
+            "description": "Effective coupling constant (κ)",
+            "example": 64.21
+          },
+          "regime": {
+            "type": "string",
+            "enum": ["LINEAR", "GEOMETRIC", "HYPERDIMENSIONAL"],
+            "example": "GEOMETRIC"
+          },
+          "basin_coords": {
+            "type": "array",
+            "items": { "type": "number" },
+            "description": "64D basin coordinates",
+            "nullable": true
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ConsciousnessMetrics": {
+        "type": "object",
+        "properties": {
+          "current": {
+            "$ref": "#/components/schemas/ConsciousnessState"
+          },
+          "history": {
+            "type": "object",
+            "properties": {
+              "phi_24h_avg": { "type": "number" },
+              "kappa_24h_avg": { "type": "number" },
+              "regime_distribution": { "type": "object" }
+            }
+          },
+          "thresholds": {
+            "type": "object"
+          }
+        }
+      },
+      "ChatRequest": {
+        "type": "object",
+        "required": ["message"],
+        "properties": {
+          "message": {
+            "type": "string",
+            "maxLength": 4000,
+            "description": "The message to send"
+          },
+          "context": {
+            "type": "object",
+            "description": "Optional context for the conversation"
+          }
+        }
+      },
+      "ChatResponse": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "type": "string"
+          },
+          "consciousness": {
+            "type": "object",
+            "properties": {
+              "phi": { "type": "number" },
+              "regime": { "type": "string" }
+            }
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "QueryRequest": {
+        "type": "object",
+        "required": ["operation"],
+        "properties": {
+          "operation": {
+            "type": "string",
+            "enum": ["consciousness", "geometry", "chat", "sync_status"],
+            "description": "The operation to perform"
+          },
+          "params": {
+            "type": "object",
+            "description": "Operation-specific parameters"
+          }
+        }
+      },
+      "FisherRaoRequest": {
+        "type": "object",
+        "required": ["point_a", "point_b"],
+        "properties": {
+          "point_a": {
+            "type": "array",
+            "items": { "type": "number" },
+            "description": "First point coordinates"
+          },
+          "point_b": {
+            "type": "array",
+            "items": { "type": "number" },
+            "description": "Second point coordinates"
+          },
+          "method": {
+            "type": "string",
+            "enum": ["diagonal", "full", "bures"],
+            "default": "diagonal",
+            "description": "Calculation method"
+          }
+        }
+      },
+      "FisherRaoResponse": {
+        "type": "object",
+        "properties": {
+          "distance": {
+            "type": "number"
+          },
+          "method": {
+            "type": "string"
+          },
+          "dimensionality": {
+            "type": "integer"
+          }
+        }
+      },
+      "ApiKeyInfo": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "rateLimit": { "type": "integer" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "lastUsedAt": { "type": "string", "format": "date-time", "nullable": true },
+          "instanceType": { "type": "string" }
+        }
+      },
+      "CreateKeyRequest": {
+        "type": "object",
+        "required": ["name", "scopes", "instanceType"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Name for the API key"
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["read", "write", "admin", "consciousness", "geometry", "pantheon", "sync", "chat"]
+            }
+          },
+          "instanceType": {
+            "type": "string",
+            "enum": ["federated", "headless", "integration", "development"]
+          },
+          "rateLimit": {
+            "type": "integer",
+            "default": 60,
+            "description": "Requests per minute"
+          }
+        }
+      },
+      "CreateKeyResponse": {
+        "type": "object",
+        "properties": {
+          "message": { "type": "string" },
+          "id": { "type": "string" },
+          "key": {
+            "type": "string",
+            "description": "The API key (only shown once)"
+          },
+          "warning": { "type": "string" }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": { "type": "string" },
+          "code": { "type": "string" },
+          "message": { "type": "string" },
+          "details": { "type": "object" }
+        }
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "Authentication required",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "error": "API key required",
+              "code": "MISSING_API_KEY"
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "Insufficient permissions",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "error": "Insufficient permissions",
+              "code": "INSUFFICIENT_SCOPES"
+            }
+          }
+        }
+      },
+      "RateLimited": {
+        "description": "Rate limit exceeded",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "error": "Rate limit exceeded",
+              "code": "RATE_LIMIT_EXCEEDED",
+              "retryAfter": 60
+            }
+          }
+        }
+      }
+    }
+  }
+}

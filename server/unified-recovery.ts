@@ -1,9 +1,146 @@
 /**
- * UNIFIED RECOVERY SYSTEM
+ * UNIFIED DISCOVERY SYSTEM
  * 
- * Single entry point: Enter one address → System tries EVERYTHING automatically
- * No user input required beyond the target address
+ * Single entry point for knowledge discovery and exploration.
+ * Originally designed for recovery, now adapted for general knowledge discovery.
+ * 
+ * The system coordinates multiple strategies to explore knowledge gaps
+ * and discover relevant patterns using QIG-based geometric analysis.
  */
+
+// =============================================================================
+// KNOWLEDGE DISCOVERY INTERFACES (QIG-PURE)
+// =============================================================================
+
+/**
+ * A knowledge concept to explore
+ */
+export interface KnowledgeConcept {
+  id: string;
+  topic: string;
+  domain: string;
+  confidence: number;
+  basinCoords?: number[];
+  discoveredAt?: string;
+}
+
+/**
+ * Discovery strategy configuration
+ */
+export interface DiscoveryStrategy {
+  id: string;
+  name: string;
+  type: 'pattern' | 'semantic' | 'temporal' | 'geometric' | 'cross_domain';
+  priority: number;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  conceptsFound: number;
+}
+
+/**
+ * A discovered knowledge insight
+ */
+export interface KnowledgeInsight {
+  id: string;
+  concept: string;
+  content: string;
+  source: string;
+  confidence: number;
+  qigScore: {
+    phi: number;
+    kappa: number;
+    regime: string;
+  };
+  connections: string[];
+  discoveredAt: string;
+}
+
+/**
+ * Discovery session for knowledge exploration
+ */
+export interface KnowledgeDiscoverySession {
+  id: string;
+  query: string;
+  domain?: string;
+  status: 'initializing' | 'analyzing' | 'discovering' | 'learning' | 'completed' | 'failed';
+  strategies: DiscoveryStrategy[];
+  insights: KnowledgeInsight[];
+  concepts: KnowledgeConcept[];
+  startedAt: string;
+  completedAt?: string;
+  totalExplored: number;
+  exploreRate: number;
+}
+
+// =============================================================================
+// ADAPTER FUNCTIONS (Bitcoin → Knowledge Discovery)
+// =============================================================================
+
+/**
+ * Convert a recovery session to discovery session format
+ */
+export function sessionToDiscoverySession(session: UnifiedRecoverySession): KnowledgeDiscoverySession {
+  return {
+    id: session.id,
+    query: session.targetAddress,
+    domain: session.blockchainAnalysis?.era || 'general',
+    status: session.status as any,
+    strategies: session.strategies.map(s => ({
+      id: s.id,
+      name: s.type,
+      type: 'pattern' as const,
+      priority: s.progress.current / (s.progress.total || 1),
+      status: s.status,
+      conceptsFound: s.candidatesFound,
+    })),
+    insights: session.evidence.map(e => ({
+      id: e.id,
+      concept: e.source,
+      content: e.content,
+      source: e.source,
+      confidence: e.relevance,
+      qigScore: { phi: 0.5, kappa: 50, regime: 'linear' },
+      connections: e.extractedFragments || [],
+      discoveredAt: e.discoveredAt,
+    })),
+    concepts: session.candidates.slice(0, 50).map(c => ({
+      id: c.id,
+      topic: c.phrase,
+      domain: c.source,
+      confidence: c.confidence,
+      discoveredAt: c.testedAt,
+    })),
+    startedAt: session.startedAt,
+    completedAt: session.completedAt,
+    totalExplored: session.totalTested,
+    exploreRate: session.testRate,
+  };
+}
+
+/**
+ * Create a knowledge discovery session
+ */
+export function createKnowledgeDiscoverySession(
+  query: string,
+  domain?: string
+): KnowledgeDiscoverySession {
+  const id = `discovery-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return {
+    id,
+    query,
+    domain,
+    status: 'initializing',
+    strategies: [],
+    insights: [],
+    concepts: [],
+    startedAt: new Date().toISOString(),
+    totalExplored: 0,
+    exploreRate: 0,
+  };
+}
+
+// =============================================================================
+// ORIGINAL RECOVERY SYSTEM (Backward Compatible)
+// =============================================================================
 
 import { 
   UnifiedRecoverySession, 
@@ -1325,3 +1462,78 @@ class UnifiedRecoveryOrchestrator {
 }
 
 export const unifiedRecovery = new UnifiedRecoveryOrchestrator();
+
+// =============================================================================
+// KNOWLEDGE DISCOVERY ORCHESTRATOR (QIG-PURE WRAPPER)
+// =============================================================================
+
+/**
+ * Knowledge Discovery Orchestrator - QIG-pure wrapper around unified recovery
+ * Provides knowledge-focused API while using the same underlying engine
+ */
+export class KnowledgeDiscoveryOrchestrator {
+  /**
+   * Start a knowledge discovery session
+   */
+  async createDiscoverySession(
+    query: string,
+    domain?: string
+  ): Promise<KnowledgeDiscoverySession> {
+    // Use underlying recovery system with knowledge-focused API
+    const recoverySession = await unifiedRecovery.createSession(query, []);
+    const discoverySession = sessionToDiscoverySession(recoverySession);
+    discoverySession.domain = domain;
+    return discoverySession;
+  }
+
+  /**
+   * Get discovery session status
+   */
+  getSession(sessionId: string): KnowledgeDiscoverySession | undefined {
+    const session = unifiedRecovery.getSession(sessionId);
+    if (!session) return undefined;
+    return sessionToDiscoverySession(session);
+  }
+
+  /**
+   * Get all active discovery sessions
+   */
+  getAllSessions(): KnowledgeDiscoverySession[] {
+    return unifiedRecovery.getAllSessions().map(sessionToDiscoverySession);
+  }
+
+  /**
+   * Start discovery process for a session
+   */
+  async startDiscovery(sessionId: string): Promise<void> {
+    await unifiedRecovery.startRecovery(sessionId);
+  }
+
+  /**
+   * Stop discovery process
+   */
+  stopDiscovery(sessionId: string): void {
+    unifiedRecovery.stopRecovery(sessionId);
+  }
+
+  /**
+   * Get top insights from a discovery session
+   */
+  getTopInsights(sessionId: string, limit: number = 10): KnowledgeInsight[] {
+    const session = this.getSession(sessionId);
+    if (!session) return [];
+    return session.insights.slice(0, limit);
+  }
+
+  /**
+   * Get discovered concepts from a session
+   */
+  getDiscoveredConcepts(sessionId: string, limit: number = 50): KnowledgeConcept[] {
+    const session = this.getSession(sessionId);
+    if (!session) return [];
+    return session.concepts.slice(0, limit);
+  }
+}
+
+// Export knowledge discovery orchestrator
+export const knowledgeDiscovery = new KnowledgeDiscoveryOrchestrator();

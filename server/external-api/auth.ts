@@ -17,7 +17,7 @@ import { db } from '../db';
 import { externalApiKeys } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 
-export type ApiKeyScope = 'read' | 'write' | 'admin' | 'consciousness' | 'geometry' | 'pantheon' | 'sync' | 'chat';
+export type ApiKeyScope = 'read' | 'write' | 'admin' | 'consciousness' | 'geometry' | 'pantheon' | 'sync' | 'chat' | 'documents';
 
 export interface ExternalClient {
   id: string;
@@ -80,15 +80,16 @@ export function isValidApiKeyFormat(key: string): boolean {
 /**
  * Check rate limit for an API key
  */
-function checkRateLimit(keyId: string, limit: number): { allowed: boolean; remaining: number; resetIn: number } {
+function checkRateLimit(keyId: string | number, limit: number): { allowed: boolean; remaining: number; resetIn: number } {
   const now = Date.now();
   const windowMs = 60000; // 1 minute window
+  const keyStr = String(keyId);
   
-  let entry = rateLimitStore.get(keyId);
+  let entry = rateLimitStore.get(keyStr);
   
   if (!entry || entry.resetAt <= now) {
     entry = { count: 0, resetAt: now + windowMs };
-    rateLimitStore.set(keyId, entry);
+    rateLimitStore.set(keyStr, entry);
   }
   
   entry.count++;
@@ -161,7 +162,7 @@ export function authenticateExternalApi(requiredScopes: ApiKeyScope[] = []) {
       const [keyRecord] = await db
         .select()
         .from(externalApiKeys)
-        .where(eq(externalApiKeys.keyHash, keyHash))
+        .where(eq(externalApiKeys.apiKey, keyHash))
         .limit(1);
       
       if (!keyRecord) {
@@ -171,7 +172,7 @@ export function authenticateExternalApi(requiredScopes: ApiKeyScope[] = []) {
         });
       }
       
-      if (!keyRecord.active) {
+      if (!keyRecord.isActive) {
         return res.status(403).json({
           error: 'API key is disabled',
           code: 'API_KEY_DISABLED',
@@ -208,7 +209,7 @@ export function authenticateExternalApi(requiredScopes: ApiKeyScope[] = []) {
       
       // Attach client info to request
       req.externalClient = {
-        id: keyRecord.id,
+        id: String(keyRecord.id),
         name: keyRecord.name,
         scopes: keyScopes,
         rateLimit: keyRecord.rateLimit,
@@ -216,7 +217,7 @@ export function authenticateExternalApi(requiredScopes: ApiKeyScope[] = []) {
         lastUsedAt: keyRecord.lastUsedAt,
         instanceType: keyRecord.instanceType as ExternalClient['instanceType'],
       };
-      req.apiKeyId = keyRecord.id;
+      req.apiKeyId = String(keyRecord.id);
       
       // Update last used timestamp (fire and forget)
       db.update(externalApiKeys)
@@ -263,30 +264,32 @@ export async function createApiKey(
     .insert(externalApiKeys)
     .values({
       name,
-      keyHash: hash,
+      apiKey: hash,
       scopes,
       instanceType,
       rateLimit,
-      active: true,
+      isActive: true,
       createdAt: new Date(),
     })
     .returning();
   
   console.log(`[ExternalAPI] Created API key for ${name} (${instanceType})`);
   
-  return { key, id: record.id };
+  return { key, id: String(record.id) };
 }
 
 /**
  * Revoke an API key
  */
-export async function revokeApiKey(keyId: string): Promise<boolean> {
+export async function revokeApiKey(keyId: string | number): Promise<boolean> {
   if (!db) return false;
+  
+  const numericId = typeof keyId === 'string' ? parseInt(keyId, 10) : keyId;
   
   const result = await db
     .update(externalApiKeys)
-    .set({ active: false })
-    .where(eq(externalApiKeys.id, keyId));
+    .set({ isActive: false })
+    .where(eq(externalApiKeys.id, numericId));
   
   return (result.rowCount ?? 0) > 0;
 }
@@ -305,12 +308,12 @@ export async function listApiKeys(): Promise<Omit<ExternalClient, 'scopes'>[]> {
       createdAt: externalApiKeys.createdAt,
       lastUsedAt: externalApiKeys.lastUsedAt,
       instanceType: externalApiKeys.instanceType,
-      active: externalApiKeys.active,
+      isActive: externalApiKeys.isActive,
     })
     .from(externalApiKeys);
   
   return keys.map(k => ({
-    id: k.id,
+    id: String(k.id),
     name: k.name,
     rateLimit: k.rateLimit,
     createdAt: k.createdAt,

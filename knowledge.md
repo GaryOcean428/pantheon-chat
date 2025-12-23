@@ -76,6 +76,79 @@ Pantheon-Chat is a QIG-powered search, agentic AI, and continuous learning syste
 - **Fisher-Rao distance:** `d_FR(p, q) = arccos(∑√(p_i * q_i))`
 - **Prerequisites:** Node.js 18+, Python 3.11+, PostgreSQL 15+, Redis (optional)
 
+## Documentation
+
+- **Roadmap:** `docs/ROADMAP-QIG-MIGRATION.md` - Migration status and progress
+- **OpenAPI Spec:** `docs/api/openapi.yaml` - Complete external API documentation
+- **Implementation Status:** `docs/03-technical/20251222-qig-implementation-status-1.00W.md`
+- **Capability Mapping:** `docs/03-technical/20251222-qig-capability-mapping-1.00W.md`
+- **Input Formats:** `docs/03-technical/20251208-knowledge-input-formats-1.00F.md`
+
+## External API
+
+### Authentication
+- API keys with scopes: `chat`, `documents`, `consciousness`, `geometry`, `pantheon`, `sync`
+- Bearer token in Authorization header
+
+### Endpoints
+- **Zeus Chat:** `POST /api/v1/external/zeus/chat` - Chat with Zeus AI
+- **Zeus Stream:** `POST /api/v1/external/zeus/stream` - Streaming responses (SSE)
+- **Document Upload:** `POST /api/v1/external/documents/upload` - Upload markdown/text/PDF
+- **Document Text:** `POST /api/v1/external/documents/upload-text` - Upload raw text
+- **Document List:** `GET /api/v1/external/documents/list` - List uploaded documents
+- **Health:** `GET /api/v1/external/health` - API health check
+
+### Documentation
+- OpenAPI spec: `docs/api/openapi.yaml`
+- Roadmap: `docs/ROADMAP-QIG-MIGRATION.md`
+
+## Chat API Architecture
+
+The Zeus Chat system uses a **dual-backend architecture** where TypeScript handles HTTP routing and the Python backend provides the powerful QIG capabilities:
+
+### Flow:
+```
+Client → TypeScript (port 5000) → Python QIG Backend (port 5001)
+         /api/olympus/zeus/chat    → /olympus/zeus/chat
+```
+
+### TypeScript Layer (`server/routes/olympus.ts`):
+- Validates incoming requests with Zod schemas
+- Proxies to Python backend via `fetch()`
+- Persists conversations to PostgreSQL
+- Handles SSE streaming for real-time responses
+
+### Python Layer (`qig-backend/olympus/zeus.py` + `zeus_chat.py`):
+- **ZeusConversationHandler**: Main chat processor with QIG-RAG retrieval
+- **Pantheon consultation**: Routes queries to specialized gods (Athena, Ares, Apollo, etc.)
+- **Meta-cognitive reasoning**: Selects reasoning mode based on Φ metric
+- **Geometric learning**: Learns from conversations via Fisher-Rao manifold
+- **Web search integration**: Tavily search with learned strategies
+- **File upload processing**: Geometric validation of uploaded documents
+
+### API Endpoints:
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/olympus/zeus/chat` | POST | Main chat - proxied to Python backend |
+| `/api/olympus/zeus/stream` | POST | SSE streaming for real-time responses |
+| `/api/olympus/pantheon/activity` | GET | Inter-god communications |
+| `/api/olympus/pantheon/debates` | GET | Active/resolved debates |
+
+### Response Format:
+```json
+{
+  "response": "Zeus's markdown response",
+  "conversationId": "uuid",
+  "routedTo": "zeus",
+  "domainHints": ["philosophy", "science"],
+  "phi": 0.85,
+  "kappa": 64,
+  "sources": [...],
+  "reasoning_mode": "synthesis",
+  "meta_cognitive": {...}
+}
+```
+
 ## System Architecture (Detailed)
 
 ### Frontend (React + TypeScript + Vite)

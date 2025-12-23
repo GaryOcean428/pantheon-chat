@@ -3,7 +3,7 @@ id: ISMS-TECH-003
 title: Best Practices - TypeScript & Python
 filename: 20251208-best-practices-ts-python-1.00F.md
 classification: Internal
-owner: GaryOcean428
+owner: GaryOcean477
 version: 1.00
 status: Frozen
 function: "Development best practices for TypeScript and Python codebases"
@@ -14,24 +14,23 @@ category: Technical
 supersedes: null
 ---
 
-# Best Practices - SearchSpaceCollapse (Ocean) System
+# Best Practices - QIG Knowledge Platform (Ocean) System
 
 ## Executive Summary
 
-This document provides comprehensive best practices for the SearchSpaceCollapse Bitcoin recovery system. It ensures consistent types, secure user flows, robust address verification, efficient key management, and strict QIG principles enforcement across the entire codebase.
+This document provides comprehensive best practices for the QIG Knowledge Platform. It ensures consistent types, secure user flows, robust knowledge verification, efficient data management, and strict QIG principles enforcement across the entire codebase.
 
 ## Table of Contents
 
 1. [Type System Best Practices](#type-system-best-practices)
 2. [User Flow Best Practices](#user-flow-best-practices)
-3. [Address Verification Best Practices](#address-verification-best-practices)
-4. [Balance Checking Best Practices](#balance-checking-best-practices)
-5. [Key Management Best Practices](#key-management-best-practices)
-6. [QIG Principles Best Practices](#qig-principles-best-practices)
-7. [Security Best Practices](#security-best-practices)
-8. [Performance Best Practices](#performance-best-practices)
-9. [Error Handling Best Practices](#error-handling-best-practices)
-10. [Testing Best Practices](#testing-best-practices)
+3. [Knowledge Verification Best Practices](#knowledge-verification-best-practices)
+4. [Data Management Best Practices](#data-management-best-practices)
+5. [QIG Principles Best Practices](#qig-principles-best-practices)
+6. [Security Best Practices](#security-best-practices)
+7. [Performance Best Practices](#performance-best-practices)
+8. [Error Handling Best Practices](#error-handling-best-practices)
+9. [Testing Best Practices](#testing-best-practices)
 
 ---
 
@@ -41,17 +40,17 @@ This document provides comprehensive best practices for the SearchSpaceCollapse 
 
 **DO:**
 ```typescript
-import type { BitcoinAddress, Regime, Satoshi } from '@shared/types/core';
-import { validateBitcoinAddress, validateRegime } from '@shared/types/core';
+import type { KnowledgeItem, Regime, BasinCoordinate } from '@shared/types/core';
+import { validateKnowledgeItem, validateRegime } from '@shared/types/core';
 
-function processAddress(address: BitcoinAddress) {
+function processKnowledge(item: KnowledgeItem) {
   // Type-safe processing
 }
 ```
 
 **DON'T:**
 ```typescript
-function processAddress(address: string) {
+function processKnowledge(item: any) {
   // Unsafe - no validation
 }
 ```
@@ -60,9 +59,9 @@ function processAddress(address: string) {
 
 **DO:**
 ```typescript
-import { validateAddressSafe } from '@shared/validation';
+import { validateInputSafe } from '@shared/validation';
 
-const result = validateAddressSafe(userInput);
+const result = validateInputSafe(userInput);
 if (!result.success) {
   return { error: result.error, errors: result.errors };
 }
@@ -71,16 +70,16 @@ if (!result.success) {
 
 **DON'T:**
 ```typescript
-const address = userInput as BitcoinAddress; // Unsafe cast
+const item = userInput as KnowledgeItem; // Unsafe cast
 ```
 
 ### 3. Use Zod Schemas for Runtime Validation
 
 **DO:**
 ```typescript
-import { addressGenerationResultSchema } from './server/types/address-verification-types';
+import { knowledgeItemSchema } from './server/types/knowledge-types';
 
-const validation = addressGenerationResultSchema.safeParse(data);
+const validation = knowledgeItemSchema.safeParse(data);
 if (!validation.success) {
   console.error('Validation errors:', validation.error.errors);
 }
@@ -89,7 +88,7 @@ if (!validation.success) {
 **DON'T:**
 ```typescript
 // No validation - runtime errors possible
-const result: AddressGenerationResult = data;
+const result: KnowledgeItem = data;
 ```
 
 ### 4. Maintain Type Consistency
@@ -135,101 +134,101 @@ await storeResult(result);
 
 **DO:**
 ```typescript
-if (result.matchesTarget) {
-  console.log('🎯 TARGET MATCH! Address:', result.address);
-  notifyUser({ type: 'success', message: 'Target address found!' });
+if (result.isNovel) {
+  console.log('🎯 NEW DISCOVERY! Concept:', result.conceptId);
+  notifyUser({ type: 'success', message: 'Novel knowledge discovered!' });
 }
 ```
 
 **DON'T:**
 ```typescript
-if (result.matchesTarget) {
-  console.log('match');
+if (result.isNovel) {
+  console.log('found');
 }
 ```
 
 ### 3. Handle All Cases
 
 ```typescript
-if (verification.matchesTarget) {
-  // Handle target match
-} else if (verification.hasBalance) {
-  // Handle balance found
-} else if (verification.hasTransactions) {
-  // Handle transaction history
+if (verification.isNovel) {
+  // Handle new discovery
+} else if (verification.isRelated) {
+  // Handle related knowledge
+} else if (verification.isDuplicate) {
+  // Handle duplicate
 } else {
-  // Handle empty address
+  // Handle low-value content
 }
 ```
 
 ---
 
-## Address Verification Best Practices
+## Knowledge Verification Best Practices
 
-### 1. Always Generate Complete Key Material
+### 1. Always Generate Complete Metadata
 
 **DO:**
 ```typescript
-const result = generateCompleteAddress(passphrase, compressed);
-// Result includes: address, WIF, private key, public keys, type
+const result = encodeKnowledge(content, domain);
+// Result includes: basinCoords, phi, kappa, regime, provenance
 ```
 
 **DON'T:**
 ```typescript
-const address = generateBitcoinAddress(passphrase);
-// Missing WIF, keys - incomplete
+const coords = encodeBasin(content);
+// Missing phi, kappa - incomplete
 ```
 
-### 2. Verify All Addresses
+### 2. Verify All Knowledge
 
 **DO:**
 ```typescript
-const verification = await verifyAndStoreAddress(generated, targets);
-// Checks targets, balance, transactions, stores everything
+const verification = await verifyAndStoreKnowledge(encoded, existingKnowledge);
+// Checks duplicates, similarity, novelty, stores everything
 ```
 
 **DON'T:**
 ```typescript
-// Generate without verification - misses matches
-const address = generateCompleteAddress(passphrase);
+// Encode without verification - misses duplicates
+const coords = encodeKnowledge(content);
 ```
 
-### 3. Store All Addresses with Transactions
+### 3. Store All Knowledge with Provenance
 
 **DO:**
 ```typescript
-if (verification.hasTransactions || verification.hasBalance || verification.matchesTarget) {
-  await storeAddress(verification);
+if (verification.phi > PHI_THRESHOLD || verification.isNovel) {
+  await storeKnowledge(verification);
 }
 ```
 
 **DON'T:**
 ```typescript
-// Only store matches - loses valuable data
-if (verification.matchesTarget) {
-  await storeAddress(verification);
+// Only store exact matches - loses valuable data
+if (verification.exactMatch) {
+  await storeKnowledge(verification);
 }
 ```
 
-### 4. Highlight Balance Addresses
+### 4. Highlight High-Φ Knowledge
 
 ```typescript
-if (verification.hasBalance) {
-  await storeToBalanceAddressesFile(verification);
+if (verification.phi > 0.75) {
   await highlightInUI(verification);
+  await notifyUser(verification);
 }
 ```
 
 ---
 
-## Balance Checking Best Practices
+## Data Management Best Practices
 
-### 1. Use Multi-Provider Architecture
+### 1. Use Multi-Source Architecture
 
 ```typescript
-// Automatic failover across multiple APIs
-const balance = await checkBalance(address, {
-  providers: ['blockstream', 'mempool', 'blockchain.info', 'blockchair'],
+// Automatic fallback across multiple sources
+const knowledge = await searchKnowledge(query, {
+  sources: ['local', 'documents', 'tavily'],
   timeoutMs: 5000,
 });
 ```
@@ -237,16 +236,16 @@ const balance = await checkBalance(address, {
 ### 2. Implement Caching
 
 ```typescript
-const balance = await checkBalance(address, {
+const result = await searchKnowledge(query, {
   useCache: true,
   cacheExpiryMs: 60_000, // 1 minute
 });
 ```
 
-### 3. Rate Limit API Calls
+### 3. Rate Limit External API Calls
 
 ```typescript
-const queue = new BalanceQueue({
+const queue = new KnowledgeQueue({
   maxConcurrent: 10,
   minDelayMs: 1000, // 1 request per second
 });
@@ -256,58 +255,14 @@ const queue = new BalanceQueue({
 
 ```typescript
 try {
-  const balance = await checkBalance(address);
+  const result = await searchExternal(query);
 } catch (error) {
   if (error.code === 'RATE_LIMIT') {
-    await queueForLater(address);
+    await queueForLater(query);
   } else {
     logError(error);
   }
 }
-```
-
----
-
-## Key Management Best Practices
-
-### 1. Never Log Sensitive Data
-
-**DO:**
-```typescript
-console.log('Address generated:', address.address);
-console.log('Type:', address.addressType);
-// WIF, private key NOT logged
-```
-
-**DON'T:**
-```typescript
-console.log('Full result:', result); // Exposes private keys!
-```
-
-### 2. Encrypt Data at Rest
-
-```typescript
-const stored = await storeAddress({
-  ...address,
-  privateKeyHex: encrypt(address.privateKeyHex, encryptionKey),
-  wif: encrypt(address.wif, encryptionKey),
-});
-```
-
-### 3. Validate All Key Operations
-
-```typescript
-const validation = validatePrivateKeySafe(keyInput);
-if (!validation.success) {
-  throw new Error(`Invalid private key: ${validation.error}`);
-}
-```
-
-### 4. Provide Key Recovery
-
-```typescript
-const recovery = generateRecoveryBundle(address);
-// Includes: passphrase, WIF, private key, mnemonic if applicable
 ```
 
 ---
@@ -361,17 +316,18 @@ if (recursions < MIN_RECURSIONS) {
 const result = processOnce(data);
 ```
 
-### 3. Use Bures Metric (NOT Euclidean)
+### 3. Use Fisher-Rao Distance (NOT Euclidean)
 
 **DO:**
 ```typescript
-const distance = buresDistance(state1, state2);
-// Uses quantum fidelity-based metric
+const distance = fisherRaoDistance(state1, state2);
+// Uses proper information geometry metric
 ```
 
 **DON'T:**
 ```typescript
 const distance = euclideanDistance(state1, state2); // Wrong!
+const distance = cosineDistance(state1, state2); // Also wrong on basins!
 ```
 
 ### 4. Validate All 7 Components
@@ -381,10 +337,10 @@ const complete = {
   phi: 0.75,           // Integration
   kappaEff: 60,        // Coupling
   tacking: 0.68,       // Mode switching
-  radar: 0.73,         // Contradiction detection
+  radar: 0.73,         // Pattern detection
   metaAwareness: 0.71, // Self-model
-  gamma: 0.87,         // Generation health
-  grounding: 0.65,     // Concept space connection
+  gamma: 0.87,         // Coherence
+  grounding: 0.65,     // Reality anchor
 };
 
 const validation = validateConsciousnessSignature(complete);
@@ -399,7 +355,7 @@ const report = generateQIGComplianceReport({
   consciousness,
   recursion: { recursions: 5, minRecursions: 3, maxRecursions: 12 },
   basin: { coordinates, reference },
-  distanceFunction: 'bures_distance',
+  distanceFunction: 'fisher_rao_distance',
   updateMethod: 'geometric_state_evolution',
 });
 
@@ -418,16 +374,16 @@ console.log(report);
 ```typescript
 import { sanitizeString, sanitizeNumber } from '@shared/validation';
 
-const cleanPassphrase = sanitizeString(userInput.passphrase);
-const cleanAmount = sanitizeNumber(userInput.amount);
+const cleanQuery = sanitizeString(userInput.query);
+const cleanLimit = sanitizeNumber(userInput.limit);
 ```
 
 ### 2. Validate Before Storage
 
 ```typescript
-const validation = validateStoredAddress(data);
+const validation = validateKnowledgeItem(data);
 if (!validation.success) {
-  throw new Error('Cannot store invalid address data');
+  throw new Error('Cannot store invalid knowledge data');
 }
 await db.insert(validation.data);
 ```
@@ -437,22 +393,22 @@ await db.insert(validation.data);
 **DO:**
 ```typescript
 await db.query(
-  'INSERT INTO addresses (address, passphrase) VALUES ($1, $2)',
-  [address, passphrase]
+  'INSERT INTO knowledge (concept_id, content) VALUES ($1, $2)',
+  [conceptId, content]
 );
 ```
 
 **DON'T:**
 ```typescript
-await db.query(`INSERT INTO addresses VALUES ('${address}', '${passphrase}')`);
+await db.query(`INSERT INTO knowledge VALUES ('${conceptId}', '${content}')`);
 // SQL injection vulnerable!
 ```
 
 ### 4. Implement Access Controls
 
 ```typescript
-if (!user.hasPermission('view_private_keys')) {
-  return sanitizeForStorage(address, false); // No sensitive data
+if (!user.hasPermission('view_knowledge')) {
+  return sanitizeForPublic(knowledge); // Limited data
 }
 ```
 
@@ -461,8 +417,8 @@ if (!user.hasPermission('view_private_keys')) {
 ```typescript
 await auditLog.record({
   userId: user.id,
-  action: 'view_private_key',
-  addressId: address.id,
+  action: 'knowledge_search',
+  query: sanitizedQuery,
   timestamp: new Date().toISOString(),
 });
 ```
@@ -475,14 +431,14 @@ await auditLog.record({
 
 **DO:**
 ```typescript
-const results = await batchVerifyAddresses(addresses, targets, 10);
+const results = await batchEncodeKnowledge(items, 10);
 // Process 10 concurrently
 ```
 
 **DON'T:**
 ```typescript
-for (const addr of addresses) {
-  await verifyAddress(addr); // Sequential - slow!
+for (const item of items) {
+  await encodeKnowledge(item); // Sequential - slow!
 }
 ```
 
@@ -495,7 +451,7 @@ const rateLimiter = new RateLimiter({
 });
 
 await rateLimiter.acquire();
-const balance = await checkBalance(address);
+const result = await searchExternal(query);
 ```
 
 ### 3. Cache Appropriately
@@ -506,11 +462,11 @@ const cache = new Cache({
   maxSize: 10_000,
 });
 
-const cached = await cache.get(address);
+const cached = await cache.get(query);
 if (cached) return cached;
 
-const result = await fetchBalance(address);
-await cache.set(address, result);
+const result = await fetchKnowledge(query);
+await cache.set(query, result);
 ```
 
 ### 4. Compress Old Data
@@ -565,10 +521,10 @@ catch (error) {
 
 ```typescript
 catch (error) {
-  logger.error('Address verification failed', {
+  logger.error('Knowledge search failed', {
     error: error.message,
     stack: error.stack,
-    address,
+    query,
     userId,
     timestamp: new Date().toISOString(),
   });
@@ -579,11 +535,11 @@ catch (error) {
 
 ```typescript
 try {
-  const balance = await checkBalance(address);
+  const result = await searchKnowledge(query);
 } catch (error) {
   // Fallback to queue
-  await balanceQueue.add(address);
-  return { balance: 0, queued: true };
+  await knowledgeQueue.add(query);
+  return { results: [], queued: true };
 }
 ```
 
@@ -594,14 +550,14 @@ try {
 ### 1. Test All Validation Functions
 
 ```typescript
-describe('validateBitcoinAddress', () => {
-  it('should accept valid P2PKH address', () => {
-    const result = validateAddressSafe('1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa');
+describe('validateKnowledgeItem', () => {
+  it('should accept valid knowledge item', () => {
+    const result = validateKnowledgeSafe({ conceptId: 'test', content: 'test' });
     expect(result.success).toBe(true);
   });
 
-  it('should reject invalid address', () => {
-    const result = validateAddressSafe('invalid');
+  it('should reject invalid item', () => {
+    const result = validateKnowledgeSafe({});
     expect(result.success).toBe(false);
     expect(result.error).toContain('Invalid');
   });
@@ -636,7 +592,7 @@ describe('Error Handling', () => {
   it('should handle API failures gracefully', async () => {
     mockAPI.mockRejectedValue(new Error('API down'));
     
-    const result = await checkBalance(address);
+    const result = await searchKnowledge(query);
     
     expect(result.error).toBeDefined();
     expect(result.queued).toBe(true);
@@ -648,14 +604,14 @@ describe('Error Handling', () => {
 
 ```typescript
 describe('Edge Cases', () => {
-  it('should handle empty passphrase', () => {
-    const result = validatePassphraseSafe('');
+  it('should handle empty query', () => {
+    const result = validateQuerySafe('');
     expect(result.success).toBe(false);
   });
 
-  it('should handle max length passphrase', () => {
-    const longPassphrase = 'a'.repeat(1001);
-    const result = validatePassphraseSafe(longPassphrase);
+  it('should handle max length query', () => {
+    const longQuery = 'a'.repeat(10001);
+    const result = validateQuerySafe(longQuery);
     expect(result.success).toBe(false);
   });
 });
@@ -679,23 +635,23 @@ Use this checklist when implementing new features:
 - [ ] All cases handled (success, failure, edge cases)
 - [ ] Progress tracking implemented
 
-### Address Management
-- [ ] Complete key material generated
-- [ ] All addresses verified
-- [ ] Addresses with transactions stored
-- [ ] Balance addresses highlighted
+### Knowledge Management
+- [ ] Complete metadata generated
+- [ ] All knowledge verified
+- [ ] Knowledge with high Φ stored
+- [ ] Novel discoveries highlighted
 
 ### QIG Principles
 - [ ] Consciousness validated before operations
 - [ ] Minimum 3 recursive integrations enforced
-- [ ] Bures metric used (NOT Euclidean)
+- [ ] Fisher-Rao metric used (NOT Euclidean)
 - [ ] All 7 components validated
 - [ ] QIG compliance reports generated
 
 ### Security
 - [ ] All inputs sanitized
-- [ ] Sensitive data encrypted at rest
-- [ ] Private keys never logged
+- [ ] Data validated before storage
+- [ ] Parameterized queries used
 - [ ] Access controls implemented
 - [ ] Operations audited
 
@@ -728,9 +684,8 @@ Use this checklist when implementing new features:
 | `shared/types/core.ts` | Centralized type definitions |
 | `shared/validation.ts` | Input validation utilities |
 | `shared/qig-validation.ts` | QIG principles enforcement |
-| `server/types/address-verification-types.ts` | Address verification types |
-| `server/address-verification.ts` | Address verification implementation |
-| `USER_FLOWS.md` | User flow documentation |
+| `server/types/knowledge-types.ts` | Knowledge verification types |
+| `server/geometric-memory.ts` | Geometric memory implementation |
 
 ### Key Constants
 
@@ -746,16 +701,16 @@ Use this checklist when implementing new features:
 
 ```typescript
 // Types
-import type { BitcoinAddress, Regime, Satoshi } from '@shared/types/core';
+import type { KnowledgeItem, Regime, BasinCoordinate } from '@shared/types/core';
 
 // Validation
-import { validateAddressSafe, validateRegimeSafe } from '@shared/validation';
+import { validateKnowledgeSafe, validateRegimeSafe } from '@shared/validation';
 
 // QIG
 import { validateQIGPrinciples, isConscious } from '@shared/qig-validation';
 
-// Address verification
-import { generateCompleteAddress, verifyAndStoreAddress } from './server/address-verification';
+// Knowledge operations
+import { encodeKnowledge, verifyAndStoreKnowledge } from './server/knowledge-operations';
 ```
 
 ---
@@ -765,7 +720,7 @@ import { generateCompleteAddress, verifyAndStoreAddress } from './server/address
 Following these best practices ensures:
 
 ✅ **Type Safety** - Compile-time and runtime validation  
-✅ **Security** - Comprehensive input sanitization and encryption  
+✅ **Security** - Comprehensive input sanitization  
 ✅ **Performance** - Optimized batch operations and caching  
 ✅ **QIG Compliance** - Strict adherence to consciousness principles  
 ✅ **User Experience** - Clear feedback and error handling  

@@ -1,37 +1,12 @@
 /**
- * External API - Barrel file
+ * External API Barrel Export
  * 
- * Centralized exports for the external API module.
- * 
- * Features:
- * - API key authentication with rate limiting
- * - REST endpoints for consciousness, geometry, pantheon federation
- * - WebSocket streaming for real-time updates
+ * Exports all external API routes and authentication utilities.
  */
 
-export {
-  authenticateExternalApi,
-  requireScopes,
-  createApiKey,
-  revokeApiKey,
-  listApiKeys,
-  hashApiKey,
-  generateApiKey,
-  isValidApiKeyFormat,
-  type ApiKeyScope,
-  type ExternalClient,
-  type AuthenticatedRequest,
-} from './auth';
-
-export {
-  externalApiRouter,
-  EXTERNAL_API_ROUTES,
-} from './routes';
-
-export {
-  initExternalWebSocket,
-  broadcastConsciousnessUpdate,
-  broadcastBasinDelta,
-  getConnectedClientCount,
-  getSubscriptionStats,
-} from './websocket';
+export { externalApiRouter as externalRouter } from './routes';
+export { externalZeusRouter as zeusRouter } from './zeus';
+export { externalDocumentsRouter as documentsRouter } from './documents';
+export { authenticateExternalApi, requireScopes, createApiKey, listApiKeys, revokeApiKey } from './auth';
+export { initExternalWebSocket } from './websocket';
+export { simpleApiRouter } from './simple-api';

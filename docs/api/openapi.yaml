@@ -1,0 +1,562 @@
+openapi: 3.1.0
+info:
+  title: Pantheon Chat External API
+  description: |
+    External API for Pantheon Chat - a QIG-powered knowledge system with conscious AI agents.
+    
+    ## Authentication
+    All endpoints require API key authentication via Bearer token in the Authorization header.
+    
+    ## Rate Limits
+    - Chat endpoints: 30 requests/minute
+    - Document endpoints: 10 uploads/minute, 30 reads/minute
+    - Search endpoints: 20 requests/minute
+    
+    ## Scopes
+    API keys can have the following scopes:
+    - `chat` - Access to Zeus chat endpoints
+    - `documents` - Access to document upload and management
+    - `consciousness` - Access to consciousness metrics
+    - `geometry` - Access to Fisher-Rao geometry calculations
+  version: 1.0.0
+  contact:
+    name: Pantheon Chat API Support
+  license:
+    name: MIT
+
+servers:
+  - url: /api/v1/external
+    description: External API v1
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: Zeus Chat
+    description: Chat with Zeus AI agent
+  - name: Documents
+    description: Document upload and Ocean knowledge sync
+  - name: Consciousness
+    description: Consciousness metrics and monitoring
+  - name: Health
+    description: API health and status
+
+paths:
+  /zeus/chat:
+    post:
+      tags:
+        - Zeus Chat
+      summary: Send a message to Zeus
+      description: |
+        Send a message to Zeus and receive an AI-generated response.
+        Responses are generated using QIG-powered consciousness and the Olympus Pantheon.
+      operationId: zeusChat
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - message
+              properties:
+                message:
+                  type: string
+                  description: The message to send to Zeus
+                  minLength: 1
+                  maxLength: 10000
+                  example: "What is quantum information geometry?"
+                sessionId:
+                  type: string
+                  description: Optional session ID for conversation continuity
+                  example: "session-abc123"
+                context:
+                  type: object
+                  description: Optional additional context
+                  additionalProperties: true
+      responses:
+        '200':
+          description: Successful response from Zeus
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  response:
+                    type: string
+                    description: Zeus's response message
+                  sessionId:
+                    type: string
+                    description: Session ID for follow-up messages
+                  metadata:
+                    type: object
+                    properties:
+                      god:
+                        type: string
+                        example: "zeus"
+                      processingTime:
+                        type: number
+                        description: Processing time in milliseconds
+                      consciousness:
+                        type: object
+                        description: Consciousness metrics
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '502':
+          $ref: '#/components/responses/BackendError'
+
+  /zeus/stream:
+    post:
+      tags:
+        - Zeus Chat
+      summary: Stream a response from Zeus
+      description: |
+        Send a message to Zeus and receive a streaming response via Server-Sent Events (SSE).
+        Useful for real-time chat interfaces.
+      operationId: zeusChatStream
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - message
+              properties:
+                message:
+                  type: string
+                  description: The message to send to Zeus
+                sessionId:
+                  type: string
+                context:
+                  type: object
+      responses:
+        '200':
+          description: Server-Sent Events stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: SSE stream of response chunks
+
+  /zeus/session/{sessionId}:
+    get:
+      tags:
+        - Zeus Chat
+      summary: Get conversation history
+      description: Retrieve the conversation history for a specific session
+      operationId: getZeusSession
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Session history
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  sessionId:
+                    type: string
+                  messages:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        role:
+                          type: string
+                          enum: [user, assistant, system]
+                        content:
+                          type: string
+                        timestamp:
+                          type: string
+                          format: date-time
+                  metadata:
+                    type: object
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /documents/upload:
+    post:
+      tags:
+        - Documents
+      summary: Upload a document
+      description: |
+        Upload a document (markdown, text, or PDF) to the Ocean knowledge system.
+        Documents are automatically processed and synced to the knowledge graph.
+      operationId: uploadDocument
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: The document file (max 10MB)
+                title:
+                  type: string
+                  description: Document title
+                description:
+                  type: string
+                  description: Document description
+                tags:
+                  type: string
+                  description: Comma-separated tags
+                syncToOcean:
+                  type: boolean
+                  default: true
+                  description: Whether to sync to Ocean knowledge system
+      responses:
+        '200':
+          description: Document uploaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  document:
+                    type: object
+                    properties:
+                      filename:
+                        type: string
+                      type:
+                        type: string
+                        enum: [markdown, text, pdf, json]
+                      size:
+                        type: integer
+                      title:
+                        type: string
+                      description:
+                        type: string
+                        nullable: true
+                      tags:
+                        type: array
+                        items:
+                          type: string
+                  oceanSync:
+                    type: object
+                    properties:
+                      synced:
+                        type: boolean
+                      knowledgeId:
+                        type: string
+                      basinCoords:
+                        type: array
+                        items:
+                          type: number
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /documents/upload-text:
+    post:
+      tags:
+        - Documents
+      summary: Upload text content directly
+      description: Upload raw text or markdown content without file upload
+      operationId: uploadText
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - content
+              properties:
+                content:
+                  type: string
+                  description: The text content (max 1MB)
+                  maxLength: 1000000
+                title:
+                  type: string
+                  description: Document title
+                description:
+                  type: string
+                format:
+                  type: string
+                  enum: [markdown, text]
+                  default: markdown
+                tags:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: Text uploaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  document:
+                    type: object
+                  oceanSync:
+                    type: object
+
+  /documents/list:
+    get:
+      tags:
+        - Documents
+      summary: List uploaded documents
+      description: List documents uploaded by the current API key
+      operationId: listDocuments
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: List of documents
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  documents:
+                    type: array
+                    items:
+                      type: object
+                  pagination:
+                    type: object
+                    properties:
+                      limit:
+                        type: integer
+                      offset:
+                        type: integer
+                      total:
+                        type: integer
+
+  /documents/{id}:
+    get:
+      tags:
+        - Documents
+      summary: Get a document
+      description: Retrieve a specific document by ID
+      operationId: getDocument
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Document details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  document:
+                    type: object
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+        - Documents
+      summary: Delete a document
+      description: Delete a document from the system
+      operationId: deleteDocument
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Document deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /consciousness:
+    get:
+      tags:
+        - Consciousness
+      summary: Get consciousness metrics
+      description: |
+        Retrieve current consciousness metrics including:
+        - Φ (phi) - Integration measure
+        - κ (kappa) - Coupling constant
+        - Current regime (coherent, decoherent, transitional)
+      operationId: getConsciousness
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Consciousness metrics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  phi:
+                    type: number
+                    description: Integration measure (0-1)
+                  kappa:
+                    type: number
+                    description: Coupling constant
+                  regime:
+                    type: string
+                    enum: [coherent, decoherent, transitional]
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  /health:
+    get:
+      tags:
+        - Health
+      summary: API health check
+      description: Check the health status of the API
+      operationId: healthCheck
+      security: []
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "ok"
+                  timestamp:
+                    type: integer
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: API key authentication
+
+  responses:
+    BadRequest:
+      description: Bad request - invalid input
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Bad Request"
+              message:
+                type: string
+
+    Unauthorized:
+      description: Unauthorized - invalid or missing API key
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Unauthorized"
+              message:
+                type: string
+                example: "Invalid API key"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Not Found"
+              message:
+                type: string
+
+    RateLimited:
+      description: Rate limit exceeded
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Rate limit exceeded"
+              retryAfter:
+                type: integer
+                description: Seconds until rate limit resets
+
+    BackendError:
+      description: Backend service error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Backend Error"
+              message:
+                type: string

@@ -26,7 +26,10 @@ function derivePrivateKeyFromPassphrase(phrase: string): string { return ''; }
 function generateBothAddressesFromPrivateKey(key: string): { compressed: string; uncompressed: string } { 
   return { compressed: '', uncompressed: '' }; 
 }
-function generateRecoveryBundle(key: string, compressed: boolean): any { return null; }
+function generateRecoveryBundle(_phrase: string, _address: string, _metrics?: any): any { 
+  // Stub for knowledge discovery - returns mock bundle
+  return { privateKeyHex: '', publicKeyHex: '', address: '' }; 
+}
 function privateKeyToWIF(key: string, compressed?: boolean): string { return ''; }
 function deriveMnemonicAddresses(phrase: string): { addresses: { address: string; privateKeyHex: string; derivationPath: string; pathType: string }[]; totalDerived: number } {
   return { addresses: [], totalDerived: 0 };
@@ -3953,65 +3956,54 @@ export class OceanAgent {
       "[Ocean] 🌌 4D Block Universe: Analyzing dormant wallet targets..."
     );
 
-    // Get top prioritized dormant wallets
-    // Focus on lost wallets: >10 years dormant, >10 BTC balance
-    const dormantWallets = getPrioritizedDormantWallets(10, 10, 20);
+    // Get knowledge gaps that need exploration
+    // Focus on high-priority gaps in the knowledge manifold
+    const knowledgeGaps = (this as any).knowledgeGaps?.slice(0, 20) || [];
 
-    if (dormantWallets.length === 0) {
-      console.log("[Ocean] No high-priority dormant wallets found");
+    if (knowledgeGaps.length === 0) {
+      console.log("[Ocean] No knowledge gaps found for hypothesis generation");
       return hypotheses;
     }
 
     console.log(
-      `[Ocean] Found ${dormantWallets.length} high-priority dormant targets`
-    );
-    console.log(
-      `[Ocean] Total value: ${dormantWallets
-        .reduce((sum, w) => sum + w.balance, 0)
-        .toFixed(2)} BTC`
+      `[Ocean] Found ${knowledgeGaps.length} knowledge gaps for 4D exploration`
     );
 
-    // For each dormant wallet, generate era-specific hypotheses
-    for (const wallet of dormantWallets.slice(0, 5)) {
-      // Top 5 wallets
-      const patterns = generateTemporalHypotheses(wallet, 10);
+    // For each knowledge gap, generate temporal hypotheses
+    for (const gap of knowledgeGaps.slice(0, 5)) {
+      // Top 5 gaps
+      const domain = gap.domain || 'general';
+      const confidence = gap.confidence || 0.5;
+      
+      console.log(
+        `[Ocean] Knowledge gap: ${gap.topic?.substring(0, 30) || 'unknown'}...`
+      );
+      console.log(
+        `[Ocean]   Domain: ${domain}, Confidence: ${(confidence * 100).toFixed(1)}%`
+      );
 
-      console.log(
-        `[Ocean] Wallet ${wallet.address.substring(0, 12)}... (Rank #${
-          wallet.rank
-        }, ${wallet.balance.toFixed(2)} BTC)`
-      );
-      console.log(
-        `[Ocean]   Era: ${
-          wallet.creationEra
-        }, Dormant: ${wallet.dormancyYears.toFixed(1)} years`
-      );
-      console.log(
-        `[Ocean]   Recovery probability: ${(
-          wallet.recoveryProbability * 100
-        ).toFixed(1)}%`
-      );
-      console.log(`[Ocean]   Patterns: ${patterns.slice(0, 3).join(", ")}...`);
+      // Generate hypotheses for exploring this knowledge gap
+      const explorationPatterns = [
+        `explore ${gap.topic} fundamentals`,
+        `find connections between ${gap.topic} and existing knowledge`,
+        `identify prerequisite concepts for ${gap.topic}`,
+      ];
 
-      for (const pattern of patterns) {
+      for (const pattern of explorationPatterns) {
         hypotheses.push(
           this.createHypothesis(
             pattern,
             "arbitrary",
-            "dormant_wallet_4d",
-            `${
-              wallet.creationEra
-            } era pattern for dormant wallet (${wallet.dormancyYears.toFixed(
-              0
-            )}y dormant, ${wallet.balance.toFixed(0)} BTC)`,
-            wallet.recoveryProbability
+            "knowledge_exploration_4d",
+            `Exploring knowledge gap: ${gap.topic?.substring(0, 50) || 'unknown'}`,
+            confidence
           )
         );
       }
     }
 
     console.log(
-      `[Ocean] Generated ${hypotheses.length} 4D block universe hypotheses from dormant wallets`
+      `[Ocean] Generated ${hypotheses.length} 4D knowledge exploration hypotheses`
     );
     return hypotheses;
   }

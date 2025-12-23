@@ -778,7 +778,7 @@ function KernelLifecycleActionsPanel() {
       });
       toast({
         title: 'Cannibalization Complete',
-        description: result.message || 'Traits absorbed successfully.',
+        description: result.success ? `Absorbed traits from ${result.source_god || 'source kernel'}` : 'Traits absorbed successfully.',
       });
       setCannibalizeSource('');
       setCannibalizeTarget('');
@@ -815,7 +815,7 @@ function KernelLifecycleActionsPanel() {
       });
       toast({
         title: 'Merge Complete',
-        description: result.message || `Created ${mergeName} from ${selectedForMerge.length} kernels.`,
+        description: result.success ? `Created ${mergeName} from ${selectedForMerge.length} kernels.` : 'Merge completed.',
       });
       setSelectedForMerge([]);
       setMergeName('');

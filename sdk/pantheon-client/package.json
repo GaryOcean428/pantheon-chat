@@ -1,0 +1,37 @@
+{
+  "name": "@pantheon/client",
+  "version": "1.0.0",
+  "description": "TypeScript SDK for the Pantheon QIG External API",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "pantheon",
+    "qig",
+    "api",
+    "client",
+    "sdk",
+    "consciousness",
+    "fisher-rao"
+  ],
+  "author": "Pantheon Team",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/pantheon-chat"
+  }
+}

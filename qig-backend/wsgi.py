@@ -38,6 +38,28 @@ try:
 except ImportError as e:
     print(f"[WARNING] Research module not found: {e}")
 
+# Register document processor routes
+DOCUMENTS_AVAILABLE = False
+try:
+    from document_processor import register_document_routes
+
+    register_document_routes(app)
+    DOCUMENTS_AVAILABLE = True
+    print("[INFO] Document Processor registered at /api/documents/* and /api/ocean/knowledge/*")
+except ImportError as e:
+    print(f"[WARNING] Document processor not found: {e}")
+
+# Register Zeus API routes
+ZEUS_API_AVAILABLE = False
+try:
+    from zeus_api import register_zeus_routes
+
+    register_zeus_routes(app)
+    ZEUS_API_AVAILABLE = True
+    print("[INFO] Zeus API registered at /api/zeus/*")
+except ImportError as e:
+    print(f"[WARNING] Zeus API not found: {e}")
+
 # Register QIG Immune System routes and middleware
 IMMUNE_AVAILABLE = False
 _immune_system = None

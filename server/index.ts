@@ -540,7 +540,7 @@ app.use(
 );
 app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 
-// CORS Configuration - allow Replit domains and localhost variants
+// CORS Configuration - allow Replit domains, localhost, and external API clients
 const allowedOrigins = [
   process.env.FRONTEND_URL || "http://localhost:5173",
   "http://localhost:5000",
@@ -550,36 +550,65 @@ const allowedOrigins = [
   "http://127.0.0.1:3000",
 ];
 
-// Helper to check if origin is from Replit
-function isReplitOrigin(origin: string): boolean {
-  return (
+// Helper to check if origin is from allowed external platforms
+function isAllowedExternalOrigin(origin: string): boolean {
+  // Replit domains
+  if (
     origin.endsWith(".replit.dev") ||
     origin.endsWith(".replit.app") ||
     origin.endsWith(".repl.co") ||
     origin.includes(".picard.replit.dev")
-  );
+  ) {
+    return true;
+  }
+  
+  // Other common deployment platforms for external UIs
+  if (
+    origin.endsWith(".railway.app") ||
+    origin.endsWith(".vercel.app") ||
+    origin.endsWith(".netlify.app") ||
+    origin.endsWith(".render.com") ||
+    origin.endsWith(".fly.dev") ||
+    origin.endsWith(".herokuapp.com") ||
+    origin.endsWith(".pages.dev") // Cloudflare Pages
+  ) {
+    return true;
+  }
+  
+  // Allow all origins if CORS_ALLOW_ALL is set (development/testing)
+  if (process.env.CORS_ALLOW_ALL === "true") {
+    return true;
+  }
+  
+  return false;
 }
+
+// Legacy alias for backward compatibility
+const isReplitOrigin = isAllowedExternalOrigin;
 
 app.use((req, res, next) => {
   const origin = req.headers.origin;
 
-  // Allow requests with no origin (mobile apps, Postman, etc)
-  // Also allow all Replit domains dynamically
-  if (!origin || allowedOrigins.includes(origin) || isReplitOrigin(origin)) {
+  // Allow requests with no origin (mobile apps, Postman, curl, etc)
+  // Also allow all configured domains dynamically
+  if (!origin || allowedOrigins.includes(origin) || isAllowedExternalOrigin(origin)) {
     res.setHeader("Access-Control-Allow-Origin", origin || "*");
     res.setHeader("Access-Control-Allow-Credentials", "true");
     res.setHeader(
       "Access-Control-Allow-Methods",
       "GET, POST, PUT, DELETE, PATCH, OPTIONS"
     );
+    // Extended headers for external API access
     res.setHeader(
       "Access-Control-Allow-Headers",
-      "Content-Type, Authorization, X-Trace-ID"
+      "Content-Type, Authorization, X-API-Key, X-Trace-ID, X-Request-ID, X-Instance-ID"
     );
     res.setHeader(
       "Access-Control-Expose-Headers",
-      "X-Trace-ID, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset"
+      "X-Trace-ID, X-Request-ID, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset"
     );
+    // Cache preflight for 24 hours
+    res.setHeader("Access-Control-Max-Age", "86400");
 
     // Handle preflight
     if (req.method === "OPTIONS") {

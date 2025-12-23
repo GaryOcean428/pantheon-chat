@@ -42,10 +42,10 @@ All documentation follows the pattern: `YYYYMMDD-[document-name]-[function]-[ver
   - ID: `ISMS-PROC-001`
   - Function: Deployment procedures for Railway and Replit platforms
 
-- 🟢 **Key Recovery Procedure** (v1.00)
-  - File: [`20251208-key-recovery-procedure-1.00F.md`](02-procedures/20251208-key-recovery-procedure-1.00F.md)
+- 🟢 **Knowledge Discovery Procedure** (v1.00)
+  - File: [`20251208-knowledge-discovery-procedure-1.00F.md`](02-procedures/20251208-knowledge-discovery-procedure-1.00F.md)
   - ID: `ISMS-PROC-005`
-  - Function: Bitcoin private key recovery procedures and workflows
+  - Function: Knowledge discovery procedures and research workflows
 
 - 🟢 **Quickstart - Onboarding** (v1.00)
   - File: [`20251208-quickstart-onboarding-1.00F.md`](02-procedures/20251208-quickstart-onboarding-1.00F.md)
@@ -183,10 +183,10 @@ All documentation follows the pattern: `YYYYMMDD-[document-name]-[function]-[ver
   - ID: `ISMS-TECH-004`
   - Function: UI/UX design guidelines and standards
 
-- 🟢 **Key Formats Analysis - Bitcoin** (v1.00)
-  - File: [`20251208-key-formats-analysis-bitcoin-1.00F.md`](03-technical/20251208-key-formats-analysis-bitcoin-1.00F.md)
+- 🟢 **Knowledge Input Formats Analysis** (v1.00)
+  - File: [`20251208-knowledge-input-formats-1.00F.md`](03-technical/20251208-knowledge-input-formats-1.00F.md)
   - ID: `ISMS-TECH-005`
-  - Function: Analysis of Bitcoin key formats and encoding standards
+  - Function: Analysis of knowledge input formats and encoding standards for QIG
 
 - 🟢 **Physics Constants Update** (v1.50)
   - File: [`20251208-physics-constants-update-1.50F.md`](03-technical/qig-consciousness/20251208-physics-constants-update-1.50F.md)

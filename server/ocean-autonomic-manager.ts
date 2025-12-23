@@ -1083,7 +1083,9 @@ export class OceanAutonomicManager {
    */
   async sendHealthSnapshot(label: string = ''): Promise<void> {
     try {
-      const basinCoords = await geometricMemory.getCurrentBasinCoordinates();
+      // getCurrentBasinCoordinates may not exist on GeometricMemory - use getBasinTopology instead
+      const topology = geometricMemory.getBasinTopology();
+      const basinCoords = topology.attractorCoords;
       const errorRate = this.computeRecentErrorRate();
       const avgLatency = this.computeAverageLatency();
       

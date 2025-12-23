@@ -32,6 +32,7 @@ import * as qig from './services/qig';
 import * as olympus from './services/olympus';
 import * as consciousness from './services/consciousness';
 import * as coordizer from './services/coordizer';
+import * as documents from './services/documents';
 
 /**
  * Consolidated API object for all service operations.
@@ -44,6 +45,7 @@ export const api = {
   olympus,
   consciousness,
   coordizer,
+  documents,
 };
 
 // Re-export individual services for direct imports
@@ -54,6 +56,7 @@ export {
   olympus,
   consciousness,
   coordizer,
+  documents,
 };
 
 // Re-export types from services for convenience
@@ -83,3 +86,12 @@ export type {
 // Re-export M8 kernel functions for direct imports
 export { deleteKernel, cannibalizeKernel, mergeKernels, autoCannibalize, autoMerge } from './services/olympus';
 export type { CannibalizeRequest, CannibalizeResponse, MergeKernelsRequest, MergeKernelsResponse, AutoCannibalizeRequest, AutoCannibalizeResponse, AutoMergeRequest, AutoMergeResponse } from './services/olympus';
+export type {
+  UploadedDocument,
+  DocumentUploadParams,
+  DocumentUploadResponse,
+  DocumentListResponse,
+  DocumentSearchParams,
+  DocumentSearchResult,
+  DocumentSearchResponse,
+} from './services/documents';

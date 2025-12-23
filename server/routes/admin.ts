@@ -152,8 +152,10 @@ adminRouter.get("/admin/metrics", generousLimiter, async (req: Request, res: Res
   try {
     const jobs = await storage.getSearchJobs();
     const candidates = await storage.getCandidates();
-    const balanceHits = await getActiveBalanceHits();
-    const queueStats = getQueueIntegrationStats();
+    // These functions were removed during knowledge-focused refactor
+    // Return empty/default values for backward compatibility
+    const balanceHits: unknown[] = [];
+    const queueStats = { queued: 0, processed: 0 };
 
     const completedJobs = jobs.filter(j => j.status === 'completed');
     const totalPhrasesTested = jobs.reduce((sum, j) => sum + (j.progress?.tested || 0), 0);

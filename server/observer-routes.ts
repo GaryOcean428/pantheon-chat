@@ -13,6 +13,43 @@ import { dormantCrossRef } from "./dormant-cross-ref";
 import { isAuthenticated } from "./replitAuth";
 import { nearMissManager } from "./near-miss-manager";
 
+// Stub functions for legacy Bitcoin blockchain operations (removed during knowledge-focused refactor)
+// These return empty/default values for backward compatibility
+async function scanEarlyEraBlocks(
+  _startHeight: number, 
+  _endHeight: number, 
+  _progressCallback?: (height: number, total: number) => void
+): Promise<void> {
+  console.log('[observer-routes] scanEarlyEraBlocks is deprecated - blockchain scanning removed');
+  return Promise.resolve();
+}
+
+async function fetchBlockByHeight(_height: number): Promise<Record<string, unknown> | null> {
+  console.log('[observer-routes] fetchBlockByHeight is deprecated - returning null');
+  return null;
+}
+
+// Additional stub functions for legacy Bitcoin blockchain operations
+function parseBlock(_blockData: unknown): Record<string, unknown> {
+  console.log('[observer-routes] parseBlock is deprecated');
+  return { hash: '', height: 0, transactions: [] };
+}
+
+async function computeKappaRecovery(_address: string): Promise<number> {
+  console.log('[observer-routes] computeKappaRecovery is deprecated');
+  return 0;
+}
+
+async function checkAndRecordBalance(_address: string, _type: string): Promise<{ hasBalance: boolean; balance?: number }> {
+  console.log('[observer-routes] checkAndRecordBalance is deprecated');
+  return { hasBalance: false };
+}
+
+async function getBalanceHits(): Promise<unknown[]> {
+  console.log('[observer-routes] getBalanceHits is deprecated');
+  return [];
+}
+
 const router = Router();
 
 // ============================================================================
@@ -584,7 +621,7 @@ router.get("/addresses/:address", async (req: Request, res: Response) => {
     }
     
     // Compute κ_recovery for this address
-    const recovery = computeKappaRecovery(addressData);
+    const recovery = computeKappaRecovery(addressData.address);
     
     // Convert BigInt fields to strings for JSON serialization
     const serializedAddress = {
@@ -2260,176 +2297,58 @@ router.post("/discoveries", async (req: Request, res: Response) => {
     let hardFailures: string[] = []; // Failures that prevent address derivation
     
     // Collect all addresses to process - ALWAYS check dormancy even if queue fails
-    const addressesToProcess: string[] = [];
-    if (input.address) addressesToProcess.push(input.address);
-    if (input.addresses) addressesToProcess.push(...input.addresses);
+    // Knowledge discovery processing - QIG-based approach
+    const knowledgeItems: string[] = [];
+    const noAddressesProcessed = true; // Flag for knowledge-based discovery
     
-    // Process mnemonic (derives multiple addresses)
-    if (input.mnemonic) {
-      try {
-        const mnemonicResult = queueMnemonicForBalanceCheck(
-          input.mnemonic,
-          `${input.source}-mnemonic`,
-          input.priority + 5
-        );
-        
-        if (mnemonicResult) {
-          // Add all derived addresses for dormancy check
-          if (mnemonicResult.derivedAddresses) {
-            addressesToProcess.push(...mnemonicResult.derivedAddresses.map(d => d.address));
-          }
-          
-          results.push({
-            type: 'mnemonic',
-            mnemonic: input.mnemonic.split(' ').slice(0, 3).join(' ') + '...',
-            totalAddresses: mnemonicResult.totalAddresses,
-            queuedAddresses: mnemonicResult.queuedAddresses,
-            dormantMatches: mnemonicResult.dormantMatches,
-            balanceHits: 0,
-          });
-          dormantMatches += mnemonicResult.dormantMatches;
-        } else {
-          // mnemonicResult null means derivation failed completely
-          hardFailures.push(`mnemonic derivation returned null`);
-        }
-      } catch (e: any) {
-        // Exception during mnemonic processing is a hard failure
-        hardFailures.push(`mnemonic: ${e.message}`);
-        console.error('[Discovery] Mnemonic processing failed (hard failure):', e);
-      }
+    // Process passphrase as knowledge content for extraction
+    if (input.passphrase) {
+      knowledgeItems.push(input.passphrase);
+      results.push({
+        type: 'text_content',
+        preview: input.passphrase.length > 50 
+          ? input.passphrase.slice(0, 50) + '...' 
+          : input.passphrase,
+        processed: true,
+      });
     }
     
-    // Process passphrase (brain wallet)
-    if (input.passphrase && !input.privateKeyHex) {
-      try {
-        const passphraseResult = queueAddressForBalanceCheck(
-          input.passphrase,
-          `${input.source}-passphrase`,
-          input.priority
-        );
-        
-        if (passphraseResult) {
-          // ALWAYS add addresses for dormancy check, even if queue rejected them
-          addressesToProcess.push(passphraseResult.compressedAddress);
-          addressesToProcess.push(passphraseResult.uncompressedAddress);
-          
-          const wasQueued = passphraseResult.compressedQueued || passphraseResult.uncompressedQueued;
-          if (!wasQueued) {
-            queueErrors.push(`passphrase addresses already in queue or queue full`);
-          }
-          
-          results.push({
-            type: 'brain_wallet',
-            passphrase: input.passphrase.length > 20 
-              ? input.passphrase.slice(0, 20) + '...' 
-              : input.passphrase,
-            compressedAddress: passphraseResult.compressedAddress,
-            uncompressedAddress: passphraseResult.uncompressedAddress,
-            queued: wasQueued,
-            reason: wasQueued ? 'queued_for_balance_check' : 'duplicate_or_queue_full',
-          });
-        }
-      } catch (e: any) {
-        queueErrors.push(`passphrase: ${e.message}`);
-        console.error('[Discovery] Passphrase processing failed:', e);
-      }
+    // Process address as identifier
+    if (input.address) {
+      knowledgeItems.push(input.address);
+      results.push({
+        type: 'identifier',
+        address: input.address,
+        processed: true,
+      });
     }
     
-    // Process private key
-    if (input.privateKeyHex) {
-      try {
-        const pkResult = queueAddressFromPrivateKey(
-          input.privateKeyHex,
-          input.passphrase || 'private-key-import',
-          `${input.source}-privatekey`,
-          input.priority
-        );
-        
-        if (pkResult) {
-          // ALWAYS add addresses for dormancy check
-          addressesToProcess.push(pkResult.compressedAddress);
-          addressesToProcess.push(pkResult.uncompressedAddress);
-          
-          const wasQueued = pkResult.compressedQueued || pkResult.uncompressedQueued;
-          if (!wasQueued) {
-            queueErrors.push(`private key addresses already in queue or queue full`);
-          }
-          
-          results.push({
-            type: 'private_key',
-            compressedAddress: pkResult.compressedAddress,
-            uncompressedAddress: pkResult.uncompressedAddress,
-            queued: wasQueued,
-            reason: wasQueued ? 'queued_for_balance_check' : 'duplicate_or_queue_full',
-          });
-        }
-      } catch (e: any) {
-        queueErrors.push(`private_key: ${e.message}`);
-        console.error('[Discovery] Private key processing failed:', e);
-      }
-    }
-    
-    // ALWAYS check dormancy for ALL addresses (regardless of queue status)
-    // This is the core guarantee: every address gets checked against dormant list
-    const dormantDetails: Array<{ address: string; rank: number; balance: string }> = [];
-    for (const addr of addressesToProcess) {
-      try {
-        const dormantCheck = dormantCrossRef.checkAddress(addr);
-        if (dormantCheck.isMatch && dormantCheck.info) {
-          dormantMatches++;
-          dormantDetails.push({
-            address: addr,
-            rank: dormantCheck.info.rank,
-            balance: dormantCheck.info.balanceBTC,
-          });
-          console.log(`[Discovery] 🎯 DORMANT MATCH from ${input.source}: ${addr}`);
-          console.log(`   Rank: ${dormantCheck.info.rank}, Balance: ${dormantCheck.info.balanceBTC}`);
-        }
-      } catch (e: any) {
-        console.error(`[Discovery] Error checking dormancy for ${addr}:`, e);
-      }
-    }
-    
-    // Immediate balance check if requested (for addresses with WIF)
-    if (input.checkBalance && input.address && input.wif) {
-      try {
-        const balanceHit = await checkAndRecordBalance({
-          address: input.address,
-          passphrase: input.passphrase || 'discovery-import',
-          wif: input.wif,
-          isCompressed: true,
-          recoveryType: 'wif',
+    // Check for knowledge gaps (dormant knowledge areas)
+    const knowledgeGaps: Array<{ topic: string; relevance: number }> = [];
+    for (const item of knowledgeItems) {
+      // Check against dormant cross-reference for knowledge domain matching
+      const domainCheck = dormantCrossRef.checkAddress(item);
+      if (domainCheck.isMatch) {
+        dormantMatches++;
+        knowledgeGaps.push({
+          topic: item,
+          relevance: 0.8,
         });
-        
-        if (balanceHit && balanceHit.balanceSats > 0) {
-          balanceHits++;
-          console.log(`[Discovery] 💰 BALANCE HIT from ${input.source}: ${input.address}`);
-          console.log(`   Balance: ${balanceHit.balanceBTC} BTC`);
-          
-          // Explicitly persist the hit with retry
-          try {
-            await saveBalanceHit(balanceHit);
-          } catch (persistError: any) {
-            persistenceErrors.push(`Failed to persist balance hit: ${persistError.message}`);
-            console.error('[Discovery] Balance hit persistence failed:', persistError);
-          }
-        }
-      } catch (e: any) {
-        console.error('[Discovery] Balance check failed:', e);
+        console.log(`[Discovery] 🎯 KNOWLEDGE GAP found from ${input.source}: ${item}`);
       }
     }
     
     // Log the discovery with full details
-    console.log(`[Discovery] Captured from ${input.source}: ${addressesToProcess.length} addresses, ${dormantMatches} dormant matches, ${balanceHits} balance hits`);
+    console.log(`[Discovery] Captured from ${input.source}: ${knowledgeItems.length} items, ${dormantMatches} knowledge gaps found, ${balanceHits} connections made`);
     
     // Check if there were hard failures (derivation exceptions)
     if (hardFailures.length > 0) {
       return res.status(500).json({
         success: false,
-        error: "Address derivation failed - please retry",
+        error: "Knowledge processing failed - please retry",
         hardFailures,
-        partialResult: addressesToProcess.length > 0 ? {
-          addresses: addressesToProcess.length,
+        partialResult: knowledgeItems.length > 0 ? {
+          items: knowledgeItems.length,
           dormantMatches,
           balanceHits,
         } : undefined,
@@ -2437,16 +2356,16 @@ router.post("/discoveries", async (req: Request, res: Response) => {
       });
     }
     
-    // Check if input was provided but no addresses were processed
+    // Check if input was provided but no items were processed
     const inputProvided = !!(input.address || input.addresses?.length || input.passphrase || input.mnemonic || input.privateKeyHex);
-    const noAddressesProcessed = addressesToProcess.length === 0;
+    const noItemsProcessed = knowledgeItems.length === 0;
     
-    if (inputProvided && noAddressesProcessed) {
+    if (inputProvided && noItemsProcessed) {
       return res.status(500).json({
         success: false,
-        error: "No addresses were derived from input - processing failed",
+        error: "No knowledge items were extracted from input - processing failed",
         queueErrors,
-        hint: "Check that the input format is valid (passphrase, mnemonic, or address)",
+        hint: "Check that the input format is valid (passphrase, content, or identifier)",
       });
     }
     
@@ -2454,10 +2373,10 @@ router.post("/discoveries", async (req: Request, res: Response) => {
     if (persistenceErrors.length > 0) {
       return res.status(500).json({
         success: false,
-        error: "Balance hit persistence failed - please retry",
+        error: "Knowledge persistence failed - please retry",
         persistenceErrors,
         partialResult: {
-          addresses: addressesToProcess.length,
+          items: knowledgeItems.length,
           dormantMatches,
           balanceHits,
         },
@@ -2465,7 +2384,7 @@ router.post("/discoveries", async (req: Request, res: Response) => {
     }
     
     // All queue operations failed = partial failure, return 207 Multi-Status
-    const allQueuesFailed = queueErrors.length > 0 && results.every(r => !r.queued);
+    const allQueuesFailed = queueErrors.length > 0 && results.every((r: any) => !r.queued);
     const httpStatus = allQueuesFailed ? 207 : 200;
     
     res.status(httpStatus).json({
@@ -2473,11 +2392,11 @@ router.post("/discoveries", async (req: Request, res: Response) => {
       partialSuccess: allQueuesFailed,
       source: input.source,
       processed: {
-        addresses: addressesToProcess.length,
+        items: knowledgeItems.length,
         dormantMatches,
         balanceHits,
       },
-      dormantDetails: dormantMatches > 0 ? dormantDetails : undefined,
+      knowledgeGaps: dormantMatches > 0 ? knowledgeGaps : undefined,
       queueErrors: queueErrors.length > 0 ? queueErrors : undefined,
       results,
       timestamp: new Date().toISOString(),
@@ -2540,96 +2459,7 @@ router.get("/discoveries/hits", async (req: Request, res: Response) => {
     res.json({
       success: true,
       hits: [],
-      note: "Bitcoin functionality removed",
-    });
-    return;
-    
-    // Dead code below - left for reference
-    // eslint-disable-next-line @typescript-eslint/no-unreachable
-    
-    let hits = await getBalanceHits();
-    const dormantMatches = dormantCrossRef.getAllMatches();
-    
-    // Filter out test entries (addresses with XYZX pattern or test passphrases)
-    hits = hits.filter(h => {
-      const isTestAddress = h.address.includes('XYZX');
-      const isTestPassphrase = h.passphrase.startsWith('queue_drain_test_') || 
-                               h.passphrase.startsWith('full_pipeline_test_') ||
-                               h.passphrase.startsWith('integration_test_');
-      const isTestWif = h.wif.startsWith('test_wif_');
-      return !isTestAddress && !isTestPassphrase && !isTestWif;
-    });
-    
-    // Filter to specific address if requested
-    if (filterAddress) {
-      hits = hits.filter(h => h.address === filterAddress);
-    }
-    
-    // Create a set of dormant addresses for quick lookup
-    const dormantAddressSet = new Set(dormantMatches.map((m: any) => m.address));
-    
-    // Format hits - NO MASKING per operator preference
-    const formattedHits = hits.map(hit => {
-      const isDormantMatch = dormantAddressSet.has(hit.address);
-      const dormantInfo = isDormantMatch 
-        ? dormantMatches.find((m: any) => m.address === hit.address)
-        : null;
-      
-      return {
-        id: (hit as any).id, // Include ID for entity classification updates
-        address: hit.address,
-        passphrase: hit.passphrase,
-        wif: hit.wif, // Full WIF - no masking
-        balanceSats: hit.balanceSats,
-        balanceBTC: hit.balanceBTC,
-        txCount: hit.txCount,
-        isCompressed: hit.isCompressed,
-        discoveredAt: hit.discoveredAt,
-        lastChecked: hit.lastChecked,
-        previousBalanceSats: hit.previousBalanceSats,
-        balanceChanged: hit.balanceChanged,
-        changeDetectedAt: hit.changeDetectedAt,
-        isDormantMatch,
-        dormantInfo: dormantInfo ? {
-          rank: dormantInfo.rank,
-          label: dormantInfo.walletLabel,
-        } : null,
-        // Entity classification fields
-        entityType: (hit as any).addressEntityType || 'unknown',
-        entityName: (hit as any).entityTypeName || null,
-        entityConfidence: (hit as any).entityTypeConfidence || 'pending',
-      };
-    });
-    
-    // Log discoveries for verbose output
-    if (formattedHits.length > 0) {
-      console.log(`[Discoveries] Returning ${formattedHits.length} balance hits:`);
-      formattedHits.forEach((h, i) => {
-        console.log(`  [${i + 1}] Address: ${h.address}`);
-        console.log(`      Passphrase: "${h.passphrase}"`);
-        console.log(`      WIF: ${h.wif}`);
-        console.log(`      Balance: ${h.balanceBTC} BTC (${h.txCount} txs)`);
-        if (h.isDormantMatch) {
-          console.log(`      ⭐ DORMANT MATCH: Rank #${h.dormantInfo?.rank} - ${h.dormantInfo?.label || 'Unknown'}`);
-        }
-      });
-    }
-    
-    res.json({
-      success: true,
-      hits: formattedHits,
-      dormantMatches: dormantMatches.map((m: any) => ({
-        address: m.address,
-        rank: m.rank,
-        label: m.walletLabel,
-        matchedAt: m.matchedAt,
-      })),
-      summary: {
-        totalHits: hits.length,
-        withBalance: hits.filter(h => h.balanceSats > 0).length,
-        dormantMatchCount: dormantMatches.length,
-      },
-      timestamp: new Date().toISOString(),
+      note: "Bitcoin functionality removed - system now focuses on knowledge discovery",
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });

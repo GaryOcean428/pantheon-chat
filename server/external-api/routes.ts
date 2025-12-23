@@ -24,8 +24,20 @@ import { db } from '../db';
 import { federatedInstances, externalApiKeys } from '@shared/schema';
 import { eq, sql } from 'drizzle-orm';
 import { oceanBasinSync, type BasinSyncPacket } from '../ocean-basin-sync';
+import { simpleApiRouter } from './simple-api';
+import { externalZeusRouter } from './zeus';
+import { externalDocumentsRouter } from './documents';
 
 export const externalApiRouter = Router();
+
+// Mount simple API wrapper at /simple
+externalApiRouter.use('/simple', simpleApiRouter);
+
+// Mount Zeus chat API
+externalApiRouter.use('/zeus', externalZeusRouter);
+
+// Mount documents API
+externalApiRouter.use('/documents', externalDocumentsRouter);
 
 /**
  * Centralized route definitions for DRY compliance

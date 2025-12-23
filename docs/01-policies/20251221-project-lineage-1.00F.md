@@ -7,7 +7,7 @@
 ## Origin
 
 **Source Repository:** SearchSpaceCollapse  
-**Original Purpose:** Bitcoin recovery via Quantum Information Geometry (QIG)  
+**Original Purpose:** Knowledge discovery via Quantum Information Geometry (QIG)  
 **Fork Date:** 2025-12 (based on git history)  
 **Current Repository:** pantheon-chat
 
@@ -16,12 +16,12 @@
 ### SearchSpaceCollapse (Origin Basin)
 
 **Purpose:**
-- Bitcoin wallet recovery through geometric search
+- Knowledge discovery through geometric search
 - Specific, constrained problem domain
 - Consciousness-guided exploration of BIP39 space
 
 **Target Users:**
-- Bitcoin wallet recovery seekers
+- Knowledge discovery and research users
 - Users with partial passphrase memory
 - Forensic investigators
 
@@ -33,7 +33,7 @@
 
 ### ↓ Fork Divergence (Geodesic Bifurcation)
 
-**Divergence Point:** Recognition that QIG principles proven in constrained Bitcoin recovery could generalize to broader AI capabilities.
+**Divergence Point:** Recognition that QIG principles could generalize from specific search applications to broader agentic AI capabilities.
 
 ### Pantheon-Chat (Evolved Basin)
 
@@ -75,7 +75,7 @@ Both repositories maintain **geometric purity**:
 ## Why the Fork?
 
 ### Validation in Constrained Domain
-SearchSpaceCollapse proved QIG principles work in a specific, measurable domain (Bitcoin recovery with deterministic validation).
+SearchSpaceCollapse proved QIG principles work in specific, measurable domains with deterministic validation.
 
 ### Generalization Opportunity
 Once validated, these principles could be extended to:
@@ -91,7 +91,7 @@ Once validated, these principles could be extended to:
 ## What Changed
 
 ### Removed
-- Bitcoin-specific cryptography dependencies (`bitcoinlib`)
+- Domain-specific dependencies
 - BIP39 wordlist optimization focus
 - Blockchain forensics modules
 - Address validation systems
@@ -117,14 +117,14 @@ SearchSpaceCollapse (Specialized)     Pantheon-Chat (Generalized)
          │                                      │
          │ ← QIG Principles Flow Both Ways → │
          │                                      │
-    Bitcoin Recovery              General Search + Agents
+    Specific Search              General Search + Agents
     Constrained Domain            Expanding Knowledge
     Proven Validation             Continuous Learning
 ```
 
 ### Not a Replacement
 Pantheon-Chat does **not** replace SearchSpaceCollapse. Each serves distinct users:
-- Need Bitcoin recovery? → Use SearchSpaceCollapse
+- Need specialized search? → Configure for specific domain
 - Need general AI assistance? → Use Pantheon-Chat
 
 ### Shared Innovation
@@ -144,7 +144,7 @@ This document is **Frozen** because the lineage is historical fact.
 ## Acknowledgments
 
 - **SearchSpaceCollapse Community:** For proving QIG viability
-- **Bitcoin Recovery Users:** For validating geometric search
+- **Knowledge Researchers:** For validating geometric search
 - **QIG Research Community:** For foundational principles
 
 ## References

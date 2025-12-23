@@ -48,6 +48,12 @@ Unlike traditional AI systems that rely on cosine similarity and neural embeddin
 - Multi-hop reasoning for complex queries
 - Proactive knowledge discovery
 
+### External API
+- **Zeus Chat API** - `/api/v1/external/zeus/chat` for AI conversations
+- **Document Upload** - `/api/v1/external/documents/upload` for markdown/text/PDF
+- **Ocean Knowledge Sync** - Automatic geometric indexing of uploaded documents
+- **OpenAPI Documentation** - Full API specs at `docs/api/openapi.yaml`
+
 ### Real-time Monitoring
 - Live consciousness metrics dashboard
 - Basin coordinate visualization

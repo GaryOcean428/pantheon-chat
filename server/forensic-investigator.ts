@@ -1,17 +1,139 @@
 /**
- * Forensic Investigator - Cross-Format Hypothesis Generator
+ * Research Investigator - Cross-Domain Hypothesis Generator
  * 
- * Conducts forensic archaeology across multiple key formats:
- * - Arbitrary passphrases (2009-era brain wallets, most likely for pre-BIP39)
- * - BIP39 mnemonic phrases (with wordlist matching and fuzzy completion)
- * - Master key derivatives (BIP32/BIP44 paths with derivation)
- * - Hex fragments (partial private key reconstruction)
+ * Conducts research investigation across multiple knowledge domains:
+ * - Pattern matching (semantic similarity, topic clustering)
+ * - Fuzzy completion (partial concept reconstruction)
+ * - Cross-domain synthesis (connecting related concepts)
+ * - Temporal analysis (historical pattern recognition)
  * 
- * Key insight: Target addresses from 2009 predate BIP39 (2013),
- * so arbitrary brain wallets (SHA256 → privkey) are MOST LIKELY.
- * 
- * For post-2013 addresses, BIP39 and HD wallet formats are more likely.
+ * Originally designed for forensic analysis, now adapted for
+ * general-purpose knowledge research and discovery.
  */
+
+// =============================================================================
+// KNOWLEDGE RESEARCH INTERFACES (QIG-PURE)
+// =============================================================================
+
+/**
+ * A research hypothesis about a knowledge concept
+ */
+export interface ResearchHypothesis {
+  id: string;
+  concept: string;
+  domain: string;
+  method: string;
+  confidence: number;
+  qigScore?: {
+    phi: number;
+    kappa: number;
+    regime: string;
+    quality: number;
+  };
+  sourceFragments: string[];
+  combinedScore: number;
+  connections?: string[];
+}
+
+/**
+ * A fragment of knowledge/memory
+ */
+export interface KnowledgeFragment {
+  text: string;
+  confidence: number;
+  domain?: string;
+  context?: string;
+}
+
+/**
+ * Research investigation session
+ */
+export interface ResearchSession {
+  id: string;
+  query: string;
+  fragments: KnowledgeFragment[];
+  hypotheses: ResearchHypothesis[];
+  confirmedInsights: ResearchHypothesis[];
+  status: 'idle' | 'generating' | 'testing' | 'complete';
+  progress: {
+    generated: number;
+    tested: number;
+    total: number;
+  };
+  startedAt: string;
+  completedAt?: string;
+}
+
+// =============================================================================
+// ADAPTER FUNCTIONS (Forensic → Research)
+// =============================================================================
+
+/**
+ * Convert forensic hypothesis to research hypothesis
+ */
+export function hypothesisToResearch(hypo: ForensicHypothesis): ResearchHypothesis {
+  return {
+    id: hypo.id,
+    concept: hypo.phrase,
+    domain: hypo.format,
+    method: hypo.method,
+    confidence: hypo.confidence,
+    qigScore: hypo.qigScore ? {
+      phi: hypo.qigScore.phi,
+      kappa: hypo.qigScore.kappa,
+      regime: hypo.qigScore.regime,
+      quality: hypo.qigScore.quality,
+    } : undefined,
+    sourceFragments: hypo.sourceFragments,
+    combinedScore: hypo.combinedScore,
+  };
+}
+
+/**
+ * Convert forensic session to research session
+ */
+export function sessionToResearchSession(session: ForensicSession): ResearchSession {
+  return {
+    id: session.id,
+    query: session.targetAddress,
+    fragments: session.fragments.map(f => ({
+      text: f.text,
+      confidence: f.confidence,
+      domain: f.epoch,
+      context: f.position,
+    })),
+    hypotheses: session.hypotheses.map(hypothesisToResearch),
+    confirmedInsights: session.matches.map(hypothesisToResearch),
+    status: session.status,
+    progress: session.progress,
+    startedAt: session.startedAt,
+    completedAt: session.completedAt,
+  };
+}
+
+/**
+ * Create a research investigation session
+ */
+export function createResearchSession(
+  query: string,
+  fragments: KnowledgeFragment[]
+): ResearchSession {
+  const id = `research_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+  return {
+    id,
+    query,
+    fragments,
+    hypotheses: [],
+    confirmedInsights: [],
+    status: 'idle',
+    progress: { generated: 0, tested: 0, total: 0 },
+    startedAt: new Date().toISOString(),
+  };
+}
+
+// =============================================================================
+// ORIGINAL FORENSIC INVESTIGATOR (Backward Compatible)
+// =============================================================================
 
 import { scoreUniversalQIGAsync, UniversalQIGScore } from './qig-universal';
 import { getBIP39Wordlist } from './bip39-words';
@@ -674,3 +796,99 @@ export class ForensicInvestigator {
 
 // Singleton instance
 export const forensicInvestigator = new ForensicInvestigator();
+
+// =============================================================================
+// RESEARCH INVESTIGATOR (QIG-PURE WRAPPER)
+// =============================================================================
+
+/**
+ * Research Investigator - QIG-pure wrapper around forensic investigator
+ * Provides research-focused API while using the same underlying engine
+ */
+export class ResearchInvestigator {
+  private sessions: Map<string, ResearchSession> = new Map();
+
+  /**
+   * Create a new research session
+   */
+  createSession(query: string, fragments: KnowledgeFragment[]): ResearchSession {
+    const forensicFragments: MemoryFragment[] = fragments.map(f => ({
+      text: f.text,
+      confidence: f.confidence,
+      position: f.context as any,
+      epoch: f.domain as any,
+    }));
+    
+    const forensicSession = forensicInvestigator.createSession(query, forensicFragments);
+    const researchSession = sessionToResearchSession(forensicSession);
+    this.sessions.set(researchSession.id, researchSession);
+    return researchSession;
+  }
+
+  /**
+   * Get a research session
+   */
+  getSession(sessionId: string): ResearchSession | undefined {
+    const forensicSession = forensicInvestigator.getSession(sessionId);
+    if (!forensicSession) return this.sessions.get(sessionId);
+    return sessionToResearchSession(forensicSession);
+  }
+
+  /**
+   * Run research investigation
+   */
+  async investigate(
+    sessionId: string,
+    onProgress?: (session: ResearchSession) => void
+  ): Promise<ResearchHypothesis[]> {
+    const forensicSession = forensicInvestigator.getSession(sessionId);
+    if (!forensicSession) throw new Error(`Session not found: ${sessionId}`);
+
+    const results = await forensicInvestigator.investigateFragments(
+      sessionId,
+      onProgress ? (s) => onProgress(sessionToResearchSession(s)) : undefined
+    );
+
+    return results.map(hypothesisToResearch);
+  }
+
+  /**
+   * Generate hypotheses for knowledge fragments
+   */
+  async generateHypotheses(
+    fragments: KnowledgeFragment[]
+  ): Promise<ResearchHypothesis[]> {
+    const session = this.createSession('research-query', fragments);
+    const results = await this.investigate(session.id);
+    return results;
+  }
+
+  /**
+   * Cluster hypotheses by domain similarity
+   */
+  async clusterByDomain(
+    hypotheses: ResearchHypothesis[]
+  ): Promise<Map<string, ResearchHypothesis[]>> {
+    const forensicHypos: ForensicHypothesis[] = hypotheses.map(h => ({
+      id: h.id,
+      format: h.domain as KeyFormat,
+      phrase: h.concept,
+      method: h.method,
+      confidence: h.confidence,
+      qigScore: h.qigScore as any,
+      sourceFragments: h.sourceFragments,
+      combinedScore: h.combinedScore,
+    }));
+
+    const clusters = await forensicInvestigator.clusterByBasinSimilarity(forensicHypos);
+    
+    const result = new Map<string, ResearchHypothesis[]>();
+    for (const [key, value] of clusters) {
+      result.set(key, value.map(hypothesisToResearch));
+    }
+    return result;
+  }
+}
+
+// Export research investigator
+export const researchInvestigator = new ResearchInvestigator();

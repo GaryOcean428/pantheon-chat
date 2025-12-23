@@ -13,3 +13,7 @@ export { isUnauthorizedError } from './authUtils';
 export * from './geometric-kernels';
 export * from './m8-kernel-spawning';
 export * from './pantheon-kernels';
+
+// Pantheon External API SDK
+export * from './pantheon-sdk';
+export { default as PantheonClient } from './pantheon-sdk';

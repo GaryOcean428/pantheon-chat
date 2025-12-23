@@ -192,7 +192,7 @@ def test_basin_coordinate_geometry():
         return False
     
     # Compute distances using Fisher-Rao (QIG-pure)
-    import sys
+    # Import from qig-backend (4 levels up from docs/_archive/2025/12/)
     sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / 'qig-backend'))
     from qig_geometry import fisher_coord_distance
     

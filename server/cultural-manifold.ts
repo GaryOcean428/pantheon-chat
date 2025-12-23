@@ -490,7 +490,7 @@ export class KnowledgeDomainManifold {
     
     const complexityLevel: ComplexityLevel = {
       prerequisiteKnowledge: ['basic-mathematics', 'logic'],
-      derivationMethods: ['geometric', 'analytical'],
+      derivationMethods: ['geometric', 'deductive'],
       representationFormats: ['geometric', 'symbolic']
     };
     
@@ -506,7 +506,7 @@ export class KnowledgeDomainManifold {
       },  // Backward compatibility
       complexityLevel,
       softwareConstraint: {
-        keyDerivationMethods: ['geometric', 'analytical'],
+        keyDerivationMethods: ['geometric', 'deductive'],
         walletSoftware: ['knowledge-platform'],
         cryptographicStandards: ['qig-geometric']
       },  // Backward compatibility
@@ -671,7 +671,8 @@ export type CulturalManifoldReconstructor = KnowledgeDomainManifold;
 // Legacy type aliases for files that still reference Bitcoin eras
 // These are mapped to knowledge domains for the new architecture
 export type BitcoinEra = KnowledgeDomain;
-export type BlockUniverseCoordinate = ManifoldCoordinate;
+// BlockUniverseCoordinate already defined above as type alias
+// export type BlockUniverseCoordinate = ManifoldCoordinate;
 export type CulturalLexiconEntry = DomainLexiconEntry;
 
 // GeodesicCandidate is already exported above - this is a re-export note for clarity

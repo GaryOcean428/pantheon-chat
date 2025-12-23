@@ -40,6 +40,7 @@ function checkWsRateLimit(peerId: string): boolean {
   return true;
 }
 
+import documentsRouter from "./routes/documents";
 import {
   adminRouter,
   attentionMetricsRouter,
@@ -56,7 +57,7 @@ import {
   vocabularyRouter,
 } from "./routes/index";
 
-import { externalApiRouter } from "./external-api";
+import { externalRouter as externalApiRouter, documentsRouter as externalDocsRouter, initExternalWebSocket } from "./external-api";
 
 import type { Candidate } from "@shared/schema";
 import { randomUUID } from "crypto";
@@ -288,6 +289,8 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
   app.use("/api/ocean", oceanRouter);
   app.use("/api", adminRouter);
   app.use("/api/olympus", olympusRouter);
+  app.use("/api/documents", externalDocsRouter);
+  // apiDocsRouter removed - API docs served via OpenAPI spec
   app.use("/api/qig/autonomic/agency", autonomicAgencyRouter);
   app.use("/api/federation", federationRouter);
 
@@ -714,7 +717,6 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
   console.log("[TelemetryWS] WebSocket server initialized on /ws/telemetry");
 
   // Set up WebSocket server for external API streaming
-  const { initExternalWebSocket } = await import("./external-api");
   initExternalWebSocket(httpServer);
   console.log("[ExternalWS] WebSocket server initialized on /ws/v1/external/stream");
 
