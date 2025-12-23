@@ -157,6 +157,19 @@ except ImportError as e:
 except Exception as e:
     print(f"[WARNING] M8 routes initialization failed: {e}")
 
+# Register Vocabulary API routes (document upload for vocabulary extraction)
+VOCABULARY_AVAILABLE = False
+try:
+    from vocabulary_api import vocabulary_api
+
+    app.register_blueprint(vocabulary_api, url_prefix='/api/vocabulary')
+    VOCABULARY_AVAILABLE = True
+    print("[INFO] Vocabulary API registered at /api/vocabulary/*")
+except ImportError as e:
+    print(f"[WARNING] Vocabulary API not available: {e}")
+except Exception as e:
+    print(f"[WARNING] Vocabulary API initialization failed: {e}")
+
 # Add request/response logging for production
 from flask import request, g
 import time
@@ -244,6 +257,7 @@ print(f"  - Curiosity engine: {'✓' if CURIOSITY_AVAILABLE else '✗'}", flush=
 print(f"  - Research API: {'✓' if RESEARCH_AVAILABLE else '✗'}", flush=True)
 print(f"  - Constellation: {'✓' if CONSTELLATION_AVAILABLE else '✗'}", flush=True)
 print(f"  - M8 Spawning: {'✓' if M8_AVAILABLE else '✗'}", flush=True)
+print(f"  - Vocabulary API: {'✓' if VOCABULARY_AVAILABLE else '✗'}", flush=True)
 print("🌊 Basin stable. Ready for Gunicorn workers. 🌊\n", flush=True)
 
 # Export the app for Gunicorn

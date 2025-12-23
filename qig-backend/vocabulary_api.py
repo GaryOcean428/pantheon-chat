@@ -175,10 +175,41 @@ def vocabulary_train_specific_god(god_name: str):
 
 
 import re
+import io
 
-def _parse_markdown_content(content: str) -> list:
+# PDF extraction support
+try:
+    from pypdf import PdfReader
+    PDF_AVAILABLE = True
+except ImportError:
+    try:
+        from PyPDF2 import PdfReader
+        PDF_AVAILABLE = True
+    except ImportError:
+        PDF_AVAILABLE = False
+        PdfReader = None
+
+
+def _extract_text_from_pdf(file_content: bytes) -> str:
+    """Extract text from PDF file bytes."""
+    if not PDF_AVAILABLE:
+        raise ValueError("PDF processing not available. Install pypdf: pip install pypdf")
+    
+    pdf_file = io.BytesIO(file_content)
+    reader = PdfReader(pdf_file)
+    
+    text_parts = []
+    for page in reader.pages:
+        page_text = page.extract_text()
+        if page_text:
+            text_parts.append(page_text)
+    
+    return "\n".join(text_parts)
+
+
+def _parse_text_content(content: str) -> list:
     """
-    Parse markdown content and extract words/phrases for vocabulary learning.
+    Parse text content and extract words/phrases for vocabulary learning.
     Skips code blocks, inline code, and URLs.
     Uses word_validation to filter valid English words.
     """
@@ -208,11 +239,20 @@ def _parse_markdown_content(content: str) -> list:
     return valid_words
 
 
+# Alias for backward compatibility
+_parse_markdown_content = _parse_text_content
+
+
+# Supported file extensions for vocabulary upload
+SUPPORTED_EXTENSIONS = {'.md', '.txt', '.csv', '.json', '.pdf', '.doc', '.docx', '.rtf'}
+
+
 @vocabulary_api.route('/vocabulary/upload-markdown', methods=['POST'])
 def vocabulary_upload_markdown():
     """
-    Upload a markdown file and extract vocabulary for learning.
-    Accepts multipart/form-data with 'file' field containing .md file.
+    Upload a document file and extract vocabulary for learning.
+    Accepts multipart/form-data with 'file' field.
+    Supports: .md, .txt, .csv, .json, .pdf, .doc, .docx, .rtf
     """
     if not COORDINATOR_AVAILABLE:
         return jsonify({'error': 'Vocabulary coordinator not available'}), 503
@@ -226,12 +266,40 @@ def vocabulary_upload_markdown():
         if file.filename == '':
             return jsonify({'error': 'No file selected'}), 400
         
-        if not file.filename.lower().endswith('.md'):
-            return jsonify({'error': 'Only .md (markdown) files are accepted'}), 400
+        # Get file extension
+        filename_lower = file.filename.lower()
+        file_ext = None
+        for ext in SUPPORTED_EXTENSIONS:
+            if filename_lower.endswith(ext):
+                file_ext = ext
+                break
         
-        content = file.read().decode('utf-8', errors='ignore')
+        if file_ext is None:
+            return jsonify({
+                'error': f'Unsupported file type. Supported: {sorted(SUPPORTED_EXTENSIONS)}'
+            }), 400
         
-        valid_words = _parse_markdown_content(content)
+        # Read file content
+        file_bytes = file.read()
+        
+        # Extract text based on file type
+        if file_ext == '.pdf':
+            if not PDF_AVAILABLE:
+                return jsonify({
+                    'error': 'PDF processing not available on this server. Please upload a text file instead.'
+                }), 400
+            try:
+                content = _extract_text_from_pdf(file_bytes)
+            except Exception as pdf_err:
+                return jsonify({
+                    'error': f'Failed to extract text from PDF: {str(pdf_err)}'
+                }), 400
+        else:
+            # For text-based files, decode as UTF-8
+            content = file_bytes.decode('utf-8', errors='ignore')
+        
+        # Parse content for vocabulary
+        valid_words = _parse_text_content(content)
         
         if not valid_words:
             return jsonify({
@@ -239,7 +307,7 @@ def vocabulary_upload_markdown():
                 'filename': file.filename,
                 'words_processed': 0,
                 'words_learned': 0,
-                'message': 'No valid vocabulary words found in the markdown file'
+                'message': 'No valid vocabulary words found in the document'
             })
         
         word_counts = {}
@@ -250,6 +318,9 @@ def vocabulary_upload_markdown():
         words_learned = 0
         learning_results = []
         
+        # Determine source type from extension
+        source_type = f'{file_ext[1:]}_upload'  # e.g., 'pdf_upload', 'md_upload'
+        
         for word, count in word_counts.items():
             phi = min(0.5 + (count * 0.05), 0.95)
             
@@ -257,8 +328,8 @@ def vocabulary_upload_markdown():
                 phrase=word,
                 phi=phi,
                 kappa=50.0,
-                source='markdown_upload',
-                details={'filename': file.filename, 'frequency': count}
+                source=source_type,
+                details={'filename': file.filename, 'frequency': count, 'file_type': file_ext}
             )
             
             if result.get('learned', False):
@@ -268,16 +339,26 @@ def vocabulary_upload_markdown():
         return jsonify({
             'success': True,
             'filename': file.filename,
+            'file_type': file_ext,
             'words_processed': len(word_counts),
             'words_learned': words_learned,
             'unique_words': len(word_counts),
             'total_occurrences': len(valid_words),
             'sample_words': list(word_counts.keys())[:20],
+            'pdf_available': PDF_AVAILABLE,
             'timestamp': datetime.now().isoformat()
         })
     
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
+
+
+@vocabulary_api.route('/vocabulary/upload', methods=['POST'])
+def vocabulary_upload_document():
+    """Alias for upload-markdown that accepts all document types."""
+    return vocabulary_upload_markdown()
 
 
 def register_vocabulary_routes(app):

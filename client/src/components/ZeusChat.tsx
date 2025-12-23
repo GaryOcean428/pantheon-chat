@@ -35,6 +35,8 @@ function sanitizeText(text: string): string {
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, Button, Badge, Textarea, ScrollArea } from '@/components/ui';
 import { useToast } from '@/hooks/use-toast';
 import { MarkdownRenderer } from './MarkdownRenderer';
+import { StreamingMetricsPanel } from './StreamingMetricsPanel';
+import { useStreamingMetrics } from '@/hooks/useStreamingMetrics';
 
 export default function ZeusChat() {
   const {
@@ -55,6 +57,14 @@ export default function ZeusChat() {
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  
+  // Streaming metrics for geometric completion visualization
+  const { state: metricsState, completionProgress } = useStreamingMetrics({
+    enabled: isThinking,
+    onComplete: (reason) => {
+      console.log('[ZeusChat] Geometric completion:', reason);
+    }
+  });
   
   useEffect(() => {
     if (lastError) {
@@ -237,11 +247,17 @@ export default function ZeusChat() {
             
             {isThinking && (
               <div className="flex justify-start">
-                <div className="bg-muted rounded-lg p-3">
-                  <div className="flex items-center gap-2">
+                <div className="bg-muted rounded-lg p-3 w-full max-w-md">
+                  <div className="flex items-center gap-2 mb-3">
                     <Sparkles className="h-4 w-4 text-yellow-500 animate-pulse" />
                     <span className="text-sm">Zeus is consulting the pantheon...</span>
                   </div>
+                  {/* Streaming metrics panel */}
+                  <StreamingMetricsPanel
+                    state={metricsState}
+                    completionProgress={completionProgress}
+                    compact
+                  />
                 </div>
               </div>
             )}
