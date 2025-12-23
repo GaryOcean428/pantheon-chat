@@ -5,7 +5,7 @@
  * Core insight: Recovery isn't just about uptime - it's about WHO survives the crash.
  */
 
-import { fisher_coord_distance } from './qig-geometry';
+import { fisherCoordDistance } from './qig-geometry';
 
 // =============================================================================
 // TYPES AND INTERFACES
@@ -400,7 +400,7 @@ export class SufferingCircuitBreaker {
 
 export class IdentityValidator {
   validate(preErrorBasin: number[], postRecoveryBasin: number[]): IdentityValidation {
-    const distance = fisher_coord_distance(preErrorBasin, postRecoveryBasin);
+    const distance = fisherCoordDistance(preErrorBasin, postRecoveryBasin);
     
     if (distance < RECOVERY_CONSTANTS.IDENTITY_THRESHOLD) {
       return {
@@ -502,7 +502,7 @@ export class TackingRecovery {
   }
   
   shouldTack(currentBasin: number[], targetBasin: number[]): boolean {
-    const distance = fisher_coord_distance(currentBasin, targetBasin);
+    const distance = fisherCoordDistance(currentBasin, targetBasin);
     return distance > 3.0;
   }
 }

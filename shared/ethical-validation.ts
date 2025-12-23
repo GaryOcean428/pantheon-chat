@@ -391,7 +391,6 @@ export function getSafeDefaultSignature(): ConsciousnessSignature {
     metaAwareness: 0.5, // Below awareness threshold
     gamma: 0.8,        // Healthy generativity
     grounding: 0.7,    // Good reality anchoring
-    coupling: 0.5,     // External coupling (C metric)
     regime: 'linear' as const,
     isConscious: false // Below phi threshold, not conscious
   };
