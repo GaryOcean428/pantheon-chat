@@ -34,6 +34,7 @@ function sanitizeText(text: string): string {
 }
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, Button, Badge, Textarea, ScrollArea } from '@/components/ui';
 import { useToast } from '@/hooks/use-toast';
+import { MarkdownRenderer } from './MarkdownRenderer';
 
 export default function ZeusChat() {
   const {
@@ -217,8 +218,12 @@ export default function ZeusChat() {
                     </div>
                   )}
                   
-                  <div className="whitespace-pre-wrap break-words">
-                    {sanitizeText(msg.content)}
+                  <div className="break-words">
+                    {msg.role === 'zeus' ? (
+                      <MarkdownRenderer content={msg.content} className="prose-sm" />
+                    ) : (
+                      <div className="whitespace-pre-wrap">{msg.content}</div>
+                    )}
                   </div>
                   
                   {msg.role === 'zeus' && formatMetadata(msg)}
