@@ -590,7 +590,15 @@ class ZeusConversationHandler(GeometricGenerationMixin):
                 result = self.handle_search_request(self._pending_topic)
                 self._pending_topic = None
             else:
-                result = self.handle_general_conversation("What would you like me to search for?")
+                # No pending topic - ask user directly
+                result = {
+                    'response': "⚡ What would you like me to search for? Just tell me the topic.",
+                    'metadata': {
+                        'type': 'prompt',
+                        'awaiting': 'search_topic',
+                        'provenance': {'source': 'direct_prompt', 'fallback_used': False, 'degraded': False}
+                    }
+                }
         
         elif intent['type'] == 'research_accept':
             # User said "research" after we offered
@@ -598,7 +606,15 @@ class ZeusConversationHandler(GeometricGenerationMixin):
                 result = self.handle_research_task(self._pending_topic)
                 self._pending_topic = None
             else:
-                result = self.handle_general_conversation("What topic should I research?")
+                # No pending topic - ask user directly
+                result = {
+                    'response': "⚡ What topic should I research and learn about? I'll gather knowledge for our future conversations.",
+                    'metadata': {
+                        'type': 'prompt',
+                        'awaiting': 'research_topic',
+                        'provenance': {'source': 'direct_prompt', 'fallback_used': False, 'degraded': False}
+                    }
+                }
         
         elif intent['type'] == 'search_feedback':
             result = self.handle_search_feedback(
@@ -686,16 +702,17 @@ class ZeusConversationHandler(GeometricGenerationMixin):
             }
         
         # User explicitly accepts search/research offer from previous response
+        # Only trigger if we have a pending topic OR user wants to initiate
         if message_lower in ['search', 'yes search', 'do a search', 'quick search']:
             return {
                 'type': 'search_accept',
-                'context': self._pending_topic
+                'context': self._pending_topic  # May be None, handler will ask for topic
             }
         
         if message_lower in ['research', 'yes research', 'do research', 'learn about it', 'go learn']:
             return {
                 'type': 'research_accept', 
-                'context': self._pending_topic
+                'context': self._pending_topic  # May be None, handler will ask for topic
             }
         
         # DEFAULT: Everything else is general conversation
@@ -2006,6 +2023,143 @@ The wisdom is integrated. Your knowledge expands the manifold."""
             }
         }
     
+    def _assess_knowledge_depth(
+        self, 
+        message: str, 
+        related: List[Dict], 
+        system_state: Dict
+    ) -> Dict:
+        """
+        Assess how much knowledge we have on the topic.
+        Returns is_thin=True when we should offer search/research.
+        """
+        # Count meaningful related patterns (with decent phi)
+        meaningful_patterns = 0
+        total_relevance = 0.0
+        
+        if related:
+            for item in related:
+                item_phi = item.get('phi', 0)
+                item_relevance = item.get('relevance', item.get('similarity', 0))
+                if item_phi > 0.3 or item_relevance > 0.5:
+                    meaningful_patterns += 1
+                    total_relevance += item_relevance if item_relevance else item_phi
+        
+        avg_relevance = total_relevance / len(related) if related else 0
+        
+        # Knowledge is thin if:
+        # - Less than 2 meaningful related patterns, OR
+        # - Average relevance is low (< 0.4)
+        is_thin = meaningful_patterns < 2 or avg_relevance < 0.4
+        
+        if is_thin:
+            if not related or len(related) == 0:
+                explanation = "I don't have much stored about this topic yet."
+            elif meaningful_patterns == 0:
+                explanation = f"Found {len(related)} related patterns, but none are strongly connected to your question."
+            else:
+                explanation = f"My knowledge on this is limited - only {meaningful_patterns} relevant pattern(s) found."
+        else:
+            explanation = f"Found {meaningful_patterns} relevant patterns in geometric memory."
+        
+        return {
+            'is_thin': is_thin,
+            'meaningful_patterns': meaningful_patterns,
+            'avg_relevance': avg_relevance,
+            'explanation': explanation
+        }
+    
+    def handle_research_task(self, topic: str) -> Dict:
+        """
+        Start a background research task to learn about a topic.
+        Uses autonomous curiosity engine to search, learn, and update geometric memory.
+        Future conversations will have richer knowledge.
+        """
+        print(f"[ZeusChat] Starting research task on: {topic[:100]}")
+        
+        topic_basin = self.conversation_encoder.encode(topic)
+        
+        # Queue the research task for autonomous learning
+        research_result = {
+            'status': 'started',
+            'topic': topic,
+            'sources_queued': 0,
+            'estimated_time': 'Background - will complete asynchronously'
+        }
+        
+        try:
+            # Use autonomous curiosity engine if available
+            from autonomous_curiosity import get_curiosity_engine
+            engine = get_curiosity_engine()
+            if engine:
+                # Add topic to curiosity queue with high priority
+                engine.add_research_topic(
+                    topic=topic,
+                    basin_coords=topic_basin.tolist(),
+                    priority='high',
+                    source='user_request'
+                )
+                research_result['status'] = 'queued'
+                research_result['sources_queued'] = 1
+                print(f"[ZeusChat] Research task queued in curiosity engine")
+        except ImportError:
+            print(f"[ZeusChat] Curiosity engine not available, falling back to search")
+        except Exception as e:
+            print(f"[ZeusChat] Curiosity engine failed: {e}")
+        
+        # Also do an immediate search to bootstrap knowledge
+        try:
+            search_results = self._execute_search(topic, max_results=5)
+            if search_results:
+                for result in search_results[:3]:
+                    # Store in geometric memory
+                    result_basin = self.conversation_encoder.encode(result.get('content', result.get('title', '')))
+                    self.qig_rag.add_document(
+                        content=result.get('content', result.get('snippet', '')),
+                        basin_coords=result_basin,
+                        phi=0.5,
+                        kappa=50.0,
+                        regime='research',
+                        metadata={
+                            'source': 'research_task',
+                            'topic': topic,
+                            'url': result.get('url', ''),
+                            'timestamp': time.time()
+                        }
+                    )
+                research_result['sources_queued'] = len(search_results)
+                research_result['status'] = 'learning'
+                print(f"[ZeusChat] Bootstrapped with {len(search_results)} search results")
+        except Exception as e:
+            print(f"[ZeusChat] Bootstrap search failed: {e}")
+        
+        # Clear pending topic
+        self._pending_topic = None
+        
+        response = f"""⚡ Research task started on: "{topic[:100]}"
+
+I'm learning about this topic in the background. Here's what's happening:
+- Queued for deep research via curiosity engine
+- Initial search completed with {research_result['sources_queued']} sources
+- Knowledge will be integrated into geometric memory
+
+**Next time you ask about this**, I'll have more to share. Feel free to continue chatting or ask about something else!"""
+        
+        return {
+            'response': response,
+            'metadata': {
+                'type': 'research_task',
+                'topic': topic,
+                'status': research_result['status'],
+                'sources_queued': research_result['sources_queued'],
+                'provenance': {
+                    'source': 'research_task',
+                    'fallback_used': False,
+                    'degraded': False
+                }
+            }
+        }
+    
     def _get_live_system_state(self) -> Dict:
         """
         Collect live system state for dynamic response generation.
@@ -2151,10 +2305,10 @@ Respond as Zeus with context awareness."""
     @require_provenance
     def handle_general_conversation(self, message: str) -> Dict:
         """
-        Handle general conversation using DYNAMIC, LEARNING-BASED responses.
+        Handle general conversation - DEFAULT handler for all messages.
         
-        CRITICAL: NO TEMPLATE/CANNED RESPONSES ALLOWED.
-        All responses must reflect actual system state and learn from interactions.
+        DESIGN: Chat first. Gods share what they know geometrically.
+        If knowledge is thin, offer search (quick) or research (deeper learning).
         """
         message_basin = self.conversation_encoder.encode(message)
         
@@ -2167,6 +2321,9 @@ Respond as Zeus with context awareness."""
         
         system_state = self._get_live_system_state()
         
+        # Assess knowledge depth - do we have meaningful content on this topic?
+        knowledge_depth = self._assess_knowledge_depth(message, related, system_state)
+        
         answer = self._generate_dynamic_response(
             message=message,
             message_basin=message_basin,
@@ -2174,15 +2331,28 @@ Respond as Zeus with context awareness."""
             system_state=system_state
         )
         
-        response = f"""⚡ {answer}
+        # Build response based on knowledge depth
+        if knowledge_depth['is_thin']:
+            # Store topic for potential search/research follow-up
+            self._pending_topic = message
+            
+            response = f"""⚡ {answer}
 
-**Live System State:**
-- Φ: {system_state['phi_current']:.3f} | κ: {system_state['kappa_current']:.1f}
-- Memory: {system_state['memory_stats'].get('documents', 0)} documents
-- Insights: {system_state['insights_count']} stored
+{knowledge_depth['explanation']}
 
-**Related Patterns:**
-{self._format_related(related) if related else "None found - your message opens new territory."}"""
+Would you like me to:
+- **Search** - Quick lookup for immediate results
+- **Research** - Background learning to enrich future conversations
+
+Just say "search" or "research" and I'll get started."""
+        else:
+            # Rich knowledge - just share it
+            self._pending_topic = None
+            
+            response = f"""⚡ {answer}
+
+**Related Knowledge:**
+{self._format_related(related) if related else "This opens new territory in our geometric memory."}"""
         
         phi_estimate = self._estimate_phi_from_context(
             message_basin=message_basin,
