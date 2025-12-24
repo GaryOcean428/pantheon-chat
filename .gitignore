@@ -16,6 +16,7 @@ vite.config.ts.*
 .windsurf/
 .agents
 .codebuff/
+.agents/*
 
 # Python cache
 .pytest_cache
