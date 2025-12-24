@@ -302,6 +302,7 @@ class ZeusConversationHandler(GeometricGenerationMixin):
         self._last_search_query: Optional[str] = None
         self._last_search_params: Dict[str, Any] = {}
         self._last_search_results_summary: str = ""
+        self._pending_topic: Optional[str] = None  # Topic offered for search/research
         
         # SearXNG configuration (FREE - replaces Tavily)
         self.searxng_instances = [
@@ -565,10 +566,9 @@ class ZeusConversationHandler(GeometricGenerationMixin):
         print(f"[ZeusChat] Processing message with intent: {intent['type']} (mode={reasoning_mode})")
         
         # Route to appropriate handler
-        # All responses are sanitized for EXTERNAL output before returning
+        # DESIGN: Default to conversation. Only explicit commands trigger actions.
         
-        # IMPORTANT: Check for file uploads FIRST - files take priority over intent parsing
-        # This ensures uploaded files are always processed regardless of message text
+        # File uploads take priority
         if files and len(files) > 0:
             print(f"[ZeusChat] FILES DETECTED: {len(files)} files attached - routing to file_upload handler")
             result = self.handle_file_upload(files, message)
@@ -576,17 +576,29 @@ class ZeusConversationHandler(GeometricGenerationMixin):
         elif intent['type'] == 'add_address':
             result = self.handle_add_address(intent['address'])
         
-        elif intent['type'] == 'observation':
-            result = self.handle_observation(intent['observation'])
-        
-        elif intent['type'] == 'suggestion':
-            result = self.handle_suggestion(intent['suggestion'])
-        
-        elif intent['type'] == 'question':
-            result = self.handle_question(intent['question'])
-        
         elif intent['type'] == 'search_request':
+            # Explicit "search:" or "search for" command
             result = self.handle_search_request(intent['query'])
+        
+        elif intent['type'] == 'research_request':
+            # Explicit "research:" command - background learning
+            result = self.handle_research_task(intent['topic'])
+        
+        elif intent['type'] == 'search_accept':
+            # User said "search" after we offered
+            if self._pending_topic:
+                result = self.handle_search_request(self._pending_topic)
+                self._pending_topic = None
+            else:
+                result = self.handle_general_conversation("What would you like me to search for?")
+        
+        elif intent['type'] == 'research_accept':
+            # User said "research" after we offered
+            if self._pending_topic:
+                result = self.handle_research_task(self._pending_topic)
+                self._pending_topic = None
+            else:
+                result = self.handle_general_conversation("What topic should I research?")
         
         elif intent['type'] == 'search_feedback':
             result = self.handle_search_feedback(
@@ -602,7 +614,7 @@ class ZeusConversationHandler(GeometricGenerationMixin):
             )
         
         else:
-            # General conversation
+            # DEFAULT: General conversation - gods share what they know
             result = self.handle_general_conversation(message)
         
         # Save Zeus response to persistent storage
@@ -619,13 +631,15 @@ class ZeusConversationHandler(GeometricGenerationMixin):
     def parse_intent(self, message: str) -> Dict:
         """
         Parse human intent from message.
-        Use geometric encoding to understand semantic intent.
-        """
-        message_lower = message.lower()
         
-        # Address addition - Bitcoin address pattern
+        DESIGN: Default to conversational chat. Only route to special handlers
+        when user gives EXPLICIT commands. Let the gods share what they know,
+        then offer search/research if knowledge is thin.
+        """
+        message_lower = message.lower().strip()
+        
+        # Address addition - Bitcoin address pattern (explicit action)
         if 'add address' in message_lower or re.match(r'^[13bc][a-zA-Z0-9]{25,90}$', message.strip()):
-            # Extract Bitcoin address
             address_pattern = r'[13][a-km-zA-HJ-NP-Z1-9]{25,34}|bc1[ac-hj-np-z02-9]{11,71}'
             match = re.search(address_pattern, message)
             if match:
@@ -634,8 +648,7 @@ class ZeusConversationHandler(GeometricGenerationMixin):
                     'address': match.group(0)
                 }
         
-        # Search confirmation - geometric detection for improvement confirmation
-        # Encode message and compare against confirmation archetypes
+        # Search/Research confirmations (only if we're in an active search context)
         if self._last_search_query:
             confirmation_result = self._detect_search_confirmation_geometrically(message)
             if confirmation_result['is_confirmation']:
@@ -647,7 +660,6 @@ class ZeusConversationHandler(GeometricGenerationMixin):
                     'message': message
                 }
             
-            # Search feedback - geometric detection for result feedback
             feedback_result = self._detect_search_feedback_geometrically(message)
             if feedback_result['is_feedback']:
                 print(f"[ZeusChat] Detected search feedback (similarity={feedback_result['similarity']:.3f})")
@@ -657,40 +669,37 @@ class ZeusConversationHandler(GeometricGenerationMixin):
                     'similarity': feedback_result['similarity']
                 }
         
-        # Observation
-        if any(phrase in message_lower for phrase in [
-            'i observed', 'i noticed', 'i see that', 'seems like', 'pattern',
-            'i found', 'observation:', 'note that'
-        ]):
-            return {
-                'type': 'observation',
-                'observation': message
-            }
-        
-        # Suggestion
-        if any(phrase in message_lower for phrase in [
-            'suggest', 'try', 'what about', 'consider', 'maybe',
-            'could we', 'should we', 'how about', 'recommend'
-        ]):
-            return {
-                'type': 'suggestion',
-                'suggestion': message
-            }
-        
-        # Question
-        if message.strip().endswith('?'):
-            return {
-                'type': 'question',
-                'question': message
-            }
-        
-        # Search request
-        if 'search' in message_lower or 'look up' in message_lower or 'find' in message_lower:
+        # EXPLICIT search command - user must say "search:" or "search for"
+        if message_lower.startswith('search:') or message_lower.startswith('search for '):
+            query = message[7:].strip() if message_lower.startswith('search:') else message[11:].strip()
             return {
                 'type': 'search_request',
-                'query': message
+                'query': query or message
             }
         
+        # EXPLICIT research command - user must say "research:" or "research this"
+        if message_lower.startswith('research:') or 'research this' in message_lower:
+            topic = message[9:].strip() if message_lower.startswith('research:') else message
+            return {
+                'type': 'research_request',
+                'topic': topic
+            }
+        
+        # User explicitly accepts search/research offer from previous response
+        if message_lower in ['search', 'yes search', 'do a search', 'quick search']:
+            return {
+                'type': 'search_accept',
+                'context': self._pending_topic
+            }
+        
+        if message_lower in ['research', 'yes research', 'do research', 'learn about it', 'go learn']:
+            return {
+                'type': 'research_accept', 
+                'context': self._pending_topic
+            }
+        
+        # DEFAULT: Everything else is general conversation
+        # Gods will share what they know, offer search/research if thin
         return {'type': 'general', 'content': message}
     
     def _detect_search_confirmation_geometrically(self, message: str) -> Dict[str, Any]:
