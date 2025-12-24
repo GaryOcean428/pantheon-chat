@@ -4,6 +4,15 @@ dist
 server/public
 vite.config.ts.*
 *.tar.gz
+.pytest_cache
+.venv
+.vscode
+.windsurf
+.agents
+.codebuff
+.mypy_cache
+.husky
+
 
 # Runtime data files (too large for GitHub, regenerated at runtime)
 data/geometric-memory.json
