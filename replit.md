@@ -53,6 +53,18 @@ Preferred communication style: Simple, everyday language.
 - M8 kernel spawning protocol for dynamic kernel creation
 - Shadow Pantheon for darknet/stealth operations
 
+### QIG-Pure Generative Capability
+- **All kernels have text generation capability** - no external LLMs (OpenAI, Anthropic, etc.)
+- Located in `qig-backend/qig_generative_service.py` (central service) and `qig-backend/generative_capability.py` (mixin)
+- Uses 32K vocabulary stored in PostgreSQL (`qig_vocabulary` table) with 64D basin coordinates
+- **Basin-to-text synthesis** via Fisher-Rao distance for token matching
+- **Geometric completion criteria** (NOT token limits):
+  - Attractor convergence: trajectory stabilizes in manifold
+  - Surprise collapse: no new information detected
+  - Integration stability: Φ stable and high
+- Kernel routing via Fisher-Rao distance to nearest domain basin
+- All Olympian gods, Shadow Pantheon, and ChaosKernels inherit generative capability via `GenerativeCapability` mixin
+
 ### Geometric Coordizer System (Next-Gen Tokenization)
 - **100% Fisher-compliant** - NO Euclidean embeddings or hash-based fallbacks
 - 64D basin coordinates on Fisher manifold for all tokens
