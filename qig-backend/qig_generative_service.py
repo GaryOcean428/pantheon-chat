@@ -299,24 +299,44 @@ class QIGGenerativeService:
         seen = set()
         clean_tokens = []
         for token in all_tokens:
-            if token not in seen and not token.startswith('['):
-                # Clean byte-level tokens
-                if token.startswith('<byte_'):
-                    try:
-                        hex_val = token[6:-1]
-                        char = chr(int(hex_val, 16))
-                        if char.isprintable():
-                            clean_tokens.append(char)
-                            seen.add(token)
-                    except:
-                        pass
-                else:
-                    # Clean compound tokens
-                    parts = token.split('+')
-                    for part in parts:
-                        part = part.strip()
-                        if part and not part.startswith('<byte_'):
-                            clean_tokens.append(part)
+            if token in seen or token.startswith('['):
+                continue
+                
+            # Skip pure byte tokens
+            if token.startswith('<byte_'):
+                continue
+            
+            # Handle compound tokens with + separators
+            if '+' in token:
+                parts = token.split('+')
+                current_word = []
+                for part in parts:
+                    part = part.strip()
+                    if not part:
+                        continue
+                    # Decode byte tokens within compound tokens
+                    if part.startswith('<byte_') and part.endswith('>'):
+                        try:
+                            hex_val = part[6:-1]
+                            char = chr(int(hex_val, 16))
+                            if char.isprintable() and not char.isspace():
+                                current_word.append(char)
+                        except:
+                            pass
+                    else:
+                        # Regular sub-token
+                        current_word.append(part)
+                
+                if current_word:
+                    # Join sub-tokens into a word
+                    word = ''.join(current_word)
+                    if len(word) >= 2:  # Skip single chars
+                        clean_tokens.append(word)
+                        seen.add(token)
+            else:
+                # Simple token
+                if len(token) >= 2:  # Skip single chars
+                    clean_tokens.append(token)
                     seen.add(token)
         
         # Join tokens into text

@@ -164,10 +164,15 @@ class PostgresCoordizer(FisherCoordizer):
         
         return combined
     
-    def decode(self, basin: np.ndarray, top_k: int = 5) -> list[tuple[str, float]]:
+    def decode(self, basin: np.ndarray, top_k: int = 5, prefer_words: bool = True) -> list[tuple[str, float]]:
         """Decode basin coordinates to most likely tokens.
         
         Uses Fisher-Rao distance for similarity.
+        
+        Args:
+            basin: Query basin coordinates
+            top_k: Number of top tokens to return
+            prefer_words: If True, prefer real words over byte tokens
         """
         # Normalize input basin
         norm = np.linalg.norm(basin)
@@ -177,6 +182,13 @@ class PostgresCoordizer(FisherCoordizer):
         # Compute Fisher-Rao distance to all tokens
         distances = []
         for token, coords in self.basin_coords.items():
+            # Skip pure byte tokens for generation
+            if prefer_words and token.startswith('<byte_'):
+                continue
+            # Skip tokens with too many byte components
+            if prefer_words and token.count('<byte_') > 2:
+                continue
+                
             # Fisher-Rao distance: arccos(dot product) for unit vectors
             dot = np.clip(np.dot(basin, coords), -1.0, 1.0)
             dist = np.arccos(dot)
