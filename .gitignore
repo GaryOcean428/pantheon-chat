@@ -33,3 +33,6 @@ qig-backend/data/qig_tokenizer_state.json
 .vscode/settings.json
 .vscode/**
 .windsurf/lifeguard.yaml
+
+# Codebuff generated cache/artifacts
+.codebuff/

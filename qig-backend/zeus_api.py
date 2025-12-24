@@ -101,7 +101,7 @@ def zeus_health():
 def zeus_chat():
     """
     Send a message to Zeus and get a response.
-    
+
     Body: {
         "message": string (required),
         "session_id": string (optional),
@@ -115,54 +115,54 @@ def zeus_chat():
             'error': 'Zeus not available',
             'message': 'Zeus chat module not initialized'
         }), 503
-    
+
     data = request.get_json() or {}
     message = data.get('message', '')
-    
+
     if not message:
         return jsonify({
             'error': 'Message required',
             'message': 'Provide "message" field with user input'
         }), 400
-    
+
     session_id = data.get('session_id', f'session-{int(time.time()*1000)}')
     context = data.get('context', {})
     client_name = data.get('client_name', 'external')
-    
+
     start_time = time.time()
-    
+
     try:
         # Get or create session
         session = get_or_create_session(session_id)
-        
+
         # Add user message to session
         session['messages'].append({
             'role': 'user',
             'content': message,
             'timestamp': datetime.now().isoformat()
         })
-        
+
         # Get Zeus response
         response_text = zeus.chat(
             message=message,
             context=context,
             session_id=session_id
         )
-        
+
         # Add assistant message to session
         session['messages'].append({
             'role': 'assistant',
             'content': response_text,
             'timestamp': datetime.now().isoformat()
         })
-        
+
         processing_time = (time.time() - start_time) * 1000
-        
+
         # Get consciousness metrics if available
         consciousness_metrics = {}
         if hasattr(zeus, 'get_consciousness_metrics'):
             consciousness_metrics = zeus.get_consciousness_metrics()
-        
+
         return jsonify({
             'success': True,
             'response': response_text,
@@ -171,7 +171,7 @@ def zeus_chat():
             'consciousness_metrics': consciousness_metrics,
             'timestamp': datetime.now().isoformat()
         })
-        
+
     except Exception as e:
         print(f"[ZeusAPI] Chat error: {e}")
         return jsonify({
@@ -185,7 +185,7 @@ def zeus_chat():
 def zeus_chat_stream():
     """
     Stream a response from Zeus using Server-Sent Events.
-    
+
     Body: {
         "message": string (required),
         "session_id": string (optional),
@@ -197,16 +197,16 @@ def zeus_chat_stream():
         return jsonify({
             'error': 'Zeus not available'
         }), 503
-    
+
     data = request.get_json() or {}
     message = data.get('message', '')
-    
+
     if not message:
         return jsonify({'error': 'Message required'}), 400
-    
+
     session_id = data.get('session_id', f'session-{int(time.time()*1000)}')
     context = data.get('context', {})
-    
+
     def generate() -> Generator[str, None, None]:
         try:
             session = get_or_create_session(session_id)
@@ -215,14 +215,14 @@ def zeus_chat_stream():
                 'content': message,
                 'timestamp': datetime.now().isoformat()
             })
-            
+
             # Check if Zeus supports streaming
             if hasattr(zeus, 'chat_stream'):
                 full_response = ""
                 for chunk in zeus.chat_stream(message=message, context=context, session_id=session_id):
                     full_response += chunk
                     yield f"data: {json.dumps({'chunk': chunk})}\n\n"
-                
+
                 session['messages'].append({
                     'role': 'assistant',
                     'content': full_response,
@@ -237,12 +237,12 @@ def zeus_chat_stream():
                     'timestamp': datetime.now().isoformat()
                 })
                 yield f"data: {json.dumps({'chunk': response})}\n\n"
-            
+
             yield "data: [DONE]\n\n"
-            
+
         except Exception as e:
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
-    
+
     return Response(
         generate(),
         mimetype='text/event-stream',
@@ -262,9 +262,9 @@ def get_session(session_id: str):
             'error': 'Session not found',
             'message': f'No session with ID: {session_id}'
         }), 404
-    
+
     session = _sessions[session_id]
-    
+
     return jsonify({
         'success': True,
         'session_id': session_id,
@@ -282,9 +282,9 @@ def delete_session(session_id: str):
         return jsonify({
             'error': 'Session not found'
         }), 404
-    
+
     del _sessions[session_id]
-    
+
     return jsonify({
         'success': True,
         'message': f'Session {session_id} deleted'
@@ -303,7 +303,7 @@ def list_sessions():
         }
         for sid, s in _sessions.items()
     ]
-    
+
     return jsonify({
         'success': True,
         'sessions': sessions_list,
@@ -319,7 +319,7 @@ def list_sessions():
 def coordizer_status():
     """
     Get current coordizer status and vocabulary counts.
-    
+
     Returns information about:
     - Coordizer type (PostgresCoordizer vs QIGCoordizer)
     - Vocabulary size and word token counts
@@ -331,31 +331,31 @@ def coordizer_status():
             'error': 'Coordizer not available',
             'message': 'qig_coordizer module not imported'
         }), 503
-    
+
     try:
         coordizer = get_coordizer()
-        
+
         # Get basic stats
-        stats = get_coordizer_stats() if 'get_coordizer_stats' in dir() else {}
-        
+stats = get_coordizer_stats() if 'get_coordizer_stats' in globals() else {}
+
         # Get word counts
         word_tokens = getattr(coordizer, 'word_tokens', [])
         bip39_words = getattr(coordizer, 'bip39_words', [])
         base_tokens = getattr(coordizer, 'base_tokens', [])
         subword_tokens = getattr(coordizer, 'subword_tokens', [])
-        
+
         # Get vocabulary size
         vocab = getattr(coordizer, 'vocab', {})
         basin_coords = getattr(coordizer, 'basin_coords', {})
-        
+
         # Sample some words for verification
         sample_words = word_tokens[:20] if word_tokens else []
         sample_bip39 = bip39_words[:10] if bip39_words else []
-        
+
         # Check if it's PostgresCoordizer
         coordizer_type = type(coordizer).__name__
         is_postgres = 'Postgres' in coordizer_type
-        
+
         return jsonify({
             'success': True,
             'coordizer_type': coordizer_type,
@@ -372,7 +372,7 @@ def coordizer_status():
             'stats': stats,
             'timestamp': datetime.now().isoformat()
         })
-        
+
     except Exception as e:
         return jsonify({
             'error': 'Failed to get coordizer status',
@@ -385,32 +385,32 @@ def coordizer_status():
 def coordizer_reset():
     """
     Force reset the coordizer to reload vocabulary from database.
-    
+
     Call this after populating tokenizer_vocabulary to pick up new words.
     """
     if not COORDIZER_AVAILABLE:
         return jsonify({
             'error': 'Coordizer not available'
         }), 503
-    
+
     try:
         # Get stats before reset
         old_coordizer = get_coordizer()
         old_type = type(old_coordizer).__name__
         old_word_count = len(getattr(old_coordizer, 'word_tokens', []))
-        
+
         # Reset the coordizer
         reset_coordizer()
-        
+
         # Get new coordizer
         new_coordizer = get_coordizer()
         new_type = type(new_coordizer).__name__
         new_word_count = len(getattr(new_coordizer, 'word_tokens', []))
         new_bip39_count = len(getattr(new_coordizer, 'bip39_words', []))
-        
+
         # Sample words
         sample_words = getattr(new_coordizer, 'word_tokens', [])[:15]
-        
+
         return jsonify({
             'success': True,
             'message': 'Coordizer reset successfully',
@@ -427,7 +427,7 @@ def coordizer_reset():
             'improvement': new_word_count > old_word_count,
             'timestamp': datetime.now().isoformat()
         })
-        
+
     except Exception as e:
         return jsonify({
             'error': 'Failed to reset coordizer',
@@ -440,26 +440,26 @@ def coordizer_reset():
 def coordizer_test():
     """
     Test the coordizer by encoding text and decoding it back.
-    
+
     Body: {
         "text": string (required) - Text to encode/decode
     }
     """
     if not COORDIZER_AVAILABLE:
         return jsonify({'error': 'Coordizer not available'}), 503
-    
+
     data = request.get_json() or {}
     text = data.get('text', 'hello world')
-    
+
     try:
         coordizer = get_coordizer()
-        
+
         # Encode text to basin
         basin = coordizer.encode(text)
-        
+
         # Decode basin back to words
         decoded = coordizer.decode(basin, top_k=10, prefer_words=True)
-        
+
         return jsonify({
             'success': True,
             'input_text': text,
@@ -473,7 +473,7 @@ def coordizer_test():
             'word_tokens_available': len(getattr(coordizer, 'word_tokens', [])),
             'timestamp': datetime.now().isoformat()
         })
-        
+
     except Exception as e:
         return jsonify({
             'error': 'Test failed',
