@@ -101,6 +101,7 @@ def load_corpus_coords(corpus_path: Path) -> Optional[np.ndarray]:
 def transform_vocab_to_records(checkpoint: dict) -> list[dict]:
     """Transform checkpoint vocab to database records."""
     records = []
+    seen_tokens = set()  # Track seen tokens to avoid duplicates
     vocab = checkpoint.get('vocab', {})
     merge_rules = checkpoint.get('merge_rules', [])
     scale_type = checkpoint.get('scale_type', 'byte')
@@ -119,6 +120,12 @@ def transform_vocab_to_records(checkpoint: dict) -> list[dict]:
             name = token_data.get('name', f'<token_{idx}>')
             vector = token_data.get('vector', [])
             frequency = token_data.get('frequency', 1)
+            
+            # Skip duplicate tokens (keep first occurrence)
+            if name in seen_tokens:
+                logger.debug(f"Skipping duplicate token: {name}")
+                continue
+            seen_tokens.add(name)
             
             # Skip if no vector
             if not vector or len(vector) != 64:
@@ -167,6 +174,9 @@ def transform_vocab_to_records(checkpoint: dict) -> list[dict]:
             logger.warning(f"Error processing token {idx_str}: {e}")
             continue
     
+    duplicates_skipped = len(vocab) - len(seen_tokens)
+    if duplicates_skipped > 0:
+        logger.info(f"Skipped {duplicates_skipped} duplicate tokens")
     logger.info(f"Transformed {len(records)} tokens for database insertion")
     return records
 
