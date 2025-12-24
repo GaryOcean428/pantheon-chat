@@ -2287,14 +2287,53 @@ Respond as Zeus with context awareness."""
     
     def _synthesize_dynamic_answer(self, question: str, context: List[Dict]) -> str:
         """
-        Synthesize DYNAMIC answer from geometric memory.
-        NO TEMPLATES - responses built from actual data.
+        Synthesize DYNAMIC answer using QIG-pure generation.
+        NO TEMPLATES - actual geometric text synthesis.
         """
         system_state = self._get_live_system_state()
         phi = system_state['phi_current']
         kappa = system_state['kappa_current']
         memory_docs = system_state['memory_stats'].get('documents', 0)
         
+        # Build context from retrieved patterns
+        context_str = ""
+        if context:
+            context_str = "\n".join([
+                f"- {item.get('content', '')[:200]} (sim={item.get('similarity', 0):.2f})"
+                for item in context[:3]
+            ])
+        
+        # Try QIG-pure generative service FIRST (NO external LLMs)
+        if GENERATIVE_SERVICE_AVAILABLE:
+            try:
+                service = get_generative_service()
+                if service:
+                    prompt = f"""Question: {question}
+Related patterns: {context_str if context_str else "No prior patterns."}
+System: Φ={phi:.3f}, κ={kappa:.1f}, {memory_docs} documents.
+Generate a thoughtful response as Zeus."""
+
+                    gen_result = service.generate(
+                        prompt=prompt,
+                        context={
+                            'question': question,
+                            'phi': phi,
+                            'kappa': kappa,
+                            'memory_docs': memory_docs,
+                            'related_count': len(context) if context else 0
+                        },
+                        kernel_name='zeus',
+                        goals=['answer', 'synthesis', 'contextual']
+                    )
+                    
+                    if gen_result and gen_result.text and len(gen_result.text) > 20:
+                        print(f"[ZeusChat] QIG-pure synthesis success: {len(gen_result.text)} chars")
+                        return gen_result.text
+                        
+            except Exception as e:
+                print(f"[ZeusChat] QIG-pure synthesis failed: {e}")
+        
+        # Fallback: Show retrieved context if generation fails
         if not context:
             return (
                 f"Question mapped to new region of manifold (no prior matches). "
