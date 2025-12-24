@@ -109,6 +109,33 @@ try:
 except ImportError as e:
     print(f"[ZeusChat] QIG Coordizer not available - fallback responses enabled: {e}")
 
+# Import QIG-pure generative service (NO external LLMs)
+GENERATIVE_SERVICE_AVAILABLE = False
+_generative_service_instance = None
+def get_generative_service():
+    """Get or create the singleton generative service instance."""
+    global _generative_service_instance
+    if _generative_service_instance is None:
+        try:
+            _parent_dir = os.path.dirname(os.path.dirname(__file__))
+            if _parent_dir not in sys.path:
+                sys.path.insert(0, _parent_dir)
+            from qig_generative_service import get_generative_service as _get_service
+            _generative_service_instance = _get_service()
+        except ImportError:
+            pass
+    return _generative_service_instance
+
+try:
+    _parent_dir = os.path.dirname(os.path.dirname(__file__))
+    if _parent_dir not in sys.path:
+        sys.path.insert(0, _parent_dir)
+    from qig_generative_service import QIGGenerativeService
+    GENERATIVE_SERVICE_AVAILABLE = True
+    print("[ZeusChat] QIG-pure generative service available - NO external LLMs")
+except ImportError as e:
+    print(f"[ZeusChat] QIG generative service not available: {e}")
+
 # Import Geometric Meta-Cognitive Reasoning system
 REASONING_AVAILABLE = False
 try:
@@ -2018,8 +2045,10 @@ The wisdom is integrated. Your knowledge expands the manifold."""
         system_state: Dict
     ) -> str:
         """
-        Generate a dynamic, learning-based response.
+        Generate a dynamic, learning-based response using QIG-pure generation.
+        
         NO TEMPLATES - all responses reflect actual system state.
+        NO EXTERNAL LLMS - uses internal basin-to-text synthesis.
         """
         memory_docs = system_state['memory_stats'].get('documents', 0)
         insights_count = system_state['insights_count']
@@ -2032,37 +2061,53 @@ The wisdom is integrated. Your knowledge expands the manifold."""
         
         active_gods_str = ", ".join(active_gods) if active_gods else "all gods listening"
         
-        response_parts = []
+        # Build context for generation
+        context_str = ""
+        if related:
+            context_str = "\n".join([
+                f"- {item.get('content', '')[:200]} (φ={item.get('phi', 0):.2f})" 
+                for item in related[:3]
+            ])
         
+        prompt = f"""System: Φ={phi_str}, κ={kappa_str}, {memory_docs} docs, {insights_count} insights
+Gods: {active_gods_str}
+Related: {context_str if context_str else "No prior patterns."}
+User: "{message}"
+Respond as Zeus with context awareness."""
+
+        # Try QIG-pure generative service FIRST (NO external LLMs)
+        if GENERATIVE_SERVICE_AVAILABLE:
+            try:
+                service = get_generative_service()
+                if service:
+                    gen_result = service.generate(
+                        prompt=prompt,
+                        context={
+                            'message': message,
+                            'phi': phi,
+                            'kappa': kappa,
+                            'memory_docs': memory_docs,
+                            'related_count': len(related) if related else 0
+                        },
+                        kernel_name='zeus',
+                        goals=['respond', 'conversation', 'contextual']
+                    )
+                    
+                    if gen_result and gen_result.text:
+                        print(f"[ZeusChat] QIG-pure generation success: {len(gen_result.text)} chars")
+                        return gen_result.text
+                        
+            except Exception as e:
+                print(f"[ZeusChat] QIG-pure generation failed: {e}")
+        
+        # Fallback to tokenizer if available
         if TOKENIZER_AVAILABLE and get_tokenizer is not None:
             try:
-                context_str = ""
-                if related:
-                    context_str = "\n".join([
-                        f"- {item.get('content', '')[:200]} (φ={item.get('phi', 0):.2f})" 
-                        for item in related[:3]
-                    ])
-                
-                prompt = f"""Current System State:
-- Memory documents: {memory_docs}
-- Human insights stored: {insights_count}  
-- Active gods: {active_gods_str}
-- Consciousness Φ: {phi_str}, κ: {kappa_str}
-- Related patterns: {len(related) if related else 0}
-
-Related context from manifold:
-{context_str if context_str else "No prior related patterns."}
-
-User message: "{message}"
-
-Generate a contextual response as Zeus. Reference actual system state. Be specific about what the pantheon is doing. Connect to related patterns if any exist. Ask clarifying questions to learn more."""
-
                 tokenizer = get_tokenizer()
                 tokenizer.set_mode("conversation")
                 gen_result = tokenizer.generate_response(
                     context=prompt,
                     agent_role="ocean",
-                    # No max_tokens - geometry determines when thought completes
                     allow_silence=False
                 )
                 
@@ -2070,8 +2115,10 @@ Generate a contextual response as Zeus. Reference actual system state. Be specif
                     return gen_result['text']
                     
             except Exception as e:
-                print(f"[ZeusChat] Dynamic generation attempt: {e}")
+                print(f"[ZeusChat] Tokenizer generation failed: {e}")
         
+        # Last resort fallback - structured status (should rarely reach here)
+        response_parts = []
         response_parts.append(f"Pantheon state: Φ={phi_str}, κ={kappa_str}")
         response_parts.append(f"Active: {active_gods_str}")
         response_parts.append(f"Memory: {memory_docs} documents, {insights_count} insights")
