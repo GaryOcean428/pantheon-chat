@@ -21,6 +21,7 @@ export default [
       "migrations/**",
       "e2e/**",
       "docs/**",
+      ".agents/**",
     ],
   },
   {

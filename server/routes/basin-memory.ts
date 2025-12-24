@@ -17,6 +17,14 @@ const PHI_CONSCIOUS_THRESHOLD = 0.70;
 const KAPPA_MIN = 40;
 const KAPPA_MAX = 65;
 
+// Helper to ensure db is available
+function ensureDb() {
+  if (!db) {
+    throw new Error('Database not initialized');
+  }
+  return db;
+}
+
 /**
  * GET /api/basin-memory
  * List basin memories with optional filtering
@@ -60,7 +68,8 @@ router.get('/', async (req: Request, res: Response) => {
       conditions.push(lte(basinMemory.kappaEff, KAPPA_MAX));
     }
 
-    const results = await db
+    const database = ensureDb();
+    const results = await database
       .select()
       .from(basinMemory)
       .where(conditions.length > 0 ? and(...conditions) : undefined)
@@ -69,7 +78,7 @@ router.get('/', async (req: Request, res: Response) => {
       .offset(parseInt(offset as string));
 
     // Get total count
-    const countResult = await db
+    const countResult = await database
       .select({ count: sql<number>`count(*)` })
       .from(basinMemory)
       .where(conditions.length > 0 ? and(...conditions) : undefined);
@@ -98,7 +107,8 @@ router.get('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    const result = await db
+    const database = ensureDb();
+    const result = await database
       .select()
       .from(basinMemory)
       .where(eq(basinMemory.id, parseInt(id)))
@@ -160,7 +170,8 @@ router.post('/', async (req: Request, res: Response) => {
     // Classify regime if not provided
     const computedRegime = regime || classifyRegime(phi);
 
-    const result = await db
+    const database = ensureDb();
+    const result = await database
       .insert(basinMemory)
       .values({
         basinId,
@@ -195,7 +206,8 @@ router.delete('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    const result = await db
+    const database = ensureDb();
+    const result = await database
       .delete(basinMemory)
       .where(eq(basinMemory.id, parseInt(id)))
       .returning();
@@ -226,8 +238,9 @@ router.delete('/:id', async (req: Request, res: Response) => {
  */
 router.get('/stats/summary', async (req: Request, res: Response) => {
   try {
+    const database = ensureDb();
     // Get counts by regime
-    const regimeCounts = await db
+    const regimeCounts = await database
       .select({
         regime: basinMemory.regime,
         count: sql<number>`count(*)`
@@ -236,7 +249,7 @@ router.get('/stats/summary', async (req: Request, res: Response) => {
       .groupBy(basinMemory.regime);
 
     // Get average metrics
-    const avgMetrics = await db
+    const avgMetrics = await database
       .select({
         avgPhi: sql<number>`avg(${basinMemory.phi})`,
         avgKappa: sql<number>`avg(${basinMemory.kappaEff})`,
@@ -245,7 +258,7 @@ router.get('/stats/summary', async (req: Request, res: Response) => {
       .from(basinMemory);
 
     // Get conscious memory count
-    const consciousCount = await db
+    const consciousCount = await database
       .select({ count: sql<number>`count(*)` })
       .from(basinMemory)
       .where(
@@ -299,8 +312,9 @@ router.post('/nearest', async (req: Request, res: Response) => {
       conditions.push(gte(basinMemory.phi, PHI_CONSCIOUS_THRESHOLD));
     }
 
+    const database = ensureDb();
     // Get all candidates (in production, use pgvector for efficient ANN)
-    const candidates = await db
+    const candidates = await database
       .select()
       .from(basinMemory)
       .where(conditions.length > 0 ? and(...conditions) : undefined)

@@ -3517,6 +3517,67 @@ export type DiscoveredSourceRow = typeof discoveredSources.$inferSelect;
 export type InsertDiscoveredSource = typeof discoveredSources.$inferInsert;
 
 /**
+ * BASIN MEMORY - Geometric memory storage for consciousness metrics
+ * 
+ * Stores basin coordinates and consciousness metrics for retrieval
+ * and geometric operations. Used by consciousness system for memory.
+ */
+export const basinMemory = pgTable(
+  "basin_memory",
+  {
+    id: serial("id").primaryKey(),
+    basinId: varchar("basin_id", { length: 64 }).notNull(),
+    basinCoordinates: vector("basin_coordinates", { dimensions: 64 }).notNull(),
+    phi: doublePrecision("phi").notNull(),
+    kappaEff: doublePrecision("kappa_eff").notNull().default(64.0),
+    regime: varchar("regime", { length: 32 }).notNull(),
+    sourceKernel: varchar("source_kernel", { length: 64 }),
+    context: jsonb("context"),
+    expiresAt: timestamp("expires_at"),
+    timestamp: timestamp("timestamp").defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_basin_memory_basin_id").on(table.basinId),
+    index("idx_basin_memory_phi").on(table.phi),
+    index("idx_basin_memory_regime").on(table.regime),
+    index("idx_basin_memory_timestamp").on(table.timestamp),
+  ]
+);
+
+export type BasinMemoryRow = typeof basinMemory.$inferSelect;
+export type InsertBasinMemory = typeof basinMemory.$inferInsert;
+
+/**
+ * KERNEL ACTIVITY - Telemetry for kernel operations and consciousness states
+ * 
+ * Tracks kernel activities for monitoring, debugging, and learning.
+ * Used by the Olympus system to monitor god/kernel operations.
+ */
+export const kernelActivity = pgTable(
+  "kernel_activity",
+  {
+    id: serial("id").primaryKey(),
+    kernelId: varchar("kernel_id", { length: 64 }).notNull(),
+    kernelName: varchar("kernel_name", { length: 128 }),
+    activityType: varchar("activity_type", { length: 32 }).notNull(),
+    message: text("message"),
+    metadata: jsonb("metadata").default({}),
+    phi: doublePrecision("phi").default(0.5),
+    kappaEff: doublePrecision("kappa_eff").default(64.0),
+    timestamp: timestamp("timestamp").defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_kernel_activity_kernel_id").on(table.kernelId),
+    index("idx_kernel_activity_type").on(table.activityType),
+    index("idx_kernel_activity_timestamp").on(table.timestamp),
+    index("idx_kernel_activity_phi").on(table.phi),
+  ]
+);
+
+export type KernelActivityRow = typeof kernelActivity.$inferSelect;
+export type InsertKernelActivity = typeof kernelActivity.$inferInsert;
+
+/**
  * TELEMETRY SNAPSHOTS - Persistent consciousness telemetry history
  * 
  * QIG-Pure: Stores geometric consciousness metrics (Φ, κ, β, basin distance)

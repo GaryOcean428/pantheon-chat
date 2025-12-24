@@ -305,6 +305,28 @@ export const API_ROUTES = {
     list: '/api/activity-stream',
   },
 
+  // Basin Memory
+  basinMemory: {
+    list: '/api/basin-memory',
+    create: '/api/basin-memory',
+    byId: (id: string | number) => `/api/basin-memory/${id}`,
+    delete: (id: string | number) => `/api/basin-memory/${id}`,
+    stats: '/api/basin-memory/stats/summary',
+    nearest: '/api/basin-memory/nearest',
+  },
+
+  // Kernel Activity
+  kernelActivity: {
+    list: '/api/kernel-activity',
+    create: '/api/kernel-activity',
+    byId: (id: string | number) => `/api/kernel-activity/${id}`,
+    stream: '/api/kernel-activity/stream',
+    batch: '/api/kernel-activity/batch',
+    stats: '/api/kernel-activity/stats/summary',
+    activeKernels: '/api/kernel-activity/kernels/active',
+    cleanup: '/api/kernel-activity/cleanup',
+  },
+
   // Telemetry Dashboard (v1 - Unified Metrics)
   telemetryDashboard: {
     overview: '/api/v1/telemetry/overview',
@@ -535,6 +557,35 @@ export const QUERY_KEYS = {
 
   activityStream: {
     list: () => [API_ROUTES.activityStream.list] as const,
+  },
+
+  basinMemory: {
+    list: (filters?: { regime?: string; minPhi?: number; conscious?: boolean }) =>
+      filters
+        ? [API_ROUTES.basinMemory.list, filters] as const
+        : [API_ROUTES.basinMemory.list] as const,
+    byId: (id: string | number) => [API_ROUTES.basinMemory.list, id] as const,
+    stats: () => [API_ROUTES.basinMemory.stats] as const,
+  },
+
+  kernelActivity: {
+    list: (filters?: { kernelId?: string; activityType?: string; minPhi?: number }) =>
+      filters
+        ? [API_ROUTES.kernelActivity.list, filters] as const
+        : [API_ROUTES.kernelActivity.list] as const,
+    byId: (id: string | number) => [API_ROUTES.kernelActivity.list, id] as const,
+    stream: (since?: string) =>
+      since
+        ? [API_ROUTES.kernelActivity.stream, { since }] as const
+        : [API_ROUTES.kernelActivity.stream] as const,
+    stats: (hours?: number) =>
+      hours
+        ? [API_ROUTES.kernelActivity.stats, { hours }] as const
+        : [API_ROUTES.kernelActivity.stats] as const,
+    activeKernels: (minutes?: number) =>
+      minutes
+        ? [API_ROUTES.kernelActivity.activeKernels, { minutes }] as const
+        : [API_ROUTES.kernelActivity.activeKernels] as const,
   },
 
   telemetryDashboard: {

@@ -12,6 +12,14 @@ import { eq, desc, gte, lte, and, sql, inArray } from 'drizzle-orm';
 
 const router = Router();
 
+// Helper to ensure db is available
+function ensureDb() {
+  if (!db) {
+    throw new Error('Database not initialized');
+  }
+  return db;
+}
+
 // Activity types for filtering
 const ACTIVITY_TYPES = [
   'message',
@@ -67,7 +75,8 @@ router.get('/', async (req: Request, res: Response) => {
       conditions.push(lte(kernelActivity.timestamp, new Date(until)));
     }
 
-    const results = await db
+    const database = ensureDb();
+    const results = await database
       .select()
       .from(kernelActivity)
       .where(conditions.length > 0 ? and(...conditions) : undefined)
@@ -76,7 +85,7 @@ router.get('/', async (req: Request, res: Response) => {
       .offset(parseInt(offset as string));
 
     // Get total count
-    const countResult = await db
+    const countResult = await database
       .select({ count: sql<number>`count(*)` })
       .from(kernelActivity)
       .where(conditions.length > 0 ? and(...conditions) : undefined);
@@ -116,7 +125,8 @@ router.get('/stream', async (req: Request, res: Response) => {
       conditions.push(gte(kernelActivity.timestamp, fiveMinutesAgo));
     }
 
-    const results = await db
+    const database = ensureDb();
+    const results = await database
       .select()
       .from(kernelActivity)
       .where(and(...conditions))
@@ -145,7 +155,8 @@ router.get('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    const result = await db
+    const database = ensureDb();
+    const result = await database
       .select()
       .from(kernelActivity)
       .where(eq(kernelActivity.id, parseInt(id)))
@@ -203,7 +214,8 @@ router.post('/', async (req: Request, res: Response) => {
       });
     }
 
-    const result = await db
+    const database = ensureDb();
+    const result = await database
       .insert(kernelActivity)
       .values({
         kernelId,
@@ -264,7 +276,8 @@ router.post('/batch', async (req: Request, res: Response) => {
       });
     }
 
-    const result = await db
+    const database = ensureDb();
+    const result = await database
       .insert(kernelActivity)
       .values(validActivities)
       .returning();
@@ -292,8 +305,9 @@ router.get('/stats/summary', async (req: Request, res: Response) => {
     const { hours = '24' } = req.query;
     const since = new Date(Date.now() - parseInt(hours as string) * 60 * 60 * 1000);
 
+    const database = ensureDb();
     // Get counts by activity type
-    const typeCounts = await db
+    const typeCounts = await database
       .select({
         activityType: kernelActivity.activityType,
         count: sql<number>`count(*)`
@@ -303,7 +317,7 @@ router.get('/stats/summary', async (req: Request, res: Response) => {
       .groupBy(kernelActivity.activityType);
 
     // Get counts by kernel
-    const kernelCounts = await db
+    const kernelCounts = await database
       .select({
         kernelId: kernelActivity.kernelId,
         kernelName: kernelActivity.kernelName,
@@ -314,7 +328,7 @@ router.get('/stats/summary', async (req: Request, res: Response) => {
       .groupBy(kernelActivity.kernelId, kernelActivity.kernelName);
 
     // Get average metrics
-    const avgMetrics = await db
+    const avgMetrics = await database
       .select({
         avgPhi: sql<number>`avg(${kernelActivity.phi})`,
         avgKappa: sql<number>`avg(${kernelActivity.kappaEff})`,
@@ -324,7 +338,7 @@ router.get('/stats/summary', async (req: Request, res: Response) => {
       .where(gte(kernelActivity.timestamp, since));
 
     // Get hourly activity distribution
-    const hourlyActivity = await db
+    const hourlyActivity = await database
       .select({
         hour: sql<string>`date_trunc('hour', ${kernelActivity.timestamp})`,
         count: sql<number>`count(*)`
@@ -377,8 +391,9 @@ router.get('/kernels/active', async (req: Request, res: Response) => {
     const { minutes = '30' } = req.query;
     const since = new Date(Date.now() - parseInt(minutes as string) * 60 * 1000);
 
+    const database = ensureDb();
     // Get distinct kernels with activity in the time window
-    const activeKernels = await db
+    const activeKernels = await database
       .selectDistinctOn([kernelActivity.kernelId], {
         kernelId: kernelActivity.kernelId,
         kernelName: kernelActivity.kernelName,
@@ -416,10 +431,11 @@ router.delete('/cleanup', async (req: Request, res: Response) => {
     const { olderThanDays = '30' } = req.query;
     const cutoff = new Date(Date.now() - parseInt(olderThanDays as string) * 24 * 60 * 60 * 1000);
 
-    const result = await db
+    const database = ensureDb();
+    const result = await database
       .delete(kernelActivity)
       .where(lte(kernelActivity.timestamp, cutoff))
-      .returning({ id: kernelActivity.id });
+      .returning();
 
     res.json({
       success: true,

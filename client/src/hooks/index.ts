@@ -16,7 +16,7 @@ export { useBasinMemory, useConsciousBasins, useBasinMemoryStats, useBasinMemory
 export type { BasinMemory, BasinMemoryFilters, BasinMemoryStats } from './useBasinMemory';
 export { useKernelActivity, useRecentKernelActivity, useKernelActivityByKernel, useKernelActivityStats, useLogKernelActivity, useKernelActivityStream } from './useKernelActivity';
 export type { KernelActivity, KernelActivityFilters, KernelActivityStats, KernelActivityType } from './useKernelActivity';
-export { useKernelActivity, useKernelActivityWebSocket } from './use-kernel-activity';
+export { useKernelActivityWebSocket } from './use-kernel-activity';
 export { useMeshNetworkWebSocket } from './useMeshNetworkWebSocket';
 export type { MeshPeer, MeshNetworkStatus, MeshEvent } from './useMeshNetworkWebSocket';
 export { useStreamingMetrics } from './useStreamingMetrics';

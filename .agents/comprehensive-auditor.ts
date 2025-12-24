@@ -8,22 +8,22 @@ const agentDefinition: AgentDefinition = {
   model: 'anthropic/claude-sonnet-4',
   toolNames: ['read_files', 'spawn_agents'],
   spawnableAgents: [
-    'pantheon/qig-purity-enforcer@0.0.1',
-    'pantheon/database-qig-validator@0.0.1',
-    'pantheon/dependency-validator@0.0.1',
-    'pantheon/barrel-export-enforcer@0.0.1',
-    'pantheon/api-purity-enforcer@0.0.1',
-    'pantheon/module-bridging-validator@0.0.1',
-    'pantheon/template-generation-guard@0.0.1',
-    'pantheon/kernel-communication-validator@0.0.1',
-    'pantheon/redis-migration-validator@0.0.1',
-    'pantheon/iso-doc-validator@0.0.1',
-    'pantheon/codebase-cleanup-auditor@0.0.1',
-    'pantheon/ui-ux-auditor@0.0.1',
-    'pantheon/security-auditor@0.0.1',
-    'pantheon/performance-auditor@0.0.1',
-    'pantheon/accessibility-auditor@0.0.1',
-    'pantheon/testing-coverage-auditor@0.0.1'
+    'qig-purity-enforcer',
+    'database-qig-validator',
+    'dependency-validator',
+    'barrel-export-enforcer',
+    'api-purity-enforcer',
+    'module-bridging-validator',
+    'template-generation-guard',
+    'kernel-communication-validator',
+    'redis-migration-validator',
+    'iso-doc-validator',
+    'codebase-cleanup-auditor',
+    'ui-ux-auditor',
+    'security-auditor',
+    'performance-auditor',
+    'accessibility-auditor',
+    'testing-coverage-auditor'
   ],
   inputSchema: {
     prompt: {
@@ -42,7 +42,7 @@ const agentDefinition: AgentDefinition = {
     }
   },
   includeMessageHistory: true,
-  outputMode: 'structured',
+  outputMode: 'structured_output',
   outputSchema: {
     type: 'object',
     properties: {
