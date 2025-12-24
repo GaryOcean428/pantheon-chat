@@ -249,18 +249,31 @@ class QIGGenerativeService:
         return self._geodesic_interpolate(basin, kernel_basin, t)
     
     def _basin_to_tokens(self, basin: np.ndarray, num_tokens: int = 3) -> List[str]:
-        """Convert basin coordinates to tokens using vocabulary."""
+        """Convert basin coordinates to tokens using vocabulary.
+        
+        Uses phi-weighted selection to prefer semantically coherent tokens.
+        """
         if self.coordizer is None:
             return ['[no_vocab]']
         
-        # Get nearest tokens in vocabulary
-        candidates = self.coordizer.decode(basin, top_k=num_tokens * 2)
+        # Get more candidates to allow phi-weighted selection
+        candidates = self.coordizer.decode(basin, top_k=num_tokens * 5, prefer_words=True)
         
-        # Apply temperature-based selection
-        tokens = []
-        for token, similarity in candidates[:num_tokens]:
-            if similarity > 0.3:  # Minimum similarity threshold
-                tokens.append(token)
+        # Score by combined similarity + phi
+        scored = []
+        for token, similarity in candidates:
+            if similarity < 0.2:  # Skip very low similarity
+                continue
+            phi = self.coordizer.token_phi.get(token, 0.5)
+            # Combined score: similarity matters more, but phi helps break ties
+            score = similarity * 0.7 + phi * 0.3
+            scored.append((token, score, similarity))
+        
+        # Sort by combined score
+        scored.sort(key=lambda x: x[1], reverse=True)
+        
+        # Select top tokens
+        tokens = [token for token, score, sim in scored[:num_tokens]]
         
         return tokens if tokens else ['[unk]']
     
@@ -335,7 +348,9 @@ class QIGGenerativeService:
                         seen.add(token)
             else:
                 # Simple token
-                if len(token) >= 2:  # Skip single chars
+                # Allow valid single-character words
+                single_char_words = {'I', 'a', 'A'}
+                if len(token) >= 2 or token in single_char_words:
                     clean_tokens.append(token)
                     seen.add(token)
         
