@@ -32,3 +32,4 @@ qig-backend/qig_tokenizer_postgresql.py
 qig-backend/data/qig_tokenizer_state.json
 .vscode/settings.json
 .vscode/**
+.windsurf/lifeguard.yaml
