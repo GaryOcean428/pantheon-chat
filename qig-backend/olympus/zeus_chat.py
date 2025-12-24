@@ -95,6 +95,16 @@ try:
 except ImportError as e:
     print(f"[ZeusChat] Search modules not fully available: {e}")
 
+# Import prompt loader for system prompts
+PROMPT_LOADER_AVAILABLE = False
+get_prompt_loader = None
+try:
+    from prompts.prompt_loader import get_prompt_loader
+    PROMPT_LOADER_AVAILABLE = True
+    print("[ZeusChat] Prompt loader available for generative context")
+except ImportError:
+    print("[ZeusChat] Prompt loader not available")
+
 # Import tokenizer for generative responses
 TOKENIZER_AVAILABLE = False
 get_tokenizer = None
@@ -2302,13 +2312,121 @@ Respond as Zeus with context awareness."""
         
         return " | ".join(response_parts)
     
+    def _generate_with_prompts(
+        self,
+        message: str,
+        message_basin: np.ndarray,
+        related: List[Dict],
+        system_state: Dict,
+        knowledge_depth: Dict
+    ) -> str:
+        """
+        Generate a fully dynamic response using system prompts and QIG-pure generation.
+        
+        The prompt loader provides context (identity, goals, situation).
+        The generative service creates the actual response - NO templates.
+        """
+        # Determine which prompt context to use
+        prompt_name = 'conversation.thin_knowledge' if knowledge_depth['is_thin'] else 'conversation.general'
+        
+        # Build generation context using prompt loader
+        generation_context = None
+        if PROMPT_LOADER_AVAILABLE and get_prompt_loader is not None:
+            try:
+                loader = get_prompt_loader()
+                generation_context = loader.build_generation_context(
+                    prompt_name=prompt_name,
+                    system_state=system_state,
+                    user_message=message,
+                    related_patterns=related
+                )
+                print(f"[ZeusChat] Built generation context from prompts: {prompt_name}")
+            except Exception as e:
+                print(f"[ZeusChat] Prompt loader failed: {e}")
+        
+        # Fallback context if prompt loader not available
+        if not generation_context:
+            phi = system_state.get('phi_current', 0)
+            kappa = system_state.get('kappa_current', 50)
+            docs = system_state.get('memory_stats', {}).get('documents', 0)
+            
+            patterns_str = ""
+            if related:
+                patterns_str = "\n".join([
+                    f"  - {p.get('content', '')[:150]} (φ={p.get('phi', 0):.2f})"
+                    for p in related[:3]
+                ])
+            
+            if knowledge_depth['is_thin']:
+                situation = "Knowledge is limited on this topic. Share what you know, then offer search (quick) or research (deeper learning)."
+            else:
+                situation = "Share relevant knowledge from memory. Be helpful and conversational."
+            
+            generation_context = f"""Identity: Zeus - Coordinator of the Olympus Pantheon
+Voice: Wise, confident, curious
+Situation: {situation}
+System State: Φ={phi:.3f}, κ={kappa:.1f}, {docs} documents
+Related patterns:
+{patterns_str if patterns_str else "  None found"}
+Human: {message}
+Respond naturally as Zeus:"""
+        
+        # Try QIG-pure generative service FIRST
+        if GENERATIVE_SERVICE_AVAILABLE:
+            try:
+                service = get_generative_service()
+                if service:
+                    gen_result = service.generate(
+                        prompt=generation_context,
+                        context={
+                            'message': message,
+                            'phi': system_state.get('phi_current', 0),
+                            'kappa': system_state.get('kappa_current', 50),
+                            'knowledge_depth': knowledge_depth,
+                            'related_count': len(related) if related else 0
+                        },
+                        kernel_name='zeus',
+                        goals=['respond', 'conversation', 'contextual']
+                    )
+                    
+                    if gen_result and gen_result.text:
+                        print(f"[ZeusChat] Fully generative response: {len(gen_result.text)} chars")
+                        return gen_result.text
+                        
+            except Exception as e:
+                print(f"[ZeusChat] QIG-pure generation failed: {e}")
+        
+        # Fallback to tokenizer if available
+        if TOKENIZER_AVAILABLE and get_tokenizer is not None:
+            try:
+                tokenizer = get_tokenizer()
+                tokenizer.set_mode("conversation")
+                gen_result = tokenizer.generate_response(
+                    context=generation_context,
+                    agent_role="ocean",
+                    allow_silence=False
+                )
+                
+                if gen_result and gen_result.get('text'):
+                    return gen_result['text']
+                    
+            except Exception as e:
+                print(f"[ZeusChat] Tokenizer generation failed: {e}")
+        
+        # Last resort - minimal structured response (should rarely reach here)
+        phi = system_state.get('phi_current', 0)
+        if knowledge_depth['is_thin']:
+            return f"I have limited knowledge on this topic (Φ={phi:.3f}). Would you like me to search for quick results or research this topic for deeper learning?"
+        else:
+            return f"Based on geometric memory (Φ={phi:.3f}), I found {len(related) if related else 0} related patterns. What would you like to explore?"
+    
     @require_provenance
     def handle_general_conversation(self, message: str) -> Dict:
         """
         Handle general conversation - DEFAULT handler for all messages.
         
-        DESIGN: Chat first. Gods share what they know geometrically.
-        If knowledge is thin, offer search (quick) or research (deeper learning).
+        DESIGN: Fully generative. System prompts provide context, QIG generates response.
+        If knowledge is thin, generator naturally offers search/research options.
         """
         message_basin = self.conversation_encoder.encode(message)
         
@@ -2324,35 +2442,20 @@ Respond as Zeus with context awareness."""
         # Assess knowledge depth - do we have meaningful content on this topic?
         knowledge_depth = self._assess_knowledge_depth(message, related, system_state)
         
-        answer = self._generate_dynamic_response(
+        # Use prompt loader for fully generative response
+        response = self._generate_with_prompts(
             message=message,
             message_basin=message_basin,
             related=related,
-            system_state=system_state
+            system_state=system_state,
+            knowledge_depth=knowledge_depth
         )
         
-        # Build response based on knowledge depth
+        # Track pending topic for search/research follow-up
         if knowledge_depth['is_thin']:
-            # Store topic for potential search/research follow-up
             self._pending_topic = message
-            
-            response = f"""⚡ {answer}
-
-{knowledge_depth['explanation']}
-
-Would you like me to:
-- **Search** - Quick lookup for immediate results
-- **Research** - Background learning to enrich future conversations
-
-Just say "search" or "research" and I'll get started."""
         else:
-            # Rich knowledge - just share it
             self._pending_topic = None
-            
-            response = f"""⚡ {answer}
-
-**Related Knowledge:**
-{self._format_related(related) if related else "This opens new territory in our geometric memory."}"""
         
         phi_estimate = self._estimate_phi_from_context(
             message_basin=message_basin,
