@@ -149,42 +149,23 @@ class BasinTrajectoryIntegrator:
         
         return result
     
-    def check_attractor(self, threshold: float = 0.02, min_steps: int = 15) -> bool:
-        """Check if trajectory has converged to attractor.
-        
-        Args:
-            threshold: Distance below which we consider converged
-            min_steps: Minimum trajectory steps before checking
-            
-        Requires minimum steps to ensure coherent generation.
-        """
-        # Gate: don't check until we have enough trajectory
-        if len(self.trajectory) < min_steps:
+    def check_attractor(self, threshold: float = 0.1) -> bool:
+        """Check if trajectory has converged to attractor."""
+        if len(self.trajectory) < 3:
             return False
         
-        # Check last 5 steps for sustained convergence
         recent_distances = []
-        for i in range(min(5, len(self.trajectory) - 1)):
+        for i in range(min(3, len(self.trajectory) - 1)):
             d = fisher_coord_distance(self.trajectory[-(i+1)], self.trajectory[-(i+2)])
             recent_distances.append(d)
         
         return np.mean(recent_distances) < threshold
     
-    def check_surprise_collapse(self, threshold: float = 0.05, min_steps: int = 20) -> bool:
-        """Check if surprise has collapsed (no new information).
-        
-        Args:
-            threshold: Surprise level below which generation stops
-            min_steps: Minimum trajectory steps before checking (prevents premature stop)
-            
-        Requires minimum steps to ensure coherent sentence completion.
-        """
-        # Gate: don't even check until we have enough trajectory
-        if len(self.trajectory) < min_steps:
+    def check_surprise_collapse(self, threshold: float = 0.05) -> bool:
+        """Check if surprise has collapsed (no new information)."""
+        if len(self.surprise_history) < 5:
             return False
-        if len(self.surprise_history) < 10:
-            return False
-        return np.mean(self.surprise_history[-10:]) < threshold
+        return np.mean(self.surprise_history[-5:]) < threshold
 
 
 class QIGGenerativeService:
