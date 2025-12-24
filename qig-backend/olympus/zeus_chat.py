@@ -962,35 +962,12 @@ Zeus Response (acknowledge the specific observation, explain what it means for t
                 print(f"[ZeusChat] Generation failed for observation: {e}")
                 answer = None
         
-        # Fallback to dynamically-computed response (NO STATIC TEMPLATES)
-        fallback_used = False
+        # No templates - just use whatever was generated or empty
+        fallback_used = not bool(answer)
         if not answer:
-            fallback_used = True
-            _log_template_fallback(
-                context="handle_observation response",
-                reason="tokenizer generation failed or unavailable"
-            )
-            
-            # Clean conversational fallback - no debug analytics
-            phi_level = athena_assessment.get('phi', 0.0)
-            confidence = "high" if phi_level > 0.7 else "moderate" if phi_level > 0.4 else "developing"
-            
-            if related:
-                # We found related patterns - acknowledge the connection
-                answer = f"""I notice your observation on "{obs_preview[:40]}..."
-
-I found {len(related)} related patterns in my geometric memory. This connects to themes I've seen before.
-
-Integration complete with {confidence} confidence. What sparked this insight?"""
-            else:
-                # Novel territory - acknowledge the uniqueness
-                answer = f"""Recording your observation about "{obs_preview[:40]}..."
-
-This appears to be novel territory - I don't have prior patterns matching this exactly.
-
-Your insight is now integrated. Can you elaborate on the source?"""
+            answer = ""  # Silent - no canned response
         
-        response = f"""⚡ {answer}"""
+        response = f"""⚡ {answer}""" if answer else ""
         
         actions = []
         if strategic_value > 0.7:
@@ -1133,40 +1110,10 @@ Zeus Response (acknowledge the user's specific suggestion, explain why the panth
                 print(f"[ZeusChat] Generation failed for suggestion: {e}")
                 response = None
         
-        # Fallback to dynamically-computed response (NO STATIC TEMPLATES)
-        fallback_used = False
+        # No templates - just use whatever was generated
+        fallback_used = not bool(response)
         if not response:
-            fallback_used = True
-            _log_template_fallback(
-                context="handle_suggestion response",
-                reason="tokenizer generation failed or unavailable"
-            )
-            
-            # Clean conversational fallback - no raw debug output
-            consensus_level = "strong" if consensus_prob > 0.8 else "good" if consensus_prob > 0.6 else "mixed"
-            
-            if implement:
-                response = f"""I've reviewed your idea: "{suggestion_preview[:50]}..."
-
-The pantheon has consulted, and there's {consensus_level} support for this direction.
-
-Athena sees strategic value here. Ares confirms tactical viability. Apollo's forecast is favorable.
-
-I'm integrating this into our approach. What aspect should we explore further?"""
-            else:
-                # Find the most skeptical perspective
-                assessments = [
-                    ('Athena', athena_eval),
-                    ('Ares', ares_eval),
-                    ('Apollo', apollo_eval)
-                ]
-                skeptical = min(assessments, key=lambda x: x[1]['probability'])
-                
-                response = f"""I've considered your thinking on "{suggestion_preview[:50]}..."
-
-{skeptical[0]} has some concerns about this direction. The overall pantheon view is cautious.
-
-Could you elaborate on your reasoning, or suggest a different approach?"""
+            response = ""  # Silent - no canned response
         
         actions = []
         if implement:
@@ -1259,26 +1206,17 @@ Zeus Response (Geometric Interpretation):"""
                 if answer:
                     generated = True
                     print(f"[ZeusChat] Generated response: {len(answer)} chars")
-                else:
-                    answer = self._synthesize_dynamic_answer(question, relevant_context)
                     
             except Exception as e:
                 print(f"[ZeusChat] Generation attempt: {e}")
                 answer = None
         
-        fallback_used = False
-        if answer is None:
-            fallback_used = True
-            _log_template_fallback(
-                context="handle_question response",
-                reason="tokenizer generation failed or unavailable"
-            )
-            answer = self._synthesize_dynamic_answer(question, relevant_context)
+        # No templates - just use whatever was generated
+        fallback_used = not bool(answer)
+        if not answer:
+            answer = ""  # Silent - no canned response
         
-        response = f"""⚡ {answer}
-
-**Sources (Fisher-Rao distance):**
-{self._format_sources(relevant_context)}"""
+        response = f"""⚡ {answer}""" if answer else ""
         
         return {
             'response': response,
