@@ -25,6 +25,10 @@ def ensure_64d_coords(coords: List[float]) -> List[float]:
     return coords + [0.0] * (64 - len(coords))
 
 
+# E8 Kernel Cap - Maximum number of live kernels (E8 has 240 roots)
+E8_KERNEL_CAP = 240
+
+
 class KernelPersistence(BasePersistence):
     """Persistence layer for kernel evolution state."""
 
@@ -48,9 +52,26 @@ class KernelPersistence(BasePersistence):
         breeding_target: Optional[str] = None,
         parent_ids: Optional[List[str]] = None,
         metadata: Optional[Dict] = None,
+        enforce_cap: bool = True,
     ) -> bool:
-        """Save a kernel snapshot to the database."""
+        """Save a kernel snapshot to the database.
+        
+        Args:
+            enforce_cap: If True (default), enforce E8 kernel cap for new kernels.
+                        Set to False for updates to existing kernels.
+        """
         import uuid
+        
+        # Check if this is a new kernel or an update
+        is_new_kernel = not self._kernel_exists(kernel_id)
+        
+        # Enforce E8 cap for NEW kernels only (not updates)
+        if enforce_cap and is_new_kernel:
+            live_count = self.get_live_kernel_count()
+            if live_count >= E8_KERNEL_CAP:
+                print(f"[KernelPersistence] E8 cap reached ({live_count}/{E8_KERNEL_CAP}), rejecting spawn of {kernel_id}")
+                return False
+        
         record_id = f"kg_{uuid.uuid4().hex[:16]}"
         
         query = """
@@ -111,6 +132,12 @@ class KernelPersistence(BasePersistence):
         if result:
             return dict(result)
         return None
+    
+    def _kernel_exists(self, kernel_id: str) -> bool:
+        """Check if a kernel already exists in the database."""
+        query = "SELECT 1 FROM kernel_geometry WHERE kernel_id = %s LIMIT 1"
+        result = self.execute_one(query, (kernel_id,))
+        return result is not None
 
     def load_kernels_by_god(self, god_name: str, limit: int = 50) -> List[Dict]:
         """Load all kernels spawned by a specific god."""
@@ -782,6 +809,79 @@ class KernelPersistence(BasePersistence):
         if result:
             return int(result.get('live_count', 0) or 0)
         return 0
+    
+    def enforce_e8_cap(self, target_count: int = 240) -> Dict:
+        """
+        Enforce E8 kernel cap by marking excess kernels as 'dead'.
+        
+        Selection for death (QIG-based, not arbitrary):
+        1. Lowest Φ (phi) - weakest consciousness
+        2. Worst reputation (failure_count / (success_count + failure_count))
+        3. Newest kernels if tied (LIFO for unproven kernels)
+        
+        Args:
+            target_count: Target number of live kernels (default: E8_KERNEL_CAP = 240)
+            
+        Returns:
+            Dict with culled_count, live_count_before, live_count_after
+        """
+        live_count = self.get_live_kernel_count()
+        
+        if live_count <= target_count:
+            return {
+                'culled_count': 0,
+                'live_count_before': live_count,
+                'live_count_after': live_count,
+                'message': f'Already at or below cap ({live_count}/{target_count})'
+            }
+        
+        excess = live_count - target_count
+        print(f"[KernelPersistence] E8 cap enforcement: {live_count} live, need to cull {excess}")
+        
+        # Get the worst kernels to cull
+        # Priority: lowest phi, then worst reputation, then newest
+        cull_query = """
+            UPDATE kernel_geometry
+            SET status = 'dead',
+                metadata = COALESCE(metadata, '{}')::jsonb || 
+                          '{"death_reason": "e8_cap_enforcement", "culled_at": "now()"}'::jsonb
+            WHERE kernel_id IN (
+                SELECT kernel_id FROM kernel_geometry
+                WHERE status IN ('active', 'observing', 'shadow')
+                ORDER BY 
+                    phi ASC,                                           -- Lowest phi first
+                    CASE 
+                        WHEN (success_count + failure_count) > 0 
+                        THEN success_count::float / (success_count + failure_count)
+                        ELSE 0.5                                       -- Neutral for untested
+                    END ASC,                                          -- Worst reputation next
+                    spawned_at DESC                                   -- Newest among ties
+                LIMIT %s
+            )
+        """
+        
+        try:
+            self.execute_query(cull_query, (excess,), fetch=False)
+            live_count_after = self.get_live_kernel_count()
+            actual_culled = live_count - live_count_after
+            
+            print(f"[KernelPersistence] Culled {actual_culled} kernels, now at {live_count_after}/{target_count}")
+            
+            return {
+                'culled_count': actual_culled,
+                'live_count_before': live_count,
+                'live_count_after': live_count_after,
+                'target': target_count,
+                'message': f'Culled {actual_culled} kernels to enforce E8 cap'
+            }
+        except Exception as e:
+            print(f"[KernelPersistence] E8 cap enforcement failed: {e}")
+            return {
+                'culled_count': 0,
+                'live_count_before': live_count,
+                'live_count_after': live_count,
+                'error': str(e)
+            }
 
     def get_kernels_by_status(self, statuses: List[str], limit: int = 300) -> List[Dict]:
         """
