@@ -1,23 +1,38 @@
-node_modules
-dist
+# OS files
 .DS_Store
+
+# Dependencies
+node_modules
+.venv
+
+# Build outputs
+dist
 server/public
 vite.config.ts.*
 *.tar.gz
-.pytest_cache
-.venv
-.vscode
-.windsurf
+
+# IDE/Editor settings
+.vscode/
+.windsurf/
 .agents
-.codebuff
+.codebuff/
+
+# Python cache
+.pytest_cache
 .mypy_cache
+__pycache__
+
+# Git hooks
 .husky
 
+# Environment
+.env
 
 # Runtime data files (too large for GitHub, regenerated at runtime)
 data/geometric-memory.json
 data/tested-phrases-index.json
 data/*.json
+data/backups/
 
 # Self-healing system data (runtime generated)
 qig-backend/data/immune_checkpoints.json
@@ -28,20 +43,13 @@ qig-backend/self_healing/patches/
 qig-backend/logs/
 *.jsonl
 
-# Exclude package-lock.json (using Yarn)
-package-lock.json
-
-# Exclude draft documentation
-docs/_drafts/*.md
-.env
-data/backups/geometric-memory_20251128_062436.json
 # Legacy tokenizer files (replaced by coordizer)
 qig-backend/qig_tokenizer.py
 qig-backend/qig_tokenizer_postgresql.py
 qig-backend/data/qig_tokenizer_state.json
-.vscode/settings.json
-.vscode/**
-.windsurf/lifeguard.yaml
 
-# Codebuff generated cache/artifacts
-.codebuff/
+# Package manager locks (using Yarn)
+package-lock.json
+
+# Draft documentation
+docs/_drafts/*.md
