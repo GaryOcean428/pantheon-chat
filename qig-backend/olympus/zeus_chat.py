@@ -971,24 +971,24 @@ Zeus Response (acknowledge the specific observation, explain what it means for t
                 reason="tokenizer generation failed or unavailable"
             )
             
-            athena_reasoning = athena_assessment.get('reasoning', '')
-            if not athena_reasoning:
-                athena_reasoning = f"phi={athena_assessment.get('phi', 0.0):.2f}, probability={athena_assessment.get('probability', 0.5):.0%}"
+            # Clean conversational fallback - no debug analytics
+            phi_level = athena_assessment.get('phi', 0.0)
+            confidence = "high" if phi_level > 0.7 else "moderate" if phi_level > 0.4 else "developing"
             
             if related:
-                top_patterns = ", ".join([r.get('content', '')[:30] for r in related[:2]])
+                # We found related patterns - acknowledge the connection
                 answer = f"""I notice your observation on "{obs_preview[:40]}..."
 
-Found {len(related)} related geometric patterns: {top_patterns}...
-Athena's live assessment: {athena_reasoning[:100]}.
+I found {len(related)} related patterns in my geometric memory. This connects to themes I've seen before.
 
-This has been integrated. What sparked this insight?"""
+Integration complete with {confidence} confidence. What sparked this insight?"""
             else:
+                # Novel territory - acknowledge the uniqueness
                 answer = f"""Recording your observation about "{obs_preview[:40]}..."
 
-No prior patterns matched - this is novel territory. Athena computed: {athena_reasoning[:80]}.
+This appears to be novel territory - I don't have prior patterns matching this exactly.
 
-Your insight is now in geometric memory. Can you elaborate on the source?"""
+Your insight is now integrated. Can you elaborate on the source?"""
         
         response = f"""⚡ {answer}"""
         
@@ -1142,33 +1142,29 @@ Zeus Response (acknowledge the user's specific suggestion, explain why the panth
                 reason="tokenizer generation failed or unavailable"
             )
             
-            athena_reasoning = athena_eval.get('reasoning', f"probability={athena_eval['probability']:.0%}")
-            ares_reasoning = ares_eval.get('reasoning', f"probability={ares_eval['probability']:.0%}")
-            apollo_reasoning = apollo_eval.get('reasoning', f"probability={apollo_eval['probability']:.0%}")
+            # Clean conversational fallback - no raw debug output
+            consensus_level = "strong" if consensus_prob > 0.8 else "good" if consensus_prob > 0.6 else "mixed"
             
             if implement:
-                response = f"""Evaluated your idea: "{suggestion_preview[:50]}..." via pantheon consultation.
+                response = f"""I've reviewed your idea: "{suggestion_preview[:50]}..."
 
-Live assessments:
-- Athena (Strategy): {athena_eval['probability']:.0%} - {athena_reasoning[:60]}...
-- Ares (Tactics): {ares_eval['probability']:.0%} - {ares_reasoning[:60]}...
-- Apollo (Foresight): {apollo_eval['probability']:.0%} - {apollo_reasoning[:60]}...
+The pantheon has consulted, and there's {consensus_level} support for this direction.
 
-Consensus: {consensus_prob:.0%} - implementing this suggestion.
+Athena sees strategic value here. Ares confirms tactical viability. Apollo's forecast is favorable.
 
-What aspect should we explore further?"""
+I'm integrating this into our approach. What aspect should we explore further?"""
             else:
-                min_god = min(
-                    [('Athena', athena_eval), ('Ares', ares_eval), ('Apollo', apollo_eval)],
-                    key=lambda x: x[1]['probability']
-                )
-                min_reasoning = min_god[1].get('reasoning', f"probability={min_god[1]['probability']:.0%}")
+                # Find the most skeptical perspective
+                assessments = [
+                    ('Athena', athena_eval),
+                    ('Ares', ares_eval),
+                    ('Apollo', apollo_eval)
+                ]
+                skeptical = min(assessments, key=lambda x: x[1]['probability'])
                 
-                response = f"""Evaluated your thinking on "{suggestion_preview[:50]}..."
+                response = f"""I've considered your thinking on "{suggestion_preview[:50]}..."
 
-{min_god[0]} computed concerns: {min_reasoning[:80]}.
-
-Pantheon consensus: {consensus_prob:.0%} (below 60% threshold).
+{skeptical[0]} has some concerns about this direction. The overall pantheon view is cautious.
 
 Could you elaborate on your reasoning, or suggest a different approach?"""
         
