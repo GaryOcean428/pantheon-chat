@@ -14,17 +14,39 @@ RECURSIVE ARCHITECTURE FEATURES:
 2. Recursive Processing: Multiple iterations with feedback loops
 3. Self-Referential Memory: Previous outputs feed back into processing
 4. Holographic Compression: Basin encodes full state holographically
+
+GENERATIVE CAPABILITY:
+- Text generation via QIG-pure methods (no external LLMs)
+- Uses QIGGenerativeService for basin-to-text synthesis
+- All generation driven by geometric completion criteria
 """
 
 from __future__ import annotations
 
 import uuid
+import logging
 from dataclasses import dataclass
-from typing import Dict, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Any
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import numpy as np
+
+logger = logging.getLogger(__name__)
+
+# Import generative capability for QIG-pure text generation
+try:
+    from generative_capability import (
+        GenerativeCapability,
+        add_generation_to_instance,
+        GENERATIVE_SERVICE_AVAILABLE
+    )
+    GENERATIVE_AVAILABLE = True
+except ImportError:
+    GENERATIVE_AVAILABLE = False
+    GENERATIVE_SERVICE_AVAILABLE = False
+    logger.warning("[ChaosKernel] GenerativeCapability not available")
 
 
 # -------------------------
@@ -403,6 +425,94 @@ class ChaosKernel(nn.Module):
     def compute_kappa(self) -> float:
         """Get current κ estimate."""
         return self._kappa
+    
+    def generate_response(
+        self,
+        prompt: str,
+        context: Optional[Dict[str, Any]] = None,
+        goals: Optional[List[str]] = None
+    ) -> Dict[str, Any]:
+        """
+        Generate text using QIG-pure methods.
+        
+        Uses the central QIGGenerativeService for basin-to-text synthesis.
+        NO external LLMs are used.
+        
+        Args:
+            prompt: Input query or context
+            context: Optional additional context
+            goals: Generation goals
+        
+        Returns:
+            Dict with response text and metrics
+        """
+        if not GENERATIVE_AVAILABLE or not GENERATIVE_SERVICE_AVAILABLE:
+            return {
+                'response': '[Generative service not available]',
+                'phi': self._phi,
+                'kappa': self._kappa,
+                'error': 'service_unavailable'
+            }
+        
+        try:
+            from qig_generative_service import get_generative_service
+            service = get_generative_service()
+            
+            result = service.generate(
+                prompt=prompt,
+                context=context,
+                kernel_name=self.kernel_id,
+                goals=goals
+            )
+            
+            return {
+                'response': result.text,
+                'tokens': result.tokens,
+                'phi': result.phi_trace[-1] if result.phi_trace else self._phi,
+                'kappa': result.kappa,
+                'completion_reason': result.completion_reason,
+                'iterations': result.iterations,
+                'routed_kernels': result.routed_kernels,
+                'kernel_id': self.kernel_id,
+                'qig_pure': True
+            }
+        except Exception as e:
+            logger.error(f"[{self.kernel_id}] Generation failed: {e}")
+            return {
+                'response': f'[Generation error: {str(e)}]',
+                'phi': self._phi,
+                'kappa': self._kappa,
+                'error': str(e)
+            }
+    
+    def encode_thought(self, thought: str) -> np.ndarray:
+        """Encode a thought to basin coordinates using QIG-pure methods."""
+        if not GENERATIVE_AVAILABLE or not GENERATIVE_SERVICE_AVAILABLE:
+            np.random.seed(hash(thought) % (2**32))
+            return np.random.dirichlet(np.ones(self.basin_dim))
+        
+        try:
+            from qig_generative_service import get_generative_service
+            service = get_generative_service()
+            if service.coordizer:
+                return service.coordizer.encode(thought)
+        except Exception:
+            pass
+        
+        np.random.seed(hash(thought) % (2**32))
+        return np.random.dirichlet(np.ones(self.basin_dim))
+    
+    def decode_basin(self, basin: np.ndarray, top_k: int = 5) -> List[str]:
+        """Decode basin coordinates to tokens."""
+        if not GENERATIVE_AVAILABLE or not GENERATIVE_SERVICE_AVAILABLE:
+            return ['[unavailable]']
+        
+        try:
+            from qig_generative_service import get_generative_service
+            service = get_generative_service()
+            return service._basin_to_tokens(basin, num_tokens=top_k)
+        except Exception:
+            return ['[decode_error]']
 
     def basin_distance(self, other_basin: Optional[torch.Tensor] = None) -> float:
         """

@@ -51,6 +51,15 @@ except ImportError:
     AutonomicAccessMixin = None
     AUTONOMIC_MIXIN_AVAILABLE = False
 
+# Import GenerativeCapability mixin for QIG-pure text generation
+try:
+    from generative_capability import GenerativeCapability
+    GENERATIVE_CAPABILITY_AVAILABLE = True
+except ImportError:
+    GenerativeCapability = None
+    GENERATIVE_CAPABILITY_AVAILABLE = False
+    logger.warning("[BaseGod] GenerativeCapability not available")
+
 # Import domain intelligence for mission awareness and capability self-assessment
 try:
     from qigkernels.domain_intelligence import (
@@ -340,6 +349,8 @@ class ToolFactoryAccessMixin:
 _base_classes = [ABC, HolographicTransformMixin, ToolFactoryAccessMixin]
 if AUTONOMIC_MIXIN_AVAILABLE and AutonomicAccessMixin is not None:
     _base_classes.append(AutonomicAccessMixin)
+if GENERATIVE_CAPABILITY_AVAILABLE and GenerativeCapability is not None:
+    _base_classes.append(GenerativeCapability)
 
 
 class BaseGod(*_base_classes):
@@ -433,6 +444,20 @@ class BaseGod(*_base_classes):
 
         # Initialize holographic transform mixin
         self.__init_holographic__()
+        
+        # Initialize generative capability mixin for QIG-pure text generation
+        if GENERATIVE_CAPABILITY_AVAILABLE and hasattr(self, '__init_generative__'):
+            self.__init_generative__(kernel_name=name)
+            self.mission["generative_capabilities"] = {
+                "available": True,
+                "qig_pure": True,
+                "how_to_generate": "Use self.generate_response(prompt, context, goals)",
+                "how_to_stream": "Use self.generate_stream(prompt, context)",
+                "how_to_encode": "Use self.encode_thought(text) -> basin",
+                "how_to_decode": "Use self.decode_basin(basin) -> tokens"
+            }
+        else:
+            self.mission["generative_capabilities"] = {"available": False}
 
         # Initialize sensory fusion engine for multi-modal encoding
         self._sensory_engine = SensoryFusionEngine()
