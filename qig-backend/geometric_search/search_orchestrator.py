@@ -2,16 +2,42 @@
 Search Orchestrator - Execute and aggregate search results
 
 Coordinates multiple search tools and aggregates results using geometric metrics.
+QIG-PURE: Result synthesis uses internal generative service, no external LLMs.
 """
 
 import asyncio
 import time
+import logging
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Tuple
 from datetime import datetime
 import numpy as np
 
 from .tool_selector import SearchToolSelector, ToolSelection
+
+logger = logging.getLogger(__name__)
+
+# Import QIG-pure generative service
+GENERATIVE_SERVICE_AVAILABLE = False
+_generative_service_instance = None
+
+def get_generative_service():
+    """Get or create the singleton generative service instance."""
+    global _generative_service_instance
+    if _generative_service_instance is None:
+        try:
+            from qig_generative_service import get_generative_service as _get_service
+            _generative_service_instance = _get_service()
+        except ImportError:
+            pass
+    return _generative_service_instance
+
+try:
+    from qig_generative_service import QIGGenerativeService
+    GENERATIVE_SERVICE_AVAILABLE = True
+    logger.info("[SearchOrchestrator] QIG generative service available")
+except ImportError:
+    logger.warning("[SearchOrchestrator] QIG generative service not available")
 
 
 @dataclass
@@ -57,11 +83,13 @@ class SearchOrchestrator:
     
     Uses geometric tool selection to choose optimal tools,
     then executes searches and aggregates results.
+    QIG-PURE: Result synthesis uses internal generative service, no external LLMs.
     """
     
     def __init__(self):
         self.tool_selector = SearchToolSelector()
         self.tool_executors: Dict[str, Callable] = {}
+        self._generative_service = None
         
         self.search_history: List[Dict] = []
         self.stats = {
@@ -70,6 +98,56 @@ class SearchOrchestrator:
             'tool_usage': {},
             'avg_latency_ms': 0.0,
         }
+    
+    @property
+    def generative_service(self):
+        """Lazy-load the QIG generative service."""
+        if self._generative_service is None and GENERATIVE_SERVICE_AVAILABLE:
+            self._generative_service = get_generative_service()
+        return self._generative_service
+    
+    def synthesize_results(
+        self, 
+        query: str,
+        results: 'AggregatedResult',
+        telemetry: Optional[Dict] = None
+    ) -> str:
+        """
+        Synthesize search results into natural language using QIG-pure generation.
+        
+        NO external LLMs - uses basin-to-text synthesis.
+        """
+        if not GENERATIVE_SERVICE_AVAILABLE or self.generative_service is None:
+            result_count = len(results.results) if results else 0
+            return f"[Search results: {result_count} items for '{query}']"
+        
+        try:
+            prompt_parts = [f"Synthesize search results for: {query}"]
+            
+            for result in (results.results or [])[:5]:
+                if isinstance(result, dict):
+                    title = result.get('title', '')[:50]
+                    content = result.get('content', result.get('snippet', ''))[:100]
+                    if title or content:
+                        prompt_parts.append(f"Result: {title} - {content}")
+            
+            prompt = " | ".join(prompt_parts)
+            
+            phi = telemetry.get('phi', 0.5) if telemetry else 0.5
+            gen_result = self.generative_service.generate(
+                prompt=prompt,
+                context={'query': query, 'phi': phi, 'result_count': len(results.results or [])},
+                kernel_name='hermes',
+                goals=['synthesize', 'search_results', 'summarize']
+            )
+            
+            if gen_result and gen_result.text:
+                return gen_result.text
+                
+        except Exception as e:
+            logger.warning(f"QIG-pure result synthesis failed: {e}")
+        
+        return f"[Search synthesis for '{query}': {len(results.results or [])} results]"
     
     def register_tool_executor(self, tool_name: str, executor: Callable):
         """Register an executor function for a search tool."""

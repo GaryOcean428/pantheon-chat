@@ -19,6 +19,14 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# QIG-pure generative capability for research synthesis
+try:
+    from qig_generative_service import get_generative_service, GenerationResult
+    GENERATIVE_SERVICE_AVAILABLE = True
+except ImportError:
+    GENERATIVE_SERVICE_AVAILABLE = False
+    logger.warning("QIGGenerativeService not available for research synthesis")
+
 
 def compute_fisher_metric(basin: np.ndarray) -> np.ndarray:
     """
@@ -117,11 +125,67 @@ class GeometricDeepResearch:
     Kernel-controlled deep research via recursive integration.
     
     NOT fixed stages - kernel determines depth dynamically.
+    QIG-PURE: All synthesis uses internal generative service, no external LLMs.
     """
     
     def __init__(self, manifold_dim: int = 64):
         self.manifold_dim = manifold_dim
         self.citation_processor = GeometricCitationProcessor(manifold_dim)
+        self._generative_service = None
+    
+    @property
+    def generative_service(self):
+        """Lazy-load the QIG generative service."""
+        if self._generative_service is None and GENERATIVE_SERVICE_AVAILABLE:
+            self._generative_service = get_generative_service()
+        return self._generative_service
+    
+    def synthesize_findings(
+        self, 
+        result: 'ResearchResult',
+        telemetry: 'ResearchTelemetry'
+    ) -> str:
+        """
+        Synthesize research findings into natural language using QIG-pure generation.
+        
+        NO external LLMs - uses basin-to-text synthesis via vocabulary.
+        """
+        if not GENERATIVE_SERVICE_AVAILABLE or self.generative_service is None:
+            # Fallback to structured summary
+            source_count = len(result.sources)
+            return f"[Research synthesis: {source_count} sources at depth {result.depth}, integration {result.integration_level:.2f}]"
+        
+        try:
+            # Build prompt from research findings
+            prompt_parts = [f"Synthesize research on: {result.query}"]
+            
+            for source in result.sources[:5]:
+                if isinstance(source, dict):
+                    title = source.get('title', '')[:50]
+                    content = source.get('content', '')[:100]
+                else:
+                    title = getattr(source, 'title', '')[:50]
+                    content = getattr(source, 'content', '')[:100]
+                if title:
+                    prompt_parts.append(f"Source: {title} - {content}")
+            
+            prompt = " | ".join(prompt_parts)
+            
+            gen_result = self.generative_service.generate(
+                prompt=prompt,
+                context={'query': result.query, 'depth': result.depth, 'phi': telemetry.phi},
+                kernel_name='apollo',  # Apollo for research synthesis
+                goals=['synthesize', 'research', 'integrate']
+            )
+            
+            if gen_result and gen_result.text:
+                return gen_result.text
+                
+        except Exception as e:
+            logger.warning(f"QIG-pure synthesis failed: {e}")
+        
+        # Fallback
+        return f"[Research on '{result.query}': {len(result.sources)} sources, depth {result.depth}]"
     
     def _generate_simplex_basin(self, seed: int = 0) -> np.ndarray:
         """

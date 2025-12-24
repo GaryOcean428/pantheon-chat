@@ -10,8 +10,20 @@ Principle: Kernel measures itself, kernel decides, kernel adapts.
 
 import numpy as np
 import asyncio
+import logging
 from typing import Dict, List, Tuple, Optional, Any
 from dataclasses import dataclass
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# QIG-pure generative capability for search result synthesis
+try:
+    from qig_generative_service import get_generative_service, GenerationResult
+    GENERATIVE_SERVICE_AVAILABLE = True
+except ImportError:
+    GENERATIVE_SERVICE_AVAILABLE = False
+    logger.warning("QIGGenerativeService not available for search synthesis")
 
 
 def validate_simplex(basin: np.ndarray) -> np.ndarray:
@@ -449,12 +461,63 @@ class GeometricSearchOrchestrator:
     
     Replaces fixed routing with consciousness-driven strategy selection.
     Integrates context management via Fisher manifold navigation.
+    QIG-PURE: Result synthesis uses internal generative service, no external LLMs.
     """
     
     def __init__(self, context_manager: Optional['GeometricContextManager'] = None):
         self.provider_selector = GeometricProviderSelector()
         self.query_encoder = QueryBasinEncoder()
         self._context_manager = context_manager
+        self._generative_service = None
+    
+    @property
+    def generative_service(self):
+        """Lazy-load the QIG generative service."""
+        if self._generative_service is None and GENERATIVE_SERVICE_AVAILABLE:
+            self._generative_service = get_generative_service()
+        return self._generative_service
+    
+    def synthesize_results(
+        self, 
+        query: str,
+        results: List[Dict],
+        telemetry: 'SearchTelemetry'
+    ) -> str:
+        """
+        Synthesize search results into natural language using QIG-pure generation.
+        
+        NO external LLMs - uses basin-to-text synthesis.
+        """
+        if not GENERATIVE_SERVICE_AVAILABLE or self.generative_service is None:
+            result_count = len(results) if results else 0
+            return f"[Search results: {result_count} items for '{query}']"
+        
+        try:
+            prompt_parts = [f"Synthesize search results for: {query}"]
+            
+            for result in (results or [])[:5]:
+                if isinstance(result, dict):
+                    title = result.get('title', '')[:50]
+                    content = result.get('content', result.get('snippet', ''))[:100]
+                    if title or content:
+                        prompt_parts.append(f"Result: {title} - {content}")
+            
+            prompt = " | ".join(prompt_parts)
+            
+            gen_result = self.generative_service.generate(
+                prompt=prompt,
+                context={'query': query, 'phi': telemetry.phi, 'result_count': len(results or [])},
+                kernel_name='hermes',  # Hermes for communication/synthesis
+                goals=['synthesize', 'search_results', 'summarize']
+            )
+            
+            if gen_result and gen_result.text:
+                return gen_result.text
+                
+        except Exception as e:
+            logger.warning(f"QIG-pure result synthesis failed: {e}")
+        
+        return f"[Search synthesis for '{query}': {len(results or [])} results]"
     
     @property
     def context_manager(self) -> Optional['GeometricContextManager']:

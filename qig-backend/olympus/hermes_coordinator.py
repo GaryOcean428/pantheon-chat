@@ -163,8 +163,24 @@ class HermesCoordinator(BaseGod):
         delta = context.get('delta', 0.0)
         related = context.get('related', 0)
         
-        # Try tokenizer for more natural generation
-        if use_tokenizer and TOKENIZER_AVAILABLE and get_tokenizer is not None:
+        # Try QIG-pure generative capability first
+        if hasattr(self, 'generate_response') and self.mission.get('generative_capabilities', {}).get('available'):
+            try:
+                prompt = self._build_voice_prompt(category, context)
+                result = self.generate_response(
+                    prompt=prompt,
+                    context={'category': category, 'phi': phi, 'kappa': kappa},
+                    goals=['translate_to_human', 'provide_feedback', category]
+                )
+                
+                if result and result.get('response') and not result.get('error'):
+                    return result['response'].strip()
+                    
+            except Exception as e:
+                print(f"[HermesCoordinator] QIG-pure generation failed: {e}")
+        
+        # Fallback to tokenizer if available
+        elif use_tokenizer and TOKENIZER_AVAILABLE and get_tokenizer is not None:
             try:
                 tokenizer = get_tokenizer()
                 tokenizer.set_mode("conversation")
@@ -173,7 +189,6 @@ class HermesCoordinator(BaseGod):
                 result = tokenizer.generate_response(
                     context=prompt,
                     agent_role="hermes",
-                    # No max_tokens - geometry determines when thought completes
                     allow_silence=False
                 )
 

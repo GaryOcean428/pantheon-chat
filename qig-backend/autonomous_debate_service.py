@@ -45,6 +45,14 @@ except ImportError:
     TOKENIZER_AVAILABLE = False
     logger.warning("QIG Tokenizer not available")
 
+# QIG-pure generative capability for argument synthesis
+try:
+    from qig_generative_service import get_generative_service, GenerationResult
+    GENERATIVE_SERVICE_AVAILABLE = True
+except ImportError:
+    GENERATIVE_SERVICE_AVAILABLE = False
+    logger.warning("QIGGenerativeService not available for debate synthesis")
+
 try:
     from geometric_kernels import _fisher_distance, _normalize_to_manifold, BASIN_DIM
     GEOMETRIC_AVAILABLE = True
@@ -956,9 +964,8 @@ class AutonomousDebateService:
         kappa: float,
         topic_basin: np.ndarray
     ) -> Optional[str]:
-        """Generate argument using QIG tokenizer's geometric generation."""
-        tokenizer = get_tokenizer()
-
+        """Generate argument using QIG-pure generative service (NO external LLMs)."""
+        
         # Build context from highest-affinity evidence
         context_parts = [f"{god_name} on {topic}:"]
 
@@ -973,26 +980,46 @@ class AutonomousDebateService:
         if prev_basins:
             avg_prev = np.mean(prev_basins, axis=0)
             counter_direction = topic_basin - avg_prev
-            # Normalize and describe
             counter_mag = np.linalg.norm(counter_direction)
             if counter_mag > 0.1:
                 context_parts.append(f"diverge:{counter_mag:.2f}")
 
         context = " ".join(context_parts)
 
-        # Set mode and generate
-        tokenizer.set_mode("conversation")
-        result = tokenizer.generate_response(
-            context=context,
-            agent_role="navigator",  # Balanced exploration
-            # No max_tokens - geometry determines when debate argument completes
-            allow_silence=False
-        )
+        # Try QIG-pure generative service first
+        if GENERATIVE_SERVICE_AVAILABLE:
+            try:
+                service = get_generative_service()
+                result = service.generate(
+                    prompt=context,
+                    context={'god_name': god_name, 'topic': topic, 'phi': phi, 'kappa': kappa},
+                    kernel_name=god_key,
+                    goals=['generate_argument', 'debate', persona.get('perspective', '')]
+                )
+                
+                if result and result.text:
+                    return f"{god_name.capitalize()}: {result.text}"
+                    
+            except Exception as e:
+                logger.warning(f"QIG-pure generation failed for {god_name}: {e}")
+        
+        # Fallback to tokenizer if available
+        if TOKENIZER_AVAILABLE:
+            try:
+                tokenizer = get_tokenizer()
+                tokenizer.set_mode("conversation")
+                result = tokenizer.generate_response(
+                    context=context,
+                    agent_role="navigator",
+                    allow_silence=False
+                )
 
-        generated = result.get('text', '')
-        if generated:
-            # Wrap in god's voice
-            return f"{god_name.capitalize()}: {generated}"
+                generated = result.get('text', '')
+                if generated:
+                    return f"{god_name.capitalize()}: {generated}"
+            except Exception as e:
+                logger.warning(f"Tokenizer generation failed for {god_name}: {e}")
+        
         return None
 
     # Cache for historical fragments to avoid O(n²) growth
