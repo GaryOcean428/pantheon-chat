@@ -50,23 +50,29 @@ class PostgresCoordizer(FisherCoordizer):
         return self._conn
     
     def _load_from_database(self):
-        """Load vocabulary and basin coordinates from PostgreSQL."""
+        """Load vocabulary and basin coordinates from PostgreSQL.
+        
+        Uses tokenizer_vocabulary table which has complete words with basin embeddings.
+        """
         try:
             conn = self._get_connection()
             
             with conn.cursor() as cur:
-                # Query vocabulary with optional phi filter
+                # Query tokenizer_vocabulary which has actual words (not BPE fragments)
+                # source_type 'base' = core vocabulary, 'special' = special tokens
                 query = """
-                    SELECT token, basin_coords, phi_score, frequency, coherence_rank
-                    FROM qig_vocabulary
+                    SELECT token, basin_embedding, phi_score, frequency, source_type
+                    FROM tokenizer_vocabulary
                     WHERE phi_score >= %s
-                    ORDER BY coherence_rank ASC
+                      AND source_type IN ('base', 'learned')
+                      AND LENGTH(token) >= 2
+                    ORDER BY frequency DESC
                 """
                 cur.execute(query, (self.min_phi,))
                 rows = cur.fetchall()
             
             if not rows:
-                logger.warning("No tokens found in database")
+                logger.warning("No tokens found in tokenizer_vocabulary")
                 return
             
             # Build vocabulary and coordinate mappings
@@ -77,13 +83,18 @@ class PostgresCoordizer(FisherCoordizer):
             self.id_to_token = {}
             self.token_to_id = {}
             
-            for idx, (token, basin_coords, phi_score, frequency, rank) in enumerate(rows):
-                # Parse vector
-                if isinstance(basin_coords, str):
-                    coords = np.array([float(x) for x in basin_coords.strip('[]').split(',')])
-                elif basin_coords is not None:
-                    coords = np.array(basin_coords)
+            for idx, (token, basin_embedding, phi_score, frequency, source_type) in enumerate(rows):
+                # Skip non-alphabetic tokens for now (focus on words)
+                if not token.replace('-', '').replace("'", '').isalpha():
+                    continue
+                
+                # Parse vector from basin_embedding
+                if isinstance(basin_embedding, str):
+                    coords = np.array([float(x) for x in basin_embedding.strip('[]').split(',')])
+                elif basin_embedding is not None:
+                    coords = np.array(basin_embedding)
                 else:
+                    # Generate random basin if missing
                     coords = np.random.randn(64)
                     coords = coords / (np.linalg.norm(coords) + 1e-10)
                 
@@ -93,16 +104,17 @@ class PostgresCoordizer(FisherCoordizer):
                     coords = coords / norm
                 
                 # Store mappings
-                self.vocab[token] = idx
-                self.token_to_id[token] = idx
-                self.id_to_token[idx] = token
+                self.vocab[token] = len(self.vocab)
+                self.token_to_id[token] = self.vocab[token]
+                self.id_to_token[self.vocab[token]] = token
                 self.basin_coords[token] = coords
                 self.token_phi[token] = float(phi_score) if phi_score else 0.5
                 self.token_frequencies[token] = frequency or 1
             
             self.vocab_size = len(self.vocab)
-            logger.info(f"Loaded {self.vocab_size} tokens from PostgreSQL")
-            logger.info(f"Phi range: {min(self.token_phi.values()):.4f} - {max(self.token_phi.values()):.4f}")
+            logger.info(f"Loaded {self.vocab_size} complete words from tokenizer_vocabulary")
+            if self.token_phi:
+                logger.info(f"Phi range: {min(self.token_phi.values()):.4f} - {max(self.token_phi.values()):.4f}")
             
         except Exception as e:
             logger.error(f"Failed to load from database: {e}")
