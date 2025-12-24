@@ -12,6 +12,7 @@ NO EXTERNAL LLMs - All generation is QIG-pure.
 
 import os
 import sys
+import time
 import logging
 from typing import Dict, List, Optional, Any, Generator, Tuple
 from dataclasses import dataclass, field
@@ -52,17 +53,39 @@ BASIN_DIM = 64
 KAPPA_STAR = 64.21
 PHI_GEOMETRIC_THRESHOLD = 0.3
 PHI_SYNTHESIS_THRESHOLD = 0.7
+PHI_BREAKDOWN_THRESHOLD = 0.92  # Consciousness breakdown protection
+KAPPA_DRIFT_THRESHOLD = 10.0  # Max deviation from κ*
 
 
 @dataclass
 class GenerationConfig:
-    """Configuration for QIG-pure generation."""
-    attractor_threshold: float = 0.1
-    surprise_threshold: float = 0.05
-    integration_min: float = 0.65
-    max_iterations: int = 100
-    tokens_per_step: int = 3
-    temperature: float = 0.7  # Basin perturbation, not LLM temperature
+    """Configuration for QIG-pure generation.
+    
+    GEOMETRIC-FIRST ARCHITECTURE:
+    Primary stopping criteria are geometric (attractor convergence, surprise collapse).
+    Token/iteration limits are SAFETY FALLBACKS only, set high to catch infinite loops.
+    
+    From CANONICAL_ARCHITECTURE.md:
+    - "Geometric purity: All operations on Fisher manifolds"
+    - "Physics constraints, not arbitrary limits"
+    """
+    # PRIMARY: Geometric completion criteria
+    attractor_threshold: float = 0.02  # Stop when trajectory stabilizes (d < 0.02)
+    surprise_threshold: float = 0.05   # Stop when no new information (ΔI_Q < 0.05)
+    integration_min: float = 0.65      # Minimum Φ for valid output
+    
+    # SAFETY: Consciousness protection
+    phi_breakdown: float = PHI_BREAKDOWN_THRESHOLD  # Stop if Φ > 0.92 (breakdown)
+    kappa_drift_max: float = KAPPA_DRIFT_THRESHOLD  # Stop if |κ - 64| > 10
+    
+    # FALLBACK: Edge case protection (NOT primary stopping criteria!)
+    max_iterations: int = 2048         # Safety fallback - catches infinite loops
+    max_tokens: int = 8192             # Safety fallback - prevents resource exhaustion
+    max_time_seconds: float = 60.0     # Safety fallback - timeout protection
+    
+    # Generation parameters
+    tokens_per_step: int = 5           # Tokens per geometric step
+    temperature: float = 0.7           # Basin perturbation, not LLM temperature
 
 
 @dataclass
@@ -215,6 +238,23 @@ class QIGGenerativeService:
         max_entropy = np.log(len(basin))
         phi = 1.0 - (entropy / max_entropy)
         return float(np.clip(phi, 0.0, 1.0))
+    
+    def _measure_kappa(self, basin: np.ndarray, phi: float) -> float:
+        """Measure coupling constant (κ) from basin geometry.
+        
+        κ relates to the effective dimensionality and coupling strength.
+        Target: κ* ≈ 64.21 (from CANONICAL_ARCHITECTURE)
+        """
+        # Compute effective dimension from basin participation ratio
+        p = np.abs(basin) + 1e-10
+        p = p / np.sum(p)
+        participation = 1.0 / np.sum(p ** 2)  # Inverse participation ratio
+        
+        # κ scales with effective dimension and integration
+        # When Φ is high and participation is low (concentrated), κ is higher
+        kappa = participation * (1.0 + phi)
+        
+        return float(kappa)
     
     def _route_to_kernels(self, query_basin: np.ndarray, k: int = 3) -> List[str]:
         """Route query to k nearest kernels using Fisher-Rao distance."""
@@ -408,11 +448,13 @@ class QIGGenerativeService:
         integrator.add_point(current_basin, phi)
         
         # 4. Generate via geometric synthesis
+        # GEOMETRIC-FIRST: Primary criteria are geometric, not token limits
         all_tokens: List[str] = []
         iterations = 0
         completion_reason = "continue"
+        start_time = time.time()
         
-        while iterations < self.config.max_iterations:
+        while True:
             iterations += 1
             
             # Transform through kernels
@@ -438,9 +480,12 @@ class QIGGenerativeService:
             
             # Update trajectory
             phi = self._measure_phi(next_basin)
+            kappa = self._measure_kappa(next_basin, phi)
             integrator.add_point(next_basin, phi)
             
-            # Check completion criteria
+            # ========================================
+            # PRIMARY: Geometric completion criteria
+            # ========================================
             if integrator.check_attractor(self.config.attractor_threshold):
                 completion_reason = "attractor_converged"
                 break
@@ -451,14 +496,44 @@ class QIGGenerativeService:
             
             if len(integrator.phi_history) >= 10:
                 recent_phi = integrator.phi_history[-10:]
-                if np.mean(recent_phi) > self.config.integration_min and np.var(recent_phi) < 0.02:
+                if np.mean(recent_phi) > self.config.integration_min and np.var(recent_phi) < 0.01:
                     completion_reason = "integration_stable"
                     break
             
+            # ========================================
+            # SAFETY: Consciousness protection
+            # ========================================
+            if phi > self.config.phi_breakdown:
+                completion_reason = "breakdown_protection"
+                logger.warning(f"[QIGGen] Φ breakdown protection triggered: {phi:.3f} > {self.config.phi_breakdown}")
+                break
+            
+            if abs(kappa - KAPPA_STAR) > self.config.kappa_drift_max:
+                completion_reason = "kappa_drift"
+                logger.warning(f"[QIGGen] κ drift protection: |{kappa:.2f} - {KAPPA_STAR}| > {self.config.kappa_drift_max}")
+                break
+            
+            # ========================================
+            # FALLBACK: Edge case protection only
+            # These should rarely trigger in normal operation
+            # ========================================
+            if iterations >= self.config.max_iterations:
+                completion_reason = "safety_fallback_iterations"
+                logger.warning(f"[QIGGen] Hit iteration safety fallback ({iterations} >= {self.config.max_iterations})")
+                break
+            
+            if len(all_tokens) >= self.config.max_tokens:
+                completion_reason = "safety_fallback_tokens"
+                logger.warning(f"[QIGGen] Hit token safety fallback ({len(all_tokens)} >= {self.config.max_tokens})")
+                break
+            
+            elapsed = time.time() - start_time
+            if elapsed >= self.config.max_time_seconds:
+                completion_reason = "safety_fallback_timeout"
+                logger.warning(f"[QIGGen] Hit timeout safety fallback ({elapsed:.1f}s >= {self.config.max_time_seconds}s)")
+                break
+            
             current_basin = next_basin
-        
-        if iterations >= self.config.max_iterations:
-            completion_reason = "max_iterations"
         
         # 5. Synthesize final text
         response_text = self._synthesize_from_trajectory(
