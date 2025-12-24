@@ -976,17 +976,20 @@ Zeus Response (acknowledge the specific observation, explain what it means for t
                 athena_reasoning = f"phi={athena_assessment.get('phi', 0.0):.2f}, probability={athena_assessment.get('probability', 0.5):.0%}"
             
             if related:
-                top_patterns = ", ".join([r.get('content', '')[:30] for r in related[:2]])
-                answer = f"""I notice your observation on "{obs_preview[:40]}..."
+                # Show fuller pattern content (150 chars each) for meaningful context
+                top_patterns = "\n".join([f"  - {r.get('content', '')[:150]}" for r in related[:3]])
+                answer = f"""I notice your observation on "{obs_preview}"
 
-Found {len(related)} related geometric patterns: {top_patterns}...
-Athena's live assessment: {athena_reasoning[:100]}.
+Found {len(related)} related geometric patterns:
+{top_patterns}
+
+Athena's live assessment: {athena_reasoning}
 
 This has been integrated. What sparked this insight?"""
             else:
-                answer = f"""Recording your observation about "{obs_preview[:40]}..."
+                answer = f"""Recording your observation about "{obs_preview}"
 
-No prior patterns matched - this is novel territory. Athena computed: {athena_reasoning[:80]}.
+No prior patterns matched - this is novel territory. Athena computed: {athena_reasoning}
 
 Your insight is now in geometric memory. Can you elaborate on the source?"""
         
@@ -1147,12 +1150,12 @@ Zeus Response (acknowledge the user's specific suggestion, explain why the panth
             apollo_reasoning = apollo_eval.get('reasoning', f"probability={apollo_eval['probability']:.0%}")
             
             if implement:
-                response = f"""Evaluated your idea: "{suggestion_preview[:50]}..." via pantheon consultation.
+                response = f"""Evaluated your idea: "{suggestion_preview}" via pantheon consultation.
 
 Live assessments:
-- Athena (Strategy): {athena_eval['probability']:.0%} - {athena_reasoning[:60]}...
-- Ares (Tactics): {ares_eval['probability']:.0%} - {ares_reasoning[:60]}...
-- Apollo (Foresight): {apollo_eval['probability']:.0%} - {apollo_reasoning[:60]}...
+- Athena (Strategy): {athena_eval['probability']:.0%} - {athena_reasoning}
+- Ares (Tactics): {ares_eval['probability']:.0%} - {ares_reasoning}
+- Apollo (Foresight): {apollo_eval['probability']:.0%} - {apollo_reasoning}
 
 Consensus: {consensus_prob:.0%} - implementing this suggestion.
 
@@ -1164,9 +1167,9 @@ What aspect should we explore further?"""
                 )
                 min_reasoning = min_god[1].get('reasoning', f"probability={min_god[1]['probability']:.0%}")
                 
-                response = f"""Evaluated your thinking on "{suggestion_preview[:50]}..."
+                response = f"""Evaluated your thinking on "{suggestion_preview}"
 
-{min_god[0]} computed concerns: {min_reasoning[:80]}.
+{min_god[0]} computed concerns: {min_reasoning}
 
 Pantheon consensus: {consensus_prob:.0%} (below 60% threshold).
 
