@@ -23,12 +23,15 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Import coordizers
+COORDIZER_AVAILABLE = False
+PostgresCoordizer = None
+create_coordizer_from_pg = None
+
 try:
     from coordizers.pg_loader import PostgresCoordizer, create_coordizer_from_pg
     COORDIZER_AVAILABLE = True
-except ImportError:
-    COORDIZER_AVAILABLE = False
-    logger.warning("PostgresCoordizer not available")
+except ImportError as e:
+    logger.warning(f"PostgresCoordizer not available: {e}")
 
 # Import from qig_geometry for canonical operations
 try:
@@ -167,11 +170,11 @@ class QIGGenerativeService:
     
     @property
     def coordizer(self) -> Optional['PostgresCoordizer']:
-        """Lazy-load coordizer from PostgreSQL."""
+        """Lazy-load coordizer from PostgreSQL (with automatic fallback)."""
         if self._coordizer is None and COORDIZER_AVAILABLE:
             try:
-                self._coordizer = create_coordizer_from_pg(min_phi=0.0)
-                logger.info(f"[QIGGenerativeService] Loaded {self._coordizer.vocab_size} tokens from PostgreSQL")
+                self._coordizer = create_coordizer_from_pg()
+                logger.info(f"[QIGGenerativeService] Loaded {self._coordizer.vocab_size} tokens")
             except Exception as e:
                 logger.error(f"[QIGGenerativeService] Failed to load coordizer: {e}")
         return self._coordizer
@@ -257,7 +260,8 @@ class QIGGenerativeService:
             return ['[no_vocab]']
         
         # Get more candidates to allow phi-weighted selection
-        candidates = self.coordizer.decode(basin, top_k=num_tokens * 5, prefer_words=True)
+        # PostgresCoordizer loads real words; prefer_words=True ensures readable output
+        candidates = self.coordizer.decode(basin, top_k=num_tokens * 5)
         
         # Score by combined similarity + phi
         scored = []

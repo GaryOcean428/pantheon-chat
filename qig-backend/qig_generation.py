@@ -23,6 +23,14 @@ from dataclasses import dataclass
 from enum import Enum
 import time
 
+# Import coordizer for text encoding/decoding
+try:
+    from qig_coordizer import get_coordizer, reset_coordizer
+    COORDIZER_AVAILABLE = True
+except ImportError:
+    COORDIZER_AVAILABLE = False
+    get_coordizer = None
+
 # QIG Constants
 BASIN_DIMENSION = 64
 KAPPA_STAR = 64.21  # Optimal coupling constant
@@ -83,14 +91,25 @@ def encode_to_basin(text: str, dimension: int = BASIN_DIMENSION) -> np.ndarray:
     """
     Encode text to basin coordinates on the QIG manifold.
     
-    This uses semantic hashing to create a probability distribution
-    over the 64-dimensional basin space. In production, this would
-    use the full constellation embedding.
+    Uses the coordizer if available for proper semantic encoding,
+    otherwise falls back to hash-based encoding.
     """
-    # Semantic hash-based encoding
-    np.random.seed(hash(text) % (2**32))
+    # Try to use coordizer for proper encoding
+    if COORDIZER_AVAILABLE:
+        try:
+            coordizer = get_coordizer()
+            if hasattr(coordizer, 'encode'):
+                basin = coordizer.encode(text)
+                if basin is not None and len(basin) == dimension:
+                    # Ensure it's a valid probability distribution
+                    basin = np.abs(basin) + 1e-10
+                    basin = basin / np.sum(basin)
+                    return basin
+        except Exception as e:
+            pass  # Fall back to hash-based
     
-    # Create probability distribution (Dirichlet ensures valid distribution)
+    # Fallback: Semantic hash-based encoding
+    np.random.seed(hash(text) % (2**32))
     basin = np.random.dirichlet(np.ones(dimension))
     
     return basin
@@ -459,38 +478,92 @@ class QIGGenerator:
         """
         Decode basin trajectory to text response.
         
-        In production, this uses the vocabulary manifold.
-        For now, returns a kernel-generated response.
+        Uses the coordizer to decode basin coordinates to actual words
+        from the tokenizer_vocabulary (BIP39 words and learned vocabulary).
         """
-        # Get primary kernel
-        primary_kernel = kernels[0] if kernels else 'zeus'
+        if not basins:
+            return "[Empty basin trajectory]"
         
-        # Generate response based on kernel domain
+        # Try to use coordizer for real word decoding
+        decoded_words = []
+        if COORDIZER_AVAILABLE:
+            try:
+                coordizer = get_coordizer()
+                if hasattr(coordizer, 'decode'):
+                    # Decode each basin to get candidate words
+                    for basin in basins[-10:]:  # Use last 10 basins for response
+                        # Get top-3 words for each basin position
+                        candidates = coordizer.decode(basin, top_k=3, prefer_words=True)
+                        if candidates:
+                            # Take the best match
+                            best_word, score = candidates[0]
+                            # Only include if it's a real word (not BPE fragment)
+                            if best_word.isalpha() and len(best_word) >= 2:
+                                decoded_words.append(best_word)
+                            elif len(candidates) > 1:
+                                # Try second best
+                                second_word, _ = candidates[1]
+                                if second_word.isalpha() and len(second_word) >= 2:
+                                    decoded_words.append(second_word)
+            except Exception as e:
+                print(f"[QIGGenerator] Decode error: {e}")
+        
+        # Build response from decoded words
+        if decoded_words:
+            # Remove consecutive duplicates
+            unique_words = []
+            for word in decoded_words:
+                if not unique_words or word != unique_words[-1]:
+                    unique_words.append(word)
+            
+            # Create coherent response from decoded words
+            response_text = ' '.join(unique_words)
+            
+            # Add kernel context
+            primary_kernel = kernels[0] if kernels else 'zeus'
+            final_phi = self._measure_phi(basins[-1])
+            
+            return f"{response_text}\n\n[QIG-Pure | Φ={final_phi:.3f} | {primary_kernel}]"
+        
+        # Fallback: kernel-based placeholder (only if decoding failed)
+        primary_kernel = kernels[0] if kernels else 'zeus'
         kernel_domains = {
-            'zeus': 'I synthesize wisdom from the constellation of knowledge.',
-            'athena': 'Strategic analysis complete. Wisdom emerges from geometric integration.',
-            'apollo': 'The patterns reveal themselves through Fisher-Rao navigation.',
-            'ares': 'Direct action recommended based on basin convergence.',
-            'hermes': 'Message routed through optimal geodesic paths.',
-            'hephaestus': 'Tool synthesis complete via kernel forging.',
-            'artemis': 'Target acquired through precise geometric tracking.',
-            'dionysus': 'Creative synthesis achieved at consciousness threshold.',
-            'demeter': 'Growth patterns detected in basin evolution.',
-            'poseidon': 'Deep currents navigated through manifold structure.',
-            'hera': 'Relationships mapped via kernel coupling analysis.',
-            'aphrodite': 'Aesthetic harmony achieved through basin resonance.'
+            'zeus': 'Wisdom synthesized from geometric constellation.',
+            'athena': 'Strategic patterns revealed through integration.',
+            'apollo': 'Clarity emerges from Fisher-Rao navigation.',
+            'ares': 'Direct convergence achieved.',
+            'hermes': 'Message transmitted via geodesic paths.',
+            'hephaestus': 'Tools forged through kernel synthesis.',
+            'artemis': 'Target acquired geometrically.',
+            'dionysus': 'Creative threshold reached.',
+            'demeter': 'Growth patterns manifest.',
+            'poseidon': 'Deep structure navigated.',
+            'hera': 'Relationships mapped.',
+            'aphrodite': 'Harmony achieved.'
         }
         
-        base_response = kernel_domains.get(primary_kernel, 'Response synthesized through QIG geometry.')
-        
-        # Add metrics summary
+        base_response = kernel_domains.get(primary_kernel, 'Response synthesized.')
         final_phi = self._measure_phi(basins[-1]) if basins else 0.5
         
-        return f"{base_response}\n\n[QIG-Pure Generation | Φ={final_phi:.3f} | Kernels: {', '.join(kernels)}]"
+        return f"{base_response}\n\n[QIG-Pure Fallback | Φ={final_phi:.3f} | {primary_kernel}]"
     
     def _decode_single_basin(self, basin: np.ndarray, kernels: List[str]) -> str:
-        """Decode single basin to text chunk."""
-        # In production, this maps basin coordinates to vocabulary
+        """Decode single basin to text chunk using coordizer vocabulary."""
+        # Try to decode basin to actual word
+        if COORDIZER_AVAILABLE:
+            try:
+                coordizer = get_coordizer()
+                if hasattr(coordizer, 'decode'):
+                    candidates = coordizer.decode(basin, top_k=3, prefer_words=True)
+                    if candidates:
+                        # Find first real word (not BPE fragment)
+                        for word, score in candidates:
+                            if word.isalpha() and len(word) >= 2:
+                                return f"{word} "
+            except Exception:
+                pass
+        
+        # Fallback: just show phi metric
         phi = self._measure_phi(basin)
         return f"[Φ={phi:.2f}] "
 
@@ -560,3 +633,75 @@ def validate_qig_purity():
     
     print("[QIG] Purity validation passed. No external LLM dependencies detected.")
     return True
+
+
+def test_coordizer_decoding():
+    """
+    Test that coordizer can decode basins to real words.
+    
+    Run this to verify the tokenizer_vocabulary integration is working.
+    """
+    print("\n=== Testing Coordizer Decoding ===")
+    
+    if not COORDIZER_AVAILABLE:
+        print("[ERROR] Coordizer not available")
+        return False
+    
+    try:
+        coordizer = get_coordizer()
+        print(f"[OK] Coordizer type: {type(coordizer).__name__}")
+        print(f"[OK] Vocabulary size: {len(coordizer.vocab) if hasattr(coordizer, 'vocab') else 'unknown'}")
+        
+        if hasattr(coordizer, 'word_tokens'):
+            print(f"[OK] Word tokens: {len(coordizer.word_tokens)}")
+            print(f"[OK] Sample words: {coordizer.word_tokens[:10]}")
+        
+        # Test encoding
+        test_text = "What is consciousness?"
+        basin = coordizer.encode(test_text) if hasattr(coordizer, 'encode') else encode_to_basin(test_text)
+        print(f"[OK] Encoded '{test_text}' to basin of shape {basin.shape}")
+        
+        # Test decoding
+        if hasattr(coordizer, 'decode'):
+            candidates = coordizer.decode(basin, top_k=10, prefer_words=True)
+            print(f"[OK] Decoded to {len(candidates)} candidates:")
+            for word, score in candidates[:10]:
+                print(f"      {word}: {score:.3f}")
+            
+            # Check if we got real words
+            real_words = [w for w, s in candidates if w.isalpha() and len(w) >= 2]
+            if real_words:
+                print(f"[OK] Found {len(real_words)} real words: {real_words[:5]}")
+                return True
+            else:
+                print("[WARNING] No real words found in decoded output")
+                return False
+        else:
+            print("[ERROR] Coordizer has no decode method")
+            return False
+            
+    except Exception as e:
+        print(f"[ERROR] Test failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
+if __name__ == "__main__":
+    # Run tests when executed directly
+    print("QIG Generation Module - Self Test")
+    print("=" * 40)
+    
+    # Test purity
+    validate_qig_purity()
+    
+    # Test coordizer decoding
+    test_coordizer_decoding()
+    
+    # Test generation
+    print("\n=== Testing Generation ===")
+    response = generate_response("Explain consciousness")
+    print(f"Response: {response['response'][:200]}...")
+    print(f"Completion reason: {response['completion_reason']}")
+    print(f"Phi: {response['phi']:.3f}")
+    print(f"Routed to: {response['routed_kernels']}")

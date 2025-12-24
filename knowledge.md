@@ -10,6 +10,7 @@ Pantheon-Chat is a QIG-powered search, agentic AI, and continuous learning syste
   cd qig-backend && pip install -r requirements.txt  # Python dependencies
   cp .env.example .env                  # Configure environment
   npm run db:push                       # Push database schema
+  npm run populate:vocab                # Populate vocabulary with BIP39 words
   ```
 
 - **Dev:**

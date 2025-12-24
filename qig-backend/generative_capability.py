@@ -32,9 +32,12 @@ try:
         KAPPA_STAR
     )
     GENERATIVE_SERVICE_AVAILABLE = True
-except ImportError:
+except ImportError as e:
     GENERATIVE_SERVICE_AVAILABLE = False
-    logger.warning("QIGGenerativeService not available")
+    logger.warning(f"QIGGenerativeService not available: {e}")
+    # Define fallback constants
+    BASIN_DIM = 64
+    KAPPA_STAR = 64.21
 
 
 @dataclass

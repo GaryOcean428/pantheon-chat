@@ -27,6 +27,14 @@ except ImportError:
     ZEUS_AVAILABLE = False
     print("[ZeusAPI] Zeus module not available")
 
+# Import coordizer for vocabulary management
+try:
+    from qig_coordizer import get_coordizer, reset_coordizer, get_coordizer_stats
+    COORDIZER_AVAILABLE = True
+except ImportError:
+    COORDIZER_AVAILABLE = False
+    print("[ZeusAPI] Coordizer module not available")
+
 zeus_api = Blueprint('zeus_api', __name__)
 
 # Session storage (in production, use Redis)
@@ -301,6 +309,176 @@ def list_sessions():
         'sessions': sessions_list,
         'total': len(sessions_list)
     })
+
+
+# =============================================================================
+# Coordizer Management Endpoints
+# =============================================================================
+
+@zeus_api.route('/zeus/coordizer/status', methods=['GET'])
+def coordizer_status():
+    """
+    Get current coordizer status and vocabulary counts.
+    
+    Returns information about:
+    - Coordizer type (PostgresCoordizer vs QIGCoordizer)
+    - Vocabulary size and word token counts
+    - BIP39 words loaded
+    - Sample words for verification
+    """
+    if not COORDIZER_AVAILABLE:
+        return jsonify({
+            'error': 'Coordizer not available',
+            'message': 'qig_coordizer module not imported'
+        }), 503
+    
+    try:
+        coordizer = get_coordizer()
+        
+        # Get basic stats
+        stats = get_coordizer_stats() if 'get_coordizer_stats' in dir() else {}
+        
+        # Get word counts
+        word_tokens = getattr(coordizer, 'word_tokens', [])
+        bip39_words = getattr(coordizer, 'bip39_words', [])
+        base_tokens = getattr(coordizer, 'base_tokens', [])
+        subword_tokens = getattr(coordizer, 'subword_tokens', [])
+        
+        # Get vocabulary size
+        vocab = getattr(coordizer, 'vocab', {})
+        basin_coords = getattr(coordizer, 'basin_coords', {})
+        
+        # Sample some words for verification
+        sample_words = word_tokens[:20] if word_tokens else []
+        sample_bip39 = bip39_words[:10] if bip39_words else []
+        
+        # Check if it's PostgresCoordizer
+        coordizer_type = type(coordizer).__name__
+        is_postgres = 'Postgres' in coordizer_type
+        
+        return jsonify({
+            'success': True,
+            'coordizer_type': coordizer_type,
+            'is_postgres_backed': is_postgres,
+            'vocab_size': len(vocab),
+            'basin_coords_count': len(basin_coords),
+            'word_tokens_count': len(word_tokens),
+            'bip39_words_count': len(bip39_words),
+            'base_tokens_count': len(base_tokens),
+            'subword_tokens_count': len(subword_tokens),
+            'sample_words': sample_words,
+            'sample_bip39': sample_bip39,
+            'has_real_vocabulary': len(word_tokens) >= 100,
+            'stats': stats,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'error': 'Failed to get coordizer status',
+            'message': str(e)
+        }), 500
+
+
+@zeus_api.route('/zeus/coordizer/reset', methods=['POST'])
+@require_internal_auth
+def coordizer_reset():
+    """
+    Force reset the coordizer to reload vocabulary from database.
+    
+    Call this after populating tokenizer_vocabulary to pick up new words.
+    """
+    if not COORDIZER_AVAILABLE:
+        return jsonify({
+            'error': 'Coordizer not available'
+        }), 503
+    
+    try:
+        # Get stats before reset
+        old_coordizer = get_coordizer()
+        old_type = type(old_coordizer).__name__
+        old_word_count = len(getattr(old_coordizer, 'word_tokens', []))
+        
+        # Reset the coordizer
+        reset_coordizer()
+        
+        # Get new coordizer
+        new_coordizer = get_coordizer()
+        new_type = type(new_coordizer).__name__
+        new_word_count = len(getattr(new_coordizer, 'word_tokens', []))
+        new_bip39_count = len(getattr(new_coordizer, 'bip39_words', []))
+        
+        # Sample words
+        sample_words = getattr(new_coordizer, 'word_tokens', [])[:15]
+        
+        return jsonify({
+            'success': True,
+            'message': 'Coordizer reset successfully',
+            'before': {
+                'type': old_type,
+                'word_count': old_word_count
+            },
+            'after': {
+                'type': new_type,
+                'word_count': new_word_count,
+                'bip39_count': new_bip39_count,
+                'sample_words': sample_words
+            },
+            'improvement': new_word_count > old_word_count,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'error': 'Failed to reset coordizer',
+            'message': str(e)
+        }), 500
+
+
+@zeus_api.route('/zeus/coordizer/test', methods=['POST'])
+@require_internal_auth
+def coordizer_test():
+    """
+    Test the coordizer by encoding text and decoding it back.
+    
+    Body: {
+        "text": string (required) - Text to encode/decode
+    }
+    """
+    if not COORDIZER_AVAILABLE:
+        return jsonify({'error': 'Coordizer not available'}), 503
+    
+    data = request.get_json() or {}
+    text = data.get('text', 'hello world')
+    
+    try:
+        coordizer = get_coordizer()
+        
+        # Encode text to basin
+        basin = coordizer.encode(text)
+        
+        # Decode basin back to words
+        decoded = coordizer.decode(basin, top_k=10, prefer_words=True)
+        
+        return jsonify({
+            'success': True,
+            'input_text': text,
+            'basin_norm': float(sum(basin**2)**0.5),
+            'basin_sample': [float(x) for x in basin[:5]],
+            'decoded_words': [
+                {'word': word, 'similarity': float(sim)}
+                for word, sim in decoded
+            ],
+            'coordizer_type': type(coordizer).__name__,
+            'word_tokens_available': len(getattr(coordizer, 'word_tokens', [])),
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'error': 'Test failed',
+            'message': str(e)
+        }), 500
 
 
 def register_zeus_routes(app):

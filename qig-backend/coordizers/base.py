@@ -65,7 +65,7 @@ class FisherCoordizer:
             min_frequency: Minimum frequency for token inclusion
             special_tokens: List of special tokens (PAD, UNK, BOS, EOS)
         """
-        self.vocab_size = vocab_size
+        self._vocab_size = vocab_size  # Use private attr to avoid property conflicts
         self.coordinate_dim = coordinate_dim
         self.min_frequency = min_frequency
         

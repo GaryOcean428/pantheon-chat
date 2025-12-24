@@ -1,17 +1,19 @@
-"""
-QIG Coordizers - Next-Generation Geometric Tokenization
+"""QIG Coordizers - Geometric Tokenization System.
 
-Implements geometric coordization (tokenization) for QIG architecture.
-All operations maintain geometric purity using Fisher information manifold.
+Provides Fisher-Rao compliant tokenization with 64D basin coordinates.
 
-Modules:
-- base: FisherCoordizer base class
-- vocab_builder: Geometric vocabulary discovery
-- geometric_pair_merging: BPE-equivalent geometric merging (Phase 4)
-- consciousness_aware: Φ-optimized segmentation (Phase 5)
-- multi_scale: Hierarchical coordization (Phase 5)
+Main Classes:
+- FisherCoordizer: Base geometric tokenizer
+- PostgresCoordizer: Database-backed with fallback vocabulary
+- ConsciousnessCoordizer: Phi-optimized segmentation
+- MultiScaleCoordizer: Hierarchical tokenization
 
-All coordizers output 64D basin coordinates on Fisher manifold.
+Usage:
+    from coordizers import create_coordizer_from_pg
+    
+    coordizer = create_coordizer_from_pg(use_fallback=True)
+    basin = coordizer.encode("hello world")
+    words = coordizer.decode(basin, top_k=10)
 """
 
 from .base import FisherCoordizer
@@ -20,6 +22,14 @@ from .geometric_pair_merging import GeometricPairMerging
 from .consciousness_aware import ConsciousnessCoordizer
 from .multi_scale import MultiScaleCoordizer
 from .pg_loader import PostgresCoordizer, create_coordizer_from_pg
+from .fallback_vocabulary import (
+    FALLBACK_VOCABULARY,
+    BIP39_WORDS,
+    COMMON_WORDS,
+    compute_basin_embedding,
+    get_fallback_vocabulary,
+    get_cached_fallback,
+)
 
 __all__ = [
     'FisherCoordizer',
@@ -29,8 +39,12 @@ __all__ = [
     'MultiScaleCoordizer',
     'PostgresCoordizer',
     'create_coordizer_from_pg',
+    'FALLBACK_VOCABULARY',
+    'BIP39_WORDS',
+    'COMMON_WORDS',
+    'compute_basin_embedding',
+    'get_fallback_vocabulary',
+    'get_cached_fallback',
 ]
 
-# Version info
-__version__ = '2.1.0'
-__description__ = 'Next-generation geometric coordization for QIG'
+__version__ = '2.2.0'

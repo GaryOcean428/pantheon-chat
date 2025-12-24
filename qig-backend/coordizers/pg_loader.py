@@ -1,255 +1,343 @@
-"""PostgreSQL-backed Coordizer Loader.
+"""
+PostgreSQL-backed Coordizer with Fallback Vocabulary.
 
-Loads vocabulary from PostgreSQL database into QIGCoordizer format,
-enabling seamless integration of the migrated 32K checkpoint.
+Loads vocabulary from PostgreSQL tokenizer_vocabulary table.
+Falls back to hardcoded English vocabulary if database is unavailable.
 """
 
-import os
 import logging
-from typing import Optional, Dict, Any
+import os
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
-import psycopg2
-from dotenv import load_dotenv
 
 from .base import FisherCoordizer
+from .fallback_vocabulary import FALLBACK_VOCABULARY, compute_basin_embedding
+from .semantic_domains import (
+    compute_semantic_embedding,
+    detect_query_domains,
+    get_word_domains,
+    compute_domain_overlap,
+    get_related_words,
+)
 
-load_dotenv()
 logger = logging.getLogger(__name__)
 
 
 class PostgresCoordizer(FisherCoordizer):
-    """Fisher-compliant coordizer backed by PostgreSQL.
+    """Fisher-compliant coordizer backed by PostgreSQL with fallback."""
     
-    Loads vocabulary and basin coordinates from the qig_vocabulary table,
-    enabling QIG-pure generation with the migrated 32K checkpoint.
-    """
-    
-    def __init__(self, database_url: Optional[str] = None, min_phi: float = 0.0):
-        """Initialize coordizer from PostgreSQL.
-        
-        Args:
-            database_url: PostgreSQL connection string (defaults to DATABASE_URL env var)
-            min_phi: Minimum phi score for tokens to load (0.0 = all tokens)
-        """
+    def __init__(self, database_url: Optional[str] = None, min_phi: float = 0.0, use_fallback: bool = True):
         super().__init__()
-        
         self.database_url = database_url or os.getenv('DATABASE_URL')
         self.min_phi = min_phi
-        self._conn = None
+        self.use_fallback = use_fallback
+        self._connection = None
+        self._using_fallback = False
         
-        # Load vocabulary from database
-        self._load_from_database()
+        self.vocab = {}
+        self.basin_coords = {}
+        self.token_phi = {}
+        self.token_frequencies = {}
+        self.id_to_token = {}
+        self.token_to_id = {}
+        self.word_tokens = []
+        self.bip39_words = []
+        self.base_tokens = []
+        self.word_domains: Dict[str, List[Tuple[str, float]]] = {}  # Cache word domains
+        
+        self._load_vocabulary()
     
     def _get_connection(self):
-        """Get or create database connection."""
-        if self._conn is None or self._conn.closed:
-            if not self.database_url:
-                raise ValueError("DATABASE_URL not set")
-            self._conn = psycopg2.connect(self.database_url)
-        return self._conn
+        if self._connection is None:
+            try:
+                import psycopg2
+                self._connection = psycopg2.connect(self.database_url)
+            except Exception as e:
+                logger.warning(f"Database connection failed: {e}")
+                return None
+        return self._connection
     
-    def _load_from_database(self):
-        """Load vocabulary and basin coordinates from PostgreSQL.
+    def _load_vocabulary(self):
+        db_loaded = False
+        if self.database_url:
+            try:
+                db_loaded = self._load_from_database()
+            except Exception as e:
+                logger.warning(f"Failed to load from database: {e}")
         
-        Uses tokenizer_vocabulary table which has complete words with basin embeddings.
-        """
+        real_word_count = len([w for w in self.word_tokens if len(w) >= 3])
+        if not db_loaded or real_word_count < 100:
+            if self.use_fallback:
+                logger.info(f"Using fallback vocabulary (DB words: {real_word_count})")
+                self._load_fallback_vocabulary()
+    
+    def _load_from_database(self) -> bool:
+        conn = self._get_connection()
+        if conn is None:
+            return False
+        
         try:
-            conn = self._get_connection()
-            
             with conn.cursor() as cur:
-                # Query tokenizer_vocabulary which has actual words (not BPE fragments)
-                # source_type 'base' = core vocabulary, 'special' = special tokens
-                query = """
-                    SELECT token, basin_embedding, phi_score, frequency, source_type
+                cur.execute("""
+                    SELECT token, basin_embedding, phi_score, frequency, source_type, token_id
                     FROM tokenizer_vocabulary
-                    WHERE phi_score >= %s
-                      AND source_type IN ('base', 'learned')
-                      AND LENGTH(token) >= 2
-                    ORDER BY frequency DESC
-                """
-                cur.execute(query, (self.min_phi,))
+                    WHERE basin_embedding IS NOT NULL
+                      AND LENGTH(token) >= 3
+                      AND source_type NOT IN ('byte_level', 'checkpoint_byte', 'special')
+                      AND token ~ '^[a-zA-Z]+$'
+                    ORDER BY phi_score DESC
+                    LIMIT 5000
+                """)
                 rows = cur.fetchall()
             
             if not rows:
-                logger.warning("No tokens found in tokenizer_vocabulary")
-                return
+                return False
             
-            # Build vocabulary and coordinate mappings
-            self.vocab = {}
-            self.basin_coords = {}
-            self.token_phi = {}
-            self.token_frequencies = {}
-            self.id_to_token = {}
-            self.token_to_id = {}
-            
-            for idx, (token, basin_embedding, phi_score, frequency, source_type) in enumerate(rows):
-                # Skip non-alphabetic tokens for now (focus on words)
-                if not token.replace('-', '').replace("'", '').isalpha():
+            words_loaded = 0
+            for token, basin_embedding, phi_score, frequency, source_type, token_id in rows:
+                coords = self._parse_embedding(basin_embedding)
+                if coords is None:
                     continue
                 
-                # Parse vector from basin_embedding
-                if isinstance(basin_embedding, str):
-                    coords = np.array([float(x) for x in basin_embedding.strip('[]').split(',')])
-                elif basin_embedding is not None:
-                    coords = np.array(basin_embedding)
-                else:
-                    # Generate random basin if missing
-                    coords = np.random.randn(64)
-                    coords = coords / (np.linalg.norm(coords) + 1e-10)
+                idx = token_id if token_id is not None else len(self.vocab)
+                self._add_token(token, coords, phi_score or 0.5, frequency or 1, idx, source_type)
                 
-                # Ensure unit sphere normalization
-                norm = np.linalg.norm(coords)
-                if norm > 1e-10:
-                    coords = coords / norm
-                
-                # Store mappings
-                self.vocab[token] = len(self.vocab)
-                self.token_to_id[token] = self.vocab[token]
-                self.id_to_token[self.vocab[token]] = token
-                self.basin_coords[token] = coords
-                self.token_phi[token] = float(phi_score) if phi_score else 0.5
-                self.token_frequencies[token] = frequency or 1
+                if token.isalpha() and len(token) >= 3:
+                    self.word_tokens.append(token)
+                    words_loaded += 1
             
-            self.vocab_size = len(self.vocab)
-            logger.info(f"Loaded {self.vocab_size} complete words from tokenizer_vocabulary")
-            if self.token_phi:
-                logger.info(f"Phi range: {min(self.token_phi.values()):.4f} - {max(self.token_phi.values()):.4f}")
-            
+            logger.info(f"Loaded {words_loaded} words from database")
+            return words_loaded >= 100
         except Exception as e:
-            logger.error(f"Failed to load from database: {e}")
-            raise
+            logger.error(f"Database query failed: {e}")
+            return False
+    
+    def _parse_embedding(self, basin_embedding) -> Optional[np.ndarray]:
+        if basin_embedding is None:
+            return None
+        try:
+            if isinstance(basin_embedding, (list, tuple)):
+                coords = np.array(basin_embedding, dtype=np.float64)
+            elif isinstance(basin_embedding, str):
+                clean = basin_embedding.strip('[](){}')
+                coords = np.array([float(x) for x in clean.split(',')], dtype=np.float64)
+            else:
+                coords = np.array(list(basin_embedding), dtype=np.float64)
+            
+            if len(coords) != 64:
+                return None
+            norm = np.linalg.norm(coords)
+            if norm > 1e-10:
+                coords = coords / norm
+            return coords
+        except Exception:
+            return None
+    
+    def _add_token(self, token: str, coords: np.ndarray, phi: float, freq: int, idx: int, source_type: str = 'base'):
+        self.vocab[token] = idx
+        self.token_to_id[token] = idx
+        self.id_to_token[idx] = token
+        self.basin_coords[token] = coords
+        self.token_phi[token] = phi
+        self.token_frequencies[token] = freq
+        if source_type == 'bip39':
+            self.bip39_words.append(token)
+        else:
+            self.base_tokens.append(token)
+        # Cache semantic domains for this token
+        self.word_domains[token] = get_word_domains(token)
+    
+    def _load_fallback_vocabulary(self):
+        self._using_fallback = True
+        logger.info(f"Loading {len(FALLBACK_VOCABULARY)} fallback words")
+        for word in FALLBACK_VOCABULARY:
+            if word in self.vocab:
+                continue
+            token_id = 50000 + len(self.vocab)
+            self.vocab[word] = token_id
+            self.token_to_id[word] = token_id
+            self.id_to_token[token_id] = word
+            # Use semantic embedding instead of hash-based
+            self.basin_coords[word] = compute_semantic_embedding(word)
+            self.token_phi[word] = 0.6 + min(len(word) / 20.0, 0.2)
+            self.token_frequencies[word] = 100
+            self.word_tokens.append(word)
+            self.base_tokens.append(word)
+            # Cache semantic domains
+            self.word_domains[word] = get_word_domains(word)
+        logger.info(f"Total vocabulary: {len(self.vocab)} tokens")
+    
+    def set_mode(self, mode: str) -> None:
+        pass
     
     def encode(self, text: str) -> np.ndarray:
-        """Encode text to basin coordinates.
-        
-        Uses Fisher-Rao compliant token matching.
-        """
-        # Simple character/token matching for now
-        # TODO: Implement proper BPE-style tokenization with merge rules
-        
-        tokens = []
-        i = 0
-        text_lower = text.lower()
-        
-        while i < len(text):
-            # Try to find longest matching token
-            best_match = None
-            best_len = 0
-            
-            for token in self.vocab:
-                if text_lower[i:].startswith(token.lower()) and len(token) > best_len:
-                    best_match = token
-                    best_len = len(token)
-            
-            if best_match:
-                tokens.append(best_match)
-                i += best_len
-            else:
-                # Fall back to byte-level token
-                byte_token = f"<byte_{ord(text[i]):02x}>"
-                if byte_token in self.vocab:
-                    tokens.append(byte_token)
-                i += 1
-        
+        """Encode text to basin coordinates using semantic embeddings."""
+        tokens = text.lower().split()
         if not tokens:
             return np.zeros(64)
         
-        # Combine token basin coordinates using phi-weighted average
-        total_weight = 0.0
-        combined = np.zeros(64)
+        coords_list = []
+        weights = []
         
         for token in tokens:
-            if token in self.basin_coords:
-                phi = self.token_phi.get(token, 0.5)
-                weight = phi * self.token_frequencies.get(token, 1)
-                combined += weight * self.basin_coords[token]
-                total_weight += weight
+            clean = token.strip('.,!?;:()[]{}"\'-')
+            if clean in self.basin_coords:
+                coords_list.append(self.basin_coords[clean])
+                # Weight by phi score for better semantic representation
+                weights.append(self.token_phi.get(clean, 0.5))
+            else:
+                # Use semantic embedding for unknown tokens
+                coords_list.append(compute_semantic_embedding(clean))
+                weights.append(0.3)  # Lower weight for unknown
         
-        if total_weight > 1e-10:
-            combined = combined / total_weight
+        if not coords_list:
+            return compute_semantic_embedding(text)
         
-        # Normalize to unit sphere
-        norm = np.linalg.norm(combined)
+        # Weighted average of embeddings
+        weights = np.array(weights)
+        weights = weights / weights.sum()  # Normalize
+        basin = np.average(coords_list, axis=0, weights=weights)
+        
+        norm = np.linalg.norm(basin)
         if norm > 1e-10:
-            combined = combined / norm
-        
-        return combined
+            basin = basin / norm
+        return basin
     
-    def decode(self, basin: np.ndarray, top_k: int = 5, prefer_words: bool = True) -> list[tuple[str, float]]:
-        """Decode basin coordinates to most likely tokens.
-        
-        Uses Fisher-Rao distance for similarity.
-        
-        Args:
-            basin: Query basin coordinates
-            top_k: Number of top tokens to return
-            prefer_words: If True, prefer real words over byte tokens
+    def decode(self, basin: np.ndarray, top_k: int = 5) -> List[Tuple[str, float]]:
         """
-        # Normalize input basin
+        Decode basin coordinates to most likely tokens using domain-aware search.
+        
+        Boosts words from matching semantic domains for better relevance.
+        """
         norm = np.linalg.norm(basin)
         if norm > 1e-10:
             basin = basin / norm
         
-        # Compute Fisher-Rao distance to all tokens
-        distances = []
-        for token, coords in self.basin_coords.items():
-            # Skip pure byte tokens for generation
-            if prefer_words and token.startswith('<byte_'):
-                continue
-            # Skip tokens with too many byte components
-            if prefer_words and token.count('<byte_') > 2:
-                continue
-                
-            # Fisher-Rao distance: arccos(dot product) for unit vectors
-            dot = np.clip(np.dot(basin, coords), -1.0, 1.0)
-            dist = np.arccos(dot)
-            distances.append((token, dist))
-        
-        # Sort by distance (ascending)
-        distances.sort(key=lambda x: x[1])
-        
-        # Return top-k with similarity scores (1 - normalized_distance)
-        results = []
-        for token, dist in distances[:top_k]:
-            similarity = 1.0 - (dist / np.pi)  # Normalize to [0, 1]
-            results.append((token, similarity))
-        
-        return results
-    
-    def find_similar_tokens(self, query_token: str, top_k: int = 10) -> list[tuple[str, float]]:
-        """Find tokens similar to the query using Fisher-Rao distance."""
-        if query_token not in self.basin_coords:
-            logger.warning(f"Token '{query_token}' not in vocabulary")
+        search_tokens = self.word_tokens if self.word_tokens else list(self.basin_coords.keys())
+        if not search_tokens:
             return []
         
-        query_basin = self.basin_coords[query_token]
-        return self.decode(query_basin, top_k=top_k + 1)[1:]  # Exclude self
+        # Detect semantic domains of the query
+        query_domains = detect_query_domains(basin, top_k=3)
+        
+        candidates = []
+        for token in search_tokens:
+            if token not in self.basin_coords:
+                continue
+            
+            coords = self.basin_coords[token]
+            
+            # Fisher-Rao distance (base similarity)
+            dot = np.clip(np.dot(basin, coords), -1.0, 1.0)
+            dist = np.arccos(dot)
+            base_similarity = 1.0 - (dist / np.pi)
+            
+            # Domain boost: increase score for words in matching domains
+            word_domains = self.word_domains.get(token, [])
+            domain_boost = compute_domain_overlap(query_domains, word_domains)
+            
+            # Phi boost: prefer high-phi tokens
+            phi_boost = self.token_phi.get(token, 0.5) * 0.1
+            
+            # Combined score with domain weighting
+            final_score = base_similarity * (1.0 + 0.4 * domain_boost) + phi_boost
+            candidates.append((token, final_score))
+        
+        # Sort by final score descending
+        candidates.sort(key=lambda x: x[1], reverse=True)
+        
+        return candidates[:top_k]
     
-    def get_high_phi_tokens(self, min_phi: float = 0.7, limit: int = 100) -> list[tuple[str, float]]:
-        """Get tokens with high phi (integration) scores."""
-        high_phi = [(token, phi) for token, phi in self.token_phi.items() if phi >= min_phi]
-        high_phi.sort(key=lambda x: x[1], reverse=True)
-        return high_phi[:limit]
+    def get_random_words(self, count: int = 12) -> List[str]:
+        if not self.word_tokens:
+            return []
+        indices = np.random.choice(len(self.word_tokens), min(count, len(self.word_tokens)), replace=False)
+        return [self.word_tokens[i] for i in indices]
     
-    def refresh(self):
-        """Reload vocabulary from database."""
-        self._load_from_database()
+    def generate_response(self, context: str, agent_role: str = 'zeus', allow_silence: bool = False, goals: Optional[list] = None) -> dict:
+        """
+        Generate a semantically relevant response using domain-aware vocabulary.
+        
+        Clusters related concepts and builds coherent thematic responses.
+        """
+        context_basin = self.encode(context)
+        
+        # Get semantically similar words with domain awareness
+        similar_words = self.decode(context_basin, top_k=30)
+        
+        # Filter by minimum score threshold
+        relevant_words = [(w, s) for w, s in similar_words if s > 0.35]
+        
+        if relevant_words:
+            # Group words by semantic domain for coherent output
+            domain_groups: Dict[str, List[str]] = {}
+            ungrouped = []
+            
+            for word, score in relevant_words:
+                word_doms = self.word_domains.get(word, [])
+                if word_doms:
+                    primary_domain = word_doms[0][0]  # Highest weight domain
+                    if primary_domain not in domain_groups:
+                        domain_groups[primary_domain] = []
+                    domain_groups[primary_domain].append(word)
+                else:
+                    ungrouped.append(word)
+            
+            # Build response with domain-organized concepts
+            response_parts = []
+            
+            # Sort domains by number of matching words
+            sorted_domains = sorted(domain_groups.items(), key=lambda x: len(x[1]), reverse=True)
+            
+            for domain_name, words in sorted_domains[:3]:  # Top 3 domains
+                domain_label = domain_name.replace('_', ' ').title()
+                word_list = ', '.join(words[:5])  # Max 5 words per domain
+                response_parts.append(f"{domain_label}: {word_list}")
+            
+            if ungrouped and len(response_parts) < 3:
+                response_parts.append(f"Additional: {', '.join(ungrouped[:5])}")
+            
+            response_text = '\n'.join(response_parts)
+            all_words = [w for w, _ in relevant_words]
+            response_phi = sum(self.token_phi.get(w, 0.5) for w in all_words[:15]) / min(len(all_words), 15)
+            completion_reason = 'semantic_synthesis'
+            
+        elif not allow_silence:
+            # Fallback: find words related to input tokens
+            input_words = context.lower().split()
+            related = []
+            for word in input_words:
+                clean = word.strip('.,!?;:()[]{}"\'-')
+                related.extend(get_related_words(clean, top_k=3))
+            
+            if related:
+                response_text = f"Related concepts: {', '.join(set(related)[:10])}"
+                response_phi = 0.4
+            else:
+                random_words = self.get_random_words(8)
+                response_text = f"Exploring: {', '.join(random_words)}" if random_words else "[Silence]"
+                response_phi = 0.25
+            completion_reason = 'fallback'
+        else:
+            response_text = ""
+            response_phi = 0.0
+            completion_reason = 'silence'
+        
+        return {
+            'text': response_text,
+            'phi': response_phi,
+            'tokens_generated': len(response_text.split()),
+            'completion_reason': completion_reason,
+            'qig_pure': True,
+            'agent_role': agent_role,
+        }
     
     def close(self):
-        """Close database connection."""
-        if self._conn and not self._conn.closed:
-            self._conn.close()
-            self._conn = None
+        if self._connection:
+            self._connection.close()
+            self._connection = None
 
 
-def create_coordizer_from_pg(min_phi: float = 0.0) -> PostgresCoordizer:
-    """Factory function to create a PostgreSQL-backed coordizer.
-    
-    Args:
-        min_phi: Minimum phi score for tokens (0.0 = all tokens)
-    
-    Returns:
-        PostgresCoordizer instance loaded from database
-    """
-    return PostgresCoordizer(min_phi=min_phi)
+def create_coordizer_from_pg(database_url: Optional[str] = None, use_fallback: bool = True) -> PostgresCoordizer:
+    return PostgresCoordizer(database_url=database_url, use_fallback=use_fallback)
