@@ -3571,6 +3571,61 @@ def vocabulary_status():
     return tokenizer_status()
 
 
+@app.route('/training/docs', methods=['POST'])
+def train_on_docs():
+    """
+    Train QIG system on documentation files.
+    
+    Reads all markdown files from docs/ directory,
+    chunks them, encodes to basin coordinates,
+    and stores for pattern-based retrieval.
+    
+    POST body (optional):
+        exclude_errors: bool (default true) - skip files with errors
+    
+    Returns training stats.
+    """
+    try:
+        data = request.get_json() or {}
+        exclude_errors = data.get('exclude_errors', True)
+        
+        from document_trainer import get_document_trainer
+        trainer = get_document_trainer()
+        
+        result = trainer.train_on_directory(exclude_errors=exclude_errors)
+        
+        return jsonify({
+            'success': result.get('success', True),
+            'processed': result.get('processed', 0),
+            'skipped': result.get('skipped', 0),
+            'total_patterns': result.get('total_patterns', 0),
+            'total_chunks': result.get('total_chunks', 0),
+            'errors_count': len(result.get('errors', [])),
+            'trained_at': result.get('trained_at')
+        })
+    except Exception as e:
+        print(f"[Flask] training/docs error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/training/status', methods=['GET'])
+def training_status():
+    """Get current training status and stats."""
+    try:
+        from document_trainer import get_document_trainer
+        trainer = get_document_trainer()
+        
+        return jsonify({
+            'success': True,
+            **trainer.get_training_status()
+        })
+    except Exception as e:
+        print(f"[Flask] training/status error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/vocabulary/classify', methods=['POST'])
 def vocabulary_classify():
     """

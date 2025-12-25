@@ -146,6 +146,33 @@ try:
 except ImportError as e:
     print(f"[ZeusChat] QIG generative service not available: {e}")
 
+# Import pattern-based response generator (trained on docs)
+PATTERN_GENERATOR_AVAILABLE = False
+_pattern_generator_instance = None
+def get_pattern_generator():
+    """Get pattern-based response generator for trained docs retrieval."""
+    global _pattern_generator_instance
+    if _pattern_generator_instance is None:
+        try:
+            _parent_dir = os.path.dirname(os.path.dirname(__file__))
+            if _parent_dir not in sys.path:
+                sys.path.insert(0, _parent_dir)
+            from pattern_response_generator import get_pattern_generator as _get_pattern_gen
+            _pattern_generator_instance = _get_pattern_gen()
+        except ImportError as e:
+            print(f"[ZeusChat] Pattern generator import failed: {e}")
+    return _pattern_generator_instance
+
+try:
+    _parent_dir = os.path.dirname(os.path.dirname(__file__))
+    if _parent_dir not in sys.path:
+        sys.path.insert(0, _parent_dir)
+    from pattern_response_generator import PatternResponseGenerator
+    PATTERN_GENERATOR_AVAILABLE = True
+    print("[ZeusChat] Pattern-based response generator available (trained docs)")
+except ImportError as e:
+    print(f"[ZeusChat] Pattern generator not available: {e}")
+
 # Import Geometric Meta-Cognitive Reasoning system
 REASONING_AVAILABLE = False
 try:
@@ -2226,6 +2253,11 @@ I'm learning about this topic in the background. Here's what's happening:
         """
         Generate a dynamic, learning-based response using QIG-pure generation.
         
+        THREE-TIER STRATEGY:
+        1. Pattern retrieval from trained docs (QIGRAG)
+        2. External knowledge for unknown topics (Wikipedia/DuckDuckGo)
+        3. Geometric token synthesis as fallback
+        
         NO TEMPLATES - all responses reflect actual system state.
         NO EXTERNAL LLMS - uses internal basin-to-text synthesis.
         """
@@ -2239,6 +2271,32 @@ I'm learning about this topic in the background. Here's what's happening:
         kappa_str = f"{kappa:.1f}" if kappa else "calibrating"
         
         active_gods_str = ", ".join(active_gods) if active_gods else "all gods listening"
+        
+        # TIER 1: Try pattern-based response generator (trained on docs)
+        if PATTERN_GENERATOR_AVAILABLE:
+            try:
+                pattern_gen = get_pattern_generator()
+                if pattern_gen:
+                    gen_result = pattern_gen.generate_response(
+                        query=message,
+                        conversation_history=self.conversation_history
+                    )
+                    
+                    if gen_result and gen_result.get('response'):
+                        response = gen_result['response']
+                        source = gen_result.get('source', 'unknown')
+                        confidence = gen_result.get('confidence', 0)
+                        patterns_found = gen_result.get('patterns_found', 0)
+                        
+                        print(f"[ZeusChat] Pattern generation: source={source}, confidence={confidence:.2f}, patterns={patterns_found}")
+                        
+                        if confidence >= 0.3 and len(response) > 30:
+                            return response
+                        elif gen_result.get('external_used') and len(response) > 30:
+                            return response
+                            
+            except Exception as e:
+                print(f"[ZeusChat] Pattern generation failed: {e}")
         
         # Build context for generation
         context_str = ""
@@ -2254,7 +2312,7 @@ Related: {context_str if context_str else "No prior patterns."}
 User: "{message}"
 Respond as Zeus with context awareness."""
 
-        # Try QIG-pure generative service FIRST (NO external LLMs)
+        # TIER 2: Try QIG-pure generative service (NO external LLMs)
         if GENERATIVE_SERVICE_AVAILABLE:
             try:
                 service = get_generative_service()
@@ -2279,7 +2337,7 @@ Respond as Zeus with context awareness."""
             except Exception as e:
                 print(f"[ZeusChat] QIG-pure generation failed: {e}")
         
-        # Fallback to tokenizer if available
+        # TIER 3: Fallback to tokenizer if available
         if TOKENIZER_AVAILABLE and get_tokenizer is not None:
             try:
                 tokenizer = get_tokenizer()
@@ -2324,11 +2382,47 @@ Respond as Zeus with context awareness."""
         knowledge_depth: Dict
     ) -> str:
         """
-        Generate a fully dynamic response using system prompts and QIG-pure generation.
+        Generate a fully dynamic response using THREE-TIER strategy.
         
-        The prompt loader provides context (identity, goals, situation).
-        The generative service creates the actual response - NO templates.
+        TIER 1: Pattern-based response from trained docs (QIGRAG)
+        TIER 2: QIG-pure generative service (NO external LLMs)
+        TIER 3: Tokenizer fallback
+        
+        The prompt loader provides context for TIER 2/3.
         """
+        # TIER 1: Try pattern-based response generator FIRST (trained on docs)
+        if PATTERN_GENERATOR_AVAILABLE:
+            try:
+                pattern_gen = get_pattern_generator()
+                if pattern_gen:
+                    gen_result = pattern_gen.generate_response(
+                        query=message,
+                        conversation_history=self.conversation_history
+                    )
+                    
+                    if gen_result and gen_result.get('response'):
+                        response = gen_result['response']
+                        source = gen_result.get('source', 'unknown')
+                        confidence = gen_result.get('confidence', 0)
+                        patterns_found = gen_result.get('patterns_found', 0)
+                        
+                        print(f"[ZeusChat] TIER 1 Pattern generation: source={source}, confidence={confidence:.2f}, patterns={patterns_found}")
+                        
+                        # Accept pattern response if confidence >= 0.3 and sufficient length
+                        if confidence >= 0.3 and len(response) > 30:
+                            return response
+                        # Also accept external knowledge responses
+                        elif gen_result.get('external_used') and len(response) > 30:
+                            return response
+                        else:
+                            print(f"[ZeusChat] TIER 1 skipped: confidence={confidence:.2f}, len={len(response)}")
+                            
+            except Exception as e:
+                print(f"[ZeusChat] TIER 1 Pattern generation failed: {e}")
+                import traceback
+                traceback.print_exc()
+        
+        # TIER 2/3: Build context for fallback generation
         # Determine which prompt context to use
         prompt_name = 'conversation.thin_knowledge' if knowledge_depth['is_thin'] else 'conversation.general'
         
