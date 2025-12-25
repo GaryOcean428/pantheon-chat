@@ -35,12 +35,120 @@ except ImportError:
     COORDIZER_AVAILABLE = False
     print("[ZeusAPI] Coordizer module not available")
 
+# Import Redis cache for session storage
+try:
+    from redis_cache import UniversalCache, get_redis_client, CACHE_TTL_LONG
+    REDIS_AVAILABLE = True
+except ImportError:
+    REDIS_AVAILABLE = False
+    print("[ZeusAPI] Redis cache not available, using in-memory fallback")
+
 zeus_api = Blueprint('zeus_api', __name__)
 
-# Session storage (in production, use Redis)
-_sessions: Dict[str, Dict[str, Any]] = {}
+# Redis session key prefix
+SESSION_PREFIX = "zeus:session:"
+SESSION_INDEX_KEY = "zeus:sessions:index"
+
+# In-memory fallback (only used when Redis is unavailable)
+_sessions_fallback: Dict[str, Dict[str, Any]] = {}
 _zeus_instance: Optional[Any] = None
 _conversation_handler: Optional[Any] = None
+
+
+# =============================================================================
+# Redis-backed Session Storage
+# =============================================================================
+
+def _get_session(session_id: str) -> Optional[Dict[str, Any]]:
+    """Get session from Redis (or fallback to memory)."""
+    if REDIS_AVAILABLE:
+        key = f"{SESSION_PREFIX}{session_id}"
+        session = UniversalCache.get(key)
+        if session:
+            return session
+    return _sessions_fallback.get(session_id)
+
+
+def _set_session(session_id: str, session_data: Dict[str, Any]) -> bool:
+    """Store session in Redis (or fallback to memory)."""
+    if REDIS_AVAILABLE:
+        key = f"{SESSION_PREFIX}{session_id}"
+        success = UniversalCache.set(key, session_data, ttl=CACHE_TTL_LONG)
+        if success:
+            # Also update session index for listing
+            _add_to_session_index(session_id)
+            return True
+    # Fallback to memory
+    _sessions_fallback[session_id] = session_data
+    return True
+
+
+def _delete_session(session_id: str) -> bool:
+    """Delete session from Redis (or fallback from memory)."""
+    if REDIS_AVAILABLE:
+        key = f"{SESSION_PREFIX}{session_id}"
+        UniversalCache.delete(key)
+        _remove_from_session_index(session_id)
+    if session_id in _sessions_fallback:
+        del _sessions_fallback[session_id]
+    return True
+
+
+def _add_to_session_index(session_id: str) -> None:
+    """Add session ID to Redis session index set."""
+    client = get_redis_client() if REDIS_AVAILABLE else None
+    if client:
+        try:
+            client.sadd(SESSION_INDEX_KEY, session_id)
+        except Exception as e:
+            print(f"[ZeusAPI] Failed to add to session index: {e}")
+
+
+def _remove_from_session_index(session_id: str) -> None:
+    """Remove session ID from Redis session index set."""
+    client = get_redis_client() if REDIS_AVAILABLE else None
+    if client:
+        try:
+            client.srem(SESSION_INDEX_KEY, session_id)
+        except Exception as e:
+            print(f"[ZeusAPI] Failed to remove from session index: {e}")
+
+
+def _list_sessions(user_id: str = 'default') -> List[Dict[str, Any]]:
+    """List all sessions (from Redis or memory fallback)."""
+    sessions_list = []
+    
+    if REDIS_AVAILABLE:
+        client = get_redis_client()
+        if client:
+            try:
+                session_ids = client.smembers(SESSION_INDEX_KEY)
+                for sid in session_ids:
+                    session = _get_session(sid)
+                    if session and (session.get('user_id', 'default') == user_id or user_id == 'default'):
+                        sessions_list.append({
+                            'session_id': sid,
+                            'title': session.get('title', 'Conversation'),
+                            'message_count': len(session.get('messages', [])),
+                            'created_at': session.get('created_at', ''),
+                            'updated_at': session.get('updated_at', session.get('created_at', ''))
+                        })
+            except Exception as e:
+                print(f"[ZeusAPI] Failed to list sessions: {e}")
+    
+    # Also check fallback
+    for sid, s in _sessions_fallback.items():
+        if s.get('user_id', 'default') == user_id or user_id == 'default':
+            if not any(sess['session_id'] == sid for sess in sessions_list):
+                sessions_list.append({
+                    'session_id': sid,
+                    'title': s.get('title', 'Conversation'),
+                    'message_count': len(s.get('messages', [])),
+                    'created_at': s.get('created_at', ''),
+                    'updated_at': s.get('updated_at', s.get('created_at', ''))
+                })
+    
+    return sessions_list
 
 
 def get_conversation_handler() -> Optional[Any]:
@@ -91,15 +199,24 @@ def require_internal_auth(f):
 
 
 def get_or_create_session(session_id: str) -> Dict[str, Any]:
-    """Get existing session or create new one."""
-    if session_id not in _sessions:
-        _sessions[session_id] = {
+    """Get existing session or create new one (Redis-backed)."""
+    session = _get_session(session_id)
+    if session is None:
+        session = {
             'id': session_id,
             'messages': [],
             'created_at': datetime.now().isoformat(),
+            'updated_at': datetime.now().isoformat(),
             'metadata': {}
         }
-    return _sessions[session_id]
+        _set_session(session_id, session)
+    return session
+
+
+def _update_session_messages(session_id: str, session: Dict[str, Any]) -> None:
+    """Update session in storage after messages change."""
+    session['updated_at'] = datetime.now().isoformat()
+    _set_session(session_id, session)
 
 
 # =============================================================================
@@ -109,10 +226,12 @@ def get_or_create_session(session_id: str) -> Dict[str, Any]:
 @zeus_api.route('/zeus/health', methods=['GET'])
 def zeus_health():
     """Health check for Zeus API."""
+    session_count = len(_list_sessions())
     return jsonify({
         'status': 'healthy',
         'zeus_available': ZEUS_AVAILABLE,
-        'active_sessions': len(_sessions),
+        'redis_available': REDIS_AVAILABLE,
+        'active_sessions': session_count,
         'timestamp': datetime.now().isoformat()
     })
 
@@ -162,6 +281,8 @@ def zeus_chat():
             'content': message,
             'timestamp': datetime.now().isoformat()
         })
+        # Persist user message immediately
+        _update_session_messages(session_id, session)
 
         # Use ZeusConversationHandler.process_message()
         # Pass conversation history and session_id
@@ -190,6 +311,9 @@ def zeus_chat():
             'content': response_text,
             'timestamp': datetime.now().isoformat()
         })
+
+        # Persist session updates to Redis
+        _update_session_messages(session_id, session)
 
         processing_time = (time.time() - start_time) * 1000
 
@@ -247,6 +371,8 @@ def zeus_chat_stream():
                 'content': message,
                 'timestamp': datetime.now().isoformat()
             })
+            # Persist user message immediately
+            _update_session_messages(session_id, session)
 
             # Use process_message and send full response
             # (streaming would require handler to support generators)
@@ -273,6 +399,9 @@ def zeus_chat_stream():
                 'timestamp': datetime.now().isoformat()
             })
 
+            # Persist session updates to Redis
+            _update_session_messages(session_id, session)
+
             # Send as single chunk (real streaming would require handler changes)
             yield f"data: {json.dumps({'chunk': response_text})}\n\n"
             yield "data: [DONE]\n\n"
@@ -292,35 +421,35 @@ def zeus_chat_stream():
 
 @zeus_api.route('/zeus/session/<session_id>', methods=['GET'])
 @require_internal_auth
-def get_session(session_id: str):
+def get_session_route(session_id: str):
     """Get conversation history for a session."""
-    if session_id not in _sessions:
+    session = _get_session(session_id)
+    if session is None:
         return jsonify({
             'error': 'Session not found',
             'message': f'No session with ID: {session_id}'
         }), 404
 
-    session = _sessions[session_id]
-
     return jsonify({
         'success': True,
         'session_id': session_id,
-        'messages': session['messages'],
-        'created_at': session['created_at'],
+        'messages': session.get('messages', []),
+        'created_at': session.get('created_at', ''),
         'metadata': session.get('metadata', {})
     })
 
 
 @zeus_api.route('/zeus/session/<session_id>', methods=['DELETE'])
 @require_internal_auth
-def delete_session(session_id: str):
+def delete_session_route(session_id: str):
     """Delete a session."""
-    if session_id not in _sessions:
+    session = _get_session(session_id)
+    if session is None:
         return jsonify({
             'error': 'Session not found'
         }), 404
 
-    del _sessions[session_id]
+    _delete_session(session_id)
 
     return jsonify({
         'success': True,
@@ -330,20 +459,10 @@ def delete_session(session_id: str):
 
 @zeus_api.route('/zeus/sessions', methods=['GET'])
 @require_internal_auth
-def list_sessions():
-    """List all active sessions."""
+def list_sessions_route():
+    """List all active sessions (Redis-backed)."""
     user_id = request.args.get('user_id', 'default')
-    sessions_list = [
-        {
-            'session_id': sid,
-            'title': s.get('title', 'Conversation'),
-            'message_count': len(s['messages']),
-            'created_at': s['created_at'],
-            'updated_at': s.get('updated_at', s['created_at'])
-        }
-        for sid, s in _sessions.items()
-        if s.get('user_id', 'default') == user_id or user_id == 'default'
-    ]
+    sessions_list = _list_sessions(user_id)
 
     return jsonify({
         'success': True,
@@ -354,14 +473,15 @@ def list_sessions():
 
 @zeus_api.route('/zeus/sessions', methods=['POST'])
 @require_internal_auth
-def create_session():
-    """Create a new conversation session."""
+def create_session_route():
+    """Create a new conversation session (Redis-backed)."""
     data = request.get_json() or {}
     title = data.get('title', 'New Conversation')
     user_id = data.get('user_id', 'default')
     
     session_id = f"session-{int(time.time() * 1000)}"
-    _sessions[session_id] = {
+    session_data = {
+        'id': session_id,
         'messages': [],
         'created_at': datetime.now().isoformat(),
         'updated_at': datetime.now().isoformat(),
@@ -369,6 +489,7 @@ def create_session():
         'user_id': user_id,
         'metadata': {}
     }
+    _set_session(session_id, session_data)
     
     return jsonify({
         'success': True,
@@ -380,15 +501,15 @@ def create_session():
 @zeus_api.route('/zeus/sessions/<session_id>/messages', methods=['GET'])
 @require_internal_auth
 def get_session_messages(session_id: str):
-    """Get messages for a specific session."""
-    if session_id not in _sessions:
+    """Get messages for a specific session (Redis-backed)."""
+    session = _get_session(session_id)
+    if session is None:
         return jsonify({
             'error': 'Session not found',
             'messages': [],
             'session_id': session_id
         }), 404
 
-    session = _sessions[session_id]
     messages = [
         {
             'role': msg.get('role', 'assistant'),
@@ -396,7 +517,7 @@ def get_session_messages(session_id: str):
             'created_at': msg.get('timestamp', msg.get('created_at', '')),
             'metadata': msg.get('metadata', {})
         }
-        for msg in session['messages']
+        for msg in session.get('messages', [])
     ]
 
     return jsonify({
