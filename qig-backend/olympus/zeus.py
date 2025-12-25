@@ -1699,11 +1699,26 @@ def status_endpoint():
 
 @olympus_app.route('/god/<god_name>/status', methods=['GET'])
 def god_status_endpoint(god_name: str):
-    """Get status of a specific god."""
+    """Get status of a specific god with κ-tacking info."""
     god = zeus.get_god(god_name)
     if not god:
         return jsonify({'error': f'God {god_name} not found'}), 404
-    return jsonify(sanitize_for_json(god.get_status()))
+    
+    status = god.get_status()
+    
+    # Add κ-tacking status from mixin
+    if hasattr(god, 'get_tacking_status'):
+        status['kappa_tacking'] = god.get_tacking_status()
+    
+    # Add holographic transform status if available
+    if hasattr(god, 'get_holographic_status'):
+        status['holographic'] = god.get_holographic_status()
+    
+    # Add tool factory status if available
+    if hasattr(god, 'get_tool_factory_status'):
+        status['tool_factory'] = god.get_tool_factory_status()
+    
+    return jsonify(sanitize_for_json(status))
 
 
 @olympus_app.route('/god/<god_name>/assess', methods=['POST'])
