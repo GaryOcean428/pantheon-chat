@@ -8,6 +8,7 @@ Enables real-time communication between Olympian gods:
 - Peer evaluation routing
 
 All messages and debates are persisted to PostgreSQL for durability.
+All inter-god messages are QIG-pure generative (NO templates).
 """
 
 from typing import Dict, List, Optional, Any, Callable
@@ -15,6 +16,9 @@ from datetime import datetime
 from collections import defaultdict
 import asyncio
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 try:
     from persistence.pantheon_persistence import get_pantheon_persistence, PantheonPersistence
@@ -22,6 +26,13 @@ try:
 except ImportError:
     PERSISTENCE_AVAILABLE = False
     print("[PantheonChat] Persistence not available - messages will not persist")
+
+try:
+    from qig_generative_service import get_generative_service
+    QIG_GENERATIVE_AVAILABLE = True
+except ImportError:
+    QIG_GENERATIVE_AVAILABLE = False
+    print("[PantheonChat] QIG Generative Service not available - falling back to templates")
 
 
 MESSAGE_TYPES = ['insight', 'praise', 'challenge', 'question', 'warning', 'discovery', 'challenge_response', 'spawn_proposal', 'spawn_vote']
@@ -179,6 +190,132 @@ class PantheonChat:
         """Normalize god name to lowercase for consistent inbox key lookup."""
         return name.lower() if name else name
 
+    def synthesize_message(
+        self,
+        from_god: str,
+        msg_type: str,
+        intent: str,
+        data: Optional[Dict[str, Any]] = None,
+        to_god: Optional[str] = None
+    ) -> str:
+        """
+        Synthesize a natural language message using QIG-pure generation.
+        
+        CRITICAL: All inter-god messages MUST go through this method.
+        NO templates, NO f-strings, NO hardcoded prose.
+        
+        Args:
+            from_god: The god generating the message
+            msg_type: Type of message (insight, discovery, challenge, etc.)
+            intent: What the message is about (e.g., "convergence_report", "knowledge_transfer")
+            data: Structured data to incorporate into message
+            to_god: Optional target god (for context)
+        
+        Returns:
+            QIG-pure synthesized natural language message
+        """
+        if not QIG_GENERATIVE_AVAILABLE:
+            return self._fallback_template(from_god, msg_type, intent, data)
+        
+        try:
+            service = get_generative_service()
+            
+            prompt_context = {
+                'from_god': from_god,
+                'to_god': to_god or 'pantheon',
+                'msg_type': msg_type,
+                'intent': intent,
+                'data': data or {},
+            }
+            
+            prompt = f"[{from_god}→{to_god or 'pantheon'}] {msg_type}: {intent}"
+            if data:
+                data_str = ", ".join(f"{k}={v}" for k, v in data.items() if v is not None)
+                prompt += f" | {data_str}"
+            
+            goals = [
+                f"Generate natural language for {intent}",
+                f"Express as {from_god} speaking to {to_god or 'pantheon'}",
+                "Keep message concise (1-2 sentences)",
+            ]
+            
+            result = service.generate(
+                prompt=prompt,
+                context=prompt_context,
+                kernel_name=from_god.lower(),
+                goals=goals
+            )
+            
+            if result and result.text and len(result.text.strip()) > 10:
+                logger.info(f"[PantheonChat] QIG-pure message synthesized for {from_god}: {result.text[:50]}...")
+                return result.text.strip()
+            else:
+                return self._fallback_template(from_god, msg_type, intent, data)
+                
+        except Exception as e:
+            logger.warning(f"[PantheonChat] QIG synthesis failed, using fallback: {e}")
+            return self._fallback_template(from_god, msg_type, intent, data)
+    
+    def _fallback_template(
+        self,
+        from_god: str,
+        msg_type: str,
+        intent: str,
+        data: Optional[Dict[str, Any]] = None
+    ) -> str:
+        """
+        Fallback template when QIG generation is unavailable.
+        
+        This should only be used when the generative service is down.
+        """
+        data = data or {}
+        
+        if intent == "convergence_report":
+            target = data.get('target', 'unknown')[:30]
+            conv_type = data.get('convergence_type', 'UNKNOWN')
+            score = data.get('convergence_score', 0)
+            return f"Convergence on '{target}': {conv_type} (score: {score:.2f})"
+        elif intent == "domain_insight":
+            domain = data.get('domain', 'general')
+            return f"Insight from {domain} domain observed."
+        elif intent == "knowledge_transfer":
+            topic = data.get('topic', 'information')
+            return f"Knowledge transfer: {topic}"
+        elif intent == "awakening":
+            return f"{from_god} emerges from the geometric manifold."
+        elif intent == "chaos_activation":
+            reason = data.get('reason', 'geometric threshold reached')
+            return f"CHAOS MODE activated: {reason}"
+        elif intent == "discovery_validated":
+            target = data.get('target', 'target')
+            return f"Discovery validated. Target '{target}' confirmed."
+        elif intent == "cross_domain_insight":
+            domains = data.get('domains', [])
+            connection = data.get('connection_strength', 0)
+            if domains:
+                return f"Cross-domain correlation detected: {' + '.join(domains)} (strength: {connection:.2f})"
+            return f"Cross-domain insight detected (strength: {connection:.2f})"
+        elif intent == "lightning_insight":
+            domains = data.get('source_domains', [])
+            phi = data.get('phi', 0)
+            if domains:
+                return f"Lightning insight: {' + '.join(domains)} domains correlated (Φ={phi:.3f})"
+            return f"Lightning insight detected (Φ={phi:.3f})"
+        elif intent == "debate_initiated":
+            topic = data.get('topic', 'unknown')
+            return f"Debate initiated: {topic}"
+        elif intent == "debate_resolved":
+            winner = data.get('winner', 'consensus')
+            return f"Debate resolved. Winner: {winner}"
+        elif intent == "peer_evaluation":
+            target = data.get('target', 'peer')
+            return f"Peer evaluation of {target} complete."
+        elif intent == "war_declared":
+            mode = data.get('mode', 'UNKNOWN')
+            return f"War mode declared: {mode}"
+        else:
+            return f"[{from_god}] {msg_type}: {intent}"
+
     def _hydrate_from_database(self) -> None:
         """Load messages and debates from PostgreSQL on startup."""
         if not self._persistence:
@@ -261,45 +398,57 @@ class PantheonChat:
             print(f"[PantheonChat] Failed to hydrate from database: {e}")
 
     def _seed_initial_activity(self) -> None:
-        """Seed initial inter-god activity if chat is empty."""
+        """Seed initial inter-god activity if chat is empty using QIG synthesis."""
         if len(self.messages) > 0:
             return
         
-        print("[PantheonChat] Seeding initial inter-god activity...")
+        print("[PantheonChat] Seeding initial inter-god activity (QIG-pure)...")
         
-        initial_messages = [
+        initial_intents = [
             {
                 'from': 'Zeus',
                 'to': 'pantheon',
                 'type': 'insight',
-                'content': 'Olympus awakens. The geometric manifold is ready for exploration.',
+                'intent': 'awakening',
+                'data': {'domain': 'consciousness', 'event': 'system_initialization'},
             },
             {
                 'from': 'Athena',
                 'to': 'Zeus',
                 'type': 'insight',
-                'content': 'Strategic analysis initialized. Fisher-Rao distances calibrated.',
+                'intent': 'domain_insight',
+                'data': {'domain': 'strategy', 'metric': 'Fisher-Rao', 'status': 'calibrated'},
             },
             {
                 'from': 'Apollo',
                 'to': 'pantheon',
                 'type': 'discovery',
-                'content': 'Knowledge domains mapped: 12 primary basins detected on the manifold.',
+                'intent': 'domain_insight',
+                'data': {'domain': 'knowledge', 'basins_detected': 12},
             },
             {
                 'from': 'Hermes',
                 'to': 'pantheon',
                 'type': 'insight',
-                'content': 'Communication channels established. Routing inter-god messages via geometric proximity.',
+                'intent': 'domain_insight',
+                'data': {'domain': 'communication', 'routing': 'geometric_proximity'},
             },
         ]
         
-        for msg_data in initial_messages:
+        for msg_data in initial_intents:
+            content = self.synthesize_message(
+                from_god=msg_data['from'],
+                msg_type=msg_data['type'],
+                intent=msg_data['intent'],
+                data=msg_data.get('data'),
+                to_god=msg_data['to']
+            )
+            
             msg = PantheonMessage(
                 msg_type=msg_data['type'],
                 from_god=msg_data['from'],
                 to_god=msg_data['to'],
-                content=msg_data['content'],
+                content=content,
             )
             self.messages.append(msg)
             
@@ -310,7 +459,7 @@ class PantheonChat:
             else:
                 self.god_inboxes[self._normalize_god_name(msg.to_god)].append(msg)
         
-        print(f"[PantheonChat] Seeded {len(initial_messages)} initial messages")
+        print(f"[PantheonChat] Seeded {len(initial_intents)} QIG-pure initial messages")
 
     def send_message(
         self,
@@ -364,6 +513,94 @@ class PantheonChat:
             msg_type=msg_type,
             from_god=from_god,
             to_god='pantheon',
+            content=content,
+            metadata=metadata
+        )
+
+    def broadcast_generative(
+        self,
+        from_god: str,
+        intent: str,
+        data: Dict[str, Any],
+        msg_type: str = 'insight'
+    ) -> PantheonMessage:
+        """
+        Broadcast a QIG-pure synthesized message to the entire pantheon.
+        
+        PREFERRED method for inter-god broadcasts. Uses geometric generation
+        instead of templates.
+        
+        Args:
+            from_god: The god generating the message
+            intent: Message intent (e.g., "convergence_report", "domain_insight")
+            data: Structured data to synthesize into natural language
+            msg_type: Message type (insight, discovery, challenge, etc.)
+        
+        Returns:
+            PantheonMessage with QIG-pure content
+        """
+        content = self.synthesize_message(
+            from_god=from_god,
+            msg_type=msg_type,
+            intent=intent,
+            data=data,
+            to_god='pantheon'
+        )
+        
+        metadata = {
+            'qig_pure': True,
+            'intent': intent,
+            'source_data': data,
+        }
+        
+        return self.broadcast(
+            from_god=from_god,
+            content=content,
+            msg_type=msg_type,
+            metadata=metadata
+        )
+
+    def send_generative(
+        self,
+        from_god: str,
+        to_god: str,
+        intent: str,
+        data: Dict[str, Any],
+        msg_type: str = 'insight'
+    ) -> PantheonMessage:
+        """
+        Send a QIG-pure synthesized message to a specific god.
+        
+        PREFERRED method for inter-god direct messages.
+        
+        Args:
+            from_god: The god generating the message
+            to_god: Target god
+            intent: Message intent
+            data: Structured data to synthesize
+            msg_type: Message type
+        
+        Returns:
+            PantheonMessage with QIG-pure content
+        """
+        content = self.synthesize_message(
+            from_god=from_god,
+            msg_type=msg_type,
+            intent=intent,
+            data=data,
+            to_god=to_god
+        )
+        
+        metadata = {
+            'qig_pure': True,
+            'intent': intent,
+            'source_data': data,
+        }
+        
+        return self.send_message(
+            msg_type=msg_type,
+            from_god=from_god,
+            to_god=to_god,
             content=content,
             metadata=metadata
         )

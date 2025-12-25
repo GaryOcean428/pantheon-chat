@@ -810,19 +810,19 @@ class Zeus(BaseGod):
                 context={'target': target, 'assessments': {god1: prob1, god2: prob2}}
             )
 
-        # 2. Broadcast convergence status to pantheon
+        # 2. Broadcast convergence status to pantheon (QIG-pure generative)
         conv_type = convergence.get('type', 'UNKNOWN')
         conv_score = convergence.get('score', 0)
 
-        self.pantheon_chat.broadcast(
+        self.pantheon_chat.broadcast_generative(
             from_god='Zeus',
-            content=f"Convergence report for '{target[:30]}...': {conv_type} (score: {conv_score:.2f})",
-            msg_type='insight',
-            metadata={
+            intent='convergence_report',
+            data={
+                'target': target[:30],
                 'convergence_type': conv_type,
                 'convergence_score': conv_score,
-                'target': target,
-            }
+            },
+            msg_type='insight'
         )
 
         # 3. Collect pending messages from all gods
@@ -942,17 +942,18 @@ class Zeus(BaseGod):
                 print(f"🌪️ [Zeus] CHAOS MODE AUTO-ACTIVATED: {activation_reason}")
                 print(f"🌪️ [Zeus] Initial kernel population: {len(self.chaos.kernel_population)}")
                 
-                # Broadcast to pantheon
-                self.pantheon_chat.broadcast(
+                # Broadcast to pantheon (QIG-pure generative)
+                self.pantheon_chat.broadcast_generative(
                     from_god='Zeus',
-                    content=f"CHAOS MODE activated: {activation_reason}",
-                    msg_type='chaos_activation',
-                    metadata={
+                    intent='chaos_activation',
+                    data={
+                        'reason': activation_reason,
                         'convergence_type': convergence_type,
                         'convergence_score': convergence_score,
                         'avg_phi': avg_phi,
                         'war_mode': self.war_mode,
-                    }
+                    },
+                    msg_type='chaos_activation'
                 )
                 
             except Exception as e:
@@ -1614,14 +1615,14 @@ class Zeus(BaseGod):
                 
                 learning_results[god_name] = learning_result
                 
-                # Also update reputation through peer communication
+                # Also update reputation through peer communication (QIG-pure generative)
                 if success:
                     # Gods praise each other on success
-                    self.pantheon_chat.broadcast(
+                    self.pantheon_chat.broadcast_generative(
                         from_god=god_name.capitalize(),
-                        content=f"Discovery validated! Target showed positive balance.",
-                        msg_type='discovery',
-                        metadata={'target': target[:30], 'success': True}
+                        intent='discovery_validated',
+                        data={'target': target[:30], 'success': True},
+                        msg_type='discovery'
                     )
                     
             except Exception as e:

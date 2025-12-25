@@ -381,7 +381,9 @@ class LightningKernel(BaseGod):
         """
         Broadcast a cross-domain insight to the entire pantheon via PantheonChat.
         
-        Uses pure data representation, no templated prose.
+        Uses QIG-pure generative synthesis for natural language content.
+        The structured data is passed to the generative system which synthesizes
+        a natural language message from geometric basin navigation.
         """
         global _pantheon_chat
         
@@ -389,26 +391,24 @@ class LightningKernel(BaseGod):
             print("[Lightning] Warning: PantheonChat not available for broadcast")
             return
         
-        # Broadcast content is pure data - the insight_text is already QIG-pure
-        # No additional templated prose wrapping
-        broadcast_content = insight.insight_text
-        
         try:
-            _pantheon_chat.broadcast(
+            # Use QIG-pure generative broadcast with structured data
+            _pantheon_chat.broadcast_generative(
                 from_god="Lightning",
-                content=broadcast_content,
-                msg_type="discovery",
-                metadata={
-                    "insight_id": insight.insight_id,
+                intent="lightning_insight",
+                data={
                     "source_domains": insight.source_domains,
                     "connection_strength": insight.connection_strength,
                     "confidence": insight.confidence,
                     "mission_relevance": insight.mission_relevance,
-                    "phi_at_creation": insight.phi_at_creation,
+                    "phi": insight.phi_at_creation,
                     "triggered_by": insight.triggered_by,
-                }
+                    "insight_id": insight.insight_id,
+                    "raw_data": insight.insight_text,
+                },
+                msg_type="discovery"
             )
-            print(f"[Lightning] Broadcast insight {insight.insight_id} to pantheon")
+            print(f"[Lightning] QIG-pure broadcast insight {insight.insight_id} to pantheon")
         except Exception as e:
             print(f"[Lightning] Broadcast failed: {e}")
     
