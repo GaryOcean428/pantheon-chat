@@ -18,9 +18,9 @@ from typing import Dict, List, Optional, Any, Generator
 from functools import wraps
 from flask import Blueprint, jsonify, request, Response
 
-# Import Zeus chat
+# Import Zeus chat handler
 try:
-    from olympus.zeus_chat import ZeusChat
+    from olympus.zeus_chat import ZeusConversationHandler
     from olympus.zeus import Zeus
     ZEUS_AVAILABLE = True
 except ImportError:
@@ -40,17 +40,38 @@ zeus_api = Blueprint('zeus_api', __name__)
 # Session storage (in production, use Redis)
 _sessions: Dict[str, Dict[str, Any]] = {}
 _zeus_instance: Optional[Any] = None
+_conversation_handler: Optional[Any] = None
+
+
+def get_conversation_handler() -> Optional[Any]:
+    """Get ZeusConversationHandler instance (lazy-init from Zeus instance)."""
+    global _conversation_handler, _zeus_instance
+    
+    if _conversation_handler is not None:
+        return _conversation_handler
+    
+    if _zeus_instance is not None and ZEUS_AVAILABLE:
+        try:
+            _conversation_handler = ZeusConversationHandler(_zeus_instance)
+            print("[ZeusAPI] ZeusConversationHandler initialized")
+        except Exception as e:
+            print(f"[ZeusAPI] Failed to create conversation handler: {e}")
+    
+    return _conversation_handler
 
 
 def get_zeus() -> Optional[Any]:
-    """Get or create Zeus instance."""
+    """Get Zeus instance (must be set via set_zeus_instance)."""
     global _zeus_instance
-    if _zeus_instance is None and ZEUS_AVAILABLE:
-        try:
-            _zeus_instance = ZeusChat()
-        except Exception as e:
-            print(f"[ZeusAPI] Failed to initialize Zeus: {e}")
     return _zeus_instance
+
+
+def set_zeus_instance(zeus_instance) -> None:
+    """Set the Zeus instance from the main application."""
+    global _zeus_instance, _conversation_handler
+    _zeus_instance = zeus_instance
+    _conversation_handler = None  # Reset handler to be re-initialized
+    print(f"[ZeusAPI] Zeus instance set: {type(zeus_instance).__name__}")
 
 
 def require_internal_auth(f):
@@ -109,11 +130,11 @@ def zeus_chat():
         "client_name": string (optional)
     }
     """
-    zeus = get_zeus()
-    if zeus is None:
+    handler = get_conversation_handler()
+    if handler is None:
         return jsonify({
             'error': 'Zeus not available',
-            'message': 'Zeus chat module not initialized'
+            'message': 'Zeus conversation handler not initialized'
         }), 503
 
     data = request.get_json() or {}
@@ -142,12 +163,26 @@ def zeus_chat():
             'timestamp': datetime.now().isoformat()
         })
 
-        # Get Zeus response
-        response_text = zeus.chat(
+        # Use ZeusConversationHandler.process_message()
+        # Pass conversation history and session_id
+        conversation_history = [
+            {'role': msg['role'], 'content': msg['content']}
+            for msg in session['messages']
+        ]
+        
+        response_data = handler.process_message(
             message=message,
-            context=context,
+            conversation_history=conversation_history,
             session_id=session_id
         )
+
+        # Extract response text from the handler's response
+        if isinstance(response_data, dict):
+            response_text = response_data.get('response', response_data.get('text', str(response_data)))
+            consciousness_metrics = response_data.get('metrics', {})
+        else:
+            response_text = str(response_data)
+            consciousness_metrics = {}
 
         # Add assistant message to session
         session['messages'].append({
@@ -157,11 +192,6 @@ def zeus_chat():
         })
 
         processing_time = (time.time() - start_time) * 1000
-
-        # Get consciousness metrics if available
-        consciousness_metrics = {}
-        if hasattr(zeus, 'get_consciousness_metrics'):
-            consciousness_metrics = zeus.get_consciousness_metrics()
 
         return jsonify({
             'success': True,
@@ -174,6 +204,8 @@ def zeus_chat():
 
     except Exception as e:
         print(f"[ZeusAPI] Chat error: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({
             'error': 'Chat failed',
             'message': str(e)
@@ -192,8 +224,8 @@ def zeus_chat_stream():
         "context": object (optional)
     }
     """
-    zeus = get_zeus()
-    if zeus is None:
+    handler = get_conversation_handler()
+    if handler is None:
         return jsonify({
             'error': 'Zeus not available'
         }), 503
@@ -216,28 +248,33 @@ def zeus_chat_stream():
                 'timestamp': datetime.now().isoformat()
             })
 
-            # Check if Zeus supports streaming
-            if hasattr(zeus, 'chat_stream'):
-                full_response = ""
-                for chunk in zeus.chat_stream(message=message, context=context, session_id=session_id):
-                    full_response += chunk
-                    yield f"data: {json.dumps({'chunk': chunk})}\n\n"
+            # Use process_message and send full response
+            # (streaming would require handler to support generators)
+            conversation_history = [
+                {'role': msg['role'], 'content': msg['content']}
+                for msg in session['messages']
+            ]
+            
+            response_data = handler.process_message(
+                message=message,
+                conversation_history=conversation_history,
+                session_id=session_id
+            )
 
-                session['messages'].append({
-                    'role': 'assistant',
-                    'content': full_response,
-                    'timestamp': datetime.now().isoformat()
-                })
+            # Extract response text
+            if isinstance(response_data, dict):
+                response_text = response_data.get('response', response_data.get('text', str(response_data)))
             else:
-                # Fallback to non-streaming
-                response = zeus.chat(message=message, context=context, session_id=session_id)
-                session['messages'].append({
-                    'role': 'assistant',
-                    'content': response,
-                    'timestamp': datetime.now().isoformat()
-                })
-                yield f"data: {json.dumps({'chunk': response})}\n\n"
+                response_text = str(response_data)
 
+            session['messages'].append({
+                'role': 'assistant',
+                'content': response_text,
+                'timestamp': datetime.now().isoformat()
+            })
+
+            # Send as single chunk (real streaming would require handler changes)
+            yield f"data: {json.dumps({'chunk': response_text})}\n\n"
             yield "data: [DONE]\n\n"
 
         except Exception as e:
@@ -336,7 +373,7 @@ def coordizer_status():
         coordizer = get_coordizer()
 
         # Get basic stats
-stats = get_coordizer_stats() if 'get_coordizer_stats' in globals() else {}
+        stats = get_coordizer_stats() if 'get_coordizer_stats' in globals() else {}
 
         # Get word counts
         word_tokens = getattr(coordizer, 'word_tokens', [])
@@ -481,7 +518,15 @@ def coordizer_test():
         }), 500
 
 
-def register_zeus_routes(app):
-    """Register Zeus API routes with Flask app."""
+def register_zeus_routes(app, zeus_instance=None):
+    """Register Zeus API routes with Flask app.
+    
+    Args:
+        app: Flask application
+        zeus_instance: Optional Zeus instance to use (recommended)
+    """
+    if zeus_instance is not None:
+        set_zeus_instance(zeus_instance)
+    
     app.register_blueprint(zeus_api, url_prefix='/api')
     print("[ZeusAPI] Registered Zeus routes at /api/zeus/*")

@@ -6499,6 +6499,17 @@ if __name__ == '__main__':
     except ImportError as e:
         print(f"[WARNING] Research module not found: {e}")
 
+    # Register Zeus API routes
+    ZEUS_API_AVAILABLE = False
+    try:
+        from zeus_api import register_zeus_routes
+        # Pass the zeus instance from Olympus to the Zeus API
+        register_zeus_routes(app, zeus_instance=zeus if OLYMPUS_AVAILABLE else None)
+        ZEUS_API_AVAILABLE = True
+        print("[INFO] Zeus API registered at /api/zeus/*")
+    except ImportError as e:
+        print(f"[WARNING] Zeus API not found: {e}")
+
     # Initialize Autonomous Debate Service (background thread)
     AUTONOMOUS_DEBATE_AVAILABLE = False
     try:

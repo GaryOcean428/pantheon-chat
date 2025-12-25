@@ -24,7 +24,7 @@ QIG-RAG (CORRECT):
 """
 
 import numpy as np
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional, Tuple, Any
 from datetime import datetime
 import json
 import os
@@ -705,3 +705,120 @@ class QIGRAGDatabase(QIGRAG):
             "backend": "postgresql"
         }
 
+
+# ========================================
+# ENHANCED QIG-RAG WITH EXTERNAL KNOWLEDGE
+# Merges local geometric memory with external sources
+# ========================================
+
+class EnhancedQIGRAG(QIGRAGDatabase):
+    """
+    QIG-RAG enhanced with external knowledge sources.
+    
+    Combines local geometric memory (PostgreSQL) with:
+    - Wikipedia for encyclopedic knowledge
+    - DuckDuckGo Instant Answers for quick facts
+    
+    All external results are encoded to basin coordinates and
+    ranked using Fisher-Rao distance for geometric consistency.
+    """
+    
+    def __init__(self, db_url: Optional[str] = None, enable_external: bool = True):
+        super().__init__(db_url)
+        self.enable_external = enable_external
+        self._external_kb = None
+        
+        if enable_external:
+            try:
+                from external_knowledge import get_external_knowledge_base
+                self._external_kb = get_external_knowledge_base()
+                if hasattr(self, 'encoder'):
+                    self._external_kb.set_encoder(self.encoder)
+                print("[EnhancedQIG-RAG] External knowledge sources enabled")
+            except ImportError as e:
+                print(f"[EnhancedQIG-RAG] External knowledge not available: {e}")
+                self.enable_external = False
+    
+    def search_with_external(
+        self,
+        query: Optional[str] = None,
+        query_basin: Optional[np.ndarray] = None,
+        k: int = 5,
+        metric: str = 'fisher_rao',
+        include_metadata: bool = False,
+        min_similarity: float = 0.0,
+        external_weight: float = 0.7,
+        max_external: int = 3
+    ) -> Dict[str, Any]:
+        """
+        Search local memory AND external knowledge sources.
+        
+        Args:
+            query: Text query
+            query_basin: Pre-computed basin coordinates
+            k: Number of local results
+            metric: Distance metric
+            include_metadata: Include document metadata
+            min_similarity: Minimum similarity threshold
+            external_weight: Weight for external results (0-1)
+            max_external: Max external results to include
+            
+        Returns:
+            Dict with 'local', 'external', and 'merged' results
+        """
+        if query_basin is None and query:
+            query_basin = self.encoder.encode(query)
+        
+        local_results = self.search(
+            query=query,
+            query_basin=query_basin,
+            k=k,
+            metric=metric,
+            include_metadata=include_metadata,
+            min_similarity=min_similarity
+        )
+        
+        external_results = []
+        if self.enable_external and self._external_kb and query:
+            try:
+                external_results = self._external_kb.search_with_geometric_ranking(
+                    query=query,
+                    query_basin=query_basin,
+                    max_results=max_external
+                )
+                
+                for result in external_results:
+                    result['similarity'] = result.get('similarity', 0) * external_weight
+                    result['is_external'] = True
+                    
+            except Exception as e:
+                print(f"[EnhancedQIG-RAG] External search error: {e}")
+        
+        for result in local_results:
+            result['is_external'] = False
+        
+        merged = list(local_results)
+        merged.extend(external_results)
+        merged.sort(key=lambda x: x.get('distance', float('inf')))
+        
+        return {
+            'local': local_results,
+            'external': external_results,
+            'merged': merged[:k + max_external],
+            'local_count': len(local_results),
+            'external_count': len(external_results)
+        }
+    
+    def get_enhanced_stats(self) -> Dict:
+        """Get stats including external knowledge status."""
+        base_stats = self.get_stats()
+        base_stats['external_knowledge'] = {
+            'enabled': self.enable_external,
+            'sources': ['wikipedia', 'duckduckgo'] if self.enable_external else []
+        }
+        return base_stats
+
+
+def get_enhanced_rag(enable_external: bool = True) -> EnhancedQIGRAG:
+    """Factory function for enhanced RAG with external knowledge."""
+    return EnhancedQIGRAG(enable_external=enable_external)

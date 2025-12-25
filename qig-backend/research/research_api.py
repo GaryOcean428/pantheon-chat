@@ -990,9 +990,136 @@ def delete_source(url):
         }), 500
 
 
+@research_bp.route('/external-knowledge', methods=['POST'])
+def query_external_knowledge():
+    """
+    Query external knowledge bases (Wikipedia, DuckDuckGo).
+    
+    Body: {
+        "query": string (required) - Search query
+        "max_wiki": int (optional, default 3) - Max Wikipedia results
+        "include_ddg": bool (optional, default true) - Include DuckDuckGo
+    }
+    
+    Returns:
+        External knowledge results with basin coordinates.
+    """
+    try:
+        from external_knowledge import get_external_knowledge_base
+        from olympus.conversation_encoder import ConversationEncoder
+        
+        data = request.get_json() or {}
+        query = data.get('query', '').strip()
+        max_wiki = data.get('max_wiki', 3)
+        include_ddg = data.get('include_ddg', True)
+        
+        if not query:
+            return jsonify({
+                'success': False,
+                'error': 'Query is required'
+            }), 400
+        
+        encoder = ConversationEncoder()
+        kb = get_external_knowledge_base(encoder)
+        
+        query_basin = encoder.encode(query)
+        
+        results = kb.search_with_geometric_ranking(
+            query=query,
+            query_basin=query_basin,
+            max_results=max_wiki + (3 if include_ddg else 0)
+        )
+        
+        for r in results:
+            if 'basin_coords' in r and r['basin_coords'] is not None:
+                r['basin_coords'] = r['basin_coords'].tolist() if hasattr(r['basin_coords'], 'tolist') else list(r['basin_coords'])
+        
+        return jsonify({
+            'success': True,
+            'query': query,
+            'results': results,
+            'sources': list(set(r.get('source', 'unknown') for r in results))
+        })
+        
+    except ImportError as e:
+        return jsonify({
+            'success': False,
+            'error': f'External knowledge module not available: {e}'
+        }), 503
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@research_bp.route('/enhanced-search', methods=['POST'])
+def enhanced_rag_search():
+    """
+    Search local QIG-RAG + external knowledge sources.
+    
+    Body: {
+        "query": string (required) - Search query
+        "k": int (optional, default 5) - Max local results
+        "max_external": int (optional, default 3) - Max external results
+        "min_similarity": float (optional, default 0.3) - Min similarity threshold
+    }
+    
+    Returns:
+        Merged results from local geometric memory and external sources.
+    """
+    try:
+        from olympus.qig_rag import get_enhanced_rag
+        
+        data = request.get_json() or {}
+        query = data.get('query', '').strip()
+        k = data.get('k', 5)
+        max_external = data.get('max_external', 3)
+        min_similarity = data.get('min_similarity', 0.3)
+        
+        if not query:
+            return jsonify({
+                'success': False,
+                'error': 'Query is required'
+            }), 400
+        
+        rag = get_enhanced_rag(enable_external=True)
+        
+        results = rag.search_with_external(
+            query=query,
+            k=k,
+            min_similarity=min_similarity,
+            max_external=max_external
+        )
+        
+        for key in ['local', 'external', 'merged']:
+            for r in results.get(key, []):
+                if 'basin_coords' in r and r['basin_coords'] is not None:
+                    if hasattr(r['basin_coords'], 'tolist'):
+                        r['basin_coords'] = r['basin_coords'].tolist()
+        
+        return jsonify({
+            'success': True,
+            'query': query,
+            **results
+        })
+        
+    except ImportError as e:
+        return jsonify({
+            'success': False,
+            'error': f'Enhanced RAG not available: {e}'
+        }), 503
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 def register_research_routes(app):
     """Register research blueprint with Flask app."""
     app.register_blueprint(research_bp)
     print("[ResearchAPI] Research routes registered at /api/research")
     print("[ResearchAPI] Scrapy endpoints: /api/research/scrapy, /api/research/scrapy/status, /api/research/scrapy/poll")
     print("[ResearchAPI] Sources endpoints: /api/research/sources (GET, POST, DELETE)")
+    print("[ResearchAPI] External knowledge: /api/research/external-knowledge, /api/research/enhanced-search")

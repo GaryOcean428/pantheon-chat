@@ -14,7 +14,7 @@ Usage:
 
 import hashlib
 import numpy as np
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Optional
 
 # Basin dimension for Fisher manifold
 BASIN_DIM = 64
@@ -415,10 +415,22 @@ class SimpleWordCoordizer:
         in the database sense - it's the reliable baseline.
         """
         return False
+    
+    def add_vocabulary_observations(self, observations: List[Dict]) -> Tuple[int, int]:
+        """Stub method for vocabulary learning compatibility.
+        
+        SimpleWordCoordizer uses a fixed vocabulary and doesn't support
+        dynamic vocabulary learning. This method is a no-op for compatibility
+        with the VocabularyCoordinator.
+        
+        Returns:
+            Tuple of (new_tokens_added=0, weights_updated=0)
+        """
+        return (0, 0)
 
 
 # Module-level singleton for easy access
-_simple_coordizer: SimpleWordCoordizer = None
+_simple_coordizer: Optional[SimpleWordCoordizer] = None
 
 
 def get_simple_coordizer() -> SimpleWordCoordizer:
