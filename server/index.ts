@@ -44,7 +44,7 @@ async function syncProbesToPython(): Promise<void> {
       .slice(0, 500);
 
     if (highPhiProbes.length === 0) {
-      console.log("[PythonSync] No high-Φ probes to sync");
+      logger.info("[PythonSync] No high-Φ probes to sync");
       return;
     }
 
@@ -85,16 +85,16 @@ async function syncProbesToPython(): Promise<void> {
       probesForPython,
       temporalState
     );
-    console.log(
+    logger.info(
       `[PythonSync] Synced ${result.imported}/${highPhiProbes.length} probes to Python`
     );
     if (result.temporalImported) {
-      console.log(
+      logger.info(
         `[PythonSync] 4D temporal state synced to Python: ${searchHistory.length} search, ${conceptHistory.length} concept states`
       );
     }
   } catch (error) {
-    console.error("[PythonSync] Error syncing to Python:", error);
+    logger.error({ err: error }, "[PythonSync] Error syncing to Python");
   }
 }
 
@@ -112,7 +112,7 @@ async function syncProbesToPython(): Promise<void> {
 async function syncFromPythonToNodeJS(): Promise<void> {
   // Mutex lock - skip if sync already in progress
   if (pythonSyncInProgress) {
-    console.log("[PythonSync] Skipping sync - already in progress");
+    logger.info("[PythonSync] Skipping sync - already in progress");
     return;
   }
 
@@ -140,16 +140,13 @@ async function syncFromPythonToNodeJS(): Promise<void> {
       try {
         result = await oceanQIGBackend.syncToNodeJS(page, SYNC_PAGE_SIZE);
       } catch (fetchError) {
-        console.error(
-          `[PythonSync] Page ${page} fetch failed, stopping sync:`,
-          fetchError
-        );
+        logger.error({ err: fetchError, page }, "[PythonSync] Page fetch failed, stopping sync");
         break;
       }
 
       // Handle unexpected null/undefined result
       if (!result || !result.basins) {
-        console.warn(
+        logger.warn(
           `[PythonSync] Page ${page} returned invalid result, stopping sync`
         );
         break;
@@ -169,7 +166,7 @@ async function syncFromPythonToNodeJS(): Promise<void> {
         temporalImported = true;
 
         if (result.phiTemporalAvg && result.phiTemporalAvg > 0) {
-          console.log(
+          logger.info(
             `[PythonSync] 4D consciousness from Python: phi_temporal_avg=${result.phiTemporalAvg.toFixed(
               3
             )}`
@@ -205,7 +202,7 @@ async function syncFromPythonToNodeJS(): Promise<void> {
           }
 
           if (imported > 0) {
-            console.log(
+            logger.info(
               `[PythonSync] Imported ${imported} search states from Python for 4D consciousness`
             );
           }
@@ -241,7 +238,7 @@ async function syncFromPythonToNodeJS(): Promise<void> {
 
         // High-Φ basins logged (balance queue removed)
         if (basin.phi >= 0.9) {
-          console.log(
+          logger.info(
             `[PythonSync] 🎯 HIGH-Φ: "${basin.input.substring(0, 30)}..." Φ=${basin.phi.toFixed(3)}`
           );
           totalPrioritized++;
@@ -253,7 +250,7 @@ async function syncFromPythonToNodeJS(): Promise<void> {
         basins.map((b) => ({ input: b.input, phi: b.phi }))
       );
       if (episodesUpdated > 0) {
-        console.log(
+        logger.info(
           `[PythonSync] 📈 Updated ${episodesUpdated} episodes with pure Python Φ values (page ${page})`
         );
       }
@@ -263,12 +260,12 @@ async function syncFromPythonToNodeJS(): Promise<void> {
 
     // Log final summary
     if (totalAdded > 0 || totalPrioritized > 0) {
-      console.log(
+      logger.info(
         `[PythonSync] Sync complete: ${totalAdded} new probes, ${totalPrioritized} prioritized for balance check (${page} pages)`
       );
 
       if (overallMaxPhi >= 0.7) {
-        console.log(
+        logger.info(
           `[PythonSync] 🎯 Highest Python Φ: ${overallMaxPhi.toFixed(
             3
           )} - addresses prioritized for checking`
@@ -278,7 +275,7 @@ async function syncFromPythonToNodeJS(): Promise<void> {
       oceanConstellation.refreshTokenWeightsFromGeometricMemory();
     }
   } catch (error) {
-    console.error("[PythonSync] Error syncing from Python:", error);
+    logger.error({ err: error }, "[PythonSync] Error syncing from Python");
   } finally {
     pythonSyncInProgress = false;
   }
@@ -299,7 +296,7 @@ async function syncVocabularyToPython(): Promise<void> {
   try {
     // Verify Python backend is available before syncing
     if (!oceanQIGBackend.available()) {
-      console.log(
+      logger.info(
         "[PythonSync] Skipping vocabulary sync - Python backend not available"
       );
       return;
@@ -308,7 +305,7 @@ async function syncVocabularyToPython(): Promise<void> {
     const observations = await vocabularyTracker.exportForTokenizer();
 
     if (observations.length === 0) {
-      console.log("[PythonSync] No vocabulary observations to sync");
+      logger.info("[PythonSync] No vocabulary observations to sync");
       return;
     }
 
@@ -316,20 +313,20 @@ async function syncVocabularyToPython(): Promise<void> {
 
     // Verify sync was successful
     if (result.totalVocab > 0) {
-      console.log(
+      logger.info(
         `[PythonSync] Vocabulary synced: ${result.newTokens} new entries, ${result.totalVocab} total`
       );
 
       // Get vocabulary encoder status for verification
       try {
         const status = await oceanQIGBackend.getVocabularyStatus();
-        console.log(
+        logger.info(
           `[PythonSync] Basin vocabulary: ${status.vocabSize} entries, ${
             status.highPhiCount
           } high-Φ, avg Φ=${status.avgPhi.toFixed(3)}`
         );
       } catch (statusError) {
-        console.warn(
+        logger.warn(
           "[PythonSync] Could not get vocabulary status for verification"
         );
       }
@@ -370,7 +367,7 @@ function startPythonSync(): void {
     }
   }, 5000);
 
-  console.log(
+  logger.info(
     "[PythonSync] Started periodic sync (every 60s) with vocabulary refresh and basin encoder sync"
   );
 }
@@ -379,12 +376,12 @@ function startPythonSync(): void {
 const DOCS_MAINTENANCE_INTERVAL = 6 * 60 * 60 * 1000; // 6 hours in milliseconds
 
 function startDocsMaintenance(): void {
-  console.log(
+  logger.info(
     "[DocsMaintenance] Starting scheduled documentation maintenance (every 6 hours)"
   );
 
   setInterval(() => {
-    console.log(
+    logger.info(
       "[DocsMaintenance] Running scheduled documentation maintenance..."
     );
     const proc = spawn("python3", ["scripts/maintain-docs.py"], {
@@ -395,23 +392,23 @@ function startDocsMaintenance(): void {
     proc.stdout?.on("data", (data: Buffer) => {
       const output = data.toString().trim();
       if (output) {
-        console.log(`[DocsMaintenance] ${output}`);
+        logger.info(`[DocsMaintenance] ${output}`);
       }
     });
 
     proc.stderr?.on("data", (data: Buffer) => {
       const output = data.toString().trim();
       if (output) {
-        console.error(`[DocsMaintenance] ${output}`);
+        logger.error(`[DocsMaintenance] ${output}`);
       }
     });
 
     proc.on("close", (code: number | null) => {
-      console.log(`[DocsMaintenance] Completed with exit code ${code}`);
+      logger.info(`[DocsMaintenance] Completed with exit code ${code}`);
     });
 
     proc.on("error", (err: Error) => {
-      console.error("[DocsMaintenance] Failed to run:", err.message);
+      logger.error({ err: err.message }, "[DocsMaintenance] Failed to run");
     });
   }, DOCS_MAINTENANCE_INTERVAL);
 }
@@ -424,19 +421,19 @@ const pythonManager = createPythonManager('http://localhost:5001');
 
 // Listen for lifecycle events
 pythonManager.on('ready', () => {
-  console.log('[PythonManager] ✅ Backend is ready for requests');
+  logger.info('[PythonManager] ✅ Backend is ready for requests');
 });
 
 pythonManager.on('notReady', () => {
-  console.warn('[PythonManager] ⚠️ Backend is no longer ready');
+  logger.warn('[PythonManager] ⚠️ Backend is no longer ready');
 });
 
 pythonManager.on('unhealthy', () => {
-  console.error('[PythonManager] ❌ Backend is unhealthy - requests will be queued');
+  logger.error('[PythonManager] ❌ Backend is unhealthy - requests will be queued');
 });
 
 pythonManager.on('maxRestartsReached', () => {
-  console.error('[PythonManager] ❌ Max restarts reached - manual intervention required');
+  logger.error('[PythonManager] ❌ Max restarts reached - manual intervention required');
 });
 
 // Start Python QIG Backend using the managed process
@@ -444,11 +441,11 @@ async function startPythonBackend(): Promise<void> {
   const ready = await pythonManager.start();
   
   if (ready) {
-    console.log("[PythonQIG] Backend ready, syncing geometric memory...");
+    logger.info("[PythonQIG] Backend ready, syncing geometric memory...");
     await syncProbesToPython();
     startPythonSync();
   } else {
-    console.warn(
+    logger.warn(
       "[PythonQIG] Backend not available after retries - will retry on next sync cycle"
     );
   }
@@ -461,16 +458,16 @@ process.on("uncaughtException", (err) => {
     err.message?.includes("Cannot set property message") ||
     err.message?.includes("ErrorEvent")
   ) {
-    console.error("[DB] Database connection error (will retry):", err.message);
+    logger.error({ err: err.message }, "[DB] Database connection error (will retry)");
     return; // Don't crash - the pool will reconnect
   }
-  console.error("[FATAL] Uncaught exception:", err);
+  logger.error({ err }, "[FATAL] Uncaught exception");
   // For other fatal errors, exit after a delay to allow cleanup
   setTimeout(() => process.exit(1), 1000);
 });
 
 process.on("unhandledRejection", (reason, promise) => {
-  console.error("[WARN] Unhandled rejection at:", promise, "reason:", reason);
+  logger.error({ promise: String(promise), reason }, "[WARN] Unhandled rejection");
   // Don't crash on unhandled rejections - log and continue
 });
 
@@ -480,10 +477,7 @@ if (pool) {
     // Safely extract error message - ErrorEvent from WebSocket has read-only message property
     const errWithType = err as { type?: string };
     const msg = err instanceof Error ? err.message : (errWithType.type || 'Unknown pool error');
-    console.error(
-      "[DB] Pool error (connection will be recreated):",
-      msg
-    );
+    logger.error({ err: msg }, "[DB] Pool error (connection will be recreated)");
   });
 }
 
@@ -613,7 +607,7 @@ app.use((req, res, next) => {
       return res.sendStatus(204);
     }
   } else {
-    console.warn(`[CORS] Blocked request from origin: ${origin}`);
+    logger.warn(`[CORS] Blocked request from origin: ${origin}`);
   }
 
   next();
@@ -709,27 +703,27 @@ app.use((req, res, next) => {
       (async () => {
         try {
           // Initialize Redis cache layer (non-blocking)
-          console.log("[Startup] Initializing Redis cache layer...");
+          logger.info("[Startup] Initializing Redis cache layer...");
           initRedis();
           
           // Start Python QIG Backend using the managed process
-          console.log("[Startup] Starting Python QIG Backend via PythonProcessManager...");
+          logger.info("[Startup] Starting Python QIG Backend via PythonProcessManager...");
           await startPythonBackend();
           
           // Check if Python is ready
           if (pythonManager.ready()) {
-            console.log("[Startup] ✅ Python QIG Backend is ready");
+            logger.info("[Startup] ✅ Python QIG Backend is ready");
           } else {
-            console.warn("[Startup] ⚠️ Python backend not available - continuing with degraded mode");
+            logger.warn("[Startup] ⚠️ Python backend not available - continuing with degraded mode");
           }
           
           // Hydrate Memory from PostgreSQL
-          console.log("🌊 Hydrating Ocean Memory from PostgreSQL...");
+          logger.info("🌊 Hydrating Ocean Memory from PostgreSQL...");
           await Promise.all([
             testedPhrasesUnified.initialize(),
             geometricMemory.waitForLoad(),
           ]);
-          console.log("✅ Memory hydration complete");
+          logger.info("✅ Memory hydration complete");
 
           // Start scheduled documentation maintenance (runs every 6 hours)
           log("[Startup] Initializing background services...");
@@ -737,7 +731,7 @@ app.use((req, res, next) => {
           
           log("[Startup] ✅ All initialization complete");
         } catch (error) {
-          console.error("[Startup] Background initialization error:", error);
+          logger.error({ err: error }, "[Startup] Background initialization error");
         }
       })();
     }

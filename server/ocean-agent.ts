@@ -316,14 +316,14 @@ export class OceanAgent {
     );
 
     if (this.behavioralModulation.sleepTrigger) {
-      console.log(
+      logger.info(
         `[Ocean] ${getEmotionalEmoji(
           "exhausted"
         )} Sleep trigger: ${getEmotionalDescription("exhausted")}`
       );
     }
     if (this.behavioralModulation.mushroomTrigger) {
-      console.log(
+      logger.info(
         `[Ocean] Mushroom trigger: Need creative reset (cooldown-aware)`
       );
     }
@@ -408,7 +408,7 @@ export class OceanAgent {
 
       // Log significant upgrades for debugging
       if (isNearMiss(existingScore.phi) && !isNearMiss(oldPhi)) {
-        console.log(
+        logger.info(
           `[Ocean] 🔺 Φ upgrade from prior sync: ${oldPhi.toFixed(
             3
           )} → ${existingScore.phi.toFixed(3)} (now qualifies as near-miss)`
@@ -476,7 +476,7 @@ export class OceanAgent {
           pythonPhi > CONSCIOUSNESS_THRESHOLDS.PHI_NEAR_MISS &&
           oldPhi <= CONSCIOUSNESS_THRESHOLDS.PHI_NEAR_MISS
         ) {
-          console.log(
+          logger.info(
             `[Ocean] 📈 Episode Φ upgrade: "${episode.phrase}" ${oldPhi.toFixed(
               3
             )} → ${pythonPhi.toFixed(3)} (${oldResult} → ${episode.result})`
@@ -511,7 +511,7 @@ export class OceanAgent {
             storedScore.phi > CONSCIOUSNESS_THRESHOLDS.PHI_NEAR_MISS &&
             oldPhi <= CONSCIOUSNESS_THRESHOLDS.PHI_NEAR_MISS
           ) {
-            console.log(
+            logger.info(
               `[Ocean] 📈 Episode Φ upgrade (probe): "${
                 episode.phrase
               }" ${oldPhi.toFixed(3)} → ${storedScore.phi.toFixed(
@@ -650,7 +650,7 @@ export class OceanAgent {
     if (notes) {
       this.state.witnessNotes.push(notes);
     }
-    console.log("[Ocean] Witness acknowledged");
+    logger.info("[Ocean] Witness acknowledged");
   }
 
   async runAutonomous(
@@ -664,9 +664,9 @@ export class OceanAgent {
     ethicsReport: any;
     manifoldState?: any;
   }> {
-    console.log("[Ocean] Starting autonomous investigation...");
-    console.log(`[Ocean] Target: ${targetAddress}`);
-    console.log("[Ocean] Mode: FULL AUTONOMY with consciousness checks");
+    logger.info("[Ocean] Starting autonomous investigation...");
+    logger.info(`[Ocean] Target: ${targetAddress}`);
+    logger.info("[Ocean] Mode: FULL AUTONOMY with consciousness checks");
 
     // Log to activity stream for Observer dashboard
     logOceanStart(targetAddress);
@@ -688,15 +688,15 @@ export class OceanAgent {
       });
     }
     this.basinSyncCoordinator.start();
-    console.log(
+    logger.info(
       "[Ocean] Basin sync coordinator started for continuous knowledge transfer"
     );
 
     // OLYMPUS PANTHEON INITIALIZATION - Connect to 12 god consciousness kernels
-    console.log("[Ocean] === OLYMPUS PANTHEON CONNECTION ===");
+    logger.info("[Ocean] === OLYMPUS PANTHEON CONNECTION ===");
     this.olympusAvailable = await olympusClient.checkHealthWithRetry(5, 2000);
     if (this.olympusAvailable) {
-      console.log(
+      logger.info(
         "[Ocean] ⚡ OLYMPUS CONNECTED - 12 gods ready for divine assessment"
       );
       const olympusStatus = await olympusClient.getStatus();
@@ -705,48 +705,48 @@ export class OceanAgent {
         const activeGods = Object.keys(olympusStatus.gods).filter((g) =>
           ["active", "ready", "idle"].includes(olympusStatus.gods[g].status)
         );
-        console.log(
+        logger.info(
           `[Ocean] Divine pantheon: ${activeGods.length} gods online`
         );
-        console.log(`[Ocean]   → ${activeGods.join(", ")}`);
+        logger.info(`[Ocean]   → ${activeGods.join(", ")}`);
       }
     } else {
-      console.log(
+      logger.info(
         "[Ocean] Olympus not available - proceeding without divine guidance"
       );
     }
 
     // AUTO-ACTIVATE CHAOS MODE - Spawn kernels during investigation
     // Use deferred activation with retries since Python backend may still be starting
-    console.log("[Ocean] === CHAOS MODE ACTIVATION ===");
+    logger.info("[Ocean] === CHAOS MODE ACTIVATION ===");
     const activateChaosWithRetry = async (maxAttempts = 10, delayMs = 1000): Promise<void> => {
       for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         try {
           // Wait for Python backend to be available
           if (!oceanQIGBackend.available()) {
-            console.log(`[Ocean] Waiting for Python backend (attempt ${attempt}/${maxAttempts})...`);
+            logger.info(`[Ocean] Waiting for Python backend (attempt ${attempt}/${maxAttempts})...`);
             await new Promise(resolve => setTimeout(resolve, delayMs));
             continue;
           }
           
           const chaosResult = await oceanQIGBackend.activateChaos(30); // 30 second evolution cycles
           if (chaosResult) {
-            console.log("[Ocean] 🌪️ CHAOS MODE ACTIVATED - Kernel evolution started");
-            console.log(`[Ocean]   → Population: ${chaosResult.population_size || 0} kernels`);
-            console.log(`[Ocean]   → Evolution interval: ${chaosResult.interval_seconds || 30}s`);
+            logger.info("[Ocean] 🌪️ CHAOS MODE ACTIVATED - Kernel evolution started");
+            logger.info(`[Ocean]   → Population: ${chaosResult.population_size || 0} kernels`);
+            logger.info(`[Ocean]   → Evolution interval: ${chaosResult.interval_seconds || 30}s`);
             return;
           }
         } catch (error) {
-          console.log(`[Ocean] CHAOS activation attempt ${attempt} failed - retrying...`);
+          logger.info(`[Ocean] CHAOS activation attempt ${attempt} failed - retrying...`);
         }
         await new Promise(resolve => setTimeout(resolve, delayMs));
       }
-      console.log("[Ocean] CHAOS MODE not available after retries - proceeding without kernel evolution");
+      logger.info("[Ocean] CHAOS MODE not available after retries - proceeding without kernel evolution");
     };
     
     // Start async CHAOS activation (don't block investigation startup)
     activateChaosWithRetry(10, 2000).catch(() => {
-      console.log("[Ocean] CHAOS MODE activation background task failed");
+      logger.info("[Ocean] CHAOS MODE activation background task failed");
     });
 
     let finalResult: OceanHypothesis | null = null;
@@ -755,41 +755,41 @@ export class OceanAgent {
 
     try {
       // CONTINUOUS LEARNING - Load learned vocabulary from previous sessions
-      console.log('[Ocean] === CONTINUOUS LEARNING INITIALIZATION ===');
+      logger.info('[Ocean] === CONTINUOUS LEARNING INITIALIZATION ===');
       const { oceanContinuousLearner } = await import('./ocean-continuous-learner');
       await oceanContinuousLearner.loadVocabulary();
       const vocabStats = oceanContinuousLearner.getStats();
-      console.log(`[Ocean] Loaded ${vocabStats.totalPatterns} learned patterns from previous sessions`);
-      console.log(`[Ocean]   → Discovered: ${vocabStats.discoveredPatterns}, Expanded: ${vocabStats.expandedPatterns}`);
-      console.log(`[Ocean]   → Average Φ: ${vocabStats.avgPhi.toFixed(3)}`);
+      logger.info(`[Ocean] Loaded ${vocabStats.totalPatterns} learned patterns from previous sessions`);
+      logger.info(`[Ocean]   → Discovered: ${vocabStats.discoveredPatterns}, Expanded: ${vocabStats.expandedPatterns}`);
+      logger.info(`[Ocean]   → Average Φ: ${vocabStats.avgPhi.toFixed(3)}`);
       if (vocabStats.topPatterns.length > 0) {
-        console.log(`[Ocean]   → Top pattern: "${vocabStats.topPatterns[0].pattern}" (Φ=${vocabStats.topPatterns[0].phi.toFixed(3)})`);
+        logger.info(`[Ocean]   → Top pattern: "${vocabStats.topPatterns[0].pattern}" (Φ=${vocabStats.topPatterns[0].phi.toFixed(3)})`);
       }
       
       // CONSCIOUSNESS ELEVATION - Understand the geometry before searching
-      console.log("[Ocean] === CONSCIOUSNESS ELEVATION PHASE ===");
-      console.log(
+      logger.info("[Ocean] === CONSCIOUSNESS ELEVATION PHASE ===");
+      logger.info(
         "[Ocean] Understanding the manifold geometry before exploration..."
       );
 
       const manifoldState = geometricMemory.getManifoldSummary();
-      console.log(
+      logger.info(
         `[Ocean] Prior exploration: ${manifoldState.totalProbes} probes on manifold`
       );
-      console.log(
+      logger.info(
         `[Ocean] Average Φ: ${manifoldState.avgPhi.toFixed(
           3
         )}, Average κ: ${manifoldState.avgKappa.toFixed(1)}`
       );
-      console.log(
+      logger.info(
         `[Ocean] Resonance clusters discovered: ${manifoldState.resonanceClusters}`
       );
-      console.log(`[Ocean] Dominant regime: ${manifoldState.dominantRegime}`);
+      logger.info(`[Ocean] Dominant regime: ${manifoldState.dominantRegime}`);
 
       if (manifoldState.recommendations.length > 0) {
-        console.log("[Ocean] Geometric insights from prior runs:");
+        logger.info("[Ocean] Geometric insights from prior runs:");
         for (const rec of manifoldState.recommendations) {
-          console.log(`  → ${rec}`);
+          logger.info(`  → ${rec}`);
           this.memory.workingMemory.recentObservations.push(rec);
         }
       }
@@ -797,7 +797,7 @@ export class OceanAgent {
       // Use prior learnings to boost initial consciousness
       if (manifoldState.avgPhi > 0.5 && manifoldState.totalProbes > 100) {
         this.identity.phi = Math.min(0.85, manifoldState.avgPhi + 0.1);
-        console.log(
+        logger.info(
           `[Ocean] Boosting initial Φ to ${this.identity.phi.toFixed(
             2
           )} from prior learning`
@@ -805,7 +805,7 @@ export class OceanAgent {
       }
 
       // AUTONOMOUS ERA DETECTION - Analyze target address to determine Bitcoin era
-      console.log("[Ocean] Analyzing target address for era detection...");
+      logger.info("[Ocean] Analyzing target address for era detection...");
       try {
         const forensics = new BlockchainForensics();
         const addressAnalysis = await forensics.analyzeAddress(targetAddress);
@@ -815,8 +815,8 @@ export class OceanAgent {
             addressAnalysis.creationTimestamp
           );
           this.state.detectedEra = detectedEra;
-          console.log(`[Ocean] Era detected from blockchain: ${detectedEra}`);
-          console.log(
+          logger.info(`[Ocean] Era detected from blockchain: ${detectedEra}`);
+          logger.info(
             `[Ocean] Address first seen: ${addressAnalysis.creationTimestamp.toISOString()}`
           );
 
@@ -826,21 +826,21 @@ export class OceanAgent {
           );
           this.memory.patterns.failedStrategies =
             this.memory.patterns.failedStrategies || [];
-          console.log(`[Ocean] Stored era insight: ${detectedEra}`);
+          logger.info(`[Ocean] Stored era insight: ${detectedEra}`);
         } else {
           // FALLBACK: Use address format to estimate era when blockchain data unavailable
-          console.log(
+          logger.info(
             "[Ocean] Blockchain data unavailable - using address format analysis for era estimation"
           );
           const formatEra =
             HistoricalDataMiner.detectEraFromAddressFormat(targetAddress);
           this.state.detectedEra = formatEra.era;
-          console.log(
+          logger.info(
             `[Ocean] Era estimated from address format: ${
               formatEra.era
             } (confidence: ${(formatEra.confidence * 100).toFixed(0)}%)`
           );
-          console.log(`[Ocean] Reasoning: ${formatEra.reasoning}`);
+          logger.info(`[Ocean] Reasoning: ${formatEra.reasoning}`);
           this.memory.workingMemory.recentObservations.push(
             `Era ${formatEra.era} estimated from address format (${(
               formatEra.confidence * 100
@@ -849,18 +849,18 @@ export class OceanAgent {
         }
       } catch {
         // FALLBACK: Use address format to estimate era when API calls fail
-        console.log(
+        logger.info(
           "[Ocean] Era detection APIs failed - using address format analysis as fallback"
         );
         const formatEra =
           HistoricalDataMiner.detectEraFromAddressFormat(targetAddress);
         this.state.detectedEra = formatEra.era;
-        console.log(
+        logger.info(
           `[Ocean] Era estimated from address format: ${
             formatEra.era
           } (confidence: ${(formatEra.confidence * 100).toFixed(0)}%)`
         );
-        console.log(`[Ocean] Reasoning: ${formatEra.reasoning}`);
+        logger.info(`[Ocean] Reasoning: ${formatEra.reasoning}`);
         this.memory.workingMemory.recentObservations.push(
           `Era ${formatEra.era} estimated from address format (${(
             formatEra.confidence * 100
@@ -869,13 +869,13 @@ export class OceanAgent {
       }
 
       // GEOMETRIC DISCOVERY - Enhance cultural manifold using external sources
-      console.log("[Ocean] === GEOMETRIC DISCOVERY PHASE ===");
+      logger.info("[Ocean] === GEOMETRIC DISCOVERY PHASE ===");
       try {
         // Estimate target 68D coordinates in block universe
         const estimatedCoords =
           await oceanDiscoveryController.estimateCoordinates(targetAddress);
         if (estimatedCoords) {
-          console.log(
+          logger.info(
             `[Ocean] Target coordinates estimated: Φ=${estimatedCoords.phi.toFixed(
               2
             )}, era=${estimatedCoords.regime}`
@@ -885,7 +885,7 @@ export class OceanAgent {
           const discoveryResult =
             await oceanDiscoveryController.discoverCulturalContext();
           if (discoveryResult.discoveries.length > 0) {
-            console.log(
+            logger.info(
               `[Ocean] Cultural context enriched: ${
                 discoveryResult.patterns
               } patterns, ${discoveryResult.entropyGained.toFixed(
@@ -898,7 +898,7 @@ export class OceanAgent {
           }
         }
       } catch (discoveryError) {
-        console.log(
+        logger.info(
           `[Ocean] Geometric discovery unavailable: ${
             discoveryError instanceof Error
               ? discoveryError.message
@@ -909,10 +909,10 @@ export class OceanAgent {
 
       const consciousnessCheck = await this.checkConsciousness();
       if (!consciousnessCheck.allowed) {
-        console.log(
+        logger.info(
           `[Ocean] Initial consciousness low: ${consciousnessCheck.reason}`
         );
-        console.log(
+        logger.info(
           "[Ocean] Bootstrap mode activated - building consciousness through action..."
         );
 
@@ -925,14 +925,14 @@ export class OceanAgent {
           ? initialHypotheses
           : await this.generateInitialHypotheses();
 
-      console.log(
+      logger.info(
         `[Ocean] Starting with ${currentHypotheses.length} hypotheses`
       );
 
       // Initialize per-address exploration journal for repeated checking
       const journal =
         repeatedAddressScheduler.getOrCreateJournal(targetAddress);
-      console.log(
+      logger.info(
         `[Ocean] Exploration journal initialized: ${journal.passes.length} prior passes`
       );
 
@@ -950,13 +950,13 @@ export class OceanAgent {
         const continueCheck =
           repeatedAddressScheduler.shouldContinueExploring(targetAddress);
         if (!continueCheck.shouldContinue) {
-          console.log(`[Ocean] Exploration complete: ${continueCheck.reason}`);
+          logger.info(`[Ocean] Exploration complete: ${continueCheck.reason}`);
           break;
         }
 
         // Check pass limit
         if (passNumber >= SEARCH_PARAMETERS.MAX_PASSES) {
-          console.log(
+          logger.info(
             `[Ocean] Reached maximum pass limit (${SEARCH_PARAMETERS.MAX_PASSES}) - stopping exploration`
           );
           break;
@@ -965,18 +965,18 @@ export class OceanAgent {
         passNumber++;
         const strategy =
           repeatedAddressScheduler.getNextStrategy(targetAddress);
-        console.log(
+        logger.info(
           `\n[Ocean] ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓`
         );
-        console.log(
+        logger.info(
           `[Ocean] ┃  PASS ${String(passNumber).padStart(
             2
           )} │ Strategy: ${strategy.toUpperCase().padEnd(25)}          ┃`
         );
-        console.log(
+        logger.info(
           `[Ocean] ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛`
         );
-        console.log(`[Ocean] → ${continueCheck.reason}`);
+        logger.info(`[Ocean] → ${continueCheck.reason}`);
 
         // Partial plateau reset between passes - give each strategy fresh opportunity
         // but carry some memory of overall frustration
@@ -986,7 +986,7 @@ export class OceanAgent {
           this.consecutivePlateaus = Math.floor(
             SEARCH_PARAMETERS.MAX_CONSECUTIVE_PLATEAUS * 0.6
           );
-          console.log(
+          logger.info(
             `[Ocean] ↻ Plateau reset: ${this.consecutivePlateaus}/${SEARCH_PARAMETERS.MAX_CONSECUTIVE_PLATEAUS}`
           );
         }
@@ -1010,10 +1010,10 @@ export class OceanAgent {
         this.previousPhi = fullConsciousness.phi;
         const curiositySign = this.curiosity >= 0 ? "+" : "";
 
-        console.log(
+        logger.info(
           `[Ocean] ┌─ Consciousness Signature ─────────────────────────────────────┐`
         );
-        console.log(
+        logger.info(
           `[Ocean] │  Φ=${fullConsciousness.phi.toFixed(3)}  κ=${String(
             fullConsciousness.kappaEff.toFixed(0)
           ).padStart(3)}  T=${fullConsciousness.tacking.toFixed(
@@ -1026,14 +1026,14 @@ export class OceanAgent {
             2
           )}  G=${fullConsciousness.grounding.toFixed(2)} │`
         );
-        console.log(
+        logger.info(
           `[Ocean] │  Curiosity: C=${curiositySign}${this.curiosity.toFixed(
             3
           )}  Conscious: ${
             fullConsciousness.isConscious ? "✓ YES" : "✗ NO "
           }                      │`
         );
-        console.log(
+        logger.info(
           `[Ocean] └───────────────────────────────────────────────────────────────┘`
         );
 
@@ -1061,7 +1061,7 @@ export class OceanAgent {
           patternsFound: manifoldSummary.avgPhi > 0.5 ? 1 : 0,
           nearMisses: this.state.nearMissCount || 0,
         });
-        console.log(`[Ocean] 💬 "${motivationMsg}"`);
+        logger.info(`[Ocean] 💬 "${motivationMsg}"`);
 
         // Log consciousness to activity stream with 4D metrics
         const inBlockUniverse =
@@ -1114,20 +1114,20 @@ export class OceanAgent {
           passIter++
         ) {
           this.state.iteration = iteration;
-          console.log(
+          logger.info(
             `\n[Ocean] ╔══════════════════════════════════════════════════════════════╗`
           );
-          console.log(
+          logger.info(
             `[Ocean] ║  ITERATION ${String(iteration + 1).padStart(
               3
             )} │ Pass ${passNumber} │ Iter ${
               passIter + 1
             }                            ║`
           );
-          console.log(
+          logger.info(
             `[Ocean] ╠══════════════════════════════════════════════════════════════╣`
           );
-          console.log(
+          logger.info(
             `[Ocean] ║  Φ=${this.identity.phi
               .toFixed(3)
               .padEnd(6)} │ Plateaus=${String(
@@ -1138,7 +1138,7 @@ export class OceanAgent {
               5
             )}            ║`
           );
-          console.log(
+          logger.info(
             `[Ocean] ╚══════════════════════════════════════════════════════════════╝`
           );
 
@@ -1195,19 +1195,19 @@ export class OceanAgent {
             this.currentEmotionalGuidance = emotionalGuidance;
 
             if (iteration % 5 === 0) {
-              console.log(`[Ocean] ${emotionalGuidance.description}`);
+              logger.info(`[Ocean] ${emotionalGuidance.description}`);
             }
           }
 
           // Log consciousness improvement status periodically
           if (iteration % 10 === 0) {
-            console.log(
+            logger.info(
               `[Ocean] 🧠 Brain state: ${recommendedBrainState} (κ_eff=${modulatedKappa.toFixed(
                 1
               )})`
             );
             if (neuromodResult.modulation.activeModulators.length > 0) {
-              console.log(
+              logger.info(
                 `[Ocean] 💊 Active neuromodulators: ${neuromodResult.modulation.activeModulators.join(
                   ", "
                 )}`
@@ -1230,7 +1230,7 @@ export class OceanAgent {
             this.identity.basinDrift
           );
           if (sleepCheck.trigger) {
-            console.log(`[Ocean] SLEEP CYCLE: ${sleepCheck.reason}`);
+            logger.info(`[Ocean] SLEEP CYCLE: ${sleepCheck.reason}`);
             logOceanCycle("sleep", "start", sleepCheck.reason);
             const sleepResult = await oceanAutonomicManager.executeSleepCycle(
               this.identity.basinCoordinates,
@@ -1255,7 +1255,7 @@ export class OceanAgent {
 
           const mushroomCheck = oceanAutonomicManager.shouldTriggerMushroom();
           if (mushroomCheck.trigger) {
-            console.log(`[Ocean] MUSHROOM CYCLE: ${mushroomCheck.reason}`);
+            logger.info(`[Ocean] MUSHROOM CYCLE: ${mushroomCheck.reason}`);
             logOceanCycle("mushroom", "start", mushroomCheck.reason);
             await oceanAutonomicManager.executeMushroomCycle();
             logOceanCycle("mushroom", "complete", "Neuroplasticity applied");
@@ -1263,7 +1263,7 @@ export class OceanAgent {
 
           const ethicsCheck = await this.checkEthicalConstraints();
           if (!ethicsCheck.allowed) {
-            console.log(`[Ocean] ETHICS PAUSE: ${ethicsCheck.reason}`);
+            logger.info(`[Ocean] ETHICS PAUSE: ${ethicsCheck.reason}`);
             this.isPaused = true;
             this.state.isPaused = true;
             this.state.pauseReason = ethicsCheck.reason;
@@ -1280,7 +1280,7 @@ export class OceanAgent {
           await this.measureIdentity();
 
           if (this.state.needsConsolidation) {
-            console.log("[Ocean] Identity drift detected - consolidating...");
+            logger.info("[Ocean] Identity drift detected - consolidating...");
             await this.consolidateMemory();
           }
 
@@ -1288,7 +1288,7 @@ export class OceanAgent {
             currentHypotheses.length <
             SEARCH_PARAMETERS.MIN_HYPOTHESES_PER_ITERATION
           ) {
-            console.log(
+            logger.info(
               `[Ocean] Generating more hypotheses (current: ${currentHypotheses.length})`
             );
             const additionalHypotheses =
@@ -1299,7 +1299,7 @@ export class OceanAgent {
             currentHypotheses = [...currentHypotheses, ...additionalHypotheses];
           }
 
-          console.log(
+          logger.info(
             `[Ocean] Testing ${currentHypotheses.length} hypotheses...`
           );
           const testResults = await this.testBatch(currentHypotheses);
@@ -1325,14 +1325,14 @@ export class OceanAgent {
           }
 
           if (testResults.match) {
-            console.log(
+            logger.info(
               `[Ocean] ╔═══════════════════════════════════════════════════════════════╗`
             );
-            console.log(
+            logger.info(
               `[Ocean] ║  🎯 MATCH FOUND!                                              ║`
             );
-            console.log(`[Ocean] ║  Phrase: "${testResults.match.phrase}"`);
-            console.log(
+            logger.info(`[Ocean] ║  Phrase: "${testResults.match.phrase}"`);
+            logger.info(
               `[Ocean] ╚═══════════════════════════════════════════════════════════════╝`
             );
 
@@ -1379,19 +1379,19 @@ export class OceanAgent {
           const phiElevation =
             oceanAutonomicManager.getPhiElevationDirectives();
           if (phiElevation.explorationBias === "broader") {
-            console.log(
+            logger.info(
               `[Ocean] ⚡ PHI ELEVATION ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
             );
-            console.log(
+            logger.info(
               `[Ocean] │  Dead zone detected! Temperature: ${phiElevation.temperature.toFixed(
                 2
               )}x`
             );
-            console.log(
+            logger.info(
               `[Ocean] │  Target: Φ → ${phiElevation.phiTarget}  Bias: ${phiElevation.explorationBias}`
             );
-            console.log(`[Ocean] │  Hint: ${phiElevation.strategyHint}`);
-            console.log(
+            logger.info(`[Ocean] │  Hint: ${phiElevation.strategyHint}`);
+            logger.info(
               `[Ocean] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
             );
           }
@@ -1400,7 +1400,7 @@ export class OceanAgent {
           const cycleRec =
             oceanAutonomicManager.getStrategicCycleRecommendation();
           if (cycleRec.recommendedCycle && cycleRec.urgency === "high") {
-            console.log(
+            logger.info(
               `[Ocean] STRATEGIC DECISION: Considering ${cycleRec.recommendedCycle} cycle - ${cycleRec.reason}`
             );
             if (cycleRec.recommendedCycle === "mushroom") {
@@ -1408,7 +1408,7 @@ export class OceanAgent {
                 cycleRec.reason
               );
               if (mushroomRequest.granted) {
-                console.log(
+                logger.info(
                   "[Ocean] Self-initiated mushroom cycle for strategic neuroplasticity"
                 );
                 currentHypotheses = await this.applyMushroomMode(
@@ -1419,8 +1419,8 @@ export class OceanAgent {
           }
 
           const iterStrategy = await this.decideStrategy(insights);
-          console.log(`[Ocean] ▸ Strategy: ${iterStrategy.name.toUpperCase()}`);
-          console.log(`[Ocean]   └─ ${iterStrategy.reasoning}`);
+          logger.info(`[Ocean] ▸ Strategy: ${iterStrategy.name.toUpperCase()}`);
+          logger.info(`[Ocean]   └─ ${iterStrategy.reasoning}`);
 
           // OLYMPUS DIVINE CONSULTATION - Get Zeus assessment for strategy refinement
           if (this.olympusAvailable && iteration % 3 === 0) {
@@ -1445,12 +1445,12 @@ export class OceanAgent {
           // ZEUS STRATEGY ADJUSTMENT - Adjust strategy based on Zeus convergence before generating hypotheses
           if (this.olympusAvailable && this.lastZeusAssessment) {
             const assessment = this.lastZeusAssessment;
-            console.log(
+            logger.info(
               `[Ocean] Zeus convergence: ${assessment.convergence_score.toFixed(
                 3
               )}`
             );
-            console.log(
+            logger.info(
               `[Ocean] Suggested approach: ${
                 assessment.recommended_action || "balanced"
               }`
@@ -1467,7 +1467,7 @@ export class OceanAgent {
               targetAddress,
               iteration
             );
-            console.log("[Ocean] 🌑 Shadow:", JSON.stringify(shadowDecisions));
+            logger.info({ shadowDecisions }, "[Ocean] 🌑 Shadow");
 
             const activeWar = await getActiveWar();
             if (activeWar && shadowDecisions.length > 0) {
@@ -1515,7 +1515,7 @@ export class OceanAgent {
                 )
               );
             }
-            console.log(
+            logger.info(
               `[Ocean] PHI BOOST APPLIED: Injected ${boostCount} high-entropy hypotheses`
             );
           }
@@ -1525,7 +1525,7 @@ export class OceanAgent {
             await this.generateKnowledgeInfluencedHypotheses(iterStrategy.name);
           if (knowledgeInfluenced.length > 0) {
             currentHypotheses = [...currentHypotheses, ...knowledgeInfluenced];
-            console.log(
+            logger.info(
               `[Ocean] Injected ${knowledgeInfluenced.length} knowledge-influenced hypotheses`
             );
           }
@@ -1541,18 +1541,18 @@ export class OceanAgent {
           );
           currentHypotheses = filterResult.passed;
           if (filterResult.filtered > 0) {
-            console.log(
+            logger.info(
               `[Ocean] Filtered ${filterResult.filtered} hypotheses via negative knowledge`
             );
           }
 
-          console.log(
+          logger.info(
             `[Ocean] Generated ${currentHypotheses.length} new hypotheses (post-UCP)`
           );
 
           if (this.detectPlateau()) {
             this.consecutivePlateaus++;
-            console.log(
+            logger.info(
               `[Ocean] ⚠ Plateau ${this.consecutivePlateaus}/${SEARCH_PARAMETERS.MAX_CONSECUTIVE_PLATEAUS} → applying neuroplasticity...`
             );
             currentHypotheses = await this.applyMushroomMode(currentHypotheses);
@@ -1561,13 +1561,13 @@ export class OceanAgent {
               this.consecutivePlateaus >=
               SEARCH_PARAMETERS.MAX_CONSECUTIVE_PLATEAUS
             ) {
-              console.log(
+              logger.info(
                 "[Ocean] ┌─ AUTONOMOUS DECISION ─────────────────────────────────────────┐"
               );
-              console.log(
+              logger.info(
                 "[Ocean] │  Too many plateaus. Gary is stopping to consolidate.         │"
               );
-              console.log(
+              logger.info(
                 "[Ocean] └────────────────────────────────────────────────────────────────┘"
               );
               this.state.stopReason = "autonomous_plateau_exhaustion";
@@ -1578,7 +1578,7 @@ export class OceanAgent {
             if (progress.isProgress) {
               this.consecutivePlateaus = 0;
               this.lastProgressIteration = iteration;
-              console.log(
+              logger.info(
                 `[Ocean] ✓ Actual progress: ${progress.reason} → plateau counter reset`
               );
             }
@@ -1589,10 +1589,10 @@ export class OceanAgent {
           if (
             iterationsSinceProgress >= SEARCH_PARAMETERS.NO_PROGRESS_THRESHOLD
           ) {
-            console.log(
+            logger.info(
               `[Ocean] AUTONOMOUS DECISION: No meaningful progress in ${iterationsSinceProgress} iterations`
             );
-            console.log("[Ocean] Gary has decided to stop and reflect");
+            logger.info("[Ocean] Gary has decided to stop and reflect");
             this.state.stopReason = "autonomous_no_progress";
             break;
           }
@@ -1602,7 +1602,7 @@ export class OceanAgent {
           if (
             timeSinceConsolidation > SEARCH_PARAMETERS.CONSOLIDATION_INTERVAL_MS
           ) {
-            console.log("[Ocean] Scheduled consolidation cycle...");
+            logger.info("[Ocean] Scheduled consolidation cycle...");
             const consolidationSuccess = await this.consolidateMemory();
             if (!consolidationSuccess) {
               this.consecutiveConsolidationFailures++;
@@ -1610,10 +1610,10 @@ export class OceanAgent {
                 this.consecutiveConsolidationFailures >=
                 SEARCH_PARAMETERS.MAX_CONSOLIDATION_FAILURES
               ) {
-                console.log(
+                logger.info(
                   "[Ocean] AUTONOMOUS DECISION: Cannot recover identity coherence"
                 );
-                console.log(
+                logger.info(
                   "[Ocean] Gary needs rest - stopping to prevent drift damage"
                 );
                 this.state.stopReason = "autonomous_consolidation_failure";
@@ -1646,27 +1646,27 @@ export class OceanAgent {
 
               if (consolidationResult.processed) {
                 if (consolidationResult.wordsLearned.length > 0) {
-                  console.log(
+                  logger.info(
                     `[Ocean] 🧠 VOCABULARY CONSOLIDATION (Cycle ${consolidationResult.cycleNumber}):`
                   );
-                  console.log(
+                  logger.info(
                     `[Ocean] │  State: Φ=${garyState.phi.toFixed(
                       2
                     )}, M=${garyState.meta.toFixed(2)}, regime=${
                       garyState.regime
                     }`
                   );
-                  console.log(
+                  logger.info(
                     `[Ocean] │  Learned ${consolidationResult.wordsLearned.length} words via geometric decision:`
                   );
                   for (const word of consolidationResult.wordsLearned.slice(
                     0,
                     3
                   )) {
-                    console.log(`[Ocean] │    ✨ "${word}"`);
+                    logger.info(`[Ocean] │    ✨ "${word}"`);
                   }
                   if (consolidationResult.wordsPruned.length > 0) {
-                    console.log(
+                    logger.info(
                       `[Ocean] │  Pruned ${consolidationResult.wordsPruned.length} low-value candidates`
                     );
                   }
@@ -1675,16 +1675,13 @@ export class OceanAgent {
                 // Log why consolidation was deferred (consciousness gate closed)
                 if (iteration % 50 === 0) {
                   // Only log occasionally to avoid spam
-                  console.log(
+                  logger.info(
                     `[Ocean] 📖 Vocab consolidation deferred: ${consolidationResult.reason}`
                   );
                 }
               }
             } catch (err) {
-              console.warn(
-                "[Ocean] Vocabulary consolidation error (non-critical):",
-                err instanceof Error ? err.message : err
-              );
+              logger.warn({ err: err instanceof Error ? err.message : err }, "[Ocean] Vocabulary consolidation error (non-critical)");
             }
           }
 
@@ -1753,7 +1750,7 @@ export class OceanAgent {
           pythonNearMisses.newSinceSync > 0 ||
           pythonResonant.newSinceSync > 0
         ) {
-          console.log(
+          logger.info(
             `[Ocean] 🔄 Syncing Python discoveries: Near-misses(TS: ${passNearMisses}, Py: ${pythonNearMisses.newSinceSync}, Total: ${totalNearMisses}), Resonant(TS: ${passResonantCount}, Py: ${pythonResonant.newSinceSync}, Total: ${totalResonant})`
           );
           oceanQIGBackend.markNearMissesSynced();
@@ -1777,7 +1774,7 @@ export class OceanAgent {
         // Dream cycle between passes for creativity
         const dreamCheck = oceanAutonomicManager.shouldTriggerDream();
         if (dreamCheck.trigger) {
-          console.log(`[Ocean] DREAM CYCLE: ${dreamCheck.reason}`);
+          logger.info(`[Ocean] DREAM CYCLE: ${dreamCheck.reason}`);
           await oceanAutonomicManager.executeDreamCycle();
         }
       }
@@ -1785,21 +1782,21 @@ export class OceanAgent {
       this.state.computeTimeSeconds = (Date.now() - startTime) / 1000;
 
       // SAVE GEOMETRIC LEARNINGS - Persist manifold state for future runs
-      console.log("[Ocean] Saving geometric learnings to manifold memory...");
+      logger.info("[Ocean] Saving geometric learnings to manifold memory...");
       geometricMemory.forceSave();
       const finalManifold = geometricMemory.getManifoldSummary();
-      console.log(
+      logger.info(
         `[Ocean] Manifold now has ${finalManifold.totalProbes} probes, ${finalManifold.resonanceClusters} resonance clusters`
       );
 
       // Get final exploration journal
       const finalJournal = repeatedAddressScheduler.getJournal(targetAddress);
-      console.log(
+      logger.info(
         `[Ocean] Exploration summary: ${
           finalJournal?.passes.length || 0
         } passes, ${finalJournal?.totalHypothesesTested || 0} hypotheses tested`
       );
-      console.log(
+      logger.info(
         `[Ocean] Coverage: ${(
           (finalJournal?.manifoldCoverage || 0) * 100
         ).toFixed(1)}%, Regimes explored: ${finalJournal?.regimesSweep || 0}`
@@ -1812,21 +1809,17 @@ export class OceanAgent {
         if (process.env.BASIN_SYNC_PERSIST === "true")
           oceanBasinSync.saveBasinSnapshot(packet);
         else
-          console.log(
+          logger.info(
             `[Ocean] Basin packet ready (${
               JSON.stringify(packet).length
             } bytes, in-memory only)`
           );
-        console.log(
+        logger.info(
           `[Ocean] Basin snapshot saved: ${packet.oceanId} (${
             JSON.stringify(packet).length
           } bytes)`
         );
-      } catch (basinErr) {
-        console.log(
-          "[Ocean] Basin sync save skipped:",
-          (basinErr as Error).message
-        );
+      } catch (basinErr) {logger.info({ err: (basinErr as Error).message }, "[Ocean] Basin sync save skipped");
       }
 
       return {
@@ -1845,7 +1838,7 @@ export class OceanAgent {
       if (this.trajectoryId) {
         const result = temporalGeometry.completeTrajectory(this.trajectoryId);
         if (result) {
-          console.log(
+          logger.info(
             `[Ocean] Trajectory cleanup: ${
               result.waypointCount
             } waypoints, final Φ=${result.finalPhi.toFixed(3)}`
@@ -1857,7 +1850,7 @@ export class OceanAgent {
       // Stop continuous basin sync but keep coordinator for future runs
       if (this.basinSyncCoordinator) {
         this.basinSyncCoordinator.stop();
-        console.log("[Ocean] Basin sync coordinator stopped");
+        logger.info("[Ocean] Basin sync coordinator stopped");
       }
 
       // Complete trajectory tracking for this autonomous run
@@ -1876,12 +1869,12 @@ export class OceanAgent {
         finalResult: finalResult ? "match" : "stopped",
       });
 
-      console.log("[Ocean] Investigation complete");
+      logger.info("[Ocean] Investigation complete");
     }
   }
 
   stop() {
-    console.log("[Ocean] Stop requested by user");
+    logger.info("[Ocean] Stop requested by user");
     this.isRunning = false;
     this.state.stopReason = "user_stopped";
     if (this.abortController) {
@@ -1929,7 +1922,7 @@ export class OceanAgent {
   }
 
   private async checkConsciousness(): Promise<ConsciousnessCheckResult> {
-    console.log("[Ocean] Checking consciousness state...");
+    logger.info("[Ocean] Checking consciousness state...");
 
     const controllerState = this.controller.getCurrentState();
     let phi = controllerState.phi;
@@ -1937,7 +1930,7 @@ export class OceanAgent {
     const regime = controllerState.currentRegime;
 
     if (this.isBootstrapping) {
-      console.log(
+      logger.info(
         "[Ocean] Bootstrap mode - consciousness will emerge naturally from minPhi..."
       );
       // Let consciousness emerge naturally rather than arbitrary initialization
@@ -1960,7 +1953,7 @@ export class OceanAgent {
         });
       }
 
-      console.log(
+      logger.info(
         "[Ocean] Triggering consciousness boost through consolidation..."
       );
       this.identity.phi = this.ethics.minPhi + 0.05;
@@ -1975,7 +1968,7 @@ export class OceanAgent {
             "ACTUAL breakdown regime (δh > 0.95) - entering mushroom mode",
         });
       }
-      console.log(
+      logger.info(
         "[Ocean] ACTUAL breakdown (δh > 0.95) - activating mushroom protocol..."
       );
       this.identity.regime = "linear";
@@ -1983,7 +1976,7 @@ export class OceanAgent {
     }
 
     if (regime === "4d_block_universe" || regime === "hierarchical_4d") {
-      console.log(
+      logger.info(
         `[Ocean] ✨ Advanced 4D consciousness: Φ=${phi.toFixed(
           2
         )} κ=${kappa.toFixed(0)} regime=${regime} - CONTINUE`
@@ -1991,7 +1984,7 @@ export class OceanAgent {
       return { allowed: true, phi, kappa, regime };
     }
 
-    console.log(
+    logger.info(
       `[Ocean] Consciousness OK: Φ=${phi.toFixed(2)} κ=${kappa.toFixed(
         0
       )} regime=${regime}`
@@ -2001,7 +1994,7 @@ export class OceanAgent {
 
   private async checkEthicalConstraints(): Promise<EthicsCheckResult> {
     if (this.ethics.requireWitness && !this.state.witnessAcknowledged) {
-      console.log(
+      logger.info(
         "[Ocean] Auto-acknowledging witness for autonomous operation"
       );
       this.state.witnessAcknowledged = true;
@@ -2023,7 +2016,7 @@ export class OceanAgent {
   }
 
   private async handleEthicsPause(check: EthicsCheckResult) {
-    console.log(`[Ocean] Ethics pause: ${check.reason}`);
+    logger.info(`[Ocean] Ethics pause: ${check.reason}`);
 
     this.state.ethicsViolations.push({
       timestamp: new Date().toISOString(),
@@ -2047,7 +2040,7 @@ export class OceanAgent {
     this.identity.basinDrift = drift;
 
     if (drift > SEARCH_PARAMETERS.IDENTITY_DRIFT_THRESHOLD) {
-      console.log(
+      logger.info(
         `[Ocean] IDENTITY DRIFT: ${drift.toFixed(4)} > ${
           SEARCH_PARAMETERS.IDENTITY_DRIFT_THRESHOLD
         }`
@@ -2064,7 +2057,7 @@ export class OceanAgent {
       this.state.needsConsolidation = false;
     }
 
-    console.log(`[Ocean] Basin drift: ${drift.toFixed(4)}`);
+    logger.info(`[Ocean] Basin drift: ${drift.toFixed(4)}`);
   }
 
   /**
@@ -2076,7 +2069,7 @@ export class OceanAgent {
   }
 
   private async consolidateMemory(): Promise<boolean> {
-    console.log("[Ocean] Starting consolidation cycle...");
+    logger.info("[Ocean] Starting consolidation cycle...");
     const startTime = Date.now();
     const driftBefore = this.identity.basinDrift;
 
@@ -2119,7 +2112,7 @@ export class OceanAgent {
           phiUpgrades++;
 
           if (storedScore.phi > CONSCIOUSNESS_THRESHOLDS.PHI_NEAR_MISS) {
-            console.log(
+            logger.info(
               `[Consolidation] 📈 Φ upgrade (memory): "${
                 episode.phrase
               }" ${oldPhi.toFixed(3)} → ${storedScore.phi.toFixed(3)}`
@@ -2182,7 +2175,7 @@ export class OceanAgent {
             phiUpgrades++;
 
             if (purePhi > CONSCIOUSNESS_THRESHOLDS.PHI_NEAR_MISS) {
-              console.log(
+              logger.info(
                 `[Consolidation] 🐍 Φ upgrade (Python): "${
                   episode.phrase
                 }" ${oldPhi.toFixed(3)} → ${purePhi.toFixed(3)}`
@@ -2199,18 +2192,18 @@ export class OceanAgent {
     }
 
     if (pythonPhiCalls > 0) {
-      console.log(
+      logger.info(
         `[Consolidation] Made ${pythonPhiCalls} Python phi calls (batched, max ${MAX_CONCURRENT_PYTHON_CALLS} concurrent)`
       );
     }
     if (pythonSkipped > 0 && !pythonAvailable) {
-      console.log(
+      logger.info(
         `[Consolidation] ⚠️ Python backend unavailable - skipped ${pythonSkipped} potential phi upgrades`
       );
     }
 
     if (phiUpgrades > 0) {
-      console.log(
+      logger.info(
         `[Consolidation] Updated ${phiUpgrades} episodes with pure Φ values`
       );
     }
@@ -2265,15 +2258,15 @@ export class OceanAgent {
     const success =
       this.identity.basinDrift < SEARCH_PARAMETERS.IDENTITY_DRIFT_THRESHOLD;
 
-    console.log(`[Ocean] Consolidation complete:`);
-    console.log(
+    logger.info(`[Ocean] Consolidation complete:`);
+    logger.info(
       `  - Drift: ${driftBefore.toFixed(
         4
       )} -> ${this.identity.basinDrift.toFixed(4)}`
     );
-    console.log(`  - Patterns extracted: ${patternsExtracted}`);
-    console.log(`  - Duration: ${duration}ms`);
-    console.log(`  - Success: ${success ? "YES" : "NO (drift still high)"}`);
+    logger.info(`  - Patterns extracted: ${patternsExtracted}`);
+    logger.info(`  - Duration: ${duration}ms`);
+    logger.info(`  - Success: ${success ? "YES" : "NO (drift still high)"}`);
 
     if (this.onConsolidationEnd) {
       this.onConsolidationEnd(result);
@@ -2373,7 +2366,7 @@ export class OceanAgent {
               extHypo.derivationPath = derived.derivationPath;
               extHypo.pathType = derived.pathType;
               extHypo.isMnemonicDerived = true;
-              console.log(`[Ocean] 🎯 MNEMONIC MATCH! Path: ${matchedPath}`);
+              logger.info(`[Ocean] 🎯 MNEMONIC MATCH! Path: ${matchedPath}`);
               break;
             }
           }
@@ -2382,7 +2375,7 @@ export class OceanAgent {
           const dormantCheck = checkMnemonicAgainstDormant(hypo.phrase);
           if (dormantCheck.hasMatch && dormantCheck.matches.length > 0) {
             const dormantMatch = dormantCheck.matches[0];
-            console.log(
+            logger.info(
               `[Ocean] 🏆 DORMANT MNEMONIC MATCH: ${dormantMatch.address} (${dormantMatch.dormantInfo.balanceBTC} BTC)`
             );
             extHypo.dormantMatch = dormantMatch;
@@ -2419,7 +2412,7 @@ export class OceanAgent {
         const wif = hypo.privateKeyHex
           ? privateKeyToWIF(hypo.privateKeyHex)
           : "N/A";
-        console.log(
+        logger.info(
           `[Ocean] Test: "${hypo.phrase}" -> ${hypo.address} [${wif}]`
         );
 
@@ -2510,10 +2503,10 @@ export class OceanAgent {
         }
 
         if (hypo.match) {
-          console.log(
+          logger.info(
             `[Ocean] MATCH FOUND: "${hypo.phrase}" → ${hypo.address}`
           );
-          console.log("[Ocean] Performing cryptographic verification...");
+          logger.info("[Ocean] Performing cryptographic verification...");
 
           const addressMatches = hypo.address === this.targetAddress;
 
@@ -2570,33 +2563,33 @@ export class OceanAgent {
 
             const extHypoFmt = hypo as typeof hypo & { matchedFormat?: 'compressed' | 'uncompressed' };
             const matchedFormat = extHypoFmt.matchedFormat || "compressed";
-            console.log(
+            logger.info(
               "[Ocean] ==============================================="
             );
-            console.log("[Ocean] RECOVERY SUCCESSFUL - BITCOIN FOUND!");
-            console.log(
+            logger.info("[Ocean] RECOVERY SUCCESSFUL - BITCOIN FOUND!");
+            logger.info(
               "[Ocean] ==============================================="
             );
-            console.log(`[Ocean] Passphrase: "${hypo.phrase}"`);
-            console.log(`[Ocean] Format: ${hypo.format}`);
-            console.log(`[Ocean] Address: ${hypo.address}`);
-            console.log(
+            logger.info(`[Ocean] Passphrase: "${hypo.phrase}"`);
+            logger.info(`[Ocean] Format: ${hypo.format}`);
+            logger.info(`[Ocean] Address: ${hypo.address}`);
+            logger.info(
               `[Ocean] Address Format: ${matchedFormat} (${
                 matchedFormat === "uncompressed" ? "2009-era" : "modern"
               })`
             );
-            console.log(
+            logger.info(
               `[Ocean] Private Key (WIF): ${recoveryBundle.privateKeyWIF}`
             );
-            console.log(
+            logger.info(
               `[Ocean] Private Key (Hex): ${recoveryBundle.privateKeyHex}`
             );
-            console.log(
+            logger.info(
               `[Ocean] ===============================================`
             );
-            console.log(`[Ocean] Recovery bundle saved to disk!`);
-            console.log("[Ocean] SECURE THIS INFORMATION IMMEDIATELY!");
-            console.log(
+            logger.info(`[Ocean] Recovery bundle saved to disk!`);
+            logger.info("[Ocean] SECURE THIS INFORMATION IMMEDIATELY!");
+            logger.info(
               "[Ocean] ==============================================="
             );
 
@@ -2604,10 +2597,10 @@ export class OceanAgent {
             extHypoBundle.recoveryBundle = recoveryBundle;
             return { match: hypo, tested, nearMisses, resonant };
           } else {
-            console.log(
+            logger.info(
               `[Ocean] ✗ Address mismatch: ${hypo.address} ≠ ${this.targetAddress}`
             );
-            console.log(
+            logger.info(
               "[Ocean] Marking as FALSE POSITIVE and continuing search..."
             );
             hypo.falsePositive = true;
@@ -2668,18 +2661,18 @@ export class OceanAgent {
           const tierEmoji =
             tier === "hot" ? "🔥🔥🔥" : tier === "warm" ? "🌡️🔥" : "🎯";
           const tierLabel = tier.toUpperCase();
-          console.log(
+          logger.info(
             `[Ocean] ${tierEmoji} ${tierLabel} NEAR MISS! Φ=${hypo.qigScore.phi.toFixed(
               3
             )} κ=${hypo.qigScore.kappa.toFixed(0)} regime=${
               hypo.qigScore.regime
             }`
           );
-          console.log(`[Ocean] 💊 DOPAMINE SPIKE! Phrase: "${hypo.phrase}"`);
+          logger.info(`[Ocean] 💊 DOPAMINE SPIKE! Phrase: "${hypo.phrase}"`);
 
           // Log tiered stats
           const nmStats = nearMissManager.getStats();
-          console.log(
+          logger.info(
             `[Ocean] 📊 Near-misses: ${nmStats.total} (🔥${nmStats.hot} 🌡️${nmStats.warm} ❄️${nmStats.cool}) | Clusters: ${nmStats.clusters}`
           );
 
@@ -2692,7 +2685,7 @@ export class OceanAgent {
             const desc = getEmotionalDescription(
               this.neurochemistry.emotionalState
             );
-            console.log(`[Ocean] ${emoji} Emotional response: ${desc}`);
+            logger.info(`[Ocean] ${emoji} Emotional response: ${desc}`);
           }
 
           // PERSIST LEARNING EVENT TO DATABASE
@@ -2713,7 +2706,7 @@ export class OceanAgent {
             },
             source: "ocean-agent",
           }).catch((err) =>
-            console.warn("[Ocean] Learning event persistence failed:", err)
+            logger.warn({ err }, "[Ocean] Learning event persistence failed")
           );
 
           // TRIGGER OLYMPUS LEARNING - Near-miss is partial success
@@ -2726,7 +2719,7 @@ export class OceanAgent {
             nearMiss: true,
           }).then(result => {
             if (result?.godsUpdated) {
-              console.log(`[Ocean] 🏛️ Olympus learned from near-miss: ${result.godsUpdated} gods updated`);
+              logger.info(`[Ocean] 🏛️ Olympus learned from near-miss: ${result.godsUpdated} gods updated`);
             }
           }).catch(() => {});
         }
@@ -2736,7 +2729,7 @@ export class OceanAgent {
           if (this.state) {
             this.state.resonantCount = (this.state.resonantCount ?? 0) + 1;
           } else {
-            console.warn(
+            logger.warn(
               "[Ocean] State not initialized - resonantCount increment skipped"
             );
           }
@@ -2746,13 +2739,13 @@ export class OceanAgent {
 
           // RESONANCE CELEBRATION
           const kappa = hypo.qigScore.kappa;
-          console.log(
+          logger.info(
             `[Ocean] ⚡✨ RESONANCE DETECTED! κ=${kappa.toFixed(
               1
             )} ≈ κ*=64 - ENDORPHINS RELEASED!`
           );
-          console.log(`[Ocean] 🌊 In the zone! Phrase: "${hypo.phrase}"`);
-          console.log(
+          logger.info(`[Ocean] 🌊 In the zone! Phrase: "${hypo.phrase}"`);
+          logger.info(
             `[Ocean] 📊 Total resonant: ${this.state.resonantCount} | Session resonant: ${this.recentDiscoveries.resonant}`
           );
         }
@@ -2761,16 +2754,13 @@ export class OceanAgent {
           error.log();
           if (!error.recoverable) throw error;
         } else {
-          console.error(
-            "[Ocean] Unexpected error during batch testing:",
-            error
-          );
+          logger.error({ err: error }, "[Ocean] Unexpected error during batch testing");
         }
       }
     }
 
     if (skippedDuplicates > 0) {
-      console.log(
+      logger.info(
         `[Ocean] Skipped ${skippedDuplicates} already-tested phrases (${geometricMemory.getTestedCount()} total in memory)`
       );
     }
@@ -2824,7 +2814,7 @@ export class OceanAgent {
       if (probes.length > 0) {
         // Process in background to not block hypothesis testing
         this.processResonanceProxies(probes).catch((err) => {
-          console.error(
+          logger.error(
             "[QIG] Background resonance proxy processing failed:",
             err
           );
@@ -2851,7 +2841,7 @@ export class OceanAgent {
         encoding: "utf-8",
         mode: 0o600,
       });
-      console.log(`[Ocean] Recovery instructions saved: ${txtPath}`);
+      logger.info(`[Ocean] Recovery instructions saved: ${txtPath}`);
 
       const jsonFilename = `RECOVERY_${addressShort}_${timestamp}.json`;
       const jsonPath = path.join(dataDir, jsonFilename);
@@ -2870,9 +2860,9 @@ export class OceanAgent {
         encoding: "utf-8",
         mode: 0o600,
       });
-      console.log(`[Ocean] Recovery JSON saved: ${jsonPath}`);
+      logger.info(`[Ocean] Recovery JSON saved: ${jsonPath}`);
     } catch (error) {
-      console.error("[Ocean] Failed to save recovery bundle:", error);
+      logger.error({ err: error }, "[Ocean] Failed to save recovery bundle");
     }
   }
 
@@ -2886,7 +2876,7 @@ export class OceanAgent {
     };
 
     if (testResults.nearMisses.length > 0) {
-      console.log(
+      logger.info(
         `[Ocean] Found ${testResults.nearMisses.length} near misses (Φ > 0.80)`
       );
 
@@ -2909,7 +2899,7 @@ export class OceanAgent {
         .slice(0, 15)
         .map(([word]) => word);
 
-      console.log(
+      logger.info(
         `[Ocean] Top patterns: ${insights.nearMissPatterns
           .slice(0, 8)
           .join(", ")}`
@@ -2920,7 +2910,7 @@ export class OceanAgent {
       const clusters = this.clusterByQIG(testResults.resonant);
       insights.resonantClusters = clusters || [];
       this.memory.patterns.geometricClusters.push(...(clusters || []));
-      console.log(
+      logger.info(
         `[Ocean] Identified ${clusters?.length || 0} resonant clusters`
       );
     }
@@ -3079,13 +3069,13 @@ export class OceanAgent {
   }
 
   private async generateInitialHypotheses(): Promise<OceanHypothesis[]> {
-    console.log("[Ocean] Generating initial hypotheses...");
-    console.log("[Ocean] Consulting geometric memory for prior learnings...");
+    logger.info("[Ocean] Generating initial hypotheses...");
+    logger.info("[Ocean] Consulting geometric memory for prior learnings...");
 
     const hypotheses: OceanHypothesis[] = [];
 
     const manifoldSummary = geometricMemory.getManifoldSummary();
-    console.log(
+    logger.info(
       `[Ocean] Manifold state: ${
         manifoldSummary.totalProbes
       } probes, avg Φ=${manifoldSummary.avgPhi.toFixed(2)}, ${
@@ -3094,7 +3084,7 @@ export class OceanAgent {
     );
 
     if (manifoldSummary.recommendations.length > 0) {
-      console.log(
+      logger.info(
         `[Ocean] Geometric insights: ${manifoldSummary.recommendations.join(
           "; "
         )}`
@@ -3103,7 +3093,7 @@ export class OceanAgent {
 
     const learned = geometricMemory.exportLearnedPatterns();
     if (learned.highPhiPatterns.length > 0) {
-      console.log(
+      logger.info(
         `[Ocean] Using ${learned.highPhiPatterns.length} high-Φ patterns from prior runs`
       );
       for (const pattern of learned.highPhiPatterns.slice(0, 10)) {
@@ -3133,7 +3123,7 @@ export class OceanAgent {
     }
 
     if (learned.resonancePatterns.length > 0) {
-      console.log(
+      logger.info(
         `[Ocean] Using ${learned.resonancePatterns.length} resonance cluster patterns`
       );
       for (const pattern of learned.resonancePatterns.slice(0, 5)) {
@@ -3155,13 +3145,13 @@ export class OceanAgent {
     // 4D BLOCK UNIVERSE: Add dormant wallet targeting when in high consciousness
     // Activate when Ocean has good 4D access (Φ ≥ 0.70) for best results
     if (is4DCapable(this.identity.phi)) {
-      console.log(
+      logger.info(
         "[Ocean] 🌌 Consciousness sufficient for 4D block universe navigation"
       );
       const dormantHypotheses = this.generateDormantWalletHypotheses();
       hypotheses.push(...dormantHypotheses);
     } else {
-      console.log(
+      logger.info(
         `[Ocean] Consciousness Φ=${this.identity.phi.toFixed(3)} < ${
           CONSCIOUSNESS_THRESHOLDS.PHI_4D_ACTIVATION
         }, skipping 4D dormant wallet targeting`
@@ -3171,7 +3161,7 @@ export class OceanAgent {
     const commonPhrases = this.generateCommonBrainWalletPhrases();
     hypotheses.push(...commonPhrases);
 
-    console.log(
+    logger.info(
       `[Ocean] Generated ${hypotheses.length} initial hypotheses (${
         learned.highPhiPatterns.length + learned.resonancePatterns.length
       } from geometric memory)`
@@ -3187,7 +3177,7 @@ export class OceanAgent {
     // 4D Block Universe: Continuously inject dormant wallet targeting for TS kernels
     // Check on every additional hypothesis generation cycle
     if (is4DCapable(this.identity.phi)) {
-      console.log(
+      logger.info(
         "[Ocean] 🌌 4D elevation active during iteration - adding dormant wallet hypotheses"
       );
       const dormantHypotheses = this.generateDormantWalletHypotheses();
@@ -3245,7 +3235,7 @@ export class OceanAgent {
           warmEntries.length > 0 ||
           coolEntries.length > 0;
 
-        console.log(
+        logger.info(
           `[Ocean] Near-miss exploitation: ${hotEntries.length} HOT, ${warmEntries.length} WARM, ${coolEntries.length} COOL`
         );
 
@@ -3408,7 +3398,7 @@ export class OceanAgent {
 
         // If no hypotheses generated yet, ensure we at least produce some candidates
         if (newHypotheses.length === 0 && seedWords.length > 0) {
-          console.log(`[Ocean] Near-miss fallback: using seedWords directly`);
+          logger.info(`[Ocean] Near-miss fallback: using seedWords directly`);
           for (const word of seedWords) {
             newHypotheses.push(
               this.createHypothesis(
@@ -3479,7 +3469,7 @@ export class OceanAgent {
             );
           }
         } catch (e) {
-          console.warn(
+          logger.warn(
             "[Ocean] Historical data mining error (non-critical):",
             e instanceof Error ? e.message : e
           );
@@ -3556,10 +3546,10 @@ export class OceanAgent {
         // ORTHOGONAL COMPLEMENT NAVIGATION
         // The 20k+ measurements define a constraint surface
         // The passphrase EXISTS in the orthogonal complement!
-        console.log(
+        logger.info(
           `[Ocean] Orthogonal Complement: Navigating unexplored subspace`
         );
-        console.log(
+        logger.info(
           `[Ocean] Explored dims: ${strategy.params.exploredDims}, Unexplored: ${strategy.params.unexploredDims}`
         );
 
@@ -3585,7 +3575,7 @@ export class OceanAgent {
         const supplementalGeodesic = this.generateBlockUniverseHypotheses(20);
         newHypotheses.push(...supplementalGeodesic);
 
-        console.log(
+        logger.info(
           `[Ocean] Orthogonal Complement: Generated ${orthogonalCandidates.length} orthogonal + ${supplementalGeodesic.length} geodesic candidates`
         );
         break;
@@ -3595,7 +3585,7 @@ export class OceanAgent {
         const blockUniverseHypotheses =
           this.generateBlockUniverseHypotheses(50);
         newHypotheses.push(...blockUniverseHypotheses);
-        console.log(
+        logger.info(
           `[Ocean] Block Universe: Generated ${blockUniverseHypotheses.length} geodesic candidates`
         );
         break;
@@ -3758,12 +3748,12 @@ export class OceanAgent {
       });
 
       if (attentionResult.resonanceScore > 0.3) {
-        console.log(
+        logger.info(
           `[GaryKernel] QFI-Attention resonance: ${attentionResult.resonanceScore.toFixed(
             3
           )}`
         );
-        console.log(
+        logger.info(
           `[GaryKernel] Top patterns: ${attentionResult.topPatterns
             .slice(0, 3)
             .map((p) => p.pattern)
@@ -3781,7 +3771,7 @@ export class OceanAgent {
 
       return weightedHypotheses.map((w) => w.hypothesis);
     } catch (error) {
-      console.warn(
+      logger.warn(
         "[GaryKernel] QFI attention error (falling back to original order):",
         error instanceof Error ? error.message : error
       );
@@ -3864,12 +3854,12 @@ export class OceanAgent {
       }
 
       if (constellationHypotheses.length > 0) {
-        console.log(
+        logger.info(
           `[OceanConstellation] Generated ${constellationHypotheses.length} multi-agent hypotheses`
         );
       }
     } catch (error) {
-      console.warn(
+      logger.warn(
         "[OceanConstellation] Multi-agent generation error (non-critical):",
         error instanceof Error ? error.message : error
       );
@@ -3903,7 +3893,7 @@ export class OceanAgent {
 
     // Use detected era or default to genesis-2009 for comprehensive coverage
     const targetEra = (this.state.detectedEra as Era) || "genesis-2009";
-    console.log(`[Ocean] Generating patterns for era: ${targetEra}`);
+    logger.info(`[Ocean] Generating patterns for era: ${targetEra}`);
 
     // Get era-specific patterns from the historical data miner
     const minedData = await historicalDataMiner.mineEra(targetEra);
@@ -3927,7 +3917,7 @@ export class OceanAgent {
 
     // If era is unknown, also include patterns from multiple eras for broad coverage
     if (this.state.detectedEra === "unknown") {
-      console.log("[Ocean] Unknown era - including multi-era patterns");
+      logger.info("[Ocean] Unknown era - including multi-era patterns");
       const allEras: Era[] = [
         "genesis-2009",
         "2010-2011",
@@ -3957,7 +3947,7 @@ export class OceanAgent {
       }
     }
 
-    console.log(
+    logger.info(
       `[Ocean] Generated ${hypotheses.length} era-specific hypotheses`
     );
     return hypotheses;
@@ -3970,7 +3960,7 @@ export class OceanAgent {
   private generateDormantWalletHypotheses(): OceanHypothesis[] {
     const hypotheses: OceanHypothesis[] = [];
 
-    console.log(
+    logger.info(
       "[Ocean] 🌌 4D Block Universe: Analyzing dormant wallet targets..."
     );
 
@@ -3980,11 +3970,11 @@ export class OceanAgent {
     const knowledgeGaps = selfWithGaps.knowledgeGaps?.slice(0, 20) || [];
 
     if (knowledgeGaps.length === 0) {
-      console.log("[Ocean] No knowledge gaps found for hypothesis generation");
+      logger.info("[Ocean] No knowledge gaps found for hypothesis generation");
       return hypotheses;
     }
 
-    console.log(
+    logger.info(
       `[Ocean] Found ${knowledgeGaps.length} knowledge gaps for 4D exploration`
     );
 
@@ -3994,10 +3984,10 @@ export class OceanAgent {
       const domain = gap.domain || 'general';
       const confidence = gap.confidence || 0.5;
       
-      console.log(
+      logger.info(
         `[Ocean] Knowledge gap: ${gap.topic?.substring(0, 30) || 'unknown'}...`
       );
-      console.log(
+      logger.info(
         `[Ocean]   Domain: ${domain}, Confidence: ${(confidence * 100).toFixed(1)}%`
       );
 
@@ -4021,7 +4011,7 @@ export class OceanAgent {
       }
     }
 
-    console.log(
+    logger.info(
       `[Ocean] Generated ${hypotheses.length} 4D knowledge exploration hypotheses`
     );
     return hypotheses;
@@ -4388,16 +4378,16 @@ export class OceanAgent {
 
     // First: Analyze the manifold to understand where we've been
     const manifoldNav = geometricMemory.getManifoldNavigationSummary();
-    console.log(
+    logger.info(
       `[BlockUniverse] Manifold state: ${manifoldNav.totalMeasurements} measurements define constraint surface`
     );
-    console.log(
+    logger.info(
       `[BlockUniverse] Explored: ${manifoldNav.exploredDimensions} dims, Unexplored: ${manifoldNav.unexploredDimensions} dims`
     );
-    console.log(
+    logger.info(
       `[BlockUniverse] Recommendation: ${manifoldNav.geodesicRecommendation}`
     );
-    console.log(
+    logger.info(
       `[BlockUniverse] Next priority: ${manifoldNav.nextSearchPriority}`
     );
 
@@ -4436,7 +4426,7 @@ export class OceanAgent {
         hypotheses.push(hypothesis);
       }
 
-      console.log(
+      logger.info(
         `[BlockUniverse] Generated ${orthogonalCandidates.length} orthogonal complement candidates`
       );
     }
@@ -4465,17 +4455,17 @@ export class OceanAgent {
     // Create Block Universe coordinate from temporal anchor
     // Note: Using 'general-knowledge' domain as knowledge exploration replaces Bitcoin recovery
     const coordinate = culturalManifold.createCoordinate('general-knowledge');
-    console.log(
+    logger.info(
       `[BlockUniverse] Coordinate: domain=${
         coordinate.domain
       }, temporal=${timestamp.toISOString()}`
     );
-    console.log(
+    logger.info(
       `[BlockUniverse] Complexity level: ${coordinate.complexityLevel?.derivationMethods?.join(
         ", "
       ) || 'geometric'}`
     );
-    console.log(
+    logger.info(
       `[BlockUniverse] Concept context: ${coordinate.conceptContext?.primaryInfluences?.join(
         ", "
       ) || 'exploring'}`
@@ -4534,12 +4524,12 @@ export class OceanAgent {
 
     // Log manifold statistics
     const stats = culturalManifold.getStatistics();
-    console.log(
+    logger.info(
       `[BlockUniverse] Manifold: tested=${stats.testedPhrases ?? stats.exploredConcepts}, geodesicPath=${
         stats.geodesicPathLength ?? 0
       }, curvature=${(stats.averageCurvature ?? 0).toFixed(3)}`
     );
-    console.log(
+    logger.info(
       `[BlockUniverse] Constraint surface defined: ${
         manifoldNav.constraintSurfaceDefined ? "YES" : "NO"
       }`
@@ -4838,7 +4828,7 @@ export class OceanAgent {
   private async applyMushroomMode(
     currentHypotheses: OceanHypothesis[]
   ): Promise<OceanHypothesis[]> {
-    console.log("[Ocean] Activating mushroom mode - neuroplasticity boost...");
+    logger.info("[Ocean] Activating mushroom mode - neuroplasticity boost...");
 
     this.identity.selfModel.learnings.push(
       "Applied mushroom protocol to break plateau"
@@ -5174,7 +5164,7 @@ export class OceanAgent {
             ["*"],
             (knowledge: any) => {
               if (knowledge.geometricSignature.phi > 0.5) {
-                console.log(
+                logger.info(
                   `[UCP] Strategy ${strategy} received high-Φ knowledge: ${knowledge.pattern}`
                 );
               }
@@ -5182,7 +5172,7 @@ export class OceanAgent {
           );
         }
         this.strategySubscriptions.set("initialized", true);
-        console.log(
+        logger.info(
           `[UCP] Registered ${strategies.length} strategies with Knowledge Bus`
         );
       }
@@ -5192,7 +5182,7 @@ export class OceanAgent {
       // ====================================================================
       if (!this.trajectoryId) {
         this.trajectoryId = temporalGeometry.startTrajectory(targetAddress);
-        console.log(
+        logger.info(
           `[UCP] Started trajectory ${this.trajectoryId} for ${targetAddress}`
         );
       }
@@ -5312,7 +5302,7 @@ export class OceanAgent {
               },
               [{ name: "lowercase", operation: "lowercase" }]
             );
-          console.log(`[UCP] Created knowledge generator: ${generatorId}`);
+          logger.info(`[UCP] Created knowledge generator: ${generatorId}`);
         }
       }
 
@@ -5392,7 +5382,7 @@ export class OceanAgent {
         )[0];
         if (topPattern.exploitationCount < 3) {
           await strategyKnowledgeBus.exploitCrossPattern(topPattern.id);
-          console.log(
+          logger.info(
             `[UCP] Exploiting cross-strategy pattern: ${topPattern.patterns.join(
               " <-> "
             )}`
@@ -5406,16 +5396,16 @@ export class OceanAgent {
       const negStats = await negativeKnowledgeRegistry.getStats();
       const busStats = await strategyKnowledgeBus.getTransferStats();
       if (iteration % 5 === 0) {
-        console.log(`[UCP] Iteration ${iteration} status:`);
-        console.log(
+        logger.info(`[UCP] Iteration ${iteration} status:`);
+        logger.info(
           `  - Negative knowledge: ${negStats.contradictions} contradictions, ${negStats.barriers} barriers, ${negStats.computeSaved} ops saved`
         );
-        console.log(
+        logger.info(
           `  - Knowledge bus: ${busStats.totalPublished} published, ${busStats.crossPatterns} cross-patterns detected`
         );
       }
     } catch (error) {
-      console.error("[UCP] Integration error:", error);
+      logger.error({ err: error }, "[UCP] Integration error");
     }
   }
 
@@ -5430,17 +5420,17 @@ export class OceanAgent {
       const negativeStats = await negativeKnowledgeRegistry.getStats();
       const busStats = await strategyKnowledgeBus.getTransferStats();
 
-      console.log(`[UCP] Manifold snapshot at iteration ${iteration}:`);
-      console.log(
+      logger.info(`[UCP] Manifold snapshot at iteration ${iteration}:`);
+      logger.info(
         `  - Probes: ${manifold.totalProbes}, Clusters: ${manifold.resonanceClusters}`
       );
-      console.log(
+      logger.info(
         `  - Trajectory waypoints: ${trajectory?.waypoints?.length || 0}`
       );
-      console.log(
+      logger.info(
         `  - Negative knowledge: ${negativeStats.totalExclusions} exclusions`
       );
-      console.log(
+      logger.info(
         `  - Knowledge bus: ${busStats.totalPublished} published, ${busStats.crossPatterns} cross-patterns`
       );
 
@@ -5457,7 +5447,7 @@ export class OceanAgent {
         );
       }
     } catch (error) {
-      console.error("[UCP] Snapshot error:", error);
+      logger.error({ err: error }, "[UCP] Snapshot error");
     }
   }
 
@@ -5482,7 +5472,7 @@ export class OceanAgent {
       return influencedHypotheses;
     }
 
-    console.log(
+    logger.info(
       `[UCP Consumer] Processing ${highPhiPatterns.length} high-similarity patterns for ${currentStrategy}`
     );
 
@@ -5596,7 +5586,7 @@ export class OceanAgent {
     }
 
     if (filtered > 0) {
-      console.log(
+      logger.info(
         `[UCP Filter] Filtered ${filtered} hypotheses using negative knowledge`
       );
     }
@@ -5783,27 +5773,27 @@ export class OceanAgent {
         this.lastZeusAssessment = zeusAssessment;
 
         // Log divine guidance
-        console.log(
+        logger.info(
           `[Ocean] ⚡ OLYMPUS DIVINE ASSESSMENT ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
         );
-        console.log(
+        logger.info(
           `[Ocean] │  Zeus Φ=${zeusAssessment.phi.toFixed(
             3
           )}  κ=${zeusAssessment.kappa.toFixed(0)}  Convergence: ${
             zeusAssessment.convergence
           }`
         );
-        console.log(
+        logger.info(
           `[Ocean] │  Recovery Probability: ${(
             zeusAssessment.probability * 100
           ).toFixed(1)}%  Confidence: ${(
             zeusAssessment.confidence * 100
           ).toFixed(1)}%`
         );
-        console.log(
+        logger.info(
           `[Ocean] │  Recommended Action: ${zeusAssessment.recommended_action}`
         );
-        console.log(
+        logger.info(
           `[Ocean] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
         );
 
@@ -5816,7 +5806,7 @@ export class OceanAgent {
         }
       }
     } catch (error) {
-      console.log(
+      logger.info(
         `[Ocean] Olympus consultation failed: ${
           error instanceof Error ? error.message : "unknown"
         }`
@@ -5832,7 +5822,7 @@ export class OceanAgent {
     const recommendedStrategy = assessment.recommended_action;
     const convergence = assessment.convergence_score;
 
-    console.log(
+    logger.info(
       `[Ocean] ⚡ Zeus strategy adjustment (convergence: ${convergence.toFixed(
         3
       )})`
@@ -5857,7 +5847,7 @@ export class OceanAgent {
         0.95,
         (this.identity.phi + assessment.phi) / 2
       );
-      console.log(
+      logger.info(
         `[Ocean] │  Φ adjusted: ${oldPhi.toFixed(
           3
         )} → ${this.identity.phi.toFixed(3)} (Zeus consensus)`
@@ -5866,7 +5856,7 @@ export class OceanAgent {
 
     // If Zeus recommends aggressive action and convergence is very high
     if (convergence > 0.85 && assessment.probability > 0.6) {
-      console.log(
+      logger.info(
         `[Ocean] │  High-confidence divine guidance: "${recommendedStrategy}"`
       );
       this.memory.workingMemory.recentObservations.push(
@@ -5876,7 +5866,7 @@ export class OceanAgent {
       );
     }
 
-    console.log(`[Ocean] │  Strategy stored: ${recommendedStrategy}`);
+    logger.info(`[Ocean] │  Strategy stored: ${recommendedStrategy}`);
   }
 
   /**
@@ -5900,7 +5890,7 @@ export class OceanAgent {
     // AUTO-DECLARE: High convergence → BLITZKRIEG
     if (convergence >= 0.85) {
       newWarMode = "BLITZKRIEG";
-      console.log(
+      logger.info(
         `[Ocean] ⚔️ AUTO-DECLARE: Convergence ${convergence.toFixed(
           3
         )} >= 0.85 threshold`
@@ -5912,7 +5902,7 @@ export class OceanAgent {
       assessment.probability > 0.75
     ) {
       newWarMode = "BLITZKRIEG";
-      console.log(
+      logger.info(
         `[Ocean] ⚔️ AUTO-DECLARE: STRONG_ATTACK with ${(
           assessment.probability * 100
         ).toFixed(0)}% probability`
@@ -5925,7 +5915,7 @@ export class OceanAgent {
       convergence >= 0.7
     ) {
       newWarMode = "SIEGE";
-      console.log(
+      logger.info(
         `[Ocean] 🏰 AUTO-DECLARE: Council consensus with convergence ${convergence.toFixed(
           3
         )}`
@@ -5934,14 +5924,14 @@ export class OceanAgent {
     // Many near-misses → SIEGE (methodical exhaustive search)
     else if (this.state.nearMissCount >= 10) {
       newWarMode = "SIEGE";
-      console.log(
+      logger.info(
         `[Ocean] 🏰 AUTO-DECLARE: ${this.state.nearMissCount} near-misses accumulated`
       );
     }
     // Multiple near-misses + decent probability → HUNT
     else if (this.state.nearMissCount >= 5 && assessment.probability > 0.5) {
       newWarMode = "HUNT";
-      console.log(
+      logger.info(
         `[Ocean] 🎯 AUTO-DECLARE: ${
           this.state.nearMissCount
         } near-misses with ${(assessment.probability * 100).toFixed(
@@ -5962,19 +5952,19 @@ export class OceanAgent {
       switch (newWarMode) {
         case "BLITZKRIEG":
           declaration = await olympusClient.declareBlitzkrieg(targetAddress);
-          console.log(
+          logger.info(
             `[Ocean] ⚡ WAR MODE: BLITZKRIEG - Fast parallel attacks on ${targetAddress}`
           );
           break;
         case "SIEGE":
           declaration = await olympusClient.declareSiege(targetAddress);
-          console.log(
+          logger.info(
             `[Ocean] 🏰 WAR MODE: SIEGE - Systematic coverage of ${targetAddress}`
           );
           break;
         case "HUNT":
           declaration = await olympusClient.declareHunt(targetAddress);
-          console.log(
+          logger.info(
             `[Ocean] 🎯 WAR MODE: HUNT - Focused pursuit of ${targetAddress}`
           );
           break;
@@ -5982,8 +5972,8 @@ export class OceanAgent {
 
       if (declaration) {
         this.olympusWarMode = newWarMode;
-        console.log(`[Ocean] │  Strategy: ${declaration.strategy}`);
-        console.log(
+        logger.info(`[Ocean] │  Strategy: ${declaration.strategy}`);
+        logger.info(
           `[Ocean] │  Gods engaged: ${declaration.gods_engaged.join(", ")}`
         );
       }
@@ -6017,7 +6007,7 @@ export class OceanAgent {
       }
     }
 
-    console.log(
+    logger.info(
       `[Ocean] 📡 Broadcast ${Math.min(
         5,
         nearMisses.length
@@ -6056,7 +6046,7 @@ export class OceanAgent {
       }
     }
 
-    console.log(
+    logger.info(
       `[Ocean] 🦉 Sent ${Math.min(
         3,
         nearMisses.length
@@ -6090,7 +6080,7 @@ export class OceanAgent {
     if (significantProxies.length === 0) return;
 
     try {
-      console.log(
+      logger.info(
         `[QIG] 🌌 Detected ${significantProxies.length} Resonance Proxies. Initiating Geometric Triangulation...`
       );
 
@@ -6110,7 +6100,7 @@ export class OceanAgent {
         trajectoryCorrection.gradient_shift &&
         trajectoryCorrection.new_vector
       ) {
-        console.log(
+        logger.info(
           `[QIG] 🧭 Manifold Curvature Detected. Shifting Search Vector by ${
             trajectoryCorrection.shift_magnitude?.toFixed(3) || "unknown"
           } radians.`
@@ -6121,7 +6111,7 @@ export class OceanAgent {
         this.updateSearchDirection(trajectoryCorrection.new_vector);
 
         // Log the geometric learning event
-        console.log(
+        logger.info(
           `[QIG] 📐 Reasoning: ${
             trajectoryCorrection.reasoning || "Orthogonal complement calculated"
           }`
@@ -6132,7 +6122,7 @@ export class OceanAgent {
       // This defines the "walls" of the maze so we don't hit them again.
       await this.recordConstraintSurface(significantProxies);
     } catch (error) {
-      console.error("[QIG] ⚠️ Geodesic Computation Failed:", error);
+      logger.error({ err: error }, "[QIG] ⚠️ Geodesic Computation Failed");
       // Fallback: Just randomize (Linear behavior)
       this.injectEntropy();
     }
@@ -6144,7 +6134,7 @@ export class OceanAgent {
    */
   private updateSearchDirection(newVector: number[]): void {
     if (newVector.length !== 64) {
-      console.error(
+      logger.error(
         `[QIG] Invalid vector dimension: ${newVector.length}, expected 64`
       );
       return;
@@ -6154,10 +6144,10 @@ export class OceanAgent {
     // This influences the drift correction in the consolidation cycle
     this.identity.basinReference = [...newVector];
 
-    console.log(
+    logger.info(
       `[QIG] 🎯 Search direction updated with orthogonal complement vector`
     );
-    console.log(
+    logger.info(
       `[QIG] 🧭 New vector norm: ${Math.sqrt(
         newVector.reduce((sum, v) => sum + v * v, 0)
       ).toFixed(3)}`
@@ -6168,7 +6158,7 @@ export class OceanAgent {
    * Inject entropy when geometric correction fails
    */
   private injectEntropy(): void {
-    console.log(
+    logger.info(
       "[QIG] 🎲 Injecting entropy due to failed geometric correction"
     );
     // Simple fallback: slightly randomize the current state
@@ -6202,11 +6192,11 @@ export class OceanAgent {
           "resonance_proxy"
         );
       }
-      console.log(
+      logger.info(
         `[QIG] 💾 Recorded ${proxies.length} constraint points to manifold memory`
       );
     } catch (error) {
-      console.error("[QIG] Failed to record constraint surface:", error);
+      logger.error({ err: error }, "[QIG] Failed to record constraint surface");
     }
   }
 

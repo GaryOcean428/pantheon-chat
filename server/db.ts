@@ -36,20 +36,20 @@ isDeployedApp = replitDeploymentVar || hasReplitDbFile || isAutoscale;
 const isDeployedEnv = isDeployedApp || isProductionEnv;
 
 // Log ALL detection signals for debugging
-console.log('[DB] Production detection signals:');
-console.log(`  REPLIT_DEPLOYMENT=${process.env.REPLIT_DEPLOYMENT} (${replitDeploymentVar})`);
-console.log(`  /tmp/replitdb exists: ${hasReplitDbFile}`);
-console.log(`  NODE_ENV: ${process.env.NODE_ENV}`);
-console.log(`  REPLIT_DEPLOYMENT_ID: ${process.env.REPLIT_DEPLOYMENT_ID ? 'SET' : 'NOT SET'}`);
-console.log(`  Final isDeployedEnv: ${isDeployedEnv}`);
+logger.info('[DB] Production detection signals:');
+logger.info(`  REPLIT_DEPLOYMENT=${process.env.REPLIT_DEPLOYMENT} (${replitDeploymentVar})`);
+logger.info(`  /tmp/replitdb exists: ${hasReplitDbFile}`);
+logger.info(`  NODE_ENV: ${process.env.NODE_ENV}`);
+logger.info(`  REPLIT_DEPLOYMENT_ID: ${process.env.REPLIT_DEPLOYMENT_ID ? 'SET' : 'NOT SET'}`);
+logger.info(`  Final isDeployedEnv: ${isDeployedEnv}`);
 
 // Configure Neon for development only (production uses HTTP-only client)
 if (!isDeployedEnv) {
-  console.log('[DB] Development mode - using WebSocket connections');
+  logger.info('[DB] Development mode - using WebSocket connections');
   neonConfig.webSocketConstructor = ws;
   neonConfig.poolQueryViaFetch = true;
 } else {
-  console.log('[DB] Production mode detected - will use HTTP-only Neon client');
+  logger.info('[DB] Production mode detected - will use HTTP-only Neon client');
 }
 
 // ============================================================================
@@ -159,13 +159,13 @@ function getDatabaseUrl(): string | undefined {
   // First check environment variable (development)
   if (process.env.DATABASE_URL) {
     dbUrl = process.env.DATABASE_URL;
-    console.log("[DB] Using DATABASE_URL from environment variable");
+    logger.info("[DB] Using DATABASE_URL from environment variable");
   } else {
     // Check /tmp/replitdb (deployed/published apps)
     try {
       const urlFromFile = readFileSync('/tmp/replitdb', 'utf-8').trim();
       if (urlFromFile) {
-        console.log("[DB] Using DATABASE_URL from /tmp/replitdb (deployed app)");
+        logger.info("[DB] Using DATABASE_URL from /tmp/replitdb (deployed app)");
         dbUrl = urlFromFile;
       }
     } catch {
@@ -184,11 +184,11 @@ function getDatabaseUrl(): string | undefined {
     // If it's a pooler URL, convert back to direct endpoint
     if (dbUrl.includes('-pooler.')) {
       const directUrl = dbUrl.replace(/-pooler\.([a-z0-9-]+)\.neon\.tech/, '.$1.neon.tech');
-      console.log("[DB] Converted pooler URL to direct endpoint for HTTP-only mode");
-      console.log("[DB] Direct endpoint pattern: *.*.neon.tech (no -pooler)");
+      logger.info("[DB] Converted pooler URL to direct endpoint for HTTP-only mode");
+      logger.info("[DB] Direct endpoint pattern: *.*.neon.tech (no -pooler)");
       return directUrl;
     } else {
-      console.log("[DB] Using direct endpoint for HTTP-only mode (correct for HTTP)");
+      logger.info("[DB] Using direct endpoint for HTTP-only mode (correct for HTTP)");
     }
   }
   
@@ -202,8 +202,8 @@ if (databaseUrl) {
     if (isDeployedEnv) {
       // PRODUCTION: Use HTTP-only Neon client - avoids WebSocket entirely
       // This is critical for Replit deployments where ws module may not be bundled
-      console.log('[DB] Initializing HTTP-only Neon client for production');
-      console.log('[DB] Database URL host:', new URL(databaseUrl).hostname);
+      logger.info('[DB] Initializing HTTP-only Neon client for production');
+      logger.info({ host: new URL(databaseUrl).hostname }, '[DB] Database URL host');
       
       const sql = neon(databaseUrl, {
         fetchOptions: {
@@ -212,21 +212,21 @@ if (databaseUrl) {
       });
       db = drizzleHttp(sql, { schema });
       pool = null; // No pool in production - HTTP only
-      console.log('[DB] HTTP-only Neon client initialized successfully');
+      logger.info('[DB] HTTP-only Neon client initialized successfully');
       
       // Test the connection with detailed error logging
       const testConnection = async () => {
         try {
           await sql`SELECT 1 as test`;
-          console.log('[DB] Production connection test: SUCCESS');
+          logger.info('[DB] Production connection test: SUCCESS');
         } catch (err: any) {
-          console.error('[DB] Production connection test: FAILED');
-          console.error('[DB] Error type:', err?.constructor?.name);
-          console.error('[DB] Error message:', err?.message);
-          console.error('[DB] Error code:', err?.code);
-          console.error('[DB] Error cause:', err?.cause?.message || 'none');
+          logger.error('[DB] Production connection test: FAILED');
+          logger.error('[DB] Error type:', err?.constructor?.name);
+          logger.error('[DB] Error message:', err?.message);
+          logger.error('[DB] Error code:', err?.code);
+          logger.error('[DB] Error cause:', err?.cause?.message || 'none');
           if (err?.cause?.cause) {
-            console.error('[DB] Root cause:', err.cause.cause.message || err.cause.cause);
+            logger.error('[DB] Root cause:', err.cause.cause.message || err.cause.cause);
           }
         }
       };
@@ -244,37 +244,37 @@ if (databaseUrl) {
         keepAliveInitialDelayMillis: 5000
       });
       db = drizzle(pool, { schema });
-      console.log(`[DB] Database connection pool initialized (max: 30, idle: 30s, timeout: ${connectionTimeout}ms)`);
+      logger.info(`[DB] Database connection pool initialized (max: 30, idle: 30s, timeout: ${connectionTimeout}ms)`);
       
       pool.on('error', (err) => {
-        console.error('[DB] Pool error:', err);
+        logger.error({ err }, '[DB] Pool error');
       });
 
       pool.on('connect', () => {
-        console.log('[DB] New connection acquired');
+        logger.info('[DB] New connection acquired');
       });
       
       // Warm up connection pool on startup
       pool.query('SELECT 1').catch(() => {
-        console.log('[DB] Initial connection warmup pending - Neon cold start expected');
+        logger.info('[DB] Initial connection warmup pending - Neon cold start expected');
       });
       
       // Log pool health periodically (every 5 minutes)
       setInterval(() => {
         if (pool) {
           const semStats = dbSemaphore.stats;
-          console.log(`[DB] Pool health: total=${pool.totalCount}, idle=${pool.idleCount}, waiting=${pool.waitingCount} | Semaphore: active=${semStats.active}/${semStats.max}, queued=${semStats.waiting}`);
+          logger.info(`[DB] Pool health: total=${pool.totalCount}, idle=${pool.idleCount}, waiting=${pool.waitingCount} | Semaphore: active=${semStats.active}/${semStats.max}, queued=${semStats.waiting}`);
         }
       }, 300000);
     }
   } catch (err) {
-    console.error("[DB] Failed to initialize database connection:", err);
-    console.log("[DB] Running without database - Replit Auth will be unavailable");
+    logger.error({ err }, "[DB] Failed to initialize database connection");
+    logger.info("[DB] Running without database - Replit Auth will be unavailable");
     pool = null;
     db = null;
   }
 } else {
-  console.log("[DB] No DATABASE_URL found - running without database (Replit Auth will be unavailable)");
+  logger.info("[DB] No DATABASE_URL found - running without database (Replit Auth will be unavailable)");
 }
 
 /**
@@ -357,7 +357,7 @@ export async function withDbRetry<T>(
         } else {
           // Log with full error for debugging
           const errorType = isRetryable ? 'exhausted retries' : 'non-retryable';
-          console.error(`[DB] ${operationName} failed (${errorType}, ${attempts} attempts):`, error);
+          logger.error({ err: error, operationName, errorType, attempts }, `[DB] ${operationName} failed`);
           break;
         }
       }
