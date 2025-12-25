@@ -64,6 +64,7 @@ import apiDocsRouter from "./routes/api-docs";
 
 import type { Candidate } from "@shared/schema";
 import { randomUUID } from "crypto";
+import { getErrorMessage } from "./lib/error-utils";
 import { autoCycleManager } from "./auto-cycle-manager";
 import { oceanSessionManager } from "./ocean-session-manager";
 import { isAuthenticated, setupAuth } from "./replitAuth";
@@ -322,15 +323,15 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
       
       const stats = await response.json();
       res.json(stats);
-    } catch (error: any) {
-      console.error("[Coordizer] Stats proxy error:", error.message);
+    } catch (error: unknown) {
+      console.error("[Coordizer] Stats proxy error:", getErrorMessage(error));
       res.json({
         vocab_size: 0,
         coordinate_dim: 64,
         geometric_purity: true,
         special_tokens: ['[PAD]', '[UNK]', '[BOS]', '[EOS]'],
         status: 'backend_unavailable',
-        error: error.message
+        error: getErrorMessage(error)
       });
     }
   });
@@ -340,11 +341,11 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
     try {
       const status = oceanSessionManager.getInvestigationStatus();
       res.json(status);
-    } catch (error: any) {
-      console.error("[API] Investigation status error:", error);
+    } catch (error: unknown) {
+      console.error("[API] Investigation status error:", getErrorMessage(error));
       res
         .status(500)
-        .json({ error: error.message || "Failed to get investigation status" });
+        .json({ error: getErrorMessage(error) || "Failed to get investigation status" });
     }
   });
 
@@ -361,9 +362,9 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
         ...status,
         positionString: position,
       });
-    } catch (error: any) {
-      console.error("[API] Auto-cycle status error:", error);
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      console.error("[API] Auto-cycle status error:", getErrorMessage(error));
+      res.status(500).json({ error: getErrorMessage(error) });
     }
   });
 
@@ -376,9 +377,9 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
         message: result.message,
         status: autoCycleManager.getStatus(),
       });
-    } catch (error: any) {
-      console.error("[API] Auto-cycle enable error:", error);
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      console.error("[API] Auto-cycle enable error:", getErrorMessage(error));
+      res.status(500).json({ error: getErrorMessage(error) });
     }
   });
 
@@ -391,9 +392,9 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
         message: result.message,
         status: autoCycleManager.getStatus(),
       });
-    } catch (error: any) {
-      console.error("[API] Auto-cycle disable error:", error);
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      console.error("[API] Auto-cycle disable error:", getErrorMessage(error));
+      res.status(500).json({ error: getErrorMessage(error) });
     }
   });
 
@@ -406,9 +407,9 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
         message: result.message,
         status: autoCycleManager.getStatus(),
       });
-    } catch (error: any) {
-      console.error("[API] Auto-cycle force-resume error:", error);
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      console.error("[API] Auto-cycle force-resume error:", getErrorMessage(error));
+      res.status(500).json({ error: getErrorMessage(error) });
     }
   });
 
@@ -512,9 +513,9 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
         mode: 'fallback',
         timestamp: new Date().toISOString()
       });
-    } catch (error: any) {
-      console.error("[API] Learning upload error:", error);
-      res.status(500).json({ error: error.message || 'Failed to process markdown upload' });
+    } catch (error: unknown) {
+      console.error("[API] Learning upload error:", getErrorMessage(error));
+      res.status(500).json({ error: getErrorMessage(error) || 'Failed to process markdown upload' });
     }
   });
 
@@ -550,15 +551,16 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
         const text = await response.text();
         res.status(response.status).send(text);
       }
-    } catch (error: any) {
-      console.error("[API] Python proxy error:", error);
-      if (error.name === 'TimeoutError' || error.message?.includes('timeout')) {
+    } catch (error: unknown) {
+      console.error("[API] Python proxy error:", getErrorMessage(error));
+      const err = error as { name?: string; code?: string; message?: string };
+      if (err.name === 'TimeoutError' || err.message?.includes('timeout')) {
         return res.status(504).json({ error: 'Python backend timeout' });
       }
-      if (error.code === 'ECONNREFUSED' || error.message?.includes('fetch failed')) {
+      if (err.code === 'ECONNREFUSED' || err.message?.includes('fetch failed')) {
         return res.status(503).json({ error: 'Python backend unavailable' });
       }
-      res.status(500).json({ error: error.message || 'Failed to proxy request' });
+      res.status(500).json({ error: getErrorMessage(error) || 'Failed to proxy request' });
     }
   });
 

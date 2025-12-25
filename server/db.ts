@@ -310,7 +310,7 @@ export async function withDbRetry<T>(
   // Acquire semaphore before attempting any database operation
   await dbSemaphore.acquire();
   
-  let lastError: Error | null = null;
+  let lastError: unknown = null;
   let delay = 500; // Start with 500ms
   let attempts = 0;
   
@@ -319,12 +319,13 @@ export async function withDbRetry<T>(
       attempts++;
       try {
         return await operation();
-      } catch (error: any) {
+      } catch (error: unknown) {
         lastError = error;
         
         // Detect retryable errors - covers Neon serverless transient failures
-        const errorMessage = error.message?.toLowerCase() || '';
-        const errorCode = error.code || '';
+        const err = error as { name?: string; message?: string; code?: string };
+        const errorMessage = err.message?.toLowerCase() || '';
+        const errorCode = err.code || '';
         
         const isRetryable = 
           // Timeout errors
@@ -346,7 +347,7 @@ export async function withDbRetry<T>(
           errorMessage.includes('connection unexpectedly') ||
           errorMessage.includes('terminating connection') ||
           // AbortError from fetch timeouts
-          error.name === 'AbortError';
+          err.name === 'AbortError';
         
         if (attempt < maxRetries && isRetryable) {
           console.log(`[DB] ${operationName} retry ${attempt}/${maxRetries} after ${delay}ms`);

@@ -4,20 +4,26 @@ import path from 'path';
 export default defineConfig({
   test: {
     globals: true,
-    environment: 'node',
-    include: ['server/**/*.test.ts', 'shared/**/*.test.ts'],
+    environment: 'jsdom',
+    include: ['server/**/*.test.ts', 'shared/**/*.test.ts', 'client/**/*.test.ts', 'client/**/*.test.tsx'],
     exclude: ['node_modules', '.cache'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],
-      include: ['server/**/*.ts', 'shared/**/*.ts'],
-      exclude: ['**/*.test.ts', '**/node_modules/**'],
+      include: ['server/**/*.ts', 'shared/**/*.ts', 'client/src/**/*.ts', 'client/src/**/*.tsx'],
+      exclude: ['**/*.test.ts', '**/*.test.tsx', '**/node_modules/**'],
     },
     testTimeout: 30000,
+    // Use node for server tests, jsdom is default for all
+    environmentMatchGlobs: [
+      ['server/**/*.test.ts', 'node'],
+      ['shared/**/*.test.ts', 'node'],
+    ],
   },
   resolve: {
     alias: {
       '@shared': path.resolve(__dirname, './shared'),
+      '@': path.resolve(__dirname, './client/src'),
     },
   },
 });

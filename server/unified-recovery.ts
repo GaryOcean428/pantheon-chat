@@ -161,6 +161,7 @@ import {
   OceanAgentState,
   MemoryFragment
 } from '@shared/schema';
+import { getErrorMessage } from './lib/error-utils';
 import { scoreUniversalQIGAsync } from './qig-universal';
 import { blockchainForensics } from './blockchain-forensics';
 import { historicalDataMiner, type Era } from './historical-data-miner';
@@ -425,12 +426,13 @@ class UnifiedRecoveryOrchestrator {
         this.updateSession(session);
       }
 
-    } catch (error: any) {
-      if (error.name === 'AbortError') {
+    } catch (error: unknown) {
+      const err = error as Error;
+      if (err.name === 'AbortError') {
         console.log(`[UnifiedRecovery] Session ${sessionId} was stopped`);
         session.status = 'completed';
       } else {
-        console.error(`[UnifiedRecovery] Session ${sessionId} failed:`, error);
+        console.error(`[UnifiedRecovery] Session ${sessionId} failed:`, getErrorMessage(error));
         session.status = 'failed';
       }
       this.updateSession(session);
@@ -523,13 +525,14 @@ class UnifiedRecoveryOrchestrator {
       strategy.completedAt = new Date().toISOString();
       console.log(`[UnifiedRecovery] Strategy ${strategyType}: Completed. ${strategy.candidatesFound} candidates found.`);
 
-    } catch (error: any) {
-      if (error.name === 'AbortError') {
+    } catch (error: unknown) {
+      const err = error as Error;
+      if (err.name === 'AbortError') {
         strategy.status = 'completed';
       } else {
         strategy.status = 'failed';
-        strategy.error = error.message;
-        console.error(`[UnifiedRecovery] Strategy ${strategyType} failed:`, error);
+        strategy.error = getErrorMessage(error);
+        console.error(`[UnifiedRecovery] Strategy ${strategyType} failed:`, getErrorMessage(error));
       }
     }
 
@@ -937,13 +940,14 @@ class UnifiedRecoveryOrchestrator {
       strategy.completedAt = new Date().toISOString();
       console.log(`[UnifiedRecovery] Historical Autonomous: Completed. ${strategy.candidatesFound} candidates found.`);
 
-    } catch (error: any) {
-      if (error.name === 'AbortError') {
+    } catch (error: unknown) {
+      const err = error as Error;
+      if (err.name === 'AbortError') {
         strategy.status = 'completed';
       } else {
         strategy.status = 'failed';
-        strategy.error = error.message;
-        console.error(`[UnifiedRecovery] Historical Autonomous failed:`, error);
+        strategy.error = getErrorMessage(error);
+        console.error(`[UnifiedRecovery] Historical Autonomous failed:`, getErrorMessage(error));
       }
     }
 
@@ -1100,13 +1104,14 @@ class UnifiedRecoveryOrchestrator {
       strategy.completedAt = new Date().toISOString();
       console.log(`[UnifiedRecovery] Cross-Format: Completed. ${strategy.candidatesFound} candidates found.`);
 
-    } catch (error: any) {
-      if (error.name === 'AbortError') {
+    } catch (error: unknown) {
+      const err = error as Error;
+      if (err.name === 'AbortError') {
         strategy.status = 'completed';
       } else {
         strategy.status = 'failed';
-        strategy.error = error.message;
-        console.error(`[UnifiedRecovery] Cross-Format failed:`, error);
+        strategy.error = getErrorMessage(error);
+        console.error(`[UnifiedRecovery] Cross-Format failed:`, getErrorMessage(error));
       }
     }
 
@@ -1329,7 +1334,7 @@ class UnifiedRecoveryOrchestrator {
         
         // Type-safe ocean state extension using interface
         const extendedSession = session as UnifiedRecoverySession & { oceanState?: {
-          identity: { phi: number; kappa: number; regime: string; basinDrift: number; selfModel: string };
+          identity: { phi: number; kappa: number; regime: string; basinDrift: number; selfModel: { strengths: string[]; weaknesses: string[]; learnings: string[]; hypotheses: string[] } };
           memory: { episodeCount: number; patternCount: number; clusterCount: number };
           ethics: { violations: number; witnessAcknowledged: boolean };
           consolidation: { cycles: number; lastConsolidation: string | null; needsConsolidation: boolean };
@@ -1355,7 +1360,7 @@ class UnifiedRecoveryOrchestrator {
           },
           consolidation: {
             cycles: state.consolidationCycles,
-            lastConsolidation: state.lastConsolidation,
+            lastConsolidation: state.lastConsolidation ?? null,
             needsConsolidation: state.needsConsolidation,
           },
           computeTimeSeconds: state.computeTimeSeconds,

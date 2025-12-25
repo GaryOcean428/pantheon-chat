@@ -215,8 +215,8 @@ oceanRouter.get(
         sessionActive: true,
         sessionId: session.sessionId,
       });
-    } catch (error: any) {
-      console.error("[Neurochemistry] Error:", error);
+    } catch (error: unknown) {
+      console.error("[Neurochemistry] Error:", getErrorMessage(error));
       const defaultState = {
         dopamine: { totalDopamine: 0.5, motivationLevel: 0.5 },
         serotonin: { totalSerotonin: 0.6, contentmentLevel: 0.6 },
@@ -239,7 +239,7 @@ oceanRouter.get(
         },
         sessionActive: false,
         initializing: true,
-        error: error.message,
+        error: getErrorMessage(error),
       });
     }
   }
@@ -524,9 +524,8 @@ oceanRouter.post(
           0
         )}% for ${Math.round(boostDuration / 1000)}s`,
       });
-    } catch (error: any) {
-      console.error("[Admin] Boost error:", error);
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      handleRouteError(res, error, 'AdminBoost');
     }
   }
 );
@@ -567,8 +566,8 @@ oceanRouter.get(
             oceanAutonomicManager.shouldTriggerMushroom(isInvestigating),
         },
       });
-    } catch (error: any) {
-      console.error("[Admin] Cycles status error:", error);
+    } catch (error: unknown) {
+      console.error("[Admin] Cycles status error:", getErrorMessage(error));
       res.json({
         consciousness: {
           phi: 0,
@@ -581,7 +580,7 @@ oceanRouter.get(
         mushroomCooldown: { remaining: 0, seconds: 0, canTrigger: false },
         triggers: { sleep: false, dream: false, mushroom: false },
         initializing: true,
-        error: error.message,
+        error: getErrorMessage(error),
       });
     }
   }
@@ -625,9 +624,8 @@ oceanRouter.post(
         success: true,
         ...result,
       });
-    } catch (error: any) {
-      console.error("[Generation] Response error:", error);
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      handleRouteError(res, error, 'GenerationResponse');
     }
   }
 );
@@ -660,9 +658,8 @@ oceanRouter.post(
         success: true,
         ...result,
       });
-    } catch (error: any) {
-      console.error("[Generation] Text error:", error);
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      handleRouteError(res, error, 'GenerationText');
     }
   }
 );
@@ -728,9 +725,8 @@ oceanRouter.get(
           },
         ],
       });
-    } catch (error: any) {
-      console.error("[Generation] Status error:", error);
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      handleRouteError(res, error, 'GenerationStatus');
     }
   }
 );
@@ -762,9 +758,8 @@ oceanRouter.get(
         },
         actionRequired: trends.resetTriggerActive,
       });
-    } catch (error: any) {
-      console.error("[Trends] Temporal trends error:", error);
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      handleRouteError(res, error, 'TemporalTrends');
     }
   }
 );
@@ -792,9 +787,8 @@ oceanRouter.post(
         wasActive,
         trends: nearMissManager.getPhiTemporalTrends(),
       });
-    } catch (error: any) {
-      console.error("[Trends] Acknowledge reset error:", error);
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      handleRouteError(res, error, 'AcknowledgeReset');
     }
   }
 );
@@ -822,9 +816,8 @@ oceanRouter.post(
         message: `Recorded Φ sample: ${phi.toFixed(4)}`,
         trends: nearMissManager.getPhiTemporalTrends(),
       });
-    } catch (error: any) {
-      console.error("[Trends] Record sample error:", error);
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      handleRouteError(res, error, 'RecordSample');
     }
   }
 );
@@ -876,9 +869,8 @@ oceanRouter.get(
           cool: stats.cool,
         },
       });
-    } catch (error: any) {
-      console.error("[NearMiss] Success rates error:", error);
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      handleRouteError(res, error, 'NearMissSuccessRates');
     }
   }
 );
@@ -937,9 +929,8 @@ oceanRouter.get(
             : "No obvious gaps in exploration",
         ],
       });
-    } catch (error: any) {
-      console.error("[Heatmap] Basin heatmap error:", error);
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      handleRouteError(res, error, 'BasinHeatmap');
     }
   }
 );
@@ -995,9 +986,8 @@ oceanRouter.get(
             : "Low volatility - focused search area",
         ],
       });
-    } catch (error: any) {
-      console.error("[Sparkline] Phi sparkline error:", error);
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      handleRouteError(res, error, 'PhiSparkline');
     }
   }
 );
@@ -1043,9 +1033,8 @@ oceanRouter.get(
               : "minus",
         })),
       });
-    } catch (error: any) {
-      console.error("[Strategy] Performance dashboard error:", error);
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      handleRouteError(res, error, 'StrategyPerformance');
     }
   }
 );
@@ -1120,9 +1109,8 @@ oceanRouter.get(
             : "Consistent cluster count - stable exploration pattern",
         ],
       });
-    } catch (error: any) {
-      console.error("[ClusterEvolution] Animation error:", error);
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      handleRouteError(res, error, 'ClusterEvolution');
     }
   }
 );
@@ -1173,9 +1161,8 @@ oceanRouter.post(
         message: `Recorded ${record.tier.toUpperCase()} tier conversion`,
         successRates: nearMissManager.getTierSuccessRates(),
       });
-    } catch (error: any) {
-      console.error("[NearMiss] Conversion recording error:", error);
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      handleRouteError(res, error, 'NearMissConversionRecording');
     }
   }
 );
@@ -1197,9 +1184,8 @@ oceanRouter.get(
         ...status,
         positionString: position,
       });
-    } catch (error: any) {
-      console.error("[AutoCycle] Status error:", error);
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      handleRouteError(res, error, 'AutoCycleStatus');
     }
   }
 );
@@ -1217,9 +1203,8 @@ oceanRouter.post(
         message: result.message,
         status: autoCycleManager.getStatus(),
       });
-    } catch (error: any) {
-      console.error("[AutoCycle] Start error:", error);
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      handleRouteError(res, error, 'AutoCycleStart');
     }
   }
 );
@@ -1237,9 +1222,8 @@ oceanRouter.post(
         message: result.message,
         status: autoCycleManager.getStatus(),
       });
-    } catch (error: any) {
-      console.error("[AutoCycle] Stop error:", error);
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      handleRouteError(res, error, 'AutoCycleStop');
     }
   }
 );
@@ -1295,9 +1279,8 @@ oceanRouter.post(
       }
 
       res.json(result);
-    } catch (error: any) {
-      console.error("[PythonAutonomic] Sleep error:", error);
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      handleRouteError(res, error, 'PythonSleep');
     }
   }
 );
@@ -1324,9 +1307,8 @@ oceanRouter.post(
       }
 
       res.json(result);
-    } catch (error: any) {
-      console.error("[PythonAutonomic] Dream error:", error);
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      handleRouteError(res, error, 'PythonDream');
     }
   }
 );
@@ -1353,9 +1335,8 @@ oceanRouter.post(
       }
 
       res.json(result);
-    } catch (error: any) {
-      console.error("[PythonAutonomic] Mushroom error:", error);
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      handleRouteError(res, error, 'PythonMushroom');
     }
   }
 );
@@ -1383,9 +1364,8 @@ oceanRouter.post(
       }
 
       res.json(result);
-    } catch (error: any) {
-      console.error("[PythonAutonomic] Reward error:", error);
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      handleRouteError(res, error, 'PythonReward');
     }
   }
 );
@@ -1410,9 +1390,8 @@ oceanRouter.get(
       }
 
       res.json({ success: true, ...result });
-    } catch (error: any) {
-      console.error("[PythonAutonomic] Rewards error:", error);
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      handleRouteError(res, error, 'PythonRewards');
     }
   }
 );

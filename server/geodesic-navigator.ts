@@ -13,6 +13,7 @@ import {
   culturalManifold, 
   BlockUniverseCoordinate, 
   GeodesicCandidate,
+  KnowledgeDomain,
 } from './cultural-manifold';
 import { scoreUniversalQIGAsync, fisherCoordDistance } from './qig-geometry';
 import { E8_CONSTANTS } from '../shared/constants/index.js';
@@ -282,7 +283,7 @@ export class GeodesicNavigator {
    * Generate candidates specifically for a knowledge domain
    */
   generateDomainCandidates(domain: string = 'general-knowledge', count: number = 50): GeodesicCandidate[] {
-    const coordinate = culturalManifold.createCoordinate(domain as string);
+    const coordinate = culturalManifold.createCoordinate(domain as KnowledgeDomain);
     return culturalManifold.generateGeodesicCandidates(coordinate, count);
   }
 

@@ -258,7 +258,7 @@ export function getIdempotencyStore(): MemoryIdempotencyStore {
  */
 export async function clearIdempotencyStore(): Promise<void> {
   const store = getIdempotencyStore();
-  // Access private store through type assertion
-  const storeWithInternals = store as typeof store & { store: { clear: () => void } };
+  // Access private store through type assertion - use any to bypass private property access
+  const storeWithInternals = store as unknown as { store: { clear: () => void } };
   storeWithInternals.store.clear();
 }

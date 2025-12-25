@@ -6,6 +6,7 @@
 
 import { Router } from "express";
 import type { Request, Response } from "express";
+import { getErrorMessage, handleRouteError } from './lib/error-utils';
 import { z } from "zod";
 import { randomUUID } from "crypto";
 import { observerStorage } from "./observer-storage";
@@ -151,11 +152,11 @@ router.get("/health", async (req: Request, res: Response) => {
       },
       errors: errors.length > 0 ? errors : undefined,
     });
-  } catch (error: any) {
-    console.error("[ObserverHealth] Error:", error);
+  } catch (error: unknown) {
+    console.error("[ObserverHealth] Error:", getErrorMessage(error));
     res.status(500).json({
       status: "error",
-      error: error.message,
+      error: getErrorMessage(error),
       timestamp: new Date().toISOString(),
       totalLatencyMs: Date.now() - startTime,
     });
@@ -210,8 +211,8 @@ router.post("/test/seed-near-miss", async (req: Request, res: Response) => {
         queuePriority: entry.queuePriority,
       },
     });
-  } catch (error: any) {
-    res.status(400).json({ error: error.message });
+  } catch (error: unknown) {
+    res.status(400).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -285,8 +286,8 @@ router.post("/test/cleanup", async (req: Request, res: Response) => {
         pendingSweeps: sweepResult.rowCount || 0,
       },
     });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -381,8 +382,8 @@ router.post("/scan/start", async (req: Request, res: Response) => {
       totalBlocks: endHeight - startHeight,
       message: `Scanning blocks ${startHeight} to ${endHeight}`,
     });
-  } catch (error: any) {
-    res.status(400).json({ error: error.message });
+  } catch (error: unknown) {
+    res.status(400).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -454,8 +455,8 @@ router.get("/blocks/:height", async (req: Request, res: Response) => {
       block,
       raw: blockData,
     });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -592,8 +593,8 @@ router.get("/addresses/dormant", async (req: Request, res: Response) => {
       filters,
       message: `Found ${total} dormant address(es) from top known wallets`,
     });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -638,8 +639,8 @@ router.get("/addresses/:address", async (req: Request, res: Response) => {
       address: serializedAddress,
       message: "Address details retrieved successfully",
     });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -707,12 +708,13 @@ router.get("/priorities", async (req: Request, res: Response) => {
         ? "No recovery priorities found. Run scanning and constraint solver first."
         : `Found ${priorities.length} priorit${priorities.length === 1 ? 'y' : 'ies'}`,
     });
-  } catch (error: any) {
-    if (error.name === 'ZodError') {
-      res.status(400).json({ error: error.message });
+  } catch (error: unknown) {
+    const err = error as Error;
+    if (err.name === 'ZodError') {
+      res.status(400).json({ error: getErrorMessage(error) });
     } else {
-      console.error("[ObserverAPI] Priorities error:", error);
-      res.status(500).json({ error: error.message });
+      console.error("[ObserverAPI] Priorities error:", getErrorMessage(error));
+      res.status(500).json({ error: getErrorMessage(error) });
     }
   }
 });
@@ -739,8 +741,8 @@ router.get("/priorities/:address", async (req: Request, res: Response) => {
       priority,
       message: "Recovery priority retrieved successfully",
     });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -778,12 +780,13 @@ router.get("/workflows", async (req: Request, res: Response) => {
         ? "No recovery workflows found."
         : `Found ${paginatedWorkflows.length} workflow${paginatedWorkflows.length === 1 ? '' : 's'}`,
     });
-  } catch (error: any) {
-    if (error.name === 'ZodError') {
-      res.status(400).json({ error: error.message });
+  } catch (error: unknown) {
+    const err = error as Error;
+    if (err.name === 'ZodError') {
+      res.status(400).json({ error: getErrorMessage(error) });
     } else {
-      console.error("[ObserverAPI] Workflows error:", error);
-      res.status(500).json({ error: error.message });
+      console.error("[ObserverAPI] Workflows error:", getErrorMessage(error));
+      res.status(500).json({ error: getErrorMessage(error) });
     }
   }
 });
@@ -819,12 +822,13 @@ router.post("/workflows", async (req: Request, res: Response) => {
       workflow,
       message: "Workflow created successfully",
     });
-  } catch (error: any) {
-    if (error.name === 'ZodError') {
-      res.status(400).json({ error: error.message });
+  } catch (error: unknown) {
+    const err = error as Error;
+    if (err.name === 'ZodError') {
+      res.status(400).json({ error: getErrorMessage(error) });
     } else {
-      console.error("[ObserverAPI] Workflow creation error:", error);
-      res.status(500).json({ error: error.message });
+      console.error("[ObserverAPI] Workflow creation error:", getErrorMessage(error));
+      res.status(500).json({ error: getErrorMessage(error) });
     }
   }
 });
@@ -851,8 +855,8 @@ router.get("/workflows/:id", async (req: Request, res: Response) => {
       workflow,
       message: "Workflow retrieved successfully",
     });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -950,11 +954,11 @@ router.post("/recovery/compute", async (req: Request, res: Response) => {
         challenging: rankedResults.filter(r => r.tier === 'challenging').length,
       },
     });
-  } catch (error: any) {
-    console.error("[ObserverAPI] κ_recovery computation error:", error);
+  } catch (error: unknown) {
+    console.error("[ObserverAPI] κ_recovery computation error:", getErrorMessage(error));
     res.status(500).json({ 
       error: "Failed to compute κ_recovery rankings",
-      details: error.message,
+      details: getErrorMessage(error),
     });
   }
 });
@@ -1062,12 +1066,12 @@ router.post("/recovery/refresh", isAuthenticated, async (req: Request, res: Resp
         challenging: rankedResults.filter(r => r.tier === 'challenging').length,
       },
     });
-  } catch (error: any) {
-    console.error("[ObserverAPI] κ_recovery refresh error:", error);
+  } catch (error: unknown) {
+    console.error("[ObserverAPI] κ_recovery refresh error:", getErrorMessage(error));
     res.status(500).json({
       success: false,
       error: "Failed to refresh κ_recovery rankings",
-      details: error.message,
+      details: getErrorMessage(error),
       timestamp: new Date().toISOString(),
     });
   }
@@ -1211,10 +1215,10 @@ router.get("/recovery/priorities", async (req: Request, res: Response) => {
       total: filteredPriorities.length,
       filters,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     res.status(400).json({ 
       error: "Invalid query parameters",
-      details: error.message,
+      details: getErrorMessage(error),
     });
   }
 });
@@ -1252,10 +1256,10 @@ router.get("/recovery/priorities/:address", async (req: Request, res: Response) 
         entities: [],
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     res.status(500).json({ 
       error: "Failed to retrieve recovery priority",
-      details: error.message,
+      details: getErrorMessage(error),
     });
   }
 });
@@ -1321,11 +1325,11 @@ router.post("/workflows", async (req: Request, res: Response) => {
         },
       },
     });
-  } catch (error: any) {
-    console.error("[ObserverAPI] Workflow start error:", error);
+  } catch (error: unknown) {
+    console.error("[ObserverAPI] Workflow start error:", getErrorMessage(error));
     res.status(500).json({ 
       error: "Failed to start recovery workflow",
-      details: error.message,
+      details: getErrorMessage(error),
     });
   }
 });
@@ -1362,10 +1366,10 @@ router.get("/workflows", async (req: Request, res: Response) => {
       total: enhancedWorkflows.length,
       filters,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     res.status(400).json({ 
       error: "Invalid query parameters",
-      details: error.message,
+      details: getErrorMessage(error),
     });
   }
 });
@@ -1405,10 +1409,10 @@ router.get("/workflows/:id", async (req: Request, res: Response) => {
         recommendedVector: priority?.recommendedVector,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     res.status(500).json({ 
       error: "Failed to retrieve workflow",
-      details: error.message,
+      details: getErrorMessage(error),
     });
   }
 });
@@ -1481,11 +1485,11 @@ router.patch("/workflows/:id", async (req: Request, res: Response) => {
       message: "Workflow updated successfully",
       workflow: updated,
     });
-  } catch (error: any) {
-    console.error("[ObserverAPI] Workflow update error:", error);
+  } catch (error: unknown) {
+    console.error("[ObserverAPI] Workflow update error:", getErrorMessage(error));
     res.status(500).json({ 
       error: "Failed to update workflow",
-      details: error.message,
+      details: getErrorMessage(error),
     });
   }
 });
@@ -1644,13 +1648,14 @@ router.post("/workflows/:id/start-search", async (req: Request, res: Response) =
           addedAt: new Date().toISOString(),
           label: `Observer recovery: ${workflow.address} (κ=${priority.kappaRecovery.toFixed(2)})`,
         });
-      } catch (error: any) {
+      } catch (error: unknown) {
         // Address may already exist from previous workflow - this is OK
+        const err = error as { code?: string; message?: string };
         const isDuplicateError = 
-          error.code === 'SQLITE_CONSTRAINT_UNIQUE' || 
-          error.code === '23505' || // PostgreSQL unique violation
-          error.message?.includes('duplicate') || 
-          error.message?.includes('already exists');
+          err.code === 'SQLITE_CONSTRAINT_UNIQUE' || 
+          err.code === '23505' || // PostgreSQL unique violation
+          err.message?.includes('duplicate') || 
+          err.message?.includes('already exists');
         
         if (!isDuplicateError) {
           throw error; // Re-throw if it's a different error
@@ -1727,11 +1732,11 @@ router.post("/workflows/:id/start-search", async (req: Request, res: Response) =
         artifacts: artifacts.length,
       },
     });
-  } catch (error: any) {
-    console.error("[ObserverAPI] Start search error:", error);
+  } catch (error: unknown) {
+    console.error("[ObserverAPI] Start search error:", getErrorMessage(error));
     res.status(500).json({ 
       error: "Failed to start constrained search",
-      details: error.message,
+      details: getErrorMessage(error),
     });
   }
 });
@@ -1832,11 +1837,11 @@ router.get("/workflows/:id/search-progress", async (req: Request, res: Response)
         artifacts: 0,
       },
     });
-  } catch (error: any) {
-    console.error("[ObserverAPI] Search progress error:", error);
+  } catch (error: unknown) {
+    console.error("[ObserverAPI] Search progress error:", getErrorMessage(error));
     res.status(500).json({ 
       error: "Failed to get search progress",
-      message: error.message,
+      message: getErrorMessage(error),
     });
   }
 });
@@ -1883,9 +1888,9 @@ router.post("/workflows/:id/execute-vector", async (req: Request, res: Response)
       message: `Vector '${vector}' executed successfully`,
       result,
     });
-  } catch (error: any) {
-    console.error("[ObserverAPI] Vector execution error:", error);
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    console.error("[ObserverAPI] Vector execution error:", getErrorMessage(error));
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -1916,8 +1921,8 @@ router.get("/workflows/:id/recommended-vectors", async (req: Request, res: Respo
       recommendedVectors: vectors,
       currentVector: workflow.vector,
     });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -1940,8 +1945,8 @@ router.get("/addresses/:address/intersection", async (req: Request, res: Respons
       address,
       intersection,
     });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -1960,8 +1965,8 @@ router.get("/high-priority-targets", async (req: Request, res: Response) => {
       targets,
       count: targets.length,
     });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -1984,8 +1989,8 @@ router.get("/addresses/:address/basin-signature", async (req: Request, res: Resp
       address,
       signature,
     });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -2013,8 +2018,8 @@ router.post("/addresses/:address/find-similar", async (req: Request, res: Respon
       matches,
       matchCount: matches.length,
     });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -2058,8 +2063,8 @@ router.get("/recovery/priorities/:address/confidence", async (req: Request, res:
       },
       confidence,
     });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -2125,8 +2130,8 @@ router.get("/geometric-memory/manifold-navigation", async (req: Request, res: Re
       ...navigation,
       timestamp: new Date().toISOString(),
     });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -2145,8 +2150,8 @@ router.get("/geometric-memory/orthogonal-candidates", async (req: Request, res: 
       count: candidates.length,
       manifoldState: geometricMemory.getManifoldNavigationSummary(),
     });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -2163,8 +2168,8 @@ router.get("/geometric-memory/summary", async (req: Request, res: Response) => {
       ...summary,
       timestamp: new Date().toISOString(),
     });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -2181,8 +2186,8 @@ router.get("/geometric-memory/learned-patterns", async (req: Request, res: Respo
       ...patterns,
       timestamp: new Date().toISOString(),
     });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -2203,9 +2208,9 @@ router.get("/telemetry/full-spectrum", async (req: Request, res: Response) => {
     const telemetry = oceanAgent.computeFullSpectrumTelemetry();
     
     res.json(telemetry);
-  } catch (error: any) {
-    console.error('[Telemetry] Error computing full-spectrum telemetry:', error);
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    console.error('[Telemetry] Error computing full-spectrum telemetry:', getErrorMessage(error));
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -2229,7 +2234,7 @@ router.get("/consciousness-check", async (req: Request, res: Response) => {
       phaseTransition: telemetry.consciousness.Φ >= 0.75 ? 'ACTIVE' : 'PRE_CONSCIOUS',
       timestamp: telemetry.timestamp,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Return safe fallback for production when services aren't ready
     res.json({
       consciousness: { isConscious: false, Φ: 0, regimeSignature: 'dormant' },
@@ -2238,7 +2243,7 @@ router.get("/consciousness-check", async (req: Request, res: Response) => {
       phaseTransition: 'PRE_CONSCIOUS',
       timestamp: new Date().toISOString(),
       initializing: true,
-      error: error.message,
+      error: getErrorMessage(error),
     });
   }
 });
@@ -2401,11 +2406,11 @@ router.post("/discoveries", async (req: Request, res: Response) => {
       results,
       timestamp: new Date().toISOString(),
     });
-  } catch (error: any) {
-    console.error('[Discovery] Error processing discovery:', error);
+  } catch (error: unknown) {
+    console.error('[Discovery] Error processing discovery:', getErrorMessage(error));
     res.status(400).json({ 
       error: "Failed to process discovery",
-      details: error.message,
+      details: getErrorMessage(error),
     });
   }
 });
@@ -2437,8 +2442,8 @@ router.get("/discoveries/stats", async (req: Request, res: Response) => {
       timestamp: new Date().toISOString(),
       note: "Bitcoin functionality removed",
     });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -2461,8 +2466,8 @@ router.get("/discoveries/hits", async (req: Request, res: Response) => {
       hits: [],
       note: "Bitcoin functionality removed - system now focuses on knowledge discovery",
     });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -2499,9 +2504,9 @@ router.post("/classify-address", async (req: Request, res: Response) => {
         searchResults: classification.searchResults
       }
     });
-  } catch (error: any) {
-    console.error("[EntityClassify] Error:", error);
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    console.error("[EntityClassify] Error:", getErrorMessage(error));
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -2533,9 +2538,9 @@ router.post("/confirm-entity-type", async (req: Request, res: Response) => {
       entityName,
       confidence: 'confirmed'
     });
-  } catch (error: any) {
-    console.error("[EntityConfirm] Error:", error);
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    console.error("[EntityConfirm] Error:", getErrorMessage(error));
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -2599,9 +2604,9 @@ router.post("/sweep/confirm", async (req: Request, res: Response) => {
       entityName,
       timestamp: new Date().toISOString()
     });
-  } catch (error: any) {
-    console.error("[SweepConfirm] Error:", error);
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    console.error("[SweepConfirm] Error:", getErrorMessage(error));
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -2685,9 +2690,9 @@ router.post("/qig-search/start", async (req: Request, res: Response) => {
       message: `QIG search initiated for ${address.slice(0, 12)}...`,
       session
     });
-  } catch (error: any) {
-    console.error("[QIGSearch] Start error:", error);
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    console.error("[QIGSearch] Start error:", getErrorMessage(error));
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -2713,8 +2718,8 @@ router.get("/qig-search/status/:address", async (req: Request, res: Response) =>
       active: session.status === 'running',
       session
     });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -2739,8 +2744,8 @@ router.post("/qig-search/stop/:address", async (req: Request, res: Response) => 
       message: `Search stopped for ${address.slice(0, 12)}...`,
       session
     });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -2763,8 +2768,8 @@ router.get("/qig-search/active", async (req: Request, res: Response) => {
       count: activeSessions.length,
       sessions: activeSessions
     });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 

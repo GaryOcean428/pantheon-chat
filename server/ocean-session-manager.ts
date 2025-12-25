@@ -340,14 +340,15 @@ class OceanSessionManager {
       // Notify autonomic manager
       oceanAutonomicManager.stopInvestigation();
       
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
       console.error(`[OceanSessionManager] Session ${sessionId} error:`, error);
       this.updateState(sessionId, {
         isRunning: false,
-        error: error.message,
-        currentThought: `Error: ${error.message}`,
+        error: message,
+        currentThought: `Error: ${message}`,
       });
-      this.addEvent(sessionId, 'alert', `Error: ${error.message}`);
+      this.addEvent(sessionId, 'alert', `Error: ${message}`);
       
       // Notify auto-cycle manager even on error (so it can start next address)
       const targetAddrId = this.getAddressIdFromSession(state.targetAddress);

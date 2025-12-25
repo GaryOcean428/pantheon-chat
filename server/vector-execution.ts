@@ -532,12 +532,15 @@ export function getRecommendedVectors(priority: RecoveryPriority): RecoveryVecto
   vectors.push("constrained_search");
   
   // Estate vector if entities are linked or deceased flag
-  if (constraints?.entityLinkage > 0 || constraints?.hasEstateContact) {
+  const entityLinkage = constraints?.entityLinkage as number | undefined;
+  const hasEstateContact = constraints?.hasEstateContact as boolean | undefined;
+  if ((entityLinkage ?? 0) > 0 || hasEstateContact) {
     vectors.push("estate");
   }
   
   // Social vector for addresses with forum activity
-  if (constraints?.artifactDensity > 0 || priority.tier === "high") {
+  const artifactDensity = constraints?.artifactDensity as number | undefined;
+  if ((artifactDensity ?? 0) > 0 || priority.tier === "high") {
     vectors.push("social");
   }
   

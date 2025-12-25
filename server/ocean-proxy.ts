@@ -271,9 +271,10 @@ export class OceanProxy {
 
         return response.json();
 
-      } catch (error: any) {
+      } catch (error: unknown) {
         // Connection errors
-        if (error.name === 'AbortError') {
+        const err = error as { name?: string; message?: string };
+        if (err.name === 'AbortError') {
           console.error(`[OceanProxy] Request timeout (attempt ${attempt}/${this.retryAttempts})`);
         } else if (error instanceof TypeError && error.message.includes('fetch')) {
           console.error(`[OceanProxy] Connection failed (attempt ${attempt}/${this.retryAttempts})`);
@@ -288,7 +289,7 @@ export class OceanProxy {
         }
 
         // Final attempt failed
-        if (error.name === 'AbortError') {
+        if (err.name === 'AbortError') {
           throw new Error(
             `Python backend timeout after ${this.timeout}ms. ` +
             `Backend may be overloaded or unresponsive.`
@@ -337,9 +338,10 @@ export class OceanProxy {
 
         return response.json();
 
-      } catch (error: any) {
+      } catch (error: unknown) {
         // Connection errors
-        if (error.name === 'AbortError') {
+        const err = error as { name?: string; message?: string };
+        if (err.name === 'AbortError') {
           console.error(`[OceanProxy] Request timeout (attempt ${attempt}/${this.retryAttempts})`);
         } else if (error instanceof TypeError && error.message.includes('fetch')) {
           console.error(`[OceanProxy] Connection failed (attempt ${attempt}/${this.retryAttempts})`);
@@ -354,7 +356,7 @@ export class OceanProxy {
         }
 
         // Final attempt failed
-        if (error.name === 'AbortError') {
+        if (err.name === 'AbortError') {
           throw new Error(
             `Python backend timeout after ${this.timeout}ms. ` +
             `Backend may be overloaded or unresponsive.`

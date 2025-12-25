@@ -838,10 +838,11 @@ router.get('/status', isAuthenticated, async (req, res) => {
         message: 'Mount Olympus is awakening... The gods are loading their geometric memory.',
       });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Olympus] Status error:', error);
     // Return loading state for backend not ready errors
-    if (error.message?.includes('not ready')) {
+    const err = error as { message?: string };
+    if (err.message?.includes('not ready')) {
       res.json({
         status: 'loading',
         gods: null,

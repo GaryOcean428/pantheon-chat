@@ -1,4 +1,5 @@
 import { Router, type Request, type Response } from "express";
+import { getErrorMessage, handleRouteError } from '../lib/error-utils';
 import { randomUUID } from "crypto";
 import { generousLimiter, standardLimiter } from "../rate-limiters";
 import { storage } from "../storage";
@@ -11,12 +12,12 @@ adminRouter.get("/health", async (req: Request, res: Response) => {
   try {
     const { healthCheckHandler } = await import("../api-health");
     await healthCheckHandler(req, res);
-  } catch (error: any) {
-    console.error("[API] Health check error:", error);
+  } catch (error: unknown) {
+    console.error("[API] Health check error:", getErrorMessage(error));
     res.status(503).json({
       status: 'down',
       timestamp: Date.now(),
-      error: error.message,
+      error: getErrorMessage(error),
     });
   }
 });
@@ -57,9 +58,8 @@ adminRouter.get("/kernel/status", async (req: Request, res: Response) => {
       timestamp: Date.now(),
       message: metrics ? undefined : 'Metrics not yet available - session initializing',
     });
-  } catch (error: any) {
-    console.error("[API] Kernel status error:", error);
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    handleRouteError(res, error, 'KernelStatus');
   }
 });
 
@@ -102,9 +102,8 @@ adminRouter.get("/search/history", generousLimiter, async (req: Request, res: Re
       limit,
       offset,
     });
-  } catch (error: any) {
-    console.error("[API] Search history error:", error);
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    handleRouteError(res, error, 'SearchHistory');
   }
 });
 
@@ -142,9 +141,8 @@ adminRouter.post("/telemetry/capture", generousLimiter, async (req: Request, res
       captured: true,
       trace_id,
     });
-  } catch (error: any) {
-    console.error("[API] Telemetry capture error:", error);
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    handleRouteError(res, error, 'TelemetryCapture');
   }
 });
 
@@ -198,8 +196,7 @@ adminRouter.get("/admin/metrics", generousLimiter, async (req: Request, res: Res
         },
       },
     });
-  } catch (error: any) {
-    console.error("[API] Admin metrics error:", error);
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    handleRouteError(res, error, 'AdminMetrics');
   }
 });

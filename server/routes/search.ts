@@ -1,4 +1,5 @@
 import { Router, type Request, type Response } from "express";
+import { getErrorMessage, handleRouteError } from '../lib/error-utils';
 import { randomUUID } from "crypto";
 import { generousLimiter } from "../rate-limiters";
 import { storage } from "../storage";
@@ -69,9 +70,9 @@ searchRouter.get("/web", generousLimiter, async (req: Request, res: Response) =>
       source: 'google-web-search',
       timestamp: new Date().toISOString(),
     });
-  } catch (error: any) {
-    console.error('[WebSearch API] Error:', error.message);
-    res.status(500).json({ error: error.message, status: 'error' });
+  } catch (error: unknown) {
+    console.error('[WebSearch API] Error:', getErrorMessage(error));
+    res.status(500).json({ error: getErrorMessage(error), status: 'error' });
   }
 });
 
@@ -111,9 +112,9 @@ searchRouter.post("/web", generousLimiter, async (req: Request, res: Response) =
       source: 'google-web-search',
       timestamp: new Date().toISOString(),
     });
-  } catch (error: any) {
-    console.error('[WebSearch API] Error:', error.message);
-    res.status(500).json({ error: error.message, status: 'error' });
+  } catch (error: unknown) {
+    console.error('[WebSearch API] Error:', getErrorMessage(error));
+    res.status(500).json({ error: getErrorMessage(error), status: 'error' });
   }
 });
 
@@ -137,8 +138,8 @@ searchRouter.get("/providers", generousLimiter, async (req: Request, res: Respon
         },
       },
     });
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
+  } catch (error: unknown) {
+    res.status(500).json({ success: false, error: getErrorMessage(error) });
   }
 });
 
@@ -186,8 +187,8 @@ searchRouter.post("/providers/:provider/toggle", generousLimiter, async (req: Re
         },
       },
     });
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
+  } catch (error: unknown) {
+    res.status(500).json({ success: false, error: getErrorMessage(error) });
   }
 });
 
@@ -227,8 +228,8 @@ searchRouter.get("/tavily-usage", generousLimiter, async (req: Request, res: Res
         dailyStatus: (stats.today.searchCount + stats.today.extractCount) >= stats.limits.perDay ? 'DAILY_LIMIT_REACHED' : 'OK',
       },
     });
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
+  } catch (error: unknown) {
+    res.status(500).json({ success: false, error: getErrorMessage(error) });
   }
 });
 
@@ -325,11 +326,11 @@ searchRouter.post("/zeus-web-search", generousLimiter, async (req: Request, res:
       },
       timestamp: new Date().toISOString(),
     });
-  } catch (error: any) {
-    console.error('[ZeusWebSearch] Error:', error.message);
+  } catch (error: unknown) {
+    console.error('[ZeusWebSearch] Error:', getErrorMessage(error));
     res.status(500).json({ 
       success: false, 
-      error: error.message, 
+      error: getErrorMessage(error), 
       results: [],
       status: 'error',
     });
@@ -339,8 +340,8 @@ searchRouter.post("/zeus-web-search", generousLimiter, async (req: Request, res:
 searchRouter.get("/known-phrases", generousLimiter, (req: Request, res: Response) => {
   try {
     res.json({ phrases: KNOWN_12_WORD_PHRASES });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -348,8 +349,8 @@ searchRouter.get("/candidates", generousLimiter, async (req: Request, res: Respo
   try {
     const candidates = await storageFacade.candidates.getCandidates();
     res.json(candidates);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -437,8 +438,8 @@ searchRouter.get("/analytics", generousLimiter, async (req: Request, res: Respon
         isImproving: improvement > 0,
       },
     });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -447,8 +448,8 @@ searchRouter.get("/target-addresses", async (req: Request, res: Response) => {
     res.set('Cache-Control', 'no-store');
     const addresses = await storage.getTargetAddresses();
     res.json(addresses);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -472,8 +473,8 @@ searchRouter.post("/target-addresses", async (req: Request, res: Response) => {
 
     await storage.addTargetAddress(targetAddress);
     res.json(targetAddress);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -487,8 +488,8 @@ searchRouter.delete("/target-addresses/:id", async (req: Request, res: Response)
     
     await storage.removeTargetAddress(id);
     res.json({ success: true });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -510,8 +511,8 @@ searchRouter.post("/generate-random-phrases", async (req: Request, res: Response
     }
 
     res.json({ phrases });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -549,8 +550,8 @@ searchRouter.post("/search-jobs", async (req: Request, res: Response) => {
 
     await storageFacade.searchJobs.addSearchJob(job);
     res.json(job);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -558,8 +559,8 @@ searchRouter.get("/search-jobs", async (req: Request, res: Response) => {
   try {
     const jobs = await storageFacade.searchJobs.getSearchJobs();
     res.json(jobs);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -573,8 +574,8 @@ searchRouter.get("/search-jobs/:id", async (req: Request, res: Response) => {
     }
 
     res.json(job);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -590,8 +591,8 @@ searchRouter.get("/search-jobs/:id/logs", async (req: Request, res: Response) =>
 
     const logs = job.logs.slice(-limit).reverse();
     res.json({ logs, total: job.logs.length });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -606,8 +607,8 @@ searchRouter.post("/search-jobs/:id/stop", async (req: Request, res: Response) =
     }
 
     res.json(job);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -616,8 +617,8 @@ searchRouter.delete("/search-jobs/:id", async (req: Request, res: Response) => {
     const { id } = req.params;
     await storageFacade.searchJobs.deleteSearchJob(id);
     res.json({ success: true });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -681,8 +682,8 @@ searchRouter.get("/activity-stream", async (req: Request, res: Response) => {
       totalJobs: jobs.length + (oceanLogs.length > 0 ? 1 : 0),
       oceanActive: isOceanActive,
     });
-  } catch (error: any) {
-    console.error('[ActivityStream] Error:', error.message);
+  } catch (error: unknown) {
+    console.error('[ActivityStream] Error:', getErrorMessage(error));
     res.json({ 
       events: [],
       activeJobs: 0,
@@ -733,9 +734,8 @@ searchRouter.post("/memory-search", async (req: Request, res: Response) => {
         combinedScore: c.combinedScore,
       })),
     });
-  } catch (error: any) {
-    console.error("[MemorySearch] Error:", error);
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    handleRouteError(res, error, 'MemorySearch');
   }
 });
 
@@ -754,8 +754,8 @@ formatRouter.get("/address/:address", async (req: Request, res: Response) => {
       ...formatInfo,
       era: eraInfo,
     });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -774,8 +774,8 @@ formatRouter.post("/mnemonic", async (req: Request, res: Response) => {
       phrase: phrase.split(/\s+/).slice(0, 3).join(' ') + '...',
       ...formatInfo,
     });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -805,7 +805,7 @@ formatRouter.post("/batch-addresses", async (req: Request, res: Response) => {
     });
     
     res.json({ results, summary });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });

@@ -162,11 +162,12 @@ export class OceanPersistence {
         this.isFlushingTested = false;
         this.consecutiveFailures = 0; // Reset on success
         return count;
-      } catch (error: any) {
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
         retries--;
         if (retries === 0) {
           this.consecutiveFailures++;
-          console.error(`[OceanPersistence] Failed to flush ${toFlush.length} phrases after 3 retries (consecutive failures: ${this.consecutiveFailures}):`, error.message);
+          console.error(`[OceanPersistence] Failed to flush ${toFlush.length} phrases after 3 retries (consecutive failures: ${this.consecutiveFailures}):`, message);
           // Re-add failed phrases to buffer for next attempt
           toFlush.forEach(p => this.testedPhraseBuffer.add(p));
           this.isFlushingTested = false;

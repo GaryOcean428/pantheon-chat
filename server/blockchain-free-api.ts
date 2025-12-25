@@ -134,11 +134,12 @@ export class FreeBlockchainAPI {
         this.recordSuccess(provider);
         this.setCache(`balance:${address}`, balance, 300);
         return balance;
-      } catch (error: any) {
+      } catch (error: unknown) {
         this.recordFailure(provider, error);
         attempts++;
         
-        if (error.message?.includes('429')) {
+        const err = error as { message?: string };
+        if (err.message?.includes('429')) {
           await this.sleep(1000);
         }
       }
@@ -241,8 +242,9 @@ export class FreeBlockchainAPI {
         console.log(`[FreeBlockchainAPI] Bulk query via ${name}: ${bulkResults.size}/${uncached.length} addresses`);
         return results;
         
-      } catch (error: any) {
-        console.warn(`[FreeBlockchainAPI] ${name} bulk failed:`, error.message || error);
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.warn(`[FreeBlockchainAPI] ${name} bulk failed:`, message);
         this.recordFailure(provider, error);
       }
     }
@@ -715,20 +717,22 @@ export class FreeBlockchainAPI {
     provider.consecutiveFailures = 0;
   }
 
-  private recordFailure(provider: Provider, error: Error): void {
+  private recordFailure(provider: Provider, error: unknown): void {
     provider.consecutiveFailures++;
     provider.lastFailure = Date.now();
     
-    const errorType = error.name === 'AbortError' ? 'timeout' :
-                      error.message?.includes('429') ? 'rate limited' :
-                      error.message?.includes('ECONNREFUSED') ? 'connection refused' :
+    const err = error as { name?: string; message?: string };
+    const errorType = err.name === 'AbortError' ? 'timeout' :
+                      err.message?.includes('429') ? 'rate limited' :
+                      err.message?.includes('ECONNREFUSED') ? 'connection refused' :
                       'request failed';
+    const message = err.message || String(error);
     
     if (provider.consecutiveFailures >= 3) {
       provider.healthy = false;
-      console.warn(`[FreeBlockchainAPI] ${provider.name} marked UNHEALTHY (${errorType}): ${error.message} [${provider.consecutiveFailures} consecutive failures]`);
+      console.warn(`[FreeBlockchainAPI] ${provider.name} marked UNHEALTHY (${errorType}): ${message} [${provider.consecutiveFailures} consecutive failures]`);
     } else {
-      console.log(`[FreeBlockchainAPI] ${provider.name} failure ${provider.consecutiveFailures}/3 (${errorType}): ${error.message}`);
+      console.log(`[FreeBlockchainAPI] ${provider.name} failure ${provider.consecutiveFailures}/3 (${errorType}): ${message}`);
     }
   }
 

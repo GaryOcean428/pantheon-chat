@@ -74,21 +74,21 @@ export class ObserverStorage implements IObserverStorage {
     if (!constraints) return { normalized: constraints, hadLegacy: false };
     
     let hadLegacy = false;
-    const normalized = { ...constraints }; // Create new object
+    const normalized = { ...constraints } as LegacyRecoveryConstraints & RecoveryConstraints;
     
     // Migrate old field names to new ones
     if (normalized.linkedEntities !== undefined) {
-      normalized.entityLinkage = normalized.linkedEntities;
+      normalized.entityLinkage = normalized.linkedEntities as number | undefined;
       delete normalized.linkedEntities;
       hadLegacy = true;
     }
     if (normalized.artifactCount !== undefined) {
-      normalized.artifactDensity = normalized.artifactCount;
+      normalized.artifactDensity = normalized.artifactCount as number | undefined;
       delete normalized.artifactCount;
       hadLegacy = true;
     }
     if (normalized.graphDegree !== undefined) {
-      normalized.graphSignature = normalized.graphDegree;
+      normalized.graphSignature = normalized.graphDegree as number | undefined;
       delete normalized.graphDegree;
       hadLegacy = true;
     }

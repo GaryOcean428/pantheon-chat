@@ -377,7 +377,7 @@ export class InvestigationAgent {
         bestLength = parseInt(len);
       }
     }
-    insights.phraseLengthInsights = { bestLength, bestLengthPhi };
+    insights.phraseLengthInsights = { bestLength, bestLengthPhi } as { bestLength: number; bestLengthPhi: number };
     
     return insights;
   }

@@ -117,11 +117,12 @@ async function fetchWithRetry(
       }
       
       return response;
-    } catch (error: any) {
+    } catch (error: unknown) {
       clearTimeout(timeoutId);
       
       // Log connection errors for debugging
-      if (error.cause?.code === 'ECONNREFUSED') {
+      const err = error as { cause?: { code?: string }; message?: string };
+      if (err.cause?.code === 'ECONNREFUSED') {
         console.warn(`[OlympusClient] ECONNREFUSED on attempt ${attempt}/${maxRetries}`);
       }
       
@@ -186,9 +187,10 @@ async function flushOutcomeBatch(backendUrl: string): Promise<void> {
     for (const pending of batch) {
       pending.resolve({ godsUpdated: data.total_gods_updated, success: true });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     // If backend not ready error, re-queue and retry later
-    if (error.message?.includes('not ready')) {
+    const err = error as { message?: string };
+    if (err.message?.includes('not ready')) {
       pendingOutcomes.push(...batch);
       if (!outcomeBatchTimer) {
         outcomeBatchTimer = setTimeout(() => flushOutcomeBatch(backendUrl), 5000);

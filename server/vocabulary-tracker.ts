@@ -16,6 +16,7 @@
  */
 
 import { geometricMemory, type BasinProbe } from './geometric-memory';
+import type { Regime } from '@shared/types';
 import { expandedVocabulary } from './expanded-vocabulary';
 import { vocabDecisionEngine, type WordContext } from './vocabulary-decision';
 import { db, withDbRetry } from './db';
@@ -275,7 +276,7 @@ export class VocabularyTracker {
         word: token,
         phi,
         kappa: kappa || 50,
-        regime: (regime as string) || 'geometric',
+        regime: (regime || 'geometric') as Regime,
         basinCoordinates: basinCoordinates || [],
         timestamp: now.getTime(),
       };

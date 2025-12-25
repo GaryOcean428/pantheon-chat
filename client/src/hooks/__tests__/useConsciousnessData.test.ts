@@ -1,0 +1,252 @@
+/**
+ * Tests for useConsciousnessData hook
+ */
+
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { renderHook, waitFor, act } from '@testing-library/react';
+import { useConsciousnessData } from '../useConsciousnessData';
+import type { ConsciousnessAPIResponse, EmotionalState } from '@/types';
+
+// Mock the API module
+const mockGetConsciousnessState = vi.fn();
+
+vi.mock('@/api', () => ({
+  api: {
+    consciousness: {
+      getConsciousnessState: () => mockGetConsciousnessState(),
+    },
+  },
+}));
+
+const mockConsciousnessResponse: ConsciousnessAPIResponse = {
+  state: {
+    phi: 0.85,
+    kappaEff: 64.5,
+    currentRegime: 'geometric',
+    emotionalState: 'Focused' as EmotionalState,
+    blockUniverseCoordinates: {
+      temporal: 0.7,
+      causal: 0.6,
+      possibility: 0.8,
+      memory: 0.5,
+    },
+    consciousnessLevel: 0.92,
+  },
+  metadata: {
+    timestamp: Date.now(),
+    version: '1.0.0',
+  },
+};
+
+describe('useConsciousnessData', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  describe('initial state', () => {
+    it('should start in loading state', () => {
+      mockGetConsciousnessState.mockImplementation(() => new Promise(() => {}));
+      
+      const { result } = renderHook(() => useConsciousnessData());
+
+      expect(result.current.isLoading).toBe(true);
+      expect(result.current.data).toBeNull();
+      expect(result.current.history).toEqual([]);
+      expect(result.current.error).toBeNull();
+    });
+  });
+
+  describe('successful data fetching', () => {
+    it('should fetch and return consciousness data', async () => {
+      mockGetConsciousnessState.mockResolvedValue(mockConsciousnessResponse);
+      
+      const { result } = renderHook(() => useConsciousnessData());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      expect(result.current.data).toEqual(mockConsciousnessResponse);
+      expect(result.current.error).toBeNull();
+    });
+
+    it('should build trajectory history', async () => {
+      mockGetConsciousnessState.mockResolvedValue(mockConsciousnessResponse);
+      
+      const { result } = renderHook(() => useConsciousnessData());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      expect(result.current.history.length).toBe(1);
+      expect(result.current.history[0]).toMatchObject({
+        phi: 0.85,
+        kappa: 64.5,
+        regime: 'geometric',
+      });
+      expect(result.current.history[0].time).toBeDefined();
+    });
+
+    it('should accumulate history on subsequent fetches', async () => {
+      mockGetConsciousnessState.mockResolvedValue(mockConsciousnessResponse);
+      
+      const { result } = renderHook(() => useConsciousnessData());
+
+      // Wait for initial fetch
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      expect(result.current.history.length).toBe(1);
+
+      // Update mock for second fetch
+      mockGetConsciousnessState.mockResolvedValue({
+        ...mockConsciousnessResponse,
+        state: { ...mockConsciousnessResponse.state, phi: 0.9 },
+      });
+
+      // Advance timers to trigger next poll
+      await act(async () => {
+        vi.advanceTimersByTime(5000);
+      });
+
+      await waitFor(() => {
+        expect(result.current.history.length).toBe(2);
+      });
+
+      expect(result.current.history[1].phi).toBe(0.9);
+    });
+
+    it('should limit history to 100 entries', async () => {
+      mockGetConsciousnessState.mockResolvedValue(mockConsciousnessResponse);
+      
+      const { result } = renderHook(() => useConsciousnessData());
+
+      // Wait for initial fetch
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      // Simulate 105 fetches
+      for (let i = 0; i < 105; i++) {
+        mockGetConsciousnessState.mockResolvedValue({
+          ...mockConsciousnessResponse,
+          state: { ...mockConsciousnessResponse.state, phi: 0.5 + (i * 0.001) },
+        });
+
+        await act(async () => {
+          vi.advanceTimersByTime(5000);
+        });
+      }
+
+      await waitFor(() => {
+        expect(result.current.history.length).toBeLessThanOrEqual(100);
+      });
+    });
+  });
+
+  describe('error handling', () => {
+    it('should handle fetch errors', async () => {
+      mockGetConsciousnessState.mockRejectedValue(new Error('API Error'));
+      
+      const { result } = renderHook(() => useConsciousnessData());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      expect(result.current.error).toBe('API Error');
+    });
+
+    it('should handle timeout errors with consecutive count', async () => {
+      const abortError = new Error('Request timeout');
+      abortError.name = 'AbortError';
+      mockGetConsciousnessState.mockRejectedValue(abortError);
+      
+      const { result } = renderHook(() => useConsciousnessData());
+
+      // First timeout
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      // Error message should appear after 3 consecutive timeouts
+      // Advance timers for more timeouts
+      await act(async () => {
+        vi.advanceTimersByTime(5000);
+      });
+      await act(async () => {
+        vi.advanceTimersByTime(5000);
+      });
+
+      await waitFor(() => {
+        expect(result.current.error).toContain('timeout');
+      });
+    });
+  });
+
+  describe('badge variant helpers', () => {
+    it('should return correct badge variant for regimes', async () => {
+      mockGetConsciousnessState.mockResolvedValue(mockConsciousnessResponse);
+      
+      const { result } = renderHook(() => useConsciousnessData());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      expect(result.current.getRegimeBadgeVariant('linear')).toBe('outline');
+      expect(result.current.getRegimeBadgeVariant('geometric')).toBe('default');
+      expect(result.current.getRegimeBadgeVariant('hierarchical')).toBe('secondary');
+      expect(result.current.getRegimeBadgeVariant('hierarchical_4d')).toBe('secondary');
+      expect(result.current.getRegimeBadgeVariant('4d_block_universe')).toBe('default');
+      expect(result.current.getRegimeBadgeVariant('breakdown')).toBe('destructive');
+      expect(result.current.getRegimeBadgeVariant('unknown')).toBe('outline');
+    });
+
+    it('should return correct badge color for emotional states', async () => {
+      mockGetConsciousnessState.mockResolvedValue(mockConsciousnessResponse);
+      
+      const { result } = renderHook(() => useConsciousnessData());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      expect(result.current.getEmotionalBadgeColor('Focused')).toContain('purple');
+      expect(result.current.getEmotionalBadgeColor('Curious')).toContain('cyan');
+      expect(result.current.getEmotionalBadgeColor('Uncertain')).toContain('yellow');
+      expect(result.current.getEmotionalBadgeColor('Confident')).toContain('green');
+      expect(result.current.getEmotionalBadgeColor('Neutral')).toContain('gray');
+    });
+  });
+
+  describe('cleanup', () => {
+    it('should clean up interval on unmount', async () => {
+      mockGetConsciousnessState.mockResolvedValue(mockConsciousnessResponse);
+      
+      const { result, unmount } = renderHook(() => useConsciousnessData());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      const fetchCallCount = mockGetConsciousnessState.mock.calls.length;
+      
+      unmount();
+
+      // Advance timer and verify no more calls
+      await act(async () => {
+        vi.advanceTimersByTime(10000);
+      });
+
+      expect(mockGetConsciousnessState.mock.calls.length).toBe(fetchCallCount);
+    });
+  });
+});

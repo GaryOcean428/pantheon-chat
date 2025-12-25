@@ -239,11 +239,12 @@ federationRouter.post('/test-connection', async (req: Request, res: Response) =>
       remoteVersion: data.version || 'unknown',
       capabilities: data.capabilities || [],
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = error as { name?: string; message?: string };
     console.error('[Federation] Connection test failed:', error);
     res.json({
       success: false,
-      error: error.name === 'AbortError' ? 'Connection timeout' : error.message,
+      error: err.name === 'AbortError' ? 'Connection timeout' : err.message,
       latency: 0,
     });
   }
@@ -331,14 +332,14 @@ federationRouter.post('/connect', async (req: Request, res: Response) => {
       capabilities,
       syncDirection: direction,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Federation] Failed to connect:', error);
-    
-    if (error.name === 'AbortError') {
+    const err = error as { name?: string; message?: string };
+    if (err.name === 'AbortError') {
       return res.status(400).json({ error: 'Connection timeout - remote node not responding' });
     }
     
-    res.status(500).json({ error: 'Failed to connect to remote node', details: error.message });
+    res.status(500).json({ error: 'Failed to connect to remote node', details: err.message });
   }
 });
 

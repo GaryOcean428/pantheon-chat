@@ -2353,6 +2353,15 @@ export class OceanAgent {
           const mnemonicResult = deriveMnemonicAddresses(hypo.phrase);
           let foundMatch = false;
           let matchedPath = "";
+          
+          // Extended hypothesis with mnemonic-specific fields
+          const extHypo = hypo as typeof hypo & {
+            derivationPath?: string;
+            pathType?: string;
+            isMnemonicDerived?: boolean;
+            dormantMatch?: unknown;
+            hdAddressCount?: number;
+          };
 
           for (const derived of mnemonicResult.addresses) {
             if (derived.address === this.targetAddress) {
@@ -3966,7 +3975,7 @@ export class OceanAgent {
 
     // Get knowledge gaps that need exploration
     // Focus on high-priority gaps in the knowledge manifold
-    const selfWithGaps = this as typeof this & { knowledgeGaps?: string[] };
+    const selfWithGaps = this as typeof this & { knowledgeGaps?: Array<{ domain?: string; confidence?: number; topic?: string }> };
     const knowledgeGaps = selfWithGaps.knowledgeGaps?.slice(0, 20) || [];
 
     if (knowledgeGaps.length === 0) {
@@ -5058,11 +5067,12 @@ export class OceanAgent {
     const telemetry = this.computeFullSpectrumTelemetry();
 
     // Emit to frontend with special telemetry marker
+    // Use type assertion for extended state with telemetry fields
     this.onStateUpdate({
       ...this.getState(),
       fullTelemetry: telemetry,
       telemetryType: "full_spectrum",
-    });
+    } as OceanAgentState & { fullTelemetry: unknown; telemetryType: string });
   }
 
   /**

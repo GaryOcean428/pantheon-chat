@@ -10,6 +10,7 @@
  */
 
 import { Router } from 'express';
+import { getErrorMessage, handleRouteError } from '../lib/error-utils';
 import type { Request, Response } from 'express';
 import { telemetryAggregator } from '../telemetry-aggregator';
 import rateLimit from 'express-rate-limit';
@@ -38,11 +39,11 @@ router.get('/overview', telemetryLimiter, async (req: Request, res: Response) =>
       success: true,
       data: overview,
     });
-  } catch (error: any) {
-    console.error('[TelemetryRoutes] Overview error:', error);
+  } catch (error: unknown) {
+    console.error('[TelemetryRoutes] Overview error:', getErrorMessage(error));
     res.status(500).json({
       success: false,
-      error: error.message || 'Failed to fetch telemetry overview',
+      error: getErrorMessage(error) || 'Failed to fetch telemetry overview',
     });
   }
 });
@@ -65,11 +66,11 @@ router.get('/consciousness', telemetryLimiter, async (req: Request, res: Respons
         timestamp: new Date().toISOString(),
       },
     });
-  } catch (error: any) {
-    console.error('[TelemetryRoutes] Consciousness error:', error);
+  } catch (error: unknown) {
+    console.error('[TelemetryRoutes] Consciousness error:', getErrorMessage(error));
     res.status(500).json({
       success: false,
-      error: error.message || 'Failed to fetch consciousness metrics',
+      error: getErrorMessage(error) || 'Failed to fetch consciousness metrics',
     });
   }
 });
@@ -90,11 +91,11 @@ router.get('/usage', telemetryLimiter, async (req: Request, res: Response) => {
         timestamp: new Date().toISOString(),
       },
     });
-  } catch (error: any) {
-    console.error('[TelemetryRoutes] Usage error:', error);
+  } catch (error: unknown) {
+    console.error('[TelemetryRoutes] Usage error:', getErrorMessage(error));
     res.status(500).json({
       success: false,
-      error: error.message || 'Failed to fetch usage stats',
+      error: getErrorMessage(error) || 'Failed to fetch usage stats',
     });
   }
 });
@@ -115,11 +116,11 @@ router.get('/learning', telemetryLimiter, async (req: Request, res: Response) =>
         timestamp: new Date().toISOString(),
       },
     });
-  } catch (error: any) {
-    console.error('[TelemetryRoutes] Learning error:', error);
+  } catch (error: unknown) {
+    console.error('[TelemetryRoutes] Learning error:', getErrorMessage(error));
     res.status(500).json({
       success: false,
-      error: error.message || 'Failed to fetch learning stats',
+      error: getErrorMessage(error) || 'Failed to fetch learning stats',
     });
   }
 });
@@ -140,11 +141,11 @@ router.get('/defense', telemetryLimiter, async (req: Request, res: Response) => 
         timestamp: new Date().toISOString(),
       },
     });
-  } catch (error: any) {
-    console.error('[TelemetryRoutes] Defense error:', error);
+  } catch (error: unknown) {
+    console.error('[TelemetryRoutes] Defense error:', getErrorMessage(error));
     res.status(500).json({
       success: false,
-      error: error.message || 'Failed to fetch defense stats',
+      error: getErrorMessage(error) || 'Failed to fetch defense stats',
     });
   }
 });
@@ -165,11 +166,11 @@ router.get('/autonomy', telemetryLimiter, async (req: Request, res: Response) =>
         timestamp: new Date().toISOString(),
       },
     });
-  } catch (error: any) {
-    console.error('[TelemetryRoutes] Autonomy error:', error);
+  } catch (error: unknown) {
+    console.error('[TelemetryRoutes] Autonomy error:', getErrorMessage(error));
     res.status(500).json({
       success: false,
-      error: error.message || 'Failed to fetch autonomy stats',
+      error: getErrorMessage(error) || 'Failed to fetch autonomy stats',
     });
   }
 });
@@ -194,11 +195,11 @@ router.get('/history', telemetryLimiter, async (req: Request, res: Response) => 
         count: history.length,
       },
     });
-  } catch (error: any) {
-    console.error('[TelemetryRoutes] History error:', error);
+  } catch (error: unknown) {
+    console.error('[TelemetryRoutes] History error:', getErrorMessage(error));
     res.status(500).json({
       success: false,
-      error: error.message || 'Failed to fetch telemetry history',
+      error: getErrorMessage(error) || 'Failed to fetch telemetry history',
     });
   }
 });
@@ -304,11 +305,11 @@ router.post('/snapshot', telemetryLimiter, async (req: Request, res: Response) =
       success: true,
       message: 'Telemetry snapshot recorded',
     });
-  } catch (error: any) {
-    console.error('[TelemetryRoutes] Snapshot error:', error);
+  } catch (error: unknown) {
+    console.error('[TelemetryRoutes] Snapshot error:', getErrorMessage(error));
     res.status(500).json({
       success: false,
-      error: error.message || 'Failed to record snapshot',
+      error: getErrorMessage(error) || 'Failed to record snapshot',
     });
   }
 });

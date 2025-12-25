@@ -1,4 +1,5 @@
 import { Router, type Request, type Response } from "express";
+import { getErrorMessage, handleRouteError } from '../lib/error-utils';
 import { generousLimiter } from "../rate-limiters";
 import { getSharedController, ConsciousnessSearchController } from "../consciousness-search-controller";
 import { oceanSessionManager } from "../ocean-session-manager";
@@ -57,8 +58,8 @@ consciousnessRouter.get("/state", async (req: Request, res: Response) => {
       regimeColor: ConsciousnessSearchController.getRegimeColor(state.currentRegime),
       regimeDescription: ConsciousnessSearchController.getRegimeDescription(state.currentRegime),
     });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -158,9 +159,8 @@ consciousnessRouter.get("/complete", generousLimiter, async (req: Request, res: 
       sessionActive: !!session,
       timestamp: new Date().toISOString(),
     });
-  } catch (error: any) {
-    console.error("[Consciousness Complete] Error:", error);
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    handleRouteError(res, error, 'ConsciousnessComplete');
   }
 });
 
@@ -182,9 +182,8 @@ consciousnessRouter.get("/innate-drives", generousLimiter, async (req: Request, 
       score: 0.5,
       recommendation: "innate-drives module not yet implemented",
     });
-  } catch (error: any) {
-    console.error("[Innate Drives] Error:", error);
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    handleRouteError(res, error, 'InnateDrives');
   }
 });
 
@@ -214,9 +213,8 @@ consciousnessRouter.get("/beta-attention", generousLimiter, async (req: Request,
       validationPassed: result.validation.passed,
       substrateIndependence: result.summary.substrateIndependenceValidated,
     });
-  } catch (error: any) {
-    console.error("[Beta Attention] Error:", error);
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    handleRouteError(res, error, 'BetaAttention');
   }
 });
 
@@ -264,9 +262,8 @@ nearMissRouter.get("/", generousLimiter, async (req: Request, res: Response) => 
       })),
       timestamp: new Date().toISOString(),
     });
-  } catch (error: any) {
-    console.error("[Near-Miss API] Error:", error);
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    handleRouteError(res, error, 'NearMissAPI');
   }
 });
 
@@ -280,9 +277,8 @@ nearMissRouter.post("/decay", generousLimiter, async (req: Request, res: Respons
       stats,
       timestamp: new Date().toISOString(),
     });
-  } catch (error: any) {
-    console.error("[Near-Miss Decay] Error:", error);
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    handleRouteError(res, error, 'NearMissDecay');
   }
 });
 
@@ -302,9 +298,8 @@ nearMissRouter.post("/rebuild-clusters", generousLimiter, async (req: Request, r
       })),
       timestamp: new Date().toISOString(),
     });
-  } catch (error: any) {
-    console.error("[Near-Miss Rebuild] Error:", error);
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    handleRouteError(res, error, 'NearMissRebuild');
   }
 });
 
@@ -348,9 +343,8 @@ nearMissRouter.get("/cluster/:clusterId/members", generousLimiter, async (req: R
       })),
       timestamp: new Date().toISOString(),
     });
-  } catch (error: any) {
-    console.error("[Near-Miss Cluster Members] Error:", error);
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    handleRouteError(res, error, 'NearMissClusterMembers');
   }
 });
 
@@ -384,9 +378,8 @@ nearMissRouter.get("/cluster-analytics", generousLimiter, async (req: Request, r
       summary,
       timestamp: new Date().toISOString(),
     });
-  } catch (error: any) {
-    console.error("[Near-Miss Cluster Analytics] Error:", error);
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    handleRouteError(res, error, 'NearMissClusterAnalytics');
   }
 });
 
@@ -427,9 +420,8 @@ nearMissRouter.get("/success-rates", generousLimiter, async (req: Request, res: 
       insights,
       timestamp: new Date().toISOString(),
     });
-  } catch (error: any) {
-    console.error("[Near-Miss Success Rates] Error:", error);
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    handleRouteError(res, error, 'NearMissSuccessRates');
   }
 });
 
@@ -457,9 +449,8 @@ nearMissRouter.post("/conversion", generousLimiter, async (req: Request, res: Re
       successRates: nearMissManager.getTierSuccessRates(),
       timestamp: new Date().toISOString(),
     });
-  } catch (error: any) {
-    console.error("[Near-Miss Conversion] Error:", error);
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    handleRouteError(res, error, 'NearMissConversion');
   }
 });
 
@@ -478,9 +469,8 @@ attentionMetricsRouter.post("/validate", generousLimiter, async (req: Request, r
       result,
       formatted: formatValidationResult(result),
     });
-  } catch (error: any) {
-    console.error("[API] β-attention validation error:", error);
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    handleRouteError(res, error, 'BetaAttentionValidation');
   }
 });
 
@@ -544,9 +534,8 @@ vocabularyRouter.post("/classify", generousLimiter, async (req: Request, res: Re
       nonBip39Words: nonBip39Words.slice(0, 10),
       isValidSeedLength: validSeedLengths.includes(wordCount),
     });
-  } catch (error: any) {
-    console.error("[Vocabulary Classify] Error:", error);
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    handleRouteError(res, error, 'VocabularyClassify');
   }
 });
 
@@ -560,9 +549,8 @@ vocabularyRouter.get("/stats", generousLimiter, async (req: Request, res: Respon
       stats,
       timestamp: new Date().toISOString(),
     });
-  } catch (error: any) {
-    console.error("[Vocabulary Stats] Error:", error);
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    handleRouteError(res, error, 'VocabularyStats');
   }
 });
 
@@ -582,9 +570,8 @@ vocabularyRouter.post("/reframe", generousLimiter, async (req: Request, res: Res
     
     const result = await response.json();
     res.json(result);
-  } catch (error: any) {
-    console.error("[Vocabulary Reframe] Error:", error);
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    handleRouteError(res, error, 'VocabularyReframe');
   }
 });
 
@@ -604,9 +591,8 @@ vocabularyRouter.post("/suggest-correction", generousLimiter, async (req: Reques
     
     const result = await response.json();
     res.json(result);
-  } catch (error: any) {
-    console.error("[Vocabulary Suggest Correction] Error:", error);
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    handleRouteError(res, error, 'VocabularySuggestCorrection');
   }
 });
 
@@ -625,7 +611,7 @@ ucpRouter.get("/stats", async (req: Request, res: Response) => {
         knowledgeCompression: ucpStats.compressionMetrics.generators > 0 ? 'active' : 'idle',
       },
     });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });

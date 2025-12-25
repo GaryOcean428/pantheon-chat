@@ -337,10 +337,11 @@ async function syncVocabularyToPython(): Promise<void> {
         "[PythonSync] Vocabulary sync returned empty result - encoder may not be ready"
       );
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
     console.error(
       "[PythonSync] Error syncing vocabulary to Python:",
-      error?.message || error
+      message
     );
   }
 }
@@ -481,8 +482,8 @@ process.on("unhandledRejection", (reason, promise) => {
 if (pool) {
   pool.on("error", (err) => {
     // Safely extract error message - ErrorEvent from WebSocket has read-only message property
-    const errWithType = err as { type?: string } | Error;
-    const msg = err instanceof Error ? err.message : (errWithType?.type || 'Unknown pool error');
+    const errWithType = err as { type?: string };
+    const msg = err instanceof Error ? err.message : (errWithType.type || 'Unknown pool error');
     console.error(
       "[DB] Pool error (connection will be recreated):",
       msg

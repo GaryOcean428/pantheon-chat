@@ -181,9 +181,10 @@ export async function setupAuth(app: Express) {
         prompt: "login consent",
         scope: ["openid", "email", "profile", "offline_access"],
       })(req, res, next);
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
       console.error(`[Auth] Login setup error:`, error);
-      res.status(500).json({ error: 'Login failed', details: error.message });
+      res.status(500).json({ error: 'Login failed', details: message });
     }
   });
 

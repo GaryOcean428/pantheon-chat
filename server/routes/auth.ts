@@ -26,7 +26,7 @@ export async function initAuthRoutes(authEnabled: boolean): Promise<void> {
         }
         
         res.json(user);
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error("Error fetching user:", error);
         res.status(500).json({ message: "Failed to fetch user" });
       }

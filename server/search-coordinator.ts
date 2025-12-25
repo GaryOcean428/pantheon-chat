@@ -169,13 +169,14 @@ class SearchCoordinator {
 
     try {
       await this.executeJob(jobToProcess.id);
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
       console.error(
         `[SearchCoordinator] Job ${jobToProcess.id} failed:`,
         error
       );
       await storage.appendJobLog(jobToProcess.id, {
-        message: `Job failed: ${error.message}`,
+        message: `Job failed: ${message}`,
         type: "error",
       });
       await storage.updateSearchJob(jobToProcess.id, { status: "failed" });

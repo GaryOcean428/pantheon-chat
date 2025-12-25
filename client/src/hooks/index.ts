@@ -21,6 +21,10 @@ export { useMeshNetworkWebSocket } from './useMeshNetworkWebSocket';
 export type { MeshPeer, MeshNetworkStatus, MeshEvent } from './useMeshNetworkWebSocket';
 export { useStreamingMetrics } from './useStreamingMetrics';
 export { useGeometricStreaming } from './use-geometric-streaming';
+export { useAutonomicAgencyData } from './useAutonomicAgencyData';
+export type { UseAutonomicAgencyDataReturn } from './useAutonomicAgencyData';
+export { useConsciousnessData } from './useConsciousnessData';
+export type { UseConsciousnessDataReturn } from './useConsciousnessData';
 export { useGeometricKernel } from './use-geometric-kernel';
 export { 
   useM8Spawning,
