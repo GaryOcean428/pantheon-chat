@@ -204,11 +204,11 @@ export class OceanProxy {
   /**
    * Send message to Zeus chat
    * 
-   * Calls: POST /olympus/zeus/chat
+   * Calls: POST /api/zeus/chat
    * Returns: Zeus response and pantheon insights
    */
   async sendZeusChat(message: string, context?: any): Promise<any> {
-    return this.post<any>('/olympus/zeus/chat', { message, context });
+    return this.post<any>('/api/zeus/chat', { message, context });
   }
 
   /**

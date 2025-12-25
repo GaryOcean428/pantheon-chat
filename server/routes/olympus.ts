@@ -243,7 +243,7 @@ router.post('/zeus/chat', isAuthenticated, async (req, res) => {
         }
       }
       
-      const response = await fetch(`${backendUrl}/olympus/zeus/chat`, {
+      const response = await fetch(`${backendUrl}/api/zeus/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(req.body),
@@ -298,7 +298,7 @@ router.post('/zeus/chat', isAuthenticated, async (req, res) => {
     
     // For multipart requests - proxy using native http module
     // This bypasses Express body parsing and streams directly
-    const targetUrl = new URL(`${backendUrl}/olympus/zeus/chat`);
+    const targetUrl = new URL(`${backendUrl}/api/zeus/chat`);
     const isHttps = targetUrl.protocol === 'https:';
     const httpModule = isHttps ? https : http;
     
@@ -375,7 +375,7 @@ router.get('/zeus/sessions', isAuthenticated, async (req, res) => {
   const limit = Math.min(Math.max(parseInt(req.query.limit as string) || 20, 1), 100);
   const userId = (req as any).user?.claims?.sub || 'default';
   try {
-    const response = await fetch(`${backendUrl}/olympus/zeus/sessions?limit=${limit}&user_id=${encodeURIComponent(userId)}`, {
+    const response = await fetch(`${backendUrl}/api/zeus/sessions?limit=${limit}&user_id=${encodeURIComponent(userId)}`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
     });
@@ -398,7 +398,7 @@ router.post('/zeus/sessions', isAuthenticated, async (req, res) => {
   const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
   const userId = (req as any).user?.claims?.sub || 'default';
   try {
-    const response = await fetch(`${backendUrl}/olympus/zeus/sessions`, {
+    const response = await fetch(`${backendUrl}/api/zeus/sessions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...req.body, user_id: userId }),
@@ -423,7 +423,7 @@ router.get('/zeus/sessions/:sessionId/messages', isAuthenticated, async (req, re
   const userId = (req as any).user?.claims?.sub || 'default';
   try {
     const { sessionId } = req.params;
-    const response = await fetch(`${backendUrl}/olympus/zeus/sessions/${sessionId}/messages?user_id=${encodeURIComponent(userId)}`, {
+    const response = await fetch(`${backendUrl}/api/zeus/sessions/${sessionId}/messages?user_id=${encodeURIComponent(userId)}`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
     });
@@ -447,7 +447,7 @@ router.post('/zeus/search', isAuthenticated, validateInput(searchQuerySchema), a
   try {
     const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
     
-    const response = await fetch(`${backendUrl}/olympus/zeus/search`, {
+    const response = await fetch(`${backendUrl}/api/zeus/search`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -484,7 +484,7 @@ router.get('/zeus/search/learner/timeseries', isAuthenticated, async (req, res) 
     const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
     const days = req.query.days || 30;
     
-    const response = await fetch(`${backendUrl}/olympus/zeus/search/learner/timeseries?days=${days}`, {
+    const response = await fetch(`${backendUrl}/api/zeus/search/learner/timeseries?days=${days}`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
     });
@@ -514,7 +514,7 @@ router.get('/zeus/search/learner/replay/history', isAuthenticated, async (req, r
     const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
     const limit = req.query.limit || 20;
     
-    const response = await fetch(`${backendUrl}/olympus/zeus/search/learner/replay/history?limit=${limit}`, {
+    const response = await fetch(`${backendUrl}/api/zeus/search/learner/replay/history?limit=${limit}`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
     });
@@ -623,7 +623,7 @@ router.post('/zeus/tools/patterns/match', isAuthenticated, (req, res) =>
 /** Get Tool Factory <-> Shadow Research bridge status */
 router.get('/zeus/tools/bridge/status', isAuthenticated, async (req, res) => {
   try {
-    const response = await fetch(`${BACKEND_URL}/olympus/zeus/tools/bridge/status`, {
+    const response = await fetch(`${BACKEND_URL}/api/zeus/tools/bridge/status`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
     });

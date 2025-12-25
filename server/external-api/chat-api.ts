@@ -101,7 +101,7 @@ router.post('/', authenticateExternalApi, async (req: Request, res: Response) =>
     };
     
     // Call Python backend Zeus chat
-    const response = await fetch(`${PYTHON_BACKEND}/olympus/zeus/chat`, {
+    const response = await fetch(`${PYTHON_BACKEND}/api/zeus/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -183,7 +183,7 @@ async function handleStreamingChat(
     };
     
     // Call Python backend streaming endpoint
-    const response = await fetch(`${PYTHON_BACKEND}/olympus/zeus/stream`, {
+    const response = await fetch(`${PYTHON_BACKEND}/api/zeus/stream`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -270,7 +270,7 @@ router.get('/:sessionId', authenticateExternalApi, async (req: Request, res: Res
     const { sessionId } = req.params;
     
     // Get session from Python backend
-    const response = await fetch(`${PYTHON_BACKEND}/olympus/zeus/session/${sessionId}`, {
+    const response = await fetch(`${PYTHON_BACKEND}/api/zeus/session/${sessionId}`, {
       headers: {
         'X-Internal-Auth': process.env.INTERNAL_API_KEY || 'dev-key'
       }
