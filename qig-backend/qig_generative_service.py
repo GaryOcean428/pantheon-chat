@@ -197,7 +197,8 @@ class QIGGenerativeService:
         if self._coordizer is None and COORDIZER_AVAILABLE:
             try:
                 self._coordizer = create_coordizer_from_pg()
-                logger.info(f"[QIGGenerativeService] Loaded {self._coordizer.vocab_size} tokens")
+                vocab_count = len(getattr(self._coordizer, 'vocab', {}))
+                logger.info(f"[QIGGenerativeService] Loaded {vocab_count} tokens")
             except Exception as e:
                 logger.error(f"[QIGGenerativeService] Failed to load coordizer: {e}")
         return self._coordizer

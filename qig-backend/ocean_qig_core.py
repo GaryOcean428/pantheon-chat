@@ -3090,15 +3090,19 @@ def tokenizer_status():
         from qig_coordizer import get_coordizer as get_tokenizer
 
         tokenizer = get_tokenizer()
-        high_phi = [p for p in tokenizer.token_phi.values() if p >= 0.5]
-        avg_phi = sum(tokenizer.token_phi.values()) / max(len(tokenizer.token_phi), 1)
+        token_phi = getattr(tokenizer, 'token_phi', {})
+        token_weights = getattr(tokenizer, 'token_weights', {})
+        vocab = getattr(tokenizer, 'vocab', {})
+        
+        high_phi = [p for p in token_phi.values() if p >= 0.5]
+        avg_phi = sum(token_phi.values()) / max(len(token_phi), 1)
 
         return jsonify({
             'success': True,
-            'vocabSize': len(tokenizer.vocab),
+            'vocabSize': len(vocab),
             'highPhiCount': len(high_phi),
             'avgPhi': avg_phi,
-            'totalWeightedTokens': len(tokenizer.token_weights)
+            'totalWeightedTokens': len(token_weights)
         })
 
     except Exception as e:

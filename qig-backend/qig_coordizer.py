@@ -1128,7 +1128,7 @@ def get_coordizer():
     if _coordizer_instance is None:
         # Try SimpleWordCoordizer first (clean database-backed implementation)
         try:
-            from coordizers.simple_word_coordizer import SimpleWordCoordizer
+            from simple_word_coordizer import SimpleWordCoordizer
             simple_coordizer = SimpleWordCoordizer()
             
             if simple_coordizer.vocab_size >= 50 and not simple_coordizer.is_using_fallback():
