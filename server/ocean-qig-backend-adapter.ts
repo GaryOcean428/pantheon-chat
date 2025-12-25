@@ -1116,10 +1116,7 @@ export class OceanQIGBackend {
       return data.data;
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error(
-        "[OceanQIGBackend] Vocabulary export failed:",
-        errorMessage
-      );
+      logger.error({ errorMessage }, "[OceanQIGBackend] Vocabulary export failed");
       throw error;
     }
   }
@@ -1166,10 +1163,7 @@ export class OceanQIGBackend {
       };
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error(
-        "[OceanQIGBackend] Vocabulary status failed:",
-        errorMessage
-      );
+      logger.error({ errorMessage }, "[OceanQIGBackend] Vocabulary status failed");
       throw error;
     }
   }
