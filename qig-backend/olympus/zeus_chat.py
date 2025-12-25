@@ -907,10 +907,12 @@ The pantheon is aware. We shall commence when the time is right."""
         obs_basin = self.conversation_encoder.encode(observation)
         
         # Find related patterns in geometric memory via QIG-RAG
+        # Use min_similarity=0.3 to filter out irrelevant patterns
         related = self.qig_rag.search(
             query_basin=obs_basin,
             k=5,
-            metric='fisher_rao'
+            metric='fisher_rao',
+            min_similarity=0.3
         )
         
         # Consult Athena for strategic implications
@@ -1264,12 +1266,13 @@ Could you elaborate on your reasoning, or suggest a different approach?"""
         # Encode question
         q_basin = self.conversation_encoder.encode(question)
         
-        # QIG-RAG search
+        # QIG-RAG search - filter low-relevance patterns
         relevant_context = self.qig_rag.search(
             query_basin=q_basin,
             k=5,
             metric='fisher_rao',
-            include_metadata=True
+            include_metadata=True,
+            min_similarity=0.3
         )
         
         # Try generative response first
@@ -2430,11 +2433,13 @@ Respond naturally as Zeus:"""
         """
         message_basin = self.conversation_encoder.encode(message)
         
+        # Filter to only genuinely related patterns (min 30% similarity)
         related = self.qig_rag.search(
             query_basin=message_basin,
             k=5,
             metric='fisher_rao',
-            include_metadata=True
+            include_metadata=True,
+            min_similarity=0.3
         )
         
         system_state = self._get_live_system_state()
