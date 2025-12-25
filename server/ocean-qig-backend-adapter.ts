@@ -1204,10 +1204,7 @@ export class OceanQIGBackend {
       );
 
       if (!response.ok) {
-        logger.error(
-          "[OceanQIGBackend] Get merge rules failed:",
-          response.statusText
-        );
+        logger.error({ statusText: response.statusText }, "[OceanQIGBackend] Get merge rules failed");
         return { mergeRules: [], mergeScores: {}, count: 0 };
       }
 
@@ -1231,10 +1228,7 @@ export class OceanQIGBackend {
       };
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error(
-        "[OceanQIGBackend] Get merge rules exception:",
-        errorMessage
-      );
+      logger.error({ errorMessage }, "[OceanQIGBackend] Get merge rules exception");
       return { mergeRules: [], mergeScores: {}, count: 0 };
     }
   }
