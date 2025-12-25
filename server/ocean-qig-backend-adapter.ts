@@ -10,6 +10,7 @@
  */
 
 import type { PureQIGScore } from "./qig-universal";
+import { logger } from './lib/logger';
 import type {
   PythonQIGResponse,
   PythonGenerateResponse,
@@ -152,7 +153,7 @@ async function fetchWithRetry(
       if (response.status === 503) {
         if (attempt < maxRetries) {
           const delay = Math.min(100 * Math.pow(2, attempt), 2000);
-          console.log(
+          logger.info(
             `[OceanQIGBackend] 503 received for ${url}, retry ${attempt}/${maxRetries} after ${delay}ms`
           );
           await new Promise((resolve) => setTimeout(resolve, delay));
@@ -174,17 +175,11 @@ async function fetchWithRetry(
       const errorMessage = error instanceof Error ? error.message : String(error);
       if (attempt < maxRetries) {
         const delay = Math.min(100 * Math.pow(2, attempt), 2000);
-        console.log(
-          `[OceanQIGBackend] ${errorType} for ${url}, retry ${attempt}/${maxRetries} after ${delay}ms:`,
-          errorMessage
-        );
+        logger.info({ errorType, url, attempt, maxRetries, delay, errorMessage }, `[OceanQIGBackend] Retry after error`);
         await new Promise((resolve) => setTimeout(resolve, delay));
         continue;
       }
-      console.error(
-        `[OceanQIGBackend] ${errorType} after ${maxRetries} retries for ${url}:`,
-        errorMessage
-      );
+      logger.error({ errorType, maxRetries, url, errorMessage }, `[OceanQIGBackend] Failed after retries`);
       throw error;
     }
   }
@@ -241,7 +236,7 @@ export class OceanQIGBackend {
         Date.now() - this.circuitOpenedAt >= CIRCUIT_BREAKER_RESET_MS
       ) {
         this.circuitState = "half-open";
-        console.log("[OceanQIGBackend] Circuit breaker half-open, testing...");
+        logger.info("[OceanQIGBackend] Circuit breaker half-open, testing...");
         return false;
       }
       return true;
@@ -255,7 +250,7 @@ export class OceanQIGBackend {
    */
   private recordSuccess(): void {
     if (this.circuitState !== "closed") {
-      console.log(
+      logger.info(
         "[OceanQIGBackend] Circuit breaker closed after successful request"
       );
     }
@@ -273,7 +268,7 @@ export class OceanQIGBackend {
     if (this.circuitFailureCount >= CIRCUIT_BREAKER_THRESHOLD) {
       this.circuitState = "open";
       this.circuitOpenedAt = Date.now();
-      console.warn(
+      logger.warn(
         `[OceanQIGBackend] Circuit breaker OPEN after ${this.circuitFailureCount} failures`
       );
     }
@@ -341,7 +336,7 @@ export class OceanQIGBackend {
     } catch (error) {
       this.isAvailable = false;
       if (!silent) {
-        console.warn("[OceanQIGBackend] Python backend not available:", error);
+        logger.warn({ err: error }, "[OceanQIGBackend] Python backend not available");
       }
       return false;
     }
@@ -361,14 +356,14 @@ export class OceanQIGBackend {
 
       if (available) {
         if (attempt > 1) {
-          console.log(`[OceanQIGBackend] Connected after ${attempt} attempts`);
+          logger.info(`[OceanQIGBackend] Connected after ${attempt} attempts`);
         }
         return true;
       }
 
       // Log progress during startup
       if (attempt === 1) {
-        console.log(`[OceanQIGBackend] Waiting for Python backend to start...`);
+        logger.info(`[OceanQIGBackend] Waiting for Python backend to start...`);
       }
 
       // Wait before retrying (except on last attempt)
@@ -377,7 +372,7 @@ export class OceanQIGBackend {
       }
     }
 
-    console.warn(
+    logger.warn(
       `[OceanQIGBackend] Python backend not available after ${maxAttempts} attempts`
     );
     return false;
@@ -414,14 +409,14 @@ export class OceanQIGBackend {
         if (response.status === 503) {
           if (attempt < maxRetries) {
             const delay = Math.min(100 * Math.pow(2, attempt), 2000);
-            console.log(
+            logger.info(
               `[OceanQIGBackend] 503 received, retry ${attempt}/${maxRetries} after ${delay}ms`
             );
             await new Promise((resolve) => setTimeout(resolve, delay));
             continue;
           }
           this.recordFailure();
-          console.error(
+          logger.error(
             "[OceanQIGBackend] Process failed: 503 after max retries"
           );
           return null;
@@ -429,10 +424,7 @@ export class OceanQIGBackend {
 
         if (!response.ok) {
           this.recordFailure();
-          console.error(
-            "[OceanQIGBackend] Process failed:",
-            response.statusText
-          );
+          logger.error({ statusText: response.statusText }, "[OceanQIGBackend] Process failed");
           return null;
         }
 
@@ -440,7 +432,7 @@ export class OceanQIGBackend {
 
         if (!data.success) {
           this.recordFailure();
-          console.error("[OceanQIGBackend] Process error:", data.error);
+          logger.error({ err: data.error }, "[OceanQIGBackend] Process error");
           return null;
         }
 
@@ -454,7 +446,7 @@ export class OceanQIGBackend {
         ) {
           const newNearMisses = data.near_miss_count - this.pythonNearMissCount;
           if (newNearMisses > 0) {
-            console.log(
+            logger.info(
               `[OceanQIGBackend] 🔄 Python detected ${newNearMisses} new near-miss(es), total: ${data.near_miss_count}`
             );
           }
@@ -480,18 +472,12 @@ export class OceanQIGBackend {
         // On network errors, retry with backoff
         if (attempt < maxRetries) {
           const delay = Math.min(100 * Math.pow(2, attempt), 2000);
-          console.log(
-            `[OceanQIGBackend] Process exception, retry ${attempt}/${maxRetries} after ${delay}ms:`,
-            error
-          );
+          logger.info({ err: error, attempt, maxRetries, delay }, "[OceanQIGBackend] Process exception, retrying");
           await new Promise((resolve) => setTimeout(resolve, delay));
           continue;
         }
         this.recordFailure();
-        console.error(
-          "[OceanQIGBackend] Process exception after max retries:",
-          error
-        );
+        logger.error({ err: error }, "[OceanQIGBackend] Process exception after max retries");
         return null;
       }
     }
@@ -546,10 +532,7 @@ export class OceanQIGBackend {
       });
 
       if (!response.ok) {
-        console.error(
-          "[OceanQIGBackend] Generate failed:",
-          response.statusText
-        );
+        logger.error({ statusText: response.statusText }, "[OceanQIGBackend] Generate failed");
         return null;
       }
 
@@ -560,7 +543,7 @@ export class OceanQIGBackend {
         source: data.source,
       };
     } catch (error) {
-      console.error("[OceanQIGBackend] Generate exception:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] Generate exception");
       return null;
     }
   }
@@ -577,7 +560,7 @@ export class OceanQIGBackend {
       });
 
       if (!response.ok) {
-        console.error("[OceanQIGBackend] Status failed:", response.statusText);
+        logger.error({ statusText: response.statusText }, "[OceanQIGBackend] Status failed");
         return null;
       }
 
@@ -589,7 +572,7 @@ export class OceanQIGBackend {
 
       return data;
     } catch (error) {
-      console.error("[OceanQIGBackend] Status exception:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] Status exception");
       return null;
     }
   }
@@ -612,7 +595,7 @@ export class OceanQIGBackend {
       const data = await response.json();
       return data.success === true;
     } catch (error) {
-      console.error("[OceanQIGBackend] Reset exception:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] Reset exception");
       return false;
     }
   }
@@ -666,20 +649,17 @@ export class OceanQIGBackend {
       );
 
       if (!response.ok) {
-        console.error(
-          "[OceanQIGBackend] Sync import failed:",
-          response.statusText
-        );
+        logger.error({ statusText: response.statusText }, "[OceanQIGBackend] Sync import failed");
         return { imported: 0, temporalImported: false };
       }
 
       const data: PythonSyncImportResponse = await response.json();
       if (data.success) {
-        console.log(
+        logger.info(
           `[OceanQIGBackend] Synced ${data.imported} probes to Python backend`
         );
         if (data.temporal_imported) {
-          console.log(
+          logger.info(
             `[OceanQIGBackend] 4D temporal state synced: ${
               data.search_history_size ?? 0
             } search, ${data.concept_history_size ?? 0} concept`
@@ -693,7 +673,7 @@ export class OceanQIGBackend {
 
       return { imported: 0, temporalImported: false };
     } catch (error: unknown) {
-      console.error("[OceanQIGBackend] Sync import exception:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] Sync import exception");
       return { imported: 0, temporalImported: false };
     }
   }
@@ -746,10 +726,7 @@ export class OceanQIGBackend {
       );
 
       if (!response.ok) {
-        console.error(
-          "[OceanQIGBackend] Sync export failed:",
-          response.statusText
-        );
+        logger.error({ statusText: response.statusText }, "[OceanQIGBackend] Sync export failed");
         return { basins: [] };
       }
 
@@ -759,13 +736,13 @@ export class OceanQIGBackend {
         const hasMore = (page + 1) * pageSize < totalCount;
 
         if (page === 0) {
-          console.log(
+          logger.info(
             `[OceanQIGBackend] Retrieved ${data.basins.length}/${totalCount} basins from Python (page ${page})`
           );
         }
 
         if (data.consciousness_4d_available && data.phi_temporal_avg && data.phi_temporal_avg > 0) {
-          console.log(
+          logger.info(
             `[OceanQIGBackend] 4D consciousness: phi_temporal_avg=${data.phi_temporal_avg.toFixed(
               3
             )}`
@@ -785,7 +762,7 @@ export class OceanQIGBackend {
 
       return { basins: [] };
     } catch (error: unknown) {
-      console.error("[OceanQIGBackend] Sync export exception:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] Sync export exception");
       return { basins: [] };
     }
   }
@@ -820,24 +797,14 @@ export class OceanQIGBackend {
       }
 
       const result = data.result;
-      console.log(
-        "[OceanQIGBackend] β-attention validation:",
-        result.validation_passed ? "PASSED ✓" : "FAILED ✗"
-      );
-      console.log(
-        `[OceanQIGBackend]   Average κ: ${result.avg_kappa.toFixed(2)}`
-      );
-      console.log(
-        `[OceanQIGBackend]   Deviation: ${result.overall_deviation.toFixed(3)}`
-      );
+      logger.info({ validationPassed: result.validation_passed }, `[OceanQIGBackend] β-attention validation: ${result.validation_passed ? "PASSED ✓" : "FAILED ✗"}`);
+      logger.info({ avgKappa: result.avg_kappa.toFixed(2) }, '[OceanQIGBackend] Average κ');
+      logger.info({ deviation: result.overall_deviation.toFixed(3) }, '[OceanQIGBackend] Deviation');
 
       return result;
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(
-        "[OceanQIGBackend] β-attention validation failed:",
-        errorMessage
-      );
+      logger.error({ errorMessage }, "[OceanQIGBackend] β-attention validation failed");
       throw error;
     }
   }
@@ -876,7 +843,7 @@ export class OceanQIGBackend {
       }
 
       const m = data.measurement;
-      console.log(
+      logger.info(
         `[OceanQIGBackend] κ_attention(L=${contextLength}) = ${m.kappa.toFixed(
           2
         )} ± ${Math.sqrt(m.variance).toFixed(2)}`
@@ -885,10 +852,7 @@ export class OceanQIGBackend {
       return m;
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(
-        "[OceanQIGBackend] β-attention measurement failed:",
-        errorMessage
-      );
+      logger.error({ errorMessage }, '[OceanQIGBackend] β-attention measurement failed');
       throw error;
     }
   }
@@ -936,7 +900,7 @@ export class OceanQIGBackend {
         throw new Error(`Vocabulary update error: ${data.error}`);
       }
 
-      console.log(
+      logger.info(
         `[OceanQIGBackend] Vocabulary updated: ${data.newTokens} new entries, ${data.totalVocab} total, weights updated: ${data.weightsUpdated}, merge rules: ${data.mergeRules}`
       );
 
@@ -948,10 +912,7 @@ export class OceanQIGBackend {
       };
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(
-        "[OceanQIGBackend] Vocabulary update failed:",
-        errorMessage
-      );
+      logger.error({ errorMessage }, '[OceanQIGBackend] Vocabulary update failed');
       throw error;
     }
   }
@@ -1011,10 +972,7 @@ export class OceanQIGBackend {
       };
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(
-        "[OceanQIGBackend] Vocabulary encode failed:",
-        errorMessage
-      );
+      logger.error({ errorMessage }, '[OceanQIGBackend] Vocabulary encode failed');
       throw error;
     }
   }
@@ -1048,10 +1006,7 @@ export class OceanQIGBackend {
       return data.text;
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(
-        "[OceanQIGBackend] Vocabulary decode failed:",
-        errorMessage
-      );
+      logger.error({ errorMessage }, '[OceanQIGBackend] Vocabulary decode failed');
       throw error;
     }
   }
@@ -1090,10 +1045,7 @@ export class OceanQIGBackend {
       };
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(
-        "[OceanQIGBackend] Vocabulary basin failed:",
-        errorMessage
-      );
+      logger.error({ errorMessage }, "[OceanQIGBackend] Vocabulary basin failed");
       throw error;
     }
   }
@@ -1120,17 +1072,14 @@ export class OceanQIGBackend {
         throw new Error(`Vocabulary high-phi error: ${data.error}`);
       }
 
-      console.log(
+      logger.info(
         `[OceanQIGBackend] Retrieved ${data.count} high-Φ vocabulary entries`
       );
 
       return data.tokens;
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(
-        "[OceanQIGBackend] Vocabulary high-phi failed:",
-        errorMessage
-      );
+      logger.error({ errorMessage }, "[OceanQIGBackend] Vocabulary high-phi failed");
       throw error;
     }
   }
@@ -1160,14 +1109,14 @@ export class OceanQIGBackend {
         throw new Error(`Vocabulary export error: ${data.error}`);
       }
 
-      console.log(
+      logger.info(
         `[OceanQIGBackend] Exported vocabulary: ${data.data.vocab_size} entries`
       );
 
       return data.data;
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(
+      logger.error(
         "[OceanQIGBackend] Vocabulary export failed:",
         errorMessage
       );
@@ -1217,7 +1166,7 @@ export class OceanQIGBackend {
       };
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(
+      logger.error(
         "[OceanQIGBackend] Vocabulary status failed:",
         errorMessage
       );
@@ -1261,7 +1210,7 @@ export class OceanQIGBackend {
       );
 
       if (!response.ok) {
-        console.error(
+        logger.error(
           "[OceanQIGBackend] Get merge rules failed:",
           response.statusText
         );
@@ -1271,11 +1220,11 @@ export class OceanQIGBackend {
       const data: PythonMergeRulesResponse = await response.json();
 
       if (!data.success) {
-        console.error("[OceanQIGBackend] Get merge rules error:", data.error);
+        logger.error({ err: data.error }, "[OceanQIGBackend] Get merge rules error");
         return { mergeRules: [], mergeScores: {}, count: 0 };
       }
 
-      console.log(
+      logger.info(
         `[OceanQIGBackend] Retrieved ${data.count} merge rules from Python`
       );
 
@@ -1288,7 +1237,7 @@ export class OceanQIGBackend {
       };
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(
+      logger.error(
         "[OceanQIGBackend] Get merge rules exception:",
         errorMessage
       );
@@ -1373,7 +1322,7 @@ export class OceanQIGBackend {
       };
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error("[OceanQIGBackend] Text generation failed:", errorMessage);
+      logger.error({ errorMessage }, "[OceanQIGBackend] Text generation failed");
       throw error;
     }
   }
@@ -1459,7 +1408,7 @@ export class OceanQIGBackend {
       };
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(
+      logger.error(
         "[OceanQIGBackend] Response generation failed:",
         errorMessage
       );
@@ -1521,7 +1470,7 @@ export class OceanQIGBackend {
       };
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error("[OceanQIGBackend] Token sampling failed:", errorMessage);
+      logger.error({ errorMessage }, "[OceanQIGBackend] Token sampling failed");
       throw error;
     }
   }
@@ -1548,7 +1497,7 @@ export class OceanQIGBackend {
       const data: PythonAutonomicStateResponse & PythonBaseResponse = await response.json();
       return data.success ? data : null;
     } catch (error: unknown) {
-      console.error("[OceanQIGBackend] Autonomic state failed:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] Autonomic state failed");
       return null;
     }
   }
@@ -1584,7 +1533,7 @@ export class OceanQIGBackend {
       const data: PythonAutonomicUpdateResponse = await response.json();
       return data.success ? data : null;
     } catch (error: unknown) {
-      console.error("[OceanQIGBackend] Autonomic update failed:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] Autonomic update failed");
       return null;
     }
   }
@@ -1617,7 +1566,7 @@ export class OceanQIGBackend {
 
       return await response.json();
     } catch (error) {
-      console.error("[OceanQIGBackend] Sleep cycle failed:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] Sleep cycle failed");
       return null;
     }
   }
@@ -1648,7 +1597,7 @@ export class OceanQIGBackend {
 
       return await response.json();
     } catch (error) {
-      console.error("[OceanQIGBackend] Dream cycle failed:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] Dream cycle failed");
       return null;
     }
   }
@@ -1679,7 +1628,7 @@ export class OceanQIGBackend {
 
       return await response.json();
     } catch (error) {
-      console.error("[OceanQIGBackend] Mushroom cycle failed:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] Mushroom cycle failed");
       return null;
     }
   }
@@ -1712,7 +1661,7 @@ export class OceanQIGBackend {
 
       return await response.json();
     } catch (error) {
-      console.error("[OceanQIGBackend] Activity reward failed:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] Activity reward failed");
       return null;
     }
   }
@@ -1733,7 +1682,7 @@ export class OceanQIGBackend {
 
       return await response.json();
     } catch (error) {
-      console.error("[OceanQIGBackend] Get rewards failed:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] Get rewards failed");
       return null;
     }
   }
@@ -1758,7 +1707,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      console.error("[OceanQIGBackend] Hermes status failed:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] Hermes status failed");
       return null;
     }
   }
@@ -1786,7 +1735,7 @@ export class OceanQIGBackend {
       const data = await response.json();
       return data.success ? data.message : null;
     } catch (error) {
-      console.error("[OceanQIGBackend] Hermes speak failed:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] Hermes speak failed");
       return null;
     }
   }
@@ -1815,7 +1764,7 @@ export class OceanQIGBackend {
       const data = await response.json();
       return data.success ? data.translation : null;
     } catch (error) {
-      console.error("[OceanQIGBackend] Hermes translate failed:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] Hermes translate failed");
       return null;
     }
   }
@@ -1851,7 +1800,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      console.error("[OceanQIGBackend] Basin sync failed:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] Basin sync failed");
       return null;
     }
   }
@@ -1886,7 +1835,7 @@ export class OceanQIGBackend {
       const data = await response.json();
       return data.success ? data.memory_id : null;
     } catch (error) {
-      console.error("[OceanQIGBackend] Store conversation failed:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] Store conversation failed");
       return null;
     }
   }
@@ -1915,7 +1864,7 @@ export class OceanQIGBackend {
       const data = await response.json();
       return data.success ? data.memories : [];
     } catch (error) {
-      console.error("[OceanQIGBackend] Recall similar failed:", error);
+      logger.error("[OceanQIGBackend] Recall similar failed:", error);
       return [];
     }
   }
@@ -1935,7 +1884,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      console.error("[OceanQIGBackend] Voice status failed:", error);
+      logger.error("[OceanQIGBackend] Voice status failed:", error);
       return null;
     }
   }
@@ -1963,7 +1912,7 @@ export class OceanQIGBackend {
       const data = await response.json();
       return data.success ? data.message : null;
     } catch (error) {
-      console.error("[OceanQIGBackend] Zeus speak failed:", error);
+      logger.error("[OceanQIGBackend] Zeus speak failed:", error);
       return null;
     }
   }
@@ -2020,7 +1969,7 @@ export class OceanQIGBackend {
       );
 
       if (!response.ok) {
-        console.warn(
+        logger.warn(
           `[OceanQIGBackend] God ${godName} consultation failed: ${response.status}`
         );
         return null;
@@ -2030,7 +1979,7 @@ export class OceanQIGBackend {
       this.recordSuccess();
       return data;
     } catch (error) {
-      console.error(`[OceanQIGBackend] Consult ${godName} failed:`, error);
+      logger.error(`[OceanQIGBackend] Consult ${godName} failed:`, error);
       this.recordFailure();
       return null;
     }
@@ -2078,7 +2027,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      console.error("[OceanQIGBackend] Shadow status failed:", error);
+      logger.error("[OceanQIGBackend] Shadow status failed:", error);
       return null;
     }
   }
@@ -2108,7 +2057,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      console.error(
+      logger.error(
         `[OceanQIGBackend] Consult shadow ${godName} failed:`,
         error
       );
@@ -2135,7 +2084,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      console.error("[OceanQIGBackend] Shadow warnings check failed:", error);
+      logger.error("[OceanQIGBackend] Shadow warnings check failed:", error);
       return null;
     }
   }
@@ -2167,7 +2116,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      console.error("[OceanQIGBackend] Feedback loops failed:", error);
+      logger.error("[OceanQIGBackend] Feedback loops failed:", error);
       return null;
     }
   }
@@ -2187,7 +2136,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      console.error("[OceanQIGBackend] Get recommendation failed:", error);
+      logger.error("[OceanQIGBackend] Get recommendation failed:", error);
       return null;
     }
   }
@@ -2214,7 +2163,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      console.error("[OceanQIGBackend] Activity feedback failed:", error);
+      logger.error("[OceanQIGBackend] Activity feedback failed:", error);
       return null;
     }
   }
@@ -2242,7 +2191,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      console.error("[OceanQIGBackend] Basin feedback failed:", error);
+      logger.error("[OceanQIGBackend] Basin feedback failed:", error);
       return null;
     }
   }
@@ -2267,7 +2216,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      console.error("[OceanQIGBackend] Memory status failed:", error);
+      logger.error("[OceanQIGBackend] Memory status failed:", error);
       return null;
     }
   }
@@ -2297,7 +2246,7 @@ export class OceanQIGBackend {
       const data = await response.json();
       return data.success ? data.entry_id : null;
     } catch (error) {
-      console.error("[OceanQIGBackend] Record basin failed:", error);
+      logger.error("[OceanQIGBackend] Record basin failed:", error);
       return null;
     }
   }
@@ -2320,7 +2269,7 @@ export class OceanQIGBackend {
       const data = await response.json();
       return data.intel || [];
     } catch (error) {
-      console.error("[OceanQIGBackend] Get shadow intel failed:", error);
+      logger.error("[OceanQIGBackend] Get shadow intel failed:", error);
       return [];
     }
   }
@@ -2343,7 +2292,7 @@ export class OceanQIGBackend {
       const data = await response.json();
       return data.events || [];
     } catch (error) {
-      console.error("[OceanQIGBackend] Get learning events failed:", error);
+      logger.error("[OceanQIGBackend] Get learning events failed:", error);
       return [];
     }
   }
@@ -2384,7 +2333,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      console.error("[OceanQIGBackend] Initiate debate failed:", error);
+      logger.error("[OceanQIGBackend] Initiate debate failed:", error);
       return null;
     }
   }
@@ -2405,7 +2354,7 @@ export class OceanQIGBackend {
       const data = await response.json();
       return data.debates || [];
     } catch (error) {
-      console.error("[OceanQIGBackend] Get active debates failed:", error);
+      logger.error("[OceanQIGBackend] Get active debates failed:", error);
       return [];
     }
   }
@@ -2439,7 +2388,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      console.error("[OceanQIGBackend] Add debate argument failed:", error);
+      logger.error("[OceanQIGBackend] Add debate argument failed:", error);
       return null;
     }
   }
@@ -2473,7 +2422,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      console.error("[OceanQIGBackend] Resolve debate failed:", error);
+      logger.error("[OceanQIGBackend] Resolve debate failed:", error);
       return null;
     }
   }
@@ -2498,7 +2447,7 @@ export class OceanQIGBackend {
       const data = await response.json();
       return data.results || [];
     } catch (error) {
-      console.error("[OceanQIGBackend] Continue debates failed:", error);
+      logger.error("[OceanQIGBackend] Continue debates failed:", error);
       return [];
     }
   }
@@ -2527,7 +2476,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      console.error("[OceanQIGBackend] Declare blitzkrieg failed:", error);
+      logger.error("[OceanQIGBackend] Declare blitzkrieg failed:", error);
       return null;
     }
   }
@@ -2551,7 +2500,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      console.error("[OceanQIGBackend] Declare siege failed:", error);
+      logger.error("[OceanQIGBackend] Declare siege failed:", error);
       return null;
     }
   }
@@ -2575,7 +2524,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      console.error("[OceanQIGBackend] Declare hunt failed:", error);
+      logger.error("[OceanQIGBackend] Declare hunt failed:", error);
       return null;
     }
   }
@@ -2595,7 +2544,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      console.error("[OceanQIGBackend] End war failed:", error);
+      logger.error("[OceanQIGBackend] End war failed:", error);
       return null;
     }
   }
@@ -2615,7 +2564,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      console.error("[OceanQIGBackend] Get war status failed:", error);
+      logger.error("[OceanQIGBackend] Get war status failed:", error);
       return null;
     }
   }
@@ -2651,7 +2600,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      console.error("[OceanQIGBackend] Spawn kernel failed:", error);
+      logger.error("[OceanQIGBackend] Spawn kernel failed:", error);
       return null;
     }
   }
@@ -2672,7 +2621,7 @@ export class OceanQIGBackend {
       const data = await response.json();
       return data.kernels || [];
     } catch (error) {
-      console.error("[OceanQIGBackend] List spawned kernels failed:", error);
+      logger.error("[OceanQIGBackend] List spawned kernels failed:", error);
       return [];
     }
   }
@@ -2692,7 +2641,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      console.error("[OceanQIGBackend] Get spawner status failed:", error);
+      logger.error("[OceanQIGBackend] Get spawner status failed:", error);
       return null;
     }
   }
@@ -2729,7 +2678,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      console.error("[OceanQIGBackend] Smart poll failed:", error);
+      logger.error("[OceanQIGBackend] Smart poll failed:", error);
       return null;
     }
   }
@@ -2749,7 +2698,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      console.error("[OceanQIGBackend] Pantheon reflection failed:", error);
+      logger.error("[OceanQIGBackend] Pantheon reflection failed:", error);
       return null;
     }
   }
@@ -2778,7 +2727,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      console.error("[OceanQIGBackend] Activate chaos failed:", error);
+      logger.error("[OceanQIGBackend] Activate chaos failed:", error);
       return null;
     }
   }
@@ -2798,7 +2747,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      console.error("[OceanQIGBackend] Deactivate chaos failed:", error);
+      logger.error("[OceanQIGBackend] Deactivate chaos failed:", error);
       return null;
     }
   }
@@ -2817,7 +2766,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      console.error("[OceanQIGBackend] Get chaos status failed:", error);
+      logger.error("[OceanQIGBackend] Get chaos status failed:", error);
       return null;
     }
   }
@@ -2837,7 +2786,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      console.error("[OceanQIGBackend] Spawn random kernel failed:", error);
+      logger.error("[OceanQIGBackend] Spawn random kernel failed:", error);
       return null;
     }
   }
@@ -2857,7 +2806,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      console.error("[OceanQIGBackend] Breed best kernels failed:", error);
+      logger.error("[OceanQIGBackend] Breed best kernels failed:", error);
       return null;
     }
   }
@@ -2876,7 +2825,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      console.error("[OceanQIGBackend] Get chaos report failed:", error);
+      logger.error("[OceanQIGBackend] Get chaos report failed:", error);
       return null;
     }
   }
@@ -2923,7 +2872,7 @@ export class OceanQIGBackend {
       return data.phi_temporal;
     } catch (error: unknown) {
       this.recordFailure();
-      console.error("[OceanQIGBackend] computePhiTemporal failed:", error);
+      logger.error("[OceanQIGBackend] computePhiTemporal failed:", error);
       return null;
     }
   }
@@ -2961,7 +2910,7 @@ export class OceanQIGBackend {
       return data.phi_4D;
     } catch (error: unknown) {
       this.recordFailure();
-      console.error("[OceanQIGBackend] compute4DPhi failed:", error);
+      logger.error("[OceanQIGBackend] compute4DPhi failed:", error);
       return null;
     }
   }
@@ -3005,7 +2954,7 @@ export class OceanQIGBackend {
       return data.regime;
     } catch (error: unknown) {
       this.recordFailure();
-      console.error("[OceanQIGBackend] classifyRegime4D failed:", error);
+      logger.error("[OceanQIGBackend] classifyRegime4D failed:", error);
       return null;
     }
   }

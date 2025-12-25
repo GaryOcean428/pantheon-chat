@@ -22,33 +22,33 @@ async function scanEarlyEraBlocks(
   _endHeight: number, 
   _progressCallback?: (height: number, total: number) => void
 ): Promise<void> {
-  console.log('[observer-routes] scanEarlyEraBlocks is deprecated - blockchain scanning removed');
+  logger.info('[observer-routes] scanEarlyEraBlocks is deprecated - blockchain scanning removed');
   return Promise.resolve();
 }
 
 async function fetchBlockByHeight(_height: number): Promise<Record<string, unknown> | null> {
-  console.log('[observer-routes] fetchBlockByHeight is deprecated - returning null');
+  logger.info('[observer-routes] fetchBlockByHeight is deprecated - returning null');
   return null;
 }
 
 // Additional stub functions for legacy Bitcoin blockchain operations
 function parseBlock(_blockData: unknown): Record<string, unknown> {
-  console.log('[observer-routes] parseBlock is deprecated');
+  logger.info('[observer-routes] parseBlock is deprecated');
   return { hash: '', height: 0, transactions: [] };
 }
 
 async function computeKappaRecovery(_address: string): Promise<number> {
-  console.log('[observer-routes] computeKappaRecovery is deprecated');
+  logger.info('[observer-routes] computeKappaRecovery is deprecated');
   return 0;
 }
 
 async function checkAndRecordBalance(_address: string, _type: string): Promise<{ hasBalance: boolean; balance?: number }> {
-  console.log('[observer-routes] checkAndRecordBalance is deprecated');
+  logger.info('[observer-routes] checkAndRecordBalance is deprecated');
   return { hasBalance: false };
 }
 
 async function getBalanceHits(): Promise<unknown[]> {
-  console.log('[observer-routes] getBalanceHits is deprecated');
+  logger.info('[observer-routes] getBalanceHits is deprecated');
   return [];
 }
 
@@ -94,7 +94,7 @@ function completeScan(error?: string) {
   scanState.isScanning = false;
   scanState.error = error || null;
   if (!error) {
-    console.log(`[ScanManager] Scan ${scanState.scanId} completed successfully`);
+    logger.info(`[ScanManager] Scan ${scanState.scanId} completed successfully`);
   }
 }
 
@@ -278,7 +278,7 @@ router.post("/test/cleanup", async (req: Request, res: Response) => {
       WHERE address LIKE '%XYZX%'
     `);
     
-    console.log(`[TestCleanup] Cleaned up test entries: ${balanceResult.rowCount || 0} balance_hits, ${sweepResult.rowCount || 0} pending_sweeps`);
+    logger.info(`[TestCleanup] Cleaned up test entries: ${balanceResult.rowCount || 0} balance_hits, ${sweepResult.rowCount || 0} pending_sweeps`);
     
     res.json({
       success: true,
@@ -366,12 +366,12 @@ router.post("/scan/start", async (req: Request, res: Response) => {
     // Start scanning (async, don't await)
     scanEarlyEraBlocks(startHeight, endHeight, (height, total) => {
       updateScanProgress(height, total);
-      console.log(`[ObserverAPI] Scanning progress: ${height}/${total}`);
+      logger.info(`[ObserverAPI] Scanning progress: ${height}/${total}`);
     }).then(() => {
-      console.log(`[ObserverAPI] Scan complete: ${startHeight}-${endHeight}`);
+      logger.info(`[ObserverAPI] Scan complete: ${startHeight}-${endHeight}`);
       completeScan();
     }).catch(error => {
-      console.error(`[ObserverAPI] Scan error:`, error);
+      logger.error(`[ObserverAPI] Scan error:`, error);
       completeScan(error.message);
     });
     
@@ -1053,7 +1053,7 @@ router.post("/recovery/refresh", isAuthenticated, async (req: Request, res: Resp
       refreshedCount++;
     }
     
-    console.log(`[ObserverAPI] κ_recovery refresh completed: ${refreshedCount} addresses in ${Date.now() - startTime}ms`);
+    logger.info(`[ObserverAPI] κ_recovery refresh completed: ${refreshedCount} addresses in ${Date.now() - startTime}ms`);
     
     res.json({
       success: true,
@@ -1579,7 +1579,7 @@ router.post("/workflows/:id/start-search", async (req: Request, res: Response) =
     
     // SAFETY: Verify SearchCoordinator is running before queuing job
     if (!searchCoordinator.running) {
-      console.warn("[ObserverAPI] SearchCoordinator not running, attempting to start...");
+      logger.warn("[ObserverAPI] SearchCoordinator not running, attempting to start...");
       try {
         await searchCoordinator.start();
       } catch (startError: any) {
@@ -1639,7 +1639,7 @@ router.post("/workflows/:id/start-search", async (req: Request, res: Response) =
       // Step 1: Create search job
       await storage.addSearchJob(searchJob as any);
       jobCreated = true;
-      console.log(`[ObserverAPI] Search job ${searchJobId} created`);
+      logger.info(`[ObserverAPI] Search job ${searchJobId} created`);
       
       // Step 2: Add target address (idempotent - skip if already exists)
       try {
@@ -1679,23 +1679,23 @@ router.post("/workflows/:id/start-search", async (req: Request, res: Response) =
         progress: updatedProgress,
         status: 'active',
       });
-      console.log(`[ObserverAPI] Workflow ${id} updated to active`);
+      logger.info(`[ObserverAPI] Workflow ${id} updated to active`);
       
     } catch (updateError: any) {
       // ROLLBACK: Clean up search job AND restore original workflow state
-      console.error(`[ObserverAPI] Failed to complete search start:`, updateError);
+      logger.error(`[ObserverAPI] Failed to complete search start:`, updateError);
       
       if (jobCreated) {
-        console.log(`[ObserverAPI] Rolling back: deleting search job ${searchJobId}`);
+        logger.info(`[ObserverAPI] Rolling back: deleting search job ${searchJobId}`);
         try {
           await storage.deleteSearchJob(searchJobId);
         } catch (deleteError) {
-          console.error(`[ObserverAPI] Failed to rollback search job:`, deleteError);
+          logger.error({ err: deleteError }, '[ObserverAPI] Failed to rollback search job');
         }
       }
       
       // Restore original workflow state
-      console.log(`[ObserverAPI] Rolling back: restoring workflow to status '${originalStatus}'`);
+      logger.info(`[ObserverAPI] Rolling back: restoring workflow to status '${originalStatus}'`);
       try {
         await observerStorage.updateRecoveryWorkflow(id, {
           status: originalStatus,
@@ -1703,7 +1703,7 @@ router.post("/workflows/:id/start-search", async (req: Request, res: Response) =
           notes: originalNotes,
         });
       } catch (restoreError) {
-        console.error(`[ObserverAPI] Failed to restore workflow state:`, restoreError);
+        logger.error({ err: restoreError }, '[ObserverAPI] Failed to restore workflow state');
       }
       
       throw new Error(`Failed to start constrained search: ${updateError.message}`);
@@ -1711,8 +1711,8 @@ router.post("/workflows/:id/start-search", async (req: Request, res: Response) =
     
     // Search job is now queued in storage as 'pending'
     // SearchCoordinator background worker automatically picks up and processes pending jobs
-    console.log(`[ObserverAPI] Search job ${searchJobId} queued successfully for workflow ${id}`);
-    console.log(`[ObserverAPI] SearchCoordinator will auto-process (no manual start needed)`);
+    logger.info(`[ObserverAPI] Search job ${searchJobId} queued successfully for workflow ${id}`);
+    logger.info(`[ObserverAPI] SearchCoordinator will auto-process (no manual start needed)`);
     
     // Get updated workflow
     const updatedWorkflow = await observerStorage.getRecoveryWorkflow(id);
@@ -2340,12 +2340,12 @@ router.post("/discoveries", async (req: Request, res: Response) => {
           topic: item,
           relevance: 0.8,
         });
-        console.log(`[Discovery] 🎯 KNOWLEDGE GAP found from ${input.source}: ${item}`);
+        logger.info(`[Discovery] 🎯 KNOWLEDGE GAP found from ${input.source}: ${item}`);
       }
     }
     
     // Log the discovery with full details
-    console.log(`[Discovery] Captured from ${input.source}: ${knowledgeItems.length} items, ${dormantMatches} knowledge gaps found, ${balanceHits} connections made`);
+    logger.info(`[Discovery] Captured from ${input.source}: ${knowledgeItems.length} items, ${dormantMatches} knowledge gaps found, ${balanceHits} connections made`);
     
     // Check if there were hard failures (derivation exceptions)
     if (hardFailures.length > 0) {
@@ -2492,7 +2492,7 @@ router.post("/classify-address", async (req: Request, res: Response) => {
       await addressEntityClassifier.updateBalanceHitClassification(balanceHitId, classification);
     }
     
-    console.log(`[EntityClassify] ${address.slice(0, 12)}...: ${classification.entityType} (${classification.entityName || 'N/A'}) - ${classification.confidence}`);
+    logger.info(`[EntityClassify] ${address.slice(0, 12)}...: ${classification.entityType} (${classification.entityName || 'N/A'}) - ${classification.confidence}`);
     
     res.json({
       success: true,
@@ -2530,7 +2530,7 @@ router.post("/confirm-entity-type", async (req: Request, res: Response) => {
     const { addressEntityClassifier } = await import("./address-entity-classifier");
     await addressEntityClassifier.confirmClassification(balanceHitId, entityType, entityName);
     
-    console.log(`[EntityConfirm] Balance hit ${balanceHitId}: confirmed as ${entityType} (${entityName || 'N/A'})`);
+    logger.info(`[EntityConfirm] Balance hit ${balanceHitId}: confirmed as ${entityType} (${entityName || 'N/A'})`);
     
     res.json({
       success: true,
@@ -2569,7 +2569,7 @@ router.post("/sweep/confirm", async (req: Request, res: Response) => {
     const isHighRisk = entityType === 'exchange' || entityType === 'institution';
     
     if (isHighRisk && !acknowledgeRisks) {
-      console.log(`[SweepConfirm] WARNING: Attempted sweep to ${entityType} (${entityName || 'unknown'}) without acknowledgment`);
+      logger.info(`[SweepConfirm] WARNING: Attempted sweep to ${entityType} (${entityName || 'unknown'}) without acknowledgment`);
       return res.status(400).json({
         error: "Risk acknowledgment required",
         requiresAcknowledgment: true,
@@ -2584,7 +2584,7 @@ router.post("/sweep/confirm", async (req: Request, res: Response) => {
     // Generate confirmation code if not provided
     if (isHighRisk && !confirmationCode) {
       const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-      console.log(`[SweepConfirm] Generated confirmation code ${code} for ${entityType} sweep`);
+      logger.info(`[SweepConfirm] Generated confirmation code ${code} for ${entityType} sweep`);
       return res.json({
         success: false,
         requiresConfirmation: true,
@@ -2594,7 +2594,7 @@ router.post("/sweep/confirm", async (req: Request, res: Response) => {
       });
     }
     
-    console.log(`[SweepConfirm] Sweep confirmed: ${sourceAddress.slice(0, 12)}... → ${destinationAddress.slice(0, 12)}... (${entityType || 'personal'})`);
+    logger.info(`[SweepConfirm] Sweep confirmed: ${sourceAddress.slice(0, 12)}... → ${destinationAddress.slice(0, 12)}... (${entityType || 'personal'})`);
     
     res.json({
       success: true,
@@ -2674,12 +2674,12 @@ router.post("/qig-search/start", async (req: Request, res: Response) => {
     
     activeQIGSearches.set(address, session);
     
-    console.log(`[QIGSearch] 🎯 Starting targeted search for ${address}`);
-    console.log(`[QIGSearch] κ_recovery=${kappaRecovery?.toFixed(2) || 'N/A'}, tier=${tier || 'unknown'}`);
+    logger.info(`[QIGSearch] 🎯 Starting targeted search for ${address}`);
+    logger.info(`[QIGSearch] κ_recovery=${kappaRecovery?.toFixed(2) || 'N/A'}, tier=${tier || 'unknown'}`);
     
     // Start async search process
     runTargetedQIGSearch(address, kappaRecovery || 10, session).catch(err => {
-      console.error(`[QIGSearch] Error in search for ${address}:`, err);
+      logger.error(`[QIGSearch] Error in search for ${address}:`, err);
       session.status = 'error';
       session.errorMessage = err.message;
     });
@@ -2738,7 +2738,7 @@ router.post("/qig-search/stop/:address", async (req: Request, res: Response) => 
     }
     
     session.status = 'paused';
-    console.log(`[QIGSearch] ⏹ Stopped search for ${address.slice(0, 12)}...`);
+    logger.info(`[QIGSearch] ⏹ Stopped search for ${address.slice(0, 12)}...`);
     
     res.json({
       success: true,
@@ -2790,10 +2790,10 @@ async function runTargetedQIGSearch(
   // Check Python backend health
   const backendAvailable = await pythonBackend.checkHealthWithRetry(3, 1000);
   if (!backendAvailable) {
-    console.log(`[QIGSearch] Python backend not available, using local generation`);
+    logger.info(`[QIGSearch] Python backend not available, using local generation`);
   }
   
-  console.log(`[QIGSearch] 🔬 Beginning targeted search iterations for ${targetAddress.slice(0, 12)}...`);
+  logger.info(`[QIGSearch] 🔬 Beginning targeted search iterations for ${targetAddress.slice(0, 12)}...`);
   
   // Generate search patterns based on κ_recovery (lower = more constrained)
   const searchPatterns = generateSearchPatterns(kappaRecovery);
@@ -2845,13 +2845,13 @@ async function runTargetedQIGSearch(
         // High Φ threshold (≥ 0.40)
         if (phiScore >= 0.40) {
           session.highPhiCount++;
-          console.log(`[QIGSearch] 🎯 High-Φ: "${phrase.slice(0, 20)}..." Φ=${phiScore.toFixed(3)}`);
+          logger.info(`[QIGSearch] 🎯 High-Φ: "${phrase.slice(0, 20)}..." Φ=${phiScore.toFixed(3)}`);
         }
         
         // Discovery check removed (Bitcoin functionality removed)
       } catch (err) {
         // Continue on individual phrase errors
-        console.warn(`[QIGSearch] Error processing phrase:`, err);
+        logger.warn({ err }, '[QIGSearch] Error processing phrase');
       }
     }
     
@@ -2859,7 +2859,7 @@ async function runTargetedQIGSearch(
     
     // Log progress every 50 iterations
     if (iteration % 50 === 0) {
-      console.log(`[QIGSearch] Progress: ${session.phrasesTestedSinceStart} phrases, ${session.highPhiCount} high-Φ, ${session.discoveryCount} discoveries`);
+      logger.info(`[QIGSearch] Progress: ${session.phrasesTestedSinceStart} phrases, ${session.highPhiCount} high-Φ, ${session.discoveryCount} discoveries`);
     }
     
     // Small delay to prevent CPU overload
@@ -2868,8 +2868,8 @@ async function runTargetedQIGSearch(
   
   if (session.status === 'running') {
     session.status = 'completed';
-    console.log(`[QIGSearch] ✓ Search complete for ${targetAddress.slice(0, 12)}...`);
-    console.log(`[QIGSearch] Final: ${session.phrasesTestedSinceStart} phrases, ${session.highPhiCount} high-Φ, ${session.discoveryCount} discoveries`);
+    logger.info(`[QIGSearch] ✓ Search complete for ${targetAddress.slice(0, 12)}...`);
+    logger.info(`[QIGSearch] Final: ${session.phrasesTestedSinceStart} phrases, ${session.highPhiCount} high-Φ, ${session.discoveryCount} discoveries`);
   }
 }
 
