@@ -255,7 +255,7 @@ export class FreeBlockchainAPI {
     }
     
     // All bulk methods failed - fall back to individual queries
-    console.warn('[FreeBlockchainAPI] All bulk providers failed, using individual queries');
+    logger.warn('[FreeBlockchainAPI] All bulk providers failed, using individual queries');
     
     for (const addr of uncached) {
       if (!results.has(addr)) {

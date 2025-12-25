@@ -19,6 +19,7 @@ import * as path from 'path';
 import type { OceanAgent } from './ocean-agent';
 import { fisherCoordDistance } from './qig-universal';
 import { geometricMemory } from './geometric-memory';
+import { logger } from './lib/logger';
 import { oceanAutonomicManager } from './ocean-autonomic-manager';
 import { oceanDiscoveryController, type DiscoverySyncData } from './geometric-discovery/ocean-discovery-controller';
 import { E8_CONSTANTS, QIG_CONSTANTS } from '@shared/constants';

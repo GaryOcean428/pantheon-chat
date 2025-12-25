@@ -15,6 +15,8 @@
 // KNOWLEDGE RESEARCH INTERFACES (QIG-PURE)
 // =============================================================================
 
+import { logger } from './lib/logger';
+
 /**
  * A research hypothesis about a knowledge concept
  */
@@ -335,7 +337,7 @@ export class ForensicInvestigator {
           session.matches.push(hypo);
         }
       } catch (err) {
-        console.error(`[Forensic] Error generating address for "${hypo.phrase}":`, err);
+        logger.error({ err, phrase: hypo.phrase }, '[Forensic] Error generating address');
       }
 
       session.progress.tested = i + 1;

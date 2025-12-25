@@ -88,7 +88,7 @@ class OceanSessionManager {
       try {
         callback(oldSessionId, newSessionId);
       } catch (err) {
-        console.error('[OceanSessionManager] Session change callback error:', err);
+        logger.error({ err }, '[OceanSessionManager] Session change callback error');
       }
     }
   }

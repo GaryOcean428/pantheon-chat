@@ -7,6 +7,7 @@ import {
   AddressExplorationJournal,
 } from '@shared/schema';
 import { geometricMemory } from './geometric-memory';
+import { logger } from './lib/logger';
 import { repeatedAddressScheduler } from './repeated-address-scheduler';
 import { 
   getMushroomCooldownRemaining, 
@@ -1109,7 +1110,7 @@ export class OceanAutonomicManager {
       });
       
       if (!response.ok) {
-        console.warn('[OceanAutonomicManager] Failed to send health snapshot:', response.statusText);
+        logger.warn({ statusText: response.statusText }, '[OceanAutonomicManager] Failed to send health snapshot');
       }
     } catch (error) {
       // Silent fail - self-healing is optional

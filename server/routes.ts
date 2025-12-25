@@ -43,6 +43,7 @@ function checkWsRateLimit(peerId: string): boolean {
 }
 
 import documentsRouter from "./routes/documents";
+import { logger } from './lib/logger';
 import {
   adminRouter,
   attentionMetricsRouter,

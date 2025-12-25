@@ -11,6 +11,7 @@
  */
 
 import { E8_CONSTANTS } from '../shared/constants/index.js';
+import { logger } from './lib/logger';
 
 // Legacy type for backward compatibility with block-universe code
 export interface SoftwareConstraint {
@@ -112,8 +113,7 @@ export class KnowledgeDomainManifold {
     this.lexicons.set('consciousness-studies', this.buildConsciousnessLexicon());
     this.lexicons.set('philosophy-mind', this.buildPhilosophyMindLexicon());
     
-    console.log('[KnowledgeManifold] Initialized domain lexicons:', 
-      Array.from(this.lexicons.keys()).map(k => `${k}(${this.lexicons.get(k)?.length || 0})`).join(', '));
+    logger.info({ domains: Array.from(this.lexicons.keys()).map(k => `${k}(${this.lexicons.get(k)?.length || 0})`).join(', ') }, '[KnowledgeManifold] Initialized domain lexicons');
   }
 
   /**

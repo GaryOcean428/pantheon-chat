@@ -461,7 +461,7 @@ attentionMetricsRouter.post("/validate", generousLimiter, async (req: Request, r
   try {
     const { samplesPerScale = 100 } = req.body;
     
-    console.log(`[API] Starting β-attention validation with ${samplesPerScale} samples per scale...`);
+    logger.info(`[API] Starting β-attention validation with ${samplesPerScale} samples per scale...`);
     
     const result = runAttentionValidation(samplesPerScale);
     

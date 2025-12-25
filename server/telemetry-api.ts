@@ -15,6 +15,7 @@ import { Router } from "express";
 import type { Request, Response } from "express";
 import './storage';
 import { getErrorMessage } from './lib/error-utils';
+import { logger } from './lib/logger';
 
 const router = Router();
 

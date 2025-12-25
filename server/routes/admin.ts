@@ -14,7 +14,7 @@ adminRouter.get("/health", async (req: Request, res: Response) => {
     const { healthCheckHandler } = await import("../api-health");
     await healthCheckHandler(req, res);
   } catch (error: unknown) {
-    console.error("[API] Health check error:", getErrorMessage(error));
+    logger.error({ err: getErrorMessage(error) }, "[API] Health check error");
     res.status(503).json({
       status: 'down',
       timestamp: Date.now(),
@@ -118,11 +118,7 @@ adminRouter.post("/telemetry/capture", generousLimiter, async (req: Request, res
       });
     }
 
-    console.log('[Telemetry]', event_type, {
-      traceId: trace_id,
-      timestamp: new Date(timestamp).toISOString(),
-      metadata: metadata || {},
-    });
+    logger.info({ event_type, traceId: trace_id, timestamp: new Date(timestamp).toISOString(), metadata: metadata || {} }, '[Telemetry]');
 
     if (['search_initiated', 'error_occurred', 'result_rendered'].includes(event_type)) {
       activityLogStore.log({

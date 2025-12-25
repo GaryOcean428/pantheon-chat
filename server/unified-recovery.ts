@@ -162,6 +162,7 @@ import {
   MemoryFragment
 } from '@shared/schema';
 import { getErrorMessage } from './lib/error-utils';
+import { logger } from './lib/logger';
 import { scoreUniversalQIGAsync } from './qig-universal';
 import { blockchainForensics } from './blockchain-forensics';
 import { historicalDataMiner, type Era } from './historical-data-miner';

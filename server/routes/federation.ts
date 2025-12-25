@@ -322,7 +322,7 @@ federationRouter.post('/connect', async (req: Request, res: Response) => {
     const insertedRow = result.rows[0] as { id: string | number } | undefined;
     const insertedId = insertedRow?.id;
 
-    console.log(`[Federation] Connected to node: ${name} (${cleanEndpoint})`);
+    logger.info(`[Federation] Connected to node: ${name} (${cleanEndpoint})`);
 
     res.status(201).json({
       success: true,

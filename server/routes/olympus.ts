@@ -289,7 +289,7 @@ router.post('/zeus/chat', isAuthenticated, async (req, res) => {
             god: data.metadata?.responding_god || 'zeus',
             type: data.metadata?.type,
           },
-        ).catch(err => console.warn('[Olympus] Conversation persistence failed:', err));
+        ).catch(err => logger.warn('[Olympus] Conversation persistence failed:', err));
       }
       
       // Log to activity stream for visibility

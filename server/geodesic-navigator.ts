@@ -17,6 +17,7 @@ import {
 } from './cultural-manifold';
 import { scoreUniversalQIGAsync, fisherCoordDistance } from './qig-geometry';
 import { E8_CONSTANTS } from '../shared/constants/index.js';
+import { logger } from './lib/logger';
 
 export interface GeodesicSearchConfig {
   targetAddress: string;

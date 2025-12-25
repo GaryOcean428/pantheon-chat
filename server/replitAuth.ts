@@ -7,6 +7,7 @@ import type { Express, RequestHandler } from "express";
 import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
+import { logger } from './lib/logger';
 import type { AuthenticatedUser } from "@shared/types/server-types";
 
 const getOidcConfig = memoize(

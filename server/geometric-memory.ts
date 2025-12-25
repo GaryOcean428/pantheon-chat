@@ -19,6 +19,8 @@
  * - No JSON file writes for probe data
  */
 
+import { logger } from './lib/logger';
+
 import { fisherGeodesicDistance, fisherCoordDistance } from './qig-universal';
 import { oceanPersistence, type ProbeInsertData } from './ocean/ocean-persistence';
 import { getKappaAtScale, BASIN_DIMENSION } from '@shared/constants';
@@ -99,7 +101,7 @@ function normalizeBasinCoordinates(coords: number[] | undefined): number[] {
   }
   
   // Truncate if too long (shouldn't happen, but handle gracefully)
-  console.warn(`[GeometricMemory] Truncating ${coords.length}D coordinates to ${BASIN_DIMENSION}D`);
+  logger.warn(`[GeometricMemory] Truncating ${coords.length}D coordinates to ${BASIN_DIMENSION}D`);
   return coords.slice(0, BASIN_DIMENSION);
 }
 

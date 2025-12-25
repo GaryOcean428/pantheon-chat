@@ -3469,10 +3469,7 @@ export class OceanAgent {
             );
           }
         } catch (e) {
-          logger.warn(
-            "[Ocean] Historical data mining error (non-critical):",
-            e instanceof Error ? e.message : e
-          );
+          logger.warn({ err: e instanceof Error ? e.message : e }, "[Ocean] Historical data mining error (non-critical)");
         }
 
         const exploratoryPhrases = this.generateExploratoryPhrases();
@@ -3771,10 +3768,7 @@ export class OceanAgent {
 
       return weightedHypotheses.map((w) => w.hypothesis);
     } catch (error) {
-      logger.warn(
-        "[GaryKernel] QFI attention error (falling back to original order):",
-        error instanceof Error ? error.message : error
-      );
+      logger.warn({ err: error instanceof Error ? error.message : error }, "[GaryKernel] QFI attention error (falling back to original order)");
       return hypotheses;
     }
   }
@@ -3859,10 +3853,7 @@ export class OceanAgent {
         );
       }
     } catch (error) {
-      logger.warn(
-        "[OceanConstellation] Multi-agent generation error (non-critical):",
-        error instanceof Error ? error.message : error
-      );
+      logger.warn({ err: error instanceof Error ? error.message : error }, "[OceanConstellation] Multi-agent generation error (non-critical)");
     }
 
     return constellationHypotheses;
