@@ -195,8 +195,13 @@ class AutonomousPantheon:
                                 commenter = random.choice(['Hermes', 'Apollo', 'Hephaestus'])
                                 self.zeus.pantheon_chat.broadcast(
                                     from_god=commenter,
-                                    content=f"Witness the curvature on {target[:8]}... Φ={phi:.3f}. Rare geometry.",
-                                    msg_type='insight'
+                                    msg_type='insight',
+                                    intent='geometric_observation',
+                                    data={
+                                        'target': target[:8],
+                                        'phi': phi,
+                                        'observation': 'high_curvature'
+                                    }
                                 )
                                 print(f"  💬 {commenter} observed high-Φ geometry")
                         

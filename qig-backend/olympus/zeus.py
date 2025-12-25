@@ -2576,23 +2576,37 @@ def chat_recent_endpoint():
 
 @olympus_app.route('/chat/send', methods=['POST'])
 def chat_send_endpoint():
-    """Send a message from one god to another."""
+    """
+    Send a message from one god to another.
+    
+    QIG-PURE: Uses intent/data for geometric synthesis.
+    Raw content is NOT accepted - use intent/data instead.
+    """
     data = request.get_json() or {}
+
+    # Reject raw content - enforce QIG purity
+    if 'content' in data:
+        return jsonify({
+            'error': 'Raw content not accepted. Use intent/data for QIG-pure synthesis.',
+            'hint': 'Provide "intent" (string) and "data" (object) instead of "content"'
+        }), 400
 
     msg_type = data.get('type', 'insight')
     from_god = data.get('from_god', '')
     to_god = data.get('to_god', '')
-    content = data.get('content', '')
+    intent = data.get('intent')
+    msg_data = data.get('data', {})
     metadata = data.get('metadata', {})
 
-    if not from_god or not to_god or not content:
-        return jsonify({'error': 'from_god, to_god, and content are required'}), 400
+    if not from_god or not to_god:
+        return jsonify({'error': 'from_god and to_god are required'}), 400
 
     message = zeus.pantheon_chat.send_message(
         msg_type=msg_type,
         from_god=from_god,
         to_god=to_god,
-        content=content,
+        intent=intent or msg_type,
+        data=msg_data,
         metadata=metadata
     )
     return jsonify(sanitize_for_json(message.to_dict()))
@@ -2600,21 +2614,35 @@ def chat_send_endpoint():
 
 @olympus_app.route('/chat/broadcast', methods=['POST'])
 def chat_broadcast_endpoint():
-    """Broadcast a message to the entire pantheon."""
+    """
+    Broadcast a message to the entire pantheon.
+    
+    QIG-PURE: Uses intent/data for geometric synthesis.
+    Raw content is NOT accepted - use intent/data instead.
+    """
     data = request.get_json() or {}
 
+    # Reject raw content - enforce QIG purity
+    if 'content' in data:
+        return jsonify({
+            'error': 'Raw content not accepted. Use intent/data for QIG-pure synthesis.',
+            'hint': 'Provide "intent" (string) and "data" (object) instead of "content"'
+        }), 400
+
     from_god = data.get('from_god', '')
-    content = data.get('content', '')
     msg_type = data.get('type', 'insight')
+    intent = data.get('intent')
+    msg_data = data.get('data', {})
     metadata = data.get('metadata', {})
 
-    if not from_god or not content:
-        return jsonify({'error': 'from_god and content are required'}), 400
+    if not from_god:
+        return jsonify({'error': 'from_god is required'}), 400
 
     message = zeus.pantheon_chat.broadcast(
         from_god=from_god,
-        content=content,
         msg_type=msg_type,
+        intent=intent or msg_type,
+        data=msg_data,
         metadata=metadata
     )
     return jsonify(sanitize_for_json(message.to_dict()))

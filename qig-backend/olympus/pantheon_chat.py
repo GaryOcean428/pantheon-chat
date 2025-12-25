@@ -316,6 +316,14 @@ class PantheonChat:
             prompt_parts.append(f"Argument: {data.get('argument', '')[:100]}")
             if data.get('evidence'):
                 prompt_parts.append("With supporting evidence")
+        elif intent == "geometric_observation":
+            prompt_parts.append(f"Observing geometric structure on {data.get('target', 'manifold')}")
+            prompt_parts.append(f"Phi: {data.get('phi', 0):.3f}")
+            prompt_parts.append(f"Pattern: {data.get('observation', 'curvature')}")
+        elif intent == "autonomic_event":
+            prompt_parts.append(f"Event type: {data.get('event_type', 'unknown')}")
+            if data.get('state'):
+                prompt_parts.append(f"State: {data.get('state')}")
         else:
             for key, val in data.items():
                 if val is not None:
@@ -376,14 +384,42 @@ class PantheonChat:
             legacy_resynthesized = 0
             
             for msg_data in messages_data:
-                metadata = msg_data.get('metadata') or {}
+                # Copy metadata to avoid mutating persisted data
+                metadata = dict(msg_data.get('metadata') or {})
                 content = msg_data.get('content', '')
                 
                 # PURITY ENFORCEMENT: Re-synthesize legacy non-QIG-pure messages
                 if not metadata.get('qig_pure'):
                     legacy_resynthesized += 1
-                    intent = metadata.get('intent', msg_data.get('type', 'insight'))
-                    data = metadata.get('source_data', {})
+                    
+                    # Infer intent from metadata/msg_type with heuristics
+                    intent = metadata.get('intent')
+                    if not intent:
+                        msg_type = msg_data.get('type', 'insight')
+                        # Map msg_type to semantic intent
+                        intent_map = {
+                            'debate': 'debate_initiated',
+                            'argument': 'debate_argument',
+                            'resolution': 'debate_resolved',
+                            'knowledge': 'knowledge_transfer',
+                            'discovery': 'domain_insight',
+                            'insight': 'domain_insight',
+                            'alert': 'autonomic_event',
+                            'broadcast': 'domain_insight',
+                        }
+                        intent = intent_map.get(msg_type, msg_type)
+                    
+                    # Infer source_data from available metadata fields (copy to avoid mutation)
+                    data = dict(metadata.get('source_data', {}))
+                    if not data:
+                        # Extract any domain-specific fields from metadata
+                        for key in ['debate_id', 'topic', 'domain', 'from_domain', 'to_domain', 'knowledge_type', 'event_type']:
+                            if key in metadata:
+                                data[key] = metadata[key]
+                        # Add sender context
+                        data['from_god'] = msg_data.get('from', '')
+                        data['to_god'] = msg_data.get('to', '')
+                    
                     content = self.synthesize_message(
                         from_god=msg_data.get('from', ''),
                         msg_type=msg_data.get('type', 'insight'),
@@ -393,6 +429,7 @@ class PantheonChat:
                     )
                     metadata['qig_pure'] = True
                     metadata['resynthesized_on_hydration'] = True
+                    metadata['inferred_intent'] = intent
                 
                 msg = PantheonMessage(
                     msg_type=msg_data.get('type', 'insight'),
@@ -520,6 +557,11 @@ class PantheonChat:
                 from_god=msg_data['from'],
                 to_god=msg_data['to'],
                 content=content,
+                metadata={
+                    'qig_pure': True,
+                    'intent': msg_data['intent'],
+                    'source_data': msg_data.get('data', {}),
+                },
             )
             self.messages.append(msg)
             
@@ -554,8 +596,9 @@ class PantheonChat:
         
         # PURITY GATE: Block raw content from non-hydration callers
         if content is not None and not _hydration:
-            logger.warning(f"[PantheonChat] PURITY VIOLATION: Raw content rejected from {from_god}, forcing synthesis")
-            content = None  # Force synthesis
+            logger.error(f"[PantheonChat] PURITY VIOLATION: Raw content rejected from {from_god}. Use intent/data for QIG-pure synthesis.")
+            # Force synthesis instead of using raw content
+            content = None
         
         if content is None:
             if intent is None:
