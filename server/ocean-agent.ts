@@ -59,6 +59,7 @@ import { knowledgeCompressionEngine } from "./knowledge-compression-engine";
 import { nearMissManager } from "./near-miss-manager";
 import { negativeKnowledgeUnified as negativeKnowledgeRegistry } from "./negative-knowledge-unified";
 import { oceanAutonomicManager } from "./ocean-autonomic-manager";
+import { logger } from './lib/logger';
 import { oceanConstellation } from "./ocean-constellation-stub";
 import {
   computeBehavioralModulationWithCooldown,

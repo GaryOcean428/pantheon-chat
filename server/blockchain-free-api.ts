@@ -8,6 +8,11 @@
  * Providers:
  * 1. Blockstream (primary) - 60 req/min, most reliable
  * 2. Mempool.space - 60 req/min, fast
+ */
+
+import { logger } from './lib/logger';
+
+/*
  * 3. Blockchain.com - 100 req/min, supports bulk queries
  * 4. BlockCypher - 10 req/min (200/hour), backup
  */
@@ -244,7 +249,7 @@ export class FreeBlockchainAPI {
         
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
-        console.warn(`[FreeBlockchainAPI] ${name} bulk failed:`, message);
+        logger.warn({ context: 'FreeBlockchainAPI', provider: name }, 'Bulk request failed: ' + message);
         this.recordFailure(provider, error);
       }
     }
@@ -730,9 +735,9 @@ export class FreeBlockchainAPI {
     
     if (provider.consecutiveFailures >= 3) {
       provider.healthy = false;
-      console.warn(`[FreeBlockchainAPI] ${provider.name} marked UNHEALTHY (${errorType}): ${message} [${provider.consecutiveFailures} consecutive failures]`);
+      logger.warn({ context: 'FreeBlockchainAPI', provider: provider.name, errorType, consecutiveFailures: provider.consecutiveFailures }, message);
     } else {
-      console.log(`[FreeBlockchainAPI] ${provider.name} failure ${provider.consecutiveFailures}/3 (${errorType}): ${message}`);
+      logger.info({ context: 'FreeBlockchainAPI', provider: provider.name, failures: provider.consecutiveFailures, errorType }, message);
     }
   }
 

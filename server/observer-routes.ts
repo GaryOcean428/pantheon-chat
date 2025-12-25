@@ -7,6 +7,7 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
 import { getErrorMessage, handleRouteError } from './lib/error-utils';
+import { logger } from './lib/logger';
 import { z } from "zod";
 import { randomUUID } from "crypto";
 import { observerStorage } from "./observer-storage";
@@ -153,7 +154,7 @@ router.get("/health", async (req: Request, res: Response) => {
       errors: errors.length > 0 ? errors : undefined,
     });
   } catch (error: unknown) {
-    console.error("[ObserverHealth] Error:", getErrorMessage(error));
+    logger.error({ err: error, context: 'ObserverHealth' }, getErrorMessage(error));
     res.status(500).json({
       status: "error",
       error: getErrorMessage(error),
@@ -713,7 +714,7 @@ router.get("/priorities", async (req: Request, res: Response) => {
     if (err.name === 'ZodError') {
       res.status(400).json({ error: getErrorMessage(error) });
     } else {
-      console.error("[ObserverAPI] Priorities error:", getErrorMessage(error));
+      logger.error({ err: error, context: 'ObserverAPI' }, 'Priorities error');
       res.status(500).json({ error: getErrorMessage(error) });
     }
   }
@@ -785,7 +786,7 @@ router.get("/workflows", async (req: Request, res: Response) => {
     if (err.name === 'ZodError') {
       res.status(400).json({ error: getErrorMessage(error) });
     } else {
-      console.error("[ObserverAPI] Workflows error:", getErrorMessage(error));
+      logger.error({ err: error, context: 'ObserverAPI' }, 'Workflows error');
       res.status(500).json({ error: getErrorMessage(error) });
     }
   }
@@ -827,7 +828,7 @@ router.post("/workflows", async (req: Request, res: Response) => {
     if (err.name === 'ZodError') {
       res.status(400).json({ error: getErrorMessage(error) });
     } else {
-      console.error("[ObserverAPI] Workflow creation error:", getErrorMessage(error));
+      logger.error({ err: error, context: 'ObserverAPI' }, 'Workflow creation error');
       res.status(500).json({ error: getErrorMessage(error) });
     }
   }
@@ -955,7 +956,7 @@ router.post("/recovery/compute", async (req: Request, res: Response) => {
       },
     });
   } catch (error: unknown) {
-    console.error("[ObserverAPI] κ_recovery computation error:", getErrorMessage(error));
+    logger.error({ err: error, context: 'ObserverAPI' }, 'κ_recovery computation error');
     res.status(500).json({ 
       error: "Failed to compute κ_recovery rankings",
       details: getErrorMessage(error),
@@ -1067,7 +1068,7 @@ router.post("/recovery/refresh", isAuthenticated, async (req: Request, res: Resp
       },
     });
   } catch (error: unknown) {
-    console.error("[ObserverAPI] κ_recovery refresh error:", getErrorMessage(error));
+    logger.error({ err: error, context: 'ObserverAPI' }, 'κ_recovery refresh error');
     res.status(500).json({
       success: false,
       error: "Failed to refresh κ_recovery rankings",
@@ -1326,7 +1327,7 @@ router.post("/workflows", async (req: Request, res: Response) => {
       },
     });
   } catch (error: unknown) {
-    console.error("[ObserverAPI] Workflow start error:", getErrorMessage(error));
+    logger.error({ err: error, context: 'ObserverAPI' }, 'Workflow start error');
     res.status(500).json({ 
       error: "Failed to start recovery workflow",
       details: getErrorMessage(error),
@@ -1486,7 +1487,7 @@ router.patch("/workflows/:id", async (req: Request, res: Response) => {
       workflow: updated,
     });
   } catch (error: unknown) {
-    console.error("[ObserverAPI] Workflow update error:", getErrorMessage(error));
+    logger.error({ err: error, context: 'ObserverAPI' }, 'Workflow update error');
     res.status(500).json({ 
       error: "Failed to update workflow",
       details: getErrorMessage(error),
@@ -1733,7 +1734,7 @@ router.post("/workflows/:id/start-search", async (req: Request, res: Response) =
       },
     });
   } catch (error: unknown) {
-    console.error("[ObserverAPI] Start search error:", getErrorMessage(error));
+    logger.error({ err: error, context: 'ObserverAPI' }, 'Start search error');
     res.status(500).json({ 
       error: "Failed to start constrained search",
       details: getErrorMessage(error),
@@ -1838,7 +1839,7 @@ router.get("/workflows/:id/search-progress", async (req: Request, res: Response)
       },
     });
   } catch (error: unknown) {
-    console.error("[ObserverAPI] Search progress error:", getErrorMessage(error));
+    logger.error({ err: error, context: 'ObserverAPI' }, 'Search progress error');
     res.status(500).json({ 
       error: "Failed to get search progress",
       message: getErrorMessage(error),
@@ -1889,7 +1890,7 @@ router.post("/workflows/:id/execute-vector", async (req: Request, res: Response)
       result,
     });
   } catch (error: unknown) {
-    console.error("[ObserverAPI] Vector execution error:", getErrorMessage(error));
+    logger.error({ err: error, context: 'ObserverAPI' }, 'Vector execution error');
     res.status(500).json({ error: getErrorMessage(error) });
   }
 });
@@ -2209,7 +2210,7 @@ router.get("/telemetry/full-spectrum", async (req: Request, res: Response) => {
     
     res.json(telemetry);
   } catch (error: unknown) {
-    console.error('[Telemetry] Error computing full-spectrum telemetry:', getErrorMessage(error));
+    logger.error({ err: error, context: 'Telemetry' }, 'Error computing full-spectrum telemetry');
     res.status(500).json({ error: getErrorMessage(error) });
   }
 });
@@ -2407,7 +2408,7 @@ router.post("/discoveries", async (req: Request, res: Response) => {
       timestamp: new Date().toISOString(),
     });
   } catch (error: unknown) {
-    console.error('[Discovery] Error processing discovery:', getErrorMessage(error));
+    logger.error({ err: error, context: 'Discovery' }, 'Error processing discovery');
     res.status(400).json({ 
       error: "Failed to process discovery",
       details: getErrorMessage(error),
@@ -2505,7 +2506,7 @@ router.post("/classify-address", async (req: Request, res: Response) => {
       }
     });
   } catch (error: unknown) {
-    console.error("[EntityClassify] Error:", getErrorMessage(error));
+    logger.error({ err: error, context: 'EntityClassify' }, 'Error');
     res.status(500).json({ error: getErrorMessage(error) });
   }
 });
@@ -2539,7 +2540,7 @@ router.post("/confirm-entity-type", async (req: Request, res: Response) => {
       confidence: 'confirmed'
     });
   } catch (error: unknown) {
-    console.error("[EntityConfirm] Error:", getErrorMessage(error));
+    logger.error({ err: error, context: 'EntityConfirm' }, 'Error');
     res.status(500).json({ error: getErrorMessage(error) });
   }
 });
@@ -2605,7 +2606,7 @@ router.post("/sweep/confirm", async (req: Request, res: Response) => {
       timestamp: new Date().toISOString()
     });
   } catch (error: unknown) {
-    console.error("[SweepConfirm] Error:", getErrorMessage(error));
+    logger.error({ err: error, context: 'SweepConfirm' }, 'Error');
     res.status(500).json({ error: getErrorMessage(error) });
   }
 });
@@ -2691,7 +2692,7 @@ router.post("/qig-search/start", async (req: Request, res: Response) => {
       session
     });
   } catch (error: unknown) {
-    console.error("[QIGSearch] Start error:", getErrorMessage(error));
+    logger.error({ err: error, context: 'QIGSearch' }, 'Start error');
     res.status(500).json({ error: getErrorMessage(error) });
   }
 });

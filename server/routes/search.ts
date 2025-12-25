@@ -1,4 +1,5 @@
 import { Router, type Request, type Response } from "express";
+import { logger } from '../lib/logger';
 import { getErrorMessage, handleRouteError } from '../lib/error-utils';
 import { randomUUID } from "crypto";
 import { generousLimiter } from "../rate-limiters";

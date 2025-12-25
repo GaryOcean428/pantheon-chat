@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { getErrorMessage, handleRouteError } from '../lib/error-utils';
+import { logger } from '../lib/logger';
 import { generousLimiter, standardLimiter, strictLimiter } from "../rate-limiters";
 import { autoCycleManager } from "../auto-cycle-manager";
 import { oceanAutonomicManager } from "../ocean-autonomic-manager";
@@ -77,7 +78,7 @@ oceanRouter.get(
 
       res.json(health);
     } catch (error: unknown) {
-      console.error("[OceanHealth] Error:", getErrorMessage(error));
+      logger.error({ err: error, context: 'OceanHealth' }, getErrorMessage(error));
       res.status(500).json({
         status: "error",
         error: getErrorMessage(error),
@@ -106,7 +107,7 @@ oceanRouter.post(
         timestamp: new Date().toISOString(),
       });
     } catch (error: unknown) {
-      console.error("[Ocean] Start error:", getErrorMessage(error));
+      logger.error({ err: error, context: 'Ocean' }, 'Start error: ' + getErrorMessage(error));
       res.status(500).json({ 
         success: false, 
         error: getErrorMessage(error) 
@@ -132,7 +133,7 @@ oceanRouter.post(
         timestamp: new Date().toISOString(),
       });
     } catch (error: unknown) {
-      console.error("[Ocean] Stop error:", getErrorMessage(error));
+      logger.error({ err: error, context: 'Ocean' }, 'Stop error: ' + getErrorMessage(error));
       res.status(500).json({ 
         success: false, 
         error: getErrorMessage(error) 
@@ -303,7 +304,7 @@ oceanRouter.post(
         mushroomCooldownRemaining: getMushroomCooldownRemaining(),
       });
     } catch (error: unknown) {
-      console.error("[Neurochemistry] Boost error:", getErrorMessage(error));
+      logger.error({ err: error, context: 'Neurochemistry' }, 'Boost error: ' + getErrorMessage(error));
       res.status(400).json({ error: getErrorMessage(error) });
     }
   }

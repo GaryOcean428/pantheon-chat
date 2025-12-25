@@ -16,6 +16,7 @@
  */
 
 import { geometricMemory, type BasinProbe } from './geometric-memory';
+import { logger } from './lib/logger';
 import type { Regime } from '@shared/types';
 import { expandedVocabulary } from './expanded-vocabulary';
 import { vocabDecisionEngine, type WordContext } from './vocabulary-decision';

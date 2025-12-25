@@ -6,7 +6,11 @@
  * - Pantheon polling
  * - God assessments
  * - War mode declarations
- * 
+ */
+
+import { logger } from '../lib/logger';
+
+/*
  * SECURITY:
  * - All routes require authentication via Replit Auth
  * - Input validation on all POST endpoints
@@ -839,7 +843,7 @@ router.get('/status', isAuthenticated, async (req, res) => {
       });
     }
   } catch (error: unknown) {
-    console.error('[Olympus] Status error:', error);
+    logger.error({ err: error, context: 'Olympus' }, 'Status error');
     // Return loading state for backend not ready errors
     const err = error as { message?: string };
     if (err.message?.includes('not ready')) {

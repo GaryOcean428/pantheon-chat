@@ -20,6 +20,7 @@ import {
 } from "./qig-universal.js";
 import { ResonanceDetector } from "./resonance-detector.js";
 import { storage } from "./storage";
+import { logger } from './lib/logger';
 import {
   endTelemetrySession,
   initTelemetrySession,
@@ -171,10 +172,7 @@ class SearchCoordinator {
       await this.executeJob(jobToProcess.id);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
-      console.error(
-        `[SearchCoordinator] Job ${jobToProcess.id} failed:`,
-        error
-      );
+      logger.error({ err: error, context: 'SearchCoordinator', jobId: jobToProcess.id }, 'Job failed');
       await storage.appendJobLog(jobToProcess.id, {
         message: `Job failed: ${message}`,
         type: "error",

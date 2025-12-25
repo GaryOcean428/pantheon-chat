@@ -10,6 +10,7 @@
  */
 
 import { Router, Request, Response } from 'express';
+import { logger } from '../lib/logger';
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
 import { randomBytes, createHash, createCipheriv, createDecipheriv } from 'crypto';
@@ -241,7 +242,7 @@ federationRouter.post('/test-connection', async (req: Request, res: Response) =>
     });
   } catch (error: unknown) {
     const err = error as { name?: string; message?: string };
-    console.error('[Federation] Connection test failed:', error);
+    logger.error({ err: error, context: 'Federation' }, 'Connection test failed');
     res.json({
       success: false,
       error: err.name === 'AbortError' ? 'Connection timeout' : err.message,
@@ -333,7 +334,7 @@ federationRouter.post('/connect', async (req: Request, res: Response) => {
       syncDirection: direction,
     });
   } catch (error: unknown) {
-    console.error('[Federation] Failed to connect:', error);
+    logger.error({ err: error, context: 'Federation' }, 'Failed to connect');
     const err = error as { name?: string; message?: string };
     if (err.name === 'AbortError') {
       return res.status(400).json({ error: 'Connection timeout - remote node not responding' });

@@ -1,4 +1,5 @@
 import { Router, type Request, type Response } from "express";
+import { logger } from '../lib/logger';
 import { getErrorMessage, handleRouteError } from '../lib/error-utils';
 import { generousLimiter } from "../rate-limiters";
 import { getSharedController, ConsciousnessSearchController } from "../consciousness-search-controller";

@@ -4,6 +4,7 @@ import helmet from "helmet";
 import path from "path";
 import { pool } from "./db";
 import { registerRoutes } from "./routes";
+import { logger } from './lib/logger';
 import { log, serveStatic, setupVite } from "./vite";
 import { initRedis } from "./redis-cache";
 
@@ -333,16 +334,11 @@ async function syncVocabularyToPython(): Promise<void> {
         );
       }
     } else {
-      console.warn(
-        "[PythonSync] Vocabulary sync returned empty result - encoder may not be ready"
-      );
+      logger.warn({ context: 'PythonSync' }, 'Vocabulary sync returned empty result - encoder may not be ready');
     }
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error(
-      "[PythonSync] Error syncing vocabulary to Python:",
-      message
-    );
+    logger.error({ context: 'PythonSync', error: message }, 'Error syncing vocabulary to Python');
   }
 }
 

@@ -13,6 +13,7 @@
 import { createHash } from 'crypto';
 import bs58check from 'bs58check';
 import './historical-data-miner';
+import { logger } from './lib/logger';
 import type { 
   BlockchainInfoRawAddressResponse, 
   UnifiedAddressData, 

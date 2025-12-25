@@ -1,5 +1,6 @@
 import { OceanAgent, type OceanHypothesis, oceanAgent } from './ocean-agent';
 import type { OceanAgentState, ConsciousnessSignature } from '@shared/schema';
+import { logger } from './lib/logger';
 import { geometricMemory } from './geometric-memory';
 import { oceanAutonomicManager, type CycleTimeline } from './ocean-autonomic-manager';
 import { repeatedAddressScheduler } from './repeated-address-scheduler';
@@ -342,7 +343,7 @@ class OceanSessionManager {
       
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
-      console.error(`[OceanSessionManager] Session ${sessionId} error:`, error);
+      logger.error({ err: error, context: 'OceanSessionManager', sessionId }, 'Session error');
       this.updateState(sessionId, {
         isRunning: false,
         error: message,

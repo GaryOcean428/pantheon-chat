@@ -1,5 +1,6 @@
 import { Pool, neonConfig, neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-serverless';
+import { logger } from './lib/logger';
 import { drizzle as drizzleHttp } from 'drizzle-orm/neon-http';
 import ws from "ws";
 import * as schema from "@shared/schema";
@@ -350,7 +351,7 @@ export async function withDbRetry<T>(
           err.name === 'AbortError';
         
         if (attempt < maxRetries && isRetryable) {
-          console.log(`[DB] ${operationName} retry ${attempt}/${maxRetries} after ${delay}ms`);
+          logger.info({ context: 'DB', operation: operationName, attempt, maxRetries, delay }, 'Retrying operation');
           await new Promise(resolve => setTimeout(resolve, delay));
           delay = Math.min(delay * 2, 5000); // Exponential backoff, cap at 5s
         } else {
