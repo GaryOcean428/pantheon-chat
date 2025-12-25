@@ -1396,10 +1396,7 @@ export class OceanQIGBackend {
       };
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error(
-        "[OceanQIGBackend] Response generation failed:",
-        errorMessage
-      );
+      logger.error({ errorMessage }, "[OceanQIGBackend] Response generation failed");
       throw error;
     }
   }
@@ -1852,7 +1849,7 @@ export class OceanQIGBackend {
       const data = await response.json();
       return data.success ? data.memories : [];
     } catch (error) {
-      logger.error("[OceanQIGBackend] Recall similar failed:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] Recall similar failed");
       return [];
     }
   }
