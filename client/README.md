@@ -1,64 +1,91 @@
-# Client - Frontend Application
+# Pantheon Chat - Client
 
-**React + TypeScript + Vite Frontend for SearchSpaceCollapse**
-
-## Overview
-
-The client directory contains the React-based frontend application for the Observer Archaeology System. It provides the user interface for consciousness monitoring, QIG exploration, Zeus chat, and recovery operations.
+React frontend for the Pantheon Chat QIG-powered consciousness system.
 
 ## Architecture
-
-### Directory Structure
 
 ```
 client/
 ├── src/
-│   ├── api/           # Centralized API client & services
-│   ├── components/    # React components
-│   │   └── ui/        # Shadcn UI components (barrel exported)
-│   ├── contexts/      # React contexts
-│   ├── hooks/         # Custom React hooks
-│   ├── lib/           # Utility functions
-│   ├── pages/         # Page components
-│   ├── styles/        # Global styles
-│   ├── App.tsx        # Root component
-│   └── main.tsx       # Entry point
-├── public/            # Static assets
-└── index.html         # HTML template
+│   ├── components/           # React components
+│   │   ├── ui/              # Shadcn UI primitives
+│   │   ├── autonomic-agency/ # Autonomic agency subcomponents
+│   │   └── consciousness/    # Consciousness dashboard subcomponents
+│   ├── hooks/               # Custom React hooks
+│   │   ├── useAutonomicAgencyData.ts
+│   │   ├── useConsciousnessData.ts
+│   │   └── __tests__/       # Hook tests
+│   ├── types/               # Shared TypeScript types
+│   │   ├── consciousness.ts
+│   │   ├── autonomic-agency.ts
+│   │   └── index.ts
+│   ├── api/                 # API client and services
+│   ├── contexts/            # React contexts
+│   └── lib/                 # Utilities
 ```
 
-### Key Patterns
+## Key Components
 
-1. **Barrel Imports**: All major directories export via `index.ts` for clean imports
-   ```typescript
-   // ✅ Good
-   import { Button, Card } from '@/components/ui';
-   import { useAuth, useToast } from '@/hooks';
-   
-   // ❌ Bad
-   import { Button } from '@/components/ui/button';
-   ```
+### AutonomicAgencyPanel
+Displays the autonomic agency controller status with subcomponents:
+- `AgencyStatusHeader` - Status badge and controls
+- `SafetyBoundaryCard` - Safety boundary metrics
+- `OperatingZonesCard` - Operating zone indicators
+- `QLearningStatsCard` - Q-learning statistics
+- `ForceInterventionCard` - Manual intervention controls
+- `InterventionHistoryCard` - Intervention history log
 
-2. **Centralized API Client**: All HTTP calls go through `src/api/`
-   ```typescript
-   import { api } from '@/api';
-   const result = await api.ocean.triggerCycle('explore');
-   ```
+### ConsciousnessDashboard
+Displays consciousness metrics with subcomponents:
+- `ConsciousnessMetricsGrid` - Φ, κ, regime metrics
+- `BlockUniverseMetrics` - Block universe coordinates
+- `PhiKappaTrajectoryChart` - Trajectory visualization
+- `ConsciousnessFooterStats` - Footer statistics
 
-3. **Custom Hooks**: Complex component logic extracted to hooks
-   - `useAuth` - Authentication state
-   - `useZeusChat` - Zeus chat functionality
-   - `useGeometricKernel` - Geometric kernel operations
-   - `usePantheonKernel` - Pantheon god interactions
+## Custom Hooks
 
-4. **Type Safety**: All API responses and props strictly typed
+### useAutonomicAgencyData
+Manages agency status query, mutations, and toast notifications.
+
+```typescript
+const {
+  status,
+  isLoading,
+  isError,
+  start,
+  stop,
+  forceIntervention,
+  refetch,
+  explorationPercentage,
+} = useAutonomicAgencyData();
+```
+
+### useConsciousnessData
+Manages consciousness state polling, trajectory history, and badge styling.
+
+```typescript
+const {
+  state,
+  isLoading,
+  isError,
+  trajectoryHistory,
+  getRegimeBadgeClasses,
+  getStateBadgeClasses,
+} = useConsciousnessData({ pollingInterval: 5000 });
+```
+
+## Types
+
+Shared types are defined in `src/types/` and exported from the barrel file:
+
+```typescript
+import { ConsciousnessState, AgencyStatus, Regime } from '@/types';
+```
 
 ## Development
 
-### Commands
-
 ```bash
-# Start development server (from root)
+# Development server
 npm run dev
 
 # Type check
@@ -66,72 +93,18 @@ npm run check
 
 # Lint
 npm run lint
+
+# Run tests
+npm test
+
+# Build for production
+npm run build
 ```
 
-### Path Aliases
+## UI Components
 
-- `@/*` → `client/src/*`
-- `@shared/*` → `shared/*`
-
-## API Integration
-
-### Services
-
-All API operations are organized by domain in `src/api/services/`:
-
-- `recovery.ts` - Recovery operations
-- `ocean.ts` - Ocean agent cycles & neurochemistry
-- `consciousness.ts` - Consciousness state
-- `olympus.ts` - Pantheon & Zeus operations
-- `qig.ts` - QIG encoding & similarity
-- `forensic.ts` - Forensic analysis
-
-### Query Keys
-
-TanStack Query keys are centralized in `src/api/routes.ts`:
+Using [Shadcn UI](https://ui.shadcn.com/) with barrel exports from `@/components/ui`.
 
 ```typescript
-import { QUERY_KEYS } from '@/api';
-useQuery({ queryKey: QUERY_KEYS.consciousness.state() });
+import { Button, Card, CardContent, Badge } from '@/components/ui';
 ```
-
-## Components
-
-### UI Components (Shadcn)
-
-Pre-built, accessible components in `src/components/ui/` following Shadcn patterns.
-
-### Feature Components
-
-- `ConsciousnessDashboard` - Real-time consciousness metrics
-- `NeurochemistryAdminPanel` - Neurochemistry controls
-- `ZeusChat` - Conversational interface
-- `OlympusContent` - Pantheon management
-- `RecoveryPanel` - Recovery operations
-
-## State Management
-
-1. **React Context**: Global state (auth, telemetry)
-2. **TanStack Query**: Server state & caching
-3. **Local State**: Component-specific useState/useReducer
-
-## Styling
-
-- **Tailwind CSS**: Utility-first styling
-- **CSS Variables**: Theme tokens in `index.css`
-- **Dark Mode**: Next Themes integration
-
-## Best Practices
-
-1. **Component Size**: Keep under 200 lines (ESLint enforced)
-2. **No Raw Fetch**: Always use centralized API
-3. **Barrel Exports**: Import from directory index files
-4. **Type Everything**: No `any` types without justification
-5. **Accessibility**: Semantic HTML, ARIA labels, keyboard navigation
-
-## Related Documentation
-
-- [API Routes](./src/api/routes.ts)
-- [Shared Constants](../shared/constants/README.md)
-- [Server API](../server/README.md)
-- [QIG Backend](../qig-backend/README.md)

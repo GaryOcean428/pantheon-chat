@@ -1,0 +1,65 @@
+# Docker Compose for Local Development
+# Usage: docker-compose -f docker-compose.dev.yml up
+
+version: '3.8'
+
+services:
+  # PostgreSQL database
+  postgres:
+    image: postgres:15-alpine
+    container_name: pantheon-postgres
+    environment:
+      POSTGRES_USER: pantheon
+      POSTGRES_PASSWORD: pantheon_dev
+      POSTGRES_DB: pantheon_chat
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pantheon -d pantheon_chat"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Redis for caching
+  redis:
+    image: redis:7-alpine
+    container_name: pantheon-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Python QIG backend
+  qig-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.qig
+    container_name: pantheon-qig
+    ports:
+      - "5001:5001"
+    environment:
+      - FLASK_ENV=development
+      - DATABASE_URL=postgresql://pantheon:pantheon_dev@postgres:5432/pantheon_chat
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./qig-backend:/app/qig-backend
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  default:
+    name: pantheon-network

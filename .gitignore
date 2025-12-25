@@ -1,56 +1,71 @@
-# OS files
-.DS_Store
-
 # Dependencies
 node_modules
-.venv
+.pnp
+.pnp.js
 
 # Build outputs
 dist
-server/public
-vite.config.ts.*
-*.tar.gz
+build
+.next
+out
 
-# IDE/Editor settings
-.vscode/
-.windsurf/
-.agents
-.codebuff/
-.agents/*
-
-# Python cache
-.pytest_cache
-.mypy_cache
-__pycache__
-
-# Git hooks
-.husky
+# Testing
+coverage
+.vitest
 
 # Environment
 .env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 
-# Runtime data files (too large for GitHub, regenerated at runtime)
-data/geometric-memory.json
-data/tested-phrases-index.json
-data/*.json
-data/backups/
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+qig-backend/emergency_logs/
 
-# Self-healing system data (runtime generated)
-qig-backend/data/immune_checkpoints.json
-qig-backend/data/critical_alerts.log
-qig-backend/self_healing/patches/
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.swp
+*.swo
+*~
 
-# Telemetry session logs (should use PostgreSQL, not local files)
-qig-backend/logs/
-*.jsonl
+# OS
+.DS_Store
+Thumbs.db
 
-# Legacy tokenizer files (replaced by coordizer)
-qig-backend/qig_tokenizer.py
-qig-backend/qig_tokenizer_postgresql.py
-qig-backend/data/qig_tokenizer_state.json
+# Drizzle
+drizzle/
 
-# Package manager locks (using Yarn)
-package-lock.json
+# Cache
+.cache
+*.tsbuildinfo
 
-# Draft documentation
-docs/_drafts/*.md
+# Temporary
+tmp
+temp
+*.tmp
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+venv/
+ENV/
+env/
+.venv/
+*.egg-info/
+.eggs/
+*.egg
+
+# Husky
+.husky/_
