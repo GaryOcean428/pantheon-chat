@@ -1828,23 +1828,25 @@ router.post('/kernels/sync-batch', requireInternalAuth, async (req, res) => {
 });
 
 // ==================== SHADOW PANTHEON ROUTES ====================
+// Note: Read-only status endpoints are public for dashboard visibility
+// POST/action endpoints require authentication
 
-/** Get Shadow Pantheon status */
-router.get('/shadow/status', isAuthenticated, (req, res) => 
+/** Get Shadow Pantheon status (public - read-only) */
+router.get('/shadow/status', (req, res) => 
   proxyGet(req, res, '/shadow/status', 'Shadow Pantheon unreachable', { 
     errorStatus: 503,
     fallbackResponse: { active: false, gods: [], status: 'unavailable' }
   }));
 
-/** Get Shadow Learning Loop status with 4D foresight */
-router.get('/shadow/learning', isAuthenticated, (req, res) => 
+/** Get Shadow Learning Loop status with 4D foresight (public - read-only) */
+router.get('/shadow/learning', (req, res) => 
   proxyGet(req, res, '/shadow/learning', 'Shadow Learning unreachable', { 
     errorStatus: 503,
-    fallbackResponse: { learning_active: false, foresight_enabled: false, cycles_completed: 0 }
+    fallbackResponse: { learning: null }
   }));
 
-/** Get 4D Foresight temporal predictions */
-router.get('/shadow/foresight', isAuthenticated, (req, res) => 
+/** Get 4D Foresight temporal predictions (public - read-only) */
+router.get('/shadow/foresight', (req, res) => 
   proxyGet(req, res, '/shadow/foresight', 'Shadow Foresight unreachable', { 
     errorStatus: 503,
     fallbackResponse: { predictions: [], temporal_depth: 0, foresight_enabled: false }
