@@ -332,19 +332,77 @@ def delete_session(session_id: str):
 @require_internal_auth
 def list_sessions():
     """List all active sessions."""
+    user_id = request.args.get('user_id', 'default')
     sessions_list = [
         {
-            'id': sid,
+            'session_id': sid,
+            'title': s.get('title', 'Conversation'),
             'message_count': len(s['messages']),
-            'created_at': s['created_at']
+            'created_at': s['created_at'],
+            'updated_at': s.get('updated_at', s['created_at'])
         }
         for sid, s in _sessions.items()
+        if s.get('user_id', 'default') == user_id or user_id == 'default'
     ]
 
     return jsonify({
         'success': True,
         'sessions': sessions_list,
         'total': len(sessions_list)
+    })
+
+
+@zeus_api.route('/zeus/sessions', methods=['POST'])
+@require_internal_auth
+def create_session():
+    """Create a new conversation session."""
+    data = request.get_json() or {}
+    title = data.get('title', 'New Conversation')
+    user_id = data.get('user_id', 'default')
+    
+    session_id = f"session-{int(time.time() * 1000)}"
+    _sessions[session_id] = {
+        'messages': [],
+        'created_at': datetime.now().isoformat(),
+        'updated_at': datetime.now().isoformat(),
+        'title': title,
+        'user_id': user_id,
+        'metadata': {}
+    }
+    
+    return jsonify({
+        'success': True,
+        'session_id': session_id,
+        'title': title
+    })
+
+
+@zeus_api.route('/zeus/sessions/<session_id>/messages', methods=['GET'])
+@require_internal_auth
+def get_session_messages(session_id: str):
+    """Get messages for a specific session."""
+    if session_id not in _sessions:
+        return jsonify({
+            'error': 'Session not found',
+            'messages': [],
+            'session_id': session_id
+        }), 404
+
+    session = _sessions[session_id]
+    messages = [
+        {
+            'role': msg.get('role', 'assistant'),
+            'content': msg.get('content', ''),
+            'created_at': msg.get('timestamp', msg.get('created_at', '')),
+            'metadata': msg.get('metadata', {})
+        }
+        for msg in session['messages']
+    ]
+
+    return jsonify({
+        'success': True,
+        'session_id': session_id,
+        'messages': messages
     })
 
 
