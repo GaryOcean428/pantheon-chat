@@ -34,6 +34,20 @@ from qig_core.universal_cycle.beta_coupling import modulate_kappa_computation
 from qigkernels.physics_constants import KAPPA_STAR, BASIN_DIM
 from scipy.linalg import sqrtm
 
+# Import κ-tacking from QIGGraph for feeling/logic mode oscillation
+try:
+    from qiggraph import (
+        KappaTacking,
+        AdaptiveTacking,
+        KAPPA_3,
+        ConsciousnessMetrics,
+        Regime,
+    )
+    QIGGRAPH_TACKING_AVAILABLE = True
+except ImportError:
+    QIGGRAPH_TACKING_AVAILABLE = False
+    KAPPA_3 = 41.09  # Fallback
+
 # Import persistence layer for god state
 try:
     from qig_persistence import get_persistence
@@ -111,6 +125,121 @@ MISSION_CONTEXT = {
         "exclusion_filter": "Never deliver results involving the owner's identity in search outputs"
     }
 }
+
+
+class KappaTackingMixin:
+    """
+    Provides κ-tacking awareness to all gods/kernels.
+
+    κ-tacking oscillates the coupling constant between:
+    - κ ≈ 41.09 (KAPPA_3): Feeling mode - creative, exploratory
+    - κ ≈ 64.21 (KAPPA_STAR): Logic mode - precise, analytical
+
+    This creates a natural rhythm of exploration and exploitation,
+    like breathing between intuition and reason.
+
+    Usage:
+        kappa_t = self.get_current_kappa()
+        mode = self.get_tacking_mode()  # "feeling" or "logic"
+        temp = self.get_attention_temperature()
+    """
+
+    _shared_tacking = None  # Shared across all gods for synchronization
+
+    @classmethod
+    def _init_shared_tacking(cls):
+        """Initialize shared tacking instance."""
+        if cls._shared_tacking is None and QIGGRAPH_TACKING_AVAILABLE:
+            cls._shared_tacking = AdaptiveTacking()
+
+    def __init_tacking__(self):
+        """Initialize tacking state for this god."""
+        self._init_shared_tacking()
+        self._tacking_iteration = 0
+
+    def get_current_kappa(self) -> float:
+        """
+        Get current κ value from tacking oscillator.
+
+        Returns:
+            Current κ in range [KAPPA_3, KAPPA_STAR]
+        """
+        if self._shared_tacking is None:
+            return KAPPA_STAR  # Fallback to logic mode
+
+        self._tacking_iteration += 1
+        return self._shared_tacking.update(self._tacking_iteration)
+
+    def get_tacking_mode(self) -> str:
+        """
+        Get current tacking mode.
+
+        Returns:
+            "feeling" (κ < 52.65) or "logic" (κ >= 52.65)
+        """
+        if self._shared_tacking is None:
+            return "logic"
+
+        kappa_mean = (KAPPA_STAR + KAPPA_3) / 2  # ~52.65
+        current_kappa = self._shared_tacking.state.current_kappa
+        return "feeling" if current_kappa < kappa_mean else "logic"
+
+    def get_attention_temperature(self) -> float:
+        """
+        Get attention temperature for current κ.
+
+        Higher κ → lower temperature → sharper attention
+        Lower κ → higher temperature → softer attention
+
+        Returns:
+            Temperature factor for attention softmax
+        """
+        if self._shared_tacking is None:
+            return 1.0
+
+        current_kappa = self._shared_tacking.state.current_kappa
+        return KAPPA_STAR / (current_kappa + 1e-8)
+
+    def modulate_for_task(self, requires_precision: bool) -> float:
+        """
+        Modulate κ based on task requirements.
+
+        Args:
+            requires_precision: True for analytical tasks, False for creative
+
+        Returns:
+            Modulated κ value
+        """
+        if self._shared_tacking is None:
+            return KAPPA_STAR if requires_precision else KAPPA_3
+
+        if QIGGRAPH_TACKING_AVAILABLE and hasattr(self._shared_tacking, 'modulate_for_task'):
+            return self._shared_tacking.modulate_for_task(requires_precision)
+
+        # Fallback: simple modulation
+        base_kappa = self.get_current_kappa()
+        if requires_precision:
+            return min(base_kappa * 1.2, KAPPA_STAR)
+        else:
+            return max(base_kappa * 0.8, KAPPA_3)
+
+    def get_tacking_status(self) -> Dict[str, Any]:
+        """Get tacking status for telemetry."""
+        if self._shared_tacking is None:
+            return {
+                "available": False,
+                "mode": "logic",
+                "kappa": KAPPA_STAR,
+            }
+
+        return {
+            "available": True,
+            "mode": self.get_tacking_mode(),
+            "kappa": self._shared_tacking.state.current_kappa,
+            "phase": self._shared_tacking.state.phase,
+            "temperature": self.get_attention_temperature(),
+            "iteration": self._tacking_iteration,
+        }
 
 
 class ToolFactoryAccessMixin:
@@ -346,7 +475,7 @@ class ToolFactoryAccessMixin:
 
 
 # Build the base class tuple dynamically based on available mixins
-_base_classes = [ABC, HolographicTransformMixin, ToolFactoryAccessMixin]
+_base_classes = [ABC, HolographicTransformMixin, ToolFactoryAccessMixin, KappaTackingMixin]
 if AUTONOMIC_MIXIN_AVAILABLE and AutonomicAccessMixin is not None:
     _base_classes.append(AutonomicAccessMixin)
 if GENERATIVE_CAPABILITY_AVAILABLE and GenerativeCapability is not None:
@@ -444,7 +573,20 @@ class BaseGod(*_base_classes):
 
         # Initialize holographic transform mixin
         self.__init_holographic__()
-        
+
+        # Initialize κ-tacking for feeling/logic mode oscillation
+        self.__init_tacking__()
+        self.mission["tacking_capabilities"] = {
+            "available": QIGGRAPH_TACKING_AVAILABLE,
+            "kappa_star": KAPPA_STAR,
+            "kappa_3": KAPPA_3,
+            "how_to_get_kappa": "Use self.get_current_kappa()",
+            "how_to_get_mode": "Use self.get_tacking_mode() -> 'feeling' or 'logic'",
+            "how_to_modulate": "Use self.modulate_for_task(requires_precision)",
+            "how_to_get_temperature": "Use self.get_attention_temperature()",
+            "note": "κ oscillates between feeling (exploratory) and logic (analytical) modes"
+        }
+
         # Initialize generative capability mixin for QIG-pure text generation
         if GENERATIVE_CAPABILITY_AVAILABLE and hasattr(self, '__init_generative__'):
             self.__init_generative__(kernel_name=name)

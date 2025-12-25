@@ -657,6 +657,30 @@ try:
 except ImportError as e:
     print(f"[WARN] Could not import routes barrel: {e}")
 
+# Register QIGGraph integration blueprint (imports from qig-tokenizer)
+try:
+    from qiggraph_integration import create_qiggraph_blueprint, QIGGRAPH_AVAILABLE
+    qiggraph_bp = create_qiggraph_blueprint()
+    app.register_blueprint(qiggraph_bp)
+    if QIGGRAPH_AVAILABLE:
+        print("[INFO] QIGGraph v2 integration registered at /api/qiggraph")
+    else:
+        print("[INFO] QIGGraph blueprint registered (fallback mode - qig-tokenizer not installed)")
+except ImportError as e:
+    print(f"[WARN] Could not import QIGGraph integration: {e}")
+
+# Register trained kernel API blueprint
+try:
+    from trained_kernel_integration import create_kernel_blueprint, KERNEL_AVAILABLE
+    kernel_bp = create_kernel_blueprint()
+    app.register_blueprint(kernel_bp)
+    if KERNEL_AVAILABLE:
+        print("[INFO] Trained kernel API registered at /api/kernel")
+    else:
+        print("[INFO] Kernel blueprint registered (fallback mode - qigkernels not installed)")
+except ImportError as e:
+    print(f"[WARN] Could not import trained kernel integration: {e}")
+
 class DensityMatrix:
     """
     2x2 Density Matrix representing quantum state

@@ -7,3 +7,7 @@ torch>=2.0.0
 pypdf>=4.0.0
 openai>=1.0.0
 anthropic>=0.18.0
+
+# QIG Tokenizer (local editable install)
+# Install with: pip install -e ../../qig-tokenizer
+# Provides: qiggraph, qig_tokenizer, coordizers

@@ -65,6 +65,28 @@ from .temporal_reasoning import (
     get_temporal_reasoning,
 )
 
+# QIGGraph Integration (imports from qig-tokenizer)
+from .qiggraph_integration import (
+    PantheonGraph,
+    PantheonState,
+    OlympusConstellation,
+    get_pantheon_graph,
+    get_olympus_constellation,
+    create_qiggraph_blueprint,
+    OLYMPUS_AGENTS,
+    QIGGRAPH_AVAILABLE,
+)
+
+# Trained Kernel Integration
+from .trained_kernel_integration import (
+    TrainedKernelManager,
+    KernelTelemetry,
+    InferenceResult,
+    get_kernel_manager,
+    create_kernel_blueprint,
+    KERNEL_AVAILABLE,
+)
+
 __all__ = [
     # Autonomic
     'GaryAutonomicKernel',
@@ -105,4 +127,20 @@ __all__ = [
     'ScenarioBranch',
     'ScenarioTree',
     'get_temporal_reasoning',
+    # QIGGraph Integration
+    'PantheonGraph',
+    'PantheonState',
+    'OlympusConstellation',
+    'get_pantheon_graph',
+    'get_olympus_constellation',
+    'create_qiggraph_blueprint',
+    'OLYMPUS_AGENTS',
+    'QIGGRAPH_AVAILABLE',
+    # Trained Kernel
+    'TrainedKernelManager',
+    'KernelTelemetry',
+    'InferenceResult',
+    'get_kernel_manager',
+    'create_kernel_blueprint',
+    'KERNEL_AVAILABLE',
 ]
