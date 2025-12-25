@@ -79,11 +79,21 @@ export interface KnowledgeDiscoverySession {
  * Convert a recovery session to discovery session format
  */
 export function sessionToDiscoverySession(session: UnifiedRecoverySession): KnowledgeDiscoverySession {
+  // Map recovery status to discovery status
+  const statusMap: Record<string, KnowledgeDiscoverySession['status']> = {
+    'initializing': 'initializing',
+    'analyzing': 'analyzing',
+    'running': 'discovering',
+    'learning': 'learning',
+    'completed': 'completed',
+    'failed': 'failed',
+  };
+  
   return {
     id: session.id,
     query: session.targetAddress,
     domain: session.blockchainAnalysis?.era || 'general',
-    status: session.status as any,
+    status: statusMap[session.status] || 'initializing',
     strategies: session.strategies.map(s => ({
       id: s.id,
       name: s.type,
@@ -888,8 +898,7 @@ class UnifiedRecoveryOrchestrator {
 
         const candidate = await this.testPhraseWithEvidence(
           session.targetAddress,
-          pattern.phrase,
-          pattern.format as any,
+          pattern.phrase,            pattern.format as 'arbitrary' | 'bip39' | 'master' | 'hex',
           'historical_autonomous',
           evidenceChain,
           undefined
@@ -1318,7 +1327,16 @@ class UnifiedRecoveryOrchestrator {
           detectedEra: state.detectedEra,
         };
         
-        (session as any).oceanState = {
+        // Type-safe ocean state extension using interface
+        const extendedSession = session as UnifiedRecoverySession & { oceanState?: {
+          identity: { phi: number; kappa: number; regime: string; basinDrift: number; selfModel: string };
+          memory: { episodeCount: number; patternCount: number; clusterCount: number };
+          ethics: { violations: number; witnessAcknowledged: boolean };
+          consolidation: { cycles: number; lastConsolidation: string | null; needsConsolidation: boolean };
+          computeTimeSeconds: number;
+          detectedEra?: string;
+        }};
+        extendedSession.oceanState = {
           identity: {
             phi: state.identity.phi,
             kappa: state.identity.kappa,
@@ -1432,7 +1450,7 @@ class UnifiedRecoveryOrchestrator {
         derivationPath: result.match.derivationPath,
         address: result.match.address || '',
         match: true,
-        source: 'learning_loop' as any,
+        source: 'learning_loop',
         confidence: result.match.confidence,
         qigScore: {
           phi: result.match.qigScore?.phi || 0,

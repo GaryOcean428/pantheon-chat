@@ -102,10 +102,10 @@ consciousnessRouter.get("/complete", generousLimiter, async (req: Request, res: 
     if (agent) {
       const agentState = agent.getState?.() || {};
       stats = {
-        totalTested: (agentState as any).totalTested || 0,
-        nearMisses: (agentState as any).nearMisses || 0,
-        resonanceHits: (agentState as any).resonanceHits || 0,
-        balanceHits: (agentState as any).balanceHits || 0,
+        totalTested: (agentState as { totalTested?: number }).totalTested || 0,
+        nearMisses: (agentState as { nearMisses?: number }).nearMisses || 0,
+        resonanceHits: (agentState as { resonanceHits?: number }).resonanceHits || 0,
+        balanceHits: (agentState as { balanceHits?: number }).balanceHits || 0,
       };
       metrics = {
         totalTested: stats.totalTested,

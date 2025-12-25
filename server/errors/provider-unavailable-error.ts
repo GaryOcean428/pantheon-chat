@@ -52,7 +52,7 @@ export class ProviderUnavailableError extends Error {
   static isProviderUnavailableError(error: unknown): error is ProviderUnavailableError {
     return (
       error instanceof ProviderUnavailableError ||
-      (error instanceof Error && 'isProviderUnavailable' in error && (error as any).isProviderUnavailable === true)
+      (error instanceof Error && 'isProviderUnavailable' in error && (error as Error & { isProviderUnavailable?: boolean }).isProviderUnavailable === true)
     );
   }
 

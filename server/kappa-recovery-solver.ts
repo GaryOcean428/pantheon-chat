@@ -11,6 +11,12 @@
  */
 
 import type { Address } from "@shared/schema";
+import type { 
+  TemporalSignature, 
+  GraphSignature, 
+  ValueSignature, 
+  ScriptSignature 
+} from "@shared/types/blockchain-types";
 
 // ============================================================================
 // CONSTRAINT ANALYSIS
@@ -79,7 +85,7 @@ export function computePhiConstraints(
   
   // Temporal precision (0-15 points)
   // Narrow time window = better constraints
-  const temporalSig = address.temporalSignature as any;
+  const temporalSig = address.temporalSignature as TemporalSignature | undefined;
   let temporalScore = 0;
   if (temporalSig && temporalSig.hourPattern) {
     // If we know hour pattern, precision is high (1-hour precision)
@@ -92,7 +98,7 @@ export function computePhiConstraints(
   }
   
   // Graph connectivity (0-15 points)
-  const graphSig = address.graphSignature as any;
+  const graphSig = address.graphSignature as GraphSignature | undefined;
   if (graphSig) {
     breakdown.graphSignature = graphSig.inputAddresses?.length || 0;
     breakdown.clusterSize = graphSig.clusterSize || 0;
@@ -100,7 +106,7 @@ export function computePhiConstraints(
   const graphScore = Math.min(breakdown.graphSignature * 3 + breakdown.clusterSize * 0.5, 15);
   
   // Value pattern analysis (0-10 points)
-  const valueSig = address.valueSignature as any;
+  const valueSig = address.valueSignature as ValueSignature | undefined;
   if (valueSig) {
     breakdown.hasRoundNumbers = valueSig.hasRoundNumbers || false;
     breakdown.valuePatternStrength = valueSig.patternStrength || 0;
@@ -108,7 +114,7 @@ export function computePhiConstraints(
   const valueScore = breakdown.hasRoundNumbers ? 10 : 0;
   
   // Script/software fingerprint (0-5 points)
-  const scriptSig = address.scriptSignature as any;
+  const scriptSig = address.scriptSignature as ScriptSignature | undefined;
   if (scriptSig && scriptSig.softwareFingerprint) {
     breakdown.hasSoftwareFingerprint = true;
     breakdown.scriptComplexity = scriptSig.complexity || 0.5;
@@ -164,8 +170,8 @@ export function computeHCreation(
   const eraScore = breakdown.eraFactor * 30;
   
   // Script complexity (20 points): More complex = higher entropy
-  const scriptSig = address.scriptSignature as any;
-  breakdown.scriptComplexityFactor = scriptSig?.complexity || 0.5;
+  const scriptSigEntropy = address.scriptSignature as ScriptSignature | undefined;
+  breakdown.scriptComplexityFactor = scriptSigEntropy?.complexity || 0.5;
   const scriptScore = breakdown.scriptComplexityFactor * 20;
   
   // Mining factor (15 points): Coinbase = higher entropy (auto-generated)
@@ -424,8 +430,8 @@ export function recoveryToDiscovery(result: KappaRecoveryResult): KappaDiscovery
     h: result.h,
     priority: tierMap[result.tier] || 'standard',
     recommendedApproach: vectorMap[result.recommendedVector] || 'targeted_search',
-    phiBreakdown: constraintToEvidence((result as any).phiBreakdown),
-    hBreakdown: entropyToUncertainty((result as any).hBreakdown),
+    phiBreakdown: constraintToEvidence(result.constraints),
+    hBreakdown: entropyToUncertainty(result.entropy),
   };
 }
 
@@ -446,7 +452,7 @@ export function computeKappaDiscovery(gap: KnowledgeGap): KappaDiscoveryResult {
     scriptSignature: gap.methodSignature,
   };
   
-  const result = computeKappaRecovery(addressFormat as any);
+  const result = computeKappaRecovery(addressFormat as Address);
   return recoveryToDiscovery(result);
 }
 
@@ -470,7 +476,7 @@ export function rankDiscoveryPriorities(
     scriptSignature: g.methodSignature,
   }));
   
-  const results = rankRecoveryPriorities(addresses as any[], impactMultiplier);
+  const results = rankRecoveryPriorities(addresses as Address[], impactMultiplier);
   
   const tierMap: Record<string, 'priority' | 'standard' | 'exploratory' | 'research'> = {
     'high': 'priority',

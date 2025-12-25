@@ -42,6 +42,13 @@ import {
 } from '../war-history-storage';
 import { storeConversation, storeShadowIntel, storeKernelGeometry, getKernelGeometry } from '../qig-db';
 import { activityLogStore } from '../activity-log-store';
+import type { 
+  AuthenticatedUser, 
+  WarDeclarationResult, 
+  WarEndResult, 
+  ActiveWarWithMetrics,
+  StoredKernel 
+} from '@shared/types/server-types';
 
 const router = Router();
 const BACKEND_URL = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
@@ -182,7 +189,8 @@ async function proxyDelete(
  */
 function auditLog(req: Request, operation: string, target: string, success: boolean): void {
   const timestamp = new Date().toISOString();
-  const userId = (req.user as any)?.claims?.sub || 'anonymous';
+  const user = req.user as AuthenticatedUser | undefined;
+  const userId = user?.claims?.sub || 'anonymous';
   console.log(`[AUDIT] ${timestamp} | user:${userId} | op:${operation} | target:${target} | success:${success}`);
 }
 
@@ -373,7 +381,8 @@ router.post('/zeus/chat', isAuthenticated, async (req, res) => {
 router.get('/zeus/sessions', isAuthenticated, async (req, res) => {
   const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
   const limit = Math.min(Math.max(parseInt(req.query.limit as string) || 20, 1), 100);
-  const userId = (req as any).user?.claims?.sub || 'default';
+  const user = req.user as AuthenticatedUser | undefined;
+  const userId = user?.claims?.sub || 'default';
   try {
     const response = await fetch(`${backendUrl}/api/zeus/sessions?limit=${limit}&user_id=${encodeURIComponent(userId)}`, {
       method: 'GET',
@@ -396,7 +405,8 @@ router.get('/zeus/sessions', isAuthenticated, async (req, res) => {
  */
 router.post('/zeus/sessions', isAuthenticated, async (req, res) => {
   const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
-  const userId = (req as any).user?.claims?.sub || 'default';
+  const user = req.user as AuthenticatedUser | undefined;
+  const userId = user?.claims?.sub || 'default';
   try {
     const response = await fetch(`${backendUrl}/api/zeus/sessions`, {
       method: 'POST',
@@ -420,7 +430,8 @@ router.post('/zeus/sessions', isAuthenticated, async (req, res) => {
  */
 router.get('/zeus/sessions/:sessionId/messages', isAuthenticated, async (req, res) => {
   const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
-  const userId = (req as any).user?.claims?.sub || 'default';
+  const user = req.user as AuthenticatedUser | undefined;
+  const userId = user?.claims?.sub || 'default';
   try {
     const { sessionId } = req.params;
     const response = await fetch(`${backendUrl}/api/zeus/sessions/${sessionId}/messages?user_id=${encodeURIComponent(userId)}`, {
@@ -933,8 +944,9 @@ const warEndSchema = z.object({
  */
 router.post('/war/flow', isAuthenticated, validateInput(warTargetSchema), async (req, res) => {
   try {
-    console.log(`[Olympus] User ${(req.user as any)?.claims?.sub} activated FLOW state on: ${req.body.target}`);
-    const result = await olympusClient.declareBlitzkrieg(req.body.target);
+    const user = req.user as AuthenticatedUser | undefined;
+    console.log(`[Olympus] User ${user?.claims?.sub} activated FLOW state on: ${req.body.target}`);
+    const result = await olympusClient.declareBlitzkrieg(req.body.target) as WarDeclarationResult | null;
     
     if (result) {
       const warRecord = await recordWarStart(
@@ -944,7 +956,7 @@ router.post('/war/flow', isAuthenticated, validateInput(warTargetSchema), async 
         result.gods_engaged
       );
       if (warRecord) {
-        (result as any).warHistoryId = warRecord.id;
+        result.warHistoryId = warRecord.id;
       }
     }
     
@@ -966,8 +978,9 @@ router.post('/war/flow', isAuthenticated, validateInput(warTargetSchema), async 
  */
 router.post('/war/deep-focus', isAuthenticated, validateInput(warTargetSchema), async (req, res) => {
   try {
-    console.log(`[Olympus] User ${(req.user as any)?.claims?.sub} activated DEEP_FOCUS state on: ${req.body.target}`);
-    const result = await olympusClient.declareSiege(req.body.target);
+    const user = req.user as AuthenticatedUser | undefined;
+    console.log(`[Olympus] User ${user?.claims?.sub} activated DEEP_FOCUS state on: ${req.body.target}`);
+    const result = await olympusClient.declareSiege(req.body.target) as WarDeclarationResult | null;
     
     if (result) {
       const warRecord = await recordWarStart(
@@ -977,7 +990,7 @@ router.post('/war/deep-focus', isAuthenticated, validateInput(warTargetSchema), 
         result.gods_engaged
       );
       if (warRecord) {
-        (result as any).warHistoryId = warRecord.id;
+        result.warHistoryId = warRecord.id;
       }
     }
     
@@ -999,8 +1012,9 @@ router.post('/war/deep-focus', isAuthenticated, validateInput(warTargetSchema), 
  */
 router.post('/war/insight-hunt', isAuthenticated, validateInput(warTargetSchema), async (req, res) => {
   try {
-    console.log(`[Olympus] User ${(req.user as any)?.claims?.sub} activated INSIGHT_HUNT state on: ${req.body.target}`);
-    const result = await olympusClient.declareHunt(req.body.target);
+    const user = req.user as AuthenticatedUser | undefined;
+    console.log(`[Olympus] User ${user?.claims?.sub} activated INSIGHT_HUNT state on: ${req.body.target}`);
+    const result = await olympusClient.declareHunt(req.body.target) as WarDeclarationResult | null;
     
     if (result) {
       const warRecord = await recordWarStart(
@@ -1010,7 +1024,7 @@ router.post('/war/insight-hunt', isAuthenticated, validateInput(warTargetSchema)
         result.gods_engaged
       );
       if (warRecord) {
-        (result as any).warHistoryId = warRecord.id;
+        result.warHistoryId = warRecord.id;
       }
     }
     
@@ -1032,10 +1046,11 @@ router.post('/war/insight-hunt', isAuthenticated, validateInput(warTargetSchema)
  */
 router.post('/war/end', isAuthenticated, async (req, res) => {
   try {
-    console.log(`[Olympus] User ${(req.user as any)?.claims?.sub} ended war mode`);
+    const user = req.user as AuthenticatedUser | undefined;
+    console.log(`[Olympus] User ${user?.claims?.sub} ended war mode`);
     
-    const activeWar = await getActiveWar();
-    const result = await olympusClient.endWar();
+    const activeWar = await getActiveWar() as ActiveWarWithMetrics | null;
+    const result = await olympusClient.endWar() as WarEndResult | null;
     
     if (activeWar && result) {
       await recordWarEnd(
@@ -1044,7 +1059,7 @@ router.post('/war/end', isAuthenticated, async (req, res) => {
         undefined,
         undefined
       );
-      (result as any).warHistoryId = activeWar.id;
+      result.warHistoryId = activeWar.id;
     }
     
     auditLog(req, 'war/end', activeWar?.target || 'no-active-war', true);
@@ -1108,7 +1123,8 @@ router.get('/war/active', async (req, res) => {
 router.post('/war/start', isAuthenticated, validateInput(warStartSchema), async (req, res) => {
   try {
     const { mode, target, strategy, godsEngaged } = req.body;
-    console.log(`[Olympus] User ${(req.user as any)?.claims?.sub} starting war: ${mode} on ${target}`);
+    const user = req.user as AuthenticatedUser | undefined;
+    console.log(`[Olympus] User ${user?.claims?.sub} starting war: ${mode} on ${target}`);
     
     const warRecord = await recordWarStart(
       mode as WarMode,
@@ -1170,7 +1186,8 @@ router.post('/war/end/:id', isAuthenticated, validateInput(warEndSchema), async 
   try {
     const { id } = req.params;
     const { outcome, convergenceScore, metrics } = req.body;
-    console.log(`[Olympus] User ${(req.user as any)?.claims?.sub} ending war ${id} with outcome: ${outcome}`);
+    const user = req.user as AuthenticatedUser | undefined;
+    console.log(`[Olympus] User ${user?.claims?.sub} ending war ${id} with outcome: ${outcome}`);
     
     const existingWar = await getWarById(id);
     if (!existingWar) {
@@ -1294,9 +1311,9 @@ router.post('/spawn/auto', isAuthenticated, validateInput(targetSchema), async (
       }
       
       // Update war metrics with kernel count if war is active
-      const activeWar = await getActiveWar();
+      const activeWar = await getActiveWar() as ActiveWarWithMetrics | null;
       if (activeWar) {
-        const currentKernels = (activeWar as any).kernelsSpawnedDuringWar || 0;
+        const currentKernels = activeWar.kernelsSpawnedDuringWar || 0;
         await updateWarMetrics(activeWar.id, {
           kernelsSpawned: currentKernels + data.spawned_kernels.length,
         });
@@ -1627,7 +1644,7 @@ router.get('/kernels', isAuthenticated, async (req, res) => {
       kernel_id: k.kernelId,
       god_name: k.godName,
       domain: k.domain,
-      status: (k as any).status || 'idle',
+      status: (k as StoredKernel).status || 'idle',
       primitive_root: k.primitiveRoot,
       basin_coordinates: k.basinCoordinates,
       parent_kernels: k.parentKernels || [],
@@ -1638,7 +1655,7 @@ router.get('/kernels', isAuthenticated, async (req, res) => {
       affinity_strength: k.affinityStrength || 0,
       entropy_threshold: k.entropyThreshold || 0,
       spawned_at: k.spawnedAt,
-      last_active_at: (k as any).lastActiveAt,
+      last_active_at: (k as StoredKernel).lastActiveAt,
       spawned_during_war_id: k.spawnedDuringWarId,
       phi: k.phi || 0,
       kappa: k.kappa || 0,

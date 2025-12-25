@@ -12,6 +12,7 @@ import {
   type RecoveryWorkflow
 } from "@shared/schema";
 import { eq, and, or, gte, lte, desc, asc, sql } from "drizzle-orm";
+import type { WorkflowProgress, RecoveryConstraints, LegacyRecoveryConstraints } from "@shared/types/server-types";
 
 export interface IObserverStorage {
   // Block operations
@@ -69,7 +70,7 @@ export class ObserverStorage implements IObserverStorage {
    * - artifactCount → artifactDensity
    * - graphDegree → graphSignature
    */
-  private normalizeConstraints(constraints: any): { normalized: any; hadLegacy: boolean } {
+  private normalizeConstraints(constraints: LegacyRecoveryConstraints | RecoveryConstraints | null): { normalized: RecoveryConstraints | null; hadLegacy: boolean } {
     if (!constraints) return { normalized: constraints, hadLegacy: false };
     
     let hadLegacy = false;
@@ -364,15 +365,17 @@ export class ObserverStorage implements IObserverStorage {
         
         let query = db!.select().from(addresses).where(and(...conditions));
         
-        query = query.orderBy(desc(addresses.currentBalance)) as any;
+        // Note: Drizzle's query builder returns correctly typed results
+        // The chained methods are type-safe despite the inference limitations
+        const orderedQuery = query.orderBy(desc(addresses.currentBalance));
+        const limitedQuery = filters?.limit !== undefined 
+          ? orderedQuery.limit(filters.limit) 
+          : orderedQuery;
+        const finalQuery = filters?.offset !== undefined 
+          ? limitedQuery.offset(filters.offset) 
+          : limitedQuery;
         
-        if (filters?.limit !== undefined) {
-          query = query.limit(filters.limit) as any;
-        }
-        
-        if (filters?.offset !== undefined) {
-          query = query.offset(filters.offset) as any;
-        }
+        return await finalQuery;
         
         return await query;
       },
@@ -392,15 +395,10 @@ export class ObserverStorage implements IObserverStorage {
       async () => {
         let query = db!.select().from(addresses).orderBy(asc(addresses.firstSeenHeight));
         
-        if (limit !== undefined) {
-          query = query.limit(limit) as any;
-        }
+        const limitedQuery = limit !== undefined ? query.limit(limit) : query;
+        const finalQuery = offset !== undefined ? limitedQuery.offset(offset) : limitedQuery;
         
-        if (offset !== undefined) {
-          query = query.offset(offset) as any;
-        }
-        
-        return await query;
+        return await finalQuery;
       },
       'select-all-addresses'
     );
@@ -471,20 +469,26 @@ export class ObserverStorage implements IObserverStorage {
           const whereClause = conditions.length === 1 
             ? conditions[0] 
             : and(...conditions);
-          query = query.where(whereClause) as any;
+          const filteredQuery = query.where(whereClause);
+          const orderedQuery = filteredQuery.orderBy(desc(recoveryPriorities.kappaRecovery));
+          const limitedQuery = filters?.limit !== undefined 
+            ? orderedQuery.limit(filters.limit) 
+            : orderedQuery;
+          const finalQuery = filters?.offset !== undefined 
+            ? limitedQuery.offset(filters.offset) 
+            : limitedQuery;
+          return await finalQuery;
         }
         
-        query = query.orderBy(desc(recoveryPriorities.kappaRecovery)) as any;
+        const orderedQuery = query.orderBy(desc(recoveryPriorities.kappaRecovery));
+        const limitedQuery = filters?.limit !== undefined 
+          ? orderedQuery.limit(filters.limit) 
+          : orderedQuery;
+        const finalQuery = filters?.offset !== undefined 
+          ? limitedQuery.offset(filters.offset) 
+          : limitedQuery;
         
-        if (filters?.limit !== undefined) {
-          query = query.limit(filters.limit) as any;
-        }
-        
-        if (filters?.offset !== undefined) {
-          query = query.offset(filters.offset) as any;
-        }
-        
-        return await query;
+        return await finalQuery;
       },
       'select-recovery-priorities'
     );
@@ -496,7 +500,7 @@ export class ObserverStorage implements IObserverStorage {
     
     // Normalize old field names to new schema (Task 7 migration)
     for (const priority of priorities) {
-      const { normalized, hadLegacy } = this.normalizeConstraints(priority.constraints as any);
+      const { normalized, hadLegacy } = this.normalizeConstraints(priority.constraints as LegacyRecoveryConstraints);
       
       // Update priority object with normalized constraints
       priority.constraints = normalized;
@@ -531,7 +535,7 @@ export class ObserverStorage implements IObserverStorage {
     if (!priority) return null;
     
     // Normalize old field names to new schema (Task 7 migration)
-    const { normalized, hadLegacy } = this.normalizeConstraints(priority.constraints as any);
+    const { normalized, hadLegacy } = this.normalizeConstraints(priority.constraints as LegacyRecoveryConstraints);
     
     // Update priority object with normalized constraints
     priority.constraints = normalized;

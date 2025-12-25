@@ -190,7 +190,7 @@ adminRouter.get("/admin/metrics", generousLimiter, async (req: Request, res: Res
         balance: {
           activeHits: balanceHits.length,
           queueStats: queueStats,
-          totalVerified: balanceHits.filter(h => (h as any).balance > 0).length,
+          totalVerified: balanceHits.filter(h => (h as { balance?: number }).balance && (h as { balance?: number }).balance! > 0).length,
         },
         kernel: {
           status: oceanSessionManager.getActiveAgent() ? 'active' : 'idle',

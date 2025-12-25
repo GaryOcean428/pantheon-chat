@@ -57,7 +57,8 @@ async function withRetry<T>(
     } catch (error) {
       lastError = error;
       const errorMessage = error instanceof Error ? error.message : String(error);
-      const errorCode = (error as any)?.code || '';
+      const dbError = error as { code?: string };
+      const errorCode = dbError?.code || '';
       
       const isTransient = 
         errorMessage.includes("timeout") ||

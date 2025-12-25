@@ -310,10 +310,10 @@ export class InvestigationAgent {
   private async observeAndLearn(testResults: any): Promise<any> {
     const insights = {
       nearMissPatterns: [] as string[],
-      resonantClusters: [] as any[],
+      resonantClusters: [] as Array<{ centroid: number[]; members: string[]; avgPhi: number }>,
       formatPreferences: {} as Record<string, number>,
-      geometricSignatures: [] as any[],
-      phraseLengthInsights: {} as any,
+      geometricSignatures: [] as Array<{ pattern: string; frequency: number; avgPhi: number }>,
+      phraseLengthInsights: {} as Record<number, { count: number; avgPhi: number; bestPhrase?: string }>,
     };
     
     if (testResults.nearMisses.length > 0) {
@@ -501,7 +501,7 @@ export class InvestigationAgent {
         for (const pattern of historicalData.patterns.slice(0, 50)) {
           newHypotheses.push(this.createHypothesis(
             pattern.phrase,
-            pattern.format as any,
+            pattern.format as 'arbitrary' | 'bip39' | 'master' | 'hex',
             'historical_exploration',
             pattern.reasoning,
             pattern.likelihood
@@ -831,7 +831,7 @@ export class InvestigationAgent {
     
     return historicalData.patterns.slice(0, 100).map(p => this.createHypothesis(
       p.phrase,
-      p.format as any,
+      p.format as 'arbitrary' | 'bip39' | 'master' | 'hex',
       'search_expansion',
       `Historical pattern from ${era}: ${p.reasoning}`,
       p.likelihood

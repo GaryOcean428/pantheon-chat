@@ -381,7 +381,7 @@ export async function enrichWithSubstrateData(
   
   // Merge substrate insights into constraints
   const enrichedConstraints = {
-    ...(priority.constraints as any),
+    ...(priority.constraints as Record<string, unknown>),
     substrateCount: intersection.substrates.length,
     signalDensity: intersection.signalCount,
     temporalCoherence: intersection.temporalCoherence,

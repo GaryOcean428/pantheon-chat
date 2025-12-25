@@ -282,7 +282,7 @@ export class GeodesicNavigator {
    * Generate candidates specifically for a knowledge domain
    */
   generateDomainCandidates(domain: string = 'general-knowledge', count: number = 50): GeodesicCandidate[] {
-    const coordinate = culturalManifold.createCoordinate(domain as any);
+    const coordinate = culturalManifold.createCoordinate(domain as string);
     return culturalManifold.generateGeodesicCandidates(coordinate, count);
   }
 

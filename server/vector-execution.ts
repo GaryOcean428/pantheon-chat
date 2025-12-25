@@ -526,7 +526,7 @@ async function executeTemporalVector(
  */
 export function getRecommendedVectors(priority: RecoveryPriority): RecoveryVector[] {
   const vectors: RecoveryVector[] = [];
-  const constraints = priority.constraints as any;
+  const constraints = priority.constraints as Record<string, unknown>;
   
   // Always recommend constrained_search for algorithmic recovery
   vectors.push("constrained_search");
@@ -542,7 +542,7 @@ export function getRecommendedVectors(priority: RecoveryPriority): RecoveryVecto
   }
   
   // Temporal vector for early era addresses
-  const addressData = priority.constraints as any;
+  const addressData = priority.constraints as Record<string, unknown>;
   if (addressData?.isEarlyEra || priority.address.startsWith("1")) {
     vectors.push("temporal");
   }

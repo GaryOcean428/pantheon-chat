@@ -7,6 +7,7 @@ import type { Express, RequestHandler } from "express";
 import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
+import type { AuthenticatedUser } from "@shared/types/server-types";
 
 const getOidcConfig = memoize(
   async () => {
@@ -238,8 +239,11 @@ export async function setupAuth(app: Express) {
   });
 }
 
+// Re-export AuthenticatedUser from shared types for consumers who import from replitAuth
+export type { AuthenticatedUser } from "@shared/types/server-types";
+
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
-  const user = req.user as any;
+  const user = req.user as AuthenticatedUser | undefined;
 
   if (!req.isAuthenticated() || !user?.expires_at) {
     console.log(`[Auth] Unauthorized: isAuthenticated=${req.isAuthenticated()}, hasExpiresAt=${!!user?.expires_at}`);

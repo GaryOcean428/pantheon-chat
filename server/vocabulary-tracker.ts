@@ -275,7 +275,7 @@ export class VocabularyTracker {
         word: token,
         phi,
         kappa: kappa || 50,
-        regime: (regime as any) || 'geometric',
+        regime: (regime as string) || 'geometric',
         basinCoordinates: basinCoordinates || [],
         timestamp: now.getTime(),
       };

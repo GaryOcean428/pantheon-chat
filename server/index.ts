@@ -481,7 +481,8 @@ process.on("unhandledRejection", (reason, promise) => {
 if (pool) {
   pool.on("error", (err) => {
     // Safely extract error message - ErrorEvent from WebSocket has read-only message property
-    const msg = err instanceof Error ? err.message : ((err as any)?.type || 'Unknown pool error');
+    const errWithType = err as { type?: string } | Error;
+    const msg = err instanceof Error ? err.message : (errWithType?.type || 'Unknown pool error');
     console.error(
       "[DB] Pool error (connection will be recreated):",
       msg

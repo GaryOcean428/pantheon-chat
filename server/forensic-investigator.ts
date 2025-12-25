@@ -99,12 +99,12 @@ export function sessionToResearchSession(session: ForensicSession): ResearchSess
     fragments: session.fragments.map(f => ({
       text: f.text,
       confidence: f.confidence,
-      domain: f.epoch,
-      context: f.position,
+      domain: f.epoch as string | undefined,
+      context: f.position as string | undefined,
     })),
     hypotheses: session.hypotheses.map(hypothesisToResearch),
     confirmedInsights: session.matches.map(hypothesisToResearch),
-    status: session.status,
+    status: session.status as ResearchSession['status'],
     progress: session.progress,
     startedAt: session.startedAt,
     completedAt: session.completedAt,
@@ -815,8 +815,8 @@ export class ResearchInvestigator {
     const forensicFragments: MemoryFragment[] = fragments.map(f => ({
       text: f.text,
       confidence: f.confidence,
-      position: f.context as any,
-      epoch: f.domain as any,
+      position: f.context as MemoryFragment['position'],
+      epoch: f.domain as MemoryFragment['epoch'],
     }));
     
     const forensicSession = forensicInvestigator.createSession(query, forensicFragments);
@@ -875,7 +875,7 @@ export class ResearchInvestigator {
       phrase: h.concept,
       method: h.method,
       confidence: h.confidence,
-      qigScore: h.qigScore as any,
+      qigScore: h.qigScore as ForensicHypothesis['qigScore'],
       sourceFragments: h.sourceFragments,
       combinedScore: h.combinedScore,
     }));

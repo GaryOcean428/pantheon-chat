@@ -76,16 +76,19 @@ federationRouter.get('/keys', async (_req: Request, res: Response) => {
       ORDER BY created_at DESC
     `);
 
-    const formattedKeys: ApiKeyRecord[] = (result.rows as any[]).map(k => ({
-      id: String(k.id),
-      name: k.name,
-      instanceType: k.instance_type,
-      scopes: Array.isArray(k.scopes) ? k.scopes : [],
-      createdAt: k.created_at,
-      lastUsedAt: k.last_used_at,
-      rateLimit: k.rate_limit ?? 60,
-      isActive: k.is_active ?? true,
-    }));
+    const formattedKeys: ApiKeyRecord[] = result.rows.map(k => {
+      const row = k as Record<string, unknown>;
+      return {
+        id: String(row.id),
+        name: row.name as string,
+        instanceType: row.instance_type as string,
+        scopes: Array.isArray(row.scopes) ? row.scopes as string[] : [],
+        createdAt: row.created_at as Date,
+        lastUsedAt: row.last_used_at as Date | null,
+        rateLimit: (row.rate_limit as number | null) ?? 60,
+        isActive: (row.is_active as boolean | null) ?? true,
+      };
+    });
 
     res.json({ keys: formattedKeys });
   } catch (error) {
@@ -141,7 +144,8 @@ federationRouter.post('/keys', async (req: Request, res: Response) => {
       RETURNING id
     `);
 
-    const insertedId = (result.rows[0] as any)?.id;
+    const insertedRow = result.rows[0] as { id: string | number } | undefined;
+    const insertedId = insertedRow?.id;
 
     res.status(201).json({
       message: 'API key created',
@@ -313,7 +317,8 @@ federationRouter.post('/connect', async (req: Request, res: Response) => {
       RETURNING id
     `);
 
-    const insertedId = (result.rows[0] as any)?.id;
+    const insertedRow = result.rows[0] as { id: string | number } | undefined;
+    const insertedId = insertedRow?.id;
 
     console.log(`[Federation] Connected to node: ${name} (${cleanEndpoint})`);
 
@@ -381,16 +386,19 @@ federationRouter.get('/instances', async (_req: Request, res: Response) => {
       ORDER BY last_sync_at DESC NULLS LAST
     `);
 
-    const instances = (result.rows as any[]).map(r => ({
-      id: r.id,
-      name: r.name,
-      endpoint: r.endpoint,
-      status: r.status || 'pending',
-      capabilities: r.capabilities || [],
-      syncDirection: r.sync_direction || 'bidirectional',
-      lastSyncAt: r.last_sync_at,
-      createdAt: r.created_at,
-    }));
+    const instances = result.rows.map(r => {
+      const row = r as Record<string, unknown>;
+      return {
+        id: row.id,
+        name: row.name as string,
+        endpoint: row.endpoint as string,
+        status: (row.status as string | null) || 'pending',
+        capabilities: (row.capabilities as string[] | null) || [],
+        syncDirection: (row.sync_direction as string | null) || 'bidirectional',
+        lastSyncAt: row.last_sync_at as Date | null,
+        createdAt: row.created_at as Date,
+      };
+    });
 
     res.json({ instances });
   } catch (error) {
@@ -415,9 +423,9 @@ federationRouter.get('/sync/status', async (_req: Request, res: Response) => {
       WHERE status = 'active'
     `);
 
-    const row = result.rows[0] as any;
-    const peerCount = parseInt(row?.count || '0', 10);
-    const latestSync = row?.latest_sync;
+    const row = result.rows[0] as Record<string, unknown> | undefined;
+    const peerCount = parseInt(String(row?.count || '0'), 10);
+    const latestSync = row?.latest_sync as Date | null | undefined;
 
     res.json({
       isConnected: peerCount > 0,

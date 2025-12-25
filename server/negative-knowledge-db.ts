@@ -125,7 +125,7 @@ export class NegativeKnowledgeRegistryDB {
               .set({
                 confirmedCount: newConfirmedCount,
                 computeSaved: newComputeSaved,
-                evidence: [...(existing.evidence || []), ...evidence] as any,
+                evidence: [...(existing.evidence || []), ...evidence],
               })
               .where(eq(negativeKnowledge.id, existing.id));
           },

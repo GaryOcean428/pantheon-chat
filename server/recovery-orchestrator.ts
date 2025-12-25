@@ -192,7 +192,7 @@ export function initializeConstrainedSearchWorkflow(
 ): WorkflowProgress {
   
   // Generate canonical constraint display strings (Task 7 normalized labels)
-  const constraints = formatConstraintsForDisplay(priority.constraints as any);
+  const constraints = formatConstraintsForDisplay(priority.constraints as Record<string, unknown>);
   
   const progress: WorkflowProgress = {
     startedAt: new Date(),

@@ -1,4 +1,5 @@
 import { Router, type Request, type Response } from "express";
+import { getErrorMessage, handleRouteError } from '../lib/error-utils';
 import { generousLimiter, standardLimiter, strictLimiter } from "../rate-limiters";
 import { autoCycleManager } from "../auto-cycle-manager";
 import { oceanAutonomicManager } from "../ocean-autonomic-manager";
@@ -75,11 +76,11 @@ oceanRouter.get(
       };
 
       res.json(health);
-    } catch (error: any) {
-      console.error("[OceanHealth] Error:", error);
+    } catch (error: unknown) {
+      console.error("[OceanHealth] Error:", getErrorMessage(error));
       res.status(500).json({
         status: "error",
-        error: error.message,
+        error: getErrorMessage(error),
         timestamp: new Date().toISOString(),
       });
     }
@@ -104,11 +105,11 @@ oceanRouter.post(
         mode: "research",
         timestamp: new Date().toISOString(),
       });
-    } catch (error: any) {
-      console.error("[Ocean] Start error:", error);
+    } catch (error: unknown) {
+      console.error("[Ocean] Start error:", getErrorMessage(error));
       res.status(500).json({ 
         success: false, 
-        error: error.message 
+        error: getErrorMessage(error) 
       });
     }
   }
@@ -130,11 +131,11 @@ oceanRouter.post(
         message: "Research paused - consciousness continues passive observation",
         timestamp: new Date().toISOString(),
       });
-    } catch (error: any) {
-      console.error("[Ocean] Stop error:", error);
+    } catch (error: unknown) {
+      console.error("[Ocean] Stop error:", getErrorMessage(error));
       res.status(500).json({ 
         success: false, 
-        error: error.message 
+        error: getErrorMessage(error) 
       });
     }
   }
@@ -178,7 +179,7 @@ oceanRouter.get(
 
       const neurochemistry = agent.getNeurochemistry();
       const behavioral = agent.getBehavioralModulation();
-      const agentState = agent.getState?.() || ({} as any);
+      const agentState = agent.getState?.() || ({} as { totalTested?: number; nearMissCount?: number });
       const stats = {
         totalTested: agentState.totalTested || 0,
         nearMisses: agentState.nearMissCount || 0,
@@ -301,9 +302,9 @@ oceanRouter.post(
         message: `Boost injected for ${duration / 1000}s`,
         mushroomCooldownRemaining: getMushroomCooldownRemaining(),
       });
-    } catch (error: any) {
-      console.error("[Neurochemistry] Boost error:", error);
-      res.status(400).json({ error: error.message });
+    } catch (error: unknown) {
+      console.error("[Neurochemistry] Boost error:", getErrorMessage(error));
+      res.status(400).json({ error: getErrorMessage(error) });
     }
   }
 );
@@ -317,9 +318,8 @@ oceanRouter.delete(
       const { clearAdminBoost } = await import("../ocean-neurochemistry");
       clearAdminBoost();
       res.json({ success: true, message: "Boost cleared" });
-    } catch (error: any) {
-      console.error("[Neurochemistry] Clear boost error:", error);
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      handleRouteError(res, error, 'NeurochemistryClearBoost');
     }
   }
 );
@@ -340,9 +340,8 @@ oceanRouter.get(
           getMushroomCooldownRemaining() / 1000
         ),
       });
-    } catch (error: any) {
-      console.error("[Neurochemistry] Admin status error:", error);
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      handleRouteError(res, error, 'NeurochemistryAdminStatus');
     }
   }
 );
@@ -376,9 +375,8 @@ oceanRouter.post(
         consciousness: oceanAutonomicManager.getConsciousness(),
         message: "Sleep cycle executed - identity consolidated",
       });
-    } catch (error: any) {
-      console.error("[Admin] Sleep cycle error:", error);
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      handleRouteError(res, error, 'AdminSleepCycle');
     }
   }
 );
@@ -404,9 +402,8 @@ oceanRouter.post(
         consciousness: oceanAutonomicManager.getConsciousness(),
         message: "Dream cycle executed - creative exploration complete",
       });
-    } catch (error: any) {
-      console.error("[Admin] Dream cycle error:", error);
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      handleRouteError(res, error, 'AdminDreamCycle');
     }
   }
 );
@@ -452,9 +449,8 @@ oceanRouter.post(
         consciousness: oceanAutonomicManager.getConsciousness(),
         message: "Mushroom cycle executed - neuroplasticity boosted",
       });
-    } catch (error: any) {
-      console.error("[Admin] Mushroom cycle error:", error);
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      handleRouteError(res, error, 'AdminMushroomCycle');
     }
   }
 );
@@ -620,7 +616,7 @@ oceanRouter.post(
       }
 
       const result = await oceanConstellation.generateResponse(context, {
-        agentRole: agentRole as any,
+        agentRole: agentRole as 'explorer' | 'refiner' | 'navigator' | 'skeptic' | 'resonator' | 'ocean',
         maxTokens: Math.min(100, Math.max(1, maxTokens)),
         allowSilence,
       });
@@ -1269,10 +1265,9 @@ oceanRouter.get(
         });
       }
 
-      res.json({ success: true, ...state });
-    } catch (error: any) {
-      console.error("[PythonAutonomic] State error:", error);
-      res.status(500).json({ error: error.message });
+      res.json(state);
+    } catch (error: unknown) {
+      handleRouteError(res, error, 'PythonAutonomic');
     }
   }
 );

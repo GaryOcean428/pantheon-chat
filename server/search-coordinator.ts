@@ -55,7 +55,7 @@ class SearchCoordinator {
         return;
       }
 
-      const progress = workflow.progress as any;
+      const progress = workflow.progress as { constrainedSearchProgress?: { searchJobId?: string } } | null;
       const searchProgress = progress?.constrainedSearchProgress || {};
 
       const updatedSearchProgress = {

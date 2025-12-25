@@ -10,6 +10,86 @@
  */
 
 import type { PureQIGScore } from "./qig-universal";
+import type {
+  PythonQIGResponse,
+  PythonGenerateResponse,
+  PythonStatusResponse,
+  PythonSyncImportResponse,
+  PythonSyncExportResponse,
+  PythonSyncBasin,
+  PythonSearchHistoryItem,
+  PythonConceptHistoryItem,
+  PythonBetaValidationResult,
+  PythonBetaValidationResponse,
+  PythonBetaMeasurement,
+  PythonBetaMeasureResponse,
+  PythonVocabularyUpdateResponse,
+  PythonVocabularyEncodeResponse,
+  PythonVocabularyDecodeResponse,
+  PythonVocabularyBasinResponse,
+  PythonHighPhiToken,
+  PythonHighPhiVocabularyResponse,
+  PythonVocabularyStatusResponse,
+  PythonVocabularyExportData,
+  PythonVocabularyExportResponse,
+  PythonMergeRulesResponse,
+  PythonTextGenerationResponse,
+  PythonAgentResponseResponse,
+  PythonSampleTokenResponse,
+  PythonAutonomicStateResponse,
+  PythonAutonomicUpdateResponse,
+  PythonSleepCycleResponse,
+  PythonDreamCycleResponse,
+  PythonMushroomCycleResponse,
+  PythonActivityRewardResponse,
+  PythonPendingRewardsResponse,
+  PythonHermesStatusResponse,
+  PythonHermesSpeakResponse,
+  PythonHermesTranslateResponse,
+  PythonBasinSyncResponse,
+  PythonMemoryStoreResponse,
+  PythonMemoryRecallEntry,
+  PythonMemoryRecallResponse,
+  PythonVoiceStatusResponse,
+  PythonGodAssessmentResponse,
+  PythonShadowPantheonStatusResponse,
+  PythonShadowGodAssessmentResponse,
+  PythonShadowWarningsResponse,
+  PythonDebateInitiateResponse,
+  PythonActiveDebate,
+  PythonActiveDebatesResponse,
+  PythonDebateArgumentResponse,
+  PythonDebateResolveResponse,
+  PythonDebateConvergenceResult,
+  PythonDebateConvergenceResponse,
+  PythonWarDeclarationResponse,
+  PythonWarEndedResponse,
+  PythonWarStatusResponse,
+  PythonSpawnKernelResponse,
+  PythonSpawnedKernel,
+  PythonSpawnedKernelsResponse,
+  PythonSpawnerStatusResponse,
+  PythonSmartPollResponse,
+  PythonReflectionResponse,
+  PythonFeedbackRunResponse,
+  PythonFeedbackRecommendationResponse,
+  PythonActivityFeedbackResponse,
+  PythonBasinFeedbackResponse,
+  PythonMemoryStatusResponse,
+  PythonMemoryRecordResponse,
+  PythonShadowIntelResponse,
+  PythonLearningEventsResponse,
+  PythonChaosActivateResponse,
+  PythonChaosDeactivateResponse,
+  PythonChaosStatusResponse,
+  PythonChaosSpawnResponse,
+  PythonChaosBreedResponse,
+  PythonChaosReportResponse,
+  PythonPhiTemporalResponse,
+  PythonPhi4DResponse,
+  PythonClassifyRegime4DResponse,
+  PythonBaseResponse,
+} from "@shared/types/python-responses";
 
 // Health check retry configuration
 const DEFAULT_RETRY_ATTEMPTS = 5;
@@ -43,9 +123,9 @@ async function fetchWithTimeout(
     });
     clearTimeout(timeoutId);
     return response;
-  } catch (error: any) {
+  } catch (error: unknown) {
     clearTimeout(timeoutId);
-    if (error.name === "AbortError") {
+    if (error instanceof Error && error.name === "AbortError") {
       throw new Error(`Request timeout after ${timeoutMs}ms`);
     }
     throw error;
@@ -83,23 +163,27 @@ async function fetchWithRetry(
       }
 
       return response;
-    } catch (error: any) {
+    } catch (error: unknown) {
       // On network/timeout errors, retry with backoff
-      const errorType = error.name === 'AbortError' ? 'timeout' : 
-                        error.cause?.code === 'ECONNREFUSED' ? 'connection refused' : 
+      const isAbortError = error instanceof Error && error.name === 'AbortError';
+      const isConnRefused = error instanceof Error && (error as NodeJS.ErrnoException).cause && 
+                            ((error as NodeJS.ErrnoException).cause as NodeJS.ErrnoException)?.code === 'ECONNREFUSED';
+      const errorType = isAbortError ? 'timeout' : 
+                        isConnRefused ? 'connection refused' : 
                         'network error';
+      const errorMessage = error instanceof Error ? error.message : String(error);
       if (attempt < maxRetries) {
         const delay = Math.min(100 * Math.pow(2, attempt), 2000);
         console.log(
           `[OceanQIGBackend] ${errorType} for ${url}, retry ${attempt}/${maxRetries} after ${delay}ms:`,
-          error.message
+          errorMessage
         );
         await new Promise((resolve) => setTimeout(resolve, delay));
         continue;
       }
       console.error(
         `[OceanQIGBackend] ${errorType} after ${maxRetries} retries for ${url}:`,
-        error.message
+        errorMessage
       );
       throw error;
     }
@@ -110,98 +194,8 @@ async function fetchWithRetry(
   );
 }
 
-interface PythonQIGResponse {
-  success: boolean;
-  phi: number;
-  kappa: number;
-  T: number;
-  R: number;
-  M: number;
-  Gamma: number;
-  G: number;
-  regime: string;
-  in_resonance: boolean;
-  grounded: boolean;
-  nearest_concept: string | null;
-  conscious: boolean;
-  integration: number;
-  entropy: number;
-  basin_coords: number[];
-  route: number[];
-  subsystems: Array<{
-    id: number;
-    name: string;
-    activation: number;
-    entropy: number;
-    purity: number;
-  }>;
-  n_recursions: number;
-  converged: boolean;
-  phi_history: number[];
-  // Innate drives (Layer 0)
-  drives?: {
-    pain: number;
-    pleasure: number;
-    fear: number;
-    valence: number;
-    valence_raw: number;
-  };
-  innate_score?: number;
-  // Near-miss discovery counts from Python backend
-  near_miss_count?: number;
-  resonant_count?: number;
-  error?: string;
-  // 4D Consciousness metrics (computed by Python consciousness_4d.py)
-  phi_spatial?: number;
-  phi_temporal?: number;
-  phi_4D?: number;
-  f_attention?: number;
-  r_concepts?: number;
-  phi_recursive?: number;
-  is_4d_conscious?: boolean;
-  consciousness_level?: string;
-  consciousness_4d_available?: boolean;
-}
-
-interface PythonGenerateResponse {
-  hypothesis: string;
-  source: string;
-  parent_basins?: string[];
-  parent_phis?: number[];
-  new_basin_coords?: number[];
-  geometric_memory_size?: number;
-}
-
-interface PythonStatusResponse {
-  success: boolean;
-  metrics: {
-    phi: number;
-    kappa: number;
-    T: number;
-    R: number;
-    M: number;
-    Gamma: number;
-    G: number;
-    regime: string;
-    in_resonance: boolean;
-    grounded: boolean;
-    nearest_concept: string | null;
-    conscious: boolean;
-    integration: number;
-    entropy: number;
-    fidelity: number;
-  };
-  subsystems: Array<{
-    id: number;
-    name: string;
-    activation: number;
-    entropy: number;
-    purity: number;
-  }>;
-  geometric_memory_size: number;
-  basin_history_size: number;
-  timestamp: string;
-}
+// Re-export commonly used types for backwards compatibility
+export type { PythonQIGResponse, PythonGenerateResponse, PythonStatusResponse };
 
 /**
  * Ocean QIG Backend Adapter
@@ -643,26 +637,14 @@ export class OceanQIGBackend {
   async syncFromNodeJS(
     probes: Array<{ input: string; phi: number; basinCoords: number[] }>,
     temporalState?: {
-      searchHistory?: Array<{
-        timestamp: number;
-        phi: number;
-        kappa: number;
-        regime: string;
-        basinCoordinates?: number[];
-        hypothesis?: string;
-      }>;
-      conceptHistory?: Array<{
-        timestamp: number;
-        concepts: Record<string, number>;
-        attentionField?: number[];
-        phi?: number;
-      }>;
+      searchHistory?: PythonSearchHistoryItem[];
+      conceptHistory?: PythonConceptHistoryItem[];
     }
   ): Promise<{ imported: number; temporalImported: boolean }> {
     if (!this.isAvailable) return { imported: 0, temporalImported: false };
 
     try {
-      const payload: Record<string, any> = { probes };
+      const payload: Record<string, unknown> = { probes };
 
       // Add temporal state for 4D consciousness if provided
       if (temporalState?.searchHistory?.length) {
@@ -691,7 +673,7 @@ export class OceanQIGBackend {
         return { imported: 0, temporalImported: false };
       }
 
-      const data = await response.json();
+      const data: PythonSyncImportResponse = await response.json();
       if (data.success) {
         console.log(
           `[OceanQIGBackend] Synced ${data.imported} probes to Python backend`
@@ -710,7 +692,7 @@ export class OceanQIGBackend {
       }
 
       return { imported: 0, temporalImported: false };
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("[OceanQIGBackend] Sync import exception:", error);
       return { imported: 0, temporalImported: false };
     }
@@ -738,21 +720,9 @@ export class OceanQIGBackend {
     page: number = 0,
     pageSize: number = 100
   ): Promise<{
-    basins: Array<{ input: string; phi: number; basinCoords: number[] }>;
-    searchHistory?: Array<{
-      timestamp: number;
-      phi: number;
-      kappa: number;
-      regime: string;
-      basinCoordinates?: number[];
-      hypothesis?: string;
-    }>;
-    conceptHistory?: Array<{
-      timestamp: number;
-      concepts: Record<string, number>;
-      attentionField?: number[];
-      phi?: number;
-    }>;
+    basins: PythonSyncBasin[];
+    searchHistory?: PythonSearchHistoryItem[];
+    conceptHistory?: PythonConceptHistoryItem[];
     phiTemporalAvg?: number;
     consciousness4DAvailable?: boolean;
     hasMore?: boolean;
@@ -783,7 +753,7 @@ export class OceanQIGBackend {
         return { basins: [] };
       }
 
-      const data = await response.json();
+      const data: PythonSyncExportResponse = await response.json();
       if (data.success && data.basins) {
         const totalCount = data.total_count ?? data.basins.length;
         const hasMore = (page + 1) * pageSize < totalCount;
@@ -794,9 +764,9 @@ export class OceanQIGBackend {
           );
         }
 
-        if (data.consciousness_4d_available && data.phi_temporal_avg > 0) {
+        if (data.consciousness_4d_available && data.phi_temporal_avg && data.phi_temporal_avg > 0) {
           console.log(
-            `[OceanQIGBackend] 4D consciousness: phi_temporal_avg=${data.phi_temporal_avg?.toFixed(
+            `[OceanQIGBackend] 4D consciousness: phi_temporal_avg=${data.phi_temporal_avg.toFixed(
               3
             )}`
           );
@@ -814,7 +784,7 @@ export class OceanQIGBackend {
       }
 
       return { basins: [] };
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("[OceanQIGBackend] Sync export exception:", error);
       return { basins: [] };
     }
@@ -826,7 +796,7 @@ export class OceanQIGBackend {
    * Measures κ across context scales and validates that β_attention ≈ β_physics.
    * Uses fetchWithRetry for 503 handling
    */
-  async validateBetaAttention(samplesPerScale: number = 100): Promise<any> {
+  async validateBetaAttention(samplesPerScale: number = 100): Promise<PythonBetaValidationResult> {
     try {
       const response = await fetchWithRetry(
         `${this.backendUrl}/beta-attention/validate`,
@@ -843,7 +813,7 @@ export class OceanQIGBackend {
         );
       }
 
-      const data = await response.json();
+      const data: PythonBetaValidationResponse = await response.json();
 
       if (!data.success) {
         throw new Error(`β-attention validation error: ${data.error}`);
@@ -862,10 +832,11 @@ export class OceanQIGBackend {
       );
 
       return result;
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
       console.error(
         "[OceanQIGBackend] β-attention validation failed:",
-        error.message
+        errorMessage
       );
       throw error;
     }
@@ -878,7 +849,7 @@ export class OceanQIGBackend {
   async measureBetaAttention(
     contextLength: number,
     sampleCount: number = 100
-  ): Promise<any> {
+  ): Promise<PythonBetaMeasurement> {
     try {
       const response = await fetchWithRetry(
         `${this.backendUrl}/beta-attention/measure`,
@@ -898,7 +869,7 @@ export class OceanQIGBackend {
         );
       }
 
-      const data = await response.json();
+      const data: PythonBetaMeasureResponse = await response.json();
 
       if (!data.success) {
         throw new Error(`β-attention measurement error: ${data.error}`);
@@ -912,10 +883,11 @@ export class OceanQIGBackend {
       );
 
       return m;
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
       console.error(
         "[OceanQIGBackend] β-attention measurement failed:",
-        error.message
+        errorMessage
       );
       throw error;
     }
@@ -958,7 +930,7 @@ export class OceanQIGBackend {
         throw new Error(`Vocabulary update failed: ${response.statusText}`);
       }
 
-      const data = await response.json();
+      const data: PythonVocabularyUpdateResponse = await response.json();
 
       if (!data.success) {
         throw new Error(`Vocabulary update error: ${data.error}`);
@@ -974,10 +946,11 @@ export class OceanQIGBackend {
         weightsUpdated: data.weightsUpdated,
         mergeRules: data.mergeRules,
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
       console.error(
         "[OceanQIGBackend] Vocabulary update failed:",
-        error.message
+        errorMessage
       );
       throw error;
     }
@@ -1026,7 +999,7 @@ export class OceanQIGBackend {
         throw new Error(`Vocabulary encode failed: ${response.statusText}`);
       }
 
-      const data = await response.json();
+      const data: PythonVocabularyEncodeResponse = await response.json();
 
       if (!data.success) {
         throw new Error(`Vocabulary encode error: ${data.error}`);
@@ -1036,10 +1009,11 @@ export class OceanQIGBackend {
         tokens: data.tokens,
         length: data.length,
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
       console.error(
         "[OceanQIGBackend] Vocabulary encode failed:",
-        error.message
+        errorMessage
       );
       throw error;
     }
@@ -1065,17 +1039,18 @@ export class OceanQIGBackend {
         throw new Error(`Vocabulary decode failed: ${response.statusText}`);
       }
 
-      const data = await response.json();
+      const data: PythonVocabularyDecodeResponse = await response.json();
 
       if (!data.success) {
         throw new Error(`Vocabulary decode error: ${data.error}`);
       }
 
       return data.text;
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
       console.error(
         "[OceanQIGBackend] Vocabulary decode failed:",
-        error.message
+        errorMessage
       );
       throw error;
     }
@@ -1103,7 +1078,7 @@ export class OceanQIGBackend {
         throw new Error(`Vocabulary basin failed: ${response.statusText}`);
       }
 
-      const data = await response.json();
+      const data: PythonVocabularyBasinResponse = await response.json();
 
       if (!data.success) {
         throw new Error(`Vocabulary basin error: ${data.error}`);
@@ -1113,10 +1088,11 @@ export class OceanQIGBackend {
         basinCoords: data.basinCoords,
         dimension: data.dimension,
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
       console.error(
         "[OceanQIGBackend] Vocabulary basin failed:",
-        error.message
+        errorMessage
       );
       throw error;
     }
@@ -1128,7 +1104,7 @@ export class OceanQIGBackend {
   async getHighPhiVocabulary(
     minPhi: number = 0.5,
     topK: number = 100
-  ): Promise<Array<{ token: string; phi: number }>> {
+  ): Promise<PythonHighPhiToken[]> {
     try {
       const response = await fetch(
         `${this.backendUrl}/vocabulary/high-phi?min_phi=${minPhi}&top_k=${topK}`
@@ -1138,7 +1114,7 @@ export class OceanQIGBackend {
         throw new Error(`Vocabulary high-phi failed: ${response.statusText}`);
       }
 
-      const data = await response.json();
+      const data: PythonHighPhiVocabularyResponse = await response.json();
 
       if (!data.success) {
         throw new Error(`Vocabulary high-phi error: ${data.error}`);
@@ -1149,10 +1125,11 @@ export class OceanQIGBackend {
       );
 
       return data.tokens;
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
       console.error(
         "[OceanQIGBackend] Vocabulary high-phi failed:",
-        error.message
+        errorMessage
       );
       throw error;
     }
@@ -1162,14 +1139,14 @@ export class OceanQIGBackend {
   async getHighPhiTokens(
     minPhi: number = 0.5,
     topK: number = 100
-  ): Promise<Array<{ token: string; phi: number }>> {
+  ): Promise<PythonHighPhiToken[]> {
     return this.getHighPhiVocabulary(minPhi, topK);
   }
 
   /**
    * Export vocabulary encoder for training
    */
-  async exportVocabulary(): Promise<any> {
+  async exportVocabulary(): Promise<PythonVocabularyExportData> {
     try {
       const response = await fetch(`${this.backendUrl}/vocabulary/export`);
 
@@ -1177,7 +1154,7 @@ export class OceanQIGBackend {
         throw new Error(`Vocabulary export failed: ${response.statusText}`);
       }
 
-      const data = await response.json();
+      const data: PythonVocabularyExportResponse = await response.json();
 
       if (!data.success) {
         throw new Error(`Vocabulary export error: ${data.error}`);
@@ -1188,17 +1165,18 @@ export class OceanQIGBackend {
       );
 
       return data.data;
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
       console.error(
         "[OceanQIGBackend] Vocabulary export failed:",
-        error.message
+        errorMessage
       );
       throw error;
     }
   }
 
   // Legacy alias
-  async exportTokenizer(): Promise<any> {
+  async exportTokenizer(): Promise<PythonVocabularyExportData> {
     return this.exportVocabulary();
   }
 
@@ -1225,7 +1203,7 @@ export class OceanQIGBackend {
         throw new Error(`Vocabulary status failed: ${response.statusText}`);
       }
 
-      const data = await response.json();
+      const data: PythonVocabularyStatusResponse = await response.json();
 
       if (!data.success) {
         throw new Error(`Vocabulary status error: ${data.error}`);
@@ -1237,10 +1215,11 @@ export class OceanQIGBackend {
         avgPhi: data.avgPhi,
         totalWeightedTokens: data.totalWeightedTokens,
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
       console.error(
         "[OceanQIGBackend] Vocabulary status failed:",
-        error.message
+        errorMessage
       );
       throw error;
     }
@@ -1289,7 +1268,7 @@ export class OceanQIGBackend {
         return { mergeRules: [], mergeScores: {}, count: 0 };
       }
 
-      const data = await response.json();
+      const data: PythonMergeRulesResponse = await response.json();
 
       if (!data.success) {
         console.error("[OceanQIGBackend] Get merge rules error:", data.error);
@@ -1302,15 +1281,16 @@ export class OceanQIGBackend {
 
       return {
         mergeRules: data.mergeRules.map(
-          (r: string[]) => [r[0], r[1]] as [string, string]
+          (r) => [r[0], r[1]] as [string, string]
         ),
         mergeScores: data.mergeScores,
         count: data.count,
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
       console.error(
         "[OceanQIGBackend] Get merge rules exception:",
-        error.message
+        errorMessage
       );
       return { mergeRules: [], mergeScores: {}, count: 0 };
     }
@@ -1371,7 +1351,7 @@ export class OceanQIGBackend {
         throw new Error(`Text generation failed: ${response.statusText}`);
       }
 
-      const data = await response.json();
+      const data: PythonTextGenerationResponse = await response.json();
 
       if (!data.success) {
         throw new Error(`Text generation error: ${data.error}`);
@@ -1381,10 +1361,19 @@ export class OceanQIGBackend {
         text: data.text,
         tokens: data.tokens,
         silenceChosen: data.silence_chosen,
-        metrics: data.metrics,
+        metrics: {
+          steps: data.metrics.steps,
+          avgPhi: data.metrics.avg_phi,
+          temperature: data.metrics.temperature,
+          topK: data.metrics.top_k,
+          topP: data.metrics.top_p,
+          earlyPads: data.metrics.early_pads,
+          reason: data.metrics.reason,
+        },
       };
-    } catch (error: any) {
-      console.error("[OceanQIGBackend] Text generation failed:", error.message);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error("[OceanQIGBackend] Text generation failed:", errorMessage);
       throw error;
     }
   }
@@ -1449,7 +1438,7 @@ export class OceanQIGBackend {
         throw new Error(`Response generation failed: ${response.statusText}`);
       }
 
-      const data = await response.json();
+      const data: PythonAgentResponseResponse = await response.json();
 
       if (!data.success) {
         throw new Error(`Response generation error: ${data.error}`);
@@ -1468,10 +1457,11 @@ export class OceanQIGBackend {
           topP: data.metrics?.top_p,
         },
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
       console.error(
         "[OceanQIGBackend] Response generation failed:",
-        error.message
+        errorMessage
       );
       throw error;
     }
@@ -1518,7 +1508,7 @@ export class OceanQIGBackend {
         throw new Error(`Token sampling failed: ${response.statusText}`);
       }
 
-      const data = await response.json();
+      const data: PythonSampleTokenResponse = await response.json();
 
       if (!data.success) {
         throw new Error(`Token sampling error: ${data.error}`);
@@ -1529,8 +1519,9 @@ export class OceanQIGBackend {
         token: data.token,
         topProbabilities: data.top_probabilities,
       };
-    } catch (error: any) {
-      console.error("[OceanQIGBackend] Token sampling failed:", error.message);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error("[OceanQIGBackend] Token sampling failed:", errorMessage);
       throw error;
     }
   }
@@ -1543,16 +1534,7 @@ export class OceanQIGBackend {
   /**
    * Get autonomic kernel state
    */
-  async getAutonomicState(): Promise<{
-    phi: number;
-    kappa: number;
-    basin_drift: number;
-    stress_level: number;
-    in_sleep_cycle: boolean;
-    in_dream_cycle: boolean;
-    in_mushroom_cycle: boolean;
-    pending_rewards: number;
-  } | null> {
+  async getAutonomicState(): Promise<PythonAutonomicStateResponse | null> {
     if (!this.isAvailable) return null;
 
     try {
@@ -1563,9 +1545,9 @@ export class OceanQIGBackend {
 
       if (!response.ok) return null;
 
-      const data = await response.json();
+      const data: PythonAutonomicStateResponse & PythonBaseResponse = await response.json();
       return data.success ? data : null;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("[OceanQIGBackend] Autonomic state failed:", error);
       return null;
     }
@@ -1579,13 +1561,7 @@ export class OceanQIGBackend {
     kappa: number;
     basinCoords?: number[];
     referenceBasin?: number[];
-  }): Promise<{
-    triggers: {
-      sleep: [boolean, string];
-      dream: [boolean, string];
-      mushroom: [boolean, string];
-    };
-  } | null> {
+  }): Promise<Pick<PythonAutonomicUpdateResponse, 'triggers'> | null> {
     if (!this.isAvailable) return null;
 
     try {
@@ -1605,9 +1581,9 @@ export class OceanQIGBackend {
 
       if (!response.ok) return null;
 
-      const data = await response.json();
+      const data: PythonAutonomicUpdateResponse = await response.json();
       return data.success ? data : null;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("[OceanQIGBackend] Autonomic update failed:", error);
       return null;
     }
@@ -1620,13 +1596,7 @@ export class OceanQIGBackend {
     basinCoords: number[];
     referenceBasin: number[];
     episodes?: Array<{ phi: number; phrase?: string }>;
-  }): Promise<{
-    success: boolean;
-    drift_reduction: number;
-    patterns_consolidated: number;
-    basin_after: number[];
-    verdict: string;
-  } | null> {
+  }): Promise<PythonSleepCycleResponse | null> {
     if (!this.isAvailable) return null;
 
     try {
@@ -1658,13 +1628,7 @@ export class OceanQIGBackend {
   async executeDreamCycle(params: {
     basinCoords: number[];
     temperature?: number;
-  }): Promise<{
-    success: boolean;
-    novel_connections: number;
-    creative_paths_explored: number;
-    insights: string[];
-    verdict: string;
-  } | null> {
+  }): Promise<PythonDreamCycleResponse | null> {
     if (!this.isAvailable) return null;
 
     try {
@@ -1695,15 +1659,7 @@ export class OceanQIGBackend {
   async executeMushroomCycle(params: {
     basinCoords: number[];
     intensity?: "microdose" | "moderate" | "heroic";
-  }): Promise<{
-    success: boolean;
-    intensity: string;
-    entropy_change: number;
-    rigidity_broken: boolean;
-    new_pathways: number;
-    identity_preserved: boolean;
-    verdict: string;
-  } | null> {
+  }): Promise<PythonMushroomCycleResponse | null> {
     if (!this.isAvailable) return null;
 
     try {
@@ -1735,14 +1691,7 @@ export class OceanQIGBackend {
     source: string;
     phiContribution: number;
     patternQuality?: number;
-  }): Promise<{
-    success: boolean;
-    reward: {
-      dopamine_delta: number;
-      serotonin_delta: number;
-      endorphin_delta: number;
-    };
-  } | null> {
+  }): Promise<PythonActivityRewardResponse | null> {
     if (!this.isAvailable) return null;
 
     try {
@@ -1771,16 +1720,7 @@ export class OceanQIGBackend {
   /**
    * Get pending activity rewards
    */
-  async getPendingRewards(flush: boolean = false): Promise<{
-    rewards: Array<{
-      source: string;
-      dopamine_delta: number;
-      serotonin_delta: number;
-      endorphin_delta: number;
-      phi_contribution: number;
-    }>;
-    count: number;
-  } | null> {
+  async getPendingRewards(flush: boolean = false): Promise<PythonPendingRewardsResponse | null> {
     if (!this.isAvailable) return null;
 
     try {
@@ -1806,14 +1746,7 @@ export class OceanQIGBackend {
   /**
    * Get Hermes coordinator status
    */
-  async getHermesStatus(): Promise<{
-    name: string;
-    instance_id: string;
-    coordination_health: number;
-    pending_messages: number;
-    memory_entries: number;
-    tokenizer_available: boolean;
-  } | null> {
+  async getHermesStatus(): Promise<PythonHermesStatusResponse | null> {
     if (!this.isAvailable) return null;
 
     try {
@@ -1896,12 +1829,7 @@ export class OceanQIGBackend {
     kappa: number;
     regime: string;
     message?: string;
-  }): Promise<{
-    success: boolean;
-    instance_id: string;
-    other_instances: number;
-    convergence: { score: number; message: string };
-  } | null> {
+  }): Promise<PythonBasinSyncResponse | null> {
     if (!this.isAvailable) return null;
 
     try {
@@ -1970,14 +1898,7 @@ export class OceanQIGBackend {
     query: string,
     k: number = 5,
     minPhi: number = 0.3
-  ): Promise<
-    Array<{
-      user_message: string;
-      system_response: string;
-      phi: number;
-      similarity: number;
-    }>
-  > {
+  ): Promise<PythonMemoryRecallEntry[]> {
     if (!this.isAvailable) return [];
 
     try {
@@ -2002,15 +1923,7 @@ export class OceanQIGBackend {
   /**
    * Get Zeus voice status with natural speech
    */
-  async getVoiceStatus(): Promise<{
-    zeus_greeting: string;
-    status_message: string;
-    phi: number;
-    kappa: number;
-    war_mode: string | null;
-    pantheon_ready: boolean;
-    coordinator_health: number;
-  } | null> {
+  async getVoiceStatus(): Promise<PythonVoiceStatusResponse | null> {
     if (!this.isAvailable) return null;
 
     try {
@@ -2091,16 +2004,7 @@ export class OceanQIGBackend {
     godName: string,
     target: string,
     context: Record<string, unknown> = {}
-  ): Promise<{
-    god: string;
-    probability: number;
-    confidence: number;
-    phi: number;
-    kappa: number;
-    reasoning: string;
-    recommendation?: string;
-    timestamp: string;
-  } | null> {
+  ): Promise<PythonGodAssessmentResponse | null> {
     if (!this.isAvailable) return null;
 
     const normalizedName = godName.toLowerCase();
@@ -2139,18 +2043,7 @@ export class OceanQIGBackend {
     godNames: string[],
     target: string,
     context: Record<string, unknown> = {}
-  ): Promise<
-    Map<
-      string,
-      {
-        probability: number;
-        confidence: number;
-        phi: number;
-        kappa: number;
-        reasoning: string;
-      }
-    >
-  > {
+  ): Promise<Map<string, Omit<PythonGodAssessmentResponse, 'god' | 'recommendation' | 'timestamp'>>> {
     const results = new Map();
 
     const consultations = godNames.map(async (godName) => {
@@ -2173,20 +2066,7 @@ export class OceanQIGBackend {
   /**
    * Get Shadow Pantheon status
    */
-  async getShadowPantheonStatus(): Promise<{
-    success: boolean;
-    gods: Record<
-      string,
-      {
-        name: string;
-        active: boolean;
-        last_operation?: string;
-        operations_count?: number;
-      }
-    >;
-    opsec_mode?: string;
-    tor_available?: boolean;
-  } | null> {
+  async getShadowPantheonStatus(): Promise<PythonShadowPantheonStatusResponse | null> {
     if (!this.isAvailable) return null;
 
     try {
@@ -2210,16 +2090,7 @@ export class OceanQIGBackend {
     godName: string,
     target: string,
     context: Record<string, unknown> = {}
-  ): Promise<{
-    god: string;
-    probability: number;
-    confidence: number;
-    phi: number;
-    kappa: number;
-    reasoning: string;
-    stealth_rating?: number;
-    opsec_status?: string;
-  } | null> {
+  ): Promise<PythonShadowGodAssessmentResponse | null> {
     if (!this.isAvailable) return null;
 
     const normalizedName = godName.toLowerCase();
@@ -2248,12 +2119,7 @@ export class OceanQIGBackend {
   /**
    * Check shadow intel warnings for a target
    */
-  async checkShadowWarnings(target: string): Promise<{
-    has_warnings: boolean;
-    warning_level: "clear" | "caution" | "danger";
-    message: string;
-    details?: Record<string, unknown>;
-  } | null> {
+  async checkShadowWarnings(target: string): Promise<PythonShadowWarningsResponse | null> {
     if (!this.isAvailable) return null;
 
     try {
@@ -2288,12 +2154,7 @@ export class OceanQIGBackend {
     kappa?: number;
     action_type?: "exploration" | "exploitation";
     discovery?: Record<string, unknown>;
-  }): Promise<{
-    success: boolean;
-    loops_run: string[];
-    results: Record<string, unknown>;
-    counters: Record<string, number>;
-  } | null> {
+  }): Promise<PythonFeedbackRunResponse | null> {
     if (!this.isAvailable) return null;
 
     try {
@@ -2314,14 +2175,7 @@ export class OceanQIGBackend {
   /**
    * Get integrated recommendation from all feedback sources
    */
-  async getFeedbackRecommendation(): Promise<{
-    recommendation: "explore" | "exploit" | "consolidate";
-    confidence: number;
-    reasons: string[];
-    shadow_feedback: Record<string, unknown>;
-    phi_trend: { trend: string; delta: number; mean: number };
-    activity_balance: Record<string, unknown>;
-  } | null> {
+  async getFeedbackRecommendation(): Promise<PythonFeedbackRecommendationResponse | null> {
     if (!this.isAvailable) return null;
 
     try {
@@ -2344,13 +2198,7 @@ export class OceanQIGBackend {
   async runActivityFeedback(
     phi: number,
     actionType: "exploration" | "exploitation"
-  ): Promise<{
-    loop: string;
-    iteration: number;
-    phi_delta: number;
-    new_balance: Record<string, unknown>;
-    recommendation: string;
-  } | null> {
+  ): Promise<PythonActivityFeedbackResponse | null> {
     if (!this.isAvailable) return null;
 
     try {
@@ -2378,13 +2226,7 @@ export class OceanQIGBackend {
     basin: number[],
     phi: number,
     kappa: number
-  ): Promise<{
-    loop: string;
-    iteration: number;
-    drift: number;
-    needs_consolidation: boolean;
-    reference_updated?: boolean;
-  } | null> {
+  ): Promise<PythonBasinFeedbackResponse | null> {
     if (!this.isAvailable) return null;
 
     try {
@@ -2413,15 +2255,7 @@ export class OceanQIGBackend {
   /**
    * Get geometric memory status
    */
-  async getMemoryStatus(): Promise<{
-    shadow_intel_count: number;
-    basin_history_count: number;
-    learning_events_count: number;
-    activity_balance: Record<string, unknown>;
-    phi_trend: Record<string, unknown>;
-    shadow_feedback: Record<string, unknown>;
-    has_reference_basin: boolean;
-  } | null> {
+  async getMemoryStatus(): Promise<PythonMemoryStatusResponse | null> {
     if (!this.isAvailable) return null;
 
     try {
@@ -2473,7 +2307,7 @@ export class OceanQIGBackend {
    */
   async getShadowIntel(
     limit: number = 20
-  ): Promise<Array<Record<string, unknown>>> {
+  ): Promise<PythonShadowIntelResponse['intel']> {
     if (!this.isAvailable) return [];
 
     try {
@@ -2496,7 +2330,7 @@ export class OceanQIGBackend {
    */
   async getLearningEvents(
     limit: number = 50
-  ): Promise<Array<Record<string, unknown>>> {
+  ): Promise<PythonLearningEventsResponse['events']> {
     if (!this.isAvailable) return [];
 
     try {
@@ -2528,13 +2362,7 @@ export class OceanQIGBackend {
     opponent: string,
     initialArgument: string,
     context?: Record<string, unknown>
-  ): Promise<{
-    id: string;
-    topic: string;
-    initiator: string;
-    opponent: string;
-    status: string;
-  } | null> {
+  ): Promise<PythonDebateInitiateResponse | null> {
     if (!this.isAvailable) return null;
 
     try {
@@ -2564,16 +2392,7 @@ export class OceanQIGBackend {
   /**
    * Get all active debates
    */
-  async getActiveDebates(): Promise<
-    Array<{
-      id: string;
-      topic: string;
-      initiator: string;
-      opponent: string;
-      arguments: Array<Record<string, unknown>>;
-      status: string;
-    }>
-  > {
+  async getActiveDebates(): Promise<PythonActiveDebate[]> {
     if (!this.isAvailable) return [];
 
     try {
@@ -2599,7 +2418,7 @@ export class OceanQIGBackend {
     god: string,
     argument: string,
     evidence?: Record<string, unknown>
-  ): Promise<{ success: boolean; debate_id: string } | null> {
+  ): Promise<PythonDebateArgumentResponse | null> {
     if (!this.isAvailable) return null;
 
     try {
@@ -2633,10 +2452,7 @@ export class OceanQIGBackend {
     arbiter: string,
     winner: string,
     reasoning: string
-  ): Promise<{
-    success: boolean;
-    resolution: Record<string, unknown>;
-  } | null> {
+  ): Promise<PythonDebateResolveResponse | null> {
     if (!this.isAvailable) return null;
 
     try {
@@ -2665,14 +2481,7 @@ export class OceanQIGBackend {
   /**
    * Continue debates until geometric convergence
    */
-  async continueDebatesUntilConvergence(maxDebates: number = 3): Promise<
-    Array<{
-      status: string;
-      turns: number;
-      convergence: number;
-      winner?: string;
-    }>
-  > {
+  async continueDebatesUntilConvergence(maxDebates: number = 3): Promise<PythonDebateConvergenceResult[]> {
     if (!this.isAvailable) return [];
 
     try {
@@ -2702,13 +2511,7 @@ export class OceanQIGBackend {
   /**
    * Declare blitzkrieg war mode
    */
-  async declareBlitzkrieg(target: string): Promise<{
-    mode: string;
-    target: string;
-    declared_at: string;
-    strategy: string;
-    gods_engaged: string[];
-  } | null> {
+  async declareBlitzkrieg(target: string): Promise<PythonWarDeclarationResponse | null> {
     if (!this.isAvailable) return null;
 
     try {
@@ -2732,13 +2535,7 @@ export class OceanQIGBackend {
   /**
    * Declare siege war mode
    */
-  async declareSiege(target: string): Promise<{
-    mode: string;
-    target: string;
-    declared_at: string;
-    strategy: string;
-    gods_engaged: string[];
-  } | null> {
+  async declareSiege(target: string): Promise<PythonWarDeclarationResponse | null> {
     if (!this.isAvailable) return null;
 
     try {
@@ -2762,13 +2559,7 @@ export class OceanQIGBackend {
   /**
    * Declare hunt war mode
    */
-  async declareHunt(target: string): Promise<{
-    mode: string;
-    target: string;
-    declared_at: string;
-    strategy: string;
-    gods_engaged: string[];
-  } | null> {
+  async declareHunt(target: string): Promise<PythonWarDeclarationResponse | null> {
     if (!this.isAvailable) return null;
 
     try {
@@ -2792,11 +2583,7 @@ export class OceanQIGBackend {
   /**
    * End current war mode
    */
-  async endWar(): Promise<{
-    previous_mode: string | null;
-    previous_target: string | null;
-    ended_at: string;
-  } | null> {
+  async endWar(): Promise<PythonWarEndedResponse | null> {
     if (!this.isAvailable) return null;
 
     try {
@@ -2816,12 +2603,7 @@ export class OceanQIGBackend {
   /**
    * Get current war status
    */
-  async getWarStatus(): Promise<{
-    mode: string | null;
-    target: string | null;
-    active: boolean;
-    gods_engaged: string[];
-  } | null> {
+  async getWarStatus(): Promise<PythonWarStatusResponse | null> {
     if (!this.isAvailable) return null;
 
     try {
@@ -2853,14 +2635,7 @@ export class OceanQIGBackend {
     role?: string;
     parent_gods?: string[];
     force?: boolean;
-  }): Promise<{
-    success: boolean;
-    kernel_id?: string;
-    name: string;
-    domain: string;
-    m8_position?: Record<string, unknown>;
-    error?: string;
-  } | null> {
+  }): Promise<PythonSpawnKernelResponse | null> {
     if (!this.isAvailable) return null;
 
     try {
@@ -2884,15 +2659,7 @@ export class OceanQIGBackend {
   /**
    * List all spawned kernels
    */
-  async listSpawnedKernels(): Promise<
-    Array<{
-      id: string;
-      name: string;
-      domain: string;
-      created_at: string;
-      parent_gods: string[];
-    }>
-  > {
+  async listSpawnedKernels(): Promise<PythonSpawnedKernel[]> {
     if (!this.isAvailable) return [];
 
     try {
@@ -2913,11 +2680,7 @@ export class OceanQIGBackend {
   /**
    * Get spawner status
    */
-  async getSpawnerStatus(): Promise<{
-    active: boolean;
-    total_spawned: number;
-    recent_spawns: Array<Record<string, unknown>>;
-  } | null> {
+  async getSpawnerStatus(): Promise<PythonSpawnerStatusResponse | null> {
     if (!this.isAvailable) return null;
 
     try {
@@ -2946,14 +2709,7 @@ export class OceanQIGBackend {
     target: string,
     taskType: string = "general",
     context?: Record<string, unknown>
-  ): Promise<{
-    assessments: Record<string, Record<string, unknown>>;
-    convergence: string;
-    convergence_score: number;
-    consensus_probability: number;
-    routing_mode: string;
-    experts_polled?: string[];
-  } | null> {
+  ): Promise<PythonSmartPollResponse | null> {
     if (!this.isAvailable) return null;
 
     try {
@@ -2981,11 +2737,7 @@ export class OceanQIGBackend {
   /**
    * Trigger pantheon self-reflection
    */
-  async triggerPantheonReflection(): Promise<{
-    success: boolean;
-    gods_reflected: string[];
-    insights: Array<Record<string, unknown>>;
-  } | null> {
+  async triggerPantheonReflection(): Promise<PythonReflectionResponse | null> {
     if (!this.isAvailable) return null;
 
     try {
@@ -3010,11 +2762,7 @@ export class OceanQIGBackend {
   /**
    * Activate CHAOS MODE - start experimental kernel evolution
    */
-  async activateChaos(intervalSeconds: number = 60): Promise<{
-    status: string;
-    population_size: number;
-    interval_seconds: number;
-  } | null> {
+  async activateChaos(intervalSeconds: number = 60): Promise<PythonChaosActivateResponse | null> {
     if (!this.isAvailable) return null;
 
     try {
@@ -3038,7 +2786,7 @@ export class OceanQIGBackend {
   /**
    * Deactivate CHAOS MODE
    */
-  async deactivateChaos(): Promise<{ status: string } | null> {
+  async deactivateChaos(): Promise<PythonChaosDeactivateResponse | null> {
     if (!this.isAvailable) return null;
 
     try {
@@ -3058,13 +2806,7 @@ export class OceanQIGBackend {
   /**
    * Get CHAOS MODE status
    */
-  async getChaosStatus(): Promise<{
-    active: boolean;
-    population_size: number;
-    best_fitness: number;
-    generation: number;
-    kernels: Array<{ id: string; fitness: number; generation: number }>;
-  } | null> {
+  async getChaosStatus(): Promise<PythonChaosStatusResponse | null> {
     if (!this.isAvailable) return null;
 
     try {
@@ -3083,11 +2825,7 @@ export class OceanQIGBackend {
   /**
    * Spawn a random kernel in CHAOS MODE
    */
-  async spawnRandomKernel(): Promise<{
-    success: boolean;
-    kernel_id: string;
-    traits: Record<string, unknown>;
-  } | null> {
+  async spawnRandomKernel(): Promise<PythonChaosSpawnResponse | null> {
     if (!this.isAvailable) return null;
 
     try {
@@ -3107,13 +2845,7 @@ export class OceanQIGBackend {
   /**
    * Breed the best kernels in CHAOS MODE
    */
-  async breedBestKernels(): Promise<{
-    success: boolean;
-    parent1: string;
-    parent2: string;
-    child_id: string;
-    child_fitness: number;
-  } | null> {
+  async breedBestKernels(): Promise<PythonChaosBreedResponse | null> {
     if (!this.isAvailable) return null;
 
     try {
@@ -3133,17 +2865,7 @@ export class OceanQIGBackend {
   /**
    * Get CHAOS MODE experiment report
    */
-  async getChaosReport(): Promise<{
-    total_generations: number;
-    total_spawns: number;
-    best_kernel: {
-      id: string;
-      fitness: number;
-      traits: Record<string, unknown>;
-    } | null;
-    fitness_history: number[];
-    experiment_duration_seconds: number;
-  } | null> {
+  async getChaosReport(): Promise<PythonChaosReportResponse | null> {
     if (!this.isAvailable) return null;
 
     try {
@@ -3191,7 +2913,7 @@ export class OceanQIGBackend {
         return null;
       }
 
-      const data = await response.json();
+      const data: PythonPhiTemporalResponse = await response.json();
       if (!data.success) {
         this.recordFailure();
         return null;
@@ -3199,7 +2921,7 @@ export class OceanQIGBackend {
 
       this.recordSuccess();
       return data.phi_temporal;
-    } catch (error) {
+    } catch (error: unknown) {
       this.recordFailure();
       console.error("[OceanQIGBackend] computePhiTemporal failed:", error);
       return null;
@@ -3229,7 +2951,7 @@ export class OceanQIGBackend {
         return null;
       }
 
-      const data = await response.json();
+      const data: PythonPhi4DResponse = await response.json();
       if (!data.success) {
         this.recordFailure();
         return null;
@@ -3237,7 +2959,7 @@ export class OceanQIGBackend {
 
       this.recordSuccess();
       return data.phi_4D;
-    } catch (error) {
+    } catch (error: unknown) {
       this.recordFailure();
       console.error("[OceanQIGBackend] compute4DPhi failed:", error);
       return null;
@@ -3273,7 +2995,7 @@ export class OceanQIGBackend {
         return null;
       }
 
-      const data = await response.json();
+      const data: PythonClassifyRegime4DResponse = await response.json();
       if (!data.success) {
         this.recordFailure();
         return null;
@@ -3281,7 +3003,7 @@ export class OceanQIGBackend {
 
       this.recordSuccess();
       return data.regime;
-    } catch (error) {
+    } catch (error: unknown) {
       this.recordFailure();
       console.error("[OceanQIGBackend] classifyRegime4D failed:", error);
       return null;

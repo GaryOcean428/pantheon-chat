@@ -1309,8 +1309,13 @@ export class OceanAgent {
           if (this.olympusWarMode) {
             const activeWar = await getActiveWar();
             if (activeWar) {
-              const currentPhrases = (activeWar as any).phrasesTestedDuringWar || 0;
-              const currentDiscoveries = (activeWar as any).discoveriesDuringWar || 0;
+              // Type the active war with extended metrics
+              const warWithMetrics = activeWar as typeof activeWar & { 
+                phrasesTestedDuringWar?: number; 
+                discoveriesDuringWar?: number;
+              };
+              const currentPhrases = warWithMetrics.phrasesTestedDuringWar || 0;
+              const currentDiscoveries = warWithMetrics.discoveriesDuringWar || 0;
               await updateWarMetrics(activeWar.id, {
                 phrasesTested: currentPhrases + testResults.tested.length,
                 discoveries: currentDiscoveries + testResults.nearMisses.length,
@@ -2355,9 +2360,9 @@ export class OceanAgent {
               matchedPath = derived.derivationPath;
               hypo.address = derived.address;
               hypo.privateKeyHex = derived.privateKeyHex;
-              (hypo as any).derivationPath = derived.derivationPath;
-              (hypo as any).pathType = derived.pathType;
-              (hypo as any).isMnemonicDerived = true;
+              extHypo.derivationPath = derived.derivationPath;
+              extHypo.pathType = derived.pathType;
+              extHypo.isMnemonicDerived = true;
               console.log(`[Ocean] 🎯 MNEMONIC MATCH! Path: ${matchedPath}`);
               break;
             }
@@ -2370,7 +2375,7 @@ export class OceanAgent {
             console.log(
               `[Ocean] 🏆 DORMANT MNEMONIC MATCH: ${dormantMatch.address} (${dormantMatch.dormantInfo.balanceBTC} BTC)`
             );
-            (hypo as any).dormantMatch = dormantMatch;
+            extHypo.dormantMatch = dormantMatch;
           }
 
           hypo.match = foundMatch;
@@ -2379,7 +2384,7 @@ export class OceanAgent {
             hypo.address = mnemonicResult.addresses[0].address;
             hypo.privateKeyHex = mnemonicResult.addresses[0].privateKeyHex;
           }
-          (hypo as any).hdAddressCount = mnemonicResult.totalDerived;
+          extHypo.hdAddressCount = mnemonicResult.totalDerived;
         } else {
           hypo.privateKeyHex = derivePrivateKeyFromPassphrase(hypo.phrase);
           const both = generateBothAddressesFromPrivateKey(hypo.privateKeyHex);
@@ -2553,7 +2558,8 @@ export class OceanAgent {
 
             await this.saveRecoveryBundle(recoveryBundle);
 
-            const matchedFormat = (hypo as any).matchedFormat || "compressed";
+            const extHypoFmt = hypo as typeof hypo & { matchedFormat?: 'compressed' | 'uncompressed' };
+            const matchedFormat = extHypoFmt.matchedFormat || "compressed";
             console.log(
               "[Ocean] ==============================================="
             );
@@ -2584,7 +2590,8 @@ export class OceanAgent {
               "[Ocean] ==============================================="
             );
 
-            (hypo as any).recoveryBundle = recoveryBundle;
+            const extHypoBundle = hypo as typeof hypo & { recoveryBundle?: unknown };
+            extHypoBundle.recoveryBundle = recoveryBundle;
             return { match: hypo, tested, nearMisses, resonant };
           } else {
             console.log(
@@ -3454,7 +3461,7 @@ export class OceanAgent {
             newHypotheses.push(
               this.createHypothesis(
                 pattern.phrase,
-                pattern.format as any,
+                pattern.format as 'arbitrary' | 'bip39' | 'master' | 'hex',
                 "historical_exploration",
                 pattern.reasoning,
                 pattern.likelihood
@@ -3526,7 +3533,7 @@ export class OceanAgent {
           newHypotheses.push(
             this.createHypothesis(
               phrase,
-              preferredFormat as any,
+              preferredFormat as 'arbitrary' | 'bip39' | 'master' | 'hex',
               "format_focused",
               `Focused on ${preferredFormat}`,
               0.7
@@ -3814,7 +3821,8 @@ export class OceanAgent {
           );
 
         for (const h of roleHypotheses.slice(0, 5)) {
-          const confidence = h.score ?? (h as any).confidence ?? 0.5;
+          const hWithConf = h as typeof h & { confidence?: number };
+          const confidence = h.score ?? hWithConf.confidence ?? 0.5;
           const sourceLabel = h.god
             ? `pantheon:${h.god}`
             : `constellation:${role}`;
@@ -3958,7 +3966,8 @@ export class OceanAgent {
 
     // Get knowledge gaps that need exploration
     // Focus on high-priority gaps in the knowledge manifold
-    const knowledgeGaps = (this as any).knowledgeGaps?.slice(0, 20) || [];
+    const selfWithGaps = this as typeof this & { knowledgeGaps?: string[] };
+    const knowledgeGaps = selfWithGaps.knowledgeGaps?.slice(0, 20) || [];
 
     if (knowledgeGaps.length === 0) {
       console.log("[Ocean] No knowledge gaps found for hypothesis generation");
@@ -5053,7 +5062,7 @@ export class OceanAgent {
       ...this.getState(),
       fullTelemetry: telemetry,
       telemetryType: "full_spectrum",
-    } as any);
+    });
   }
 
   /**

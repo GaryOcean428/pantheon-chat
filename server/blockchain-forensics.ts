@@ -13,6 +13,11 @@
 import { createHash } from 'crypto';
 import bs58check from 'bs58check';
 import './historical-data-miner';
+import type { 
+  BlockchainInfoRawAddressResponse, 
+  UnifiedAddressData, 
+  UnifiedTransaction 
+} from '@shared/types/blockchain-types';
 
 const BLOCKSTREAM_API = 'https://blockstream.info/api';
 const BLOCKCHAIN_INFO_API = 'https://blockchain.info';
@@ -277,7 +282,7 @@ export class BlockchainForensics {
    * Skips rate-limited APIs entirely for faster fallback
    * Returns format-based fallback data when all APIs unavailable (no throw)
    */
-  private async fetchFromBlockchainInfo(address: string): Promise<any> {
+  private async fetchFromBlockchainInfo(address: string): Promise<UnifiedAddressData> {
     // Check if all APIs are rate-limited - return format-based fallback immediately
     const allRateLimited = isApiRateLimited('blockchainInfo') && 
                            isApiRateLimited('blockstream') && 

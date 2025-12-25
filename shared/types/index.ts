@@ -84,6 +84,18 @@ export {
   qigGeometrySchemas,
 } from './qig-geometry';
 
+// Python backend response types
+export * from './python-responses';
+
+// Server-side types (auth, workflows, constraints)
+export * from './server-types';
+
+// Blockchain API response types
+export * from './blockchain-types';
+
+// Recovery system types
+export * from './recovery-types';
+
 // Olympus Pantheon types
 export {
   type GodDomain,
