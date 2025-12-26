@@ -123,7 +123,7 @@ async function proxyGet(
     const data = await response.json();
     res.json(data);
   } catch (error) {
-    logger.error(`[Olympus] ${errorMessage}:`, error);
+    logger.error({ err: error }, `[Olympus] ${errorMessage}:`);
     if (options.fallbackResponse) {
       res.status(options.errorStatus || 500).json({ ...options.fallbackResponse, error: errorMessage });
     } else {
@@ -155,7 +155,7 @@ async function proxyPost(
     const data = await response.json();
     res.json(data);
   } catch (error) {
-    logger.error(`[Olympus] ${errorMessage}:`, error);
+    logger.error({ err: error }, `[Olympus] ${errorMessage}:`);
     res.status(options.errorStatus || 500).json({ error: errorMessage });
   }
 }
@@ -182,7 +182,7 @@ async function proxyDelete(
     const data = await response.json();
     res.json(data);
   } catch (error) {
-    logger.error(`[Olympus] ${errorMessage}:`, error);
+    logger.error({ err: error }, `[Olympus] ${errorMessage}:`);
     res.status(options.errorStatus || 500).json({ error: errorMessage });
   }
 }
@@ -265,7 +265,7 @@ router.post('/zeus/chat', isAuthenticated, async (req, res) => {
       
       if (!response.ok) {
         // Forward Python's error response with proper status
-        logger.error('[Olympus] Zeus chat Python error:', response.status, data);
+        logger.error({ status: response.status, data }, '[Olympus] Zeus chat Python error');
         res.status(response.status).json({
           error: data.error || 'Python backend error',
           response: data.response || data.message || '⚡ Zeus encountered a divine error.',
@@ -358,7 +358,7 @@ router.post('/zeus/chat', isAuthenticated, async (req, res) => {
     });
     
     proxyReq.on('error', (error) => {
-      logger.error('[Olympus] Proxy error:', error);
+      logger.error({ data: error }, '[Olympus] Proxy error');
       res.status(500).json({
         error: 'Failed to communicate with Mount Olympus',
         response: '⚡ The divine council is unreachable.',
@@ -370,7 +370,7 @@ router.post('/zeus/chat', isAuthenticated, async (req, res) => {
     req.pipe(proxyReq);
     
   } catch (error) {
-    logger.error('[Olympus] Zeus chat error:', error);
+    logger.error({ data: error }, '[Olympus] Zeus chat error');
     res.status(500).json({
       error: 'Failed to communicate with Mount Olympus',
       response: '⚡ The divine council is unreachable. Please ensure the Python backend is running.',
@@ -399,7 +399,7 @@ router.get('/zeus/sessions', isAuthenticated, async (req, res) => {
     const data = await response.json();
     res.json(data);
   } catch (error) {
-    logger.error('[Olympus] Get sessions error:', error);
+    logger.error({ data: error }, '[Olympus] Get sessions error');
     res.status(500).json({ error: 'Failed to retrieve sessions', sessions: [] });
   }
 });
@@ -424,7 +424,7 @@ router.post('/zeus/sessions', isAuthenticated, async (req, res) => {
     const data = await response.json();
     res.json(data);
   } catch (error) {
-    logger.error('[Olympus] Create session error:', error);
+    logger.error({ data: error }, '[Olympus] Create session error');
     res.status(500).json({ error: 'Failed to create session' });
   }
 });
@@ -449,7 +449,7 @@ router.get('/zeus/sessions/:sessionId/messages', isAuthenticated, async (req, re
     const data = await response.json();
     res.json(data);
   } catch (error) {
-    logger.error('[Olympus] Get session messages error:', error);
+    logger.error({ data: error }, '[Olympus] Get session messages error');
     res.status(500).json({ error: 'Failed to get session messages' });
   }
 });
@@ -477,7 +477,7 @@ router.post('/zeus/search', isAuthenticated, validateInput(searchQuerySchema), a
     const data = await response.json();
     res.json(data);
   } catch (error) {
-    logger.error('[Olympus] Zeus search error:', error);
+    logger.error({ data: error }, '[Olympus] Zeus search error');
     res.status(500).json({
       error: 'Failed to execute search',
       response: '⚡ The Oracle is silent.',
@@ -511,7 +511,7 @@ router.get('/zeus/search/learner/timeseries', isAuthenticated, async (req, res) 
     const data = await response.json();
     res.json(data);
   } catch (error) {
-    logger.error('[Olympus] Learner timeseries error:', error);
+    logger.error({ data: error }, '[Olympus] Learner timeseries error');
     res.status(500).json({ error: 'Failed to retrieve time series data' });
   }
 });
@@ -541,7 +541,7 @@ router.get('/zeus/search/learner/replay/history', isAuthenticated, async (req, r
     const data = await response.json();
     res.json(data);
   } catch (error) {
-    logger.error('[Olympus] Learner replay history error:', error);
+    logger.error({ data: error }, '[Olympus] Learner replay history error');
     res.status(500).json({ error: 'Failed to retrieve replay history' });
   }
 });
@@ -650,7 +650,7 @@ router.get('/zeus/tools/bridge/status', isAuthenticated, async (req, res) => {
     const data = await response.json();
     res.json(data);
   } catch (error) {
-    logger.error('[Olympus] Bridge status error:', error);
+    logger.error({ data: error }, '[Olympus] Bridge status error');
     res.status(500).json({ 
       queue_status: { pending: 0, completed: 0, by_type: {}, recursive_count: 0 },
       tool_factory_wired: false,
@@ -689,7 +689,7 @@ router.get('/chat/messages', isAuthenticated, async (req, res) => {
     const data = await response.json();
     res.json(data);
   } catch (error) {
-    logger.error('[Olympus] Chat messages error:', error);
+    logger.error({ data: error }, '[Olympus] Chat messages error');
     res.status(500).json({ messages: [], error: 'Failed to retrieve chat messages' });
   }
 });
@@ -714,7 +714,7 @@ router.get('/debates/active', isAuthenticated, async (req, res) => {
     const data = await response.json();
     res.json(data);
   } catch (error) {
-    logger.error('[Olympus] Active debates error:', error);
+    logger.error({ data: error }, '[Olympus] Active debates error');
     res.status(500).json({ debates: [], error: 'Failed to retrieve active debates' });
   }
 });
@@ -739,7 +739,7 @@ router.get('/debates/status', isAuthenticated, async (req, res) => {
     const data = await response.json();
     res.json(data);
   } catch (error) {
-    logger.error('[Olympus] Debate status error:', error);
+    logger.error({ data: error }, '[Olympus] Debate status error');
     res.status(500).json({ 
       active_count: 0, 
       resolved_count: 0,
@@ -766,7 +766,7 @@ router.post('/poll', isAuthenticated, pollRateLimiter, validateInput(targetSchem
     );
     res.json(result);
   } catch (error) {
-    logger.error('[Olympus] Poll error:', error);
+    logger.error({ data: error }, '[Olympus] Poll error');
     res.status(500).json({
       error: 'Failed to poll pantheon',
     });
@@ -797,7 +797,7 @@ router.post('/observe', isAuthenticated, observeRateLimiter, validateInput(targe
     auditLog(req, 'observe', req.body.target, true);
     res.json(data);
   } catch (error) {
-    logger.error('[Olympus] Observe error:', error);
+    logger.error({ data: error }, '[Olympus] Observe error');
     auditLog(req, 'observe', req.body.target || 'unknown', false);
     res.status(500).json({
       error: 'Failed to observe',
@@ -817,7 +817,7 @@ router.post('/assess', isAuthenticated, validateInput(targetSchema), async (req,
     );
     res.json(result);
   } catch (error) {
-    logger.error('[Olympus] Assess error:', error);
+    logger.error({ data: error }, '[Olympus] Assess error');
     res.status(500).json({
       error: 'Failed to get assessment',
     });
@@ -879,7 +879,7 @@ router.get('/god/:godName/status', isAuthenticated, async (req, res) => {
     const status = await olympusClient.getGodStatus(req.params.godName);
     res.json(status);
   } catch (error) {
-    logger.error('[Olympus] God status error:', error);
+    logger.error({ data: error }, '[Olympus] God status error');
     res.status(404).json({
       error: `God ${req.params.godName} not found`,
     });
@@ -907,7 +907,7 @@ router.post('/god/:godName/assess', isAuthenticated, godAssessRateLimiter, valid
     );
     res.json(result);
   } catch (error) {
-    logger.error('[Olympus] God assess error:', error);
+    logger.error({ data: error }, '[Olympus] God assess error');
     res.status(500).json({
       error: 'Failed to get god assessment',
     });
@@ -968,7 +968,7 @@ router.post('/war/flow', isAuthenticated, validateInput(warTargetSchema), async 
     auditLog(req, 'war/flow', req.body.target, true);
     res.json(result);
   } catch (error) {
-    logger.error('[Olympus] Flow state error:', error);
+    logger.error({ data: error }, '[Olympus] Flow state error');
     auditLog(req, 'war/flow', req.body.target, false);
     res.status(500).json({
       error: 'Failed to activate flow state',
@@ -1002,7 +1002,7 @@ router.post('/war/deep-focus', isAuthenticated, validateInput(warTargetSchema), 
     auditLog(req, 'war/deep-focus', req.body.target, true);
     res.json(result);
   } catch (error) {
-    logger.error('[Olympus] Deep focus error:', error);
+    logger.error({ data: error }, '[Olympus] Deep focus error');
     auditLog(req, 'war/deep-focus', req.body.target, false);
     res.status(500).json({
       error: 'Failed to activate deep focus state',
@@ -1036,7 +1036,7 @@ router.post('/war/insight-hunt', isAuthenticated, validateInput(warTargetSchema)
     auditLog(req, 'war/insight-hunt', req.body.target, true);
     res.json(result);
   } catch (error) {
-    logger.error('[Olympus] Insight hunt error:', error);
+    logger.error({ data: error }, '[Olympus] Insight hunt error');
     auditLog(req, 'war/insight-hunt', req.body.target, false);
     res.status(500).json({
       error: 'Failed to activate insight hunt state',
@@ -1070,7 +1070,7 @@ router.post('/war/end', isAuthenticated, async (req, res) => {
     auditLog(req, 'war/end', activeWar?.target || 'no-active-war', true);
     res.json(result);
   } catch (error) {
-    logger.error('[Olympus] End war error:', error);
+    logger.error({ data: error }, '[Olympus] End war error');
     auditLog(req, 'war/end', 'unknown', false);
     res.status(500).json({
       error: 'Failed to end war',
@@ -1090,7 +1090,7 @@ router.get('/war/history', isAuthenticated, async (req, res) => {
     const history = await getWarHistory(limit);
     res.json(history);
   } catch (error) {
-    logger.error('[Olympus] War history error:', error);
+    logger.error({ data: error }, '[Olympus] War history error');
     res.status(500).json({
       error: 'Failed to get war history',
     });
@@ -1115,7 +1115,7 @@ router.get('/war/active', async (req, res) => {
     
     res.json(activeWar || { active: false });
   } catch (error) {
-    logger.error('[Olympus] Active war error:', error);
+    logger.error({ data: error }, '[Olympus] Active war error');
     // Return inactive state on error instead of 500 - more graceful degradation
     res.json({ active: false });
   }
@@ -1145,7 +1145,7 @@ router.post('/war/start', isAuthenticated, validateInput(warStartSchema), async 
     
     res.json(warRecord);
   } catch (error) {
-    logger.error('[Olympus] War start error:', error);
+    logger.error({ data: error }, '[Olympus] War start error');
     res.status(500).json({
       error: 'Failed to start war',
     });
@@ -1176,7 +1176,7 @@ router.post('/war/internal-start', requireInternalAuth, validateInput(warStartSc
     
     res.json(warRecord);
   } catch (error) {
-    logger.error('[Olympus] Internal war start error:', error);
+    logger.error({ data: error }, '[Olympus] Internal war start error');
     res.status(500).json({
       error: 'Failed to start war',
     });
@@ -1219,7 +1219,7 @@ router.post('/war/end/:id', isAuthenticated, validateInput(warEndSchema), async 
     
     res.json(warRecord);
   } catch (error) {
-    logger.error('[Olympus] War end error:', error);
+    logger.error({ data: error }, '[Olympus] War end error');
     res.status(500).json({
       error: 'Failed to end war',
     });
@@ -1247,7 +1247,7 @@ router.get('/chat/recent', isAuthenticated, async (req, res) => {
     // Return array directly - extract from object if needed
     res.json(Array.isArray(data) ? data : (data.messages || []));
   } catch (error) {
-    logger.error('[Olympus] Recent chat error:', error);
+    logger.error({ data: error }, '[Olympus] Recent chat error');
     // Return empty array directly on error
     res.json([]);
   }
@@ -1274,7 +1274,7 @@ router.get('/debates/active', isAuthenticated, async (req, res) => {
     // Return array directly - extract from object if needed
     res.json(Array.isArray(data) ? data : (data.debates || []));
   } catch (error) {
-    logger.error('[Olympus] Active debates error:', error);
+    logger.error({ data: error }, '[Olympus] Active debates error');
     // Return empty array directly on error
     res.json([]);
   }
@@ -1312,7 +1312,7 @@ router.post('/spawn/auto', isAuthenticated, validateInput(targetSchema), async (
           placementReason: 'auto_spawn',
           affinityStrength: typeof k.affinity === 'number' ? k.affinity : undefined,
           metadata: { phi: k.phi, generation: k.generation },
-        }).catch(err => logger.error('[Olympus] Failed to persist kernel:', err));
+        }).catch(err => logger.error({ data: err }, '[Olympus] Failed to persist kernel'));
       }
       
       // Update war metrics with kernel count if war is active
@@ -1327,7 +1327,7 @@ router.post('/spawn/auto', isAuthenticated, validateInput(targetSchema), async (
     
     res.json(data);
   } catch (error) {
-    logger.error('[Olympus] Spawn auto error:', error);
+    logger.error({ data: error }, '[Olympus] Spawn auto error');
     res.status(500).json({ error: 'Failed to trigger auto-spawn' });
   }
 });
@@ -1358,7 +1358,7 @@ router.get('/m8/status', isAuthenticated, async (req, res) => {
     const data = await response.json();
     res.json(data);
   } catch (error) {
-    logger.error('[Olympus] M8 status error:', error);
+    logger.error({ data: error }, '[Olympus] M8 status error');
     res.json({
       consensus_type: 'supermajority',
       total_proposals: 0,
@@ -1403,7 +1403,7 @@ router.get('/m8/proposals', isAuthenticated, async (req, res) => {
       status_filter: data.filter ?? data.status_filter ?? null,
     });
   } catch (error) {
-    logger.error('[Olympus] M8 proposals error:', error);
+    logger.error({ data: error }, '[Olympus] M8 proposals error');
     res.json({ proposals: [], total: 0, status_filter: null });
   }
 });
@@ -1432,7 +1432,7 @@ router.post('/m8/vote/:proposalId', isAuthenticated, async (req, res) => {
     const data = await response.json();
     res.json(data);
   } catch (error) {
-    logger.error('[Olympus] M8 vote error:', error);
+    logger.error({ data: error }, '[Olympus] M8 vote error');
     res.status(500).json({ success: false, error: 'Python backend unavailable' });
   }
 });
@@ -1457,7 +1457,7 @@ router.post('/m8/spawn/:proposalId', isAuthenticated, async (req, res) => {
     const data = await response.json();
     res.json(data);
   } catch (error) {
-    logger.error('[Olympus] M8 spawn error:', error);
+    logger.error({ data: error }, '[Olympus] M8 spawn error');
     res.status(500).json({ success: false, error: 'Python backend unavailable' });
   }
 });
@@ -1485,7 +1485,7 @@ router.get('/m8/proposal/:proposalId', isAuthenticated, async (req, res) => {
     const data = await response.json();
     res.json(data);
   } catch (error) {
-    logger.error('[Olympus] M8 get proposal error:', error);
+    logger.error({ data: error }, '[Olympus] M8 get proposal error');
     res.status(500).json({ error: 'Python backend unavailable' });
   }
 });
@@ -1533,7 +1533,7 @@ router.get('/m8/kernels', isAuthenticated, async (req, res) => {
       status_filter: statusParam || null,
     });
   } catch (error) {
-    logger.error('[Olympus] M8 list kernels error:', error);
+    logger.error({ data: error }, '[Olympus] M8 list kernels error');
     res.json({ 
       kernels: [], 
       total: 0, 
@@ -1564,7 +1564,7 @@ router.get('/m8/kernel/:kernelId', isAuthenticated, async (req, res) => {
     const data = await response.json();
     res.json(data);
   } catch (error) {
-    logger.error('[Olympus] M8 get kernel error:', error);
+    logger.error({ data: error }, '[Olympus] M8 get kernel error');
     res.status(500).json({ error: 'Python backend unavailable' });
   }
 });
@@ -1588,7 +1588,7 @@ router.delete('/m8/kernel/:kernelId', isAuthenticated, async (req, res) => {
     const data = await response.json();
     res.json(data);
   } catch (error) {
-    logger.error('[Olympus] M8 delete kernel error:', error);
+    logger.error({ data: error }, '[Olympus] M8 delete kernel error');
     res.status(500).json({ error: 'Python backend unavailable' });
   }
 });
@@ -1613,7 +1613,7 @@ router.get('/m8/kernels/idle', isAuthenticated, async (req, res) => {
     const data = await response.json();
     res.json(data);
   } catch (error) {
-    logger.error('[Olympus] M8 get idle kernels error:', error);
+    logger.error({ data: error }, '[Olympus] M8 get idle kernels error');
     res.json({ idle_kernels: [], total: 0, threshold_seconds: 300 });
   }
 });
@@ -1715,7 +1715,7 @@ router.get('/kernels', isAuthenticated, async (req, res) => {
       available: Math.max(0, E8_CAP - liveCount),
     });
   } catch (error) {
-    logger.error('[Olympus] Kernels list error:', error);
+    logger.error({ data: error }, '[Olympus] Kernels list error');
     res.json({ kernels: [], total: 0, live_count: 0, cap: 240, available: 240 });
   }
 });
@@ -1791,7 +1791,7 @@ router.post('/kernels/sync', requireInternalAuth, validateInput(kernelSyncSchema
       res.status(500).json({ success: false, error: 'Failed to sync kernel' });
     }
   } catch (error) {
-    logger.error('[Olympus] Kernel sync error:', error);
+    logger.error({ data: error }, '[Olympus] Kernel sync error');
     res.status(500).json({ success: false, error: 'Kernel sync failed' });
   }
 });
@@ -1844,7 +1844,7 @@ router.post('/kernels/sync-batch', requireInternalAuth, async (req, res) => {
     const succeeded = results.filter(r => r.success).length;
     res.json({ success: true, synced: succeeded, total: kernels.length, results });
   } catch (error) {
-    logger.error('[Olympus] Batch kernel sync error:', error);
+    logger.error({ data: error }, '[Olympus] Batch kernel sync error');
     res.status(500).json({ success: false, error: 'Batch sync failed' });
   }
 });
@@ -1895,7 +1895,7 @@ router.post('/shadow/poll', isAuthenticated, validateInput(targetSchema), async 
     const data = await response.json();
     res.json(data);
   } catch (error) {
-    logger.error('[Olympus] Shadow poll error:', error);
+    logger.error({ data: error }, '[Olympus] Shadow poll error');
     res.status(503).json({ error: 'Shadow Pantheon unreachable' });
   }
 });
@@ -1929,7 +1929,7 @@ router.post('/shadow/:godName/act', isAuthenticated, async (req, res) => {
     const data = await response.json();
     res.json(data);
   } catch (error) {
-    logger.error(`[Olympus] Shadow god ${req.params.godName} act error:`, error);
+    logger.error({ err: error }, `[Olympus] Shadow god ${req.params.godName} act error:`);
     res.status(503).json({ error: 'Shadow god unreachable' });
   }
 });
@@ -1958,7 +1958,7 @@ router.get('/debates/status', isAuthenticated, async (req, res) => {
     const data = await response.json();
     res.json(data);
   } catch (error) {
-    logger.error('[Olympus] Debate status error:', error);
+    logger.error({ data: error }, '[Olympus] Debate status error');
     res.status(503).json({ error: 'Autonomous debate service unreachable' });
   }
 });
@@ -1982,7 +1982,7 @@ router.get('/debates/active', isAuthenticated, async (req, res) => {
     const data = await response.json();
     res.json(data);
   } catch (error) {
-    logger.error('[Olympus] Active debates error:', error);
+    logger.error({ data: error }, '[Olympus] Active debates error');
     res.status(503).json({ error: 'Autonomous debate service unreachable' });
   }
 });
@@ -2032,7 +2032,7 @@ router.post('/kernels/:kernelId/graduate', isAuthenticated, async (req, res) => 
     auditLog(req, 'kernel_graduate', kernelId, true);
     res.json(data);
   } catch (error) {
-    logger.error(`[Olympus] Kernel ${req.params.kernelId} graduation error:`, error);
+    logger.error({ err: error }, `[Olympus] Kernel ${req.params.kernelId} graduation error:`);
     auditLog(req, 'kernel_graduate', req.params.kernelId, false);
     res.status(503).json({ error: 'Kernel graduation failed' });
   }
@@ -2059,7 +2059,7 @@ router.post('/kernels/route-activity', async (req, res) => {
     const data = await response.json();
     res.json(data);
   } catch (error) {
-    logger.error('[Olympus] Activity routing error:', error);
+    logger.error({ data: error }, '[Olympus] Activity routing error');
     res.status(503).json({ error: 'Activity routing failed' });
   }
 });
@@ -2090,7 +2090,7 @@ router.get('/lightning/status', isAuthenticated, async (req, res) => {
     const data = await response.json();
     res.json(data);
   } catch (error) {
-    logger.error('[Olympus] Lightning status error:', error);
+    logger.error({ data: error }, '[Olympus] Lightning status error');
     res.status(503).json({ error: 'Lightning Kernel not available' });
   }
 });
@@ -2117,7 +2117,7 @@ router.get('/lightning/insights', isAuthenticated, async (req, res) => {
     const data = await response.json();
     res.json(data);
   } catch (error) {
-    logger.error('[Olympus] Lightning insights error:', error);
+    logger.error({ data: error }, '[Olympus] Lightning insights error');
     res.status(503).json({ error: 'Lightning Kernel not available' });
   }
 });
@@ -2161,7 +2161,7 @@ router.post('/lightning/event', isAuthenticated, async (req, res) => {
     auditLog(req, 'lightning_event', req.body.domain || 'unknown', true);
     res.json(data);
   } catch (error) {
-    logger.error('[Olympus] Lightning event error:', error);
+    logger.error({ data: error }, '[Olympus] Lightning event error');
     auditLog(req, 'lightning_event', req.body?.domain || 'unknown', false);
     res.status(503).json({ error: 'Lightning Kernel not available' });
   }
@@ -2202,7 +2202,7 @@ router.get('/telemetry/kernel/:kernelId', isAuthenticated, async (req, res) => {
     const data = await response.json();
     res.json(data);
   } catch (error) {
-    logger.error('[Olympus] Telemetry kernel error:', error);
+    logger.error({ data: error }, '[Olympus] Telemetry kernel error');
     res.status(503).json({ error: 'Telemetry not available' });
   }
 });
@@ -2224,7 +2224,7 @@ router.get('/telemetry/kernel/:kernelId/capabilities', isAuthenticated, async (r
     const data = await response.json();
     res.json(data);
   } catch (error) {
-    logger.error('[Olympus] Telemetry capabilities error:', error);
+    logger.error({ data: error }, '[Olympus] Telemetry capabilities error');
     res.status(503).json({ error: 'Telemetry not available' });
   }
 });

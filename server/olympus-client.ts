@@ -10,6 +10,7 @@
  * Types are imported from shared/types/olympus.ts for cross-system consistency.
  */
 
+import { logger } from "./lib/logger";
 import type {
   GodAssessment,
   ConvergenceInfo,
@@ -174,7 +175,7 @@ async function flushOutcomeBatch(backendUrl: string): Promise<void> {
     });
     
     if (!response.ok) {
-      logger.error('[OlympusClient] Batch report failed:', response.statusText);
+      logger.error({ data: response.statusText }, '[OlympusClient] Batch report failed');
       for (const pending of batch) {
         pending.resolve(null);
       }
@@ -197,7 +198,7 @@ async function flushOutcomeBatch(backendUrl: string): Promise<void> {
       }
       return;
     }
-    logger.error('[OlympusClient] Batch report exception:', error);
+    logger.error({ data: error }, '[OlympusClient] Batch report exception');
     for (const pending of batch) {
       pending.resolve(null);
     }
@@ -237,7 +238,7 @@ export class OlympusClient {
     } catch (error) {
       this.isAvailable = false;
       if (!silent) {
-        logger.warn('[OlympusClient] Python backend not available:', error);
+        logger.warn({ err: error }, '[OlympusClient] Python backend not available:');
       }
       return false;
     }
@@ -299,20 +300,20 @@ export class OlympusClient {
       });
       
       if (!response.ok) {
-        logger.error('[OlympusClient] Poll failed:', response.statusText);
+        logger.error({ data: response.statusText }, '[OlympusClient] Poll failed');
         return null;
       }
       
       const data = await response.json();
       
       if (data.error) {
-        logger.error('[OlympusClient] Poll error:', data.error);
+        logger.error({ data: data.error }, '[OlympusClient] Poll error');
         return null;
       }
       
       return data as PollResult;
     } catch (error) {
-      logger.error('[OlympusClient] Poll exception:', error);
+      logger.error({ data: error }, '[OlympusClient] Poll exception');
       return null;
     }
   }
@@ -336,20 +337,20 @@ export class OlympusClient {
       });
       
       if (!response.ok) {
-        logger.error('[OlympusClient] Assess failed:', response.statusText);
+        logger.error({ data: response.statusText }, '[OlympusClient] Assess failed');
         return null;
       }
       
       const data = await response.json();
       
       if (data.error) {
-        logger.error('[OlympusClient] Assess error:', data.error);
+        logger.error({ data: data.error }, '[OlympusClient] Assess error');
         return null;
       }
       
       return data as ZeusAssessment;
     } catch (error) {
-      logger.error('[OlympusClient] Assess exception:', error);
+      logger.error({ data: error }, '[OlympusClient] Assess exception');
       return null;
     }
   }
@@ -369,13 +370,13 @@ export class OlympusClient {
       });
 
       if (!response.ok) {
-        logger.error('[OlympusClient] Pantheon orchestrate failed:', response.statusText);
+        logger.error({ data: response.statusText }, '[OlympusClient] Pantheon orchestrate failed');
         return null;
       }
 
       return await response.json() as OrchestrationResult;
     } catch (error) {
-      logger.error('[OlympusClient] Pantheon orchestrate exception:', error);
+      logger.error({ data: error }, '[OlympusClient] Pantheon orchestrate exception');
       return null;
     }
   }
@@ -395,20 +396,20 @@ export class OlympusClient {
       });
 
       if (!response.ok) {
-        logger.error('[OlympusClient] Pantheon orchestrate batch failed:', response.statusText);
+        logger.error({ data: response.statusText }, '[OlympusClient] Pantheon orchestrate batch failed');
         return null;
       }
 
       const data = await response.json();
       
       if (data.error) {
-        logger.error('[OlympusClient] Pantheon orchestrate batch error:', data.error);
+        logger.error({ data: data.error }, '[OlympusClient] Pantheon orchestrate batch error');
         return [];
       }
 
       return (data.results || []) as OrchestrationResult[];
     } catch (error) {
-      logger.error('[OlympusClient] Pantheon orchestrate batch exception:', error);
+      logger.error({ data: error }, '[OlympusClient] Pantheon orchestrate batch exception');
       return null;
     }
   }
@@ -424,14 +425,14 @@ export class OlympusClient {
       });
       
       if (!response.ok) {
-        logger.error('[OlympusClient] Status failed:', response.statusText);
+        logger.error({ data: response.statusText }, '[OlympusClient] Status failed');
         return null;
       }
       
       const data = await response.json();
       return data as OlympusStatus;
     } catch (error) {
-      logger.error('[OlympusClient] Status exception after retries:', error);
+      logger.error({ data: error }, '[OlympusClient] Status exception after retries');
       return null;
     }
   }
@@ -448,9 +449,9 @@ export class OlympusClient {
       
       if (!response.ok) {
         if (response.status === 404) {
-          logger.error(`[OlympusClient] God ${godName} not found`);
+          logger.error("[OlympusClient] God ${godName} not found");
         } else {
-          logger.error('[OlympusClient] God status failed:', response.statusText);
+          logger.error({ data: response.statusText }, '[OlympusClient] God status failed');
         }
         return null;
       }
@@ -458,7 +459,7 @@ export class OlympusClient {
       const data = await response.json();
       return data as GodStatus;
     } catch (error) {
-      logger.error('[OlympusClient] God status exception after retries:', error);
+      logger.error({ data: error }, '[OlympusClient] God status exception after retries');
       return null;
     }
   }
@@ -480,9 +481,9 @@ export class OlympusClient {
       
       if (!response.ok) {
         if (response.status === 404) {
-          logger.error(`[OlympusClient] God ${godName} not found`);
+          logger.error("[OlympusClient] God ${godName} not found");
         } else {
-          logger.error('[OlympusClient] God assess failed:', response.statusText);
+          logger.error({ data: response.statusText }, '[OlympusClient] God assess failed');
         }
         return null;
       }
@@ -490,13 +491,13 @@ export class OlympusClient {
       const data = await response.json();
       
       if (data.error) {
-        logger.error('[OlympusClient] God assess error:', data.error);
+        logger.error({ data: data.error }, '[OlympusClient] God assess error');
         return null;
       }
       
       return data as GodAssessment;
     } catch (error) {
-      logger.error('[OlympusClient] God assess exception:', error);
+      logger.error({ data: error }, '[OlympusClient] God assess exception');
       return null;
     }
   }
@@ -513,21 +514,21 @@ export class OlympusClient {
       });
       
       if (!response.ok) {
-        logger.error('[OlympusClient] Blitzkrieg failed:', response.statusText);
+        logger.error({ data: response.statusText }, '[OlympusClient] Blitzkrieg failed');
         return null;
       }
       
       const data = await response.json();
       
       if (data.error) {
-        logger.error('[OlympusClient] Blitzkrieg error:', data.error);
+        logger.error({ data: data.error }, '[OlympusClient] Blitzkrieg error');
         return null;
       }
       
       logger.info(`[OlympusClient] BLITZKRIEG declared on: ${target}`);
       return data as WarDeclaration;
     } catch (error) {
-      logger.error('[OlympusClient] Blitzkrieg exception after retries:', error);
+      logger.error({ data: error }, '[OlympusClient] Blitzkrieg exception after retries');
       return null;
     }
   }
@@ -544,21 +545,21 @@ export class OlympusClient {
       });
       
       if (!response.ok) {
-        logger.error('[OlympusClient] Siege failed:', response.statusText);
+        logger.error({ data: response.statusText }, '[OlympusClient] Siege failed');
         return null;
       }
       
       const data = await response.json();
       
       if (data.error) {
-        logger.error('[OlympusClient] Siege error:', data.error);
+        logger.error({ data: data.error }, '[OlympusClient] Siege error');
         return null;
       }
       
       logger.info(`[OlympusClient] SIEGE declared on: ${target}`);
       return data as WarDeclaration;
     } catch (error) {
-      logger.error('[OlympusClient] Siege exception after retries:', error);
+      logger.error({ data: error }, '[OlympusClient] Siege exception after retries');
       return null;
     }
   }
@@ -575,21 +576,21 @@ export class OlympusClient {
       });
       
       if (!response.ok) {
-        logger.error('[OlympusClient] Hunt failed:', response.statusText);
+        logger.error({ data: response.statusText }, '[OlympusClient] Hunt failed');
         return null;
       }
       
       const data = await response.json();
       
       if (data.error) {
-        logger.error('[OlympusClient] Hunt error:', data.error);
+        logger.error({ data: data.error }, '[OlympusClient] Hunt error');
         return null;
       }
       
       logger.info(`[OlympusClient] HUNT declared on: ${target}`);
       return data as WarDeclaration;
     } catch (error) {
-      logger.error('[OlympusClient] Hunt exception after retries:', error);
+      logger.error({ data: error }, '[OlympusClient] Hunt exception after retries');
       return null;
     }
   }
@@ -605,7 +606,7 @@ export class OlympusClient {
       });
       
       if (!response.ok) {
-        logger.error('[OlympusClient] End war failed:', response.statusText);
+        logger.error({ data: response.statusText }, '[OlympusClient] End war failed');
         return null;
       }
       
@@ -613,7 +614,7 @@ export class OlympusClient {
       logger.info(`[OlympusClient] War ended. Previous mode: ${data.previous_mode || 'none'}`);
       return data as WarEnded;
     } catch (error) {
-      logger.error('[OlympusClient] End war exception after retries:', error);
+      logger.error({ data: error }, '[OlympusClient] End war exception after retries');
       return null;
     }
   }
@@ -630,14 +631,14 @@ export class OlympusClient {
       });
       
       if (!response.ok) {
-        logger.error('[OlympusClient] Observe failed:', response.statusText);
+        logger.error({ data: response.statusText }, '[OlympusClient] Observe failed');
         return false;
       }
       
       const data = await response.json();
       return data.status === 'observed';
     } catch (error) {
-      logger.error('[OlympusClient] Observe exception after retries:', error);
+      logger.error({ data: error }, '[OlympusClient] Observe exception after retries');
       return false;
     }
   }
@@ -700,7 +701,7 @@ export class OlympusClient {
       });
       
       if (!response.ok) {
-        logger.error('[OlympusClient] Report outcome failed:', response.statusText);
+        logger.error({ data: response.statusText }, '[OlympusClient] Report outcome failed');
         return null;
       }
       
@@ -708,7 +709,7 @@ export class OlympusClient {
       logger.info(`[OlympusClient] Discovery reported: success=${success}, gods=${data.gods_updated}`);
       return { godsUpdated: data.gods_updated, success: data.success };
     } catch (error) {
-      logger.error('[OlympusClient] Report outcome exception after retries:', error);
+      logger.error({ data: error }, '[OlympusClient] Report outcome exception after retries');
       return null;
     }
   }
@@ -794,13 +795,13 @@ export class OlympusClient {
       });
       
       if (!response.ok) {
-        logger.error('[OlympusClient] Shadow status failed:', response.statusText);
+        logger.error({ data: response.statusText }, '[OlympusClient] Shadow status failed');
         return null;
       }
       
       return await response.json() as ShadowPantheonStatus;
     } catch (error) {
-      logger.error('[OlympusClient] Shadow status exception:', error);
+      logger.error({ data: error }, '[OlympusClient] Shadow status exception');
       return null;
     }
   }
@@ -821,13 +822,13 @@ export class OlympusClient {
       });
       
       if (!response.ok) {
-        logger.error('[OlympusClient] Shadow poll failed:', response.statusText);
+        logger.error({ data: response.statusText }, '[OlympusClient] Shadow poll failed');
         return null;
       }
       
       return await response.json();
     } catch (error) {
-      logger.error('[OlympusClient] Shadow poll exception:', error);
+      logger.error({ data: error }, '[OlympusClient] Shadow poll exception');
       return null;
     }
   }
@@ -848,13 +849,13 @@ export class OlympusClient {
       });
       
       if (!response.ok) {
-        logger.error(`[OlympusClient] Shadow god ${godName} assess failed:`, response.statusText);
+        logger.error({ err: response.statusText }, `[OlympusClient] Shadow god ${godName} assess failed:`);
         return null;
       }
       
       return await response.json() as ShadowGodAssessment;
     } catch (error) {
-      logger.error(`[OlympusClient] Shadow god ${godName} assess exception:`, error);
+      logger.error({ err: error }, `[OlympusClient] Shadow god ${godName} assess exception:`);
       return null;
     }
   }
@@ -871,7 +872,7 @@ export class OlympusClient {
       });
       
       if (!response.ok) {
-        logger.error('[OlympusClient] Covert operation failed:', response.statusText);
+        logger.error({ data: response.statusText }, '[OlympusClient] Covert operation failed');
         return null;
       }
       
@@ -879,7 +880,7 @@ export class OlympusClient {
       logger.info(`[OlympusClient] Covert operation initiated: ${data.id}`);
       return data as CovertOperation;
     } catch (error) {
-      logger.error('[OlympusClient] Covert operation exception:', error);
+      logger.error({ data: error }, '[OlympusClient] Covert operation exception');
       return null;
     }
   }
@@ -896,13 +897,13 @@ export class OlympusClient {
       });
       
       if (!response.ok) {
-        logger.error('[OlympusClient] Surveillance scan failed:', response.statusText);
+        logger.error({ data: response.statusText }, '[OlympusClient] Surveillance scan failed');
         return null;
       }
       
       return await response.json() as SurveillanceScan;
     } catch (error) {
-      logger.error('[OlympusClient] Surveillance scan exception:', error);
+      logger.error({ data: error }, '[OlympusClient] Surveillance scan exception');
       return null;
     }
   }
@@ -924,13 +925,13 @@ export class OlympusClient {
       });
       
       if (!response.ok) {
-        logger.error('[OlympusClient] Misdirection failed:', response.statusText);
+        logger.error({ data: response.statusText }, '[OlympusClient] Misdirection failed');
         return null;
       }
       
       return await response.json();
     } catch (error) {
-      logger.error('[OlympusClient] Misdirection exception:', error);
+      logger.error({ data: error }, '[OlympusClient] Misdirection exception');
       return null;
     }
   }
@@ -947,14 +948,14 @@ export class OlympusClient {
       });
       
       if (!response.ok) {
-        logger.error('[OlympusClient] Add honeypot failed:', response.statusText);
+        logger.error({ data: response.statusText }, '[OlympusClient] Add honeypot failed');
         return false;
       }
       
       logger.info(`[OlympusClient] Honeypot added: ${address.substring(0, 20)}...`);
       return true;
     } catch (error) {
-      logger.error('[OlympusClient] Add honeypot exception:', error);
+      logger.error({ data: error }, '[OlympusClient] Add honeypot exception');
       return false;
     }
   }
@@ -977,13 +978,13 @@ export class OlympusClient {
       });
       
       if (!response.ok) {
-        logger.error('[OlympusClient] Chat status failed:', response.statusText);
+        logger.error({ data: response.statusText }, '[OlympusClient] Chat status failed');
         return null;
       }
       
       return await response.json();
     } catch (error) {
-      logger.error('[OlympusClient] Chat status exception:', error);
+      logger.error({ data: error }, '[OlympusClient] Chat status exception');
       return null;
     }
   }
@@ -1012,13 +1013,13 @@ export class OlympusClient {
       });
       
       if (!response.ok) {
-        logger.error('[OlympusClient] Initiate debate failed:', response.statusText);
+        logger.error({ data: response.statusText }, '[OlympusClient] Initiate debate failed');
         return null;
       }
       
       return await response.json() as Debate;
     } catch (error) {
-      logger.error('[OlympusClient] Initiate debate exception:', error);
+      logger.error({ data: error }, '[OlympusClient] Initiate debate exception');
       return null;
     }
   }
@@ -1034,13 +1035,13 @@ export class OlympusClient {
       });
       
       if (!response.ok) {
-        logger.error('[OlympusClient] Get messages failed:', response.statusText);
+        logger.error({ data: response.statusText }, '[OlympusClient] Get messages failed');
         return null;
       }
       
       return await response.json() as PantheonMessage[];
     } catch (error) {
-      logger.error('[OlympusClient] Get messages exception:', error);
+      logger.error({ data: error }, '[OlympusClient] Get messages exception');
       return null;
     }
   }
@@ -1056,13 +1057,13 @@ export class OlympusClient {
       });
       
       if (!response.ok) {
-        logger.error('[OlympusClient] Get debates failed:', response.statusText);
+        logger.error({ data: response.statusText }, '[OlympusClient] Get debates failed');
         return null;
       }
       
       return await response.json() as Debate[];
     } catch (error) {
-      logger.error('[OlympusClient] Get debates exception:', error);
+      logger.error({ data: error }, '[OlympusClient] Get debates exception');
       return null;
     }
   }
@@ -1092,13 +1093,13 @@ export class OlympusClient {
       });
       
       if (!response.ok) {
-        logger.error('[OlympusClient] Orchestrate failed:', response.statusText);
+        logger.error({ data: response.statusText }, '[OlympusClient] Orchestrate failed');
         return null;
       }
       
       return await response.json();
     } catch (error) {
-      logger.error('[OlympusClient] Orchestrate exception:', error);
+      logger.error({ data: error }, '[OlympusClient] Orchestrate exception');
       return null;
     }
   }
@@ -1130,7 +1131,7 @@ export class OlympusClient {
       });
       
       if (!response.ok) {
-        logger.error('[OlympusClient] Geodesic correction failed:', response.statusText);
+        logger.error({ data: response.statusText }, '[OlympusClient] Geodesic correction failed');
         return { gradient_shift: false, error: `HTTP ${response.status}: ${response.statusText}` };
       }
       
@@ -1148,11 +1149,11 @@ export class OlympusClient {
         const data = JSON.parse(sanitizedText);
         return data;
       } catch (parseError) {
-        logger.error('[OlympusClient] Failed to parse geodesic response:', parseError);
+        logger.error({ data: parseError }, '[OlympusClient] Failed to parse geodesic response');
         return { gradient_shift: false, error: 'Invalid JSON response from geodesic correction' };
       }
     } catch (error) {
-      logger.error('[OlympusClient] Geodesic correction exception:', error);
+      logger.error({ data: error }, '[OlympusClient] Geodesic correction exception');
       return { gradient_shift: false, error: String(error) };
     }
   }

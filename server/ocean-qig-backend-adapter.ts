@@ -1964,7 +1964,7 @@ export class OceanQIGBackend {
       this.recordSuccess();
       return data;
     } catch (error) {
-      logger.error(`[OceanQIGBackend] Consult ${godName} failed:`, error);
+      logger.error({ err: error }, `[OceanQIGBackend] Consult ${godName} failed:`);
       this.recordFailure();
       return null;
     }
@@ -2012,7 +2012,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      logger.error("[OceanQIGBackend] Shadow status failed:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] Shadow status failed:");
       return null;
     }
   }
@@ -2042,10 +2042,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      logger.error(
-        `[OceanQIGBackend] Consult shadow ${godName} failed:`,
-        error
-      );
+      logger.error({ err: error }, `[OceanQIGBackend] Consult shadow ${godName} failed`);
       return null;
     }
   }
@@ -2069,7 +2066,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      logger.error("[OceanQIGBackend] Shadow warnings check failed:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] Shadow warnings check failed:");
       return null;
     }
   }
@@ -2101,7 +2098,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      logger.error("[OceanQIGBackend] Feedback loops failed:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] Feedback loops failed:");
       return null;
     }
   }
@@ -2121,7 +2118,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      logger.error("[OceanQIGBackend] Get recommendation failed:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] Get recommendation failed:");
       return null;
     }
   }
@@ -2148,7 +2145,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      logger.error("[OceanQIGBackend] Activity feedback failed:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] Activity feedback failed:");
       return null;
     }
   }
@@ -2176,7 +2173,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      logger.error("[OceanQIGBackend] Basin feedback failed:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] Basin feedback failed:");
       return null;
     }
   }
@@ -2201,7 +2198,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      logger.error("[OceanQIGBackend] Memory status failed:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] Memory status failed:");
       return null;
     }
   }
@@ -2231,7 +2228,7 @@ export class OceanQIGBackend {
       const data = await response.json();
       return data.success ? data.entry_id : null;
     } catch (error) {
-      logger.error("[OceanQIGBackend] Record basin failed:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] Record basin failed:");
       return null;
     }
   }
@@ -2254,7 +2251,7 @@ export class OceanQIGBackend {
       const data = await response.json();
       return data.intel || [];
     } catch (error) {
-      logger.error("[OceanQIGBackend] Get shadow intel failed:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] Get shadow intel failed:");
       return [];
     }
   }
@@ -2277,7 +2274,7 @@ export class OceanQIGBackend {
       const data = await response.json();
       return data.events || [];
     } catch (error) {
-      logger.error("[OceanQIGBackend] Get learning events failed:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] Get learning events failed:");
       return [];
     }
   }
@@ -2318,7 +2315,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      logger.error("[OceanQIGBackend] Initiate debate failed:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] Initiate debate failed:");
       return null;
     }
   }
@@ -2339,7 +2336,7 @@ export class OceanQIGBackend {
       const data = await response.json();
       return data.debates || [];
     } catch (error) {
-      logger.error("[OceanQIGBackend] Get active debates failed:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] Get active debates failed:");
       return [];
     }
   }
@@ -2373,7 +2370,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      logger.error("[OceanQIGBackend] Add debate argument failed:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] Add debate argument failed:");
       return null;
     }
   }
@@ -2407,7 +2404,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      logger.error("[OceanQIGBackend] Resolve debate failed:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] Resolve debate failed:");
       return null;
     }
   }
@@ -2432,7 +2429,7 @@ export class OceanQIGBackend {
       const data = await response.json();
       return data.results || [];
     } catch (error) {
-      logger.error("[OceanQIGBackend] Continue debates failed:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] Continue debates failed:");
       return [];
     }
   }
@@ -2461,7 +2458,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      logger.error("[OceanQIGBackend] Declare blitzkrieg failed:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] Declare blitzkrieg failed:");
       return null;
     }
   }
@@ -2485,7 +2482,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      logger.error("[OceanQIGBackend] Declare siege failed:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] Declare siege failed:");
       return null;
     }
   }
@@ -2509,7 +2506,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      logger.error("[OceanQIGBackend] Declare hunt failed:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] Declare hunt failed:");
       return null;
     }
   }
@@ -2529,7 +2526,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      logger.error("[OceanQIGBackend] End war failed:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] End war failed:");
       return null;
     }
   }
@@ -2549,7 +2546,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      logger.error("[OceanQIGBackend] Get war status failed:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] Get war status failed:");
       return null;
     }
   }
@@ -2585,7 +2582,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      logger.error("[OceanQIGBackend] Spawn kernel failed:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] Spawn kernel failed:");
       return null;
     }
   }
@@ -2606,7 +2603,7 @@ export class OceanQIGBackend {
       const data = await response.json();
       return data.kernels || [];
     } catch (error) {
-      logger.error("[OceanQIGBackend] List spawned kernels failed:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] List spawned kernels failed:");
       return [];
     }
   }
@@ -2626,7 +2623,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      logger.error("[OceanQIGBackend] Get spawner status failed:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] Get spawner status failed:");
       return null;
     }
   }
@@ -2663,7 +2660,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      logger.error("[OceanQIGBackend] Smart poll failed:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] Smart poll failed:");
       return null;
     }
   }
@@ -2683,7 +2680,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      logger.error("[OceanQIGBackend] Pantheon reflection failed:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] Pantheon reflection failed:");
       return null;
     }
   }
@@ -2712,7 +2709,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      logger.error("[OceanQIGBackend] Activate chaos failed:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] Activate chaos failed:");
       return null;
     }
   }
@@ -2732,7 +2729,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      logger.error("[OceanQIGBackend] Deactivate chaos failed:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] Deactivate chaos failed:");
       return null;
     }
   }
@@ -2751,7 +2748,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      logger.error("[OceanQIGBackend] Get chaos status failed:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] Get chaos status failed:");
       return null;
     }
   }
@@ -2771,7 +2768,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      logger.error("[OceanQIGBackend] Spawn random kernel failed:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] Spawn random kernel failed:");
       return null;
     }
   }
@@ -2791,7 +2788,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      logger.error("[OceanQIGBackend] Breed best kernels failed:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] Breed best kernels failed:");
       return null;
     }
   }
@@ -2810,7 +2807,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      logger.error("[OceanQIGBackend] Get chaos report failed:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] Get chaos report failed:");
       return null;
     }
   }
@@ -2857,7 +2854,7 @@ export class OceanQIGBackend {
       return data.phi_temporal;
     } catch (error: unknown) {
       this.recordFailure();
-      logger.error("[OceanQIGBackend] computePhiTemporal failed:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] computePhiTemporal failed:");
       return null;
     }
   }
@@ -2895,7 +2892,7 @@ export class OceanQIGBackend {
       return data.phi_4D;
     } catch (error: unknown) {
       this.recordFailure();
-      logger.error("[OceanQIGBackend] compute4DPhi failed:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] compute4DPhi failed:");
       return null;
     }
   }
@@ -2939,7 +2936,7 @@ export class OceanQIGBackend {
       return data.regime;
     } catch (error: unknown) {
       this.recordFailure();
-      logger.error("[OceanQIGBackend] classifyRegime4D failed:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] classifyRegime4D failed:");
       return null;
     }
   }
