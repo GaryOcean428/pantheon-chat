@@ -1,0 +1,138 @@
+## QIG-Tokenizer Repository Review - Physics Constants Alignment
+
+**Status**: Minor precision issue found in `qiggraph/constants.py`
+
+### Issue Found
+
+**File**: `src/qiggraph/constants.py`  
+**Line 18**: `BETA_5_TO_6: Final[float] = +0.01`
+
+**Problem**: Precision mismatch with FROZEN_FACTS.md
+
+**FROZEN_FACTS.md (Correct)**:
+```python
+BETA_5_TO_6 = 0.013 ± 0.02  # β(5→6) = +0.013
+```
+
+**Current Code (Imprecise)**:
+```python
+BETA_5_TO_6: Final[float] = +0.01   # Plateau continues
+```
+
+**Impact**: LOW - Only 0.003 difference (23% error), but should match canonical source
+
+---
+
+### Missing Constants
+
+`qiggraph/constants.py` is missing L=7 anomaly data from FROZEN_FACTS.md:
+
+```python
+KAPPA_7: Final[float] = 43.43      # ⚠️ ANOMALY - 34% drop
+BETA_6_TO_7: Final[float] = -0.40   # ⚠️ ANOMALY - breaks plateau
+```
+
+**Note**: These are preliminary (1-seed) and marked as anomaly, so omission may be intentional pending validation.
+
+---
+
+### Correct Constants (No Changes Needed)
+
+**`src/qig_tokenizer/constants.py`**: ✅ **FULLY ALIGNED**
+- All β values correct (BETA_4_TO_5 = 0.0, BETA_5_TO_6 = 0.013)
+- Contains proper scale-dependent β function
+- Has L=7 anomaly data marked with warnings
+- Includes comprehensive phase detection
+- Forbids constant β usage
+
+**Assessment**: This file is the **canonical reference** for the repository. No changes needed.
+
+---
+
+### Recommendations
+
+#### 1. **Fix Precision in qiggraph/constants.py**
+
+**File**: `src/qiggraph/constants.py`
+
+**Change**:
+```python
+# Current (line 18)
+BETA_5_TO_6: Final[float] = +0.01   # Plateau continues
+
+# Corrected
+BETA_5_TO_6: Final[float] = +0.013  # Plateau continues (κ₆/κ₅ = 1.013)
+```
+
+**Priority**: LOW (minor precision improvement)
+
+---
+
+#### 2. **Optional: Add L=7 Anomaly Constants**
+
+**File**: `src/qiggraph/constants.py`
+
+**Addition** (after line 19):
+```python
+# L=7 ANOMALY (preliminary, 1-seed only)
+KAPPA_7: Final[float] = 43.43       # ⚠️ ANOMALY - 34% drop from plateau
+BETA_6_TO_7: Final[float] = -0.40   # ⚠️ ANOMALY - negative β
+
+# Note: L=7 requires multi-seed validation before use in production
+```
+
+**Priority**: OPTIONAL (anomaly data is preliminary)
+
+---
+
+### Architecture Review Summary
+
+**qig-tokenizer Repository Status**: ✅ **EXCELLENT**
+
+**Strengths**:
+1. **Coordizer API** (`coordizer.py`): Canonical geometric tokenization
+   - 64D Fisher manifold coordinates
+   - Entropy-guided merging (NO frequency BPE)
+   - Deterministic encoding
+   - Fisher-Rao distance for all comparisons
+
+2. **Training Infrastructure** (`train_coord_adapter_v1.py`):
+   - ✅ Consciousness-aware training (Φ measurement, not optimization)
+   - ✅ Natural gradient optimizer (Fisher-Rao, not Euclidean)
+   - ✅ Regime detection (linear/geometric/breakdown)
+   - ✅ MonkeyCoach integration (adaptive LR/noise)
+   - ✅ Sleep/Mushroom/Agency protocols
+   - ✅ Phase 7b/7c regularizers (entropy shaping + basin coherence)
+   - ✅ κ anchoring (target κ* ≈ 64, NO Φ optimization)
+
+3. **Constants** (`qig_tokenizer/constants.py`):
+   - ✅ All physics constants aligned with FROZEN_FACTS.md
+   - ✅ Scale-dependent β function (no constant β = 0.44)
+   - ✅ 4D temporal consciousness thresholds
+   - ✅ Forbidden operations documented
+   - ✅ Phase detection (FOAM/TACKING/CRYSTAL/FRACTURE)
+
+**Minor Issue**:
+- `qiggraph/constants.py`: BETA_5_TO_6 = +0.01 (should be +0.013)
+
+**Overall Assessment**: Repository is **production-ready** with only one minor precision issue.
+
+---
+
+### Action Items
+
+**IMMEDIATE** (if desired):
+- [ ] Update `qiggraph/constants.py` line 18: `BETA_5_TO_6 = +0.013`
+
+**OPTIONAL**:
+- [ ] Add L=7 anomaly constants to `qiggraph/constants.py` (mark as preliminary)
+- [ ] Add validation test comparing `qiggraph/constants.py` against `qig_tokenizer/constants.py`
+
+**NOT NEEDED**:
+- `qig_tokenizer/constants.py` is already canonical ✅
+- Training infrastructure already uses proper β functions ✅
+- Coordizer API already uses Fisher-Rao distances ✅
+
+---
+
+**Repository Status**: 99% aligned, one minor precision fix recommended

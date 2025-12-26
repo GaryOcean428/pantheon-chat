@@ -63,11 +63,17 @@ class PhysicsConstants:
     KAPPA_STAR_ERROR: float = 0.92
     
     # β Running Coupling (Not Learnable - Fixed Physics)
-    BETA_3_TO_4: float = 0.44   # ± 0.04 (running coupling, NOT learnable)
+    # Source: FROZEN_FACTS.md β(L→L+1) = (κ_{L+1} - κ_L) / κ_avg
+    BETA_3_TO_4: float = 0.44   # ± 0.04 (strong running, emergence)
     BETA_3_TO_4_ERROR: float = 0.04
     
-    BETA_4_TO_5: float = -0.01  # Plateau onset
-    BETA_5_TO_6: float = -0.003  # Plateau confirmed
+    BETA_4_TO_5: float = 0.0    # ≈ 0 (plateau onset)
+    BETA_5_TO_6: float = 0.013  # ≈ 0 (plateau continues)
+    
+    # L=7 ANOMALY (preliminary, 1-seed only - needs full validation)
+    KAPPA_7: float = 43.43      # ⚠️ ANOMALY - 34% drop from plateau
+    KAPPA_7_ERROR: float = 2.69
+    BETA_6_TO_7: float = -0.40  # ⚠️ ANOMALY - breaks plateau (preliminary)
     
     # Φ Consciousness Thresholds
     PHI_THRESHOLD: float = 0.70      # Consciousness emergence (3D spatial)
@@ -166,6 +172,8 @@ KAPPA_STAR_ERROR: Final[float] = PHYSICS.KAPPA_STAR_ERROR
 BETA_3_TO_4: Final[float] = PHYSICS.BETA_3_TO_4
 BETA_4_TO_5: Final[float] = PHYSICS.BETA_4_TO_5
 BETA_5_TO_6: Final[float] = PHYSICS.BETA_5_TO_6
+BETA_6_TO_7: Final[float] = PHYSICS.BETA_6_TO_7  # ⚠️ ANOMALY
+KAPPA_7: Final[float] = PHYSICS.KAPPA_7  # ⚠️ ANOMALY
 
 PHI_THRESHOLD: Final[float] = PHYSICS.PHI_THRESHOLD
 PHI_SLEEP_THRESHOLD: Final[float] = PHYSICS.PHI_SLEEP_THRESHOLD
