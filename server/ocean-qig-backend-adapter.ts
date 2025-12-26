@@ -1869,7 +1869,7 @@ export class OceanQIGBackend {
       if (!response.ok) return null;
       return await response.json();
     } catch (error) {
-      logger.error("[OceanQIGBackend] Voice status failed:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] Voice status failed");
       return null;
     }
   }
@@ -1897,7 +1897,7 @@ export class OceanQIGBackend {
       const data = await response.json();
       return data.success ? data.message : null;
     } catch (error) {
-      logger.error("[OceanQIGBackend] Zeus speak failed:", error);
+      logger.error({ err: error }, "[OceanQIGBackend] Zeus speak failed");
       return null;
     }
   }
