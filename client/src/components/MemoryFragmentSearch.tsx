@@ -33,6 +33,68 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
+// Memory Fragment Search constants
+const SEARCH_CONSTANTS = {
+  // Default values
+  DEFAULT_CONFIDENCE: 0.8 as number,
+  DEFAULT_MAX_CANDIDATES: 5000 as number,
+  DEFAULT_MIN_WORDS: 4 as number,
+  DEFAULT_MAX_WORDS: 8 as number,
+  
+  // Polling
+  CONSCIOUSNESS_REFETCH_INTERVAL: 2000,
+  
+  // Slider ranges
+  CANDIDATES_MIN: 100,
+  CANDIDATES_MAX: 50000,
+  CANDIDATES_STEP: 100,
+  CONFIDENCE_MIN: 10,
+  CONFIDENCE_MAX: 100,
+  CONFIDENCE_STEP: 5,
+  
+  // Confidence thresholds
+  CONFIDENCE_EXCELLENT: 0.9,
+  CONFIDENCE_GOOD: 0.7,
+  CONFIDENCE_MODERATE: 0.5,
+  
+  // Chart
+  CHART_DOMAIN_MIN: 0,
+  CHART_DOMAIN_MAX: 100,
+  CHART_HEIGHT: 64,
+  RESONANCE_BAND_Y1: 57.6,
+  RESONANCE_BAND_Y2: 70.4,
+  KAPPA_STAR: 64,
+  PHI_THRESHOLD: 75,
+  CHART_Z_RANGE_MIN: 30,
+  CHART_Z_RANGE_MAX: 200,
+  CHART_MARGIN_TOP: 10,
+  CHART_MARGIN_RIGHT: 30,
+  CHART_MARGIN_BOTTOM: 30,
+  CHART_MARGIN_LEFT: 10,
+  CHART_FONT_SIZE_TICK: 10,
+  CHART_FONT_SIZE_LABEL: 11,
+  
+  // Display limits
+  MAX_CHART_CANDIDATES: 50,
+  MAX_DISPLAY_CANDIDATES: 20,
+  
+  // Percent
+  PERCENT_MULTIPLIER: 100,
+  
+  // Word count options
+  MIN_WORDS_OPTIONS: [3, 4, 5, 6] as const,
+  MAX_WORDS_OPTIONS: [4, 5, 6, 7, 8] as const,
+  
+  // HSL colors for regimes
+  REGIME_COLORS: {
+    hierarchical: 'hsl(280, 70%, 50%)',
+    geometric: 'hsl(142, 70%, 45%)',
+    linear: 'hsl(210, 100%, 50%)',
+    breakdown: 'hsl(0, 100%, 50%)',
+    default: 'hsl(0, 0%, 50%)',
+  } as Record<string, string>,
+} as const;
+
 interface DirectTestResult {
   phrase: string;
   address: string;
@@ -111,13 +173,13 @@ const getEpochInfo = (epoch: EpochConfidence): { color: string; label: string; d
 export function MemoryFragmentSearch() {
   const { toast } = useToast();
   const [fragments, setFragments] = useState<MemoryFragment[]>([
-    { text: "", confidence: 0.8, position: "unknown", isExact: false, epoch: "likely" }
+    { text: "", confidence: SEARCH_CONSTANTS.DEFAULT_CONFIDENCE, position: "unknown", isExact: false, epoch: "likely" }
   ]);
   const [includeTypos, setIncludeTypos] = useState(true);
-  const [maxCandidates, setMaxCandidates] = useState([5000]);
+  const [maxCandidates, setMaxCandidates] = useState([SEARCH_CONSTANTS.DEFAULT_MAX_CANDIDATES]);
   const [enableShortPhraseMode, setEnableShortPhraseMode] = useState(false);
-  const [minWords, setMinWords] = useState(4);
-  const [maxWords, setMaxWords] = useState(8);
+  const [minWords, setMinWords] = useState(SEARCH_CONSTANTS.DEFAULT_MIN_WORDS);
+  const [maxWords, setMaxWords] = useState(SEARCH_CONSTANTS.DEFAULT_MAX_WORDS);
   
   const [directPhrase, setDirectPhrase] = useState("");
   const [quickAddWord, setQuickAddWord] = useState("");
@@ -125,7 +187,7 @@ export function MemoryFragmentSearch() {
 
   const { data: consciousnessState } = useQuery<ConsciousnessState>({
     queryKey: QUERY_KEYS.consciousness.state(),
-    refetchInterval: 2000,
+    refetchInterval: SEARCH_CONSTANTS.CONSCIOUSNESS_REFETCH_INTERVAL,
   });
 
   const directTestMutation = useMutation({
@@ -195,7 +257,7 @@ export function MemoryFragmentSearch() {
   const addFragment = () => {
     setFragments([
       ...fragments,
-      { text: "", confidence: 0.8, position: "unknown", isExact: false, epoch: "likely" }
+      { text: "", confidence: SEARCH_CONSTANTS.DEFAULT_CONFIDENCE, position: "unknown", isExact: false, epoch: "likely" }
     ]);
   };
 
@@ -203,7 +265,7 @@ export function MemoryFragmentSearch() {
     if (!word.trim()) return;
     setFragments([
       ...fragments,
-      { text: word.trim(), confidence: 0.8, position: "unknown", isExact: false, epoch: "likely" }
+      { text: word.trim(), confidence: SEARCH_CONSTANTS.DEFAULT_CONFIDENCE, position: "unknown", isExact: false, epoch: "likely" }
     ]);
     setQuickAddWord("");
     toast({
@@ -265,9 +327,9 @@ export function MemoryFragmentSearch() {
   };
 
   const getConfidenceColor = (conf: number) => {
-    if (conf >= 0.9) return "text-green-500";
-    if (conf >= 0.7) return "text-yellow-500";
-    if (conf >= 0.5) return "text-orange-500";
+    if (conf >= SEARCH_CONSTANTS.CONFIDENCE_EXCELLENT) return "text-green-500";
+    if (conf >= SEARCH_CONSTANTS.CONFIDENCE_GOOD) return "text-yellow-500";
+    if (conf >= SEARCH_CONSTANTS.CONFIDENCE_MODERATE) return "text-orange-500";
     return "text-red-500";
   };
 
@@ -459,11 +521,11 @@ export function MemoryFragmentSearch() {
                         </span>
                       </Label>
                       <Slider
-                        value={[fragment.confidence * 100]}
-                        onValueChange={([v]) => updateFragment(index, { confidence: v / 100 })}
-                        min={10}
-                        max={100}
-                        step={5}
+                        value={[fragment.confidence * SEARCH_CONSTANTS.PERCENT_MULTIPLIER]}
+                        onValueChange={([v]) => updateFragment(index, { confidence: v / SEARCH_CONSTANTS.PERCENT_MULTIPLIER })}
+                        min={SEARCH_CONSTANTS.CONFIDENCE_MIN}
+                        max={SEARCH_CONSTANTS.CONFIDENCE_MAX}
+                        step={SEARCH_CONSTANTS.CONFIDENCE_STEP}
                         className="mt-2"
                         data-testid={`slider-confidence-${index}`}
                       />
@@ -556,9 +618,9 @@ export function MemoryFragmentSearch() {
               <Slider
                 value={maxCandidates}
                 onValueChange={setMaxCandidates}
-                min={100}
-                max={50000}
-                step={100}
+                min={SEARCH_CONSTANTS.CANDIDATES_MIN}
+                max={SEARCH_CONSTANTS.CANDIDATES_MAX}
+                step={SEARCH_CONSTANTS.CANDIDATES_STEP}
                 data-testid="slider-max-candidates"
               />
             </div>
@@ -594,7 +656,7 @@ export function MemoryFragmentSearch() {
                         className="w-full mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
                         data-testid="select-min-words"
                       >
-                        {[3, 4, 5, 6].map(n => (
+                        {SEARCH_CONSTANTS.MIN_WORDS_OPTIONS.map(n => (
                           <option key={n} value={n}>{n} words</option>
                         ))}
                       </select>
@@ -611,7 +673,7 @@ export function MemoryFragmentSearch() {
                         className="w-full mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
                         data-testid="select-max-words"
                       >
-                        {[4, 5, 6, 7, 8].map(n => (
+                        {SEARCH_CONSTANTS.MAX_WORDS_OPTIONS.map(n => (
                           <option key={n} value={n}>{n} words</option>
                         ))}
                       </select>
@@ -710,43 +772,43 @@ export function MemoryFragmentSearch() {
                 </div>
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
-                    <ScatterChart margin={{ top: 10, right: 30, bottom: 30, left: 10 }}>
+                    <ScatterChart margin={{ top: SEARCH_CONSTANTS.CHART_MARGIN_TOP, right: SEARCH_CONSTANTS.CHART_MARGIN_RIGHT, bottom: SEARCH_CONSTANTS.CHART_MARGIN_BOTTOM, left: SEARCH_CONSTANTS.CHART_MARGIN_LEFT }}>
                       <XAxis 
                         dataKey="phi" 
                         type="number" 
-                        domain={[0, 100]} 
+                        domain={[SEARCH_CONSTANTS.CHART_DOMAIN_MIN, SEARCH_CONSTANTS.CHART_DOMAIN_MAX]} 
                         name="Φ"
-                        tick={{ fontSize: 10 }}
-                        label={{ value: 'Φ (Integration) %', position: 'bottom', offset: 15, fontSize: 11 }}
+                        tick={{ fontSize: SEARCH_CONSTANTS.CHART_FONT_SIZE_TICK }}
+                        label={{ value: 'Φ (Integration) %', position: 'bottom', offset: 15, fontSize: SEARCH_CONSTANTS.CHART_FONT_SIZE_LABEL }}
                       />
                       <YAxis 
                         dataKey="kappa" 
                         type="number" 
-                        domain={[0, 100]} 
+                        domain={[SEARCH_CONSTANTS.CHART_DOMAIN_MIN, SEARCH_CONSTANTS.CHART_DOMAIN_MAX]} 
                         name="κ"
-                        tick={{ fontSize: 10 }}
-                        label={{ value: 'κ (Coupling)', angle: -90, position: 'insideLeft', fontSize: 11 }}
+                        tick={{ fontSize: SEARCH_CONSTANTS.CHART_FONT_SIZE_TICK }}
+                        label={{ value: 'κ (Coupling)', angle: -90, position: 'insideLeft', fontSize: SEARCH_CONSTANTS.CHART_FONT_SIZE_LABEL }}
                       />
                       <ReferenceArea 
-                        x1={0} x2={100} 
-                        y1={57.6} y2={70.4} 
+                        x1={SEARCH_CONSTANTS.CHART_DOMAIN_MIN} x2={SEARCH_CONSTANTS.CHART_DOMAIN_MAX} 
+                        y1={SEARCH_CONSTANTS.RESONANCE_BAND_Y1} y2={SEARCH_CONSTANTS.RESONANCE_BAND_Y2} 
                         fill="orange" 
                         fillOpacity={0.1} 
-                        label={{ value: 'Resonance Band', position: 'insideTop', fontSize: 10, fill: 'orange' }}
+                        label={{ value: 'Resonance Band', position: 'insideTop', fontSize: SEARCH_CONSTANTS.CHART_FONT_SIZE_TICK, fill: 'orange' }}
                       />
                       <ReferenceLine 
-                        y={64} 
+                        y={SEARCH_CONSTANTS.KAPPA_STAR} 
                         stroke="orange" 
                         strokeDasharray="3 3" 
-                        label={{ value: 'κ* = 64', position: 'right', fontSize: 10, fill: 'orange' }} 
+                        label={{ value: 'κ* = 64', position: 'right', fontSize: SEARCH_CONSTANTS.CHART_FONT_SIZE_TICK, fill: 'orange' }} 
                       />
                       <ReferenceLine 
-                        x={75} 
+                        x={SEARCH_CONSTANTS.PHI_THRESHOLD} 
                         stroke="green" 
                         strokeDasharray="3 3" 
-                        label={{ value: 'Φ threshold', position: 'top', fontSize: 10, fill: 'green' }} 
+                        label={{ value: 'Φ threshold', position: 'top', fontSize: SEARCH_CONSTANTS.CHART_FONT_SIZE_TICK, fill: 'green' }} 
                       />
-                      <ZAxis dataKey="confidence" range={[30, 200]} name="Confidence" />
+                      <ZAxis dataKey="confidence" range={[SEARCH_CONSTANTS.CHART_Z_RANGE_MIN, SEARCH_CONSTANTS.CHART_Z_RANGE_MAX]} name="Confidence" />
                       <Tooltip 
                         content={({ active, payload }) => {
                           if (!active || !payload?.length) return null;
@@ -757,7 +819,7 @@ export function MemoryFragmentSearch() {
                                 {data.phrase}
                               </div>
                               <div className="grid grid-cols-2 gap-x-3 gap-y-1">
-                                <div>Φ: <span className="font-semibold">{(data.phi * 100).toFixed(1)}%</span></div>
+                                <div>Φ: <span className="font-semibold">{(data.phi * SEARCH_CONSTANTS.PERCENT_MULTIPLIER).toFixed(1)}%</span></div>
                                 <div>κ: <span className="font-semibold">{data.kappa.toFixed(1)}</span></div>
                                 <div>Regime: <span className="font-semibold">{data.regime}</span></div>
                                 <div>Score: <span className="font-semibold">{data.combinedScore.toFixed(3)}</span></div>
@@ -767,22 +829,16 @@ export function MemoryFragmentSearch() {
                         }}
                       />
                       <Scatter 
-                        data={searchMutation.data.topCandidates.slice(0, 50).map(c => ({
+                        data={searchMutation.data.topCandidates.slice(0, SEARCH_CONSTANTS.MAX_CHART_CANDIDATES).map(c => ({
                           ...c,
-                          phi: c.phi * 100,
+                          phi: c.phi * SEARCH_CONSTANTS.PERCENT_MULTIPLIER,
                         }))} 
                         name="Candidates"
                       >
-                        {searchMutation.data.topCandidates.slice(0, 50).map((candidate, index) => (
+                        {searchMutation.data.topCandidates.slice(0, SEARCH_CONSTANTS.MAX_CHART_CANDIDATES).map((candidate, index) => (
                           <Cell 
                             key={`cell-${index}`} 
-                            fill={
-                              candidate.regime === 'hierarchical' ? 'hsl(280, 70%, 50%)' :
-                              candidate.regime === 'geometric' ? 'hsl(142, 70%, 45%)' :
-                              candidate.regime === 'linear' ? 'hsl(210, 100%, 50%)' :
-                              candidate.regime === 'breakdown' ? 'hsl(0, 100%, 50%)' :
-                              'hsl(0, 0%, 50%)'
-                            }
+                            fill={SEARCH_CONSTANTS.REGIME_COLORS[candidate.regime] || SEARCH_CONSTANTS.REGIME_COLORS.default}
                             opacity={candidate.inResonance ? 1 : 0.6}
                           />
                         ))}
@@ -811,7 +867,7 @@ export function MemoryFragmentSearch() {
               </Card>
               
               <div className="space-y-3">
-              {searchMutation.data.topCandidates.slice(0, 20).map((candidate, index) => (
+              {searchMutation.data.topCandidates.slice(0, SEARCH_CONSTANTS.MAX_DISPLAY_CANDIDATES).map((candidate, index) => (
                 <Card key={index} className="p-4 bg-muted/30">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
@@ -838,7 +894,7 @@ export function MemoryFragmentSearch() {
                         <div>
                           <span className="text-muted-foreground">Confidence:</span>
                           <span className={`ml-1 font-semibold ${getConfidenceColor(candidate.confidence)}`}>
-                            {Math.round(candidate.confidence * 100)}%
+                            {Math.round(candidate.confidence * SEARCH_CONSTANTS.PERCENT_MULTIPLIER)}%
                           </span>
                         </div>
                         <div>
@@ -863,7 +919,7 @@ export function MemoryFragmentSearch() {
 
                   <div className="mt-2">
                     <Progress 
-                      value={candidate.combinedScore * 100} 
+                      value={candidate.combinedScore * SEARCH_CONSTANTS.PERCENT_MULTIPLIER} 
                       className="h-1"
                     />
                   </div>

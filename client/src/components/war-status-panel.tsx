@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, Badge, Button } from "@/compo
 import { Target, Clock, FlaskConical, Sparkles, Cpu, AlertTriangle, Activity, Radio } from "lucide-react";
 import { endWar } from "@/api/services/olympus";
 import { useToast } from "@/hooks/use-toast";
+import { TIME_CONSTANTS, PERCENT_MULTIPLIER, POLLING_CONSTANTS } from "@/lib/constants";
 
 interface ShadowWarDecision {
   godName: string;
@@ -42,9 +43,9 @@ function formatDuration(startTime: string): string {
   const now = Date.now();
   const diffMs = now - start;
   
-  const hours = Math.floor(diffMs / (1000 * 60 * 60));
-  const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-  const seconds = Math.floor((diffMs % (1000 * 60)) / 1000);
+  const hours = Math.floor(diffMs / TIME_CONSTANTS.MS_PER_HOUR);
+  const minutes = Math.floor((diffMs % TIME_CONSTANTS.MS_PER_HOUR) / TIME_CONSTANTS.MS_PER_MINUTE);
+  const seconds = Math.floor((diffMs % TIME_CONSTANTS.MS_PER_MINUTE) / TIME_CONSTANTS.MS_PER_SECOND);
   
   if (hours > 0) {
     return `${hours}h ${minutes}m ${seconds}s`;
@@ -59,13 +60,13 @@ function formatTimestamp(timestamp: string): string {
   const date = new Date(timestamp);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
-  const diffSeconds = Math.floor(diffMs / 1000);
+  const diffSeconds = Math.floor(diffMs / TIME_CONSTANTS.MS_PER_SECOND);
   
-  if (diffSeconds < 60) {
+  if (diffSeconds < TIME_CONSTANTS.SECONDS_PER_MINUTE) {
     return `${diffSeconds}s ago`;
   }
-  if (diffSeconds < 3600) {
-    return `${Math.floor(diffSeconds / 60)}m ago`;
+  if (diffSeconds < TIME_CONSTANTS.SECONDS_PER_HOUR) {
+    return `${Math.floor(diffSeconds / TIME_CONSTANTS.SECONDS_PER_MINUTE)}m ago`;
   }
   return date.toLocaleTimeString();
 }
@@ -127,10 +128,10 @@ export function WarStatusPanel() {
     refetchInterval: (query) => {
       const data = query.state.data;
       if (data && data.status === "active") {
-        return 5000;
+        return POLLING_CONSTANTS.NORMAL_INTERVAL_MS;
       }
       // Poll for convergence status even when no war is active
-      return 10000;
+      return POLLING_CONSTANTS.SLOW_INTERVAL_MS;
     },
   });
 
@@ -306,13 +307,13 @@ export function WarStatusPanel() {
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Zeus Convergence Score</span>
               <span className="text-lg font-bold">
-                {(warData.convergenceScore * 100).toFixed(1)}%
+                {(warData.convergenceScore * PERCENT_MULTIPLIER).toFixed(1)}%
               </span>
             </div>
             <div className="mt-2 h-2 bg-muted rounded-full overflow-hidden">
               <div 
                 className="h-full bg-primary transition-all duration-500"
-                style={{ width: `${warData.convergenceScore * 100}%` }}
+                style={{ width: `${warData.convergenceScore * PERCENT_MULTIPLIER}%` }}
               />
             </div>
           </div>

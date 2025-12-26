@@ -13,12 +13,66 @@
  * - Historical trail
  */
 
-import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Slider } from '@/components/ui/slider';
+import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Button, Slider } from '@/components/ui';
 import { Play, Pause, RotateCcw, ZoomIn, ZoomOut } from 'lucide-react';
+
+// Basin Coordinate Viewer constants
+const BASIN_CONSTANTS = {
+  // Dimension reduction
+  TARGET_DIMENSIONS: 3,
+  BASIN_DIMENSIONS: 64,
+  SLICE_1_END: 21,
+  SLICE_2_END: 43,
+  SLICE_2_SIZE: 22,
+  SLICE_3_SIZE: 21,
+  
+  // Canvas defaults
+  DEFAULT_WIDTH: 600,
+  DEFAULT_HEIGHT: 500,
+  DEFAULT_TRAIL_LENGTH: 50,
+  
+  // Rotation/zoom defaults
+  DEFAULT_ROTATION_X: 20 as number,
+  DEFAULT_ROTATION_Y: 45 as number,
+  DEFAULT_ZOOM: 1.0 as number,
+  
+  // Projection
+  SCALE_FACTOR: 100,
+  PERSPECTIVE: 1000,
+  DEGREES_TO_RADIANS: Math.PI / 180,
+  
+  // Phi thresholds
+  PHI_EXCELLENT: 0.80,
+  PHI_GOOD: 0.70,
+  PHI_MODERATE: 0.50,
+  
+  // Point sizes
+  CURRENT_POINT_RADIUS: 8,
+  NORMAL_POINT_RADIUS: 4,
+  
+  // Axis extents
+  AXIS_EXTENT: 2,
+  
+  // Line styling
+  LINE_DASH: 5,
+  LINE_WIDTH: 2,
+  STROKE_LINE_WIDTH: 2,
+  
+  // Mouse sensitivity
+  ROTATION_SENSITIVITY: 0.5,
+  
+  // Zoom limits
+  MIN_ZOOM: 0.5,
+  MAX_ZOOM: 2.0,
+  ZOOM_STEP: 0.1,
+  
+  // Color alpha
+  MAX_ALPHA: 255,
+  HEX_RADIX: 16,
+  PAD_LENGTH: 2,
+  FULL_CIRCLE: Math.PI * 2,
+} as const;
 
 interface BasinPoint {
   coordinates: number[];  // 64D coordinates
@@ -39,7 +93,7 @@ interface BasinCoordinateViewerProps {
 }
 
 // Simple PCA implementation for dimension reduction
-function pcaReduce(points: number[][], targetDim: number = 3): number[][] {
+function pcaReduce(points: number[][]): number[][] {
   if (points.length === 0) return [];
   
   const n = points.length;
@@ -63,9 +117,9 @@ function pcaReduce(points: number[][], targetDim: number = 3): number[][] {
   // This is a simplified projection for demonstration
   const reduced: number[][] = centered.map(point => {
     // Simple projection: take weighted combination of dimensions
-    const x = point.slice(0, 21).reduce((sum, v) => sum + v, 0) / 21;
-    const y = point.slice(21, 43).reduce((sum, v) => sum + v, 0) / 22;
-    const z = point.slice(43, 64).reduce((sum, v) => sum + v, 0) / 21;
+    const x = point.slice(0, BASIN_CONSTANTS.SLICE_1_END).reduce((sum, v) => sum + v, 0) / BASIN_CONSTANTS.SLICE_1_END;
+    const y = point.slice(BASIN_CONSTANTS.SLICE_1_END, BASIN_CONSTANTS.SLICE_2_END).reduce((sum, v) => sum + v, 0) / BASIN_CONSTANTS.SLICE_2_SIZE;
+    const z = point.slice(BASIN_CONSTANTS.SLICE_2_END, BASIN_CONSTANTS.BASIN_DIMENSIONS).reduce((sum, v) => sum + v, 0) / BASIN_CONSTANTS.SLICE_3_SIZE;
     return [x, y, z];
   });
   
@@ -75,14 +129,14 @@ function pcaReduce(points: number[][], targetDim: number = 3): number[][] {
 export function BasinCoordinateViewer({
   points,
   currentIndex,
-  width = 600,
-  height = 500,
+  width = BASIN_CONSTANTS.DEFAULT_WIDTH,
+  height = BASIN_CONSTANTS.DEFAULT_HEIGHT,
   showTrail = true,
-  trailLength = 50,
+  trailLength = BASIN_CONSTANTS.DEFAULT_TRAIL_LENGTH,
 }: BasinCoordinateViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [rotation, setRotation] = useState({ x: 20, y: 45 });
-  const [zoom, setZoom] = useState(1.0);
+  const [rotation, setRotation] = useState({ x: BASIN_CONSTANTS.DEFAULT_ROTATION_X, y: BASIN_CONSTANTS.DEFAULT_ROTATION_Y });
+  const [zoom, setZoom] = useState(BASIN_CONSTANTS.DEFAULT_ZOOM);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackIndex, setPlaybackIndex] = useState(0);
   const animationRef = useRef<number>();
@@ -91,7 +145,7 @@ export function BasinCoordinateViewer({
   const reducedPoints = useMemo(() => {
     if (points.length === 0) return [];
     const coordinates = points.map(p => p.coordinates);
-    const reduced3D = pcaReduce(coordinates, 3);
+    const reduced3D = pcaReduce(coordinates);
     return reduced3D.map((coords, i) => ({
       ...points[i],
       x: coords[0],
@@ -101,15 +155,15 @@ export function BasinCoordinateViewer({
   }, [points]);
 
   // Color mapping based on Φ
-  const getColorForPhi = (phi: number): string => {
-    if (phi >= 0.80) return '#10b981'; // emerald-500 (excellent)
-    if (phi >= 0.70) return '#fbbf24'; // amber-400 (good)
-    if (phi >= 0.50) return '#f97316'; // orange-500 (moderate)
+  const getColorForPhi = useCallback((phi: number): string => {
+    if (phi >= BASIN_CONSTANTS.PHI_EXCELLENT) return '#10b981'; // emerald-500 (excellent)
+    if (phi >= BASIN_CONSTANTS.PHI_GOOD) return '#fbbf24'; // amber-400 (good)
+    if (phi >= BASIN_CONSTANTS.PHI_MODERATE) return '#f97316'; // orange-500 (moderate)
     return '#ef4444'; // red-500 (low)
-  };
+  }, []);
 
   // Regime colors
-  const getRegimeColor = (regime: string): string => {
+  const getRegimeColor = useCallback((regime: string): string => {
     switch (regime) {
       case 'geometric': return '#10b981';
       case 'linear': return '#94a3b8';
@@ -117,34 +171,33 @@ export function BasinCoordinateViewer({
       case 'resonance': return '#8b5cf6';
       default: return '#6b7280';
     }
-  };
+  }, []);
 
   // 3D to 2D projection
-  const project3D = (x: number, y: number, z: number): [number, number] => {
-    const angleX = (rotation.x * Math.PI) / 180;
-    const angleY = (rotation.y * Math.PI) / 180;
+  const project3D = useCallback((x: number, y: number, z: number): [number, number] => {
+    const angleX = rotation.x * BASIN_CONSTANTS.DEGREES_TO_RADIANS;
+    const angleY = rotation.y * BASIN_CONSTANTS.DEGREES_TO_RADIANS;
     
     // Rotate around Y axis
-    let x1 = x * Math.cos(angleY) + z * Math.sin(angleY);
-    let z1 = -x * Math.sin(angleY) + z * Math.cos(angleY);
+    const x1 = x * Math.cos(angleY) + z * Math.sin(angleY);
+    const z1 = -x * Math.sin(angleY) + z * Math.cos(angleY);
     
     // Rotate around X axis
-    let y1 = y * Math.cos(angleX) - z1 * Math.sin(angleX);
-    let z2 = y * Math.sin(angleX) + z1 * Math.cos(angleX);
+    const y1 = y * Math.cos(angleX) - z1 * Math.sin(angleX);
+    const z2 = y * Math.sin(angleX) + z1 * Math.cos(angleX);
     
     // Apply zoom and perspective
-    const scale = zoom * 100;
-    const perspective = 1000;
-    const factor = perspective / (perspective + z2);
+    const scale = zoom * BASIN_CONSTANTS.SCALE_FACTOR;
+    const factor = BASIN_CONSTANTS.PERSPECTIVE / (BASIN_CONSTANTS.PERSPECTIVE + z2);
     
     const px = x1 * scale * factor + width / 2;
     const py = -y1 * scale * factor + height / 2;
     
     return [px, py];
-  };
+  }, [rotation.x, rotation.y, zoom, width, height]);
 
   // Draw the visualization
-  const draw = () => {
+  const draw = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas || reducedPoints.length === 0) return;
 
@@ -157,12 +210,12 @@ export function BasinCoordinateViewer({
     // Draw axes
     ctx.strokeStyle = '#4b5563';
     ctx.lineWidth = 1;
-    ctx.setLineDash([5, 5]);
+    ctx.setLineDash([BASIN_CONSTANTS.LINE_DASH, BASIN_CONSTANTS.LINE_DASH]);
     
     // X axis (red)
     ctx.strokeStyle = '#ef4444';
-    const [x1, y1] = project3D(-2, 0, 0);
-    const [x2, y2] = project3D(2, 0, 0);
+    const [x1, y1] = project3D(-BASIN_CONSTANTS.AXIS_EXTENT, 0, 0);
+    const [x2, y2] = project3D(BASIN_CONSTANTS.AXIS_EXTENT, 0, 0);
     ctx.beginPath();
     ctx.moveTo(x1, y1);
     ctx.lineTo(x2, y2);
@@ -170,8 +223,8 @@ export function BasinCoordinateViewer({
     
     // Y axis (green)
     ctx.strokeStyle = '#10b981';
-    const [x3, y3] = project3D(0, -2, 0);
-    const [x4, y4] = project3D(0, 2, 0);
+    const [x3, y3] = project3D(0, -BASIN_CONSTANTS.AXIS_EXTENT, 0);
+    const [x4, y4] = project3D(0, BASIN_CONSTANTS.AXIS_EXTENT, 0);
     ctx.beginPath();
     ctx.moveTo(x3, y3);
     ctx.lineTo(x4, y4);
@@ -179,8 +232,8 @@ export function BasinCoordinateViewer({
     
     // Z axis (blue)
     ctx.strokeStyle = '#3b82f6';
-    const [x5, y5] = project3D(0, 0, -2);
-    const [x6, y6] = project3D(0, 0, 2);
+    const [x5, y5] = project3D(0, 0, -BASIN_CONSTANTS.AXIS_EXTENT);
+    const [x6, y6] = project3D(0, 0, BASIN_CONSTANTS.AXIS_EXTENT);
     ctx.beginPath();
     ctx.moveTo(x5, y5);
     ctx.lineTo(x6, y6);
@@ -202,8 +255,8 @@ export function BasinCoordinateViewer({
         
         // Fade trail
         const alpha = (i - startIdx) / (endIdx - startIdx);
-        ctx.strokeStyle = getColorForPhi(p1.phi) + Math.floor(alpha * 255).toString(16).padStart(2, '0');
-        ctx.lineWidth = 2;
+        ctx.strokeStyle = getColorForPhi(p1.phi) + Math.floor(alpha * BASIN_CONSTANTS.MAX_ALPHA).toString(BASIN_CONSTANTS.HEX_RADIX).padStart(BASIN_CONSTANTS.PAD_LENGTH, '0');
+        ctx.lineWidth = BASIN_CONSTANTS.LINE_WIDTH;
         
         ctx.beginPath();
         ctx.moveTo(px1, py1);
@@ -220,21 +273,21 @@ export function BasinCoordinateViewer({
       if (isPlaying && idx > playbackIndex) return;
       
       const isCurrent = idx === (isPlaying ? playbackIndex : (currentIndex ?? reducedPoints.length - 1));
-      const radius = isCurrent ? 8 : 4;
+      const radius = isCurrent ? BASIN_CONSTANTS.CURRENT_POINT_RADIUS : BASIN_CONSTANTS.NORMAL_POINT_RADIUS;
       
       ctx.fillStyle = getColorForPhi(point.phi);
       ctx.beginPath();
-      ctx.arc(px, py, radius, 0, 2 * Math.PI);
+      ctx.arc(px, py, radius, 0, BASIN_CONSTANTS.FULL_CIRCLE);
       ctx.fill();
       
       // Highlight current point
       if (isCurrent) {
         ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 2;
+        ctx.lineWidth = BASIN_CONSTANTS.STROKE_LINE_WIDTH;
         ctx.stroke();
       }
     });
-  };
+  }, [reducedPoints, width, height, project3D, showTrail, isPlaying, playbackIndex, currentIndex, trailLength, getColorForPhi]);
 
   // Animation loop for playback
   useEffect(() => {
@@ -260,11 +313,11 @@ export function BasinCoordinateViewer({
   // Redraw on state changes
   useEffect(() => {
     draw();
-  }, [reducedPoints, rotation, zoom, currentIndex, playbackIndex, showTrail]);
+  }, [draw]);
 
   const handleReset = () => {
-    setRotation({ x: 20, y: 45 });
-    setZoom(1.0);
+    setRotation({ x: BASIN_CONSTANTS.DEFAULT_ROTATION_X, y: BASIN_CONSTANTS.DEFAULT_ROTATION_Y });
+    setZoom(BASIN_CONSTANTS.DEFAULT_ZOOM);
     setPlaybackIndex(0);
     setIsPlaying(false);
   };
@@ -313,8 +366,8 @@ export function BasinCoordinateViewer({
                 const dx = e.clientX - startX;
                 const dy = e.clientY - startY;
                 setRotation({
-                  x: startRotation.x + dy * 0.5,
-                  y: startRotation.y + dx * 0.5,
+                  x: startRotation.x + dy * BASIN_CONSTANTS.ROTATION_SENSITIVITY,
+                  y: startRotation.y + dx * BASIN_CONSTANTS.ROTATION_SENSITIVITY,
                 });
               };
               
@@ -351,9 +404,9 @@ export function BasinCoordinateViewer({
             <Slider
               value={[zoom]}
               onValueChange={([value]) => setZoom(value)}
-              min={0.5}
-              max={2.0}
-              step={0.1}
+              min={BASIN_CONSTANTS.MIN_ZOOM}
+              max={BASIN_CONSTANTS.MAX_ZOOM}
+              step={BASIN_CONSTANTS.ZOOM_STEP}
               className="flex-1"
             />
             <ZoomIn className="h-4 w-4 text-muted-foreground" />

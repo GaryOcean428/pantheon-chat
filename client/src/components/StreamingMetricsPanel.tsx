@@ -8,9 +8,8 @@
  */
 
 import React, { useMemo } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Progress } from '@/components/ui';
+import { PERCENT_MULTIPLIER, CONSCIOUSNESS_CONSTANTS, CONFIDENCE_CONSTANTS } from '@/lib/constants';
 import {
   Activity,
   Brain,
@@ -30,6 +29,22 @@ import {
   KAPPA_STAR,
 } from '@/types/streaming-metrics';
 
+// Streaming Metrics Panel constants
+const METRICS_CONSTANTS = {
+  // Trend calculation
+  TREND_THRESHOLD: 0.01,
+  TREND_RECENT_COUNT: 5,
+  TREND_OLDER_START: -10,
+  TREND_OLDER_END: -5,
+  
+  // Kappa thresholds
+  KAPPA_GOOD_DELTA: 2,
+  KAPPA_WARNING_DELTA: 10,
+  
+  // Progress
+  NEAR_COMPLETION_THRESHOLD: 0.75,
+} as const;
+
 interface StreamingMetricsPanelProps {
   state: StreamingGenerationState;
   completionProgress: number;
@@ -37,7 +52,7 @@ interface StreamingMetricsPanelProps {
   compact?: boolean;
 }
 
-function TrendIcon({ value, threshold = 0.01 }: { value: number; threshold?: number }) {
+function TrendIcon({ value, threshold = METRICS_CONSTANTS.TREND_THRESHOLD }: { value: number; threshold?: number }) {
   if (value > threshold) return <TrendingUp className="h-3 w-3 text-green-500" />;
   if (value < -threshold) return <TrendingDown className="h-3 w-3 text-red-500" />;
   return <Minus className="h-3 w-3 text-muted-foreground" />;
@@ -103,12 +118,12 @@ export function StreamingMetricsPanel({
 
   // Calculate trends from history
   const trends = useMemo(() => {
-    if (metricsHistory.length < 5) {
+    if (metricsHistory.length < METRICS_CONSTANTS.TREND_RECENT_COUNT) {
       return { phi: 0, kappa: 0, surprise: 0, confidence: 0 };
     }
 
-    const recent = metricsHistory.slice(-5);
-    const older = metricsHistory.slice(-10, -5);
+    const recent = metricsHistory.slice(-METRICS_CONSTANTS.TREND_RECENT_COUNT);
+    const older = metricsHistory.slice(METRICS_CONSTANTS.TREND_OLDER_START, METRICS_CONSTANTS.TREND_OLDER_END);
 
     if (older.length === 0) {
       return { phi: 0, kappa: 0, surprise: 0, confidence: 0 };
@@ -138,21 +153,21 @@ export function StreamingMetricsPanel({
 
   // Get status for each metric
   const getPhiStatus = (phi: number): 'good' | 'warning' | 'critical' => {
-    if (phi >= 0.65) return 'good';
-    if (phi >= 0.3) return 'warning';
+    if (phi >= CONSCIOUSNESS_CONSTANTS.PHI_MODERATE) return 'good';
+    if (phi >= CONSCIOUSNESS_CONSTANTS.PHI_LOW) return 'warning';
     return 'critical';
   };
 
   const getKappaStatus = (kappa: number): 'good' | 'warning' | 'critical' => {
     const delta = Math.abs(kappa - KAPPA_STAR);
-    if (delta < 2) return 'good';
-    if (delta < 10) return 'warning';
+    if (delta < METRICS_CONSTANTS.KAPPA_GOOD_DELTA) return 'good';
+    if (delta < METRICS_CONSTANTS.KAPPA_WARNING_DELTA) return 'warning';
     return 'critical';
   };
 
   const getConfidenceStatus = (conf: number): 'good' | 'warning' | 'critical' => {
-    if (conf >= 0.85) return 'good';
-    if (conf >= 0.5) return 'warning';
+    if (conf >= CONFIDENCE_CONSTANTS.GOOD) return 'good';
+    if (conf >= CONFIDENCE_CONSTANTS.LOW) return 'warning';
     return 'critical';
   };
 
@@ -205,9 +220,9 @@ export function StreamingMetricsPanel({
           <div className="space-y-1">
             <div className="flex items-center justify-between text-xs">
               <span className="text-muted-foreground">Geometric Progress</span>
-              <span>{Math.round(completionProgress * 100)}%</span>
+              <span>{Math.round(completionProgress * PERCENT_MULTIPLIER)}%</span>
             </div>
-            <Progress value={completionProgress * 100} className="h-2" />
+            <Progress value={completionProgress * PERCENT_MULTIPLIER} className="h-2" />
           </div>
         )}
 
@@ -239,7 +254,7 @@ export function StreamingMetricsPanel({
             />
             <MetricCard
               label="Confidence"
-              value={(currentMetrics.confidence * 100).toFixed(0) + '%'}
+              value={(currentMetrics.confidence * METRICS_CONSTANTS.PERCENT_MULTIPLIER).toFixed(0) + '%'}
               trend={trends.confidence}
               icon={Target}
               status={getConfidenceStatus(currentMetrics.confidence)}
@@ -310,11 +325,11 @@ export function StreamingMetricsPanel({
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium">Geometric Completion Progress</span>
             <span className="text-sm text-muted-foreground">
-              {Math.round(completionProgress * 100)}%
+              {Math.round(completionProgress * PERCENT_MULTIPLIER)}%
             </span>
           </div>
-          <Progress value={completionProgress * 100} className="h-3" />
-          {completionProgress > 0.75 && isGenerating && (
+          <Progress value={completionProgress * PERCENT_MULTIPLIER} className="h-3" />
+          {completionProgress > METRICS_CONSTANTS.NEAR_COMPLETION_THRESHOLD && isGenerating && (
             <p className="text-xs text-green-500 flex items-center gap-1">
               <CheckCircle2 className="h-3 w-3" />
               Approaching geometric completion
@@ -347,7 +362,7 @@ export function StreamingMetricsPanel({
             />
             <MetricCard
               label="Confidence"
-              value={(currentMetrics.confidence * 100).toFixed(0) + '%'}
+              value={(currentMetrics.confidence * METRICS_CONSTANTS.PERCENT_MULTIPLIER).toFixed(0) + '%'}
               trend={trends.confidence}
               icon={Target}
               status={getConfidenceStatus(currentMetrics.confidence)}

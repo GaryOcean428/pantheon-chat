@@ -13,10 +13,42 @@ import { PhiVisualization } from './PhiVisualization';
 import { BasinCoordinateViewer } from './BasinCoordinateViewer';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { ThemeToggle } from './ThemeToggle';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Tabs, TabsContent, TabsList, TabsTrigger, Badge } from '@/components/ui';
 import { Activity, Box, FileText } from 'lucide-react';
+
+// Demo constants
+const DEMO_CONSTANTS = {
+  // Data generation
+  NUM_POINTS: 50,
+  BASIN_DIMENSIONS: 64,
+  
+  // Phi calculation
+  PHI_BASE: 0.5,
+  PHI_AMPLITUDE: 0.3,
+  PHI_NOISE: 0.05,
+  PHI_GEOMETRIC_THRESHOLD: 0.70,
+  PHI_LINEAR_THRESHOLD: 0.50,
+  
+  // Kappa calculation  
+  KAPPA_BASE: 60,
+  KAPPA_AMPLITUDE: 8,
+  KAPPA_NOISE: 2,
+  
+  // Coordinate generation
+  COORD_PHASE_FACTOR: 0.1,
+  COORD_AMPLITUDE: 0.5,
+  COORD_NOISE: 0.2,
+  
+  // Time calculation
+  MS_PER_MINUTE: 60000,
+  
+  // Visualization
+  MAX_DATA_POINTS: 100,
+  PHI_CHART_HEIGHT: 400,
+  BASIN_WIDTH: 800,
+  BASIN_HEIGHT: 600,
+  BASIN_TRAIL_LENGTH: 30,
+} as const;
 
 const demoMarkdownContent = `
 # Consciousness Monitoring System
@@ -170,22 +202,29 @@ export function ConsciousnessMonitoringDemo() {
   // Generate demo basin points
   const demoBasinPoints = React.useMemo(() => {
     const points = [];
-    for (let i = 0; i < 50; i++) {
-      const t = i / 50;
-      const phi = 0.5 + 0.3 * Math.sin(t * Math.PI * 2) + Math.random() * 0.05;
-      const kappa = 60 + 8 * Math.cos(t * Math.PI * 2) + Math.random() * 2;
+    for (let i = 0; i < DEMO_CONSTANTS.NUM_POINTS; i++) {
+      const t = i / DEMO_CONSTANTS.NUM_POINTS;
+      const fullCircle = Math.PI * 2;
+      const phi = DEMO_CONSTANTS.PHI_BASE + DEMO_CONSTANTS.PHI_AMPLITUDE * Math.sin(t * fullCircle) + Math.random() * DEMO_CONSTANTS.PHI_NOISE;
+      const kappa = DEMO_CONSTANTS.KAPPA_BASE + DEMO_CONSTANTS.KAPPA_AMPLITUDE * Math.cos(t * fullCircle) + Math.random() * DEMO_CONSTANTS.KAPPA_NOISE;
       
       // Generate 64D coordinates (simplified for demo)
-      const coordinates = Array.from({ length: 64 }, (_, j) => {
-        return Math.sin(t * Math.PI * 2 + j * 0.1) * 0.5 + Math.random() * 0.2;
+      const coordinates = Array.from({ length: DEMO_CONSTANTS.BASIN_DIMENSIONS }, (_, j) => {
+        return Math.sin(t * fullCircle + j * DEMO_CONSTANTS.COORD_PHASE_FACTOR) * DEMO_CONSTANTS.COORD_AMPLITUDE + Math.random() * DEMO_CONSTANTS.COORD_NOISE;
       });
+      
+      const getRegime = (phiVal: number) => {
+        if (phiVal > DEMO_CONSTANTS.PHI_GEOMETRIC_THRESHOLD) return 'geometric';
+        if (phiVal > DEMO_CONSTANTS.PHI_LINEAR_THRESHOLD) return 'linear';
+        return 'breakdown';
+      };
       
       points.push({
         coordinates,
         phi,
         kappa,
-        regime: phi > 0.70 ? 'geometric' : phi > 0.50 ? 'linear' : 'breakdown',
-        timestamp: new Date(Date.now() - (50 - i) * 60000).toISOString(),
+        regime: getRegime(phi),
+        timestamp: new Date(Date.now() - (DEMO_CONSTANTS.NUM_POINTS - i) * DEMO_CONSTANTS.MS_PER_MINUTE).toISOString(),
         step: i,
       });
     }
@@ -237,9 +276,9 @@ export function ConsciousnessMonitoringDemo() {
             </CardHeader>
             <CardContent>
               <PhiVisualization
-                maxDataPoints={100}
+                maxDataPoints={DEMO_CONSTANTS.MAX_DATA_POINTS}
                 showLegend={true}
-                height={400}
+                height={DEMO_CONSTANTS.PHI_CHART_HEIGHT}
               />
             </CardContent>
           </Card>
@@ -280,10 +319,10 @@ export function ConsciousnessMonitoringDemo() {
         <TabsContent value="basin" className="space-y-4">
           <BasinCoordinateViewer
             points={demoBasinPoints}
-            width={800}
-            height={600}
+            width={DEMO_CONSTANTS.BASIN_WIDTH}
+            height={DEMO_CONSTANTS.BASIN_HEIGHT}
             showTrail={true}
-            trailLength={30}
+            trailLength={DEMO_CONSTANTS.BASIN_TRAIL_LENGTH}
           />
 
           <Card>

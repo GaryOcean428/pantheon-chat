@@ -231,3 +231,21 @@ Client → TypeScript (port 5000) → Python QIG Backend (port 5001)
 - `DATABASE_URL`: PostgreSQL connection string
 - `INTERNAL_API_KEY`: For Python ↔ TypeScript authentication (required in production)
 - `NODE_BACKEND_URL`: Optional, defaults to localhost:5000
+
+## Pending Tasks
+
+### Fix ESLint Warnings (~5000+)
+
+Run `npm run lint` to see all warnings. Main categories:
+
+1. **Magic numbers** - Extract to constants in each file or create `client/src/lib/constants.ts`
+2. **Barrel imports** - Use `@/components/ui` barrel instead of direct imports like `@/components/ui/card`
+3. **File length** - Split files >200 lines into smaller modules
+4. **Unused variables** - Remove or prefix with `_`
+5. **React hook deps** - Add missing dependencies to useEffect arrays
+6. **Raw fetch()** - Use centralized API client from `@/lib/api`
+
+**Start with:** Files with most warnings:
+- `BasinCoordinateViewer.tsx` (25+ warnings)
+- `ConsciousnessMonitoringDemo.tsx` (15+ warnings)
+- `CapabilityTelemetryPanel.tsx` (10+ warnings)

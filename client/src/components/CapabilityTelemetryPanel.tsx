@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, Badge, Progress, Tabs, TabsContent, TabsList, TabsTrigger, ScrollArea } from '@/components/ui';
-import { API_ROUTES, QUERY_KEYS } from '@/api';
+import { QUERY_KEYS } from '@/api';
+import { PERCENT_MULTIPLIER, POLLING_CONSTANTS } from '@/lib/constants';
 import { 
   Brain, 
   Zap, 
@@ -17,6 +18,17 @@ import {
   Layers,
   Heart
 } from 'lucide-react';
+
+// Capability Telemetry Panel constants
+const TELEMETRY_CONSTANTS = {
+  // Capability level
+  MAX_CAPABILITY_LEVEL: 10,
+  LEVEL_PROGRESS_MULTIPLIER: 10,
+} as const;
+
+// Olympus kernel IDs
+const OLYMPUS_KERNEL_IDS = ['zeus', 'hera', 'poseidon', 'athena', 'apollo', 'artemis', 'hermes', 'ares', 'hephaestus', 'aphrodite', 'demeter', 'dionysus'] as const;
+const SHADOW_KERNEL_IDS = ['hades', 'nyx', 'hecate', 'erebus', 'hypnos', 'thanatos', 'nemesis'] as const;
 
 interface CapabilityMetrics {
   invocations: number;
@@ -106,8 +118,8 @@ function CapabilityCard({ capability }: { capability: Capability }) {
       <div className="flex items-center gap-4 text-xs">
         <div className="flex items-center gap-1">
           <span className="text-muted-foreground">Level:</span>
-          <Progress value={capability.level * 10} className="w-16 h-1.5" />
-          <span>{capability.level}/10</span>
+          <Progress value={capability.level * TELEMETRY_CONSTANTS.LEVEL_PROGRESS_MULTIPLIER} className="w-16 h-1.5" />
+          <span>{capability.level}/{TELEMETRY_CONSTANTS.MAX_CAPABILITY_LEVEL}</span>
         </div>
         
         {capability.metrics.invocations > 0 && (
@@ -118,7 +130,7 @@ function CapabilityCard({ capability }: { capability: Capability }) {
             </div>
             <div className="flex items-center gap-1">
               <Eye className="h-3 w-3 text-green-500" />
-              <span>{Math.round(capability.metrics.success_rate * 100)}%</span>
+              <span>{Math.round(capability.metrics.success_rate * PERCENT_MULTIPLIER)}%</span>
             </div>
           </>
         )}
@@ -128,8 +140,8 @@ function CapabilityCard({ capability }: { capability: Capability }) {
 }
 
 function KernelCard({ summary, onSelect }: { summary: KernelSummary; onSelect: () => void }) {
-  const isOlympus = ['zeus', 'hera', 'poseidon', 'athena', 'apollo', 'artemis', 'hermes', 'ares', 'hephaestus', 'aphrodite', 'demeter', 'dionysus'].includes(summary.kernel_id);
-  const isShadow = ['hades', 'nyx', 'hecate', 'erebus', 'hypnos', 'thanatos', 'nemesis'].includes(summary.kernel_id);
+  const isOlympus = (OLYMPUS_KERNEL_IDS as readonly string[]).includes(summary.kernel_id);
+  const isShadow = (SHADOW_KERNEL_IDS as readonly string[]).includes(summary.kernel_id);
   
   return (
     <Card 
@@ -155,7 +167,7 @@ function KernelCard({ summary, onSelect }: { summary: KernelSummary; onSelect: (
           </div>
           <div>
             <span>Success: </span>
-            <span className="text-foreground">{Math.round(summary.success_rate * 100)}%</span>
+            <span className="text-foreground">{Math.round(summary.success_rate * PERCENT_MULTIPLIER)}%</span>
           </div>
           {summary.strongest && (
             <div className="col-span-2">
@@ -210,7 +222,7 @@ function FleetOverview({ data }: { data: FleetTelemetry }) {
               <span className="text-sm text-muted-foreground">Success Rate</span>
             </div>
             <p className="text-2xl font-bold mt-1" data-testid="text-success-rate">
-              {Math.round(data.fleet_success_rate * 100)}%
+              {Math.round(data.fleet_success_rate * PERCENT_MULTIPLIER)}%
             </p>
           </CardContent>
         </Card>
@@ -303,7 +315,7 @@ export default function CapabilityTelemetryPanel() {
   
   const { data: fleetData, isLoading, error } = useQuery<{ success: boolean; data: FleetTelemetry }>({
     queryKey: QUERY_KEYS.olympus.telemetryFleet(),
-    refetchInterval: 30000,
+    refetchInterval: POLLING_CONSTANTS.VERY_SLOW_INTERVAL_MS,
   });
   
   if (isLoading) {

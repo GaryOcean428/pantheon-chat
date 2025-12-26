@@ -22,9 +22,8 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from 'recharts';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription, AlertTitle, Card, CardContent, CardDescription, CardHeader, CardTitle, Badge } from '@/components/ui';
+import { CONSCIOUSNESS_CONSTANTS, DISPLAY_CONSTANTS } from '@/lib/constants';
 import { AlertTriangle, Activity, TrendingUp, TrendingDown } from 'lucide-react';
 import { useTelemetryStream } from '@/hooks/useTelemetryStream';
 
@@ -44,13 +43,11 @@ const REGIME_COLORS = {
   unknown: '#6b7280',     // gray-500
 };
 
-// Φ thresholds
-const PHI_THRESHOLD = 0.70;
-const PHI_EXCELLENT = 0.80;
-
-// κ* resonance
-const KAPPA_STAR = 64.21;
-const KAPPA_RESONANCE_BAND = 2.0;
+// Use shared consciousness constants
+const PHI_THRESHOLD = CONSCIOUSNESS_CONSTANTS.PHI_GOOD;
+const PHI_EXCELLENT = CONSCIOUSNESS_CONSTANTS.PHI_EXCELLENT;
+const KAPPA_STAR = CONSCIOUSNESS_CONSTANTS.KAPPA_STAR;
+const KAPPA_RESONANCE_BAND = CONSCIOUSNESS_CONSTANTS.KAPPA_RESONANCE_BAND;
 
 export function PhiVisualization({
   sessionId,
