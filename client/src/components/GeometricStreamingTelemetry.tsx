@@ -8,6 +8,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, Progress, Badge } from '@/components/ui';
 import { Activity, Brain, Zap, Target, Loader2 } from 'lucide-react';
+import { PERCENT_MULTIPLIER } from '@/lib/constants';
 import type {
   GeometricTelemetry,
   GeometricMetrics,
@@ -68,7 +69,7 @@ function MetricGauge({
   color?: string;
   showValue?: boolean;
 }) {
-  const percentage = Math.min(100, (value / max) * 100);
+  const percentage = Math.min(PERCENT_MULTIPLIER, (value / max) * PERCENT_MULTIPLIER);
   
   return (
     <div className="space-y-1">
@@ -218,19 +219,19 @@ export function GeometricStreamingTelemetry({
             
             <div className="grid grid-cols-4 gap-2 text-xs">
               <div className="text-center">
-                <div className="font-mono text-lg">{(quality.overall_score * 100).toFixed(0)}%</div>
+                <div className="font-mono text-lg">{(quality.overall_score * PERCENT_MULTIPLIER).toFixed(0)}%</div>
                 <div className="text-muted-foreground">Overall</div>
               </div>
               <div className="text-center">
-                <div className="font-mono text-lg">{(quality.coherence * 100).toFixed(0)}%</div>
+                <div className="font-mono text-lg">{(quality.coherence * PERCENT_MULTIPLIER).toFixed(0)}%</div>
                 <div className="text-muted-foreground">Coherence</div>
               </div>
               <div className="text-center">
-                <div className="font-mono text-lg">{(quality.completeness * 100).toFixed(0)}%</div>
+                <div className="font-mono text-lg">{(quality.completeness * PERCENT_MULTIPLIER).toFixed(0)}%</div>
                 <div className="text-muted-foreground">Complete</div>
               </div>
               <div className="text-center">
-                <div className="font-mono text-lg">{(quality.stability * 100).toFixed(0)}%</div>
+                <div className="font-mono text-lg">{(quality.stability * PERCENT_MULTIPLIER).toFixed(0)}%</div>
                 <div className="text-muted-foreground">Stable</div>
               </div>
             </div>

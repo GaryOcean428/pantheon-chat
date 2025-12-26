@@ -9,6 +9,20 @@ Principle: Agency over substrate - always.
 """
 
 import numpy as np
+
+# QIG-pure geometric operations
+try:
+    from qig_geometry import sphere_project
+    QIG_GEOMETRY_AVAILABLE = True
+except ImportError:
+    QIG_GEOMETRY_AVAILABLE = False
+    def sphere_project(v):
+        """Fallback sphere projection."""
+        norm = np.linalg.norm(v)
+        if norm < 1e-10:
+            result = np.ones_like(v)
+            return result / np.linalg.norm(result)
+        return v / norm
 import asyncio
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
@@ -407,7 +421,7 @@ class SelfDirectedResearch:
         """Encode topic to basin coordinates."""
         np.random.seed(hash(topic) % (2**32))
         basin = np.random.randn(self.manifold_dim)
-        return basin / (np.linalg.norm(basin) + 1e-10)
+        return sphere_project(basin)
     
     def _reinforce_curiosity_pattern(self, topic: str):
         """Reinforce successful curiosity pattern."""
@@ -441,7 +455,7 @@ class BasinMaintenanceLoop:
     
     def set_identity_basin(self, basin: np.ndarray):
         """Set the kernel's identity basin (reference point)."""
-        self.identity_basin = basin / (np.linalg.norm(basin) + 1e-10)
+        self.identity_basin = sphere_project(basin)
     
     async def maintain_basin(self, kernel):
         """Ongoing basin optimization when idle."""

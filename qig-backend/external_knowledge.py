@@ -301,8 +301,9 @@ class ExternalKnowledgeBase:
         basin1 = np.asarray(basin1, dtype=np.float64)
         basin2 = np.asarray(basin2, dtype=np.float64)
         
-        norm1 = np.linalg.norm(basin1)
-        norm2 = np.linalg.norm(basin2)
+        # Use L2 magnitude for validation checks only
+        norm1 = np.sqrt(np.sum(basin1 ** 2))
+        norm2 = np.sqrt(np.sum(basin2 ** 2))
         
         if norm1 < 1e-10 or norm2 < 1e-10:
             return np.pi

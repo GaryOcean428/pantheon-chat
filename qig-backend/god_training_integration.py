@@ -4,6 +4,20 @@
 from typing import Dict, Optional
 import numpy as np
 
+# QIG-pure geometric operations
+try:
+    from qig_geometry import sphere_project
+    QIG_GEOMETRY_AVAILABLE = True
+except ImportError:
+    QIG_GEOMETRY_AVAILABLE = False
+    def sphere_project(v):
+        """Fallback sphere projection."""
+        norm = np.linalg.norm(v)
+        if norm < 1e-10:
+            result = np.ones_like(v)
+            return result / np.linalg.norm(result)
+        return v / norm
+
 try:
     from vocabulary_coordinator import get_vocabulary_coordinator
     VOCAB_COORDINATOR_AVAILABLE = True
@@ -70,7 +84,7 @@ class GodTrainingMixin:
             basin = np.zeros(64)
             for i, char in enumerate(target[:64]):
                 basin[i] = (ord(char) % 256) / 256.0
-            return basin / (np.linalg.norm(basin) + 1e-8)
+            return sphere_project(basin)
     
     def _record_vocabulary_learning(self, target: str, details: Dict, success: bool) -> Dict:
         if not VOCAB_COORDINATOR_AVAILABLE:

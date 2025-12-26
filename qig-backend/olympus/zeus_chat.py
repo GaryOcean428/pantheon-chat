@@ -456,7 +456,7 @@ class ZeusConversationHandler(GeometricGenerationMixin):
             base_phi += min(0.3, related_count * 0.05)
         
         if message_basin is not None:
-            basin_norm = float(np.linalg.norm(message_basin))
+            basin_norm = float(np.sqrt(np.sum(message_basin ** 2)))  # L2 magnitude for logging
             if basin_norm > 1.0:
                 base_phi += min(0.15, basin_norm * 0.02)
         

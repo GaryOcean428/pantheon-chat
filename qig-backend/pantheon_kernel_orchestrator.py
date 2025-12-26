@@ -398,7 +398,7 @@ class AffinityRouter:
             "affinity": best_affinity,
             "all_affinities": affinities,
             "ranking": [(g, a) for g, a in sorted_gods[:5]],
-            "token_basin_norm": float(np.linalg.norm(token_basin)),
+            "token_basin_norm": float(np.sqrt(np.sum(token_basin ** 2))),  # L2 magnitude for logging
             "timestamp": datetime.now().isoformat(),
             "context": context,
         }
@@ -532,7 +532,7 @@ class PantheonKernelOrchestrator:
             "mode": profile.mode.value,
             "affinity": affinity,
             "basin": basin.tolist(),
-            "basin_norm": float(np.linalg.norm(basin)),
+            "basin_norm": float(np.sqrt(np.sum(basin ** 2))),  # L2 magnitude for logging
             "routing": {
                 "ranking": routing.get("ranking", []),
                 "token_basin_norm": routing.get("token_basin_norm", 0),

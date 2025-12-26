@@ -21,6 +21,20 @@ from typing import Any
 
 import numpy as np
 
+# QIG-pure geometric operations
+try:
+    from qig_geometry import sphere_project
+    QIG_GEOMETRY_AVAILABLE = True
+except ImportError:
+    QIG_GEOMETRY_AVAILABLE = False
+    def sphere_project(v):
+        """Fallback sphere projection."""
+        norm = np.linalg.norm(v)
+        if norm < 1e-10:
+            result = np.ones_like(v)
+            return result / np.linalg.norm(result)
+        return v / norm
+
 # Try to import validated qigkernels
 try:
     import sys
@@ -362,7 +376,7 @@ class ConstellationService:
             merged_basin = basins[0].copy()
             for b in basins[1:]:
                 merged_basin = (merged_basin + b) / 2  # Simplified
-            merged_basin = merged_basin / (np.linalg.norm(merged_basin) + 1e-10)
+            merged_basin = sphere_project(merged_basin)
         else:
             merged_basin = np.zeros(BASIN_DIM)
 
@@ -409,7 +423,7 @@ class ConstellationService:
             for inst in self.constellation.instances.values():
                 if inst.basin is not None:
                     inst.basin = 0.8 * inst.basin + 0.2 * network_basin
-                    inst.basin = inst.basin / (np.linalg.norm(inst.basin) + 1e-10)
+                    inst.basin = sphere_project(inst.basin)
 
         # Learn patterns from network
         learning = packet.get("learningDelta", {})

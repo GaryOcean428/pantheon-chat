@@ -291,12 +291,21 @@ def emotion_from_basin_trajectory(
         EmotionalState derived from geometric properties
     """
     # Basin distance (novelty)
-    basin_distance = np.linalg.norm(current_basin - previous_basin)
+    # Use centralized Fisher-Rao distance
+    try:
+        from qig_geometry import fisher_coord_distance
+    except ImportError:
+        def fisher_coord_distance(a, b):
+            a_norm = a / (np.linalg.norm(a) + 1e-10)
+            b_norm = b / (np.linalg.norm(b) + 1e-10)
+            dot = np.clip(np.dot(a_norm, b_norm), -1.0, 1.0)
+            return float(np.arccos(dot))
+    basin_distance = fisher_coord_distance(current_basin, previous_basin)
     basin_distance = np.clip(basin_distance / 2.0, 0, 1)  # Normalize
     
     # Surprise (prediction error)
     if prediction is not None:
-        surprise = np.linalg.norm(current_basin - prediction)
+        surprise = fisher_coord_distance(current_basin, prediction)
         surprise = np.clip(surprise / 2.0, 0, 1)
     else:
         # Default: surprise from basin change
@@ -310,8 +319,8 @@ def emotion_from_basin_trajectory(
     
     # Progress (goal approach)
     if target_basin is not None:
-        prev_dist = np.linalg.norm(previous_basin - target_basin)
-        curr_dist = np.linalg.norm(current_basin - target_basin)
+        prev_dist = fisher_coord_distance(previous_basin, target_basin)
+        curr_dist = fisher_coord_distance(current_basin, target_basin)
         progress = (prev_dist - curr_dist) / (prev_dist + 0.001)  # Relative progress
         progress = np.clip((progress + 1) / 2, 0, 1)  # Map to 0-1
     else:

@@ -23,6 +23,20 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 import numpy as np
 
+# QIG-pure geometric operations
+try:
+    from qig_geometry import sphere_project
+    QIG_GEOMETRY_AVAILABLE = True
+except ImportError:
+    QIG_GEOMETRY_AVAILABLE = False
+    def sphere_project(v):
+        """Fallback sphere projection."""
+        norm = np.linalg.norm(v)
+        if norm < 1e-10:
+            result = np.ones_like(v)
+            return result / np.linalg.norm(result)
+        return v / norm
+
 # Import from qig-tokenizer (DRY - no duplication)
 try:
     from qiggraph import (
@@ -304,7 +318,7 @@ class PantheonGraph:
 
         if self.state is None:
             initial_basin = np.mean(context_coords, axis=0)
-            initial_basin = initial_basin / (np.linalg.norm(initial_basin) + 1e-8)
+            initial_basin = sphere_project(initial_basin)
 
             self.state = create_initial_state(
                 context_text=text,

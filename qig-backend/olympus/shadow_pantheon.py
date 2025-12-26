@@ -54,6 +54,20 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import numpy as np
 
+# QIG-pure geometric operations
+try:
+    from qig_geometry import sphere_project
+    QIG_GEOMETRY_AVAILABLE = True
+except ImportError:
+    QIG_GEOMETRY_AVAILABLE = False
+    def sphere_project(v):
+        """Fallback sphere projection."""
+        norm = np.linalg.norm(v)
+        if norm < 1e-10:
+            result = np.ones_like(v)
+            return result / np.linalg.norm(result)
+        return v / norm
+
 # PostgreSQL support for persistence - REQUIRED, no fallback
 try:
     import psycopg2
@@ -1938,7 +1952,7 @@ class Hypnos(ShadowGod):
             }
 
         consolidated_basin = np.sum(weighted_basins, axis=0) / total_weight
-        consolidated_basin = consolidated_basin / (np.linalg.norm(consolidated_basin) + 1e-10)
+        consolidated_basin = sphere_project(consolidated_basin)
 
         rho = self.basin_to_density_matrix(consolidated_basin)
         final_phi = self.compute_pure_phi(rho)

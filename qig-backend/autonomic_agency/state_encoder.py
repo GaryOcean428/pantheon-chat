@@ -16,6 +16,20 @@ from dataclasses import dataclass
 from typing import Dict, Any, List, Optional
 import numpy as np
 
+# QIG-pure geometric operations
+try:
+    from qig_geometry import sphere_project
+    QIG_GEOMETRY_AVAILABLE = True
+except ImportError:
+    QIG_GEOMETRY_AVAILABLE = False
+    def sphere_project(v):
+        """Fallback sphere projection."""
+        norm = np.linalg.norm(v)
+        if norm < 1e-10:
+            result = np.ones_like(v)
+            return result / np.linalg.norm(result)
+        return v / norm
+
 from qigkernels.physics_constants import KAPPA_STAR, PHI_THRESHOLD
 
 
@@ -177,7 +191,7 @@ class StateEncoder:
         current = np.array(basin_coords)
         # Compute drift using Fisher-Rao distance (NOT Euclidean!)
         curr_norm = current / (np.linalg.norm(current) + 1e-10)
-        ref_norm = self._identity_basin / (np.linalg.norm(self._identity_basin) + 1e-10)
+        ref_norm = sphere_project(self._identity_basin)
         dot = np.clip(np.dot(curr_norm, ref_norm), -1.0, 1.0)
         drift = float(2.0 * np.arccos(dot))  # Fisher-Rao distance
         # Normalize drift to [0,1] range using max Fisher distance (π)

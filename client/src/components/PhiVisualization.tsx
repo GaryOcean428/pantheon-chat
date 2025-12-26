@@ -23,7 +23,7 @@ import {
   ReferenceLine,
 } from 'recharts';
 import { Alert, AlertDescription, AlertTitle, Card, CardContent, CardDescription, CardHeader, CardTitle, Badge } from '@/components/ui';
-import { CONSCIOUSNESS_CONSTANTS, DISPLAY_CONSTANTS } from '@/lib/constants';
+import { CONSCIOUSNESS_CONSTANTS } from '@/lib/constants';
 import { AlertTriangle, Activity, TrendingUp, TrendingDown } from 'lucide-react';
 import { useTelemetryStream } from '@/hooks/useTelemetryStream';
 

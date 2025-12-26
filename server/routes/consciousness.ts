@@ -83,19 +83,17 @@ consciousnessRouter.get("/complete", generousLimiter, async (req: Request, res: 
       neurochemistry = agent.getNeurochemistry();
     }
 
-    let oscillators = null;
-    try {
-      const { neuralOscillators } = await import("../deprecated-stubs");
-      const stateInfo = neuralOscillators.getStateInfo();
-      const oscState = neuralOscillators.update();
-      oscillators = {
-        currentState: stateInfo.state,
-        kappa: neuralOscillators.getKappa(),
-        modulatedKappa: neuralOscillators.getKappa(),
-        oscillatorValues: oscState,
-        searchModulation: 1.0,
-      };
-    } catch (e) {}
+    // Use the actual neural oscillators singleton from brain-state module
+    const { neuralOscillators } = await import("../brain-state");
+    const stateInfo = neuralOscillators.getStateInfo();
+    const oscState = neuralOscillators.update();
+    const oscillators = {
+      currentState: stateInfo.state,
+      kappa: neuralOscillators.getKappa(),
+      modulatedKappa: neuralOscillators.getModulatedKappa(),
+      oscillatorValues: oscState,
+      searchModulation: 1.0,
+    };
 
     const searchPhase = searchState.curiosity > 0.7 ? 'exploration' : 'exploitation';
 

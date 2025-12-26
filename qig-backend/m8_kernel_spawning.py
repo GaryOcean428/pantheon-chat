@@ -929,7 +929,7 @@ class SpawnAwareness:
         min_distance = min(neighbor_distances)
         mean_distance = np.mean(neighbor_distances)
         
-        basin_norm = float(np.linalg.norm(basin))
+        basin_norm = float(np.sqrt(np.sum(basin ** 2)))  # L2 magnitude for logging
         isolation_threshold = 0.5 + 0.3 * basin_norm
         
         if min_distance > isolation_threshold:

@@ -58,7 +58,9 @@ def _compute_entropy(text: str) -> float:
 
 def _fisher_distance(basin1: np.ndarray, basin2: np.ndarray) -> float:
     """Compute Fisher geodesic distance between two basin points."""
-    dot = np.clip(np.dot(basin1, basin2) / (np.linalg.norm(basin1) * np.linalg.norm(basin2) + 1e-10), -1, 1)
+    basin1_norm = sphere_project(basin1)
+    basin2_norm = sphere_project(basin2)
+    dot = np.clip(np.dot(basin1_norm, basin2_norm), -1, 1)
     return math.acos(dot)
 
 

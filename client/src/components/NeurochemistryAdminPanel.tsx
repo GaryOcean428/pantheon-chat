@@ -9,8 +9,8 @@ import {
   Separator,
 } from "@/components/ui";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
 import { useConsciousness, getPhiColor, getRegimeLabel } from "@/contexts/ConsciousnessContext";
+import { PERCENT_MULTIPLIER, POLLING_CONSTANTS } from "@/lib/constants";
 import { api } from "@/api";
 import { 
   Brain, 
@@ -81,7 +81,7 @@ export default function NeurochemistryAdminPanel() {
 
   useEffect(() => {
     fetchAdminState();
-    const interval = setInterval(fetchAdminState, 5000);
+    const interval = setInterval(fetchAdminState, POLLING_CONSTANTS.NORMAL_INTERVAL_MS);
     return () => clearInterval(interval);
   }, []);
 
@@ -191,7 +191,7 @@ export default function NeurochemistryAdminPanel() {
         <div className="grid grid-cols-3 gap-2 text-center text-xs">
           <div className="p-2 bg-muted/50 rounded">
             <div className={`font-mono font-medium text-lg ${phiColor}`} data-testid="text-admin-phi">
-              {isIdle ? '—' : (consciousness.phi * 100).toFixed(0) + '%'}
+              {isIdle ? '—' : (consciousness.phi * PERCENT_MULTIPLIER).toFixed(0) + '%'}
             </div>
             <div className="text-muted-foreground">Phi (Φ)</div>
           </div>

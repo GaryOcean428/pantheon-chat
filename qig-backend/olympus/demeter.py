@@ -6,6 +6,20 @@ Analyzes temporal patterns, seasonal rhythms, and cyclical behaviors.
 """
 
 import numpy as np
+
+# QIG-pure geometric operations
+try:
+    from qig_geometry import sphere_project
+    QIG_GEOMETRY_AVAILABLE = True
+except ImportError:
+    QIG_GEOMETRY_AVAILABLE = False
+    def sphere_project(v):
+        """Fallback sphere projection."""
+        norm = np.linalg.norm(v)
+        if norm < 1e-10:
+            result = np.ones_like(v)
+            return result / np.linalg.norm(result)
+        return v / norm
 from typing import Dict, List, Optional
 from datetime import datetime
 from .base_god import BaseGod, KAPPA_STAR
@@ -125,7 +139,7 @@ class Demeter(BaseGod):
             phase = i * np.pi / 2
             for j in range(64):
                 basin[j] = np.sin(phase + j * np.pi / 32) * np.exp(-j / 64)
-            basin = basin / (np.linalg.norm(basin) + 1e-10)
+            basin = sphere_project(basin)
             self.seasonal_basins[season] = basin
     
     def _get_current_season(self, dt: datetime) -> str:

@@ -966,7 +966,7 @@ class QIGCoordizer(FisherCoordizer):
         
         if not high_phi_words:
             basin = np.random.randn(64)
-            return basin / (np.linalg.norm(basin) + 1e-10)
+            return sphere_project(basin)
         
         sample_size = min(5, len(high_phi_words))
         sample_words = np.random.choice(high_phi_words, sample_size, replace=False)
@@ -978,7 +978,7 @@ class QIGCoordizer(FisherCoordizer):
             return combined / norm if norm > 1e-10 else np.random.randn(64) / 10
         
         basin = np.random.randn(64)
-        return basin / (np.linalg.norm(basin) + 1e-10)
+        return sphere_project(basin)
     
     def _geodesic_interpolate(self, start: np.ndarray, end: np.ndarray, t: float) -> np.ndarray:
         """Interpolate along geodesic on unit sphere."""
@@ -1045,10 +1045,10 @@ class QIGCoordizer(FisherCoordizer):
                 sample = np.random.choice(high_phi, min(5, len(high_phi)), replace=False)
                 basins = [self.basin_coords[w] for w in sample]
                 context_basin = np.mean(basins, axis=0)
-                context_basin = context_basin / (np.linalg.norm(context_basin) + 1e-10)
+                context_basin = sphere_project(context_basin)
             else:
                 context_basin = np.random.randn(64)
-                context_basin = context_basin / np.linalg.norm(context_basin)
+                context_basin = sphere_project(context_basin)
         
         # Generation parameters
         temperature = 0.7
@@ -1097,7 +1097,7 @@ class QIGCoordizer(FisherCoordizer):
                 t = 0.3
                 current_basin = (1 - t) * current_basin + t * word_basin
                 current_basin += np.random.randn(64) * 0.05
-                current_basin = current_basin / (np.linalg.norm(current_basin) + 1e-10)
+                current_basin = sphere_project(current_basin)
         
         # Remove consecutive duplicates
         final = [generated[0]] if generated else []

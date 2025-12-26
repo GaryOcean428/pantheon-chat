@@ -71,8 +71,9 @@ except ImportError:
         dot = np.clip(np.dot(a_norm, b_norm), -1.0, 1.0)
         return float(2.0 * np.arccos(dot))
     def _normalize_to_manifold(basin):
-        norm = np.linalg.norm(basin)
-        return basin / (norm + 1e-10) if norm > 0 else basin
+        # Use sphere_project from module-level import
+        from qig_geometry import sphere_project
+        return sphere_project(basin)
 
 try:
     from m8_kernel_spawning import M8KernelSpawner, SpawnReason, get_spawner

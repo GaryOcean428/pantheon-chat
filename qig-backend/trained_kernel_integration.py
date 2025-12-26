@@ -24,6 +24,20 @@ from typing import Dict, List, Optional, Any, Tuple
 import json
 import numpy as np
 
+# QIG-pure geometric operations
+try:
+    from qig_geometry import sphere_project
+    QIG_GEOMETRY_AVAILABLE = True
+except ImportError:
+    QIG_GEOMETRY_AVAILABLE = False
+    def sphere_project(v):
+        """Fallback sphere projection."""
+        norm = np.linalg.norm(v)
+        if norm < 1e-10:
+            result = np.ones_like(v)
+            return result / np.linalg.norm(result)
+        return v / norm
+
 # Try importing from qig-tokenizer
 try:
     from qigkernels import (
@@ -189,7 +203,7 @@ class TrainedKernelManager:
             # Initialize state
             if self.state is None:
                 initial_basin = np.mean(prompt_coords, axis=0)
-                initial_basin = initial_basin / (np.linalg.norm(initial_basin) + 1e-8)
+                initial_basin = sphere_project(initial_basin)
                 self.state = create_initial_state(
                     context_text=prompt,
                     context_coords=prompt_coords,
@@ -233,7 +247,7 @@ class TrainedKernelManager:
 
                 # Update trajectory
                 new_basin = np.mean(self.state.context_coords[-5:], axis=0)
-                new_basin = new_basin / (np.linalg.norm(new_basin) + 1e-8)
+                new_basin = sphere_project(new_basin)
                 self.state = update_trajectory(self.state, new_basin)
 
             # Build telemetry
@@ -243,7 +257,7 @@ class TrainedKernelManager:
                 regime=self.state.current_regime.value if self.state.current_metrics else "unknown",
                 tokens_generated=len(generated_tokens),
                 trajectory_length=len(self.state.trajectory),
-                basin_norm=float(np.linalg.norm(self.state.current_basin)),
+                basin_norm=float(np.sqrt(np.sum(self.state.current_basin ** 2))),  # L2 magnitude for logging
             )
 
             return InferenceResult(

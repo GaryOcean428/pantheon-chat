@@ -907,8 +907,14 @@ class GroundingDetector:
 
         for concept_id, concept_basin in self.known_concepts.items():
             # Fisher-Rao distance: d = arccos(p·q) for unit vectors
-            query_norm = query_basin / (np.linalg.norm(query_basin) + 1e-10)
-            concept_norm = concept_basin / (np.linalg.norm(concept_basin) + 1e-10)
+            try:
+                from qig_geometry import sphere_project
+            except ImportError:
+                def sphere_project(v):
+                    norm = np.linalg.norm(v)
+                    return v / norm if norm > 1e-10 else np.ones_like(v) / np.sqrt(len(v))
+            query_norm = sphere_project(query_basin)
+            concept_norm = sphere_project(concept_basin)
             dot = np.clip(np.dot(query_norm, concept_norm), -1.0, 1.0)
             distance = np.arccos(dot)
 

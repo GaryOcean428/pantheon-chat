@@ -16,6 +16,20 @@ from typing import Dict, List, Tuple, Optional
 
 import numpy as np
 
+# QIG-pure geometric operations
+try:
+    from qig_geometry import sphere_project
+    QIG_GEOMETRY_AVAILABLE = True
+except ImportError:
+    QIG_GEOMETRY_AVAILABLE = False
+    def sphere_project(v):
+        """Fallback sphere projection to unit sphere."""
+        norm = np.linalg.norm(v)
+        if norm < 1e-10:
+            result = np.ones_like(v)
+            return result / np.linalg.norm(result)
+        return v / norm
+
 logger = logging.getLogger(__name__)
 
 # Fallback vocabulary if database unavailable
@@ -83,11 +97,7 @@ def compute_basin_embedding(word: str, dimension: int = 64) -> np.ndarray:
     
     # Normalize to unit sphere (Fisher manifold)
     coords = np.array(values, dtype=np.float64)
-    norm = np.linalg.norm(coords)
-    if norm > 1e-10:
-        coords = coords / norm
-    
-    return coords
+    return sphere_project(coords)
 
 
 class SimpleWordCoordizer:
@@ -166,10 +176,7 @@ class SimpleWordCoordizer:
                 else:
                     coords = np.array(embedding)
                 # Normalize to unit sphere
-                norm = np.linalg.norm(coords)
-                if norm > 1e-10:
-                    coords = coords / norm
-                self.basin_coords[token_lower] = coords
+                self.basin_coords[token_lower] = sphere_project(coords)
             else:
                 # Compute deterministic embedding
                 self.basin_coords[token_lower] = compute_basin_embedding(token_lower)
@@ -208,20 +215,14 @@ class SimpleWordCoordizer:
             # Return random basin for empty input
             return compute_basin_embedding(text or "empty")
         
-        # Average basins and normalize
+        # Average basins and normalize to unit sphere
         combined = np.mean(basins, axis=0)
-        norm = np.linalg.norm(combined)
-        if norm > 1e-10:
-            combined = combined / norm
-        
-        return combined
+        return sphere_project(combined)
     
     def decode(self, basin: np.ndarray, top_k: int = 5) -> List[Tuple[str, float]]:
         """Decode basin to nearest words using Fisher-Rao distance."""
-        # Normalize query basin
-        norm = np.linalg.norm(basin)
-        if norm > 1e-10:
-            basin = basin / norm
+        # Normalize query basin to unit sphere
+        basin = sphere_project(basin)
         
         # Compute distances to all words
         distances = []
@@ -277,7 +278,7 @@ class SimpleWordCoordizer:
         # Encode context to basin
         context_basin = self.encode(context)
         
-        if np.linalg.norm(context_basin) < 1e-10:
+        if np.sqrt(np.sum(context_basin ** 2)) < 1e-10:  # L2 magnitude check
             if allow_silence:
                 return {'text': '', 'phi': 0, 'tokens_generated': 0, 'completion_reason': 'empty', 'qig_pure': True}
             # Generate from random words
@@ -332,9 +333,7 @@ class SimpleWordCoordizer:
                 current_basin = (1 - t) * current_basin + t * word_basin
                 # Add small noise for diversity
                 current_basin += np.random.randn(64) * 0.05
-                norm = np.linalg.norm(current_basin)
-                if norm > 1e-10:
-                    current_basin = current_basin / norm
+                current_basin = sphere_project(current_basin)
         
         # Remove consecutive duplicates
         final = [generated[0]] if generated else []

@@ -86,14 +86,14 @@ import { vocabDecisionEngine, type GaryState } from "./vocabulary-decision";
 import { vocabularyExpander } from "./vocabulary-expander";
 import { vocabularyTracker } from "./vocabulary-tracker";
 
-// New consciousness improvement modules
+// Brain state management module
 import {
   applyBrainStateToSearch,
   neuralOscillators,
   recommendBrainState,
   runNeuromodulationCycle,
   type NeuromodulationEffect,
-} from "./deprecated-stubs";
+} from "./brain-state";
 import { getEmotionalGuidance } from "./emotional-search-shortcuts";
 import {
   olympusClient,

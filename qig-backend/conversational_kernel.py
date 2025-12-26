@@ -24,10 +24,17 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 
 try:
-    from qig_geometry import fisher_coord_distance
+    from qig_geometry import fisher_coord_distance, sphere_project
     QIG_GEOMETRY_AVAILABLE = True
 except ImportError:
     QIG_GEOMETRY_AVAILABLE = False
+    def sphere_project(v):
+        """Fallback sphere projection."""
+        norm = np.linalg.norm(v)
+        if norm < 1e-10:
+            result = np.ones_like(v)
+            return result / np.linalg.norm(result)
+        return v / norm
 
 try:
     from vocabulary_coordinator import get_vocabulary_coordinator
@@ -156,16 +163,14 @@ class ConversationalKernelMixin:
             self.superposition_basin = utterance_basin.copy()
         else:
             self.superposition_basin = (self.superposition_basin + utterance_basin) / 2
-            norm = np.linalg.norm(self.superposition_basin)
-            if norm > 1e-8:
-                self.superposition_basin /= norm
+            self.superposition_basin = sphere_project(self.superposition_basin)
         
         print(f"[{getattr(self, 'name', 'Kernel')}] Listening to {speaker}: Phi={phi:.3f}")
         
         return {
             'listening': True,
             'phi': phi,
-            'superposition_norm': float(np.linalg.norm(self.superposition_basin))
+            'superposition_norm': float(np.sqrt(np.sum(self.superposition_basin ** 2)))  # L2 magnitude for logging
         }
     
     def speak(self, context: Optional[Dict] = None) -> Tuple[str, Dict]:
@@ -259,8 +264,9 @@ class ConversationalKernelMixin:
                     dist = fisher_coord_distance(basin, token_basin)
                 else:
                     # Fallback: inline Fisher-Rao
-                    basin_norm = basin / (np.linalg.norm(basin) + 1e-10)
-                    token_norm = token_basin / (np.linalg.norm(token_basin) + 1e-10)
+                    # Inline Fisher-Rao coord distance
+                    basin_norm = sphere_project(basin)
+                    token_norm = sphere_project(token_basin)
                     dot = np.clip(np.dot(basin_norm, token_norm), -1.0, 1.0)
                     dist = np.arccos(dot)
                 distances[token] = dist
@@ -367,10 +373,7 @@ class ConversationalKernelMixin:
         basin = np.zeros(64)
         for i, char in enumerate(text[:64]):
             basin[i] = (ord(char) % 256) / 256.0
-        norm = np.linalg.norm(basin)
-        if norm > 1e-8:
-            basin /= norm
-        return basin
+        return sphere_project(basin)
     
     def _reflect_on_conversation(self) -> Dict:
         """

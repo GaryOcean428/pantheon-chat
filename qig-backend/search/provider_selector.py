@@ -24,6 +24,20 @@ import time
 import json
 import hashlib
 import numpy as np
+
+# QIG-pure geometric operations
+try:
+    from qig_geometry import sphere_project
+    QIG_GEOMETRY_AVAILABLE = True
+except ImportError:
+    QIG_GEOMETRY_AVAILABLE = False
+    def sphere_project(v):
+        """Fallback sphere projection."""
+        norm = np.linalg.norm(v)
+        if norm < 1e-10:
+            result = np.ones_like(v)
+            return result / np.linalg.norm(result)
+        return v / norm
 from typing import Dict, List, Optional, Any, Tuple, TYPE_CHECKING
 from datetime import datetime
 
@@ -189,7 +203,7 @@ class GeometricProviderSelector:
             basin = np.pad(basin, (0, 64 - len(basin)))
         basin = basin[:64]
         
-        basin = basin / (np.linalg.norm(basin) + 1e-10)
+        basin = sphere_project(basin)
         return basin
     
     def _fisher_rao_distance(self, p1: np.ndarray, p2: np.ndarray) -> float:

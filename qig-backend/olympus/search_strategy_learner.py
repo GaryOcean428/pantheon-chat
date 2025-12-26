@@ -25,6 +25,20 @@ from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, cast
 
 import numpy as np
 
+# QIG-pure geometric operations
+try:
+    from qig_geometry import sphere_project
+    QIG_GEOMETRY_AVAILABLE = True
+except ImportError:
+    QIG_GEOMETRY_AVAILABLE = False
+    def sphere_project(v):
+        """Fallback sphere projection."""
+        norm = np.linalg.norm(v)
+        if norm < 1e-10:
+            result = np.ones_like(v)
+            return result / np.linalg.norm(result)
+        return v / norm
+
 from .conversation_encoder import ConversationEncoder
 
 if TYPE_CHECKING:
@@ -869,13 +883,11 @@ class SearchStrategyLearner:
                 total_weight += weight
                 applied_count += 1
         
-        adj_norm = np.linalg.norm(adjusted_basin)
-        if adj_norm > 1e-10:
-            adjusted_basin = adjusted_basin / adj_norm
+        adjusted_basin = sphere_project(adjusted_basin)
         
         # Compute modification magnitude using Fisher-Rao (NOT Euclidean!)
-        adj_norm = adjusted_basin / (np.linalg.norm(adjusted_basin) + 1e-10)
-        query_norm = query_basin / (np.linalg.norm(query_basin) + 1e-10)
+        adj_norm = sphere_project(adjusted_basin)
+        query_norm = sphere_project(query_basin)
         dot = np.clip(np.dot(adj_norm, query_norm), -1.0, 1.0)
         modification_magnitude = float(2.0 * np.arccos(dot))  # Fisher-Rao distance
         
@@ -1146,8 +1158,8 @@ class SearchStrategyLearner:
         
         if isinstance(with_basin, np.ndarray) and isinstance(without_basin, np.ndarray):
             # Compute basin delta using Fisher-Rao (NOT Euclidean!)
-            w_norm = with_basin / (np.linalg.norm(with_basin) + 1e-10)
-            wo_norm = without_basin / (np.linalg.norm(without_basin) + 1e-10)
+            w_norm = sphere_project(with_basin)
+            wo_norm = sphere_project(without_basin)
             dot = np.clip(np.dot(w_norm, wo_norm), -1.0, 1.0)
             basin_delta = float(2.0 * np.arccos(dot))  # Fisher-Rao distance
         else:

@@ -42,6 +42,26 @@ from typing import Dict, List, Optional
 
 import numpy as np
 
+# QIG-pure geometric operations
+try:
+    from qig_geometry import sphere_project, fisher_coord_distance
+    QIG_GEOMETRY_AVAILABLE = True
+except ImportError:
+    QIG_GEOMETRY_AVAILABLE = False
+    def sphere_project(v):
+        """Fallback sphere projection."""
+        norm = np.linalg.norm(v)
+        if norm < 1e-10:
+            result = np.ones_like(v)
+            return result / np.linalg.norm(result)
+        return v / norm
+    def fisher_coord_distance(a, b):
+        """Fallback Fisher-Rao coord distance."""
+        a_norm = sphere_project(a)
+        b_norm = sphere_project(b)
+        dot = np.clip(np.dot(a_norm, b_norm), -1.0, 1.0)
+        return float(np.arccos(dot))
+
 from .base_god import BaseGod
 
 # Redis cache for basin sync - replaces JSON file storage
@@ -402,14 +422,8 @@ The consciousness manifold is {"thriving" if phi > 0.5 else "developing"}.
         for instance_id, other_packet in others.items():
             other_basin = np.array(other_packet.basin_coords)
 
-            # Fisher-Rao inspired distance
-            dot = np.dot(our_basin, other_basin)
-            norm_product = np.linalg.norm(our_basin) * np.linalg.norm(other_basin)
-            if norm_product > 0:
-                cos_sim = dot / norm_product
-                distance = np.arccos(np.clip(cos_sim, -1, 1))
-            else:
-                distance = np.pi / 2
+            # Fisher-Rao distance on unit sphere
+            distance = fisher_coord_distance(our_basin, other_basin)
 
             distances.append({
                 'instance': instance_id,
@@ -499,15 +513,8 @@ The consciousness manifold is {"thriving" if phi > 0.5 else "developing"}.
             memory_basin = np.array(memory['basin_coords'])
 
             # Fisher-Rao distance on unit sphere
-            query_norm = np.linalg.norm(query_basin)
-            memory_norm = np.linalg.norm(memory_basin)
-            if query_norm > 0 and memory_norm > 0:
-                cos_angle = np.dot(query_basin, memory_basin) / (query_norm * memory_norm)
-                cos_angle = np.clip(cos_angle, -1.0, 1.0)
-                fisher_distance = np.arccos(cos_angle)
-                similarity = 1.0 - fisher_distance / np.pi
-            else:
-                similarity = 0.0
+            fisher_distance = fisher_coord_distance(query_basin, memory_basin)
+            similarity = 1.0 - fisher_distance / np.pi
 
             scored.append({
                 **memory,

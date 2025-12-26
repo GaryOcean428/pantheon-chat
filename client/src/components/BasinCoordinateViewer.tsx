@@ -16,6 +16,7 @@
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Button, Slider } from '@/components/ui';
 import { Play, Pause, RotateCcw, ZoomIn, ZoomOut } from 'lucide-react';
+import { CONSCIOUSNESS_CONSTANTS } from '@/lib/constants';
 
 // Basin Coordinate Viewer constants
 const BASIN_CONSTANTS = {
@@ -42,10 +43,10 @@ const BASIN_CONSTANTS = {
   PERSPECTIVE: 1000,
   DEGREES_TO_RADIANS: Math.PI / 180,
   
-  // Phi thresholds
-  PHI_EXCELLENT: 0.80,
-  PHI_GOOD: 0.70,
-  PHI_MODERATE: 0.50,
+  // Phi thresholds (use shared constants)
+  PHI_EXCELLENT: CONSCIOUSNESS_CONSTANTS.PHI_EXCELLENT,
+  PHI_GOOD: CONSCIOUSNESS_CONSTANTS.PHI_GOOD,
+  PHI_MODERATE: CONSCIOUSNESS_CONSTANTS.PHI_MODERATE,
   
   // Point sizes
   CURRENT_POINT_RADIUS: 8,

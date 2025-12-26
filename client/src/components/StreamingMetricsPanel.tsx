@@ -254,7 +254,7 @@ export function StreamingMetricsPanel({
             />
             <MetricCard
               label="Confidence"
-              value={(currentMetrics.confidence * METRICS_CONSTANTS.PERCENT_MULTIPLIER).toFixed(0) + '%'}
+              value={(currentMetrics.confidence * PERCENT_MULTIPLIER).toFixed(0) + '%'}
               trend={trends.confidence}
               icon={Target}
               status={getConfidenceStatus(currentMetrics.confidence)}
@@ -362,7 +362,7 @@ export function StreamingMetricsPanel({
             />
             <MetricCard
               label="Confidence"
-              value={(currentMetrics.confidence * METRICS_CONSTANTS.PERCENT_MULTIPLIER).toFixed(0) + '%'}
+              value={(currentMetrics.confidence * PERCENT_MULTIPLIER).toFixed(0) + '%'}
               trend={trends.confidence}
               icon={Target}
               status={getConfidenceStatus(currentMetrics.confidence)}

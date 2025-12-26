@@ -36,6 +36,20 @@ from typing import Any, Callable, Dict, Optional, Tuple
 
 import numpy as np
 
+# QIG-pure geometric operations
+try:
+    from qig_geometry import sphere_project
+    QIG_GEOMETRY_AVAILABLE = True
+except ImportError:
+    QIG_GEOMETRY_AVAILABLE = False
+    def sphere_project(v):
+        """Fallback sphere projection."""
+        norm = np.linalg.norm(v)
+        if norm < 1e-10:
+            result = np.ones_like(v)
+            return result / np.linalg.norm(result)
+        return v / norm
+
 logger = logging.getLogger(__name__)
 
 try:
@@ -133,8 +147,8 @@ class SoftReset:
         # Calculate basin distance using Fisher-Rao (NEVER Euclidean/L2!)
         current_basin_arr = current_basin if isinstance(current_basin, np.ndarray) else np.array(current_basin)
         # Fisher-Rao distance on statistical manifold
-        a_norm = current_basin_arr / (np.linalg.norm(current_basin_arr) + 1e-10)
-        b_norm = self.reference_basin / (np.linalg.norm(self.reference_basin) + 1e-10)
+        a_norm = sphere_project(current_basin_arr)
+        b_norm = sphere_project(self.reference_basin)
         dot = np.clip(np.dot(a_norm, b_norm), -1.0, 1.0)
         basin_distance = 2.0 * np.arccos(dot)  # Fisher-Rao proper
         

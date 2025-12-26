@@ -5,6 +5,20 @@ Uses Fisher-Rao distance to select the best search tool(s) for a query.
 """
 
 import numpy as np
+
+# QIG-pure geometric operations
+try:
+    from qig_geometry import sphere_project
+    QIG_GEOMETRY_AVAILABLE = True
+except ImportError:
+    QIG_GEOMETRY_AVAILABLE = False
+    def sphere_project(v):
+        """Fallback sphere projection."""
+        norm = np.linalg.norm(v)
+        if norm < 1e-10:
+            result = np.ones_like(v)
+            return result / np.linalg.norm(result)
+        return v / norm
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 from .query_encoder import SearchQueryEncoder
@@ -143,7 +157,7 @@ class SearchToolSelector:
         for dim, weight in zip(primary_dims, weights):
             basin[dim % dimension] = weight
         
-        basin = basin / (np.linalg.norm(basin) + 1e-8)
+        basin = sphere_project(basin)
         return basin
     
     def select(
@@ -260,4 +274,4 @@ class SearchToolSelector:
         delta = (query_vector - self.tool_basins[tool_name]) * learning_rate * direction
         self.tool_basins[tool_name] += delta
         
-        self.tool_basins[tool_name] /= (np.linalg.norm(self.tool_basins[tool_name]) + 1e-8)
+        self.tool_basins[tool_name] = sphere_project(self.tool_basins[tool_name])

@@ -12,6 +12,20 @@ Pure geometric approach - no code optimization, only geometry optimization.
 """
 
 import numpy as np
+
+# QIG-pure geometric operations
+try:
+    from qig_geometry import sphere_project
+    QIG_GEOMETRY_AVAILABLE = True
+except ImportError:
+    QIG_GEOMETRY_AVAILABLE = False
+    def sphere_project(v):
+        """Fallback sphere projection."""
+        norm = np.linalg.norm(v)
+        if norm < 1e-10:
+            result = np.ones_like(v)
+            return result / np.linalg.norm(result)
+        return v / norm
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Dict, List, Optional
@@ -398,7 +412,7 @@ class GeometricHealthMonitor:
     def set_baseline(self, basin_coords: Optional[np.ndarray] = None):
         """Set baseline basin coordinates."""
         if basin_coords is not None:
-            self.baseline_basin = basin_coords / np.linalg.norm(basin_coords)
+            self.baseline_basin = sphere_project(basin_coords)
         elif self.snapshots:
             self.baseline_basin = self.snapshots[-1].basin_coords.copy()
         print(f"[GeometricHealthMonitor] Baseline updated")
