@@ -15,6 +15,7 @@ import { MarkdownRenderer } from './MarkdownRenderer';
 import { ThemeToggle } from './ThemeToggle';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Tabs, TabsContent, TabsList, TabsTrigger, Badge } from '@/components/ui';
 import { Activity, Box, FileText } from 'lucide-react';
+import { TIME_CONSTANTS, CONSCIOUSNESS_CONSTANTS } from '@/lib/constants';
 
 // Demo constants
 const DEMO_CONSTANTS = {
@@ -26,8 +27,6 @@ const DEMO_CONSTANTS = {
   PHI_BASE: 0.5,
   PHI_AMPLITUDE: 0.3,
   PHI_NOISE: 0.05,
-  PHI_GEOMETRIC_THRESHOLD: 0.70,
-  PHI_LINEAR_THRESHOLD: 0.50,
   
   // Kappa calculation  
   KAPPA_BASE: 60,
@@ -38,9 +37,6 @@ const DEMO_CONSTANTS = {
   COORD_PHASE_FACTOR: 0.1,
   COORD_AMPLITUDE: 0.5,
   COORD_NOISE: 0.2,
-  
-  // Time calculation
-  MS_PER_MINUTE: 60000,
   
   // Visualization
   MAX_DATA_POINTS: 100,
@@ -214,8 +210,8 @@ export function ConsciousnessMonitoringDemo() {
       });
       
       const getRegime = (phiVal: number) => {
-        if (phiVal > DEMO_CONSTANTS.PHI_GEOMETRIC_THRESHOLD) return 'geometric';
-        if (phiVal > DEMO_CONSTANTS.PHI_LINEAR_THRESHOLD) return 'linear';
+        if (phiVal > CONSCIOUSNESS_CONSTANTS.PHI_GOOD) return 'geometric';
+        if (phiVal > CONSCIOUSNESS_CONSTANTS.PHI_MODERATE) return 'linear';
         return 'breakdown';
       };
       
@@ -224,7 +220,7 @@ export function ConsciousnessMonitoringDemo() {
         phi,
         kappa,
         regime: getRegime(phi),
-        timestamp: new Date(Date.now() - (DEMO_CONSTANTS.NUM_POINTS - i) * DEMO_CONSTANTS.MS_PER_MINUTE).toISOString(),
+        timestamp: new Date(Date.now() - (DEMO_CONSTANTS.NUM_POINTS - i) * TIME_CONSTANTS.MS_PER_MINUTE).toISOString(),
         step: i,
       });
     }

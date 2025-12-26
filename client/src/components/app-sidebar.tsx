@@ -40,12 +40,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { useConsciousness, getPhiColor, getRegimeLabel } from "@/contexts/ConsciousnessContext";
 import type { User as UserType } from "@shared/schema";
-
-// App Sidebar constants
-const SIDEBAR_CONSTANTS = {
-  PERCENT_MULTIPLIER: 100,
-  DECIMAL_PLACES: 0,
-} as const;
+import { PERCENT_MULTIPLIER, DISPLAY_CONSTANTS } from "@/lib/constants";
 
 type EmotionalState = 'Focused' | 'Curious' | 'Uncertain' | 'Confident' | 'Neutral' | 'Idle';
 
@@ -156,8 +151,8 @@ export function AppSidebar() {
   };
 
   const emotionalState: EmotionalState = isIdle ? 'Idle' : (neurochemistry.emotionalState as EmotionalState) ?? 'Neutral';
-  const formatValue = (val: number) => isIdle ? '—' : `${(val * SIDEBAR_CONSTANTS.PERCENT_MULTIPLIER).toFixed(SIDEBAR_CONSTANTS.DECIMAL_PLACES)}%`;
-  const formatKappa = (val: number) => isIdle ? '—' : val.toFixed(SIDEBAR_CONSTANTS.DECIMAL_PLACES);
+  const formatValue = (val: number) => isIdle ? '—' : `${(val * PERCENT_MULTIPLIER).toFixed(DISPLAY_CONSTANTS.DECIMAL_PLACES_NONE)}%`;
+  const formatKappa = (val: number) => isIdle ? '—' : val.toFixed(DISPLAY_CONSTANTS.DECIMAL_PLACES_NONE);
 
   return (
     <Sidebar>
