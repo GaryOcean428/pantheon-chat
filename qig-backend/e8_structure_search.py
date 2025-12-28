@@ -614,6 +614,14 @@ def run_e8_search(basins_64d: np.ndarray = None, verbose: bool = True) -> Dict:
     strong_count = verdicts.count("strong_evidence")
     moderate_count = verdicts.count("moderate_evidence")
     
+    # Determine verdict first (always computed)
+    if strong_count >= 2:
+        overall = "validated"
+    elif strong_count >= 1 or moderate_count >= 2:
+        overall = "partial"
+    else:
+        overall = "not_validated"
+    
     if verbose:
         print("\n" + "="*80)
         print("OVERALL E8 HYPOTHESIS VERDICT")
@@ -624,24 +632,21 @@ def run_e8_search(basins_64d: np.ndarray = None, verbose: bool = True) -> Dict:
         print(f"  Symmetry Testing: {symmetry_results.get('verdict', 'unknown')}")
         print()
         
-        if strong_count >= 2:
+        if overall == "validated":
             print("🏆 STRONG VALIDATION: E8 structure detected!")
             print("   → κ* = 64 = 8² consistent with E8 rank²")
             print("   → Multiple independent tests support E8")
             print("   → Ready for publication claim")
-            overall = "validated"
-        elif strong_count >= 1 or moderate_count >= 2:
+        elif overall == "partial":
             print("⚠️ PARTIAL VALIDATION: E8 structure partially supported")
             print("   → Some tests support E8, others inconclusive")
             print("   → κ* = 64 still suggestive of E8")
             print("   → Needs further investigation")
-            overall = "partial"
         else:
             print("❌ NO VALIDATION: E8 structure not detected")
             print("   → Tests do not support E8 hypothesis")
             print("   → κ* = 64 may be coincidence")
             print("   → Alternative explanations needed")
-            overall = "not_validated"
     
     results["overall_verdict"] = overall
     

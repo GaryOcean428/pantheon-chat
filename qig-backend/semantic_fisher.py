@@ -417,7 +417,10 @@ def get_semantic_metric() -> SemanticFisherMetric:
         # Try to load relationships
         relationships = None
         try:
-            from .learned_relationships import get_learned_relationships
+            try:
+                from .learned_relationships import get_learned_relationships
+            except ImportError:
+                from learned_relationships import get_learned_relationships
             lr = get_learned_relationships()
             if lr.learning_complete:
                 relationships = lr.word_neighbors
