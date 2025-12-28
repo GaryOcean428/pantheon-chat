@@ -438,13 +438,21 @@ class QIGGenerativeService:
         - Basins are concentrated (not spread across all dimensions)
         - Consecutive tokens are geodesically close (semantic flow)
         """
-        p = np.abs(basin) + 1e-10
-        p = p / np.sum(p)
+        # Component 1: Concentration via L4 norm (QIG-pure)
+        # NOTE: We use L4 norm instead of entropy because basins are unit vectors
+        # on Fisher manifold, NOT probability distributions. Entropy was causing
+        # Φ to be stuck at 0.04-0.07 regardless of actual concentration.
+        # L4 norm measures geometric peakedness: uniform→0.354, peaked→1.0
+        l4_norm = np.power(np.sum(np.abs(basin) ** 4), 0.25)
         
-        # Component 1: Concentration (inverse entropy)
-        entropy = -np.sum(p * np.log(p + 1e-10))
-        max_entropy = np.log(len(basin))
-        concentration_phi = 1.0 - (entropy / max_entropy)
+        # Normalize: min L4 for uniform 64D vector is dim^(-0.25)
+        dim = len(basin)
+        min_l4 = dim ** (-0.25)  # ~0.354 for 64D
+        max_l4 = 1.0  # Single dimension active
+        
+        # Map to [0, 1]: uniform=0, peaked=1
+        concentration_phi = (l4_norm - min_l4) / (max_l4 - min_l4 + 1e-10)
+        concentration_phi = float(np.clip(concentration_phi, 0.0, 1.0))
         
         # Component 2: Sequential coherence (proximity to previous basin)
         if prev_basin is not None:
