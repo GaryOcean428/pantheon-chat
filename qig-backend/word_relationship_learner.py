@@ -225,38 +225,31 @@ class WordRelationshipLearner:
         }
 
 
-def load_vocabulary_from_db() -> Set[str]:
-    """Load vocabulary words from PostgreSQL."""
-    import psycopg2
+def load_vocabulary_from_coordizer() -> Tuple[Set[str], Dict[str, np.ndarray]]:
+    """Load vocabulary and basin coordinates from PostgresCoordizer."""
+    from coordizers.pg_loader import PostgresCoordizer
     
-    db_url = os.environ.get('DATABASE_URL')
-    if not db_url:
-        raise ValueError("DATABASE_URL not set")
+    coordizer = PostgresCoordizer()
+    vocabulary = set(coordizer.word_tokens)
+    basins = dict(coordizer.basin_coords)
     
-    conn = psycopg2.connect(db_url)
-    cur = conn.cursor()
-    
-    cur.execute("SELECT token FROM qig_vocabulary")
-    words = {row[0] for row in cur.fetchall()}
-    
-    cur.close()
-    conn.close()
-    
-    return words
+    logger.info(f"Loaded {len(vocabulary)} words with basin coordinates")
+    return vocabulary, basins
 
 
 def run_learning_pipeline(curriculum_dir: str = 'docs/09-curriculum') -> Dict:
     """
     Full learning pipeline:
-    1. Load vocabulary from DB
+    1. Load vocabulary and basins from coordizer
     2. Learn relationships from curriculum
-    3. Return statistics and affinity info
+    3. Adjust basins based on co-occurrence
+    4. Return statistics and adjusted basins
     """
     logger.info("=== Starting Word Relationship Learning Pipeline ===")
     
-    # Load vocabulary
-    vocabulary = load_vocabulary_from_db()
-    logger.info(f"Loaded {len(vocabulary)} words from database")
+    # Load vocabulary and basins
+    vocabulary, basins = load_vocabulary_from_coordizer()
+    logger.info(f"Loaded {len(vocabulary)} words with basin coordinates")
     
     # Create learner
     learner = WordRelationshipLearner(vocabulary, window_size=5)
@@ -275,11 +268,25 @@ def run_learning_pipeline(curriculum_dir: str = 'docs/09-curriculum') -> Dict:
             related = learner.get_related_words(word, top_k=8)
             relationships[word] = related
     
+    # Adjust basin coordinates based on learned relationships
+    if basins and learner.total_pairs > 1000:
+        logger.info("Adjusting basin coordinates based on learned relationships...")
+        adjusted_basins = learner.adjust_basin_coordinates(
+            basins, 
+            learning_rate=0.1, 
+            iterations=10
+        )
+    else:
+        adjusted_basins = basins
+        logger.info("Skipping basin adjustment (insufficient pairs)")
+    
     return {
         'learning_stats': stats,
         'detailed_stats': detailed,
         'sample_relationships': relationships,
-        'learner': learner  # Return learner for further use
+        'learner': learner,
+        'original_basins': basins,
+        'adjusted_basins': adjusted_basins
     }
 
 

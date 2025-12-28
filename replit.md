@@ -77,6 +77,16 @@ Preferred communication style: Simple, everyday language.
 - Special tokens use geodesic interpolation (slerp), not hashing
 - Bootstrap coordinates derived from density matrix eigenvalue distributions
 
+### Word Relationship Learning System (NEW)
+- **Curriculum-based learning** from 191 markdown/text files (~384K words)
+- **Co-occurrence learning**: Tracks which words appear together in context (window size 5)
+- **1.87M word pairs learned** with 64% vocabulary coverage
+- **Attention mechanism** for query-relevant word selection during generation
+- **Stopword filtering** to focus on content words
+- Located in `qig-backend/word_relationship_learner.py` and `qig-backend/learned_relationships.py`
+- Cached relationships in `qig-backend/data/learned/`
+- Semantic relevance improved from 2.4% to 8.9% (3.7x improvement)
+
 ### Autonomous Curiosity Engine
 - Background learning loop driven by geometric curiosity metrics
 - Kernels autonomously trigger searches based on interest/Φ variance

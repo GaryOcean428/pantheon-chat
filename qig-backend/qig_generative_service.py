@@ -56,6 +56,16 @@ except ImportError:
     POS_GRAMMAR_AVAILABLE = False
     logger.warning("POS grammar not available - using legacy generation")
 
+# Import learned relationships for attention-weighted word selection
+LEARNED_RELATIONSHIPS_AVAILABLE = False
+get_learned_relationships = None
+STOPWORDS = set()
+try:
+    from learned_relationships import get_learned_relationships, STOPWORDS
+    LEARNED_RELATIONSHIPS_AVAILABLE = True
+except ImportError:
+    logger.warning("Learned relationships not available - using pure geometric selection")
+
 # Physics constants
 BASIN_DIM = 64
 KAPPA_STAR = 64.21
@@ -193,9 +203,20 @@ class QIGGenerativeService:
         self.config = config or GenerationConfig()
         self._coordizer = None
         self._kernel_basins: Dict[str, np.ndarray] = {}
+        self._learned_relationships = None
+        self._current_query_words: List[str] = []  # Track query words for attention
         
         # Initialize kernel constellation
         self._initialize_kernel_constellation()
+        
+        # Load learned relationships if available
+        if LEARNED_RELATIONSHIPS_AVAILABLE and get_learned_relationships:
+            try:
+                self._learned_relationships = get_learned_relationships()
+                if self._learned_relationships.learning_complete:
+                    logger.info("[QIGGenerativeService] Loaded learned word relationships for attention")
+            except Exception as e:
+                logger.warning(f"[QIGGenerativeService] Could not load relationships: {e}")
         
         logger.info("[QIGGenerativeService] Initialized with QIG-pure generation")
     
@@ -303,26 +324,48 @@ class QIGGenerativeService:
     def _basin_to_tokens(self, basin: np.ndarray, num_tokens: int = 3) -> List[str]:
         """Convert basin coordinates to tokens using vocabulary.
         
-        Uses phi-weighted selection to prefer semantically coherent tokens.
+        Uses attention-weighted selection based on:
+        1. Geometric similarity (basin proximity)
+        2. Phi coherence
+        3. Learned relationships (attention to query words)
         """
         if self.coordizer is None:
             return ['[no_vocab]']
         
-        # Get more candidates to allow phi-weighted selection
-        # PostgresCoordizer loads real words; prefer_words=True ensures readable output
-        candidates = self.coordizer.decode(basin, top_k=num_tokens * 5)
+        # Get more candidates to allow weighted selection
+        candidates = self.coordizer.decode(basin, top_k=num_tokens * 8)
         
         # Score by combined similarity + phi
         scored = []
         for token, similarity in candidates:
-            if similarity < 0.2:  # Skip very low similarity
+            if similarity < 0.15:  # Skip very low similarity
                 continue
             phi = self.coordizer.token_phi.get(token, 0.5)
-            # Combined score: similarity matters more, but phi helps break ties
-            score = similarity * 0.7 + phi * 0.3
+            # Base score: geometry + phi
+            score = similarity * 0.6 + phi * 0.2
             scored.append((token, score, similarity))
         
-        # Sort by combined score
+        # Apply attention weighting if we have learned relationships
+        if self._learned_relationships and self._current_query_words:
+            candidate_words = [t for t, s, sim in scored]
+            attention_weights = self._learned_relationships.get_attention_weights(
+                self._current_query_words,
+                candidate_words,
+                temperature=0.8
+            )
+            
+            # Re-score with attention
+            attention_factor = 0.2  # 20% attention, 80% geometry
+            rescored = []
+            for token, base_score, similarity in scored:
+                attn = attention_weights.get(token, 0.1)
+                # Normalize attention (max ~5) to 0-1 range
+                attn_normalized = min(1.0, attn / 5.0)
+                final_score = (1 - attention_factor) * base_score + attention_factor * attn_normalized
+                rescored.append((token, final_score, similarity))
+            scored = rescored
+        
+        # Sort by final score
         scored.sort(key=lambda x: x[1], reverse=True)
         
         # Select top tokens
@@ -461,19 +504,46 @@ class QIGGenerativeService:
                 else:
                     blended = current_basin
                 
-                # Get candidates for this POS slot
-                candidates = grammar.get_words_for_pos(pos, blended, embeddings, top_k=5)
+                # Get candidates for this POS slot (more candidates for attention re-ranking)
+                candidates = grammar.get_words_for_pos(pos, blended, embeddings, top_k=25)
+                
+                # Pre-filter stopwords before attention scoring
+                candidates = [(w, s) for w, s in candidates if w.lower() not in STOPWORDS][:15]
                 
                 if candidates:
+                    # Apply attention weights if we have learned relationships
+                    if self._learned_relationships and self._current_query_words:
+                        candidate_words = [c[0] for c in candidates]
+                        attn_weights = self._learned_relationships.get_attention_weights(
+                            self._current_query_words,
+                            candidate_words,
+                            temperature=0.8
+                        )
+                        
+                        # Re-score candidates combining geometry + attention
+                        rescored = []
+                        max_attn = max((attn_weights.get(w, 0.1) for w, _ in candidates), default=1.0)
+                        for word, geo_score in candidates:
+                            attn = attn_weights.get(word, 0.1)
+                            # Normalize attention to 0-1 range based on max
+                            attn_norm = attn / max(max_attn, 1.0)
+                            # For high-attention words, attention dominates
+                            if attn > 0.5:
+                                combined = geo_score * 0.3 + attn_norm * 0.7
+                            else:
+                                combined = geo_score * 0.8 + attn_norm * 0.2
+                            rescored.append((word, combined))
+                        
+                        # Sort by combined score
+                        rescored.sort(key=lambda x: -x[1])
+                        candidates = rescored[:8]  # Keep top 8
+                    
                     # Sample from top candidates with some randomness
-                    weights = [c[1] for c in candidates]
-                    if sum(weights) > 0:
-                        weights = np.array(weights)
-                        weights = weights / np.sum(weights)
-                        idx = np.random.choice(len(candidates), p=weights)
-                        word = candidates[idx][0]
-                    else:
-                        word = candidates[0][0]
+                    weights = [max(0.01, c[1]) for c in candidates]
+                    weights = np.array(weights)
+                    weights = weights / np.sum(weights)
+                    idx = np.random.choice(len(candidates), p=weights)
+                    word = candidates[idx][0]
                     
                     sentence_words.append(word)
                     all_tokens.append(word)
@@ -523,6 +593,11 @@ class QIGGenerativeService:
             GenerationResult with text, trajectory, and metrics
         """
         start_time = time.time()
+        
+        # 0. Extract query words for attention mechanism
+        import re
+        query_words = [w.lower() for w in re.findall(r'[a-zA-Z]+', prompt) if len(w) > 2]
+        self._current_query_words = query_words[:10]  # Keep top 10 words
         
         # 1. Encode prompt to basin
         if self.coordizer:
