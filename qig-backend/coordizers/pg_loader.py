@@ -333,15 +333,23 @@ class PostgresCoordizer(FisherCoordizer):
             'agent_role': agent_role,
         }
     
-    def add_vocabulary_observations(self, words: List[str], context: str = '') -> Dict:
+    def add_vocabulary_observations(self, observations: List, context: str = '') -> Tuple[int, bool]:
         """
         Add vocabulary observations from learning callbacks.
         
         This method is called by the vocabulary learning system when new words
         are discovered through research or curriculum learning.
+        
+        Args:
+            observations: List of dicts with {word, frequency, avgPhi, ...} 
+                          OR list of strings (legacy support)
+            context: Optional context string
+            
+        Returns:
+            Tuple of (new_tokens_added, weights_updated)
         """
-        if not words:
-            return {'added': 0, 'updated': 0, 'error': None}
+        if not observations:
+            return (0, False)
         
         added = 0
         updated = 0
@@ -350,12 +358,18 @@ class PostgresCoordizer(FisherCoordizer):
             import psycopg2
             conn = self._get_connection()
             if conn is None:
-                return {'added': 0, 'updated': 0, 'error': 'No database connection'}
+                return (0, False)
             
             with conn.cursor() as cur:
-                for word in words:
-                    word = word.strip().lower()
-                    if not word.isalpha() or len(word) < 3:
+                for obs in observations:
+                    if isinstance(obs, dict):
+                        word = obs.get('word', '').strip().lower()
+                    elif isinstance(obs, str):
+                        word = obs.strip().lower()
+                    else:
+                        continue
+                    
+                    if not word or not word.isalpha() or len(word) < 3:
                         continue
                     
                     # Compute embedding using semantic domains
@@ -391,11 +405,11 @@ class PostgresCoordizer(FisherCoordizer):
                 conn.commit()
             
             logger.info(f"[VocabularyObservations] Added {added}, updated {updated} words")
-            return {'added': added, 'updated': updated, 'error': None}
+            return (added, updated > 0)
             
         except Exception as e:
             logger.error(f"[VocabularyObservations] Error: {e}")
-            return {'added': added, 'updated': updated, 'error': str(e)}
+            return (added, False)
     
     def close(self):
         if self._connection:
