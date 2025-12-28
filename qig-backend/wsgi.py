@@ -101,8 +101,23 @@ try:
     _curiosity_engine = get_curiosity_engine()
     _search_orchestrator = SearchOrchestrator()
 
-    def _fallback_search(query, params):
-        """Fallback search when no external tools configured."""
+    def _ddg_search(query, params):
+        """DuckDuckGo search for autonomous learning."""
+        try:
+            from search.duckduckgo_adapter import search_duckduckgo
+            result = search_duckduckgo(query, max_results=5)
+            if result.get('success') and result.get('results'):
+                return [
+                    {
+                        "title": r.get('title', ''),
+                        "url": r.get('url', ''),
+                        "content": r.get('body', r.get('description', '')),
+                        "score": 0.8,
+                    }
+                    for r in result['results'][:5]
+                ]
+        except Exception as e:
+            print(f"[WSGI] DuckDuckGo search failed: {e}")
         return [
             {
                 "title": f"Search result for: {query}",
@@ -112,8 +127,9 @@ try:
             }
         ]
 
-    _search_orchestrator.register_tool_executor("searchxng", _fallback_search)
-    _search_orchestrator.register_tool_executor("wikipedia", _fallback_search)
+    _search_orchestrator.register_tool_executor("searchxng", _ddg_search)
+    _search_orchestrator.register_tool_executor("wikipedia", _ddg_search)
+    _search_orchestrator.register_tool_executor("duckduckgo", _ddg_search)
 
     def _search_callback(query, context):
         """Bridge search requests to geometric search system."""
