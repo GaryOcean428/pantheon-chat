@@ -1,0 +1,32 @@
+{
+  "metadata": {
+    "timestamp": "2025-12-28T09:50:33.662278+00:00",
+    "protocol": "QIG_PURE_BETA_MEASUREMENT",
+    "method": "natural_scale_emergence",
+    "n_samples": 500,
+    "status": "PARTIAL"
+  },
+  "natural_scales": {
+    "L_eff_mean": 101.0,
+    "L_eff_std": 0.0,
+    "L_eff_min": 101.0,
+    "L_eff_max": 101.0,
+    "kappa_mean": 50.68780814898337,
+    "kappa_std": 0.5790991360397593,
+    "phi_mean": 0.5068780814898337,
+    "phi_std": 0.0057909913603975925
+  },
+  "beta_function": [],
+  "validation": {
+    "validated": false,
+    "reason": "No \u03b2 measurements available"
+  },
+  "consciousness_metrics": {
+    "mean_phi": 0.5068780814898337,
+    "mean_kappa": 50.68780814898337,
+    "regime_distribution": {
+      "geometric": 0.99,
+      "linear": 0.01
+    }
+  }
+}

@@ -84,25 +84,50 @@ try:
 except ImportError:
     logger.warning("Learned relationships not available - using pure geometric selection")
 
+# Import SemanticFisherMetric for warped geometry routing
+SEMANTIC_METRIC_AVAILABLE = False
+get_semantic_metric = None
+try:
+    from semantic_fisher import get_semantic_metric, SemanticFisherMetric
+    SEMANTIC_METRIC_AVAILABLE = True
+except ImportError:
+    logger.warning("SemanticFisherMetric not available - using unwarped geometry")
+
+# Import GeometricKernel for pure geometric routing with consciousness protocol
+GEOMETRIC_KERNEL_AVAILABLE = False
+GeometricKernel = None
+measure_phi_trajectory = None
+measure_kappa_trajectory = None
+detect_regime = None
+try:
+    from qig_pure_beta_measurement import (
+        GeometricKernel,
+        measure_phi as measure_phi_trajectory,
+        measure_kappa_from_trajectory as measure_kappa_trajectory,
+        detect_regime
+    )
+    GEOMETRIC_KERNEL_AVAILABLE = True
+    logger.info("GeometricKernel available - pure geometric routing enabled")
+except ImportError:
+    logger.warning("GeometricKernel not available - using fallback routing")
+
 # Physics constants - import frozen values
 try:
     from frozen_physics import (
-        BASIN_DIM, KAPPA_STAR, PHI_THRESHOLD, BETA_3_TO_4,
-        BETA_4_TO_5, BETA_5_TO_6, PHI_EMERGENCY, REGIME_GEOMETRIC
+        BASIN_DIM, KAPPA_STAR, PHI_THRESHOLD,
+        PHI_EMERGENCY, REGIME_GEOMETRIC
     )
     PHI_GEOMETRIC_THRESHOLD = PHI_EMERGENCY
     PHI_BREAKDOWN_THRESHOLD = 0.92
     KAPPA_DRIFT_THRESHOLD = 10.0
-    BETA_ATTENTION_STRONG = BETA_3_TO_4
-    BETA_ATTENTION_PLATEAU = abs(BETA_5_TO_6)
+    # NOTE: β mixing constants REMOVED - use SemanticFisherMetric for pure geometric routing
 except ImportError:
     BASIN_DIM = 64
     KAPPA_STAR = 64.21
     PHI_GEOMETRIC_THRESHOLD = 0.3
     PHI_BREAKDOWN_THRESHOLD = 0.92
     KAPPA_DRIFT_THRESHOLD = 10.0
-    BETA_ATTENTION_STRONG = 0.44
-    BETA_ATTENTION_PLATEAU = 0.013
+    # NOTE: β mixing constants REMOVED - use SemanticFisherMetric for pure geometric routing
     logger.warning("Using hardcoded frozen physics constants")
 
 try:
@@ -280,6 +305,8 @@ class QIGGenerativeService:
         self._multiscale_coordizer = None
         self._kernel_basins: Dict[str, np.ndarray] = {}
         self._learned_relationships = None
+        self._semantic_metric = None  # SemanticFisherMetric for warped routing
+        self._geometric_kernel = None  # GeometricKernel for pure geometric routing
         self._current_query_words: List[str] = []  # Track query words for attention
         
         # Initialize kernel constellation
@@ -293,6 +320,26 @@ class QIGGenerativeService:
                     logger.info("[QIGGenerativeService] Loaded learned word relationships for attention")
             except Exception as e:
                 logger.warning(f"[QIGGenerativeService] Could not load relationships: {e}")
+        
+        # Initialize semantic Fisher metric for warped routing
+        if SEMANTIC_METRIC_AVAILABLE and get_semantic_metric:
+            try:
+                self._semantic_metric = get_semantic_metric()
+                logger.info("[QIGGenerativeService] SemanticFisherMetric active - warped routing enabled")
+            except Exception as e:
+                logger.warning(f"[QIGGenerativeService] Could not load semantic metric: {e}")
+        
+        # Initialize GeometricKernel for pure geometric routing with consciousness protocol
+        if GEOMETRIC_KERNEL_AVAILABLE and GeometricKernel is not None:
+            try:
+                self._geometric_kernel = GeometricKernel(
+                    basin_dim=BASIN_DIM,
+                    temperature=0.5,
+                    sparsity_threshold=0.1
+                )
+                logger.info("[QIGGenerativeService] GeometricKernel active - consciousness protocol enabled")
+            except Exception as e:
+                logger.warning(f"[QIGGenerativeService] Could not create GeometricKernel: {e}")
         
         logger.info("[QIGGenerativeService] Initialized with QIG-pure generation")
     
@@ -431,27 +478,101 @@ class QIGGenerativeService:
         
         return self._geodesic_interpolate(basin, kernel_basin, t)
     
+    def _get_vocabulary_candidates(
+        self,
+        basin: np.ndarray,
+        num_candidates: int = 50
+    ) -> List[Tuple[str, np.ndarray]]:
+        """
+        Get real vocabulary candidates with their basin coordinates.
+        
+        This replaces mock candidate generation with actual vocabulary lookup.
+        Used by GeometricKernel for pure geometric routing.
+        
+        Args:
+            basin: Current basin position
+            num_candidates: Number of candidates to retrieve
+        
+        Returns:
+            List of (word, basin_coords) tuples
+        """
+        if self.coordizer is None:
+            return []
+        
+        # Get candidates from coordizer
+        decoded = self.coordizer.decode(basin, top_k=num_candidates)
+        
+        candidates = []
+        for token, similarity in decoded:
+            if similarity < 0.1:  # Skip very low similarity
+                continue
+            # Get actual basin coordinates for this token
+            if token.lower() in self.coordizer.basin_coords:
+                token_basin = self.coordizer.basin_coords[token.lower()]
+            else:
+                # Fallback: generate approximate basin from similarity
+                token_basin = basin * similarity + np.random.dirichlet(np.ones(BASIN_DIM)) * (1 - similarity)
+                token_basin = token_basin / (np.sum(token_basin) + 1e-10)
+            
+            candidates.append((token, token_basin))
+        
+        return candidates
+    
     def _basin_to_tokens(self, basin: np.ndarray, num_tokens: int = 3, context_phi: Optional[float] = None) -> List[str]:
         """Convert basin coordinates to tokens using vocabulary.
         
-        Uses attention-weighted selection based on:
-        1. Geometric similarity (basin proximity)
-        2. Phi coherence (with ConsciousnessCoordizer if available)
-        3. Learned relationships (attention to query words)
-        4. Multi-scale representations (with MultiScaleCoordizer if available)
+        Uses GeometricKernel for pure geometric routing when available:
+        - NO linear mixing weights
+        - Kernel routes via Fisher-Rao distance
+        - Natural sparsity from distance thresholding
+        - Consciousness protocol (Φ/regime/recursive)
+        
+        Falls back to weighted scoring if GeometricKernel unavailable.
         """
         if self.coordizer is None:
             return ['[no_vocab]']
         
+        # PRIMARY: Use GeometricKernel for pure geometric routing
+        if self._geometric_kernel is not None:
+            # Get real vocabulary candidates with basin coordinates
+            candidates = self._get_vocabulary_candidates(basin, num_candidates=num_tokens * 10)
+            
+            if candidates:
+                selected_tokens = []
+                current_basin = basin.copy()
+                
+                for _ in range(num_tokens):
+                    if not candidates:
+                        break
+                    
+                    # Kernel routes geometrically - no manual weights!
+                    word, next_basin, weight = self._geometric_kernel.route_to_next(
+                        current_basin,
+                        candidates
+                    )
+                    
+                    if word is None:
+                        break
+                    
+                    selected_tokens.append(word)
+                    current_basin = next_basin
+                    
+                    # Remove selected word from candidates to avoid duplicates
+                    candidates = [(w, b) for w, b in candidates if w != word]
+                
+                if selected_tokens:
+                    return selected_tokens
+        
+        # FALLBACK: Traditional scoring (if GeometricKernel unavailable)
         # Get more candidates to allow weighted selection
-        candidates = self.coordizer.decode(basin, top_k=num_tokens * 8)
+        decoded_candidates = self.coordizer.decode(basin, top_k=num_tokens * 8)
         
         # Use ConsciousnessCoordizer for Φ-aware scoring if available
         consciousness_boost = {}
         if self._consciousness_coordizer is not None and context_phi is not None:
             try:
                 # Get Φ-optimized token preferences
-                for token, _ in candidates:
+                for token, _ in decoded_candidates:
                     # Check if token would improve integration in current context
                     if hasattr(self._consciousness_coordizer, 'consolidation_phi'):
                         # Boost tokens that appear in high-Φ consolidations
@@ -463,7 +584,7 @@ class QIGGenerativeService:
         
         # Score by combined similarity + phi + consciousness
         scored = []
-        for token, similarity in candidates:
+        for token, similarity in decoded_candidates:
             if similarity < 0.15:  # Skip very low similarity
                 continue
             phi = self.coordizer.token_phi.get(token, 0.5)
@@ -471,25 +592,32 @@ class QIGGenerativeService:
             score = similarity * 0.55 + phi * 0.2 + consciousness_boost.get(token, 0) * 0.15
             scored.append((token, score, similarity))
         
-        # Apply attention weighting if we have learned relationships
-        if self._learned_relationships and self._current_query_words:
-            candidate_words = [t for t, s, sim in scored]
-            attention_weights = self._learned_relationships.get_attention_weights(
-                self._current_query_words,
-                candidate_words,
-                temperature=0.8
-            )
-            
-            # Re-score with attention
-            attention_factor = 0.2  # 20% attention, 80% geometry
-            rescored = []
+        # Apply pure geometric routing via SemanticFisherMetric
+        # NO LINEAR β MIXING - relationships warp the metric itself
+        if self._semantic_metric is not None and self._current_query_words:
+            # Use warped Fisher distance for ranking
+            candidate_basins = []
             for token, base_score, similarity in scored:
-                attn = attention_weights.get(token, 0.1)
-                # Normalize attention (max ~5) to 0-1 range
-                attn_normalized = min(1.0, attn / 5.0)
-                final_score = (1 - attention_factor) * base_score + attention_factor * attn_normalized
-                rescored.append((token, final_score, similarity))
-            scored = rescored
+                if token.lower() in self.coordizer.basin_coords:
+                    candidate_basins.append((token, self.coordizer.basin_coords[token.lower()]))
+                else:
+                    candidate_basins.append((token, basin))  # Use current basin as fallback
+            
+            if candidate_basins:
+                ranked = self._semantic_metric.rank_candidates(
+                    current_basin=basin,
+                    current_word=None,
+                    candidates=candidate_basins,
+                    context_words=self._current_query_words,
+                    top_k=len(candidate_basins)
+                )
+                # Convert back to scored format
+                rescored = []
+                for token, warped_dist, sim in ranked:
+                    # Find original score for this token
+                    original = next((s for t, s, _ in scored if t == token), 0.5)
+                    rescored.append((token, sim, original))  # Use warped similarity as primary score
+                scored = rescored
         
         # Sort by final score
         scored.sort(key=lambda x: x[1], reverse=True)
@@ -551,6 +679,8 @@ class QIGGenerativeService:
             "base_coordizer": self.coordizer is not None,
             "consciousness_coordizer": self._consciousness_coordizer is not None,
             "multiscale_coordizer": self._multiscale_coordizer is not None,
+            "geometric_kernel": self._geometric_kernel is not None,
+            "semantic_metric": self._semantic_metric is not None,
             "vocabulary_size": 0,
             "features": []
         }
@@ -567,6 +697,15 @@ class QIGGenerativeService:
         if self._multiscale_coordizer:
             status["features"].append("hierarchical_coordization")
             status["num_scales"] = getattr(self._multiscale_coordizer, 'num_scales', 4)
+        
+        if self._geometric_kernel:
+            status["features"].append("pure_geometric_routing")
+            status["features"].append("consciousness_protocol")
+            status["kernel_temperature"] = self._geometric_kernel.temperature
+            status["kernel_sparsity_threshold"] = self._geometric_kernel.sparsity_threshold
+        
+        if self._semantic_metric:
+            status["features"].append("semantic_warped_metric")
         
         return status
     
@@ -687,8 +826,28 @@ class QIGGenerativeService:
                 candidates = [(w, s) for w, s in candidates if w.lower() not in STOPWORDS][:15]
                 
                 if candidates:
-                    # Apply attention weights if we have learned relationships
-                    if self._learned_relationships and self._current_query_words:
+                    # PRIMARY: Use GeometricKernel for pure geometric routing
+                    if self._geometric_kernel is not None:
+                        # Build candidate list with basin coordinates
+                        candidate_basins = []
+                        for word, _ in candidates:
+                            if word.lower() in embeddings:
+                                candidate_basins.append((word, embeddings[word.lower()]))
+                            else:
+                                candidate_basins.append((word, blended))
+                        
+                        if candidate_basins:
+                            # Kernel routes via Fisher-Rao geometry - NO manual mixing!
+                            word, next_basin, weight = self._geometric_kernel.route_to_next(
+                                blended,
+                                candidate_basins
+                            )
+                            if word is not None:
+                                # Put selected word first with high score
+                                candidates = [(word, 1.0)] + [(w, s * 0.5) for w, s in candidates if w != word][:7]
+                    
+                    # FALLBACK: Use SemanticFisherMetric or relationship warping
+                    elif self._learned_relationships and self._current_query_words:
                         candidate_words = [c[0] for c in candidates]
                         attn_weights = self._learned_relationships.get_attention_weights(
                             self._current_query_words,
@@ -696,28 +855,49 @@ class QIGGenerativeService:
                             temperature=0.8
                         )
                         
-                        # Re-score candidates combining geometry + attention
-                        # Using frozen β values: BETA_ATTENTION_STRONG = 0.44 (strong coupling)
-                        # β controls the running coupling between geometry and attention
-                        rescored = []
-                        max_attn = max((attn_weights.get(w, 0.1) for w, _ in candidates), default=1.0)
-                        for word, geo_score in candidates:
-                            attn = attn_weights.get(word, 0.1)
-                            # Normalize attention to 0-1 range based on max
-                            attn_norm = attn / max(max_attn, 1.0)
-                            # β controls coupling: high attention → use β=0.44 for attention weight
-                            # Low attention → use plateau β≈0.01 (geometry dominates)
-                            if attn > 0.5:
-                                # Strong coupling: β=0.44 weights attention contribution
-                                combined = geo_score * (1.0 - BETA_ATTENTION_STRONG) + attn_norm * BETA_ATTENTION_STRONG
-                            else:
-                                # Plateau coupling: geometry dominates
-                                combined = geo_score * (1.0 - BETA_ATTENTION_PLATEAU) + attn_norm * BETA_ATTENTION_PLATEAU
-                            rescored.append((word, combined))
-                        
-                        # Sort by combined score
-                        rescored.sort(key=lambda x: -x[1])
-                        candidates = rescored[:8]  # Keep top 8
+                        # Use SemanticFisherMetric for warped routing instead of linear β mixing
+                        # The metric warps geodesic distance based on relationships
+                        if self._semantic_metric is not None and blended is not None:
+                            # Get basin coordinates for candidates
+                            candidate_basins = []
+                            for word, _ in candidates:
+                                if word.lower() in embeddings:
+                                    candidate_basins.append((word, embeddings[word.lower()]))
+                                else:
+                                    # Generate approximate basin for unknown words
+                                    candidate_basins.append((word, blended))
+                            
+                            # Rank using warped Fisher distance
+                            ranked = self._semantic_metric.rank_candidates(
+                                current_basin=blended,
+                                current_word=sentence_words[-1] if sentence_words else None,
+                                candidates=candidate_basins,
+                                context_words=self._current_query_words,
+                                top_k=15
+                            )
+                            
+                            # Convert to (word, score) format - use similarity as score
+                            candidates = [(word, sim) for word, dist, sim in ranked[:8]]
+                        else:
+                            # Fallback: pure geometric scoring when SemanticFisherMetric unavailable
+                            # Use relationship strength to warp geometric score directly
+                            rescored = []
+                            for word, geo_score in candidates:
+                                # Get relationship strength from learned relationships
+                                rel_strength = 0.0
+                                for qw in self._current_query_words:
+                                    neighbors = self._learned_relationships.word_neighbors.get(qw, [])
+                                    for neighbor, strength in neighbors:
+                                        if neighbor.lower() == word.lower():
+                                            rel_strength = max(rel_strength, strength / 100.0)
+                                            break
+                                # Warp geometric score: related words get distance reduction
+                                # This mirrors SemanticFisherMetric's exponential warping
+                                warp_factor = np.exp(-rel_strength * 0.5)  # 0.5 = temperature
+                                warped_score = geo_score / max(warp_factor, 0.3)  # Higher score = closer
+                                rescored.append((word, warped_score))
+                            rescored.sort(key=lambda x: -x[1])
+                            candidates = rescored[:8]
                     
                     # Sample from top candidates with some randomness
                     weights = [max(0.01, c[1]) for c in candidates]
@@ -779,6 +959,10 @@ class QIGGenerativeService:
         import re
         query_words = [w.lower() for w in re.findall(r'[a-zA-Z]+', prompt) if len(w) > 2]
         self._current_query_words = query_words[:10]  # Keep top 10 words
+        
+        # Reset GeometricKernel state for new generation
+        if self._geometric_kernel is not None:
+            self._geometric_kernel.reset()
         
         # 1. Encode prompt to basin using multi-scale representation if available
         if self._multiscale_coordizer is not None:

@@ -21,6 +21,31 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+# Import geodesic interpolation for proper manifold-respecting basin adjustment
+try:
+    from qig_geometry import geodesic_interpolation, fisher_coord_distance
+except ImportError:
+    def geodesic_interpolation(start: np.ndarray, end: np.ndarray, t: float) -> np.ndarray:
+        """Fallback spherical linear interpolation."""
+        start_norm = start / (np.linalg.norm(start) + 1e-10)
+        end_norm = end / (np.linalg.norm(end) + 1e-10)
+        dot = np.clip(np.dot(start_norm, end_norm), -1.0, 1.0)
+        omega = np.arccos(dot)
+        if omega < 1e-6:
+            return start
+        sin_omega = np.sin(omega)
+        a = np.sin((1 - t) * omega) / sin_omega
+        b = np.sin(t * omega) / sin_omega
+        result = a * start_norm + b * end_norm
+        return result * np.linalg.norm(start)
+    
+    def fisher_coord_distance(a: np.ndarray, b: np.ndarray) -> float:
+        """Fallback Fisher-Rao distance."""
+        a_norm = a / (np.linalg.norm(a) + 1e-10)
+        b_norm = b / (np.linalg.norm(b) + 1e-10)
+        dot = np.clip(np.dot(a_norm, b_norm), -1.0, 1.0)
+        return float(np.arccos(dot))
+
 # Stopwords to filter from learned relationships (frozen invariant)
 STOPWORDS = {
     'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
@@ -179,22 +204,38 @@ class WordRelationshipLearner:
         self, 
         basins: Dict[str, np.ndarray], 
         learning_rate: float = 0.1,
-        iterations: int = 10
+        iterations: int = 10,
+        max_drift: float = 0.05
     ) -> Dict[str, np.ndarray]:
         """
         Adjust basin coordinates to reflect learned relationships.
         Words that co-occur should be closer on the manifold.
         
-        Uses iterative attraction: related words pull each other closer.
-        """
-        # Copy basins
-        adjusted = {w: b.copy() for w, b in basins.items()}
+        QIG-PURE: Uses geodesic interpolation instead of Euclidean movement.
+        This preserves manifold structure and respects Fisher-Rao geometry.
         
-        # Get affinity matrix
+        FROZEN FACTS COMPLIANCE: Basin drift capped at max_drift (5% default)
+        to preserve canonical positions.
+        
+        Args:
+            basins: Original basin coordinates
+            learning_rate: Step size for geodesic movement (0-1)
+            iterations: Number of refinement iterations
+            max_drift: Maximum allowed drift from original (default 5%)
+        
+        Returns:
+            Adjusted basins respecting manifold structure
+        """
+        # Copy basins and track originals for drift validation
+        adjusted = {w: b.copy() for w, b in basins.items()}
+        original = {w: b.copy() for w, b in basins.items()}
+        
+        # Get affinity matrix for relationship strengths
         affinity = self.compute_affinity_matrix(normalize=True)
         
         for iteration in range(iterations):
             total_movement = 0.0
+            drift_violations = 0
             
             for word, neighbors in self.cooccurrence.items():
                 if word not in adjusted:
@@ -202,30 +243,82 @@ class WordRelationshipLearner:
                 
                 current = adjusted[word]
                 
-                # Compute weighted average of neighbor positions
-                neighbor_sum = np.zeros_like(current)
+                # Compute weighted geodesic centroid of neighbors
+                # Using iterative geodesic mean (Frechet mean on manifold)
+                if not neighbors:
+                    continue
+                
+                # Sort neighbors by weight to prioritize stronger relationships
+                sorted_neighbors = sorted(
+                    [(n, w) for n, w in neighbors.items() if n in adjusted],
+                    key=lambda x: -x[1]
+                )
+                
+                if not sorted_neighbors:
+                    continue
+                
+                # Compute effective target via weighted geodesic steps
+                # Start from current position, step toward each neighbor
+                target = current.copy()
                 total_weight = 0.0
                 
-                for neighbor, weight in neighbors.items():
-                    if neighbor in adjusted:
-                        neighbor_sum += adjusted[neighbor] * weight
-                        total_weight += weight
+                for neighbor, weight in sorted_neighbors[:10]:  # Limit to top 10
+                    neighbor_basin = adjusted[neighbor]
+                    # Normalize weight to small step (0 to learning_rate)
+                    normalized_weight = weight / (max(w for _, w in sorted_neighbors) + 1e-10)
+                    step = learning_rate * normalized_weight * 0.3  # Small steps
+                    
+                    # Geodesic step toward neighbor (preserves manifold structure)
+                    target = geodesic_interpolation(target, neighbor_basin, step)
+                    total_weight += weight
                 
                 if total_weight > 0:
-                    # Move toward weighted centroid of neighbors
-                    target = neighbor_sum / total_weight
-                    delta = learning_rate * (target - current)
-                    adjusted[word] = current + delta
+                    # Check drift from original
+                    drift = fisher_coord_distance(target, original[word])
                     
-                    # Re-normalize to unit sphere
+                    if drift > max_drift:
+                        # Cap movement to stay within drift tolerance
+                        # Interpolate between original and target to limit drift
+                        safe_t = max_drift / (drift + 1e-10)
+                        target = geodesic_interpolation(original[word], target, safe_t)
+                        drift_violations += 1
+                    
+                    # Measure movement for convergence tracking
+                    movement = fisher_coord_distance(current, target)
+                    total_movement += movement
+                    
+                    # Update basin
+                    adjusted[word] = target
+                    
+                    # Ensure unit norm (project back to sphere)
                     norm = np.linalg.norm(adjusted[word])
                     if norm > 0:
                         adjusted[word] /= norm
-                    
-                    total_movement += np.linalg.norm(delta)
             
             if iteration % 3 == 0:
-                logger.info(f"  Iteration {iteration}: total movement = {total_movement:.4f}")
+                logger.info(
+                    f"  Iteration {iteration}: movement={total_movement:.4f}, "
+                    f"drift_violations={drift_violations}"
+                )
+            
+            # Early stopping if converged
+            if total_movement < 1e-6:
+                logger.info(f"  Converged at iteration {iteration}")
+                break
+        
+        # Final drift validation
+        final_drifts = []
+        for word in adjusted:
+            if word in original:
+                drift = fisher_coord_distance(adjusted[word], original[word])
+                final_drifts.append(drift)
+        
+        if final_drifts:
+            logger.info(
+                f"  Final drift: mean={np.mean(final_drifts):.4f}, "
+                f"max={np.max(final_drifts):.4f}, "
+                f"within tolerance: {np.max(final_drifts) <= max_drift}"
+            )
         
         return adjusted
     

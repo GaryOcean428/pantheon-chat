@@ -2,12 +2,15 @@
 Learned Relationships Module for QIG
 
 Manages persistence of learned word relationships and provides
-attention-weighted word selection for query-relevant generation.
+pure geometric routing via SemanticFisherMetric.
 
 FROZEN FACTS COMPLIANCE:
 - Adjusted basins must stay within ±5% of canonical positions
-- Stopwords cannot be promoted to high-attention words
-- Learning must respect frozen β values for attention weighting
+- Stopwords cannot be promoted to high-strength neighbors
+- Uses Fisher-Rao distance for all geometric operations (no Euclidean)
+
+NOTE: β mixing constants have been REMOVED. All routing is now done via
+SemanticFisherMetric which warps the Fisher metric based on relationships.
 """
 
 import os
@@ -19,22 +22,31 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+# Import Fisher geometry for proper distance computation
+try:
+    from qig_geometry import fisher_coord_distance
+except ImportError:
+    def fisher_coord_distance(a: np.ndarray, b: np.ndarray) -> float:
+        """Fallback Fisher-Rao distance."""
+        a_norm = a / (np.linalg.norm(a) + 1e-10)
+        b_norm = b / (np.linalg.norm(b) + 1e-10)
+        dot = np.clip(np.dot(a_norm, b_norm), -1.0, 1.0)
+        return float(np.arccos(dot))
+
 # Import frozen physics constants for validation
 try:
     from frozen_physics import (
-        BASIN_DIM, KAPPA_STAR, BETA_3_TO_4, BETA_5_TO_6
+        BASIN_DIM, KAPPA_STAR
     )
     FROZEN_PHYSICS_AVAILABLE = True
     BASIN_DRIFT_TOLERANCE = 0.05  # ±5% drift allowed
-    BETA_ATTENTION_ACCEPTANCE = 0.1  # |β_attention - β_physics| < 0.1
+    # NOTE: β mixing constants REMOVED - use SemanticFisherMetric for pure geometric routing
 except ImportError:
     FROZEN_PHYSICS_AVAILABLE = False
     BASIN_DIM = 64
     KAPPA_STAR = 64.21
-    BETA_3_TO_4 = 0.44
-    BETA_5_TO_6 = 0.013
     BASIN_DRIFT_TOLERANCE = 0.05
-    BETA_ATTENTION_ACCEPTANCE = 0.1
+    # NOTE: β mixing constants REMOVED - use SemanticFisherMetric for pure geometric routing
     logger.warning("Frozen physics not available - using hardcoded defaults")
 
 CACHE_DIR = Path(__file__).parent / 'data' / 'learned'
@@ -150,7 +162,7 @@ class LearnedRelationships:
         FROZEN FACTS COMPLIANCE:
         1. Adjusted basins must stay within ±5% of canonical positions
         2. Stopwords cannot have high attention weights (must be < 0.2)
-        3. Learned β must be within acceptance of frozen β
+        3. Uses Fisher-Rao distance for drift measurement (not Euclidean)
         
         Args:
             canonical_basins: Original basin coordinates for comparison
@@ -173,24 +185,28 @@ class LearnedRelationships:
         if stopword_violations > 0:
             logger.warning(f"Found {stopword_violations} stopword violations in learned relationships")
         
-        # Check 2: Basin drift validation (if canonical basins provided)
+        # Check 2: Basin drift validation using Fisher-Rao distance (not Euclidean!)
         drift_violations = 0
         max_drift = 0.0
         if canonical_basins and self.adjusted_basins:
             for word, adjusted in self.adjusted_basins.items():
                 if word in canonical_basins:
                     canonical = canonical_basins[word]
-                    # Compute relative drift
-                    if np.linalg.norm(canonical) > 0:
-                        drift = np.linalg.norm(adjusted - canonical) / np.linalg.norm(canonical)
-                        max_drift = max(max_drift, drift)
-                        if drift > BASIN_DRIFT_TOLERANCE:
-                            drift_violations += 1
-                            if drift_violations <= 3:  # Log first 3
-                                violations.append(f"Basin '{word}' drifted {drift:.1%} (max {BASIN_DRIFT_TOLERANCE:.1%})")
+                    # Use Fisher-Rao distance for proper manifold-respecting drift
+                    drift = fisher_coord_distance(adjusted, canonical)
+                    # Normalize to percentage (Fisher distance ranges 0 to π)
+                    drift_pct = drift / np.pi  # 0 to 1
+                    max_drift = max(max_drift, drift_pct)
+                    if drift_pct > BASIN_DRIFT_TOLERANCE:
+                        drift_violations += 1
+                        if drift_violations <= 3:  # Log first 3
+                            violations.append(
+                                f"Basin '{word}' drifted {drift_pct:.1%} Fisher-Rao "
+                                f"(max {BASIN_DRIFT_TOLERANCE:.1%})"
+                            )
         
         if drift_violations > 0:
-            logger.warning(f"Found {drift_violations} basin drift violations")
+            logger.warning(f"Found {drift_violations} basin drift violations (Fisher-Rao)")
         
         # Check 3: Dimension check - basins should be 64D
         dim_violations = 0
@@ -210,14 +226,14 @@ class LearnedRelationships:
                 'stopword_violations': stopword_violations,
                 'drift_violations': drift_violations,
                 'dim_violations': dim_violations,
-                'max_drift': max_drift,
+                'max_drift_fisher_rao': max_drift,
                 'total_relationships': len(self.word_neighbors),
                 'frozen_physics_available': FROZEN_PHYSICS_AVAILABLE
             }
         }
         
         if is_valid:
-            logger.info("Frozen facts validation PASSED")
+            logger.info("Frozen facts validation PASSED (using Fisher-Rao drift)")
         else:
             logger.warning(f"Frozen facts validation FAILED: {len(violations)} violations")
         
@@ -227,17 +243,18 @@ class LearnedRelationships:
         """Get words related to given word."""
         return self.word_neighbors.get(word, [])[:top_k]
     
-    def get_attention_weights(
+    def get_relationship_strengths(
         self, 
         query_words: List[str], 
-        candidate_words: List[str],
-        temperature: float = 1.0
+        candidate_words: List[str]
     ) -> Dict[str, float]:
         """
-        Compute attention weights for candidates based on query relevance.
+        Compute relationship strengths for candidates based on query relevance.
         
-        Implements simple attention: candidates that are related to query
-        words get higher weights. Filters out stopwords from both query and neighbors.
+        These strengths are used by SemanticFisherMetric to warp geodesic distances.
+        NOT used for linear mixing - the metric warping handles the combination.
+        
+        Filters out stopwords from both query and neighbors.
         """
         weights = {}
         
@@ -278,57 +295,96 @@ class LearnedRelationships:
                         score += strength / 200.0  # Weaker for reverse
                         break
             
-            # Apply temperature
-            if temperature != 1.0 and score > 0:
-                score = score ** (1.0 / temperature)
-            
-            weights[candidate] = max(0.1, score)  # Minimum weight
+            weights[candidate] = max(0.0, score)  # Raw relationship strength
         
         return weights
     
-    def select_words_with_attention(
+    # Backwards compatibility alias
+    def get_attention_weights(
+        self, 
+        query_words: List[str], 
+        candidate_words: List[str],
+        temperature: float = 1.0
+    ) -> Dict[str, float]:
+        """Deprecated: Use get_relationship_strengths instead."""
+        return self.get_relationship_strengths(query_words, candidate_words)
+    
+    def select_words_geometric(
         self,
         query_words: List[str],
-        candidates: List[Tuple[str, float]],  # (word, geometric_score)
-        num_select: int = 5,
-        attention_weight: float = 0.5  # Balance between geometry and attention
+        candidates: List[Tuple[str, np.ndarray]],  # (word, basin_coords)
+        current_basin: np.ndarray,
+        num_select: int = 5
     ) -> List[str]:
         """
-        Select words combining geometric similarity with attention weights.
+        Select words using pure geometric routing via SemanticFisherMetric.
+        
+        NO LINEAR β MIXING - relationships warp the Fisher metric itself
+        so that semantically related words become geodesically closer.
         
         Args:
-            query_words: Words from the prompt/query
-            candidates: List of (word, geometric_score) tuples
+            query_words: Words from the prompt/query for context
+            candidates: List of (word, basin_coords) tuples
+            current_basin: Current position on manifold
             num_select: Number of words to select
-            attention_weight: Weight for attention vs geometry (0-1)
         
         Returns:
-            Selected words
+            Selected words ranked by warped geodesic distance
         """
         if not candidates:
             return []
         
-        candidate_words = [w for w, s in candidates]
-        attention_weights = self.get_attention_weights(query_words, candidate_words)
+        # Get or create semantic metric
+        metric = self.get_semantic_metric()
         
-        # Combine scores
-        combined = []
-        for word, geo_score in candidates:
-            attn_score = attention_weights.get(word, 0.1)
-            combined_score = (
-                (1 - attention_weight) * geo_score + 
-                attention_weight * attn_score
+        if metric is not None:
+            # Use SemanticFisherMetric for pure geometric routing
+            ranked = metric.rank_candidates(
+                current_basin=current_basin,
+                current_word=None,
+                candidates=candidates,
+                context_words=query_words,
+                top_k=num_select
             )
-            combined.append((word, combined_score))
-        
-        # Sort by combined score
-        combined.sort(key=lambda x: -x[1])
-        
-        return [w for w, s in combined[:num_select]]
+            return [word for word, dist, sim in ranked]
+        else:
+            # Fallback: pure Fisher-Rao without warping
+            scored = []
+            for word, basin in candidates:
+                d = fisher_coord_distance(current_basin, basin)
+                scored.append((word, d))
+            scored.sort(key=lambda x: x[1])  # Ascending by distance
+            return [word for word, d in scored[:num_select]]
     
     def get_basin_for_word(self, word: str, fallback: Optional[np.ndarray] = None) -> Optional[np.ndarray]:
         """Get adjusted basin for word, or fallback."""
         return self.adjusted_basins.get(word, fallback)
+    
+    def get_semantic_metric(self):
+        """
+        Get SemanticFisherMetric instance using these relationships.
+        
+        Returns configured metric that warps Fisher distance based on
+        learned word relationships.
+        """
+        try:
+            from .semantic_fisher import SemanticFisherMetric, SemanticWarpConfig
+            
+            config = SemanticWarpConfig(
+                temperature=1.0,
+                max_warp_factor=0.7,
+                min_relationship_strength=0.1,
+                normalize_relationships=True,
+                bidirectional=True
+            )
+            
+            return SemanticFisherMetric(
+                relationships=self.word_neighbors,
+                config=config
+            )
+        except ImportError:
+            logger.warning("SemanticFisherMetric not available")
+            return None
 
 
 # Singleton instance
