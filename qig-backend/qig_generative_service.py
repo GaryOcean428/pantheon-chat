@@ -645,17 +645,26 @@ class QIGGenerativeService:
             if self._learned_relationships and hasattr(self._learned_relationships, 'word_neighbors'):
                 relationships = self._learned_relationships.word_neighbors
             
+            # Get causal relations from WordRelationshipLearner (NEW)
+            causal_relations = {}
+            if self._learned_relationships and hasattr(self._learned_relationships, 'causal_relations'):
+                causal_relations = dict(self._learned_relationships.causal_relations)
+                for source in causal_relations:
+                    causal_relations[source] = dict(causal_relations[source])
+            
             if vocabulary and relationships:
                 self._proposition_planner = PropositionTrajectoryPlanner(
                     vocabulary=vocabulary,
                     relationships=relationships,
+                    causal_relations=causal_relations,
                     config=PropositionPlannerConfig(
                         min_coherence=0.1,
                         n_candidates=15,
                         max_propositions=5
                     )
                 )
-                logger.info(f"[QIGGen] PropositionPlanner initialized with {len(vocabulary)} words")
+                causal_count = sum(len(t) for t in causal_relations.values()) if causal_relations else 0
+                logger.info(f"[QIGGen] PropositionPlanner initialized with {len(vocabulary)} words, {causal_count} causal relations")
             else:
                 logger.warning("[QIGGen] Could not init proposition planner - missing vocab or relationships")
         except Exception as e:
