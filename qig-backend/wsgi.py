@@ -235,22 +235,121 @@ except Exception as e:
 
 # Register Fleet Telemetry endpoint
 try:
-    from capability_telemetry import CapabilityTelemetryTracker
-    _telemetry_tracker = CapabilityTelemetryTracker()
+    from capability_telemetry import CapabilityTelemetryRegistry
+    _telemetry_registry = CapabilityTelemetryRegistry()
     
     @app.route('/api/telemetry/fleet', methods=['GET'])
     def get_fleet_telemetry():
         """Get fleet telemetry across all kernels."""
         from flask import jsonify
         try:
-            data = _telemetry_tracker.get_fleet_telemetry()
-            return jsonify(data)
+            data = _telemetry_registry.get_all_profiles_summary()
+            return jsonify({"success": True, "profiles": data, "kernel_count": len(data)})
         except Exception as e:
             return jsonify({"error": str(e), "kernels": 0}), 500
     
     print("[INFO] Fleet telemetry endpoint registered at /api/telemetry/fleet")
 except Exception as e:
     print(f"[WARNING] Fleet telemetry endpoint not available: {e}")
+
+# Register Research Connection Status endpoint
+@app.route('/api/research/status', methods=['GET'])
+def get_research_connection_status():
+    """Get status of research connections and services."""
+    from flask import jsonify
+    
+    status = {
+        "curiosity_engine": CURIOSITY_AVAILABLE,
+        "search_orchestrator": _search_orchestrator is not None,
+        "search_providers": {},
+        "learning_system": {
+            "active": CURIOSITY_AVAILABLE and _curiosity_engine is not None,
+            "stats": {}
+        }
+    }
+    
+    if _curiosity_engine:
+        try:
+            status["learning_system"]["stats"] = _curiosity_engine.get_stats()
+        except Exception as e:
+            status["learning_system"]["error"] = str(e)
+    
+    try:
+        from search.search_providers import get_search_manager
+        mgr = get_search_manager()
+        for provider_id, provider in mgr.providers.items():
+            status["search_providers"][provider_id] = {
+                "enabled": provider.enabled,
+                "name": provider.name,
+                "has_api_key": provider.has_api_key
+            }
+    except Exception as e:
+        status["search_providers_error"] = str(e)
+    
+    return jsonify(status)
+
+# Register Learning Stability Analysis endpoint
+@app.route('/api/research/stability', methods=['GET'])
+def get_learning_stability():
+    """Analyze learning stability over time."""
+    from flask import jsonify
+    
+    stability = {
+        "overall_health": "healthy",
+        "issues": [],
+        "metrics": {}
+    }
+    
+    if _curiosity_engine:
+        try:
+            stats = _curiosity_engine.get_stats()
+            learning_status = _curiosity_engine.get_learning_status()
+            
+            stability["metrics"] = {
+                "total_explorations": stats.get("total_explorations", 0),
+                "pending_requests": stats.get("pending_requests", 0),
+                "exploration_history": stats.get("exploration_history", 0),
+                "curriculum_progress": {
+                    "loaded": learning_status.get("curriculum", {}).get("topics_loaded", 0),
+                    "completed": learning_status.get("curriculum", {}).get("topics_completed", 0)
+                },
+                "word_learning": learning_status.get("word_learning", {}),
+                "running": stats.get("running", False)
+            }
+            
+            if not stats.get("running", False):
+                stability["issues"].append("Learning engine not running")
+                stability["overall_health"] = "degraded"
+            
+            if stats.get("total_explorations", 0) == 0:
+                stability["issues"].append("No explorations recorded yet")
+            
+        except Exception as e:
+            stability["issues"].append(f"Engine error: {str(e)}")
+            stability["overall_health"] = "error"
+    else:
+        stability["issues"].append("Curiosity engine not available")
+        stability["overall_health"] = "unavailable"
+    
+    try:
+        from search.search_budget_orchestrator import get_budget_orchestrator
+        orchestrator = get_budget_orchestrator()
+        ctx = orchestrator.get_context()
+        stability["budget_status"] = {
+            "allow_overage": ctx.allow_overage,
+            "budgets": {
+                name: {
+                    "used": b.used_today,
+                    "limit": b.daily_limit,
+                    "remaining": b.daily_limit - b.used_today if b.daily_limit > 0 else "unlimited"
+                }
+                for name, b in ctx.budgets.items()
+            }
+        }
+    except Exception as e:
+        stability["budget_error"] = str(e)
+    
+    return jsonify(stability)
 
 # Add request/response logging for production
 from flask import request, g
