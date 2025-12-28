@@ -115,7 +115,8 @@ except ImportError:
 try:
     from frozen_physics import (
         BASIN_DIM, KAPPA_STAR, PHI_THRESHOLD,
-        PHI_EMERGENCY, REGIME_GEOMETRIC
+        PHI_EMERGENCY, REGIME_GEOMETRIC,
+        DISTANCE_BASELINE_64D  # Calibration for 64D semantic basins
     )
     PHI_GEOMETRIC_THRESHOLD = PHI_EMERGENCY
     PHI_BREAKDOWN_THRESHOLD = 0.92
@@ -127,6 +128,7 @@ except ImportError:
     PHI_GEOMETRIC_THRESHOLD = 0.3
     PHI_BREAKDOWN_THRESHOLD = 0.92
     KAPPA_DRIFT_THRESHOLD = 10.0
+    DISTANCE_BASELINE_64D = 15.0  # Calibration for 64D semantic basins
     # NOTE: β mixing constants REMOVED - use SemanticFisherMetric for pure geometric routing
     logger.warning("Using hardcoded frozen physics constants")
 
@@ -424,6 +426,14 @@ class QIGGenerativeService:
         1. Basin concentration (low entropy = focused attention = high Φ)
         2. Sequential coherence (proximity to previous basin = high Φ)
         
+        CALIBRATION FOR 64D SEMANTIC BASINS:
+        In 64D space, typical Fisher-Rao distances are 14-24 (not 0-π).
+        We use DISTANCE_BASELINE_64D to calibrate:
+        - Without calibration: Φ = 1/(1+15/π) ≈ 0.17 (always low)
+        - With calibration:    Φ = 1/(1+15/15) = 0.5 (geometric regime)
+        
+        This is analogous to κ* being universal while β differs by substrate.
+        
         This ensures Φ reaches synthesis threshold (0.6) when:
         - Basins are concentrated (not spread across all dimensions)
         - Consecutive tokens are geodesically close (semantic flow)
@@ -440,10 +450,11 @@ class QIGGenerativeService:
         if prev_basin is not None:
             # Fisher-Rao distance between consecutive basins
             distance = fisher_coord_distance(basin, prev_basin)
-            # Convert distance to coherence: close = high coherence
-            # max distance on unit sphere is π, normalize to [0, 1]
-            max_distance = np.pi
-            coherence_phi = 1.0 - min(distance / max_distance, 1.0)
+            # CALIBRATED normalization for 64D semantic basins
+            # Use DISTANCE_BASELINE_64D instead of π to get meaningful Φ values
+            # distance/baseline: 15/15=1 → coherence=0.5, 10/15=0.67 → coherence=0.6, 5/15=0.33 → coherence=0.75
+            normalized_distance = distance / DISTANCE_BASELINE_64D
+            coherence_phi = 1.0 / (1.0 + normalized_distance)  # Inverse formula for smoother scaling
         else:
             # No previous basin - use concentration only
             coherence_phi = concentration_phi
@@ -1047,8 +1058,12 @@ class QIGGenerativeService:
             )
             
             if text and len(all_tokens) >= 3:
-                phi_trace = [self._measure_phi(b) for b in trajectory] if trajectory else [phi]
-                kappa = self._measure_kappa(query_basin, phi)
+                # Compute phi_trace with sequential coherence (prev_basin)
+                phi_trace = []
+                for i, b in enumerate(trajectory):
+                    prev_b = trajectory[i-1] if i > 0 else None
+                    phi_trace.append(self._measure_phi(b, prev_b))
+                kappa = self._measure_kappa(query_basin, phi_trace[-1] if phi_trace else phi)
                 
                 return GenerationResult(
                     text=text,
@@ -1094,8 +1109,9 @@ class QIGGenerativeService:
             step_tokens = self._basin_to_tokens(next_basin, self.config.tokens_per_step, context_phi=phi)
             all_tokens.extend(step_tokens)
             
-            # Update trajectory
-            phi = self._measure_phi(next_basin)
+            # Update trajectory with sequential coherence
+            prev_basin = current_basin if iterations > 1 else None
+            phi = self._measure_phi(next_basin, prev_basin)
             kappa = self._measure_kappa(next_basin, phi)
             integrator.add_point(next_basin, phi)
             
@@ -1232,8 +1248,8 @@ class QIGGenerativeService:
             # Decode using Φ-aware token selection
             tokens = self._basin_to_tokens(next_basin, self.config.tokens_per_step, context_phi=phi)
             
-            # Update
-            phi = self._measure_phi(next_basin)
+            # Update with sequential coherence
+            phi = self._measure_phi(next_basin, current_basin)
             integrator.add_point(next_basin, phi)
             
             # Yield chunk
