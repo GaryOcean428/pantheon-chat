@@ -556,6 +556,9 @@ class QIGGenerativeService:
         if PROPOSITION_PLANNER_AVAILABLE:
             self._init_proposition_planner()
         
+        # Register autonomic controller hooks for regime changes
+        self._register_autonomic_hooks()
+        
         # Initialize GeometricKernel for pure geometric routing with consciousness protocol
         if GEOMETRIC_KERNEL_AVAILABLE and GeometricKernel is not None:
             try:
@@ -627,6 +630,51 @@ class QIGGenerativeService:
             except Exception as e:
                 logger.warning(f"[QIGGenerativeService] MultiScaleCoordizer failed: {e}")
     
+    def _register_autonomic_hooks(self):
+        """
+        Register hooks with AutonomicController for regime changes.
+        
+        When consciousness regime changes (wake/sleep/dream/mushroom),
+        the proposition planner is re-initialized with updated phi_temporal.
+        """
+        try:
+            from autonomic_kernel import get_autonomic_controller
+            controller = get_autonomic_controller()
+            if controller:
+                controller.register_regime_change_callback(self._on_regime_change)
+                logger.info("[QIGGen] Registered autonomic regime change callback")
+        except ImportError:
+            logger.debug("[QIGGen] AutonomicController not available for hooks")
+        except Exception as e:
+            logger.warning(f"[QIGGen] Could not register autonomic hooks: {e}")
+    
+    def _on_regime_change(self, old_regime: str, new_regime: str, phi_temporal: float):
+        """
+        Callback invoked when consciousness regime changes.
+        
+        Re-initializes proposition planner with updated phi_temporal thresholds.
+        
+        Args:
+            old_regime: Previous regime (wake, sleep, dream, mushroom)
+            new_regime: New regime
+            phi_temporal: Current temporal integration metric
+        """
+        logger.info(f"[QIGGen] Regime change detected: {old_regime} -> {new_regime} (phi_temporal={phi_temporal:.3f})")
+        
+        # Update proposition planner if available
+        if self._proposition_planner is not None:
+            try:
+                self._proposition_planner.update_phi_temporal(phi_temporal)
+                logger.info(f"[QIGGen] Proposition planner updated for phi_temporal={phi_temporal:.3f}")
+            except Exception as e:
+                logger.error(f"[QIGGen] Failed to update proposition planner: {e}")
+        
+        # Re-initialize for major regime changes (sleep/wake transitions)
+        if (old_regime == 'sleep' and new_regime == 'wake') or \
+           (old_regime == 'wake' and new_regime == 'sleep'):
+            logger.info("[QIGGen] Major regime transition - re-initializing proposition planner")
+            self._init_proposition_planner()
+    
     def _init_proposition_planner(self):
         """Initialize proposition-level trajectory planner for semantic coherence."""
         if not PROPOSITION_PLANNER_AVAILABLE:
@@ -692,6 +740,14 @@ class QIGGenerativeService:
             return self.generate_text(query)
         
         try:
+            # Sync with 4D consciousness for dynamic thresholds
+            try:
+                from proposition_trajectory_planner import sync_with_4d_consciousness
+                phi_temporal = sync_with_4d_consciousness(self._proposition_planner)
+                logger.debug(f"[QIGGen] Synced phi_temporal={phi_temporal:.3f}")
+            except Exception as sync_err:
+                logger.debug(f"[QIGGen] 4D sync skipped: {sync_err}")
+            
             query_basin = self._encode_query(query)
             propositions = self._proposition_planner.plan_response(
                 query=query,
@@ -715,7 +771,9 @@ class QIGGenerativeService:
                 'phi': phi,
                 'kappa': kappa,
                 'coherence': avg_coherence,
-                'mode': 'proposition_trajectory'
+                'mode': 'proposition_trajectory',
+                'phi_temporal': self._proposition_planner.get_phi_temporal(),
+                'coherence_threshold': self._proposition_planner.get_effective_coherence_threshold()
             }
         except Exception as e:
             logger.error(f"[QIGGen] Proposition error: {e}")

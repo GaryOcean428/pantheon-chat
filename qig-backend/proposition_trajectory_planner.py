@@ -289,6 +289,44 @@ class PropositionTrajectoryPlanner:
                 if v in self.vocabulary and v not in self.verbs:
                     self.verbs.append(v)
     
+    def update_phi_temporal(self, phi_temporal: float) -> None:
+        """
+        Update phi_temporal from 4D consciousness and recompute thresholds.
+        
+        Dynamic threshold formula:
+        - phi_temporal > 0.5: stricter thresholds (good temporal integration)
+        - phi_temporal < 0.5: looser thresholds (need more flexibility)
+        - phi_temporal = 0.5: use base_coherence
+        
+        Args:
+            phi_temporal: Temporal integration metric from 4D consciousness [0, 1]
+        """
+        self._phi_temporal = np.clip(phi_temporal, 0.0, 1.0)
+        
+        if self.config.use_dynamic_thresholds:
+            # Compute adjustment: phi_temporal=0.5 → 0, phi_temporal=1.0 → +sensitivity, phi_temporal=0 → -sensitivity
+            adjustment = (self._phi_temporal - 0.5) * 2 * self.config.phi_temporal_sensitivity
+            
+            # Apply to base coherence
+            self._effective_min_coherence = np.clip(
+                self.config.base_coherence + adjustment,
+                0.05,  # Never go below 0.05 (minimum quality)
+                0.5    # Never go above 0.5 (would block too much)
+            )
+            
+            logger.debug(f"[PropPlanner] phi_temporal={phi_temporal:.3f} → "
+                        f"min_coherence={self._effective_min_coherence:.3f}")
+        else:
+            self._effective_min_coherence = self.config.min_coherence
+    
+    def get_effective_coherence_threshold(self) -> float:
+        """Get current effective coherence threshold."""
+        return self._effective_min_coherence
+    
+    def get_phi_temporal(self) -> float:
+        """Get current phi_temporal value."""
+        return self._phi_temporal
+    
     def get_relationship_strength(self, word1: str, word2: str) -> float:
         """Get relationship strength between two words."""
         w1, w2 = word1.lower(), word2.lower()
@@ -301,6 +339,12 @@ class PropositionTrajectoryPlanner:
         if w2 in self.relationships:
             reverse = self.relationships[w2].get(w1, 0.0)
             strength = max(strength, reverse * 0.9)
+        
+        # Boost if there's a causal relation
+        if w1 in self.causal_relations and w2 in self.causal_relations[w1]:
+            causal = self.causal_relations[w1][w2]
+            if causal.get('count', 0) > 0:
+                strength = max(strength, 0.15)  # Minimum boost for causal relations
         
         return strength
     
@@ -799,13 +843,15 @@ class PropositionTrajectoryPlanner:
             
             prop = self.sample_proposition(query_basin, propositions)
             
-            # Check minimum coherence
-            if prop.coherence >= self.config.min_coherence:
+            # Check minimum coherence (using dynamic threshold)
+            if prop.coherence >= self._effective_min_coherence:
                 propositions.append(prop)
                 logger.info(f"[PropPlanner] Prop {len(propositions)}: "
-                          f"{prop.to_sentence()} (coh={prop.coherence:.3f})")
+                          f"{prop.to_sentence()} (coh={prop.coherence:.3f}, "
+                          f"thresh={self._effective_min_coherence:.3f})")
             else:
-                logger.debug(f"[PropPlanner] Rejected low coherence: {prop.coherence:.3f}")
+                logger.debug(f"[PropPlanner] Rejected: coherence {prop.coherence:.3f} < "
+                           f"threshold {self._effective_min_coherence:.3f}")
         
         # Compute response-level metrics
         if propositions:
