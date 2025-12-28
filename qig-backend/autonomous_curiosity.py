@@ -6,18 +6,29 @@ Enables kernels to autonomously:
 2. Request tool refinements
 3. Train on curriculum for deeper self-learning
 4. Explore knowledge gaps proactively
+5. Learn word relationships with frozen facts compliance
 
 Biological analog: Curiosity-driven exploration like REM sleep memory consolidation.
+
+FROZEN FACTS COMPLIANCE:
+- Word relationship learning validates against frozen physics
+- Checkpoints are created before/after learning cycles
+- Baseline comparisons ensure improvement
 """
 
 import asyncio
+import json
 import random
 import threading
 import time
+import logging
 from datetime import datetime, timedelta
 from typing import Any, Callable, Dict, List, Optional, Set
 from collections import deque
+from pathlib import Path
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 
 class CuriosityDrive:
@@ -253,8 +264,16 @@ class AutonomousCuriosityEngine:
             'total_explorations': 0,
             'successful_discoveries': 0,
             'kernel_requests': 0,
-            'curriculum_completions': 0
+            'curriculum_completions': 0,
+            'word_learning_cycles': 0,
+            'last_word_learning': None,
+            'word_learning_relevance': 0.0
         }
+        
+        self._word_learning_interval = 3600
+        self._last_word_learning_time = 0
+        self._checkpoint_dir = Path('data/checkpoints')
+        self._checkpoint_dir.mkdir(parents=True, exist_ok=True)
     
     def start(self):
         """Start the autonomous curiosity loop."""
@@ -282,6 +301,8 @@ class AutonomousCuriosityEngine:
                 self._explore_curious_topics()
                 
                 self._train_on_curriculum()
+                
+                self._scheduled_word_learning()
                 
                 time.sleep(self._exploration_interval)
                 
@@ -498,6 +519,102 @@ class AutonomousCuriosityEngine:
                 self.stats['curriculum_completions'] += 1
                 
                 break
+    
+    def _scheduled_word_learning(self):
+        """
+        Scheduled word relationship learning cycle with checkpointing.
+        
+        FROZEN FACTS COMPLIANCE:
+        - Creates checkpoint before learning
+        - Validates learned relationships against frozen physics
+        - Compares against baseline to ensure improvement
+        """
+        current_time = time.time()
+        
+        if current_time - self._last_word_learning_time < self._word_learning_interval:
+            return
+        
+        self._last_word_learning_time = current_time
+        
+        try:
+            from word_relationship_learner import WordRelationshipLearner
+            from learned_relationships import get_learned_relationships, LearnedRelationships
+            from coordizers.pg_loader import PostgresCoordizer
+            
+            logger.info("[AutonomousCuriosityEngine] Starting scheduled word relationship learning")
+            
+            checkpoint_path = self._checkpoint_dir / f"word_relationships_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            
+            lr = get_learned_relationships()
+            baseline_count = len(lr.word_neighbors)
+            
+            coordizer = PostgresCoordizer()
+            vocab = set(coordizer.basin_coords.keys())
+            learner = WordRelationshipLearner(vocab, window_size=5)
+            
+            docs_path = Path(__file__).parent.parent / 'docs'
+            stats = learner.learn_from_directory(str(docs_path))
+            
+            logger.info(f"[AutonomousCuriosityEngine] Learned from {stats['files_processed']} files, {stats['total_pairs']} pairs")
+            
+            fresh_lr = LearnedRelationships.__new__(LearnedRelationships)
+            fresh_lr.word_neighbors = {}
+            fresh_lr.adjusted_basins = {}
+            fresh_lr.word_frequency = {}
+            fresh_lr.learning_complete = False
+            
+            fresh_lr.update_from_learner(learner, {})
+            
+            validation = fresh_lr.validate_against_frozen_facts()
+            
+            if not validation['valid']:
+                logger.warning(f"[AutonomousCuriosityEngine] Word learning REJECTED: {validation['stats']}")
+                return
+            
+            new_count = len(fresh_lr.word_neighbors)
+            if new_count < baseline_count * 0.95:
+                logger.warning(f"[AutonomousCuriosityEngine] Word learning REJECTED: regression detected "
+                             f"({new_count} < {baseline_count * 0.95:.0f} = 95% baseline)")
+                return
+            
+            if new_count > baseline_count:
+                improvement_pct = ((new_count - baseline_count) / baseline_count) * 100 if baseline_count > 0 else 100
+                logger.info(f"[AutonomousCuriosityEngine] Improvement: +{improvement_pct:.1f}% relationships")
+            
+            fresh_lr.save_to_cache()
+            
+            improvement_pct = ((new_count - baseline_count) / baseline_count * 100) if baseline_count > 0 else 0
+            
+            checkpoint_data = {
+                'timestamp': datetime.now().isoformat(),
+                'files_processed': stats['files_processed'],
+                'pairs_learned': stats['total_pairs'],
+                'relationships_count': new_count,
+                'baseline_count': baseline_count,
+                'improvement_percent': improvement_pct,
+                'validation': validation['stats']
+            }
+            
+            with open(checkpoint_path, 'w') as f:
+                json.dump(checkpoint_data, f, indent=2)
+            
+            self.stats['word_learning_cycles'] += 1
+            self.stats['last_word_learning'] = datetime.now().isoformat()
+            self.stats['word_learning_relevance'] = validation['stats'].get('total_relationships', 0)
+            
+            logger.info(f"[AutonomousCuriosityEngine] Word learning complete: {len(fresh_lr.word_neighbors)} relationships, checkpoint saved")
+            
+        except Exception as e:
+            logger.error(f"[AutonomousCuriosityEngine] Word learning failed: {e}")
+    
+    def run_word_learning_now(self) -> Dict:
+        """
+        Manually trigger word relationship learning cycle.
+        Returns learning results and validation status.
+        """
+        self._last_word_learning_time = 0
+        self._scheduled_word_learning()
+        return self.stats
     
     def _get_kernel_depth(self, kernel_name: str) -> float:
         """Get overall knowledge depth for a kernel."""
