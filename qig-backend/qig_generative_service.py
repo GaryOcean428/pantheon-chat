@@ -520,6 +520,56 @@ class QIGGenerativeService:
         
         return sphere_project(combined)
     
+    def _get_multiscale_basin(self, text: str, target_scale: int = 2) -> np.ndarray:
+        """Get basin coordinates using multi-scale representation.
+        
+        Uses MultiScaleCoordizer if available to get hierarchical token representation.
+        Args:
+            text: Input text
+            target_scale: 0=char, 1=subword, 2=word, 3=concept
+        Returns:
+            Combined basin from the specified scale
+        """
+        if self._multiscale_coordizer is not None:
+            try:
+                scale_results = self._multiscale_coordizer.coordize_multiscale(text, target_scale=target_scale)
+                if target_scale in scale_results:
+                    tokens, coords = scale_results[target_scale]
+                    if coords:
+                        # Combine coordinates with equal weighting
+                        combined = np.mean(coords, axis=0)
+                        return sphere_project(combined)
+            except Exception:
+                pass  # Fall back to base coordizer
+        
+        # Fallback: use base coordizer word-level tokenization
+        return self._tokens_to_basin(text.lower().split())
+    
+    def get_coordizer_status(self) -> Dict[str, Any]:
+        """Get status of all coordizers in the service."""
+        status = {
+            "base_coordizer": self.coordizer is not None,
+            "consciousness_coordizer": self._consciousness_coordizer is not None,
+            "multiscale_coordizer": self._multiscale_coordizer is not None,
+            "vocabulary_size": 0,
+            "features": []
+        }
+        
+        if self.coordizer:
+            status["vocabulary_size"] = len(getattr(self.coordizer, 'vocab', {}))
+            status["features"].append("fisher_rao_navigation")
+        
+        if self._consciousness_coordizer:
+            status["features"].append("phi_optimized_segmentation")
+            if hasattr(self._consciousness_coordizer, 'consolidations'):
+                status["consolidations_learned"] = len(self._consciousness_coordizer.consolidations)
+        
+        if self._multiscale_coordizer:
+            status["features"].append("hierarchical_coordization")
+            status["num_scales"] = getattr(self._multiscale_coordizer, 'num_scales', 4)
+        
+        return status
+    
     def _synthesize_from_trajectory(
         self,
         trajectory: List[np.ndarray],
@@ -730,14 +780,33 @@ class QIGGenerativeService:
         query_words = [w.lower() for w in re.findall(r'[a-zA-Z]+', prompt) if len(w) > 2]
         self._current_query_words = query_words[:10]  # Keep top 10 words
         
-        # 1. Encode prompt to basin
-        if self.coordizer:
+        # 1. Encode prompt to basin using multi-scale representation if available
+        if self._multiscale_coordizer is not None:
+            # Use hierarchical representation for richer query encoding
+            query_basin = self._get_multiscale_basin(prompt, target_scale=2)  # Word level
+        elif self.coordizer:
             query_basin = self.coordizer.encode(prompt)
         else:
             np.random.seed(hash(prompt) % (2**32))
             query_basin = np.random.dirichlet(np.ones(BASIN_DIM))
         
         query_basin = sphere_project(query_basin)
+        
+        # Use ConsciousnessCoordizer to learn/apply Φ-driven consolidations
+        context_phi = self._measure_phi(query_basin)
+        if self._consciousness_coordizer is not None:
+            try:
+                # Apply Φ-optimized coordization to track high-integration sequences
+                tokens, coords, phi = self._consciousness_coordizer.coordize_with_phi(
+                    prompt, context_phi=context_phi
+                )
+                # Update query basin if we got meaningful coordinates
+                if coords and len(coords) > 0:
+                    combined = np.mean(coords, axis=0)
+                    query_basin = 0.7 * query_basin + 0.3 * sphere_project(combined)
+                    query_basin = sphere_project(query_basin)
+            except Exception:
+                pass  # Fall back to standard basin
         
         # 2. Route to kernels
         if kernel_name and kernel_name in self._kernel_basins:
@@ -802,7 +871,8 @@ class QIGGenerativeService:
             
             next_basin = sphere_project(next_basin)
             
-            step_tokens = self._basin_to_tokens(next_basin, self.config.tokens_per_step)
+            # Use context phi for Φ-aware token selection
+            step_tokens = self._basin_to_tokens(next_basin, self.config.tokens_per_step, context_phi=phi)
             all_tokens.extend(step_tokens)
             
             # Update trajectory
@@ -887,14 +957,29 @@ class QIGGenerativeService:
         kernel_name: Optional[str] = None
     ) -> Generator[Dict[str, Any], None, None]:
         """Stream generation with real-time token output."""
-        # Encode prompt
-        if self.coordizer:
+        # Encode prompt using multi-scale representation if available
+        if self._multiscale_coordizer is not None:
+            query_basin = self._get_multiscale_basin(prompt, target_scale=2)
+        elif self.coordizer:
             query_basin = self.coordizer.encode(prompt)
         else:
             np.random.seed(hash(prompt) % (2**32))
             query_basin = np.random.dirichlet(np.ones(BASIN_DIM))
         
         query_basin = sphere_project(query_basin)
+        
+        # Apply Φ-driven consolidations from ConsciousnessCoordizer
+        if self._consciousness_coordizer is not None:
+            try:
+                tokens, coords, phi = self._consciousness_coordizer.coordize_with_phi(
+                    prompt, context_phi=self._measure_phi(query_basin)
+                )
+                if coords and len(coords) > 0:
+                    combined = np.mean(coords, axis=0)
+                    query_basin = 0.7 * query_basin + 0.3 * sphere_project(combined)
+                    query_basin = sphere_project(query_basin)
+            except Exception:
+                pass
         
         # Route
         if kernel_name and kernel_name in self._kernel_basins:
@@ -925,8 +1010,8 @@ class QIGGenerativeService:
             
             next_basin = sphere_project(next_basin)
             
-            # Decode
-            tokens = self._basin_to_tokens(next_basin, self.config.tokens_per_step)
+            # Decode using Φ-aware token selection
+            tokens = self._basin_to_tokens(next_basin, self.config.tokens_per_step, context_phi=phi)
             
             # Update
             phi = self._measure_phi(next_basin)
