@@ -1649,7 +1649,7 @@ router.get('/kernels', isAuthenticated, async (req, res) => {
       kernel_id: k.kernelId,
       god_name: k.godName,
       domain: k.domain,
-      status: (k as StoredKernel).status || 'idle',
+      status: k.observationStatus || 'observing',
       primitive_root: k.primitiveRoot,
       basin_coordinates: k.basinCoordinates,
       parent_kernels: k.parentKernels || [],
