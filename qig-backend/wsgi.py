@@ -210,6 +210,37 @@ except ImportError as e:
 except Exception as e:
     print(f"[WARNING] Vocabulary API initialization failed: {e}")
 
+# Register Search Budget routes
+SEARCH_BUDGET_AVAILABLE = False
+try:
+    from routes.search_budget_routes import register_search_budget_routes
+    register_search_budget_routes(app)
+    SEARCH_BUDGET_AVAILABLE = True
+    print("[INFO] Search Budget routes registered at /api/search/budget/*")
+except ImportError as e:
+    print(f"[WARNING] Search Budget routes not available: {e}")
+except Exception as e:
+    print(f"[WARNING] Search Budget routes initialization failed: {e}")
+
+# Register Fleet Telemetry endpoint
+try:
+    from capability_telemetry import CapabilityTelemetryTracker
+    _telemetry_tracker = CapabilityTelemetryTracker()
+    
+    @app.route('/api/telemetry/fleet', methods=['GET'])
+    def get_fleet_telemetry():
+        """Get fleet telemetry across all kernels."""
+        from flask import jsonify
+        try:
+            data = _telemetry_tracker.get_fleet_telemetry()
+            return jsonify(data)
+        except Exception as e:
+            return jsonify({"error": str(e), "kernels": 0}), 500
+    
+    print("[INFO] Fleet telemetry endpoint registered at /api/telemetry/fleet")
+except Exception as e:
+    print(f"[WARNING] Fleet telemetry endpoint not available: {e}")
+
 # Add request/response logging for production
 from flask import request, g
 import time

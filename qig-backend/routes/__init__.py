@@ -49,6 +49,26 @@ def register_all_routes(app):
         except Exception as e:
             print(f"[WARN] Failed to register search_budget_routes: {e}")
     
+    # Register fleet telemetry endpoint
+    try:
+        from capability_telemetry import CapabilityTelemetryRegistry
+        from flask import jsonify
+        _telemetry_registry = CapabilityTelemetryRegistry()
+        
+        @app.route('/api/telemetry/fleet', methods=['GET'])
+        def get_fleet_telemetry():
+            """Get fleet telemetry across all kernels."""
+            try:
+                data = _telemetry_registry.get_fleet_telemetry()
+                return jsonify(data)
+            except Exception as e:
+                return jsonify({"error": str(e), "kernels": 0}), 500
+        
+        count += 1
+        print("[INFO] Fleet telemetry endpoint registered at /api/telemetry/fleet")
+    except Exception as e:
+        print(f"[WARN] Failed to register fleet telemetry: {e}")
+    
     return count
 
 
