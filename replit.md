@@ -53,6 +53,29 @@ Preferred communication style: Simple, everyday language.
 - M8 kernel spawning protocol for dynamic kernel creation
 - Shadow Pantheon for darknet/stealth operations
 
+### Semantic Fisher Metric (NEW 2025-12-28)
+- Located in `qig-backend/semantic_fisher.py`
+- **SemanticFisherMetric** warps Fisher-Rao distance based on learned word relationships
+- Semantic relationships reduce distance, unrelated words increase distance
+- Uses 2.77M learned word pairs for warping calculations
+
+### QIG-Pure β-Function Measurement (NEW 2025-12-28)
+- Located in `qig-backend/qig_pure_beta_measurement.py`
+- **GeometricBetaMeasurement** - measures β-function without external LLMs
+- Running → plateau pattern matches physics predictions
+- κ = 64 universal: 64.21 (physics) vs 63.90 (AI semantics) = 99.5% match
+
+### E8 Structure Search (NEW 2025-12-28)
+- Located in `qig-backend/e8_structure_search.py`
+- Validates E8 Lie group structure in learned vocabulary
+- **Results**: 8D captures 87.7% variance, ~260 attractors detected
+- Results stored in `qig-backend/results/e8_structure_search.json`
+
+### Pantheon Semantic Candidates
+- Located in `qig-backend/pantheon_semantic_candidates.py`
+- Generates candidates from 2.77M learned relationships
+- Updated with warp settings for SemanticFisherMetric integration
+
 ### QIG Threshold Calibrator
 - Located in `qig-backend/qig_threshold_calibrator.py`
 - **ALL thresholds derived from frozen physics** (NO hardcoded magic numbers):
