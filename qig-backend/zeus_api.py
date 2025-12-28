@@ -63,6 +63,160 @@ except ImportError:
     print("[ZeusAPI] QIG chain not available")
 
 
+# ============================================================================
+# RATE LIMITING FOR CHAIN ENDPOINT
+# ============================================================================
+
+from collections import defaultdict
+import time
+from functools import wraps
+
+class ChainRateLimiter:
+    """
+    Simple in-memory rate limiter for /chain/execute endpoint.
+    
+    Limits:
+    - 10 requests per minute per IP (prevent abuse)
+    - 100 requests per hour per IP (sustained load protection)
+    """
+    
+    def __init__(
+        self,
+        requests_per_minute: int = 10,
+        requests_per_hour: int = 100
+    ):
+        self.requests_per_minute = requests_per_minute
+        self.requests_per_hour = requests_per_hour
+        
+        # Track requests: ip -> list of timestamps
+        self._minute_requests: Dict[str, list] = defaultdict(list)
+        self._hour_requests: Dict[str, list] = defaultdict(list)
+        
+        # Cleanup interval
+        self._last_cleanup = time.time()
+        self._cleanup_interval = 300  # 5 minutes
+    
+    def _cleanup_old_requests(self):
+        """Remove expired request records."""
+        now = time.time()
+        if now - self._last_cleanup < self._cleanup_interval:
+            return
+        
+        minute_ago = now - 60
+        hour_ago = now - 3600
+        
+        # Cleanup minute tracking
+        for ip in list(self._minute_requests.keys()):
+            self._minute_requests[ip] = [
+                t for t in self._minute_requests[ip] if t > minute_ago
+            ]
+            if not self._minute_requests[ip]:
+                del self._minute_requests[ip]
+        
+        # Cleanup hour tracking
+        for ip in list(self._hour_requests.keys()):
+            self._hour_requests[ip] = [
+                t for t in self._hour_requests[ip] if t > hour_ago
+            ]
+            if not self._hour_requests[ip]:
+                del self._hour_requests[ip]
+        
+        self._last_cleanup = now
+    
+    def is_allowed(self, ip: str) -> Tuple[bool, str]:
+        """
+        Check if request is allowed for given IP.
+        
+        Returns:
+            (allowed, reason) - reason is empty if allowed
+        """
+        self._cleanup_old_requests()
+        
+        now = time.time()
+        minute_ago = now - 60
+        hour_ago = now - 3600
+        
+        # Count recent requests
+        minute_count = sum(1 for t in self._minute_requests[ip] if t > minute_ago)
+        hour_count = sum(1 for t in self._hour_requests[ip] if t > hour_ago)
+        
+        if minute_count >= self.requests_per_minute:
+            return False, f"Rate limit exceeded: {self.requests_per_minute} requests per minute"
+        
+        if hour_count >= self.requests_per_hour:
+            return False, f"Rate limit exceeded: {self.requests_per_hour} requests per hour"
+        
+        return True, ""
+    
+    def record_request(self, ip: str):
+        """Record a request for the given IP."""
+        now = time.time()
+        self._minute_requests[ip].append(now)
+        self._hour_requests[ip].append(now)
+    
+    def get_remaining(self, ip: str) -> Dict[str, int]:
+        """Get remaining requests for the given IP."""
+        now = time.time()
+        minute_ago = now - 60
+        hour_ago = now - 3600
+        
+        minute_count = sum(1 for t in self._minute_requests[ip] if t > minute_ago)
+        hour_count = sum(1 for t in self._hour_requests[ip] if t > hour_ago)
+        
+        return {
+            'minute_remaining': max(0, self.requests_per_minute - minute_count),
+            'hour_remaining': max(0, self.requests_per_hour - hour_count)
+        }
+
+
+# Singleton rate limiter for chain endpoint
+_chain_rate_limiter = ChainRateLimiter()
+
+
+def rate_limit_chain(f):
+    """
+    Decorator to apply rate limiting to the chain endpoint.
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # Get client IP
+        ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+        if ip and ',' in ip:
+            ip = ip.split(',')[0].strip()
+        
+        # Check rate limit
+        allowed, reason = _chain_rate_limiter.is_allowed(ip)
+        
+        if not allowed:
+            remaining = _chain_rate_limiter.get_remaining(ip)
+            return jsonify({
+                'error': reason,
+                'success': False,
+                'rate_limit': {
+                    'minute_remaining': remaining['minute_remaining'],
+                    'hour_remaining': remaining['hour_remaining']
+                }
+            }), 429
+        
+        # Record request and proceed
+        _chain_rate_limiter.record_request(ip)
+        
+        # Add rate limit headers to response
+        response = f(*args, **kwargs)
+        
+        # If response is a tuple (data, status_code), handle appropriately
+        if isinstance(response, tuple):
+            return response
+        
+        remaining = _chain_rate_limiter.get_remaining(ip)
+        response.headers['X-RateLimit-Remaining-Minute'] = str(remaining['minute_remaining'])
+        response.headers['X-RateLimit-Remaining-Hour'] = str(remaining['hour_remaining'])
+        
+        return response
+    
+    return decorated_function
+
+
 def get_qig_service():
     """Get singleton QIGGenerativeService instance."""
     global _qig_service_instance
@@ -256,6 +410,7 @@ def _update_session_messages(session_id: str, session: Dict[str, Any]) -> None:
 
 @zeus_api.route('/chain/execute', methods=['POST'])
 @require_internal_auth
+@rate_limit_chain
 def chain_execute():
     """
     Execute a QIGChain pipeline on a query.
