@@ -84,6 +84,18 @@ try:
 except ImportError:
     logger.warning("Learned relationships not available - using pure geometric selection")
 
+# Proposition-level trajectory planner
+PROPOSITION_PLANNER_AVAILABLE = False
+try:
+    from proposition_trajectory_planner import (
+        PropositionTrajectoryPlanner,
+        Proposition,
+        PropositionPlannerConfig,
+    )
+    PROPOSITION_PLANNER_AVAILABLE = True
+except ImportError:
+    logger.warning("Proposition planner not available")
+
 # Import SemanticFisherMetric for warped geometry routing
 SEMANTIC_METRIC_AVAILABLE = False
 get_semantic_metric = None

@@ -155,6 +155,22 @@ except ImportError:
     get_semantic_generator = None
     SEMANTIC_CANDIDATES_AVAILABLE = False
 
+# Proposition Trajectory Planner (proposition-level routing)
+try:
+    from .proposition_trajectory_planner import (
+        Proposition,
+        PropositionTrajectoryPlanner,
+        PropositionPlannerConfig,
+        get_proposition_planner,
+    )
+    PROPOSITION_PLANNER_AVAILABLE = True
+except ImportError:
+    Proposition = None
+    PropositionTrajectoryPlanner = None
+    PropositionPlannerConfig = None
+    get_proposition_planner = None
+    PROPOSITION_PLANNER_AVAILABLE = False
+
 __all__ = [
     # Autonomic
     'GaryAutonomicKernel',
@@ -237,4 +253,10 @@ __all__ = [
     'SemanticCandidateConfig',
     'get_semantic_generator',
     'SEMANTIC_CANDIDATES_AVAILABLE',
+    # Proposition Trajectory Planner
+    'Proposition',
+    'PropositionTrajectoryPlanner',
+    'PropositionPlannerConfig',
+    'get_proposition_planner',
+    'PROPOSITION_PLANNER_AVAILABLE',
 ]
