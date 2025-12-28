@@ -1,0 +1,31 @@
+[
+  {
+    "timestamp": "2025-12-28T03:57:02.043291",
+    "type": "curriculum",
+    "filename": "test_quantum_doc.md",
+    "stored_as": "20251228_035702_test_quantum_doc_f0dc86bd546dbcb1.md",
+    "checksum": "f0dc86bd546dbcb1",
+    "size": 243,
+    "metadata": {}
+  },
+  {
+    "timestamp": "2025-12-28T03:57:02.047453",
+    "type": "chat_rag",
+    "filename": "chat_doc.md",
+    "cached_as": "chat_20251228_035702_f0dc86bd546dbcb1.txt",
+    "checksum": "f0dc86bd546dbcb1",
+    "size": 243,
+    "session_id": null,
+    "added_to_curriculum": false
+  },
+  {
+    "timestamp": "2025-12-28T03:57:02.050808",
+    "type": "chat_rag",
+    "filename": "chat_and_learn.md",
+    "cached_as": "chat_20251228_035702_f0dc86bd546dbcb1.txt",
+    "checksum": "f0dc86bd546dbcb1",
+    "size": 243,
+    "session_id": null,
+    "added_to_curriculum": true
+  }
+]
