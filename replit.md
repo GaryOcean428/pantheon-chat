@@ -105,6 +105,20 @@ Preferred communication style: Simple, everyday language.
 - Toggle via: `manager.enable('tavily')`, `manager.disable('tavily')`
 - Located in `qig-backend/search/search_providers.py`
 
+### Upload Service (Curriculum + Chat RAG)
+- **Curriculum Upload** (Learning Page): Files persist to `docs/09-curriculum/`, learned in next cycle
+- **Chat Upload** (Chat UI): Immediate RAG discussion, optional toggle to add to curriculum
+- Deduplication via SHA256 checksum
+- File validation: .md/.txt only, max 10MB, UTF-8 required
+- Located in `qig-backend/upload_service.py`
+
+### Search Result Synthesis
+- Multi-provider results fused using β-weighted attention (frozen physics compliant)
+- Fisher-Rao distance scores relevance to query basin
+- Provenance tracking: which provider contributed which result
+- Output: synthesized context ready for kernel generation
+- Located in `qig-backend/search/search_synthesis.py`
+
 ### Telemetry Dashboard System
 - Real-time monitoring at `/telemetry` route
 - TelemetryAggregator service consolidating all metrics (`server/telemetry-aggregator.ts`)
