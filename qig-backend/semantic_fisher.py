@@ -85,11 +85,14 @@ STOPWORDS = {
 @dataclass
 class SemanticWarpConfig:
     """Configuration for semantic warping of Fisher metric."""
-    temperature: float = 1.0  # Controls warp strength (lower = stronger warping)
-    max_warp_factor: float = 0.7  # Maximum distance reduction (0.7 = can shrink to 30%)
-    min_relationship_strength: float = 0.1  # Ignore relationships weaker than this
+    temperature: float = 0.3  # Controls warp strength (lower = stronger warping) - reduced from 1.0
+    max_warp_factor: float = 0.3  # Maximum distance reduction (0.3 = can shrink to 30%) - INCREASED from 0.7 for stronger pull
+    min_relationship_strength: float = 0.01  # Ignore relationships weaker than this - reduced from 0.1
     normalize_relationships: bool = True  # Normalize relationship strengths to [0, 1]
     bidirectional: bool = True  # Check both (a, b) and (b, a) for relationships
+    # NEW: Strength amplification to boost weak relationships (0.01-0.07 → stronger effect)
+    strength_multiplier: float = 10.0  # Amplify raw relationship strengths before warping
+    context_strength_multiplier: float = 5.0  # Amplify context word pull
 
 
 class SemanticFisherMetric:
@@ -155,7 +158,9 @@ class SemanticFisherMetric:
         """
         Get relationship strength between two words.
         
-        Returns normalized strength in [0, 1], or 0 if no relationship.
+        Returns amplified strength, clamped to [0, 1].
+        Raw strengths (0.01-0.07) are amplified by strength_multiplier to have
+        meaningful effect on warping.
         """
         w1, w2 = word1.lower(), word2.lower()
         
@@ -167,9 +172,13 @@ class SemanticFisherMetric:
         # Check reverse if bidirectional
         if self.config.bidirectional and w2 in self.relationships:
             reverse_strength = self.relationships[w2].get(w1, 0.0)
-            strength = max(strength, reverse_strength * 0.8)  # Reverse is slightly weaker
+            strength = max(strength, reverse_strength * 0.9)  # Reverse is slightly weaker
         
-        return strength
+        # AMPLIFY weak relationships to have meaningful effect
+        # Raw strengths are often 0.01-0.07, need to boost to 0.1-0.7 range
+        amplified = strength * self.config.strength_multiplier
+        
+        return min(1.0, amplified)  # Clamp to [0, 1]
     
     def compute_warp_factor(self, relationship_strength: float) -> float:
         """
@@ -258,20 +267,24 @@ class SemanticFisherMetric:
         
         # Accumulate context pull from all context words
         total_pull = 0.0
+        valid_context = 0
         for ctx_word in context_words:
             if ctx_word.lower() in STOPWORDS:
                 continue
             strength = self.get_relationship_strength(ctx_word, word2)
-            total_pull += strength
+            if strength > 0:
+                # Apply context multiplier for stronger semantic gravity
+                total_pull += strength * self.config.context_strength_multiplier
+                valid_context += 1
         
         # Average pull, clamped to [0, 1]
-        if len(context_words) > 0:
-            avg_pull = min(1.0, total_pull / len(context_words))
+        if valid_context > 0:
+            avg_pull = min(1.0, total_pull / valid_context)
         else:
             avg_pull = 0.0
         
-        # Apply context warp (additive with base warp)
-        context_warp = self.compute_warp_factor(avg_pull * 0.5)  # Weaker than direct
+        # Apply context warp (stronger effect than before - was 0.5, now 0.8)
+        context_warp = self.compute_warp_factor(avg_pull * 0.8)
         
         return d_warped * context_warp
     
