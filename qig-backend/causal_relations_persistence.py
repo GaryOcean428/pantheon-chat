@@ -17,6 +17,7 @@ from typing import Dict, List, Optional, Tuple, Any
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -109,6 +110,12 @@ class CausalRelationsPersistence:
                 self._redis = None
         
         self._initialized = True
+        
+        # Recover any relations from disk fallback (from previous outages)
+        if self._db_conn:
+            recovered = self.recover_from_disk_fallback()
+            if recovered > 0:
+                logger.info(f"[CausalPersistence] Recovered {recovered} relations from disk fallback")
     
     def _ensure_tables(self):
         """Ensure causal_relations table exists."""
@@ -268,14 +275,17 @@ class CausalRelationsPersistence:
         if not relations:
             return 0
         
+        # Always update in-memory cache first (for immediate availability)
+        for source, target, rel_type, count in relations:
+            if source not in self._cache:
+                self._cache[source] = {}
+            if target not in self._cache[source]:
+                self._cache[source][target] = {'type': rel_type, 'count': 0, 'confidence': 0.5}
+            self._cache[source][target]['count'] += count
+        
         if not self._db_conn:
-            # Fallback to in-memory
-            for source, target, rel_type, count in relations:
-                if source not in self._cache:
-                    self._cache[source] = {}
-                if target not in self._cache[source]:
-                    self._cache[source][target] = {'type': rel_type, 'count': 0, 'confidence': 0.5}
-                self._cache[source][target]['count'] += count
+            # DB unavailable - persist to disk fallback for durability
+            self._persist_to_disk_fallback()
             return len(relations)
         
         try:
@@ -297,12 +307,8 @@ class CausalRelationsPersistence:
             self._db_conn.commit()
             cursor.close()
             
-            # Invalidate Redis cache
-            if self._redis:
-                try:
-                    self._redis.delete(CAUSAL_CACHE_KEY)
-                except Exception:
-                    pass
+            # Refresh Redis cache with latest data from DB
+            self._refresh_redis_from_db()
             
             logger.info(f"[CausalPersistence] Batch saved {len(relations)} relations")
             return len(relations)
@@ -310,6 +316,94 @@ class CausalRelationsPersistence:
         except Exception as e:
             logger.error(f"[CausalPersistence] Batch save failed: {e}")
             self._db_conn.rollback()
+            # Persist to disk fallback for durability
+            self._persist_to_disk_fallback()
+            return 0
+    
+    def _refresh_redis_from_db(self):
+        """Refresh Redis cache with latest data from PostgreSQL."""
+        if not self._redis or not self._db_conn:
+            return
+        
+        try:
+            cursor = self._db_conn.cursor(cursor_factory=RealDictCursor)
+            cursor.execute("""
+                SELECT source_word, target_word, relation_type, 
+                       occurrence_count, confidence
+                FROM causal_relations
+                ORDER BY occurrence_count DESC
+            """)
+            rows = cursor.fetchall()
+            cursor.close()
+            
+            # Build nested dict
+            result: Dict[str, Dict[str, Dict]] = {}
+            for row in rows:
+                source = row['source_word']
+                target = row['target_word']
+                if source not in result:
+                    result[source] = {}
+                result[source][target] = {
+                    'type': row['relation_type'],
+                    'count': row['occurrence_count'],
+                    'confidence': row['confidence']
+                }
+            
+            # Update Redis cache
+            if result:
+                self._redis.setex(CAUSAL_CACHE_KEY, CACHE_TTL, json.dumps(result))
+                logger.info(f"[CausalPersistence] Redis cache refreshed with {len(result)} sources")
+        except Exception as e:
+            logger.warning(f"[CausalPersistence] Redis refresh failed: {e}")
+    
+    def _persist_to_disk_fallback(self):
+        """Persist in-memory cache to disk as durability fallback."""
+        if not self._cache:
+            return
+        
+        try:
+            fallback_path = Path(__file__).parent / 'data' / 'learned' / 'causal_fallback.json'
+            fallback_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            with open(fallback_path, 'w') as f:
+                json.dump(self._cache, f)
+            
+            logger.info(f"[CausalPersistence] Persisted {len(self._cache)} sources to disk fallback")
+        except Exception as e:
+            logger.error(f"[CausalPersistence] Disk fallback failed: {e}")
+    
+    def recover_from_disk_fallback(self) -> int:
+        """Recover relations from disk fallback and migrate to DB."""
+        fallback_path = Path(__file__).parent / 'data' / 'learned' / 'causal_fallback.json'
+        if not fallback_path.exists():
+            return 0
+        
+        try:
+            with open(fallback_path, 'r') as f:
+                data = json.load(f)
+            
+            if not data:
+                return 0
+            
+            # Build relations list
+            relations = []
+            for source, targets in data.items():
+                for target, info in targets.items():
+                    rel_type = info.get('type', 'unknown')
+                    count = info.get('count', 1)
+                    relations.append((source, target, rel_type, count))
+            
+            if relations and self._db_conn:
+                saved = self.save_batch(relations, curriculum='disk_recovery')
+                if saved > 0:
+                    # Remove fallback file after successful recovery
+                    fallback_path.unlink()
+                    logger.info(f"[CausalPersistence] Recovered {saved} relations from disk fallback")
+                return saved
+            
+            return 0
+        except Exception as e:
+            logger.error(f"[CausalPersistence] Disk recovery failed: {e}")
             return 0
     
     def get_relations_for_source(self, source: str) -> Dict[str, Dict]:

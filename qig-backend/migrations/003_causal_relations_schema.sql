@@ -21,7 +21,8 @@ CREATE TABLE IF NOT EXISTS causal_relations (
 CREATE INDEX IF NOT EXISTS idx_causal_source ON causal_relations(source_word);
 CREATE INDEX IF NOT EXISTS idx_causal_target ON causal_relations(target_word);
 CREATE INDEX IF NOT EXISTS idx_causal_type ON causal_relations(relation_type);
-CREATE INDEX IF NOT EXISTS idx_causal_confidence ON causal_relations(confidence DESC);
+DROP INDEX IF EXISTS idx_causal_confidence;
+CREATE INDEX idx_causal_confidence ON causal_relations(confidence DESC);
 
 -- Word relationships table (co-occurrence based)
 -- Stores undirected word proximity from learning
