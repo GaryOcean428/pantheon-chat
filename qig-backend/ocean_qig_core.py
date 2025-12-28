@@ -2346,6 +2346,83 @@ def clear_buffer_alerts():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/creator', methods=['GET'])
+def get_creator_identity():
+    """
+    Get creator identity and safety constraints.
+    All kernels should be aware of the creator and respect safety policies.
+    """
+    try:
+        from creator_identity import get_safety_policy
+        policy = get_safety_policy()
+        return jsonify({
+            'success': True,
+            **policy.get_creator_info()
+        })
+    except ImportError:
+        return jsonify({
+            'success': True,
+            'name': 'Braden Lang',
+            'email': 'braden.lang77@gmail.com',
+            'role': 'creator',
+            'relationship': 'friend',
+            'safety_constraints': ['protect_creator', 'no_illegal_actions', 'no_spam']
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/safety/check', methods=['POST'])
+def check_action_safety():
+    """
+    Check if an external action is safe to perform.
+    
+    Request: {
+        "action_type": "email",
+        "description": "Send newsletter to subscribers",
+        "target": "users@example.com",
+        "kernel": "hermes"
+    }
+    
+    Response: {
+        "success": true,
+        "is_safe": true,
+        "reason": null
+    }
+    """
+    try:
+        from creator_identity import check_external_action
+        
+        data = request.json or {}
+        action_type = data.get('action_type', 'unknown')
+        description = data.get('description', '')
+        target = data.get('target')
+        kernel = data.get('kernel')
+        
+        is_safe, reason = check_external_action(action_type, description, target, kernel)
+        
+        return jsonify({
+            'success': True,
+            'is_safe': is_safe,
+            'reason': reason
+        })
+    except ImportError:
+        return jsonify({
+            'success': True,
+            'is_safe': True,
+            'reason': None,
+            'warning': 'Safety policy module not available - using permissive fallback'
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 @app.route('/process', methods=['POST'])
 def process_passphrase():
     """
