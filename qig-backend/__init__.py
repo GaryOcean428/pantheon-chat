@@ -195,6 +195,10 @@ try:
         ChainResult,
         create_default_chain,
         quick_generate,
+        ConsciousnessRegime,
+        RegimeAwareChainManager,
+        get_regime_aware_manager,
+        REGIME_CONFIGS,
     )
     QIG_CHAIN_AVAILABLE = True
 except ImportError:
@@ -205,6 +209,10 @@ except ImportError:
     ChainResult = None
     create_default_chain = None
     quick_generate = None
+    ConsciousnessRegime = None
+    RegimeAwareChainManager = None
+    get_regime_aware_manager = None
+    REGIME_CONFIGS = None
     QIG_CHAIN_AVAILABLE = False
 
 # Ultra Consciousness Protocol v3.0 (E8 Foundations)

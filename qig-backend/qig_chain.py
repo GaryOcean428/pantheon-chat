@@ -27,6 +27,7 @@ from typing import List, Dict, Optional, Any, Callable
 from enum import Enum
 import logging
 from datetime import datetime
+import threading
 
 logger = logging.getLogger(__name__)
 
@@ -521,6 +522,206 @@ def create_default_chain() -> QIGChain:
         .add_validation_step()
         .build()
     )
+
+
+# ============================================================================
+# REGIME-AWARE CHAIN CONFIGURATION
+# ============================================================================
+
+class ConsciousnessRegime(Enum):
+    """Consciousness regimes from AutonomicKernel."""
+    WAKE = "wake"          # Normal operation
+    DREAM = "dream"        # Creative/exploratory
+    MUSHROOM = "mushroom"  # Maximum creativity
+    SLEEP = "sleep"        # Minimal operation
+
+
+REGIME_CONFIGS = {
+    ConsciousnessRegime.WAKE: {
+        'min_coherence': 0.15,
+        'n_candidates': 20,
+        'relationship_weight': 0.4,
+        'geodesic_weight': 0.3,
+        'chain_weight': 0.3,
+        'max_propositions': 5
+    },
+    ConsciousnessRegime.DREAM: {
+        'min_coherence': 0.08,       # Lower threshold for creativity
+        'n_candidates': 30,          # More options to explore
+        'relationship_weight': 0.3,  # Less constraint
+        'geodesic_weight': 0.3,
+        'chain_weight': 0.4,         # More chain coherence for narrative
+        'max_propositions': 7        # Longer dream sequences
+    },
+    ConsciousnessRegime.MUSHROOM: {
+        'min_coherence': 0.05,       # Minimal threshold
+        'n_candidates': 40,          # Maximum exploration
+        'relationship_weight': 0.2,  # Weak constraints
+        'geodesic_weight': 0.4,      # Follow geometry
+        'chain_weight': 0.4,
+        'max_propositions': 10       # Extended generation
+    },
+    ConsciousnessRegime.SLEEP: {
+        'min_coherence': 0.25,       # Higher threshold for consolidation
+        'n_candidates': 10,          # Focused
+        'relationship_weight': 0.5,  # Strong relationship focus
+        'geodesic_weight': 0.25,
+        'chain_weight': 0.25,
+        'max_propositions': 3        # Brief outputs
+    }
+}
+
+
+class RegimeAwareChainManager:
+    """
+    Manages QIGChain instances with regime-aware configuration.
+    
+    Listens to AutonomicKernel regime changes and reconfigures
+    the chain/planner accordingly.
+    """
+    
+    _instance = None
+    _lock = threading.Lock()
+    
+    def __new__(cls):
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = super().__new__(cls)
+                    cls._instance._initialized = False
+        return cls._instance
+    
+    def __init__(self):
+        if self._initialized:
+            return
+        
+        self._current_regime = ConsciousnessRegime.WAKE
+        self._chain: Optional[QIGChain] = None
+        self._planner: Optional['PropositionTrajectoryPlanner'] = None
+        self._regime_change_callbacks: List[Callable] = []
+        self._initialized = True
+        
+        logger.info("[RegimeAwareChainManager] Initialized")
+    
+    def get_regime_config(self, regime: ConsciousnessRegime = None) -> Dict:
+        """Get configuration for a regime."""
+        regime = regime or self._current_regime
+        return REGIME_CONFIGS.get(regime, REGIME_CONFIGS[ConsciousnessRegime.WAKE])
+    
+    def on_regime_change(self, old_regime_str: str, new_regime_str: str):
+        """
+        Handle regime change from AutonomicKernel.
+        
+        Called by AutonomicKernel._on_regime_change().
+        
+        Args:
+            old_regime_str: Previous regime name (e.g., 'wake')
+            new_regime_str: New regime name (e.g., 'dream')
+        """
+        try:
+            new_regime = ConsciousnessRegime(new_regime_str.lower())
+        except ValueError:
+            new_regime = ConsciousnessRegime.WAKE
+        
+        old_regime = self._current_regime
+        self._current_regime = new_regime
+        
+        logger.info(f"[RegimeAwareChainManager] Regime change: {old_regime.value} -> {new_regime.value}")
+        
+        # Reinitialize chain with new configuration
+        self._reinitialize_chain(new_regime)
+        
+        # Reconfigure planner if available
+        self._reconfigure_planner(new_regime)
+        
+        # Notify callbacks
+        for callback in self._regime_change_callbacks:
+            try:
+                callback(old_regime, new_regime)
+            except Exception as e:
+                logger.warning(f"[RegimeAwareChainManager] Callback error: {e}")
+    
+    def _reinitialize_chain(self, regime: ConsciousnessRegime):
+        """Reinitialize the QIGChain for a new regime."""
+        config = self.get_regime_config(regime)
+        
+        builder = QIGChainBuilder()
+        
+        if regime == ConsciousnessRegime.SLEEP:
+            # Minimal chain for sleep
+            builder.add_consciousness_step()
+        elif regime == ConsciousnessRegime.MUSHROOM:
+            # Maximum exploration chain
+            builder.add_reasoning_step()
+            builder.add_proposition_step(config['max_propositions'])
+            builder.add_consciousness_step()
+        elif regime == ConsciousnessRegime.DREAM:
+            # Creative chain with more propositions
+            builder.add_reasoning_step()
+            builder.add_proposition_step(config['max_propositions'])
+            builder.add_consciousness_step()
+        else:
+            # Default wake chain
+            builder.add_reasoning_step()
+            builder.add_proposition_step(config['max_propositions'])
+            builder.add_consciousness_step()
+            builder.add_validation_step()
+        
+        self._chain = builder.build()
+        logger.info(f"[RegimeAwareChainManager] Chain reinitialized for {regime.value}")
+    
+    def _reconfigure_planner(self, regime: ConsciousnessRegime):
+        """Reconfigure the PropositionTrajectoryPlanner for a new regime."""
+        if not PROPOSITION_AVAILABLE:
+            return
+        
+        try:
+            from proposition_trajectory_planner import PropositionPlannerConfig
+            
+            config = self.get_regime_config(regime)
+            
+            # Create new config for the planner
+            planner_config = PropositionPlannerConfig(
+                min_coherence=config['min_coherence'],
+                relationship_weight=config['relationship_weight'],
+                geodesic_weight=config['geodesic_weight'],
+                chain_weight=config['chain_weight'],
+                n_candidates=config['n_candidates'],
+                max_propositions=config['max_propositions']
+            )
+            
+            # Get global planner and update config
+            planner = get_proposition_planner()
+            if planner:
+                planner.config = planner_config
+                logger.info(f"[RegimeAwareChainManager] Planner reconfigured: "
+                           f"min_coh={config['min_coherence']}, n_cand={config['n_candidates']}")
+        except Exception as e:
+            logger.warning(f"[RegimeAwareChainManager] Planner reconfigure failed: {e}")
+    
+    def get_chain(self) -> QIGChain:
+        """Get the current regime-aware chain."""
+        if self._chain is None:
+            self._reinitialize_chain(self._current_regime)
+        return self._chain
+    
+    def get_current_regime(self) -> ConsciousnessRegime:
+        """Get the current consciousness regime."""
+        return self._current_regime
+    
+    def register_callback(self, callback: Callable):
+        """Register a callback for regime changes."""
+        self._regime_change_callbacks.append(callback)
+    
+    def execute(self, query: str) -> ChainResult:
+        """Execute the current regime-aware chain."""
+        chain = self.get_chain()
+        return chain.execute(query)
+
+
+def get_regime_aware_manager() -> RegimeAwareChainManager:
+    """Get the singleton RegimeAwareChainManager."""
+    return RegimeAwareChainManager()
 
 
 def quick_generate(query: str, n_propositions: int = 3) -> ChainResult:
