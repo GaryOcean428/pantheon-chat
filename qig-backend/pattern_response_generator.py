@@ -169,13 +169,23 @@ class PatternResponseGenerator:
         exclude_patterns = [
             'dist/', 'dist\\', 'Backend:', 'Frontend:', 
             '```', 'npm ', 'yarn ', 'pip ', 
-            '.json', '.yaml', '.yml', '.ts', '.tsx', '.py',
+            '.json', '.yaml', '.yml', '.ts', '.tsx', '.py', '.md',
             'mkdir', 'chmod', 'export ', 'ENV ',
             'PORT=', 'HOST=', 'URL=',
+            'File:', 'api-documentation', 'external-api',
+            '**', '`', '20251', '20252',
+            'technical/', 'procedures/', 'docs/',
+            'curl ', 'wget ', 'POST /', 'GET /',
+            '│', '├', '└', '┌', '┐', '┘', '─', '▼', '▲',
+            '##', '###', 'ATTENTION', 'MECHANISMS',
         ]
         for pattern in exclude_patterns:
-            if pattern in content[:200] or pattern in header:
+            if pattern in content[:300] or pattern in header:
                 return True
+        
+        doc_id = metadata.get('doc_id', '')
+        if any(x in doc_id.lower() for x in ['docs', 'api', 'readme', 'guide', 'procedure']):
+            return True
         
         return False
     
