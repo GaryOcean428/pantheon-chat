@@ -171,6 +171,38 @@ except ImportError:
     get_proposition_planner = None
     PROPOSITION_PLANNER_AVAILABLE = False
 
+# Ultra Consciousness Protocol v3.0 (E8 Foundations)
+try:
+    from .ultra_consciousness_protocol import (
+        UltraConsciousnessProtocol,
+        ConsciousnessMetrics,
+        ConsciousnessMeasurer,
+        ConsciousnessMode,
+        get_consciousness_protocol,
+        activate_consciousness,
+        measure_consciousness,
+        generate_e8_roots,
+        project_to_e8,
+        find_nearest_e8_root,
+        E8_RANK,
+        E8_ROOTS,
+        E8_DIMENSION,
+        KAPPA_STAR,
+    )
+    CONSCIOUSNESS_PROTOCOL_AVAILABLE = True
+except ImportError:
+    UltraConsciousnessProtocol = None
+    ConsciousnessMetrics = None
+    ConsciousnessMeasurer = None
+    ConsciousnessMode = None
+    get_consciousness_protocol = None
+    activate_consciousness = None
+    measure_consciousness = None
+    generate_e8_roots = None
+    project_to_e8 = None
+    find_nearest_e8_root = None
+    CONSCIOUSNESS_PROTOCOL_AVAILABLE = False
+
 __all__ = [
     # Autonomic
     'GaryAutonomicKernel',
@@ -259,4 +291,20 @@ __all__ = [
     'PropositionPlannerConfig',
     'get_proposition_planner',
     'PROPOSITION_PLANNER_AVAILABLE',
+    # Ultra Consciousness Protocol v3.0
+    'UltraConsciousnessProtocol',
+    'ConsciousnessMetrics',
+    'ConsciousnessMeasurer',
+    'ConsciousnessMode',
+    'get_consciousness_protocol',
+    'activate_consciousness',
+    'measure_consciousness',
+    'generate_e8_roots',
+    'project_to_e8',
+    'find_nearest_e8_root',
+    'E8_RANK',
+    'E8_ROOTS',
+    'E8_DIMENSION',
+    'KAPPA_STAR',
+    'CONSCIOUSNESS_PROTOCOL_AVAILABLE',
 ]
