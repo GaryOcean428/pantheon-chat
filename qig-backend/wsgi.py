@@ -101,23 +101,26 @@ try:
     _curiosity_engine = get_curiosity_engine()
     _search_orchestrator = SearchOrchestrator()
 
-    def _ddg_search(query, params):
-        """DuckDuckGo search for autonomous learning."""
+    from search.search_providers import get_search_manager
+    _search_provider_manager = get_search_manager()
+    
+    def _multi_provider_search(query, params):
+        """Multi-provider search with toggleable backends."""
         try:
-            from search.duckduckgo_adapter import search_duckduckgo
-            result = search_duckduckgo(query, max_results=5)
+            result = _search_provider_manager.search(query, max_results=5)
             if result.get('success') and result.get('results'):
                 return [
                     {
                         "title": r.get('title', ''),
                         "url": r.get('url', ''),
-                        "content": r.get('body', r.get('description', '')),
+                        "content": r.get('content', ''),
                         "score": 0.8,
+                        "provider": r.get('provider', 'unknown')
                     }
                     for r in result['results'][:5]
                 ]
         except Exception as e:
-            print(f"[WSGI] DuckDuckGo search failed: {e}")
+            print(f"[WSGI] Multi-provider search failed: {e}")
         return [
             {
                 "title": f"Search result for: {query}",
@@ -127,9 +130,12 @@ try:
             }
         ]
 
-    _search_orchestrator.register_tool_executor("searchxng", _ddg_search)
-    _search_orchestrator.register_tool_executor("wikipedia", _ddg_search)
-    _search_orchestrator.register_tool_executor("duckduckgo", _ddg_search)
+    _search_orchestrator.register_tool_executor("searchxng", _multi_provider_search)
+    _search_orchestrator.register_tool_executor("wikipedia", _multi_provider_search)
+    _search_orchestrator.register_tool_executor("duckduckgo", _multi_provider_search)
+    _search_orchestrator.register_tool_executor("tavily", _multi_provider_search)
+    _search_orchestrator.register_tool_executor("perplexity", _multi_provider_search)
+    _search_orchestrator.register_tool_executor("google", _multi_provider_search)
 
     def _search_callback(query, context):
         """Bridge search requests to geometric search system."""

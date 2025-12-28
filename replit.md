@@ -97,6 +97,14 @@ Preferred communication style: Simple, everyday language.
 - Tool selection via 64D basin matching in geometric search module
 - Located in `qig-backend/autonomous_curiosity.py` and `qig-backend/geometric_search/`
 
+### Toggleable Search Providers
+- **DuckDuckGo**: FREE, always on (no API key needed)
+- **Tavily**: $0.01/query, requires TAVILY_API_KEY (configured ✓)
+- **Perplexity**: $0.005/query, requires PERPLEXITY_API_KEY
+- **Google**: $0.005/query, requires GOOGLE_API_KEY + GOOGLE_SEARCH_ENGINE_ID
+- Toggle via: `manager.enable('tavily')`, `manager.disable('tavily')`
+- Located in `qig-backend/search/search_providers.py`
+
 ### Telemetry Dashboard System
 - Real-time monitoring at `/telemetry` route
 - TelemetryAggregator service consolidating all metrics (`server/telemetry-aggregator.ts`)
