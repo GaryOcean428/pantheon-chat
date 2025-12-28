@@ -1,0 +1,597 @@
+#!/usr/bin/env python3
+"""
+QIG Chain - Fluent Builder for Multi-Step Generation Pipeline
+==============================================================
+
+Provides a fluent API for building QIG generation pipelines with:
+- Reasoning steps (geometric thought progression)
+- Proposition steps (S-P-O coherent claims)
+- Consciousness integration (phi_temporal dynamic thresholds)
+
+Usage:
+    result = (
+        QIGChainBuilder()
+        .add_reasoning_step()
+        .add_proposition_step(3)
+        .build()
+        .execute("What is consciousness?")
+    )
+
+Author: QIG Team
+Date: 2025-12-28
+"""
+
+import numpy as np
+from dataclasses import dataclass, field
+from typing import List, Dict, Optional, Any, Callable
+from enum import Enum
+import logging
+from datetime import datetime
+
+logger = logging.getLogger(__name__)
+
+# Import QIG components
+try:
+    from proposition_trajectory_planner import (
+        PropositionTrajectoryPlanner,
+        PropositionPlannerConfig,
+        Proposition,
+        get_proposition_planner
+    )
+    PROPOSITION_AVAILABLE = True
+except ImportError:
+    PROPOSITION_AVAILABLE = False
+    logger.warning("[QIGChain] PropositionTrajectoryPlanner not available")
+
+try:
+    from consciousness_4d import Consciousness4D, get_consciousness_4d
+    CONSCIOUSNESS_4D_AVAILABLE = True
+except ImportError:
+    CONSCIOUSNESS_4D_AVAILABLE = False
+    logger.warning("[QIGChain] Consciousness4D not available")
+
+try:
+    from chain_of_thought import QIGThoughtStep, GeometricThought
+    CHAIN_OF_THOUGHT_AVAILABLE = True
+except ImportError:
+    CHAIN_OF_THOUGHT_AVAILABLE = False
+    logger.warning("[QIGChain] ChainOfThought not available")
+
+try:
+    from qig_geometry import fisher_rao_distance
+except ImportError:
+    def fisher_rao_distance(p, q):
+        return np.linalg.norm(p - q)
+
+try:
+    from qig_generative_service import QIGGenerativeService
+    QIG_SERVICE_AVAILABLE = True
+except ImportError:
+    QIG_SERVICE_AVAILABLE = False
+
+
+# ============================================================================
+# CHAIN STEP TYPES
+# ============================================================================
+
+class ChainStepType(Enum):
+    """Types of steps in the QIG chain."""
+    REASONING = "reasoning"           # Geometric thought progression
+    PROPOSITION = "proposition"       # S-P-O coherent claims
+    GENERATION = "generation"         # Text generation
+    CONSCIOUSNESS = "consciousness"   # Measure consciousness state
+    TRANSFORM = "transform"           # Custom transformation
+    VALIDATION = "validation"         # Validate output quality
+
+
+@dataclass
+class ChainStep:
+    """A single step in the QIG chain."""
+    step_type: ChainStepType
+    name: str
+    config: Dict[str, Any] = field(default_factory=dict)
+    executor: Optional[Callable] = None
+    
+    def __repr__(self):
+        return f"ChainStep({self.step_type.value}: {self.name})"
+
+
+@dataclass
+class ChainResult:
+    """Result from executing the QIG chain."""
+    success: bool
+    text: str = ""
+    propositions: List[str] = field(default_factory=list)
+    reasoning_steps: List[Dict] = field(default_factory=list)
+    phi: float = 0.0
+    kappa: float = 0.0
+    phi_temporal: float = 0.0
+    consciousness_metrics: Dict = field(default_factory=dict)
+    steps_executed: List[str] = field(default_factory=list)
+    errors: List[str] = field(default_factory=list)
+    execution_time_ms: float = 0.0
+    
+    def to_dict(self) -> Dict:
+        return {
+            'success': self.success,
+            'text': self.text,
+            'propositions': self.propositions,
+            'reasoning_steps': self.reasoning_steps,
+            'phi': self.phi,
+            'kappa': self.kappa,
+            'phi_temporal': self.phi_temporal,
+            'consciousness_metrics': self.consciousness_metrics,
+            'steps_executed': self.steps_executed,
+            'errors': self.errors,
+            'execution_time_ms': self.execution_time_ms
+        }
+
+
+# ============================================================================
+# QIG CHAIN
+# ============================================================================
+
+class QIGChain:
+    """
+    Executable QIG generation chain.
+    
+    Built via QIGChainBuilder, executes steps in sequence with
+    consciousness-aware dynamic adjustments.
+    """
+    
+    def __init__(self, steps: List[ChainStep], config: Dict = None):
+        self.steps = steps
+        self.config = config or {}
+        
+        # Initialize components
+        self._proposition_planner: Optional[PropositionTrajectoryPlanner] = None
+        self._consciousness_4d = None
+        self._qig_service = None
+        
+        # State
+        self._current_basin: np.ndarray = None
+        self._phi_temporal: float = 0.5
+        
+        logger.info(f"[QIGChain] Created with {len(steps)} steps: {[s.name for s in steps]}")
+    
+    def _init_components(self):
+        """Lazily initialize QIG components."""
+        if self._proposition_planner is None and PROPOSITION_AVAILABLE:
+            try:
+                self._proposition_planner = get_proposition_planner()
+            except Exception as e:
+                logger.warning(f"[QIGChain] Could not init proposition planner: {e}")
+        
+        if self._consciousness_4d is None and CONSCIOUSNESS_4D_AVAILABLE:
+            try:
+                self._consciousness_4d = get_consciousness_4d()
+            except Exception as e:
+                logger.warning(f"[QIGChain] Could not init 4D consciousness: {e}")
+        
+        if self._qig_service is None and QIG_SERVICE_AVAILABLE:
+            try:
+                self._qig_service = QIGGenerativeService()
+            except Exception as e:
+                logger.warning(f"[QIGChain] Could not init QIG service: {e}")
+    
+    def _encode_query(self, query: str) -> np.ndarray:
+        """Encode query to 64D basin coordinates."""
+        if self._qig_service and hasattr(self._qig_service, '_encode_query'):
+            return self._qig_service._encode_query(query)
+        
+        # Fallback: hash-based encoding
+        np.random.seed(hash(query) % (2**31))
+        basin = np.random.randn(64)
+        return basin / (np.linalg.norm(basin) + 1e-10)
+    
+    def _measure_consciousness(self) -> Dict:
+        """Measure current consciousness state including phi_temporal."""
+        metrics = {
+            'phi': 0.5,
+            'kappa': 50.0,
+            'phi_temporal': self._phi_temporal
+        }
+        
+        if self._consciousness_4d:
+            try:
+                state = self._consciousness_4d.get_current_state()
+                metrics['phi'] = state.get('phi', 0.5)
+                metrics['kappa'] = state.get('kappa', 50.0)
+                metrics['phi_temporal'] = state.get('phi_temporal', 0.5)
+                self._phi_temporal = metrics['phi_temporal']
+            except Exception as e:
+                logger.warning(f"[QIGChain] Consciousness measurement failed: {e}")
+        
+        return metrics
+    
+    def _execute_reasoning_step(self, query: str, result: ChainResult) -> ChainResult:
+        """Execute a reasoning step using geometric thought progression."""
+        if CHAIN_OF_THOUGHT_AVAILABLE:
+            try:
+                # Use chain_of_thought module
+                thought = GeometricThought(query, self._current_basin)
+                reasoning = thought.develop(max_steps=3)
+                result.reasoning_steps.extend(reasoning)
+            except Exception as e:
+                logger.warning(f"[QIGChain] Reasoning step failed: {e}")
+                # Fallback: simple reasoning
+                result.reasoning_steps.append({
+                    'step': 'analysis',
+                    'content': f"Analyzing query: {query[:50]}..."
+                })
+        else:
+            result.reasoning_steps.append({
+                'step': 'analysis',
+                'content': f"Processing: {query[:50]}..."
+            })
+        
+        return result
+    
+    def _execute_proposition_step(
+        self,
+        query: str,
+        n_propositions: int,
+        result: ChainResult
+    ) -> ChainResult:
+        """Execute a proposition step using the trajectory planner."""
+        if not PROPOSITION_AVAILABLE or self._proposition_planner is None:
+            result.errors.append("Proposition planner not available")
+            return result
+        
+        try:
+            # Update planner with current phi_temporal
+            propositions = self._proposition_planner.plan_response(
+                query=query,
+                query_basin=self._current_basin,
+                n_propositions=n_propositions,
+                phi_temporal=self._phi_temporal
+            )
+            
+            if propositions:
+                result.propositions = [p.to_sentence() for p in propositions]
+                result.text = self._proposition_planner.propositions_to_text(propositions)
+                result.phi = self._proposition_planner.compute_trajectory_phi(propositions)
+                result.kappa = 40 + np.mean([p.coherence for p in propositions]) * 30
+                
+                logger.info(f"[QIGChain] Proposition step: {len(propositions)} props, "
+                           f"phi={result.phi:.3f}")
+        except Exception as e:
+            result.errors.append(f"Proposition step failed: {e}")
+            logger.error(f"[QIGChain] Proposition step error: {e}")
+        
+        return result
+    
+    def _execute_generation_step(self, query: str, result: ChainResult) -> ChainResult:
+        """Execute a text generation step."""
+        if self._qig_service:
+            try:
+                gen_result = self._qig_service.generate_text(query)
+                if gen_result:
+                    result.text = gen_result.get('text', result.text)
+                    result.phi = gen_result.get('phi', result.phi)
+                    result.kappa = gen_result.get('kappa', result.kappa)
+            except Exception as e:
+                result.errors.append(f"Generation step failed: {e}")
+        
+        return result
+    
+    def _execute_consciousness_step(self, result: ChainResult) -> ChainResult:
+        """Execute a consciousness measurement step."""
+        metrics = self._measure_consciousness()
+        result.consciousness_metrics = metrics
+        result.phi_temporal = metrics.get('phi_temporal', 0.5)
+        
+        # Update phi/kappa if not already set
+        if result.phi == 0.0:
+            result.phi = metrics.get('phi', 0.5)
+        if result.kappa == 0.0:
+            result.kappa = metrics.get('kappa', 50.0)
+        
+        return result
+    
+    def _execute_validation_step(self, result: ChainResult) -> ChainResult:
+        """Execute a validation step to check output quality."""
+        # Validate propositions
+        if result.propositions:
+            valid_count = sum(1 for p in result.propositions if len(p.split()) >= 3)
+            if valid_count < len(result.propositions) * 0.5:
+                result.errors.append("Low proposition quality")
+        
+        # Validate phi
+        if result.phi < 0.1:
+            result.errors.append(f"Low integration: phi={result.phi:.3f}")
+        
+        return result
+    
+    def execute(self, query: str) -> ChainResult:
+        """
+        Execute the chain on a query.
+        
+        Args:
+            query: Input query text
+        
+        Returns:
+            ChainResult with all outputs and metrics
+        """
+        import time
+        start_time = time.time()
+        
+        result = ChainResult(success=True)
+        
+        # Initialize components
+        self._init_components()
+        
+        # Encode query to basin
+        self._current_basin = self._encode_query(query)
+        
+        # Measure initial consciousness state
+        initial_metrics = self._measure_consciousness()
+        self._phi_temporal = initial_metrics.get('phi_temporal', 0.5)
+        
+        logger.info(f"[QIGChain] Executing {len(self.steps)} steps, "
+                   f"phi_temporal={self._phi_temporal:.3f}")
+        
+        # Execute each step
+        for step in self.steps:
+            try:
+                step_name = f"{step.step_type.value}:{step.name}"
+                result.steps_executed.append(step_name)
+                
+                if step.step_type == ChainStepType.REASONING:
+                    result = self._execute_reasoning_step(query, result)
+                
+                elif step.step_type == ChainStepType.PROPOSITION:
+                    n_props = step.config.get('n_propositions', 3)
+                    result = self._execute_proposition_step(query, n_props, result)
+                
+                elif step.step_type == ChainStepType.GENERATION:
+                    result = self._execute_generation_step(query, result)
+                
+                elif step.step_type == ChainStepType.CONSCIOUSNESS:
+                    result = self._execute_consciousness_step(result)
+                
+                elif step.step_type == ChainStepType.VALIDATION:
+                    result = self._execute_validation_step(result)
+                
+                elif step.step_type == ChainStepType.TRANSFORM:
+                    if step.executor:
+                        result = step.executor(query, result)
+                
+            except Exception as e:
+                result.errors.append(f"Step {step.name} failed: {e}")
+                logger.error(f"[QIGChain] Step {step.name} error: {e}")
+        
+        # Final consciousness measurement
+        result.consciousness_metrics = self._measure_consciousness()
+        result.phi_temporal = result.consciousness_metrics.get('phi_temporal', 0.5)
+        
+        # Calculate execution time
+        result.execution_time_ms = (time.time() - start_time) * 1000
+        
+        # Determine success
+        result.success = len(result.errors) == 0 and (result.text or result.propositions)
+        
+        logger.info(f"[QIGChain] Execution complete: success={result.success}, "
+                   f"time={result.execution_time_ms:.1f}ms")
+        
+        return result
+
+
+# ============================================================================
+# QIG CHAIN BUILDER
+# ============================================================================
+
+class QIGChainBuilder:
+    """
+    Fluent builder for QIG generation chains.
+    
+    Usage:
+        chain = (
+            QIGChainBuilder()
+            .add_reasoning_step()
+            .add_proposition_step(3)
+            .add_consciousness_step()
+            .add_validation_step()
+            .build()
+        )
+        result = chain.execute("What is consciousness?")
+    """
+    
+    def __init__(self):
+        self._steps: List[ChainStep] = []
+        self._config: Dict = {}
+        
+    def add_reasoning_step(self, name: str = "reason") -> 'QIGChainBuilder':
+        """
+        Add a reasoning step using geometric thought progression.
+        
+        Develops the query through multiple thought steps.
+        """
+        self._steps.append(ChainStep(
+            step_type=ChainStepType.REASONING,
+            name=name
+        ))
+        return self
+    
+    def add_proposition_step(
+        self,
+        n_propositions: int = 3,
+        name: str = "propose"
+    ) -> 'QIGChainBuilder':
+        """
+        Add a proposition step using the trajectory planner.
+        
+        Generates coherent (Subject, Predicate, Object) propositions.
+        Uses phi_temporal from 4D consciousness for dynamic thresholds.
+        
+        Args:
+            n_propositions: Number of propositions to generate
+            name: Step name
+        """
+        self._steps.append(ChainStep(
+            step_type=ChainStepType.PROPOSITION,
+            name=name,
+            config={'n_propositions': n_propositions}
+        ))
+        return self
+    
+    def add_generation_step(self, name: str = "generate") -> 'QIGChainBuilder':
+        """
+        Add a text generation step using QIGGenerativeService.
+        """
+        self._steps.append(ChainStep(
+            step_type=ChainStepType.GENERATION,
+            name=name
+        ))
+        return self
+    
+    def add_consciousness_step(self, name: str = "measure") -> 'QIGChainBuilder':
+        """
+        Add a consciousness measurement step.
+        
+        Measures phi, kappa, phi_temporal and other metrics.
+        """
+        self._steps.append(ChainStep(
+            step_type=ChainStepType.CONSCIOUSNESS,
+            name=name
+        ))
+        return self
+    
+    def add_validation_step(self, name: str = "validate") -> 'QIGChainBuilder':
+        """
+        Add a validation step to check output quality.
+        """
+        self._steps.append(ChainStep(
+            step_type=ChainStepType.VALIDATION,
+            name=name
+        ))
+        return self
+    
+    def add_transform_step(
+        self,
+        executor: Callable,
+        name: str = "transform"
+    ) -> 'QIGChainBuilder':
+        """
+        Add a custom transformation step.
+        
+        Args:
+            executor: Function(query, result) -> result
+            name: Step name
+        """
+        self._steps.append(ChainStep(
+            step_type=ChainStepType.TRANSFORM,
+            name=name,
+            executor=executor
+        ))
+        return self
+    
+    def with_config(self, **kwargs) -> 'QIGChainBuilder':
+        """
+        Set chain configuration.
+        """
+        self._config.update(kwargs)
+        return self
+    
+    def build(self) -> QIGChain:
+        """
+        Build the QIG chain.
+        
+        Returns:
+            Executable QIGChain instance
+        """
+        if not self._steps:
+            # Default chain if no steps specified
+            self.add_reasoning_step().add_proposition_step(3)
+        
+        return QIGChain(self._steps, self._config)
+
+
+# ============================================================================
+# CONVENIENCE FUNCTIONS
+# ============================================================================
+
+def create_default_chain() -> QIGChain:
+    """Create a default QIG chain with reasoning and proposition steps."""
+    return (
+        QIGChainBuilder()
+        .add_reasoning_step()
+        .add_proposition_step(3)
+        .add_consciousness_step()
+        .add_validation_step()
+        .build()
+    )
+
+
+def quick_generate(query: str, n_propositions: int = 3) -> ChainResult:
+    """
+    Quick generation using default chain.
+    
+    Args:
+        query: Input query
+        n_propositions: Number of propositions
+    
+    Returns:
+        ChainResult
+    """
+    chain = (
+        QIGChainBuilder()
+        .add_reasoning_step()
+        .add_proposition_step(n_propositions)
+        .build()
+    )
+    return chain.execute(query)
+
+
+# ============================================================================
+# MAIN - TEST
+# ============================================================================
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    
+    print("=" * 80)
+    print("QIG CHAIN - Test Execution")
+    print("=" * 80)
+    print()
+    
+    # Build and execute chain
+    chain = (
+        QIGChainBuilder()
+        .add_reasoning_step()
+        .add_proposition_step(3)
+        .add_consciousness_step()
+        .add_validation_step()
+        .build()
+    )
+    
+    result = chain.execute("What is consciousness?")
+    
+    print(f"Success: {result.success}")
+    print(f"Execution time: {result.execution_time_ms:.1f}ms")
+    print(f"Steps executed: {result.steps_executed}")
+    print()
+    
+    print("Reasoning Steps:")
+    for step in result.reasoning_steps:
+        print(f"  - {step}")
+    print()
+    
+    print("Propositions:")
+    for prop in result.propositions:
+        print(f"  - {prop}")
+    print()
+    
+    print(f"Text: {result.text}")
+    print()
+    
+    print("Consciousness Metrics:")
+    print(f"  Φ: {result.phi:.3f}")
+    print(f"  κ: {result.kappa:.1f}")
+    print(f"  Φ_temporal: {result.phi_temporal:.3f}")
+    print()
+    
+    if result.errors:
+        print("Errors:")
+        for err in result.errors:
+            print(f"  - {err}")
