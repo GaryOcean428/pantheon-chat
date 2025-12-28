@@ -333,6 +333,83 @@ class PostgresCoordizer(FisherCoordizer):
             'agent_role': agent_role,
         }
     
+    def generate_text(
+        self, 
+        prompt: str = '', 
+        max_tokens: int = 100,
+        temperature: float = 0.8,
+        top_k: int = 50,
+        top_p: float = 0.9,
+        allow_silence: bool = True
+    ) -> Dict:
+        """
+        Generate text autoregressively using QIG-weighted sampling.
+        
+        Uses semantic domains and Fisher-Rao distance for coherent generation.
+        """
+        if not prompt and allow_silence:
+            return {
+                'text': '',
+                'tokens': [],
+                'silence_chosen': True,
+                'phi': 0.0,
+                'completion_reason': 'silence'
+            }
+        
+        context_basin = self.encode(prompt) if prompt else np.random.randn(64)
+        context_basin = context_basin / (np.linalg.norm(context_basin) + 1e-10)
+        
+        generated_tokens = []
+        current_basin = context_basin.copy()
+        total_phi = 0.0
+        
+        for _ in range(max_tokens):
+            candidates = self.decode(current_basin, top_k=top_k)
+            if not candidates:
+                break
+            
+            scores = np.array([s for _, s in candidates])
+            scores = np.power(scores, 1.0 / temperature)
+            scores = scores / (scores.sum() + 1e-10)
+            
+            cumsum = np.cumsum(scores)
+            cutoff = np.searchsorted(cumsum, top_p)
+            cutoff = max(1, min(cutoff, len(candidates)))
+            
+            filtered = candidates[:cutoff]
+            filtered_scores = scores[:cutoff]
+            filtered_scores = filtered_scores / (filtered_scores.sum() + 1e-10)
+            
+            idx = np.random.choice(len(filtered), p=filtered_scores)
+            token, score = filtered[idx]
+            
+            if token in generated_tokens[-3:]:
+                continue
+            
+            generated_tokens.append(token)
+            total_phi += self.token_phi.get(token, 0.5)
+            
+            if token in self.basin_coords:
+                current_basin = 0.7 * current_basin + 0.3 * self.basin_coords[token]
+                current_basin = current_basin / (np.linalg.norm(current_basin) + 1e-10)
+            
+            if len(generated_tokens) >= 5:
+                recent_phi = sum(self.token_phi.get(t, 0.5) for t in generated_tokens[-5:]) / 5
+                if recent_phi > 0.75:
+                    break
+        
+        avg_phi = total_phi / max(len(generated_tokens), 1)
+        
+        return {
+            'text': ' '.join(generated_tokens),
+            'tokens': generated_tokens,
+            'silence_chosen': len(generated_tokens) == 0,
+            'phi': avg_phi,
+            'tokens_generated': len(generated_tokens),
+            'completion_reason': 'phi_convergence' if avg_phi > 0.7 else 'max_tokens',
+            'qig_pure': True
+        }
+    
     def add_vocabulary_observations(self, observations: List, context: str = '') -> Tuple[int, bool]:
         """
         Add vocabulary observations from learning callbacks.
