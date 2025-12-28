@@ -48,6 +48,17 @@ def _get_search_importance():
         return None
 
 
+def _save_to_curriculum(query: str, results: List[Dict]):
+    """Save search results to curriculum for learning (non-blocking)."""
+    try:
+        from search.search_curriculum import save_search_to_curriculum
+        saved = save_search_to_curriculum(query, results)
+        if saved > 0:
+            logger.info(f"[SearchProviderManager] Saved {saved} results to curriculum")
+    except Exception as e:
+        logger.debug(f"[SearchProviderManager] Curriculum save skipped: {e}")
+
+
 class SearchProviderManager:
     """
     Manages multiple search providers with toggle control.
@@ -239,11 +250,16 @@ class SearchProviderManager:
                         kernel_id=kernel_id
                     )
         
+        final_results = all_results[:max_results]
+        
+        if final_results:
+            _save_to_curriculum(query, final_results)
+        
         return {
             'success': len(all_results) > 0,
             'provider_used': provider_used,
             'selection_reason': selection_reason,
-            'results': all_results[:max_results],
+            'results': final_results,
             'errors': errors if errors else None,
             'budget_context': orchestrator.get_budget_context().to_dict() if orchestrator else None
         }

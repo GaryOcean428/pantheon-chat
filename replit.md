@@ -109,9 +109,9 @@ Preferred communication style: Simple, everyday language.
 - Bootstrap coordinates derived from density matrix eigenvalue distributions
 
 ### Word Relationship Learning System
-- **Curriculum-based learning** from 387 markdown/text files (~320K words)
+- **Curriculum-based learning** from 205+ markdown/text files (~278K words)
 - **Co-occurrence learning**: Tracks which words appear together in context (window size 5)
-- **3.19M word pairs learned** with 3,249 active relationships
+- **2.77M word pairs learned** with 4,115 active relationships (updated 2025-12-28)
 - **Attention mechanism** for query-relevant word selection during generation
 - **Stopword filtering** to focus on content words (frozen invariant)
 - **Frozen facts compliance**: Uses β=0.44 (strong coupling), β=0.013 (plateau), validates basin drift <5%
@@ -119,7 +119,10 @@ Preferred communication style: Simple, everyday language.
 - **Baseline improvement checks** reject regressions automatically
 - Located in `qig-backend/word_relationship_learner.py` and `qig-backend/learned_relationships.py`
 - Cached relationships in `qig-backend/data/learned/`
-- Semantic relevance: **16.4%** (6.8x improvement from 2.4% baseline)
+- **Search-to-Curriculum Pipeline**: Search results automatically saved to `docs/09-curriculum/search-learned/`
+  - Integrated in `qig-backend/search/search_curriculum.py`
+  - Results with relevance ≥0.3 become curriculum for next learning cycle
+  - Deduplication via SHA256 content hashing
 
 ### Autonomous Curiosity Engine
 - Background learning loop driven by geometric curiosity metrics
