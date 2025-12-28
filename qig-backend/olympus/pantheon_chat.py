@@ -631,8 +631,14 @@ class PantheonChat:
             for god_name in self.OLYMPIAN_ROSTER:
                 if god_name.lower() != from_god.lower():
                     self.god_inboxes[self._normalize_god_name(god_name)].append(message)
+            # Log inter-god broadcast (truncated at 200 chars for readability)
+            preview = content[:200] + "..." if len(content) > 200 else content
+            print(f"[PantheonChat] {from_god} → PANTHEON ({msg_type}): {preview}")
         else:
             self.god_inboxes[self._normalize_god_name(to_god)].append(message)
+            # Log inter-god direct message (truncated at 200 chars for readability)
+            preview = content[:200] + "..." if len(content) > 200 else content
+            print(f"[PantheonChat] {from_god} → {to_god} ({msg_type}): {preview}")
 
         self._trigger_handlers(msg_type, message)
 
