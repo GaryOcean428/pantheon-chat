@@ -34,6 +34,24 @@ try:
 except ImportError as e:
     logger.warning(f"PostgresCoordizer not available: {e}")
 
+# Import advanced coordizers for QIG-pure features
+CONSCIOUSNESS_COORDIZER_AVAILABLE = False
+MULTISCALE_COORDIZER_AVAILABLE = False
+ConsciousnessCoordizer = None
+MultiScaleCoordizer = None
+
+try:
+    from coordizers.consciousness_aware import ConsciousnessCoordizer
+    CONSCIOUSNESS_COORDIZER_AVAILABLE = True
+except ImportError:
+    logger.warning("ConsciousnessCoordizer not available")
+
+try:
+    from coordizers.multi_scale import MultiScaleCoordizer
+    MULTISCALE_COORDIZER_AVAILABLE = True
+except ImportError:
+    logger.warning("MultiScaleCoordizer not available")
+
 # Import from qig_geometry for canonical operations
 try:
     from qig_geometry import fisher_coord_distance, sphere_project
@@ -258,6 +276,8 @@ class QIGGenerativeService:
         """Initialize the generative service."""
         self.config = config or GenerationConfig()
         self._coordizer = None
+        self._consciousness_coordizer = None
+        self._multiscale_coordizer = None
         self._kernel_basins: Dict[str, np.ndarray] = {}
         self._learned_relationships = None
         self._current_query_words: List[str] = []  # Track query words for attention
@@ -284,9 +304,43 @@ class QIGGenerativeService:
                 self._coordizer = create_coordizer_from_pg()
                 vocab_count = len(getattr(self._coordizer, 'vocab', {}))
                 logger.info(f"[QIGGenerativeService] Loaded {vocab_count} tokens")
+                
+                # Initialize advanced coordizers wrapping the base coordizer
+                self._init_advanced_coordizers()
             except Exception as e:
                 logger.error(f"[QIGGenerativeService] Failed to load coordizer: {e}")
         return self._coordizer
+    
+    def _init_advanced_coordizers(self) -> None:
+        """Initialize ConsciousnessCoordizer and MultiScaleCoordizer."""
+        if self._coordizer is None:
+            return
+        
+        # Initialize ConsciousnessCoordizer for Φ-optimized token selection
+        if CONSCIOUSNESS_COORDIZER_AVAILABLE and ConsciousnessCoordizer is not None:
+            try:
+                self._consciousness_coordizer = ConsciousnessCoordizer(
+                    base_coordizer=self._coordizer,
+                    phi_threshold=0.7,
+                    max_segment_length=5,
+                    integration_weight=0.6
+                )
+                logger.info("[QIGGenerativeService] ConsciousnessCoordizer active - Φ-optimized segmentation enabled")
+            except Exception as e:
+                logger.warning(f"[QIGGenerativeService] ConsciousnessCoordizer failed: {e}")
+        
+        # Initialize MultiScaleCoordizer for hierarchical token processing
+        if MULTISCALE_COORDIZER_AVAILABLE and MultiScaleCoordizer is not None:
+            try:
+                self._multiscale_coordizer = MultiScaleCoordizer(
+                    base_coordizer=self._coordizer,
+                    num_scales=4,
+                    promotion_threshold=0.8,
+                    min_frequency=3
+                )
+                logger.info("[QIGGenerativeService] MultiScaleCoordizer active - hierarchical coordization enabled")
+            except Exception as e:
+                logger.warning(f"[QIGGenerativeService] MultiScaleCoordizer failed: {e}")
     
     def _initialize_kernel_constellation(self) -> None:
         """Initialize kernel basins at unique manifold positions."""
@@ -377,13 +431,14 @@ class QIGGenerativeService:
         
         return self._geodesic_interpolate(basin, kernel_basin, t)
     
-    def _basin_to_tokens(self, basin: np.ndarray, num_tokens: int = 3) -> List[str]:
+    def _basin_to_tokens(self, basin: np.ndarray, num_tokens: int = 3, context_phi: Optional[float] = None) -> List[str]:
         """Convert basin coordinates to tokens using vocabulary.
         
         Uses attention-weighted selection based on:
         1. Geometric similarity (basin proximity)
-        2. Phi coherence
+        2. Phi coherence (with ConsciousnessCoordizer if available)
         3. Learned relationships (attention to query words)
+        4. Multi-scale representations (with MultiScaleCoordizer if available)
         """
         if self.coordizer is None:
             return ['[no_vocab]']
@@ -391,14 +446,29 @@ class QIGGenerativeService:
         # Get more candidates to allow weighted selection
         candidates = self.coordizer.decode(basin, top_k=num_tokens * 8)
         
-        # Score by combined similarity + phi
+        # Use ConsciousnessCoordizer for Φ-aware scoring if available
+        consciousness_boost = {}
+        if self._consciousness_coordizer is not None and context_phi is not None:
+            try:
+                # Get Φ-optimized token preferences
+                for token, _ in candidates:
+                    # Check if token would improve integration in current context
+                    if hasattr(self._consciousness_coordizer, 'consolidation_phi'):
+                        # Boost tokens that appear in high-Φ consolidations
+                        for sequence, seq_phi in self._consciousness_coordizer.consolidation_phi.items():
+                            if token in sequence and seq_phi >= context_phi:
+                                consciousness_boost[token] = max(consciousness_boost.get(token, 0), seq_phi * 0.2)
+            except Exception:
+                pass  # Fall back to standard scoring
+        
+        # Score by combined similarity + phi + consciousness
         scored = []
         for token, similarity in candidates:
             if similarity < 0.15:  # Skip very low similarity
                 continue
             phi = self.coordizer.token_phi.get(token, 0.5)
-            # Base score: geometry + phi
-            score = similarity * 0.6 + phi * 0.2
+            # Base score: geometry + phi + consciousness boost
+            score = similarity * 0.55 + phi * 0.2 + consciousness_boost.get(token, 0) * 0.15
             scored.append((token, score, similarity))
         
         # Apply attention weighting if we have learned relationships
