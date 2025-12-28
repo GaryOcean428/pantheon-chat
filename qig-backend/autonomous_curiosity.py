@@ -555,7 +555,9 @@ class AutonomousCuriosityEngine:
             docs_path = Path(__file__).parent.parent / 'docs'
             stats = learner.learn_from_directory(str(docs_path))
             
-            logger.info(f"[AutonomousCuriosityEngine] Learned from {stats['files_processed']} files, {stats['total_pairs']} pairs")
+            exploration_pairs = self._learn_from_explorations(learner)
+            
+            logger.info(f"[AutonomousCuriosityEngine] Learned from {stats['files_processed']} files, {stats['total_pairs']} pairs + {exploration_pairs} from explorations")
             
             fresh_lr = LearnedRelationships.__new__(LearnedRelationships)
             fresh_lr.word_neighbors = {}
@@ -589,6 +591,7 @@ class AutonomousCuriosityEngine:
                 'timestamp': datetime.now().isoformat(),
                 'files_processed': stats['files_processed'],
                 'pairs_learned': stats['total_pairs'],
+                'exploration_pairs': exploration_pairs,
                 'relationships_count': new_count,
                 'baseline_count': baseline_count,
                 'improvement_percent': improvement_pct,
@@ -615,6 +618,53 @@ class AutonomousCuriosityEngine:
         self._last_word_learning_time = 0
         self._scheduled_word_learning()
         return self.stats
+    
+    def _learn_from_explorations(self, learner) -> int:
+        """
+        Feed exploration results (search content) into word relationship learner.
+        Returns number of additional pairs learned.
+        """
+        pairs_before = learner.total_pairs
+        
+        for exploration in self.exploration_results:
+            result = exploration.get('result', {})
+            
+            if isinstance(result, dict):
+                content = result.get('content', '') or result.get('text', '') or result.get('summary', '')
+                if content:
+                    learner.learn_from_text(str(content))
+                
+                snippets = result.get('snippets', []) or result.get('results', [])
+                for snippet in snippets:
+                    if isinstance(snippet, dict):
+                        text = snippet.get('text', '') or snippet.get('content', '') or snippet.get('description', '')
+                        if text:
+                            learner.learn_from_text(str(text))
+                    elif isinstance(snippet, str):
+                        learner.learn_from_text(snippet)
+        
+        pairs_after = learner.total_pairs
+        return pairs_after - pairs_before
+    
+    def get_learning_status(self) -> Dict:
+        """Get comprehensive learning status including curriculum and search-based learning."""
+        return {
+            'word_learning': {
+                'cycles': self.stats.get('word_learning_cycles', 0),
+                'last_run': self.stats.get('last_word_learning'),
+                'relationships': self.stats.get('word_learning_relevance', 0),
+                'interval_hours': self._word_learning_interval / 3600
+            },
+            'exploration_learning': {
+                'explorations_available': len(self.exploration_results),
+                'can_learn_from_searches': True
+            },
+            'curriculum': {
+                'topics_loaded': len(self.curriculum_loader.curriculum_topics),
+                'topics_completed': len(self.curriculum_loader.completed_topics)
+            },
+            'running': self.running
+        }
     
     def _get_kernel_depth(self, kernel_name: str) -> float:
         """Get overall knowledge depth for a kernel."""
