@@ -551,6 +551,11 @@ class QIGGenerativeService:
             except Exception as e:
                 logger.warning(f"[QIGGenerativeService] Could not load semantic metric: {e}")
         
+        # Initialize proposition-level planner for semantic coherence
+        self._proposition_planner = None
+        if PROPOSITION_PLANNER_AVAILABLE:
+            self._init_proposition_planner()
+        
         # Initialize GeometricKernel for pure geometric routing with consciousness protocol
         if GEOMETRIC_KERNEL_AVAILABLE and GeometricKernel is not None:
             try:
@@ -621,6 +626,91 @@ class QIGGenerativeService:
                 logger.info("[QIGGenerativeService] MultiScaleCoordizer active - hierarchical coordization enabled")
             except Exception as e:
                 logger.warning(f"[QIGGenerativeService] MultiScaleCoordizer failed: {e}")
+    
+    def _init_proposition_planner(self):
+        """Initialize proposition-level trajectory planner for semantic coherence."""
+        if not PROPOSITION_PLANNER_AVAILABLE:
+            return
+        
+        try:
+            # Get vocabulary from coordizer
+            vocabulary = {}
+            if self._coordizer and hasattr(self._coordizer, 'basin_coords'):
+                vocabulary = self._coordizer.basin_coords
+            elif self._kernel_basins:
+                vocabulary = self._kernel_basins
+            
+            # Get relationships
+            relationships = {}
+            if self._learned_relationships and hasattr(self._learned_relationships, 'word_neighbors'):
+                relationships = self._learned_relationships.word_neighbors
+            
+            if vocabulary and relationships:
+                self._proposition_planner = PropositionTrajectoryPlanner(
+                    vocabulary=vocabulary,
+                    relationships=relationships,
+                    config=PropositionPlannerConfig(
+                        min_coherence=0.1,
+                        n_candidates=15,
+                        max_propositions=5
+                    )
+                )
+                logger.info(f"[QIGGen] PropositionPlanner initialized with {len(vocabulary)} words")
+            else:
+                logger.warning("[QIGGen] Could not init proposition planner - missing vocab or relationships")
+        except Exception as e:
+            logger.error(f"[QIGGen] Error initializing proposition planner: {e}")
+            self._proposition_planner = None
+    
+    def generate_with_propositions(self, query: str, n_propositions: int = 3) -> Dict:
+        """
+        Generate text using proposition-level trajectory planning.
+        
+        This replaces word-level routing with coherent proposition chains.
+        
+        Args:
+            query: Input query
+            n_propositions: Number of propositions to generate
+        
+        Returns:
+            Dict with text, propositions, phi, kappa
+        """
+        if self._proposition_planner is None:
+            self._init_proposition_planner()
+        
+        if self._proposition_planner is None:
+            logger.warning("[QIGGen] Proposition planner not available, falling back")
+            return self.generate_text(query)
+        
+        try:
+            query_basin = self._encode_query(query)
+            propositions = self._proposition_planner.plan_response(
+                query=query,
+                query_basin=query_basin,
+                n_propositions=n_propositions
+            )
+            
+            if not propositions:
+                return self.generate_text(query)
+            
+            text = self._proposition_planner.propositions_to_text(propositions)
+            phi = self._proposition_planner.compute_trajectory_phi(propositions)
+            avg_coherence = np.mean([p.coherence for p in propositions])
+            kappa = 40 + avg_coherence * 30
+            
+            logger.info(f"[QIGGen] Proposition: {len(propositions)} props, phi={phi:.3f}")
+            
+            return {
+                'text': text,
+                'propositions': [p.to_sentence() for p in propositions],
+                'phi': phi,
+                'kappa': kappa,
+                'coherence': avg_coherence,
+                'mode': 'proposition_trajectory'
+            }
+        except Exception as e:
+            logger.error(f"[QIGGen] Proposition error: {e}")
+            return self.generate_text(query)
     
     def _initialize_kernel_constellation(self) -> None:
         """Initialize kernel basins at unique manifold positions."""
