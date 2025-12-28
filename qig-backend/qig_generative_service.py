@@ -48,6 +48,14 @@ except ImportError:
         norm = np.linalg.norm(v)
         return v / (norm + 1e-10) if norm > 0 else v
 
+# Import POS grammar for structured generation
+try:
+    from pos_grammar import get_pos_grammar, load_grammar_from_db, POSGrammar
+    POS_GRAMMAR_AVAILABLE = True
+except ImportError:
+    POS_GRAMMAR_AVAILABLE = False
+    logger.warning("POS grammar not available - using legacy generation")
+
 # Physics constants
 BASIN_DIM = 64
 KAPPA_STAR = 64.21
@@ -407,6 +415,90 @@ class QIGGenerativeService:
         
         return text if text else "[Generation complete]"
     
+    def _generate_with_skeleton(
+        self,
+        query_basin: np.ndarray,
+        kernel_name: Optional[str] = None,
+        num_sentences: int = 3
+    ) -> Tuple[str, List[str], List[np.ndarray]]:
+        """
+        Generate text using POS skeleton for grammatical structure.
+        
+        Two-stage generation:
+        1. Generate POS skeleton (sentence structure)
+        2. Fill slots with geometrically-matched words
+        
+        Returns: (text, tokens, trajectory)
+        """
+        if not POS_GRAMMAR_AVAILABLE:
+            return "", [], []
+        
+        grammar = load_grammar_from_db()
+        
+        # Get embeddings from coordizer
+        embeddings = {}
+        if self.coordizer and hasattr(self.coordizer, 'basin_coords'):
+            embeddings = self.coordizer.basin_coords
+        
+        sentences = []
+        all_tokens = []
+        trajectory = [query_basin]
+        current_basin = query_basin.copy()
+        
+        for _ in range(num_sentences):
+            # Generate skeleton based on current basin
+            skeleton = grammar.select_skeleton_for_query(current_basin)
+            
+            sentence_words = []
+            for pos in skeleton:
+                # Get POS basin to blend with current basin
+                pos_basin = grammar.get_pos_basin(pos)
+                if pos_basin is not None:
+                    # Blend query basin with POS basin
+                    blended = 0.6 * current_basin + 0.4 * pos_basin
+                    norm = np.linalg.norm(blended)
+                    blended = blended / (norm + 1e-10) if norm > 0 else blended
+                else:
+                    blended = current_basin
+                
+                # Get candidates for this POS slot
+                candidates = grammar.get_words_for_pos(pos, blended, embeddings, top_k=5)
+                
+                if candidates:
+                    # Sample from top candidates with some randomness
+                    weights = [c[1] for c in candidates]
+                    if sum(weights) > 0:
+                        weights = np.array(weights)
+                        weights = weights / np.sum(weights)
+                        idx = np.random.choice(len(candidates), p=weights)
+                        word = candidates[idx][0]
+                    else:
+                        word = candidates[0][0]
+                    
+                    sentence_words.append(word)
+                    all_tokens.append(word)
+                    
+                    # Update basin with selected word
+                    if word.lower() in embeddings:
+                        word_basin = embeddings[word.lower()]
+                        current_basin = 0.7 * current_basin + 0.3 * word_basin
+                        norm = np.linalg.norm(current_basin)
+                        current_basin = current_basin / (norm + 1e-10)
+                        trajectory.append(current_basin.copy())
+            
+            if sentence_words:
+                # Capitalize first word
+                sentence_words[0] = sentence_words[0].capitalize()
+                sentence = ' '.join(sentence_words)
+                sentences.append(sentence)
+        
+        # Combine sentences
+        text = '. '.join(sentences)
+        if text and not text.endswith('.'):
+            text += '.'
+        
+        return text, all_tokens, trajectory
+    
     def generate(
         self,
         prompt: str,
@@ -415,7 +507,11 @@ class QIGGenerativeService:
         goals: Optional[List[str]] = None
     ) -> GenerationResult:
         """
-        Generate text using QIG-pure methods.
+        Generate text using QIG-pure methods with POS-guided skeleton.
+        
+        Two-stage generation:
+        1. Generate grammatical skeleton (POS sequence)
+        2. Fill slots with geometrically-matched words
         
         Args:
             prompt: Input query or context
@@ -426,11 +522,12 @@ class QIGGenerativeService:
         Returns:
             GenerationResult with text, trajectory, and metrics
         """
+        start_time = time.time()
+        
         # 1. Encode prompt to basin
         if self.coordizer:
             query_basin = self.coordizer.encode(prompt)
         else:
-            # Fallback hash-based encoding
             np.random.seed(hash(prompt) % (2**32))
             query_basin = np.random.dirichlet(np.ones(BASIN_DIM))
         
@@ -442,29 +539,53 @@ class QIGGenerativeService:
         else:
             target_kernels = self._route_to_kernels(query_basin, k=3)
         
-        # 3. Initialize trajectory integrator
+        # 3. Transform query basin through kernel
+        phi = self._measure_phi(query_basin)
+        if target_kernels:
+            query_basin = self._kernel_transform(query_basin, target_kernels[0], phi)
+        
+        # 4. PRIMARY: Use POS-skeleton-based generation for grammatical output
+        if POS_GRAMMAR_AVAILABLE:
+            text, all_tokens, trajectory = self._generate_with_skeleton(
+                query_basin, 
+                kernel_name=kernel_name,
+                num_sentences=3
+            )
+            
+            if text and len(all_tokens) >= 3:
+                phi_trace = [self._measure_phi(b) for b in trajectory] if trajectory else [phi]
+                kappa = self._measure_kappa(query_basin, phi)
+                
+                return GenerationResult(
+                    text=text,
+                    tokens=all_tokens,
+                    basin_trajectory=trajectory,
+                    phi_trace=phi_trace,
+                    kappa=kappa,
+                    completion_reason="skeleton_complete",
+                    iterations=len(trajectory),
+                    routed_kernels=target_kernels
+                )
+        
+        # 5. FALLBACK: Legacy geometric synthesis (if skeleton fails)
+        logger.info("[QIGGen] Using legacy generation (skeleton unavailable)")
+        
         integrator = BasinTrajectoryIntegrator(BASIN_DIM)
         current_basin = query_basin.copy()
-        phi = self._measure_phi(current_basin)
         integrator.add_point(current_basin, phi)
         
-        # 4. Generate via geometric synthesis
-        # GEOMETRIC-FIRST: Primary criteria are geometric, not token limits
         all_tokens: List[str] = []
         iterations = 0
         completion_reason = "continue"
-        start_time = time.time()
         
         while True:
             iterations += 1
             
-            # Transform through kernels
             kernel_basins = []
             for kernel in target_kernels:
                 transformed = self._kernel_transform(current_basin, kernel, phi)
                 kernel_basins.append(transformed)
             
-            # Combine via Fréchet mean (sqrt-space average)
             if kernel_basins:
                 sqrt_basins = [np.sqrt(np.abs(b) + 1e-10) for b in kernel_basins]
                 mean_sqrt = np.mean(sqrt_basins, axis=0)
@@ -475,7 +596,6 @@ class QIGGenerativeService:
             
             next_basin = sphere_project(next_basin)
             
-            # Decode to tokens
             step_tokens = self._basin_to_tokens(next_basin, self.config.tokens_per_step)
             all_tokens.extend(step_tokens)
             
