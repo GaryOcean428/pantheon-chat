@@ -23,6 +23,12 @@ except ImportError:
     search_budget_bp = None
     register_search_budget_routes = None
 
+try:
+    from .governance_routes import governance_bp, register_governance_routes
+except ImportError:
+    governance_bp = None
+    register_governance_routes = None
+
 
 def register_all_routes(app):
     """Register all route blueprints with the Flask app."""
@@ -48,6 +54,13 @@ def register_all_routes(app):
             count += 1
         except Exception as e:
             print(f"[WARN] Failed to register search_budget_routes: {e}")
+    
+    if register_governance_routes:
+        try:
+            register_governance_routes(app)
+            count += 1
+        except Exception as e:
+            print(f"[WARN] Failed to register governance_routes: {e}")
     
     # Register fleet telemetry endpoint
     try:

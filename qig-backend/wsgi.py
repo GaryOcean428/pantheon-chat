@@ -222,6 +222,17 @@ except ImportError as e:
 except Exception as e:
     print(f"[WARNING] Search Budget routes initialization failed: {e}")
 
+# Register Pantheon Health Governance routes
+GOVERNANCE_AVAILABLE = False
+try:
+    from routes.governance_routes import register_governance_routes
+    register_governance_routes(app)
+    GOVERNANCE_AVAILABLE = True
+except ImportError as e:
+    print(f"[WARNING] Governance routes not available: {e}")
+except Exception as e:
+    print(f"[WARNING] Governance routes initialization failed: {e}")
+
 # Register Fleet Telemetry endpoint
 try:
     from capability_telemetry import CapabilityTelemetryTracker
