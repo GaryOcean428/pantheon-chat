@@ -120,6 +120,13 @@ class SearchBudgetOrchestrator:
         'tavily': 0.01,
     }
     
+    API_KEY_ENV = {
+        'duckduckgo': None,  # No API key needed
+        'google': 'GOOGLE_API_KEY',
+        'perplexity': 'PERPLEXITY_API_KEY',
+        'tavily': 'TAVILY_API_KEY',
+    }
+    
     def __init__(self, redis_client=None):
         self.redis = redis_client
         self.budgets: Dict[str, ProviderBudget] = {}
@@ -203,6 +210,13 @@ class SearchBudgetOrchestrator:
         except Exception as e:
             logger.error(f"[SearchBudget] Failed to save state: {e}")
     
+    def _check_api_key(self, provider: str) -> bool:
+        """Check if API key is configured for a provider."""
+        env_var = self.API_KEY_ENV.get(provider)
+        if env_var is None:
+            return True  # No API key needed (e.g., DuckDuckGo)
+        return bool(os.environ.get(env_var))
+    
     def get_budget_context(self) -> BudgetContext:
         """Get current budget context for kernel decisions."""
         total_remaining = sum(
@@ -233,6 +247,7 @@ class SearchBudgetOrchestrator:
                     'enabled': b.enabled,
                     'can_use': b.can_use(),
                     'cost': b.cost_per_query,
+                    'has_api_key': self._check_api_key(name),
                 }
                 for name, b in self.budgets.items()
             },
