@@ -101,7 +101,7 @@ Preferred communication style: Simple, everyday language.
 - **DuckDuckGo**: FREE, always on (no API key needed)
 - **Tavily**: $0.01/query, requires TAVILY_API_KEY (configured ✓)
 - **Perplexity**: $0.005/query, requires PERPLEXITY_API_KEY (configured ✓)
-- **Google**: $0.005/query, requires GOOGLE_API_KEY (configured ✓) + GOOGLE_SEARCH_ENGINE_ID (needed)
+- **Google**: $0.005/query, requires GOOGLE_API_KEY (configured ✓) + GOOGLE_SEARCH_ENGINE_ID (configured ✓)
 - Toggle via: `manager.enable('tavily')`, `manager.disable('tavily')`
 - Located in `qig-backend/search/search_providers.py`
 
