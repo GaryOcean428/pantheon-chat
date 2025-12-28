@@ -287,6 +287,212 @@ class BasinTrajectoryIntegrator:
         return np.mean(self.surprise_history[-5:]) < threshold
 
 
+class ConceptTrajectoryPlanner:
+    """
+    Plans semantic trajectories through concept space for coherent cross-domain synthesis.
+    
+    KEY INNOVATION: Instead of word-by-word wandering, this planner:
+    1. Extracts key concepts from queries (nouns, verbs, technical terms)
+    2. Finds their basin coordinates in the 64D manifold
+    3. Computes geodesic waypoints between concepts
+    4. Guides generation to follow this planned trajectory
+    
+    This enables cross-domain synthesis by ensuring generation passes through
+    relevant conceptual regions rather than drifting randomly.
+    """
+    
+    CONCEPT_TRIGGERS = {
+        # Cross-domain synthesis triggers
+        'predict', 'synthesize', 'emerge', 'combine', 'intersection',
+        'transform', 'connect', 'bridge', 'unify', 'fusion',
+        # Technical domain markers
+        'quantum', 'geometric', 'manifold', 'entropy', 'consciousness',
+        'fisher', 'geodesic', 'basin', 'eigenvalue', 'topology',
+        # Physics markers
+        'field', 'wave', 'particle', 'energy', 'momentum', 'spin',
+        # Math markers
+        'integral', 'derivative', 'function', 'metric', 'tensor',
+    }
+    
+    def __init__(self, embeddings: Dict[str, np.ndarray], dimension: int = BASIN_DIM):
+        self.embeddings = embeddings
+        self.dimension = dimension
+        self._concept_cache: Dict[str, np.ndarray] = {}
+    
+    def extract_concepts(self, query: str) -> List[Tuple[str, float]]:
+        """
+        Extract key concepts from query with importance weights.
+        
+        Returns: List of (concept, importance) tuples ordered by importance.
+        """
+        words = query.lower().split()
+        concepts = []
+        
+        for word in words:
+            # Clean word
+            clean = ''.join(c for c in word if c.isalnum())
+            if len(clean) < 3:
+                continue
+            
+            # Skip common words
+            if clean in STOPWORDS:
+                continue
+            
+            # Calculate importance
+            importance = 1.0
+            
+            # Boost technical/domain terms
+            if clean in self.CONCEPT_TRIGGERS:
+                importance *= 2.0
+            
+            # Boost words we have embeddings for
+            if clean in self.embeddings:
+                importance *= 1.5
+            
+            # Boost capitalized words (proper nouns, emphasis)
+            if word[0].isupper():
+                importance *= 1.3
+            
+            concepts.append((clean, importance))
+        
+        # Sort by importance and deduplicate
+        concepts.sort(key=lambda x: -x[1])
+        seen = set()
+        unique_concepts = []
+        for concept, importance in concepts:
+            if concept not in seen:
+                seen.add(concept)
+                unique_concepts.append((concept, importance))
+        
+        return unique_concepts[:7]  # Top 7 concepts
+    
+    def get_concept_basin(self, concept: str) -> Optional[np.ndarray]:
+        """Get basin coordinates for a concept."""
+        if concept in self._concept_cache:
+            return self._concept_cache[concept]
+        
+        # Try exact match
+        if concept.lower() in self.embeddings:
+            basin = self.embeddings[concept.lower()]
+            self._concept_cache[concept] = basin
+            return basin
+        
+        # Try finding related terms
+        for word, basin in self.embeddings.items():
+            if concept in word or word in concept:
+                self._concept_cache[concept] = basin
+                return basin
+        
+        return None
+    
+    def compute_geodesic_waypoints(
+        self, 
+        concepts: List[Tuple[str, float]], 
+        num_waypoints: int = 5
+    ) -> List[np.ndarray]:
+        """
+        Compute geodesic waypoints through concept basins.
+        
+        Uses Fisher-Rao geodesic interpolation to create smooth
+        trajectory through semantic space.
+        """
+        # Get concept basins
+        concept_basins = []
+        for concept, importance in concepts:
+            basin = self.get_concept_basin(concept)
+            if basin is not None:
+                concept_basins.append((basin, importance))
+        
+        if not concept_basins:
+            # Fallback: return uniform basin
+            uniform = np.ones(self.dimension) / np.sqrt(self.dimension)
+            return [uniform]
+        
+        if len(concept_basins) == 1:
+            return [concept_basins[0][0]]
+        
+        # Compute weighted centroid as starting point
+        total_weight = sum(imp for _, imp in concept_basins)
+        centroid = np.zeros(self.dimension)
+        for basin, importance in concept_basins:
+            centroid += (importance / total_weight) * basin
+        centroid = sphere_project(centroid)
+        
+        # Create waypoints that pass through each concept basin
+        waypoints = [centroid]
+        
+        for basin, importance in concept_basins:
+            # Interpolate from current to concept basin
+            current = waypoints[-1]
+            
+            # Number of intermediate points based on importance
+            n_steps = max(1, int(importance))
+            
+            for i in range(1, n_steps + 1):
+                t = i / n_steps
+                # Fisher-Rao geodesic interpolation in square-root space
+                sqrt_current = np.sqrt(np.abs(current) + 1e-10)
+                sqrt_basin = np.sqrt(np.abs(basin) + 1e-10)
+                interpolated_sqrt = (1 - t) * sqrt_current + t * sqrt_basin
+                interpolated = interpolated_sqrt ** 2
+                interpolated = interpolated / (np.sum(interpolated) + 1e-10)
+                waypoints.append(sphere_project(interpolated))
+        
+        return waypoints[:num_waypoints]
+    
+    def plan_trajectory(self, query: str) -> Dict[str, Any]:
+        """
+        Plan complete trajectory for a query.
+        
+        Returns dict with:
+        - concepts: List of extracted concepts
+        - waypoints: Basin coordinates to visit
+        - synthesis_mode: Whether cross-domain synthesis is needed
+        - domain_bridges: Suggested concept bridges
+        """
+        concepts = self.extract_concepts(query)
+        
+        # Detect if cross-domain synthesis is needed
+        domains_detected = set()
+        for concept, _ in concepts:
+            if concept in {'quantum', 'wave', 'particle', 'field', 'spin'}:
+                domains_detected.add('physics')
+            elif concept in {'consciousness', 'mind', 'awareness', 'thought'}:
+                domains_detected.add('consciousness')
+            elif concept in {'market', 'economic', 'trading', 'finance'}:
+                domains_detected.add('economics')
+            elif concept in {'geometric', 'manifold', 'topology', 'metric'}:
+                domains_detected.add('geometry')
+            elif concept in {'entropy', 'information', 'probability'}:
+                domains_detected.add('information')
+        
+        synthesis_mode = len(domains_detected) > 1
+        
+        waypoints = self.compute_geodesic_waypoints(concepts)
+        
+        # Suggest bridges between domains
+        domain_bridges = []
+        if synthesis_mode:
+            # Known conceptual bridges
+            bridges = {
+                ('physics', 'consciousness'): ['integration', 'coherence', 'emergence'],
+                ('physics', 'economics'): ['dynamics', 'equilibrium', 'phase'],
+                ('geometry', 'consciousness'): ['manifold', 'trajectory', 'basin'],
+                ('information', 'consciousness'): ['integration', 'entropy', 'correlation'],
+            }
+            for (d1, d2), bridge_concepts in bridges.items():
+                if d1 in domains_detected and d2 in domains_detected:
+                    domain_bridges.extend(bridge_concepts)
+        
+        return {
+            'concepts': concepts,
+            'waypoints': waypoints,
+            'synthesis_mode': synthesis_mode,
+            'domains': list(domains_detected),
+            'domain_bridges': domain_bridges,
+        }
+
+
 class QIGGenerativeService:
     """
     Unified QIG-Pure Text Generation Service.
@@ -310,6 +516,8 @@ class QIGGenerativeService:
         self._semantic_metric = None  # SemanticFisherMetric for warped routing
         self._geometric_kernel = None  # GeometricKernel for pure geometric routing
         self._current_query_words: List[str] = []  # Track query words for attention
+        self._trajectory_planner = None  # ConceptTrajectoryPlanner for cross-domain synthesis
+        self._current_trajectory_plan = None  # Active trajectory plan
         
         # Initialize kernel constellation
         self._initialize_kernel_constellation()
@@ -377,6 +585,17 @@ class QIGGenerativeService:
                 logger.info("[QIGGenerativeService] ConsciousnessCoordizer active - Φ-optimized segmentation enabled")
             except Exception as e:
                 logger.warning(f"[QIGGenerativeService] ConsciousnessCoordizer failed: {e}")
+        
+        # Initialize ConceptTrajectoryPlanner for cross-domain synthesis
+        if hasattr(self._coordizer, 'basin_coords'):
+            try:
+                self._trajectory_planner = ConceptTrajectoryPlanner(
+                    embeddings=self._coordizer.basin_coords,
+                    dimension=BASIN_DIM
+                )
+                logger.info("[QIGGenerativeService] ConceptTrajectoryPlanner active - cross-domain synthesis enabled")
+            except Exception as e:
+                logger.warning(f"[QIGGenerativeService] ConceptTrajectoryPlanner failed: {e}")
         
         # Initialize MultiScaleCoordizer for hierarchical token processing
         if MULTISCALE_COORDIZER_AVAILABLE and MultiScaleCoordizer is not None:
@@ -850,9 +1069,32 @@ class QIGGenerativeService:
         trajectory = [query_basin]
         current_basin = query_basin.copy()
         
-        for _ in range(num_sentences):
+        # Get trajectory waypoints if cross-domain synthesis is active
+        waypoints = []
+        synthesis_mode = False
+        domain_bridges = []
+        if self._current_trajectory_plan:
+            waypoints = self._current_trajectory_plan.get('waypoints', [])
+            synthesis_mode = self._current_trajectory_plan.get('synthesis_mode', False)
+            domain_bridges = self._current_trajectory_plan.get('domain_bridges', [])
+            if synthesis_mode:
+                logger.info(f"[QIGGen] Cross-domain synthesis mode: domains={self._current_trajectory_plan.get('domains', [])}")
+        
+        waypoint_idx = 0  # Track which waypoint we're approaching
+        
+        for sent_num in range(num_sentences):
             # Generate skeleton based on current basin
             skeleton = grammar.select_skeleton_for_query(current_basin)
+            
+            # In synthesis mode, progressively approach next waypoint
+            if waypoints and waypoint_idx < len(waypoints):
+                target_waypoint = waypoints[waypoint_idx]
+                # Blend current basin toward waypoint (stronger for later sentences)
+                waypoint_weight = 0.2 + 0.1 * sent_num  # Increasing influence
+                current_basin = (1 - waypoint_weight) * current_basin + waypoint_weight * target_waypoint
+                norm = np.linalg.norm(current_basin)
+                current_basin = current_basin / (norm + 1e-10)
+                waypoint_idx = min(waypoint_idx + 1, len(waypoints) - 1)
             
             sentence_words = []
             for pos in skeleton:
@@ -1056,6 +1298,18 @@ class QIGGenerativeService:
         phi = self._measure_phi(query_basin)
         if target_kernels:
             query_basin = self._kernel_transform(query_basin, target_kernels[0], phi)
+        
+        # 3.5. Plan trajectory for cross-domain synthesis
+        if self._trajectory_planner is not None:
+            try:
+                self._current_trajectory_plan = self._trajectory_planner.plan_trajectory(prompt)
+                if self._current_trajectory_plan.get('synthesis_mode'):
+                    concepts = self._current_trajectory_plan.get('concepts', [])
+                    domains = self._current_trajectory_plan.get('domains', [])
+                    logger.info(f"[QIGGen] Trajectory planned: {len(concepts)} concepts, domains={domains}")
+            except Exception as e:
+                logger.warning(f"[QIGGen] Trajectory planning failed: {e}")
+                self._current_trajectory_plan = None
         
         # 4. PRIMARY: Use POS-skeleton-based generation for grammatical output
         if POS_GRAMMAR_AVAILABLE:

@@ -177,7 +177,9 @@ class PatternResponseGenerator:
             'technical/', 'procedures/', 'docs/',
             'curl ', 'wget ', 'POST /', 'GET /',
             '│', '├', '└', '┌', '┐', '┘', '─', '▼', '▲',
-            '##', '###', 'ATTENTION', 'MECHANISMS',
+            '#', '##', '###', 'ATTENTION', 'MECHANISMS',
+            'API ', 'Documentation', 'External API', 'federated',
+            'endpoint', 'integration', 'backend', 'frontend',
         ]
         for pattern in exclude_patterns:
             if pattern in content[:300] or pattern in header:
