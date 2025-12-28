@@ -1118,15 +1118,29 @@ def get_coordizer():
     """Get or create singleton coordizer instance.
     
     Priority:
-    1. SimpleWordCoordizer (loads real words from PostgreSQL tokenizer_vocabulary)
-    2. QIGCoordizer with file-based vocabulary (fallback)
+    1. PostgresCoordizer (best - semantic domains, Fisher-compliant, database-backed)
+    2. SimpleWordCoordizer (fallback - simpler database loading)
+    3. QIGCoordizer with file-based vocabulary (last resort)
     
-    This ensures kernels use real English words from the database instead of
-    BPE fragments.
+    This ensures kernels use real English words with proper semantic embeddings.
     """
     global _coordizer_instance
     if _coordizer_instance is None:
-        # Try SimpleWordCoordizer first (clean database-backed implementation)
+        # Try PostgresCoordizer first (best quality - semantic domains + Fisher-compliant)
+        if POSTGRES_COORDIZER_AVAILABLE and create_coordizer_from_pg:
+            try:
+                pg_coordizer = create_coordizer_from_pg()
+                word_count = len(getattr(pg_coordizer, 'word_tokens', []))
+                if word_count >= 100:
+                    _coordizer_instance = pg_coordizer
+                    print(f"[QIGCoordizer] Using PostgresCoordizer: {word_count} words with semantic domains")
+                    return _coordizer_instance
+                else:
+                    print(f"[QIGCoordizer] PostgresCoordizer has only {word_count} words")
+            except Exception as e:
+                print(f"[QIGCoordizer] PostgresCoordizer unavailable: {e}")
+        
+        # Fallback to SimpleWordCoordizer
         try:
             from simple_word_coordizer import SimpleWordCoordizer
             simple_coordizer = SimpleWordCoordizer()
@@ -1136,7 +1150,6 @@ def get_coordizer():
                 print(f"[QIGCoordizer] Using SimpleWordCoordizer: {simple_coordizer.vocab_size} real words from database")
                 return _coordizer_instance
             elif simple_coordizer.vocab_size >= 50:
-                # Fallback vocabulary is still usable
                 _coordizer_instance = simple_coordizer
                 print(f"[QIGCoordizer] Using SimpleWordCoordizer with fallback: {simple_coordizer.vocab_size} words")
                 return _coordizer_instance
@@ -1145,7 +1158,7 @@ def get_coordizer():
         except Exception as e:
             print(f"[QIGCoordizer] SimpleWordCoordizer unavailable: {e}")
         
-        # Fallback to file-based QIGCoordizer
+        # Last resort - file-based QIGCoordizer
         _coordizer_instance = QIGCoordizer()
         _load_coordizer_state(_coordizer_instance)
         _migrate_from_legacy_tokenizer(_coordizer_instance)
