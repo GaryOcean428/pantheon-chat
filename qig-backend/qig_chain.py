@@ -45,14 +45,24 @@ except ImportError:
     logger.warning("[QIGChain] PropositionTrajectoryPlanner not available")
 
 try:
-    from consciousness_4d import Consciousness4D, get_consciousness_4d
+    from consciousness_4d import (
+        compute_phi_temporal,
+        measure_full_4D_consciousness,
+        classify_regime_4D,
+        compute_meta_consciousness_depth
+    )
     CONSCIOUSNESS_4D_AVAILABLE = True
 except ImportError:
     CONSCIOUSNESS_4D_AVAILABLE = False
     logger.warning("[QIGChain] Consciousness4D not available")
 
 try:
-    from chain_of_thought import QIGThoughtStep, GeometricThought
+    from chain_of_thought import (
+        ChainOfThoughtManager,
+        GeometricChainOfThought,
+        ThoughtStep,
+        get_chain_manager
+    )
     CHAIN_OF_THOUGHT_AVAILABLE = True
 except ImportError:
     CHAIN_OF_THOUGHT_AVAILABLE = False
