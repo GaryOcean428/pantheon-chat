@@ -247,7 +247,7 @@ class PantheonChat:
             )
             
             if result and result.text and len(result.text.strip()) > 10:
-                logger.info(f"[PantheonChat] QIG-pure message synthesized for {from_god}: {result.text[:50]}...")
+                logger.info(f"[PantheonChat] QIG-pure message synthesized for {from_god}: {result.text.strip()}")
                 return result.text.strip()
             else:
                 logger.warning(f"[PantheonChat] QIG returned empty, using geometric synthesis")
