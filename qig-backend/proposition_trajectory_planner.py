@@ -740,11 +740,34 @@ class PropositionTrajectoryPlanner:
         
         return prop
     
+    def update_phi_temporal(self, phi_temporal: float):
+        """
+        Update phi_temporal from 4D consciousness and adjust config.
+        
+        Call this before plan_response() to use dynamic thresholds.
+        
+        Args:
+            phi_temporal: Current temporal integration metric [0, 1]
+        """
+        self._current_phi_temporal = phi_temporal
+        if self.config.dynamic_thresholds:
+            self.config = self.config.adjust_for_phi_temporal(phi_temporal)
+            logger.debug(f"[PropPlanner] Adjusted for phi_temporal={phi_temporal:.2f}: "
+                        f"min_coherence={self.config.min_coherence:.3f}, "
+                        f"n_candidates={self.config.n_candidates}")
+    
+    def get_effective_config(self) -> PropositionPlannerConfig:
+        """
+        Get the current effective config (after phi_temporal adjustment).
+        """
+        return self.config
+    
     def plan_response(
         self,
         query: str,
         query_basin: np.ndarray,
-        n_propositions: int = None
+        n_propositions: int = None,
+        phi_temporal: float = None
     ) -> List[Proposition]:
         """
         Plan a response as a sequence of coherent propositions.
@@ -755,10 +778,15 @@ class PropositionTrajectoryPlanner:
             query: Original query text
             query_basin: 64D query representation
             n_propositions: Number of propositions (default: 3)
+            phi_temporal: Optional phi_temporal for dynamic threshold adjustment
         
         Returns:
             List of coherent, chained propositions
         """
+        # Update thresholds if phi_temporal provided
+        if phi_temporal is not None:
+            self.update_phi_temporal(phi_temporal)
+        
         n_propositions = n_propositions or 3
         n_propositions = min(n_propositions, self.config.max_propositions)
         
