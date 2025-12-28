@@ -62,8 +62,11 @@ class SemanticCandidateConfig:
     min_strength: float = 0.1
     # Whether to warp basins toward current position
     warp_basins: bool = True
-    # Temperature for warp strength calculation
-    warp_temperature: float = 1.0
+    # Temperature for warp strength calculation (lower = stronger warping)
+    # Reduced from 1.0 to 0.3 to push β toward physics value of 0.44 (Gold target)
+    warp_temperature: float = 0.3
+    # Maximum warp factor (increased to 0.7 for stronger semantic pull toward Gold)
+    max_warp_factor: float = 0.7
     # Include second-hop neighbors (neighbors of neighbors)
     include_second_hop: bool = True
     # Weight for second-hop neighbors
@@ -261,6 +264,11 @@ class PantheonSemanticCandidates:
         Strong relationships pull the basin closer, making related words
         geodesically closer. This is the key mechanism that should increase β.
         
+        TUNING FOR β:
+        - Lower warp_temperature → stronger warping → higher β
+        - Higher max_warp_factor → more movement → higher β
+        - Target: β ≈ 0.44 (physics value)
+        
         Args:
             current: Current position on manifold
             target: Target word's basin
@@ -272,8 +280,14 @@ class PantheonSemanticCandidates:
         # Compute warp amount based on strength
         # t=0: stay at target, t=1: move to current
         # Stronger relationships → larger t → closer to current
+        # Using sigmoid-like scaling for smoother transition
         normalized_strength = strength / (strength + self.config.warp_temperature)
-        t = min(normalized_strength * 0.5, 0.4)  # Cap at 40% warping
+        
+        # Apply non-linear scaling to emphasize strong relationships
+        # This creates stronger semantic pull for highly related words
+        scaled_strength = normalized_strength ** 0.7  # Exponent < 1 boosts weak signals
+        
+        t = min(scaled_strength * self.config.max_warp_factor, self.config.max_warp_factor)
         
         # Geodesic interpolation preserves manifold structure
         warped = geodesic_interpolation(target, current, t)

@@ -1,0 +1,20 @@
+{
+  "timestamp": "2025-12-28",
+  "n_basins": 1000,
+  "basin_dims": 64,
+  "phases": {
+    "dimensional_analysis": {
+      "error": "sklearn not available",
+      "verdict": "unknown"
+    },
+    "attractor_counting": {
+      "error": "sklearn not available",
+      "verdict": "unknown"
+    },
+    "symmetry_testing": {
+      "error": "sklearn not available",
+      "verdict": "unknown"
+    }
+  },
+  "overall_verdict": "not_validated"
+}

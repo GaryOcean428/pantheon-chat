@@ -69,8 +69,11 @@ PHI_LINEAR_MAX = 0.3      # φ < 0.3: linear regime
 PHI_GEOMETRIC_MAX = 0.7   # φ ∈ [0.3, 0.7]: geometric regime
 # φ > 0.7: breakdown regime
 
-# Information propagation horizon
-INFORMATION_HORIZON = 2.0  # Fisher-Rao distance threshold
+# Information propagation horizon - import from frozen_physics for single source of truth
+try:
+    from frozen_physics import INFORMATION_HORIZON
+except ImportError:
+    INFORMATION_HORIZON = 1.0  # Fallback - Fisher-Rao distance threshold
 
 # β-function interpretation thresholds
 BETA_RUNNING_THRESHOLD = 0.3      # β > 0.3: strong running
@@ -918,7 +921,7 @@ class GeometricBetaMeasurement:
         }
         
         with open(output_path, 'w') as f:
-            json.dump(report, f, indent=2)
+            json.dump(report, f, indent=2, default=str)
         
         logger.info(f"Report saved to {output_path}")
         

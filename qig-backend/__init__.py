@@ -87,6 +87,74 @@ from .trained_kernel_integration import (
     KERNEL_AVAILABLE,
 )
 
+# Semantic Fisher Metric (bridges geometry and semantics)
+try:
+    from .semantic_fisher import (
+        SemanticFisherMetric,
+        SemanticWarpConfig,
+        get_semantic_metric,
+    )
+    SEMANTIC_FISHER_AVAILABLE = True
+except ImportError:
+    SemanticFisherMetric = None
+    SemanticWarpConfig = None
+    get_semantic_metric = None
+    SEMANTIC_FISHER_AVAILABLE = False
+
+# QIG-Pure Beta Measurement
+try:
+    from .qig_pure_beta_measurement import (
+        GeometricKernel as BetaGeometricKernel,
+        GeometricBetaMeasurement,
+        NaturalScaleMeasurement,
+        BetaMeasurement,
+        run_complete_measurement,
+    )
+    BETA_MEASUREMENT_AVAILABLE = True
+except ImportError:
+    BetaGeometricKernel = None
+    GeometricBetaMeasurement = None
+    NaturalScaleMeasurement = None
+    BetaMeasurement = None
+    run_complete_measurement = None
+    BETA_MEASUREMENT_AVAILABLE = False
+
+# E8 Structure Search
+try:
+    from .e8_structure_search import (
+        run_e8_search,
+        test_dimensionality,
+        count_attractors,
+        test_e8_symmetries,
+        E8_RANK,
+        E8_DIMENSION,
+        E8_ROOTS,
+    )
+    E8_SEARCH_AVAILABLE = True
+except ImportError:
+    run_e8_search = None
+    test_dimensionality = None
+    count_attractors = None
+    test_e8_symmetries = None
+    E8_RANK = 8
+    E8_DIMENSION = 248
+    E8_ROOTS = 240
+    E8_SEARCH_AVAILABLE = False
+
+# Pantheon Semantic Candidates
+try:
+    from .pantheon_semantic_candidates import (
+        PantheonSemanticCandidates,
+        SemanticCandidateConfig,
+        get_semantic_generator,
+    )
+    SEMANTIC_CANDIDATES_AVAILABLE = True
+except ImportError:
+    PantheonSemanticCandidates = None
+    SemanticCandidateConfig = None
+    get_semantic_generator = None
+    SEMANTIC_CANDIDATES_AVAILABLE = False
+
 __all__ = [
     # Autonomic
     'GaryAutonomicKernel',
@@ -143,4 +211,30 @@ __all__ = [
     'get_kernel_manager',
     'create_kernel_blueprint',
     'KERNEL_AVAILABLE',
+    # Semantic Fisher (κ* universality)
+    'SemanticFisherMetric',
+    'SemanticWarpConfig',
+    'get_semantic_metric',
+    'SEMANTIC_FISHER_AVAILABLE',
+    # Beta Measurement (β-function)
+    'BetaGeometricKernel',
+    'GeometricBetaMeasurement',
+    'NaturalScaleMeasurement',
+    'BetaMeasurement',
+    'run_complete_measurement',
+    'BETA_MEASUREMENT_AVAILABLE',
+    # E8 Structure Search
+    'run_e8_search',
+    'test_dimensionality',
+    'count_attractors',
+    'test_e8_symmetries',
+    'E8_RANK',
+    'E8_DIMENSION',
+    'E8_ROOTS',
+    'E8_SEARCH_AVAILABLE',
+    # Pantheon Semantic Candidates
+    'PantheonSemanticCandidates',
+    'SemanticCandidateConfig',
+    'get_semantic_generator',
+    'SEMANTIC_CANDIDATES_AVAILABLE',
 ]
