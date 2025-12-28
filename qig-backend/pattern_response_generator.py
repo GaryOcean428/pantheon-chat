@@ -152,11 +152,39 @@ class PatternResponseGenerator:
         
         return float(2 * np.arccos(bc))
     
+    def _is_documentation_pattern(self, content: str, metadata: Dict) -> bool:
+        """
+        Filter out documentation/deployment patterns that pollute responses.
+        
+        Returns True if pattern should be EXCLUDED from response generation.
+        """
+        source = metadata.get('source', '')
+        header = metadata.get('header', '')
+        
+        exclude_sources = ['procedures', 'deployment', 'INTEGRATION_GUIDE', 'setup']
+        for exclude in exclude_sources:
+            if exclude.lower() in source.lower():
+                return True
+        
+        exclude_patterns = [
+            'dist/', 'dist\\', 'Backend:', 'Frontend:', 
+            '```', 'npm ', 'yarn ', 'pip ', 
+            '.json', '.yaml', '.yml', '.ts', '.tsx', '.py',
+            'mkdir', 'chmod', 'export ', 'ENV ',
+            'PORT=', 'HOST=', 'URL=',
+        ]
+        for pattern in exclude_patterns:
+            if pattern in content[:200] or pattern in header:
+                return True
+        
+        return False
+    
     def retrieve_patterns(self, query: str, top_k: int = 5) -> List[Dict]:
         """
         Retrieve relevant patterns from QIGRAG.
         
         Returns list of patterns with content and similarity scores.
+        Filters out documentation/deployment patterns.
         """
         qig_rag = self._get_qig_rag()
         if not qig_rag:
@@ -166,24 +194,34 @@ class PatternResponseGenerator:
         try:
             results = qig_rag.search(
                 query=query,
-                k=top_k,
+                k=top_k * 2,
                 metric='fisher_rao',
                 min_similarity=self.min_pattern_similarity,
                 include_metadata=True
             )
             
-            print(f"[PatternGenerator] Found {len(results)} patterns for query: {query[:50]}...")
+            print(f"[PatternGenerator] Found {len(results)} raw patterns for query: {query[:50]}...")
             
             patterns = []
             for result in results:
+                content = result.get('content', '')
+                metadata = result.get('metadata', {})
+                
+                if self._is_documentation_pattern(content, metadata):
+                    continue
+                
                 patterns.append({
-                    'content': result.get('content', ''),
+                    'content': content,
                     'similarity': result.get('similarity', 0),
-                    'metadata': result.get('metadata', {}),
+                    'metadata': metadata,
                     'source': 'trained_docs',
                     'doc_id': result.get('doc_id', '')
                 })
+                
+                if len(patterns) >= top_k:
+                    break
             
+            print(f"[PatternGenerator] {len(patterns)} patterns after filtering")
             return patterns
             
         except Exception as e:
