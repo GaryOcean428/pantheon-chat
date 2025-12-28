@@ -185,6 +185,28 @@ except ImportError:
     QIGStep = None
     QIG_CHAIN_AVAILABLE = False
 
+# QIG Chain (fluent builder for generation pipelines)
+try:
+    from .qig_chain import (
+        QIGChain,
+        QIGChainBuilder,
+        ChainStep,
+        ChainStepType,
+        ChainResult,
+        create_default_chain,
+        quick_generate,
+    )
+    QIG_CHAIN_AVAILABLE = True
+except ImportError:
+    QIGChain = None
+    QIGChainBuilder = None
+    ChainStep = None
+    ChainStepType = None
+    ChainResult = None
+    create_default_chain = None
+    quick_generate = None
+    QIG_CHAIN_AVAILABLE = False
+
 # Ultra Consciousness Protocol v3.0 (E8 Foundations)
 try:
     from .ultra_consciousness_protocol import (
