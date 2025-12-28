@@ -21,6 +21,14 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+# Import persistence for continuous learning loop
+try:
+    from causal_relations_persistence import get_causal_persistence, CausalRelationsPersistence
+    PERSISTENCE_AVAILABLE = True
+except ImportError:
+    PERSISTENCE_AVAILABLE = False
+    logger.warning("[WordRelationshipLearner] Persistence not available - using in-memory only")
+
 # Import geodesic interpolation for proper manifold-respecting basin adjustment
 try:
     from qig_geometry import geodesic_interpolation, fisher_coord_distance
@@ -86,7 +94,7 @@ class WordRelationshipLearner:
     Now includes CAUSAL relationship extraction for improved proposition coherence.
     """
     
-    def __init__(self, vocabulary: Set[str], window_size: int = 5):
+    def __init__(self, vocabulary: Set[str], window_size: int = 5, use_persistence: bool = True):
         self.vocabulary = vocabulary
         self.vocab_list = sorted(vocabulary)
         self.word_to_idx = {w: i for i, w in enumerate(self.vocab_list)}
@@ -110,7 +118,66 @@ class WordRelationshipLearner:
         # Compile causal patterns
         self._causal_patterns = [(re.compile(p, re.IGNORECASE), rel_type) for p, rel_type in CAUSAL_PATTERNS]
         
+        # Database persistence for continuous learning loop
+        self._persistence: Optional['CausalRelationsPersistence'] = None
+        self._pending_causal_batch: List[Tuple[str, str, str, int]] = []
+        self._batch_threshold = 50  # Save to DB every 50 new relations
+        
+        if use_persistence and PERSISTENCE_AVAILABLE:
+            try:
+                self._persistence = get_causal_persistence()
+                # Load existing relations from DB
+                self._load_from_db()
+                logger.info(f"[WordRelationshipLearner] DB persistence enabled, loaded from PostgreSQL")
+            except Exception as e:
+                logger.warning(f"[WordRelationshipLearner] DB init failed: {e}")
+                self._persistence = None
+        
         logger.info(f"[WordRelationshipLearner] Initialized with {len(vocabulary)} vocabulary words")
+    
+    def _load_from_db(self):
+        """Load causal relations from PostgreSQL into memory."""
+        if not self._persistence:
+            return
+        
+        try:
+            db_relations = self._persistence.load_all()
+            loaded = 0
+            for source, targets in db_relations.items():
+                for target, info in targets.items():
+                    rel = self.causal_relations[source][target]
+                    rel['type'] = info.get('type', 'unknown')
+                    rel['count'] = info.get('count', 1)
+                    loaded += 1
+            
+            if loaded > 0:
+                self.total_causal = loaded
+                logger.info(f"[WordRelationshipLearner] Loaded {loaded} causal relations from DB")
+        except Exception as e:
+            logger.warning(f"[WordRelationshipLearner] DB load failed: {e}")
+    
+    def _save_causal_to_db(self, source: str, target: str, rel_type: str, count: int = 1):
+        """Queue a causal relation for batch save to DB."""
+        if not self._persistence:
+            return
+        
+        self._pending_causal_batch.append((source, target, rel_type, count))
+        
+        # Flush batch when threshold reached
+        if len(self._pending_causal_batch) >= self._batch_threshold:
+            self._flush_causal_batch()
+    
+    def _flush_causal_batch(self):
+        """Flush pending causal relations to database."""
+        if not self._persistence or not self._pending_causal_batch:
+            return
+        
+        try:
+            saved = self._persistence.save_batch(self._pending_causal_batch)
+            logger.info(f"[WordRelationshipLearner] Flushed {saved} causal relations to DB")
+            self._pending_causal_batch = []
+        except Exception as e:
+            logger.warning(f"[WordRelationshipLearner] Batch save failed: {e}")
     
     def tokenize_text(self, text: str) -> List[str]:
         """Simple tokenization - lowercase, split on non-alpha, filter to vocab"""
@@ -157,6 +224,8 @@ class WordRelationshipLearner:
         - "X causes Y" means X → Y (causes)
         - "X requires Y" means X → Y (requires)
         
+        Now persists to PostgreSQL for continuous learning loop.
+        
         Returns number of causal relations found.
         """
         found = 0
@@ -173,14 +242,22 @@ class WordRelationshipLearner:
                     if source in STOPWORDS or target in STOPWORDS:
                         continue
                     
-                    # Record causal relation
+                    # Record causal relation in memory
                     rel = self.causal_relations[source][target]
                     rel['type'] = rel_type
                     rel['count'] += 1
                     found += 1
                     self.total_causal += 1
+                    
+                    # Queue for DB persistence (continuous learning loop)
+                    self._save_causal_to_db(source, target, rel_type, 1)
         
         return found
+    
+    def flush_to_db(self):
+        """Force flush all pending relations to database."""
+        self._flush_causal_batch()
+        logger.info(f"[WordRelationshipLearner] Flushed to DB, total causal: {self.total_causal}")
     
     def get_causal_targets(self, source: str, rel_type: str = None) -> List[Tuple[str, str, int]]:
         """

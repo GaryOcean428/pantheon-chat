@@ -22,6 +22,14 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+# Import persistence for continuous learning loop
+try:
+    from causal_relations_persistence import get_causal_persistence, CausalRelationsPersistence
+    CAUSAL_PERSISTENCE_AVAILABLE = True
+except ImportError:
+    CAUSAL_PERSISTENCE_AVAILABLE = False
+    logger.warning("[LearnedRelationships] Causal persistence not available")
+
 # Import Fisher geometry for proper distance computation
 try:
     from qig_geometry import fisher_coord_distance
@@ -82,10 +90,33 @@ class LearnedRelationships:
         self._load_from_cache()
     
     def _load_from_cache(self) -> bool:
-        """Load cached relationships if available."""
+        """
+        Load cached relationships.
+        
+        Priority: PostgreSQL → Redis → JSON file
+        This ensures continuous learning loop data is always fresh.
+        """
+        loaded_from_db = False
+        
+        # Try loading causal relations from PostgreSQL first (continuous learning loop)
+        if CAUSAL_PERSISTENCE_AVAILABLE:
+            try:
+                persistence = get_causal_persistence()
+                db_relations = persistence.load_all()
+                if db_relations:
+                    self.causal_relations = db_relations
+                    causal_count = sum(len(t) for t in self.causal_relations.values())
+                    logger.info(f"[LearnedRelationships] Loaded {causal_count} causal relations from PostgreSQL")
+                    loaded_from_db = True
+            except Exception as e:
+                logger.warning(f"[LearnedRelationships] DB load failed: {e}")
+        
+        # Load other data from JSON file
         if not RELATIONSHIPS_FILE.exists():
-            logger.info("No cached relationships found")
-            return False
+            if not loaded_from_db:
+                logger.info("No cached relationships found")
+                return False
+            return True
         
         try:
             with open(RELATIONSHIPS_FILE, 'r') as f:
@@ -98,8 +129,10 @@ class LearnedRelationships:
             self.word_frequency = data.get('frequency', {})
             self.learning_complete = data.get('learning_complete', False)
             
-            # Load causal relations (NEW)
-            self.causal_relations = data.get('causal_relations', {})
+            # Load causal relations from JSON only if not loaded from DB
+            if not loaded_from_db:
+                self.causal_relations = data.get('causal_relations', {})
+            
             causal_count = sum(len(t) for t in self.causal_relations.values())
             
             if ADJUSTED_BASINS_FILE.exists():
@@ -112,7 +145,8 @@ class LearnedRelationships:
                         if key in npz.files:
                             self.adjusted_basins[str(word)] = npz[key]
             
-            logger.info(f"Loaded {len(self.word_neighbors)} word relationships, {causal_count} causal relations from cache")
+            source = "PostgreSQL" if loaded_from_db else "cache"
+            logger.info(f"Loaded {len(self.word_neighbors)} word relationships, {causal_count} causal relations from {source}")
             
             # Bootstrap causal relations from curriculum if none loaded
             if causal_count == 0 and len(self.word_neighbors) > 0:
@@ -121,7 +155,7 @@ class LearnedRelationships:
             return True
         except Exception as e:
             logger.warning(f"Failed to load cache: {e}")
-            return False
+            return loaded_from_db
     
     def _bootstrap_causal_relations(self):
         """Bootstrap causal relations from curriculum files if none in cache."""
@@ -170,15 +204,39 @@ class LearnedRelationships:
             self.save_to_cache()
     
     def save_to_cache(self) -> bool:
-        """Save relationships to cache."""
+        """
+        Save relationships to cache.
+        
+        Saves to both PostgreSQL (causal relations) and JSON (word neighbors).
+        This ensures continuous learning loop persists properly.
+        """
         CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        saved_to_db = False
+        
+        # Save causal relations to PostgreSQL for continuous learning loop
+        if CAUSAL_PERSISTENCE_AVAILABLE and self.causal_relations:
+            try:
+                persistence = get_causal_persistence()
+                relations = []
+                for source, targets in self.causal_relations.items():
+                    for target, info in targets.items():
+                        rel_type = info.get('type', 'unknown')
+                        count = info.get('count', 1)
+                        relations.append((source, target, rel_type, count))
+                
+                if relations:
+                    saved = persistence.save_batch(relations)
+                    logger.info(f"[LearnedRelationships] Saved {saved} causal relations to PostgreSQL")
+                    saved_to_db = True
+            except Exception as e:
+                logger.warning(f"[LearnedRelationships] DB save failed: {e}")
         
         try:
             data = {
                 'neighbors': self.word_neighbors,
                 'frequency': self.word_frequency,
                 'learning_complete': self.learning_complete,
-                'causal_relations': self.causal_relations  # NEW: save causal relations
+                'causal_relations': self.causal_relations  # Also save to JSON as backup
             }
             with open(RELATIONSHIPS_FILE, 'w') as f:
                 json.dump(data, f)
@@ -192,11 +250,12 @@ class LearnedRelationships:
                                     **arrays_dict)
             
             causal_count = sum(len(t) for t in self.causal_relations.values())
-            logger.info(f"Saved {len(self.word_neighbors)} relationships, {causal_count} causal relations to cache")
+            dest = "PostgreSQL + JSON" if saved_to_db else "JSON"
+            logger.info(f"Saved {len(self.word_neighbors)} relationships, {causal_count} causal relations to {dest}")
             return True
         except Exception as e:
             logger.error(f"Failed to save cache: {e}")
-            return False
+            return saved_to_db
     
     def update_from_learner(self, learner, adjusted_basins: Dict[str, np.ndarray]):
         """Update from a WordRelationshipLearner instance."""
