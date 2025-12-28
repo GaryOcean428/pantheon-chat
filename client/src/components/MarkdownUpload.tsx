@@ -177,10 +177,10 @@ export function MarkdownUpload() {
       <CardHeader>
         <CardTitle className="text-lg flex items-center gap-2 font-mono">
           <FileText className="h-5 w-5 text-emerald-400" />
-          Document Vocabulary Upload
+          Curriculum Upload
         </CardTitle>
         <CardDescription className="font-mono text-xs">
-          Upload text docs, CSV, PDF, markdown and more to extract vocabulary
+          Upload documents to add to curriculum for long-term learning. Files are learned in the next cycle.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

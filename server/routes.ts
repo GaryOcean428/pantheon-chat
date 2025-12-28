@@ -522,6 +522,92 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
 
 
   // ============================================================
+  // FILE UPLOAD ENDPOINTS - Curriculum and Chat RAG
+  // ============================================================
+  const uploadMultiMiddleware = multer({ 
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 10 * 1024 * 1024 },
+    fileFilter: (_req, file, cb) => {
+      const ext = file.originalname.toLowerCase();
+      if (ext.endsWith('.md') || ext.endsWith('.txt') || ext.endsWith('.markdown')) {
+        cb(null, true);
+      } else {
+        cb(new Error('Only .md, .txt, and .markdown files are accepted'));
+      }
+    }
+  });
+
+  app.post("/api/uploads/curriculum", uploadMultiMiddleware.single('file'), async (req: any, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'No file provided' });
+      }
+
+      const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
+      
+      try {
+        const response = await fetch(`${backendUrl}/api/uploads/curriculum`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            content: req.file.buffer.toString('base64'),
+            filename: req.file.originalname,
+          }),
+          signal: AbortSignal.timeout(30000),
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          return res.json(data);
+        }
+      } catch {
+        console.log("[API] Curriculum upload - Python backend unavailable");
+      }
+      
+      res.status(503).json({ error: 'Upload service unavailable' });
+    } catch (error: unknown) {
+      console.error("[API] Curriculum upload error:", getErrorMessage(error));
+      res.status(500).json({ error: getErrorMessage(error) });
+    }
+  });
+
+  app.post("/api/uploads/chat", uploadMultiMiddleware.single('file'), async (req: any, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'No file provided' });
+      }
+
+      const addToCurriculum = req.body?.add_to_curriculum === 'true';
+      const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
+      
+      try {
+        const response = await fetch(`${backendUrl}/api/uploads/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            content: req.file.buffer.toString('base64'),
+            filename: req.file.originalname,
+            add_to_curriculum: addToCurriculum,
+          }),
+          signal: AbortSignal.timeout(30000),
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          return res.json(data);
+        }
+      } catch {
+        console.log("[API] Chat upload - Python backend unavailable");
+      }
+      
+      res.status(503).json({ error: 'Upload service unavailable' });
+    } catch (error: unknown) {
+      console.error("[API] Chat upload error:", getErrorMessage(error));
+      res.status(500).json({ error: getErrorMessage(error) });
+    }
+  });
+
+  // ============================================================
   // PYTHON PROXY - Generic proxy for Python backend APIs
   // ============================================================
   app.use("/api/python", async (req: any, res, next) => {

@@ -263,6 +263,14 @@ export const API_ROUTES = {
     },
   },
 
+  // File Uploads
+  uploads: {
+    curriculum: '/api/uploads/curriculum',
+    chat: '/api/uploads/chat',
+    stats: '/api/uploads/stats',
+    curriculumFiles: '/api/uploads/curriculum/files',
+  },
+
   // Learning (Zeus Search Learner)
   learning: {
     base: '/api/olympus/zeus/search/learner',
