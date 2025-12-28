@@ -479,3 +479,269 @@ def reject_proposal(proposal_id: str):
             'success': False,
             'error': str(e)
         }), 500
+
+
+_lifecycle_gov = None
+
+def get_lifecycle_governance():
+    """Get lifecycle governance singleton."""
+    global _lifecycle_gov
+    if _lifecycle_gov is None:
+        try:
+            from kernel_lifecycle_governance import get_lifecycle_governance as get_gov
+            _lifecycle_gov = get_gov()
+        except Exception as e:
+            print(f"[M8Routes] Failed to get lifecycle governance: {e}")
+            return None
+    return _lifecycle_gov
+
+
+@m8_bp.route('/governance/stats', methods=['GET'])
+def get_governance_stats():
+    """Get kernel lifecycle governance statistics."""
+    try:
+        gov = get_lifecycle_governance()
+        
+        default_stats = {
+            'current_kernels': 0,
+            'e8_cap': 240,
+            'available_slots': 240,
+            'at_capacity': False,
+            'active_proposals': 0,
+            'kernel_types': {},
+            'protected_count': 0,
+        }
+        
+        if gov is None:
+            return jsonify({
+                'success': True,
+                'data': default_stats
+            })
+        
+        stats = gov.get_governance_stats()
+        merged = {**default_stats, **(stats or {})}
+        return jsonify({
+            'success': True,
+            'data': merged
+        })
+    except Exception as e:
+        print(f"[M8Routes] Governance stats error: {e}")
+        return jsonify({
+            'success': False, 
+            'error': str(e),
+            'data': {
+                'current_kernels': 0,
+                'e8_cap': 240,
+                'available_slots': 240,
+                'at_capacity': False,
+                'active_proposals': 0,
+            }
+        }), 500
+
+
+@m8_bp.route('/governance/capacity', methods=['GET'])
+def get_e8_capacity():
+    """Get current E8 kernel capacity status."""
+    try:
+        gov = get_lifecycle_governance()
+        
+        default_capacity = {
+            'current': 0,
+            'cap': 240,
+            'available': 240,
+            'at_capacity': False,
+        }
+        
+        if gov is None:
+            return jsonify(default_capacity)
+        
+        current, cap, has_room = gov.check_e8_capacity()
+        return jsonify({
+            'current': current,
+            'cap': cap,
+            'available': cap - current,
+            'at_capacity': not has_room,
+        })
+    except Exception as e:
+        print(f"[M8Routes] E8 capacity error: {e}")
+        return jsonify({
+            'current': 0,
+            'cap': 240,
+            'available': 240,
+            'at_capacity': False,
+        }), 500
+
+
+@m8_bp.route('/governance/proposals', methods=['GET'])
+def get_lifecycle_proposals():
+    """Get all active lifecycle proposals requiring god oversight."""
+    try:
+        gov = get_lifecycle_governance()
+        if gov is None:
+            return jsonify({
+                'proposals': [], 
+                'total': 0
+            })
+        
+        proposals = gov.get_active_proposals() or []
+        return jsonify({
+            'proposals': proposals,
+            'total': len(proposals)
+        })
+    except Exception as e:
+        print(f"[M8Routes] Get proposals error: {e}")
+        return jsonify({
+            'proposals': [],
+            'total': 0
+        }), 500
+
+
+@m8_bp.route('/governance/proposals/<proposal_id>', methods=['GET'])
+def get_lifecycle_proposal(proposal_id: str):
+    """Get a specific lifecycle proposal."""
+    try:
+        gov = get_lifecycle_governance()
+        if gov is None:
+            return jsonify({'success': False, 'error': 'Governance not available'}), 503
+        
+        proposal = gov.get_proposal(proposal_id)
+        if proposal:
+            return jsonify({'success': True, 'proposal': proposal})
+        return jsonify({'success': False, 'error': 'Proposal not found'}), 404
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@m8_bp.route('/governance/propose', methods=['POST'])
+def propose_lifecycle_action():
+    """
+    Propose a lifecycle action for god debate.
+    
+    Body:
+        action: 'spawn' | 'merge' | 'cannibalize' | 'evolve' | 'hibernate' | 'awaken'
+        proposed_by: god name proposing the action
+        reason: why this action is needed
+        target_kernel_id: (optional) target kernel for action
+        domain: (optional) domain for spawn
+        merge_target_id: (optional) kernel to merge into
+        primitive_function: (optional) primitive function to preserve
+    """
+    try:
+        data = request.get_json() or {}
+        
+        action_str = data.get('action', 'spawn')
+        proposed_by = data.get('proposed_by', 'zeus')
+        reason = data.get('reason', 'Governance decision')
+        
+        gov = get_lifecycle_governance()
+        if gov is None:
+            return jsonify({'success': False, 'error': 'Governance not available'}), 503
+        
+        from kernel_lifecycle_governance import LifecycleAction
+        try:
+            action = LifecycleAction(action_str)
+        except ValueError:
+            return jsonify({'success': False, 'error': f'Invalid action: {action_str}'}), 400
+        
+        success, message, proposal_id = gov.propose_action(
+            action=action,
+            proposed_by=proposed_by,
+            reason=reason,
+            target_kernel_id=data.get('target_kernel_id'),
+            domain=data.get('domain'),
+            basin_coordinates=data.get('basin_coordinates'),
+            parent_kernels=data.get('parent_kernels'),
+            merge_target_id=data.get('merge_target_id'),
+            primitive_function=data.get('primitive_function'),
+        )
+        
+        return jsonify({
+            'success': success,
+            'message': message,
+            'proposal_id': proposal_id
+        })
+    except Exception as e:
+        print(f"[M8Routes] Propose error: {e}")
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@m8_bp.route('/governance/vote/<proposal_id>', methods=['POST'])
+def vote_on_lifecycle_proposal(proposal_id: str):
+    """
+    Cast a god's vote on a lifecycle proposal.
+    
+    Body:
+        god_name: which god is voting
+        vote: 'approve' | 'reject' | 'abstain' | 'defer'
+        argument: (optional) reasoning for the vote
+    """
+    try:
+        data = request.get_json() or {}
+        god_name = data.get('god_name', 'zeus')
+        vote_str = data.get('vote', 'abstain')
+        argument = data.get('argument')
+        
+        gov = get_lifecycle_governance()
+        if gov is None:
+            return jsonify({'success': False, 'error': 'Governance not available'}), 503
+        
+        from kernel_lifecycle_governance import VoteDecision
+        try:
+            vote = VoteDecision(vote_str)
+        except ValueError:
+            return jsonify({'success': False, 'error': f'Invalid vote: {vote_str}'}), 400
+        
+        success, message = gov.vote_on_proposal(proposal_id, god_name, vote, argument)
+        
+        return jsonify({
+            'success': success,
+            'message': message
+        })
+    except Exception as e:
+        print(f"[M8Routes] Vote error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@m8_bp.route('/governance/execute/<proposal_id>', methods=['POST'])
+def execute_lifecycle_proposal(proposal_id: str):
+    """Execute an approved lifecycle proposal."""
+    try:
+        gov = get_lifecycle_governance()
+        if gov is None:
+            return jsonify({'success': False, 'error': 'Governance not available'}), 503
+        
+        success, message, result = gov.execute_proposal(proposal_id)
+        
+        return jsonify({
+            'success': success,
+            'message': message,
+            'result': result
+        })
+    except Exception as e:
+        print(f"[M8Routes] Execute error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@m8_bp.route('/governance/capacity', methods=['GET'])
+def get_e8_capacity():
+    """Get E8 capacity status."""
+    try:
+        gov = get_lifecycle_governance()
+        if gov is None:
+            return jsonify({
+                'current': 0,
+                'cap': 240,
+                'available': 240,
+                'at_capacity': False
+            })
+        
+        current, cap, has_room = gov.check_e8_capacity()
+        return jsonify({
+            'current': current,
+            'cap': cap,
+            'available': cap - current,
+            'at_capacity': not has_room
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500

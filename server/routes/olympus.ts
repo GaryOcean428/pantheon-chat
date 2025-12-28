@@ -1634,6 +1634,131 @@ router.post('/m8/kernel/auto-cannibalize', isAuthenticated, (req, res) =>
 router.post('/m8/kernels/auto-merge', isAuthenticated, (req, res) => 
   proxyPost(req, res, '/m8/kernels/auto-merge', 'Python backend unavailable', { rawPath: true }));
 
+// ========== Lifecycle Governance Routes (God Oversight) ==========
+
+/** Governance Stats - Get E8 capacity and proposal stats */
+router.get('/m8/governance/stats', isAuthenticated, async (req, res) => {
+  try {
+    const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
+    const response = await fetch(`${backendUrl}/m8/governance/stats`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (!response.ok) throw new Error(`Backend returned ${response.status}`);
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    logger.error({ data: error }, '[Olympus] Governance stats error');
+    res.json({
+      success: false,
+      data: {
+        e8_cap: 240,
+        current_kernels: 0,
+        available_slots: 240,
+        at_capacity: false,
+        active_proposals: 0,
+        protected_gods: 19,
+      }
+    });
+  }
+});
+
+/** Governance Proposals - Get all active lifecycle proposals */
+router.get('/m8/governance/proposals', isAuthenticated, async (req, res) => {
+  try {
+    const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
+    const response = await fetch(`${backendUrl}/m8/governance/proposals`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (!response.ok) throw new Error(`Backend returned ${response.status}`);
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    logger.error({ data: error }, '[Olympus] Governance proposals error');
+    res.json({ proposals: [], total: 0 });
+  }
+});
+
+/** Governance Proposal - Get specific proposal */
+router.get('/m8/governance/proposals/:proposalId', isAuthenticated, async (req, res) => {
+  try {
+    const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
+    const response = await fetch(`${backendUrl}/m8/governance/proposals/${req.params.proposalId}`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (!response.ok) throw new Error(`Backend returned ${response.status}`);
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    logger.error({ data: error }, '[Olympus] Governance proposal error');
+    res.status(404).json({ success: false, error: 'Proposal not found' });
+  }
+});
+
+/** Governance Propose - Create lifecycle proposal for god debate */
+router.post('/m8/governance/propose', isAuthenticated, (req, res) => 
+  proxyPost(req, res, '/m8/governance/propose', 'Governance unavailable', { rawPath: true }));
+
+/** Governance Vote - Cast god vote on proposal */
+router.post('/m8/governance/vote/:proposalId', isAuthenticated, async (req, res) => {
+  try {
+    const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
+    const response = await fetch(`${backendUrl}/m8/governance/vote/${req.params.proposalId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req.body),
+    });
+    if (!response.ok) throw new Error(`Backend returned ${response.status}`);
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    logger.error({ data: error }, '[Olympus] Governance vote error');
+    res.status(500).json({ success: false, error: 'Vote failed' });
+  }
+});
+
+/** Governance Execute - Execute approved proposal */
+router.post('/m8/governance/execute/:proposalId', isAuthenticated, async (req, res) => {
+  try {
+    const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
+    const response = await fetch(`${backendUrl}/m8/governance/execute/${req.params.proposalId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req.body),
+    });
+    if (!response.ok) throw new Error(`Backend returned ${response.status}`);
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    logger.error({ data: error }, '[Olympus] Governance execute error');
+    res.status(500).json({ success: false, error: 'Execution failed' });
+  }
+});
+
+/** Governance E8 Capacity - Get current kernel count vs cap */
+router.get('/m8/governance/capacity', isAuthenticated, async (req, res) => {
+  try {
+    const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
+    const response = await fetch(`${backendUrl}/m8/governance/capacity`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (!response.ok) throw new Error(`Backend returned ${response.status}`);
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    logger.error({ data: error }, '[Olympus] Governance capacity error');
+    res.json({
+      current: 0,
+      cap: 240,
+      available: 240,
+      at_capacity: false
+    });
+  }
+});
+
 /**
  * Get all spawned kernels from PostgreSQL
  * Returns kernels with full attributes including spawn reason, reputation, merge/split status
