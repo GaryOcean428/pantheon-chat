@@ -34,6 +34,17 @@ def _get_budget_orchestrator():
         from search.search_budget_orchestrator import get_budget_orchestrator
         return get_budget_orchestrator()
     except ImportError:
+        logger.warning("[SearchProviderManager] Budget orchestrator not available")
+        return None
+
+
+def _get_search_importance():
+    """Get SearchImportance enum."""
+    try:
+        from search.search_budget_orchestrator import SearchImportance
+        return SearchImportance
+    except ImportError:
+        logger.warning("[SearchProviderManager] SearchImportance not available")
         return None
 
 
@@ -154,12 +165,12 @@ class SearchProviderManager:
             Combined results with provider info and budget context
         """
         orchestrator = _get_budget_orchestrator()
+        SearchImportance = _get_search_importance()
         
         selected_provider = None
         selection_reason = "legacy"
         
-        if orchestrator:
-            from search.search_budget_orchestrator import SearchImportance
+        if orchestrator and SearchImportance:
             imp_enum = SearchImportance(min(max(importance, 1), 4))
             selected_provider, selection_reason = orchestrator.select_provider(
                 importance=imp_enum,
@@ -199,7 +210,7 @@ class SearchProviderManager:
                     self.query_count[prov] = self.query_count.get(prov, 0) + 1
                     provider_used = prov
                     
-                    if orchestrator:
+                    if orchestrator and SearchImportance:
                         orchestrator.record_usage(prov, success=True)
                         relevance = min(1.0, len(results) / max_results)
                         orchestrator.record_outcome(
@@ -217,7 +228,7 @@ class SearchProviderManager:
                 errors.append(f"{prov}: {str(e)}")
                 logger.error(f"[SearchProviderManager] {prov} failed: {e}")
                 
-                if orchestrator:
+                if orchestrator and SearchImportance:
                     orchestrator.record_outcome(
                         query=query,
                         provider=prov,

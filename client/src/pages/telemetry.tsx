@@ -8,6 +8,7 @@ import CapabilityTelemetryPanel from "@/components/CapabilityTelemetryPanel";
 import { ConsciousnessMonitoringDemo } from "@/components/ConsciousnessMonitoringDemo";
 import { EmotionalStatePanel } from "@/components/EmotionalStatePanel";
 import NeurochemistryAdminPanel from "@/components/NeurochemistryAdminPanel";
+import SearchBudgetPanel from "@/components/SearchBudgetPanel";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -717,28 +718,7 @@ export default function TelemetryDashboard() {
         <TabsContent value="usage" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <ApiUsageCard usage={data.usage} />
-            <Card>
-              <CardHeader>
-                <CardTitle>Usage Limits</CardTitle>
-                <CardDescription>Rate limiting and cost controls</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span>Tavily Daily Limit</span>
-                    <span className="font-mono">{data.usage.tavily.dailyLimit}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Tavily Cost Cap</span>
-                    <span className="font-mono">$5.00/day</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Rate Limit</span>
-                    <span className="font-mono">5/min</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <SearchBudgetPanel />
           </div>
         </TabsContent>
         
