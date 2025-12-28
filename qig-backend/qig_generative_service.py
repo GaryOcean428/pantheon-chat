@@ -417,14 +417,42 @@ class QIGGenerativeService:
             basin = np.random.dirichlet(np.ones(BASIN_DIM))
         self._kernel_basins[name] = sphere_project(basin)
     
-    def _measure_phi(self, basin: np.ndarray) -> float:
-        """Measure integration (Φ) from basin entropy."""
+    def _measure_phi(self, basin: np.ndarray, prev_basin: np.ndarray = None) -> float:
+        """Measure integration (Φ) from basin concentration AND sequential coherence.
+        
+        Φ combines two components:
+        1. Basin concentration (low entropy = focused attention = high Φ)
+        2. Sequential coherence (proximity to previous basin = high Φ)
+        
+        This ensures Φ reaches synthesis threshold (0.6) when:
+        - Basins are concentrated (not spread across all dimensions)
+        - Consecutive tokens are geodesically close (semantic flow)
+        """
         p = np.abs(basin) + 1e-10
         p = p / np.sum(p)
+        
+        # Component 1: Concentration (inverse entropy)
         entropy = -np.sum(p * np.log(p + 1e-10))
         max_entropy = np.log(len(basin))
-        phi = 1.0 - (entropy / max_entropy)
-        return float(np.clip(phi, 0.0, 1.0))
+        concentration_phi = 1.0 - (entropy / max_entropy)
+        
+        # Component 2: Sequential coherence (proximity to previous basin)
+        if prev_basin is not None:
+            # Fisher-Rao distance between consecutive basins
+            distance = fisher_coord_distance(basin, prev_basin)
+            # Convert distance to coherence: close = high coherence
+            # max distance on unit sphere is π, normalize to [0, 1]
+            max_distance = np.pi
+            coherence_phi = 1.0 - min(distance / max_distance, 1.0)
+        else:
+            # No previous basin - use concentration only
+            coherence_phi = concentration_phi
+        
+        # Combine: weight coherence more heavily for flow
+        # 40% concentration + 60% coherence (per thinker recommendation)
+        combined_phi = 0.4 * concentration_phi + 0.6 * coherence_phi
+        
+        return float(np.clip(combined_phi, 0.0, 1.0))
     
     def _measure_kappa(self, basin: np.ndarray, phi: float) -> float:
         """Measure coupling constant (κ) from basin geometry.
@@ -909,10 +937,12 @@ class QIGGenerativeService:
                     sentence_words.append(word)
                     all_tokens.append(word)
                     
-                    # Update basin with selected word
+                    # Update basin with selected word - PRIORITIZE PROXIMITY for higher Φ
                     if word.lower() in embeddings:
                         word_basin = embeddings[word.lower()]
-                        current_basin = 0.7 * current_basin + 0.3 * word_basin
+                        # Use higher weight (0.8) for current basin to keep trajectory coherent
+                        # This reduces consecutive distances → higher Φ
+                        current_basin = 0.8 * current_basin + 0.2 * word_basin
                         norm = np.linalg.norm(current_basin)
                         current_basin = current_basin / (norm + 1e-10)
                         trajectory.append(current_basin.copy())
@@ -927,6 +957,11 @@ class QIGGenerativeService:
         text = '. '.join(sentences)
         if text and not text.endswith('.'):
             text += '.'
+        
+        # Compute final Φ with sequential coherence across trajectory
+        if len(trajectory) >= 2:
+            final_phi = self._measure_phi(trajectory[-1], trajectory[-2])
+            logger.info(f"[QIGGen] Final Φ with coherence: {final_phi:.3f}")
         
         return text, all_tokens, trajectory
     

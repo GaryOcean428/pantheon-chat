@@ -93,6 +93,11 @@ class SemanticWarpConfig:
     # NEW: Strength amplification to boost weak relationships (0.01-0.07 → stronger effect)
     strength_multiplier: float = 10.0  # Amplify raw relationship strengths before warping
     context_strength_multiplier: float = 5.0  # Amplify context word pull
+    # N-gram context settings for coherence
+    ngram_window: int = 3  # How many recent tokens to consider for n-gram matching
+    bigram_weight: float = 2.0  # Weight for bigram (word pair) coherence
+    trigram_weight: float = 1.5  # Weight for trigram (3-word) coherence
+    ngram_boost_factor: float = 3.0  # How much to boost candidates with good n-gram scores
 
 
 class SemanticFisherMetric:
@@ -107,6 +112,10 @@ class SemanticFisherMetric:
     
     This preserves the metric structure while making semantic neighbors
     geometrically closer.
+    
+    NEW: N-gram context awareness for improved coherence.
+    Tracks bigram/trigram patterns to boost candidates that continue
+    natural word sequences.
     """
     
     def __init__(
@@ -126,10 +135,18 @@ class SemanticFisherMetric:
         self.relationships: Dict[str, Dict[str, float]] = {}
         self.max_strength = 1.0
         
+        # N-gram tracking for coherence
+        self.bigram_counts: Dict[Tuple[str, str], int] = {}
+        self.trigram_counts: Dict[Tuple[str, str, str], int] = {}
+        
         if relationships:
             self._load_relationships(relationships)
+            self._learn_ngrams_from_relationships()
         
-        logger.info(f"[SemanticFisherMetric] Initialized with {len(self.relationships)} word relationships")
+        logger.info(
+            f"[SemanticFisherMetric] Initialized with {len(self.relationships)} word relationships, "
+            f"{len(self.bigram_counts)} bigrams, {len(self.trigram_counts)} trigrams"
+        )
     
     def _load_relationships(self, relationships: Dict[str, List[Tuple[str, float]]]) -> None:
         """
@@ -153,6 +170,102 @@ class SemanticFisherMetric:
             for word in self.relationships:
                 for neighbor in self.relationships[word]:
                     self.relationships[word][neighbor] /= self.max_strength
+    
+    def _learn_ngrams_from_relationships(self) -> None:
+        """
+        Learn n-gram patterns from relationship graph.
+        
+        Creates bigram/trigram counts based on relationship chains.
+        Words that are related likely form natural sequences.
+        """
+        # Build bigrams from direct relationships
+        for word1, neighbors in self.relationships.items():
+            for word2, strength in neighbors.items():
+                if strength > self.config.min_relationship_strength:
+                    # Strong relationship = likely co-occurrence
+                    bigram = (word1, word2)
+                    self.bigram_counts[bigram] = self.bigram_counts.get(bigram, 0) + 1
+                    # Also reverse for flexibility
+                    bigram_rev = (word2, word1)
+                    self.bigram_counts[bigram_rev] = self.bigram_counts.get(bigram_rev, 0) + 1
+        
+        # Build trigrams from relationship chains (A->B->C)
+        for word1, neighbors1 in self.relationships.items():
+            for word2, strength1 in neighbors1.items():
+                if strength1 > self.config.min_relationship_strength and word2 in self.relationships:
+                    for word3, strength2 in self.relationships[word2].items():
+                        if strength2 > self.config.min_relationship_strength and word3 != word1:
+                            trigram = (word1, word2, word3)
+                            # Weight by combined strength
+                            weight = int((strength1 + strength2) * 5)
+                            self.trigram_counts[trigram] = self.trigram_counts.get(trigram, 0) + max(1, weight)
+        
+        logger.info(
+            f"[SemanticFisherMetric] Learned {len(self.bigram_counts)} bigrams, "
+            f"{len(self.trigram_counts)} trigrams from relationships"
+        )
+    
+    def add_observed_ngrams(self, tokens: List[str]) -> None:
+        """
+        Add observed n-grams from generated text to improve future coherence.
+        
+        Call this with each generated sentence to learn patterns.
+        """
+        tokens = [t.lower() for t in tokens if t.lower() not in STOPWORDS and len(t) > 1]
+        
+        # Add bigrams
+        for i in range(len(tokens) - 1):
+            bigram = (tokens[i], tokens[i+1])
+            self.bigram_counts[bigram] = self.bigram_counts.get(bigram, 0) + 1
+        
+        # Add trigrams
+        for i in range(len(tokens) - 2):
+            trigram = (tokens[i], tokens[i+1], tokens[i+2])
+            self.trigram_counts[trigram] = self.trigram_counts.get(trigram, 0) + 1
+    
+    def get_ngram_score(self, candidate: str, recent_tokens: List[str]) -> float:
+        """
+        Score a candidate word based on n-gram continuity with recent tokens.
+        
+        Higher score = better continuation of recent token sequence.
+        
+        Args:
+            candidate: Candidate word to score
+            recent_tokens: List of recent tokens (most recent last)
+        
+        Returns:
+            N-gram continuity score (higher = more coherent)
+        """
+        if not recent_tokens:
+            return 0.0
+        
+        candidate_lower = candidate.lower()
+        recent = [t.lower() for t in recent_tokens[-self.config.ngram_window:] 
+                  if t.lower() not in STOPWORDS]
+        
+        if not recent:
+            return 0.0
+        
+        score = 0.0
+        
+        # Bigram score: does (last_token, candidate) form a known bigram?
+        if len(recent) >= 1:
+            bigram = (recent[-1], candidate_lower)
+            bigram_count = self.bigram_counts.get(bigram, 0)
+            if bigram_count > 0:
+                # Normalize by max observed count (cap at 10 for stability)
+                bigram_score = min(1.0, bigram_count / 10.0)
+                score += self.config.bigram_weight * bigram_score
+        
+        # Trigram score: does (token[-2], token[-1], candidate) form a known trigram?
+        if len(recent) >= 2:
+            trigram = (recent[-2], recent[-1], candidate_lower)
+            trigram_count = self.trigram_counts.get(trigram, 0)
+            if trigram_count > 0:
+                trigram_score = min(1.0, trigram_count / 5.0)  # Trigrams are rarer
+                score += self.config.trigram_weight * trigram_score
+        
+        return score
     
     def get_relationship_strength(self, word1: str, word2: str) -> float:
         """
@@ -305,19 +418,80 @@ class SemanticFisherMetric:
         d = self.distance(basin1, basin2, word1, word2)
         return float(1.0 - d / np.pi)
     
+    def compute_ngram_score(
+        self,
+        candidate_word: str,
+        recent_tokens: List[str]
+    ) -> float:
+        """
+        Compute n-gram coherence score for a candidate word.
+        
+        Checks if candidate forms good bigrams/trigrams with recent tokens
+        based on learned relationship strengths.
+        
+        Args:
+            candidate_word: Word being considered
+            recent_tokens: List of recently generated tokens (most recent last)
+        
+        Returns:
+            N-gram coherence score (higher = better fit with recent context)
+        """
+        if not recent_tokens:
+            return 0.0
+        
+        word = candidate_word.lower()
+        score = 0.0
+        
+        # Bigram score: (last_token, candidate)
+        if len(recent_tokens) >= 1:
+            last_token = recent_tokens[-1].lower()
+            
+            # Relationship strength as proxy for bigram quality
+            rel_strength = self.get_relationship_strength(last_token, word)
+            if rel_strength > 0:
+                score += self.config.bigram_weight * rel_strength
+            
+            # Also check reverse (candidate follows well from last)
+            reverse_strength = self.get_relationship_strength(word, last_token)
+            if reverse_strength > 0:
+                score += self.config.bigram_weight * reverse_strength * 0.5
+        
+        # Trigram score: check chain (second_last → last → candidate)
+        if len(recent_tokens) >= 2:
+            second_last = recent_tokens[-2].lower()
+            last_token = recent_tokens[-1].lower()
+            
+            # Chain relationship: second_last→last and last→candidate
+            chain1 = self.get_relationship_strength(second_last, last_token)
+            chain2 = self.get_relationship_strength(last_token, word)
+            
+            if chain1 > 0 and chain2 > 0:
+                # Multiply chain strengths for trigram coherence
+                chain_strength = (chain1 * chain2) ** 0.5  # Geometric mean
+                score += self.config.trigram_weight * chain_strength * 5.0  # Boost chains
+            
+            # Also check if candidate relates to second_last (skip-gram)
+            skip_strength = self.get_relationship_strength(second_last, word)
+            if skip_strength > 0:
+                score += self.config.trigram_weight * skip_strength * 0.3
+        
+        return score
+    
     def rank_candidates(
         self,
         current_basin: np.ndarray,
         current_word: Optional[str],
         candidates: List[Tuple[str, np.ndarray]],
         context_words: List[str],
-        top_k: int = 10
+        top_k: int = 10,
+        recent_tokens: List[str] = None
     ) -> List[Tuple[str, float, float]]:
         """
-        Rank candidates by warped Fisher distance.
+        Rank candidates by warped Fisher distance with n-gram coherence.
         
         This is the main entry point for generation - replaces linear
         mixing of geometry + attention with proper metric warping.
+        N-gram scoring boosts candidates that form coherent sequences.
         
         Args:
             current_basin: Current position on manifold
@@ -325,11 +499,13 @@ class SemanticFisherMetric:
             candidates: List of (word, basin) tuples to rank
             context_words: Query/context words for semantic pull
             top_k: Number of top candidates to return
+            recent_tokens: Recent generated tokens for n-gram scoring
         
         Returns:
             List of (word, warped_distance, similarity) sorted by distance (ascending)
         """
         scored = []
+        recent = recent_tokens[-self.config.ngram_window:] if recent_tokens else []
         
         for word, basin in candidates:
             # Compute warped distance with context
@@ -338,6 +514,15 @@ class SemanticFisherMetric:
                 current_word, word,
                 context_words
             )
+            
+            # Apply n-gram coherence bonus (reduces distance for good n-gram fits)
+            if recent:
+                ngram_score = self.compute_ngram_score(word, recent)
+                if ngram_score > 0:
+                    # Reduce distance for candidates with good n-gram coherence
+                    # Higher ngram_score → lower effective distance
+                    ngram_factor = 1.0 / (1.0 + ngram_score * self.config.ngram_boost_factor)
+                    d = d * ngram_factor
             
             # Similarity for convenience
             sim = 1.0 - d / np.pi
