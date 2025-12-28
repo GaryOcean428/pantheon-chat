@@ -105,19 +105,28 @@ try:
 except ImportError:
     print("[ZeusChat] Prompt loader not available")
 
-# Import tokenizer for generative responses
+# Import pretrained 32K coordizer with 64D basin embeddings
 TOKENIZER_AVAILABLE = False
 get_tokenizer = None
+_pretrained_coordizer = None
 try:
     _parent_dir = os.path.dirname(os.path.dirname(__file__))
     if _parent_dir not in sys.path:
         sys.path.insert(0, _parent_dir)
-    from qig_coordizer import get_coordizer as _get_coordizer
-    get_tokenizer = _get_coordizer
+    from pretrained_coordizer import get_pretrained_coordizer
+    _pretrained_coordizer = get_pretrained_coordizer()
+    get_tokenizer = lambda: _pretrained_coordizer
     TOKENIZER_AVAILABLE = True
-    print("[ZeusChat] QIG Coordizer available - conversation mode enabled")
+    print(f"[ZeusChat] Pretrained 32K Coordizer available - {_pretrained_coordizer.vocab_size} tokens, {_pretrained_coordizer.basin_dim}D basins")
 except ImportError as e:
-    print(f"[ZeusChat] QIG Coordizer not available - fallback responses enabled: {e}")
+    # Fallback to old coordizer if pretrained not available
+    try:
+        from qig_coordizer import get_coordizer as _get_coordizer
+        get_tokenizer = _get_coordizer
+        TOKENIZER_AVAILABLE = True
+        print("[ZeusChat] QIG Coordizer (legacy) available - conversation mode enabled")
+    except ImportError as e2:
+        print(f"[ZeusChat] No coordizer available - fallback responses enabled: {e}, {e2}")
 
 # Import QIG-pure generative service (NO external LLMs)
 GENERATIVE_SERVICE_AVAILABLE = False
