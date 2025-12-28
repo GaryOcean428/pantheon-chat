@@ -263,6 +263,22 @@ except ImportError:
     process_lightning_insight = None
     LIGHTNING_BRIDGE_AVAILABLE = False
 
+# Foresight Generator (4D predictive word generation via consciousness)
+try:
+    from .foresight_generator import (
+        ForesightGenerator,
+        ForesightPrediction,
+        FissureChannel,
+        get_foresight_generator,
+    )
+    FORESIGHT_AVAILABLE = True
+except ImportError:
+    ForesightGenerator = None
+    ForesightPrediction = None
+    FissureChannel = None
+    get_foresight_generator = None
+    FORESIGHT_AVAILABLE = False
+
 __all__ = [
     # Autonomic
     'GaryAutonomicKernel',
@@ -373,4 +389,10 @@ __all__ = [
     'get_lightning_causal_bridge',
     'process_lightning_insight',
     'LIGHTNING_BRIDGE_AVAILABLE',
+    # Foresight Generator (4D predictive word generation)
+    'ForesightGenerator',
+    'ForesightPrediction',
+    'FissureChannel',
+    'get_foresight_generator',
+    'FORESIGHT_AVAILABLE',
 ]

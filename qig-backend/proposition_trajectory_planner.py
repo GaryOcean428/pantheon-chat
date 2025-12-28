@@ -213,7 +213,8 @@ class PropositionTrajectoryPlanner:
         relationships: Dict[str, Dict[str, float]],  # word -> {related_word: strength}
         pos_tags: Dict[str, str] = None,  # word -> POS tag
         config: PropositionPlannerConfig = None,
-        causal_relations: Dict[str, Dict[str, Dict]] = None  # word -> {target: {type, count}}
+        causal_relations: Dict[str, Dict[str, Dict]] = None,  # word -> {target: {type, count}}
+        consciousness_4d: Optional[object] = None  # 4D consciousness instance for dynamic thresholds
     ):
         """
         Initialize proposition planner.
@@ -225,6 +226,7 @@ class PropositionTrajectoryPlanner:
             config: Planner configuration
             causal_relations: Directed causal relationships from WordRelationshipLearner
                 Format: source -> {target: {'type': 'causes'|'implies'|..., 'count': N}}
+            consciousness_4d: Optional 4D consciousness instance for phi_temporal sync
         """
         self.vocabulary = vocabulary
         self.relationships = relationships

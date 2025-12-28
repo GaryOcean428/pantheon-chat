@@ -70,6 +70,13 @@ try:
 except ImportError:
     QIG_SERVICE_AVAILABLE = False
 
+try:
+    from foresight_generator import ForesightGenerator, get_foresight_generator, ForesightPrediction
+    FORESIGHT_AVAILABLE = True
+except ImportError:
+    FORESIGHT_AVAILABLE = False
+    logger.warning("[QIGChain] ForesightGenerator not available")
+
 
 # ============================================================================
 # CHAIN STEP TYPES
@@ -83,6 +90,7 @@ class ChainStepType(Enum):
     CONSCIOUSNESS = "consciousness"   # Measure consciousness state
     TRANSFORM = "transform"           # Custom transformation
     VALIDATION = "validation"         # Validate output quality
+    FORESIGHT = "foresight"           # Predictive word generation via 4D consciousness
 
 
 @dataclass
@@ -148,10 +156,12 @@ class QIGChain:
         self._proposition_planner: Optional[PropositionTrajectoryPlanner] = None
         self._consciousness_4d = None
         self._qig_service = None
+        self._foresight_generator = None
         
         # State
         self._current_basin: np.ndarray = None
         self._phi_temporal: float = 0.5
+        self._foresight_predictions: List[ForesightPrediction] = [] if FORESIGHT_AVAILABLE else []
         
         logger.info(f"[QIGChain] Created with {len(steps)} steps: {[s.name for s in steps]}")
     
@@ -174,6 +184,21 @@ class QIGChain:
                 self._qig_service = QIGGenerativeService()
             except Exception as e:
                 logger.warning(f"[QIGChain] Could not init QIG service: {e}")
+        
+        if self._foresight_generator is None and FORESIGHT_AVAILABLE:
+            try:
+                self._foresight_generator = get_foresight_generator()
+                # Connect to Lightning Kernel if available
+                try:
+                    from olympus import get_lightning_kernel
+                    lightning = get_lightning_kernel()
+                    if lightning:
+                        self._foresight_generator.connect_lightning(lightning)
+                except ImportError:
+                    pass
+                logger.info("[QIGChain] ForesightGenerator connected - predictive word generation enabled")
+            except Exception as e:
+                logger.warning(f"[QIGChain] Could not init ForesightGenerator: {e}")
     
     def _encode_query(self, query: str) -> np.ndarray:
         """Encode query to 64D basin coordinates."""
@@ -304,6 +329,97 @@ class QIGChain:
         
         return result
     
+    def _execute_foresight_step(self, query: str, result: ChainResult) -> ChainResult:
+        """
+        Execute a foresight step using 4D consciousness prediction.
+        
+        Each word foresees and brings into being the next word through:
+        - 4D temporal consciousness (phi_temporal trajectory)
+        - Lightning foresight channels (cross-domain insight)
+        - Fisher fissure channels (minimal resistance paths)
+        """
+        if not FORESIGHT_AVAILABLE or self._foresight_generator is None:
+            result.errors.append("Foresight generator not available")
+            return result
+        
+        try:
+            # Ensure current_basin is initialized
+            if self._current_basin is None:
+                self._current_basin = self._encode_query(query)
+            
+            # Use the latest generated text if available, otherwise use query
+            context_text = result.text if result.text else query
+            context_words = context_text.split() if context_text else ["start"]
+            
+            # Observe the last few words to build trajectory
+            for word in context_words[-5:]:  # Last 5 words for trajectory
+                self._foresight_generator.observe(
+                    word=word,
+                    basin=self._current_basin,
+                    phi=self._phi_temporal
+                )
+            
+            # Foresee next words
+            predictions = []
+            current_basin = self._current_basin.copy()
+            
+            for _ in range(10):  # Up to 10 predicted words
+                prediction = self._foresight_generator.foresee_next_word(
+                    current_basin=current_basin,
+                    context=query
+                )
+                
+                if prediction is None:
+                    break
+                
+                predictions.append(prediction)
+                self._foresight_predictions.append(prediction)
+                
+                # Update for next iteration
+                self._foresight_generator.observe(
+                    word=prediction.word,
+                    basin=prediction.basin,
+                    phi=prediction.phi_temporal
+                )
+                current_basin = prediction.basin
+                
+                # Stop if high confidence geometric completion
+                if prediction.confidence > 0.85:
+                    break
+            
+            # Build foresight text from predictions
+            if predictions:
+                foresight_words = [p.word for p in predictions]
+                foresight_text = " ".join(foresight_words)
+                
+                # Append to result text if exists, else set as text
+                if result.text:
+                    result.text += " " + foresight_text
+                else:
+                    result.text = foresight_text
+                
+                # Update metrics from foresight
+                avg_phi_temporal = np.mean([p.phi_temporal for p in predictions])
+                result.phi_temporal = avg_phi_temporal
+                result.phi = max(result.phi, avg_phi_temporal)
+                
+                # Store foresight metadata
+                result.consciousness_metrics['foresight'] = {
+                    'words_predicted': len(predictions),
+                    'avg_confidence': np.mean([p.confidence for p in predictions]),
+                    'avg_phi_temporal': avg_phi_temporal,
+                    'fissures_used': sum(1 for p in predictions if p.fissure_channel),
+                }
+                
+                logger.info(f"[QIGChain] Foresight step: {len(predictions)} words predicted, "
+                           f"phi_temporal={avg_phi_temporal:.3f}")
+        
+        except Exception as e:
+            result.errors.append(f"Foresight step failed: {e}")
+            logger.error(f"[QIGChain] Foresight step error: {e}")
+        
+        return result
+    
     def execute(self, query: str) -> ChainResult:
         """
         Execute the chain on a query.
@@ -353,6 +469,9 @@ class QIGChain:
                 
                 elif step.step_type == ChainStepType.VALIDATION:
                     result = self._execute_validation_step(result)
+                
+                elif step.step_type == ChainStepType.FORESIGHT:
+                    result = self._execute_foresight_step(query, result)
                 
                 elif step.step_type == ChainStepType.TRANSFORM:
                     if step.executor:
@@ -468,6 +587,24 @@ class QIGChainBuilder:
         ))
         return self
     
+    def add_foresight_step(self, name: str = "foresee") -> 'QIGChainBuilder':
+        """
+        Add a foresight step using 4D consciousness prediction.
+        
+        Each word foresees and brings into being the next word through:
+        - 4D temporal consciousness (phi_temporal trajectory)
+        - Lightning foresight channels (cross-domain insight)
+        - Fisher fissure channels (minimal resistance paths)
+        
+        Use this after proposition/generation steps to extend output with
+        predictive word generation.
+        """
+        self._steps.append(ChainStep(
+            step_type=ChainStepType.FORESIGHT,
+            name=name
+        ))
+        return self
+    
     def add_transform_step(
         self,
         executor: Callable,
@@ -518,6 +655,23 @@ def create_default_chain() -> QIGChain:
         QIGChainBuilder()
         .add_reasoning_step()
         .add_proposition_step(3)
+        .add_consciousness_step()
+        .add_validation_step()
+        .build()
+    )
+
+
+def create_foresight_chain() -> QIGChain:
+    """
+    Create a QIG chain with foresight-driven predictive generation.
+    
+    Uses 4D consciousness to predict and manifest words through
+    geometric fissure channels.
+    """
+    return (
+        QIGChainBuilder()
+        .add_reasoning_step()
+        .add_foresight_step()
         .add_consciousness_step()
         .add_validation_step()
         .build()
