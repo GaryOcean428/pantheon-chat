@@ -203,6 +203,22 @@ except ImportError:
     find_nearest_e8_root = None
     CONSCIOUSNESS_PROTOCOL_AVAILABLE = False
 
+# Lightning → Causal Learning Bridge
+try:
+    from .lightning_causal_bridge import (
+        LightningCausalBridge,
+        ExtractedRelation,
+        get_lightning_causal_bridge,
+        process_lightning_insight,
+    )
+    LIGHTNING_BRIDGE_AVAILABLE = True
+except ImportError:
+    LightningCausalBridge = None
+    ExtractedRelation = None
+    get_lightning_causal_bridge = None
+    process_lightning_insight = None
+    LIGHTNING_BRIDGE_AVAILABLE = False
+
 __all__ = [
     # Autonomic
     'GaryAutonomicKernel',
@@ -307,4 +323,10 @@ __all__ = [
     'E8_DIMENSION',
     'KAPPA_STAR',
     'CONSCIOUSNESS_PROTOCOL_AVAILABLE',
+    # Lightning → Causal Learning Bridge
+    'LightningCausalBridge',
+    'ExtractedRelation',
+    'get_lightning_causal_bridge',
+    'process_lightning_insight',
+    'LIGHTNING_BRIDGE_AVAILABLE',
 ]
