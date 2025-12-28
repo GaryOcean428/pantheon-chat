@@ -59,10 +59,31 @@ STOPWORDS = {
     'very', 'just', 'also', 'now', 'here', 'there', 'then', 'once', 'about'
 }
 
+# Causal relation patterns for extraction
+CAUSAL_PATTERNS = [
+    # "X causes Y", "X leads to Y", "X results in Y"
+    (r'(\w+)\s+(?:causes?|leads?\s+to|results?\s+in|produces?|generates?|creates?)\s+(\w+)', 'causes'),
+    # "X implies Y", "X suggests Y"
+    (r'(\w+)\s+(?:implies?|suggests?|indicates?|means?)\s+(\w+)', 'implies'),
+    # "X requires Y", "X needs Y"
+    (r'(\w+)\s+(?:requires?|needs?|depends?\s+on|relies?\s+on)\s+(\w+)', 'requires'),
+    # "X is a Y", "X is type of Y" 
+    (r'(\w+)\s+(?:is\s+a|is\s+an|is\s+type\s+of|is\s+kind\s+of)\s+(\w+)', 'is_a'),
+    # "X emerges from Y", "X arises from Y"
+    (r'(\w+)\s+(?:emerges?\s+from|arises?\s+from|comes?\s+from|derives?\s+from)\s+(\w+)', 'emerges_from'),
+    # "If X then Y"
+    (r'if\s+(\w+)\s+then\s+(\w+)', 'conditional'),
+    # "X enables Y", "X allows Y"
+    (r'(\w+)\s+(?:enables?|allows?|permits?|facilitates?)\s+(\w+)', 'enables'),
+]
+
+
 class WordRelationshipLearner:
     """
     Learns semantic relationships between words by analyzing co-occurrence
     in curriculum documents. Updates basin coordinates to reflect relationships.
+    
+    Now includes CAUSAL relationship extraction for improved proposition coherence.
     """
     
     def __init__(self, vocabulary: Set[str], window_size: int = 5):
@@ -74,12 +95,20 @@ class WordRelationshipLearner:
         # Co-occurrence counts: word_i appears near word_j
         self.cooccurrence = defaultdict(lambda: defaultdict(int))
         
+        # CAUSAL relationships: directed edges with relation type
+        # Format: causal_relations[source][target] = {'type': 'causes', 'count': N}
+        self.causal_relations = defaultdict(lambda: defaultdict(lambda: {'type': None, 'count': 0}))
+        
         # Word frequency
         self.word_freq = defaultdict(int)
         
         # Total pairs seen
         self.total_pairs = 0
         self.total_words = 0
+        self.total_causal = 0
+        
+        # Compile causal patterns
+        self._causal_patterns = [(re.compile(p, re.IGNORECASE), rel_type) for p, rel_type in CAUSAL_PATTERNS]
         
         logger.info(f"[WordRelationshipLearner] Initialized with {len(vocabulary)} vocabulary words")
     
@@ -91,6 +120,7 @@ class WordRelationshipLearner:
     def learn_from_text(self, text: str) -> int:
         """
         Process text and update co-occurrence statistics.
+        Also extracts causal relationships.
         Returns number of pairs learned.
         """
         tokens = self.tokenize_text(text)
@@ -113,8 +143,87 @@ class WordRelationshipLearner:
                     self.cooccurrence[word][neighbor] += weight
                     pairs_learned += 1
         
+        # Extract causal relationships from raw text
+        causal_found = self._extract_causal_relations(text)
+        
         self.total_pairs += pairs_learned
         return pairs_learned
+    
+    def _extract_causal_relations(self, text: str) -> int:
+        """
+        Extract causal relationships using regex patterns.
+        
+        These are DIRECTED relationships unlike co-occurrence:
+        - "X causes Y" means X → Y (causes)
+        - "X requires Y" means X → Y (requires)
+        
+        Returns number of causal relations found.
+        """
+        found = 0
+        text_lower = text.lower()
+        
+        for pattern, rel_type in self._causal_patterns:
+            for match in pattern.finditer(text_lower):
+                source = match.group(1)
+                target = match.group(2)
+                
+                # Only record if both words are in vocabulary
+                if source in self.vocabulary and target in self.vocabulary:
+                    # Skip stopwords
+                    if source in STOPWORDS or target in STOPWORDS:
+                        continue
+                    
+                    # Record causal relation
+                    rel = self.causal_relations[source][target]
+                    rel['type'] = rel_type
+                    rel['count'] += 1
+                    found += 1
+                    self.total_causal += 1
+        
+        return found
+    
+    def get_causal_targets(self, source: str, rel_type: str = None) -> List[Tuple[str, str, int]]:
+        """
+        Get words that the source word causes/implies/requires/etc.
+        
+        Args:
+            source: Source word
+            rel_type: Optional filter by relation type (causes, implies, requires, etc.)
+        
+        Returns:
+            List of (target, relation_type, count) tuples
+        """
+        if source not in self.causal_relations:
+            return []
+        
+        results = []
+        for target, rel in self.causal_relations[source].items():
+            if rel['count'] > 0:
+                if rel_type is None or rel['type'] == rel_type:
+                    results.append((target, rel['type'], rel['count']))
+        
+        return sorted(results, key=lambda x: -x[2])
+    
+    def get_causal_sources(self, target: str, rel_type: str = None) -> List[Tuple[str, str, int]]:
+        """
+        Get words that cause/imply/require the target word.
+        
+        Args:
+            target: Target word
+            rel_type: Optional filter by relation type
+        
+        Returns:
+            List of (source, relation_type, count) tuples
+        """
+        results = []
+        for source, targets in self.causal_relations.items():
+            if target in targets:
+                rel = targets[target]
+                if rel['count'] > 0:
+                    if rel_type is None or rel['type'] == rel_type:
+                        results.append((source, rel['type'], rel['count']))
+        
+        return sorted(results, key=lambda x: -x[2])
     
     def learn_from_file(self, filepath: str) -> int:
         """Learn from a single file. Returns pairs learned."""
@@ -331,11 +440,26 @@ class WordRelationshipLearner:
         connectivity = [(w, len(n)) for w, n in self.cooccurrence.items()]
         most_connected = sorted(connectivity, key=lambda x: -x[1])[:20]
         
+        # Causal relation statistics
+        causal_by_type = defaultdict(int)
+        for source, targets in self.causal_relations.items():
+            for target, rel in targets.items():
+                if rel['count'] > 0:
+                    causal_by_type[rel['type']] += rel['count']
+        
+        # Words with most causal outgoing edges
+        causal_sources = [(w, sum(r['count'] for r in t.values())) 
+                          for w, t in self.causal_relations.items()]
+        top_causal = sorted(causal_sources, key=lambda x: -x[1])[:10]
+        
         return {
             'total_words_seen': self.total_words,
             'unique_words_in_corpus': len(self.word_freq),
             'vocabulary_coverage': len(self.word_freq) / len(self.vocabulary) if self.vocabulary else 0,
             'total_pairs': self.total_pairs,
+            'total_causal_relations': self.total_causal,
+            'causal_by_type': dict(causal_by_type),
+            'top_causal_sources': top_causal,
             'top_frequent_words': top_words,
             'most_connected_words': most_connected
         }

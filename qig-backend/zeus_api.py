@@ -43,6 +43,28 @@ except ImportError:
     REDIS_AVAILABLE = False
     print("[ZeusAPI] Redis cache not available, using in-memory fallback")
 
+# Import QIG generative service for proposition-level generation
+try:
+    from qig_generative_service import QIGGenerativeService
+    _qig_service_instance = None
+    QIG_SERVICE_AVAILABLE = True
+except ImportError:
+    QIG_SERVICE_AVAILABLE = False
+    _qig_service_instance = None
+    print("[ZeusAPI] QIG generative service not available")
+
+
+def get_qig_service():
+    """Get singleton QIGGenerativeService instance."""
+    global _qig_service_instance
+    if _qig_service_instance is None and QIG_SERVICE_AVAILABLE:
+        try:
+            _qig_service_instance = QIGGenerativeService()
+            print("[ZeusAPI] QIGGenerativeService initialized")
+        except Exception as e:
+            print(f"[ZeusAPI] Failed to init QIG service: {e}")
+    return _qig_service_instance
+
 zeus_api = Blueprint('zeus_api', __name__)
 
 # Redis session key prefix
@@ -246,7 +268,8 @@ def zeus_chat():
         "message": string (required),
         "session_id": string (optional),
         "context": object (optional),
-        "client_name": string (optional)
+        "client_name": string (optional),
+        "use_propositions": bool (optional, default false) - Use proposition-level generation
     }
     """
     handler = get_conversation_handler()
@@ -284,6 +307,9 @@ def zeus_chat():
         # Persist user message immediately
         _update_session_messages(session_id, session)
 
+        # Check if proposition-level generation is requested
+        use_propositions = data.get('use_propositions', False)
+        
         # Use ZeusConversationHandler.process_message()
         # Pass conversation history and session_id
         conversation_history = [
@@ -291,11 +317,31 @@ def zeus_chat():
             for msg in session['messages']
         ]
         
-        response_data = handler.process_message(
-            message=message,
-            conversation_history=conversation_history,
-            session_id=session_id
-        )
+        # Try proposition-level generation if requested
+        if use_propositions and QIG_SERVICE_AVAILABLE:
+            try:
+                qig_service = get_qig_service()
+                if qig_service:
+                    response_data = qig_service.generate_with_propositions(message, n_propositions=3)
+                    if response_data and response_data.get('text'):
+                        response_data['mode'] = 'proposition_trajectory'
+                    else:
+                        raise ValueError("Empty proposition response")
+                else:
+                    raise ValueError("QIG service not available")
+            except Exception as prop_error:
+                print(f"[ZeusAPI] Proposition generation failed, falling back: {prop_error}")
+                response_data = handler.process_message(
+                    message=message,
+                    conversation_history=conversation_history,
+                    session_id=session_id
+                )
+        else:
+            response_data = handler.process_message(
+                message=message,
+                conversation_history=conversation_history,
+                session_id=session_id
+            )
 
         # Extract response text from the handler's response
         if isinstance(response_data, dict):
