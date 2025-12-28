@@ -1,0 +1,384 @@
+4 KAUFMANN
+
+existentialism
+FROM DOSTOEVSKY TO SARTRE
+Edited, with an introduction,
+prefaces, and new translations
+by WALTER KAUFMANN
+
+MERIDIAN BOOKS, INC. New York
+
+Walter Kaufmann
+Born in Freiburg, Germany, Walter Kaufmann is a graduate of Williams
+College. He received his doctorate from Har-vard University in 1947 and
+in the same year joined the staff of Princeton University, where he is now
+Associate Professor of Philosophy. A frequent contributor to scholarly
+periodicals, he is also editor of the Portable Nietzsche and author of
+Nietzsche (MERIDIAN BOOKS).
+
+A Meridian Books Original Edition
+First published by Meridian Books, Inc., October 1956 First printing
+September 1956
+Second printing February 1957
+Third printing March 1957
+Fourth printing June 1957
+Fifth printing October 1957
+Sixth printing March 1958
+Seventh printing June 1958
+Eighth printing November 1958
+Ninth printing April 1959
+Tenth printing August 1959
+Eleventh printing January 1960
+Twelfth printing April 1960
+Copyright © 1956 by Meridian Books, Inc.
+Library of Congress catalog card number: 56-10018
+Manufactured in the United States of America
+PDF by (-§ko-)
+
+6 KAUFMANN
+
+Contents
+Preface
+ONE :
+
+9
+KAUFMANN: Existentialism from Dostoevsky
+to Sartre
+
+11
+
+TWO:
+
+DOSTOEVSKY: Notes from Underground
+
+52
+
+THREE:
+
+KIERKEGAARD: On Himself
+1. On His Mission
+2. On His Works
+3. On His Mode of Existence
+4. "That Individual"
+
+83
+84
+85
+86
+92
+
+FOUR:
+
+NIETZSCHE: "Live Dangerously"
+1. "The Challenge of Every Great Philosophy"
+2. "The Gay Science"
+3. On Free Death
+4. The Beginning of The Will to Power
+5. From Ecce Homo
+
+100
+101
+104
+107
+109
+111
+
+FIVE:
+
+RILKE: The Notes of Malte Laurids Brigge
+
+113
+
+SIX:
+
+KAFKA: Three Parables
+1. An Imperial Message
+2. Before the Law
+3. Couriers
+
+121
+123
+124
+130
+
+SEVEN:
+
+JASPERS: Existenzphilosophie
+1. On My Philosophy
+2. Kierkegaard and Nietzsche
+3. The Encompassing
+
+131
+131
+158
+184
+
+EIGHT:
+
+HEIDEGGER: The Way Back into the Ground
+of Metaphysics
+
+206
+
+NINE:
+
+SARTRE: Existentialism
+1. The Wall
+2. Self-Deception
+3. Portrait of the Antisemite
+4. Existentialism is a Humanism
+
+222
+223
+241
+270
+287
+
+TEN:
+
+CAMUS: The Myth of Sisyphus
+
+312
+
+Notes
+
+317
+
+Sources and Acknowledgments
+
+321
+
+8 KAUFMANN
+
+Preface
+Some anthologies treat great literature and philosophy as if they could be
+used to furnish a cultural supermarket where the reader shops around. Of
+course, it is the reader's right to browse, to skip, and not to read, whether a
+volume is by a single author or by ten. What matters is that a book should
+offer, when read straight through, more than the sum of the parts. The
+present volume is intended to tell a story, and the growing variations of
+some major themes, the echoes, and the contrasts ought to add not only to
+the enjoyment but also to the reader's understanding.
+There are several new translations made especially for this book.
+Jaspers' essay "On My Philosophy" has been translated by Felix
+Kaufmann, and I myself have translated the material from Nietzsche,
+Rilke, and Heidegger.
+I am deeply indebted to Princeton University for a year's leave of
+absence and to the Fulbright Commission for a re-search grant which
+enabled me, among other things, to listen to lectures by Jaspers and
+Heidegger and to talk with them and many of their colleagues and former
+students. To Heidegger I am also indebted for answering, orally and in
+writing, questions about his essay which is here offered in English for the
+first time.
+My wife, Hazel Kaufmann, has given me invaluable aid and comfort.
+W K.
+
+ONE
+
+Kaufmann: Existentialism from Dostoevsky to Sartre
+
+Existentialism is not a philosophy but a label for several widely different
+revolts against traditional philosophy. Most of the living "existentialists"
+have repudiated this label, and a bewildered outsider might well conclude
+that the only thing they have in common is a marked aversion for each
+other. To add to the confusion, many writers of the past have frequently
+been hailed as members of this movement, and it is extremely doubtful
+whether they would have appreciated the company to which they are
+consigned. In view of this, it might be argued that the label
+"existentialism" ought to be abandoned altogether.
+Certainly, existentialism is not a school of thought nor reducible to any
+set of tenets. The three writers who appear invariably on every list of
+"existentialists'' Jaspers, Heideg-ger, and Sartre-are not in agreement on
+essentials. Such alleged precursors as Pascal and Kierkegaard differed
+from all three men by being dedicated Christians; and Pascal was a
+Catholic of sorts while Kierkegaard was a Protestant's Protestant. If, as is
+often done, Nietzsche and Dostoevsky are in-cluded in the fold, we must
+make room for an impassioned anti-Christian and an even more fanatical
+Greek-Orthodox Russian imperialist. By the time we consider adding
+Rilke, Kafka, and Camus, it becomes plain that one essential feature
+shared by all these men is their perfervid individualism. (P11)
+
+11
+
+12 KAUFMANN
+
+The refusal to belong to any school of thought, the repudiation of the
+adequacy of any body of beliefs whatever, and especially of systems, and
+a marked dissatisfaction with traditional philosophy as superficial,
+academic, and remote from life-that is the heart of existentialism.
+Existentialism is a timeless sensibility that can be discerned here and
+there in the past; but it is only in recent times that it has hardened into a
+sustained protest and preoccupation.
+It may be best to begin with the story of existentialism before
+attempting further generalizations. An effort to tell this story with a
+positivist's penchant for particulars and a relent-less effort to suppress
+one's individuality would only show that existentialism is completely
+uncongenial to the writer. This is not meant to be a defense of
+arbitrariness. A personal perspective may suggest one way of ordering
+diffuse materials, and be fruitful, if only by way of leading others to
+considered dissent.
+I. DOSTOEVSKY
+
+In some of the earliest philosophers, such as Pythagoras and Heraclitus
+and Empedocles, we sense a striking unity of life and thought; and after
+the generation of the Sophists, Socrates is said to have brought philosophy
+down to earth again. In the Socratic schools and in Stoicism a little later,
+philosophy is above all a way of life. Throughout the history of
+philosophy other, more or less similar, examples come to mind, most
+notably Spinoza. It is easy, and it was long fashionable, to overestimate
+the beautiful serenity of men like these, and it is well to recall the vitriolic
+barbs of Heraclitus, the inimitable sarcasm of Socrates, and the passions
+of Spinoza. Even so, it is an altogether new voice that we hear in
+Dostoevsky's Notes from Underground.
+The pitch is new, the strained protest, the self-preoccupation. To note a
+lack of serenity would be ridiculous: poise does not even remain as a
+norm, not even as an element of contrast; it gives way to poses, masks-the
+drama of the mind that is sufficient to itself, yet conscious of its every
+weakness and determined to exploit it. What we perceive is an unheard-of
+song of songs on individuality: not classical, not Biblical, and not at all
+romantic. No, individuality is not re-touched, idealized, or holy; it is
+wretched and revolting, and yet, for all its misery, the highest good.
+The bias against science may remind us of romanticism;
+
+Existentialism from Dostoevsky to Sartre 13
+
+but the Notes from Underground are deeply unromantic. Nothing could be
+further from that softening of the contours which distinguished all
+romantics from the first attack on classicism to Novalis, Keats, and
+Wordsworth. Romanticism is flight from the present, whether into the
+past, the future, or another world, dreams, or, most often, a vague fog. It is
+self-deception. Romanticism yearns for deliverance from the cross of the
+Here and Now: it is willing to face anything but the facts.
+The atmosphere of Dostoevsky's Notes is not one of soft voices and
+dim lights: the voice could not be shriller, the light not more glaring. No
+prize, however great, can justify an ounce of self-deception or a small
+departure from the ugly facts. And yet this is not literary naturalism with
+its infatuation with material circumstances: it is man's inner life, his
+moods, anxieties, and his decisions, that are moved into the center until,
+as it were, no scenery at all remains. This book, published in 1864, is one
+of the most revolutionary and original works of world literature.
+If we look for anything remotely similar in the long past of European
+literature, we do not find it in philosophy but, most nearly, in such
+Christian writers as Augustine and Pascal. Surely, the differences are far
+more striking even here than any similarity; but it is in Christianity,
+against the background of belief in original sin, that we first find this
+wallowing in man's depravity and this uncompromising concentration on
+the dark side of man's inner life.
+In Rousseau's Confessions, too, his Calvinistic background has to be
+recalled; but he turned against it and denied original sin, affirmed the
+natural goodness of man, and blamed his depravity on society. Then he
+proceeded to explain how all depravity could be abolished in the good
+society, ruled by the general will. In Dostoevsky's Notes from
+Underground no good society can rid man of depravity: the book is
+among other things an inspired polemic against Rousseau and the whole
+tradition of social philosophy from Plato and Aristotle through Hobbes
+and Locke to Bentham, Hegel, and John Stuart Mill. The man whom
+Dostoevsky has created in this book holds out for what traditional
+Christianity has called depravity; but he believes neither in original sin
+nor in God, and for him man's self-will is not depravity: it is only
+per-verse from the point of view of rationalists and others who value neat
+schemes above the rich texture of individuality.
+
+14 KAUFMANN
+
+Dostoevsky himself was a Christian, to be sure, and for that matter also
+a rabid anti-Semite, anti-Catholic, and anti-Western Russian nationalist.
+We have no right whatsoever to attribute to him the opinions of all of his
+most interesting characters. Unfortunately, most readers fail to distinguish
+between Dostoevsky's views and those of the Grand Inquisitor in Ivan's
+story in The Brothers Karamazov, though it is patent that this figure was
+inspired by the author's hatred of the Church of Rome; and many critics
+take for Dostoevsky's reasoned judgments the strange views of Kirilov,
+though he is mad. As a human being, Dostoevsky was as fascinating as
+any of his characters; but we must not ascribe to him, who after all
+believed in God, the outlook and ideas of his underground man.
+I can see no reason for calling Dostoevsky an existentialist, but I do
+think that Part One of Notes from Underground is the best overture for
+existentialism ever written. With inimitable vigor and finesse the major
+themes are stated here that we can recognize when reading all the other
+so-called existentialists from Kierkegaard to Camus.
+II. KIERKEGAARD
+
+Kierkegaard was dead nine years when Notes from Under-ground was
+published first in 1864. He had not known of Dostoevsky, nor did
+Dostoevsky know of him. Nietzsche, on the other hand, read Notes from
+Underground in 1887 and was impressed as rarely in his life; and a year
+and a half later, toward the end of his career, he heard of Kierkegaard, too
+late to secure any of his books. Henceforth, the sequence of our major
+characters is clear. It is only at the beginning, faced with Kierkegaard and
+Dostoevsky, that we do better to reverse the strict chronology to start with
+Dostoevsky.
+Kierkegaard confronts us as an individual while Dostoevsky offers us a
+world. Both are infinitely disturbing, but there is an overwhelming
+vastness about Dostoevsky and a strident narrowness about Kierkegaard.
+If one comes from Kierkegaard and plunges into Dostoevsky, one is lost
+like a man brought up in a small room who is suddenly placed in a
+sailboat in the middle of the ocean. Or you might even think that
+Dostoevsky had set out deliberately to make fun of Kierkegaard. Those,
+on the other hand, who listen to the Notes from Underground as to an
+overture, are well prepared when the curtain rises to hear Kierkegaard's
+account of how
+
+Existentialism from Dostoevsky to Sartre 15
+
+he first became a writer. Even his Point of View for My Work as an
+Author won't be altogether unfamiliar. It is as if Kierkegaard had stepped
+right out of Dostoevsky's pen.
+The underground man pictures the ease of the "crystal palace" as a
+distant possibility and tells us that some individual would certainly rebel
+and try to wreck this utterly insufferable comfort. And Kierkegaard, not
+exiled to Siberia, as Dostoevsky was as a young man, but well-to-do in
+the clean, wholesome atmosphere of Copenhagen, sees how easy life is
+being made and resolves "to create difficulties everywhere."
+If it is the besetting fault of Dostoevsky criticism that the views and
+arguments of some of his characters are ascribed, without justification, to
+the author, the characteristic flaw of the growing literature on Kierkegaard
+is that the author is forgotten altogether and his works are read
+impersonally as one might read those of Hegel. Nothing could be less in
+keeping with the author's own intentions. Hence it is well to begin a study
+of Kierkegaard with The Point of View for My Work as an Author.
+How strange Kierkegaard is when he speaks of himself, and how
+similar to Dostoevsky's underground man-in con-tents, style, and
+sensibility! There is something novel about both which may be brought
+out by a brief contrast with Heinrich Heine. Heine's self-consciousness is
+almost proverbial and at one time embarrassed romantic readers; but the
+strain in Heine is due largely to the tension between reverie and reason.
+Kierkegaard's self-consciousness, like the underground man's, is far more
+embarrassing because it comes from his humiliating concern with the
+reactions and the judgments of the very public which he constantly
+professes to despise. That he was physically misshapen might have
+remained without effect on his style and thought; but, like the
+underground man, he was inwardly out of joint –so much so that Heine
+seems quite healthy by comparison. How fluent is Heine's prose, and how
+contorted Kierkegaard's! Their love of irony and even vitriol they shared;
+but Heine's world is relatively neat and clean-cut: even his melancholy
+seems pleasant com-pared to Kierkegaard's. They were contemporaries
+who died within a year, and yet Heine seems almost classical today, and
+Kierkegaard painfully modern.
+Both concerned themselves with Hegel: Heine even knew him
+personally, while Kierkegaard, a little younger, heard
+
+16 KAUFMANN
+
+only the diatribes of the old Schelling after Hegel's death. Heine came to
+part with Hegel because the philosopher was not liberal enough for him
+and too authoritarian. For Kierkegaard, Hegel was too rational and liberal.
+Heine cannot fairly be called a romantic because he steadfastly refused to
+give up the ideals of the Enlightenment and because he would not curb his
+piercing critical intelligence to spare a feeling. Kierkegaard escapes
+classification as a romantic because he, too, rejects the dim twilight of
+sentiment as well as any lovely synthesis of intellect and feeling, to insist
+on the absurdity of the beliefs which he accepts.
+Dostoevsky is surely one of the giants of world literature; Kierkegaard,
+one of its greatest oddities: an occasionally brilliant but exasperating
+stylist, a frequently befuddled thinker, yet a writer who intrigues and
+fascinates by virtue of his individuality. His own suggestion for his
+epitaph is unsurpassable: "That Individual."
+Kierkegaard not only was an individual but tried to introduce the
+individual into our thinking as a category. In the vast thicket of his
+unpruned prose it is not easy to discover his importance for philosophy.
+He was an aggressive thinker, and the main targets of his attacks are
+Hegel, of whom he lacked any thorough first-hand knowledge, and
+Christianity as it existed for approximately eighteen centuries, which
+seems at first glance to have no immediate bearing on philosophy. In fact,
+(Content truncated due to size limit. Use page ranges or line ranges to read remaining content)

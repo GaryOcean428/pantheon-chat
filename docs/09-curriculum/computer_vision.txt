@@ -1,0 +1,334 @@
+Computer Vision:
+Algorithms and Applications
+2nd Edition
+Richard Szeliski
+Final draft, September 30, 2021
+© 2022 Springer
+
+This electronic draft was downloaded Dec_27,_2022 for the personal use of
+???
+jacky870810@icloud.com
+and may not be posted or re-distributed in any form.
+Please refer interested readers to the book’s Web site at
+https://szeliski.org/Book, where you can also provide feedback.
+
+This book is dedicated to my parents,
+Zdzisław and Jadwiga,
+and my family,
+Lyn, Anne, and Stephen.
+
+1
+
+Introduction
+
+1
+
+What is computer vision? • A brief history •
+Book overview • Sample syllabus • Notation
+n^
+
+2
+
+Image formation
+
+33
+
+Geometric primitives and transformations •
+Photometric image formation • The digital camera
+
+3
+
+Image processing
+Point operators
+Non-linear filtering
+Pyramids and wavelets
+
+4
+
+107
+• Linear filtering •
+• Fourier transforms •
+• Geometric transformations
+
+Model fitting and optimization
+Scattered data interpolation •
+Variational methods and regularization
+Markov random fields
+
+5
+
+191
+•
+
+Deep learning
+
+235
+
+Supervised learning • Unsupervised learning •
+Deep neural networks • Convolutional networks •
+More complex models
+
+6
+
+Recognition
+
+343
+
+Instance recognition • Image classification •
+Object detection • Semantic segmentation •
+Video understanding • Vision and language
+
+7
+
+Feature detection and matching
+Points and patches • Edges and contours •
+Contour tracking • Lines and vanishing points •
+Segmentation
+
+417
+
+8
+
+Image alignment and stitching
+Pairwise alignment • Image stitching
+Global alignment • Compositing
+
+9
+
+501
+•
+
+Motion estimation
+
+10
+
+Translational alignment • Parametric motion
+Optical flow • Layered motion
+
+555
+•
+
+Computational photography
+
+607
+
+Photometric calibration • High dynamic range imaging
+Super-resolution, denoising, and blur removal •
+Image matting and compositing •
+Texture analysis and synthesis
+
+11
+
+Structure from motion and SLAM
+Geometric intrinsic calibration • Pose estimation
+Two-frame structure from motion •
+Multi-frame structure from motion •
+Simultaneous localization and mapping (SLAM)
+
+12
+
+Depth estimation
+
+•
+
+681
+•
+
+749
+
+Epipolar geometry • Sparse correspondence •
+Dense correspondence • Local methods •
+Global optimization • Deep neural networks •
+Multi-view stereo • Monocular depth estimation
+
+13
+
+3D reconstruction
+
+805
+
+Shape from X • 3D scanning •
+Surface representations • Point-based representations •
+Volumetric representations • Model-based reconstruction •
+Recovering texture maps and albedos
+
+14
+
+Image-based rendering
+
+View interpolation • Layered depth images •
+Light fields and Lumigraphs • Environment mattes
+Video-based rendering • Neural rendering
+
+861
+•
+
+Preface
+The seeds for this book were first planted in 2001 when Steve Seitz at the University of Washington invited me to co-teach a course called “Computer Vision for Computer Graphics”. At
+that time, computer vision techniques were increasingly being used in computer graphics to
+create image-based models of real-world objects, to create visual effects, and to merge realworld imagery using computational photography techniques. Our decision to focus on the
+applications of computer vision to fun problems such as image stitching and photo-based 3D
+modeling from personal photos seemed to resonate well with our students.
+That initial course evolved into a more complete computer vision syllabus and projectoriented course structure that I used to co-teach general computer vision courses both at the
+University of Washington and at Stanford. (The latter was a course I co-taught with David
+Fleet in 2003.) Similar curricula were then adopted at a number of other universities and also
+incorporated into more specialized courses on computational photography. (For ideas on how
+to use this book in your own course, please see Table 1.1 in Section 1.4.)
+This book also reflects my 40 years’ experience doing computer vision research in corporate research labs, mostly at Digital Equipment Corporation’s Cambridge Research Lab,
+Microsoft Research, and Facebook. In pursuing my work, I have mostly focused on problems
+and solution techniques (algorithms) that have practical real-world applications and that work
+well in practice. Thus, this book has more emphasis on basic techniques that work under realworld conditions and less on more esoteric mathematics that has intrinsic elegance but less
+practical applicability.
+This book is suitable for teaching a senior-level undergraduate course in computer vision
+to students in both computer science and electrical engineering. I prefer students to have
+either an image processing or a computer graphics course as a prerequisite, so that they can
+spend less time learning general background mathematics and more time studying computer
+vision techniques. The book is also suitable for teaching graduate-level courses in computer
+vision, e.g., by delving into more specialized topics, and as a general reference to fundamental
+
+viii
+
+Computer Vision: Algorithms and Applications, 2nd ed. (final draft, Sept. 2021)
+
+techniques and the recent research literature. To this end, I have attempted wherever possible
+to at least cite the newest research in each sub-field, even if the technical details are too
+complex to cover in the book itself.
+In teaching our courses, we have found it useful for the students to attempt a number of
+small implementation projects, which often build on one another, in order to get them used to
+working with real-world images and the challenges that these present. The students are then
+asked to choose an individual topic for each of their small-group, final projects. (Sometimes
+these projects even turn into conference papers!) The exercises at the end of each chapter
+contain numerous suggestions for smaller mid-term projects, as well as more open-ended
+problems whose solutions are still active research topics. Wherever possible, I encourage
+students to try their algorithms on their own personal photographs, since this better motivates
+them, often leads to creative variants on the problems, and better acquaints them with the
+variety and complexity of real-world imagery.
+In formulating and solving computer vision problems, I have often found it useful to draw
+inspiration from four high-level approaches:
+• Scientific: build detailed models of the image formation process and develop mathematical techniques to invert these in order to recover the quantities of interest (where
+necessary, making simplifying assumptions to make the mathematics more tractable).
+• Statistical: use probabilistic models to quantify the prior likelihood of your unknowns
+and the noisy measurement processes that produce the input images, then infer the best
+possible estimates of your desired quantities and analyze their resulting uncertainties.
+The inference algorithms used are often closely related to the optimization techniques
+used to invert the (scientific) image formation processes.
+• Engineering: develop techniques that are simple to describe and implement but that
+are also known to work well in practice. Test these techniques to understand their
+limitation and failure modes, as well as their expected computational costs (run-time
+performance).
+• Data-driven: collect a representative set of test data (ideally, with labels or groundtruth answers) and use these data to either tune or learn your model parameters, or at
+least to validate and quantify its performance.
+These four approaches build on each other and are used throughout the book.
+My personal research and development philosophy (and hence the exercises in the book)
+have a strong emphasis on testing algorithms. It’s too easy in computer vision to develop an
+
+Preface
+
+ix
+
+algorithm that does something plausible on a few images rather than something correct. The
+best way to validate your algorithms is to use a three-part strategy.
+First, test your algorithm on clean synthetic data, for which the exact results are known.
+Second, add noise to the data and evaluate how the performance degrades as a function of
+noise level. Finally, test the algorithm on real-world data, preferably drawn from a wide
+variety of sources, such as photos found on the web. Only then can you truly know if your
+algorithm can deal with real-world complexity, i.e., images that do not fit some simplified
+model or assumptions.
+In order to help students in this process, Appendix C includes pointers to commonly used
+datasets and software libraries that contain implementations of a wide variety of computer
+vision algorithms, which can enable you to tackle more ambitious projects (with your instructor’s consent).
+
+Notes on the Second Edition
+The last decade has seen a truly dramatic explosion in the performance and applicability of
+computer vision algorithms, much of it engendered by the application of machine learning
+algorithms to large amounts of visual training data (Su and Crandall 2021).
+Deep neural networks now play an essential role in so many vision algorithms that the
+new edition of this book introduces them early on as a fundamental technique that gets used
+extensively in subsequent chapters.
+The most notable changes in the second edition include:
+• Machine learning, deep learning, and deep neural networks are introduced early on in
+Chapter 5, as they play just as fundamental a role in vision algorithms as more classical techniques, such as image processing, graphical/probabilistic models, and energy
+minimization, which are introduced in the preceding two chapters.
+• The recognition chapter has been moved earlier in the book to Chapter 6, since end-toend deep learning systems no longer require the development of building blocks such
+as feature detection, matching, and segmentation. Many of the students taking vision
+classes are primarily interested in visual recognition, so presenting this material earlier
+in the course makes it easier for students to base their final project on these topics.
+This chapter also includes sections on semantic segmentation, video understanding,
+and vision and language.
+• The application of neural networks and deep learning to myriad computer vision algorithms and applications, including flow and stereo, 3D shape modeling, and newly
+
+x
+
+Computer Vision: Algorithms and Applications, 2nd ed. (final draft, Sept. 2021)
+emerging fields such as neural rendering.
+• New technologies such as SLAM (simultaneous localization and mapping) and VIO
+(visual inertial odometry) that now run reliably and are used in real-time applications
+such as augmented reality and autonomous navigation.
+
+In addition to these larger changes, the book has been updated to reflect the latest state-ofthe-art techniques such as internet-scale image search and phone-based computational photography. The new edition includes over 1500 new citations (papers) and has over 200 new
+figures.
+
+Acknowledgements
+I would like to gratefully acknowledge all of the people whose passion for research and
+inquiry as well as encouragement have helped me write this book.
+Steve Zucker at McGill University first introduced me to computer vision, taught all of
+his students to question and debate research results and techniques, and encouraged me to
+pursue a graduate career in this area.
+Takeo Kanade and Geoff Hinton, my PhD thesis advisors at Carnegie Mellon University, taught me the fundamentals of good research, writing, and presentation and mentored
+several generations of outstanding students and researchers. They fired up my interest in visual processing, 3D modeling, and statistical methods, while Larry Matthies introduced me
+to Kalman filtering and stereo matching. Geoff continues to inspire so many of us with this
+undiminished passion for trying to figure out “what makes the brain work”. It’s been a delight
+to see his pursuit of connectionist ideas bear so much fruit in this past decade.
+Demetri Terzopoulos was my mentor at my first industrial research job and taught me the
+ropes of successful publishing. Yvan Leclerc and Pascal Fua, colleagues from my brief interlude at SRI International, gave me new perspectives on alternative approaches to computer
+vision.
+During my six years of research at Digital Equipment Corporation’s Cambridge Research
+Lab, I was fortunate to work with a great set of colleagues, including Ingrid Carlbom, Gudrun
+Klinker, Keith Waters, William Hsu, Richard Weiss, Stéphane Lavallée, and Sing Bing Kang,
+as well as to supervise the first of a long string of outstanding summer interns, including
+David Tonnesen, Sing Bing Kang, James Coughlan, and Harry Shum. This is also where I
+began my long-term collaboration with Daniel Scharstein.
+At Microsoft Research, I had the outstanding fortune to work with some of the world’s
+best researchers in computer vision and computer graphics, including Michael Cohen, Matt
+
+Preface
+
+xi
+
+Uyttendaele, Sing Bing Kang, Harry Shum, Larry Zitnick, Sudipta Sinha, Drew Steedly, Simon Baker, Johannes Kopf, Neel Joshi, Krishnan Ramnath, Anandan, Phil Torr, Antonio Criminisi, Simon Winder, Matthew Brown, Michael Goesele, Richard Hartley, Hugues Hoppe,
+Stephen Gortler, Steve Shafer, Matthew Turk, Georg Petschnigg, Kentaro Toyama, Ramin
+Zabih, Shai Avidan, Patrice Simard, Chris Pal, Nebojsa Jojic, Patrick Baudisch, Dani Lischinski, Raanan Fattal, Eric Stollnitz, David Nistér, Blaise Aguera y Arcas, Andrew Fitzgibbon,
+Jamie Shotton, Wolf Kienzle, Piotr Dollar, and Ross Girshick. I was also lucky to have as interns such great students as Polina Golland, Simon Baker, Mei Han, Arno Schödl, Ron Dror,
+Ashley Eden, Jonathan Shade, Jinxiang Chai, Rahul Swaminathan, Yanghai Tsin, Sam Hasinoff, Anat Levin, Matthew Brown, Eric Bennett, Vaibhav Vaish, Jan-Michael Frahm, James
+Diebel, Ce Liu, Josef Sivic, Grant Schindler, Colin Zheng, Neel Joshi, Sudipta Sinha, Zeev
+Farbman, Rahul Garg, Tim Cho, Yekeun Jeong, Richard Roberts, Varsha Hedau, Dilip Krishnan, Adarsh Kowdle, Edward Hsiao, Yong Seok Heo, Fabian Langguth, Andrew Owens,
+and Tianfan Xue. Working with such outstanding students also gave me the opportunity to
+collaborate with some of their amazing advisors, including Bill Freeman, Irfan Essa, Marc
+Pollefeys, Michael Black, Marc Levoy, and Andrew Zisserman.
+Since moving to Facebook, I’ve had the pleasure to continue my collaborations with
+Michael Cohen, Matt Uyttendaele, Johannes Kopf, Wolf Kienzle, and Krishnan Ramnath,
+and also new colleagues including Kevin Matzen, Bryce Evans, Suhib Alsisan, Changil Kim,
+David Geraghty, Jan Herling, Nils Plath, Jan-Michael Frahm, True Price, Richard Newcombe,
+Thomas Whelan, Michael Goesele, Steven Lovegrove, Julian Straub, Simon Green, Brian
+Cabral, Michael Toksvig, Albert Para Pozzo, Laura Sevilla-Lara, Georgia Gkioxari, Justin
+Johnson, Chris Sweeney, and Vassileios Balntas. I’ve also had the pleasure to collaborate
+with some outstanding summer interns, including Tianfan Xue, Scott Wehrwein, Peter Hedman, Joel Janai, Aleksander Hołyński, Xuan Luo, Rui Wang, Olivia Wiles, and Yulun Tian.
+I’d like to thank in particular Michael Cohen, my mentor, colleague, and friend for the last 25
+years for his unwavering support of my sprint to complete this second edition.
+While working at Microsoft and Facebook, I’ve also had the opportunity to collaborate
+with wonderful colleagues at the University of Washington, where I hold an Affiliate Professor appointment. I’m indebted to Tony DeRose and David Salesin, who first encouraged me
+to get involved with the research going on at UW, my long-time collaborators Brian Curless,
+Steve Seitz, Maneesh Agrawala, Sameer Agarwal, and Yasu Furukawa, as well as the students
+I have had the privilege to supervise and interact with, including Fréderic Pighin, Yung-Yu
+Chuang, Doug Zongker, Colin Zheng, Aseem Agarwala, Dan Goldman, Noah Snavely, Ian
+Simon, Rahul Garg, Ryan Kaminsky, Juliet Fiss, Aleksander Hołyński, and Yifan Wang. As
+I mentioned at the beginning of this preface, this book owes its inception to the vision course
+
+xii
+
+Computer Vision: Algorithms and Applications, 2nd ed. (final draft, Sept. 2021)
+
+that Steve Seitz invited me to co-teach, as well as to Steve’s encouragement, course notes,
+and editorial input.
+I’m also grateful to the many other computer vision researchers who have given me so
+(Content truncated due to size limit. Use page ranges or line ranges to read remaining content)

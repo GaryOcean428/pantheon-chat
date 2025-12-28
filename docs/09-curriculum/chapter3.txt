@@ -1,0 +1,499 @@
+Chapter 3 Vectors
+3.1 Vector Analysis ....................................................................................................... 1
+3.1.1 Introduction to Vectors ................................................................................... 1
+3.1.2 Properties of Vectors ....................................................................................... 1
+3.2 Coordinate Systems ................................................................................................ 6
+3.2.1 Cartesian Coordinate System ......................................................................... 6
+3.2.2 Cylindrical Coordinate System....................................................................... 8
+3.3 Vectors ................................................................................................................... 10
+3.3.1 The Use of Vectors in Physics ....................................................................... 10
+3.3.2 Vectors in Cartesian Coordinates................................................................. 11
+Example 3.1 Vector Addition................................................................................. 14
+Example 3.2 Sinking Sailboat ................................................................................ 14
+Example 3.3 Vector Addition................................................................................. 16
+Example 3.4 Vector Description of a Point on a Line.......................................... 18
+3.3.2 Transformation of Vectors in Rotated Coordinate Systems...................... 19
+Example 3.5 Vector Decomposition in Rotated Coordinate Systems................. 21
+3.4 Vector Product (Cross Product).......................................................................... 23
+3.4.1 Right-hand Rule for the Direction of Vector Product ................................ 23
+3.4.2 Properties of the Vector Product.................................................................. 25
+3.4.3 Vector Decomposition and the Vector Product: Cartesian Coordinates.. 25
+3.4.4 Vector Decomposition and the Vector Product: Cylindrical Coordinates27
+Example 3.6 Vector Products................................................................................. 27
+Example 3.7 Law of Sines....................................................................................... 28
+Example 3.8 Unit Normal....................................................................................... 28
+Example 3.9 Volume of Parallelepiped ................................................................. 29
+Example 3.10 Vector Decomposition..................................................................... 29
+
+1
+
+Chapter 3 Vectors
+Philosophy is written in this grand book, the universe which stands
+continually open to our gaze. But the book cannot be understood unless
+one first learns to comprehend the language and read the letters in which
+it is composed. It is written in the language of mathematics, and its
+characters are triangles, circles and other geometric figures without
+which it is humanly impossible to understand a single word of it; without
+these, one wanders about in a dark labyrinth.1
+Galileo Galilee
+
+3.1 Vector Analysis
+3.1.1 Introduction to Vectors
+Certain physical quantities such as mass or the absolute temperature at some point in
+space only have magnitude. A single number can represent each of these quantities, with
+appropriate units, which are called scalar quantities. There are, however, other physical
+quantities that have both magnitude and direction. Force is an example of a quantity that
+has both direction and magnitude (strength). Three numbers are needed to represent the
+magnitude and direction of a vector quantity in a three dimensional space. These
+quantities are called vector quantities. Vector quantities also satisfy two distinct
+operations, vector addition and multiplication of a vector by a scalar. We can add two
+forces together and the sum of the forces must satisfy the rule for vector addition. We can
+multiply a force by a scalar thus increasing or decreasing its strength. Position,
+displacement, velocity, acceleration, force, and momentum are all physical quantities that
+can be represented mathematically by vectors. The set of vectors and the two operations
+form what is called a vector space. There are many types of vector spaces but we shall
+restrict our attention to the very familiar type of vector space in three dimensions that
+most students have encountered in their mathematical courses. We shall begin our
+discussion by defining what we mean by a vector in three dimensional space, and the
+rules for the operations of vector addition and multiplication of a vector by a scalar.
+3.1.2 Properties of Vectors
+A vector is a quantity that has both direction and magnitude. Let a vector be denoted by
+
+
+
+the symbol A . The magnitude of A is | A |≡ A . We can represent vectors as geometric
+objects using arrows. The length of the arrow corresponds to the magnitude of the vector.
+The arrow points in the direction of the vector (Figure 3.1).
+
+1
+
+Galileo Galilei, The Assayer, tr. Stillman Drake (1957), Discoveries and Opinions of
+Galileo pp. 237-8.
+
+2
+
+Figure 3.1 Vectors as arrows.
+There are two defining operations for vectors:
+(1) Vector Addition:
+
+
+
+  
+Vectors can be added. Let A and B be two vectors. We define a new vector, C = A + B ,
+
+
+the “vector addition” of A and B , by a geometric construction. Draw the arrow that
+
+
+
+represents A . Place the tail of the arrow that represents B at the tip of the arrow for A
+
+
+A
+B
+as shown in Figure 3.2a. The arrow that starts
+at
+the
+tail
+of
+and
+goes
+to
+the
+tip
+of
+is
+
+defined to be the “vector addition” C= A + B. There is an equivalent construction for the
+law of vector addition. The vectors A and B can be drawn with their tails at the same
+point. The two vectors form the sides of a parallelogram. The diagonal of the
+  
+parallelogram corresponds to the vector C = A + B , as shown in Figure 3.2b.
+
+C= A+B
+
+C= A+B
+
+B
+
+A
+
+B
+
+A
+
+(a) head to tail
+
+(b) parallelogram
+
+Figure 3.2a
+
+Figure 3.2b
+
+Vector addition satisfies the following four properties:
+(i) Commutativity:
+The order of adding vectors does not matter;
+
+   
+A+B =B+A.
+
+(3.1.1)
+
+Our geometric definition for vector addition satisfies the commutative property (3.1.1).
+We can understand this geometrically because in the head to tail representation for the
+
+3
+
+addition of vectors, it doesn’t matter which vector you begin with, the sum is the same
+vector, as seen in Figure 3.3.
+
+C= A+B
+
+C=B+A
+
+B
+
+A
+B
+
+A
+
+Figure 3.3 Commutative property of vector addition.
+(ii) Associativity:
+When adding three vectors, it doesn’t matter which two you start with
+ 
+ 
+ 
+( A + B) + C = A + (B + C) .
+
+(3.1.2)
+
+
+
+ 
+ 
+In Figure 3.4a, we add (B + C) + A , and use commutativity to get A + (B + C) . In figure,
+ 
+
+we add ( A + B) + C to arrive at the same vector as in Figure 3.4a.
+
+C
+
+A
+
+B
+
+(A + B) + C
+
+A + (B + C)
+
+B
+A+B
+
+B+C
+
+A
+
+C
+Figure 3.4a Associative law.
+(iii) Identity Element for Vector Addition:
+
+
+There is a unique vector, 0 , that acts as an identity element for vector addition. For all
+
+vectors A ,
+    
+(3.1.3)
+A+0 = 0+A = A.
+(iv) Inverse Element for Vector Addition:
+
+
+
+For every vector A , there is a unique inverse vector −A such that
+
+4
+
+
+
+
+A + (− A) = 0 .
+
+(3.1.4)
+
+
+
+ 
+The vector −A has the same magnitude as A , | A |=| −A |= A , but they point in opposite
+directions (Figure 3.5).
+
+A
+
+A
+
+Figure 3.5 Additive inverse
+(2) Scalar Multiplication of Vectors:
+
+
+Vectors can be multiplied by real numbers. Let A be a vector. Let c be a real positive
+
+number. Then the multiplication of A by c is a new vector, which we denote by the
+
+
+
+symbol c A . The magnitude of c A is c times the magnitude of A (Figure 3.6a),
+
+
+
+cA = c A .
+
+(3.1.5)
+
+
+
+Let c > 0 , then the direction of c A is the same as the direction of A . However, the
+
+
+direction of −c A is opposite of A (Figure 3.6).
+
+A
+
+cA
+
+cA
+
+
+Figure 3.6 Multiplication of vector A by c > 0 , and −c < 0 .
+Scalar multiplication of vectors satisfies the following properties:
+(i) Associative Law for Scalar Multiplication:
+The order of multiplying numbers is doesn’t matter. Let b and c be real numbers. Then
+
+
+
+
+b (cA) = (bc)A = (cb A) = c (bA) .
+
+(ii) Distributive Law for Vector Addition:
+Vectors satisfy a distributive law for vector addition. Let c be a real number. Then
+
+5
+
+(3.1.6)
+
+ 
+
+
+c( A + B) = c A + c B .
+
+(3.1.7)
+
+Figure 3.7 illustrates this property.
+
+c A + cB
+
+c(A + B)
+C= A+B
+
+B
+
+cB
+
+cA
+
+A
+Figure 3.7 Distributive Law for vector addition.
+
+(iii) Distributive Law for Scalar Addition:
+Vectors also satisfy a distributive law for scalar addition. Let b and c be real numbers.
+Then
+
+
+
+(3.1.8)
+(b + c) A = b A + c A
+Our geometric definition of vector addition and scalar multiplication satisfies this
+condition as seen in Figure 3.8.
+(b + c) A
+
+bA + c A
+
+cA
+
+A
+
+bA
+
+Figure 3.8 Distributive law for scalar multiplication.
+(iv) Identity Element for Scalar Multiplication:
+The number 1 acts as an identity element for multiplication,
+ 
+1A = A.
+
+6
+
+(3.1.9)
+
+Unit vector:
+Dividing a vector by its magnitude results in a vector of unit length which we denote with
+a caret symbol
+
+A
+Â =  .
+(3.1.10)
+A
+ 
+ˆ = A / A = 1.
+Note that A
+
+3.2 Coordinate Systems
+Physics involve the study of phenomena that we observe in the world. In order to connect
+the phenomena to mathematics we begin by introducing the concept of a coordinate
+system. A coordinate system consists of four basic elements:
+(1) Choice of origin
+(2) Choice of axes
+(3) Choice of positive direction for each axis
+(4) Choice of unit vectors at every point in space
+There are three commonly used coordinate systems: Cartesian, cylindrical and spherical.
+In this chapter we will describe a Cartesian coordinate system and a cylindrical
+coordinate system.
+3.2.1 Cartesian Coordinate System
+Cartesian coordinates consist of a set of mutually perpendicular axes, which intersect at a
+common point, the origin O . We live in a three-dimensional spatial world; for that
+reason, the most common system we will use has three axes.
+(1) Choice of Origin: Choose an origin O at any point that is most convenient.
+(2) Choice of Axes: The simplest set of axes is known as the Cartesian axes, x -axis, y axis, and the z -axis, that are at right angles with respect to each other. Then each point
+P in space can be assigned a triplet of values (x P , y P , z P ) , the Cartesian coordinates of
+the point P . The ranges of these values are: −∞ < xP < +∞ ,
+−∞ < yP < +∞ , −∞ < z P < +∞ .
+(3) Choice of Positive Direction: Our third choice is an assignment of positive direction
+for each coordinate axis. We shall denote this choice by the symbol + along the positive
+axis. In physics problems we are free to choose our axes and positive directions any way
+that we decide best fits a given problem. Problems that are very difficult using the
+
+7
+
+conventional choices may turn out to be much easier to solve by making a thoughtful
+choice of axes.
+(4) Choice of Unit Vectors: We now associate to each point P in space, a set of three
+unit vectors (î P , ĵP ,k̂ P ) . A unit vector has magnitude one: ˆi P = 1 , ˆjP = 1 , and kˆ P = 1 .
+We assign the direction of î P to point in the direction of the increasing x -coordinate at
+the point P . We define the directions for ĵP and k̂ P in the direction of the increasing
+y -coordinate and z -coordinate respectively, (Figure 3.10). If we choose a different point
+S , and define a similar set of unit vectors (îS , ĵS , k̂ S ) , the unit vectors at S and P
+satisfy the equalities
+(3.2.1)
+îS = î P , ĵS = ĵP , and k̂ S = k̂ P ,
+
+because vectors are equal if they have the same direction and magnitude regardless of
+where they are located in space.
+
+Figure 3.10 Choice of unit vectors at points P and S .
+A Cartesian coordinate system is the only coordinate system in which Eq. (3.2.1) holds
+for all pair of points. We therefore drop the reference to the point P and use (î, ĵ, k̂) to
+represent the unit vectors in a Cartesian coordinate system (Figure 3.11).
+
++z
+
+zP
+
+k̂
+î
+
+ĵ
+
+P
+yP + y
+
+0
++x
+
+.
+
+xP
+
+Figure 3.11 Unit vectors in a Cartesian coordinate system
+
+8
+
+3.2.2 Cylindrical Coordinate System
+Many physical objects demonstrate some type of symmetry. For example if you rotate a
+uniform cylinder about the longitudinal axis (symmetry axis), the cylinder appears
+unchanged. The operation of rotating the cylinder is called a symmetry operation, and the
+object undergoing the operation, the cylinder, is exactly the same as before the operation
+was performed. This symmetry property of cylinders suggests a coordinate system, called
+a cylindrical coordinate system, that makes the symmetrical property under rotations
+transparent.
+First choose an origin O and axis through O , which we call the z -axis. The
+cylindrical coordinates for a point P are the three numbers (r,θ , z) (Figure 3.12). The
+number z represents the familiar coordinate of the point P along the z -axis. The
+nonnegative number r represents the distance from the z -axis to the point P . The points
+in space corresponding to a constant positive value of r lie on a circular cylinder. The
+locus of points corresponding to r = 0 is the z -axis. In the plane z = 0 , define a
+reference ray through O , which we shall refer to as the positive x -axis. Draw a line
+through the point P that is parallel to the z -axis. Let D denote the point of intersection
+between that line PD and the plane z = 0 . Draw a ray OD from the origin to the point
+D . Let θ denote the directed angle from the reference ray to the ray OD . The angle θ is
+positive when measured counterclockwise and negative when measured clockwise.
+
++z
+r
+
+.
+
+P (r, , z)
+
+r
+z
+
+x
++x
+
+O
+r
+
+y
+
+.
+
+D (r, ,0)
+
++y
+
+Figure 3.12 Cylindrical Coordinates
+The coordinates (r,θ ) are called polar coordinates. The coordinate transformations
+between (r,θ ) and the Cartesian coordinates (x, y) are given by
+
+9
+
+x = r cosθ ,
+y = r sin θ .
+
+(3.2.2)
+(3.2.3)
+
+Conversely, if we are given the Cartesian coordinates (x, y) , the coordinates (r,θ ) can
+be determined from the coordinate transformations
+r = +(x 2 + y 2 )1 2 ,
+
+(3.2.4)
+
+θ = tan −1 ( y / x) .
+
+(3.2.5)
+
+We choose a set of unit vectors (r̂P ,θ̂ P ,k̂ P ) at the point P as follows. We choose k̂ P to
+point in the direction of increasing z . We choose r̂P to point in the direction of
+increasing r , directed radially away from the z -axis. We choose θˆ to point in the
+P
+
+direction of increasing θ . This unit vector points in the counterclockwise direction,
+tangent to the circle (Figure 3.13a). One crucial difference between cylindrical
+coordinates and Cartesian coordinates involves the choice of unit vectors. Suppose we
+consider a different point S in the plane. The unit vectors (r̂S ,θˆ S ,kˆ S ) at the point S are
+also shown in Figure 3.13. Note that r̂P ≠ r̂S and θ̂ P ≠ θ̂ S because their direction differ.
+We shall drop the subscripts denoting the points at which the unit vectors are defined at
+and simply refer to the set of unit vectors at a point as (r̂,θ̂,k̂ ) , with the understanding
+ˆ depend on the location of the point in question.
+that the directions of the set (r̂,θ)
+
+r̂S
+ˆ

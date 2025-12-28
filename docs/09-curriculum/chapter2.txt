@@ -1,0 +1,391 @@
+Chapter 2 Units, Dimensional Analysis, and Estimation
+2.1 International System of Units ................................................................................ 3
+2.1.1 Definition of the second..................................................................................... 5
+2.1.2 Definition of the meter....................................................................................... 7
+2.1.3 Definition of the kilogram ................................................................................. 9
+Example 2.1.3.1 Definition of the kilogram in terms of the SI constants................. 10
+2.1.4 Definition of the ampere .................................................................................. 11
+Example 2.1.4.1 Ampere .......................................................................................... 12
+2.1.5 Definition of the kelvin.................................................................................... 12
+2.1.5.1 Example Kelvin ............................................................................................ 12
+2.1.6 Definition of the mole...................................................................................... 13
+Example 2.1.6.1 Mole............................................................................................... 13
+2.1.7 Radians............................................................................................................. 14
+Example 2.1.7.1 Parsec............................................................................................. 16
+2.1.8 Steradians......................................................................................................... 17
+2.1.9 Definition of the candela.................................................................................. 17
+Example 2.1.9.1 Candela .......................................................................................... 17
+2.2 Dimensions of Commonly Encountered Quantities........................................... 19
+2.2.1 Dimensions of Fundamental Constants ........................................................... 21
+Example 2.2.1.1 Dimension of the Universal Gravitation Constant G ................... 21
+Example 2.2.1.2 Dimensions of Coulomb’s constant 1/ 4πε 0 ................................. 21
+Example 2.2.1.3 Dimensions of the Planck constant................................................ 22
+2.3 Dimensional Analysis............................................................................................ 23
+Example 2.3.1 Period of a Pendulum........................................................................ 23
+Example 2.3.3 Planck Length ................................................................................... 24
+Example 2.3.3 Fine Structure Constant .................................................................... 26
+Example 2.3.4 Rydberg constant .............................................................................. 27
+2.4 Order of Magnitude Estimates - Fermi Problems ............................................. 28
+Methodology for Estimation Problems..................................................................... 29
+
+1
+
+Example 2.4.1 Fermi’s Problem Piano Tuners ......................................................... 29
+Example 2.4.1 One Kilometer Line of Pennies ........................................................ 29
+Example 2.4.3 Estimation of Mass of Water on Surface of Earth............................ 30
+Example 2.4.4 Lao-Tzu’s Last Breath ...................................................................... 32
+Example 2.4.5 Representation of the exponential function ...................................... 34
+
+2
+
+Chapter 2 Units, Dimensional Analysis, and Estimation
+But we must not forget that all things in the world are connected with one
+another and depend on one another, and that we ourselves and all our thoughts
+are also a part of nature. It is utterly beyond our power to measure the changes
+of things by time. Quite the contrary, time is an abstraction, at which we arrive
+by means of the change of things; made because we are not restricted to any one
+definite measure, all being interconnected. A motion is termed uniform in which
+equal increments of space described correspond to equal increments of space
+described by some motion with which we form a comparison, as the rotation of
+the earth. A motion may, with respect to another motion, be uniform. But the
+question whether a motion is in itself uniform, is senseless. With just as little
+justice, also, may we speak of an “absolute time” --- of a time independent of
+change. This absolute time can be measured by comparison with no motion; it
+has therefore neither a practical nor a scientific value; and no one is justified in
+saying that he knows aught about it. It is an idle metaphysical conception.1
+Ernst Mach
+
+2.1 International System of Units
+The system of units most commonly used throughout science and technology today is
+the Système International (SI). The seven base quantities and their corresponding base
+units, are shown in Table 2.1.
+Table 2.1 Base Units
+Base Quantity
+Time
+Length
+Mass
+Electric Current
+Temperature
+Amount of Substance
+Luminous Intensity
+
+Base Unit
+second (s)
+meter (m)
+kilogram (kg)
+ampere (A)
+kelvin (K)
+mole (mol)
+candela (cd)
+
+Many physical quantities are then derived from the base quantities by a set of algebraic
+relations defining the physical relation between these quantities. Mechanics is based on
+just the first three of these quantities, the second, the meter, and the kilogram, MKS or
+1
+
+E. Mach, The Science of Mechanics, translated by Thomas J. McCormack, Open Court
+Publishing Company, La Salle, Illinois, 1960, p. 273.
+
+3
+
+meter-kilogram-second system. An alternative metric system, still widely used, is the
+CGS system (centimeter-gram-second).
+Example: Derived units for velocity, acceleration, force, energy, and power
+Velocity is defined to be the rate of change of position with respect to time and
+therefore has the derived SI unit m ⋅s−1 . Acceleration is defined to be the rate of
+velocity with respect to time and therefore has the derived SI unit m ⋅s −2 . The newton,
+symbol N , is the derived SI unit for force which is equal to the product of mass with
+acceleration. Therefore force has the derived SI unit kg ⋅ m ⋅s −2 . The joule, symbol J , is
+the derived SI unit for energy which is equal to the product of force with distance.
+Therefore the derived SI unit for energy is kg ⋅ m 2 ⋅s−2 . The watt, symbol W , is the
+derived SI unit for power which is equal to the rate of change of energy with respect to
+time. Therefore the derived SI unit for power is kg ⋅ m 2 ⋅s−3 .
+The base quantities were originally determined by experiment with uncertainties in their
+values. Gradually the base units were no longer defined by physical prototypes like the
+standard kilogram or standard meter bar but were defined by asset of constants. As of
+May 20, 2019, all the base SI units are now defined in terms of seven constants shown
+in Table 2.2.
+Table 2.2 Defining Constants
+Quantity
+Cesium hyperfine
+frequency
+Speed of light in
+vacuum
+Planck constant
+
+Symbol
+
+Numerical Value
+
+SI Units
+
+Δν Cs
+
+9 192 631 770
+
+s −1
+
+c
+
+299 792 458
+
+m ⋅s−1
+
+h
+
+6.626 070 15 × 10−34
+
+kg ⋅ m 2 ⋅s −1
+
+Elementary charge
+
+e
+
+1.602 176 634 × 10−19
+
+A ⋅s
+
+Boltzmann constant
+
+k
+
+1.380 649 × 10−23
+
+kg ⋅ m 2 ⋅s −2 ⋅ K −1
+
+Avogadro constant
+Luminous efficacy of a
+defined visible radiation
+
+NA
+
+6.022 140 76 × 1023
+
+mol
+
+Kcd
+
+683
+
+cd ⋅sr ⋅ kg −1 ⋅ m −2 ⋅s3
+
+4
+
+The International Committee for Weights and Measures describes practical methods
+(mises en practique) for “realizing” a unit”.2 This means a method for the
+establishment of the value and associated uncertainty of a quantity of the same kind as
+the unit that is consistent with the definition of the unit. Any method that is traceable to
+the seven constants could be used.
+The future definition of a unit does not imply any particular experiment for its practical
+realization. Any method capable of deriving an amount of base quantity value traceable
+to the set of seven reference constants could, in principle, be used. A primary method
+for realizing each unit is one that achieves the best precision and lowest uncertainty.
+In what follows, the exact language for the definitions of the constants and SI base units
+is used. The definitions specify the exact numerical value of each constant when its
+value is expressed in the corresponding SI unit. By fixing the exact numerical value the
+unit becomes defined, since the product of the numerical value and the unit has to
+equal the value of the constant, which is postulated to be invariant. The seven constants
+are chosen in such a way that any unit of the SI can be written either through a defining
+constant itself or through products or quotients of defining constants.3
+2.1.1 Definition of the second
+Isaac Newton, in the Philosophiae Naturalis Principia Mathematica (“Mathematical
+Principles of Natural Philosophy”), distinguished between time as duration and an
+absolute concept of time,
+“Absolute true and mathematical time, of itself and from its own nature,
+flows equably without relation to anything external, and by another
+name is called duration: relative, apparent, and common time, is some
+sensible and external (whether accurate or unequable) measure of
+duration by means of motion, which is commonly used instead of true
+time; such as an hour, a day, a month, a year. ”4.
+Before 1960, the second was defined as the fraction 1/ 86400 of the mean solar
+day, which varied due to slight changes in the earth rotation and so this was not a good
+definition. The development of clocks based on atomic oscillations allowed measures of
+timing with accuracy on the order of 1 part in 1014 , corresponding to errors of less than
+one microsecond (one millionth of a second) per year. Given the incredible accuracy of
+2
+
+https://www.bipm.org/en/publications/mises-en-pratique/
+https://www.bipm.org/en/measurement-units/base-units.html
+4
+Isaac Newton. Mathematical Principles of Natural Philosophy. Translated by Andrew
+Motte (1729). Revised by Florian Cajori. Berkeley: University of California Press,
+1934. p. 6.
+3
+
+5
+
+this measurement, and clear evidence that the best available timekeepers were atomic in
+nature, the second [s] was defined in 1967 by the International Committee on Weights
+and Measures as a certain number of cycles of electromagnetic radiation emitted by
+cesium (or caesium) atoms as they make transitions between two designated quantum
+states:
+The second, symbol s , is the SI unit of time. It is defined by taking the
+fixed numerical value of the cesium frequency Δν Cs , the unperturbed
+ground-state hyperfine transition frequency of the cesium 133 atom to
+be 9 192 631 770 when expressed in the unit Hz , which is equal to s −1 . 5
+The second is equal to the duration of 9 192 631 770 periods of the radiation
+corresponding to the transition between the two hyperfine levels F = 4 and
+F = 3 of the ground state 6s1/2 of the cesium 133 atom.
+F =5
+
+6p3/2
+
+F =4
+F =3
+F =2
+
+excited state
+8.52124 nm
+wavelength
+of D 2 transition
+line
+
+F=4
+
+6s1/2
+
+9 192 631 770 Hz
+F=3
+
+ground state
+
+Figure: Energy levels of Cesium atom, showing the hyperfine transition between the
+two hyperfine levels F = 4 and F = 3 of the ground state 6s1/2 and the wavelength of
+D 2 line corresponding to the fine structure doublet transition 6s1/2 → 6p3/2 .
+
+The hyperfine frequency is exactly defined to be
+
+Δν Cs = 9 192 631 770 Hz = 9 192 631 770 s −1
+5
+
+https://www.bipm.org/utils/en/pdf/si-mep/SI-App2-second.pdf
+
+6
+
+(2.1)
+
+Therefore the unit second is equal to
+1s =
+
+9 192 631 770
+.
+Δν Cs
+
+(2.2)
+
+A primary method to “realize” a second, the unit of time, with the highest accuracy
+involves certain national metrology laboratories that design primary frequency
+standards. The primary frequency standards aim at exactly realizing the SI second using
+the transition between the two hyperfine levels of the ground state of the cesium 133
+atom, and for which corrections with respect to all known systematic shifts due to a
+variety of physical phenomena (gravitation is especially problematic in correcting for its
+effect) have been applied to best knowledge. The accuracy order of the best primary
+frequency standards that define the SI second approaches 1 part in 1016 .
+The invention of the optical frequency comb made it possible to increase the “tic rate”
+of an atomic clock by a factor of one thousand or more, opening the way to replacing
+the cesium frequency standard by an optical frequency standard with uncertainty at the
+level of 1 part in 1018 , using an atom such as strontium or ytterbium, or an ion such as
+ytterbium or aluminum. 6
+2.1.2 Definition of the meter
+The meter was originally defined as 1/10,000,000 of the arc from the Equator to the
+North Pole along the meridian passing through Paris. In 1889 the meter was redefined
+in terms of the international prototype meter by the 1st Conférence Générale des Poids
+et Mèsures (CGPM). The prototype meter was a platinum bar with an etched length
+scale to aid in calibration and ease of comparison, preserved near Paris. The accuracy of
+the bar was limited to one part in 107 . Effects of temperature and pressure needed to be
+precisely calibrated as well as the mounting in order to ensure that the bar was straight.
+In 1960 the CGPM introduced a microscopic reference by defining the meter as the
+length equal to 1650763.73 wavelengths in vacuum of the radiation corresponding to
+the transition between the levels 2p10 and 5d 5 of the krypton 86 atom. This definition
+of the meter depended on a particular radiation and cannot be realized to better than 4
+parts in 109 .
+
+6
+
+Andrew D. Ludlow, Martin M. Boyd, Jun Ye, E. Peik, and P. O. Schmidt, Rev. Mod. Phys. 87, 637
+
+7
+
+In 1983 the 17th CGPM defined the speed of light as a constant and the meter was
+redefined in terms of the distance that light traveled in 1/ 299 792 458 of a second.
+The meter, symbol m , is the SI unit of length. It is defined by taking the
+fixed numerical speed of light in vacuum c to be 299 792 458 when
+expressed in the unit m ⋅s−1 , where the second is defined in terms of the
+cesium frequency Δν Cs . 7
+The definition of the speed of light states that
+c = 299 792 458 m ⋅s−1
+
+(2.3)
+
+c
+⋅1 s
+299 792 458
+
+(2.4)
+
+The meter is therefore defined by
+
+1m =
+
+The second is defined by Eq. (2.2). Therefore Eq. (2.4) becomes
+1m =
+
+9 192 631 770
+c
+c
+⋅
+= 30.663 314 9
+Δν Cs
+Δν Cs
+299 792 458
+
+(2.5)
+
+This new definition, opens the way to major improvements in the precision with which
+the meter can be realized using laser wavelength and frequency measurement
+techniques. It is worth noting that the new definition has only become practicable with
+the development of techniques for the measurement of frequencies of electromagnetic
+radiations in the visible and near infrared. These can now be measured directly in terms
+of the frequency of the cesium standard which is used in the definition of the second.”8
+2.1.2.1 Worked Example: Krypton Frequency Transition
+The experimental value for frequency of the transition between the levels 2p10 and
+
+5d 5 of the 86 Kr is equal to f = 494886516.5 MHz . Using the definition of the speed of
+7
+
+https://www.bipm.org/utils/en/pdf/si-mep/SI-App2-metre.pdf
+1.
+
+8
+
+“Documents concerning the New Definition of the Metre”, Metrologia 19 (1984) 163. DOI:
+10.1088/0026-1394/19/4/004
+
+8
+
+light, c = 299 792 458 m ⋅s−1 , (i) calculate the wavelength corresponding to this
+transition, (ii) How does this frequency compare to the frequency derived from the
+wavelength λ Kr = (1/ 1650763.73) m in the 1960 definition of the meter?
+Answer: (i) λ =
+
+c 299 792 458 m ⋅s −1
+=
+= 605780210.2 fm
+f 494886516.5 MHz
+
+(ii) In the 1960 definition, the wavelength was equal to λ Kr = (1/ 1650763.73) m . Using
+
+c = 299 792 458 m ⋅s−1 . The frequency is then
+c
+299 792 458 m ⋅s−1
+=
+= 494886516.2 MHz .
+f Kr =
+λ Kr
+605780210.6 fm
+
+2.1.3 Definition of the kilogram
+The kilogram was the last base unit in the International System of Units (SI) that
+was replaced in Nov 18, 2018 by a new definition in terms of the constants. The old
+kilogram was a physical artifact, known as the “International Prototype of the Standard
+(Content truncated due to size limit. Use page ranges or line ranges to read remaining content)

@@ -1,0 +1,500 @@
+Elements of
+
+Ecology
+Eighth Edition
+
+Thomas M. Smith
+University of Virginia
+
+Robert Leo Smith
+West Virginia University, Emeritus
+
+Editor-in-Chief: Beth Wilbur
+Executive Director of Development: Deborah Gale
+Senior Acquisitions Editor: Star MacKenzie
+Project Editor: Leata Holloway
+Assistant Editor: Frances Sink
+Media Producer: Lee Ann Doctor
+Executive Marketing Manager: Lauren Harp
+Executive Managing Editor: Erin Gregg
+Managing Editor: Michael Early
+Senior Production Project Manager: Shannon Tozier
+Production Management and Compositor: Integra-Chicago
+Illustrations: Scientific Illustrators
+Text and Cover Design: tt eye
+Manufacturing Buyer: Michael Penne
+Senior Photo Editor: Donna Kalal
+Photo Research: Kristin Piljay
+Cover Printer: Lehigh-Phoenix Color, Hagerstown
+Printer and Binder: R.R. Donnelley, Willard
+Cover Photo Credit: Chris Martin Bahr / Photo Researchers, Inc.: Weaver Ants (Oecophylla sp.) on leaf.
+
+Credits and acknowledgments borrowed from other sources and reproduced, with permission, in this textbook appear on the
+appropriate page within the text or on pp. C-1–C-8.
+
+Copyright © 2012, 2009, 2006 Pearson Education, Inc., publishing as Pearson Benjamin Cummings. All rights reserved.
+Manufactured in the United States of America. This publication is protected by Copyright and permission should be
+obtained from the publisher prior to any prohibited reproduction, storage in a retrieval system, or transmission in any
+form or by any means, electronic, mechanical, photocopying, recording, or likewise. To obtain permission(s) to use
+material from this work, please submit a written request to Pearson Education, Inc., Permissions Department, 1900 E.
+Lake Ave., Glenview, IL 60025. For information regarding permissions, call (847) 486-2635.
+
+Many of the designations used by manufacturers and sellers to distinguish their products are claimed as trademarks.
+Where those designations appear in this book, and the publisher was aware of a trademark claim, the designations
+have been printed in initial caps or all caps.
+
+Pearson Benjamin Cummings is a trademark, in the U.S. and/or other countries, of Pearson Education, Inc. or its affiliates. 
+
+Library of Congress Cataloging-in-Publication Data
+Smith, T. M. (Thomas Michael)
+Elements of ecology / Thomas M. Smith, Robert Leo Smith.—8th ed.
+p. cm.
+Includes bibliographical references and index.
+ISBN 978-0-321-73607-9
+1. Ecology. I. Smith, Robert Leo. II. Title.
+QH541.S624 2011
+577—dc22
+2011015962
+
+ISBN 10: 0-321-73607-9; ISBN 13: 978-0-321-73607-9 (Student edition)
+ISBN 10: 0-321-74286-9; ISBN 13: 978-0-321-74286-5 (Professional copy)
+ISBN 10: 0-321-88454-X; ISBN 13: 978-0-321-88454-1 (Books a la Carte)
+
+2 3 4 5 6 7 8 9 10—DOW—15 14 13 12 11
+
+Contents
+Preface xv
+
+Chapter 1
+
+The Nature of Ecology 1
+1.1 Ecology Is the Study of the Relationship between Organisms
+and Their Environment 2
+1.2 Organisms Interact with the Environment in the Context
+of the Ecosystem 2
+ ECOLOGICAL ISSUES: Ecology Has Complex Roots 3
+
+1.3
+1.4
+1.5
+
+Ecological Systems Form a Hierarchy 4
+Ecologists Study Pattern and Process at Many Levels 5
+Ecologists Investigate Nature Using the Scientific Method 6
+
+ QUANTIFYING ECOLOGY 1.1: Classifying Ecological Data
+
+1.6
+
+Models Provide a Basis for Predictions
+
+8
+
+9
+
+ QUANTIFYING ECOLOGY 1.2: Displaying Ecological Data: Histograms
+and Scatter Plots 10
+
+1.7
+1.8
+1.9
+
+Uncertainty Is an Inherent Feature of Science 12
+Ecology Has Strong Ties to Other Disciplines 12
+The Individual Is the Basic Unit of Ecology 13
+
+Summary
+
+Study Questions
+
+14
+
+PART 1 The Physical Environment
+
+16
+
+Chapter 2
+
+Climate
+
+13
+
+•
+
+•
+
+Further Readings
+
+14
+
+18
+
+2.1 Earth Intercepts Solar Radiation 19
+2.2 Intercepted Solar Radiation Varies Seasonally 21
+2.3 Air Temperature Decreases with Altitude 22
+2.4 Air Masses Circulate Globally 25
+2.5 Solar Energy, Wind, and Earth’s Rotation Create Ocean Currents 26
+2.6 Temperature Influences the Moisture Content of Air 27
+2.7 Precipitation Has a Distinctive Global Pattern 27
+2.8 Topography Influences Regional and Local Patterns of Precipitation 30
+2.9 Irregular Variations in Climate Occur at the Regional Scale 30
+2.10 Most Organisms Live in Microclimates 32
+ ECOLOGICAL ISSUES: Urban Microclimates 33
+Summary 34 • Study Questions 35 • Further Readings
+
+Chapter 3
+
+35
+
+The Aquatic Environment 36
+3.1
+
+Water Cycles between Earth and the Atmosphere
+
+37
+
+ ECOLOGICAL ISSUES: Groundwater Resources 38
+
+3.2 Water Has Important Physical Properties 39
+3.3 Light Varies with Depth in Aquatic Environments 41
+3.4 Temperature Varies with Water Depth 42
+3.5 Water Functions as a Solvent 44
+3.6 Oxygen Diffuses from the Atmosphere to the Surface Waters 45
+3.7 Acidity Has a Widespread Influence on Aquatic Environments 46
+3.8 Water Movements Shape Freshwater and Marine Environments 47
+iii
+
+3.9 Tides Dominate the Marine Coastal Environment 48
+3.10 The Transition Zone between Freshwater and Saltwater Environments
+Presents Unique Constraints 49
+Summary
+
+Chapter 4
+
+50
+
+•
+
+Study Questions
+
+51
+
+The Terrestrial Environment
+4.1
+4.2
+
+•
+
+Further Readings
+
+51
+
+52
+
+Life on Land Imposes Unique Constraints 53
+Plant Cover Influences the Vertical Distribution of Light 54
+
+ QUANTIFYING ECOLOGY 4.1: Beer’s Law and the Attenuation of Light
+
+56
+
+4.3 Soil Is the Foundation upon Which All Terrestrial Life Depends 57
+4.4 The Formation of Soil Begins with Weathering 58
+4.5 Soil Formation Involves Five Interrelated Factors 58
+4.6 Soils Have Certain Distinguishing Physical Characteristics 59
+4.7 The Soil Body Has Horizontal Layers, or Horizons 60
+4.8 Moisture-Holding Capacity Is an Essential Feature of Soils 61
+4.9 Ion Exchange Capacity Is Important to Soil Fertility 62
+4.10 Basic Soil Formation Processes Produce Different Soils 63
+Summary
+
+65
+
+•
+
+Study Questions
+
+66
+
+•
+
+Further Readings
+
+67
+
+PART 2 The Organism and Its Environment 68
+Chapter 5
+
+Ecological Genetics: Adaptation and Natural Selection
+
+70
+
+5.1 Adaptations Are a Product of Natural Selection 71
+5.2 Genes Are the Units of Inheritance 72
+5.3 The Phenotype Is the Physical Expression of the Genotype 72
+5.4 Genetic Variation Occurs at the Level of the Population 73
+5.5 Adaptation Is a Product of Evolution by Natural Selection 73
+5.6 Several Processes Can Function to Alter Patterns of Genetic
+Variation 77
+ QUANTIFYING ECOLOGY 5.1: Hardy–Weinberg Principle
+
+5.7
+5.8
+
+78
+
+Natural Selection Can Result in Genetic Differentiation 80
+Adaptations Reflect Trade-offs and Constraints 81
+
+ FIELD STUDIES: Beren Robinson
+
+82
+
+5.9 Organisms Respond to Environmental Variation at the Individual
+and Population Levels 86
+ ECOLOGICAL ISSUES: The Ecology of Antibiotic Resistance 88
+Summary 89 • Study Questions 90 • Further Readings 90
+
+Chapter 6
+
+Plant Adaptations to the Environment
+
+92
+
+6.1 Photosynthesis Is the Conversion of Carbon Dioxide into Simple
+Sugars 93
+6.2 The Light a Plant Receives Affects Its Photosynthetic Activity 94
+6.3 Photosynthesis Involves Exchanges between the Plant
+and Atmosphere 95
+6.4 Water Moves from the Soil, through the Plant, to the Atmosphere 95
+6.5 The Process of Carbon Uptake Differs for Aquatic and Terrestrial
+Plants 98
+6.6 Plant Temperatures Reflect Their Energy Balance with the Surrounding
+Environment 98
+6.7 Carbon Gained in Photosynthesis Is Allocated to the Production of Plant
+Tissues 99
+6.8 Constraints Imposed by the Physical Environment Have Resulted
+in a Wide Array of Plant Adaptations 101
+iv
+
+6.9
+
+Species of Plants Are Adapted to Different Light Environments
+
+ QUANTIFYING ECOLOGY 6.1: Relative Growth Rate
+
+101
+
+104
+
+6.10 The Link between Water Demand and Temperature Influences Plant
+Adaptations 106
+ FIELD STUDIES: Kaoru Kitajima 108
+
+6.11 Plants Vary in Their Response to Environmental Temperatures 112
+6.12 Plants Exhibit Adaptations to Variations in Nutrient Availability 113
+6.13 Wetland Environments Present Unique Constraints on Plant
+Adaptations 115
+Summary
+
+Chapter 7
+
+116
+
+•
+
+Study Questions
+
+118
+
+•
+
+Further Readings
+
+Animal Adaptations to the Environment
+
+118
+
+119
+
+7.1 Size Imposes a Fundamental Constraint on the Evolution of
+Organisms 120
+7.2 Animals Have Various Ways of Acquiring Energy and Nutrients 122
+7.3 Animals Have Various Nutritional Needs 125
+7.4 Mineral Availability Affects Animal Growth and Reproduction 126
+7.5 Animals Require Oxygen to Release Energy Contained in Food 127
+ FIELD STUDIES: Martin Wikelski 128
+
+7.6 Regulation of Internal Conditions Involves Homeostasis
+and Feedback 130
+7.7 Animals Exchange Energy with Their Surrounding Environment
+
+130
+
+ QUANTIFYING ECOLOGY 7.1: Heat Exchange and Temperature
+Regulation 132
+
+7.8 Animals Fall into Three Groups Relative to Temperature Regulation 133
+7.9 Poikilotherms Depend on Environmental Temperatures 134
+7.10 Homeotherms Escape the Thermal Restraints of the Environment 135
+7.11 Endothermy and Ectothermy Involve Trade-offs 136
+7.12 Heterotherms Take on Characteristics of Ectotherms
+and Endotherms 138
+7.13 Torpor Helps Some Animals Conserve Energy 138
+7.14 Some Animals Use Unique Physiological Means for Thermal Balance 139
+7.15 Maintenance of Water Balance for Terrestrial Animals Is Constrained
+by Uptake and Conservation 140
+7.16 Animals of Aquatic Environments Face Unique Problems in Maintaining
+Water Balance 141
+7.17 Buoyancy Helps Aquatic Organisms to Stay Afloat 142
+7.18 Daily and Seasonal Light and Dark Circles Influence Animal
+Activity 142
+7.19 Critical Day Lengths Trigger Seasonal Responses 143
+7.20 Activity Rhythms of Intertidal Organisms Follow Tidal Cycles 144
+Summary
+
+145
+
+PART 3 Populations
+Chapter 8
+
+•
+
+Study Questions
+
+147
+
+•
+
+Further Readings
+
+147
+
+148
+
+Properties of Populations 150
+8.1
+8.2
+8.3
+8.4
+8.5
+8.6
+
+Organisms May Be Unitary or Modular 151
+The Distribution of a Population Defines Its Spatial Location 151
+Abundance Reflects Population Density and Distribution 153
+Determining Density Requires Sampling 156
+Populations Have Age Structures 156
+Sex Ratios in Populations May Shift with Age 158
+v
+
+8.7 Individuals Move Within the Population 158
+8.8 Population Distribution and Density Change in Both Time and Space 160
+ ECOLOGICAL ISSUES: Human-Assisted Dispersal 162
+Summary 163 • Study Questions 163 • Further Readings
+
+Chapter 9
+
+Population Growth
+
+164
+
+165
+
+9.1 Population Growth Reflects the Difference between Rates of Birth
+and Death 166
+ QUANTIFYING ECOLOGY 9.1: Derivatives and Differential Equations 167
+ QUANTIFYING ECOLOGY 9.2: Exponential Model of Population Growth 168
+
+9.2 Life Tables Provide a Schedule of Age-Specific Mortality
+and Survival 169
+9.3 Different Types of Life Tables Reflect Different Approaches to Defining
+Cohorts and Age Structure 170
+ QUANTIFYING ECOLOGY 9.3: Life Expectancy
+
+171
+
+9.4 Life Tables Provide Data for Mortality and Survivorship Curves 172
+9.5 Birthrate Is Age-Specific 173
+9.6 Birthrate and Survivorship Determine Net Reproductive Rate 174
+9.7 Age-Specific Mortality and Birthrates Can Be Used to Project Population
+Growth 174
+9.8 Stochastic Processes Can Influence Population Dynamics 176
+9.9 A Variety of Factors Can Lead to Population Extinction 177
+9.10 Small Populations Are Susceptible to Extinction 177
+Summary
+
+Chapter 10
+
+178
+
+•
+
+Life History
+
+Study Questions
+
+179
+
+•
+
+Further Readings
+
+179
+
+181
+
+10.1 The Evolution of Life Histories Involves Trade-offs 182
+10.2 Reproduction Involves Both Benefits and Costs to Individual
+Fitness 182
+10.3 Age at Maturity Is Influenced by Patterns of Age-Specific
+Mortality 183
+10.4 Reproductive Effort Is Governed by Trade-offs between Fecundity
+and Survival 185
+10.5 There Is a Trade-off between the Number and Size of Offspring 188
+ QUANTIFYING ECOLOGY 10.1: Interpreting Trade-offs 190
+
+10.6 Species Differ in the Timing of Reproduction 190
+10.7 An Individual’s Life History Represents the Interaction between
+Genotype and the Environment 192
+10.8 Mating Systems Describe the Pairing of Males and Females 193
+10.9 Acquisition of a Mate Involves Sexual Selection 194
+10.10 Females May Choose Mates Based on Resources 195
+ FIELD STUDIES: Alexandra L. Basolo
+
+196
+
+10.11 Patterns of Life History Characteristics Reflect External Selective
+Forces 198
+Summary
+
+Chapter 11
+
+200
+
+•
+
+Study Questions
+
+201
+
+•
+
+Further Readings
+
+Intraspecific Population Regulation
+11.1
+
+202
+
+The Environment Functions to Limit Population Growth 203
+
+ ECOLOGICAL ISSUES: The Human Carrying Capacity
+
+11.2
+
+201
+
+204
+
+Population Regulation Involves Density Dependence 206

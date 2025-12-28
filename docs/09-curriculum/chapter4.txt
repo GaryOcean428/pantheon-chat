@@ -1,0 +1,500 @@
+Chapter 4 One Dimensional Kinematics
+4.1 Introduction............................................................................................................. 2
+4.2 Position, Time Interval, Displacement.................................................................. 3
+4.2.1 Position.............................................................................................................. 3
+4.2.2 Time Interval .................................................................................................... 3
+4.2.3 Displacement .................................................................................................... 3
+4.3 Velocity .................................................................................................................... 4
+4.3.1 Average Velocity .............................................................................................. 4
+4.3.3 Instantaneous Velocity..................................................................................... 5
+Example 4.1 Determining Velocity from Position.................................................. 6
+Example 4.2 Mean Value Theorem ......................................................................... 7
+4.4 Acceleration............................................................................................................. 9
+4.4.1 Average Acceleration....................................................................................... 9
+4.4.2 Instantaneous Acceleration ............................................................................. 9
+Example 4.3 Determining Acceleration from Velocity ........................................ 10
+4.5 Constant Acceleration .......................................................................................... 11
+4.5.1 Velocity: Area Under the Acceleration vs. Time Graph ............................ 11
+4.5.2 Displacement: Area Under the Velocity vs. Time Graph ........................... 11
+Example 4.4 Accelerating Car ............................................................................... 13
+Example 4.5 Catching a Bus .................................................................................. 15
+4.6 One Dimensional Kinematics and Integration................................................... 16
+4.6.1 Change of Velocity as the Indefinite Integral of Acceleration ................... 16
+Example 4.6 Non-constant acceleration ................................................................ 17
+4.6.2 Area as the Indefinite Integral of Acceleration ........................................... 17
+4.6.3 Change of Velocity as the Definite Integral of Acceleration ...................... 19
+4.6.4 Displacement as the Definite Integral of Velocity ....................................... 22
+Example 4.5 Non-constant Acceleration ............................................................... 22
+Example 4.6 Bicycle and Car ................................................................................. 24
+
+1
+
+Chapter 4 One Dimensional Kinematics
+In the first place, what do we mean by time and space? It turns out that these deep
+philosophical questions have to be analyzed very carefully in physics, and this is
+not easy to do. The theory of relativity shows that our ideas of space and time are
+not as simple as one might imagine at first sight. However, for our present
+purposes, for the accuracy that we need at first, we need not be very careful about
+defining things precisely. Perhaps you say, “That’s a terrible thing—I learned
+that in science we have to define everything precisely.” We cannot define
+anything precisely! If we attempt to, we get into that paralysis of thought that
+comes to philosophers, who sit opposite each other, one saying to the other, “You
+don’t know what you are talking about!” The second one says. “What do you
+mean by know? What do you mean by talking? What do you mean by you?”, and
+so on. In order to be able to talk constructively, we just have to agree that we are
+talking roughly about the same thing. You know as much about time as you need
+for the present, but remember that there are some subtleties that have to be
+discussed; we shall discuss them later.1
+Richard Feynman
+
+4.1 Introduction
+Kinematics is the mathematical description of motion. The term is derived from the
+Greek word kinema, meaning movement. In order to quantify motion, a mathematical
+coordinate system, called a reference frame, is used to describe space and time. Once a
+reference frame has been chosen, we shall introduce the physical concepts of position,
+velocity and acceleration in a mathematically precise manner. Figure 4.1 shows a
+Cartesian coordinate system in one dimension with unit vector î pointing in the direction
+of increasing x -coordinate.
+
+î
++x
+
+0
+
+Figure 4.1 A one-dimensional Cartesian coordinate system.
+
+1
+
+Richard P. Feynman, Robert B. Leighton, Matthew Sands, The Feynman Lectures on
+Physics, Addison-Wesley, Reading, Massachusetts, (1963), p. 12-2.
+
+2
+
+4.2 Position, Time Interval, Displacement
+4.2.1 Position
+Consider a point-like object moving in one dimension. We denote the position
+coordinate of the object with respect to the choice of origin by x(t) . The position
+coordinate is a function of time and can be positive, zero, or negative, depending on the
+location of the object. The position of the object with respect to the origin has both
+direction and magnitude, and hence is a vector (Figure 4.2), which we shall denote as the
+position vector (or simply position) and write as
+
+r(t) = x(t) î .
+
+(4.2.1)
+
+We denote the position coordinate at t = 0 by the symbol x0 ≡ x(t = 0) . The SI unit for
+position is the meter [m].
+
+î
+r(t)
+
+0
+
++x
+x(t)
+
+Figure 4.2 The position vector, with reference to a chosen origin.
+4.2.2 Time Interval
+Consider a closed interval of time [t1 , t2 ] . We characterize this time interval by the
+difference in endpoints of the interval,
+(4.2.2)
+Δt = t2 − t1 .
+The SI units for time intervals are seconds [s].
+4.2.3 Displacement
+The displacement of a body during a time interval [t1 , t2 ] (Figure 4.3) is defined
+to be the change in the position of the body
+ 
+
+Δr ≡ r(t2 ) − r(t1 ) = (x(t2 ) − x(t1 )) î ≡ Δx(t) î .
+
+Displacement is a vector quantity.
+
+3
+
+(4.2.3)
+
+r
+r(t2 )
+0
+
+î
++x
+
+r(t1 )
+x(t1 )
+
+x(t2 )
+
+Figure 4.3 The displacement vector of an object over a time interval is the vector
+difference between the two position vectors
+
+4.3 Velocity
+When describing the motion of objects, words like “speed” and “velocity” are used in
+natural language; however when introducing a mathematical description of motion, we
+need to define these terms precisely. Our procedure will be to define average quantities
+for finite intervals of time and then examine what happens in the limit as the time interval
+becomes infinitesimally small. This will lead us to the mathematical concept that velocity
+at an instant in time is the derivative of the position with respect to time.
+4.3.1 Average Velocity
+The x -component of the average velocity, vx,ave , for a time interval Δt is defined
+to be the displacement Δx divided by the time interval Δt ,
+
+vx,ave ≡
+
+Δx
+.
+Δt
+
+(4.3.1)
+
+Because we are describing one-dimensional motion we shall drop the subscript x and
+denote
+vave = vx,ave .
+(4.3.2)
+When we introduce two-dimensional motion we will distinguish the components of the
+velocity by subscripts. The average velocity vector is then
+
+Δx
+
+v ave ≡
+î = vave î .
+Δt
+
+(4.3.3)
+
+The SI units for average velocity are meters per second ⎡⎣ m⋅s −1 ⎤⎦ . The average velocity is
+
+not necessarily equal to the distance in the time interval Δt traveled divided by the time
+interval Δt . For example, during a time interval, an object moves in the positive x direction and then returns to its starting position, the displacement of the object is zero,
+but the distance traveled is non-zero.
+
+4
+
+4.3.3 Instantaneous Velocity
+Consider a body moving in one direction. During the time interval [t, t + Δt] , the average
+velocity corresponds to the slope of the line connecting the points (t, x(t )) and
+(t + Δt, x(t + Δt)) . The slope, the rise over the run, is the change in position divided by
+the change in time, and is given by
+
+vave ≡
+
+rise Δx x(t + Δt) − x(t)
+=
+=
+.
+run Δt
+Δt
+
+(4.3.4)
+
+As Δt → 0 , the slope of the lines connecting the points (t, x(t)) and (t + Δt, x(t + Δt)) ,
+approach slope of the tangent line to the graph of the function x(t) at the time t (Figure
+4.4).
+x(t + t)
+
+x(t)
+
+x
+tangent line
+at time t
+
+x(t)
+t
+
+t
+
+t+ t
+
+Figure 4.4 Plot of position vs. time showing the tangent line at time t .
+The limiting value of this sequence is defined to be the x -component of the
+instantaneous velocity at the time t .
+The x -component of instantaneous velocity at time t is given by the
+slope of the tangent line to the graph of the position function at time t :
+
+Δx
+x(t + Δt) − x(t) dx
+= lim
+≡
+.
+Δt→0 Δt
+Δt→0
+Δt
+dt
+
+v(t) ≡ lim vave = lim
+Δt→0
+
+(4.3.5)
+
+The instantaneous velocity vector is then
+
+v(t) = v(t) î .
+
+(4.3.6)
+
+The component of the velocity, v(t) , can be positive, zero, or negative, depending on
+whether the object is travelling in the positive x -direction, instantaneously at rest, or the
+negative x -direction.
+
+5
+
+Example 4.1 Determining Velocity from Position
+Consider an object that is moving along the x -coordinate axis with the position function
+given by
+1
+x(t) = x0 + bt 2
+(4.3.7)
+2
+where x0 is the initial position of the object at t = 0 . We can explicitly calculate the x component of instantaneous velocity from Equation (4.3.5) by first calculating the
+displacement in the x -direction, Δx = x(t + Δt) − x(t ) . We need to calculate the position
+at time t + Δt ,
+1
+1
+x(t + Δt) = x0 + b(t + Δt)2 = x0 + b(t 2 + 2tΔt + Δt 2 ) .
+(4.3.8)
+2
+2
+Then the x -component of instantaneous velocity is
+⎛
+⎞ ⎛
+1
+1 ⎞
+x0 + b(t 2 + 2t Δt + Δt 2 )⎟ − ⎜ x0 + bt 2 ⎟
+⎜
+2
+2 ⎠
+⎝
+⎠ ⎝
+x(t + Δt) − x(t)
+. (4.3.9)
+v(t) = lim
+= lim
+Δt→0
+Δt→0
+Δt
+Δt
+
+This expression reduces to
+⎛
+⎞
+1
+v(t) = lim ⎜ bt + bΔt ⎟ .
+Δt→0 ⎝
+2
+⎠
+
+(4.3.10)
+
+The first term is independent of the interval Δt and the second term vanishes because in
+the limit as Δt → 0 , the term (1/ 2)bΔt → 0 is zero. Therefore the x -component of
+instantaneous velocity at time t is
+(4.3.11)
+v(t) = bt .
+In Figure 4.5 we plot the instantaneous velocity, v(t) , as a function of time t .
+
+v(t)
+
+v(t) = bt
+
+t
+Figure 4.5 Plot of instantaneous velocity instantaneous velocity as a function of time.
+
+6
+
+Example 4.2 Mean Value Theorem
+Consider an object that is moving along the x -coordinate axis with the position function
+given by
+1
+x(t) = x0 + v0t + bt 2 .
+(4.3.12)
+2
+The graph of x(t) vs. t is shown in Figure 4.6.
+
+1
+x(t) = x0 + v0t + bt 2
+2
+
+x(t)
+x(t f )
+
+slope = vave
+
+x(ti )
+
+slope = v(t1 )
+x0
+t
+t1 = (t f
+
+ti
+
+ti ) / 2
+
+tf
+
+Figure 4.6 Intermediate Value Theorem
+The x -component of the instantaneous velocity is
+
+v(t) =
+
+dx(t)
+= v0 + bt .
+dt
+
+(4.3.13)
+
+For the time interval [ti ,t f ] , the displacement of the object is
+
+1
+1
+x(t f ) − x(ti ) = Δx = v0 (t f − ti ) + b(t f 2 − ti 2 ) = v0 (t f − ti ) + b(t f − ti )(t f + ti ) . (4.3.14)
+2
+2
+Recall that the x -component of the average velocity is defined by the condition that
+
+Δx = vave (t f − ti ) .
+
+(4.3.15)
+
+We can determine the average velocity by substituting Eq. (4.3.15) into Eq. (4.3.14)
+yielding
+
+7
+
+1
+vave = v0 + b(t f + ti ) .
+2
+
+(4.3.16)
+
+The Mean Value Theorem from calculus states that there exists an instant in time t1 , with
+
+ti < t1 < t f , such that the x -component of the instantaneously velocity, v(t1 ) , satisfies
+Δx = v(t1 )(t f − ti ) .
+
+(4.3.17)
+
+Geometrically this means that the slope of the straight line (blue line in Figure 4.6)
+connecting the points (ti , x(ti )) to (t f , x(t f )) is equal to the slope of the tangent line (red
+line in Figure 4.6) to the graph of x(t) vs. t at the point (t1 , x(t1 )) (Figure 4.6),
+v(t1 ) = vave .
+
+(4.3.18)
+
+v(t1 ) = v0 + bt1 .
+
+(4.3.19)
+
+We know from Eq. (4.3.13) that
+
+We can solve for the time t1 by substituting Eqs. (4.3.19) and (4.3.16) into Eq. (4.3.18)
+yielding
+t1 = (t f + ti ) / 2
+(4.3.20)
+This intermediate value v(t1 ) is also equal to one-half the sum of the initial velocity and
+final velocity
+
+v(t1 ) =
+
+v(ti ) + v(t f )
+2
+
+=
+
+(v0 + bti ) + (v0 + bt f )
+2
+
+1
+= v0 + b(t f + ti ) = v0 + bt1 . (4.3.21)
+2
+
+For any time interval, the quantity (v(ti ) + v(t f )) / 2 , is the arithmetic mean of the initial
+velocity and the final velocity (but unfortunately is also sometimes referred to as the
+average velocity). The average velocity, which we defined as vave = (x f − xi ) / Δt , and the
+arithmetic mean, (v(ti ) + v(t f )) / 2 , are only equal in the special case when the velocity is
+a linear function in the variable t as in this example, (Eq. (4.3.13)). We shall only use the
+term average velocity to mean displacement divided by the time interval.
+
+8
+
+4.4 Acceleration
+We shall apply the same physical and mathematical procedure for defining acceleration,
+as the rate of change of velocity with respect to time. We first consider how the
+instantaneous velocity changes over a fixed time interval of time and then take the limit
+as the time interval approaches zero.
+4.4.1 Average Acceleration
+Average acceleration is the quantity that measures a change in velocity over a particular
+time interval. Suppose during a time interval Δt a body undergoes a change in velocity
+
+ 
+
+Δv = v(t + Δt) − v(t ) .
+
+(4.3.22)
+
+The change in the x -component of the velocity, Δv , for the time interval [t, t + Δt] is
+then
+(4.3.23)
+Δv = v(t + Δt) − v(t) .
+The x -component of the average acceleration for the time interval Δt is defined
+to be
+Δv
+(v(t + Δt) − v(t))
+
+a ave = aave î ≡
+î =
+î .
+(4.3.24)
+Δt
+Δt
+The SI units for average acceleration are meters per second squared, [m⋅s −2 ] .
+4.4.2 Instantaneous Acceleration
+Consider the graph of the x -component of velocity, v(t) , (Figure 4.7).
+
+v(t + t)
+v
+v(t)
+slope = a(t)
+t
+t
+
+9
+
+t
+
+t+ t
+
+Figure 4.7 Graph of velocity vs. time showing the tangent line at time t .
+The average acceleration for a fixed time interval Δt is the slope of the straight line
+connecting the two points (t, v(t)) and (t + Δt, v(t + Δt)) . In order to define the x component of the instantaneous acceleration at time t , we employ the same limiting
+argument as we did when we defined the instantaneous velocity in terms of the slope of
+the tangent line.
+The x -component of the instantaneous acceleration at time t is the slope of the
+tangent line at time t of the graph of the x -component of the velocity as a
+function of time,
+
+Δv
+(v(t + Δt) − v(t)) dv
+= lim
+≡
+.
+Δt→0 Δt
+Δt→0
+Δt
+dt
+
+a(t) ≡ lim
+
+(4.3.25)
+
+The instantaneous acceleration vector at time t is then
+
+a(t) = a(t) î .
+
+(4.3.26)
+
+Because the velocity is the derivative of position with respect to time, the x -component
+of the acceleration is the second derivative of the position function,
+
+a=

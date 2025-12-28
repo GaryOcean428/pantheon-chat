@@ -1,0 +1,402 @@
+The Scientist and Engineer's Guide to
+
+Digital Signal Processing
+Second Edition
+
+Be sure to visit the book’s website at:
+
+www.DSPguide.com
+
+The Scientist and Engineer's Guide to
+
+Digital Signal Processing
+Second Edition
+
+by
+Steven W. Smith
+
+California Technical Publishing
+San Diego, California
+
+The Scientist and Engineer's Guide to
+
+Digital Signal Processing
+Second Edition
+by
+Steven W. Smith
+
+copyright © 1997-1999 by California Technical Publishing
+All rights reserved. No portion of this book may be reproduced or
+transmitted in any form or by any means, electronic or mechanical,
+without written permission of the publisher.
+
+ISBN 0-9660176-7-6
+ISBN 0-9660176-4-1
+ISBN 0-9660176-6-8
+LCCN 97-80293
+
+hardcover
+paperback
+electronic
+
+California Technical Publishing
+P.O. Box 502407
+San Diego, CA 92150-2407
+To contact the author or publisher through the internet:
+website: DSPguide.com
+e-mail:
+Smith@DSPguide.com
+Printed in the United States of America
+First Edition, 1997
+Second Edition, 1999
+
+Important Legal Information: Warning and Disclaimer
+This book presents the fundamentals of Digital Signal Processing using examples from common science and
+engineering problems. While the author believes that the concepts and data contained in this book are accurate and
+correct, they should not be used in any application without proper verification by the person making the application.
+Extensive and detailed testing is essential where incorrect functioning could result in personal injury or damage to
+property. The material in this book is intended solely as a teaching aid, and is not represented to be an appropriate
+or safe solution to any particular problem. For this reason, the author, publisher, and distributors make no
+warranties, express or implied, that the concepts, examples, data, algorithms, techniques, or programs contained
+in this book are free from error, conform to any industry standard, or are suitable for any application. The author,
+publisher, and distributors disclaim all liability and responsibility to any person or entity with respect to any loss
+or damage caused, or alleged to be caused, directly or indirectly, by the information contained in this book. If you
+do not wish to be bound by the above, you may return this book to the publisher for a full refund.
+
+Contents at a Glance
+FOUNDATIONS
+Chapter 1.
+The Breadth and Depth of DSP . . . . . . . . . . . . . . . . . . . 1
+Chapter 2.
+Statistics, Probability and Noise . . . . . . . . . . . . . . . . . . 11
+Chapter 3.
+ADC and DAC . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 35
+Chapter 4.
+DSP Software . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 67
+FUNDAMENTALS
+Chapter 5.
+Linear Systems . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 87
+Chapter 6.
+Convolution . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 107
+Chapter 7.
+Properties of Convolution . . . . . . . . . . . . . . . . . . . . . . . 123
+Chapter 8.
+The Discrete Fourier Transform . . . . . . . . . . . . . . . . . . 141
+Chapter 9.
+Applications of the DFT . . . . . . . . . . . . . . . . . . . . . . . . 169
+Chapter 10. Fourier Transform Properties . . . . . . . . . . . . . . . . . . . . 185
+Chapter 11. Fourier Transform Pairs . . . . . . . . . . . . . . . . . . . . . . . . 209
+Chapter 12. The Fast Fourier Transform . . . . . . . . . . . . . . . . . . . . . . 225
+Chapter 13. Continuous Signal Processing . . . . . . . . . . . . . . . . . . . . 243
+DIGITAL FILTERS
+Chapter 14. Introduction to Digital Filters . . . . . . . . . . . . . . . . . . . . 261
+Chapter 15. Moving Average Filters . . . . . . . . . . . . . . . . . . . . . . . . . 277
+Chapter 16. Windowed-Sinc Filters . . . . . . . . . . . . . . . . . . . . . . . . . 285
+Chapter 17. Custom Filters . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 297
+Chapter 18. FFT Convolution . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 311
+Chapter 19. Recursive Filters . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 319
+Chapter 20. Chebyshev Filters . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 333
+Chapter 21. Filter Comparison . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 343
+APPLICATIONS
+Chapter 22. Audio Processing . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 351
+Chapter 23. Image Formation and Display . . . . . . . . . . . . . . . . . . . . 373
+Chapter 24. Linear Image Processing . . . . . . . . . . . . . . . . . . . . . . . . 397
+Chapter 25. Special Imaging Techniques . . . . . . . . . . . . . . . . . . . . . 423
+Chapter 26. Neural Networks (and more!) . . . . . . . . . . . . . . . . . . . . 451
+Chapter 27. Data Compression . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 481
+Chapter 28. Digital Signal Processors . . . . . . . . . . . . . . . . . . . . . . . 503
+Chapter 29. Getting Started with DSPs . . . . . . . . . . . . . . . . . . . . . . . 535
+COMPLEX TECHNIQUES
+Chapter 30. Complex Numbers . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 551
+Chapter 31. The Complex Fourier Transform . . . . . . . . . . . . . . . . . . 567
+Chapter 32. The Laplace Transform . . . . . . . . . . . . . . . . . . . . . . . . . 581
+Chapter 33. The z-Transform . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 605
+Glossary . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 631
+Index . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 643
+v
+
+Table of Contents
+FOUNDATIONS
+Chapter 1. The Breadth and Depth of DSP . . . . . . . . . . . . . 1
+The Roots of DSP 1
+Telecommunications 4
+Audio Processing 5
+Echo Location 7
+Imaging Processing 9
+Chapter 2. Statistics, Probability and Noise . . . . . . . . . . . . . 11
+Signal and Graph Terminology 11
+Mean and Standard Deviation 13
+Signal vs. Underlying Process 17
+The Histogram, Pmf and Pdf 19
+The Normal Distribution 26
+Digital Noise Generation 29
+Precision and Accuracy 32
+Chapter 3. ADC and DAC . . . . . . . . . . . . . . . . . . . . . . . . . . . 35
+Quantization 35
+The Sampling Theorem 39
+Digital-to-Analog Conversion 44
+Analog Filters for Data Conversion 48
+Selecting the Antialias Filter 55
+Multirate Data Conversion 58
+Single Bit Data Conversion 60
+Chapter 4. DSP Software . . . . . . . . . . . . . . . . . . . . . . . . . . . . 67
+Computer Numbers 67
+Fixed Point (Integers) 68
+Floating Point (Real Numbers) 70
+Number Precision 72
+Execution Speed: Program Language 76
+Execution Speed: Hardware 80
+Execution Speed: Programming Tips 84
+
+vi
+
+FUNDAMENTALS
+Chapter 5. Linear Systems . . . . . . . . . . . . . . . . . . . . . . . . . . . 87
+Signals and Systems 87
+Requirements for Linearity 89
+Static Linearity and Sinusoidal Fidelity 92
+Examples of Linear and Nonlinear Systems 94
+Special Properties of Linearity 96
+Superposition: the Foundation of DSP 98
+Common Decompositions 100
+Alternatives to Linearity 104
+Chapter 6. Convolution . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 107
+The Delta Function and Impulse Response 107
+Convolution 108
+The Input Side Algorithm 112
+The Output Side Algorithm 116
+The Sum of Weighted Inputs 122
+Chapter 7. Properties of Convolution . . . . . . . . . . . . . . . . . . 123
+Common Impulse Responses 123
+Mathematical Properties 132
+Correlation 136
+Speed 140
+Chapter 8. The Discrete Fourier Transform . . . . . . . . . . . . 141
+The Family of Fourier Transforms 141
+Notation and Format of the real DFT 146
+The Frequency Domain's Independent Variable 148
+DFT Basis Functions 150
+Synthesis, Calculating the Inverse DFT 152
+Analysis, Calculating the DFT 156
+Duality 161
+Polar Notation 161
+Polar Nuisances 164
+Chapter 9. Applications of the DFT . . . . . . . . . . . . . . . . . . . 169
+Spectral Analysis of Signals 169
+Frequency Response of Systems 177
+Convolution via the Frequency Domain 180
+Chapter 10. Fourier Transform Properties . . . . . . . . . . . . . 185
+Linearity of the Fourier Transform 185
+Characteristics of the Phase 188
+Periodic Nature of the DFT 194
+Compression and Expansion, Multirate methods 200
+vii
+
+Multiplying Signals (Amplitude Modulation) 204
+The Discrete Time Fourier Transform 206
+Parseval's Relation 208
+
+Chapter 11. Fourier Transform Pairs . . . . . . . . . . . . . . . . . . 209
+Delta Function Pairs 209
+The Sinc Function 212
+Other Transform Pairs 215
+Gibbs Effect 218
+Harmonics 220
+Chirp Signals 222
+Chapter 12. The Fast Fourier Transform . . . . . . . . . . . . . . . 225
+Real DFT Using the Complex DFT 225
+How the FFT Works 228
+FFT Programs 233
+Speed and Precision Comparisons 237
+Further Speed Increases 238
+Chapter 13. Continuous Signal Processing . . . . . . . . . . . . . . 243
+The Delta Function 243
+Convolution 246
+The Fourier Transform 252
+The Fourier Series 255
+
+DIGITAL FILTERS
+Chapter 14. Introduction to Digital Filters . . . . . . . . . . . . . . 261
+Filter Basics 261
+How Information is Represented in Signals 265
+Time Domain Parameters 266
+Frequency Domain Parameters 268
+High-Pass, Band-Pass and Band-Reject Filters 271
+Filter Classification 274
+Chapter 15. Moving Average Filters . . . . . . . . . . . . . . . . . . . 277
+Implementation by Convolution 277
+Noise Reduction vs. Step Response 278
+Frequency Response 280
+Relatives of the Moving Average Filter 280
+Recursive Implementation 282
+Chapter 16. Windowed-Sinc Filters . . . . . . . . . . . . . . . . . . . 285
+Strategy of the Windowed-Sinc 285
+Designing the Filter 288
+Examples of Windowed-Sinc Filters 292
+Pushing it to the Limit 293
+viii
+
+Chapter 17. Custom Filters . . . . . . . . . . . . . . . . . . . . . . . . . . 297
+Arbitrary Frequency Response 297
+Deconvolution 300
+Optimal Filters 307
+Chapter 18. FFT Convolution . . . . . . . . . . . . . . . . . . . . . . . . 311
+The Overlap-Add Method 311
+FFT Convolution 312
+Speed Improvements 316
+Chapter 19. Recursive Filters . . . . . . . . . . . . . . . . . . . . . . . . 319
+The Recursive Method 319
+Single Pole Recursive Filters 322
+Narrow-band Filters 326
+Phase Response 328
+Using Integers 332
+Chapter 20. Chebyshev Filters . . . . . . . . . . . . . . . . . . . . . . . 333
+The Chebyshev and Butterworth Responses 333
+Designing the Filter 334
+Step Response Overshoot 338
+Stability 339
+Chapter 21. Filter Comparison . . . . . . . . . . . . . . . . . . . . . . . 343
+Match #1: Analog vs. Digital Filters 343
+Match #2: Windowed-Sinc vs. Chebyshev 346
+Match #3: Moving Average vs. Single Pole 348
+
+APPLICATIONS
+Chapter 22. Audio Processing . . . . . . . . . . . . . . . . . . . . . . . . 351
+Human Hearing 351
+Timbre 355
+Sound Quality vs. Data Rate 358
+High Fidelity Audio 359
+Companding 362
+Speech Synthesis and Recognition 364
+Nonlinear Audio Processing 368
+Chapter 23. Image Formation and Display . . . . . . . . . . . . . . 373
+Digital Image Structure 373
+Cameras and Eyes 376
+Television Video Signals 384
+Other Image Acquisition and Display 386
+Brightness and Contrast Adjustments 387
+Grayscale Transforms 390
+Warping 394
+ix
+
+Chapter 24. Linear Image Processing . . . . . . . . . . . . . . . . . . 397
+Convolution 397
+3×3 Edge Modification 402
+Convolution by Separability 404
+Example of a Large PSF: Illumination Flattening 407
+Fourier Image Analysis 410
+FFT Convolution 416
+A Closer Look at Image Convolution 418
+Chapter 25. Special Imaging Techniques . . . . . . . . . . . . . . . 423
+Spatial Resolution 423
+Sample Spacing and Sampling Aperture 430
+Signal-to-Noise Ratio 432
+Morphological Image Processing 436
+Computed Tomography 442
+Chapter 26. Neural Networks (and more!) . . . . . . . . . . . . . . 451
+Target Detection 451
+Neural Network Architecture 458
+Why Does it Work? 463
+Training the Neural Network 465
+Evaluating the Results 473
+Recursive Filter Design 476
+Chapter 27. Data Compression . . . . . . . . . . . . . . . . . . . . . . . 481
+Data Compression Strategies 481
+Run-Length Encoding 483
+Huffman Encoding 484
+Delta Encoding 486
+LZW Compression 488
+JPEG (Transform Compression) 494
+MPEG 501
+Chapter 28. Digital Signal Processors . . . . . . . . . . . . . . . . . . . 503
+How DSPs are different 503
+Circular Buffering 506
+Architecture of the Digital Signal Processor 509
+Fixed versus Floating Point 514
+C versus Assembly 520
+How Fast are DSPs? 526
+The Digital Signal Processor Market 531
+
+Chapter 29. Getting Started with DSPs . . . . . . . . . . . . . . . . 535
+The ADSP-2106x family 535
+The SHARC EZ-KIT Lite 537
+Design Example: An FIR Audio Filter 538
+Analog Measurements on a DSP System 542
+x
+
+Another Look at Fixed versus Floating Point 544
+Advanced Software Tools 546
+
+COMPLEX TECHNIQUES
+Chapter 30. Complex Numbers . . . . . . . . . . . . . . . . . . . . . . . 551
+The Complex Number System 551
+Polar Notation 555
+Using Complex Numbers by Substitution 557
+Complex Representation of Sinusoids 559
+Complex Representation of Systems 561
+Electrical Circuit Analysis 563
+Chapter 31. The Complex Fourier Transform . . . . . . . . . . . 567
+The Real DFT 567
+Mathematical Equivalence 569
+The Complex DFT 570
+The Family of Fourier Transforms 575
+Why the Complex Fourier Transform is Used 577
+Chapter 32. The Laplace Transform . . . . . . . . . . . . . . . . . . . 581
+The Nature of the s-Domain 581
+Strategy of the Laplace Transform 588
+Analysis of Electric Circuits 592
+The Importance of Poles and Zeros 597
+Filter Design in the s-Domain 600
+Chapter 33. The z-Transform . . . . . . . . . . . . . . . . . . . . . . . . 605
+The Nature of the z-Domain 605
+Analysis of Recursive Systems 610
+Cascade and Parallel Stages 616
+Spectral Inversion 619
+Gain Changes 621
+Chebyshev-Butterworth Filter Design 623
+The Best and Worst of DSP 630
+Glossary . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 631
+Index
+
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 643
+
+xi
+
+Preface
+
+Goals and Strategies of this Book
+The technical world is changing very rapidly. In only 15 years, the power of personal
+computers has increased by a factor of nearly one-thousand. By all accounts, it will
+increase by another factor of one-thousand in the next 15 years. This tremendous
+power has changed the way science and engineering is done, and there is no better
+example of this than Digital Signal Processing.
+In the early 1980s, DSP was taught as a graduate level course in electrical engineering.
+A decade later, DSP had become a standard part of the undergraduate curriculum.
+Today, DSP is a basic skill needed by scientists and engineers in many fields.
+Unfortunately, DSP education has been slow to adapt to this change. Nearly all DSP
+textbooks are still written in the traditional electrical engineering style of detailed and
+rigorous mathematics. DSP is incredibly powerful, but if you can't understand it, you
+can't use it!
+This book was written for scientists and engineers in a wide variety of fields: physics,
+bioengineering, geology, oceanography, mechanical and electrical engineering, to name
+just a few. The goal is to present practical techniques while avoiding the barriers of
+detailed mathematics and abstract theory. To achieve this goal, three strategies were
+employed in writing this book:
+First, the techniques are explained, not simply proven to be true through mathematical
+derivations. While much of the mathematics is included, it is not used as the primary
+means of conveying the information. Nothing beats a few well written paragraphs
+supported by good illustrations.
+Second, complex numbers are treated as an advanced topic, something to be learned
+after the fundamental principles are understood. Chapters 1-29 explain all the basic
+techniques using only algebra, and in rare cases, a small amount of elementary
+calculus. Chapters 30-33 show how complex math extends the power of DSP,
+presenting techniques that cannot be implemented with real numbers alone. Many
+would view this approach as heresy! Traditional DSP textbooks are full of complex
+math, often starting right from the first chapter.
+
+xii
+
+Third, very simple computer programs are used. Most DSP programs are written in
+C, Fortran, or a similar language. However, learning DSP has different requirements
+than using DSP. The student needs to concentrate on the algorithms and techniques,
+(Content truncated due to size limit. Use page ranges or line ranges to read remaining content)

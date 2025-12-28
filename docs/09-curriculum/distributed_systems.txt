@@ -1,0 +1,500 @@
+DISTRIBUTED SYSTEMS
+Second Edition
+
+About the Authors
+Andrew S. Tanenbaum has an S.B. degree from M.LT. and a Ph.D. from the University
+of California at Berkeley. He is currently a Professor of Computer Science at the Vrije
+Universiteit in Amsterdam, The Netherlands, where he heads the Computer Systems
+Group. Until stepping down in Jan. 2005, for 12 years he had been Dean of the Advanced
+School for Computing and Imaging, an interuniversity graduate school doing research on
+advanced parallel, distributed, and imaging systems.
+In the past. he has done research on compilers, operating systems, networking, and
+local-area distributed systems. His current research focuses primarily on computer security, especially in operating systems, networks, and large wide-area distributed systems.
+Together, all these research projects have led to over 125 refereed papers in journals and
+conference proceedings and five books, which have been translated into 21 languages.
+Prof. Tanenbaum has also produced a considerable volume of software. He was the
+principal architect of the Amsterdam Compiler Kit, a toolkit for writing portable compilers, as well as of MINIX, a small UNIX clone aimed at very high reliability. It is available for free at www.minix3.org.This
+system provided the inspiration and base on which
+Linux was developed. He was also one of the chief designers of Amoeba and Globe.
+His Ph.D. students have gone on to greater glory after getting their degrees. He is
+very proud of them. In this respect he resembles a mother hen.
+Prof. Tanenbaum is a Fellow of the ACM, a Fellow of the the IEEE, and a member of
+the Royal Netherlands Academy of Arts and Sciences. He is also winner of the 1994
+ACM Karl V. Karlstrom Outstanding Educator Award, winner of the 1997 ACM/SIGCSE
+Award for Outstanding Contributions to Computer Science Education, and winner of the
+2002 Texty award for excellence in textbooks. In 2004 he was named as one of the five
+new Academy Professors by the Royal Academy. His home page is at www.cs.vu.nl/r-ast.
+Maarten van Steen is a professor at the Vrije Universiteit, Amsterdam, where he teaches
+operating systems, computer networks, and distributed systems. He has also given various
+highly successful courses on computer systems related subjects to ICT professionals from
+industry and governmental organizations.
+Prof. van Steen studied Applied Mathematics at Twente University and received a
+Ph.D. from Leiden University in Computer Science. After his graduate studies he went to
+work for an industrial research laboratory where he eventually became head of the Computer Systems Group, concentrating on programming support for parallel applications.
+After five years of struggling simultaneously do research and management, he decided
+to return to academia, first as an assistant professor in Computer Science at the Erasmus
+University Rotterdam, and later as an assistant professor in Andrew Tanenbaum's group at
+the Vrije Universiteit Amsterdam. Going back to university was the right decision; his
+wife thinks so, too.
+His current research concentrates on large-scale distributed systems. Part of his
+research focuses on Web-based systems, in particular adaptive distribution and replication
+in Globule, a content delivery network of which his colleague Guillaume Pierre is the chief
+designer. Another subject of extensive research is fully decentralized (gossip-based) peerto-peer systems of which results have been included in Tribler, a BitTorrent application
+developed in collaboration with colleagues from the Technical University of Delft.
+
+DISTRIBUTED SYSTEMS
+Second Edition
+
+'
+
+Andrew S.Tanenbaum
+Maarten Van Steen
+
+Upper Saddle River, NJ 07458
+
+Library of Congress Ca.aloging-in.Public:ation
+
+Data
+
+Tanenbaum. Andrew S.
+Distributed systems: principles and paradigms I Andrew S. Tanenbaum, Maarten Van Steen.
+p. em.
+Includes bibliographical references and index.
+ISBN 0-13-239227-5
+1. Electronic data processing--Distributed processing. 2. Distributed operating systems (Computers)
+Maarten van. II. Title.
+QA 76.9.D5T36 2006
+005.4'476--dc22
+2006024063
+
+I. Steen,
+
+Vice President and Editorial Director. ECS: Marcia J. Horton
+Executive Editor: Tracy Dunkelberger
+Editorial Assistant: Christianna Lee
+Associtate Editor: Carole Stivder
+Executive Managing Editor: 'Vince O'Brien
+Managing Editor: Csmille Tremecoste
+Production Editor: Craig Little
+Director of Creative Services: Paul Belfanti
+Creative Director: Juan Lopez
+Art Director: Heather Scott
+Cover Designer: Tamara Newnam
+Art Editor: Xiaohong Zhu
+Manufacturing Manager, ESM: Alexis Heydt-Long
+Manufacturing Buyer: Lisa McDowell
+Executive Marketing Manager: Robin O'Brien
+Marketing Assistant: Mack Patterson
+© 2007 Pearson Education. Inc.
+Pearson Prentice Hall
+Pearson Education, Inc.
+Upper Saddle River, NJ 07458
+All rights reserved. No part of this book may be reproduced
+writing from the publisher.
+
+in any form or by any means, without permission in
+
+Pearson Prentice Hall~ is a trademark of Pearson Education, Inc.
+The author and publisher of this book have used their best efforts in preparing this book. These efforts include the
+development, research, and testing of the theories and programs to determine their effectiveness. The author and
+publisher make no warranty of any kind, expressed or implied, with regard to these programs or the documentation
+contained in this book. The author and publisher shall not be liable in any event for incidental or consequential
+damages in connection with, or arising out of, the furnishing, performance, or use of these programs.
+Printed in the United States of America
+10 9 8 7 6 5 4 3 2 1
+
+ISBN: 0-13-239227-5
+Pearson
+Pearson
+Pearson
+Pearson
+Pearson
+Pearson
+Pearson
+Pearson
+Pearson
+
+Education Ltd., London
+Education Australia Pty. Ltd., Sydney
+Education Singapore, Pte. Ltd.
+Education North Asia Ltd., Hong Kong
+Education Canada, Inc., Toronto
+Educaci6n de Mexico, S.A. de C.V.
+Education-Japan,
+Tokyo
+Education Malaysia, Pte. Ltd.
+Education, Inc., Upper Saddle River, New Jersey
+
+To Suzanne, Barbara, Marvin, and the memory of Bram and Sweetie 1t
+
+-AST
+
+To Marielle, Max, and Elke
+
+-MvS
+
+CONTENTS
+
+xvii
+
+PREFACE
+
+1
+
+2
+
+1
+
+INTRODUCTION
+1.1
+
+DEFINITION OF A DISTRIBUTED SYSTEM 2
+
+1.2
+
+GOALS 3
+1.2.1 Making Resources Accessible 3
+1.2.2 Distribution Transparency 4
+1.2.3 Openness 7
+1.2.4 Scalability 9
+1.2.5 Pitfalls 16
+
+1.3
+
+TYPES OF DISTRIBUTED SYSTEMS 17
+1.3.1 Distributed Computing Systems 17
+1.3.2 Distributed Information Systems 20
+1.3.3 Distributed Pervasive Systems 24
+
+1.4
+
+SUMMARY 30
+
+33
+
+ARCHITECTURES
+2.1
+
+ARCHITECTURAL STYLES 34
+
+2.2
+
+SYSTEM ARCHITECTURES 36
+2.2.1 Centralized Architectures 36
+2.2.2 Decentralized Architectures 43
+2.2.3 Hybrid Architectures 52
+
+2.3
+
+ARCHITECTURES VERSUS MIDDLEWARE 54
+2.3.1 Interceptors 55
+2.3.2 General Approaches to Adaptive Software 57
+2.3.3 Discussion 58
+vii
+
+viii
+
+3
+
+CONTENTS
+
+2.4
+
+SELF-MANAGEMENT IN DISTRIBUTED SYSTEMS 59
+2.4.1 The Feedback Control Model 60
+2.4.2 Example: Systems Monitoring with Astrolabe 61
+2.4.3 Example: Differentiating Replication Strategies in Globule 63
+2.4.4 Example: Automatic Component Repair Management in Jade 65
+
+2.5
+
+SUMMARY
+
+69
+
+PROCESSES
+3.1
+
+3.2
+
+3.3
+
+THREADS 70
+3.1.1 Introduction to Threads 70
+3.1.2 Threads in Distributed Systems
+
+75
+
+VIRTUALIZATION
+79
+3.2.1 The Role of Virtualization in Distributed Systems
+3.2.2 Architectures of Virtual Machines 80
+CLIENTS 82
+3.3.1 Networked User Interfaces 82
+3.3.2 Client-Side Software for Distribution Transparency
+
+3.4
+
+SERVERS 88
+3.4.1 General Design Issues 88
+3.4.2 Server Clusters 92
+3.4.3 Managing Server Clusters 98
+
+3.5
+
+CODE MIGRATION 1033.5.1 Approaches to Code Migration 103
+3.5.2 Migration and Local Resources 107
+3.5.3 Migration in Heterogeneous Systems
+
+3.6
+
+-4
+
+66
+
+SUMMARY
+
+4.2
+
+87
+
+110
+
+112
+
+115
+
+COMMUNICATION
+4.1
+
+79
+
+FUNDAMENTALS
+116
+4.1.1 Layered Protocols 116
+4.1.2 Types of Communication
+
+124
+
+REMOTE PROCEDURE CALL 125
+4.2.1 Basic RPC Operation 126
+4.2.2 Parameter Passing 130
+
+ix
+
+CONTENTS
+
+4.2.3 Asynchronous RPC 134
+4.2.4 Example: DCE RPC 135
+4.3
+
+5
+
+MESSAGE-ORIENTED COMMUNICATION
+140
+4.3.1 Message-Oriented Transient Communication
+141
+4.3.2 Message-Oriented Persistent Communication
+145
+4.3.3 Example: ffiM's WebSphere Message-Queuing System
+
+4.4
+
+STREAM-ORIENTED COMMUNICATION
+,4.4.1 Support for Continuous Media 158
+4.4.2 Streams and Quality of Service 160
+4.4.3 Stream Synchronization
+163
+
+4.5
+
+MULTICAST COMMUNICATION
+166
+4.5 .1 Application-Level Multicasting 166
+4.5.2 Gossip-Based Data Dissemination
+170
+
+4.6
+
+SUMMARY
+
+157
+
+175
+
+179
+
+NAMING
+5.1
+
+NAMES, IDENTIFIERS, AND ADDRESSES
+
+5.2
+
+FLAT NAMING 182
+5.2.1 Simple Solutions 183
+5.2.2 Home-Based Approaches 1?6
+5.2.3 Distributed Hash Tables 188
+5.2.4 Hierarchical Approaches 191
+
+5.3
+
+STRUCTURED NAMING 195
+5.3.1 Name Spaces 195
+5.3.2 Name Resolution 198
+5.3.3 The Implementation of a Name Space 202
+5.3.4 Example: The Domain Name System 209
+
+5.4
+
+ATTRIBUTE-BASED NAMING 217
+5.4.1 Directory Services 217
+5.4.2 Hierarchical Implementations: LDAP
+5.4.3 Decentralized Implementations
+222
+
+5.5
+
+SUMMARY
+
+152
+
+180
+
+218
+
+x
+
+6
+
+7
+
+CONTENTS
+
+231
+
+SYNCHRONIZATION
+6.1
+
+CLOCK SYNCHRONIZATION 232
+6.1.1 Physical Clocks 233
+6.1.2 Global Positioning System 236
+6.1.3 Clock Synchronization Algorithms 238
+
+6.2
+
+LOGICAL CLOCKS 244
+6.2.1 Lamport's Logical Clocks 244
+6.2.2 Vector Clocks 248
+
+6.3
+
+MUTUAL EXCLUSION 252
+6.3.1 Overview 252
+6.3.2 A Centralized Algorithm 253
+6.3.3 A Decentralized Algorithm 254
+6.3.4 A Distributed Algorithm 255
+6.3.5 A Token Ring Algorithm 258
+6.3.6 A Comparison of the Four Algorithms 259
+
+6.4
+
+GLOBAL POSITIONING OF NODES 260
+
+6.5
+
+ELECTION ALGORITHMS 263
+6.5.1 Traditional Election Algorithms 264
+6.5.2 Elections in Wireless Environments 267
+6.5.3 Elections in Large-Scale Systems 269
+
+6.6
+
+SUMMARY 270
+
+CONSISTENCY AND REPLICATION
+7.1
+
+INTRODUCTION 274
+7.1.1 Reasons for Replication 274
+7.1.2 Replication as Scaling Technique
+
+275
+
+7.2
+
+DATA-CENTRIC CONSISTENCY MODELS 276
+7.2.1 Continuous Consistency 277
+7.2.2 Consistent Ordering of Operations 281
+
+7.3
+
+CLIENT-CENTRIC CONSISTENCY MODELS 288
+7.3.1 Eventual Consistency 289
+7.3.2 Monotonic Reads 291
+7.3.3 Monotonic Writes 292
+7.3.4 Read Your Writes 294
+7.3.5 Writes Follow Reads 295
+
+273 -
+
+CONTENTS
+
+8
+
+7A
+
+REPLICA MAi'iAGEMENT 296
+704.1 Replica-Server Placement 296
+704.2 Content Replication and Placement 298
+704.3 Content Distribution 302
+
+7.5
+
+CONSISTENCY PROTOCOLS 306
+7.5.1 Continuous Consistency 306
+7.5.2 Primary-Based Protocols 308
+7.5.3 Replicated-Write Protocols 311
+7.5 A Cache-Coherence Protocols 313
+7.5.5 Implementing Client-Centric Consistency 315
+
+7.6
+
+SUMMARY 317
+
+FAULT TOLERANCE
+8.1
+
+INTRODUCTION TO FAULT TOLERANCE 322
+8.1.1 Basic Concepts 322
+8.1.2 Failure Models 324
+8.1.3 Failure Masking by Redundancy 326
+
+8.2
+
+PROCESS RESILIENCE 328
+8.2.1 Design Issues 328
+8.2.2 Failure Masking and Replication 330
+8.2.3 Agreement in Faulty Systems 331
+8.204 Failure Detection 335
+
+8.3
+
+RELIABLE CLIENT-SERVER COMMUNICATION 336
+8.3.1 Point-to-Point Communication 337
+8.3.2 RPC Semantics in the Presence of Failures 337
+
+804
+
+RELIABLE GROUP COMMUNICATION 343
+804.1 Basic Reliable-Multicasting Schemes 343
+804.2 Scalability in Reliable Multicasting 345
+804.3 Atomic Multicast 348
+
+8.5
+
+DlSTRIBUTED COMMIT 355
+8.5.1 Two-Phase Commit 355
+8.5.2 Three-Phase Commit 360
+
+8.6
