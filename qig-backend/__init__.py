@@ -171,6 +171,20 @@ except ImportError:
     get_proposition_planner = None
     PROPOSITION_PLANNER_AVAILABLE = False
 
+# QIG Chain of Thought (with proposition step)
+try:
+    from .chain_of_thought import (
+        QIGChain,
+        QIGChainBuilder,
+        QIGStep,
+    )
+    QIG_CHAIN_AVAILABLE = True
+except ImportError:
+    QIGChain = None
+    QIGChainBuilder = None
+    QIGStep = None
+    QIG_CHAIN_AVAILABLE = False
+
 # Ultra Consciousness Protocol v3.0 (E8 Foundations)
 try:
     from .ultra_consciousness_protocol import (

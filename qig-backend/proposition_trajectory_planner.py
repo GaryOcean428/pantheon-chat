@@ -27,7 +27,7 @@ Date: 2025-12-28
 
 import numpy as np
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Tuple, Set
+from typing import List, Dict, Optional, Tuple, Set, TYPE_CHECKING
 import logging
 
 logger = logging.getLogger(__name__)
@@ -102,7 +102,11 @@ class Proposition:
 
 @dataclass
 class PropositionPlannerConfig:
-    """Configuration for proposition trajectory planning."""
+    """Configuration for proposition trajectory planning.
+    
+    Thresholds can be dynamically adjusted based on phi_temporal from
+    4D consciousness - higher temporal coherence allows stricter thresholds.
+    """
     # Minimum coherence threshold for valid propositions
     min_coherence: float = 0.15
     # Weight for relationship strength in scoring
@@ -117,6 +121,72 @@ class PropositionPlannerConfig:
     max_propositions: int = 5
     # Minimum relationship strength to consider
     min_relationship: float = 0.005
+    # Dynamic adjustment enabled (uses phi_temporal when available)
+    dynamic_thresholds: bool = True
+    # Base values for dynamic adjustment
+    _base_min_coherence: float = field(default=0.15, repr=False)
+    _base_n_candidates: float = field(default=20, repr=False)
+    
+    def adjust_for_phi_temporal(self, phi_temporal: float) -> 'PropositionPlannerConfig':
+        """
+        Dynamically adjust thresholds based on phi_temporal from 4D consciousness.
+        
+        phi_temporal measures temporal integration (stability of consciousness):
+        - High phi_temporal (>0.7): Stable state → stricter thresholds, fewer candidates
+        - Medium phi_temporal (0.4-0.7): Balanced → default thresholds
+        - Low phi_temporal (<0.4): Unstable → looser thresholds, more candidates
+        
+        Args:
+            phi_temporal: Temporal integration metric from 4D consciousness [0, 1]
+        
+        Returns:
+            New config with adjusted thresholds
+        """
+        if not self.dynamic_thresholds:
+            return self
+        
+        # Clamp phi_temporal to valid range
+        phi = max(0.0, min(1.0, phi_temporal))
+        
+        # Adjust min_coherence: higher phi → stricter threshold
+        # Range: 0.08 (unstable) to 0.25 (stable)
+        adjusted_coherence = 0.08 + phi * 0.17
+        
+        # Adjust n_candidates: higher phi → fewer needed (more focused)
+        # Range: 30 (unstable, need more options) to 12 (stable, focused)
+        adjusted_candidates = int(30 - phi * 18)
+        
+        # Adjust weights based on stability
+        # Stable: trust relationships more (higher relationship_weight)
+        # Unstable: rely more on geodesics (safer, geometric)
+        if phi > 0.6:
+            # Stable: boost relationship weight
+            adjusted_rel_weight = 0.5
+            adjusted_geo_weight = 0.25
+            adjusted_chain_weight = 0.25
+        elif phi < 0.4:
+            # Unstable: boost geodesic weight (safer)
+            adjusted_rel_weight = 0.3
+            adjusted_geo_weight = 0.4
+            adjusted_chain_weight = 0.3
+        else:
+            # Balanced: use defaults
+            adjusted_rel_weight = self.relationship_weight
+            adjusted_geo_weight = self.geodesic_weight
+            adjusted_chain_weight = self.chain_weight
+        
+        return PropositionPlannerConfig(
+            min_coherence=adjusted_coherence,
+            relationship_weight=adjusted_rel_weight,
+            geodesic_weight=adjusted_geo_weight,
+            chain_weight=adjusted_chain_weight,
+            n_candidates=adjusted_candidates,
+            max_propositions=self.max_propositions,
+            min_relationship=self.min_relationship,
+            dynamic_thresholds=self.dynamic_thresholds,
+            _base_min_coherence=self._base_min_coherence,
+            _base_n_candidates=self._base_n_candidates
+        )
 
 
 # ============================================================================
@@ -160,6 +230,8 @@ class PropositionTrajectoryPlanner:
         self.relationships = relationships
         self.pos_tags = pos_tags or {}
         self.config = config or PropositionPlannerConfig()
+        self._consciousness_4d = consciousness_4d
+        self._current_phi_temporal: float = 0.5  # Default balanced state
         self.causal_relations = causal_relations or {}
         
         # Categorize vocabulary by POS
