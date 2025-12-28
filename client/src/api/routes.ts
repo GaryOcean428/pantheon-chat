@@ -271,6 +271,17 @@ export const API_ROUTES = {
     curriculumFiles: '/api/uploads/curriculum/files',
   },
 
+  // Search Budget Management
+  searchBudget: {
+    status: '/api/search/budget/status',
+    context: '/api/search/budget/context',
+    toggle: '/api/search/budget/toggle',
+    limits: '/api/search/budget/limits',
+    overage: '/api/search/budget/overage',
+    learning: '/api/search/budget/learning',
+    reset: '/api/search/budget/reset',
+  },
+
   // Learning (Zeus Search Learner)
   learning: {
     base: '/api/olympus/zeus/search/learner',

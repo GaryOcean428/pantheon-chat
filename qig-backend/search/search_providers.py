@@ -28,6 +28,15 @@ class SearchProviderConfig:
     priority: int = 0  # Higher = preferred
 
 
+def _get_budget_orchestrator():
+    """Get budget orchestrator lazily."""
+    try:
+        from search.search_budget_orchestrator import get_budget_orchestrator
+        return get_budget_orchestrator()
+    except ImportError:
+        return None
+
+
 class SearchProviderManager:
     """
     Manages multiple search providers with toggle control.
@@ -123,19 +132,45 @@ class SearchProviderManager:
             for name, config in self.providers.items()
         }
     
-    def search(self, query: str, max_results: int = 5, provider: Optional[str] = None) -> Dict[str, Any]:
+    def search(
+        self, 
+        query: str, 
+        max_results: int = 5, 
+        provider: Optional[str] = None,
+        importance: int = 1,  # 1=routine, 2=moderate, 3=high, 4=critical
+        kernel_id: Optional[str] = None
+    ) -> Dict[str, Any]:
         """
-        Search using enabled providers.
+        Search using enabled providers with budget awareness.
         
         Args:
             query: Search query
             max_results: Maximum results per provider
             provider: Specific provider to use (optional)
+            importance: Query importance (1-4) for budget allocation
+            kernel_id: Kernel requesting the search (for learning)
         
         Returns:
-            Combined results with provider info
+            Combined results with provider info and budget context
         """
-        if provider and provider in self.providers:
+        orchestrator = _get_budget_orchestrator()
+        
+        selected_provider = None
+        selection_reason = "legacy"
+        
+        if orchestrator:
+            from search.search_budget_orchestrator import SearchImportance
+            imp_enum = SearchImportance(min(max(importance, 1), 4))
+            selected_provider, selection_reason = orchestrator.select_provider(
+                importance=imp_enum,
+                preferred_provider=provider
+            )
+            
+            if selected_provider:
+                providers_to_use = [selected_provider]
+            else:
+                providers_to_use = ['duckduckgo'] if self.providers.get('duckduckgo', {}) else []
+        elif provider and provider in self.providers:
             providers_to_use = [provider] if self.providers[provider].enabled else []
         else:
             providers_to_use = sorted(
@@ -147,12 +182,14 @@ class SearchProviderManager:
         if not providers_to_use:
             return {
                 'success': False,
-                'error': 'No providers enabled',
-                'results': []
+                'error': 'No providers available (check budget)',
+                'results': [],
+                'budget_context': orchestrator.get_budget_context().to_dict() if orchestrator else None
             }
         
         all_results = []
         errors = []
+        provider_used = None
         
         for prov in providers_to_use:
             try:
@@ -160,16 +197,44 @@ class SearchProviderManager:
                 if results:
                     all_results.extend(results)
                     self.query_count[prov] = self.query_count.get(prov, 0) + 1
+                    provider_used = prov
+                    
+                    if orchestrator:
+                        orchestrator.record_usage(prov, success=True)
+                        relevance = min(1.0, len(results) / max_results)
+                        orchestrator.record_outcome(
+                            query=query,
+                            provider=prov,
+                            importance=SearchImportance(importance),
+                            success=True,
+                            result_count=len(results),
+                            relevance_score=relevance,
+                            kernel_id=kernel_id
+                        )
+                    
                     break  # Use first successful provider
             except Exception as e:
                 errors.append(f"{prov}: {str(e)}")
                 logger.error(f"[SearchProviderManager] {prov} failed: {e}")
+                
+                if orchestrator:
+                    orchestrator.record_outcome(
+                        query=query,
+                        provider=prov,
+                        importance=SearchImportance(importance),
+                        success=False,
+                        result_count=0,
+                        relevance_score=0.0,
+                        kernel_id=kernel_id
+                    )
         
         return {
             'success': len(all_results) > 0,
-            'provider_used': providers_to_use[0] if all_results else None,
+            'provider_used': provider_used,
+            'selection_reason': selection_reason,
             'results': all_results[:max_results],
-            'errors': errors if errors else None
+            'errors': errors if errors else None,
+            'budget_context': orchestrator.get_budget_context().to_dict() if orchestrator else None
         }
     
     def _search_provider(self, provider: str, query: str, max_results: int) -> List[Dict]:

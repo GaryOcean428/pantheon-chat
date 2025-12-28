@@ -608,6 +608,108 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
   });
 
   // ============================================================
+  // SEARCH BUDGET PROXY - Routes to Python Backend
+  // ============================================================
+  app.get("/api/search/budget/status", async (req, res) => {
+    try {
+      const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
+      const response = await fetch(`${backendUrl}/api/search/budget/status`, {
+        signal: AbortSignal.timeout(10000),
+      });
+      if (response.ok) {
+        return res.json(await response.json());
+      }
+      res.status(response.status).json({ error: 'Backend error' });
+    } catch {
+      res.status(503).json({ error: 'Search budget service unavailable' });
+    }
+  });
+
+  app.get("/api/search/budget/context", async (req, res) => {
+    try {
+      const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
+      const response = await fetch(`${backendUrl}/api/search/budget/context`, {
+        signal: AbortSignal.timeout(10000),
+      });
+      if (response.ok) {
+        return res.json(await response.json());
+      }
+      res.status(response.status).json({ error: 'Backend error' });
+    } catch {
+      res.status(503).json({ error: 'Search budget service unavailable' });
+    }
+  });
+
+  app.post("/api/search/budget/toggle", async (req, res) => {
+    try {
+      const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
+      const response = await fetch(`${backendUrl}/api/search/budget/toggle`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(req.body),
+        signal: AbortSignal.timeout(10000),
+      });
+      if (response.ok) {
+        return res.json(await response.json());
+      }
+      res.status(response.status).json({ error: 'Backend error' });
+    } catch {
+      res.status(503).json({ error: 'Search budget service unavailable' });
+    }
+  });
+
+  app.post("/api/search/budget/limits", async (req, res) => {
+    try {
+      const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
+      const response = await fetch(`${backendUrl}/api/search/budget/limits`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(req.body),
+        signal: AbortSignal.timeout(10000),
+      });
+      if (response.ok) {
+        return res.json(await response.json());
+      }
+      res.status(response.status).json({ error: 'Backend error' });
+    } catch {
+      res.status(503).json({ error: 'Search budget service unavailable' });
+    }
+  });
+
+  app.post("/api/search/budget/overage", async (req, res) => {
+    try {
+      const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
+      const response = await fetch(`${backendUrl}/api/search/budget/overage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(req.body),
+        signal: AbortSignal.timeout(10000),
+      });
+      if (response.ok) {
+        return res.json(await response.json());
+      }
+      res.status(response.status).json({ error: 'Backend error' });
+    } catch {
+      res.status(503).json({ error: 'Search budget service unavailable' });
+    }
+  });
+
+  app.get("/api/search/budget/learning", async (req, res) => {
+    try {
+      const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
+      const response = await fetch(`${backendUrl}/api/search/budget/learning`, {
+        signal: AbortSignal.timeout(10000),
+      });
+      if (response.ok) {
+        return res.json(await response.json());
+      }
+      res.status(response.status).json({ error: 'Backend error' });
+    } catch {
+      res.status(503).json({ error: 'Search budget service unavailable' });
+    }
+  });
+
+  // ============================================================
   // PYTHON PROXY - Generic proxy for Python backend APIs
   // ============================================================
   app.use("/api/python", async (req: any, res, next) => {

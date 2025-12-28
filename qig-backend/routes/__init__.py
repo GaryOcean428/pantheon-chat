@@ -17,6 +17,12 @@ except ImportError:
     upload_bp = None
     register_upload_routes = None
 
+try:
+    from .search_budget_routes import search_budget_bp, register_search_budget_routes
+except ImportError:
+    search_budget_bp = None
+    register_search_budget_routes = None
+
 
 def register_all_routes(app):
     """Register all route blueprints with the Flask app."""
@@ -36,7 +42,19 @@ def register_all_routes(app):
         except Exception as e:
             print(f"[WARN] Failed to register upload_routes: {e}")
     
+    if register_search_budget_routes:
+        try:
+            register_search_budget_routes(app)
+            count += 1
+        except Exception as e:
+            print(f"[WARN] Failed to register search_budget_routes: {e}")
+    
     return count
 
 
-__all__ = ['m8_bp', 'register_m8_routes', 'upload_bp', 'register_upload_routes', 'register_all_routes']
+__all__ = [
+    'm8_bp', 'register_m8_routes', 
+    'upload_bp', 'register_upload_routes', 
+    'search_budget_bp', 'register_search_budget_routes',
+    'register_all_routes'
+]

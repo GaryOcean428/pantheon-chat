@@ -3679,3 +3679,105 @@ export const usageMetrics = pgTable(
 
 export type UsageMetricsRow = typeof usageMetrics.$inferSelect;
 export type InsertUsageMetrics = typeof usageMetrics.$inferInsert;
+
+/**
+ * Search Budget Preferences
+ * 
+ * User-configurable search provider settings
+ */
+export const searchBudgetPreferences = pgTable(
+  "search_budget_preferences",
+  {
+    id: serial("id").primaryKey(),
+    
+    // Daily limits (-1 = unlimited, 0 = disabled)
+    googleDailyLimit: integer("google_daily_limit").default(100).notNull(),
+    perplexityDailyLimit: integer("perplexity_daily_limit").default(100).notNull(),
+    tavilyDailyLimit: integer("tavily_daily_limit").default(0).notNull(), // Toggle-only by default
+    
+    // Provider enable flags
+    googleEnabled: boolean("google_enabled").default(false).notNull(),
+    perplexityEnabled: boolean("perplexity_enabled").default(false).notNull(),
+    tavilyEnabled: boolean("tavily_enabled").default(false).notNull(),
+    
+    // Allow exceeding daily limits
+    allowOverage: boolean("allow_overage").default(false).notNull(),
+    
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  }
+);
+
+export type SearchBudgetPreferencesRow = typeof searchBudgetPreferences.$inferSelect;
+export type InsertSearchBudgetPreferences = typeof searchBudgetPreferences.$inferInsert;
+
+/**
+ * Search Outcome Tracking
+ * 
+ * Records search executions for learning and kernel evolution
+ */
+export const searchOutcomes = pgTable(
+  "search_outcomes",
+  {
+    id: serial("id").primaryKey(),
+    date: varchar("date", { length: 10 }).notNull(), // YYYY-MM-DD
+    
+    // Query info
+    queryHash: varchar("query_hash", { length: 64 }).notNull(), // SHA256 of query
+    queryPreview: varchar("query_preview", { length: 200 }), // First 200 chars
+    
+    // Execution details
+    provider: varchar("provider", { length: 32 }).notNull(),
+    importance: integer("importance").default(1).notNull(), // 1-4
+    kernelId: varchar("kernel_id", { length: 64 }),
+    
+    // Outcome metrics
+    success: boolean("success").default(true).notNull(),
+    resultCount: integer("result_count").default(0).notNull(),
+    relevanceScore: real("relevance_score").default(0.5).notNull(), // 0-1
+    
+    // Cost tracking
+    costCents: integer("cost_cents").default(0).notNull(),
+    
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_search_outcomes_date").on(table.date),
+    index("idx_search_outcomes_provider").on(table.provider),
+    index("idx_search_outcomes_kernel").on(table.kernelId),
+  ]
+);
+
+export type SearchOutcomeRow = typeof searchOutcomes.$inferSelect;
+export type InsertSearchOutcome = typeof searchOutcomes.$inferInsert;
+
+/**
+ * Provider Efficacy Scores
+ * 
+ * Aggregated efficacy scores for kernel evolution
+ */
+export const providerEfficacy = pgTable(
+  "provider_efficacy",
+  {
+    id: serial("id").primaryKey(),
+    provider: varchar("provider", { length: 32 }).notNull(),
+    
+    // Aggregated metrics
+    totalQueries: integer("total_queries").default(0).notNull(),
+    successfulQueries: integer("successful_queries").default(0).notNull(),
+    avgRelevance: real("avg_relevance").default(0.5).notNull(),
+    efficacyScore: real("efficacy_score").default(0.5).notNull(), // EMA of relevance
+    
+    // Cost efficiency
+    totalCostCents: integer("total_cost_cents").default(0).notNull(),
+    costPerSuccessfulQuery: real("cost_per_successful_query").default(0).notNull(),
+    
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_provider_efficacy_provider").on(table.provider),
+  ]
+);
+
+export type ProviderEfficacyRow = typeof providerEfficacy.$inferSelect;
+export type InsertProviderEfficacy = typeof providerEfficacy.$inferInsert;
