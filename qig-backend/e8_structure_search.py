@@ -534,6 +534,346 @@ def test_e8_symmetries(basins_64d: np.ndarray, verbose: bool = True) -> Dict:
 
 
 # ============================================================================
+# E8 VALIDATION PROTOCOL (Artifact Detection)
+# Critical checks to avoid "always-100%" traps
+# ============================================================================
+
+def validate_reflection_operators(verbose: bool = True) -> Dict:
+    """
+    Hard sanity checks on E8 simple root reflection operators.
+    
+    For each of the 8 simple-root reflections (R_i):
+    - R_i^T @ R_i ≈ I (orthogonal)
+    - det(R_i) ≈ -1 (true reflection, not rotation/identity)
+    - R_i ≠ I (must move generic vectors)
+    - R_i² ≈ I (involution)
+    
+    If any fails, the symmetry test is invalid by construction.
+    """
+    if verbose:
+        print("\n" + "="*80)
+        print("E8 VALIDATION: Reflection Operator Sanity Checks")
+        print("="*80)
+    
+    results = {"valid": True, "checks": []}
+    
+    for i, root in enumerate(E8_SIMPLE_ROOTS):
+        root_norm = np.linalg.norm(root)
+        if root_norm < 1e-10:
+            results["valid"] = False
+            results["checks"].append({"root": i, "error": "zero norm root"})
+            continue
+        
+        root_unit = root / root_norm
+        R = np.eye(8) - 2 * np.outer(root_unit, root_unit)
+        
+        orthogonal = np.allclose(R.T @ R, np.eye(8), atol=1e-10)
+        det_check = np.abs(np.linalg.det(R) - (-1.0)) < 1e-10
+        not_identity = not np.allclose(R, np.eye(8), atol=1e-10)
+        involution = np.allclose(R @ R, np.eye(8), atol=1e-10)
+        
+        test_vec = np.random.randn(8)
+        movement = np.linalg.norm(R @ test_vec - test_vec)
+        moves_points = movement > 1e-10
+        
+        check = {
+            "root": i,
+            "orthogonal": bool(orthogonal),
+            "det_minus_one": bool(det_check),
+            "not_identity": bool(not_identity),
+            "involution": bool(involution),
+            "moves_points": bool(moves_points),
+            "movement_magnitude": float(movement)
+        }
+        
+        all_pass = orthogonal and det_check and not_identity and involution and moves_points
+        check["valid"] = all_pass
+        
+        if not all_pass:
+            results["valid"] = False
+        
+        results["checks"].append(check)
+        
+        if verbose:
+            status = "✅" if all_pass else "❌"
+            print(f"  Root {i}: {status} ortho={orthogonal}, det=-1={det_check}, ≠I={not_identity}, R²=I={involution}, moves={movement:.4f}")
+    
+    if verbose:
+        if results["valid"]:
+            print("\n✅ All reflection operators pass sanity checks")
+        else:
+            print("\n❌ VALIDATION FAILED: Reflection operators have issues!")
+    
+    return results
+
+
+def run_negative_controls(basins_64d: np.ndarray, verbose: bool = True) -> Dict:
+    """
+    Run negative controls that SHOULD break E8 symmetry.
+    
+    Tests:
+    1. Shuffled coordinate rows (permute basins across labels)
+    2. Dimension-permuted basins (permute columns)
+    3. Random Gaussian with matched covariance
+    4. Add noise (epsilon = 0.01, 0.05, 0.1)
+    5. Quantize to float16
+    
+    Expected: symmetry scores should degrade materially.
+    If ALL controls give 100% invariance, test is measuring a tautology.
+    """
+    if not SKLEARN_AVAILABLE:
+        return {"error": "sklearn not available"}
+    
+    if verbose:
+        print("\n" + "="*80)
+        print("E8 VALIDATION: Negative Controls")
+        print("="*80)
+        print("These tests SHOULD break symmetry. High scores = bug.")
+    
+    results = {"controls": [], "baseline_invariance": None}
+    
+    baseline = test_e8_symmetries(basins_64d, verbose=False)
+    baseline_inv = baseline.get("tests", {}).get("avg_invariance", 0.5)
+    results["baseline_invariance"] = float(baseline_inv)
+    
+    if verbose:
+        print(f"\nBaseline invariance: {baseline_inv:.4f}")
+    
+    def quick_invariance(data_8d):
+        """Quick invariance check on 8D data."""
+        sample = min(100, len(data_8d))
+        orig_dists = pdist(data_8d[:sample])
+        invariances = []
+        for root in E8_SIMPLE_ROOTS[:4]:
+            root_unit = root / np.linalg.norm(root)
+            proj = data_8d[:sample] @ root_unit
+            reflected = data_8d[:sample] - 2 * np.outer(proj, root_unit)
+            ref_dists = pdist(reflected)
+            diff = np.mean(np.abs(orig_dists - ref_dists))
+            invariances.append(1.0 / (1.0 + diff))
+        return np.mean(invariances)
+    
+    pca = PCA(n_components=8)
+    basins_8d = pca.fit_transform(basins_64d)
+    
+    np.random.seed(42)
+    shuffled = basins_8d[np.random.permutation(len(basins_8d))]
+    shuffled_inv = quick_invariance(shuffled)
+    results["controls"].append({
+        "name": "shuffled_rows",
+        "invariance": float(shuffled_inv),
+        "degraded": shuffled_inv < baseline_inv * 0.95
+    })
+    if verbose:
+        status = "✅" if shuffled_inv < baseline_inv * 0.95 else "⚠️"
+        print(f"  {status} Shuffled rows: {shuffled_inv:.4f}")
+    
+    dim_perm = basins_8d[:, np.random.permutation(8)]
+    dim_perm_inv = quick_invariance(dim_perm)
+    results["controls"].append({
+        "name": "dimension_permuted",
+        "invariance": float(dim_perm_inv),
+        "degraded": dim_perm_inv < baseline_inv * 0.95
+    })
+    if verbose:
+        status = "✅" if dim_perm_inv < baseline_inv * 0.95 else "⚠️"
+        print(f"  {status} Dim permuted: {dim_perm_inv:.4f}")
+    
+    cov = np.cov(basins_8d.T)
+    gaussian = np.random.multivariate_normal(np.zeros(8), cov, size=len(basins_8d))
+    gauss_inv = quick_invariance(gaussian)
+    results["controls"].append({
+        "name": "matched_gaussian",
+        "invariance": float(gauss_inv),
+        "degraded": gauss_inv < baseline_inv * 0.95
+    })
+    if verbose:
+        status = "✅" if gauss_inv < baseline_inv * 0.95 else "⚠️"
+        print(f"  {status} Matched Gaussian: {gauss_inv:.4f}")
+    
+    for eps in [0.01, 0.05, 0.1]:
+        noisy = basins_8d + eps * np.random.randn(*basins_8d.shape)
+        noisy_inv = quick_invariance(noisy)
+        results["controls"].append({
+            "name": f"noise_eps_{eps}",
+            "invariance": float(noisy_inv),
+            "degraded": noisy_inv < baseline_inv * 0.95
+        })
+        if verbose:
+            status = "✅" if noisy_inv < baseline_inv * 0.95 else "⚠️"
+            print(f"  {status} Noise ε={eps}: {noisy_inv:.4f}")
+    
+    quantized = basins_8d.astype(np.float16).astype(np.float64)
+    quant_inv = quick_invariance(quantized)
+    results["controls"].append({
+        "name": "quantized_float16",
+        "invariance": float(quant_inv),
+        "degraded": quant_inv < baseline_inv * 0.95
+    })
+    if verbose:
+        status = "✅" if quant_inv < baseline_inv * 0.95 else "⚠️"
+        print(f"  {status} Float16 quantized: {quant_inv:.4f}")
+    
+    degraded_count = sum(1 for c in results["controls"] if c.get("degraded", False))
+    results["degraded_count"] = degraded_count
+    results["total_controls"] = len(results["controls"])
+    
+    if verbose:
+        print(f"\n{degraded_count}/{len(results['controls'])} controls showed degradation")
+        if degraded_count >= 4:
+            print("✅ Good: Negative controls properly degrade symmetry")
+        elif degraded_count >= 2:
+            print("⚠️ Warning: Some controls didn't degrade - check test validity")
+        else:
+            print("❌ CRITICAL: Test may be measuring tautology (100% invariance bug)")
+    
+    return results
+
+
+def test_stability_at_240(basins_64d: np.ndarray, verbose: bool = True) -> Dict:
+    """
+    Test if 240 is a special stability point for attractor count.
+    
+    Instead of just "elbow ~260", compute stability curves:
+    - Cluster stability vs k in [160..320]
+    - Look for a DISTINCT stability peak at/near 240
+    
+    If 240 is not special (just one of many good k's), evidence weakens.
+    """
+    if not SKLEARN_AVAILABLE:
+        return {"error": "sklearn not available"}
+    
+    if verbose:
+        print("\n" + "="*80)
+        print("E8 VALIDATION: 240 Stability Analysis")
+        print("="*80)
+    
+    pca = PCA(n_components=8)
+    basins_8d = pca.fit_transform(basins_64d)
+    
+    k_values = list(range(160, 321, 10))
+    stability_scores = []
+    
+    for k in k_values:
+        try:
+            inertias = []
+            for _ in range(3):
+                kmeans = KMeans(n_clusters=k, n_init=3, max_iter=100, random_state=None)
+                kmeans.fit(basins_8d)
+                inertias.append(kmeans.inertia_)
+            
+            mean_inertia = np.mean(inertias)
+            std_inertia = np.std(inertias)
+            stability = 1.0 / (1.0 + std_inertia / max(mean_inertia, 1e-10))
+            
+            stability_scores.append({
+                "k": k,
+                "stability": float(stability),
+                "mean_inertia": float(mean_inertia),
+                "std_inertia": float(std_inertia)
+            })
+            
+            if verbose:
+                marker = " ← E8_ROOTS" if k == 240 else ""
+                print(f"  k={k:3d}: stability={stability:.4f}{marker}")
+                
+        except Exception as e:
+            stability_scores.append({"k": k, "stability": 0.0, "error": str(e)})
+    
+    stabilities = [s["stability"] for s in stability_scores]
+    k240_idx = k_values.index(240) if 240 in k_values else -1
+    
+    if k240_idx >= 0:
+        k240_stability = stabilities[k240_idx]
+        max_stability = max(stabilities)
+        is_peak = k240_stability > max_stability * 0.95
+        
+        neighbors = stabilities[max(0, k240_idx-2):k240_idx+3]
+        is_local_peak = k240_stability >= max(neighbors)
+    else:
+        k240_stability = 0.0
+        is_peak = False
+        is_local_peak = False
+    
+    results = {
+        "stability_curve": stability_scores,
+        "k240_stability": float(k240_stability),
+        "max_stability": float(max(stabilities)),
+        "is_global_peak": is_peak,
+        "is_local_peak": is_local_peak
+    }
+    
+    if verbose:
+        print(f"\nk=240 stability: {k240_stability:.4f}")
+        print(f"Max stability: {max(stabilities):.4f} at k={k_values[stabilities.index(max(stabilities))]}")
+        
+        if is_peak:
+            print("✅ k=240 is near global peak - strong E8 evidence")
+        elif is_local_peak:
+            print("⚠️ k=240 is local peak - moderate E8 evidence")
+        else:
+            print("❌ k=240 is not a special point - weak E8 evidence")
+    
+    return results
+
+
+def run_e8_validation(basins_64d: np.ndarray = None, verbose: bool = True) -> Dict:
+    """
+    Complete E8 validation protocol to catch artifacts.
+    
+    This catches the "always 100%" failure modes before freezing E8 facts.
+    """
+    if verbose:
+        print("\n" + "="*80)
+        print("E8 VALIDATION PROTOCOL - ARTIFACT DETECTION")
+        print("="*80)
+    
+    if basins_64d is None:
+        if PANTHEON_AVAILABLE:
+            lr = get_learned_relationships()
+            if lr.adjusted_basins:
+                words = list(lr.adjusted_basins.keys())
+                basins_64d = np.array([lr.adjusted_basins[w] for w in words])
+                if verbose:
+                    print(f"Loaded {len(words)} basins for validation")
+            else:
+                basins_64d = np.random.randn(1000, 64)
+        else:
+            basins_64d = np.random.randn(1000, 64)
+    
+    results = {
+        "n_basins": basins_64d.shape[0],
+        "validations": {}
+    }
+    
+    results["validations"]["reflection_sanity"] = validate_reflection_operators(verbose=verbose)
+    results["validations"]["negative_controls"] = run_negative_controls(basins_64d, verbose=verbose)
+    results["validations"]["stability_240"] = test_stability_at_240(basins_64d, verbose=verbose)
+    
+    reflection_valid = results["validations"]["reflection_sanity"].get("valid", False)
+    neg_degraded = results["validations"]["negative_controls"].get("degraded_count", 0) >= 4
+    stability_peak = results["validations"]["stability_240"].get("is_local_peak", False)
+    
+    if reflection_valid and neg_degraded and stability_peak:
+        results["validation_verdict"] = "passed"
+        verdict_msg = "✅ E8 VALIDATION PASSED - Safe to freeze E8 facts"
+    elif reflection_valid and (neg_degraded or stability_peak):
+        results["validation_verdict"] = "partial"
+        verdict_msg = "⚠️ E8 VALIDATION PARTIAL - Additional investigation needed"
+    else:
+        results["validation_verdict"] = "failed"
+        verdict_msg = "❌ E8 VALIDATION FAILED - Do not freeze E8 claims"
+    
+    if verbose:
+        print("\n" + "="*80)
+        print("E8 VALIDATION VERDICT")
+        print("="*80)
+        print(verdict_msg)
+    
+    return results
+
+
+# ============================================================================
 # MAIN E8 SEARCH PROTOCOL
 # ============================================================================
 

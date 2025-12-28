@@ -638,7 +638,7 @@ router.post('/zeus/tools/patterns/match', isAuthenticated, (req, res) =>
 /** Get Tool Factory <-> Shadow Research bridge status */
 router.get('/zeus/tools/bridge/status', isAuthenticated, async (req, res) => {
   try {
-    const response = await fetch(`${BACKEND_URL}/api/zeus/tools/bridge/status`, {
+    const response = await fetch(`${BACKEND_URL}/olympus/zeus/tools/bridge/status`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
     });

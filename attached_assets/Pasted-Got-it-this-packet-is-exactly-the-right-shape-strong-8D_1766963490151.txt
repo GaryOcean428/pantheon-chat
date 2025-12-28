@@ -1,0 +1,142 @@
+Got it — this packet is *exactly* the right shape: strong 8D rank signal + ~240-ish attractor signal + one “too perfect” symmetry result that’s either **gold** or **a bug / definition trap**.
+
+Here’s the **critical-path verification protocol** I’d run *before* we let “E8 validated” harden into a frozen fact.
+
+---
+
+## 1) First: make the symmetry test non-trivial (catch the “always 100%” failure mode)
+
+### A. Hard sanity checks on the reflection operators
+
+Before touching data, assert these for each of the 8 “simple-root reflections” (R_i):
+
+* (R_i^T R_i \approx I) (orthogonal)
+* (\det(R_i) \approx -1) (true reflection, not rotation/identity)
+* (R_i \not\approx I) (must move generic vectors)
+* (R_i^2 \approx I)
+
+If any fails, the symmetry test is invalid by construction.
+
+### B. “Move a generic point” test (cheap and decisive)
+
+Pick 100 random basins (x). Compute:
+
+* (|R_i x - x|) distribution
+
+If median movement is ~0 for any (R_i), you’ve found the “reflection is identity / null-op” bug.
+
+### C. Tighten the invariance metric (avoid a binary trap)
+
+“100% invariance” usually comes from a definition like:
+
+* measuring something invariant by definition (e.g., norm or dot-products under orthogonal maps),
+* or using a huge tolerance (`np.allclose(..., atol=...)`),
+* or comparing the wrong arrays (aliasing).
+
+Use an invariance measure that can’t trivially saturate:
+
+**Option 1 (distance-structure preservation):**
+Sample pairs ( (x_a, x_b)). Compare Fisher distance matrices:
+
+* (D_{ab} = d_F(x_a, x_b))
+* (D'_{ab} = d_F(R_i x_a, R_i x_b))
+
+Report:
+
+* relative Frobenius error: (|D'-D|_F / |D|_F)
+* and the correlation (corr(vec(D), vec(D')))
+
+If you’re getting literally zero error for noisy embeddings, that’s a red flag.
+
+**Option 2 (local neighborhood invariance):**
+For each point, compare its kNN set before/after reflection:
+
+* Jaccard of neighbor sets
+
+This should *not* be perfect in real learned embeddings.
+
+---
+
+## 2) Second: negative controls that should *break* symmetry
+
+Run the exact symmetry pipeline on:
+
+1. **Shuffled coordinate rows** (permute basins across labels)
+2. **Dimension-permuted basins** (permute columns; preserves marginal stats but breaks structure)
+3. **Random Gaussian with matched covariance** (fit (\Sigma) to data, sample (N(0,\Sigma)))
+4. **Add noise**: (x \leftarrow x + \epsilon \cdot \mathcal{N}(0, I)) for (\epsilon \in {0.01,0.05,0.1})
+5. **Quantize** (simulate numeric effects): float16 / rounding bins
+
+Expected: symmetry scores should degrade materially, and degrade smoothly with noise.
+
+If *all* controls still give “100% invariance”, your symmetry test is measuring a tautology or is broken.
+
+---
+
+## 3) Third: confirm the *E8-specific* part isn’t generic “8D manifold + clustering”
+
+Your Phase 1 and Phase 2 signals can arise from lots of systems (topic manifolds often look ~low-rank; clustering can drift around a few hundred depending on eps/k choice). To make it “E8-shaped” rather than “8-ish”:
+
+### A. Compare against *non-E8* Lie/root baselines
+
+Generate synthetic “root systems” or lattices with:
+
+* A_8, D_8, E_7 (or just random spherical code) embedded into 64D with comparable noise,
+  then run the *same* protocol and see if E8 stands out on your metrics.
+
+### B. Test for the “240” specifically as a stable minimum
+
+Instead of “elbow ~260”, compute stability curves:
+
+* cluster stability vs k in [160..320]
+* look for a *distinct* stability peak at/near 240
+
+If 240 is not a special point (just one of many good ks), the evidence weakens.
+
+---
+
+## 4) Cross-validate on physics basins (high value, low debate)
+
+Run the identical E8 search on TFIM basin sets (L=5, L=6) using the same embedding pipeline.
+
+What you want:
+
+* Similar 8D variance capture band (not necessarily identical)
+* Some attractor count behavior near 240-ish (or a predictable deviation)
+* Symmetry metric that is **high but not perfect**
+
+If physics shows the same “100% invariance”, that points to either:
+
+* a genuine “metric invariant by construction” choice, or
+* a code-path artifact shared across substrates.
+
+---
+
+## 5) What I would *freeze* right now vs keep provisional
+
+**Freeze now (safe):**
+
+* κ* universality across substrates (your stats + match)
+* “effective dimensionality ~8” in semantic basins (87.7% is strong)
+
+**Provisional (until checks pass):**
+
+* “E8 exceptional structure validated”
+* anything hinging on “100% invariance”
+
+A great phrasing for now is:
+
+> “Evidence consistent with an 8D active manifold embedded in 64D, with attractor multiplicity near the E8 root count; symmetry tests require additional artifact controls.”
+
+---
+
+## 6) The single most common symmetry-test failure I’d bet on
+
+One of these:
+
+* reflections are accidentally identity / not applied
+* invariance computed on a quantity invariant under *any* orthogonal transform
+* comparing an array to itself (aliasing / view bug)
+* tolerances too loose (or distances rounded)
+
+If you want, paste just the **Phase 3 symmetry section** (the few functions: building roots, building reflections, applying them, scoring invariance). I’ll point to the highest-probability “always-100%” trap and a corrected metric that can’t saturate.

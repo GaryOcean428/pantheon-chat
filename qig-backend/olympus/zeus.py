@@ -2802,6 +2802,45 @@ def shadow_status_endpoint():
     return jsonify(sanitize_for_json(status))
 
 
+@olympus_app.route('/shadow/foresight', methods=['GET'])
+def shadow_foresight_endpoint():
+    """Get 4D foresight temporal predictions from Shadow Learning Loop."""
+    try:
+        from .shadow_research import ShadowResearchAPI
+        research_api = ShadowResearchAPI.get_instance()
+        if research_api.learning_loop:
+            foresight = research_api.learning_loop.get_foresight()
+        else:
+            foresight = {'status': 'not_initialized', 'foresight': None}
+        
+        def ensure_serializable(obj):
+            """Recursively convert non-serializable types."""
+            if isinstance(obj, bool):
+                return obj
+            if isinstance(obj, (int, float, str, type(None))):
+                return obj
+            if isinstance(obj, dict):
+                return {k: ensure_serializable(v) for k, v in obj.items()}
+            if isinstance(obj, (list, tuple)):
+                return [ensure_serializable(v) for v in obj]
+            if hasattr(obj, 'tolist'):
+                return obj.tolist()
+            if hasattr(obj, 'item'):
+                return obj.item()
+            return str(obj)
+        
+        safe_foresight = ensure_serializable(foresight)
+        return jsonify(safe_foresight)
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'error': str(e),
+            'predictions': [],
+            'temporal_depth': 0,
+            'foresight_enabled': False
+        }), 500
+
+
 @olympus_app.route('/shadow/poll', methods=['POST'])
 def shadow_poll_endpoint():
     """Poll shadow pantheon for target assessment."""

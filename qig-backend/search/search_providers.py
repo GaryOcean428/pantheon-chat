@@ -104,7 +104,16 @@ class SearchProviderManager:
         self.query_count: Dict[str, int] = {p: 0 for p in self.providers}
         self.last_results: Dict[str, Any] = {}
         
+        self._auto_enable_providers()
+        
         logger.info(f"[SearchProviderManager] Initialized with {len(self.providers)} providers")
+    
+    def _auto_enable_providers(self):
+        """Auto-enable providers that have API keys configured."""
+        for name, config in self.providers.items():
+            if config.api_key_env and os.environ.get(config.api_key_env):
+                config.enabled = True
+                logger.info(f"[SearchProviderManager] Auto-enabled {name} (API key found)")
     
     def enable(self, provider: str) -> bool:
         """Enable a search provider."""
