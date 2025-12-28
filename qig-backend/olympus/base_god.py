@@ -72,7 +72,14 @@ try:
 except ImportError:
     GenerativeCapability = None
     GENERATIVE_CAPABILITY_AVAILABLE = False
-    logger.warning("[BaseGod] GenerativeCapability not available")
+
+# Import BudgetAwareSearchMixin for strategic search budget awareness
+try:
+    from olympus.budget_aware_search import BudgetAwareSearchMixin
+    BUDGET_AWARE_AVAILABLE = True
+except ImportError:
+    BudgetAwareSearchMixin = None
+    BUDGET_AWARE_AVAILABLE = False
 
 # Import domain intelligence for mission awareness and capability self-assessment
 try:
@@ -660,6 +667,8 @@ if AUTONOMIC_MIXIN_AVAILABLE and AutonomicAccessMixin is not None:
     _base_classes.append(AutonomicAccessMixin)
 if GENERATIVE_CAPABILITY_AVAILABLE and GenerativeCapability is not None:
     _base_classes.append(GenerativeCapability)
+if BUDGET_AWARE_AVAILABLE and BudgetAwareSearchMixin is not None:
+    _base_classes.append(BudgetAwareSearchMixin)
 
 
 class BaseGod(*_base_classes):
@@ -780,6 +789,17 @@ class BaseGod(*_base_classes):
             }
         else:
             self.mission["generative_capabilities"] = {"available": False}
+        
+        # Budget-aware search capabilities for strategic provider selection
+        self.mission["budget_aware_search"] = {
+            "available": BUDGET_AWARE_AVAILABLE,
+            "how_to_get_budget": "Use self.get_budget_context() -> {providers, remaining, recommendation}",
+            "how_to_strategize": "Use self.strategize_search(query, context) -> BudgetStrategy",
+            "how_to_report": "Use self.report_search_outcome(query, strategy, success, count, relevance)",
+            "how_to_check_paid": "Use self.should_use_paid_provider() -> (bool, reason)",
+            "how_to_learn": "Use self.get_search_learnings() -> strategy effectiveness stats",
+            "note": "Strategization improves through outcome feedback loop"
+        }
 
         # Initialize sensory fusion engine for multi-modal encoding
         self._sensory_engine = SensoryFusionEngine()

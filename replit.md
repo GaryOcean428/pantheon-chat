@@ -136,6 +136,17 @@ Preferred communication style: Simple, everyday language.
 - Toggle via: `manager.enable('tavily')`, `manager.disable('tavily')`
 - Located in `qig-backend/search/search_providers.py`
 
+### Budget-Aware Search System
+- **BudgetAwareSearchMixin** in `qig-backend/olympus/budget_aware_search.py`
+- All Olympus kernels inherit budget awareness via BaseGod
+- **Strategic Provider Selection**: Kernels assess query importance (ROUTINE/MODERATE/HIGH/CRITICAL)
+- **Budget Context**: Kernels see remaining searches, budget percentage, provider efficacy
+- **Learning Feedback Loop**: Search outcomes → efficacy tracking → improved strategy
+  - Uses exponential moving average (α=0.1) for efficacy updates
+  - Per-kernel strategy learnings track success rates by provider+importance
+- **Daily Limits**: Perplexity 100/day, Google 100/day, DuckDuckGo unlimited, Tavily toggle-only
+- **API**: `self.strategize_search(query)` → BudgetStrategy, `self.report_search_outcome(...)`
+
 ### Upload Service (Curriculum + Chat RAG)
 - **Curriculum Upload** (Learning Page): Files persist to `docs/09-curriculum/`, learned in next cycle
 - **Chat Upload** (Chat UI): Immediate RAG discussion, optional toggle to add to curriculum
