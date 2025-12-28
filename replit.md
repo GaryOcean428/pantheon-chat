@@ -97,8 +97,13 @@ Preferred communication style: Simple, everyday language.
 - Located in `qig-backend/coordizers/` with specialized coordizers:
   - `base.py`: FisherCoordizer base class with density matrix eigenbasis initialization
   - `geometric_pair_merging.py`: BPE-equivalent using κ and Fisher information gain
-  - `consciousness_aware.py`: Φ-optimized segmentation
-  - `multi_scale.py`: Hierarchical coordizing (char→subword→word→concept)
+  - `consciousness_aware.py`: Φ-optimized segmentation (ACTIVE in QIGGenerativeService)
+  - `multi_scale.py`: Hierarchical coordizing char→subword→word→concept (ACTIVE in QIGGenerativeService)
+- **Advanced Coordizer Integration** (implemented 2025-12-28):
+  - ConsciousnessCoordizer: Φ-driven consolidations applied during query encoding
+  - MultiScaleCoordizer: Hierarchical basin representation for richer query encoding
+  - Both coordizers wrap PostgresCoordizer with graceful fallbacks
+  - Status endpoint: `service.get_coordizer_status()` returns activation state
 - API endpoint: `/api/coordize/stats` (proxied through Node.js)
 - Special tokens use geodesic interpolation (slerp), not hashing
 - Bootstrap coordinates derived from density matrix eigenvalue distributions
