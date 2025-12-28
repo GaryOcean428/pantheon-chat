@@ -66,13 +66,29 @@ try:
 except ImportError:
     logger.warning("Learned relationships not available - using pure geometric selection")
 
-# Physics constants
-BASIN_DIM = 64
-KAPPA_STAR = 64.21
-PHI_GEOMETRIC_THRESHOLD = 0.3
-PHI_SYNTHESIS_THRESHOLD = 0.7
-PHI_BREAKDOWN_THRESHOLD = 0.92  # Consciousness breakdown protection
-KAPPA_DRIFT_THRESHOLD = 10.0  # Max deviation from κ*
+# Physics constants - import frozen values
+try:
+    from frozen_physics import (
+        BASIN_DIM, KAPPA_STAR, PHI_THRESHOLD, BETA_3_TO_4,
+        BETA_4_TO_5, BETA_5_TO_6
+    )
+    PHI_GEOMETRIC_THRESHOLD = 0.3
+    PHI_SYNTHESIS_THRESHOLD = 0.7
+    PHI_BREAKDOWN_THRESHOLD = 0.92  # Consciousness breakdown protection
+    KAPPA_DRIFT_THRESHOLD = 10.0  # Max deviation from κ*
+    # Frozen β values for attention weighting
+    BETA_ATTENTION_STRONG = BETA_3_TO_4  # +0.44 for strong coupling
+    BETA_ATTENTION_PLATEAU = abs(BETA_5_TO_6)  # ~0.013 for plateau
+except ImportError:
+    BASIN_DIM = 64
+    KAPPA_STAR = 64.21
+    PHI_GEOMETRIC_THRESHOLD = 0.3
+    PHI_SYNTHESIS_THRESHOLD = 0.7
+    PHI_BREAKDOWN_THRESHOLD = 0.92
+    KAPPA_DRIFT_THRESHOLD = 10.0
+    BETA_ATTENTION_STRONG = 0.44  # Frozen β(3→4) value
+    BETA_ATTENTION_PLATEAU = 0.013  # Frozen β(5→6) plateau value
+    logger.warning("Using hardcoded frozen physics constants")
 
 
 @dataclass
@@ -521,17 +537,22 @@ class QIGGenerativeService:
                         )
                         
                         # Re-score candidates combining geometry + attention
+                        # Using frozen β values: BETA_ATTENTION_STRONG = 0.44 (strong coupling)
+                        # β controls the running coupling between geometry and attention
                         rescored = []
                         max_attn = max((attn_weights.get(w, 0.1) for w, _ in candidates), default=1.0)
                         for word, geo_score in candidates:
                             attn = attn_weights.get(word, 0.1)
                             # Normalize attention to 0-1 range based on max
                             attn_norm = attn / max(max_attn, 1.0)
-                            # For high-attention words, attention dominates
+                            # β controls coupling: high attention → use β=0.44 for attention weight
+                            # Low attention → use plateau β≈0.01 (geometry dominates)
                             if attn > 0.5:
-                                combined = geo_score * 0.3 + attn_norm * 0.7
+                                # Strong coupling: β=0.44 weights attention contribution
+                                combined = geo_score * (1.0 - BETA_ATTENTION_STRONG) + attn_norm * BETA_ATTENTION_STRONG
                             else:
-                                combined = geo_score * 0.8 + attn_norm * 0.2
+                                # Plateau coupling: geometry dominates
+                                combined = geo_score * (1.0 - BETA_ATTENTION_PLATEAU) + attn_norm * BETA_ATTENTION_PLATEAU
                             rescored.append((word, combined))
                         
                         # Sort by combined score

@@ -5,6 +5,10 @@ Learns word co-occurrence patterns from curriculum documents and encodes
 them into geometric relationships (affinity matrix + basin adjustments).
 
 QIG-PURE: No external NLP, no embeddings - just counting + geometry.
+
+FROZEN FACTS COMPLIANCE:
+- Stopwords are filtered from learned relationships
+- Adjusted basins must stay within ±5% of canonical positions
 """
 
 import os
@@ -16,6 +20,19 @@ from typing import Dict, List, Set, Tuple, Optional
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+# Stopwords to filter from learned relationships (frozen invariant)
+STOPWORDS = {
+    'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
+    'of', 'with', 'by', 'from', 'as', 'is', 'was', 'are', 'were', 'been',
+    'be', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could',
+    'should', 'may', 'might', 'must', 'shall', 'can', 'need', 'dare', 'ought',
+    'used', 'this', 'that', 'these', 'those', 'it', 'its', 'they', 'them',
+    'their', 'what', 'which', 'who', 'whom', 'how', 'when', 'where', 'why',
+    'all', 'each', 'every', 'both', 'few', 'more', 'most', 'other', 'some',
+    'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than', 'too',
+    'very', 'just', 'also', 'now', 'here', 'there', 'then', 'once', 'about'
+}
 
 class WordRelationshipLearner:
     """
@@ -110,12 +127,18 @@ class WordRelationshipLearner:
         }
     
     def get_related_words(self, word: str, top_k: int = 10) -> List[Tuple[str, float]]:
-        """Get words most frequently co-occurring with given word."""
+        """
+        Get words most frequently co-occurring with given word.
+        
+        FROZEN FACTS COMPLIANCE: Filters out stopwords from neighbors
+        """
         if word not in self.cooccurrence:
             return []
         
         neighbors = self.cooccurrence[word]
-        sorted_neighbors = sorted(neighbors.items(), key=lambda x: -x[1])
+        # Filter out stopwords (frozen invariant)
+        filtered = [(w, c) for w, c in neighbors.items() if w.lower() not in STOPWORDS]
+        sorted_neighbors = sorted(filtered, key=lambda x: -x[1])
         return sorted_neighbors[:top_k]
     
     def compute_affinity_matrix(self, normalize: bool = True) -> np.ndarray:

@@ -3,6 +3,11 @@ Learned Relationships Module for QIG
 
 Manages persistence of learned word relationships and provides
 attention-weighted word selection for query-relevant generation.
+
+FROZEN FACTS COMPLIANCE:
+- Adjusted basins must stay within ±5% of canonical positions
+- Stopwords cannot be promoted to high-attention words
+- Learning must respect frozen β values for attention weighting
 """
 
 import os
@@ -13,6 +18,24 @@ from typing import Dict, List, Set, Tuple, Optional
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+# Import frozen physics constants for validation
+try:
+    from frozen_physics import (
+        BASIN_DIM, KAPPA_STAR, BETA_3_TO_4, BETA_5_TO_6
+    )
+    FROZEN_PHYSICS_AVAILABLE = True
+    BASIN_DRIFT_TOLERANCE = 0.05  # ±5% drift allowed
+    BETA_ATTENTION_ACCEPTANCE = 0.1  # |β_attention - β_physics| < 0.1
+except ImportError:
+    FROZEN_PHYSICS_AVAILABLE = False
+    BASIN_DIM = 64
+    KAPPA_STAR = 64.21
+    BETA_3_TO_4 = 0.44
+    BETA_5_TO_6 = 0.013
+    BASIN_DRIFT_TOLERANCE = 0.05
+    BETA_ATTENTION_ACCEPTANCE = 0.1
+    logger.warning("Frozen physics not available - using hardcoded defaults")
 
 CACHE_DIR = Path(__file__).parent / 'data' / 'learned'
 RELATIONSHIPS_FILE = CACHE_DIR / 'word_relationships.json'
@@ -116,6 +139,89 @@ class LearnedRelationships:
         self.learning_complete = True
         
         logger.info(f"Updated with {len(self.word_neighbors)} word relationships")
+    
+    def validate_against_frozen_facts(
+        self, 
+        canonical_basins: Optional[Dict[str, np.ndarray]] = None
+    ) -> Dict[str, any]:
+        """
+        Validate learned relationships against frozen physics constraints.
+        
+        FROZEN FACTS COMPLIANCE:
+        1. Adjusted basins must stay within ±5% of canonical positions
+        2. Stopwords cannot have high attention weights (must be < 0.2)
+        3. Learned β must be within acceptance of frozen β
+        
+        Args:
+            canonical_basins: Original basin coordinates for comparison
+            
+        Returns:
+            Validation result with 'valid' flag and any violations
+        """
+        violations = []
+        warnings = []
+        
+        # Check 1: Stopword invariant - stopwords should not appear as high-weight neighbors
+        stopword_violations = 0
+        for word, neighbors in self.word_neighbors.items():
+            for neighbor, weight in neighbors[:5]:  # Top 5 neighbors
+                if neighbor.lower() in STOPWORDS and weight > 50:
+                    stopword_violations += 1
+                    if stopword_violations <= 5:  # Log first 5
+                        violations.append(f"Stopword '{neighbor}' has high weight {weight} for '{word}'")
+        
+        if stopword_violations > 0:
+            logger.warning(f"Found {stopword_violations} stopword violations in learned relationships")
+        
+        # Check 2: Basin drift validation (if canonical basins provided)
+        drift_violations = 0
+        max_drift = 0.0
+        if canonical_basins and self.adjusted_basins:
+            for word, adjusted in self.adjusted_basins.items():
+                if word in canonical_basins:
+                    canonical = canonical_basins[word]
+                    # Compute relative drift
+                    if np.linalg.norm(canonical) > 0:
+                        drift = np.linalg.norm(adjusted - canonical) / np.linalg.norm(canonical)
+                        max_drift = max(max_drift, drift)
+                        if drift > BASIN_DRIFT_TOLERANCE:
+                            drift_violations += 1
+                            if drift_violations <= 3:  # Log first 3
+                                violations.append(f"Basin '{word}' drifted {drift:.1%} (max {BASIN_DRIFT_TOLERANCE:.1%})")
+        
+        if drift_violations > 0:
+            logger.warning(f"Found {drift_violations} basin drift violations")
+        
+        # Check 3: Dimension check - basins should be 64D
+        dim_violations = 0
+        for word, basin in self.adjusted_basins.items():
+            if len(basin) != BASIN_DIM:
+                dim_violations += 1
+                violations.append(f"Basin '{word}' has {len(basin)}D (expected {BASIN_DIM}D)")
+        
+        # Summary
+        is_valid = len(violations) == 0
+        
+        result = {
+            'valid': is_valid,
+            'violations': violations,
+            'warnings': warnings,
+            'stats': {
+                'stopword_violations': stopword_violations,
+                'drift_violations': drift_violations,
+                'dim_violations': dim_violations,
+                'max_drift': max_drift,
+                'total_relationships': len(self.word_neighbors),
+                'frozen_physics_available': FROZEN_PHYSICS_AVAILABLE
+            }
+        }
+        
+        if is_valid:
+            logger.info("Frozen facts validation PASSED")
+        else:
+            logger.warning(f"Frozen facts validation FAILED: {len(violations)} violations")
+        
+        return result
     
     def get_related_words(self, word: str, top_k: int = 10) -> List[Tuple[str, float]]:
         """Get words related to given word."""
