@@ -76,6 +76,7 @@ class LearnedRelationships:
         self.word_neighbors: Dict[str, List[Tuple[str, float]]] = {}
         self.adjusted_basins: Dict[str, np.ndarray] = {}
         self.word_frequency: Dict[str, int] = {}
+        self.causal_relations: Dict[str, Dict[str, Dict]] = {}  # source -> {target: {type, count}}
         self.learning_complete = False
         
         self._load_from_cache()
@@ -97,6 +98,10 @@ class LearnedRelationships:
             self.word_frequency = data.get('frequency', {})
             self.learning_complete = data.get('learning_complete', False)
             
+            # Load causal relations (NEW)
+            self.causal_relations = data.get('causal_relations', {})
+            causal_count = sum(len(t) for t in self.causal_relations.values())
+            
             if ADJUSTED_BASINS_FILE.exists():
                 npz = np.load(str(ADJUSTED_BASINS_FILE), allow_pickle=True)
                 if 'words' in npz.files:
@@ -107,11 +112,62 @@ class LearnedRelationships:
                         if key in npz.files:
                             self.adjusted_basins[str(word)] = npz[key]
             
-            logger.info(f"Loaded {len(self.word_neighbors)} word relationships from cache")
+            logger.info(f"Loaded {len(self.word_neighbors)} word relationships, {causal_count} causal relations from cache")
+            
+            # Bootstrap causal relations from curriculum if none loaded
+            if causal_count == 0 and len(self.word_neighbors) > 0:
+                self._bootstrap_causal_relations()
+            
             return True
         except Exception as e:
             logger.warning(f"Failed to load cache: {e}")
             return False
+    
+    def _bootstrap_causal_relations(self):
+        """Bootstrap causal relations from curriculum files if none in cache."""
+        import re
+        from pathlib import Path
+        
+        curriculum_dir = Path(__file__).parent / 'docs' / '09-curriculum'
+        if not curriculum_dir.exists():
+            logger.info("[LearnedRelationships] No curriculum directory found for causal bootstrap")
+            return
+        
+        causal_patterns = [
+            (r'(\w+)\s+causes?\s+(\w+)', 'causes'),
+            (r'(\w+)\s+implies?\s+(\w+)', 'implies'),
+            (r'(\w+)\s+requires?\s+(\w+)', 'requires'),
+            (r'(\w+)\s+enables?\s+(\w+)', 'enables'),
+            (r'(\w+)\s+leads?\s+to\s+(\w+)', 'leads_to'),
+            (r'(\w+)\s+determines?\s+(\w+)', 'determines'),
+            (r'(\w+)\s+produces?\s+(\w+)', 'produces'),
+        ]
+        
+        total_found = 0
+        for filepath in curriculum_dir.rglob('*.md'):
+            try:
+                text = filepath.read_text(encoding='utf-8').lower()
+                for pattern, rel_type in causal_patterns:
+                    for match in re.finditer(pattern, text):
+                        source, target = match.group(1), match.group(2)
+                        if source in STOPWORDS or target in STOPWORDS:
+                            continue
+                        if len(source) < 3 or len(target) < 3:
+                            continue
+                        
+                        if source not in self.causal_relations:
+                            self.causal_relations[source] = {}
+                        if target not in self.causal_relations[source]:
+                            self.causal_relations[source][target] = {'type': rel_type, 'count': 0}
+                        self.causal_relations[source][target]['count'] += 1
+                        total_found += 1
+            except Exception:
+                continue
+        
+        if total_found > 0:
+            logger.info(f"[LearnedRelationships] Bootstrapped {total_found} causal relations from curriculum")
+            # Save updated cache
+            self.save_to_cache()
     
     def save_to_cache(self) -> bool:
         """Save relationships to cache."""
@@ -121,7 +177,8 @@ class LearnedRelationships:
             data = {
                 'neighbors': self.word_neighbors,
                 'frequency': self.word_frequency,
-                'learning_complete': self.learning_complete
+                'learning_complete': self.learning_complete,
+                'causal_relations': self.causal_relations  # NEW: save causal relations
             }
             with open(RELATIONSHIPS_FILE, 'w') as f:
                 json.dump(data, f)
@@ -134,7 +191,8 @@ class LearnedRelationships:
                                     words=np.array(words_list, dtype=object),
                                     **arrays_dict)
             
-            logger.info(f"Saved {len(self.word_neighbors)} relationships to cache")
+            causal_count = sum(len(t) for t in self.causal_relations.values())
+            logger.info(f"Saved {len(self.word_neighbors)} relationships, {causal_count} causal relations to cache")
             return True
         except Exception as e:
             logger.error(f"Failed to save cache: {e}")
@@ -150,7 +208,15 @@ class LearnedRelationships:
         self.adjusted_basins = adjusted_basins
         self.learning_complete = True
         
-        logger.info(f"Updated with {len(self.word_neighbors)} word relationships")
+        # Copy causal relations from learner (NEW)
+        if hasattr(learner, 'causal_relations'):
+            self.causal_relations = {}
+            for source, targets in learner.causal_relations.items():
+                self.causal_relations[source] = dict(targets)
+            causal_count = sum(len(t) for t in self.causal_relations.values())
+            logger.info(f"Updated with {len(self.word_neighbors)} word relationships, {causal_count} causal relations")
+        else:
+            logger.info(f"Updated with {len(self.word_neighbors)} word relationships")
     
     def validate_against_frozen_facts(
         self, 
