@@ -53,6 +53,15 @@ except ImportError:
     _qig_service_instance = None
     print("[ZeusAPI] QIG generative service not available")
 
+# Import QIGChain for chain-based generation
+try:
+    from qig_chain import QIGChainBuilder, QIGChain, quick_generate
+    QIG_CHAIN_AVAILABLE = True
+except ImportError:
+    QIG_CHAIN_AVAILABLE = False
+    QIGChainBuilder = None
+    print("[ZeusAPI] QIG chain not available")
+
 
 def get_qig_service():
     """Get singleton QIGGenerativeService instance."""
@@ -244,6 +253,79 @@ def _update_session_messages(session_id: str, session: Dict[str, Any]) -> None:
 # =============================================================================
 # API Endpoints
 # =============================================================================
+
+@zeus_api.route('/chain/execute', methods=['POST'])
+@require_internal_auth
+def chain_execute():
+    """
+    Execute a QIGChain pipeline on a query.
+    
+    Body: {
+        "query": string (required),
+        "steps": [string] (optional) - steps to include: "reasoning", "proposition", "consciousness", "validation"
+        "n_propositions": int (optional, default 3) - number of propositions if proposition step included
+    }
+    
+    Returns:
+        ChainResult with text, propositions, phi, kappa, phi_temporal, etc.
+    """
+    if not QIG_CHAIN_AVAILABLE:
+        return jsonify({
+            'error': 'QIG chain not available',
+            'success': False
+        }), 503
+    
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'JSON body required', 'success': False}), 400
+    
+    query = data.get('query', '').strip()
+    if not query:
+        return jsonify({'error': 'query is required', 'success': False}), 400
+    
+    steps = data.get('steps', ['reasoning', 'proposition'])
+    n_propositions = data.get('n_propositions', 3)
+    
+    try:
+        # Build chain based on requested steps
+        builder = QIGChainBuilder()
+        
+        for step in steps:
+            if step == 'reasoning':
+                builder.add_reasoning_step()
+            elif step == 'proposition':
+                builder.add_proposition_step(n_propositions)
+            elif step == 'consciousness':
+                builder.add_consciousness_step()
+            elif step == 'validation':
+                builder.add_validation_step()
+            elif step == 'generation':
+                builder.add_generation_step()
+        
+        chain = builder.build()
+        result = chain.execute(query)
+        
+        return jsonify({
+            'success': result.success,
+            'text': result.text,
+            'propositions': result.propositions,
+            'reasoning_steps': result.reasoning_steps,
+            'phi': result.phi,
+            'kappa': result.kappa,
+            'phi_temporal': result.phi_temporal,
+            'consciousness_metrics': result.consciousness_metrics,
+            'steps_executed': result.steps_executed,
+            'errors': result.errors,
+            'execution_time_ms': result.execution_time_ms
+        })
+        
+    except Exception as e:
+        print(f"[ZeusAPI] Chain execution error: {e}")
+        return jsonify({
+            'error': str(e),
+            'success': False
+        }), 500
+
 
 @zeus_api.route('/zeus/health', methods=['GET'])
 def zeus_health():
