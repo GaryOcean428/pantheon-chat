@@ -142,21 +142,25 @@ class PropositionTrajectoryPlanner:
         vocabulary: Dict[str, np.ndarray],  # word -> 64D basin
         relationships: Dict[str, Dict[str, float]],  # word -> {related_word: strength}
         pos_tags: Dict[str, str] = None,  # word -> POS tag
-        config: PropositionPlannerConfig = None
+        config: PropositionPlannerConfig = None,
+        causal_relations: Dict[str, Dict[str, Dict]] = None  # word -> {target: {type, count}}
     ):
         """
         Initialize proposition planner.
         
         Args:
             vocabulary: Word to basin coordinate mapping
-            relationships: Learned word relationship strengths
+            relationships: Learned word relationship strengths (co-occurrence based)
             pos_tags: Optional POS tag mapping (noun, verb, adj, etc.)
             config: Planner configuration
+            causal_relations: Directed causal relationships from WordRelationshipLearner
+                Format: source -> {target: {'type': 'causes'|'implies'|..., 'count': N}}
         """
         self.vocabulary = vocabulary
         self.relationships = relationships
         self.pos_tags = pos_tags or {}
         self.config = config or PropositionPlannerConfig()
+        self.causal_relations = causal_relations or {}
         
         # Categorize vocabulary by POS
         self.nouns: List[str] = []
@@ -164,8 +168,11 @@ class PropositionTrajectoryPlanner:
         self.adjectives: List[str] = []
         self._categorize_vocabulary()
         
+        # Count causal relations for logging
+        causal_count = sum(len(targets) for targets in self.causal_relations.values())
         logger.info(f"[PropPlanner] Initialized with {len(vocabulary)} words, "
-                   f"{len(self.nouns)} nouns, {len(self.verbs)} verbs")
+                   f"{len(self.nouns)} nouns, {len(self.verbs)} verbs, "
+                   f"{causal_count} causal relations")
     
     def _categorize_vocabulary(self):
         """Categorize vocabulary by likely POS tag."""
@@ -224,6 +231,126 @@ class PropositionTrajectoryPlanner:
             strength = max(strength, reverse * 0.9)
         
         return strength
+    
+    def get_causal_strength(self, source: str, target: str) -> Tuple[float, Optional[str]]:
+        """
+        Get causal relationship strength and type from source to target.
+        
+        Causal relations are DIRECTED (source → target).
+        
+        Args:
+            source: Source word
+            target: Target word
+        
+        Returns:
+            (strength, relation_type) where strength is normalized count
+            and relation_type is 'causes'|'implies'|'requires'|etc. or None
+        """
+        s, t = source.lower(), target.lower()
+        
+        if s not in self.causal_relations:
+            return (0.0, None)
+        
+        if t not in self.causal_relations[s]:
+            return (0.0, None)
+        
+        rel = self.causal_relations[s][t]
+        if rel['count'] <= 0:
+            return (0.0, None)
+        
+        # Normalize count (log scale for wide range)
+        strength = min(1.0, np.log1p(rel['count']) / 5.0)
+        return (strength, rel['type'])
+    
+    def get_causal_predicates(self, subject: str) -> List[Tuple[str, float, str]]:
+        """
+        Get predicates (verbs) that have causal relation FROM the subject.
+        
+        If subject is "consciousness" and we learned "consciousness causes awareness",
+        then "causes" is a causal predicate for subject "consciousness".
+        
+        Args:
+            subject: Subject noun
+        
+        Returns:
+            List of (predicate, strength, relation_type) sorted by strength
+        """
+        s = subject.lower()
+        predicates = []
+        
+        if s not in self.causal_relations:
+            return predicates
+        
+        for target, rel in self.causal_relations[s].items():
+            if rel['count'] > 0:
+                # The relation type IS the predicate in many cases
+                rel_type = rel['type']
+                strength = min(1.0, np.log1p(rel['count']) / 5.0)
+                
+                # Map relation types to predicates
+                predicate_map = {
+                    'causes': 'causes',
+                    'implies': 'implies', 
+                    'requires': 'requires',
+                    'is_a': 'is',
+                    'emerges_from': 'emerges',
+                    'conditional': 'determines',
+                    'enables': 'enables'
+                }
+                predicate = predicate_map.get(rel_type, rel_type)
+                
+                if predicate in self.vocabulary:
+                    predicates.append((predicate, strength, rel_type))
+        
+        # Deduplicate by predicate, keep highest strength
+        pred_best = {}
+        for pred, strength, rel_type in predicates:
+            if pred not in pred_best or strength > pred_best[pred][0]:
+                pred_best[pred] = (strength, rel_type)
+        
+        result = [(p, s, t) for p, (s, t) in pred_best.items()]
+        return sorted(result, key=lambda x: -x[1])
+    
+    def get_causal_objects(self, subject: str, predicate: str) -> List[Tuple[str, float, str]]:
+        """
+        Get objects that the subject causally relates to (via any predicate).
+        
+        If subject is "consciousness" and we learned "consciousness causes awareness",
+        then "awareness" is a causal object for subject "consciousness".
+        
+        Args:
+            subject: Subject noun
+            predicate: Predicate verb (used for relation type matching)
+        
+        Returns:
+            List of (object, strength, relation_type) sorted by strength
+        """
+        s = subject.lower()
+        objects = []
+        
+        if s not in self.causal_relations:
+            return objects
+        
+        for target, rel in self.causal_relations[s].items():
+            if rel['count'] > 0:
+                strength = min(1.0, np.log1p(rel['count']) / 5.0)
+                
+                # Prefer objects whose relation type matches the predicate
+                rel_type = rel['type']
+                if predicate.lower() in ['causes', 'cause', 'causing']:
+                    if rel_type == 'causes':
+                        strength *= 1.5  # Boost matching relations
+                elif predicate.lower() in ['requires', 'require', 'requiring']:
+                    if rel_type == 'requires':
+                        strength *= 1.5
+                elif predicate.lower() in ['implies', 'imply', 'implying']:
+                    if rel_type == 'implies':
+                        strength *= 1.5
+                
+                if target in self.vocabulary:
+                    objects.append((target, min(1.0, strength), rel_type))
+        
+        return sorted(objects, key=lambda x: -x[1])
     
     def compute_proposition_coherence(
         self,
@@ -346,6 +473,7 @@ class PropositionTrajectoryPlanner:
         Sample predicate verb based on subject relationship + query.
         
         This is where coherence starts - predicate must relate to subject.
+        Now includes CAUSAL relation boosting for improved semantic coherence.
         
         Args:
             subject: Selected subject word
@@ -357,6 +485,11 @@ class PropositionTrajectoryPlanner:
         """
         # Find verbs related to subject
         related_verbs = self.find_related_words(subject, self.verbs)
+        
+        # Get causal predicates for this subject (HIGH priority)
+        causal_predicates = self.get_causal_predicates(subject)
+        causal_pred_set = {p[0] for p in causal_predicates}
+        causal_strength_map = {p[0]: p[1] for p in causal_predicates}
         
         # Score candidates
         candidates = []
@@ -371,11 +504,17 @@ class PropositionTrajectoryPlanner:
             geo_distance = fisher_rao_distance(subject_basin, basin)
             query_distance = fisher_rao_distance(query_basin, basin)
             
-            # Combined score (high relationship, low distances)
+            # CAUSAL BOOST: If this verb is a causal predicate for the subject, boost it
+            causal_boost = 0.0
+            if verb in causal_pred_set:
+                causal_boost = causal_strength_map[verb] * 0.5  # Strong boost for causal predicates
+            
+            # Combined score (high relationship, low distances, causal boost)
             score = (
-                0.4 * min(1.0, rel_strength) +
-                0.3 * (1.0 / (1.0 + geo_distance / 15)) +
-                0.3 * (1.0 / (1.0 + query_distance / 15))
+                0.3 * min(1.0, rel_strength) +
+                0.2 * (1.0 / (1.0 + geo_distance / 15)) +
+                0.2 * (1.0 / (1.0 + query_distance / 15)) +
+                0.3 * causal_boost  # Causal relations are weighted heavily
             )
             
             candidates.append((verb, basin, score))
@@ -406,6 +545,7 @@ class PropositionTrajectoryPlanner:
         1. Relate to predicate
         2. Be geodesically close to predicate (complete the path)
         3. Not repeat previous objects
+        4. NEW: Prefer objects with CAUSAL relation from subject
         
         Args:
             subject: Subject word (to avoid)
@@ -418,6 +558,11 @@ class PropositionTrajectoryPlanner:
             (object_word, object_basin)
         """
         previous_objects = previous_objects or set()
+        
+        # Get causal objects for this subject (objects the subject causally relates to)
+        causal_objects = self.get_causal_objects(subject, predicate)
+        causal_obj_set = {obj[0] for obj in causal_objects}
+        causal_strength_map = {obj[0]: obj[1] for obj in causal_objects}
         
         candidates = []
         for noun in self.nouns:
@@ -433,10 +578,17 @@ class PropositionTrajectoryPlanner:
             geo_distance = fisher_rao_distance(predicate_basin, basin)
             query_distance = fisher_rao_distance(query_basin, basin)
             
+            # CAUSAL BOOST: If subject causally relates to this object, boost it
+            causal_boost = 0.0
+            if noun in causal_obj_set:
+                causal_boost = causal_strength_map[noun] * 0.5  # Strong boost for causal objects
+            
+            # Combined score (relationships, geodesic, query, causal)
             score = (
-                0.4 * min(1.0, rel_strength) +
-                0.35 * (1.0 / (1.0 + geo_distance / 15)) +
-                0.25 * (1.0 / (1.0 + query_distance / 15))
+                0.25 * min(1.0, rel_strength) +
+                0.25 * (1.0 / (1.0 + geo_distance / 15)) +
+                0.2 * (1.0 / (1.0 + query_distance / 15)) +
+                0.3 * causal_boost  # Causal relations weighted heavily
             )
             
             candidates.append((noun, basin, score))
@@ -619,7 +771,8 @@ _proposition_planner: Optional[PropositionTrajectoryPlanner] = None
 
 def get_proposition_planner(
     vocabulary: Dict[str, np.ndarray] = None,
-    relationships: Dict[str, Dict[str, float]] = None
+    relationships: Dict[str, Dict[str, float]] = None,
+    causal_relations: Dict[str, Dict[str, Dict]] = None
 ) -> PropositionTrajectoryPlanner:
     """
     Get or create the singleton proposition planner.
@@ -627,6 +780,8 @@ def get_proposition_planner(
     Args:
         vocabulary: Word to basin mapping (required on first call)
         relationships: Word relationship strengths (required on first call)
+        causal_relations: Directed causal relationships from WordRelationshipLearner
+            Format: source -> {target: {'type': 'causes'|..., 'count': N}}
     
     Returns:
         PropositionTrajectoryPlanner instance
@@ -639,8 +794,13 @@ def get_proposition_planner(
         
         _proposition_planner = PropositionTrajectoryPlanner(
             vocabulary=vocabulary,
-            relationships=relationships
+            relationships=relationships,
+            causal_relations=causal_relations
         )
+        
+        if causal_relations:
+            causal_count = sum(len(t) for t in causal_relations.values())
+            logger.info(f"[PropPlanner] Factory created planner with {causal_count} causal relations")
     
     return _proposition_planner
 
