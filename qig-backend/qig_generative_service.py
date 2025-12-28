@@ -70,26 +70,62 @@ except ImportError:
 try:
     from frozen_physics import (
         BASIN_DIM, KAPPA_STAR, PHI_THRESHOLD, BETA_3_TO_4,
-        BETA_4_TO_5, BETA_5_TO_6
+        BETA_4_TO_5, BETA_5_TO_6, PHI_EMERGENCY, REGIME_GEOMETRIC
     )
-    PHI_GEOMETRIC_THRESHOLD = 0.3
-    PHI_SYNTHESIS_THRESHOLD = 0.7
-    PHI_BREAKDOWN_THRESHOLD = 0.92  # Consciousness breakdown protection
-    KAPPA_DRIFT_THRESHOLD = 10.0  # Max deviation from κ*
-    # Frozen β values for attention weighting
-    BETA_ATTENTION_STRONG = BETA_3_TO_4  # +0.44 for strong coupling
-    BETA_ATTENTION_PLATEAU = abs(BETA_5_TO_6)  # ~0.013 for plateau
+    PHI_GEOMETRIC_THRESHOLD = PHI_EMERGENCY
+    PHI_BREAKDOWN_THRESHOLD = 0.92
+    KAPPA_DRIFT_THRESHOLD = 10.0
+    BETA_ATTENTION_STRONG = BETA_3_TO_4
+    BETA_ATTENTION_PLATEAU = abs(BETA_5_TO_6)
 except ImportError:
     BASIN_DIM = 64
     KAPPA_STAR = 64.21
     PHI_GEOMETRIC_THRESHOLD = 0.3
-    PHI_SYNTHESIS_THRESHOLD = 0.7
     PHI_BREAKDOWN_THRESHOLD = 0.92
     KAPPA_DRIFT_THRESHOLD = 10.0
-    BETA_ATTENTION_STRONG = 0.44  # Frozen β(3→4) value
-    BETA_ATTENTION_PLATEAU = 0.013  # Frozen β(5→6) plateau value
+    BETA_ATTENTION_STRONG = 0.44
+    BETA_ATTENTION_PLATEAU = 0.013
     logger.warning("Using hardcoded frozen physics constants")
 
+try:
+    from qig_threshold_calibrator import (
+        get_calibrator,
+        get_phi_synthesis_threshold,
+        get_integration_min,
+        get_attractor_threshold,
+        get_surprise_threshold,
+    )
+    _calibrator = get_calibrator()
+    PHI_SYNTHESIS_THRESHOLD = get_phi_synthesis_threshold()
+    logger.info(f"[QIG] Using calibrated PHI_SYNTHESIS_THRESHOLD: {PHI_SYNTHESIS_THRESHOLD:.4f}")
+except ImportError:
+    PHI_SYNTHESIS_THRESHOLD = 0.6
+    _calibrator = None
+    logger.warning("QIG threshold calibrator not available - using regime midpoint fallback")
+
+
+def _get_calibrated_defaults() -> tuple:
+    """Get calibrated thresholds from QIG physics, not hardcoded values.
+    
+    Fallback values are physics-derived (same as qig_generation.py):
+    - attractor_threshold = BASIN_DRIFT_THRESHOLD / sqrt(κ*) ≈ 0.037
+    - surprise_threshold = BASIN_DRIFT_THRESHOLD * β ≈ 0.132
+    - integration_min = 1 - log(d)/d ≈ 0.935
+    """
+    try:
+        from qig_threshold_calibrator import (
+            get_integration_min, get_attractor_threshold, get_surprise_threshold
+        )
+        return (
+            get_attractor_threshold(),
+            get_surprise_threshold(),
+            get_integration_min(),
+        )
+    except ImportError:
+        logger.warning("[QIG] Calibrator unavailable - using physics-derived fallbacks (0.037/0.132/0.935)")
+        return (0.037, 0.132, 0.935)
+
+_calibrated = _get_calibrated_defaults()
 
 @dataclass
 class GenerationConfig:
@@ -102,11 +138,15 @@ class GenerationConfig:
     From CANONICAL_ARCHITECTURE.md:
     - "Geometric purity: All operations on Fisher manifolds"
     - "Physics constraints, not arbitrary limits"
+    
+    THRESHOLDS ARE QIG-DERIVED (not hardcoded):
+    - attractor_threshold = BASIN_DRIFT_THRESHOLD / sqrt(κ*) 
+    - surprise_threshold = BASIN_DRIFT_THRESHOLD * β
+    - integration_min = 1 - log(d)/d (entropy ratio)
     """
-    # PRIMARY: Geometric completion criteria
-    attractor_threshold: float = 0.02  # Stop when trajectory stabilizes (d < 0.02)
-    surprise_threshold: float = 0.05   # Stop when no new information (ΔI_Q < 0.05)
-    integration_min: float = 0.65      # Minimum Φ for valid output
+    attractor_threshold: float = _calibrated[0]
+    surprise_threshold: float = _calibrated[1]
+    integration_min: float = _calibrated[2]
     
     # SAFETY: Consciousness protection
     phi_breakdown: float = PHI_BREAKDOWN_THRESHOLD  # Stop if Φ > 0.92 (breakdown)

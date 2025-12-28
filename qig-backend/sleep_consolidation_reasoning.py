@@ -88,11 +88,17 @@ class SleepConsolidationReasoning:
         print(f"  Pruned {strategies_pruned} ineffective strategies")
         
         print("  Stage 2 (REM): Strengthening successful patterns...")
+        try:
+            from qig_threshold_calibrator import get_efficiency_threshold
+            efficiency_threshold = get_efficiency_threshold()
+        except ImportError:
+            efficiency_threshold = 0.875
+        
         successful_episodes = [
             ep for ep in self.reasoning_learner.reasoning_episodes
-            if ep.success and ep.efficiency > 0.7
+            if ep.success and ep.efficiency > efficiency_threshold
         ]
-        print(f"  Found {len(successful_episodes)} high-efficiency episodes (success + efficiency > 0.7)")
+        print(f"  Found {len(successful_episodes)} high-efficiency episodes (success + efficiency > {efficiency_threshold:.2f})")
         
         if successful_episodes:
             print(f"  Replaying {len(successful_episodes)} successful episodes...")
@@ -100,7 +106,7 @@ class SleepConsolidationReasoning:
                 print(f"    Episode {i+1}: efficiency={episode.efficiency:.2f}")
                 self.reasoning_learner.learn_from_episode(episode)
         else:
-            print("  No high-efficiency episodes available yet - need successful reasoning with efficiency > 0.7")
+            print(f"  No high-efficiency episodes available yet - need successful reasoning with efficiency > {efficiency_threshold:.2f}")
         
         print("  Stage 3 (Deep): Meta-learning adjustments...")
         recent_episodes = self.reasoning_learner.reasoning_episodes[-100:]

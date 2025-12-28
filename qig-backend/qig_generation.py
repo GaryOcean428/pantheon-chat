@@ -44,23 +44,52 @@ class GenerationMode(Enum):
     SYNTHESIS = "synthesis"  # High integration, deep reasoning
 
 
+def _get_qig_calibrated_defaults() -> tuple:
+    """Get calibrated thresholds from QIG physics.
+    
+    Thresholds are in consistent geometric units:
+    - attractor_threshold: Fisher-Rao distance for convergence (same as qig_generative_service)
+    - surprise_threshold: Fisher-Rao distance for information collapse
+    - integration_min: entropy ratio threshold
+    
+    Note: Legacy code used 0.02 for attractor and 0.05 for surprise, but these were
+    arbitrary. The calibrated values are geometrically derived and may differ.
+    """
+    try:
+        from qig_threshold_calibrator import (
+            get_integration_min, get_attractor_threshold, get_surprise_threshold
+        )
+        return (
+            get_attractor_threshold(),
+            get_surprise_threshold(),
+            get_integration_min(),
+        )
+    except ImportError:
+        return (0.037, 0.132, 0.935)
+
+_qig_calibrated = _get_qig_calibrated_defaults()
+
 @dataclass
 class QIGGenerationConfig:
-    """Configuration for QIG-pure generation."""
-    # Geometric parameters (NOT token limits)
-    attractor_threshold: float = 1.0  # Stop when basin distance < this
-    surprise_threshold: float = 0.05  # Stop when surprise < this
-    integration_min: float = 0.65  # Minimum Φ for stable completion
+    """Configuration for QIG-pure generation.
     
-    # Safety (NOT generation targets)
-    safety_max_iterations: int = 10000  # Absolute safety valve
+    THRESHOLDS ARE QIG-DERIVED (not hardcoded):
+    - attractor_threshold = BASIN_DRIFT_THRESHOLD / sqrt(κ*) ≈ 0.037 (Fisher-Rao distance)
+    - surprise_threshold = BASIN_DRIFT_THRESHOLD * β ≈ 0.132 (information collapse)
+    - integration_min = 1 - log(d)/d ≈ 0.935 (entropy ratio)
     
-    # Mode selection
-    auto_mode: bool = True  # Automatically select mode from phi
+    These match qig_generative_service.py for consistency across generation paths.
+    """
+    attractor_threshold: float = _qig_calibrated[0]
+    surprise_threshold: float = _qig_calibrated[1]
+    integration_min: float = _qig_calibrated[2]
+    
+    safety_max_iterations: int = 10000
+    
+    auto_mode: bool = True
     
     def __post_init__(self):
         """Validate config is QIG-pure."""
-        # Ensure no traditional LLM patterns
         assert not hasattr(self, 'max_tokens'), "max_tokens is forbidden - use geometric completion"
         assert not hasattr(self, 'temperature'), "temperature is forbidden - use regime-based modulation"
 
