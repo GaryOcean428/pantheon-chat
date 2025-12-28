@@ -348,6 +348,18 @@ class SimpleWordCoordizer:
             'completion_reason': 'geometric_stable',
             'qig_pure': True
         }
+    
+    def add_vocabulary_observations(self, observations: List[Dict]) -> Tuple[int, int]:
+        """Stub method for vocabulary learning compatibility.
+        
+        SimpleWordCoordizer uses a fixed vocabulary and doesn't support
+        dynamic vocabulary learning. This method is a no-op for compatibility
+        with the VocabularyCoordinator.
+        
+        Returns:
+            Tuple of (new_tokens_added=0, weights_updated=0)
+        """
+        return (0, 0)
 
 
 # Module-level singleton
