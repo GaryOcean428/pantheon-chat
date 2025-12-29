@@ -281,6 +281,38 @@ def upgrade_tier():
     return jsonify({'error': 'Failed to upgrade'}), 500
 
 
+@billing_bp.route('/create-checkout', methods=['POST'])
+def create_checkout():
+    """
+    Create Stripe checkout session for credits or subscription.
+    
+    POST /api/billing/create-checkout
+    {
+        "api_key": "qig_xxx...",
+        "product_type": "credits" | "pro" | "enterprise"
+    }
+    """
+    if not verify_internal_auth():
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    data = request.get_json() or {}
+    api_key = data.get('api_key', '')
+    product_type = data.get('product_type', 'credits')
+    
+    if not api_key:
+        return jsonify({'error': 'Missing API key'}), 400
+    
+    ea = get_economic_autonomy()
+    result = ea.create_checkout_session(api_key, product_type)
+    
+    if result and 'error' not in result:
+        return jsonify(result)
+    elif result and 'error' in result:
+        return jsonify(result), 400
+    else:
+        return jsonify({'error': 'Failed to create checkout session'}), 500
+
+
 @billing_bp.route('/economic-report', methods=['GET'])
 def economic_report():
     """
