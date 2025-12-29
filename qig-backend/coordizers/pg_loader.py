@@ -487,8 +487,9 @@ class PostgresCoordizer(FisherCoordizer):
                 
                 conn.commit()
             
-            logger.info(f"[VocabularyObservations] Added {added}, updated {updated} words")
-            return (added, updated > 0)
+            total_learned = added + updated  # Both new words AND reinforced words count as learning
+            logger.info(f"[VocabularyObservations] Added {added} new, reinforced {updated} existing = {total_learned} total learned")
+            return (total_learned, updated > 0)
             
         except Exception as e:
             logger.error(f"[VocabularyObservations] Error: {e}")
