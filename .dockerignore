@@ -1,20 +1,24 @@
-# Git
+# =============================================================================
+# RAILWAY DOCKER BUILD - KEEP BUILD FILES AVAILABLE
+# =============================================================================
+# This file controls what Docker sees during build.
+# We build inside Docker, so source files must NOT be ignored.
+
+# Git metadata (not needed for build)
 .git
 .gitignore
 
-# Node
+# Node modules (reinstalled in Docker)
 node_modules
 npm-debug.log
 yarn-debug.log
 yarn-error.log
 
-# Build outputs - DO NOT ignore dist, it's needed for production
-# dist is built inside Docker, but we don't ignore it
-
-# Development files
-*.md
-!README.md
+# Environment files (secrets - set via Railway dashboard)
 .env*
+!.env.example
+
+# Replit-specific (not needed for Railway)
 .replit
 .replit-build
 replit.md
@@ -25,23 +29,22 @@ replit.md
 *.swp
 *.swo
 
-# Testing
+# Test files (not needed in production)
 coverage
 *.test.ts
 *.test.js
-tests
 __tests__
+playwright-report
+test-results
 
-# Documentation
-docs
-
-# Python cache
+# Python cache (regenerated)
 __pycache__
 *.pyc
 *.pyo
 .pytest_cache
 .mypy_cache
 *.egg-info
+qig-backend/.venv
 
 # OS files
 .DS_Store
@@ -52,9 +55,20 @@ tmp
 temp
 *.tmp
 *.temp
-*.log
 
-# Docker files (not needed inside container)
-Dockerfile*
-docker-compose*.yml
-.dockerignore
+# Logs (not needed in build)
+*.log
+logs
+
+# =============================================================================
+# DO NOT IGNORE THESE - REQUIRED FOR BUILD
+# =============================================================================
+# Keep all of these available for Docker build:
+# - package.json, package-lock.json (npm install)
+# - tsconfig.json, vite.config.ts, tailwind.config.ts (build config)
+# - client/, server/, shared/ (source code)
+# - scripts/ (build scripts)
+# - qig-backend/ (Python backend)
+# - migrations/ (database migrations)
+# - drizzle.config.ts (database config)
+# =============================================================================
