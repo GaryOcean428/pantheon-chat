@@ -36,6 +36,7 @@ try:
     BUFFER_OF_THOUGHTS_AVAILABLE = True
 except ImportError:
     BUFFER_OF_THOUGHTS_AVAILABLE = False
+    TemplateCategory = None  # Type stub for when not available
 
 
 @dataclass
@@ -141,6 +142,7 @@ class GeometricPlanner:
         
         # Template buffer
         self._template_buffer = None
+        self._pending_plan_trace = None  # Track pending plan for template learning
         if self.use_templates:
             try:
                 self._template_buffer = get_meta_buffer()

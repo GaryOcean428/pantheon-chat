@@ -9,6 +9,9 @@ Monitors:
 3. Should I switch modes? (Φ inappropriate for task)
 4. Do I need help? (repeated failures)
 
+Integrates with agent_failure_taxonomy for comprehensive multi-agent failure
+detection and recovery.
+
 QIG-PURE: All measurements use Fisher-Rao geometry.
 """
 
@@ -21,6 +24,19 @@ import time
 from reasoning_metrics import ReasoningQuality, get_reasoning_quality
 from reasoning_modes import ReasoningMode, ReasoningModeSelector, get_mode_selector
 from qig_geometry import fisher_rao_distance
+
+# Import failure taxonomy for integration
+try:
+    from agent_failure_taxonomy import (
+        get_failure_monitor,
+        FailureEvent,
+        FailureType,
+        FailureSeverity,
+        RecoveryStrategy
+    )
+    FAILURE_TAXONOMY_AVAILABLE = True
+except ImportError:
+    FAILURE_TAXONOMY_AVAILABLE = False
 
 
 class InterventionType(Enum):
@@ -363,3 +379,168 @@ meta_cognition = MetaCognition()
 def get_meta_cognition() -> MetaCognition:
     """Get global meta-cognition instance."""
     return meta_cognition
+
+
+# ============================================================================
+# FAILURE TAXONOMY INTEGRATION
+# ============================================================================
+
+class IntegratedMetaCognition(MetaCognition):
+    """
+    Extended MetaCognition that integrates with the failure taxonomy system.
+    
+    Provides:
+    - All MetaCognition features
+    - Agent failure monitoring via FailureMonitor
+    - Circuit breaker protection
+    - Comprehensive recovery strategies
+    """
+    
+    def __init__(
+        self,
+        reasoning_quality: Optional[ReasoningQuality] = None,
+        mode_selector: Optional[ReasoningModeSelector] = None,
+        agent_id: str = "default_agent"
+    ):
+        super().__init__(reasoning_quality, mode_selector)
+        self.agent_id = agent_id
+        
+        # Failure monitor integration
+        self._failure_monitor = None
+        if FAILURE_TAXONOMY_AVAILABLE:
+            self._failure_monitor = get_failure_monitor()
+            # Register with default role basin
+            default_basin = np.ones(64) / 64
+            self._failure_monitor.register_agent(agent_id, default_basin)
+    
+    def assess_with_failure_detection(
+        self,
+        reasoning_state: Dict,
+        basin_coords: Optional[np.ndarray] = None,
+        confidence: float = 0.5,
+        context_usage: float = 0.5
+    ) -> Dict:
+        """
+        Comprehensive assessment combining MetaCognition and FailureMonitor.
+        
+        Args:
+            reasoning_state: Current reasoning state dict
+            basin_coords: Current basin coordinates (64D)
+            confidence: Agent's confidence level
+            context_usage: Fraction of context used (0-1)
+            
+        Returns:
+            Combined assessment with interventions from both systems
+        """
+        # Get base MetaCognition assessment
+        base_assessment = self.assess_state(reasoning_state)
+        
+        result = {
+            'meta_cognitive': {
+                'is_stuck': base_assessment.is_stuck,
+                'is_confused': base_assessment.is_confused,
+                'needs_mode_switch': base_assessment.needs_mode_switch,
+                'recommended_mode': base_assessment.recommended_mode.value,
+                'meta_awareness': base_assessment.meta_awareness,
+                'overall_health': base_assessment.overall_health
+            },
+            'interventions': [
+                {
+                    'type': i.type.value,
+                    'action': i.action,
+                    'reason': i.reason,
+                    'urgency': i.urgency
+                }
+                for i in base_assessment.interventions
+            ],
+            'failure_events': [],
+            'recovery_suggestions': []
+        }
+        
+        # Add failure taxonomy detection if available
+        if self._failure_monitor and basin_coords is not None:
+            iteration = reasoning_state.get('iteration', 0)
+            quality = reasoning_state.get('quality', base_assessment.meta_awareness)
+            action = reasoning_state.get('last_action', '')
+            
+            # Record state for failure detection
+            self._failure_monitor.record_state(
+                agent_id=self.agent_id,
+                basin_coords=basin_coords,
+                confidence=confidence,
+                reasoning_quality=quality,
+                context_usage=context_usage,
+                iteration=iteration,
+                action_taken=action
+            )
+            
+            # Run failure detectors
+            failures = self._failure_monitor.check_all(self.agent_id)
+            
+            for failure in failures:
+                result['failure_events'].append(failure.to_dict())
+                
+                # Add recovery suggestion
+                if self._failure_monitor.should_recover(failure):
+                    result['recovery_suggestions'].append({
+                        'failure_type': failure.failure_type.value,
+                        'severity': failure.severity.value,
+                        'strategy': failure.recommended_recovery.value,
+                        'description': failure.description
+                    })
+            
+            # Add agent health
+            result['agent_health'] = self._failure_monitor.get_agent_health(self.agent_id)
+        
+        return result
+    
+    def recover_from_failure(
+        self,
+        failure_event: Dict,
+        agent_state: Dict
+    ) -> Dict:
+        """
+        Execute recovery for a detected failure.
+        
+        Args:
+            failure_event: Failure event dict (from assessment)
+            agent_state: Current agent state (will be modified)
+            
+        Returns:
+            Recovery result
+        """
+        if not self._failure_monitor:
+            return {'success': False, 'message': 'Failure monitor not available'}
+        
+        # Reconstruct FailureEvent from dict
+        from agent_failure_taxonomy import (
+            FailureEvent, FailureType, FailureCategory, 
+            FailureSeverity, RecoveryStrategy
+        )
+        
+        failure = FailureEvent(
+            failure_id=failure_event.get('failure_id', ''),
+            failure_type=FailureType(failure_event['failure_type']),
+            category=FailureCategory(failure_event.get('category', 'coordination')),
+            severity=FailureSeverity(failure_event['severity']),
+            agent_id=failure_event.get('agent_id', self.agent_id),
+            timestamp=failure_event.get('timestamp', time.time()),
+            detection_method=failure_event.get('detection_method', 'unknown'),
+            confidence=failure_event.get('confidence', 0.5),
+            description=failure_event.get('description', ''),
+            recommended_recovery=RecoveryStrategy(failure_event.get('recommended_recovery', 'retry'))
+        )
+        
+        return self._failure_monitor.recover(failure, agent_state)
+
+
+# Singleton for integrated meta-cognition
+_integrated_meta_cognition: Optional[IntegratedMetaCognition] = None
+
+
+def get_integrated_meta_cognition(agent_id: str = "default") -> IntegratedMetaCognition:
+    """Get integrated meta-cognition instance."""
+    global _integrated_meta_cognition
+    if _integrated_meta_cognition is None or _integrated_meta_cognition.agent_id != agent_id:
+        _integrated_meta_cognition = IntegratedMetaCognition(agent_id=agent_id)
+    return _integrated_meta_cognition

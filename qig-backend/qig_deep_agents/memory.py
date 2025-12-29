@@ -110,7 +110,7 @@ class ContextWindow:
     def add_fragment(self, fragment: MemoryFragment) -> bool:
         """Add fragment if it fits in context window."""
         new_tokens = self.estimated_tokens + len(fragment.content) // 4
-        if new_tokens > self.max_memory_tokens:
+        if new_tokens > self.max_tokens:
             return False
         self.fragments.append(fragment)
         return True
