@@ -19,6 +19,15 @@ from typing import Dict, List, Optional, Any, Generator, Tuple
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 import numpy as np
+
+# Learning loop integration (replaces retry loops with learning)
+try:
+    from pantheon_learning_loop import get_learning_loop, handle_generation_failure
+    LEARNING_LOOP_AVAILABLE = True
+except ImportError:
+    LEARNING_LOOP_AVAILABLE = False
+    def handle_generation_failure(text, context=None):
+        return True, "Learning loop not available", []
 from functools import lru_cache
 
 # Try to import POSGrammar for improved POS tagging
