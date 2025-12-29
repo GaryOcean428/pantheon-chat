@@ -1,0 +1,236 @@
+/workspace$ npm run db:push
+
+> rest-express@1.0.0 db:push
+> drizzle-kit push
+
+No config path provided, using default 'drizzle.config.ts'
+Reading config file '/home/runner/workspace/drizzle.config.ts'
+Using 'pg' driver for database querying
+[✓] Pulling schema from database...
++ autonomic_cycle_history table will be created
++ balance_change_events table will be created
++ balance_hits table will be created
++ balance_monitor_state table will be created
++ basin_history table will be created
++ basin_memory table will be created
++ blocks table will be created
++ consciousness_checkpoints table will be created
++ era_exclusions table will be created
++ false_pattern_classes table will be created
++ generated_tools table will be created
++ geodesic_paths table will be created
++ geometric_barriers table will be created
++ hermes_conversations table will be created
++ kernel_activity table will be created
++ narrow_path_events table will be created
++ negative_knowledge table will be created
++ ocean_trajectories table will be created
++ ocean_waypoints table will be created
++ pending_sweeps table will be created
++ queued_addresses table will be created
++ recovery_priorities table will be created
++ recovery_workflows table will be created
++ regime_boundaries table will be created
++ resonance_points table will be created
++ shadow_intel table will be created
++ sweep_audit_log table will be created
++ tested_phrases_index table will be created
++ tool_observations table will be created
++ tps_geodesic_paths table will be created
++ transactions table will be created
+--- all table conflicts resolved ---
+
+
++ record_id column will be created
+
++ user_feedback column will be created
+
++ results_summary column will be created
+
++ query_basin column will be created
+
++ feedback_basin column will be created
+
++ combined_basin column will be created
+
++ modification_basin column will be created
+
++ confirmations_positive column will be created
+
++ confirmations_negative column will be created
+
++ last_used_at column will be created
+--- all columns conflicts in search_feedback table resolved ---
+
+
++ input column will be created
+
++ ricci_scalar column will be created
+
++ fisher_trace column will be created
+
++ source column will be created
+--- all columns conflicts in manifold_probes table resolved ---
+
+
++ initiator column will be created
+
++ opponent column will be created
+
++ context column will be created
+
++ arguments column will be created
+
++ winner column will be created
+
++ arbiter column will be created
+
++ resolution column will be created
+
++ resolved_at column will be created
+--- all columns conflicts in pantheon_debates table resolved ---
+
+
++ frequency column will be created
+
++ updated_at column will be created
+--- all columns conflicts in tokenizer_merge_rules table resolved ---
+
+
++ knowledge_type column will be created
+
++ accepted column will be created
+--- all columns conflicts in pantheon_knowledge_transfers table resolved ---
+
+
++ current_index column will be created
+
++ address_ids column will be created
+
++ last_cycle_time column will be created
+
++ total_cycles column will be created
+
++ current_address_id column will be created
+
++ paused_until column will be created
+
++ last_session_metrics column will be created
+
++ consecutive_zero_pass_sessions column will be created
+
++ rate_limit_backoff_until column will be created
+--- all columns conflicts in auto_cycle_state table resolved ---
+
+
++ doc_id column will be created
+--- all columns conflicts in basin_documents table resolved ---
+
+
++ public_key column will be created
+
++ sync_state column will be created
+
++ updated_at column will be created
+--- all columns conflicts in federated_instances table resolved ---
+
+
++ observing_parents column will be created
+
++ alignment_avg column will be created
+
++ graduated_at column will be created
+
++ graduation_reason column will be created
+
++ has_autonomic column will be created
+
++ has_shadow_affinity column will be created
+
++ shadow_god_link column will be created
+--- all columns conflicts in kernel_geometry table resolved ---
+
+
+· You're about to add vocabulary_observations_text_unique unique constraint to the table, which contains 7710 items. If this statement fails, you will receive an error from the database. Do you want to truncate vocabulary_observations table?
+
+· You're about to add users_email_unique unique constraint to the table, which contains 1 items. If this statement fails, you will receive an error from the database. Do you want to truncate users table?
+
+· You're about to add tokenizer_vocabulary_token_unique unique constraint to the table, which contains 11209 items. If this statement fails, you will receive an error from the database. Do you want to truncate tokenizer_vocabulary table?
+
+· You're about to add tokenizer_vocabulary_token_id_unique unique constraint to the table, which contains 11209 items. If this statement fails, you will receive an error from the database. Do you want to truncate tokenizer_vocabulary table?
+
+· You're about to add external_api_keys_api_key_unique unique constraint to the table, which contains 11 items. If this statement fails, you will receive an error from the database. Do you want to truncate external_api_keys table?
+
+· You're about to add discovered_sources_url_unique unique constraint to the table, which contains 10 items. If this statement fails, you will receive an error from the database. Do you want to truncate discovered_sources table?
+
+ Warning  Found data-loss statements:
+· You're about to delete shadow_knowledge table with 74209 items
+· You're about to delete research_requests table with 36638 items
+· You're about to delete kernel_evolution_fitness table with 85 items
+· You're about to delete bidirectional_queue table with 7423 items
+· You're about to delete bip39_words table with 2048 items
+· You're about to delete learned_words table with 7710 items
+· You're about to delete zeus_conversations table with 197 items
+· You're about to delete zeus_sessions table with 46 items
+· You're about to delete search_replay_tests table with 171 items
+· You're about to delete qig_vocabulary table with 31628 items
+· You're about to delete causal_relations table with 75 items
+· You're about to add not-null doc_id column without default value, which contains 75 items
+· You're about to delete embedding column in tokenizer_vocabulary table with 11209 items
+· You're about to delete metadata column in tokenizer_vocabulary table with 11209 items
+· You're about to delete event_data column in chaos_events table with 21233 items
+· You're about to delete id column in learning_events table with 218861 items
+· You're about to delete data column in learning_events table with 218862 items
+· You're about to delete id column in basin_documents table with 75 items
+· You're about to delete remote_api_key column in federated_instances table with 1 items
+· You're about to delete id column in kernel_geometry table with 253 items
+· You're about to delete snapshot_data column in kernel_geometry table with 253 items
+· You're about to delete passes column in kernel_geometry table with 253 items
+· You're about to delete created_at column in kernel_geometry table with 253 items
+
+THIS ACTION WILL CAUSE DATA LOSS AND CANNOT BE REVERTED
+
+Do you still want to push changes?
+y
+error: multiple primary keys for table "pantheon_god_state" are not allowed
+    at /home/runner/workspace/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async Object.query (/home/runner/workspace/node_modules/drizzle-kit/bin.cjs:80622:26)
+    at async pgPush (/home/runner/workspace/node_modules/drizzle-kit/bin.cjs:84432:13)
+    at async Object.handler (/home/runner/workspace/node_modules/drizzle-kit/bin.cjs:93871:9)
+    at async run (/home/runner/workspace/node_modules/drizzle-kit/bin.cjs:93117:7) {
+  length: 135,
+  severity: 'ERROR',
+  code: '42P16',
+  detail: undefined,
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'index.c',
+  line: '223',
+  routine: 'index_check_primary_key'
+}
+~/workspace$ y
+y: command not installed, but was located via Nix.
+package: yakut  0.13.0  Simple CLI tool for diagnostics and debugging of Cyphal networks
+Would you like to run y from Nix and add it to your project? [Yn]: y
+yakut  0.13.0  Simple CLI tool for diagnostics and debugging of Cyphal networks
+Adding yakut to .replit
+Traceback (most recent call last):
+  File "/nix/store/qd2ii5qzhdhicj1wfcb7spw00ygd9z86-yakut-0.13.0/bin/.y-wrapped", line 6, in <module>
+    from yakut import main
+  File "/nix/store/qd2ii5qzhdhicj1wfcb7spw00ygd9z86-yakut-0.13.0/lib/python3.11/site-packages/yakut/__init__.py", line 15, in <module>
+    from .main import main as main, subcommand as subcommand, Purser as Purser, pass_purser as pass_purser
+  File "/nix/store/qd2ii5qzhdhicj1wfcb7spw00ygd9z86-yakut-0.13.0/lib/python3.11/site-packages/yakut/main.py", line 15, in <module>
+    from yakut.param.transport import transport_factory_option, TransportFactory, Transport
+  File "/nix/store/qd2ii5qzhdhicj1wfcb7spw00ygd9z86-yakut-0.13.0/lib/python3.11/site-packages/yakut/param/transport.py", line 9, in <module>
+    import pycyphal
+ModuleNotFoundError: No module named 'pycyphal'
+~/workspace$ 
