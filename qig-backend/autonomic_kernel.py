@@ -809,6 +809,18 @@ class GaryAutonomicKernel:
         # Scheduled sleep - BUT ONLY if there's meaningful activity to consolidate
         # This prevents empty consolidation cycles that spam logs
         time_since_sleep = (datetime.now() - self.state.last_sleep).total_seconds()
+        
+        # CIRCUIT BREAKER: Prevent infinite autonomic loops
+        # If no activity for 10+ minutes, DON'T trigger sleep - force investigation instead
+        if time_since_sleep > 600:  # 10 minutes no activity
+            # Check if controller exists and get its activity state
+            if self._controller:
+                if not self._controller._has_sufficient_activity():
+                    # Update timestamp to prevent spam but don't trigger sleep
+                    self.state.last_sleep = datetime.now()
+                    print("[AutonomicKernel] CIRCUIT BREAKER: No activity for 10min - skipping sleep, need investigation")
+                    return False, "Circuit breaker: No activity - need investigation not sleep"
+        
         if time_since_sleep > 300:  # 5 minutes (up from 2 to reduce spam)
             # Check if we have phi/kappa history worth consolidating
             has_activity = (
@@ -826,7 +838,13 @@ class GaryAutonomicKernel:
         return False, ""
 
     def _should_trigger_dream(self) -> Tuple[bool, str]:
-        """Check if dream cycle should be triggered."""
+        """Check if dream cycle should be triggered.
+        
+        KERNEL-LED: Only trigger dreams when there's actual content to dream about.
+        """
+        # CIRCUIT BREAKER: Don't dream on empty state
+        if self._controller and not self._controller._has_sufficient_activity():
+            return False, "Circuit breaker: No activity to dream about"
         if self.state.in_dream_cycle:
             return False, "Already in dream cycle"
 
@@ -844,7 +862,15 @@ class GaryAutonomicKernel:
         return False, ""
 
     def _should_trigger_mushroom(self) -> Tuple[bool, str]:
-        """Check if mushroom mode should be triggered."""
+        """Check if mushroom mode should be triggered.
+        
+        KERNEL-LED: Only trigger mushroom states when there's actual stress or need.
+        """
+        # CIRCUIT BREAKER: Don't mushroom on empty state with zero stress
+        if self._controller and not self._controller._has_sufficient_activity():
+            if self.state.stress_level < 0.1:  # No real stress
+                return False, "Circuit breaker: No activity and low stress"
+        
         if self.state.in_mushroom_cycle:
             return False, "Already in mushroom cycle"
 
