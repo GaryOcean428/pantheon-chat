@@ -13,7 +13,8 @@ import { Router, Request, Response } from 'express';
 import { logger } from '../lib/logger';
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
-import { randomBytes, createHash, createCipheriv, createDecipheriv } from 'crypto';
+import { randomBytes, createCipheriv, createDecipheriv } from 'crypto';
+import { hashApiKey } from '../external-api/auth';
 import { isAuthenticated } from '../replitAuth';
 
 const ENCRYPTION_KEY = process.env.FEDERATION_ENCRYPTION_KEY || randomBytes(32).toString('hex');
@@ -137,11 +138,12 @@ federationRouter.post('/keys', async (req: Request, res: Response) => {
 
   try {
     const rawKey = `qig_${randomBytes(32).toString('hex')}`;
+    const keyHash = hashApiKey(rawKey);
     const scopesJson = JSON.stringify(requestedScopes);
 
     const result = await db.execute(sql`
       INSERT INTO external_api_keys (name, api_key, instance_type, scopes, rate_limit, is_active, created_at)
-      VALUES (${name}, ${rawKey}, ${instanceType}, ${scopesJson}::jsonb, ${finalRateLimit}, true, NOW())
+      VALUES (${name}, ${keyHash}, ${instanceType}, ${scopesJson}::jsonb, ${finalRateLimit}, true, NOW())
       RETURNING id
     `);
 
