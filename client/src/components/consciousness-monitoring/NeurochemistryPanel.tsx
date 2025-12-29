@@ -42,7 +42,7 @@ export function NeurochemistryPanel({ neurochemistry }: NeurochemistryPanelProps
                 <span>{label}</span>
               </div>
               <span className="text-muted-foreground">
-                {Math.round(neurochemistry[key] * 100)}%
+                {Math.round(((neurochemistry as Record<string, number | string>)[key] as number || 0) * 100)}%
               </span>
             </div>
             <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
