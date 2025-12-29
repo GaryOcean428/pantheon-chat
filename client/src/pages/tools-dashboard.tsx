@@ -1,217 +1,235 @@
-import { useState, useEffect } from "react";
+/**
+ * Tools Dashboard - Unified Tool Management
+ * 
+ * Merged from tools-dashboard.tsx and tool-factory-dashboard.tsx
+ * Features:
+ * - Generated tools listing and execution
+ * - Pattern management and discovery
+ * - Factory health metrics
+ * - Research bridge status
+ */
+
+import { useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { useToast } from "@/hooks/use-toast";
+} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Progress } from '@/components/ui/progress';
+import { useToast } from '@/hooks/use-toast';
 import {
   Wrench,
   Play,
-  Search,
   RefreshCw,
-  Clock,
-  CheckCircle2,
+  CheckCircle,
   XCircle,
-  Sparkles,
+  Loader2,
   Code,
+  Sparkles,
+  Activity,
+  Brain,
+  Database,
   Zap,
   TrendingUp,
-  Activity,
-  Loader2,
-} from "lucide-react";
+  Search,
+} from 'lucide-react';
 
 interface Tool {
   tool_id: string;
   name: string;
   description: string;
   input_schema: Record<string, string>;
-  output_schema?: { type: string };
-  source_pattern_id?: string;
+  output_schema: Record<string, string>;
   times_used: number;
   times_succeeded: number;
   times_failed: number;
   created_at: number;
 }
 
-interface ExecutionResult {
-  tool_id: string;
-  tool_name: string;
-  success: boolean;
-  result?: unknown;
-  error?: string;
-  timestamp: number;
-  inputs: Record<string, unknown>;
+interface Pattern {
+  pattern_id: string;
+  description: string;
+  source_type: string;
+  times_used: number;
+  success_rate: number;
+  created_at: number;
+}
+
+interface FactoryHealth {
+  patterns_count: number;
+  tools_deployed: number;
+  total_executions: number;
+  success_rate: number;
+  research_bridge_connected: boolean;
+  last_pattern_learned: string | null;
 }
 
 export default function ToolsDashboard() {
+  const { toast } = useToast();
   const [tools, setTools] = useState<Tool[]>([]);
+  const [patterns, setPatterns] = useState<Pattern[]>([]);
+  const [factoryHealth, setFactoryHealth] = useState<FactoryHealth | null>(null);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [executing, setExecuting] = useState<string | null>(null);
   const [selectedTool, setSelectedTool] = useState<Tool | null>(null);
   const [toolInputs, setToolInputs] = useState<Record<string, string>>({});
-  const [executing, setExecuting] = useState(false);
-  const [executionResults, setExecutionResults] = useState<ExecutionResult[]>([]);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const { toast } = useToast();
+  const [executionResult, setExecutionResult] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    fetchAllData();
+  }, []);
+
+  const fetchAllData = async () => {
+    setLoading(true);
+    await Promise.all([
+      fetchTools(),
+      fetchPatterns(),
+      fetchFactoryHealth(),
+    ]);
+    setLoading(false);
+  };
 
   const fetchTools = async () => {
-    setLoading(true);
     try {
-      const response = await fetch("/api/tools/list");
+      const response = await fetch('/api/tools/list');
       if (response.ok) {
         const data = await response.json();
         setTools(data.tools || []);
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to fetch tools",
-          variant: "destructive",
-        });
       }
     } catch (error) {
-      console.error("Failed to fetch tools:", error);
-      toast({
-        title: "Error",
-        description: "Failed to connect to tools API",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
+      console.error('Failed to fetch tools:', error);
     }
   };
 
-  useEffect(() => {
-    fetchTools();
-  }, []);
-
-  const handleSelectTool = (tool: Tool) => {
-    setSelectedTool(tool);
-    const initialInputs: Record<string, string> = {};
-    if (tool.input_schema) {
-      Object.keys(tool.input_schema).forEach((key) => {
-        initialInputs[key] = "";
-      });
-    }
-    setToolInputs(initialInputs);
-    setDialogOpen(true);
-  };
-
-  const handleExecuteTool = async () => {
-    if (!selectedTool) return;
-
-    setExecuting(true);
+  const fetchPatterns = async () => {
     try {
-      // Parse inputs based on expected types
-      const parsedInputs: Record<string, unknown> = {};
-      Object.entries(toolInputs).forEach(([key, value]) => {
-        const expectedType = selectedTool.input_schema?.[key];
-        if (expectedType === "int" || expectedType === "float" || expectedType === "number") {
-          parsedInputs[key] = parseFloat(value) || 0;
-        } else if (expectedType === "bool" || expectedType === "boolean") {
-          parsedInputs[key] = value.toLowerCase() === "true";
-        } else if (expectedType === "list" || expectedType === "array") {
-          try {
-            parsedInputs[key] = JSON.parse(value);
-          } catch {
-            parsedInputs[key] = value.split(",").map((s) => s.trim());
-          }
-        } else if (expectedType === "dict" || expectedType === "object") {
-          try {
-            parsedInputs[key] = JSON.parse(value);
-          } catch {
-            parsedInputs[key] = {};
-          }
-        } else {
-          parsedInputs[key] = value;
-        }
-      });
+      const response = await fetch('/api/tools/patterns');
+      if (response.ok) {
+        const data = await response.json();
+        setPatterns(data.patterns || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch patterns:', error);
+    }
+  };
 
-      const response = await fetch("/api/tools/execute", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+  const fetchFactoryHealth = async () => {
+    try {
+      const response = await fetch('/api/tools/health');
+      if (response.ok) {
+        const data = await response.json();
+        setFactoryHealth(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch factory health:', error);
+    }
+  };
+
+  const executeTool = async (tool: Tool) => {
+    setExecuting(tool.tool_id);
+    setExecutionResult(null);
+    
+    try {
+      const response = await fetch('/api/tools/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          tool_id: selectedTool.tool_id,
-          inputs: parsedInputs,
+          tool_id: tool.tool_id,
+          inputs: toolInputs,
         }),
       });
-
+      
       const data = await response.json();
-
-      const result: ExecutionResult = {
-        tool_id: selectedTool.tool_id,
-        tool_name: selectedTool.name,
-        success: data.success,
-        result: data.result,
-        error: data.error,
-        timestamp: Date.now(),
-        inputs: parsedInputs,
-      };
-
-      setExecutionResults((prev) => [result, ...prev].slice(0, 50));
-
+      
       if (data.success) {
+        setExecutionResult(JSON.stringify(data.result, null, 2));
         toast({
-          title: "Tool Executed",
-          description: `${selectedTool.name} completed successfully`,
+          title: 'Tool executed successfully',
+          description: `${tool.name} completed`,
         });
+        // Refresh to update usage stats
+        fetchTools();
       } else {
+        setExecutionResult(`Error: ${data.error}`);
         toast({
-          title: "Execution Failed",
-          description: data.error || "Unknown error",
-          variant: "destructive",
+          title: 'Tool execution failed',
+          description: data.error,
+          variant: 'destructive',
         });
       }
-
-      // Refresh tools to update usage stats
-      fetchTools();
     } catch (error) {
-      console.error("Tool execution failed:", error);
+      setExecutionResult(`Error: ${error}`);
       toast({
-        title: "Error",
-        description: "Failed to execute tool",
-        variant: "destructive",
+        title: 'Execution failed',
+        description: 'Could not connect to tool service',
+        variant: 'destructive',
       });
     } finally {
-      setExecuting(false);
+      setExecuting(null);
     }
   };
 
-  const filteredTools = tools.filter(
-    (tool) =>
-      tool.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      tool.description.toLowerCase().includes(searchQuery.toLowerCase())
+  const generateToolFromResearch = async () => {
+    try {
+      const response = await fetch('/api/tools/generate-from-research', {
+        method: 'POST',
+      });
+      const data = await response.json();
+      
+      if (data.success) {
+        toast({
+          title: 'Tool generation started',
+          description: data.message || 'Research-driven tool generation initiated',
+        });
+        setTimeout(fetchAllData, 2000);
+      } else {
+        toast({
+          title: 'Generation failed',
+          description: data.error,
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Could not start tool generation',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const filteredTools = tools.filter(tool =>
+    tool.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    tool.description.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const totalTools = tools.length;
-  const totalExecutions = tools.reduce((sum, t) => sum + t.times_used, 0);
-  const totalSuccesses = tools.reduce((sum, t) => sum + t.times_succeeded, 0);
-  const overallSuccessRate = totalExecutions > 0 ? (totalSuccesses / totalExecutions) * 100 : 0;
+  const filteredPatterns = patterns.filter(pattern =>
+    pattern.pattern_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    pattern.description.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
-  const getSuccessRate = (tool: Tool) => {
-    if (tool.times_used === 0) return null;
-    return (tool.times_succeeded / tool.times_used) * 100;
+  const getSuccessRateColor = (rate: number) => {
+    if (rate >= 0.8) return 'text-green-500';
+    if (rate >= 0.5) return 'text-yellow-500';
+    return 'text-red-500';
   };
 
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleString();
-  };
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2">Loading Tool Factory...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -220,301 +238,377 @@ export default function ToolsDashboard() {
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
             <Wrench className="h-8 w-8" />
-            Tools Dashboard
+            Tool Factory
           </h1>
           <p className="text-muted-foreground mt-1">
-            Browse, execute, and manage generated tools
+            Self-generating tools for autonomous capability expansion
           </p>
         </div>
-        <Button onClick={fetchTools} disabled={loading} variant="outline">
-          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-          Refresh
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={fetchAllData}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
+          <Button onClick={generateToolFromResearch}>
+            <Sparkles className="h-4 w-4 mr-2" />
+            Generate from Research
+          </Button>
+        </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Tools
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <Wrench className="h-5 w-5 text-primary" />
-              <span className="text-2xl font-bold">{totalTools}</span>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Factory Health Metrics */}
+      {factoryHealth && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Patterns</p>
+                  <p className="text-2xl font-bold">{factoryHealth.patterns_count}</p>
+                </div>
+                <Database className="h-8 w-8 text-blue-500" />
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Tools Deployed</p>
+                  <p className="text-2xl font-bold">{factoryHealth.tools_deployed}</p>
+                </div>
+                <Wrench className="h-8 w-8 text-purple-500" />
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Executions</p>
+                  <p className="text-2xl font-bold">{factoryHealth.total_executions}</p>
+                </div>
+                <Zap className="h-8 w-8 text-yellow-500" />
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Success Rate</p>
+                  <p className={`text-2xl font-bold ${getSuccessRateColor(factoryHealth.success_rate)}`}>
+                    {(factoryHealth.success_rate * 100).toFixed(0)}%
+                  </p>
+                </div>
+                <TrendingUp className="h-8 w-8 text-green-500" />
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Research Bridge</p>
+                  <p className="text-lg font-medium">
+                    {factoryHealth.research_bridge_connected ? (
+                      <span className="flex items-center text-green-500">
+                        <CheckCircle className="h-4 w-4 mr-1" /> Connected
+                      </span>
+                    ) : (
+                      <span className="flex items-center text-red-500">
+                        <XCircle className="h-4 w-4 mr-1" /> Offline
+                      </span>
+                    )}
+                  </p>
+                </div>
+                <Brain className="h-8 w-8 text-pink-500" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Executions
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <Zap className="h-5 w-5 text-yellow-500" />
-              <span className="text-2xl font-bold">{totalExecutions}</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Success Rate
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-green-500" />
-              <span className="text-2xl font-bold">{overallSuccessRate.toFixed(1)}%</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Recent Runs
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <Activity className="h-5 w-5 text-blue-500" />
-              <span className="text-2xl font-bold">{executionResults.length}</span>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Search tools and patterns..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-10"
+        />
       </div>
 
-      {/* Main Content */}
+      {/* Main Content Tabs */}
       <Tabs defaultValue="tools" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="tools">Available Tools</TabsTrigger>
-          <TabsTrigger value="history">Execution History</TabsTrigger>
+          <TabsTrigger value="tools" className="flex items-center gap-2">
+            <Wrench className="h-4 w-4" />
+            Generated Tools ({filteredTools.length})
+          </TabsTrigger>
+          <TabsTrigger value="patterns" className="flex items-center gap-2">
+            <Code className="h-4 w-4" />
+            Patterns ({filteredPatterns.length})
+          </TabsTrigger>
+          <TabsTrigger value="activity" className="flex items-center gap-2">
+            <Activity className="h-4 w-4" />
+            Activity
+          </TabsTrigger>
         </TabsList>
 
+        {/* Tools Tab */}
         <TabsContent value="tools" className="space-y-4">
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search tools by name or description..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-
-          {/* Tools Grid */}
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
-          ) : filteredTools.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <Sparkles className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold">No Tools Found</h3>
-                <p className="text-muted-foreground mt-1">
-                  {searchQuery
-                    ? "No tools match your search query"
-                    : "No tools have been generated yet. Tools are created automatically as the system learns."}
-                </p>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Tools List */}
+            <Card className="lg:col-span-1">
+              <CardHeader>
+                <CardTitle>Available Tools</CardTitle>
+                <CardDescription>
+                  {filteredTools.length} tools ready for execution
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ScrollArea className="h-[500px]">
+                  <div className="space-y-2">
+                    {filteredTools.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Wrench className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                        <p>No tools generated yet</p>
+                        <p className="text-sm">Click "Generate from Research" to create tools</p>
+                      </div>
+                    ) : (
+                      filteredTools.map((tool) => {
+                        const successRate = tool.times_used > 0 
+                          ? tool.times_succeeded / tool.times_used 
+                          : 0;
+                        
+                        return (
+                          <Card
+                            key={tool.tool_id}
+                            className={`cursor-pointer transition-colors hover:bg-accent ${
+                              selectedTool?.tool_id === tool.tool_id ? 'border-primary' : ''
+                            }`}
+                            onClick={() => {
+                              setSelectedTool(tool);
+                              setToolInputs({});
+                              setExecutionResult(null);
+                            }}
+                          >
+                            <CardContent className="p-4">
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <h4 className="font-medium">{tool.name}</h4>
+                                  <p className="text-sm text-muted-foreground line-clamp-2">
+                                    {tool.description}
+                                  </p>
+                                </div>
+                                <Badge variant="outline" className="ml-2">
+                                  {tool.times_used} uses
+                                </Badge>
+                              </div>
+                              {tool.times_used > 0 && (
+                                <div className="mt-2">
+                                  <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+                                    <span>Success rate</span>
+                                    <span className={getSuccessRateColor(successRate)}>
+                                      {(successRate * 100).toFixed(0)}%
+                                    </span>
+                                  </div>
+                                  <Progress value={successRate * 100} className="h-1" />
+                                </div>
+                              )}
+                            </CardContent>
+                          </Card>
+                        );
+                      })
+                    )}
+                  </div>
+                </ScrollArea>
               </CardContent>
             </Card>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredTools.map((tool) => {
-                const successRate = getSuccessRate(tool);
-                return (
-                  <Card key={tool.tool_id} className="hover:border-primary/50 transition-colors">
-                    <CardHeader className="pb-2">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <CardTitle className="text-base flex items-center gap-2">
-                            <Code className="h-4 w-4 text-primary" />
-                            {tool.name}
-                          </CardTitle>
-                          <CardDescription className="mt-1 line-clamp-2">
-                            {tool.description}
-                          </CardDescription>
-                        </div>
+
+            {/* Tool Execution Panel */}
+            <Card className="lg:col-span-1">
+              <CardHeader>
+                <CardTitle>
+                  {selectedTool ? selectedTool.name : 'Select a Tool'}
+                </CardTitle>
+                <CardDescription>
+                  {selectedTool ? selectedTool.description : 'Click a tool to execute it'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {selectedTool ? (
+                  <div className="space-y-4">
+                    {/* Input Fields */}
+                    {selectedTool.input_schema && Object.keys(selectedTool.input_schema).length > 0 && (
+                      <div className="space-y-3">
+                        <h4 className="text-sm font-medium">Inputs</h4>
+                        {Object.entries(selectedTool.input_schema).map(([key, type]) => (
+                          <div key={key}>
+                            <label className="text-sm text-muted-foreground">
+                              {key} <span className="text-xs">({String(type)})</span>
+                            </label>
+                            <Input
+                              placeholder={`Enter ${key}...`}
+                              value={toolInputs[key] || ''}
+                              onChange={(e) => setToolInputs(prev => ({
+                                ...prev,
+                                [key]: e.target.value
+                              }))}
+                            />
+                          </div>
+                        ))}
                       </div>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      {/* Input Schema */}
-                      {tool.input_schema && Object.keys(tool.input_schema).length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                          {Object.entries(tool.input_schema).map(([key, type]) => (
-                            <Badge key={key} variant="secondary" className="text-xs">
-                              {key}: {String(type)}
-                            </Badge>
-                          ))}
-                        </div>
+                    )}
+
+                    {/* Execute Button */}
+                    <Button
+                      className="w-full"
+                      onClick={() => executeTool(selectedTool)}
+                      disabled={executing === selectedTool.tool_id}
+                    >
+                      {executing === selectedTool.tool_id ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Executing...
+                        </>
+                      ) : (
+                        <>
+                          <Play className="h-4 w-4 mr-2" />
+                          Execute Tool
+                        </>
                       )}
+                    </Button>
 
-                      {/* Stats */}
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <Zap className="h-3 w-3" />
-                          {tool.times_used} runs
-                        </span>
-                        {successRate !== null && (
-                          <span
-                            className={`flex items-center gap-1 ${
-                              successRate >= 70
-                                ? "text-green-600"
-                                : successRate >= 50
-                                ? "text-yellow-600"
-                                : "text-red-600"
-                            }`}
-                          >
-                            {successRate >= 70 ? (
-                              <CheckCircle2 className="h-3 w-3" />
-                            ) : (
-                              <XCircle className="h-3 w-3" />
-                            )}
-                            {successRate.toFixed(0)}% success
-                          </span>
-                        )}
+                    {/* Execution Result */}
+                    {executionResult && (
+                      <div className="mt-4">
+                        <h4 className="text-sm font-medium mb-2">Result</h4>
+                        <ScrollArea className="h-48">
+                          <pre className="text-xs bg-muted p-3 rounded-lg overflow-x-auto">
+                            {executionResult}
+                          </pre>
+                        </ScrollArea>
                       </div>
-
-                      {/* Execute Button */}
-                      <Button
-                        onClick={() => handleSelectTool(tool)}
-                        className="w-full"
-                        size="sm"
-                      >
-                        <Play className="h-4 w-4 mr-2" />
-                        Execute Tool
-                      </Button>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <Play className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                    <p>Select a tool from the list to execute it</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
-        <TabsContent value="history" className="space-y-4">
-          {executionResults.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <Clock className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold">No Execution History</h3>
-                <p className="text-muted-foreground mt-1">
-                  Tool executions from this session will appear here
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <ScrollArea className="h-[600px]">
-              <div className="space-y-3">
-                {executionResults.map((result, index) => (
-                  <Card key={index} className={result.success ? "border-green-500/30" : "border-red-500/30"}>
-                    <CardHeader className="pb-2">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-sm flex items-center gap-2">
-                          {result.success ? (
-                            <CheckCircle2 className="h-4 w-4 text-green-500" />
-                          ) : (
-                            <XCircle className="h-4 w-4 text-red-500" />
-                          )}
-                          {result.tool_name}
-                        </CardTitle>
-                        <span className="text-xs text-muted-foreground">
-                          {formatDate(result.timestamp)}
-                        </span>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-2">
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Inputs</Label>
-                        <pre className="text-xs bg-muted p-2 rounded mt-1 overflow-x-auto">
-                          {JSON.stringify(result.inputs, null, 2)}
-                        </pre>
-                      </div>
-                      {result.success ? (
-                        <div>
-                          <Label className="text-xs text-muted-foreground">Result</Label>
-                          <pre className="text-xs bg-muted p-2 rounded mt-1 overflow-x-auto max-h-32">
-                            {JSON.stringify(result.result, null, 2)}
-                          </pre>
-                        </div>
-                      ) : (
-                        <div>
-                          <Label className="text-xs text-red-500">Error</Label>
-                          <p className="text-xs text-red-500 mt-1">{result.error}</p>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
+        {/* Patterns Tab */}
+        <TabsContent value="patterns" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Learned Patterns</CardTitle>
+              <CardDescription>
+                Code patterns the factory has learned for tool generation
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-[500px]">
+                <div className="space-y-2">
+                  {filteredPatterns.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Code className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                      <p>No patterns learned yet</p>
+                      <p className="text-sm">Patterns are discovered from research and user templates</p>
+                    </div>
+                  ) : (
+                    filteredPatterns.map((pattern) => (
+                      <Card key={pattern.pattern_id}>
+                        <CardContent className="p-4">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-mono text-sm">{pattern.pattern_id}</h4>
+                                <Badge variant="secondary">{pattern.source_type}</Badge>
+                              </div>
+                              <p className="text-sm text-muted-foreground mt-1">
+                                {pattern.description}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm">{pattern.times_used} uses</p>
+                              <p className={`text-sm ${getSuccessRateColor(pattern.success_rate)}`}>
+                                {(pattern.success_rate * 100).toFixed(0)}% success
+                              </p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))
+                  )}
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Activity Tab */}
+        <TabsContent value="activity" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Factory Activity</CardTitle>
+              <CardDescription>
+                Recent tool generations and executions
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {factoryHealth?.last_pattern_learned && (
+                  <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+                    <Sparkles className="h-5 w-5 text-yellow-500" />
+                    <div>
+                      <p className="font-medium">Last Pattern Learned</p>
+                      <p className="text-sm text-muted-foreground">
+                        {factoryHealth.last_pattern_learned}
+                      </p>
+                    </div>
+                  </div>
+                )}
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 bg-muted rounded-lg">
+                    <p className="text-sm text-muted-foreground">Self-Learning</p>
+                    <p className="text-lg font-medium flex items-center gap-2">
+                      <Brain className="h-5 w-5 text-purple-500" />
+                      {factoryHealth?.research_bridge_connected ? 'Active' : 'Inactive'}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Tools learn from successful executions
+                    </p>
+                  </div>
+                  
+                  <div className="p-4 bg-muted rounded-lg">
+                    <p className="text-sm text-muted-foreground">Economic Impact</p>
+                    <p className="text-lg font-medium flex items-center gap-2">
+                      <Zap className="h-5 w-5 text-yellow-500" />
+                      {factoryHealth?.total_executions || 0} executions
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Each execution generates value
+                    </p>
+                  </div>
+                </div>
               </div>
-            </ScrollArea>
-          )}
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
-
-      {/* Execute Tool Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Code className="h-5 w-5" />
-              {selectedTool?.name}
-            </DialogTitle>
-            <DialogDescription>{selectedTool?.description}</DialogDescription>
-          </DialogHeader>
-
-          {selectedTool && (
-            <div className="space-y-4">
-              {/* Input Fields */}
-              {selectedTool.input_schema &&
-                Object.entries(selectedTool.input_schema).map(([key, type]) => (
-                  <div key={key} className="space-y-2">
-                    <Label htmlFor={key}>
-                      {key}
-                      <span className="text-xs text-muted-foreground ml-2">({String(type)})</span>
-                    </Label>
-                    <Input
-                      id={key}
-                      value={toolInputs[key] || ""}
-                      onChange={(e) =>
-                        setToolInputs((prev) => ({ ...prev, [key]: e.target.value }))
-                      }
-                      placeholder={`Enter ${key}...`}
-                    />
-                  </div>
-                ))}
-
-              {/* Execute Button */}
-              <Button
-                onClick={handleExecuteTool}
-                disabled={executing}
-                className="w-full"
-              >
-                {executing ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Executing...
-                  </>
-                ) : (
-                  <>
-                    <Play className="h-4 w-4 mr-2" />
-                    Execute
-                  </>
-                )}
-              </Button>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
