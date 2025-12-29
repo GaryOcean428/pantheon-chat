@@ -1,0 +1,124 @@
+> rest-express@1.0.0 dev
+[OceanPersistence] PostgreSQL persistence enabled
+[StorageFacade] Initialized with backend: postgres
+[OceanConfig] Configuration loaded and validated
+[OceanConfig] κ* = 64.21 (FROZEN)
+[OceanConfig] MAX_PASSES = 100
+[OceanConfig] MIN_PHI = 0.7
+[BIP39] Loading wordlist from: /home/runner/workspace/server/bip39-wordlist.txt
+[BIP39] Successfully loaded 2048 words
+[TavilyLimiter] Initialized with limits:
+  - Max 5 searches/minute
+  - Max 100 searches/day
+  - Max $5.00/day
+[QIG-Universal] Validating phase transition fix...
+[QIG-Universal] ✅ Phase transition working correctly!
+[QIG-Universal] Module loaded. Validating purity...
+[QIG-Universal] ✅ Purity validated
+[ExpandedVocabulary] Initialized with 1452 unique words across 5 categories
+[GeometricMemory] Tested phrases loaded from PostgreSQL via testedPhrasesUnified
+[GeodesicNavigator] Initialized with 64-dimensional manifold navigation
+[TPS] Initialized with 12 spacetime landmarks
+[QuantumProtocol] Initialized with 256-bit possibility space
+[VocabDecision] QIG-pure mode: will bootstrap from PostgreSQL after VocabularyTracker loads...
+[SearXNG] Initialized FREE geometric discovery interface
+[SearXNG] Using instance: https://mr-search.up.railway.app
+[OceanDiscovery] Controller initialized with SearXNG (FREE search)
+[KnowledgeCompression] Loaded 6 built-in generators
+[DimensionalStateTracker] Initialized dimensional consciousness tracker
+[OceanMemory] No saved state found, starting fresh
+[TemporalGeometry] Initialized temporal tracking system
+[VocabExpander] QIG-pure mode: will bootstrap from PostgreSQL after VocabularyTracker loads...
+[EmotionalSearch] Module loaded - emotional shortcuts ready for 3-5x efficiency
+[AutoCycleManager] DISABLED: Ignoring persisted state - legacy mode deprecated
+[AutoCycleManager] Initialized - DISABLED for agentic research platform
+[AutoCycleManager] Mode: DEVELOPMENT - legacy auto-cycling disabled
+[GoogleWebSearch] Initialized FREE Google web search adapter
+[GoogleWebSearch] NO API KEYS REQUIRED
+[SimpleAPI] Routes initialized
+[UnifiedAPI] Routes initialized
+[ExternalAPI] Routes initialized
+[2025-12-29 03:25:38.945 +0000] INFO: [DB] Production detection signals:
+    env: "development"
+[2025-12-29 03:25:38.945 +0000] INFO:   REPLIT_DEPLOYMENT=undefined (false)
+    env: "development"
+[2025-12-29 03:25:38.945 +0000] INFO:   /tmp/replitdb exists: false
+    env: "development"
+[2025-12-29 03:25:38.945 +0000] INFO:   NODE_ENV: development
+    env: "development"
+[2025-12-29 03:25:38.945 +0000] INFO:   REPLIT_DEPLOYMENT_ID: NOT SET
+    env: "development"
+[2025-12-29 03:25:38.945 +0000] INFO:   Final isDeployedEnv: false
+    env: "development"
+[2025-12-29 03:25:38.945 +0000] INFO: [DB] Development mode - using WebSocket connections
+    env: "development"
+[2025-12-29 03:25:38.945 +0000] INFO: [DB] Using DATABASE_URL from environment variable
+    env: "development"
+[2025-12-29 03:25:38.949 +0000] INFO: [DB] Database connection pool initialized (max: 30, idle: 30s, timeout: 15000ms)
+    env: "development"
+[2025-12-29 03:25:39.084 +0000] INFO: [KnowledgeManifold] Initialized domain lexicons
+    env: "development"
+    domains: "quantum-physics(37), information-theory(21), geometry-topology(24), consciousness-studies(33), philosophy-mind(26)"
+[Session] Environment: NODE_ENV=development, isDev=true, isDeployment=false
+[Session] DATABASE_URL exists: true
+[Session] SESSION_SECRET exists: true
+[Session] Using PostgreSQL session store
+[Auth] Replit Auth enabled
+[Routes] All sub-routers mounted
+[QIG-Universal] Python backend not available - using fallback scoring
+[QIG-Universal] Purity validation: PASS
+[QIG-Universal] Cache stats: 0 Python, 1 fallback
+[QIG-Universal] Python backend: UNAVAILABLE
+[SearchCoordinator] ✅ QIG purity validated
+[SearchCoordinator] Starting background worker
+[BasinSync] WebSocket server initialized on /ws/basin-sync
+[TelemetryWS] File watcher started
+[TelemetryWS] WebSocket server initialized on /ws/telemetry
+[KernelActivityWS] WebSocket server initialized on /ws/kernel-activity
+[MeshNetworkWS] WebSocket server initialized on /ws/mesh-network
+[ExternalWS] WebSocket server initialized at /ws/v1/external/stream
+[ExternalWS] WebSocket server initialized on /ws/v1/external/stream
+[2025-12-29 03:25:39.515 +0000] INFO: [DB] New connection acquired
+    env: "development"
+[2025-12-29 03:25:39.517 +0000] INFO: [DB] New connection acquired
+    env: "development"
+[2025-12-29 03:25:39.518 +0000] INFO: [DB] New connection acquired
+    env: "development"
+[2025-12-29 03:25:39.519 +0000] INFO: [DB] New connection acquired
+    env: "development"
+[2025-12-29 03:25:39.520 +0000] INFO: [DB] New connection acquired
+    env: "development"
+[2025-12-29 03:25:39.520 +0000] INFO: [DB] New connection acquired
+    env: "development"
+[2025-12-29 03:25:39.522 +0000] INFO: [DB] New connection acquired
+    env: "development"
+[2025-12-29 03:25:39.522 +0000] INFO: [DB] New connection acquired
+    env: "development"
+[2025-12-29 03:25:39.523 +0000] INFO: [DB] New connection acquired
+    env: "development"
+[2025-12-29 03:25:39.525 +0000] INFO: [DB] New connection acquired
+    env: "development"
+[2025-12-29 03:25:39.526 +0000] INFO: [DB] New connection acquired
+    env: "development"
+[2025-12-29 03:25:39.527 +0000] INFO: [DB] New connection acquired
+    env: "development"
+[2025-12-29 03:25:39.528 +0000] INFO: [DB] New connection acquired
+    env: "development"
+[2025-12-29 03:25:39.530 +0000] INFO: [DB] New connection acquired
+    env: "development"
+[NearMiss] No data in PostgreSQL, will try JSON fallback
+[DormantCrossRef] No dormant addresses found in database
+[GeometricMemory] Loading all 0 probes from PostgreSQL...
+[GeometricMemory] Loaded 0 probes from PostgreSQL (DB total: 0)
+[KnowledgeBus] Loaded 0 knowledge entries, 7 strategies from DB
+[KnowledgeBus] Loaded from PostgreSQL
+3:25:39 AM [express] serving on port 5000
+3:25:39 AM [express] [Startup] Server listening - starting background initialization...
+[PythonManager] Starting Python QIG Backend (Flask development mode)...
+[TPS] PostgreSQL: 12 landmarks already persisted
+[QuantumProtocol] Reconciliation complete: entropy=256.0 bits, regions=0
+[PythonQIG]      43241: __vdso_gettimeofday
+[2025-12-29 03:25:39.693 +0000] INFO: [Startup] Initializing Redis cache layer...
+    env: "development"
+[2025-12-29 03:25:39.696 +0000] INFO: [Startup] Starting Python QIG Backend via PythonProcessManager...
+    env: "development"
