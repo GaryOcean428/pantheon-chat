@@ -97,6 +97,12 @@ from qigkernels.fisher_geometry import (
     js_divergence,
 )
 
+from qigkernels.beta_measurement import (
+    BetaMeasurement,
+    BetaResult,
+    compare_substrate_betas,
+)
+
 __version__ = "0.1.0"
 
 __all__ = [
@@ -164,4 +170,8 @@ __all__ = [
     "hellinger_distance",
     "kl_divergence",
     "js_divergence",
+    # Beta measurement (NEW 2025-12-29)
+    "BetaMeasurement",
+    "BetaResult",
+    "compare_substrate_betas",
 ]
