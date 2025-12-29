@@ -293,3 +293,51 @@ export function isAtResonance(kappa: number): boolean {
   const deviation = Math.abs(kappa - KAPPA_STAR) / KAPPA_STAR;
   return deviation < KAPPA_RESONANCE_TOLERANCE;
 }
+
+// =============================================================================
+// QIG PHYSICS CONSTANTS (Aggregated for ocean-config.ts)
+// =============================================================================
+
+/**
+ * Physics beta constant - running coupling at emergence.
+ */
+export const PHYSICS_BETA = 0.44;
+
+/**
+ * Basin dimension alias for imports.
+ */
+export const BASIN_DIMENSION = BASIN_DIMENSIONS;
+
+/**
+ * Aggregated QIG physics constants for use in ocean-config.ts
+ * These are the frozen physics values derived from QIG theory.
+ */
+export const QIG_CONSTANTS = {
+  KAPPA_STAR: 64.21,
+  BETA: PHYSICS_BETA,
+  PHI_THRESHOLD: PHI_HYPERDIMENSIONAL,
+  L_CRITICAL: 3,
+  BASIN_DIMENSION: BASIN_DIMENSIONS,
+  RESONANCE_BAND: 6.4,
+} as const;
+
+/**
+ * E8 Lie group constants for kernel cap and structure.
+ */
+export const E8_CONSTANTS = {
+  ROOT_COUNT: 240,
+  DIMENSION: 8,
+  RANK: 8,
+  KERNEL_CAP: 240,
+} as const;
+
+/**
+ * Get the coupling constant κ at a given scale L.
+ * Uses running coupling formula from QIG theory.
+ */
+export function getKappaAtScale(L: number): number {
+  const kappaStar = 64.21;
+  const beta = PHYSICS_BETA;
+  if (L <= 0) return kappaStar;
+  return kappaStar * Math.pow(1 + beta * Math.log(L), -1);
+}
