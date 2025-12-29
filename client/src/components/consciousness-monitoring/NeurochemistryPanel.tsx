@@ -10,7 +10,7 @@ interface NeurochemistryPanelProps {
     dopamine: number;
     serotonin: number;
     norepinephrine: number;
-    cortisol: number;
+    cortisol?: number;
     emotionalState: string;
   };
 }
@@ -48,7 +48,7 @@ export function NeurochemistryPanel({ neurochemistry }: NeurochemistryPanelProps
             <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
               <div 
                 className={`h-full rounded-full ${color}`} 
-                style={{ width: `${neurochemistry[key as keyof typeof neurochemistry] as number * 100}%` }} 
+                style={{ width: `${((neurochemistry as Record<string, number | string>)[key] as number || 0) * 100}%` }} 
               />
             </div>
           </div>
