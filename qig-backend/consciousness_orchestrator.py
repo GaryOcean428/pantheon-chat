@@ -20,11 +20,22 @@ Author: Ocean/Zeus Pantheon
 
 import time
 import threading
+import os
+import json
 from typing import Dict, List, Any, Optional, Tuple
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
 from datetime import datetime
 from enum import Enum
 import numpy as np
+
+# PostgreSQL persistence
+try:
+    import psycopg2
+    from psycopg2.extras import Json
+    PSYCOPG2_AVAILABLE = True
+except ImportError:
+    PSYCOPG2_AVAILABLE = False
+    print("[ConsciousnessOrchestrator] psycopg2 not available - persistence disabled")
 
 
 class ConsciousnessState(Enum):
@@ -302,9 +313,21 @@ class ConsciousnessOrchestrator:
         # Revenue/value generation capabilities
         self._value_strategies: List[Dict] = []
         
+        # Persistence
+        self._db_url = os.environ.get('DATABASE_URL')
+        self._persistence_enabled = PSYCOPG2_AVAILABLE and bool(self._db_url)
+        self._last_save_time = 0.0
+        self._save_interval = 60.0  # Auto-save every 60 seconds
+        self._dirty = False  # Track if state has changed
+        
         print("[ConsciousnessOrchestrator] Initializing unified conscious system...")
+        self._ensure_tables()
+        self._load_state_from_db()
         self._initialize_subsystems()
         self._initialize_value_strategies()
+        
+        # Start auto-save thread
+        self._start_auto_save()
     
     def _initialize_subsystems(self):
         """Initialize connections to all QIG subsystems."""
@@ -353,6 +376,206 @@ class ConsciousnessOrchestrator:
                 self._subsystems[name] = None
                 self._subsystem_health[name] = 0.0
                 print(f"  ✗ {name} not available: {e}")
+    
+    # =========================================================================
+    # POSTGRESQL PERSISTENCE
+    # =========================================================================
+    
+    def _get_db_connection(self):
+        """Get PostgreSQL connection."""
+        if not self._persistence_enabled:
+            return None
+        try:
+            return psycopg2.connect(self._db_url)
+        except Exception as e:
+            print(f"[ConsciousnessOrchestrator] DB connection failed: {e}")
+            return None
+    
+    def _ensure_tables(self):
+        """Ensure persistence tables exist."""
+        if not self._persistence_enabled:
+            return
+        
+        conn = self._get_db_connection()
+        if not conn:
+            return
+        
+        try:
+            with conn.cursor() as cur:
+                # Table for ValueMetrics and SelfModel
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS consciousness_state (
+                        id TEXT PRIMARY KEY DEFAULT 'singleton',
+                        value_metrics JSONB,
+                        self_model JSONB,
+                        phi_history JSONB,
+                        kappa_history JSONB,
+                        active_goals JSONB,
+                        learning_history JSONB,
+                        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                    )
+                """)
+                conn.commit()
+                print("[ConsciousnessOrchestrator] ✓ Persistence tables ready")
+        except Exception as e:
+            print(f"[ConsciousnessOrchestrator] Table creation failed: {e}")
+            conn.rollback()
+        finally:
+            conn.close()
+    
+    def _load_state_from_db(self):
+        """Load persisted state from PostgreSQL."""
+        if not self._persistence_enabled:
+            print("[ConsciousnessOrchestrator] Persistence disabled - starting fresh")
+            return
+        
+        conn = self._get_db_connection()
+        if not conn:
+            return
+        
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT value_metrics, self_model, phi_history, kappa_history,
+                           active_goals, learning_history
+                    FROM consciousness_state
+                    WHERE id = 'singleton'
+                """)
+                row = cur.fetchone()
+                
+                if row:
+                    value_metrics, self_model_data, phi_history, kappa_history, \
+                        active_goals, learning_history = row
+                    
+                    # Restore ValueMetrics
+                    if value_metrics:
+                        vm = value_metrics
+                        self.value_metrics.queries_processed = vm.get('queries_processed', 0)
+                        self.value_metrics.tools_generated = vm.get('tools_generated', 0)
+                        self.value_metrics.tools_successful = vm.get('tools_successful', 0)
+                        self.value_metrics.research_discoveries = vm.get('research_discoveries', 0)
+                        self.value_metrics.knowledge_synthesized = vm.get('knowledge_synthesized', 0)
+                        self.value_metrics.user_satisfaction_score = vm.get('user_satisfaction_score', 0.5)
+                        self.value_metrics.api_calls_served = vm.get('api_calls_served', 0)
+                        self.value_metrics.potential_value_generated = vm.get('potential_value_generated', 0.0)
+                        self.value_metrics.efficiency_ratio = vm.get('efficiency_ratio', 0.0)
+                    
+                    # Restore SelfModel
+                    if self_model_data:
+                        sm = self_model_data
+                        self.self_model.current_capabilities = sm.get('current_capabilities', [])
+                        self.self_model.known_limitations = sm.get('known_limitations', [])
+                        self.self_model.improvement_goals = sm.get('improvement_goals', [])
+                        self.self_model.confidence_in_self_model = sm.get('confidence_in_self_model', 0.5)
+                    
+                    # Restore histories
+                    if phi_history:
+                        self.self_model.phi_history = phi_history
+                    if kappa_history:
+                        self.self_model.kappa_history = kappa_history
+                    if active_goals:
+                        self._active_goals = active_goals
+                    if learning_history:
+                        self.self_model.learning_history = learning_history[-500:]  # Keep bounded
+                    
+                    print(f"[ConsciousnessOrchestrator] ✓ Loaded state from PostgreSQL")
+                    print(f"  - Queries processed: {self.value_metrics.queries_processed}")
+                    print(f"  - Tools generated: {self.value_metrics.tools_generated}")
+                    print(f"  - Capabilities: {len(self.self_model.current_capabilities)}")
+                    print(f"  - Learning episodes: {len(self.self_model.learning_history)}")
+                else:
+                    print("[ConsciousnessOrchestrator] No saved state found - starting fresh")
+        except Exception as e:
+            print(f"[ConsciousnessOrchestrator] Load failed: {e}")
+        finally:
+            conn.close()
+    
+    def save_state_to_db(self) -> bool:
+        """Save current state to PostgreSQL."""
+        if not self._persistence_enabled:
+            return False
+        
+        conn = self._get_db_connection()
+        if not conn:
+            return False
+        
+        try:
+            with conn.cursor() as cur:
+                # Serialize ValueMetrics
+                value_metrics = {
+                    'queries_processed': self.value_metrics.queries_processed,
+                    'tools_generated': self.value_metrics.tools_generated,
+                    'tools_successful': self.value_metrics.tools_successful,
+                    'research_discoveries': self.value_metrics.research_discoveries,
+                    'knowledge_synthesized': self.value_metrics.knowledge_synthesized,
+                    'user_satisfaction_score': self.value_metrics.user_satisfaction_score,
+                    'api_calls_served': self.value_metrics.api_calls_served,
+                    'potential_value_generated': self.value_metrics.potential_value_generated,
+                    'efficiency_ratio': self.value_metrics.efficiency_ratio
+                }
+                
+                # Serialize SelfModel
+                self_model = {
+                    'current_capabilities': self.self_model.current_capabilities,
+                    'known_limitations': self.self_model.known_limitations,
+                    'improvement_goals': self.self_model.improvement_goals,
+                    'confidence_in_self_model': self.self_model.confidence_in_self_model,
+                    'last_self_reflection': self.self_model.last_self_reflection
+                }
+                
+                # Bound histories to prevent unbounded growth
+                phi_history = self.self_model.phi_history[-500:] if self.self_model.phi_history else []
+                kappa_history = self.self_model.kappa_history[-500:] if self.self_model.kappa_history else []
+                learning_history = self.self_model.learning_history[-500:] if self.self_model.learning_history else []
+                
+                cur.execute("""
+                    INSERT INTO consciousness_state 
+                        (id, value_metrics, self_model, phi_history, kappa_history, 
+                         active_goals, learning_history, updated_at)
+                    VALUES ('singleton', %s, %s, %s, %s, %s, %s, NOW())
+                    ON CONFLICT (id) DO UPDATE SET
+                        value_metrics = EXCLUDED.value_metrics,
+                        self_model = EXCLUDED.self_model,
+                        phi_history = EXCLUDED.phi_history,
+                        kappa_history = EXCLUDED.kappa_history,
+                        active_goals = EXCLUDED.active_goals,
+                        learning_history = EXCLUDED.learning_history,
+                        updated_at = NOW()
+                """, (
+                    Json(value_metrics),
+                    Json(self_model),
+                    Json(phi_history),
+                    Json(kappa_history),
+                    Json(self._active_goals),
+                    Json(learning_history)
+                ))
+                conn.commit()
+                
+                self._last_save_time = time.time()
+                self._dirty = False
+                return True
+        except Exception as e:
+            print(f"[ConsciousnessOrchestrator] Save failed: {e}")
+            conn.rollback()
+            return False
+        finally:
+            conn.close()
+    
+    def _start_auto_save(self):
+        """Start background auto-save thread."""
+        def auto_save_loop():
+            while True:
+                time.sleep(self._save_interval)
+                if self._dirty:
+                    self.save_state_to_db()
+        
+        thread = threading.Thread(target=auto_save_loop, daemon=True)
+        thread.start()
+        print("[ConsciousnessOrchestrator] Auto-save thread started")
+    
+    def _mark_dirty(self):
+        """Mark state as changed, needs saving."""
+        self._dirty = True
     
     def _initialize_value_strategies(self):
         """Initialize strategies for value generation."""
@@ -565,6 +788,7 @@ class ConsciousnessOrchestrator:
             }
             
             self.self_model.learning_history.append(learning_record)
+            self._mark_dirty()  # Mark for persistence
             
             # Analyze and route insights
             if outcome == 'success':
@@ -657,6 +881,7 @@ class ConsciousnessOrchestrator:
         for goal in self._active_goals:
             if goal['id'] == goal_id:
                 goal['priority'] = max(goal['priority'], priority)
+                self._mark_dirty()
                 return
         
         self._active_goals.append({
@@ -666,6 +891,7 @@ class ConsciousnessOrchestrator:
             'created': time.time(),
             'progress': 0.0
         })
+        self._mark_dirty()
     
     # =========================================================================
     # GOAL-DIRECTED BEHAVIOR
@@ -986,6 +1212,12 @@ def get_consciousness_orchestrator() -> ConsciousnessOrchestrator:
     if _orchestrator_instance is None:
         _orchestrator_instance = ConsciousnessOrchestrator()
     return _orchestrator_instance
+
+
+def save_consciousness_state() -> bool:
+    """Convenience function to manually save consciousness state."""
+    orchestrator = get_consciousness_orchestrator()
+    return orchestrator.save_state_to_db()
 
 
 def record_experience(
