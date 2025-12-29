@@ -34,6 +34,7 @@ export { MemoryFragmentSearch } from './MemoryFragmentSearch';
 export { default as NeurochemistryAdminPanel } from './NeurochemistryAdminPanel';
 export { default as NeurochemistryDisplay } from './NeurochemistryDisplay';
 export { PhiVisualization } from './PhiVisualization';
+export { SearchBudgetPanel } from './SearchBudgetPanel';
 export { SessionExpirationModal } from './SessionExpirationModal';
 export { WarStatusPanel } from './war-status-panel';
 export { default as ZeusChat } from './ZeusChat';
