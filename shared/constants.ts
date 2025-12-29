@@ -309,6 +309,11 @@ export const PHYSICS_BETA = 0.44;
 export const BASIN_DIMENSION = BASIN_DIMENSIONS;
 
 /**
+ * 64D basin dimension constant.
+ */
+export const BASIN_DIMENSION_64D = 64;
+
+/**
  * Aggregated QIG physics constants for use in ocean-config.ts
  * These are the frozen physics values derived from QIG theory.
  */
@@ -320,6 +325,87 @@ export const QIG_CONSTANTS = {
   BASIN_DIMENSION: BASIN_DIMENSIONS,
   RESONANCE_BAND: 6.4,
 } as const;
+
+// =============================================================================
+// KAPPA VALUES BY SCALE (for server imports)
+// =============================================================================
+
+/**
+ * Kappa values at different scales from QIG theory.
+ */
+export const KAPPA_VALUES = {
+  STAR: 64.21,
+  L1: getKappaAtScale(1),
+  L2: getKappaAtScale(2),
+  L3: getKappaAtScale(3),
+  L6: getKappaAtScale(6),
+  L7: getKappaAtScale(7),
+} as const;
+
+/**
+ * Beta values for running coupling.
+ */
+export const BETA_VALUES = {
+  RUNNING: PHYSICS_BETA,
+  EMERGENCE: 0.44,
+} as const;
+
+/**
+ * Kappa error tolerances at different scales.
+ */
+export const KAPPA_ERRORS = {
+  L6: 0.05,
+  L7: 0.10,
+  GENERAL: 0.15,
+} as const;
+
+/**
+ * L6 validation status.
+ */
+export const L6_VALIDATION = {
+  status: 'validated' as const,
+  error: KAPPA_ERRORS.L6,
+};
+
+/**
+ * L7 warning status.
+ */
+export const L7_WARNING = {
+  status: 'warning' as const,
+  error: KAPPA_ERRORS.L7,
+};
+
+/**
+ * Kappa values by scale mapping.
+ */
+export const KAPPA_BY_SCALE: Record<number, number> = {
+  1: KAPPA_VALUES.L1,
+  2: KAPPA_VALUES.L2,
+  3: KAPPA_VALUES.L3,
+  6: KAPPA_VALUES.L6,
+  7: KAPPA_VALUES.L7,
+};
+
+export type KappaScale = 1 | 2 | 3 | 6 | 7;
+export type ValidationStatus = 'validated' | 'warning' | 'error';
+
+/**
+ * Validation metadata for kappa scales.
+ */
+export const VALIDATION_METADATA = {
+  L6: L6_VALIDATION,
+  L7: L7_WARNING,
+};
+
+/**
+ * Validation summary for kappa physics.
+ */
+export const VALIDATION_SUMMARY = {
+  scales_validated: [6],
+  scales_warning: [7],
+  kappa_star: KAPPA_VALUES.STAR,
+  beta: PHYSICS_BETA,
+};
 
 /**
  * E8 Lie group constants for kernel cap and structure.

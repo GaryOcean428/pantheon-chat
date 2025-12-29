@@ -129,6 +129,7 @@ export {
   getKappaAtScale,
   VALIDATION_METADATA,
   VALIDATION_SUMMARY,
+  BASIN_DIMENSION_64D,
   type KappaScale,
   type ValidationStatus,
   // QIG
