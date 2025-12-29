@@ -47,6 +47,18 @@ from .response_guardrails import (
 )
 from .search_strategy_learner import get_strategy_learner_with_persistence
 
+# Import continuous learner for vocabulary training from chat and search
+try:
+    from ..coordizers.continuous_learner import learn_from_chat as _learn_from_chat
+    from ..coordizers.continuous_learner import learn_from_search as _learn_from_search
+    CONTINUOUS_LEARNING_AVAILABLE = True
+except ImportError:
+    CONTINUOUS_LEARNING_AVAILABLE = False
+    def _learn_from_chat(user_input: str, response: str) -> int:
+        return 0
+    def _learn_from_search(query: str, results: list) -> int:
+        return 0
+
 # Import conversation persistence for context retention
 try:
     from zeus_conversation_persistence import get_zeus_conversation_persistence
@@ -794,6 +806,15 @@ class ZeusConversationHandler(GeometricGenerationMixin):
         response_content = result.get('response', result.get('content', ''))
         phi_estimate = result.get('metadata', {}).get('phi', 0.0) if isinstance(result.get('metadata'), dict) else 0.0
         self._save_message(role='zeus', content=response_content[:2000], phi_estimate=phi_estimate)
+        
+        # CONTINUOUS LEARNING: Train vocabulary from chat exchange
+        if CONTINUOUS_LEARNING_AVAILABLE:
+            try:
+                tokens_learned = _learn_from_chat(message, response_content)
+                if tokens_learned > 0:
+                    print(f"[ZeusChat] Learned {tokens_learned} tokens from conversation")
+            except Exception as e:
+                pass  # Don't let learning break the response
         
         # Add session info to result
         result['session_id'] = self._current_session_id
@@ -1748,6 +1769,16 @@ Zeus Response (Geometric Interpretation):"""
             # Learn vocabulary from high-Φ results
             if result['phi'] > 0.6:
                 self.conversation_encoder.learn_from_text(result['content'], result['phi'])
+        
+        # CONTINUOUS LEARNING: Learn from search results
+        if CONTINUOUS_LEARNING_AVAILABLE and result_basins:
+            try:
+                result_texts = [r['content'] for r in result_basins if r['content']]
+                tokens_learned = _learn_from_search(query, result_texts)
+                if tokens_learned > 0:
+                    print(f"[ZeusChat] Learned {tokens_learned} tokens from search results")
+            except Exception:
+                pass
         
         # Track results summary for feedback
         results_summary = f"Found {len(result_basins)} results for '{query}'"

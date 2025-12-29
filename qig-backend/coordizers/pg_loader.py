@@ -80,38 +80,35 @@ class PostgresCoordizer(FisherCoordizer):
         try:
             with conn.cursor() as cur:
                 cur.execute("""
-                    SELECT token, basin_embedding, phi_score, frequency, source_type, token_id
+                    SELECT token, embedding, phi_score, frequency, source_type, token_id
                     FROM tokenizer_vocabulary
-                    WHERE basin_embedding IS NOT NULL
-                      AND LENGTH(token) >= 3
-                      AND source_type NOT IN ('byte_level', 'checkpoint_byte', 'special')
-                      AND token ~ '^[a-zA-Z]+$'
-                    ORDER BY phi_score DESC
-                    LIMIT 5000
+                    WHERE embedding IS NOT NULL
+                      AND array_length(embedding, 1) = 64
+                    ORDER BY token_id ASC
+                    LIMIT 24000
                 """)
                 rows = cur.fetchall()
             
             if not rows:
                 return False
             
-            words_loaded = 0
-            for token, basin_embedding, phi_score, frequency, source_type, token_id in rows:
-                coords = self._parse_embedding(basin_embedding)
+            tokens_loaded = 0
+            for token, embedding, phi_score, frequency, source_type, token_id in rows:
+                coords = self._parse_embedding(embedding)
                 if coords is None:
                     continue
                 
                 idx = token_id if token_id is not None else len(self.vocab)
-                self._add_token(token, coords, phi_score or 0.5, frequency or 1, idx, source_type)
+                self._add_token(token, coords, phi_score or 0.5, frequency or 1, idx, source_type or 'checkpoint')
                 
                 if token.isalpha() and len(token) >= 3:
                     self.word_tokens.append(token)
-                    words_loaded += 1
+                tokens_loaded += 1
             
-            logger.info(f"Loaded {words_loaded} words from database")
-            return words_loaded >= 100
+            logger.info(f"Loaded {tokens_loaded} tokens from database (64D embeddings)")
+            return tokens_loaded >= 100
         except Exception as e:
             logger.error(f"Database query failed: {e}")
-            # Rollback to clear any aborted transaction state
             try:
                 if conn:
                     conn.rollback()
