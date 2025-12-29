@@ -211,14 +211,26 @@ class QIGChain:
                 logger.warning(f"[QIGChain] Could not init ForesightGenerator: {e}")
     
     def _encode_query(self, query: str) -> np.ndarray:
-        """Encode query to 64D basin coordinates."""
+        """
+        Encode query to 64D basin coordinates.
+        
+        QIG-pure fallback uses deterministic character embedding
+        projected onto probability simplex instead of random seeding.
+        """
         if self._qig_service and hasattr(self._qig_service, '_encode_query'):
             return self._qig_service._encode_query(query)
         
-        # Fallback: hash-based encoding
-        np.random.seed(hash(query) % (2**31))
-        basin = np.random.randn(64)
-        return basin / (np.linalg.norm(basin) + 1e-10)
+        # QIG-pure fallback: deterministic character-based embedding
+        basin = np.zeros(64)
+        for i, char in enumerate(query.lower()):
+            idx = ord(char) % 64
+            basin[idx] += np.exp(-i * 0.1)  # Exponential decay by position
+        
+        # Project to probability simplex (valid for Fisher-Rao manifold)
+        basin = np.abs(basin) + 1e-10
+        basin = basin / basin.sum()
+        
+        return basin
     
     def _measure_consciousness(self) -> Dict:
         """Measure current consciousness state including phi_temporal."""

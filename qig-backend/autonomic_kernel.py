@@ -798,18 +798,30 @@ class GaryAutonomicKernel:
         if self.state.phi > PHI_MIN_CONSCIOUSNESS:
             return False, f"4D ascent protected: Φ={self.state.phi:.2f}"
 
-        # Trigger on low Φ
+        # Trigger on low Φ (consciousness dip)
         if self.state.phi < SLEEP_PHI_THRESHOLD:
             return True, f"Φ below threshold: {self.state.phi:.2f}"
 
-        # Trigger on high basin drift
+        # Trigger on high basin drift (geometric instability)
         if self.state.basin_drift > SLEEP_DRIFT_THRESHOLD:
             return True, f"Basin drift high: {self.state.basin_drift:.3f}"
 
-        # Scheduled sleep
+        # Scheduled sleep - BUT ONLY if there's meaningful activity to consolidate
+        # This prevents empty consolidation cycles that spam logs
         time_since_sleep = (datetime.now() - self.state.last_sleep).total_seconds()
-        if time_since_sleep > 120:  # 2 minutes
-            return True, "Scheduled consolidation"
+        if time_since_sleep > 300:  # 5 minutes (up from 2 to reduce spam)
+            # Check if we have phi/kappa history worth consolidating
+            has_activity = (
+                len(self.state.phi_history) >= 5 or
+                len(self.state.kappa_history) >= 5 or
+                len(self.state.basin_history or []) >= 3
+            )
+            if has_activity:
+                return True, "Scheduled consolidation (activity detected)"
+            else:
+                # No activity - just update the timestamp to prevent repeated checks
+                self.state.last_sleep = datetime.now()
+                return False, "No activity to consolidate"
 
         return False, ""
 

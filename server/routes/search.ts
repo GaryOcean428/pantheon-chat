@@ -24,14 +24,15 @@ import { scoreUniversalQIGAsync } from "../qig-universal";
 
 // Search provider state (in-memory, persists until restart)
 // Exported so other modules can check provider state
-export const searchProviderState = {
+export const searchProviderState: Record<string, { enabled: boolean; torEnabled?: boolean }> = {
+  duckduckgo: { enabled: true, torEnabled: true },
   google_free: { enabled: true },
   tavily: { enabled: false },
-  duckduckgo: { enabled: true, torEnabled: true },
+  perplexity: { enabled: false },
 };
 
-export function isProviderEnabled(provider: 'google_free' | 'tavily' | 'duckduckgo'): boolean {
-  return searchProviderState[provider].enabled;
+export function isProviderEnabled(provider: 'google_free' | 'tavily' | 'duckduckgo' | 'perplexity'): boolean {
+  return searchProviderState[provider]?.enabled ?? false;
 }
 
 export const searchRouter = Router();
@@ -122,20 +123,32 @@ searchRouter.post("/web", generousLimiter, async (req: Request, res: Response) =
 searchRouter.get("/providers", generousLimiter, async (req: Request, res: Response) => {
   try {
     const tavilyKey = process.env.TAVILY_API_KEY;
+    const perplexityKey = process.env.PERPLEXITY_API_KEY;
     
     res.json({
       success: true,
       data: {
+        duckduckgo: {
+          available: true,
+          enabled: searchProviderState.duckduckgo?.enabled ?? true,
+          requires_key: false,
+        },
         google_free: {
           available: true,
-          enabled: searchProviderState.google_free.enabled,
+          enabled: searchProviderState.google_free?.enabled ?? true,
           requires_key: false,
         },
         tavily: {
           available: !!tavilyKey,
-          enabled: searchProviderState.tavily.enabled,
+          enabled: searchProviderState.tavily?.enabled ?? false,
           requires_key: true,
           has_key: !!tavilyKey,
+        },
+        perplexity: {
+          available: !!perplexityKey,
+          enabled: searchProviderState.perplexity?.enabled ?? false,
+          requires_key: true,
+          has_key: !!perplexityKey,
         },
       },
     });
@@ -149,7 +162,8 @@ searchRouter.post("/providers/:provider/toggle", generousLimiter, async (req: Re
     const { provider } = req.params;
     const { enabled } = req.body;
     
-    if (provider !== 'google_free' && provider !== 'tavily') {
+    const validProviders = ['google_free', 'tavily', 'duckduckgo', 'perplexity'];
+    if (!validProviders.includes(provider)) {
       return res.status(400).json({ success: false, error: `Unknown provider: ${provider}` });
     }
     
@@ -161,11 +175,23 @@ searchRouter.post("/providers/:provider/toggle", generousLimiter, async (req: Re
       });
     }
     
+    if (provider === 'perplexity' && enabled && !process.env.PERPLEXITY_API_KEY) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'PERPLEXITY_API_KEY not set. Please add it to your secrets.',
+        error_code: 'MISSING_API_KEY'
+      });
+    }
+    
+    if (!searchProviderState[provider]) {
+      searchProviderState[provider] = { enabled: false };
+    }
     searchProviderState[provider].enabled = enabled;
     
     console.log(`[SearchProviders] ${provider} ${enabled ? 'enabled' : 'disabled'}`);
     
     const tavilyKey = process.env.TAVILY_API_KEY;
+    const perplexityKey = process.env.PERPLEXITY_API_KEY;
     
     res.json({
       success: true,
@@ -174,16 +200,27 @@ searchRouter.post("/providers/:provider/toggle", generousLimiter, async (req: Re
         provider,
         enabled,
         status: {
+          duckduckgo: {
+            available: true,
+            enabled: searchProviderState.duckduckgo?.enabled ?? true,
+            requires_key: false,
+          },
           google_free: {
             available: true,
-            enabled: searchProviderState.google_free.enabled,
+            enabled: searchProviderState.google_free?.enabled ?? true,
             requires_key: false,
           },
           tavily: {
             available: !!tavilyKey,
-            enabled: searchProviderState.tavily.enabled,
+            enabled: searchProviderState.tavily?.enabled ?? false,
             requires_key: true,
             has_key: !!tavilyKey,
+          },
+          perplexity: {
+            available: !!perplexityKey,
+            enabled: searchProviderState.perplexity?.enabled ?? false,
+            requires_key: true,
+            has_key: !!perplexityKey,
           },
         },
       },

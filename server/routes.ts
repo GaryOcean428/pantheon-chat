@@ -968,6 +968,23 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
 
   console.log("[KernelActivityWS] WebSocket server initialized on /ws/kernel-activity");
 
+  // Set up WebSocket server for mesh network streaming
+  const meshNetworkWss = new WebSocketServer({
+    server: httpServer,
+    path: "/ws/mesh-network",
+  });
+
+  const meshNetworkStreamer = new MeshNetworkStreamer();
+
+  meshNetworkWss.on("connection", (ws) => {
+    const clientId = `mesh-${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2, 6)}`;
+    meshNetworkStreamer.handleConnection(ws, clientId);
+  });
+
+  console.log("[MeshNetworkWS] WebSocket server initialized on /ws/mesh-network");
+
   // Set up WebSocket server for external API streaming
   initExternalWebSocket(httpServer);
   console.log("[ExternalWS] WebSocket server initialized on /ws/v1/external/stream");
@@ -976,6 +993,7 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
   const cleanup = () => {
     telemetryStreamer.destroy();
     kernelActivityStreamer.destroy();
+    meshNetworkStreamer.destroy();
   };
   process.on("SIGTERM", cleanup);
   process.on("SIGINT", cleanup);

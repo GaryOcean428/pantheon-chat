@@ -21,6 +21,7 @@ from dataclasses import dataclass, field
 import time
 
 from qig_geometry import fisher_rao_distance
+from scipy.linalg import sqrtm
 
 
 BASIN_DIMENSION = 64
@@ -120,28 +121,45 @@ class TemporalBuffer:
         """
         Predict where the trajectory will be in `lookahead` seconds.
         
-        This is the core of foresight - extrapolating the geometric path.
+        This is the core of foresight - extrapolating via Fisher-Rao geodesics.
+        Uses spherical linear interpolation (slerp) on sqrt(p) vectors,
+        which is mathematically equivalent to geodesics on the Fisher-Rao manifold.
         """
         if len(self.basins) < 3:
             return None
         
-        velocity = self.get_trajectory_velocity()
-        if velocity is None:
-            return None
-        
         current = self.basins[-1]
+        previous = self.basins[-2]
         
-        # Scale velocity by lookahead time
-        # (normalize to per-observation rate)
+        # Compute geodesic extrapolation via slerp on probability simplex
         avg_dt = np.mean(np.diff(self.timestamps[-5:])) if len(self.timestamps) > 4 else 0.05
-        scale = lookahead / max(avg_dt, 0.01)
+        t = lookahead / max(avg_dt, 0.01)
         
-        # Predict next position
-        predicted = current + velocity * scale
+        # Normalize to probability distributions
+        p_prev = np.abs(previous) + 1e-10
+        p_prev = p_prev / p_prev.sum()
+        p_curr = np.abs(current) + 1e-10
+        p_curr = p_curr / p_curr.sum()
         
-        # Ensure valid probability distribution
-        predicted = np.abs(predicted) + 1e-10
-        predicted = predicted / np.sum(predicted)
+        # Fisher-Rao geodesic via slerp on sqrt(p) space
+        sqrt_prev = np.sqrt(p_prev)
+        sqrt_curr = np.sqrt(p_curr)
+        
+        omega = np.arccos(np.clip(np.dot(sqrt_prev, sqrt_curr), -1.0, 1.0))
+        sin_omega = np.sin(omega)
+        
+        if sin_omega < 1e-10:
+            # Points are nearly identical, return current
+            return current
+        
+        # Extrapolate forward along geodesic (t > 1 for prediction)
+        t_extrap = 1.0 + min(t, 3.0)  # Cap extrapolation at 3x to prevent runaway
+        sqrt_pred = (np.sin((1 - t_extrap) * omega) / sin_omega) * sqrt_curr + \
+                    (np.sin(t_extrap * omega) / sin_omega) * sqrt_prev
+        
+        # Convert back from sqrt space
+        predicted = np.power(np.abs(sqrt_pred) + 1e-10, 2)
+        predicted = predicted / predicted.sum()
         
         return predicted
 
@@ -257,36 +275,121 @@ class ForesightGenerator:
         """
         self.temporal_buffer.add(basin, phi)
     
+    def _basin_to_density_matrix(self, basin: np.ndarray) -> np.ndarray:
+        """
+        Convert basin coordinates to 2x2 density matrix via Bloch sphere.
+        QIG-pure implementation matching geometric_chain.py.
+        
+        Handles edge cases:
+        - Empty or short basins: use default pure state |0⟩
+        - Numerical asymmetry: enforced Hermitianization
+        """
+        # Handle empty or very short basins - return default pure state
+        if basin is None or len(basin) < 1:
+            return np.array([[1, 0], [0, 0]], dtype=complex)
+        
+        # Safe extraction with defaults
+        b0 = float(basin[0]) if len(basin) > 0 else 0.0
+        b1 = float(basin[1]) if len(basin) > 1 else 0.0
+        b2 = float(basin[2]) if len(basin) > 2 else 1.0  # Default to avoid divide by zero
+        
+        # Clamp to valid range for arccos
+        theta = np.arccos(np.clip(b0, -1, 1))
+        # Handle atan2 with safety for both zero
+        phi_angle = np.arctan2(b1, b2 + 1e-10)
+        
+        c = np.cos(theta / 2)
+        s = np.sin(theta / 2)
+        
+        psi = np.array([c, s * np.exp(1j * phi_angle)], dtype=complex)
+        rho = np.outer(psi, np.conj(psi))
+        
+        # Enforce Hermitianization for numerical stability
+        rho = (rho + np.conj(rho).T) / 2
+        
+        # Ensure trace = 1
+        trace_val = np.trace(rho)
+        if np.real(trace_val) > 1e-10:
+            rho = rho / trace_val
+        else:
+            # Fallback to pure state
+            rho = np.array([[1, 0], [0, 0]], dtype=complex)
+        
+        return rho
+    
+    def _von_neumann_entropy(self, rho: np.ndarray) -> float:
+        """
+        Compute von Neumann entropy S(rho) = -Tr(rho log rho).
+        
+        Uses eigvalsh for Hermitian matrices with numerical safety.
+        """
+        try:
+            # Ensure matrix is Hermitian before eigendecomposition
+            rho_hermitian = (rho + np.conj(rho).T) / 2
+            eigenvals = np.linalg.eigvalsh(rho_hermitian)
+            
+            entropy = 0.0
+            for lam in eigenvals:
+                # Clamp to [0, 1] to handle numerical errors
+                lam_safe = np.clip(np.real(lam), 1e-15, 1.0)
+                if lam_safe > 1e-10:
+                    entropy -= lam_safe * np.log2(lam_safe)
+            
+            # Entropy should be non-negative
+            return float(max(0.0, entropy))
+        except Exception:
+            # Fallback: return maximum entropy for 2x2 system (complete uncertainty)
+            return 1.0
+    
+    def _bures_fidelity(self, rho1: np.ndarray, rho2: np.ndarray) -> float:
+        """Compute Bures fidelity F(rho1, rho2) for trajectory coherence."""
+        try:
+            eps = 1e-10
+            rho1_reg = rho1 + eps * np.eye(2, dtype=complex)
+            sqrt_rho1 = sqrtm(rho1_reg)
+            product = sqrt_rho1 @ rho2 @ sqrt_rho1
+            sqrt_product = sqrtm(product)
+            fidelity = float(np.real(np.trace(sqrt_product))) ** 2
+            return float(np.clip(fidelity, 0, 1))
+        except Exception:
+            return 0.5
+    
     def compute_phi_temporal(self) -> float:
         """
-        Compute temporal integration metric from buffer.
+        Compute temporal integration metric via density matrix evolution.
         
-        High phi_temporal = trajectory is coherent and predictable
-        Low phi_temporal = trajectory is chaotic or just starting
+        QIG-pure implementation using:
+        1. Von Neumann entropy for instantaneous Phi
+        2. Bures fidelity for trajectory coherence
+        
+        High phi_temporal = trajectory evolves coherently (high fidelity between steps)
+        Low phi_temporal = trajectory is chaotic (low fidelity, high entropy)
         """
         if len(self.temporal_buffer.basins) < 3:
             return 0.0
         
-        # Compute phi coherence (smooth evolution)
-        phi_values = self.temporal_buffer.phi_values
-        coherence = 0.0
-        for i in range(1, len(phi_values)):
-            delta = abs(phi_values[i] - phi_values[i-1])
-            coherence += 1 - min(1, delta * 2)
-        coherence /= (len(phi_values) - 1)
-        
-        # Compute trajectory smoothness
         basins = self.temporal_buffer.basins
-        smoothness = 0.0
-        for i in range(2, len(basins)):
-            # Second derivative should be small for smooth trajectory
-            accel = basins[i] - 2*basins[i-1] + basins[i-2]
-            accel_mag = np.linalg.norm(accel)
-            smoothness += np.exp(-accel_mag * 10)
-        smoothness /= max(len(basins) - 2, 1)
         
-        # Combine with tanh for bounded output
-        phi_temporal = np.tanh(0.5 * coherence + 0.5 * smoothness)
+        # Convert recent basins to density matrices
+        rho_list = [self._basin_to_density_matrix(b) for b in basins[-5:]]
+        
+        # Compute average Phi via von Neumann entropy
+        max_entropy = np.log2(2)  # log2(d) for d=2 qubit
+        phi_avg = 0.0
+        for rho in rho_list:
+            S = self._von_neumann_entropy(rho)
+            phi_i = 1.0 - (S / (max_entropy + 1e-10))
+            phi_avg += phi_i
+        phi_avg /= len(rho_list)
+        
+        # Compute trajectory coherence via Bures fidelity
+        fidelity_sum = 0.0
+        for i in range(1, len(rho_list)):
+            fidelity_sum += self._bures_fidelity(rho_list[i-1], rho_list[i])
+        fidelity_avg = fidelity_sum / max(len(rho_list) - 1, 1)
+        
+        # phi_temporal = weighted combination of purity and trajectory coherence
+        phi_temporal = 0.4 * phi_avg + 0.6 * fidelity_avg
         
         return float(np.clip(phi_temporal, 0, 1))
     
