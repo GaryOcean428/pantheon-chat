@@ -111,6 +111,12 @@ class PostgresCoordizer(FisherCoordizer):
             return words_loaded >= 100
         except Exception as e:
             logger.error(f"Database query failed: {e}")
+            # Rollback to clear any aborted transaction state
+            try:
+                if conn:
+                    conn.rollback()
+            except Exception:
+                pass
             return False
     
     def _parse_embedding(self, basin_embedding) -> Optional[np.ndarray]:
@@ -486,6 +492,12 @@ class PostgresCoordizer(FisherCoordizer):
             
         except Exception as e:
             logger.error(f"[VocabularyObservations] Error: {e}")
+            # Rollback to clear aborted transaction state
+            try:
+                if conn:
+                    conn.rollback()
+            except Exception:
+                pass
             return (added, False)
     
     def close(self):
