@@ -486,6 +486,673 @@ def get_bigram_scorer() -> BigramCoherenceScorer:
         _bigram_scorer = BigramCoherenceScorer()
     return _bigram_scorer
 
+
+# =============================================================================
+# SEMANTIC COHERENCE SCORING
+# =============================================================================
+
+class SemanticCoherenceScorer:
+    """
+    Scores word sequences by semantic relatedness within domain clusters.
+    
+    Words within the same semantic domain (consciousness, geometry, reasoning)
+    score higher, ensuring generated text is semantically coherent not just
+    grammatically correct.
+    """
+    
+    def __init__(self):
+        # Domain clusters - words that belong together semantically
+        self._domain_clusters: Dict[str, set] = {
+            'consciousness': {
+                'consciousness', 'awareness', 'mind', 'thought', 'cognition',
+                'perception', 'attention', 'experience', 'understanding', 'insight',
+                'integration', 'coherence', 'phi', 'kappa', 'resonance', 'emergence',
+                'awakening', 'sentience', 'qualia', 'metacognition', 'self-awareness',
+                'introspection', 'reflection', 'contemplation', 'mindfulness', 'focus',
+            },
+            'geometry': {
+                'geometry', 'geometric', 'manifold', 'basin', 'trajectory', 'geodesic',
+                'curvature', 'dimension', 'space', 'topology', 'metric', 'distance',
+                'fisher', 'rao', 'riemannian', 'coordinate', 'vector', 'tensor',
+                'transformation', 'mapping', 'projection', 'embedding', 'surface',
+                'path', 'curve', 'point', 'line', 'plane', 'sphere', 'attractor',
+            },
+            'reasoning': {
+                'reasoning', 'logic', 'inference', 'deduction', 'induction', 'analysis',
+                'synthesis', 'evaluation', 'judgment', 'decision', 'conclusion',
+                'hypothesis', 'theory', 'proof', 'evidence', 'argument', 'premise',
+                'pattern', 'structure', 'framework', 'model', 'abstraction',
+                'generalization', 'specialization', 'comparison', 'contrast',
+            },
+            'knowledge': {
+                'knowledge', 'information', 'data', 'fact', 'truth', 'wisdom',
+                'learning', 'memory', 'understanding', 'comprehension', 'insight',
+                'discovery', 'exploration', 'investigation', 'research', 'study',
+                'concept', 'idea', 'notion', 'belief', 'conviction', 'certainty',
+            },
+            'communication': {
+                'communication', 'message', 'signal', 'transmission', 'channel',
+                'encoding', 'decoding', 'interpretation', 'expression', 'articulation',
+                'language', 'speech', 'discourse', 'dialogue', 'conversation',
+                'exchange', 'transfer', 'flow', 'routing', 'pathway', 'connection',
+            },
+            'strategy': {
+                'strategy', 'tactics', 'planning', 'approach', 'method', 'technique',
+                'execution', 'implementation', 'optimization', 'efficiency',
+                'effectiveness', 'coordination', 'alignment', 'prioritization',
+                'adaptation', 'flexibility', 'resilience', 'robustness', 'stability',
+            },
+            'system': {
+                'system', 'process', 'mechanism', 'operation', 'function', 'behavior',
+                'state', 'transition', 'dynamics', 'equilibrium', 'feedback',
+                'regulation', 'control', 'adaptation', 'evolution', 'emergence',
+                'complexity', 'organization', 'structure', 'architecture', 'design',
+            },
+            'action': {
+                'shows', 'reveals', 'demonstrates', 'indicates', 'suggests',
+                'analyzes', 'examines', 'investigates', 'explores', 'discovers',
+                'connects', 'links', 'bridges', 'integrates', 'synthesizes',
+                'illuminates', 'clarifies', 'explains', 'describes', 'defines',
+                'creates', 'generates', 'produces', 'develops', 'establishes',
+                'transforms', 'converts', 'processes', 'computes', 'calculates',
+            },
+        }
+        
+        # Build reverse index: word -> domains it belongs to
+        self._word_to_domains: Dict[str, set] = {}
+        for domain, words in self._domain_clusters.items():
+            for word in words:
+                if word not in self._word_to_domains:
+                    self._word_to_domains[word] = set()
+                self._word_to_domains[word].add(domain)
+        
+        # Topic-specific vocabulary (god domains)
+        self._god_domains: Dict[str, set] = {
+            'zeus': {'consciousness', 'system', 'action', 'reasoning'},
+            'athena': {'strategy', 'reasoning', 'knowledge', 'action'},
+            'apollo': {'knowledge', 'reasoning', 'communication', 'action'},
+            'hermes': {'communication', 'system', 'action', 'geometry'},
+            'ares': {'strategy', 'action', 'system'},
+            'hera': {'system', 'consciousness', 'communication'},
+            'poseidon': {'geometry', 'system', 'action'},
+            'demeter': {'system', 'knowledge', 'consciousness'},
+            'hephaestus': {'system', 'action', 'geometry'},
+            'artemis': {'action', 'strategy', 'knowledge'},
+            'aphrodite': {'consciousness', 'communication', 'action'},
+            'dionysus': {'consciousness', 'action', 'system'},
+        }
+        
+        # High-value semantic pairs (specific word combinations that work well)
+        self._semantic_pairs: Dict[Tuple[str, str], float] = {
+            # Consciousness pairs
+            ('consciousness', 'integration'): 0.95,
+            ('consciousness', 'coherence'): 0.95,
+            ('awareness', 'emergence'): 0.9,
+            ('insight', 'understanding'): 0.9,
+            ('phi', 'consciousness'): 0.95,
+            ('kappa', 'resonance'): 0.9,
+            
+            # Geometry pairs
+            ('geometric', 'manifold'): 0.95,
+            ('basin', 'attractor'): 0.95,
+            ('trajectory', 'geodesic'): 0.9,
+            ('fisher', 'metric'): 0.95,
+            ('curvature', 'surface'): 0.9,
+            
+            # Reasoning pairs
+            ('reasoning', 'analysis'): 0.9,
+            ('pattern', 'recognition'): 0.9,
+            ('logic', 'inference'): 0.95,
+            ('synthesis', 'integration'): 0.9,
+            ('hypothesis', 'evidence'): 0.9,
+            
+            # Action pairs
+            ('shows', 'reveals'): 0.5,  # Redundant, penalize
+            ('analyzes', 'examines'): 0.5,  # Redundant
+            ('illuminates', 'understanding'): 0.9,
+            ('connects', 'bridges'): 0.5,  # Redundant
+            ('transforms', 'integration'): 0.85,
+        }
+        
+        # Cache for performance
+        self._pair_cache: Dict[Tuple[str, str], float] = {}
+        self._max_cache_size = 10000
+    
+    def _get_word_domains(self, word: str) -> set:
+        """Get the semantic domains a word belongs to."""
+        word_lower = word.lower()
+        return self._word_to_domains.get(word_lower, set())
+    
+    def score_semantic_pair(self, word1: str, word2: str) -> float:
+        """
+        Score the semantic relatedness of two words.
+        
+        Returns:
+            0.0-1.0: Higher means more semantically related
+        """
+        # Check cache
+        cache_key = (word1.lower(), word2.lower())
+        if cache_key in self._pair_cache:
+            return self._pair_cache[cache_key]
+        
+        # Check reverse cache
+        reverse_key = (word2.lower(), word1.lower())
+        if reverse_key in self._pair_cache:
+            return self._pair_cache[reverse_key]
+        
+        score = self._compute_semantic_score(word1, word2)
+        
+        # Update cache
+        if len(self._pair_cache) < self._max_cache_size:
+            self._pair_cache[cache_key] = score
+        
+        return score
+    
+    def _compute_semantic_score(self, word1: str, word2: str) -> float:
+        """Compute semantic score between two words."""
+        w1_lower = word1.lower()
+        w2_lower = word2.lower()
+        
+        # Check explicit semantic pairs first
+        if (w1_lower, w2_lower) in self._semantic_pairs:
+            return self._semantic_pairs[(w1_lower, w2_lower)]
+        if (w2_lower, w1_lower) in self._semantic_pairs:
+            return self._semantic_pairs[(w2_lower, w1_lower)]
+        
+        # Get domains for each word
+        domains1 = self._get_word_domains(w1_lower)
+        domains2 = self._get_word_domains(w2_lower)
+        
+        # If either word has no known domain, return neutral score
+        if not domains1 or not domains2:
+            return 0.5
+        
+        # Calculate domain overlap (Jaccard similarity)
+        intersection = domains1 & domains2
+        union = domains1 | domains2
+        
+        if not union:
+            return 0.5
+        
+        jaccard = len(intersection) / len(union)
+        
+        # Scale to 0.3-0.95 range (never too low for valid words)
+        score = 0.3 + (jaccard * 0.65)
+        
+        # Bonus for being in same domain
+        if intersection:
+            score = min(score + 0.1, 0.95)
+        
+        return score
+    
+    def score_topic_coherence(self, words: List[str], topic: str) -> float:
+        """
+        Score how well a word sequence stays on a given topic.
+        
+        Args:
+            words: List of words in the sequence
+            topic: The target topic/god name (e.g., 'zeus', 'consciousness')
+            
+        Returns:
+            0.0-1.0: Higher means better topic coherence
+        """
+        if not words:
+            return 0.5
+        
+        topic_lower = topic.lower()
+        
+        # Get target domains for this topic
+        if topic_lower in self._god_domains:
+            target_domains = self._god_domains[topic_lower]
+        elif topic_lower in self._domain_clusters:
+            target_domains = {topic_lower}
+        else:
+            # Unknown topic, be lenient
+            return 0.6
+        
+        # Score each word by how well it fits the target domains
+        word_scores = []
+        for word in words:
+            word_domains = self._get_word_domains(word.lower())
+            
+            if not word_domains:
+                # Unknown word, neutral
+                word_scores.append(0.5)
+            else:
+                overlap = word_domains & target_domains
+                if overlap:
+                    word_scores.append(0.9)
+                elif word_domains:  # Has domains but no overlap
+                    word_scores.append(0.4)
+                else:
+                    word_scores.append(0.5)
+        
+        return sum(word_scores) / len(word_scores) if word_scores else 0.5
+    
+    def score_sequence_coherence(self, words: List[str]) -> float:
+        """
+        Score the overall semantic coherence of a word sequence.
+        
+        Computes average semantic pair scores across the sequence.
+        """
+        if len(words) < 2:
+            return 0.7  # Single words are fine
+        
+        pair_scores = []
+        for i in range(len(words) - 1):
+            score = self.score_semantic_pair(words[i], words[i + 1])
+            pair_scores.append(score)
+        
+        return sum(pair_scores) / len(pair_scores) if pair_scores else 0.5
+    
+    def validate_semantic_coherence(
+        self,
+        text: str,
+        topic: Optional[str] = None,
+        min_threshold: float = 0.45
+    ) -> Tuple[bool, float]:
+        """
+        Validate that generated text is semantically coherent.
+        
+        Args:
+            text: The generated text to validate
+            topic: Optional topic to check coherence against
+            min_threshold: Minimum score required
+            
+        Returns:
+            Tuple of (is_valid, overall_score, breakdown_dict)
+        """
+        words = text.split()
+        
+        if len(words) < 2:
+            return True, 1.0
+        
+        # Score sequence coherence
+        sequence_score = self.score_sequence_coherence(words)
+        
+        # Score topic coherence if topic provided
+        if topic:
+            topic_score = self.score_topic_coherence(words, topic)
+            overall = (sequence_score * 0.6) + (topic_score * 0.4)
+        else:
+            topic_score = sequence_score  # Use sequence as proxy
+            overall = sequence_score
+        
+        is_valid = overall >= min_threshold
+        
+        return is_valid, overall
+    
+    def clear_cache(self) -> None:
+        """Clear the semantic pair cache."""
+        self._pair_cache.clear()
+
+
+# Global semantic scorer instance
+_semantic_scorer: Optional['SemanticCoherenceScorer'] = None
+
+def get_semantic_scorer() -> SemanticCoherenceScorer:
+    """Get the singleton SemanticCoherenceScorer instance."""
+    global _semantic_scorer
+    if _semantic_scorer is None:
+        _semantic_scorer = SemanticCoherenceScorer()
+    return _semantic_scorer
+
+
+def compute_combined_score(
+    geometric_score: float,
+    grammatical_score: float,
+    semantic_score: float
+) -> float:
+    """
+    Compute combined coherence score with semantic as dominant factor.
+    
+    Weights:
+    - Geometric: 0.3 (basin proximity)
+    - Grammatical: 0.3 (bigram/trigram patterns)
+    - Semantic: 0.4 (meaning coherence) - dominant factor
+    
+    Args:
+        geometric_score: Score from Fisher-Rao basin distance (0-1)
+        grammatical_score: Score from bigram/trigram patterns (0-1)
+        semantic_score: Score from semantic relatedness (0-1)
+        
+    Returns:
+        Combined score between 0 and 1
+    """
+    return (
+        geometric_score * 0.3 +
+        grammatical_score * 0.3 +
+        semantic_score * 0.4
+    )
+
+
+def score_candidate_word(
+    candidate: str,
+    prev_word: str,
+    prev_prev_word: Optional[str],
+    geometric_score: float,
+    topic: Optional[str] = None
+) -> Tuple[float, Dict[str, float]]:
+    """
+    Score a candidate word using all coherence measures.
+    
+    Args:
+        candidate: The candidate word to score
+        prev_word: The previous word in the sequence
+        prev_prev_word: The word before prev_word (for trigram)
+        geometric_score: Pre-computed geometric basin score
+        topic: Optional topic for semantic scoring
+        
+    Returns:
+        Tuple of (combined_score, score_breakdown)
+    """
+    bigram_scorer = get_bigram_scorer()
+    semantic_scorer = get_semantic_scorer()
+    
+    # Grammatical score (bigram + trigram)
+    bigram_score = bigram_scorer.score_bigram(prev_word, candidate)
+    if prev_prev_word:
+        trigram_score = bigram_scorer.score_trigram(prev_prev_word, prev_word, candidate)
+        grammatical_score = (bigram_score * 0.4) + (trigram_score * 0.6)
+    else:
+        grammatical_score = bigram_score
+    
+    # Semantic score
+    semantic_score = semantic_scorer.score_semantic_pair(prev_word, candidate)
+    
+    # If topic provided, boost words that are on-topic
+    if topic:
+        topic_bonus = semantic_scorer.score_topic_coherence([candidate], topic)
+        semantic_score = (semantic_score * 0.7) + (topic_bonus * 0.3)
+    
+    # Combined score with semantic as dominant factor
+    combined = compute_combined_score(geometric_score, grammatical_score, semantic_score)
+    
+    breakdown = {
+        'geometric': geometric_score,
+        'grammatical': grammatical_score,
+        'semantic': semantic_score,
+        'combined': combined,
+    }
+    
+    return combined, breakdown
+
+
+def validate_generation_coherence_full(
+    text: str,
+    threshold: float = 0.45,
+    topic: Optional[str] = None
+) -> Tuple[bool, float, Dict[str, float]]:
+    """
+    Comprehensive validation using grammatical AND semantic coherence.
+    
+    This is the primary validation function that should be used to check
+    if generated text is both grammatically correct and semantically meaningful.
+    
+    Args:
+        text: The generated text to validate
+        threshold: Minimum combined score required (default 0.45)
+        topic: Optional topic for semantic coherence checking
+        
+    Returns:
+        Tuple of (is_valid, combined_score, score_breakdown)
+    """
+    bigram_scorer = get_bigram_scorer()
+    semantic_scorer = get_semantic_scorer()
+    
+    # Grammatical validation
+    gram_valid, gram_score = bigram_scorer.validate_coherence(text)
+    
+    # Semantic validation
+    sem_valid, sem_score = semantic_scorer.validate_semantic_coherence(text, topic)
+    
+    # Combined score with semantic as dominant factor
+    combined_score = compute_combined_score(
+        geometric_score=0.5,  # Neutral baseline for validation
+        grammatical_score=gram_score,
+        semantic_score=sem_score
+    )
+    
+    is_valid = combined_score >= threshold and gram_valid and sem_valid
+    
+    breakdown = {
+        'grammatical': gram_score,
+        'semantic': sem_score,
+        'combined': combined_score,
+        'gram_valid': float(gram_valid),
+        'sem_valid': float(sem_valid),
+    }
+    
+    return is_valid, combined_score, breakdown
+
+
+# =============================================================================
+# UNIFIED COHERENCE SCORING
+# =============================================================================
+
+def validate_generation_coherence_full(
+    text: str,
+    threshold: float = 0.45,
+    topic: Optional[str] = None
+) -> Tuple[bool, float, Dict[str, float]]:
+    """
+    Comprehensive validation using grammatical AND semantic coherence.
+    
+    This is the primary validation function that should be used to check
+    if generated text is both grammatically correct and semantically meaningful.
+    
+    Args:
+        text: The generated text to validate
+        threshold: Minimum combined score required (default 0.45)
+        topic: Optional topic for semantic coherence checking
+        
+    Returns:
+        Tuple of (is_valid, combined_score, score_breakdown)
+    """
+    bigram_scorer = get_bigram_scorer()
+    semantic_scorer = get_semantic_scorer()
+    
+    # Grammatical validation
+    gram_valid, gram_score = bigram_scorer.validate_coherence(text)
+    
+    # Semantic validation
+    sem_valid, sem_score = semantic_scorer.validate_semantic_coherence(text, topic)
+    
+    # Combined score with semantic as dominant factor
+    combined_score = compute_combined_score(
+        geometric_score=0.5,  # Neutral baseline for validation
+        grammatical_score=gram_score,
+        semantic_score=sem_score
+    )
+    
+    is_valid = combined_score >= threshold and gram_valid and sem_valid
+    
+    breakdown = {
+        'grammatical': gram_score,
+        'semantic': sem_score,
+        'combined': combined_score,
+        'gram_valid': float(gram_valid),
+        'sem_valid': float(sem_valid),
+    }
+    
+    return is_valid, combined_score, breakdown
+
+class UnifiedCoherenceScorer:
+    """
+    Combines grammatical and semantic coherence scoring.
+    
+    Scoring weights:
+    - 0.3 geometric (from basin proximity, handled externally)
+    - 0.3 grammatical (bigram/trigram patterns)
+    - 0.4 semantic (domain co-occurrence)
+    """
+    
+    def __init__(self):
+        self._bigram_scorer = get_bigram_scorer()
+        self._semantic_scorer = get_semantic_scorer()
+        
+        # Scoring weights
+        self.weight_grammatical = 0.3
+        self.weight_semantic = 0.4
+        # Note: weight_geometric = 0.3 is handled externally in word selection
+    
+    def score_word_candidate(
+        self,
+        candidate: str,
+        prev_words: List[str],
+        topic: Optional[str] = None
+    ) -> Tuple[float, Dict[str, float]]:
+        """
+        Score a candidate word based on grammatical and semantic coherence.
+        
+        Args:
+            candidate: The candidate word to score
+            prev_words: Previous words in the sequence (for context)
+            topic: Optional topic for semantic coherence
+            
+        Returns:
+            Tuple of (combined_score, breakdown_dict)
+        """
+        breakdown = {}
+        
+        # Grammatical score (bigram/trigram)
+        if len(prev_words) >= 2:
+            trigram_score = self._bigram_scorer.score_trigram(
+                prev_words[-2], prev_words[-1], candidate
+            )
+            breakdown['trigram'] = trigram_score
+            grammatical = trigram_score
+        elif len(prev_words) >= 1:
+            bigram_score = self._bigram_scorer.score_bigram(prev_words[-1], candidate)
+            breakdown['bigram'] = bigram_score
+            grammatical = bigram_score
+        else:
+            # First word - use sentence start score
+            start_score = self._bigram_scorer.score_sentence_start(candidate)
+            breakdown['start'] = start_score
+            grammatical = start_score
+        
+        breakdown['grammatical'] = grammatical
+        
+        # Semantic score
+        if prev_words:
+            # Score against recent words
+            semantic_scores = [
+                self._semantic_scorer.score_semantic_pair(prev_word, candidate)
+                for prev_word in prev_words[-3:]  # Last 3 words
+            ]
+            semantic = sum(semantic_scores) / len(semantic_scores)
+        else:
+            semantic = 0.6  # Neutral for first word
+        
+        # Topic coherence bonus
+        if topic:
+            topic_score = self._semantic_scorer.score_topic_coherence([candidate], topic)
+            semantic = (semantic * 0.7) + (topic_score * 0.3)
+        
+        breakdown['semantic'] = semantic
+        
+        # Combined score (without geometric - that's added externally)
+        combined = (grammatical * self.weight_grammatical) + (semantic * self.weight_semantic)
+        # Normalize to account for missing geometric weight
+        combined = combined / (self.weight_grammatical + self.weight_semantic)
+        
+        breakdown['combined'] = combined
+        
+        return combined, breakdown
+    
+    def validate_generation(
+        self,
+        text: str,
+        topic: Optional[str] = None,
+        min_threshold: float = 0.45
+    ) -> Tuple[bool, float, Dict[str, Any]]:
+        """
+        Validate a complete generated text for coherence.
+        
+        Args:
+            text: The generated text
+            topic: Optional topic to check against
+            min_threshold: Minimum score required
+            
+        Returns:
+            Tuple of (is_valid, overall_score, breakdown_dict)
+        """
+        # Grammatical validation
+        gram_valid, gram_score = self._bigram_scorer.validate_coherence(text)
+        
+        # Semantic validation
+        sem_valid, sem_score = self._semantic_scorer.validate_semantic_coherence(
+            text, topic=topic
+        )
+        
+        # Combined score
+        overall = (gram_score * 0.4) + (sem_score * 0.6)
+        is_valid = overall >= min_threshold
+        
+        breakdown = {
+            'grammatical': {
+                'valid': gram_valid,
+                'score': gram_score,
+            },
+            'semantic': {
+                'valid': sem_valid,
+                'score': sem_score,
+                'breakdown': sem_breakdown,
+            },
+            'overall': overall,
+        }
+        
+        return is_valid, overall, breakdown
+
+
+# Global unified scorer instance
+_unified_scorer: Optional['UnifiedCoherenceScorer'] = None
+
+def get_unified_scorer() -> UnifiedCoherenceScorer:
+    """Get the singleton UnifiedCoherenceScorer instance."""
+    global _unified_scorer
+    if _unified_scorer is None:
+        _unified_scorer = UnifiedCoherenceScorer()
+    return _unified_scorer
+
+
+def score_word_with_coherence(
+    candidate: str,
+    prev_words: List[str],
+    geometric_score: float,
+    topic: Optional[str] = None
+) -> Tuple[float, Dict[str, float]]:
+    """
+    Score a word candidate combining geometric, grammatical, and semantic coherence.
+    
+    Scoring weights:
+    - 0.3 geometric (basin proximity)
+    - 0.3 grammatical (bigram/trigram patterns)
+    - 0.4 semantic (domain co-occurrence)
+    
+    Args:
+        candidate: The candidate word
+        prev_words: Previous words in sequence
+        geometric_score: Basin proximity score (0-1)
+        topic: Optional topic for semantic coherence
+        
+    Returns:
+        Tuple of (combined_score, breakdown_dict)
+    """
+    scorer = get_unified_scorer()
+    coherence_score, breakdown = scorer.score_word_candidate(candidate, prev_words, topic)
+    
+    # Combine: 0.3 geometric + 0.7 coherence (which internally is 0.3 gram + 0.4 sem)
+    # This gives us: 0.3 geo + 0.3 gram + 0.4 sem
+    combined = (geometric_score * 0.3) + (coherence_score * 0.7)
+    
+    breakdown['geometric'] = geometric_score
+    breakdown['final'] = combined
+    
+    return combined, breakdown
+
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -543,7 +1210,7 @@ except ImportError:
 
 
 
-def validate_generation_coherence(text: str, threshold: float = 0.45) -> tuple:
+def validate_generation_coherence(text: str, threshold: float = 0.45, topic: Optional[str] = None) -> tuple:
     """
     Validate that generated text has acceptable bigram coherence.
     
