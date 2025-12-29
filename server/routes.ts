@@ -356,6 +356,46 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
   
   // Mount versioned telemetry dashboard API (unified metrics)
   app.use("/api/v1/telemetry", telemetryDashboardRouter);
+
+  // ============================================================
+  // LONG-HORIZON TASK MANAGEMENT PROXY - Routes to Python Backend
+  // ============================================================
+  app.use("/api/long-horizon", async (req: any, res) => {
+    try {
+      const pythonUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
+      const targetUrl = `${pythonUrl}/api/long-horizon${req.url}`;
+
+      const fetchOptions: RequestInit = {
+        method: req.method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        signal: AbortSignal.timeout(30000),
+      };
+
+      if (req.method !== 'GET' && req.method !== 'HEAD' && req.body) {
+        fetchOptions.body = JSON.stringify(req.body);
+      }
+
+      const response = await fetch(targetUrl, fetchOptions);
+      const contentType = response.headers.get('content-type') || '';
+
+      if (contentType.includes('application/json')) {
+        const data = await response.json();
+        res.status(response.status).json(data);
+      } else {
+        const text = await response.text();
+        res.status(response.status).send(text);
+      }
+    } catch (error: unknown) {
+      console.error("[LongHorizon] Proxy error:", getErrorMessage(error));
+      res.status(503).json({
+        success: false,
+        error: 'Long-horizon service unavailable',
+        message: getErrorMessage(error)
+      });
+    }
+  });
   
   // Mount external API router (for federated instances, headless clients, integrations)
   app.use("/api/v1/external", externalApiRouter);

@@ -4,7 +4,7 @@
 [build]
 # Use Dockerfile instead of Nixpacks (deprecated)
 builder = "dockerfile"
-dockerfilePath = "Dockerfile.railway"
+dockerfilePath = "Dockerfile"
 
 [deploy]
 startCommand = "npm run start"
