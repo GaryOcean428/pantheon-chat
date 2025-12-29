@@ -122,16 +122,8 @@ export class PythonProcessManager extends EventEmitter {
       console.log('[PythonManager] Starting Python QIG Backend (Flask development mode)...');
     }
     
-    // Build LD_LIBRARY_PATH to include gcc runtime for NumPy/SciPy
-    const existingLdPath = process.env.LD_LIBRARY_PATH || '';
-    const nixLibPaths = [
-      '/lib/x86_64-linux-gnu',
-      '/usr/lib/x86_64-linux-gnu',
-      '/nix/var/nix/profiles/default/lib',
-      '/run/current-system/sw/lib',
-    ];
-    // Add any nix profile lib paths that exist
-    const ldLibraryPath = [...nixLibPaths, existingLdPath].filter(Boolean).join(':');
+    // IMPORTANT: Do NOT modify LD_LIBRARY_PATH - it can interfere with vDSO loading
+    // and cause segfaults. The system's default library path is correct.
     
     this.process = spawn(spawnCommand, spawnArgs, {
       cwd: qigBackendDir,
@@ -139,7 +131,6 @@ export class PythonProcessManager extends EventEmitter {
       env: {
         ...process.env,
         PYTHONUNBUFFERED: '1',
-        LD_LIBRARY_PATH: ldLibraryPath,
       },
     });
     
@@ -171,7 +162,6 @@ export class PythonProcessManager extends EventEmitter {
     
     // Handle process exit
     this.process.on('close', (code: number | null) => {
-      console.log(`[PythonManager] Process exited with code ${code}`);
       this.isRunning = false;
       this.setReady(false);
       
@@ -181,16 +171,28 @@ export class PythonProcessManager extends EventEmitter {
         this.healthCheckInterval = null;
       }
       
+      // Detect crash/segfault (code null = killed by signal, likely SIGSEGV)
+      // If we see 3+ quick crashes, stop retrying - likely binary incompatibility
+      if (code === null && this.restartCount >= 2) {
+        console.warn('[PythonManager] Python backend crashing repeatedly (likely binary incompatibility)');
+        console.warn('[PythonManager] TypeScript fallback scoring will be used instead');
+        this.emit('backendUnavailable');
+        return; // Stop retrying
+      }
+      
       // Attempt restart with backoff
       if (this.restartCount < this.maxRestarts) {
         const delayIndex = Math.min(this.restartCount, this.restartDelays.length - 1);
         const delay = this.restartDelays[delayIndex];
         this.restartCount++;
         
-        console.log(`[PythonManager] Restart ${this.restartCount}/${this.maxRestarts} in ${delay}ms...`);
+        // Only log first few restarts to reduce noise
+        if (this.restartCount <= 3) {
+          console.log(`[PythonManager] Restart ${this.restartCount}/${this.maxRestarts} in ${delay}ms...`);
+        }
         setTimeout(() => this.start(), delay);
       } else {
-        console.error(`[PythonManager] Max restarts (${this.maxRestarts}) reached. Manual intervention required.`);
+        console.error(`[PythonManager] Max restarts (${this.maxRestarts}) reached. Using TypeScript fallback.`);
         this.emit('maxRestartsReached');
       }
     });
