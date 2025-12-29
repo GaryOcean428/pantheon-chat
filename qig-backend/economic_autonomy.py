@@ -16,11 +16,21 @@ Author: Ocean/Zeus Pantheon
 import time
 import json
 import hashlib
+import os
 from typing import Dict, List, Any, Optional, Tuple
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
 import threading
+
+# PostgreSQL persistence
+try:
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
+    POSTGRES_AVAILABLE = True
+except ImportError:
+    POSTGRES_AVAILABLE = False
+    print("[EconomicAutonomy] psycopg2 not available - using in-memory storage")
 
 
 class SubscriptionTier(Enum):
@@ -80,7 +90,10 @@ class UserCredits:
     month_reset_date: str = ""
     stripe_customer_id: Optional[str] = None
     stripe_subscription_id: Optional[str] = None
+    total_spent_cents: int = 0
+    total_queries_all_time: int = 0
     created_at: float = field(default_factory=time.time)
+    db_id: Optional[int] = None  # Database ID for updates
     
     def can_use(self, operation: str) -> Tuple[bool, str]:
         """Check if user can perform operation."""
@@ -107,15 +120,16 @@ class UserCredits:
         """Deduct credits/usage for an operation."""
         if operation == 'query':
             self.queries_this_month += 1
+            self.total_queries_all_time += 1
         elif operation == 'tool':
             self.tools_this_month += 1
         elif operation == 'research':
             self.research_this_month += 1
         
         # Deduct from credits if on free tier beyond limits
-        limits = TierLimits.get_tier_limits(self.tier)
         if self.tier == SubscriptionTier.FREE:
             self.credits_balance = max(0, self.credits_balance - amount_cents)
+            self.total_spent_cents += amount_cents
         
         return True
 
@@ -152,11 +166,14 @@ class EconomicAutonomy:
     PRICE_PER_RESEARCH = 10  # $0.10
     
     def __init__(self):
-        import os
         self._lock = threading.RLock()
         
-        # User credits tracking (in-memory, should persist to DB)
+        # User credits tracking (in-memory cache, persisted to PostgreSQL)
         self._user_credits: Dict[str, UserCredits] = {}
+        
+        # PostgreSQL connection
+        self._db_url = os.environ.get('DATABASE_URL')
+        self._db_connection: Optional[Any] = None
         
         # Revenue streams
         self._revenue_streams: List[RevenueStream] = []
@@ -184,8 +201,188 @@ class EconomicAutonomy:
         # Base URL for redirects
         self._base_url = os.environ.get('BASE_URL', 'https://pantheon-chat.replit.app')
         
+        # Initialize PostgreSQL persistence
+        self._init_db()
+        self._load_users_from_db()
+        
         stripe_status = "configured" if self._stripe_api_key else "not configured (add STRIPE_SECRET_KEY)"
-        print(f"[EconomicAutonomy] Initialized - Stripe: {stripe_status}")
+        db_status = "PostgreSQL" if self._db_connection else "in-memory"
+        print(f"[EconomicAutonomy] Initialized - Storage: {db_status}, Stripe: {stripe_status}")
+    
+    # =========================================================================
+    # POSTGRESQL PERSISTENCE
+    # =========================================================================
+    
+    def _get_db_connection(self):
+        """Get or create database connection."""
+        if not POSTGRES_AVAILABLE or not self._db_url:
+            return None
+        
+        try:
+            if self._db_connection is None or self._db_connection.closed:
+                self._db_connection = psycopg2.connect(self._db_url)
+                self._db_connection.autocommit = False
+            return self._db_connection
+        except Exception as e:
+            print(f"[EconomicAutonomy] DB connection error: {e}")
+            return None
+    
+    def _init_db(self):
+        """Initialize database table if needed."""
+        conn = self._get_db_connection()
+        if not conn:
+            return
+        
+        try:
+            with conn.cursor() as cur:
+                # Check if table exists
+                cur.execute("""
+                    SELECT EXISTS (
+                        SELECT FROM information_schema.tables 
+                        WHERE table_name = 'user_credits'
+                    )
+                """)
+                exists = cur.fetchone()[0]
+                
+                if not exists:
+                    print("[EconomicAutonomy] Creating user_credits table...")
+                    cur.execute("""
+                        CREATE TABLE IF NOT EXISTS user_credits (
+                            id SERIAL PRIMARY KEY,
+                            api_key_hash VARCHAR(64) NOT NULL UNIQUE,
+                            credits_balance INTEGER DEFAULT 100 NOT NULL,
+                            tier VARCHAR(20) DEFAULT 'free' NOT NULL,
+                            queries_this_month INTEGER DEFAULT 0 NOT NULL,
+                            tools_this_month INTEGER DEFAULT 0 NOT NULL,
+                            research_this_month INTEGER DEFAULT 0 NOT NULL,
+                            month_reset_date VARCHAR(7),
+                            stripe_customer_id VARCHAR(255),
+                            stripe_subscription_id VARCHAR(255),
+                            total_spent_cents INTEGER DEFAULT 0 NOT NULL,
+                            total_queries_all_time INTEGER DEFAULT 0 NOT NULL,
+                            created_at TIMESTAMP DEFAULT NOW() NOT NULL,
+                            updated_at TIMESTAMP DEFAULT NOW() NOT NULL
+                        )
+                    """)
+                    conn.commit()
+                    print("[EconomicAutonomy] ✅ user_credits table created")
+                else:
+                    print("[EconomicAutonomy] ✅ user_credits table exists")
+        except Exception as e:
+            print(f"[EconomicAutonomy] DB init error: {e}")
+            try:
+                conn.rollback()
+            except:
+                pass
+    
+    def _load_users_from_db(self):
+        """Load all users from database into memory cache."""
+        conn = self._get_db_connection()
+        if not conn:
+            return
+        
+        try:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute("SELECT * FROM user_credits")
+                rows = cur.fetchall()
+                
+                for row in rows:
+                    user = UserCredits(
+                        api_key_hash=row['api_key_hash'],
+                        credits_balance=row['credits_balance'],
+                        tier=SubscriptionTier(row['tier']),
+                        queries_this_month=row['queries_this_month'],
+                        tools_this_month=row['tools_this_month'],
+                        research_this_month=row['research_this_month'],
+                        month_reset_date=row['month_reset_date'] or '',
+                        stripe_customer_id=row['stripe_customer_id'],
+                        stripe_subscription_id=row['stripe_subscription_id'],
+                        total_spent_cents=row['total_spent_cents'],
+                        total_queries_all_time=row['total_queries_all_time'],
+                        created_at=row['created_at'].timestamp() if row['created_at'] else time.time(),
+                        db_id=row['id']
+                    )
+                    self._user_credits[user.api_key_hash] = user
+                
+                print(f"[EconomicAutonomy] Loaded {len(rows)} users from PostgreSQL")
+        except Exception as e:
+            print(f"[EconomicAutonomy] DB load error: {e}")
+            try:
+                conn.rollback()
+            except:
+                pass
+    
+    def _save_user_to_db(self, user: UserCredits):
+        """Save or update user in database."""
+        conn = self._get_db_connection()
+        if not conn:
+            return
+        
+        try:
+            with conn.cursor() as cur:
+                if user.db_id:
+                    # Update existing
+                    cur.execute("""
+                        UPDATE user_credits SET
+                            credits_balance = %s,
+                            tier = %s,
+                            queries_this_month = %s,
+                            tools_this_month = %s,
+                            research_this_month = %s,
+                            month_reset_date = %s,
+                            stripe_customer_id = %s,
+                            stripe_subscription_id = %s,
+                            total_spent_cents = %s,
+                            total_queries_all_time = %s,
+                            updated_at = NOW()
+                        WHERE id = %s
+                    """, (
+                        user.credits_balance,
+                        user.tier.value,
+                        user.queries_this_month,
+                        user.tools_this_month,
+                        user.research_this_month,
+                        user.month_reset_date,
+                        user.stripe_customer_id,
+                        user.stripe_subscription_id,
+                        user.total_spent_cents,
+                        user.total_queries_all_time,
+                        user.db_id
+                    ))
+                else:
+                    # Insert new
+                    cur.execute("""
+                        INSERT INTO user_credits (
+                            api_key_hash, credits_balance, tier,
+                            queries_this_month, tools_this_month, research_this_month,
+                            month_reset_date, stripe_customer_id, stripe_subscription_id,
+                            total_spent_cents, total_queries_all_time
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        RETURNING id
+                    """, (
+                        user.api_key_hash,
+                        user.credits_balance,
+                        user.tier.value,
+                        user.queries_this_month,
+                        user.tools_this_month,
+                        user.research_this_month,
+                        user.month_reset_date,
+                        user.stripe_customer_id,
+                        user.stripe_subscription_id,
+                        user.total_spent_cents,
+                        user.total_queries_all_time
+                    ))
+                    result = cur.fetchone()
+                    if result:
+                        user.db_id = result[0]
+                
+                conn.commit()
+        except Exception as e:
+            print(f"[EconomicAutonomy] DB save error: {e}")
+            try:
+                conn.rollback()
+            except:
+                pass
     
     def _initialize_core_revenue_streams(self):
         """Initialize the core revenue streams."""
@@ -247,11 +444,15 @@ class EconomicAutonomy:
         
         with self._lock:
             if key_hash not in self._user_credits:
-                self._user_credits[key_hash] = UserCredits(
+                # Create new user
+                user = UserCredits(
                     api_key_hash=key_hash,
                     credits_balance=100,  # Free starting credits ($1.00)
                     month_reset_date=datetime.now().strftime("%Y-%m")
                 )
+                self._user_credits[key_hash] = user
+                # Persist to database
+                self._save_user_to_db(user)
             
             # Check if month needs reset
             user = self._user_credits[key_hash]
@@ -261,6 +462,8 @@ class EconomicAutonomy:
                 user.tools_this_month = 0
                 user.research_this_month = 0
                 user.month_reset_date = current_month
+                # Persist the reset
+                self._save_user_to_db(user)
             
             return user
     
@@ -294,12 +497,16 @@ class EconomicAutonomy:
         # Deduct
         user.deduct(operation, price)
         
+        # Persist to database
+        self._save_user_to_db(user)
+        
         return True, price, "OK"
     
     def add_credits(self, api_key: str, amount_cents: int, source: str = "purchase") -> bool:
         """Add credits to user account."""
         user = self.get_or_create_user(api_key)
         user.credits_balance += amount_cents
+        self._save_user_to_db(user)
         print(f"[EconomicAutonomy] Added {amount_cents} cents to user (source: {source})")
         return True
     
@@ -307,6 +514,7 @@ class EconomicAutonomy:
         """Upgrade user to new subscription tier."""
         user = self.get_or_create_user(api_key)
         user.tier = new_tier
+        self._save_user_to_db(user)
         print(f"[EconomicAutonomy] Upgraded user to {new_tier.value}")
         return True
     

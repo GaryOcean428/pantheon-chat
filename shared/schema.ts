@@ -3323,6 +3323,34 @@ export type ToolPatternRow = typeof toolPatterns.$inferSelect;
 export type InsertToolPattern = typeof toolPatterns.$inferInsert;
 
 /**
+ * USER CREDITS - Billing and metering for API usage
+ * Tracks credits, usage limits, and subscription tiers
+ * Essential for self-sustaining economic operation
+ */
+export const userCredits = pgTable(
+  "user_credits",
+  {
+    id: serial("id").primaryKey(),
+    apiKeyHash: varchar("api_key_hash", { length: 64 }).notNull().unique(),
+    creditsBalance: integer("credits_balance").default(100).notNull(), // In cents, default $1.00
+    tier: varchar("tier", { length: 20 }).default("free").notNull(), // free, pro, enterprise
+    queriesThisMonth: integer("queries_this_month").default(0).notNull(),
+    toolsThisMonth: integer("tools_this_month").default(0).notNull(),
+    researchThisMonth: integer("research_this_month").default(0).notNull(),
+    monthResetDate: varchar("month_reset_date", { length: 7 }), // YYYY-MM format
+    stripeCustomerId: varchar("stripe_customer_id", { length: 255 }),
+    stripeSubscriptionId: varchar("stripe_subscription_id", { length: 255 }),
+    totalSpentCents: integer("total_spent_cents").default(0).notNull(),
+    totalQueriesAllTime: integer("total_queries_all_time").default(0).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  }
+);
+
+export type UserCreditsRow = typeof userCredits.$inferSelect;
+export type InsertUserCredits = typeof userCredits.$inferInsert;
+
+/**
  * EXTERNAL API KEYS - Authentication for external systems
  * Supports federated instances, headless clients, and third-party integrations
  * ALIGNED WITH EXISTING DATABASE SCHEMA
