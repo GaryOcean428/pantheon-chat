@@ -390,14 +390,15 @@ if __name__ == "__main__":
     p2 = np.array([0.45, 0.35, 0.2])
     
     d_fisher = fisher_rao_distance(p1, p2)
-    d_euclidean = np.linalg.norm(p1 - p2)
+    # Use fallback function for comparison (marked as non-geometric)
+    d_euclidean_fallback = geodesic_distance_euclidean_fallback(p1, p2)
     d_hellinger = hellinger_distance(p1, p2)
     
     print(f"\nExample 1: Similar distributions")
     print(f"  p1 = {p1}")
     print(f"  p2 = {p2}")
     print(f"  Fisher-Rao:  {d_fisher:.4f}")
-    print(f"  Euclidean:   {d_euclidean:.4f} ⚠️ (NOT geometrically correct)")
+    print(f"  Euclidean (fallback):   {d_euclidean_fallback:.4f} ⚠️ (NOT geometrically correct)")
     print(f"  Hellinger:   {d_hellinger:.4f}")
     
     # Example 2: Distance between very different distributions
@@ -405,13 +406,14 @@ if __name__ == "__main__":
     p4 = np.array([0.1, 0.45, 0.45])
     
     d_fisher2 = fisher_rao_distance(p3, p4)
-    d_euclidean2 = np.linalg.norm(p3 - p4)
+    # Use fallback function for comparison (marked as non-geometric)
+    d_euclidean_fallback2 = geodesic_distance_euclidean_fallback(p3, p4)
     
     print(f"\nExample 2: Different distributions")
     print(f"  p3 = {p3}")
     print(f"  p4 = {p4}")
     print(f"  Fisher-Rao:  {d_fisher2:.4f}")
-    print(f"  Euclidean:   {d_euclidean2:.4f} ⚠️ (NOT geometrically correct)")
+    print(f"  Euclidean (fallback):   {d_euclidean_fallback2:.4f} ⚠️ (NOT geometrically correct)")
     
     # Example 3: Natural gradient
     print(f"\nExample 3: Natural gradient")

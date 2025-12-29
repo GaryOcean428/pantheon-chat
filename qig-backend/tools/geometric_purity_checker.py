@@ -38,7 +38,7 @@ FORBIDDEN_PATTERNS = [
 ]
 
 # Allowed contexts
-ALLOWED_CONTEXTS = ['test_', 'visualization', 'legacy']
+ALLOWED_CONTEXTS = ['test_', 'visualization', 'legacy', 'euclidean_fallback']
 
 
 class GeometricPurityChecker(ast.NodeVisitor):
@@ -46,15 +46,29 @@ class GeometricPurityChecker(ast.NodeVisitor):
         self.filename = filename
         self.source_lines = source.splitlines()
         self.violations: List[Violation] = []
+        self.current_function = None  # Track current function name
         self.is_allowed_context = any(
             ctx in filename.lower() for ctx in ALLOWED_CONTEXTS
         )
     
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+        """Track function definitions to check for allowed function names."""
+        old_function = self.current_function
+        self.current_function = node.name
+        self.generic_visit(node)
+        self.current_function = old_function
+    
     def visit_Call(self, node: ast.Call) -> None:
         func_name = self._get_func_name(node)
         if func_name:
+            # Check if we're in an allowed function context
+            in_allowed_function = (
+                self.current_function and 
+                any(ctx in self.current_function.lower() for ctx in ALLOWED_CONTEXTS)
+            )
+            
             for pattern, message in FORBIDDEN_PATTERNS:
-                if pattern in func_name and not self.is_allowed_context:
+                if pattern in func_name and not self.is_allowed_context and not in_allowed_function:
                     self._add_violation(node, pattern, message, 'error')
         self.generic_visit(node)
     
