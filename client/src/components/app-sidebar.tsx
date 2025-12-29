@@ -13,7 +13,8 @@ import {
   Badge,
   Button,
 } from "@/components/ui";
-import { API_ROUTES } from "@/api";import {
+import { API_ROUTES } from "@/api";
+import { 
   Home,
   Brain,
   LogOut,
@@ -37,15 +38,7 @@ import { API_ROUTES } from "@/api";import {
   FileCode,
   CreditCard,
   Wrench,
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-  Brain,
-=======
   Network,
->>>>>>> Stashed changes
-=======
-  Network,
->>>>>>> Stashed changes
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useConsciousness, getPhiColor, getRegimeLabel } from "@/contexts/ConsciousnessContext";
@@ -324,7 +317,6 @@ export function AppSidebar() {
             </div>
           </SidebarGroupContent>
         </SidebarGroup>
-
       </SidebarContent>
 
       <SidebarFooter className="p-4 border-t border-sidebar-border">
