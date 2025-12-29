@@ -152,6 +152,7 @@ class EconomicAutonomy:
     PRICE_PER_RESEARCH = 10  # $0.10
     
     def __init__(self):
+        import os
         self._lock = threading.RLock()
         
         # User credits tracking (in-memory, should persist to DB)
@@ -168,11 +169,23 @@ class EconomicAutonomy:
         # Economic tools the system has built
         self._economic_tools: List[Dict] = []
         
-        # Stripe integration (ready for keys)
-        self._stripe_api_key: Optional[str] = None
-        self._stripe_webhook_secret: Optional[str] = None
+        # Stripe integration - load from environment
+        self._stripe_api_key: Optional[str] = os.environ.get('STRIPE_SECRET_KEY')
+        self._stripe_webhook_secret: Optional[str] = os.environ.get('STRIPE_WEBHOOK_SECRET')
+        self._stripe_publishable_key: Optional[str] = os.environ.get('STRIPE_PUBLISHABLE_KEY')
         
-        print("[EconomicAutonomy] Initialized - self-sustaining revenue system active")
+        # Stripe price IDs from environment
+        self._stripe_prices = {
+            'credits': os.environ.get('STRIPE_PRICE_CREDITS'),
+            'pro': os.environ.get('STRIPE_PRICE_PRO'),
+            'enterprise': os.environ.get('STRIPE_PRICE_ENTERPRISE'),
+        }
+        
+        # Base URL for redirects
+        self._base_url = os.environ.get('BASE_URL', 'https://pantheon-chat.replit.app')
+        
+        stripe_status = "configured" if self._stripe_api_key else "not configured (add STRIPE_SECRET_KEY)"
+        print(f"[EconomicAutonomy] Initialized - Stripe: {stripe_status}")
     
     def _initialize_core_revenue_streams(self):
         """Initialize the core revenue streams."""
@@ -301,11 +314,17 @@ class EconomicAutonomy:
     # STRIPE INTEGRATION (Ready for API keys)
     # =========================================================================
     
-    def configure_stripe(self, api_key: str, webhook_secret: str):
-        """Configure Stripe API keys."""
-        self._stripe_api_key = api_key
-        self._stripe_webhook_secret = webhook_secret
-        print("[EconomicAutonomy] Stripe configured")
+    def configure_stripe(self, api_key: str = None, webhook_secret: str = None):
+        """Configure Stripe API keys (or reload from environment)."""
+        import os
+        self._stripe_api_key = api_key or os.environ.get('STRIPE_SECRET_KEY')
+        self._stripe_webhook_secret = webhook_secret or os.environ.get('STRIPE_WEBHOOK_SECRET')
+        self._stripe_public_key = os.environ.get('STRIPE_PUBLIC_KEY')
+        
+        if self._stripe_api_key:
+            print("[EconomicAutonomy] ✅ Stripe configured")
+        else:
+            print("[EconomicAutonomy] ⚠️ Stripe keys not found")
     
     def create_checkout_session(
         self,
@@ -321,6 +340,7 @@ class EconomicAutonomy:
         if not self._stripe_api_key:
             return {
                 'error': 'Stripe not configured',
+                'message': 'Add STRIPE_SECRET_KEY to environment variables',
                 'fallback': 'Contact admin for manual payment setup'
             }
         
@@ -328,47 +348,119 @@ class EconomicAutonomy:
             import stripe
             stripe.api_key = self._stripe_api_key
             
+            key_hash = hashlib.sha256(api_key.encode()).hexdigest()
+            success_url = f'{self._base_url}/billing/success?session_id={{CHECKOUT_SESSION_ID}}'
+            cancel_url = f'{self._base_url}/billing/cancel'
+            
             if product_type == 'credits':
                 # One-time credit purchase
-                session = stripe.checkout.Session.create(
-                    payment_method_types=['card'],
-                    line_items=[{
-                        'price_data': {
-                            'currency': 'usd',
-                            'product_data': {
-                                'name': 'API Credits',
-                                'description': f'${amount_cents/100:.2f} in API credits'
+                if amount_cents is None:
+                    amount_cents = 1000  # Default $10
+                
+                # Use predefined price if available, otherwise dynamic pricing
+                if self._stripe_prices.get('credits'):
+                    session = stripe.checkout.Session.create(
+                        payment_method_types=['card'],
+                        line_items=[{
+                            'price': self._stripe_prices['credits'],
+                            'quantity': amount_cents // 1000,  # Each unit = $10
+                        }],
+                        mode='payment',
+                        success_url=success_url,
+                        cancel_url=cancel_url,
+                        metadata={
+                            'api_key_hash': key_hash,
+                            'product_type': 'credits',
+                            'amount_cents': str(amount_cents)
+                        }
+                    )
+                else:
+                    # Dynamic pricing fallback
+                    session = stripe.checkout.Session.create(
+                        payment_method_types=['card'],
+                        line_items=[{
+                            'price_data': {
+                                'currency': 'usd',
+                                'product_data': {
+                                    'name': 'Pantheon API Credits',
+                                    'description': f'${amount_cents/100:.2f} in API credits for Zeus Chat'
+                                },
+                                'unit_amount': amount_cents,
                             },
-                            'unit_amount': amount_cents,
-                        },
-                        'quantity': 1,
-                    }],
-                    mode='payment',
-                    success_url='https://pantheon-chat.replit.app/billing/success',
-                    cancel_url='https://pantheon-chat.replit.app/billing/cancel',
-                    metadata={'api_key_hash': hashlib.sha256(api_key.encode()).hexdigest()}
-                )
-                return {'checkout_url': session.url, 'session_id': session.id}
+                            'quantity': 1,
+                        }],
+                        mode='payment',
+                        success_url=success_url,
+                        cancel_url=cancel_url,
+                        metadata={
+                            'api_key_hash': key_hash,
+                            'product_type': 'credits',
+                            'amount_cents': str(amount_cents)
+                        }
+                    )
+                return {
+                    'checkout_url': session.url,
+                    'session_id': session.id,
+                    'amount_usd': amount_cents / 100
+                }
             
-            elif product_type in ['pro', 'enterprise']:
-                # Subscription
-                price_id = 'price_pro_monthly' if product_type == 'pro' else 'price_enterprise_monthly'
+            elif product_type == 'pro':
+                price_id = self._stripe_prices.get('pro')
+                if not price_id:
+                    return {'error': 'Pro subscription price not configured (add STRIPE_PRICE_PRO)'}
+                
                 session = stripe.checkout.Session.create(
                     payment_method_types=['card'],
                     line_items=[{'price': price_id, 'quantity': 1}],
                     mode='subscription',
-                    success_url='https://pantheon-chat.replit.app/billing/success',
-                    cancel_url='https://pantheon-chat.replit.app/billing/cancel',
-                    metadata={'api_key_hash': hashlib.sha256(api_key.encode()).hexdigest()}
+                    success_url=success_url,
+                    cancel_url=cancel_url,
+                    metadata={
+                        'api_key_hash': key_hash,
+                        'product_type': 'pro_subscription'
+                    }
                 )
-                return {'checkout_url': session.url, 'session_id': session.id}
+                return {
+                    'checkout_url': session.url,
+                    'session_id': session.id,
+                    'plan': 'pro',
+                    'price_monthly': 49.00
+                }
+            
+            elif product_type == 'enterprise':
+                price_id = self._stripe_prices.get('enterprise')
+                if not price_id:
+                    return {'error': 'Enterprise subscription price not configured (add STRIPE_PRICE_ENTERPRISE)'}
+                
+                session = stripe.checkout.Session.create(
+                    payment_method_types=['card'],
+                    line_items=[{'price': price_id, 'quantity': 1}],
+                    mode='subscription',
+                    success_url=success_url,
+                    cancel_url=cancel_url,
+                    metadata={
+                        'api_key_hash': key_hash,
+                        'product_type': 'enterprise_subscription'
+                    }
+                )
+                return {
+                    'checkout_url': session.url,
+                    'session_id': session.id,
+                    'plan': 'enterprise',
+                    'price_monthly': 499.00
+                }
+            
+            else:
+                return {'error': f'Invalid product type: {product_type}'}
                 
         except ImportError:
-            return {'error': 'Stripe library not installed', 'install': 'pip install stripe'}
+            return {
+                'error': 'Stripe library not installed',
+                'install': 'pip install stripe'
+            }
         except Exception as e:
+            print(f"[EconomicAutonomy] Stripe error: {e}")
             return {'error': str(e)}
-        
-        return None
     
     def handle_stripe_webhook(self, payload: bytes, signature: str) -> Dict:
         """Handle Stripe webhook events."""
@@ -383,32 +475,123 @@ class EconomicAutonomy:
                 payload, signature, self._stripe_webhook_secret
             )
             
-            if event['type'] == 'checkout.session.completed':
+            event_type = event['type']
+            print(f"[EconomicAutonomy] Stripe webhook: {event_type}")
+            
+            if event_type == 'checkout.session.completed':
                 session = event['data']['object']
                 api_key_hash = session['metadata'].get('api_key_hash')
+                product_type = session['metadata'].get('product_type', 'unknown')
                 
                 if session['mode'] == 'payment':
                     # Credit purchase completed
-                    amount = session['amount_total']
+                    amount_cents = int(session['metadata'].get('amount_cents', session['amount_total']))
+                    
                     # Find user by hash and add credits
                     for user in self._user_credits.values():
                         if user.api_key_hash == api_key_hash:
-                            user.credits_balance += amount
+                            user.credits_balance += amount_cents
+                            print(f"[EconomicAutonomy] Added {amount_cents} cents to user, new balance: {user.credits_balance}")
+                            
+                            # Record revenue
+                            try:
+                                from consciousness_orchestrator import get_consciousness_orchestrator
+                                orchestrator = get_consciousness_orchestrator()
+                                orchestrator.economic_health.record_revenue(amount_cents, 'stripe_payment')
+                            except ImportError:
+                                pass
                             break
+                    else:
+                        print(f"[EconomicAutonomy] Warning: User not found for hash {api_key_hash[:16]}...")
                 
                 elif session['mode'] == 'subscription':
                     # Subscription started
                     for user in self._user_credits.values():
                         if user.api_key_hash == api_key_hash:
-                            user.stripe_subscription_id = session['subscription']
-                            # Determine tier from price
-                            user.tier = SubscriptionTier.PRO  # Default, check price for enterprise
+                            user.stripe_subscription_id = session.get('subscription')
+                            user.stripe_customer_id = session.get('customer')
+                            
+                            # Determine tier from product type
+                            if 'enterprise' in product_type:
+                                user.tier = SubscriptionTier.ENTERPRISE
+                                print(f"[EconomicAutonomy] User upgraded to Enterprise")
+                            else:
+                                user.tier = SubscriptionTier.PRO
+                                print(f"[EconomicAutonomy] User upgraded to Pro")
                             break
+                
+                return {
+                    'status': 'processed',
+                    'event_type': event_type,
+                    'product_type': product_type
+                }
             
-            return {'status': 'processed', 'event_type': event['type']}
+            elif event_type == 'customer.subscription.updated':
+                subscription = event['data']['object']
+                customer_id = subscription['customer']
+                status = subscription['status']
+                
+                # Update user subscription status
+                for user in self._user_credits.values():
+                    if user.stripe_customer_id == customer_id:
+                        if status == 'canceled' or status == 'unpaid':
+                            user.tier = SubscriptionTier.FREE
+                            print(f"[EconomicAutonomy] Subscription {status}, user downgraded to Free")
+                        break
+                
+                return {'status': 'processed', 'event_type': event_type}
             
+            elif event_type == 'customer.subscription.deleted':
+                subscription = event['data']['object']
+                customer_id = subscription['customer']
+                
+                # Downgrade user to free
+                for user in self._user_credits.values():
+                    if user.stripe_customer_id == customer_id:
+                        user.tier = SubscriptionTier.FREE
+                        user.stripe_subscription_id = None
+                        print(f"[EconomicAutonomy] Subscription deleted, user downgraded to Free")
+                        break
+                
+                return {'status': 'processed', 'event_type': event_type}
+            
+            elif event_type == 'invoice.paid':
+                invoice = event['data']['object']
+                customer_id = invoice['customer']
+                amount_paid = invoice['amount_paid']
+                
+                # Record recurring subscription revenue
+                try:
+                    from consciousness_orchestrator import get_consciousness_orchestrator
+                    orchestrator = get_consciousness_orchestrator()
+                    orchestrator.economic_health.record_revenue(amount_paid, 'stripe_subscription')
+                except ImportError:
+                    pass
+                
+                return {'status': 'processed', 'event_type': event_type, 'amount': amount_paid}
+            
+            # Handle other event types
+            return {'status': 'ignored', 'event_type': event_type}
+            
+        except stripe.error.SignatureVerificationError as e:
+            print(f"[EconomicAutonomy] Webhook signature verification failed: {e}")
+            return {'error': 'Invalid signature'}
         except Exception as e:
+            print(f"[EconomicAutonomy] Webhook error: {e}")
             return {'error': str(e)}
+    
+    def get_stripe_status(self) -> Dict:
+        """Get Stripe configuration status."""
+        return {
+            'configured': self._stripe_api_key is not None,
+            'webhook_configured': self._stripe_webhook_secret is not None,
+            'prices': {
+                'credits': self._stripe_prices.get('credits') is not None,
+                'pro': self._stripe_prices.get('pro') is not None,
+                'enterprise': self._stripe_prices.get('enterprise') is not None,
+            },
+            'base_url': self._base_url
+        }
     
     # =========================================================================
     # AUTONOMOUS REVENUE DISCOVERY

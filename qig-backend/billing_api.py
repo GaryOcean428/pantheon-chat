@@ -309,4 +309,129 @@ def economic_report():
     return jsonify(report)
 
 
+@billing_bp.route('/checkout', methods=['POST'])
+def create_checkout():
+    """
+    Create Stripe checkout session.
+    
+    POST /api/billing/checkout
+    {
+        "api_key": "qig_xxx...",
+        "product_type": "credits" | "pro" | "enterprise",
+        "amount_cents": 1000  // Only for credits, optional
+    }
+    
+    Returns:
+    {
+        "checkout_url": "https://checkout.stripe.com/...",
+        "session_id": "cs_..."
+    }
+    """
+    data = request.get_json() or {}
+    api_key = data.get('api_key', '')
+    product_type = data.get('product_type', 'credits')
+    amount_cents = data.get('amount_cents', 1000)  # Default $10
+    
+    if not api_key:
+        return jsonify({'error': 'Missing API key'}), 400
+    
+    ea = get_economic_autonomy()
+    result = ea.create_checkout_session(api_key, product_type, amount_cents)
+    
+    if result and 'error' in result:
+        return jsonify(result), 400
+    
+    return jsonify(result)
+
+
+@billing_bp.route('/webhook', methods=['POST'])
+def stripe_webhook():
+    """
+    Handle Stripe webhook events.
+    
+    POST /api/billing/webhook
+    (Called by Stripe with raw body and signature header)
+    """
+    payload = request.get_data()
+    signature = request.headers.get('Stripe-Signature', '')
+    
+    if not signature:
+        return jsonify({'error': 'Missing signature'}), 400
+    
+    ea = get_economic_autonomy()
+    result = ea.handle_stripe_webhook(payload, signature)
+    
+    if 'error' in result:
+        print(f"[BillingAPI] Webhook error: {result['error']}")
+        return jsonify(result), 400
+    
+    return jsonify(result)
+
+
+@billing_bp.route('/stripe-status', methods=['GET'])
+def stripe_status():
+    """
+    Get Stripe configuration status.
+    
+    GET /api/billing/stripe-status
+    """
+    if not verify_internal_auth():
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    ea = get_economic_autonomy()
+    return jsonify(ea.get_stripe_status())
+
+
+@billing_bp.route('/pricing', methods=['GET'])
+def get_pricing():
+    """
+    Get current pricing information.
+    
+    GET /api/billing/pricing
+    (Public endpoint)
+    """
+    ea = get_economic_autonomy()
+    
+    from economic_autonomy import TierLimits, SubscriptionTier
+    
+    return jsonify({
+        'usage_pricing': {
+            'query': {
+                'price_cents': ea.PRICE_PER_QUERY,
+                'price_usd': ea.PRICE_PER_QUERY / 100,
+                'description': 'Per chat message or API query'
+            },
+            'tool': {
+                'price_cents': ea.PRICE_PER_TOOL,
+                'price_usd': ea.PRICE_PER_TOOL / 100,
+                'description': 'Per tool generation'
+            },
+            'research': {
+                'price_cents': ea.PRICE_PER_RESEARCH,
+                'price_usd': ea.PRICE_PER_RESEARCH / 100,
+                'description': 'Per deep research request'
+            }
+        },
+        'subscription_tiers': {
+            'free': {
+                'price_monthly_usd': 0,
+                'limits': TierLimits.get_tier_limits(SubscriptionTier.FREE).__dict__
+            },
+            'pro': {
+                'price_monthly_usd': 49,
+                'limits': TierLimits.get_tier_limits(SubscriptionTier.PRO).__dict__
+            },
+            'enterprise': {
+                'price_monthly_usd': 499,
+                'limits': TierLimits.get_tier_limits(SubscriptionTier.ENTERPRISE).__dict__
+            }
+        },
+        'credit_packages': [
+            {'amount_usd': 10, 'credits': 1000, 'description': '$10 = 1000 queries'},
+            {'amount_usd': 50, 'credits': 5500, 'description': '$50 = 5500 queries (10% bonus)'},
+            {'amount_usd': 100, 'credits': 12000, 'description': '$100 = 12000 queries (20% bonus)'}
+        ]
+    })
+
+
 print("[BillingAPI] Routes initialized at /api/billing/*")
