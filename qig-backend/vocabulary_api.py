@@ -2,7 +2,7 @@
 """Vocabulary System API Endpoints - Complete Flask integration"""
 
 from datetime import datetime
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, request
 
 try:
     from vocabulary_coordinator import get_vocabulary_coordinator
