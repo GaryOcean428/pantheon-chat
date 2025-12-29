@@ -20,7 +20,7 @@ import {
   Spawning as SpawningPage,
   LearningDashboard,
   TelemetryDashboard,
-  ToolFactoryDashboard,
+  ToolsDashboard as ToolFactoryDashboard,
   Billing as BillingPage,
   ToolsDashboard as ToolsDashboardPage,
   ZettelkastenDashboard as ZettelkastenPage,
