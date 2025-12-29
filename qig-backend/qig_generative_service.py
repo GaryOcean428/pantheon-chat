@@ -484,45 +484,84 @@ class BigramCoherenceScorer:
         """Reset the scorer state (no-op for bigram scorer, kept for interface compatibility)."""
         pass
     
-    def score_candidates(self, candidates, prev_word: str):
+    def update(self, word: str, position: int) -> None:
+        """Update scorer state after a word is selected (no-op, kept for interface compatibility)."""
+        pass
+    
+    def score_transition(self, prev_word: str, curr_word: str, prev_pos: str = '', curr_pos: str = '') -> float:
+        """
+        Score a word transition for coherence validation.
+        
+        Args:
+            prev_word: Previous word in sequence
+            curr_word: Current word to score
+            prev_pos: POS tag for previous word (optional, unused)
+            curr_pos: POS tag for current word (optional, unused)
+            
+        Returns:
+            Coherence score between 0.0 and 1.0
+        """
+        return self.score_bigram(prev_word, curr_word)
+    
+    def score_candidates(self, candidates, prev_word):
         """
         Score a list of candidate words based on bigram coherence with previous word.
         
         Args:
-            candidates: List of (word, base_score) tuples OR list of candidate dicts
+            candidates: List of (word, combined_score, geo_score, bigram_score) tuples
             prev_word: The previous word in the sequence (can be str or int position)
             
         Returns:
-            List with bigram coherence scores applied
+            List of (word, combined_score, geo_score, bigram_score) tuples with updated scores
         """
         # Handle position index being passed instead of word
         if isinstance(prev_word, int):
-            # Position index passed - no previous word context available
+            # Position index passed - no previous word context, just return with default bigram scores
+            if not candidates:
+                return candidates
+            # Check tuple length and adjust if needed
+            if candidates and isinstance(candidates[0], tuple):
+                if len(candidates[0]) == 2:
+                    # (word, score) format - expand to 4-tuple
+                    return [(word, score, score, 0.5) for word, score in candidates]
+                elif len(candidates[0]) == 4:
+                    return candidates
             return candidates
         
         if not prev_word or not candidates:
             return candidates
         
-        # Check if candidates are tuples or dicts
+        # Check tuple format
         if candidates and isinstance(candidates[0], tuple):
-            scored = []
-            for word, base_score in candidates:
-                bigram_score = self.score_bigram(prev_word, word)
-                adjusted_score = base_score * 0.6 + bigram_score * 0.4
-                scored.append((word, adjusted_score))
-            return scored
+            first = candidates[0]
+            if len(first) == 2:
+                # (word, score) format - expand to 4-tuple with bigram scoring
+                scored = []
+                for word, base_score in candidates:
+                    bigram_score = self.score_bigram(str(prev_word), word)
+                    combined = base_score * 0.6 + bigram_score * 0.4
+                    scored.append((word, combined, base_score, bigram_score))
+                return scored
+            elif len(first) == 4:
+                # Already in (word, combined, geo_score, bigram_score) format
+                # Re-score with actual bigram coherence
+                scored = []
+                for word, combined, geo_score, old_bigram in candidates:
+                    bigram_score = self.score_bigram(str(prev_word), word)
+                    new_combined = geo_score * 0.6 + bigram_score * 0.4
+                    scored.append((word, new_combined, geo_score, bigram_score))
+                return scored
+            else:
+                return candidates
         elif candidates and isinstance(candidates[0], dict):
             # Dict format with 'word' and 'score' keys
             scored = []
             for cand in candidates:
                 word = cand.get('word', cand.get('token', ''))
                 base_score = cand.get('score', cand.get('probability', 0.5))
-                bigram_score = self.score_bigram(prev_word, word)
-                adjusted_score = base_score * 0.6 + bigram_score * 0.4
-                new_cand = dict(cand)
-                new_cand['score'] = adjusted_score
-                new_cand['bigram_score'] = bigram_score
-                scored.append(new_cand)
+                bigram_score = self.score_bigram(str(prev_word), word)
+                combined = base_score * 0.6 + bigram_score * 0.4
+                scored.append((word, combined, base_score, bigram_score))
             return scored
         else:
             # Unknown format, return as-is
