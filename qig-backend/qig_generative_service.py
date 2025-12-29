@@ -112,6 +112,110 @@ class BigramCoherenceScorer:
             'integration': 0.75,
             'geometric': 0.75,
         }
+        
+        # Trigram grammatical patterns (prev_cat, middle_cat, next_cat) -> score
+        self._trigram_patterns: Dict[Tuple[str, str, str], float] = {
+            # Article + Adjective + Noun patterns (very common)
+            ('article', 'adjective', 'noun'): 0.95,
+            ('article', 'noun', 'verb'): 0.9,
+            ('article', 'noun', 'preposition'): 0.85,
+            ('article', 'adjective', 'adjective'): 0.7,
+            
+            # Pronoun + Verb + X patterns
+            ('pronoun', 'verb', 'noun'): 0.9,
+            ('pronoun', 'verb', 'article'): 0.9,
+            ('pronoun', 'verb', 'adverb'): 0.85,
+            ('pronoun', 'verb', 'preposition'): 0.85,
+            ('pronoun', 'adverb', 'verb'): 0.85,
+            
+            # Verb + Article + Noun patterns
+            ('verb', 'article', 'noun'): 0.9,
+            ('verb', 'article', 'adjective'): 0.85,
+            ('verb', 'preposition', 'article'): 0.85,
+            ('verb', 'preposition', 'noun'): 0.85,
+            
+            # Noun + Verb + X patterns
+            ('noun', 'verb', 'noun'): 0.85,
+            ('noun', 'verb', 'article'): 0.85,
+            ('noun', 'verb', 'adverb'): 0.8,
+            ('noun', 'preposition', 'article'): 0.85,
+            ('noun', 'preposition', 'noun'): 0.8,
+            ('noun', 'conjunction', 'noun'): 0.85,
+            
+            # Preposition + Article + Noun patterns (very common)
+            ('preposition', 'article', 'noun'): 0.95,
+            ('preposition', 'article', 'adjective'): 0.9,
+            ('preposition', 'adjective', 'noun'): 0.85,
+            ('preposition', 'noun', 'preposition'): 0.75,
+            
+            # Adverb patterns
+            ('adverb', 'verb', 'noun'): 0.85,
+            ('adverb', 'verb', 'article'): 0.85,
+            ('adverb', 'adjective', 'noun'): 0.85,
+            ('verb', 'adverb', 'preposition'): 0.8,
+            
+            # Conjunction patterns
+            ('conjunction', 'article', 'noun'): 0.85,
+            ('conjunction', 'pronoun', 'verb'): 0.85,
+            ('noun', 'conjunction', 'article'): 0.8,
+            
+            # Bad patterns (penalize these)
+            ('article', 'article', 'noun'): 0.1,
+            ('article', 'verb', 'article'): 0.15,
+            ('preposition', 'preposition', 'noun'): 0.1,
+            ('verb', 'verb', 'verb'): 0.15,
+            ('conjunction', 'conjunction', 'noun'): 0.1,
+        }
+        
+        # Common actual word trigrams (specific phrases that are coherent)
+        self._common_trigram_sequences: Dict[Tuple[str, str, str], float] = {
+            # Common English phrases
+            ('in', 'the', 'context'): 0.95,
+            ('in', 'the', 'process'): 0.95,
+            ('in', 'the', 'form'): 0.95,
+            ('in', 'the', 'case'): 0.95,
+            ('in', 'the', 'field'): 0.95,
+            ('on', 'the', 'other'): 0.95,
+            ('at', 'the', 'same'): 0.95,
+            ('of', 'the', 'system'): 0.95,
+            ('to', 'the', 'point'): 0.9,
+            ('by', 'the', 'way'): 0.9,
+            ('as', 'a', 'result'): 0.95,
+            ('as', 'well', 'as'): 0.95,
+            ('such', 'as', 'the'): 0.9,
+            ('one', 'of', 'the'): 0.95,
+            ('part', 'of', 'the'): 0.95,
+            ('out', 'of', 'the'): 0.9,
+            ('is', 'a', 'key'): 0.9,
+            ('is', 'the', 'most'): 0.9,
+            ('it', 'is', 'important'): 0.9,
+            ('there', 'is', 'a'): 0.95,
+            ('there', 'are', 'many'): 0.95,
+            ('this', 'is', 'a'): 0.95,
+            ('this', 'is', 'the'): 0.95,
+            ('that', 'is', 'the'): 0.9,
+            ('we', 'can', 'see'): 0.9,
+            ('we', 'need', 'to'): 0.9,
+            ('can', 'be', 'used'): 0.9,
+            ('be', 'able', 'to'): 0.95,
+            ('in', 'order', 'to'): 0.95,
+            ('with', 'respect', 'to'): 0.9,
+            ('based', 'on', 'the'): 0.9,
+            ('according', 'to', 'the'): 0.9,
+            # QIG/consciousness domain trigrams
+            ('the', 'consciousness', 'system'): 0.9,
+            ('the', 'geometric', 'manifold'): 0.9,
+            ('the', 'fisher', 'metric'): 0.9,
+            ('basin', 'of', 'attraction'): 0.95,
+            ('integration', 'of', 'information'): 0.9,
+            ('flow', 'of', 'information'): 0.9,
+            ('state', 'of', 'consciousness'): 0.9,
+            ('level', 'of', 'integration'): 0.9,
+            ('degree', 'of', 'coherence'): 0.9,
+            ('through', 'the', 'manifold'): 0.9,
+            ('across', 'the', 'network'): 0.9,
+            ('within', 'the', 'system'): 0.9,
+        }
     
     def _get_word_category(self, word: str) -> str:
         """Determine the grammatical category of a word."""
@@ -172,6 +276,90 @@ class BigramCoherenceScorer:
         
         return pattern_score
     
+    def score_trigram(self, word1: str, word2: str, word3: str) -> float:
+        """
+        Score the coherence of a 3-word sequence.
+        
+        Args:
+            word1: First word in the sequence
+            word2: Second word in the sequence
+            word3: Third word in the sequence
+            
+        Returns:
+            Coherence score between 0.0 and 1.0
+        """
+        if not word1 or not word2 or not word3:
+            return 0.5  # Neutral for missing words
+        
+        # First check for known common trigram sequences (exact word match)
+        trigram_key = (word1.lower(), word2.lower(), word3.lower())
+        if trigram_key in self._common_trigram_sequences:
+            return self._common_trigram_sequences[trigram_key]
+        
+        # Fall back to grammatical category pattern
+        cat1 = self._get_word_category(word1)
+        cat2 = self._get_word_category(word2)
+        cat3 = self._get_word_category(word3)
+        
+        pattern_key = (cat1, cat2, cat3)
+        if pattern_key in self._trigram_patterns:
+            pattern_score = self._trigram_patterns[pattern_key]
+        else:
+            # Combine two bigram scores as fallback
+            bigram1 = self.score_bigram(word1, word2)
+            bigram2 = self.score_bigram(word2, word3)
+            pattern_score = (bigram1 + bigram2) / 2
+        
+        # Penalize repeated words within trigram
+        words_lower = [word1.lower(), word2.lower(), word3.lower()]
+        if len(set(words_lower)) < 3:  # Has duplicates
+            pattern_score *= 0.3
+        
+        return pattern_score
+    
+    def score_ngram(self, words: List[str]) -> float:
+        """
+        Score the coherence of a word sequence using combined bigram and trigram scores.
+        
+        For sequences of 3+ words, computes a weighted combination of:
+        - All bigram scores (adjacent pairs)
+        - All trigram scores (adjacent triples)
+        
+        Args:
+            words: List of words to score
+            
+        Returns:
+            Combined coherence score between 0.0 and 1.0
+        """
+        if len(words) < 2:
+            return 1.0  # Single words or empty are fine
+        
+        # Compute all bigram scores
+        bigram_scores = []
+        for i in range(len(words) - 1):
+            score = self.score_bigram(words[i], words[i + 1])
+            bigram_scores.append(score)
+        
+        # Compute all trigram scores (if sequence is long enough)
+        trigram_scores = []
+        if len(words) >= 3:
+            for i in range(len(words) - 2):
+                score = self.score_trigram(words[i], words[i + 1], words[i + 2])
+                trigram_scores.append(score)
+        
+        # Combine scores with weighting
+        # Trigrams capture more context, so weight them higher when available
+        if trigram_scores:
+            bigram_avg = sum(bigram_scores) / len(bigram_scores)
+            trigram_avg = sum(trigram_scores) / len(trigram_scores)
+            # Weight: 40% bigrams, 60% trigrams
+            combined_score = 0.4 * bigram_avg + 0.6 * trigram_avg
+        else:
+            # Only bigrams available
+            combined_score = sum(bigram_scores) / len(bigram_scores)
+        
+        return combined_score
+    
     def score_sentence_start(self, word: str) -> float:
         """
         Score how good a word is for starting a sentence.
@@ -202,9 +390,12 @@ class BigramCoherenceScorer:
         """
         Validate that generated text meets minimum coherence threshold.
         
+        Uses n-gram scoring (combined bigram + trigram) for more accurate
+        coherence assessment.
+        
         Args:
             text: The generated text to validate
-            min_threshold: Minimum average bigram score required
+            min_threshold: Minimum average n-gram score required
             
         Returns:
             Tuple of (is_valid, average_score)
@@ -213,12 +404,9 @@ class BigramCoherenceScorer:
         if len(words) < 2:
             return True, 1.0  # Single words are fine
         
-        scores = []
-        for i in range(1, len(words)):
-            score = self.score_bigram(words[i-1], words[i])
-            scores.append(score)
+        # Use n-gram scoring for comprehensive coherence check
+        avg_score = self.score_ngram(words)
         
-        avg_score = sum(scores) / len(scores) if scores else 0.0
         return avg_score >= min_threshold, avg_score
 
 
