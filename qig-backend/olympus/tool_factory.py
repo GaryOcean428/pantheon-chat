@@ -455,6 +455,9 @@ class ToolFactory:
         
         # Load patterns from PostgreSQL (source of truth)
         self._load_patterns_from_db()
+        
+        # Bootstrap with seed patterns if no patterns exist
+        self._load_seed_patterns_if_empty()
     
     def wire_shadow_research(self):
         """Wire bidirectional connection to Shadow Research."""
@@ -611,6 +614,61 @@ class ToolFactory:
                     print(f"[ToolFactory] Loaded {loaded_count} patterns from PostgreSQL")
         except Exception as e:
             print(f"[ToolFactory] PostgreSQL load failed: {e}")
+    
+    def _load_seed_patterns_if_empty(self):
+        """
+        Bootstrap with seed patterns if no patterns exist.
+        
+        Seeds provide initial knowledge for tool generation. Without patterns,
+        the factory cannot generate meaningful tools. Seeds are only loaded once
+        when the pattern registry is empty.
+        """
+        if len(self.learned_patterns) > 0:
+            return  # Already have patterns, skip seeds
+        
+        try:
+            from .seed_patterns import get_seed_patterns, get_seed_pattern_count
+            seeds = get_seed_patterns()
+            
+            loaded = 0
+            for seed in seeds:
+                try:
+                    pattern_id = seed.get('pattern_id', f"seed_{loaded}")
+                    if pattern_id in self.learned_patterns:
+                        continue
+                    
+                    # Create basin coordinates from description
+                    basin = None
+                    if self.encoder:
+                        try:
+                            basin = self.encoder.encode(seed.get('description', ''))
+                        except Exception:
+                            pass
+                    
+                    pattern = LearnedPattern(
+                        pattern_id=pattern_id,
+                        source_type=CodeSourceType.USER_PROVIDED,
+                        source_url=None,
+                        description=seed.get('description', ''),
+                        code_snippet=seed.get('code_snippet', ''),
+                        input_signature=seed.get('input_signature', {}),
+                        output_type=seed.get('output_type', 'Any'),
+                        basin_coords=basin,
+                        times_used=0,
+                        success_rate=0.8,  # Seeds are trusted
+                        created_at=time.time()
+                    )
+                    self.learned_patterns[pattern_id] = pattern
+                    loaded += 1
+                except Exception as e:
+                    print(f"[ToolFactory] Failed to load seed {seed.get('pattern_id')}: {e}")
+            
+            if loaded > 0:
+                print(f"[ToolFactory] 🌱 Bootstrapped with {loaded} seed patterns")
+        except ImportError:
+            print("[ToolFactory] Seed patterns module not found - starting without seeds")
+        except Exception as e:
+            print(f"[ToolFactory] Seed pattern loading failed: {e}")
     
     def _save_pattern_to_cache(self, pattern: LearnedPattern):
         """Save a pattern to Redis buffer, then persist to PostgreSQL."""
