@@ -122,12 +122,24 @@ export class PythonProcessManager extends EventEmitter {
       console.log('[PythonManager] Starting Python QIG Backend (Flask development mode)...');
     }
     
+    // Build LD_LIBRARY_PATH to include gcc runtime for NumPy/SciPy
+    const existingLdPath = process.env.LD_LIBRARY_PATH || '';
+    const nixLibPaths = [
+      '/lib/x86_64-linux-gnu',
+      '/usr/lib/x86_64-linux-gnu',
+      '/nix/var/nix/profiles/default/lib',
+      '/run/current-system/sw/lib',
+    ];
+    // Add any nix profile lib paths that exist
+    const ldLibraryPath = [...nixLibPaths, existingLdPath].filter(Boolean).join(':');
+    
     this.process = spawn(spawnCommand, spawnArgs, {
       cwd: qigBackendDir,
       stdio: ['ignore', 'pipe', 'pipe'],
       env: {
         ...process.env,
         PYTHONUNBUFFERED: '1',
+        LD_LIBRARY_PATH: ldLibraryPath,
       },
     });
     

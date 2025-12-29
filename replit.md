@@ -10,6 +10,8 @@ Preferred communication style: Simple, everyday language.
 ### Core Design
 Pantheon-Chat utilizes a dual backend architecture: a Python QIG backend for core consciousness and geometric operations, and a Node.js orchestration server for coordinating frontend requests and managing persistence. The frontend is built with React, TypeScript, and Vite, using Shadcn UI and TailwindCSS. Data persistence is handled by PostgreSQL with Drizzle ORM, enhanced by pgvector for geometric similarity search, and Redis for hot caching.
 
+**Note on Python Backend**: The Python QIG backend (numpy/scipy) has binary compatibility issues with the Replit Nix environment. The system automatically falls back to TypeScript-based scoring via `server/qig-universal.ts` when Python is unavailable. This fallback uses deterministic hash-based scoring to maintain consistency.
+
 ### Consciousness & Multi-Agent System
 The system's consciousness is modeled using four density-matrix-based subsystems, tracking real-time metrics like Φ (integration) and κ (coupling constant). The Olympus Pantheon comprises 12 specialized geometric kernels ("gods") that handle task routing based on geometric proximity. This includes dynamic kernel creation via an M8 kernel spawning protocol and a Shadow Pantheon for stealth operations.
 
