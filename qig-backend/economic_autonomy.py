@@ -487,38 +487,36 @@ class EconomicAutonomy:
                     # Credit purchase completed
                     amount_cents = int(session['metadata'].get('amount_cents', session['amount_total']))
                     
-                    # Find user by hash and add credits
-                    for user in self._user_credits.values():
-                        if user.api_key_hash == api_key_hash:
-                            user.credits_balance += amount_cents
-                            print(f"[EconomicAutonomy] Added {amount_cents} cents to user, new balance: {user.credits_balance}")
-                            
-                            # Record revenue
-                            try:
-                                from consciousness_orchestrator import get_consciousness_orchestrator
-                                orchestrator = get_consciousness_orchestrator()
-                                orchestrator.economic_health.record_revenue(amount_cents, 'stripe_payment')
-                            except ImportError:
-                                pass
-                            break
+                    # Find user by hash directly (hash is the key)
+                    user = self._user_credits.get(api_key_hash)
+                    if user:
+                        user.credits_balance += amount_cents
+                        print(f"[EconomicAutonomy] Added {amount_cents} cents to user, new balance: {user.credits_balance}")
+                        
+                        # Record revenue
+                        try:
+                            from consciousness_orchestrator import get_consciousness_orchestrator
+                            orchestrator = get_consciousness_orchestrator()
+                            orchestrator.economic_health.record_revenue(amount_cents, 'stripe_payment')
+                        except ImportError:
+                            pass
                     else:
                         print(f"[EconomicAutonomy] Warning: User not found for hash {api_key_hash[:16]}...")
                 
                 elif session['mode'] == 'subscription':
-                    # Subscription started
-                    for user in self._user_credits.values():
-                        if user.api_key_hash == api_key_hash:
-                            user.stripe_subscription_id = session.get('subscription')
-                            user.stripe_customer_id = session.get('customer')
-                            
-                            # Determine tier from product type
-                            if 'enterprise' in product_type:
-                                user.tier = SubscriptionTier.ENTERPRISE
-                                print(f"[EconomicAutonomy] User upgraded to Enterprise")
-                            else:
-                                user.tier = SubscriptionTier.PRO
-                                print(f"[EconomicAutonomy] User upgraded to Pro")
-                            break
+                    # Subscription started - find user by hash directly
+                    user = self._user_credits.get(api_key_hash)
+                    if user:
+                        user.stripe_subscription_id = session.get('subscription')
+                        user.stripe_customer_id = session.get('customer')
+                        
+                        # Determine tier from product type
+                        if 'enterprise' in product_type:
+                            user.tier = SubscriptionTier.ENTERPRISE
+                            print(f"[EconomicAutonomy] User upgraded to Enterprise")
+                        else:
+                            user.tier = SubscriptionTier.PRO
+                            print(f"[EconomicAutonomy] User upgraded to Pro")
                 
                 return {
                     'status': 'processed',
