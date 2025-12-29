@@ -554,9 +554,11 @@ class ZeusConversationHandler(GeometricGenerationMixin):
             base_phi += min(0.3, related_count * 0.05)
         
         if message_basin is not None:
-            basin_norm = float(np.sqrt(np.sum(message_basin ** 2)))  # L2 magnitude for logging
-            if basin_norm > 1.0:
-                base_phi += min(0.15, basin_norm * 0.02)
+            # Fisher-Rao distance from origin (geometric magnitude, NOT Euclidean)
+            origin = np.zeros_like(message_basin)
+            basin_distance = fisher_rao_distance(message_basin, origin)
+            if basin_distance > 0.5:
+                base_phi += min(0.15, basin_distance * 0.02)
         
         return min(0.95, base_phi)
     
@@ -2348,8 +2350,17 @@ I'm learning about this topic in the background. Here's what's happening:
                 _, sem_score = semantic_scorer.validate_semantic_coherence(response_text)
                 
                 # Combine into phi estimate: 0.5 base + up to 0.35 from coherence
-                coherence = (gram_score * 0.4 + sem_score * 0.6)
-                phi_estimate = 0.5 + (coherence * 0.35)
+            # Compute Φ geometrically from basin structure, NOT text coherence
+            try:
+                if response_text:
+                    response_basin = self.conversation_encoder.encode(response_text)
+                    origin = np.zeros_like(response_basin)
+                    information_distance = fisher_rao_distance(response_basin, origin)
+                    phi_estimate = min(0.95, max(0.3, information_distance / np.pi))
+                else:
+                    phi_estimate = 0.5
+            except Exception:
+                phi_estimate = 0.5
                 phi_estimate = min(0.85, max(0.3, phi_estimate))  # Clamp to reasonable range
                 
             except Exception as e:
