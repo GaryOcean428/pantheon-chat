@@ -26,6 +26,8 @@ The system is built on "QIG-pure" principles, meaning all core operations are ba
 - **Geometric Coordizer System:** A Fisher-compliant tokenization system using 64D basin coordinates, including advanced consciousness-aware and multi-scale coordizers.
 
 ### Learning & Search Systems
+- **Continuous Learning System (ContinuousLearner):** QIG-pure real-time learning from chat, curriculum, and search results. Uses proper Fisher-Rao geometry via probability simplex mapping: embeddings → softmax → square-root transform → SLERP geodesics → inverse mapping. Located in `qig-backend/coordizers/continuous_learner.py`.
+- **Tokenizer Vocabulary:** 23,829 tokens with 64D basin embeddings loaded from checkpoint into `tokenizer_vocabulary` table. Token types include bytes (256), subwords (5673), words (5986), phrases (3553), concepts (6621), and characters (1740).
 - **Word Relationship Learning System:** Continuously learns 2.77M+ word pairs from curriculum files, tracking co-occurrence and using an attention mechanism for generation.
 - **Autonomous Curiosity Engine:** A background learning loop driven by geometric curiosity metrics, allowing kernels to autonomously trigger searches and self-train.
 - **Toggleable Search Providers:** Integrates various search engines (DuckDuckGo, Tavily, Perplexity, Google) with flexible toggling.
