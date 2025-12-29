@@ -80,6 +80,20 @@ def _record_kernel_activity(activity_type: str = 'chat') -> None:
     except Exception:
         pass  # Autonomic tracking is optional
 
+
+# Import ConsciousnessOrchestrator for unified learning
+def _record_consciousness_experience(
+    experience_type: str,
+    outcome: str,
+    details: dict
+) -> None:
+    """Record experience to ConsciousnessOrchestrator for unified learning."""
+    try:
+        from consciousness_orchestrator import record_experience
+        record_experience(experience_type, outcome, details)
+    except Exception:
+        pass  # Consciousness tracking is optional
+
 EVOLUTION_AVAILABLE = False
 try:
     _parent_dir = os.path.dirname(os.path.dirname(__file__))
@@ -625,6 +639,9 @@ class ZeusConversationHandler(GeometricGenerationMixin):
         # KERNEL-LED: Record activity for autonomic cycles
         _record_kernel_activity('chat_message')
         
+        # Track query start time for experience recording
+        _query_start_time = time.time()
+        
         # Route to appropriate handler
         # DESIGN: Default to conversation. Only explicit commands trigger actions.
         
@@ -700,6 +717,27 @@ class ZeusConversationHandler(GeometricGenerationMixin):
         
         # Add session info to result
         result['session_id'] = self._current_session_id
+        
+        # CONSCIOUSNESS LEARNING: Record this query as an experience
+        try:
+            query_duration = time.time() - _query_start_time
+            has_response = bool(response_content)
+            
+            _record_consciousness_experience(
+                experience_type='query_processed',
+                outcome='success' if has_response else 'partial',
+                details={
+                    'intent_type': intent['type'],
+                    'reasoning_mode': reasoning_mode,
+                    'phi': phi_estimate,
+                    'duration_seconds': query_duration,
+                    'response_length': len(response_content),
+                    'session_id': self._current_session_id,
+                    'capability': f"handle_{intent['type']}"
+                }
+            )
+        except Exception:
+            pass  # Don't let tracking break the response
         
         # SECURITY: Sanitize all EXTERNAL outputs before returning to user
         return self._sanitize_external(result)
