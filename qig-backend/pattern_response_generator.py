@@ -180,6 +180,16 @@ class PatternResponseGenerator:
             '#', '##', '###', 'ATTENTION', 'MECHANISMS',
             'API ', 'Documentation', 'External API', 'federated',
             'endpoint', 'integration', 'backend', 'frontend',
+            'def ', 'class ', 'self.', 'self,', '->', '=>', 
+            'import ', 'from ', 'return ', 'async ', 'await ',
+            'function ', 'const ', 'let ', 'var ', 
+            '</', '<div', '<span', '<button', '<input', '<a ', '<p>',
+            '</div>', '</span>', '</button>', '</p>', '</a>',
+            'className=', 'onClick=', 'onChange=', 'style=',
+            '{}', '();', ');', '});', '],', '},',
+            'if (', 'for (', 'while (', 'switch (',
+            'props.', 'state.', 'this.',
+            'records.', 'data.', 'items.', 'result.',
         ]
         for pattern in exclude_patterns:
             if pattern in content[:300] or pattern in header:
