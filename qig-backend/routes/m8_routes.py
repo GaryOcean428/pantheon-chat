@@ -722,26 +722,3 @@ def execute_lifecycle_proposal(proposal_id: str):
         print(f"[M8Routes] Execute error: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-
-@m8_bp.route('/governance/capacity', methods=['GET'])
-def get_e8_capacity():
-    """Get E8 capacity status."""
-    try:
-        gov = get_lifecycle_governance()
-        if gov is None:
-            return jsonify({
-                'current': 0,
-                'cap': 240,
-                'available': 240,
-                'at_capacity': False
-            })
-        
-        current, cap, has_room = gov.check_e8_capacity()
-        return jsonify({
-            'current': current,
-            'cap': cap,
-            'available': cap - current,
-            'at_capacity': not has_room
-        })
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500

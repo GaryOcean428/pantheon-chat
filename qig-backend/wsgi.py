@@ -175,21 +175,9 @@ except ImportError as e:
     FEDERATION_AVAILABLE = False
 
 # Register M8 Kernel Spawning routes
-try:
-    from routes.m8_routes import register_m8_routes
-    register_m8_routes(app)
-    M8_AVAILABLE = True
-except ImportError as e:
-    print(f"[WARNING] M8 spawning service not available: {e}")
-    M8_AVAILABLE = False
-except Exception as e:
-    print(f"[WARNING] Constellation initialization failed: {e}")
-
-# Register M8 Kernel Spawning routes
 M8_AVAILABLE = False
 try:
     from routes.m8_routes import register_m8_routes
-
     register_m8_routes(app)
     M8_AVAILABLE = True
 except ImportError as e:
