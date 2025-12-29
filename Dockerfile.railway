@@ -1,6 +1,5 @@
 # Railway Deployment Dockerfile
 # Combines Node.js frontend/API and Python QIG backend in single container
-# Optimized for Railway's Nixpacks builder
 
 FROM node:20-slim AS node-builder
 
@@ -8,16 +7,28 @@ WORKDIR /app
 
 # Install Node.js dependencies
 COPY package.json package-lock.json* ./
-RUN npm ci --only=production=false
+RUN npm ci
 
-# Copy source and build
-COPY . .
+# Copy source files needed for build
+COPY tsconfig.json ./
+COPY vite.config.ts ./
+COPY tailwind.config.ts ./
+COPY drizzle.config.ts ./
+COPY client/ ./client/
+COPY server/ ./server/
+COPY shared/ ./shared/
+COPY scripts/ ./scripts/
+
+# Build the application
 RUN npm run build
+
+# Verify build output exists
+RUN ls -la dist/ && test -f dist/index.js
 
 # Production image with both Node.js and Python
 FROM python:3.11-slim
 
-# Install Node.js
+# Install Node.js and curl for health checks
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     ca-certificates \
@@ -32,15 +43,18 @@ WORKDIR /app
 COPY qig-backend/requirements.txt ./qig-backend/requirements.txt
 RUN pip install --no-cache-dir -r qig-backend/requirements.txt
 
-# Copy built Node.js app
+# Copy built Node.js app from builder stage
 COPY --from=node-builder /app/dist ./dist
 COPY --from=node-builder /app/node_modules ./node_modules
 COPY --from=node-builder /app/package.json ./
 
+# Verify dist was copied correctly
+RUN ls -la dist/ && test -f dist/index.js
+
 # Copy Python QIG backend
 COPY qig-backend/ ./qig-backend/
 
-# Copy shared files
+# Copy shared files and migrations
 COPY shared/ ./shared/
 COPY migrations/ ./migrations/
 COPY drizzle.config.ts ./
