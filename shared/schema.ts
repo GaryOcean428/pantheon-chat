@@ -275,68 +275,6 @@ export const recoveryInputTypes = [
 
 export type RecoveryInputType = (typeof recoveryInputTypes)[number];
 
-// Balance hits: Addresses discovered with historical activity or current balance
-export const balanceHits = pgTable(
-  "balance_hits",
-  {
-    id: varchar("id")
-      .primaryKey()
-      .default(sql`gen_random_uuid()`),
-    userId: varchar("user_id").references(() => users.id),
-    address: varchar("address", { length: 62 }).notNull(),
-    passphrase: text("passphrase").notNull(),
-    wif: text("wif").notNull(),
-    balanceSats: bigint("balance_sats", { mode: "number" })
-      .notNull()
-      .default(0),
-    balanceBtc: varchar("balance_btc", { length: 20 })
-      .notNull()
-      .default("0.00000000"),
-    txCount: integer("tx_count").notNull().default(0),
-    isCompressed: boolean("is_compressed").notNull().default(true),
-    discoveredAt: timestamp("discovered_at").notNull().defaultNow(),
-    lastChecked: timestamp("last_checked"),
-    previousBalanceSats: bigint("previous_balance_sats", { mode: "number" }),
-    balanceChanged: boolean("balance_changed").default(false),
-    changeDetectedAt: timestamp("change_detected_at"),
-    createdAt: timestamp("created_at").defaultNow(),
-    updatedAt: timestamp("updated_at").defaultNow(),
-    // Mnemonic/HD wallet derivation metadata
-    walletType: varchar("wallet_type", { length: 32 }).default("brain"), // brain, bip39-hd, mnemonic
-    derivationPath: varchar("derivation_path", { length: 64 }), // e.g., m/44'/0'/0'/0/0
-    isMnemonicDerived: boolean("is_mnemonic_derived").default(false),
-    mnemonicWordCount: integer("mnemonic_word_count"), // 12, 15, 18, 21, or 24
-    // Recovery tracking - tracks the INPUT TYPE that produced this address
-    recoveryType: varchar("recovery_type", { length: 32 }).default("unknown"), // bip39_mnemonic, wif, xprv, brain_wallet, hex_private_key, master_key
-    // Dormant confirmation - user manually confirms if address is from dormant target list
-    isDormantConfirmed: boolean("is_dormant_confirmed").default(false),
-    dormantConfirmedAt: timestamp("dormant_confirmed_at"),
-    // Address entity classification - identifies if address belongs to exchange/institution
-    addressEntityType: varchar("address_entity_type", { length: 32 }).default(
-      "unknown"
-    ), // personal, exchange, institution, unknown
-    entityTypeConfidence: varchar("entity_type_confidence", {
-      length: 16,
-    }).default("pending"), // pending, confirmed
-    entityTypeName: varchar("entity_type_name", { length: 128 }), // e.g., "Binance", "Coinbase", "Mt.Gox Trustee"
-    entityTypeConfirmedAt: timestamp("entity_type_confirmed_at"),
-    // Original input (for non-brain wallets, stores raw input like mnemonic words)
-    originalInput: text("original_input"),
-  },
-  (table) => [
-    index("idx_balance_hits_user").on(table.userId),
-    index("idx_balance_hits_address").on(table.address),
-    index("idx_balance_hits_balance").on(table.balanceSats),
-    index("idx_balance_hits_wallet_type").on(table.walletType),
-    index("idx_balance_hits_recovery_type").on(table.recoveryType),
-    index("idx_balance_hits_dormant").on(table.isDormantConfirmed),
-    index("idx_balance_hits_entity_type").on(table.addressEntityType),
-  ]
-);
-
-export type BalanceHit = typeof balanceHits.$inferSelect;
-export type InsertBalanceHit = typeof balanceHits.$inferInsert;
-
 // User's target addresses for recovery
 // NOTE: This is DISTINCT from the `addresses` table!
 // - userTargetAddresses: Simple user watchlist (address + label) linked to userId for auth
@@ -382,52 +320,6 @@ export const recoveryCandidates = pgTable(
 
 export type RecoveryCandidateRecord = typeof recoveryCandidates.$inferSelect;
 export type InsertRecoveryCandidate = typeof recoveryCandidates.$inferInsert;
-
-// Balance change events for monitoring
-export const balanceChangeEvents = pgTable(
-  "balance_change_events",
-  {
-    id: varchar("id")
-      .primaryKey()
-      .default(sql`gen_random_uuid()`),
-    balanceHitId: varchar("balance_hit_id").references(() => balanceHits.id),
-    address: varchar("address", { length: 62 }).notNull(),
-    previousBalanceSats: bigint("previous_balance_sats", {
-      mode: "number",
-    }).notNull(),
-    newBalanceSats: bigint("new_balance_sats", { mode: "number" }).notNull(),
-    deltaSats: bigint("delta_sats", { mode: "number" }).notNull(),
-    detectedAt: timestamp("detected_at").notNull().defaultNow(),
-  },
-  (table) => [
-    index("idx_balance_change_events_hit").on(table.balanceHitId),
-    index("idx_balance_change_events_address").on(table.address),
-  ]
-);
-
-export type BalanceChangeEvent = typeof balanceChangeEvents.$inferSelect;
-export type InsertBalanceChangeEvent = typeof balanceChangeEvents.$inferInsert;
-
-// Balance monitor state for persistent monitoring configuration
-export const balanceMonitorState = pgTable("balance_monitor_state", {
-  id: varchar("id").primaryKey().default("default"),
-  enabled: boolean("enabled").notNull().default(false),
-  refreshIntervalMinutes: integer("refresh_interval_minutes")
-    .notNull()
-    .default(60),
-  lastRefreshTime: timestamp("last_refresh_time"),
-  lastRefreshTotal: integer("last_refresh_total").default(0),
-  lastRefreshUpdated: integer("last_refresh_updated").default(0),
-  lastRefreshChanged: integer("last_refresh_changed").default(0),
-  lastRefreshErrors: integer("last_refresh_errors").default(0),
-  totalRefreshes: integer("total_refreshes").notNull().default(0),
-  isRefreshing: boolean("is_refreshing").notNull().default(false),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
-
-export type BalanceMonitorState = typeof balanceMonitorState.$inferSelect;
-export type InsertBalanceMonitorState = typeof balanceMonitorState.$inferInsert;
 
 // Vocabulary observations for persistent learning across sessions
 // IMPORTANT: Distinguishes between actual words (BIP-39, vocabulary) and phrases (mutations, concatenations)
@@ -3178,18 +3070,27 @@ export type InsertPantheonKnowledgeTransfer = typeof pantheonKnowledgeTransfers.
 export const pantheonGodState = pgTable(
   "pantheon_god_state",
   {
-    godName: varchar("god_name", { length: 32 }).primaryKey(),
-    reputation: doublePrecision("reputation").notNull().default(1.0),
+    id: varchar("id", { length: 64 }).primaryKey(),
+    godName: varchar("god_name", { length: 32 }).notNull(),
+    phi: doublePrecision("phi").default(0),
+    kappa: doublePrecision("kappa").default(0),
+    currentRegime: varchar("current_regime", { length: 32 }).default("geometric"),
+    basinCoords: vector("basin_coords", { dimensions: 64 }),
+    reputation: doublePrecision("reputation").default(0.5),
+    lastActive: timestamp("last_active").defaultNow(),
+    messageCount: integer("message_count").default(0),
+    sessionId: varchar("session_id", { length: 64 }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
     skills: jsonb("skills").default({}),
     learningEventsCount: integer("learning_events_count").default(0),
     successRate: doublePrecision("success_rate").default(0.5),
     lastLearningAt: timestamp("last_learning_at"),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-    updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => [
     index("idx_god_state_reputation").on(table.reputation),
     index("idx_god_state_updated").on(table.updatedAt),
+    index("idx_god_state_god_name").on(table.godName),
   ]
 );
 

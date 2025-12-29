@@ -13,9 +13,6 @@
  * Previous project incurred $450 in Tavily charges from uncontrolled usage.
  */
 
-import { db, withDbRetry } from './db';
-import { balanceHits } from '@shared/schema';
-import { eq } from 'drizzle-orm';
 import { tavilyUsageLimiter } from './tavily-usage-limiter';
 import { isProviderEnabled } from './routes/search';
 
@@ -268,58 +265,22 @@ export class AddressEntityClassifier {
 
   /**
    * Update a balance hit with entity classification
+   * @deprecated balanceHits table removed - this is a no-op
    */
-  async updateBalanceHitClassification(balanceHitId: string, classification: EntityClassification): Promise<void> {
-    if (!db) {
-      console.error('[EntityClassifier] Database not available');
-      return;
-    }
-    
-    await withDbRetry(
-      async () => {
-        await db!.update(balanceHits)
-          .set({
-            addressEntityType: classification.entityType,
-            entityTypeConfidence: classification.confidence,
-            entityTypeName: classification.entityName,
-            entityTypeConfirmedAt: classification.confidence === 'confirmed' ? new Date() : null
-          })
-          .where(eq(balanceHits.id, balanceHitId));
-      },
-      'update-balance-hit-classification'
-    );
-
-    console.log(`[EntityClassifier] Updated balance hit ${balanceHitId}: ${classification.entityType} (${classification.entityName || 'unknown'})`);
+  async updateBalanceHitClassification(_balanceHitId: string, classification: EntityClassification): Promise<void> {
+    console.log(`[EntityClassifier] updateBalanceHitClassification deprecated - balanceHits table removed. Classification: ${classification.entityType}`);
   }
 
   /**
    * Manually confirm an entity type classification
+   * @deprecated balanceHits table removed - this is a no-op
    */
   async confirmClassification(
-    balanceHitId: string,
+    _balanceHitId: string,
     entityType: 'personal' | 'exchange' | 'institution',
     entityName?: string
   ): Promise<void> {
-    if (!db) {
-      console.error('[EntityClassifier] Database not available');
-      return;
-    }
-    
-    await withDbRetry(
-      async () => {
-        await db!.update(balanceHits)
-          .set({
-            addressEntityType: entityType,
-            entityTypeConfidence: 'confirmed',
-            entityTypeName: entityName || null,
-            entityTypeConfirmedAt: new Date()
-          })
-          .where(eq(balanceHits.id, balanceHitId));
-      },
-      'confirm-balance-hit-classification'
-    );
-
-    console.log(`[EntityClassifier] Manually confirmed balance hit ${balanceHitId}: ${entityType} (${entityName || 'N/A'})`);
+    console.log(`[EntityClassifier] confirmClassification deprecated - balanceHits table removed. Type: ${entityType}, Name: ${entityName || 'N/A'}`);
   }
 }
 
