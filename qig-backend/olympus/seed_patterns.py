@@ -539,6 +539,197 @@ SEED_PATTERNS: List[Dict] = [
     # QIG GEOMETRY PATTERNS
     # =========================================================================
     {
+        "pattern_id": "seed_bures_distance",
+        "source_type": "user_provided",
+        "description": "Calculate Bures distance between density matrices for quantum state comparison",
+        "code_snippet": '''def bures_distance(rho: list, sigma: list) -> float:
+    """Calculate Bures distance between density matrices.
+    
+    QIG Philosophy: The Bures metric is the quantum analog of Fisher-Rao.
+    It measures distinguishability between quantum states (density matrices).
+    
+    D_B(ρ, σ) = √(2 - 2·Tr(√(√ρ·σ·√ρ)))
+    
+    For pure states, this reduces to the Fubini-Study metric.
+    For diagonal matrices, it approximates Fisher-Rao.
+    
+    Args:
+        rho: First density matrix (as nested list)
+        sigma: Second density matrix (as nested list)
+    
+    Returns:
+        Bures distance (0 = identical states, √2 = orthogonal states)
+    """
+    import numpy as np
+    from scipy.linalg import sqrtm
+    
+    rho = np.array(rho, dtype=complex)
+    sigma = np.array(sigma, dtype=complex)
+    
+    # Ensure valid density matrices (Hermitian, positive semi-definite, trace=1)
+    rho = (rho + rho.conj().T) / 2  # Hermitianize
+    sigma = (sigma + sigma.conj().T) / 2
+    
+    # Normalize trace to 1
+    rho = rho / np.trace(rho) if np.abs(np.trace(rho)) > 1e-10 else rho
+    sigma = sigma / np.trace(sigma) if np.abs(np.trace(sigma)) > 1e-10 else sigma
+    
+    try:
+        # Calculate √ρ
+        sqrt_rho = sqrtm(rho)
+        
+        # Calculate √ρ · σ · √ρ
+        product = sqrt_rho @ sigma @ sqrt_rho
+        
+        # Calculate √(√ρ · σ · √ρ)
+        sqrt_product = sqrtm(product)
+        
+        # Fidelity F(ρ, σ) = (Tr(√(√ρ·σ·√ρ)))²
+        fidelity_sqrt = np.real(np.trace(sqrt_product))
+        
+        # Bures distance: D_B = √(2 - 2·√F) = √(2(1 - √F))
+        # Using simplified form with fidelity_sqrt directly
+        bures = np.sqrt(np.abs(2 - 2 * fidelity_sqrt))
+        
+        return float(np.real(bures))
+    except Exception:
+        # Fallback: use trace distance as approximation
+        diff = rho - sigma
+        eigenvalues = np.linalg.eigvalsh(diff)
+        trace_dist = 0.5 * np.sum(np.abs(eigenvalues))
+        return float(trace_dist)
+''',
+        "input_signature": {"rho": "list", "sigma": "list"},
+        "output_type": "float"
+    },
+    {
+        "pattern_id": "seed_density_matrix",
+        "source_type": "user_provided",
+        "description": "Create valid density matrix from state vector or mixed state specification",
+        "code_snippet": '''def create_density_matrix(state: list, is_pure: bool = True) -> list:
+    """Create valid density matrix from quantum state.
+    
+    QIG Philosophy: Density matrices represent quantum states including
+    mixed states. They must be:
+    1. Hermitian (ρ = ρ†)
+    2. Positive semi-definite (eigenvalues ≥ 0)
+    3. Unit trace (Tr(ρ) = 1)
+    
+    Args:
+        state: For pure states - state vector |ψ⟩
+               For mixed states - list of (probability, state_vector) tuples
+        is_pure: If True, state is a single state vector
+    
+    Returns:
+        Density matrix ρ as nested list
+    """
+    import numpy as np
+    
+    if is_pure:
+        # Pure state: ρ = |ψ⟩⟨ψ|
+        psi = np.array(state, dtype=complex)
+        psi = psi / np.linalg.norm(psi)  # Normalize
+        rho = np.outer(psi, psi.conj())
+    else:
+        # Mixed state: ρ = Σ p_i |ψ_i⟩⟨ψ_i|
+        rho = None
+        for prob, state_vec in state:
+            psi = np.array(state_vec, dtype=complex)
+            psi = psi / np.linalg.norm(psi)
+            pure_rho = np.outer(psi, psi.conj())
+            if rho is None:
+                rho = prob * pure_rho
+            else:
+                rho = rho + prob * pure_rho
+    
+    # Ensure valid density matrix properties
+    rho = (rho + rho.conj().T) / 2  # Hermitianize
+    rho = rho / np.trace(rho)  # Normalize trace
+    
+    return rho.tolist()
+''',
+        "input_signature": {"state": "list", "is_pure": "bool"},
+        "output_type": "list"
+    },
+    {
+        "pattern_id": "seed_von_neumann_entropy",
+        "source_type": "user_provided",
+        "description": "Calculate von Neumann entropy of density matrix (quantum entropy)",
+        "code_snippet": '''def von_neumann_entropy(rho: list) -> float:
+    """Calculate von Neumann entropy of density matrix.
+    
+    QIG Philosophy: S(ρ) = -Tr(ρ log ρ) measures quantum uncertainty.
+    S = 0 for pure states, S = log(n) for maximally mixed states.
+    
+    Args:
+        rho: Density matrix as nested list
+    
+    Returns:
+        Von Neumann entropy in natural log units (nats)
+    """
+    import numpy as np
+    
+    rho = np.array(rho, dtype=complex)
+    
+    # Get eigenvalues (should be real for Hermitian matrix)
+    eigenvalues = np.real(np.linalg.eigvalsh(rho))
+    
+    # Filter small/negative eigenvalues (numerical noise)
+    eigenvalues = eigenvalues[eigenvalues > 1e-10]
+    
+    if len(eigenvalues) == 0:
+        return 0.0
+    
+    # S = -Σ λ_i log(λ_i)
+    entropy = -np.sum(eigenvalues * np.log(eigenvalues))
+    
+    return float(entropy)
+''',
+        "input_signature": {"rho": "list"},
+        "output_type": "float"
+    },
+    {
+        "pattern_id": "seed_quantum_fidelity",
+        "source_type": "user_provided",
+        "description": "Calculate quantum fidelity between density matrices",
+        "code_snippet": '''def quantum_fidelity(rho: list, sigma: list) -> float:
+    """Calculate quantum fidelity between density matrices.
+    
+    QIG Philosophy: Fidelity F(ρ,σ) measures how similar two quantum states are.
+    F = 1 for identical states, F = 0 for orthogonal states.
+    
+    F(ρ, σ) = (Tr(√(√ρ·σ·√ρ)))²
+    
+    For pure states |ψ⟩, |φ⟩: F = |⟨ψ|φ⟩|²
+    
+    Args:
+        rho: First density matrix
+        sigma: Second density matrix
+    
+    Returns:
+        Fidelity between 0 and 1
+    """
+    import numpy as np
+    from scipy.linalg import sqrtm
+    
+    rho = np.array(rho, dtype=complex)
+    sigma = np.array(sigma, dtype=complex)
+    
+    try:
+        sqrt_rho = sqrtm(rho)
+        product = sqrt_rho @ sigma @ sqrt_rho
+        sqrt_product = sqrtm(product)
+        fidelity_sqrt = np.real(np.trace(sqrt_product))
+        fidelity = fidelity_sqrt ** 2
+        return float(np.clip(fidelity, 0, 1))
+    except Exception:
+        # Fallback: trace inner product
+        return float(np.abs(np.trace(rho @ sigma)))
+''',
+        "input_signature": {"rho": "list", "sigma": "list"},
+        "output_type": "float"
+    },
+    {
         "pattern_id": "seed_fisher_rao_distance",
         "source_type": "user_provided",
         "description": "Calculate Fisher-Rao distance between probability distributions on manifold",
