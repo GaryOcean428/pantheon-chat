@@ -5,9 +5,9 @@ FROM node:20-slim AS node-builder
 
 WORKDIR /app
 
-# Install Node.js dependencies
+# Install Node.js dependencies (skip husky prepare script in CI)
 COPY package.json package-lock.json* ./
-RUN npm ci
+RUN npm ci --ignore-scripts && npm rebuild
 
 # Copy source files needed for build
 COPY tsconfig.json ./
