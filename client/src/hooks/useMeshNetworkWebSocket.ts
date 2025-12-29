@@ -43,6 +43,7 @@ export interface MeshEvent {
 interface UseMeshNetworkWebSocketOptions {
   autoReconnect?: boolean;
   reconnectInterval?: number;
+  maxReconnectInterval?: number;
   maxEvents?: number;
 }
 
@@ -56,6 +57,7 @@ export function useMeshNetworkWebSocket(options: UseMeshNetworkWebSocketOptions 
   const {
     autoReconnect = true,
     reconnectInterval = 3000,
+    maxReconnectInterval = 30000,
     maxEvents = 50,
   } = options;
 
@@ -71,6 +73,7 @@ export function useMeshNetworkWebSocket(options: UseMeshNetworkWebSocketOptions 
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isUnmountedRef = useRef(false);
+  const reconnectAttemptRef = useRef(0);
 
   const connect = useCallback(() => {
     if (isUnmountedRef.current) return;
@@ -92,6 +95,7 @@ export function useMeshNetworkWebSocket(options: UseMeshNetworkWebSocketOptions 
         if (isUnmountedRef.current) return;
         
         console.log('[MeshNetworkWS] Connected');
+        reconnectAttemptRef.current = 0; // Reset backoff on successful connection
         setWsState(prev => ({ ...prev, connected: true, error: null }));
 
         // Subscribe to updates
@@ -154,24 +158,40 @@ export function useMeshNetworkWebSocket(options: UseMeshNetworkWebSocketOptions 
         setWsState(prev => ({ ...prev, connected: false }));
         wsRef.current = null;
 
-        // Auto-reconnect
+        // Auto-reconnect with exponential backoff
         if (autoReconnect && !isUnmountedRef.current) {
+          reconnectAttemptRef.current += 1;
+          // Exponential backoff: base * 2^attempt, capped at max
+          const backoffDelay = Math.min(
+            reconnectInterval * Math.pow(2, reconnectAttemptRef.current - 1),
+            maxReconnectInterval
+          );
+          
+          // Only log every 5th attempt to reduce console spam
+          if (reconnectAttemptRef.current <= 3 || reconnectAttemptRef.current % 5 === 0) {
+            console.log(`[MeshNetworkWS] Reconnecting in ${Math.round(backoffDelay / 1000)}s (attempt ${reconnectAttemptRef.current})`);
+          }
+          
           reconnectTimeoutRef.current = setTimeout(() => {
-            console.log('[MeshNetworkWS] Attempting reconnect...');
             connect();
-          }, reconnectInterval);
+          }, backoffDelay);
         }
       };
     } catch (err) {
       console.error('[MeshNetworkWS] Connection error:', err);
       setWsState(prev => ({ ...prev, error: 'Failed to connect', connected: false }));
       
-      // Retry connection
+      // Retry connection with exponential backoff
       if (autoReconnect && !isUnmountedRef.current) {
-        reconnectTimeoutRef.current = setTimeout(connect, reconnectInterval);
+        reconnectAttemptRef.current += 1;
+        const backoffDelay = Math.min(
+          reconnectInterval * Math.pow(2, reconnectAttemptRef.current - 1),
+          maxReconnectInterval
+        );
+        reconnectTimeoutRef.current = setTimeout(connect, backoffDelay);
       }
     }
-  }, [autoReconnect, reconnectInterval, maxEvents]);
+  }, [autoReconnect, reconnectInterval, maxReconnectInterval, maxEvents]);
 
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {
