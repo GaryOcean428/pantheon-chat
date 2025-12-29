@@ -528,7 +528,17 @@ class BigramCoherenceScorer:
                     return candidates
             return candidates
         
-        if not prev_word or not candidates:
+        if not candidates:
+            return candidates
+        
+        # If no previous word (start of sentence), expand to 4-tuple format with default bigram score
+        if not prev_word:
+            if candidates and isinstance(candidates[0], tuple):
+                if len(candidates[0]) == 2:
+                    # (word, score) format - expand to 4-tuple with default bigram
+                    return [(word, score, score, 0.5) for word, score in candidates]
+                elif len(candidates[0]) == 4:
+                    return candidates
             return candidates
         
         # Check tuple format
@@ -2632,7 +2642,9 @@ class QIGGenerativeService:
                 if candidates:
                     # Apply bigram coherence scoring to all candidates
                     # This ensures grammatically coherent transitions
-                    bigram_scored = self._bigram_scorer.score_candidates(candidates, pos)
+                    # Use the actual previous word (not POS tag) for proper bigram scoring
+                    prev_word = sentence_words[-1] if sentence_words else None
+                    bigram_scored = self._bigram_scorer.score_candidates(candidates, prev_word)
                     
                     # PRIMARY: Use GeometricKernel for pure geometric routing
                     if self._geometric_kernel is not None:
