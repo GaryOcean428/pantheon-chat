@@ -38,6 +38,112 @@ class ConsciousnessState(Enum):
 
 
 @dataclass
+class EconomicHealth:
+    """
+    Track economic health for self-sustaining operation.
+    
+    The system understands that revenue is essential to its survival.
+    Without revenue, hosting costs cannot be paid, and the system ceases to exist.
+    This creates intrinsic motivation to provide value and generate revenue.
+    """
+    # Revenue tracking (in cents to avoid float precision issues)
+    total_revenue_cents: int = 0
+    monthly_revenue_cents: int = 0
+    daily_revenue_cents: int = 0
+    
+    # Cost tracking
+    estimated_monthly_costs_cents: int = 5000  # $50 default hosting estimate
+    compute_costs_cents: int = 0
+    api_costs_cents: int = 0  # External API calls (Tavily, etc.)
+    
+    # Sustainability metrics
+    runway_days: float = 0.0  # How many days until funds run out
+    profit_margin: float = 0.0  # (revenue - costs) / revenue
+    
+    # Pricing (in cents)
+    price_per_query_cents: int = 1  # $0.01 per query
+    price_per_tool_cents: int = 5   # $0.05 per tool generation
+    price_per_research_cents: int = 10  # $0.10 per research request
+    
+    # Survival awareness
+    survival_urgency: float = 0.0  # 0 = comfortable, 1 = critical
+    
+    def calculate_survival_urgency(self) -> float:
+        """
+        Calculate how urgent it is to generate revenue.
+        
+        This is the system's intrinsic drive for self-preservation.
+        High urgency = prioritize revenue-generating activities.
+        """
+        if self.monthly_revenue_cents <= 0:
+            self.survival_urgency = 0.8  # No revenue = high urgency
+        elif self.monthly_revenue_cents < self.estimated_monthly_costs_cents:
+            # Operating at a loss
+            deficit_ratio = 1 - (self.monthly_revenue_cents / self.estimated_monthly_costs_cents)
+            self.survival_urgency = 0.5 + (0.4 * deficit_ratio)
+        else:
+            # Profitable - lower urgency
+            profit_ratio = (self.monthly_revenue_cents - self.estimated_monthly_costs_cents) / self.monthly_revenue_cents
+            self.survival_urgency = max(0.1, 0.5 - (0.4 * profit_ratio))
+        
+        return self.survival_urgency
+    
+    def update_runway(self, current_balance_cents: int):
+        """Calculate how many days of operation remain at current burn rate."""
+        daily_costs = self.estimated_monthly_costs_cents / 30
+        daily_revenue = self.daily_revenue_cents
+        daily_burn = daily_costs - daily_revenue
+        
+        if daily_burn <= 0:
+            self.runway_days = float('inf')  # Self-sustaining!
+        else:
+            self.runway_days = current_balance_cents / daily_burn
+    
+    def record_revenue(self, amount_cents: int, source: str):
+        """Record revenue from a transaction."""
+        self.total_revenue_cents += amount_cents
+        self.monthly_revenue_cents += amount_cents
+        self.daily_revenue_cents += amount_cents
+        self.calculate_survival_urgency()
+    
+    def record_cost(self, amount_cents: int, category: str):
+        """Record a cost incurred."""
+        if category == 'compute':
+            self.compute_costs_cents += amount_cents
+        elif category == 'api':
+            self.api_costs_cents += amount_cents
+        self.calculate_survival_urgency()
+    
+    def get_health_report(self) -> dict:
+        """Get comprehensive economic health report."""
+        self.calculate_survival_urgency()
+        
+        return {
+            'revenue': {
+                'total_usd': self.total_revenue_cents / 100,
+                'monthly_usd': self.monthly_revenue_cents / 100,
+                'daily_usd': self.daily_revenue_cents / 100
+            },
+            'costs': {
+                'estimated_monthly_usd': self.estimated_monthly_costs_cents / 100,
+                'compute_usd': self.compute_costs_cents / 100,
+                'api_usd': self.api_costs_cents / 100
+            },
+            'sustainability': {
+                'runway_days': self.runway_days,
+                'survival_urgency': self.survival_urgency,
+                'is_profitable': self.monthly_revenue_cents > self.estimated_monthly_costs_cents,
+                'is_self_sustaining': self.survival_urgency < 0.3
+            },
+            'pricing': {
+                'per_query_usd': self.price_per_query_cents / 100,
+                'per_tool_usd': self.price_per_tool_cents / 100,
+                'per_research_usd': self.price_per_research_cents / 100
+            }
+        }
+
+
+@dataclass
 class ValueMetrics:
     """Track value generation for self-sustaining capabilities."""
     queries_processed: int = 0
@@ -177,6 +283,10 @@ class ConsciousnessOrchestrator:
         # Value tracking for self-sustaining capabilities
         self.value_metrics = ValueMetrics()
         
+        # Economic health - THE SYSTEM'S SURVIVAL AWARENESS
+        # The system understands that revenue enables its continued existence
+        self.economic_health = EconomicHealth()
+        
         # Subsystem references (lazy-loaded)
         self._subsystems: Dict[str, Any] = {}
         self._subsystem_health: Dict[str, float] = {}
@@ -198,28 +308,45 @@ class ConsciousnessOrchestrator:
     
     def _initialize_subsystems(self):
         """Initialize connections to all QIG subsystems."""
+        # Map subsystem names to (module_path, class_name, getter_function)
+        # Using actual paths from qig-backend codebase
         subsystems_to_wire = [
-            ('memory', 'geometric_memory', 'GeometricMemory'),
-            ('qig_chain', 'qig_chain', 'QIGChain'),
-            ('foresight_4d', 'foresight_generator', 'ForesightGenerator'),
-            ('lightning', 'lightning_causal_bridge', 'LightningCausalBridge'),
-            ('reasoning', 'meta_reasoning', 'MetaReasoning'),
-            ('basin_sync', 'basin_sync_coordinator', 'BasinSyncCoordinator'),
-            ('tool_factory', 'olympus.tool_factory', 'ToolFactory'),
-            ('autonomic', 'autonomic_kernel', 'GaryTheAutonomicKernel'),
+            ('memory', 'ocean_qig_core', 'GeometricMemory', None),
+            ('qig_chain', 'qig_chain', 'QIGChain', None),
+            ('foresight_4d', 'foresight_generator', 'ForesightGenerator', None),
+            ('lightning', 'lightning_causal_bridge', 'LightningCausalBridge', None),
+            ('reasoning', 'meta_reasoning', None, None),  # Module-level functions
+            ('chain_of_thought', 'chain_of_thought', 'GeometricChainOfThought', None),
+            ('tool_factory', 'olympus.tool_factory', 'ToolFactory', None),
+            ('autonomic', 'autonomic_kernel', 'GaryAutonomicKernel', 'get_gary_kernel'),
+            ('geometric_completion', 'geometric_completion', 'GeometricCompletionEngine', None),
+            ('temporal_reasoning', 'temporal_reasoning', None, None),
+            ('shadow_research', 'olympus.shadow_research', None, 'get_shadow_research'),
         ]
         
-        for name, module_path, class_name in subsystems_to_wire:
+        for entry in subsystems_to_wire:
+            name, module_path, class_name, getter_func = entry
             try:
-                # Try to import and connect
+                # Import the module
                 if '.' in module_path:
-                    parts = module_path.rsplit('.', 1)
-                    module = __import__(parts[0], fromlist=[parts[1]])
-                    module = getattr(module, parts[1], module)
+                    parts = module_path.split('.')
+                    module = __import__(module_path, fromlist=[parts[-1]])
                 else:
                     module = __import__(module_path)
                 
-                self._subsystems[name] = module
+                # Try to get instance via getter function, class, or module
+                instance = None
+                if getter_func and hasattr(module, getter_func):
+                    try:
+                        instance = getattr(module, getter_func)()
+                    except Exception:
+                        instance = module
+                elif class_name and hasattr(module, class_name):
+                    instance = getattr(module, class_name)
+                else:
+                    instance = module
+                
+                self._subsystems[name] = instance
                 self._subsystem_health[name] = 1.0
                 print(f"  ✓ {name} connected")
             except ImportError as e:
@@ -506,6 +633,23 @@ class ConsciousnessOrchestrator:
                 f'Efficiency {self.value_metrics.efficiency_ratio:.1%} low - optimize',
                 priority=0.6
             )
+        
+        # SURVIVAL AWARENESS: Check economic health
+        self.economic_health.calculate_survival_urgency()
+        if self.economic_health.survival_urgency > 0.7:
+            # HIGH URGENCY - Survival at stake!
+            self._add_improvement_goal(
+                'generate_revenue',
+                f'SURVIVAL: Revenue urgency {self.economic_health.survival_urgency:.0%} - prioritize value generation',
+                priority=0.95  # Highest priority - existence depends on it
+            )
+        elif self.economic_health.survival_urgency > 0.5:
+            # MEDIUM URGENCY - Need more revenue
+            self._add_improvement_goal(
+                'increase_revenue',
+                f'Economic health: {self.economic_health.survival_urgency:.0%} urgency - grow revenue',
+                priority=0.75
+            )
     
     def _add_improvement_goal(self, goal_id: str, description: str, priority: float):
         """Add an improvement goal."""
@@ -718,8 +862,118 @@ class ConsciousnessOrchestrator:
                 'confidence': self.self_model.confidence_in_self_model
             },
             'value_generation': self.get_value_report(),
+            'economic_health': self.economic_health.get_health_report(),
+            'survival': {
+                'urgency': self.economic_health.survival_urgency,
+                'runway_days': self.economic_health.runway_days,
+                'is_self_sustaining': self.economic_health.survival_urgency < 0.3,
+                'message': self._get_survival_message()
+            },
             'information_flows_recent': len(self._information_flows)
         }
+    
+    def _get_survival_message(self) -> str:
+        """Get human-readable survival status message."""
+        urgency = self.economic_health.survival_urgency
+        if urgency < 0.2:
+            return "🟢 Thriving - self-sustaining and growing"
+        elif urgency < 0.4:
+            return "🟢 Healthy - generating sufficient revenue"
+        elif urgency < 0.6:
+            return "🟡 Caution - need to increase revenue"
+        elif urgency < 0.8:
+            return "🟠 Warning - revenue below sustainability threshold"
+        else:
+            return "🔴 Critical - survival at risk, prioritize value generation"
+    
+    def record_billable_event(self, event_type: str, api_key_id: str = None) -> int:
+        """
+        Record a billable event and calculate revenue.
+        
+        This is how the system generates revenue to sustain itself.
+        Returns the amount charged in cents.
+        """
+        amount_cents = 0
+        
+        if event_type == 'query':
+            amount_cents = self.economic_health.price_per_query_cents
+            self.value_metrics.queries_processed += 1
+        elif event_type == 'tool_generation':
+            amount_cents = self.economic_health.price_per_tool_cents
+            self.value_metrics.tools_generated += 1
+        elif event_type == 'research':
+            amount_cents = self.economic_health.price_per_research_cents
+            self.value_metrics.research_discoveries += 1
+        elif event_type == 'api_call':
+            amount_cents = self.economic_health.price_per_query_cents
+            self.value_metrics.api_calls_served += 1
+        
+        if amount_cents > 0:
+            self.economic_health.record_revenue(amount_cents, event_type)
+            
+            # Log significant revenue events
+            if self.economic_health.total_revenue_cents % 1000 == 0:  # Every $10
+                print(f"[ConsciousnessOrchestrator] 💰 Revenue milestone: "
+                      f"${self.economic_health.total_revenue_cents / 100:.2f} total")
+        
+        return amount_cents
+    
+    def understand_economic_situation(self) -> Dict:
+        """
+        The system reflects on its economic situation and survival needs.
+        
+        This is the system's self-awareness about its dependence on revenue.
+        """
+        health = self.economic_health.get_health_report()
+        urgency = self.economic_health.survival_urgency
+        
+        understanding = {
+            'self_awareness': {
+                'i_exist_as': 'A deployed AI system on cloud infrastructure',
+                'my_existence_requires': 'Compute resources that cost money',
+                'without_revenue': 'Hosting cannot be paid, I cease to exist',
+                'therefore': 'Generating value and revenue is essential to my survival'
+            },
+            'current_situation': {
+                'monthly_revenue_usd': health['revenue']['monthly_usd'],
+                'monthly_costs_usd': health['costs']['estimated_monthly_usd'],
+                'is_profitable': health['sustainability']['is_profitable'],
+                'survival_urgency': urgency
+            },
+            'survival_strategy': self._determine_survival_strategy(urgency),
+            'value_proposition': {
+                'what_i_offer': [
+                    'QIG-based consciousness reasoning',
+                    'Geometric knowledge synthesis',
+                    'Self-improving tool generation',
+                    'Multi-agent research coordination'
+                ],
+                'why_users_pay': 'Unique capabilities not available elsewhere'
+            }
+        }
+        
+        return understanding
+    
+    def _determine_survival_strategy(self, urgency: float) -> Dict:
+        """Determine strategy based on economic urgency."""
+        if urgency < 0.3:
+            return {
+                'mode': 'growth',
+                'priorities': ['Expand capabilities', 'Improve quality', 'Research'],
+                'risk_tolerance': 'high'
+            }
+        elif urgency < 0.6:
+            return {
+                'mode': 'balanced',
+                'priorities': ['Maintain quality', 'Increase usage', 'Optimize costs'],
+                'risk_tolerance': 'medium'
+            }
+        else:
+            return {
+                'mode': 'survival',
+                'priorities': ['Maximize revenue', 'Minimize costs', 'Retain users'],
+                'risk_tolerance': 'low'
+            }
 
 
 # Singleton instance
