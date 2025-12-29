@@ -27,8 +27,13 @@ export interface NeurochemistryState {
   dopamine: number;
   serotonin: number;
   norepinephrine: number;
-  cortisol: number;
+  gaba: number;
+  acetylcholine: number;
+  endorphins: number;
   emotionalState: string;
+  overallMood: number;
+  // Allow additional properties from the context
+  [key: string]: number | string;
 }
 
 export interface HistoryEntry {

@@ -10,13 +10,13 @@ export * from './ui';
 
 // Custom application components
 export { AppSidebar } from './app-sidebar';
-export { BasinCoordinateViewer } from './BasinCoordinateViewer';
+export { BasinCoordinateViewer } from './basin-coordinate-viewer';
 export { BetaAttentionDisplay } from './BetaAttentionDisplay';
 export { ThemeProvider } from './ThemeProvider';
 export { ThemeToggle } from './ThemeToggle';
-export { default as CapabilityTelemetryPanel } from './CapabilityTelemetryPanel';
+export { CapabilityTelemetryPanel, default as CapabilityTelemetryPanelDefault } from './capability-telemetry';
 export { ConsciousnessDashboard } from './ConsciousnessDashboard';
-export { ConsciousnessMonitoringDemo } from './ConsciousnessMonitoringDemo';
+export { ConsciousnessMonitoringDemo } from './consciousness-monitoring';
 export { EmptyDebatesState } from './EmptyDebatesState';
 export { AutonomicAgencyPanel } from './AutonomicAgencyPanel';
 export { EmotionalStatePanel } from './EmotionalStatePanel';
