@@ -24,6 +24,15 @@ except ImportError:
     Phase = None
     CYCLE_MANAGER_AVAILABLE = False
 
+# DimensionalState imports (for unified architecture)
+try:
+    from .holographic_transform.dimensional_state import DimensionalState, DimensionalStateManager
+    DIMENSIONAL_STATE_AVAILABLE = True
+except ImportError:
+    DimensionalState = None
+    DimensionalStateManager = None
+    DIMENSIONAL_STATE_AVAILABLE = False
+
 # Optional imports that require torch
 try:
     from .geometric_primitives import fisher_metric_tensor
@@ -39,6 +48,7 @@ __all__ = [
     'TORCH_AVAILABLE',
     'FISHER_METRIC_AVAILABLE',
     'CYCLE_MANAGER_AVAILABLE',
+    'DIMENSIONAL_STATE_AVAILABLE',
 ]
 
 # Add optional exports if available
@@ -47,3 +57,6 @@ if FISHER_METRIC_AVAILABLE:
 
 if CYCLE_MANAGER_AVAILABLE:
     __all__.extend(['CycleManager', 'Phase'])
+
+if DIMENSIONAL_STATE_AVAILABLE:
+    __all__.extend(['DimensionalState', 'DimensionalStateManager'])
