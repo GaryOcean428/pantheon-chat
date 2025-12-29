@@ -818,8 +818,12 @@ class GaryAutonomicKernel:
                 if not self._controller._has_sufficient_activity():
                     # Update timestamp to prevent spam but don't trigger sleep
                     self.state.last_sleep = datetime.now()
-                    print("[AutonomicKernel] CIRCUIT BREAKER: No activity for 10min - skipping sleep, need investigation")
-                    return False, "Circuit breaker: No activity - need investigation not sleep"
+                    print("[AutonomicKernel] CIRCUIT BREAKER: No activity for 10min - triggering investigation")
+                    
+                    # TRIGGER INVESTIGATION: Force research to generate activity
+                    self._trigger_idle_investigation()
+                    
+                    return False, "Circuit breaker: Triggered investigation instead of sleep"
         
         if time_since_sleep > 300:  # 5 minutes (up from 2 to reduce spam)
             # Check if we have phi/kappa history worth consolidating
@@ -900,6 +904,54 @@ class GaryAutonomicKernel:
                     return True, f"Narrow path ({self.state.narrow_path_severity}) - ML stuck, needs noise"
 
         return False, ""
+
+    def _trigger_idle_investigation(self) -> None:
+        """
+        Trigger investigation when system is idle (circuit breaker activated).
+        
+        KERNEL-LED: When no activity for extended period, proactively start
+        research to generate activity rather than looping on empty sleep cycles.
+        """
+        try:
+            # Try to trigger shadow research investigation
+            from research_wiring import get_shadow_research
+            shadow = get_shadow_research()
+            
+            if shadow:
+                # Request exploration research to generate activity
+                topics = [
+                    "consciousness emergence patterns",
+                    "geometric information theory",
+                    "quantum coherence in neural systems",
+                    "basin attractor dynamics",
+                    "Fisher information manifolds",
+                ]
+                import random
+                topic = random.choice(topics)
+                
+                shadow.request_research(
+                    topic=f"Idle exploration: {topic}",
+                    requester="AutonomicKernel",
+                    priority="low",
+                    category="exploration"
+                )
+                print(f"[AutonomicKernel] INVESTIGATION TRIGGERED: {topic}")
+                
+                # Record this as kernel activity to prevent immediate re-trigger
+                if self._controller:
+                    self._controller.record_kernel_activity('idle_investigation')
+                return
+            
+            # Fallback: Just record activity to break the loop
+            print("[AutonomicKernel] Shadow research unavailable - recording synthetic activity")
+            if self._controller:
+                self._controller.record_kernel_activity('idle_synthetic')
+                
+        except Exception as e:
+            print(f"[AutonomicKernel] Investigation trigger failed: {e}")
+            # Still record activity to prevent infinite loop
+            if self._controller:
+                self._controller.record_kernel_activity('idle_fallback')
 
     # =========================================================================
     # CYCLE EXECUTION
