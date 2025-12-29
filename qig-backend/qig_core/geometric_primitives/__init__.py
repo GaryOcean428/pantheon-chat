@@ -7,6 +7,13 @@ IMPORTANT: All geometric distance operations MUST use fisher_rao_distance.
 DO NOT use np.linalg.norm() or cosine_similarity() on basin coordinates.
 """
 
+# Torch availability - check once at import time
+try:
+    import torch
+    TORCH_AVAILABLE = True
+except ImportError:
+    TORCH_AVAILABLE = False
+
 # Import from existing fisher_metric
 try:
     from .fisher_metric import (
@@ -123,6 +130,8 @@ except ImportError:
     SENSORY_AVAILABLE = False
 
 __all__ = [
+    # Torch availability flag
+    'TORCH_AVAILABLE',
     # Canonical distance (USE THIS)
     'fisher_rao_distance',
     'geodesic_interpolate',

@@ -38,3 +38,5 @@ export { SearchBudgetPanel } from './SearchBudgetPanel';
 export { SessionExpirationModal } from './SessionExpirationModal';
 export { WarStatusPanel } from './war-status-panel';
 export { default as ZeusChat } from './ZeusChat';
+export { TaskHorizonStatus } from './TaskHorizonStatus';
+export { LongHorizonPanel } from './LongHorizonPanel';
