@@ -53,8 +53,6 @@ interface ProvidersResponse {
   data: {
     google_free: ProviderInfo;
     tavily: ProviderInfo;
-    perplexity: ProviderInfo;
-    duckduckgo: ProviderInfo;
   };
 }
 
@@ -208,29 +206,6 @@ export default function Sources() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="flex items-center justify-between p-4 rounded-lg border">
                   <div className="flex items-start gap-3">
-                    <Search className="h-5 w-5 mt-0.5 text-orange-500" />
-                    <div>
-                      <div className="font-medium">DuckDuckGo</div>
-                      <p className="text-sm text-muted-foreground">
-                        Free privacy-focused search (always available)
-                      </p>
-                      <Badge variant="outline" className="mt-1 text-green-500 border-green-500">
-                        Free
-                      </Badge>
-                    </div>
-                  </div>
-                  <Switch
-                    checked={providersData?.data?.duckduckgo?.enabled ?? true}
-                    disabled={toggleProviderMutation.isPending}
-                    onCheckedChange={(checked) => 
-                      toggleProviderMutation.mutate({ provider: 'duckduckgo', enabled: checked })
-                    }
-                    data-testid="switch-duckduckgo"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between p-4 rounded-lg border">
-                  <div className="flex items-start gap-3">
                     <Globe className="h-5 w-5 mt-0.5 text-blue-500" />
                     <div>
                       <div className="font-medium">Google Free Search</div>
@@ -283,37 +258,6 @@ export default function Sources() {
                       toggleProviderMutation.mutate({ provider: 'tavily', enabled: checked })
                     }
                     data-testid="switch-tavily"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between p-4 rounded-lg border">
-                  <div className="flex items-start gap-3">
-                    <Key className="h-5 w-5 mt-0.5 text-cyan-500" />
-                    <div>
-                      <div className="font-medium">Perplexity</div>
-                      <p className="text-sm text-muted-foreground">
-                        AI-enhanced deep search (requires API key)
-                      </p>
-                      {!providersData?.data?.perplexity?.has_key && (
-                        <Badge variant="outline" className="mt-1 text-amber-500 border-amber-500">
-                          <Key className="h-3 w-3 mr-1" />
-                          API Key Not Set
-                        </Badge>
-                      )}
-                      {providersData?.data?.perplexity?.has_key && providersData?.data?.perplexity?.available && (
-                        <Badge variant="outline" className="mt-1 text-green-500 border-green-500">
-                          Ready
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                  <Switch
-                    checked={providersData?.data?.perplexity?.enabled ?? false}
-                    disabled={!providersData?.data?.perplexity?.has_key || toggleProviderMutation.isPending}
-                    onCheckedChange={(checked) => 
-                      toggleProviderMutation.mutate({ provider: 'perplexity', enabled: checked })
-                    }
-                    data-testid="switch-perplexity"
                   />
                 </div>
               </div>

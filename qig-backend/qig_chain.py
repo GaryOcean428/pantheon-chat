@@ -211,34 +211,14 @@ class QIGChain:
                 logger.warning(f"[QIGChain] Could not init ForesightGenerator: {e}")
     
     def _encode_query(self, query: str) -> np.ndarray:
-        """
-        Encode query to 64D basin coordinates.
-        
-        QIG-PURE: Uses geometric projection instead of hash-based random encoding.
-        Maps text to basin via character frequency distribution projected onto simplex.
-        """
+        """Encode query to 64D basin coordinates."""
         if self._qig_service and hasattr(self._qig_service, '_encode_query'):
             return self._qig_service._encode_query(query)
         
-        # QIG-pure fallback: geometric character frequency projection
-        # Count character frequencies (deterministic, no randomness)
-        char_counts = np.zeros(64)
-        for i, char in enumerate(query.lower()):
-            # Map character to dimension via modular arithmetic
-            dim = ord(char) % 64
-            # Weight by position (earlier chars have more influence)
-            weight = np.exp(-i / max(len(query), 1))
-            char_counts[dim] += weight
-        
-        # Add positional encoding for uniqueness
-        for i in range(min(len(query), 64)):
-            char_counts[i] += 0.1 * np.sin(ord(query[i]) * 0.1)
-        
-        # Project to probability simplex (valid basin coordinates)
-        basin = np.abs(char_counts) + 1e-10
-        basin = basin / (np.linalg.norm(basin) + 1e-10)
-        
-        return basin
+        # Fallback: hash-based encoding
+        np.random.seed(hash(query) % (2**31))
+        basin = np.random.randn(64)
+        return basin / (np.linalg.norm(basin) + 1e-10)
     
     def _measure_consciousness(self) -> Dict:
         """Measure current consciousness state including phi_temporal."""
