@@ -20,6 +20,7 @@ import {
   type AuthenticatedRequest,
   type ApiKeyScope,
 } from './auth';
+import { billQuery, billResearch, getBillingStatus, PRICING } from './billing';
 import { db } from '../db';
 import { federatedInstances, externalApiKeys } from '@shared/schema';
 import { eq, sql } from 'drizzle-orm';
@@ -240,6 +241,7 @@ externalApiRouter.delete(
 externalApiRouter.get(
   EXTERNAL_API_ROUTES.consciousness.query,
   requireScopes('consciousness', 'read'),
+  billQuery,
   async (_req, res) => {
     // TODO: Integrate with actual consciousness system
     // For now, return placeholder structure
@@ -824,6 +826,7 @@ externalApiRouter.post(
 externalApiRouter.post(
   EXTERNAL_API_ROUTES.chat.send,
   requireScopes('chat'),
+  billQuery,
   async (req: AuthenticatedRequest, res) => {
     const { message, context, sessionId } = req.body;
     
