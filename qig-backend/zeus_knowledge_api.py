@@ -1,11 +1,10 @@
 """
-Zeus Knowledge Integration API Routes
+Zeus Knowledge API Routes
 
-Endpoints:
-- POST /api/zeus-knowledge/remember - Store conversation in Zettelkasten
-- POST /api/zeus-knowledge/retrieve - Retrieve relevant knowledge for a query
-- GET /api/zeus-knowledge/stats - Get knowledge memory statistics
-- GET /api/zeus-knowledge/conversation/<id> - Get knowledge from specific conversation
+Endpoints for Zeus-Zettelkasten knowledge integration:
+- GET /api/zeus-knowledge/stats - Get knowledge stats
+- POST /api/zeus-knowledge/remember - Store a conversation
+- POST /api/zeus-knowledge/retrieve - Retrieve relevant knowledge
 
 Author: Ocean/Zeus Pantheon
 """
@@ -16,65 +15,93 @@ import traceback
 zeus_knowledge_bp = Blueprint('zeus_knowledge', __name__, url_prefix='/api/zeus-knowledge')
 
 
-def get_knowledge_memory():
-    """Get the ZeusKnowledgeMemory instance."""
-    from zeus_knowledge_integration import get_zeus_knowledge_memory
-    return get_zeus_knowledge_memory()
+@zeus_knowledge_bp.route('/stats', methods=['GET'])
+def stats_endpoint():
+    """
+    Get Zeus knowledge memory statistics.
+    
+    GET /api/zeus-knowledge/stats
+    
+    Returns:
+    {
+        "success": true,
+        "stats": {
+            "available": true,
+            "total_zettels": 100,
+            "zeus_conversations": 50,
+            "zeus_responses": 45
+        }
+    }
+    """
+    try:
+        from zeus_knowledge_integration import get_knowledge_stats
+        
+        stats = get_knowledge_stats()
+        
+        return jsonify({
+            'success': True,
+            'stats': stats
+        })
+        
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 
 @zeus_knowledge_bp.route('/remember', methods=['POST'])
 def remember_endpoint():
     """
-    Store a conversation exchange in Zettelkasten memory.
+    Store a conversation in Zettelkasten memory.
     
     POST /api/zeus-knowledge/remember
     {
         "user_message": "What is consciousness?",
         "zeus_response": "Consciousness is...",
-        "conversation_id": "conv_123",
-        "domain_hints": ["philosophy", "neuroscience"],
-        "phi": 0.85
+        "conversation_id": "optional-id",
+        "phi": 0.7
     }
     
     Returns:
     {
         "success": true,
-        "stored": true,
-        "user_zettel_id": "z_123...",
-        "response_zettel_id": "z_456...",
-        "links_created": 3
+        "zettel_id": "z_abc123..."
     }
     """
     try:
+        from zeus_knowledge_integration import remember_conversation
+        
         data = request.get_json() or {}
         
         user_message = data.get('user_message')
         zeus_response = data.get('zeus_response')
-        conversation_id = data.get('conversation_id')
         
         if not user_message:
-            return jsonify({'error': 'user_message required'}), 400
+            return jsonify({'success': False, 'error': 'user_message required'}), 400
         if not zeus_response:
-            return jsonify({'error': 'zeus_response required'}), 400
-        if not conversation_id:
-            return jsonify({'error': 'conversation_id required'}), 400
+            return jsonify({'success': False, 'error': 'zeus_response required'}), 400
         
-        domain_hints = data.get('domain_hints', [])
-        phi = data.get('phi', 0.5)
-        
-        knowledge = get_knowledge_memory()
-        result = knowledge.remember_conversation(
+        zettel_id = remember_conversation(
             user_message=user_message,
             zeus_response=zeus_response,
-            conversation_id=conversation_id,
-            domain_hints=domain_hints,
-            phi=phi
+            conversation_id=data.get('conversation_id'),
+            phi=data.get('phi', 0.0),
+            metadata=data.get('metadata')
         )
         
-        return jsonify({
-            'success': result.get('stored', False),
-            **result
-        })
+        if zettel_id:
+            return jsonify({
+                'success': True,
+                'zettel_id': zettel_id,
+                'message': 'Conversation stored in knowledge memory'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to store conversation - memory may not be available'
+            }), 500
         
     except Exception as e:
         traceback.print_exc()
@@ -91,80 +118,46 @@ def retrieve_endpoint():
     
     POST /api/zeus-knowledge/retrieve
     {
-        "query": "What is consciousness?",
+        "query": "What did we discuss about consciousness?",
         "max_results": 5,
-        "include_context": true,
-        "format_for_response": true
+        "include_responses": true
     }
     
     Returns:
     {
         "success": true,
-        "knowledge_items": [...],
-        "formatted_context": "Related past knowledge:\n...",
-        "count": 5
+        "knowledge": [
+            {
+                "content": "...",
+                "relevance": 0.85,
+                "source": "zeus_conversation",
+                "keywords": ["consciousness", "integration"]
+            }
+        ]
     }
     """
     try:
+        from zeus_knowledge_integration import retrieve_relevant_knowledge
+        
         data = request.get_json() or {}
         
         query = data.get('query')
         if not query:
-            return jsonify({'error': 'query required'}), 400
+            return jsonify({'success': False, 'error': 'query required'}), 400
         
         max_results = data.get('max_results', 5)
-        include_context = data.get('include_context', True)
-        format_for_response = data.get('format_for_response', False)
+        include_responses = data.get('include_responses', True)
         
-        knowledge = get_knowledge_memory()
-        items = knowledge.retrieve_knowledge(
+        knowledge = retrieve_relevant_knowledge(
             query=query,
             max_results=max_results,
-            include_context=include_context
+            include_responses=include_responses
         )
         
-        result = {
-            'success': True,
-            'knowledge_items': items,
-            'count': len(items)
-        }
-        
-        if format_for_response:
-            result['formatted_context'] = knowledge.format_context_for_response(items)
-        
-        return jsonify(result)
-        
-    except Exception as e:
-        traceback.print_exc()
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
-
-@zeus_knowledge_bp.route('/stats', methods=['GET'])
-def stats_endpoint():
-    """
-    Get knowledge memory statistics.
-    
-    GET /api/zeus-knowledge/stats
-    
-    Returns:
-    {
-        "success": true,
-        "available": true,
-        "total_zettels": 100,
-        "total_links": 500,
-        ...
-    }
-    """
-    try:
-        knowledge = get_knowledge_memory()
-        stats = knowledge.get_stats()
-        
         return jsonify({
             'success': True,
-            **stats
+            'knowledge': knowledge,
+            'count': len(knowledge)
         })
         
     except Exception as e:
@@ -175,35 +168,43 @@ def stats_endpoint():
         }), 500
 
 
-@zeus_knowledge_bp.route('/conversation/<conversation_id>', methods=['GET'])
-def conversation_history_endpoint(conversation_id: str):
+@zeus_knowledge_bp.route('/enrich', methods=['POST'])
+def enrich_endpoint():
     """
-    Get knowledge items from a specific conversation.
+    Enrich a context with relevant knowledge.
     
-    GET /api/zeus-knowledge/conversation/<id>?max_items=20
+    POST /api/zeus-knowledge/enrich
+    {
+        "query": "Tell me about consciousness",
+        "existing_context": "Optional existing context..."
+    }
     
     Returns:
     {
         "success": true,
-        "conversation_id": "conv_123",
-        "items": [...],
-        "count": 10
+        "enriched_context": "Existing context... Related insight: ..."
     }
     """
     try:
-        max_items = request.args.get('max_items', 20, type=int)
+        from zeus_knowledge_integration import enrich_context_with_knowledge
         
-        knowledge = get_knowledge_memory()
-        items = knowledge.get_conversation_history(
-            conversation_id=conversation_id,
-            max_items=max_items
+        data = request.get_json() or {}
+        
+        query = data.get('query')
+        if not query:
+            return jsonify({'success': False, 'error': 'query required'}), 400
+        
+        existing_context = data.get('existing_context', '')
+        
+        enriched = enrich_context_with_knowledge(
+            query=query,
+            existing_context=existing_context
         )
         
         return jsonify({
             'success': True,
-            'conversation_id': conversation_id,
-            'items': items,
-            'count': len(items)
+            'enriched_context': enriched,
+            'was_enriched': enriched != existing_context
         })
         
     except Exception as e:

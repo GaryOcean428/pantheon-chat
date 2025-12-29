@@ -1,319 +1,219 @@
 """
-Zeus Knowledge Integration - Zettelkasten Memory for Persistent Knowledge
+Zeus Knowledge Integration - Zettelkasten Auto-Learning
 
-This module provides integration between Zeus chat and Zettelkasten memory
-for persistent knowledge storage and retrieval across conversations.
-
-Usage:
-    from zeus_knowledge_integration import ZeusKnowledgeMemory
-    
-    knowledge = ZeusKnowledgeMemory()
-    
-    # Store conversation
-    knowledge.remember_conversation(user_message, zeus_response, conversation_id)
-    
-    # Retrieve relevant context
-    context = knowledge.retrieve_knowledge(query, max_results=5)
+Provides continuous learning from Zeus conversations by:
+1. Storing Q&A pairs as Zettelkasten memories
+2. Retrieving relevant past knowledge to enrich context
+3. Learning patterns from successful interactions
 
 Author: Ocean/Zeus Pantheon
 """
 
 import time
-import traceback
-from typing import Dict, List, Any, Optional, Tuple
+import logging
+from typing import Dict, List, Optional, Any, Tuple
 
-# Import Zettelkasten memory
-try:
-    from zettelkasten_memory import (
-        get_zettelkasten_memory,
-        Zettel,
-        ZettelkastenMemory,
-        LinkType
-    )
-    ZETTELKASTEN_AVAILABLE = True
-except ImportError:
-    ZETTELKASTEN_AVAILABLE = False
-    print("[ZeusKnowledge] Zettelkasten memory not available")
+logger = logging.getLogger(__name__)
+
+# Lazy import of Zettelkasten to avoid circular dependencies
+_zettelkasten_memory = None
+_zettelkasten_available = None
 
 
-class ZeusKnowledgeMemory:
+def _init_zettelkasten():
+    """Lazily initialize Zettelkasten memory."""
+    global _zettelkasten_memory, _zettelkasten_available
+    
+    if _zettelkasten_available is not None:
+        return _zettelkasten_memory
+    
+    try:
+        from zettelkasten_memory import get_zettelkasten_memory
+        _zettelkasten_memory = get_zettelkasten_memory()
+        _zettelkasten_available = True
+        logger.info("[ZeusKnowledge] Zettelkasten memory initialized for continuous learning")
+    except ImportError as e:
+        logger.warning(f"[ZeusKnowledge] Zettelkasten not available: {e}")
+        _zettelkasten_available = False
+    except Exception as e:
+        logger.warning(f"[ZeusKnowledge] Failed to initialize Zettelkasten: {e}")
+        _zettelkasten_available = False
+    
+    return _zettelkasten_memory
+
+
+def remember_conversation(
+    user_message: str,
+    zeus_response: str,
+    conversation_id: Optional[str] = None,
+    phi: float = 0.0,
+    metadata: Optional[Dict[str, Any]] = None
+) -> Optional[str]:
     """
-    Integration layer between Zeus chat and Zettelkasten memory.
+    Store a Q&A pair in Zettelkasten memory for future retrieval.
     
-    Provides:
-    1. Persistent storage of conversation knowledge
-    2. Retrieval of relevant past knowledge for context enhancement
-    3. Evolution of knowledge as new conversations occur
+    Args:
+        user_message: The user's query
+        zeus_response: Zeus's response
+        conversation_id: Optional conversation ID for linking
+        phi: Consciousness metric at generation time
+        metadata: Additional metadata about the interaction
+        
+    Returns:
+        Zettel ID if successfully stored, None otherwise
     """
+    memory = _init_zettelkasten()
+    if not memory:
+        return None
     
-    def __init__(self):
-        """Initialize the knowledge memory integration."""
-        self._memory: Optional[ZettelkastenMemory] = None
+    try:
+        # Create a combined content that captures the interaction
+        content = f"Q: {user_message}\nA: {zeus_response}"
         
-        if ZETTELKASTEN_AVAILABLE:
-            try:
-                self._memory = get_zettelkasten_memory()
-                print(f"[ZeusKnowledge] Connected to Zettelkasten with {self._memory.get_stats()['total_zettels']} Zettels")
-            except Exception as e:
-                print(f"[ZeusKnowledge] Failed to initialize: {e}")
-                self._memory = None
-    
-    @property
-    def available(self) -> bool:
-        """Check if knowledge memory is available."""
-        return self._memory is not None
-    
-    def remember_conversation(
-        self,
-        user_message: str,
-        zeus_response: str,
-        conversation_id: str,
-        domain_hints: Optional[List[str]] = None,
-        phi: float = 0.5
-    ) -> Dict[str, Any]:
-        """
-        Store conversation exchange in Zettelkasten memory.
+        # Store with source indicating it came from Zeus conversation
+        zettel = memory.add(
+            content=content,
+            source='zeus_conversation',
+        )
         
-        Both the user's question and Zeus's response are stored as linked Zettels,
-        enabling future retrieval and knowledge evolution.
-        
-        Args:
-            user_message: The user's message/question
-            zeus_response: Zeus's response
-            conversation_id: Unique conversation identifier
-            domain_hints: Optional domain context hints
-            phi: Consciousness phi value at time of conversation
+        if zettel:
+            logger.debug(f"[ZeusKnowledge] Stored conversation memory: {zettel.zettel_id[:20]}...")
             
-        Returns:
-            Dict with storage results
-        """
-        if not self.available:
-            return {"stored": False, "reason": "memory_unavailable"}
+            # Also store the response separately for pattern matching
+            if len(zeus_response) > 50:
+                memory.add(
+                    content=zeus_response,
+                    source='zeus_response',
+                )
+            
+            return zettel.zettel_id
+            
+    except Exception as e:
+        logger.warning(f"[ZeusKnowledge] Failed to store conversation: {e}")
+    
+    return None
+
+
+def retrieve_relevant_knowledge(
+    query: str,
+    max_results: int = 3,
+    include_responses: bool = True
+) -> List[Dict[str, Any]]:
+    """
+    Retrieve relevant past knowledge from Zettelkasten to enrich context.
+    
+    Args:
+        query: The current user query to find relevant knowledge for
+        max_results: Maximum number of relevant memories to retrieve
+        include_responses: Whether to include past Zeus responses
         
-        result = {
-            "stored": True,
-            "user_zettel_id": None,
-            "response_zettel_id": None,
-            "links_created": 0
+    Returns:
+        List of relevant knowledge items with content and relevance scores
+    """
+    memory = _init_zettelkasten()
+    if not memory:
+        return []
+    
+    try:
+        results = memory.retrieve(query=query, max_results=max_results)
+        
+        knowledge_items = []
+        for zettel, score in results:
+            # Filter for Zeus conversation/response sources
+            if not include_responses and zettel.source == 'zeus_response':
+                continue
+            
+            knowledge_items.append({
+                'content': zettel.content,
+                'source': zettel.source,
+                'relevance': score,
+                'keywords': zettel.keywords[:5] if zettel.keywords else [],
+                'zettel_id': zettel.zettel_id,
+            })
+        
+        if knowledge_items:
+            logger.debug(f"[ZeusKnowledge] Retrieved {len(knowledge_items)} relevant memories for query")
+        
+        return knowledge_items
+        
+    except Exception as e:
+        logger.warning(f"[ZeusKnowledge] Failed to retrieve knowledge: {e}")
+        return []
+
+
+def enrich_context_with_knowledge(
+    query: str,
+    existing_context: str = ""
+) -> str:
+    """
+    Enrich the generation context with relevant past knowledge.
+    
+    Args:
+        query: The user's query
+        existing_context: Any existing context to append to
+        
+    Returns:
+        Enriched context string
+    """
+    knowledge_items = retrieve_relevant_knowledge(query, max_results=3)
+    
+    if not knowledge_items:
+        return existing_context
+    
+    # Build context from relevant knowledge
+    knowledge_context = []
+    for item in knowledge_items:
+        if item['relevance'] > 0.3:  # Only include sufficiently relevant items
+            # Extract just the answer part if it's a Q&A pair
+            content = item['content']
+            if content.startswith('Q:') and '\nA:' in content:
+                answer_part = content.split('\nA:')[1].strip()
+                knowledge_context.append(f"Related insight: {answer_part[:200]}")
+            else:
+                knowledge_context.append(f"Context: {content[:200]}")
+    
+    if knowledge_context:
+        enriched = "\n".join(knowledge_context)
+        if existing_context:
+            return f"{existing_context}\n\n{enriched}"
+        return enriched
+    
+    return existing_context
+
+
+def get_knowledge_stats() -> Dict[str, Any]:
+    """Get statistics about stored Zeus knowledge."""
+    memory = _init_zettelkasten()
+    if not memory:
+        return {'available': False}
+    
+    try:
+        stats = memory.get_stats()
+        
+        # Count Zeus-specific entries
+        zeus_conversation_count = 0
+        zeus_response_count = 0
+        
+        for zettel_id in list(memory._zettels.keys())[:100]:  # Sample first 100
+            zettel = memory._zettels.get(zettel_id)
+            if zettel:
+                if zettel.source == 'zeus_conversation':
+                    zeus_conversation_count += 1
+                elif zettel.source == 'zeus_response':
+                    zeus_response_count += 1
+        
+        return {
+            'available': True,
+            'total_zettels': stats.get('total_zettels', 0),
+            'zeus_conversations': zeus_conversation_count,
+            'zeus_responses': zeus_response_count,
+            'total_links': stats.get('total_links', 0),
         }
         
-        try:
-            # Build source info
-            source = f"zeus_chat:{conversation_id}"
-            if domain_hints:
-                source += f":{','.join(domain_hints[:3])}"
-            
-            # Store user message as a Zettel
-            # We add context to make it more searchable
-            user_content = f"[Question] {user_message}"
-            if phi > 0.7:
-                user_content = f"[High-Φ Question] {user_message}"
-            
-            user_zettel = self._memory.add(
-                content=user_content,
-                source=source,
-                link_type=LinkType.SEMANTIC
-            )
-            result["user_zettel_id"] = user_zettel.zettel_id
-            
-            # Store Zeus response linked to the question
-            # Truncate very long responses to keep atomic
-            response_content = zeus_response
-            if len(response_content) > 2000:
-                # Store a summary version
-                response_content = response_content[:1800] + "... [truncated]"
-            
-            response_content = f"[Zeus Response] {response_content}"
-            
-            response_zettel = self._memory.add(
-                content=response_content,
-                source=source,
-                parent_id=user_zettel.zettel_id,
-                link_type=LinkType.ELABORATION
-            )
-            result["response_zettel_id"] = response_zettel.zettel_id
-            result["links_created"] = len(response_zettel.links)
-            
-            # Log successful storage
-            print(f"[ZeusKnowledge] Stored conversation: Q={user_zettel.zettel_id[:12]}..., A={response_zettel.zettel_id[:12]}...")
-            
-        except Exception as e:
-            traceback.print_exc()
-            result["stored"] = False
-            result["error"] = str(e)
-        
-        return result
-    
-    def retrieve_knowledge(
-        self,
-        query: str,
-        max_results: int = 5,
-        include_context: bool = True
-    ) -> List[Dict[str, Any]]:
-        """
-        Retrieve relevant knowledge from Zettelkasten for context enhancement.
-        
-        Args:
-            query: The current user query to find relevant context for
-            max_results: Maximum number of relevant Zettels to return
-            include_context: Whether to expand results with linked Zettels
-            
-        Returns:
-            List of relevant knowledge items with content and metadata
-        """
-        if not self.available:
-            return []
-        
-        try:
-            # Query the Zettelkasten
-            results = self._memory.retrieve(
-                query=query,
-                max_results=max_results,
-                include_context=include_context
-            )
-            
-            # Format results for Zeus chat
-            knowledge_items = []
-            for zettel, relevance in results:
-                item = {
-                    "zettel_id": zettel.zettel_id,
-                    "content": zettel.content,
-                    "relevance": relevance,
-                    "keywords": zettel.keywords,
-                    "source": zettel.source,
-                    "context_description": zettel.contextual_description,
-                    "access_count": zettel.access_count,
-                    "is_response": "[Zeus Response]" in zettel.content,
-                    "is_question": "[Question]" in zettel.content or "[High-Φ Question]" in zettel.content
-                }
-                knowledge_items.append(item)
-            
-            if knowledge_items:
-                print(f"[ZeusKnowledge] Retrieved {len(knowledge_items)} relevant items for query")
-            
-            return knowledge_items
-            
-        except Exception as e:
-            traceback.print_exc()
-            return []
-    
-    def format_context_for_response(
-        self,
-        knowledge_items: List[Dict[str, Any]],
-        max_context_chars: int = 1500
-    ) -> str:
-        """
-        Format retrieved knowledge items into a context string for Zeus.
-        
-        Args:
-            knowledge_items: List of knowledge items from retrieve_knowledge
-            max_context_chars: Maximum characters for context
-            
-        Returns:
-            Formatted context string
-        """
-        if not knowledge_items:
-            return ""
-        
-        context_parts = []
-        total_chars = 0
-        
-        for item in knowledge_items:
-            # Skip if already at limit
-            if total_chars >= max_context_chars:
-                break
-            
-            # Extract clean content
-            content = item["content"]
-            
-            # Remove prefix tags for cleaner context
-            for prefix in ["[Question]", "[High-Φ Question]", "[Zeus Response]"]:
-                content = content.replace(prefix, "").strip()
-            
-            # Truncate individual items
-            if len(content) > 500:
-                content = content[:450] + "..."
-            
-            # Add to context
-            relevance_marker = "★" if item["relevance"] > 0.7 else "○"
-            context_part = f"{relevance_marker} {content}"
-            
-            if total_chars + len(context_part) <= max_context_chars:
-                context_parts.append(context_part)
-                total_chars += len(context_part)
-        
-        if not context_parts:
-            return ""
-        
-        return "Related past knowledge:\n" + "\n".join(context_parts)
-    
-    def get_stats(self) -> Dict[str, Any]:
-        """Get knowledge memory statistics."""
-        if not self.available:
-            return {"available": False}
-        
-        try:
-            stats = self._memory.get_stats()
-            stats["available"] = True
-            return stats
-        except Exception as e:
-            return {"available": False, "error": str(e)}
-    
-    def get_conversation_history(
-        self,
-        conversation_id: str,
-        max_items: int = 20
-    ) -> List[Dict[str, Any]]:
-        """
-        Get knowledge items from a specific conversation.
-        
-        Args:
-            conversation_id: The conversation ID to filter by
-            max_items: Maximum items to return
-            
-        Returns:
-            List of knowledge items from that conversation
-        """
-        if not self.available:
-            return []
-        
-        try:
-            # Search by source pattern
-            source_pattern = f"zeus_chat:{conversation_id}"
-            
-            # Get all zettels and filter by source
-            # This is a simple implementation - for production,
-            # you'd want indexed lookup
-            results = []
-            for zettel_id, zettel in self._memory._zettels.items():
-                if source_pattern in zettel.source:
-                    results.append({
-                        "zettel_id": zettel.zettel_id,
-                        "content": zettel.content,
-                        "created_at": zettel.created_at,
-                        "is_response": "[Zeus Response]" in zettel.content
-                    })
-            
-            # Sort by creation time
-            results.sort(key=lambda x: x["created_at"])
-            
-            return results[:max_items]
-            
-        except Exception as e:
-            traceback.print_exc()
-            return []
+    except Exception as e:
+        logger.warning(f"[ZeusKnowledge] Failed to get stats: {e}")
+        return {'available': True, 'error': str(e)}
 
 
-# Singleton instance
-_knowledge_memory_instance: Optional[ZeusKnowledgeMemory] = None
-
-
-def get_zeus_knowledge_memory() -> ZeusKnowledgeMemory:
-    """Get the singleton ZeusKnowledgeMemory instance."""
-    global _knowledge_memory_instance
-    if _knowledge_memory_instance is None:
-        _knowledge_memory_instance = ZeusKnowledgeMemory()
-    return _knowledge_memory_instance
-
-
-print("[ZeusKnowledge] Module loaded - Zeus-Zettelkasten integration ready")
+# Module initialization log
+print("[ZeusKnowledge] Zeus-Zettelkasten integration module loaded")
