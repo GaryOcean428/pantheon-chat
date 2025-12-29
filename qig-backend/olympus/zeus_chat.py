@@ -69,6 +69,17 @@ except ImportError:
         bc = np.clip(bc, 0, 1)
         return float(2 * np.arccos(bc))
 
+# Import autonomic kernel for activity tracking (KERNEL-LED)
+def _record_kernel_activity(activity_type: str = 'chat') -> None:
+    """Record kernel activity to enable autonomic cycles (KERNEL-LED mode)."""
+    try:
+        from autonomic_kernel import get_gary_kernel
+        kernel = get_gary_kernel()
+        if kernel and kernel._controller:
+            kernel._controller.record_kernel_activity(activity_type)
+    except Exception:
+        pass  # Autonomic tracking is optional
+
 EVOLUTION_AVAILABLE = False
 try:
     _parent_dir = os.path.dirname(os.path.dirname(__file__))
@@ -610,6 +621,9 @@ class ZeusConversationHandler(GeometricGenerationMixin):
                 print(f"[ZeusChat] Meta-cognition failed: {e}")
         
         print(f"[ZeusChat] Processing message with intent: {intent['type']} (mode={reasoning_mode})")
+        
+        # KERNEL-LED: Record activity for autonomic cycles
+        _record_kernel_activity('chat_message')
         
         # Route to appropriate handler
         # DESIGN: Default to conversation. Only explicit commands trigger actions.
