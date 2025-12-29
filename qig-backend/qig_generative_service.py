@@ -480,6 +480,54 @@ class BigramCoherenceScorer:
         
         return 0.5
     
+    def reset(self) -> None:
+        """Reset the scorer state (no-op for bigram scorer, kept for interface compatibility)."""
+        pass
+    
+    def score_candidates(self, candidates, prev_word: str):
+        """
+        Score a list of candidate words based on bigram coherence with previous word.
+        
+        Args:
+            candidates: List of (word, base_score) tuples OR list of candidate dicts
+            prev_word: The previous word in the sequence (can be str or int position)
+            
+        Returns:
+            List with bigram coherence scores applied
+        """
+        # Handle position index being passed instead of word
+        if isinstance(prev_word, int):
+            # Position index passed - no previous word context available
+            return candidates
+        
+        if not prev_word or not candidates:
+            return candidates
+        
+        # Check if candidates are tuples or dicts
+        if candidates and isinstance(candidates[0], tuple):
+            scored = []
+            for word, base_score in candidates:
+                bigram_score = self.score_bigram(prev_word, word)
+                adjusted_score = base_score * 0.6 + bigram_score * 0.4
+                scored.append((word, adjusted_score))
+            return scored
+        elif candidates and isinstance(candidates[0], dict):
+            # Dict format with 'word' and 'score' keys
+            scored = []
+            for cand in candidates:
+                word = cand.get('word', cand.get('token', ''))
+                base_score = cand.get('score', cand.get('probability', 0.5))
+                bigram_score = self.score_bigram(prev_word, word)
+                adjusted_score = base_score * 0.6 + bigram_score * 0.4
+                new_cand = dict(cand)
+                new_cand['score'] = adjusted_score
+                new_cand['bigram_score'] = bigram_score
+                scored.append(new_cand)
+            return scored
+        else:
+            # Unknown format, return as-is
+            return candidates
+    
     def validate_coherence(self, text: str, min_threshold: float = 0.35) -> Tuple[bool, float]:
         """
         Validate that generated text meets minimum coherence threshold.
