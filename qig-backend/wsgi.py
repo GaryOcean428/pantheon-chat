@@ -194,6 +194,18 @@ try:
     VOCABULARY_AVAILABLE = True
     print("[INFO] Vocabulary API registered at /api/vocabulary/*")
 except ImportError as e:
+    print(f"[WARN] Vocabulary API not available: {e}")
+    VOCABULARY_AVAILABLE = False
+
+# Register Billing API for metered usage
+BILLING_AVAILABLE = False
+try:
+    from billing_api import billing_bp
+
+    app.register_blueprint(billing_bp)
+    BILLING_AVAILABLE = True
+    print("[INFO] Billing API registered at /api/billing/*")
+except ImportError as e:
     print(f"[WARNING] Vocabulary API not available: {e}")
 except Exception as e:
     print(f"[WARNING] Vocabulary API initialization failed: {e}")
