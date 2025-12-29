@@ -17,7 +17,7 @@ from qig_generative_service import (
     get_bigram_scorer,
     get_semantic_scorer,
     score_candidate_word,
-    validate_generation_coherence,
+    validate_generation_coherence_full,
 )
 
 
@@ -407,31 +407,30 @@ class TestIntegrationFunctions:
     
     def test_score_candidate_word(self):
         """Test the integrated candidate word scoring."""
-        result = score_candidate_word(
+        combined_score, breakdown = score_candidate_word(
             candidate='integration',
             prev_word='consciousness',
+            prev_prev_word='the',
             geometric_score=0.8,
-            bigram_score=0.7,
             topic='consciousness'
         )
         
-        assert 'combined_score' in result
-        assert 'geometric' in result
-        assert 'bigram' in result
-        assert 'semantic' in result
-        assert 0 <= result['combined_score'] <= 1
+        assert 'geometric' in breakdown
+        assert 'grammatical' in breakdown
+        assert 'semantic' in breakdown
+        assert 0 <= combined_score <= 1
     
     def test_validate_generation_coherence(self):
         """Test the integrated generation coherence validation."""
-        result = validate_generation_coherence(
-            text="the geometric manifold shows consciousness integration"
+        is_valid, combined_score, breakdown = validate_generation_coherence_full(
+            text="the geometric manifold shows consciousness integration",
+            topic='consciousness'
         )
         
-        assert 'is_valid' in result
-        assert 'combined_score' in result
-        assert 'bigram_score' in result
-        assert 'semantic_score' in result
-        assert isinstance(result['is_valid'], bool)
+        assert isinstance(is_valid, bool)
+        assert 0 <= combined_score <= 1
+        assert 'grammatical' in breakdown
+        assert 'semantic' in breakdown
 
 
 class TestPOSTaggingIntegration:

@@ -7,7 +7,7 @@ Falls back to hardcoded English vocabulary if database is unavailable.
 
 import logging
 import os
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -500,6 +500,21 @@ class PostgresCoordizer(FisherCoordizer):
             except Exception:
                 pass
             return (added, False)
+    
+    def get_stats(self) -> Dict[str, Any]:
+        """Get coordizer statistics.
+        
+        Returns:
+            Dictionary with vocabulary stats
+        """
+        return {
+            'vocabulary_size': len(self.basin_coords),
+            'basin_dimension': 64,
+            'initialized': len(self.basin_coords) > 0,
+            'cache_size': len(self.basin_coords),
+            'coordizer_type': 'PostgresCoordizer',
+            'token_count': len(self.basin_coords),
+        }
     
     def close(self):
         if self._connection:
