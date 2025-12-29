@@ -81,6 +81,22 @@ from qigkernels.domain_intelligence import (
     get_kernel_domains,
 )
 
+# NEW: Physics-informed training and Fisher-Rao geometry (2025-12-29)
+from qigkernels.physics_controller import (
+    PhysicsInformedController,
+    RegimeState,
+)
+
+from qigkernels.fisher_geometry import (
+    fisher_rao_distance as fisher_rao_distance_v2,
+    bhattacharyya_coefficient,
+    compute_fisher_metric,
+    natural_gradient,
+    hellinger_distance,
+    kl_divergence,
+    js_divergence,
+)
+
 __version__ = "0.1.0"
 
 __all__ = [
@@ -137,4 +153,15 @@ __all__ = [
     "get_mission_profile",
     "discover_domain_from_event",
     "get_kernel_domains",
+    # Physics-informed training (NEW 2025-12-29)
+    "PhysicsInformedController",
+    "RegimeState",
+    # Fisher-Rao geometry (NEW 2025-12-29)
+    "fisher_rao_distance_v2",
+    "bhattacharyya_coefficient",
+    "compute_fisher_metric",
+    "natural_gradient",
+    "hellinger_distance",
+    "kl_divergence",
+    "js_divergence",
 ]
