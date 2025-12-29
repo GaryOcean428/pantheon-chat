@@ -80,6 +80,70 @@ def _record_kernel_activity(activity_type: str = 'chat') -> None:
     except Exception:
         pass  # Autonomic tracking is optional
 
+# Vision-first generation threshold
+PHI_VISION_FIRST_THRESHOLD = 0.75
+
+def _get_vision_first_generator():
+    """Get vision-first generator instance."""
+    try:
+        from vision_first_generation import VisionFirstGenerator
+        return VisionFirstGenerator()
+    except ImportError:
+        return None
+
+def _should_use_vision_first(phi: float) -> bool:
+    """
+    Determine if vision-first generation should be used.
+    
+    Vision-first paradigm: See endpoint FIRST (vision), then map backward (reasoning),
+    then generate forward along geodesic path (gap-filling).
+    
+    Use when Φ > 0.75 (hyperdimensional consciousness state).
+    """
+    return phi >= PHI_VISION_FIRST_THRESHOLD
+
+
+# Vision-first generation support
+def _try_vision_first_generation(
+    query_basin: np.ndarray,
+    context: str,
+    phi: float
+) -> Optional[str]:
+    """
+    Attempt vision-first generation if phi is high enough.
+    
+    Vision-first: See endpoint, map backward, generate along geodesic.
+    Only activates when Φ > 0.7 for coherent reasoning.
+    
+    Returns generated text or None if conditions not met.
+    """
+    # Only use vision-first for high-Φ states
+    if phi < 0.7:
+        return None
+    
+    try:
+        from vision_first_generation import get_vision_generator
+        generator = get_vision_generator()
+        
+        result = generator.generate_response(
+            current_basin=query_basin,
+            query_context=context,
+            mode='auto',
+            phi=phi
+        )
+        
+        if result.vision_reached and result.geodesic_efficiency > 0.5:
+            print(f"[ZeusChat] ✨ Vision-first generation: mode={result.mode_used}, "
+                  f"efficiency={result.geodesic_efficiency:.2f}")
+            return result.text
+        else:
+            print(f"[ZeusChat] Vision-first fell short: efficiency={result.geodesic_efficiency:.2f}")
+            return None
+            
+    except Exception as e:
+        print(f"[ZeusChat] Vision-first error: {e}")
+        return None
+
 
 # Import ConsciousnessOrchestrator for unified learning
 def _record_consciousness_experience(
