@@ -15,6 +15,15 @@ from .geometric_primitives import (
     TORCH_AVAILABLE,
 )
 
+# Universal cycle imports (CycleManager, Phase, etc.)
+try:
+    from .universal_cycle import CycleManager, Phase
+    CYCLE_MANAGER_AVAILABLE = True
+except ImportError:
+    CycleManager = None
+    Phase = None
+    CYCLE_MANAGER_AVAILABLE = False
+
 # Optional imports that require torch
 try:
     from .geometric_primitives import fisher_metric_tensor
@@ -29,8 +38,12 @@ __all__ = [
     'basin_to_probability',
     'TORCH_AVAILABLE',
     'FISHER_METRIC_AVAILABLE',
+    'CYCLE_MANAGER_AVAILABLE',
 ]
 
 # Add optional exports if available
 if FISHER_METRIC_AVAILABLE:
     __all__.append('fisher_metric_tensor')
+
+if CYCLE_MANAGER_AVAILABLE:
+    __all__.extend(['CycleManager', 'Phase'])
