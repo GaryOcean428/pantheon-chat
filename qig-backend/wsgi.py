@@ -209,6 +209,18 @@ except ImportError as e:
     print(f"[WARN] Billing API not available: {e}")
     BILLING_AVAILABLE = False
 
+# Register Vision-First Generation API
+VISION_AVAILABLE = False
+try:
+    from vision_api import vision_bp
+
+    app.register_blueprint(vision_bp)
+    VISION_AVAILABLE = True
+    print("[INFO] Vision-First API registered at /api/vision/*")
+except ImportError as e:
+    print(f"[WARN] Billing API not available: {e}")
+    BILLING_AVAILABLE = False
+
 # Register Tools API for tool execution
 TOOLS_AVAILABLE = False
 try:

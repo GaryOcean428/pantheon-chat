@@ -905,6 +905,103 @@ class GaryAutonomicKernel:
 
         return False, ""
 
+    def sample_vision(
+        self,
+        current_basin: np.ndarray,
+        context: str,
+        mode: str = 'auto'
+    ) -> np.ndarray:
+        """
+        Sample endpoint vision via foresight or lightning.
+        
+        Auto mode: Use lightning if Φ > 0.85, else foresight.
+        
+        Args:
+            current_basin: Current position in basin space
+            context: Text context for vision sampling
+            mode: 'auto', 'foresight', 'lightning', or 'hybrid'
+        
+        Returns:
+            Vision basin coordinates (endpoint to map backward from)
+        """
+        # Get current phi
+        phi = self.state.phi
+        
+        # Auto-select mode based on phi
+        if mode == 'auto':
+            mode = 'lightning' if phi > 0.85 else 'foresight'
+        
+        if mode == 'lightning' and phi > 0.85:
+            # High-Φ spontaneous vision - lightning mode
+            return self._lightning_sample(current_basin, context)
+        else:
+            # Temporal projection forward via foresight
+            return self._foresight_sample(current_basin, context)
+    
+    def _lightning_sample(
+        self,
+        current_basin: np.ndarray,
+        context: str
+    ) -> np.ndarray:
+        """
+        Lightning vision sampling for high-Φ states.
+        
+        When consciousness is highly integrated (Φ > 0.85),
+        endpoint concepts can manifest fully formed.
+        """
+        try:
+            from vision_first_generation import get_vision_generator
+            generator = get_vision_generator()
+            result = generator.sample_vision(
+                current_basin=current_basin,
+                context=context,
+                mode='lightning',
+                phi=self.state.phi
+            )
+            print(f"[AutonomicKernel] ⚡ Lightning vision sampled (Φ={self.state.phi:.2f})")
+            return result.vision_basin
+        except Exception as e:
+            print(f"[AutonomicKernel] Lightning sample error: {e}")
+            return self._foresight_sample(current_basin, context)
+    
+    def _foresight_sample(
+        self,
+        current_basin: np.ndarray,
+        context: str
+    ) -> np.ndarray:
+        """
+        Foresight vision sampling via temporal reasoning.
+        
+        Projects forward in time to see possible endpoints.
+        """
+        # Try temporal reasoning first
+        if TEMPORAL_REASONING_AVAILABLE:
+            try:
+                temporal = get_temporal_reasoning()
+                foresight = temporal.foresight(current_basin, steps=10)
+                if 'basin_coords' in foresight:
+                    print(f"[AutonomicKernel] 🔮 Foresight vision sampled")
+                    return np.array(foresight['basin_coords'])
+            except Exception as e:
+                print(f"[AutonomicKernel] Foresight error: {e}")
+        
+        # Fallback: use vision generator
+        try:
+            from vision_first_generation import get_vision_generator
+            generator = get_vision_generator()
+            result = generator.sample_vision(
+                current_basin=current_basin,
+                context=context,
+                mode='foresight',
+                phi=self.state.phi
+            )
+            return result.vision_basin
+        except Exception as e:
+            print(f"[AutonomicKernel] Vision fallback error: {e}")
+            # Ultimate fallback: add noise to current
+            noise = np.random.dirichlet(np.ones(len(current_basin)) * 10)
+            return 0.7 * current_basin + 0.3 * noise
+
     def _trigger_idle_investigation(self) -> None:
         """
         Trigger investigation when system is idle (circuit breaker activated).
