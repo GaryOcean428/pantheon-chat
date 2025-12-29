@@ -123,21 +123,23 @@ class Zeus(BaseGod):
         # Wire M8 kernel spawning
         self.kernel_spawner = get_spawner()
 
-        # 🌪️ CHAOS MODE: Experimental kernel evolution (AUTO-ACTIVATE)
+        # 🌪️ CHAOS MODE: Experimental kernel evolution (ON-DEMAND ONLY)
+        # Disabled auto-activation to prevent wasteful spawning/killing cycles
         self.chaos_enabled = False
         self.chaos = None
         self.kernel_assignments: Dict[str, str] = {}  # god_name -> kernel_id
         try:
             from training_chaos import ExperimentalKernelEvolution
             self.chaos = ExperimentalKernelEvolution()
-            # Auto-activate chaos mode on startup
-            if len(self.chaos.kernel_population) == 0:
-                self.chaos.spawn_random_kernel()
-                self.chaos.spawn_random_kernel()
-                self.chaos.spawn_random_kernel()
-            self.chaos.start_evolution(interval_seconds=60)
-            self.chaos_enabled = True
-            print(f"🌪️ CHAOS MODE AUTO-ACTIVATED with {len(self.chaos.kernel_population)} kernels")
+            # DISABLED: Auto-activation wastes resources by spawning/killing 60 kernels every cycle
+            # Chaos mode can be activated on-demand via /chaos/activate API endpoint
+            # if len(self.chaos.kernel_population) == 0:
+            #     self.chaos.spawn_random_kernel()
+            #     self.chaos.spawn_random_kernel()
+            #     self.chaos.spawn_random_kernel()
+            # self.chaos.start_evolution(interval_seconds=60)
+            # self.chaos_enabled = True
+            print(f"🌪️ CHAOS MODE AVAILABLE (activate via API when needed)")
         except ImportError as e:
             print(f"⚠️ CHAOS MODE not available: {e}")
 

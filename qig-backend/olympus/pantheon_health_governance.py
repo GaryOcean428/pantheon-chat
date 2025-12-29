@@ -46,6 +46,16 @@ class SpawnProposalVote(Enum):
     DEFER = "defer"
 
 
+class KernelAction(Enum):
+    """All kernel lifecycle actions that require god consensus."""
+    SPAWN = "spawn"
+    MERGE = "merge"
+    CANNIBALIZE = "cannibalize"
+    EVOLVE = "evolve"
+    KILL = "kill"
+    BREED = "breed"
+
+
 @dataclass
 class KernelVitals:
     kernel_id: str
@@ -102,6 +112,23 @@ class SpawnProposal:
     population_context: Dict[str, Any] = field(default_factory=dict)
     consensus_reached: bool = False
     approved: bool = False
+
+
+@dataclass
+class ActionProposal:
+    """Proposal for any kernel action (spawn, merge, cannibalize, evolve, etc.)"""
+    proposal_id: str
+    action: KernelAction
+    reason: str
+    proposed_by: str
+    target_kernels: List[str] = field(default_factory=list)
+    timestamp: float = field(default_factory=time.time)
+    votes: Dict[str, SpawnProposalVote] = field(default_factory=dict)
+    shadow_votes: Dict[str, SpawnProposalVote] = field(default_factory=dict)
+    workload_context: Dict[str, Any] = field(default_factory=dict)
+    consensus_reached: bool = False
+    approved: bool = False
+    executed: bool = False
 
 
 @dataclass
@@ -450,6 +477,303 @@ class PantheonHealthGovernance:
         if kernel_id in self.care_plans:
             del self.care_plans[kernel_id]
         logger.info(f"[HealthGovernance] Deregistered kernel {kernel_id}")
+
+    # =========================================================================
+    # UNIFIED KERNEL ACTION GOVERNANCE
+    # All kernel actions (spawn, merge, cannibalize, evolve) require consensus
+    # =========================================================================
+    
+    def __init_action_proposals(self):
+        """Ensure action_proposals dict exists."""
+        if not hasattr(self, 'action_proposals'):
+            self.action_proposals: Dict[str, ActionProposal] = {}
+    
+    def propose_action(
+        self,
+        action: KernelAction,
+        reason: str,
+        proposed_by: str,
+        target_kernels: Optional[List[str]] = None,
+        workload_context: Optional[Dict[str, Any]] = None
+    ) -> ActionProposal:
+        """
+        Propose a kernel action for gods to vote on.
+        
+        All kernel lifecycle actions must go through this governance process.
+        Both Olympus and Shadow Pantheon get to vote.
+        """
+        self.__init_action_proposals()
+        
+        proposal_id = f"{action.value}_{int(time.time() * 1000)}_{proposed_by}"
+        
+        proposal = ActionProposal(
+            proposal_id=proposal_id,
+            action=action,
+            reason=reason,
+            proposed_by=proposed_by,
+            target_kernels=target_kernels or [],
+            workload_context=workload_context or {}
+        )
+        
+        self.action_proposals[proposal_id] = proposal
+        
+        # Broadcast to Olympus gods
+        if self.pantheon_chat:
+            try:
+                self.pantheon_chat.broadcast_message(
+                    from_god=proposed_by,
+                    message_type="action_proposal",
+                    intent=f"vote_{action.value}",
+                    data={
+                        "proposal_id": proposal_id,
+                        "action": action.value,
+                        "reason": reason,
+                        "target_kernels": target_kernels or [],
+                        "workload": workload_context
+                    }
+                )
+            except Exception as e:
+                logger.warning(f"[HealthGovernance] Failed to broadcast action proposal: {e}")
+        
+        logger.info(f"[HealthGovernance] Action proposal {proposal_id}: {action.value} by {proposed_by}")
+        return proposal
+    
+    def vote_on_action(
+        self,
+        proposal_id: str,
+        god_name: str,
+        vote: SpawnProposalVote,
+        is_shadow: bool = False
+    ) -> bool:
+        """
+        Cast a vote on an action proposal.
+        
+        Args:
+            proposal_id: The proposal to vote on
+            god_name: Name of the voting god
+            vote: The vote (approve/reject/abstain/defer)
+            is_shadow: True if this is a Shadow Pantheon god
+        """
+        self.__init_action_proposals()
+        
+        if proposal_id not in self.action_proposals:
+            logger.warning(f"[HealthGovernance] Action proposal {proposal_id} not found")
+            return False
+        
+        proposal = self.action_proposals[proposal_id]
+        
+        if is_shadow:
+            proposal.shadow_votes[god_name] = vote
+            logger.info(f"[HealthGovernance] Shadow {god_name} voted {vote.value} on {proposal_id}")
+        else:
+            proposal.votes[god_name] = vote
+            logger.info(f"[HealthGovernance] {god_name} voted {vote.value} on {proposal_id}")
+        
+        self._check_action_consensus(proposal)
+        return True
+    
+    def _check_action_consensus(self, proposal: ActionProposal):
+        """
+        Check if consensus reached on action proposal.
+        
+        Requires majority from both Olympus AND Shadow Pantheon.
+        """
+        # Count Olympus votes
+        olympus_votes = len(proposal.votes)
+        olympus_approve = sum(1 for v in proposal.votes.values() if v == SpawnProposalVote.APPROVE)
+        olympus_reject = sum(1 for v in proposal.votes.values() if v == SpawnProposalVote.REJECT)
+        
+        # Count Shadow votes
+        shadow_votes = len(proposal.shadow_votes)
+        shadow_approve = sum(1 for v in proposal.shadow_votes.values() if v == SpawnProposalVote.APPROVE)
+        shadow_reject = sum(1 for v in proposal.shadow_votes.values() if v == SpawnProposalVote.REJECT)
+        
+        # Need at least 3 total votes to reach consensus
+        total_votes = olympus_votes + shadow_votes
+        if total_votes < 3:
+            return
+        
+        # Calculate combined approval rate
+        total_approve = olympus_approve + shadow_approve
+        total_reject = olympus_reject + shadow_reject
+        voting_total = total_approve + total_reject
+        
+        if voting_total == 0:
+            return
+        
+        approval_rate = total_approve / voting_total
+        
+        proposal.consensus_reached = True
+        proposal.approved = approval_rate >= self.CONSENSUS_THRESHOLD
+        
+        if proposal.approved:
+            logger.info(f"[HealthGovernance] Action {proposal.action.value} APPROVED "
+                       f"(Olympus: {olympus_approve}/{olympus_votes}, Shadow: {shadow_approve}/{shadow_votes})")
+        else:
+            logger.info(f"[HealthGovernance] Action {proposal.action.value} REJECTED "
+                       f"(Olympus: {olympus_approve}/{olympus_votes}, Shadow: {shadow_approve}/{shadow_votes})")
+            self.total_spawns_blocked += 1
+    
+    def request_worker_for_workload(
+        self,
+        god_name: str,
+        workload_type: str,
+        queue_depth: int,
+        urgency: float = 0.5
+    ) -> Optional[ActionProposal]:
+        """
+        A god requests a worker kernel based on their workload.
+        
+        Only proposes spawn if workload justifies it.
+        Returns None if workload doesn't justify new kernel.
+        """
+        # Check if workload actually justifies new worker
+        if queue_depth < 5 and urgency < 0.7:
+            logger.info(f"[HealthGovernance] {god_name} workload manageable - no spawn needed")
+            return None
+        
+        # Check if spawn is allowed by governance
+        allowed, reason = self.should_allow_spawn(f"workload_{god_name}")
+        if not allowed:
+            logger.info(f"[HealthGovernance] Spawn blocked for {god_name}: {reason}")
+            return None
+        
+        # Create proposal for gods to vote on
+        workload_context = {
+            "requesting_god": god_name,
+            "workload_type": workload_type,
+            "queue_depth": queue_depth,
+            "urgency": urgency,
+            "timestamp": time.time()
+        }
+        
+        proposal = self.propose_action(
+            action=KernelAction.SPAWN,
+            reason=f"{god_name} needs worker for {workload_type} (queue={queue_depth}, urgency={urgency:.2f})",
+            proposed_by=god_name,
+            workload_context=workload_context
+        )
+        
+        return proposal
+    
+    def auto_vote_based_on_workload(self, proposal: ActionProposal) -> Dict[str, SpawnProposalVote]:
+        """
+        Gods automatically vote based on their own workload assessment.
+        
+        Returns votes from all gods who auto-voted.
+        """
+        auto_votes = {}
+        
+        for god_name in self.VOTING_GODS:
+            # Simple heuristic: approve if fleet isn't stressed
+            current_population = len(self.kernel_vitals)
+            stressed_count = sum(1 for v in self.kernel_vitals.values()
+                               if v.get_status() in [HealthStatus.STRESSED, HealthStatus.CRITICAL])
+            
+            if current_population == 0:
+                vote = SpawnProposalVote.APPROVE
+            elif stressed_count > current_population * 0.3:
+                vote = SpawnProposalVote.REJECT  # Too many stressed, heal first
+            elif current_population >= self.MAX_POPULATION * 0.9:
+                vote = SpawnProposalVote.REJECT  # Near capacity
+            else:
+                # Check urgency in workload context
+                urgency = proposal.workload_context.get("urgency", 0.5)
+                if urgency > 0.7:
+                    vote = SpawnProposalVote.APPROVE
+                elif urgency > 0.4:
+                    vote = SpawnProposalVote.ABSTAIN
+                else:
+                    vote = SpawnProposalVote.DEFER
+            
+            auto_votes[god_name] = vote
+            self.vote_on_action(proposal.proposal_id, god_name, vote, is_shadow=False)
+        
+        return auto_votes
+    
+    def execute_approved_action(self, proposal_id: str, chaos_evolution=None) -> Dict[str, Any]:
+        """
+        Execute an approved action proposal.
+        
+        Only executes if consensus was reached AND approved.
+        """
+        self.__init_action_proposals()
+        
+        if proposal_id not in self.action_proposals:
+            return {"success": False, "error": "Proposal not found"}
+        
+        proposal = self.action_proposals[proposal_id]
+        
+        if not proposal.consensus_reached:
+            return {"success": False, "error": "Consensus not reached"}
+        
+        if not proposal.approved:
+            return {"success": False, "error": "Proposal was rejected"}
+        
+        if proposal.executed:
+            return {"success": False, "error": "Already executed"}
+        
+        result = {"success": True, "action": proposal.action.value}
+        
+        if chaos_evolution is None:
+            result["executed"] = False
+            result["note"] = "No chaos evolution instance provided"
+            return result
+        
+        try:
+            if proposal.action == KernelAction.SPAWN:
+                kernel = chaos_evolution.spawn_random_kernel()
+                result["kernel_id"] = kernel.kernel_id if kernel else None
+                
+            elif proposal.action == KernelAction.MERGE:
+                if len(proposal.target_kernels) >= 2:
+                    result["merged"] = chaos_evolution.merge_kernels(
+                        proposal.target_kernels[0],
+                        proposal.target_kernels[1]
+                    )
+                    
+            elif proposal.action == KernelAction.CANNIBALIZE:
+                result["cannibalized"] = chaos_evolution.apply_cannibalism()
+                
+            elif proposal.action == KernelAction.EVOLVE:
+                result["evolved"] = chaos_evolution.evolution_step()
+                
+            elif proposal.action == KernelAction.BREED:
+                child = chaos_evolution.breed_top_kernels()
+                result["child_id"] = child.kernel_id if child else None
+                
+            elif proposal.action == KernelAction.KILL:
+                if proposal.target_kernels:
+                    result["killed"] = proposal.target_kernels
+            
+            proposal.executed = True
+            logger.info(f"[HealthGovernance] Executed {proposal.action.value}: {result}")
+            
+        except Exception as e:
+            result["success"] = False
+            result["error"] = str(e)
+            logger.error(f"[HealthGovernance] Failed to execute {proposal.action.value}: {e}")
+        
+        return result
+    
+    def get_pending_actions(self) -> List[Dict[str, Any]]:
+        """Get all pending action proposals awaiting votes."""
+        self.__init_action_proposals()
+        
+        return [
+            {
+                "proposal_id": p.proposal_id,
+                "action": p.action.value,
+                "reason": p.reason,
+                "proposed_by": p.proposed_by,
+                "olympus_votes": len(p.votes),
+                "shadow_votes": len(p.shadow_votes),
+                "consensus_reached": p.consensus_reached,
+                "approved": p.approved if p.consensus_reached else None
+            }
+            for p in self.action_proposals.values()
+            if not p.executed
+        ]
 
 
 _governance_instance: Optional[PantheonHealthGovernance] = None
