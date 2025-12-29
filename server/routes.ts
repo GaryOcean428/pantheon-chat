@@ -307,6 +307,46 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
   app.use("/api/vision", visionRouter);
   app.use("/api/olympus/tools", toolsRouter);
 
+  // ============================================================
+  // ZETTELKASTEN PROXY - Routes to Python Backend
+  // ============================================================
+  app.use("/api/zettelkasten", async (req: any, res) => {
+    try {
+      const pythonUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
+      const targetUrl = `${pythonUrl}/api/zettelkasten${req.url}`;
+      
+      const fetchOptions: RequestInit = {
+        method: req.method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        signal: AbortSignal.timeout(30000),
+      };
+      
+      if (req.method !== 'GET' && req.method !== 'HEAD' && req.body) {
+        fetchOptions.body = JSON.stringify(req.body);
+      }
+      
+      const response = await fetch(targetUrl, fetchOptions);
+      const contentType = response.headers.get('content-type') || '';
+      
+      if (contentType.includes('application/json')) {
+        const data = await response.json();
+        res.status(response.status).json(data);
+      } else {
+        const text = await response.text();
+        res.status(response.status).send(text);
+      }
+    } catch (error: unknown) {
+      console.error("[Zettelkasten] Proxy error:", getErrorMessage(error));
+      res.status(503).json({
+        success: false,
+        error: 'Zettelkasten service unavailable',
+        message: getErrorMessage(error)
+      });
+    }
+  });
+
   // Mount observer and telemetry routers
   app.use("/api/observer", observerRoutes);
   app.use("/api/telemetry", telemetryRouter);
