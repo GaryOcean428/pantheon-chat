@@ -1,4 +1,5 @@
 import type { Express } from "express";
+import { raw } from "express";
 import rateLimit from "express-rate-limit";
 import multer from "multer";
 import { createServer, type Server } from "http";
@@ -12,6 +13,7 @@ import TelemetryStreamer from "./telemetry-websocket";
 import KernelActivityStreamer from "./kernel-activity-websocket";
 import MeshNetworkStreamer from "./mesh-network-websocket";
 import telemetryDashboardRouter from "./routes/telemetry";
+import stripeWebhookRouter from "./routes/stripe-webhook";
 
 // WebSocket message validation schema (addresses Issue 13/14 from bottleneck report)
 const wsMessageSchema = z.object({
@@ -309,6 +311,9 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
   
   // Mount external API router (for federated instances, headless clients, integrations)
   app.use("/api/v1/external", externalApiRouter);
+  
+  // Mount Stripe webhook router (needs raw body for signature verification)
+  app.use("/api/stripe/webhook", raw({ type: 'application/json' }), stripeWebhookRouter);
 
   // ============================================================
   // COORDIZER STATS PROXY (Routes to Python Backend)
