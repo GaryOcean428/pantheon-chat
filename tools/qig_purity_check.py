@@ -152,6 +152,23 @@ def main():
             else:
                 errors.append(entry)
     
+    # Also run AST-based geometric_purity_checker if available
+    ast_errors = 0
+    checker_path = os.path.join(search_root, "tools", "geometric_purity_checker.py")
+    if os.path.exists(checker_path):
+        print(f"\nRunning AST-based geometric purity checker...")
+        import subprocess
+        result = subprocess.run(
+            [sys.executable, checker_path, search_root, "--errors-only"],
+            capture_output=True,
+            text=True
+        )
+        if result.returncode != 0:
+            ast_errors = 1
+            if verbose:
+                print(result.stdout)
+                print(result.stderr)
+    
     # Report warnings
     if warnings and verbose:
         print(f"\nWARNINGS: {len(warnings)} potential issue(s) in test files:")
@@ -162,19 +179,20 @@ def main():
                 print(f"    {line[:60]}{'...' if len(line) > 60 else ''}")
     
     # Report errors
-    if not errors:
+    if not errors and ast_errors == 0:
         print(f"\nOK: Checked {len(files)} files, geometric purity maintained")
         if warnings:
             print(f"({len(warnings)} warnings in test files, use --verbose to see)")
         return 0
     
-    print(f"\nERROR: {len(errors)} geometric purity violation(s) found:\n")
-    
-    for filepath, line_num, line, desc in errors:
-        print(f"  {filepath}:{line_num}")
-        print(f"    VIOLATION: {desc}")
-        print(f"    {line[:70]}{'...' if len(line) > 70 else ''}")
-        print()
+    if errors:
+        print(f"\nERROR: {len(errors)} geometric purity violation(s) found:\n")
+        
+        for filepath, line_num, line, desc in errors:
+            print(f"  {filepath}:{line_num}")
+            print(f"    VIOLATION: {desc}")
+            print(f"    {line[:70]}{'...' if len(line) > 70 else ''}")
+            print()
     
     print("CANONICAL_RULES.md Rule #1:")
     print("  Basin coordinates exist on a CURVED MANIFOLD.")
