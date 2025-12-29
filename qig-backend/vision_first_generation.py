@@ -18,7 +18,7 @@ import numpy as np
 import json
 import os
 import time
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any, Optional, Tuple, Union
 from dataclasses import dataclass
 
 
@@ -686,6 +686,18 @@ class VisionFirstGenerator:
     # =========================================================================
     # VERIFICATION
     # =========================================================================
+    
+    def _get_final_basin(self, text: str) -> np.ndarray:
+        """Get basin coordinates for the generated text."""
+        try:
+            if self._coordizer:
+                return self._coordizer.encode(text[-500:])  # Last 500 chars
+        except Exception:
+            pass
+        
+        # Fallback: return uniform basin
+        basin = np.ones(64) / 64
+        return basin
     
     def verify_endpoint_reached(
         self,
