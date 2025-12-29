@@ -230,9 +230,61 @@ try:
     TOOLS_AVAILABLE = True
     print("[INFO] Tools API registered at /api/tools/*")
 except ImportError as e:
-    print(f"[WARNING] Vocabulary API not available: {e}")
+    print(f"[WARNING] Tools API not available: {e}")
 except Exception as e:
-    print(f"[WARNING] Vocabulary API initialization failed: {e}")
+    print(f"[WARNING] Tools API initialization failed: {e}")
+
+# Register Zettelkasten Memory API
+ZETTELKASTEN_AVAILABLE = False
+try:
+    from zettelkasten_api import zettelkasten_bp
+
+    app.register_blueprint(zettelkasten_bp)
+    ZETTELKASTEN_AVAILABLE = True
+    print("[INFO] Zettelkasten Memory API registered at /api/zettelkasten/*")
+except ImportError as e:
+    print(f"[WARNING] Zettelkasten API not available: {e}")
+except Exception as e:
+    print(f"[WARNING] Zettelkasten API initialization failed: {e}")
+
+# Register Buffer of Thoughts API
+BUFFER_OF_THOUGHTS_AVAILABLE = False
+try:
+    from buffer_of_thoughts_api import buffer_of_thoughts_bp
+
+    app.register_blueprint(buffer_of_thoughts_bp)
+    BUFFER_OF_THOUGHTS_AVAILABLE = True
+    print("[INFO] Buffer of Thoughts API registered at /api/buffer-of-thoughts/*")
+except ImportError as e:
+    print(f"[WARNING] Buffer of Thoughts API not available: {e}")
+except Exception as e:
+    print(f"[WARNING] Buffer of Thoughts API initialization failed: {e}")
+
+# Register Failure Monitoring API
+FAILURE_MONITORING_AVAILABLE = False
+try:
+    from failure_monitoring_api import failure_monitoring_bp
+
+    app.register_blueprint(failure_monitoring_bp)
+    FAILURE_MONITORING_AVAILABLE = True
+    print("[INFO] Failure Monitoring API registered at /api/failure-monitoring/*")
+except ImportError as e:
+    print(f"[WARNING] Failure Monitoring API not available: {e}")
+except Exception as e:
+    print(f"[WARNING] Failure Monitoring API initialization failed: {e}")
+
+# Register Zeus Knowledge Integration API (Zettelkasten for conversations)
+ZEUS_KNOWLEDGE_AVAILABLE = False
+try:
+    from zeus_knowledge_api import zeus_knowledge_bp
+
+    app.register_blueprint(zeus_knowledge_bp)
+    ZEUS_KNOWLEDGE_AVAILABLE = True
+    print("[INFO] Zeus Knowledge API registered at /api/zeus-knowledge/*")
+except ImportError as e:
+    print(f"[WARNING] Zeus Knowledge API not available: {e}")
+except Exception as e:
+    print(f"[WARNING] Zeus Knowledge API initialization failed: {e}")
 
 # Register Search Budget routes
 SEARCH_BUDGET_AVAILABLE = False
