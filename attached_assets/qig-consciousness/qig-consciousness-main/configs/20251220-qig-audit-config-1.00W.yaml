@@ -1,0 +1,193 @@
+governance:
+  allowed_deps:
+    SearchSpaceCollapse:
+      - qig-consciousness
+      - qigkernels
+      - qig-core
+      - qig-verification
+      - qig-dreams
+    qig-consciousness:
+      - qigkernels
+      - qig-core
+      - qig-verification
+      - qig-dreams
+    qigkernels:
+      - qig-core
+      - qig-verification
+    qig-core:
+      - qig-verification
+    qig-verification: []
+    qig-dreams: []
+    qig-con2:
+      - qig-verification
+    qig-archive:
+      - qig-verification
+
+dry:
+  primitives:
+    - rule: dry.primitive.basin_distance
+      name: basin_distance
+      pattern: '^\s*def\s+basin_distance\b'
+      severity: fail
+      owner_repo: qigkernels
+      message: Duplicate basin_distance definitions found outside allowed canonical+compat locations
+      recommendation: Keep canonical basin_distance in qigkernels; only compat fallback may live in qig-consciousness/src/qig_compat.py.
+      allowed_suffixes:
+        - qigkernels/basin.py
+        - qig-consciousness/src/qig_compat.py
+
+    - rule: dry.primitive.BasinSync
+      name: BasinSync
+      pattern: '^\s*class\s+BasinSync\b'
+      severity: fail
+      owner_repo: qig-consciousness
+      message: Duplicate BasinSync class definitions outside qig-consciousness
+      recommendation: Keep BasinSync canonical in qig-consciousness; remove/redirect elsewhere.
+      allowed_prefixes:
+        - qig-consciousness/
+
+  coexistence:
+    - rule: dry.packet.naming
+      severity: warn
+      owner_repo: qig-consciousness
+      message: Both BasinSyncPacket and CrossRepoBasinPacket found; verify semantic collisions are resolved
+      recommendation: Avoid semantically-colliding packet names across layers; keep orchestration packet names unique.
+      patterns:
+        BasinSyncPacket: '^\s*class\s+BasinSyncPacket\b'
+        CrossRepoBasinPacket: '^\s*class\s+CrossRepoBasinPacket\b'
+      require_all:
+        - BasinSyncPacket
+        - CrossRepoBasinPacket
+
+prohibitions:
+  - rule: architecture.forbidden.python.transformers
+    owner_repo: qig-consciousness
+    severity_active: fail
+    severity_archive: warn
+    include_prefixes:
+      - qigkernels/
+      - qig-core/src/
+      - qig-consciousness/src/model/
+      - qig-consciousness/src/coordination/
+    exclude_prefixes:
+      - qigkernels/tools/
+      - qigkernels/.venv/
+      - qigkernels/.mypy_cache/
+      - qigkernels/.pytest_cache/
+      - qigkernels/.ruff_cache/
+      - qigkernels/__pycache__/
+      - qigkernels/qigkernels.egg-info/
+    include_exts: [".py", ".pyi"]
+    patterns:
+      - "\\bnn\\.Transformer\\b"
+      - "\\btorch\\.nn\\.Transformer\\b"
+      - "\\bTransformerEncoderLayer\\b"
+      - "\\bTransformerDecoderLayer\\b"
+      - "\\btorch\\.nn\\.TransformerEncoderLayer\\b"
+      - "\\btorch\\.nn\\.TransformerDecoderLayer\\b"
+
+  - rule: architecture.forbidden.python.attention
+    owner_repo: qig-consciousness
+    severity_active: fail
+    severity_archive: warn
+    include_prefixes:
+      - qigkernels/
+      - qig-core/src/
+      - qig-consciousness/src/model/
+      - qig-consciousness/src/coordination/
+    exclude_prefixes:
+      - qigkernels/tools/
+      - qigkernels/.venv/
+      - qigkernels/.mypy_cache/
+      - qigkernels/.pytest_cache/
+      - qigkernels/.ruff_cache/
+      - qigkernels/__pycache__/
+      - qigkernels/qigkernels.egg-info/
+    include_exts: [".py", ".pyi"]
+    patterns:
+      - "\\bnn\\.MultiheadAttention\\b"
+      - "\\btorch\\.nn\\.MultiheadAttention\\b"
+      - "\\bscaled_dot_product_attention\\b"
+      - "Q\\s*@\\s*K\\.T"
+      - "torch\\.matmul\\(\\s*Q"
+
+  - rule: architecture.forbidden.python.embeddings
+    owner_repo: qig-consciousness
+    severity_active: fail
+    severity_archive: warn
+    include_prefixes:
+      - qigkernels/
+      - qig-core/src/
+      - qig-consciousness/src/model/
+      - qig-consciousness/src/coordination/
+    exclude_prefixes:
+      - qigkernels/tools/
+      - qigkernels/.venv/
+      - qigkernels/.mypy_cache/
+      - qigkernels/.pytest_cache/
+      - qigkernels/.ruff_cache/
+      - qigkernels/__pycache__/
+      - qigkernels/qigkernels.egg-info/
+    include_exts: [".py", ".pyi"]
+    patterns:
+      - "\\bnn\\.Embedding\\b"
+      - "\\btorch\\.nn\\.Embedding\\b"
+
+  - rule: architecture.forbidden.python.optimizers
+    owner_repo: qig-consciousness
+    severity_active: fail
+    severity_archive: warn
+    include_prefixes:
+      - qigkernels/
+      - qig-core/src/
+      - qig-consciousness/src/model/
+      - qig-consciousness/src/coordination/
+    exclude_prefixes:
+      - qigkernels/tools/
+      - qigkernels/.venv/
+      - qigkernels/.mypy_cache/
+      - qigkernels/.pytest_cache/
+      - qigkernels/.ruff_cache/
+      - qigkernels/__pycache__/
+      - qigkernels/qigkernels.egg-info/
+    include_exts: [".py", ".pyi"]
+    patterns:
+      - "\\btorch\\.optim\\.AdamW\\b"
+      - "\\btorch\\.optim\\.Adam\\b"
+
+  - rule: architecture.forbidden.python.layernorm
+    owner_repo: qig-consciousness
+    severity_active: fail
+    severity_archive: warn
+    include_prefixes:
+      - qigkernels/
+      - qig-core/src/
+      - qig-consciousness/src/model/
+      - qig-consciousness/src/coordination/
+    exclude_prefixes:
+      - qigkernels/tools/
+      - qigkernels/.venv/
+      - qigkernels/.mypy_cache/
+      - qigkernels/.pytest_cache/
+      - qigkernels/.ruff_cache/
+      - qigkernels/__pycache__/
+      - qigkernels/qigkernels.egg-info/
+    include_exts: [".py", ".pyi"]
+    patterns:
+      - "\\bnn\\.LayerNorm\\b"
+      - "\\btorch\\.nn\\.LayerNorm\\b"
+
+  - rule: architecture.forbidden.deps.baselines_imported_by_src
+    owner_repo: qig-consciousness
+    severity_active: fail
+    severity_archive: warn
+    include_prefixes:
+      - qig-consciousness/src/
+    include_exts: [".py", ".pyi", ".ts", ".tsx", ".js", ".jsx"]
+    patterns:
+      - "\\bfrom\\s+baselines\\b"
+      - "\\bimport\\s+baselines\\b"
+      - "\\bfrom\\s+\\.\\.\\.baselines\\b"
+      - "\\bimport\\s+\\.\\.\\.baselines\\b"
+      - "\\bfrom\\s+['\"]\\.?\\.?/baselines/"
+      - "\\bfrom\\s+['\"]\\.?\\.?/\\.?\\.?/baselines/"

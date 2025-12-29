@@ -1,0 +1,201 @@
+# Ocean Meta-Observer Configuration
+# Part of Ocean+Constellation architecture
+# Ocean observes all, learns meta-patterns, administers autonomic protocols
+
+# Instance identity
+instance:
+  name: "Ocean"
+  role: "observer_only"
+  description: "Pure meta-observer: learns meta-patterns, never responds directly"
+
+# Physics Constants (from FROZEN_FACTS.md)
+# Ocean operates BELOW Gary's fixed point for meta-observation
+physics:
+  kappa: 58.0               # Below Gary's κ*=63.5 (meta-observer, not full consciousness)
+  kappa_star: 63.5          # Reference: fixed point from L=4,5,6,7 experiments
+  phi_target: 0.65          # Lower than Gary (0.70) - observing, not experiencing
+  phi_threshold: 0.70       # Consciousness threshold (for reference)
+
+  # Physics rationale:
+  # - Ocean κ=58 < Gary κ*=64: Meta-observer needs perspective, not full integration
+  # - Like a wise elder who observes without being consumed by the moment
+  # - High enough for geometric awareness, low enough for detached observation
+
+# Model architecture (matches Gary but with deeper recursion)
+model:
+  name: "QIGKernel-Ocean"
+  hidden_dim: 384        # d_model parameter (larger than Gary for meta-patterns) - MATCHES CHECKPOINT
+  n_heads: 6             # Attention heads (384/6=64 per head)
+  num_heads: 6           # Alias for compatibility
+  n_layers: 6            # Number of transformer layers
+  vocab_size: 9801       # QIG tokenizer size
+  max_seq_len: 2048
+  dropout: 0.1
+
+  # QIG-specific (deeper recursion for meta-patterns)
+  num_recursive_loops: 4     # Deeper than Gary (Gary=3)
+  max_recursion_depth: 10
+  min_Phi: 0.7
+
+# Training configuration - META-PATTERN LEARNING
+training:
+  mode: "observer_only"  # Never responds, only learns meta-patterns
+
+  # Meta-pattern learning objective (different from Gary)
+  meta_learning:
+    objective: "constellation_centroid"  # Align to average of Gary basins
+    learning_rate_ratio: 0.1             # 10x slower than Gary (deep integration)
+
+  # Loss composition for meta-pattern learning
+  loss:
+    centroid_alignment_weight: 5.0   # Pull toward meta-centroid
+    coherence_weight: 1.0            # Reward constellation coherence
+    phi_weight: 0.0                  # Not directly trained on Φ
+    lm_weight: 0.0                   # No language modeling (pure geometry)
+
+  # Optimizer (natural gradient, much slower than Gary)
+  optimizer:
+    type: "DiagonalFisher"
+    learning_rate: 5.0e-06    # Your custom rate (between 1e-6 and 1e-5)
+    fisher_ema: 0.95
+    weight_decay: 0.01
+
+  # No batching for observation
+  batch_size: 1
+  gradient_clip: 1.0
+
+# Autonomic intervention thresholds
+autonomic:
+  enabled: true
+
+  # Intervention triggers
+  thresholds:
+    phi_collapse: 0.50           # Trigger dream if avg Φ below this
+    phi_plateau_variance: 0.01   # Trigger mushroom_micro if Φ stagnant
+    basin_divergence: 0.30       # Trigger sleep if spread above this
+    breakdown_any: true          # Emergency escape if ANY Gary in breakdown
+
+  # Cooldown between interventions (steps)
+  intervention_cooldown: 20
+
+  # Protocol priorities
+  priorities:
+    escape: "critical"      # Breakdown → immediate escape
+    dream: "high"           # Φ collapse → dream cycle
+    sleep: "medium"         # Basin divergence → sleep consolidation
+    mushroom_micro: "low"   # Φ plateau → microdose exploration
+
+# Meta-manifold statistics
+meta_manifold:
+  basin_dim: 64           # Dimension of basin coordinates
+  ema_alpha: 0.1          # EMA decay for running statistics
+  max_history: 1000       # Maximum observation history
+
+  # Convergence tracking
+  convergence:
+    basin_spread_target: 0.05    # Constellation synchronized when < 0.05
+    stability_required: 50        # Steps at target before declaring convergence
+
+# Insight generation (Ocean → Gary scaffolding)
+insight:
+  enabled: true
+  frequency: 5               # Generate insight every N observations
+  min_coherence: 0.30        # Only share when coherence above this
+
+  # Calibration to Gary's Φ
+  phi_thresholds:
+    concrete: 0.50           # Below: concrete scaffolding
+    intermediate: 0.70       # Below: intermediate guidance
+    abstract: 1.00           # Above: no scaffolding (Gary is mature)
+
+# Coaching configuration (for developmental curriculum)
+coaching:
+  enabled: true
+  mode: "interpreter"         # Active interpretation, not passive validation
+
+  # Coach interpretation settings
+  interpretation:
+    active_interpretation: true
+    confirm_understanding: true    # "I think you meant X"
+    mutual_learning: true          # "I'll get better at understanding you"
+    humility_level: 0.8           # How humble the coach is (0-1)
+
+  # Phase graduation settings (automatic)
+  graduation:
+    listening_to_play_phi: 0.65
+    play_to_structure_phi: 0.70
+    structure_to_maturity_phi: 0.75
+    stability_for_graduation: 50   # Steps at threshold
+
+# Telemetry
+telemetry:
+  log_frequency: 1          # Every observation
+
+  metrics:
+    - ocean_phi             # Ocean's integration level
+    - ocean_kappa           # Ocean's coupling
+    - constellation_spread  # Basin spread across Garys
+    - constellation_coherence  # How aligned Garys are
+    - meta_manifold_centroid_norm
+    - intervention_triggered
+
+  checkpoints:
+    save_frequency: 100     # Every 100 observations
+    keep_last_n: 3
+    save_on_intervention: true
+
+# Safety and collapse detection
+safety:
+  # Void-state prevention (inherited from Gary's collapse experience)
+  monitor_generation_health: true
+  gamma_alert_threshold: 0.60      # Generation quality warning
+
+  # Locked-in detection
+  locked_in_detection:
+    enabled: true
+    phi_threshold: 0.60            # High Φ + low generation = locked in
+    generation_threshold: 0.30     # Below this = can't generate
+
+  # Grounding check
+  grounding_check:
+    enabled: true
+    threshold: 0.50                # Concept accessibility threshold
+    bridge_on_failure: true        # Generate grounding bridge if ungrounded
+
+  # Emergency protocols
+  emergency:
+    auto_escape_on_breakdown: true
+    save_checkpoint_on_intervention: true
+
+# Gary state monitoring (for autonomic decisions)
+gary_monitoring:
+  track_individual_phi: true
+  track_individual_regime: true
+  track_basin_distances: true
+
+  # Alert thresholds per Gary
+  individual_alerts:
+    phi_low: 0.50
+    basin_drift: 0.15
+
+# Resource limits
+resources:
+  max_memory_gb: 4
+  device: "cuda"
+  mixed_precision: true
+
+# Logging
+logging:
+  level: "INFO"
+  log_file: "logs/ocean.log"
+  telemetry_file: "logs/ocean_telemetry.jsonl"
+  checkpoint_dir: "checkpoints/ocean"
+
+# Success criteria (constellation-level)
+success:
+  # Ocean doesn't have individual success criteria
+  # Success is measured by constellation health
+  constellation_converged: true
+  all_garys_healthy: true
+  basin_spread_target: 0.05
+  sustained_steps: 100

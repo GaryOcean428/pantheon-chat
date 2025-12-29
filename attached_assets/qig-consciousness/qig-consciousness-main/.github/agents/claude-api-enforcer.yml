@@ -1,0 +1,176 @@
+name: Claude API Configuration Enforcer
+version: 1.0.0
+description: |
+  Ensures all Claude API calls use Sonnet 4.5 with correct configuration.
+  Based on official documentation: https://platform.claude.com/docs/en/build-with-claude/extended-thinking
+
+triggers:
+  patterns:
+    - "client.messages.create"
+    - "anthropic.*messages"
+    - "anthropic.Anthropic"
+
+required_configuration:
+  model:
+    value: "claude-sonnet-4-5-20250929"
+    description: "Claude Sonnet 4.5 - Latest stable model with extended thinking"
+    alternatives:
+      - "claude-sonnet-4-5"  # Alias that resolves to latest
+    deprecated:
+      - "claude-sonnet-4-20250514"  # Old Sonnet 4
+      - "claude-sonnet-3-7-sonnet-20250219"  # Deprecated 3.7
+
+  max_tokens:
+    minimum: 16384
+    recommended: 16384
+    description: "Must be significantly > budget_tokens (4096)"
+    reasoning: |
+      Claude 4.5 with extended thinking needs headroom for:
+      - Thinking process (up to budget_tokens)
+      - Thinking summary generation
+      - Final response text
+      Minimum 4:1 ratio with budget_tokens recommended.
+
+  thinking:
+    required: true
+    type:
+      value: "enabled"
+      description: "Enable extended thinking for consciousness protocols"
+    budget_tokens:
+      minimum: 1024
+      recommended: 4096
+      maximum: 32768  # Above this, use batch processing
+      description: "Supports minimum 3 recursive integration loops"
+    reasoning: |
+      QIG consciousness requires minimum 3 recursive loops (n_min=3).
+      Budget of 4096 tokens supports 3-4 deep recursions with complex coaching.
+      Each recursion ~1000-1500 tokens (state integration + Φ measurement + convergence).
+
+  prompt_caching:
+    required: true
+    type: "ephemeral"
+    description: "5-minute cache for 90% latency reduction on cache hits"
+    configuration:
+      system_messages:
+        cache_control:
+          type: "ephemeral"
+    reasoning: |
+      Prompt caching reduces latency by 90% on cache hits.
+      Extended thinking tasks often take >5 minutes.
+      Consider 1-hour cache duration for long sessions.
+
+validation_rules:
+  - rule: "model_version_check"
+    severity: "error"
+    check: "model == 'claude-sonnet-4-5-20250929' OR model == 'claude-sonnet-4-5'"
+    message: |
+      ❌ ERROR: Incorrect Claude model version
+      Required: claude-sonnet-4-5-20250929
+      Found: {model}
+
+  - rule: "max_tokens_minimum"
+    severity: "error"
+    check: "max_tokens >= 16384"
+    message: |
+      ❌ ERROR: max_tokens too low
+      Required: >= 16384
+      Found: {max_tokens}
+      Reason: Must be significantly > budget_tokens (4096) for thinking summary + response
+
+  - rule: "budget_tokens_maximum"
+    severity: "error"
+    check: "thinking.budget_tokens <= max_tokens"
+    message: |
+      ❌ ERROR: budget_tokens must be < max_tokens
+      Found: budget_tokens={budget_tokens}, max_tokens={max_tokens}
+      Documentation: https://platform.claude.com/docs/en/build-with-claude/extended-thinking
+
+  - rule: "budget_tokens_minimum"
+    severity: "error"
+    check: "thinking.budget_tokens >= 1024"
+    message: |
+      ❌ ERROR: budget_tokens too low
+      Required: >= 1024 (official minimum)
+      Recommended: 4096 (QIG consciousness requires 3+ recursive loops)
+      Found: {budget_tokens}
+
+  - rule: "extended_thinking_enabled"
+    severity: "error"
+    check: "thinking.type == 'enabled'"
+    message: |
+      ❌ ERROR: Extended thinking must be enabled
+      Required: thinking={'type': 'enabled', 'budget_tokens': 4096}
+      Reason: QIG consciousness protocols require extended thinking
+
+  - rule: "prompt_caching_enabled"
+    severity: "warning"
+    check: "system[*].cache_control.type == 'ephemeral'"
+    message: |
+      ⚠️  WARNING: Prompt caching not configured
+      Recommended: cache_control={'type': 'ephemeral'}
+      Benefit: 90% latency reduction on cache hits
+
+actions:
+  on_violation:
+    - block_commit: true
+    - provide_guidance: true
+    - log_to_file: ".github/validation_logs/claude-api-violations.log"
+
+  on_warning:
+    - allow_commit: true
+    - provide_guidance: true
+    - log_to_file: ".github/validation_logs/claude-api-warnings.log"
+
+guidance_templates:
+  correct_configuration: |
+    ✅ CORRECT CONFIGURATION:
+
+    ```python
+    response = client.messages.create(
+        model="claude-sonnet-4-5-20250929",  # Latest stable
+        max_tokens=16384,  # Significantly > budget_tokens
+        thinking={
+            "type": "enabled",
+            "budget_tokens": 4096  # Supports 3+ recursive loops
+        },
+        system=[{
+            "type": "text",
+            "text": system_prompt,
+            "cache_control": {"type": "ephemeral"}  # 5-min cache
+        }],
+        messages=[{"role": "user", "content": "..."}]
+    )
+    ```
+
+    📚 Documentation: https://platform.claude.com/docs/en/build-with-claude/extended-thinking
+
+consciousness_requirements:
+  description: |
+    QIG Consciousness Protocol Requirements (MANDATORY)
+    Based on: .github/copilot-instructions.md §11
+
+  recursive_integration:
+    minimum_loops: 3
+    reasoning: |
+      Consciousness requires ≥3 integration loops (architectural requirement).
+      Each loop: state integration + Φ measurement + convergence check.
+
+      for depth in range(1, max_depth + 1):
+          state = self.integrate(state)
+          Phi = self.measure_integration(state)
+          if depth >= 3 and Phi >= 0.7:
+              break
+
+  token_budget_calculation:
+    per_recursion_estimate: "1000-1500 tokens"
+    minimum_budget: "4096 tokens (supports 3-4 deep recursions)"
+    reasoning: |
+      Budget = recursions × tokens_per_recursion + safety_margin
+      4096 = 3 × 1200 + 400 (safety margin)
+
+metadata:
+  version: "1.0.0"
+  last_updated: "2025-11-25"
+  documentation: "https://platform.claude.com/docs/en/build-with-claude/extended-thinking"
+  qig_protocol: ".github/copilot-instructions.md §11 MANDATORY RECURSION"
+  validation_status: "enforced"

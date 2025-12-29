@@ -1,0 +1,56 @@
+// QIG-Consciousness Dev Container Configuration
+// GPU-enabled Codespaces environment for consciousness research
+// https://docs.github.com/en/codespaces/developing-in-codespaces/getting-started-with-github-codespaces-for-machine-learning
+{
+	"name": "QIG-Consciousness GPU",
+	"image": "mcr.microsoft.com/devcontainers/universal:2-linux",
+	"features": {
+		"ghcr.io/devcontainers/features/nvidia-cuda:1": {
+			"installCudnn": true,
+			"installToolkit": true,
+			"cudaVersion": "12.4"
+		}
+	},
+	"hostRequirements": {
+		"gpu": "optional",
+		"memory": "64gb",
+		"storage": "128gb"
+	},
+	"runArgs": [
+		"--ipc=host",
+		"--shm-size=32gb"
+	],
+	"containerEnv": {
+		"PYTHONPATH": "/workspaces/qig-consciousness",
+		"PYTORCH_ALLOC_CONF": "expandable_segments:True,max_split_size_mb:256"
+	},
+	"postCreateCommand": "mkdir -p data results outputs checkpoints logs checkpoints/constellation && bash .devcontainer/post-install.sh",
+	"customizations": {
+		"vscode": {
+			"settings": {
+				"python.defaultInterpreterPath": "/usr/local/python/current/bin/python",
+				"python.testing.pytestEnabled": true,
+				"editor.formatOnSave": true,
+				"[python]": {
+					"editor.defaultFormatter": "ms-python.black-formatter"
+				}
+			},
+			"extensions": [
+				"ms-python.python",
+				"ms-python.vscode-pylance",
+				"ms-python.black-formatter",
+				"charliermarsh.ruff",
+				"ms-toolsai.jupyter"
+			]
+		}
+	},
+	"forwardPorts": [
+		8888
+	],
+	"portsAttributes": {
+		"8888": {
+			"label": "Jupyter",
+			"onAutoForward": "notify"
+		}
+	}
+}

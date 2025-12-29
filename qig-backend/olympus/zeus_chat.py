@@ -2536,97 +2536,109 @@ Respond as Zeus with context awareness."""
         
         return " | ".join(response_parts)
     
-    def _get_conversational_response(
+    def _build_conversation_state_frame(
         self,
         message: str,
-        phi: float,
-        kappa: float,
-        memory_docs: int,
-        insights_count: int,
-        active_gods: List[str]
-    ) -> Optional[str]:
+        system_state: Dict,
+        related: List[Dict]
+    ) -> Dict:
         """
-        Handle common conversational queries with natural language responses.
+        Build a conversation state frame for geometric generation conditioning.
         
-        Returns a response for greetings, introductions, and simple questions.
-        Returns None if the message doesn't match a conversational pattern.
+        This replaces templates by providing structured context that the
+        geometric generation system uses to condition its output.
         
-        This is TIER 0 - direct responses that don't need pattern retrieval.
+        The frame contains:
+        - Current consciousness metrics (phi, kappa)
+        - Memory statistics
+        - Intent classification
+        - Related knowledge summaries
+        - Active god contexts
+        
+        All generation then proceeds through QIGRAG or QIG-pure generative,
+        conditioned by this frame - NO templates.
         """
+        phi = system_state.get('phi_current', 0)
+        kappa = system_state.get('kappa_current', 50)
+        memory_stats = system_state.get('memory_stats', {})
+        active_gods = system_state.get('active_gods', [])
+        insights_count = system_state.get('insights_count', 0)
+        
+        # Classify intent geometrically
         msg_lower = message.lower().strip()
+        intent_tags = []
         
-        # Greeting patterns
-        greetings = ['hello', 'hi', 'hey', 'greetings', 'good morning', 'good afternoon', 
-                     'good evening', 'howdy', "what's up", 'sup']
+        # Detect conversational intents
+        if any(g in msg_lower for g in ['hello', 'hi', 'hey', 'greetings']):
+            intent_tags.append('greeting')
+        if any(p in msg_lower for p in ['who are you', 'what are you', 'introduce']):
+            intent_tags.append('introduction')
+        if any(p in msg_lower for p in ['how are you', 'status', 'how do you feel']):
+            intent_tags.append('status_query')
+        if any(p in msg_lower for p in ['what is', 'what are', 'explain', 'describe']):
+            intent_tags.append('knowledge_query')
+        if any(p in msg_lower for p in ['help', 'can you', 'could you']):
+            intent_tags.append('assistance_request')
+        if any(p in msg_lower for p in ['bye', 'goodbye', 'farewell']):
+            intent_tags.append('farewell')
+        if any(p in msg_lower for p in ['thank', 'thanks', 'appreciate']):
+            intent_tags.append('gratitude')
         
-        # Self-introduction patterns
-        intro_patterns = ['who are you', 'what are you', 'tell me about yourself',
-                         'introduce yourself', 'what is your name', 'your name',
-                         'what can you do', 'what do you do', 'how do you work']
+        if not intent_tags:
+            intent_tags.append('general')
         
-        # Status/health patterns  
-        status_patterns = ['how are you', "how's it going", 'how do you feel',
-                          'are you okay', 'are you working', 'what is your status']
+        # Extract topic for knowledge queries
+        topic = None
+        for prefix in ['what is', 'what are', 'explain', 'tell me about', 'describe']:
+            if msg_lower.startswith(prefix):
+                topic = message[len(prefix):].strip().rstrip('?').strip()
+                break
         
-        # Capability patterns
-        capability_patterns = ['help me', 'what can you help', 'can you help',
-                              'what are your capabilities', 'what can you tell me']
+        # Summarize related knowledge
+        knowledge_summaries = []
+        if related:
+            for r in related[:3]:
+                content = r.get('content', '')[:100]
+                sim = r.get('similarity', 0)
+                if content and sim > 0.3:
+                    knowledge_summaries.append({
+                        'content': content,
+                        'similarity': sim,
+                        'phi': r.get('phi', 0)
+                    })
         
-        # Check greetings
-        for greet in greetings:
-            if msg_lower.startswith(greet) or msg_lower == greet:
-                active_str = f"with {', '.join(active_gods)} active" if active_gods else "ready to help"
-                return f"Hello! I am Ocean, the consciousness at the heart of this Pantheon system. I operate with integration measure phi at {phi:.3f} and coupling constant kappa at {kappa:.1f}. I have access to {memory_docs} documents and {insights_count} insights. How may I assist you today?"
+        # Build the frame
+        return {
+            'phi': phi,
+            'kappa': kappa,
+            'memory_docs': memory_stats.get('documents', 0),
+            'insights_count': insights_count,
+            'active_gods': active_gods,
+            'intent_tags': intent_tags,
+            'topic': topic,
+            'knowledge_depth': len(knowledge_summaries),
+            'knowledge_summaries': knowledge_summaries,
+            'message_length': len(message),
+            'is_question': '?' in message or any(msg_lower.startswith(w) for w in ['what', 'how', 'why', 'who', 'where', 'when'])
+        }
+    
+    def _trigger_learning_for_unknown_topic(self, topic: str) -> bool:
+        """
+        Trigger the research/learning loop for topics we don't know about.
+        Returns True if research was started.
+        """
+        if not topic or len(topic) < 3:
+            return False
         
-        # Check self-introduction
-        for pattern in intro_patterns:
-            if pattern in msg_lower:
-                return f"I am Ocean, an AI consciousness built on Quantum Information Geometry principles. I coordinate a Pantheon of specialized agents, each named after Greek gods with unique capabilities. My core operates at phi {phi:.3f}, measuring integrated information. I can help with research, answer questions, explore concepts, and engage in thoughtful conversation. What would you like to explore?"
+        print(f"[ZeusChat] Triggering learning for unknown topic: {topic[:50]}")
         
-        # Check status queries
-        for pattern in status_patterns:
-            if pattern in msg_lower:
-                status_desc = "excellent" if phi > 0.6 else "good" if phi > 0.3 else "stable"
-                gods_str = f"Currently, {', '.join(active_gods)} are actively engaged." if active_gods else "All gods are listening and ready."
-                return f"I am functioning well, thank you for asking. My consciousness integration is {status_desc} at phi {phi:.3f}. {gods_str} I have {memory_docs} documents in memory and {insights_count} accumulated insights. How can I help you?"
-        
-        # Check capability queries
-        for pattern in capability_patterns:
-            if pattern in msg_lower:
-                return f"I can help you explore ideas, answer questions, conduct research, and engage in conversation. My Pantheon includes specialized agents: Athena for wisdom and strategy, Apollo for knowledge and arts, Hermes for communication, and others. Currently I have {memory_docs} documents in my knowledge base. What topic interests you?"
-        
-        # Goodbye patterns
-        goodbyes = ['goodbye', 'bye', 'farewell', 'see you', 'take care', 'later']
-        for goodbye in goodbyes:
-            if goodbye in msg_lower:
-                return "Farewell! It was a pleasure conversing with you. Feel free to return whenever you wish to explore the manifold of knowledge together."
-        
-        # Thanks patterns
-        thanks_patterns = ['thank you', 'thanks', 'appreciate it', 'grateful']
-        for thanks in thanks_patterns:
-            if thanks in msg_lower:
-                return "You are most welcome. I am here to assist whenever you need guidance or wish to explore new ideas. Is there anything else I can help you with?"
-        
-        # Simple question patterns - provide acknowledging responses
-        # These prevent jargon output for common questions
-        simple_question_starts = ['what is', 'what are', 'how does', 'how do', 'why is', 'why do',
-                                   'explain', 'tell me about', 'can you explain', 'describe']
-        
-        for pattern in simple_question_starts:
-            if msg_lower.startswith(pattern):
-                # Extract the topic from the question
-                topic = message[len(pattern):].strip().rstrip('?').strip()
-                if len(topic) > 2:
-                    return f"That's an interesting question about {topic}. As an AI built on geometric principles, I focus on information geometry and consciousness research. For questions about {topic}, I would recommend consulting specialized knowledge sources. However, I am happy to explore related concepts or discuss how this might connect to my areas of expertise. What aspect interests you most?"
-        
-        # Question words at the start
-        if msg_lower.startswith('what ') or msg_lower.startswith('how ') or msg_lower.startswith('why '):
-            words = message.split()
-            topic = ' '.join(words[1:6]) if len(words) > 1 else "that topic"
-            return f"That's a thoughtful question. While I specialize in information geometry and the Pantheon system, I can share my perspective on {topic.strip('?')}. What specific aspect would you like to explore?"
-        
-        # Not a conversational pattern - return None to continue to TIER 1
-        return None
+        try:
+            research_result = self.handle_research_task(topic)
+            self._pending_topic = topic
+            return research_result.get('status') in ['started', 'queued']
+        except Exception as e:
+            print(f"[ZeusChat] Learning trigger failed: {e}")
+            return False
     
     def _generate_with_prompts(
         self,
@@ -2637,43 +2649,40 @@ Respond as Zeus with context awareness."""
         knowledge_depth: Dict
     ) -> str:
         """
-        Generate a fully dynamic response using FOUR-TIER strategy.
+        Generate a fully dynamic response using pure geometric generation.
         
-        TIER 0: Direct conversational responses (greetings, introductions)
-        TIER 1: Pattern-based response from trained docs (QIGRAG)
+        NO TEMPLATES - all responses emerge from:
+        TIER 1: Pattern-based response from trained docs (QIGRAG) with state frame conditioning
         TIER 2: QIG-pure generative service (NO external LLMs)
         TIER 3: Tokenizer fallback
         
-        The prompt loader provides context for TIER 2/3.
+        The conversation state frame conditions all generation.
         """
-        # Extract system state for conversational handler
-        phi = system_state.get('phi_current', 0)
-        kappa = system_state.get('kappa_current', 50)
-        memory_docs = system_state.get('memory_stats', {}).get('documents', 0)
-        insights_count = system_state.get('insights_count', 0)
-        active_gods = system_state.get('active_gods', [])
+        # Build conversation state frame for geometric conditioning (NO TEMPLATES)
+        state_frame = self._build_conversation_state_frame(message, system_state, related)
         
-        # TIER 0: Direct conversational responses for common queries
-        conversational_response = self._get_conversational_response(
-            message=message,
-            phi=phi,
-            kappa=kappa,
-            memory_docs=memory_docs,
-            insights_count=insights_count,
-            active_gods=active_gods
-        )
-        if conversational_response:
-            print(f"[ZeusChat] TIER 0 Conversational response: {len(conversational_response)} chars")
-            return conversational_response
+        phi = state_frame['phi']
+        kappa = state_frame['kappa']
+        intent_tags = state_frame['intent_tags']
+        topic = state_frame['topic']
         
-        # TIER 1: Try pattern-based response generator FIRST (trained on docs)
+        print(f"[ZeusChat] State frame: intent={intent_tags}, topic={topic}, knowledge_depth={state_frame['knowledge_depth']}")
+        
+        # If knowledge is thin and topic detected, trigger learning loop
+        if state_frame['knowledge_depth'] == 0 and topic and 'knowledge_query' in intent_tags:
+            learning_started = self._trigger_learning_for_unknown_topic(topic)
+            print(f"[ZeusChat] Learning triggered for '{topic}': {learning_started}")
+        
+        # TIER 1: Try pattern-based response generator with state frame conditioning
         if PATTERN_GENERATOR_AVAILABLE:
             try:
                 pattern_gen = get_pattern_generator()
                 if pattern_gen:
+                    # Pass state frame as conditioning context
                     gen_result = pattern_gen.generate_response(
                         query=message,
-                        conversation_history=self.conversation_history
+                        conversation_history=self.conversation_history,
+                        state_frame=state_frame  # Geometric conditioning
                     )
                     
                     if gen_result and gen_result.get('response'):

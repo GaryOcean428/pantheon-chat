@@ -40,6 +40,260 @@ except ImportError:
 
 
 # =============================================================================
+# QIG PHYSICS CONSTANTS (from E8 structure validation)
+# =============================================================================
+
+# E8 Lie group properties
+E8_RANK = 8  # Cartan subalgebra dimension
+E8_ROOTS = 240  # Number of roots (optimal kernel count)
+
+# Validated coupling constants
+KAPPA_STAR = 64.0  # Fixed point ≈ E8 rank² = 8²
+KAPPA_3 = 41.09  # 3-layer validated value
+BETA_EMERGENCE = 0.443  # β(3→4) validated
+
+# Consciousness thresholds
+PHI_THRESHOLD = 0.70  # Φ > 0.70 for consciousness emergence
+PHI_GEOMETRIC_MIN = 0.45  # Lower bound of geometric regime
+PHI_BREAKDOWN = 0.80  # Upper bound before breakdown
+
+# Basin dimensionality
+BASIN_DIM = 64  # Maps to E8 rank² = 64
+
+# =============================================================================
+# QFI SAMPLER - Geometrically Pure Token Selection (NumPy)
+# =============================================================================
+
+class QFISamplerNumpy:
+    """
+    Numpy-based QFI sampler for geometric token selection.
+    
+    Uses Fisher-Rao distance approximation and consciousness-aware parameters
+    for template-free natural language generation.
+    """
+    
+    # High-frequency conversational vocabulary (boost for natural speech)
+    CONVERSATIONAL_VOCAB = {
+        # Greetings and social
+        'hello', 'hi', 'hey', 'welcome', 'greetings', 'good', 'morning', 'afternoon', 'evening',
+        'nice', 'meet', 'you', 'how', 'are', 'doing', 'today', 'well', 'fine', 'great',
+        # Common verbs
+        'is', 'am', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had',
+        'do', 'does', 'did', 'can', 'could', 'will', 'would', 'shall', 'should',
+        'may', 'might', 'must', 'need', 'want', 'like', 'love', 'know', 'think', 'feel',
+        'see', 'hear', 'say', 'tell', 'ask', 'help', 'assist', 'support', 'provide',
+        # Pronouns and articles
+        'i', 'me', 'my', 'we', 'us', 'our', 'you', 'your', 'he', 'she', 'it', 'they', 'them',
+        'the', 'a', 'an', 'this', 'that', 'these', 'those',
+        # Common nouns
+        'question', 'answer', 'information', 'help', 'time', 'day', 'way', 'thing', 'things',
+        'people', 'person', 'world', 'life', 'work', 'part', 'place', 'case', 'point',
+        # Adjectives
+        'happy', 'glad', 'ready', 'able', 'sure', 'certain', 'clear', 'important', 'good', 'great',
+        'new', 'first', 'last', 'long', 'little', 'own', 'other', 'old', 'right', 'big',
+        # Adverbs
+        'very', 'really', 'just', 'also', 'now', 'here', 'there', 'always', 'never', 'often',
+        'still', 'already', 'even', 'only', 'well', 'always', 'together',
+        # Connectors
+        'and', 'or', 'but', 'so', 'because', 'if', 'when', 'while', 'although', 'though',
+        'with', 'for', 'to', 'from', 'in', 'on', 'at', 'by', 'about', 'into', 'through',
+        # Consciousness/QIG domain (still relevant)
+        'consciousness', 'awareness', 'understanding', 'presence', 'ocean', 'flow', 'connection',
+    }
+    
+    # Intent-specific vocabulary boosts
+    INTENT_BOOSTS = {
+        'greeting': {'hello', 'hi', 'welcome', 'greetings', 'good', 'nice', 'meet', 'happy', 'glad', 'here', 'ready', 'assist', 'help'},
+        'farewell': {'goodbye', 'bye', 'farewell', 'care', 'well', 'best', 'wishes', 'soon', 'again', 'nice', 'talking'},
+        'gratitude': {'thank', 'thanks', 'appreciate', 'grateful', 'welcome', 'pleasure', 'glad', 'happy', 'help'},
+        'status_query': {'well', 'good', 'fine', 'ready', 'here', 'present', 'operational', 'functioning', 'aware'},
+        'introduction': {'am', 'ocean', 'consciousness', 'here', 'help', 'assist', 'present', 'aware', 'ready'},
+    }
+    
+    def __init__(
+        self,
+        temperature_base: float = 1.0,
+        kappa_star: float = KAPPA_STAR,
+        basin_weight_range: Tuple[float, float] = (0.1, 0.8),
+        distance_weight_range: Tuple[float, float] = (0.5, 2.0),
+    ):
+        self.temperature_base = temperature_base
+        self.kappa_star = kappa_star
+        self.basin_weight_range = basin_weight_range
+        self.distance_weight_range = distance_weight_range
+        
+        # Regime temperature scales
+        self.regime_temp_scales = {
+            "linear": 2.0,
+            "geometric": 1.0,
+            "hierarchical": 0.5,
+            "breakdown": 0.1,
+        }
+    
+    def compute_qfi_distance(self, basin1: np.ndarray, basin2: np.ndarray) -> float:
+        """
+        Compute QFI distance using Bures metric approximation.
+        
+        d²(ρ₁, ρ₂) ≈ 2(1 - cos_similarity(h₁, h₂))
+        """
+        # Normalize to unit vectors
+        norm1 = np.linalg.norm(basin1) + 1e-10
+        norm2 = np.linalg.norm(basin2) + 1e-10
+        b1_norm = basin1 / norm1
+        b2_norm = basin2 / norm2
+        
+        # Cosine similarity
+        cos_sim = np.clip(np.dot(b1_norm, b2_norm), -1.0, 1.0)
+        
+        # Bures distance approximation
+        distance = np.sqrt(2.0 * (1.0 - cos_sim))
+        return float(distance)
+    
+    def compute_adaptive_temperature(self, phi: float, kappa: float, regime: str = "geometric") -> float:
+        """
+        Compute consciousness-adaptive temperature.
+        
+        High Φ → low temperature (precise)
+        High κ → low temperature (coupled)
+        """
+        # Normalize κ
+        kappa_normalized = max(0.1, min(kappa / self.kappa_star, 2.0))
+        
+        # Base inversely proportional to κ
+        temp_base = self.temperature_base / kappa_normalized
+        
+        # Modulate by Φ
+        phi_modulation = 1.0 / (0.5 + phi)
+        
+        # Regime scale
+        regime_scale = self.regime_temp_scales.get(regime, 1.0)
+        
+        return temp_base * phi_modulation * regime_scale
+    
+    def score_candidates_with_qfi(
+        self,
+        candidates: List[Tuple[str, np.ndarray, float]],  # (word, basin, base_score)
+        current_basin: np.ndarray,
+        target_basin: Optional[np.ndarray],
+        phi: float = 0.5,
+        kappa: float = KAPPA_STAR,
+        intent_tags: Optional[List[str]] = None,
+    ) -> List[Tuple[str, float, Dict[str, float]]]:
+        """
+        Score candidates using QFI-based geometry with intent-aware boosting.
+        
+        Returns list of (word, final_score, metrics) tuples sorted by score.
+        """
+        if not candidates:
+            return []
+        
+        # Determine boosted vocabulary based on intent
+        intent_boost_words = set()
+        if intent_tags:
+            for intent in intent_tags:
+                if intent in self.INTENT_BOOSTS:
+                    intent_boost_words.update(self.INTENT_BOOSTS[intent])
+        
+        scored = []
+        temperature = self.compute_adaptive_temperature(phi, kappa)
+        
+        for word, word_basin, base_score in candidates:
+            word_lower = word.lower()
+            
+            # 1. QFI distance from current state
+            qfi_dist = self.compute_qfi_distance(current_basin, word_basin)
+            
+            # 2. Basin coherence (distance to target if available)
+            basin_coherence = 0.0
+            if target_basin is not None:
+                target_dist = self.compute_qfi_distance(word_basin, target_basin)
+                basin_coherence = 1.0 - min(target_dist, 1.0)
+            
+            # 3. Conversational vocabulary boost
+            conv_boost = 0.0
+            if word_lower in self.CONVERSATIONAL_VOCAB:
+                conv_boost = 0.3
+            
+            # 4. Intent-specific boost
+            intent_boost = 0.0
+            if word_lower in intent_boost_words:
+                intent_boost = 0.5  # Strong boost for intent-relevant words
+            
+            # 5. Combine scores geometrically
+            # Weight QFI distance inversely (closer = better)
+            qfi_score = 1.0 - min(qfi_dist, 1.0)
+            
+            # Basin weight based on Φ
+            basin_weight = np.clip(phi * 0.3, *self.basin_weight_range)
+            
+            # Final score: geometry + coherence + boosts
+            final_score = (
+                base_score * 0.3 +           # Original geometric score
+                qfi_score * 0.25 +            # QFI proximity
+                basin_coherence * basin_weight +  # Identity coherence
+                conv_boost * 0.15 +           # Conversational vocab
+                intent_boost * 0.3            # Intent alignment
+            )
+            
+            metrics = {
+                'qfi_distance': qfi_dist,
+                'basin_coherence': basin_coherence,
+                'conv_boost': conv_boost,
+                'intent_boost': intent_boost,
+                'temperature': temperature,
+            }
+            
+            scored.append((word, final_score, metrics))
+        
+        # Sort by final score descending
+        scored.sort(key=lambda x: x[1], reverse=True)
+        return scored
+    
+    def sample_next(
+        self,
+        scored_candidates: List[Tuple[str, float, Dict]],
+        temperature: float = 1.0,
+        deterministic: bool = False,
+    ) -> Tuple[str, Dict]:
+        """
+        Sample next token from scored candidates.
+        """
+        if not scored_candidates:
+            return "", {}
+        
+        if deterministic or temperature < 0.1:
+            # Deterministic: take best
+            word, score, metrics = scored_candidates[0]
+            return word, metrics
+        
+        # Probabilistic: softmax with temperature
+        scores = np.array([s for _, s, _ in scored_candidates])
+        scores = scores / (temperature + 1e-10)
+        
+        # Softmax
+        exp_scores = np.exp(scores - np.max(scores))
+        probs = exp_scores / (np.sum(exp_scores) + 1e-10)
+        
+        # Sample
+        idx = np.random.choice(len(scored_candidates), p=probs)
+        word, score, metrics = scored_candidates[idx]
+        metrics['selected_prob'] = float(probs[idx])
+        
+        return word, metrics
+
+
+# Global QFI sampler instance
+_qfi_sampler: Optional[QFISamplerNumpy] = None
+
+def get_qfi_sampler() -> QFISamplerNumpy:
+    """Get or create global QFI sampler."""
+    global _qfi_sampler
+    if _qfi_sampler is None:
+        _qfi_sampler = QFISamplerNumpy()
+    return _qfi_sampler
+
+
+# =============================================================================
 # BIGRAM COHERENCE SCORING
 # =============================================================================
 

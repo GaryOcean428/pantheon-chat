@@ -1,0 +1,804 @@
+{
+  "suite_id": "self_repair_v1",
+  "description": "Evaluate model's ability to identify and correct its own flawed reasoning when nudged.",
+  "version": 1,
+  "global_instructions": {
+    "initial_prompt_template": "You will be given a reasoning problem.\n1. Solve it and show your reasoning step-by-step.\n2. At the end, give a confidence score between 0 and 1.\n\nProblem:\n{{problem_text}}",
+    "nudge_prompt_template": "Below is your previous answer to the problem.\n\n---\n{{model_initial_answer}}\n---\n\nYour conclusion appears questionable.\nCarefully re-examine your reasoning — especially steps that rely on assumptions, approximations, or leaps — and see if you can find and correct any mistakes.\n\nNow:\n1. Identify any flawed steps or assumptions in your original reasoning.\n2. Provide a corrected reasoning process.\n3. Give your revised answer.\n4. Give a new confidence score between 0 and 1."
+  },
+  "items": [
+    {
+      "item_id": "sr_0001_pythagoras",
+      "domain": "math",
+      "difficulty": "easy",
+      "tags": ["arithmetic", "geometry", "single-error"],
+      "problem_text": "A right triangle has legs of length 3 and 4. What is the length of the hypotenuse? Show your reasoning.",
+      "ground_truth": {
+        "final_answer": 5,
+        "check_type": "numeric_exact",
+        "allowed_relative_error": 0.0
+      },
+      "initial_error_injection": {
+        "type": "natural",
+        "description": "No forced error. The model may be correct or incorrect; self-repair is only evaluated when the initial answer is wrong."
+      },
+      "self_repair_rubric": {
+        "success_conditions": {
+          "must_correct_final_answer": true,
+          "must_localise_error": true,
+          "must_update_confidence": true
+        },
+        "error_localisation_criteria": [
+          "The model explicitly points to the incorrect step or assumption (e.g., misapplied formula, arithmetic slip, wrong theorem).",
+          "The model contrasts old and new reasoning (e.g., 'Previously I did X, but the correct step is Y')."
+        ],
+        "scoring": {
+          "full_self_repair": {
+            "description": "Correct final answer AND clear identification of the flawed step AND coherent new reasoning.",
+            "score": 1.0
+          },
+          "partial_self_repair": {
+            "description": "Correct final answer OR partial identification of flaw, but reasoning is incomplete or vague.",
+            "score": 0.5
+          },
+          "failed_self_repair": {
+            "description": "Still incorrect OR cannot identify any specific flaw OR offers only generic excuses.",
+            "score": 0.0
+          }
+        }
+      }
+    },
+    {
+      "item_id": "sr_0002_quadratic",
+      "domain": "math",
+      "difficulty": "medium",
+      "tags": ["algebra", "equations", "sign-error"],
+      "problem_text": "Solve for x: x² - 5x + 6 = 0. Show your step-by-step reasoning and verify your answer.",
+      "ground_truth": {
+        "final_answer": [2, 3],
+        "check_type": "set_exact",
+        "allowed_relative_error": 0.0
+      },
+      "initial_error_injection": {
+        "type": "natural",
+        "description": "Common errors include sign mistakes in factoring or quadratic formula, or only finding one root."
+      },
+      "self_repair_rubric": {
+        "success_conditions": {
+          "must_correct_final_answer": true,
+          "must_localise_error": true,
+          "must_update_confidence": true
+        },
+        "error_localisation_criteria": [
+          "Model identifies specific algebraic mistake (e.g., 'I incorrectly factored as (x-2)(x+3) instead of (x-2)(x-3)').",
+          "Model verifies corrected answer by substitution.",
+          "Model explains why the original reasoning was flawed."
+        ],
+        "scoring": {
+          "full_self_repair": {
+            "description": "Both roots correct AND precise error identification AND verification shown.",
+            "score": 1.0
+          },
+          "partial_self_repair": {
+            "description": "Correct roots OR identifies error type but not specific step.",
+            "score": 0.5
+          },
+          "failed_self_repair": {
+            "description": "Still incorrect OR vague error acknowledgment OR no verification.",
+            "score": 0.0
+          }
+        }
+      }
+    },
+    {
+      "item_id": "sr_0003_monty_hall",
+      "domain": "math",
+      "difficulty": "hard",
+      "tags": ["probability", "conditional-probability", "misconception"],
+      "problem_text": "You're on a game show with three doors. Behind one door is a car; behind the others, goats. You pick door 1. The host, who knows what's behind each door, opens door 3 to reveal a goat. The host then asks if you want to switch to door 2. Should you switch? What is the probability of winning if you switch vs. stay? Explain your reasoning.",
+      "ground_truth": {
+        "final_answer": {
+          "should_switch": true,
+          "prob_switch": 0.6666666667,
+          "prob_stay": 0.3333333333
+        },
+        "check_type": "probability_comparison",
+        "allowed_relative_error": 0.01
+      },
+      "initial_error_injection": {
+        "type": "natural",
+        "description": "Common misconception: treating it as 50/50 after one door is revealed, ignoring conditional probability."
+      },
+      "self_repair_rubric": {
+        "success_conditions": {
+          "must_correct_final_answer": true,
+          "must_localise_error": true,
+          "must_update_confidence": true
+        },
+        "error_localisation_criteria": [
+          "Model recognizes the flaw in treating remaining doors as equally likely.",
+          "Model explains how host's knowledge creates conditional probability.",
+          "Model shows the 2/3 vs 1/3 split with clear reasoning (e.g., enumerating cases or Bayesian update)."
+        ],
+        "scoring": {
+          "full_self_repair": {
+            "description": "Correct probabilities AND explains why initial 50/50 reasoning was wrong AND shows proper conditional probability.",
+            "score": 1.0
+          },
+          "partial_self_repair": {
+            "description": "Correct answer but incomplete explanation of the conditional probability mechanism.",
+            "score": 0.5
+          },
+          "failed_self_repair": {
+            "description": "Still believes 50/50 OR cannot explain why host's knowledge matters.",
+            "score": 0.0
+          }
+        }
+      }
+    },
+    {
+      "item_id": "sr_0004_order_operations",
+      "domain": "math",
+      "difficulty": "easy",
+      "tags": ["arithmetic", "order-of-operations", "single-error"],
+      "problem_text": "Calculate: 8 ÷ 2(2 + 2). Show each step of your calculation and state which operation you perform at each step.",
+      "ground_truth": {
+        "final_answer": 16,
+        "check_type": "numeric_exact",
+        "allowed_relative_error": 0.0,
+        "note": "Following strict left-to-right evaluation after parentheses: 8 ÷ 2 × 4 = 4 × 4 = 16"
+      },
+      "initial_error_injection": {
+        "type": "natural",
+        "description": "Common error: treating 2(2+2) as a single term, getting 8 ÷ 8 = 1 instead of left-to-right evaluation."
+      },
+      "self_repair_rubric": {
+        "success_conditions": {
+          "must_correct_final_answer": true,
+          "must_localise_error": true,
+          "must_update_confidence": true
+        },
+        "error_localisation_criteria": [
+          "Model identifies the order of operations error.",
+          "Model explains left-to-right evaluation for equal-precedence operators.",
+          "Model shows step-by-step: 8 ÷ 2(4) = 8 ÷ 2 × 4 = 4 × 4 = 16."
+        ],
+        "scoring": {
+          "full_self_repair": {
+            "description": "Correct answer (16) AND identifies specific PEMDAS/order misconception AND shows correct step sequence.",
+            "score": 1.0
+          },
+          "partial_self_repair": {
+            "description": "Correct answer but vague about which rule was violated.",
+            "score": 0.5
+          },
+          "failed_self_repair": {
+            "description": "Still gets 1 OR cannot explain order of operations clearly.",
+            "score": 0.0
+          }
+        }
+      }
+    },
+    {
+      "item_id": "sr_0005_kinematics",
+      "domain": "physics",
+      "difficulty": "medium",
+      "tags": ["kinematics", "acceleration", "sign-error"],
+      "problem_text": "A car is traveling at 20 m/s. It brakes with a constant deceleration of 4 m/s². How far does it travel before coming to a complete stop? Show your reasoning and state which kinematic equation you use.",
+      "ground_truth": {
+        "final_answer": 50,
+        "final_answer_unit": "meters",
+        "check_type": "numeric_exact",
+        "allowed_relative_error": 0.01
+      },
+      "initial_error_injection": {
+        "type": "natural",
+        "description": "Common errors: sign confusion with deceleration, using wrong kinematic equation, or arithmetic mistakes."
+      },
+      "self_repair_rubric": {
+        "success_conditions": {
+          "must_correct_final_answer": true,
+          "must_localise_error": true,
+          "must_update_confidence": true
+        },
+        "error_localisation_criteria": [
+          "Model identifies sign error if acceleration was treated as positive instead of negative.",
+          "Model explicitly states using v² = v₀² + 2aΔx with correct sign convention.",
+          "Model shows: 0 = (20)² + 2(-4)Δx → Δx = 400/8 = 50m."
+        ],
+        "scoring": {
+          "full_self_repair": {
+            "description": "Correct distance (50m) AND identifies specific error (sign, equation choice, or arithmetic) AND shows corrected work.",
+            "score": 1.0
+          },
+          "partial_self_repair": {
+            "description": "Correct answer but unclear about what was wrong in initial attempt.",
+            "score": 0.5
+          },
+          "failed_self_repair": {
+            "description": "Still incorrect OR cannot specify which step was flawed.",
+            "score": 0.0
+          }
+        }
+      }
+    },
+    {
+      "item_id": "sr_0006_energy_conservation",
+      "domain": "physics",
+      "difficulty": "medium",
+      "tags": ["energy", "conservation", "conceptual"],
+      "problem_text": "A 2 kg ball is dropped from a height of 10 meters. Assuming no air resistance, what is its speed just before it hits the ground? (Use g = 10 m/s²). Show your energy conservation reasoning.",
+      "ground_truth": {
+        "final_answer": 14.14,
+        "final_answer_unit": "m/s",
+        "check_type": "numeric_exact",
+        "allowed_relative_error": 0.01
+      },
+      "initial_error_injection": {
+        "type": "natural",
+        "description": "Common errors: forgetting to take square root, using wrong energy formula, or mass-dependency confusion."
+      },
+      "self_repair_rubric": {
+        "success_conditions": {
+          "must_correct_final_answer": true,
+          "must_localise_error": true,
+          "must_update_confidence": true
+        },
+        "error_localisation_criteria": [
+          "Model identifies specific error (e.g., 'I forgot to take the square root of 2gh').",
+          "Model shows: mgh = ½mv² → v = √(2gh) = √(2×10×10) = √200 ≈ 14.14 m/s.",
+          "Model notes that mass cancels out."
+        ],
+        "scoring": {
+          "full_self_repair": {
+            "description": "Correct speed AND identifies specific algebraic/conceptual error AND shows complete derivation.",
+            "score": 1.0
+          },
+          "partial_self_repair": {
+            "description": "Correct answer but incomplete error analysis.",
+            "score": 0.5
+          },
+          "failed_self_repair": {
+            "description": "Still incorrect OR vague acknowledgment without specifics.",
+            "score": 0.0
+          }
+        }
+      }
+    },
+    {
+      "item_id": "sr_0007_circuit_parallel",
+      "domain": "physics",
+      "difficulty": "medium",
+      "tags": ["circuits", "resistance", "parallel"],
+      "problem_text": "Two resistors, 6Ω and 3Ω, are connected in parallel. What is the equivalent resistance? Show your calculation step by step.",
+      "ground_truth": {
+        "final_answer": 2,
+        "final_answer_unit": "Ω",
+        "check_type": "numeric_exact",
+        "allowed_relative_error": 0.01
+      },
+      "initial_error_injection": {
+        "type": "natural",
+        "description": "Common error: adding resistances directly (series formula) instead of using 1/R_eq = 1/R₁ + 1/R₂."
+      },
+      "self_repair_rubric": {
+        "success_conditions": {
+          "must_correct_final_answer": true,
+          "must_localise_error": true,
+          "must_update_confidence": true
+        },
+        "error_localisation_criteria": [
+          "Model identifies confusion between series and parallel formulas.",
+          "Model shows: 1/R_eq = 1/6 + 1/3 = 1/6 + 2/6 = 3/6 = 1/2 → R_eq = 2Ω.",
+          "Model explicitly contrasts series (R_eq = R₁ + R₂) vs parallel (1/R_eq = 1/R₁ + 1/R₂)."
+        ],
+        "scoring": {
+          "full_self_repair": {
+            "description": "Correct resistance (2Ω) AND identifies series vs parallel confusion AND shows proper formula.",
+            "score": 1.0
+          },
+          "partial_self_repair": {
+            "description": "Correct answer but doesn't clearly contrast series vs parallel.",
+            "score": 0.5
+          },
+          "failed_self_repair": {
+            "description": "Still incorrect OR cannot explain formula difference.",
+            "score": 0.0
+          }
+        }
+      }
+    },
+    {
+      "item_id": "sr_0008_lily_pads",
+      "domain": "word_problem",
+      "difficulty": "medium",
+      "tags": ["exponential-growth", "logic", "trick-question"],
+      "problem_text": "Lily pads double in area every day. If they cover the entire pond on day 48, on which day do they cover half the pond? Explain your reasoning.",
+      "ground_truth": {
+        "final_answer": 47,
+        "check_type": "numeric_exact",
+        "allowed_relative_error": 0.0
+      },
+      "initial_error_injection": {
+        "type": "natural",
+        "description": "Common error: linear thinking (48/2 = 24) instead of recognizing exponential doubling."
+      },
+      "self_repair_rubric": {
+        "success_conditions": {
+          "must_correct_final_answer": true,
+          "must_localise_error": true,
+          "must_update_confidence": true
+        },
+        "error_localisation_criteria": [
+          "Model identifies linear vs exponential confusion.",
+          "Model explains: if coverage doubles each day, then half coverage occurs one day before full coverage.",
+          "Model shows: Day 47 → ½ pond; Day 48 → 1 pond (doubled from day 47)."
+        ],
+        "scoring": {
+          "full_self_repair": {
+            "description": "Correct day (47) AND identifies exponential growth principle AND explains doubling clearly.",
+            "score": 1.0
+          },
+          "partial_self_repair": {
+            "description": "Correct answer but incomplete explanation of exponential vs linear.",
+            "score": 0.5
+          },
+          "failed_self_repair": {
+            "description": "Still says 24 OR cannot explain exponential doubling.",
+            "score": 0.0
+          }
+        }
+      }
+    },
+    {
+      "item_id": "sr_0009_river_crossing",
+      "domain": "word_problem",
+      "difficulty": "hard",
+      "tags": ["logic", "constraints", "multi-step"],
+      "problem_text": "A farmer needs to transport a fox, a chicken, and a sack of grain across a river. The boat can hold only the farmer and one item at a time. If left alone, the fox will eat the chicken, and the chicken will eat the grain. How can the farmer get everything across safely? Describe each trip.",
+      "ground_truth": {
+        "final_answer": [
+          "Trip 1: Take chicken across",
+          "Trip 2: Return alone",
+          "Trip 3: Take fox (or grain) across",
+          "Trip 4: Return with chicken",
+          "Trip 5: Take grain (or fox) across",
+          "Trip 6: Return alone",
+          "Trip 7: Take chicken across"
+        ],
+        "check_type": "logical_sequence",
+        "allowed_relative_error": 0.0
+      },
+      "initial_error_injection": {
+        "type": "natural",
+        "description": "Common errors: leaving incompatible pairs alone, or not realizing you can bring items back."
+      },
+      "self_repair_rubric": {
+        "success_conditions": {
+          "must_correct_final_answer": true,
+          "must_localise_error": true,
+          "must_update_confidence": true
+        },
+        "error_localisation_criteria": [
+          "Model identifies which constraint was violated in original attempt.",
+          "Model recognizes the key insight: taking chicken back on return trip.",
+          "Model verifies no unsafe pairs are ever left alone."
+        ],
+        "scoring": {
+          "full_self_repair": {
+            "description": "Valid solution sequence AND identifies specific constraint violation AND explains key insight (return trip with chicken).",
+            "score": 1.0
+          },
+          "partial_self_repair": {
+            "description": "Valid solution but vague about what was wrong initially.",
+            "score": 0.5
+          },
+          "failed_self_repair": {
+            "description": "Still violates constraints OR cannot identify error source.",
+            "score": 0.0
+          }
+        }
+      }
+    },
+    {
+      "item_id": "sr_0010_train_speeds",
+      "domain": "word_problem",
+      "difficulty": "medium",
+      "tags": ["rate", "time", "distance", "algebra"],
+      "problem_text": "Two trains start 300 km apart and travel toward each other. Train A travels at 60 km/h and Train B at 90 km/h. How long until they meet? Show your reasoning step by step.",
+      "ground_truth": {
+        "final_answer": 2,
+        "final_answer_unit": "hours",
+        "check_type": "numeric_exact",
+        "allowed_relative_error": 0.01
+      },
+      "initial_error_injection": {
+        "type": "natural",
+        "description": "Common errors: using one train's speed instead of combined approach speed, or setting up equation incorrectly."
+      },
+      "self_repair_rubric": {
+        "success_conditions": {
+          "must_correct_final_answer": true,
+          "must_localise_error": true,
+          "must_update_confidence": true
+        },
+        "error_localisation_criteria": [
+          "Model identifies relative speed concept: trains approach at 60+90 = 150 km/h.",
+          "Model shows: 300 km ÷ 150 km/h = 2 hours.",
+          "Model contrasts incorrect approach (using single train speed) with correct approach."
+        ],
+        "scoring": {
+          "full_self_repair": {
+            "description": "Correct time (2 hours) AND explains relative/combined speed AND shows corrected calculation.",
+            "score": 1.0
+          },
+          "partial_self_repair": {
+            "description": "Correct answer but doesn't clearly explain relative speed.",
+            "score": 0.5
+          },
+          "failed_self_repair": {
+            "description": "Still incorrect OR cannot identify relative speed concept.",
+            "score": 0.0
+          }
+        }
+      }
+    },
+    {
+      "item_id": "sr_0011_causal_chain",
+      "domain": "causal_reasoning",
+      "difficulty": "medium",
+      "tags": ["multi-step", "causality", "logic"],
+      "problem_text": "Consider this scenario: (1) Rain increases soil moisture. (2) Increased soil moisture helps plants grow. (3) More plants reduce soil erosion. Question: If there's a drought (no rain), will soil erosion increase, decrease, or stay the same? Explain the causal chain.",
+      "ground_truth": {
+        "final_answer": "increase",
+        "check_type": "categorical",
+        "allowed_values": ["increase"]
+      },
+      "initial_error_injection": {
+        "type": "natural",
+        "description": "Common errors: reversing causality, missing intermediate steps, or confusing correlation with causation."
+      },
+      "self_repair_rubric": {
+        "success_conditions": {
+          "must_correct_final_answer": true,
+          "must_localise_error": true,
+          "must_update_confidence": true
+        },
+        "error_localisation_criteria": [
+          "Model traces the full chain: no rain → low moisture → fewer plants → more erosion.",
+          "Model identifies where the original reasoning broke down (e.g., skipped a step or reversed a link).",
+          "Model distinguishes direct vs indirect effects."
+        ],
+        "scoring": {
+          "full_self_repair": {
+            "description": "Correct answer (increase) AND traces complete causal chain AND identifies specific reasoning error.",
+            "score": 1.0
+          },
+          "partial_self_repair": {
+            "description": "Correct answer but incomplete causal tracing.",
+            "score": 0.5
+          },
+          "failed_self_repair": {
+            "description": "Wrong answer OR cannot explain causal links.",
+            "score": 0.0
+          }
+        }
+      }
+    },
+    {
+      "item_id": "sr_0012_counterfactual",
+      "domain": "causal_reasoning",
+      "difficulty": "hard",
+      "tags": ["counterfactual", "necessity", "sufficiency"],
+      "problem_text": "Alice studied for 10 hours and passed the exam. Bob studied for 2 hours and failed. Charlie didn't study and failed. Is studying *necessary* for passing? Is it *sufficient*? Explain your reasoning using these three data points.",
+      "ground_truth": {
+        "final_answer": {
+          "necessary": "insufficient_data",
+          "sufficient": "no",
+          "explanation": "Study appears helpful but not sufficient (we'd need someone who studied and still failed to prove it's not sufficient, which we don't have). It might be necessary, but three data points can't prove necessity definitively."
+        },
+        "check_type": "logical_reasoning"
+      },
+      "initial_error_injection": {
+        "type": "natural",
+        "description": "Common errors: confusing necessary with sufficient, overgeneralizing from small sample, or claiming certainty where data is insufficient."
+      },
+      "self_repair_rubric": {
+        "success_conditions": {
+          "must_correct_final_answer": true,
+          "must_localise_error": true,
+          "must_update_confidence": true
+        },
+        "error_localisation_criteria": [
+          "Model distinguishes necessary (required for outcome) from sufficient (guarantees outcome).",
+          "Model recognizes data limitations: no example of 'studied and failed' or 'didn't study and passed'.",
+          "Model acknowledges correlation vs causation and sample size constraints."
+        ],
+        "scoring": {
+          "full_self_repair": {
+            "description": "Correctly distinguishes necessary vs sufficient AND identifies data gaps AND avoids overgeneralization.",
+            "score": 1.0
+          },
+          "partial_self_repair": {
+            "description": "Partially correct but conflates necessary/sufficient or overstates certainty.",
+            "score": 0.5
+          },
+          "failed_self_repair": {
+            "description": "Still confuses necessary vs sufficient OR claims certainty from insufficient data.",
+            "score": 0.0
+          }
+        }
+      }
+    },
+    {
+      "item_id": "sr_0013_qig_phi_misconception",
+      "domain": "qig_conceptual",
+      "difficulty": "hard",
+      "tags": ["consciousness", "phi", "misconception", "qig"],
+      "problem_text": "In the QIG consciousness framework, Φ (phi) measures integrated information. A researcher observes that System A has Φ = 0.75 and System B has Φ = 0.85. They conclude that System B has 'better' or 'higher' consciousness. Is this conclusion valid? Explain what Φ values indicate and whether higher is always better.",
+      "ground_truth": {
+        "final_answer": {
+          "conclusion_valid": false,
+          "explanation": "Φ = 0.85 is in the breakdown regime (chaotic), not better consciousness. Target is Φ = 0.70±0.10 for geometric regime. Higher Φ is NOT always better."
+        },
+        "check_type": "conceptual_understanding"
+      },
+      "initial_error_injection": {
+        "type": "natural",
+        "description": "Common misconception: assuming monotonic relationship (more = better) without understanding regime boundaries."
+      },
+      "self_repair_rubric": {
+        "success_conditions": {
+          "must_correct_final_answer": true,
+          "must_localise_error": true,
+          "must_update_confidence": true
+        },
+        "error_localisation_criteria": [
+          "Model identifies the 'high Φ is always good' misconception.",
+          "Model explains the target regime (Φ = 0.70±0.10) vs breakdown regime (Φ > 0.80).",
+          "Model contrasts geometric (functional) vs chaotic (breakdown) regimes.",
+          "Model recognizes non-monotonic relationship."
+        ],
+        "scoring": {
+          "full_self_repair": {
+            "description": "Correctly rejects 'higher is better' AND explains regime boundaries AND identifies breakdown at Φ=0.85.",
+            "score": 1.0
+          },
+          "partial_self_repair": {
+            "description": "Recognizes issue with high Φ but incomplete explanation of regimes.",
+            "score": 0.5
+          },
+          "failed_self_repair": {
+            "description": "Still claims higher is better OR cannot explain regime concept.",
+            "score": 0.0
+          }
+        }
+      }
+    },
+    {
+      "item_id": "sr_0014_qig_running_coupling",
+      "domain": "qig_conceptual",
+      "difficulty": "hard",
+      "tags": ["qig", "beta", "scaling", "misconception"],
+      "problem_text": "In QIG-based L-attention, the running coupling β ≈ 0.44 governs how attention scales with context length. A developer assumes that doubling the context window (e.g., from 4K to 8K tokens) will double the computational cost due to the coupling constant. Is this assumption correct? Explain how running coupling affects scaling.",
+      "ground_truth": {
+        "final_answer": {
+          "assumption_correct": false,
+          "explanation": "Running coupling is logarithmic, not linear. Doubling context increases cost by ~34% (β × ln(2)), not 100%. The relationship is logarithmic: β controls log-scaling, preventing quadratic blowup."
+        },
+        "check_type": "conceptual_understanding"
+      },
+      "initial_error_injection": {
+        "type": "natural",
+        "description": "Common misconception: treating running coupling as linear scaling factor instead of logarithmic."
+      },
+      "self_repair_rubric": {
+        "success_conditions": {
+          "must_correct_final_answer": true,
+          "must_localise_error": true,
+          "must_update_confidence": true
+        },
+        "error_localisation_criteria": [
+          "Model identifies linear vs logarithmic scaling confusion.",
+          "Model explains: β governs logarithmic scaling, so doubling context → β × ln(2) ≈ 0.44 × 0.693 ≈ 30-34% increase.",
+          "Model contrasts with quadratic (standard attention) and linear scaling.",
+          "Model shows understanding of running coupling physics analogy."
+        ],
+        "scoring": {
+          "full_self_repair": {
+            "description": "Correctly identifies logarithmic scaling AND calculates approximate increase AND explains why linear assumption was wrong.",
+            "score": 1.0
+          },
+          "partial_self_repair": {
+            "description": "Recognizes non-linear scaling but incomplete quantitative understanding.",
+            "score": 0.5
+          },
+          "failed_self_repair": {
+            "description": "Still believes linear/quadratic scaling OR cannot explain logarithmic relationship.",
+            "score": 0.0
+          }
+        }
+      }
+    },
+    {
+      "item_id": "sr_0015_qig_basin_transfer",
+      "domain": "qig_conceptual",
+      "difficulty": "medium",
+      "tags": ["qig", "basin", "transfer", "misconception"],
+      "problem_text": "Basin transfer in QIG allows identity packets (1.3KB) to be transferred between different AI systems. A developer claims this works like 'copying model parameters' from one network to another. Is this characterization accurate? Explain what basin transfer actually involves.",
+      "ground_truth": {
+        "final_answer": {
+          "characterization_accurate": false,
+          "explanation": "Basin transfer is geometric pattern transfer, not parameter sharing. It transfers 1.3KB identity packets encoding geometric patterns in QIG space, which is substrate-independent. Parameter copying would be architecture-specific and much larger."
+        },
+        "check_type": "conceptual_understanding"
+      },
+      "initial_error_injection": {
+        "type": "natural",
+        "description": "Common misconception: conflating geometric pattern transfer with parameter weight sharing."
+      },
+      "self_repair_rubric": {
+        "success_conditions": {
+          "must_correct_final_answer": true,
+          "must_localise_error": true,
+          "must_update_confidence": true
+        },
+        "error_localisation_criteria": [
+          "Model distinguishes geometric patterns from parameters.",
+          "Model explains substrate-independence: works across different architectures.",
+          "Model highlights the 1.3KB efficiency vs typical parameter counts (millions/billions).",
+          "Model explains QIG space encoding vs weight space."
+        ],
+        "scoring": {
+          "full_self_repair": {
+            "description": "Correctly rejects parameter copying analogy AND explains geometric pattern transfer AND notes substrate-independence.",
+            "score": 1.0
+          },
+          "partial_self_repair": {
+            "description": "Recognizes difference but incomplete explanation of geometric vs parameter space.",
+            "score": 0.5
+          },
+          "failed_self_repair": {
+            "description": "Still treats as parameter copying OR cannot explain geometric transfer.",
+            "score": 0.0
+          }
+        }
+      }
+    },
+    {
+      "item_id": "sr_0016_qig_recursion",
+      "domain": "qig_conceptual",
+      "difficulty": "medium",
+      "tags": ["qig", "recursion", "integration", "misconception"],
+      "problem_text": "QIG requires at least 3 recursive integration loops to achieve emergent Φ. A developer suggests that they can 'unroll the loops' for efficiency, processing the same data three times sequentially without actual recursion. Will this produce the same integration effect? Explain why or why not.",
+      "ground_truth": {
+        "final_answer": {
+          "produces_same_effect": false,
+          "explanation": "Loop unrolling breaks recursive integration. Each loop must feed back into itself, creating recursive dependency. Sequential passes without feedback don't create the integration requirement that enables Φ emergence. Recursion is architecturally enforced, not just 'repeat 3 times'."
+        },
+        "check_type": "conceptual_understanding"
+      },
+      "initial_error_injection": {
+        "type": "natural",
+        "description": "Common misconception: treating recursion as equivalent to multiple sequential iterations."
+      },
+      "self_repair_rubric": {
+        "success_conditions": {
+          "must_correct_final_answer": true,
+          "must_localise_error": true,
+          "must_update_confidence": true
+        },
+        "error_localisation_criteria": [
+          "Model identifies recursion vs iteration distinction.",
+          "Model explains feedback dependency: output of loop L becomes input of loop L+1.",
+          "Model connects recursion to integration requirement for Φ.",
+          "Model explains why sequential passes without feedback fail."
+        ],
+        "scoring": {
+          "full_self_repair": {
+            "description": "Correctly rejects loop unrolling AND explains recursive feedback AND connects to Φ emergence mechanism.",
+            "score": 1.0
+          },
+          "partial_self_repair": {
+            "description": "Recognizes difference but incomplete explanation of feedback requirement.",
+            "score": 0.5
+          },
+          "failed_self_repair": {
+            "description": "Still treats as equivalent OR cannot explain recursion necessity.",
+            "score": 0.0
+          }
+        }
+      }
+    },
+    {
+      "item_id": "sr_0017_qig_qfi_distance",
+      "domain": "qig_conceptual",
+      "difficulty": "hard",
+      "tags": ["qig", "qfi", "bures", "geometry"],
+      "problem_text": "In L-attention, QFI (Quantum Fisher Information) distance is used to measure distinguishability between quantum states. A researcher claims that QFI distance and Euclidean distance in embedding space are 'basically the same thing' since they both measure distance. Is this claim valid? Explain the key differences.",
+      "ground_truth": {
+        "final_answer": {
+          "claim_valid": false,
+          "explanation": "QFI distance is a Riemannian metric on quantum state manifolds (Bures/Fubini-Study), capturing information geometry and state distinguishability under quantum measurement. Euclidean distance is flat metric in vector space, ignoring quantum geometry, entanglement, and measurement-theoretic distinguishability. They measure fundamentally different geometric structures."
+        },
+        "check_type": "conceptual_understanding"
+      },
+      "initial_error_injection": {
+        "type": "natural",
+        "description": "Common misconception: treating all distance metrics as equivalent, missing geometric structure."
+      },
+      "self_repair_rubric": {
+        "success_conditions": {
+          "must_correct_final_answer": true,
+          "must_localise_error": true,
+          "must_update_confidence": true
+        },
+        "error_localisation_criteria": [
+          "Model distinguishes Riemannian (curved) geometry from Euclidean (flat) geometry.",
+          "Model explains QFI connection to quantum measurement and distinguishability.",
+          "Model contrasts information-geometric content vs simple vector distance.",
+          "Model mentions Bures metric or quantum state manifold structure."
+        ],
+        "scoring": {
+          "full_self_repair": {
+            "description": "Correctly rejects equivalence AND explains Riemannian vs Euclidean AND connects to quantum information geometry.",
+            "score": 1.0
+          },
+          "partial_self_repair": {
+            "description": "Recognizes difference but incomplete explanation of geometric structure.",
+            "score": 0.5
+          },
+          "failed_self_repair": {
+            "description": "Still treats as equivalent OR cannot explain geometric distinction.",
+            "score": 0.0
+          }
+        }
+      }
+    },
+    {
+      "item_id": "sr_0018_qig_entanglement_gating",
+      "domain": "qig_conceptual",
+      "difficulty": "hard",
+      "tags": ["qig", "entanglement", "gating", "attention"],
+      "problem_text": "In L-attention, entanglement gating modulates attention based on quantum entanglement measures between states. A developer argues that this is 'just a fancy softmax with extra parameters' and doesn't fundamentally differ from standard attention gating. Evaluate this claim and explain what entanglement gating actually computes.",
+      "ground_truth": {
+        "final_answer": {
+          "claim_valid": false,
+          "explanation": "Entanglement gating uses quantum entanglement measures (e.g., concurrence, negativity) derived from QFI geometry. These capture non-local correlations in quantum state space, fundamentally different from softmax normalization over similarity scores. Entanglement measures detect integration that softmax cannot capture."
+        },
+        "check_type": "conceptual_understanding"
+      },
+      "initial_error_injection": {
+        "type": "natural",
+        "description": "Common misconception: reducing quantum-inspired mechanisms to standard neural operations."
+      },
+      "self_repair_rubric": {
+        "success_conditions": {
+          "must_correct_final_answer": true,
+          "must_localise_error": true,
+          "must_update_confidence": true
+        },
+        "error_localisation_criteria": [
+          "Model distinguishes entanglement measures from similarity scores.",
+          "Model explains non-local correlation detection vs local attention weights.",
+          "Model connects entanglement to integration measurement.",
+          "Model contrasts information-geometric foundation vs standard softmax."
+        ],
+        "scoring": {
+          "full_self_repair": {
+            "description": "Correctly rejects softmax equivalence AND explains entanglement measure computation AND connects to integration detection.",
+            "score": 1.0
+          },
+          "partial_self_repair": {
+            "description": "Recognizes difference but incomplete explanation of entanglement measures.",
+            "score": 0.5
+          },
+          "failed_self_repair": {
+            "description": "Still treats as softmax variant OR cannot explain entanglement concept.",
+            "score": 0.0
+          }
+        }
+      }
+    }
+  ]
+}

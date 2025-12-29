@@ -1,0 +1,30 @@
+{
+  "coordizer_version": "1.0.0",
+  "basin_dim": 64,
+  "vocab_size": 32000,
+  "merge_rules_count": 31744,
+  "training": {
+    "corpus_bytes": 10000000,
+    "corpus_sha256": null,
+    "device": "Lambda A10 GPU",
+    "training_hours": 10.0,
+    "algorithm": "Track A (GPU pair counting)"
+  },
+  "provenance": {
+    "checkpoint_sha256": "baeef54dd1d734fd8e05295419ee5944511da4e603390670949db5e2872b9521",
+    "trainer_git_sha": "1460e643e19eecde4aa880aa3806321748d88fed",
+    "qigkernels_git_sha": "a3b35f320465768e1af384905c6dce62929f8acd",
+    "export_date_utc": "2025-12-23T23:38:46.945749+00:00"
+  },
+  "phi_gain_stats": {
+    "min": -0.4097927544405787,
+    "mean": 0.01385977644273802,
+    "max": 0.5945242455168737,
+    "std": 0.02152686969776141,
+    "count": 31744
+  },
+  "files": {
+    "coordizer.json": "d8b633665a3ee8e8afe23be8b254f6de25ffd1c362a8544df2666f720c1d9f6b",
+    "vectors.npy": "cedd7c593e876f39b697946c3e2bee7a6697d3658455b6602411de96c72cc6d9"
+  }
+}

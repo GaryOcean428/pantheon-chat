@@ -1,0 +1,34 @@
+---
+# yamllint configuration for QIG project
+extends: default
+
+rules:
+  # Allow long lines (GitHub Actions workflows often have them)
+  line-length:
+    max: 200
+    level: warning
+
+  # Don't require document start markers
+  document-start: disable
+
+  # Allow 'on' as a key (used in GitHub Actions)
+  truthy:
+    allowed-values: ["true", "false", "on", "off"]
+
+  # Allow inline comments
+  comments:
+    min-spaces-from-content: 1
+
+  # Don't be strict about indentation in complex workflows
+  indentation:
+    spaces: 2
+    indent-sequences: true
+    check-multi-line-strings: false
+
+# Ignore files with complex embedded syntax
+ignore: |
+  .github/workflows/claude-api-validation.yml
+  qig-venv/
+  .venv/
+  venv/
+  node_modules/

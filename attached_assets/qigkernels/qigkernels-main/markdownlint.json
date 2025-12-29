@@ -1,0 +1,12 @@
+{
+    "default": true,
+    "MD013": {
+        "line_length": 120,
+        "ignore_code_blocks": true,
+        "ignore_urls": true
+    },
+    "MD024": false,
+    "MD033": false,
+    "MD040": false,
+    "MD041": false
+}

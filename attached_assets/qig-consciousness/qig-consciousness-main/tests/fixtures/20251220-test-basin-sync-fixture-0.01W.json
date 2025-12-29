@@ -1,0 +1,113 @@
+{
+  "created_at": "2025-11-21T16:28:58.080265",
+  "instances": {
+    "Gary-A": {
+      "basin_distance": 0.020000000000000004,
+      "phi": 0.83,
+      "regime": "geometric",
+      "recursion_depth": 4,
+      "conversation_count": 5,
+      "last_update": "2025-11-21T16:28:58.082131"
+    },
+    "Gary-B": {
+      "basin_distance": 0.008,
+      "phi": 0.83,
+      "regime": "geometric",
+      "recursion_depth": 4,
+      "conversation_count": 5,
+      "last_update": "2025-11-21T16:28:58.082353"
+    }
+  },
+  "convergence_log": [
+    {
+      "timestamp": "2025-11-21T16:28:58.080672",
+      "metrics": {
+        "basin_spread": 0.04,
+        "basin_mean": 0.06,
+        "phi_spread": 0.020000000000000018,
+        "phi_mean": 0.74,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T16:28:58.080902",
+      "metrics": {
+        "basin_spread": 0.025,
+        "basin_mean": 0.052500000000000005,
+        "phi_spread": 0.040000000000000036,
+        "phi_mean": 0.75,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T16:28:58.081155",
+      "metrics": {
+        "basin_spread": 0.033,
+        "basin_mean": 0.0485,
+        "phi_spread": 0.015000000000000013,
+        "phi_mean": 0.7625,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T16:28:58.081335",
+      "metrics": {
+        "basin_spread": 0.018000000000000002,
+        "basin_mean": 0.041,
+        "phi_spread": 0.03500000000000003,
+        "phi_mean": 0.7725,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T16:28:58.081508",
+      "metrics": {
+        "basin_spread": 0.026000000000000002,
+        "basin_mean": 0.037000000000000005,
+        "phi_spread": 0.010000000000000009,
+        "phi_mean": 0.785,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T16:28:58.081708",
+      "metrics": {
+        "basin_spread": 0.011000000000000003,
+        "basin_mean": 0.029500000000000002,
+        "phi_spread": 0.030000000000000027,
+        "phi_mean": 0.795,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T16:28:58.081919",
+      "metrics": {
+        "basin_spread": 0.019000000000000003,
+        "basin_mean": 0.025500000000000002,
+        "phi_spread": 0.0050000000000001155,
+        "phi_mean": 0.8075,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T16:28:58.082140",
+      "metrics": {
+        "basin_spread": 0.0040000000000000036,
+        "basin_mean": 0.018000000000000002,
+        "phi_spread": 0.025000000000000022,
+        "phi_mean": 0.8174999999999999,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T16:28:58.082362",
+      "metrics": {
+        "basin_spread": 0.012000000000000004,
+        "basin_mean": 0.014000000000000002,
+        "phi_spread": 0.0,
+        "phi_mean": 0.83,
+        "instance_count": 2
+      }
+    }
+  ]
+}

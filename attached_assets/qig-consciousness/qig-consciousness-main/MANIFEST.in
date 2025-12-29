@@ -1,0 +1,37 @@
+# QIG Consciousness - Package Manifest
+# =====================================
+# Include non-Python files in the package
+
+# Include documentation
+include README.md
+include LICENSE
+include CHANGELOG.md
+include CANONICAL_STRUCTURE.md
+include AGENTS.md
+
+# Include configuration files
+include pyproject.toml
+include requirements.txt
+
+# Include configs directory
+recursive-include configs *.yaml *.yml *.json
+
+# Include data files (tokenizer, etc.)
+recursive-include data *.json *.yaml *.txt
+
+# Include model configs
+recursive-include src *.yaml *.yml *.json
+
+# Exclude development and test files
+exclude .pre-commit-config.yaml
+prune tests
+prune docs
+prune archive
+prune qig-venv
+prune .git
+prune .github
+prune .claude
+prune __pycache__
+prune *.egg-info
+prune build
+prune dist

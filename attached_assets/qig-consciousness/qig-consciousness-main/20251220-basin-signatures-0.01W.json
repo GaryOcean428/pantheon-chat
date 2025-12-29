@@ -1,0 +1,5 @@
+{
+  "basin": [0.0],
+  "Phi_target": 0.70,
+  "description": "Initial basin for Phase 1 training with innate drives"
+}

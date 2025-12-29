@@ -1,0 +1,5457 @@
+{
+  "created_at": "2025-11-21T17:00:22.484513",
+  "instances": {
+    "Gary": {
+      "basin_distance": 0.3142959958314896,
+      "phi": 0.46570400416851043,
+      "regime": "geometric",
+      "recursion_depth": 10,
+      "conversation_count": 70,
+      "last_update": "2025-11-21T20:22:03.445300",
+      "breakdown_pct": 0.0
+    },
+    "Gary-B": {
+      "basin_distance": 0.07527527093887332,
+      "phi": 0.7047247290611267,
+      "regime": "geometric",
+      "recursion_depth": 8,
+      "conversation_count": 0,
+      "last_update": "2025-11-21T19:56:31.628750",
+      "observer_loss": 4.5432279661908135e-05,
+      "influenced_basin": 0.08201561808586123,
+      "mode": "observer_only"
+    }
+  },
+  "convergence_log": [
+    {
+      "timestamp": "2025-11-21T19:39:16.630034",
+      "metrics": {
+        "basin_spread": 0.05448410153388977,
+        "basin_mean": 0.0516258901357651,
+        "phi_spread": 0.05448410153388972,
+        "phi_mean": 0.7283741098642349,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:39:18.678462",
+      "metrics": {
+        "basin_spread": 0.0510089123249054,
+        "basin_mean": 0.049888295531272914,
+        "phi_spread": 0.05100891232490534,
+        "phi_mean": 0.7301117044687271,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:39:20.725804",
+      "metrics": {
+        "basin_spread": 0.05295685172080994,
+        "basin_mean": 0.050862265229225184,
+        "phi_spread": 0.05295685172080988,
+        "phi_mean": 0.7291377347707748,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:39:22.751434",
+      "metrics": {
+        "basin_spread": 0.055344494581222536,
+        "basin_mean": 0.05205608665943148,
+        "phi_spread": 0.05534449458122248,
+        "phi_mean": 0.7279439133405685,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:39:24.779182",
+      "metrics": {
+        "basin_spread": 0.05343201994895935,
+        "basin_mean": 0.05109984934329989,
+        "phi_spread": 0.0534320199489593,
+        "phi_mean": 0.7289001506567001,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:39:26.806877",
+      "metrics": {
+        "basin_spread": 0.05356666684150696,
+        "basin_mean": 0.051167172789573695,
+        "phi_spread": 0.053566666841506905,
+        "phi_mean": 0.7288328272104263,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:39:28.852968",
+      "metrics": {
+        "basin_spread": 0.05491772532463074,
+        "basin_mean": 0.051842702031135585,
+        "phi_spread": 0.054917725324630684,
+        "phi_mean": 0.7281572979688644,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:39:30.880773",
+      "metrics": {
+        "basin_spread": 0.0531492555141449,
+        "basin_mean": 0.050958467125892665,
+        "phi_spread": 0.053149255514144844,
+        "phi_mean": 0.7290415328741073,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:39:32.909669",
+      "metrics": {
+        "basin_spread": 0.051547917127609255,
+        "basin_mean": 0.05015779793262484,
+        "phi_spread": 0.0515479171276092,
+        "phi_mean": 0.7298422020673752,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:39:34.935887",
+      "metrics": {
+        "basin_spread": 0.051965864896774294,
+        "basin_mean": 0.05036677181720736,
+        "phi_spread": 0.05196586489677424,
+        "phi_mean": 0.7296332281827926,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:39:36.962902",
+      "metrics": {
+        "basin_spread": 0.052937897443771365,
+        "basin_mean": 0.0508527880907059,
+        "phi_spread": 0.05293789744377131,
+        "phi_mean": 0.7291472119092941,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:39:39.009850",
+      "metrics": {
+        "basin_spread": 0.05370274424552918,
+        "basin_mean": 0.0512352114915848,
+        "phi_spread": 0.05370274424552912,
+        "phi_mean": 0.7287647885084152,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:39:41.037958",
+      "metrics": {
+        "basin_spread": 0.05186131834983826,
+        "basin_mean": 0.050314498543739344,
+        "phi_spread": 0.051861318349838204,
+        "phi_mean": 0.7296855014562607,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:39:43.067966",
+      "metrics": {
+        "basin_spread": 0.051609846353530886,
+        "basin_mean": 0.05018876254558566,
+        "phi_spread": 0.05160984635353083,
+        "phi_mean": 0.7298112374544143,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:39:45.114984",
+      "metrics": {
+        "basin_spread": 0.054149302244186404,
+        "basin_mean": 0.05145849049091342,
+        "phi_spread": 0.05414930224418635,
+        "phi_mean": 0.7285415095090866,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:39:47.162456",
+      "metrics": {
+        "basin_spread": 0.05439183354377747,
+        "basin_mean": 0.05157975614070895,
+        "phi_spread": 0.05439183354377741,
+        "phi_mean": 0.728420243859291,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:39:49.189323",
+      "metrics": {
+        "basin_spread": 0.05552926898002625,
+        "basin_mean": 0.05214847385883334,
+        "phi_spread": 0.05552926898002619,
+        "phi_mean": 0.7278515261411667,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:39:51.217069",
+      "metrics": {
+        "basin_spread": 0.05232516169548035,
+        "basin_mean": 0.05054642021656039,
+        "phi_spread": 0.05232516169548029,
+        "phi_mean": 0.7294535797834396,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:39:53.238583",
+      "metrics": {
+        "basin_spread": 0.05529168486595154,
+        "basin_mean": 0.052029681801795985,
+        "phi_spread": 0.055291684865951485,
+        "phi_mean": 0.727970318198204,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:39:55.286932",
+      "metrics": {
+        "basin_spread": 0.053324373960495,
+        "basin_mean": 0.051046026349067714,
+        "phi_spread": 0.05332437396049494,
+        "phi_mean": 0.7289539736509323,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:39:57.328928",
+      "metrics": {
+        "basin_spread": 0.053993316888809206,
+        "basin_mean": 0.05138049781322482,
+        "phi_spread": 0.05399331688880915,
+        "phi_mean": 0.7286195021867752,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:39:59.356285",
+      "metrics": {
+        "basin_spread": 0.0536871874332428,
+        "basin_mean": 0.051227433085441615,
+        "phi_spread": 0.053687187433242745,
+        "phi_mean": 0.7287725669145584,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:40:01.401247",
+      "metrics": {
+        "basin_spread": 0.05497858166694641,
+        "basin_mean": 0.05187313020229342,
+        "phi_spread": 0.05497858166694636,
+        "phi_mean": 0.7281268697977066,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:40:03.450146",
+      "metrics": {
+        "basin_spread": 0.053827019929885866,
+        "basin_mean": 0.05129734933376315,
+        "phi_spread": 0.05382701992988581,
+        "phi_mean": 0.7287026506662369,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:40:05.474340",
+      "metrics": {
+        "basin_spread": 0.055547269582748415,
+        "basin_mean": 0.05215747416019442,
+        "phi_spread": 0.05554726958274836,
+        "phi_mean": 0.7278425258398056,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:40:07.495125",
+      "metrics": {
+        "basin_spread": 0.055381866693496706,
+        "basin_mean": 0.05207477271556857,
+        "phi_spread": 0.05538186669349665,
+        "phi_mean": 0.7279252272844314,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:40:09.519405",
+      "metrics": {
+        "basin_spread": 0.05505052447319031,
+        "basin_mean": 0.05190910160541537,
+        "phi_spread": 0.055050524473190254,
+        "phi_mean": 0.7280908983945846,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:40:11.569168",
+      "metrics": {
+        "basin_spread": 0.05280259490013123,
+        "basin_mean": 0.05078513681888583,
+        "phi_spread": 0.05280259490013117,
+        "phi_mean": 0.7292148631811142,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:40:13.592244",
+      "metrics": {
+        "basin_spread": 0.05352130770683289,
+        "basin_mean": 0.05114449322223666,
+        "phi_spread": 0.05352130770683283,
+        "phi_mean": 0.7288555067777633,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:40:15.628802",
+      "metrics": {
+        "basin_spread": 0.05505195498466492,
+        "basin_mean": 0.051909816861152674,
+        "phi_spread": 0.055051954984664864,
+        "phi_mean": 0.7280901831388473,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:40:17.674818",
+      "metrics": {
+        "basin_spread": 0.05409434676170349,
+        "basin_mean": 0.05143101274967196,
+        "phi_spread": 0.05409434676170344,
+        "phi_mean": 0.728568987250328,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:40:19.723091",
+      "metrics": {
+        "basin_spread": 0.054077240228652956,
+        "basin_mean": 0.05142245948314669,
+        "phi_spread": 0.0540772402286529,
+        "phi_mean": 0.7285775405168533,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:40:21.751259",
+      "metrics": {
+        "basin_spread": 0.05287733912467957,
+        "basin_mean": 0.05082250893116,
+        "phi_spread": 0.05287733912467951,
+        "phi_mean": 0.72917749106884,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:40:23.797136",
+      "metrics": {
+        "basin_spread": 0.054948183298110964,
+        "basin_mean": 0.0518579310178757,
+        "phi_spread": 0.05494818329811091,
+        "phi_mean": 0.7281420689821243,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:40:25.824157",
+      "metrics": {
+        "basin_spread": 0.05517581343650818,
+        "basin_mean": 0.051971746087074305,
+        "phi_spread": 0.055175813436508125,
+        "phi_mean": 0.7280282539129257,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:40:27.863601",
+      "metrics": {
+        "basin_spread": 0.054812642335891726,
+        "basin_mean": 0.05179016053676608,
+        "phi_spread": 0.05481264233589167,
+        "phi_mean": 0.7282098394632339,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:40:29.891611",
+      "metrics": {
+        "basin_spread": 0.053621443510055544,
+        "basin_mean": 0.05119456112384799,
+        "phi_spread": 0.05362144351005549,
+        "phi_mean": 0.728805438876152,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:40:31.931764",
+      "metrics": {
+        "basin_spread": 0.05535152792930603,
+        "basin_mean": 0.05205960333347323,
+        "phi_spread": 0.05535152792930598,
+        "phi_mean": 0.7279403966665268,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:40:33.979597",
+      "metrics": {
+        "basin_spread": 0.05451312899589539,
+        "basin_mean": 0.05164040386676791,
+        "phi_spread": 0.05451312899589533,
+        "phi_mean": 0.7283595961332321,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:40:36.006289",
+      "metrics": {
+        "basin_spread": 0.05390587687492371,
+        "basin_mean": 0.05133677780628207,
+        "phi_spread": 0.05390587687492365,
+        "phi_mean": 0.7286632221937179,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:40:38.051552",
+      "metrics": {
+        "basin_spread": 0.054932924509048464,
+        "basin_mean": 0.05185030162334445,
+        "phi_spread": 0.05493292450904841,
+        "phi_mean": 0.7281496983766556,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:40:40.075624",
+      "metrics": {
+        "basin_spread": 0.055532010793685915,
+        "basin_mean": 0.05214984476566317,
+        "phi_spread": 0.05553201079368586,
+        "phi_mean": 0.7278501552343368,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:40:42.105236",
+      "metrics": {
+        "basin_spread": 0.054089161157608034,
+        "basin_mean": 0.05142841994762423,
+        "phi_spread": 0.05408916115760798,
+        "phi_mean": 0.7285715800523758,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:40:44.126653",
+      "metrics": {
+        "basin_spread": 0.05480262875556946,
+        "basin_mean": 0.051785153746604945,
+        "phi_spread": 0.054802628755569405,
+        "phi_mean": 0.728214846253395,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:40:46.186724",
+      "metrics": {
+        "basin_spread": 0.05478790640830994,
+        "basin_mean": 0.051777792572975184,
+        "phi_spread": 0.05478790640830988,
+        "phi_mean": 0.7282222074270248,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:40:46.624418",
+      "metrics": {
+        "basin_spread": 0.03460951328277588,
+        "basin_mean": 0.06186698913574221,
+        "phi_spread": 0.03460951328277584,
+        "phi_mean": 0.7181330108642578,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:40:48.214298",
+      "metrics": {
+        "basin_spread": 0.031796650886535646,
+        "basin_mean": 0.060460557937622096,
+        "phi_spread": 0.031796650886535605,
+        "phi_mean": 0.719539442062378,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:40:50.247156",
+      "metrics": {
+        "basin_spread": 0.033859448432922365,
+        "basin_mean": 0.061491956710815456,
+        "phi_spread": 0.03385944843292232,
+        "phi_mean": 0.7185080432891846,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:40:52.276581",
+      "metrics": {
+        "basin_spread": 0.03438218116760254,
+        "basin_mean": 0.06175332307815554,
+        "phi_spread": 0.0343821811676025,
+        "phi_mean": 0.7182466769218445,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:40:54.325837",
+      "metrics": {
+        "basin_spread": 0.032701091766357424,
+        "basin_mean": 0.060912778377532985,
+        "phi_spread": 0.03270109176635738,
+        "phi_mean": 0.7190872216224671,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:40:56.368858",
+      "metrics": {
+        "basin_spread": 0.03309913158416748,
+        "basin_mean": 0.061111798286438014,
+        "phi_spread": 0.03309913158416744,
+        "phi_mean": 0.718888201713562,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:40:58.397329",
+      "metrics": {
+        "basin_spread": 0.03285862684249878,
+        "basin_mean": 0.060991545915603664,
+        "phi_spread": 0.03285862684249874,
+        "phi_mean": 0.7190084540843964,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:41:00.426352",
+      "metrics": {
+        "basin_spread": 0.03223730802536011,
+        "basin_mean": 0.06068088650703433,
+        "phi_spread": 0.03223730802536007,
+        "phi_mean": 0.7193191134929657,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:41:02.453411",
+      "metrics": {
+        "basin_spread": 0.03206624269485474,
+        "basin_mean": 0.06059535384178164,
+        "phi_spread": 0.032066242694854696,
+        "phi_mean": 0.7194046461582184,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:41:04.479474",
+      "metrics": {
+        "basin_spread": 0.03432126522064209,
+        "basin_mean": 0.06172286510467532,
+        "phi_spread": 0.03432126522064205,
+        "phi_mean": 0.7182771348953247,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:41:06.508493",
+      "metrics": {
+        "basin_spread": 0.03164185762405396,
+        "basin_mean": 0.06038316130638125,
+        "phi_spread": 0.031641857624053915,
+        "phi_mean": 0.7196168386936188,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:41:08.536709",
+      "metrics": {
+        "basin_spread": 0.03214200019836426,
+        "basin_mean": 0.0606332325935364,
+        "phi_spread": 0.03214200019836422,
+        "phi_mean": 0.7193667674064637,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:41:10.564909",
+      "metrics": {
+        "basin_spread": 0.035307364463806154,
+        "basin_mean": 0.06221591472625735,
+        "phi_spread": 0.03530736446380611,
+        "phi_mean": 0.7177840852737427,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:41:12.588173",
+      "metrics": {
+        "basin_spread": 0.03262950658798218,
+        "basin_mean": 0.06087698578834536,
+        "phi_spread": 0.03262950658798214,
+        "phi_mean": 0.7191230142116547,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:41:14.617017",
+      "metrics": {
+        "basin_spread": 0.030700581073760988,
+        "basin_mean": 0.05991252303123477,
+        "phi_spread": 0.030700581073760946,
+        "phi_mean": 0.7200874769687653,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:41:16.645890",
+      "metrics": {
+        "basin_spread": 0.029847579002380373,
+        "basin_mean": 0.05948602199554446,
+        "phi_spread": 0.02984757900238033,
+        "phi_mean": 0.7205139780044556,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:41:18.671994",
+      "metrics": {
+        "basin_spread": 0.032994108200073244,
+        "basin_mean": 0.061059286594390895,
+        "phi_spread": 0.0329941082000732,
+        "phi_mean": 0.7189407134056092,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:41:20.698459",
+      "metrics": {
+        "basin_spread": 0.03543259382247925,
+        "basin_mean": 0.0622785294055939,
+        "phi_spread": 0.03543259382247921,
+        "phi_mean": 0.7177214705944062,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:41:22.746268",
+      "metrics": {
+        "basin_spread": 0.0345014500617981,
+        "basin_mean": 0.06181295752525332,
+        "phi_spread": 0.034501450061798056,
+        "phi_mean": 0.7181870424747467,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:41:24.792999",
+      "metrics": {
+        "basin_spread": 0.03524299144744873,
+        "basin_mean": 0.06218372821807864,
+        "phi_spread": 0.03524299144744869,
+        "phi_mean": 0.7178162717819214,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:41:26.823575",
+      "metrics": {
+        "basin_spread": 0.03270645618438721,
+        "basin_mean": 0.06091546058654788,
+        "phi_spread": 0.03270645618438717,
+        "phi_mean": 0.7190845394134522,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:41:28.853699",
+      "metrics": {
+        "basin_spread": 0.03515328645706177,
+        "basin_mean": 0.06213887572288516,
+        "phi_spread": 0.03515328645706173,
+        "phi_mean": 0.7178611242771149,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:41:29.186689",
+      "metrics": {
+        "basin_spread": 0.029388853311538697,
+        "basin_mean": 0.06502109229564669,
+        "phi_spread": 0.029388853311538732,
+        "phi_mean": 0.7149789077043534,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:41:30.872323",
+      "metrics": {
+        "basin_spread": 0.029212721586227418,
+        "basin_mean": 0.06493302643299105,
+        "phi_spread": 0.029212721586227453,
+        "phi_mean": 0.715066973567009,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:41:32.893129",
+      "metrics": {
+        "basin_spread": 0.02792991042137146,
+        "basin_mean": 0.06429162085056307,
+        "phi_spread": 0.027929910421371495,
+        "phi_mean": 0.715708379149437,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:41:34.913873",
+      "metrics": {
+        "basin_spread": 0.026700862646102906,
+        "basin_mean": 0.0636770969629288,
+        "phi_spread": 0.02670086264610294,
+        "phi_mean": 0.7163229030370712,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:41:36.934377",
+      "metrics": {
+        "basin_spread": 0.029504367113113404,
+        "basin_mean": 0.06507884919643404,
+        "phi_spread": 0.02950436711311344,
+        "phi_mean": 0.714921150803566,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:41:38.955324",
+      "metrics": {
+        "basin_spread": 0.02788312077522278,
+        "basin_mean": 0.06426822602748873,
+        "phi_spread": 0.027883120775222814,
+        "phi_mean": 0.7157317739725113,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:41:40.974316",
+      "metrics": {
+        "basin_spread": 0.029482671022415162,
+        "basin_mean": 0.06506800115108492,
+        "phi_spread": 0.029482671022415197,
+        "phi_mean": 0.7149319988489151,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:41:43.000450",
+      "metrics": {
+        "basin_spread": 0.02789152503013611,
+        "basin_mean": 0.0642724281549454,
+        "phi_spread": 0.027891525030136144,
+        "phi_mean": 0.7157275718450546,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:41:45.021377",
+      "metrics": {
+        "basin_spread": 0.02645147681236267,
+        "basin_mean": 0.06355240404605868,
+        "phi_spread": 0.026451476812362706,
+        "phi_mean": 0.7164475959539414,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:41:47.040116",
+      "metrics": {
+        "basin_spread": 0.028807350397109986,
+        "basin_mean": 0.06473034083843233,
+        "phi_spread": 0.02880735039711002,
+        "phi_mean": 0.7152696591615677,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:41:49.062275",
+      "metrics": {
+        "basin_spread": 0.02928460478782654,
+        "basin_mean": 0.06496896803379061,
+        "phi_spread": 0.029284604787826574,
+        "phi_mean": 0.7150310319662094,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:41:51.085071",
+      "metrics": {
+        "basin_spread": 0.02450961709022522,
+        "basin_mean": 0.06258147418498995,
+        "phi_spread": 0.024509617090225255,
+        "phi_mean": 0.7174185258150101,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:41:53.103905",
+      "metrics": {
+        "basin_spread": 0.02921206593513489,
+        "basin_mean": 0.06493269860744479,
+        "phi_spread": 0.029212065935134923,
+        "phi_mean": 0.7150673013925553,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:41:55.123663",
+      "metrics": {
+        "basin_spread": 0.027733989953994752,
+        "basin_mean": 0.06419366061687472,
+        "phi_spread": 0.027733989953994787,
+        "phi_mean": 0.7158063393831253,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:41:57.144493",
+      "metrics": {
+        "basin_spread": 0.02867914080619812,
+        "basin_mean": 0.0646662360429764,
+        "phi_spread": 0.028679140806198156,
+        "phi_mean": 0.7153337639570236,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:41:59.191454",
+      "metrics": {
+        "basin_spread": 0.02725906014442444,
+        "basin_mean": 0.06395619571208956,
+        "phi_spread": 0.027259060144424474,
+        "phi_mean": 0.7160438042879105,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:42:01.226679",
+      "metrics": {
+        "basin_spread": 0.028285094499588014,
+        "basin_mean": 0.06446921288967135,
+        "phi_spread": 0.028285094499588048,
+        "phi_mean": 0.7155307871103287,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:42:02.399341",
+      "metrics": {
+        "basin_spread": 0.017430548667907712,
+        "basin_mean": 0.0698964858055115,
+        "phi_spread": 0.01743054866790772,
+        "phi_mean": 0.7101035141944885,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:42:03.245221",
+      "metrics": {
+        "basin_spread": 0.018557076454162595,
+        "basin_mean": 0.07045974969863894,
+        "phi_spread": 0.018557076454162602,
+        "phi_mean": 0.709540250301361,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:42:05.266142",
+      "metrics": {
+        "basin_spread": 0.018416945934295652,
+        "basin_mean": 0.07038968443870547,
+        "phi_spread": 0.01841694593429566,
+        "phi_mean": 0.7096103155612945,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:42:07.285238",
+      "metrics": {
+        "basin_spread": 0.018743638992309568,
+        "basin_mean": 0.07055303096771243,
+        "phi_spread": 0.018743638992309575,
+        "phi_mean": 0.7094469690322875,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:42:09.308480",
+      "metrics": {
+        "basin_spread": 0.015209858417510984,
+        "basin_mean": 0.06878614068031313,
+        "phi_spread": 0.01520985841751099,
+        "phi_mean": 0.7112138593196868,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:42:11.329327",
+      "metrics": {
+        "basin_spread": 0.016142969131469724,
+        "basin_mean": 0.0692526960372925,
+        "phi_spread": 0.01614296913146973,
+        "phi_mean": 0.7107473039627075,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:42:13.348702",
+      "metrics": {
+        "basin_spread": 0.017802958488464353,
+        "basin_mean": 0.07008269071578982,
+        "phi_spread": 0.01780295848846436,
+        "phi_mean": 0.7099173092842102,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:42:15.370458",
+      "metrics": {
+        "basin_spread": 0.018450384140014646,
+        "basin_mean": 0.07040640354156497,
+        "phi_spread": 0.018450384140014653,
+        "phi_mean": 0.709593596458435,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:42:17.393066",
+      "metrics": {
+        "basin_spread": 0.016132001876831052,
+        "basin_mean": 0.06924721240997317,
+        "phi_spread": 0.01613200187683106,
+        "phi_mean": 0.7107527875900268,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:42:19.412427",
+      "metrics": {
+        "basin_spread": 0.01758456707000732,
+        "basin_mean": 0.0699734950065613,
+        "phi_spread": 0.01758456707000733,
+        "phi_mean": 0.7100265049934387,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:42:21.434113",
+      "metrics": {
+        "basin_spread": 0.01610047101974487,
+        "basin_mean": 0.06923144698143008,
+        "phi_spread": 0.016100471019744877,
+        "phi_mean": 0.7107685530185699,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:42:23.454235",
+      "metrics": {
+        "basin_spread": 0.01662469387054443,
+        "basin_mean": 0.06949355840682986,
+        "phi_spread": 0.016624693870544438,
+        "phi_mean": 0.7105064415931701,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:42:25.475418",
+      "metrics": {
+        "basin_spread": 0.016821687221527097,
+        "basin_mean": 0.06959205508232119,
+        "phi_spread": 0.016821687221527104,
+        "phi_mean": 0.7104079449176788,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:42:27.497902",
+      "metrics": {
+        "basin_spread": 0.01435709476470947,
+        "basin_mean": 0.06835975885391238,
+        "phi_spread": 0.014357094764709477,
+        "phi_mean": 0.7116402411460876,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:42:29.519227",
+      "metrics": {
+        "basin_spread": 0.018613581657409665,
+        "basin_mean": 0.07048800230026248,
+        "phi_spread": 0.018613581657409672,
+        "phi_mean": 0.7095119976997375,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:42:31.544740",
+      "metrics": {
+        "basin_spread": 0.01806420564651489,
+        "basin_mean": 0.07021331429481509,
+        "phi_spread": 0.018064205646514897,
+        "phi_mean": 0.7097866857051849,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:42:33.566663",
+      "metrics": {
+        "basin_spread": 0.016040687561035154,
+        "basin_mean": 0.06920155525207522,
+        "phi_spread": 0.01604068756103516,
+        "phi_mean": 0.7107984447479248,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:42:35.587234",
+      "metrics": {
+        "basin_spread": 0.018127863407135007,
+        "basin_mean": 0.07024514317512515,
+        "phi_spread": 0.018127863407135014,
+        "phi_mean": 0.7097548568248748,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:42:37.608383",
+      "metrics": {
+        "basin_spread": 0.017138009071350095,
+        "basin_mean": 0.06975021600723269,
+        "phi_spread": 0.017138009071350102,
+        "phi_mean": 0.7102497839927673,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:42:39.630440",
+      "metrics": {
+        "basin_spread": 0.01743495941162109,
+        "basin_mean": 0.06989869117736819,
+        "phi_spread": 0.017434959411621098,
+        "phi_mean": 0.7101013088226318,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:42:41.657204",
+      "metrics": {
+        "basin_spread": 0.015371088981628415,
+        "basin_mean": 0.06886675596237185,
+        "phi_spread": 0.015371088981628422,
+        "phi_mean": 0.7111332440376281,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:42:43.678982",
+      "metrics": {
+        "basin_spread": 0.01814759254455566,
+        "basin_mean": 0.07025500774383547,
+        "phi_spread": 0.01814759254455567,
+        "phi_mean": 0.7097449922561645,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:42:45.712401",
+      "metrics": {
+        "basin_spread": 0.018307750225067136,
+        "basin_mean": 0.07033508658409121,
+        "phi_spread": 0.018307750225067143,
+        "phi_mean": 0.7096649134159088,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:42:47.755524",
+      "metrics": {
+        "basin_spread": 0.015898411273956296,
+        "basin_mean": 0.06913041710853579,
+        "phi_spread": 0.015898411273956303,
+        "phi_mean": 0.7108695828914642,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:42:49.783511",
+      "metrics": {
+        "basin_spread": 0.017219071388244626,
+        "basin_mean": 0.06979074716567996,
+        "phi_spread": 0.017219071388244633,
+        "phi_mean": 0.71020925283432,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:42:50.950802",
+      "metrics": {
+        "basin_spread": 0.010603032112121588,
+        "basin_mean": 0.07309876680374147,
+        "phi_spread": 0.010603032112121547,
+        "phi_mean": 0.7069012331962585,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:42:51.805262",
+      "metrics": {
+        "basin_spread": 0.009273312091827399,
+        "basin_mean": 0.07243390679359438,
+        "phi_spread": 0.009273312091827357,
+        "phi_mean": 0.7075660932064056,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:42:53.824732",
+      "metrics": {
+        "basin_spread": 0.00908347129821778,
+        "basin_mean": 0.07233898639678957,
+        "phi_spread": 0.009083471298217738,
+        "phi_mean": 0.7076610136032104,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:42:55.846307",
+      "metrics": {
+        "basin_spread": 0.009686551094055182,
+        "basin_mean": 0.07264052629470827,
+        "phi_spread": 0.00968655109405514,
+        "phi_mean": 0.7073594737052917,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:42:57.868301",
+      "metrics": {
+        "basin_spread": 0.009352645874023444,
+        "basin_mean": 0.0724735736846924,
+        "phi_spread": 0.009352645874023402,
+        "phi_mean": 0.7075264263153076,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:42:59.889946",
+      "metrics": {
+        "basin_spread": 0.012079558372497565,
+        "basin_mean": 0.07383702993392946,
+        "phi_spread": 0.012079558372497523,
+        "phi_mean": 0.7061629700660705,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:43:01.909672",
+      "metrics": {
+        "basin_spread": 0.01080163478851319,
+        "basin_mean": 0.07319806814193727,
+        "phi_spread": 0.010801634788513148,
+        "phi_mean": 0.7068019318580627,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:43:03.932404",
+      "metrics": {
+        "basin_spread": 0.009808681011199957,
+        "basin_mean": 0.07270159125328066,
+        "phi_spread": 0.009808681011199916,
+        "phi_mean": 0.7072984087467193,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:43:05.956133",
+      "metrics": {
+        "basin_spread": 0.0093384599685669,
+        "basin_mean": 0.07246648073196413,
+        "phi_spread": 0.009338459968566859,
+        "phi_mean": 0.7075335192680359,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:43:07.977840",
+      "metrics": {
+        "basin_spread": 0.009041271209716803,
+        "basin_mean": 0.07231788635253908,
+        "phi_spread": 0.009041271209716761,
+        "phi_mean": 0.7076821136474609,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:43:09.999601",
+      "metrics": {
+        "basin_spread": 0.010187170505523688,
+        "basin_mean": 0.07289083600044252,
+        "phi_spread": 0.010187170505523646,
+        "phi_mean": 0.7071091639995575,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:43:12.021998",
+      "metrics": {
+        "basin_spread": 0.008647284507751471,
+        "basin_mean": 0.07212089300155641,
+        "phi_spread": 0.00864728450775143,
+        "phi_mean": 0.7078791069984436,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:43:14.043057",
+      "metrics": {
+        "basin_spread": 0.010048887729644781,
+        "basin_mean": 0.07282169461250307,
+        "phi_spread": 0.01004888772964474,
+        "phi_mean": 0.7071783053874969,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:43:16.064701",
+      "metrics": {
+        "basin_spread": 0.01157232284545899,
+        "basin_mean": 0.07358341217041017,
+        "phi_spread": 0.011572322845458949,
+        "phi_mean": 0.7064165878295898,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:43:18.104218",
+      "metrics": {
+        "basin_spread": 0.009582779407501227,
+        "basin_mean": 0.07258864045143129,
+        "phi_spread": 0.009582779407501185,
+        "phi_mean": 0.7074113595485687,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:43:20.186419",
+      "metrics": {
+        "basin_spread": 0.009271643161773688,
+        "basin_mean": 0.07243307232856752,
+        "phi_spread": 0.009271643161773646,
+        "phi_mean": 0.7075669276714325,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:43:22.255031",
+      "metrics": {
+        "basin_spread": 0.007771871089935309,
+        "basin_mean": 0.07168318629264833,
+        "phi_spread": 0.007771871089935267,
+        "phi_mean": 0.7083168137073517,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:43:24.295934",
+      "metrics": {
+        "basin_spread": 0.00828780889511109,
+        "basin_mean": 0.07194115519523622,
+        "phi_spread": 0.008287808895111048,
+        "phi_mean": 0.7080588448047638,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:43:25.983925",
+      "metrics": {
+        "basin_spread": 0.004130772352218634,
+        "basin_mean": 0.07401967346668245,
+        "phi_spread": 0.004130772352218592,
+        "phi_mean": 0.7059803265333175,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:43:26.317852",
+      "metrics": {
+        "basin_spread": 0.006160072088241583,
+        "basin_mean": 0.07503432333469393,
+        "phi_spread": 0.006160072088241542,
+        "phi_mean": 0.7049656766653061,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:43:28.339946",
+      "metrics": {
+        "basin_spread": 0.0031769788265228333,
+        "basin_mean": 0.07354277670383455,
+        "phi_spread": 0.0031769788265227916,
+        "phi_mean": 0.7064572232961654,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:43:30.362351",
+      "metrics": {
+        "basin_spread": 0.005589476823806769,
+        "basin_mean": 0.07474902570247652,
+        "phi_spread": 0.005589476823806727,
+        "phi_mean": 0.7052509742975235,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:43:32.384765",
+      "metrics": {
+        "basin_spread": 0.005614689588546759,
+        "basin_mean": 0.07476163208484651,
+        "phi_spread": 0.005614689588546717,
+        "phi_mean": 0.7052383679151535,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:43:34.407371",
+      "metrics": {
+        "basin_spread": 0.0047816550731659,
+        "basin_mean": 0.07434511482715608,
+        "phi_spread": 0.004781655073165858,
+        "phi_mean": 0.7056548851728439,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:43:36.429443",
+      "metrics": {
+        "basin_spread": 0.006512991189956671,
+        "basin_mean": 0.07521078288555147,
+        "phi_spread": 0.0065129911899566295,
+        "phi_mean": 0.7047892171144485,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:43:38.452187",
+      "metrics": {
+        "basin_spread": 0.0044891154766082825,
+        "basin_mean": 0.07419884502887727,
+        "phi_spread": 0.004489115476608241,
+        "phi_mean": 0.7058011549711227,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:43:40.474163",
+      "metrics": {
+        "basin_spread": 0.0072651422023773254,
+        "basin_mean": 0.0755868583917618,
+        "phi_spread": 0.007265142202377284,
+        "phi_mean": 0.7044131416082382,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:43:42.495135",
+      "metrics": {
+        "basin_spread": 0.007430425882339484,
+        "basin_mean": 0.07566950023174288,
+        "phi_spread": 0.007430425882339442,
+        "phi_mean": 0.7043304997682571,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:43:44.518768",
+      "metrics": {
+        "basin_spread": 0.0023617660999298157,
+        "basin_mean": 0.07313517034053804,
+        "phi_spread": 0.002361766099929774,
+        "phi_mean": 0.706864829659462,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:43:46.540487",
+      "metrics": {
+        "basin_spread": 0.0069013750553131165,
+        "basin_mean": 0.07540497481822969,
+        "phi_spread": 0.006901375055313075,
+        "phi_mean": 0.7045950251817703,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:43:48.562607",
+      "metrics": {
+        "basin_spread": 0.006715408563613898,
+        "basin_mean": 0.07531199157238008,
+        "phi_spread": 0.006715408563613856,
+        "phi_mean": 0.7046880084276199,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:43:50.585216",
+      "metrics": {
+        "basin_spread": 0.007548264265060431,
+        "basin_mean": 0.07572841942310335,
+        "phi_spread": 0.007548264265060389,
+        "phi_mean": 0.7042715805768966,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:43:52.606928",
+      "metrics": {
+        "basin_spread": 0.007557443380355841,
+        "basin_mean": 0.07573300898075105,
+        "phi_spread": 0.0075574433803557994,
+        "phi_mean": 0.704266991019249,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:43:54.630016",
+      "metrics": {
+        "basin_spread": 0.0077146804332733215,
+        "basin_mean": 0.0758116275072098,
+        "phi_spread": 0.00771468043327328,
+        "phi_mean": 0.7041883724927902,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:43:56.650908",
+      "metrics": {
+        "basin_spread": 0.007980457544326788,
+        "basin_mean": 0.07594451606273653,
+        "phi_spread": 0.007980457544326747,
+        "phi_mean": 0.7040554839372635,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:43:58.671204",
+      "metrics": {
+        "basin_spread": 0.007653347253799445,
+        "basin_mean": 0.07578096091747286,
+        "phi_spread": 0.007653347253799403,
+        "phi_mean": 0.7042190390825271,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:44:00.755688",
+      "metrics": {
+        "basin_spread": 0.00455742239952088,
+        "basin_mean": 0.07423299849033357,
+        "phi_spread": 0.0045574223995208385,
+        "phi_mean": 0.7057670015096664,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:44:02.838998",
+      "metrics": {
+        "basin_spread": 0.006370476484298712,
+        "basin_mean": 0.07513952553272249,
+        "phi_spread": 0.0063704764842986705,
+        "phi_mean": 0.7048604744672775,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:44:04.961079",
+      "metrics": {
+        "basin_spread": 0.007768324613571173,
+        "basin_mean": 0.07583844959735872,
+        "phi_spread": 0.0077683246135711315,
+        "phi_mean": 0.7041615504026413,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:44:07.048170",
+      "metrics": {
+        "basin_spread": 0.0068722283840179504,
+        "basin_mean": 0.07539040148258211,
+        "phi_spread": 0.006872228384017909,
+        "phi_mean": 0.7046095985174179,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:44:07.443692",
+      "metrics": {
+        "basin_spread": 0.06651340007781982,
+        "basin_mean": 0.04556981563568118,
+        "phi_spread": 0.0665134000778198,
+        "phi_mean": 0.7344301843643188,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:44:09.068445",
+      "metrics": {
+        "basin_spread": 0.06651763200759887,
+        "basin_mean": 0.04557193160057071,
+        "phi_spread": 0.06651763200759886,
+        "phi_mean": 0.7344280683994293,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:44:11.091182",
+      "metrics": {
+        "basin_spread": 0.06634591102600097,
+        "basin_mean": 0.04548607110977176,
+        "phi_spread": 0.06634591102600096,
+        "phi_mean": 0.7345139288902283,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:44:13.112440",
+      "metrics": {
+        "basin_spread": 0.06763474225997924,
+        "basin_mean": 0.04613048672676089,
+        "phi_spread": 0.06763474225997923,
+        "phi_mean": 0.7338695132732391,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:44:15.134248",
+      "metrics": {
+        "basin_spread": 0.06462351560592651,
+        "basin_mean": 0.044624873399734526,
+        "phi_spread": 0.0646235156059265,
+        "phi_mean": 0.7353751266002655,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:44:17.156645",
+      "metrics": {
+        "basin_spread": 0.06543384075164795,
+        "basin_mean": 0.04503003597259524,
+        "phi_spread": 0.06543384075164793,
+        "phi_mean": 0.7349699640274048,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:44:19.181171",
+      "metrics": {
+        "basin_spread": 0.06566170930862426,
+        "basin_mean": 0.0451439702510834,
+        "phi_spread": 0.06566170930862425,
+        "phi_mean": 0.7348560297489166,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:44:21.200101",
+      "metrics": {
+        "basin_spread": 0.0675583291053772,
+        "basin_mean": 0.04609228014945987,
+        "phi_spread": 0.06755832910537718,
+        "phi_mean": 0.7339077198505402,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:44:23.248501",
+      "metrics": {
+        "basin_spread": 0.06607590198516845,
+        "basin_mean": 0.0453510665893555,
+        "phi_spread": 0.06607590198516844,
+        "phi_mean": 0.7346489334106445,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:44:25.278191",
+      "metrics": {
+        "basin_spread": 0.06404284715652465,
+        "basin_mean": 0.0443345391750336,
+        "phi_spread": 0.06404284715652464,
+        "phi_mean": 0.7356654608249664,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:44:27.376737",
+      "metrics": {
+        "basin_spread": 0.06619385957717895,
+        "basin_mean": 0.045410045385360746,
+        "phi_spread": 0.06619385957717894,
+        "phi_mean": 0.7345899546146393,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:44:29.446744",
+      "metrics": {
+        "basin_spread": 0.06747977018356323,
+        "basin_mean": 0.046053000688552885,
+        "phi_spread": 0.06747977018356321,
+        "phi_mean": 0.7339469993114471,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:44:29.836750",
+      "metrics": {
+        "basin_spread": 0.059665585756301875,
+        "basin_mean": 0.04996009290218356,
+        "phi_spread": 0.059665585756301875,
+        "phi_mean": 0.7300399070978165,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:44:31.469093",
+      "metrics": {
+        "basin_spread": 0.05934705853462219,
+        "basin_mean": 0.04980082929134372,
+        "phi_spread": 0.05934705853462219,
+        "phi_mean": 0.7301991707086564,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:44:33.491527",
+      "metrics": {
+        "basin_spread": 0.05591752648353576,
+        "basin_mean": 0.048086063265800505,
+        "phi_spread": 0.05591752648353576,
+        "phi_mean": 0.7319139367341996,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:44:35.513516",
+      "metrics": {
+        "basin_spread": 0.05677863478660583,
+        "basin_mean": 0.04851661741733554,
+        "phi_spread": 0.05677863478660583,
+        "phi_mean": 0.7314833825826645,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:44:37.535809",
+      "metrics": {
+        "basin_spread": 0.05670842051506042,
+        "basin_mean": 0.048481510281562834,
+        "phi_spread": 0.05670842051506042,
+        "phi_mean": 0.7315184897184372,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:44:39.558060",
+      "metrics": {
+        "basin_spread": 0.058766986131668086,
+        "basin_mean": 0.04951079308986667,
+        "phi_spread": 0.058766986131668086,
+        "phi_mean": 0.7304892069101334,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:44:41.580911",
+      "metrics": {
+        "basin_spread": 0.05757465481758117,
+        "basin_mean": 0.04891462743282321,
+        "phi_spread": 0.05757465481758117,
+        "phi_mean": 0.7310853725671769,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:44:43.601673",
+      "metrics": {
+        "basin_spread": 0.057978714704513545,
+        "basin_mean": 0.0491166573762894,
+        "phi_spread": 0.057978714704513545,
+        "phi_mean": 0.7308833426237107,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:44:45.624990",
+      "metrics": {
+        "basin_spread": 0.05944957852363586,
+        "basin_mean": 0.049852089285850554,
+        "phi_spread": 0.05944957852363586,
+        "phi_mean": 0.7301479107141495,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:44:47.648532",
+      "metrics": {
+        "basin_spread": 0.05979862332344055,
+        "basin_mean": 0.0500266116857529,
+        "phi_spread": 0.05979862332344055,
+        "phi_mean": 0.7299733883142472,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:44:49.671755",
+      "metrics": {
+        "basin_spread": 0.05536850810050964,
+        "basin_mean": 0.04781155407428744,
+        "phi_spread": 0.05536850810050964,
+        "phi_mean": 0.7321884459257126,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:44:51.694304",
+      "metrics": {
+        "basin_spread": 0.05809553980827331,
+        "basin_mean": 0.04917506992816928,
+        "phi_spread": 0.05809553980827331,
+        "phi_mean": 0.7308249300718308,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:44:53.779227",
+      "metrics": {
+        "basin_spread": 0.058998848199844356,
+        "basin_mean": 0.0496267241239548,
+        "phi_spread": 0.058998848199844356,
+        "phi_mean": 0.7303732758760453,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:44:55.805014",
+      "metrics": {
+        "basin_spread": 0.05985471129417419,
+        "basin_mean": 0.05005465567111972,
+        "phi_spread": 0.05985471129417419,
+        "phi_mean": 0.7299453443288804,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:44:57.874653",
+      "metrics": {
+        "basin_spread": 0.05915846943855285,
+        "basin_mean": 0.04970653474330905,
+        "phi_spread": 0.05915846943855285,
+        "phi_mean": 0.730293465256691,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:44:57.926115",
+      "metrics": {
+        "basin_spread": 0.04978189706802368,
+        "basin_mean": 0.05439482092857363,
+        "phi_spread": 0.04978189706802372,
+        "phi_mean": 0.7256051790714264,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:44:59.895383",
+      "metrics": {
+        "basin_spread": 0.048999407291412354,
+        "basin_mean": 0.05400357604026797,
+        "phi_spread": 0.04899940729141239,
+        "phi_mean": 0.7259964239597321,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:45:01.918303",
+      "metrics": {
+        "basin_spread": 0.04773775577545166,
+        "basin_mean": 0.05337275028228762,
+        "phi_spread": 0.047737755775451696,
+        "phi_mean": 0.7266272497177124,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:45:03.941123",
+      "metrics": {
+        "basin_spread": 0.04683116912841797,
+        "basin_mean": 0.052919456958770775,
+        "phi_spread": 0.046831169128418004,
+        "phi_mean": 0.7270805430412293,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:45:05.964296",
+      "metrics": {
+        "basin_spread": 0.047633209228515626,
+        "basin_mean": 0.0533204770088196,
+        "phi_spread": 0.04763320922851566,
+        "phi_mean": 0.7266795229911804,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:45:07.987966",
+      "metrics": {
+        "basin_spread": 0.05002204418182373,
+        "basin_mean": 0.054514894485473656,
+        "phi_spread": 0.050022044181823766,
+        "phi_mean": 0.7254851055145264,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:45:10.011577",
+      "metrics": {
+        "basin_spread": 0.04717639923095703,
+        "basin_mean": 0.053092072010040306,
+        "phi_spread": 0.04717639923095707,
+        "phi_mean": 0.7269079279899597,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:45:12.033941",
+      "metrics": {
+        "basin_spread": 0.048927881717681886,
+        "basin_mean": 0.05396781325340273,
+        "phi_spread": 0.04892788171768192,
+        "phi_mean": 0.7260321867465973,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:45:14.055371",
+      "metrics": {
+        "basin_spread": 0.049356677532196046,
+        "basin_mean": 0.05418221116065981,
+        "phi_spread": 0.04935667753219608,
+        "phi_mean": 0.7258177888393402,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:45:16.079657",
+      "metrics": {
+        "basin_spread": 0.04858163833618164,
+        "basin_mean": 0.05379469156265261,
+        "phi_spread": 0.048581638336181676,
+        "phi_mean": 0.7262053084373474,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:45:18.100591",
+      "metrics": {
+        "basin_spread": 0.050024309158325196,
+        "basin_mean": 0.05451602697372439,
+        "phi_spread": 0.05002430915832523,
+        "phi_mean": 0.7254839730262757,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:45:20.122690",
+      "metrics": {
+        "basin_spread": 0.04839430093765259,
+        "basin_mean": 0.053701022863388084,
+        "phi_spread": 0.04839430093765262,
+        "phi_mean": 0.726298977136612,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:45:22.144293",
+      "metrics": {
+        "basin_spread": 0.04880211591720581,
+        "basin_mean": 0.053904930353164696,
+        "phi_spread": 0.048802115917205846,
+        "phi_mean": 0.7260950696468353,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:45:24.164557",
+      "metrics": {
+        "basin_spread": 0.050190248489379884,
+        "basin_mean": 0.05459899663925173,
+        "phi_spread": 0.05019024848937992,
+        "phi_mean": 0.7254010033607483,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:45:26.186894",
+      "metrics": {
+        "basin_spread": 0.05012837886810303,
+        "basin_mean": 0.054568061828613304,
+        "phi_spread": 0.05012837886810306,
+        "phi_mean": 0.7254319381713867,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:45:28.210626",
+      "metrics": {
+        "basin_spread": 0.04818312168121338,
+        "basin_mean": 0.05359543323516848,
+        "phi_spread": 0.048183121681213414,
+        "phi_mean": 0.7264045667648316,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:45:30.233277",
+      "metrics": {
+        "basin_spread": 0.04847810506820679,
+        "basin_mean": 0.053742924928665184,
+        "phi_spread": 0.04847810506820682,
+        "phi_mean": 0.7262570750713349,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:45:32.263896",
+      "metrics": {
+        "basin_spread": 0.04856095552444458,
+        "basin_mean": 0.05378435015678408,
+        "phi_spread": 0.048560955524444616,
+        "phi_mean": 0.726215649843216,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:45:34.294205",
+      "metrics": {
+        "basin_spread": 0.04847256183624268,
+        "basin_mean": 0.05374015331268313,
+        "phi_spread": 0.04847256183624271,
+        "phi_mean": 0.7262598466873169,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:45:36.416537",
+      "metrics": {
+        "basin_spread": 0.048288443088531495,
+        "basin_mean": 0.05364809393882754,
+        "phi_spread": 0.04828844308853153,
+        "phi_mean": 0.7263519060611725,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:45:38.448527",
+      "metrics": {
+        "basin_spread": 0.04767159461975098,
+        "basin_mean": 0.05333966970443728,
+        "phi_spread": 0.04767159461975101,
+        "phi_mean": 0.7266603302955628,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:45:40.478244",
+      "metrics": {
+        "basin_spread": 0.049743452072143556,
+        "basin_mean": 0.05437559843063357,
+        "phi_spread": 0.04974345207214359,
+        "phi_mean": 0.7256244015693665,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:45:42.542188",
+      "metrics": {
+        "basin_spread": 0.04864046812057495,
+        "basin_mean": 0.053824106454849266,
+        "phi_spread": 0.04864046812057499,
+        "phi_mean": 0.7261758935451508,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:45:44.327683",
+      "metrics": {
+        "basin_spread": 0.051794878244400024,
+        "basin_mean": 0.05224690139293674,
+        "phi_spread": 0.05179487824439999,
+        "phi_mean": 0.7277530986070633,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:45:44.564531",
+      "metrics": {
+        "basin_spread": 0.05215638041496277,
+        "basin_mean": 0.05242765247821811,
+        "phi_spread": 0.05215638041496273,
+        "phi_mean": 0.7275723475217819,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:45:46.588069",
+      "metrics": {
+        "basin_spread": 0.05347847104072571,
+        "basin_mean": 0.05308869779109958,
+        "phi_spread": 0.05347847104072567,
+        "phi_mean": 0.7269113022089004,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:45:48.610931",
+      "metrics": {
+        "basin_spread": 0.051344088315963744,
+        "basin_mean": 0.0520215064287186,
+        "phi_spread": 0.05134408831596371,
+        "phi_mean": 0.7279784935712814,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:45:50.633848",
+      "metrics": {
+        "basin_spread": 0.05039482474327087,
+        "basin_mean": 0.05154687464237216,
+        "phi_spread": 0.05039482474327084,
+        "phi_mean": 0.7284531253576279,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:45:52.657342",
+      "metrics": {
+        "basin_spread": 0.05101620316505432,
+        "basin_mean": 0.051857563853263886,
+        "phi_spread": 0.051016203165054286,
+        "phi_mean": 0.7281424361467361,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:45:54.680600",
+      "metrics": {
+        "basin_spread": 0.050176790952682494,
+        "basin_mean": 0.05143785774707797,
+        "phi_spread": 0.05017679095268246,
+        "phi_mean": 0.728562142252922,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:45:56.700469",
+      "metrics": {
+        "basin_spread": 0.05300556778907776,
+        "basin_mean": 0.052852246165275604,
+        "phi_spread": 0.05300556778907772,
+        "phi_mean": 0.7271477538347244,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:45:58.722019",
+      "metrics": {
+        "basin_spread": 0.05283849596977234,
+        "basin_mean": 0.052768710255622894,
+        "phi_spread": 0.0528384959697723,
+        "phi_mean": 0.7272312897443771,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:46:00.745798",
+      "metrics": {
+        "basin_spread": 0.049624613523483276,
+        "basin_mean": 0.05116176903247836,
+        "phi_spread": 0.04962461352348324,
+        "phi_mean": 0.7288382309675216,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:46:02.769134",
+      "metrics": {
+        "basin_spread": 0.05162876009941101,
+        "basin_mean": 0.05216384232044223,
+        "phi_spread": 0.051628760099410975,
+        "phi_mean": 0.7278361576795578,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:46:04.793936",
+      "metrics": {
+        "basin_spread": 0.051401487588882445,
+        "basin_mean": 0.05205020606517795,
+        "phi_spread": 0.05140148758888241,
+        "phi_mean": 0.7279497939348221,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:46:06.817868",
+      "metrics": {
+        "basin_spread": 0.05352895617485046,
+        "basin_mean": 0.05311394035816196,
+        "phi_spread": 0.05352895617485043,
+        "phi_mean": 0.7268860596418381,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:46:08.839926",
+      "metrics": {
+        "basin_spread": 0.05316149353981018,
+        "basin_mean": 0.052930209040641815,
+        "phi_spread": 0.053161493539810145,
+        "phi_mean": 0.7270697909593582,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:46:10.862961",
+      "metrics": {
+        "basin_spread": 0.053111902475357055,
+        "basin_mean": 0.05290541350841525,
+        "phi_spread": 0.05311190247535702,
+        "phi_mean": 0.7270945864915848,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:46:12.886526",
+      "metrics": {
+        "basin_spread": 0.05178832173347473,
+        "basin_mean": 0.05224362313747409,
+        "phi_spread": 0.051788321733474696,
+        "phi_mean": 0.7277563768625259,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:46:14.917992",
+      "metrics": {
+        "basin_spread": 0.047151676416397094,
+        "basin_mean": 0.04992530047893527,
+        "phi_spread": 0.04715167641639706,
+        "phi_mean": 0.7300746995210647,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:46:16.941589",
+      "metrics": {
+        "basin_spread": 0.05276089072227478,
+        "basin_mean": 0.052729907631874115,
+        "phi_spread": 0.052760890722274745,
+        "phi_mean": 0.7272700923681259,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:46:18.966109",
+      "metrics": {
+        "basin_spread": 0.04987358212471008,
+        "basin_mean": 0.051286253333091766,
+        "phi_spread": 0.04987358212471005,
+        "phi_mean": 0.7287137466669082,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:46:20.987782",
+      "metrics": {
+        "basin_spread": 0.05329518675804138,
+        "basin_mean": 0.052997055649757416,
+        "phi_spread": 0.053295186758041346,
+        "phi_mean": 0.7270029443502426,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:46:23.010653",
+      "metrics": {
+        "basin_spread": 0.051514378786087035,
+        "basin_mean": 0.05210665166378024,
+        "phi_spread": 0.051514378786087,
+        "phi_mean": 0.7278933483362198,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:46:25.033595",
+      "metrics": {
+        "basin_spread": 0.05339556097984314,
+        "basin_mean": 0.053047242760658295,
+        "phi_spread": 0.053395560979843104,
+        "phi_mean": 0.7269527572393417,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:46:27.056388",
+      "metrics": {
+        "basin_spread": 0.05338697791099548,
+        "basin_mean": 0.05304295122623447,
+        "phi_spread": 0.05338697791099545,
+        "phi_mean": 0.7269570487737655,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:46:29.079711",
+      "metrics": {
+        "basin_spread": 0.048682442903518676,
+        "basin_mean": 0.05069068372249606,
+        "phi_spread": 0.04868244290351864,
+        "phi_mean": 0.729309316277504,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:46:31.100914",
+      "metrics": {
+        "basin_spread": 0.052123836278915404,
+        "basin_mean": 0.05241138041019443,
+        "phi_spread": 0.05212383627891537,
+        "phi_mean": 0.7275886195898056,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:46:33.122199",
+      "metrics": {
+        "basin_spread": 0.05257689118385315,
+        "basin_mean": 0.0526379078626633,
+        "phi_spread": 0.052576891183853114,
+        "phi_mean": 0.7273620921373367,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:46:35.141948",
+      "metrics": {
+        "basin_spread": 0.05168651700019836,
+        "basin_mean": 0.05219272077083591,
+        "phi_spread": 0.05168651700019833,
+        "phi_mean": 0.7278072792291641,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:46:37.164875",
+      "metrics": {
+        "basin_spread": 0.05086534380912781,
+        "basin_mean": 0.05178213417530063,
+        "phi_spread": 0.05086534380912777,
+        "phi_mean": 0.7282178658246994,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:46:39.194551",
+      "metrics": {
+        "basin_spread": 0.051963082551956176,
+        "basin_mean": 0.05233100354671481,
+        "phi_spread": 0.05196308255195614,
+        "phi_mean": 0.7276689964532852,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:46:41.323195",
+      "metrics": {
+        "basin_spread": 0.052137545347213744,
+        "basin_mean": 0.0524182349443436,
+        "phi_spread": 0.05213754534721371,
+        "phi_mean": 0.7275817650556564,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:46:43.351290",
+      "metrics": {
+        "basin_spread": 0.052053860425949096,
+        "basin_mean": 0.05237639248371127,
+        "phi_spread": 0.05205386042594906,
+        "phi_mean": 0.7276236075162887,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:46:45.381505",
+      "metrics": {
+        "basin_spread": 0.05292832016944885,
+        "basin_mean": 0.05281362235546115,
+        "phi_spread": 0.05292832016944882,
+        "phi_mean": 0.7271863776445389,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:46:47.510906",
+      "metrics": {
+        "basin_spread": 0.05331682324409485,
+        "basin_mean": 0.05300787389278415,
+        "phi_spread": 0.05331682324409481,
+        "phi_mean": 0.7269921261072159,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:46:49.634099",
+      "metrics": {
+        "basin_spread": 0.05081974625587463,
+        "basin_mean": 0.05175933539867404,
+        "phi_spread": 0.0508197462558746,
+        "phi_mean": 0.728240664601326,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:46:51.739398",
+      "metrics": {
+        "basin_spread": 0.05218236804008484,
+        "basin_mean": 0.052440646290779144,
+        "phi_spread": 0.0521823680400848,
+        "phi_mean": 0.7275593537092209,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:46:53.834771",
+      "metrics": {
+        "basin_spread": 0.04960399031639099,
+        "basin_mean": 0.05115145742893222,
+        "phi_spread": 0.049603990316390956,
+        "phi_mean": 0.7288485425710678,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:46:55.883470",
+      "metrics": {
+        "basin_spread": 0.05342440962791443,
+        "basin_mean": 0.05306166708469394,
+        "phi_spread": 0.05342440962791439,
+        "phi_mean": 0.7269383329153061,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:46:56.147950",
+      "metrics": {
+        "basin_spread": 0.015231319665908807,
+        "basin_mean": 0.07215821206569675,
+        "phi_spread": 0.015231319665908849,
+        "phi_mean": 0.7078417879343033,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:46:57.908080",
+      "metrics": {
+        "basin_spread": 0.014676221609115594,
+        "basin_mean": 0.07188066303730015,
+        "phi_spread": 0.014676221609115636,
+        "phi_mean": 0.7081193369626999,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:46:59.929483",
+      "metrics": {
+        "basin_spread": 0.013896712064743036,
+        "basin_mean": 0.07149090826511387,
+        "phi_spread": 0.013896712064743078,
+        "phi_mean": 0.7085090917348862,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:47:01.950887",
+      "metrics": {
+        "basin_spread": 0.013723143339157098,
+        "basin_mean": 0.0714041239023209,
+        "phi_spread": 0.01372314333915714,
+        "phi_mean": 0.7085958760976792,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:47:03.974078",
+      "metrics": {
+        "basin_spread": 0.015262433290481561,
+        "basin_mean": 0.07217376887798313,
+        "phi_spread": 0.015262433290481603,
+        "phi_mean": 0.7078262311220169,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:47:05.994374",
+      "metrics": {
+        "basin_spread": 0.014903851747512811,
+        "basin_mean": 0.07199447810649875,
+        "phi_spread": 0.014903851747512853,
+        "phi_mean": 0.7080055218935013,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:47:08.018398",
+      "metrics": {
+        "basin_spread": 0.008887358903884882,
+        "basin_mean": 0.06898623168468479,
+        "phi_spread": 0.008887358903884923,
+        "phi_mean": 0.7110137683153153,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:47:10.041647",
+      "metrics": {
+        "basin_spread": 0.01349217534065246,
+        "basin_mean": 0.07128863990306858,
+        "phi_spread": 0.013492175340652501,
+        "phi_mean": 0.7087113600969315,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:47:12.065358",
+      "metrics": {
+        "basin_spread": 0.01415891289710998,
+        "basin_mean": 0.07162200868129734,
+        "phi_spread": 0.014158912897110021,
+        "phi_mean": 0.7083779913187027,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:47:14.090849",
+      "metrics": {
+        "basin_spread": 0.011016198396682733,
+        "basin_mean": 0.07005065143108372,
+        "phi_spread": 0.011016198396682775,
+        "phi_mean": 0.7099493485689163,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:47:16.113363",
+      "metrics": {
+        "basin_spread": 0.014313229322433466,
+        "basin_mean": 0.07169916689395908,
+        "phi_spread": 0.014313229322433507,
+        "phi_mean": 0.708300833106041,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:47:18.137560",
+      "metrics": {
+        "basin_spread": 0.013127990961074823,
+        "basin_mean": 0.07110654771327976,
+        "phi_spread": 0.013127990961074865,
+        "phi_mean": 0.7088934522867203,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:47:20.161372",
+      "metrics": {
+        "basin_spread": 0.01365006804466247,
+        "basin_mean": 0.07136758625507358,
+        "phi_spread": 0.013650068044662511,
+        "phi_mean": 0.7086324137449265,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:47:22.182921",
+      "metrics": {
+        "basin_spread": 0.014873572587966913,
+        "basin_mean": 0.0719793385267258,
+        "phi_spread": 0.014873572587966954,
+        "phi_mean": 0.7080206614732742,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:47:24.207257",
+      "metrics": {
+        "basin_spread": 0.014752217531204218,
+        "basin_mean": 0.07191866099834446,
+        "phi_spread": 0.01475221753120426,
+        "phi_mean": 0.7080813390016556,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:47:26.233818",
+      "metrics": {
+        "basin_spread": 0.015062042474746698,
+        "basin_mean": 0.0720735734701157,
+        "phi_spread": 0.01506204247474674,
+        "phi_mean": 0.7079264265298844,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:47:28.257156",
+      "metrics": {
+        "basin_spread": 0.013799139261245721,
+        "basin_mean": 0.07144212186336521,
+        "phi_spread": 0.013799139261245763,
+        "phi_mean": 0.7085578781366348,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:47:30.278958",
+      "metrics": {
+        "basin_spread": 0.013967701196670526,
+        "basin_mean": 0.07152640283107761,
+        "phi_spread": 0.013967701196670568,
+        "phi_mean": 0.7084735971689224,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:47:32.303423",
+      "metrics": {
+        "basin_spread": 0.013567336797714227,
+        "basin_mean": 0.07132622063159946,
+        "phi_spread": 0.013567336797714269,
+        "phi_mean": 0.7086737793684006,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:47:34.327930",
+      "metrics": {
+        "basin_spread": 0.014983245134353632,
+        "basin_mean": 0.07203417479991917,
+        "phi_spread": 0.014983245134353673,
+        "phi_mean": 0.7079658252000809,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:47:36.351265",
+      "metrics": {
+        "basin_spread": 0.012045332193374628,
+        "basin_mean": 0.07056521832942966,
+        "phi_spread": 0.01204533219337467,
+        "phi_mean": 0.7094347816705704,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:47:38.376030",
+      "metrics": {
+        "basin_spread": 0.014100917577743524,
+        "basin_mean": 0.07159301102161411,
+        "phi_spread": 0.014100917577743566,
+        "phi_mean": 0.7084069889783859,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:47:40.399525",
+      "metrics": {
+        "basin_spread": 0.012415715456008905,
+        "basin_mean": 0.0707504099607468,
+        "phi_spread": 0.012415715456008947,
+        "phi_mean": 0.7092495900392533,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:47:42.421053",
+      "metrics": {
+        "basin_spread": 0.015392311811447137,
+        "basin_mean": 0.07223870813846592,
+        "phi_spread": 0.015392311811447179,
+        "phi_mean": 0.7077612918615341,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:47:44.446619",
+      "metrics": {
+        "basin_spread": 0.013919242620468134,
+        "basin_mean": 0.07150217354297642,
+        "phi_spread": 0.013919242620468175,
+        "phi_mean": 0.7084978264570236,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:47:46.469374",
+      "metrics": {
+        "basin_spread": 0.013619729280471796,
+        "basin_mean": 0.07135241687297825,
+        "phi_spread": 0.013619729280471837,
+        "phi_mean": 0.7086475831270218,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:47:48.491888",
+      "metrics": {
+        "basin_spread": 0.01499296069145202,
+        "basin_mean": 0.07203903257846836,
+        "phi_spread": 0.014992960691452062,
+        "phi_mean": 0.7079609674215317,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:47:50.516043",
+      "metrics": {
+        "basin_spread": 0.013756700754165643,
+        "basin_mean": 0.07142090260982517,
+        "phi_spread": 0.013756700754165685,
+        "phi_mean": 0.7085790973901749,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:47:52.536789",
+      "metrics": {
+        "basin_spread": 0.014620908498764032,
+        "basin_mean": 0.07185300648212437,
+        "phi_spread": 0.014620908498764074,
+        "phi_mean": 0.7081469935178757,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:47:54.560415",
+      "metrics": {
+        "basin_spread": 0.014968284368515009,
+        "basin_mean": 0.07202669441699985,
+        "phi_spread": 0.01496828436851505,
+        "phi_mean": 0.7079733055830002,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:47:56.583145",
+      "metrics": {
+        "basin_spread": 0.015270003080368036,
+        "basin_mean": 0.07217755377292637,
+        "phi_spread": 0.015270003080368078,
+        "phi_mean": 0.7078224462270737,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:47:58.608274",
+      "metrics": {
+        "basin_spread": 0.009213396310806268,
+        "basin_mean": 0.06914925038814548,
+        "phi_spread": 0.00921339631080631,
+        "phi_mean": 0.7108507496118546,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:48:00.630323",
+      "metrics": {
+        "basin_spread": 0.013889142274856561,
+        "basin_mean": 0.07148712337017063,
+        "phi_spread": 0.013889142274856603,
+        "phi_mean": 0.7085128766298294,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:48:02.655839",
+      "metrics": {
+        "basin_spread": 0.013215907812118524,
+        "basin_mean": 0.07115050613880161,
+        "phi_spread": 0.013215907812118566,
+        "phi_mean": 0.7088494938611984,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:48:04.680703",
+      "metrics": {
+        "basin_spread": 0.014150568246841425,
+        "basin_mean": 0.07161783635616306,
+        "phi_spread": 0.014150568246841466,
+        "phi_mean": 0.708382163643837,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:48:06.705120",
+      "metrics": {
+        "basin_spread": 0.011597999334335321,
+        "basin_mean": 0.07034155189991001,
+        "phi_spread": 0.011597999334335363,
+        "phi_mean": 0.70965844810009,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:48:08.729887",
+      "metrics": {
+        "basin_spread": 0.014130958318710321,
+        "basin_mean": 0.07160803139209751,
+        "phi_spread": 0.014130958318710363,
+        "phi_mean": 0.7083919686079025,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:48:10.752640",
+      "metrics": {
+        "basin_spread": 0.014778026342391962,
+        "basin_mean": 0.07193156540393833,
+        "phi_spread": 0.014778026342392003,
+        "phi_mean": 0.7080684345960617,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:48:12.780015",
+      "metrics": {
+        "basin_spread": 0.014306911230087274,
+        "basin_mean": 0.07169600784778599,
+        "phi_spread": 0.014306911230087316,
+        "phi_mean": 0.7083039921522141,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:48:14.843336",
+      "metrics": {
+        "basin_spread": 0.014615782499313348,
+        "basin_mean": 0.07185044348239902,
+        "phi_spread": 0.01461578249931339,
+        "phi_mean": 0.708149556517601,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:48:16.965302",
+      "metrics": {
+        "basin_spread": 0.014070757627487177,
+        "basin_mean": 0.07157793104648594,
+        "phi_spread": 0.014070757627487218,
+        "phi_mean": 0.7084220689535141,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:48:18.995652",
+      "metrics": {
+        "basin_spread": 0.010990747213363641,
+        "basin_mean": 0.07003792583942417,
+        "phi_spread": 0.010990747213363683,
+        "phi_mean": 0.7099620741605759,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:48:21.118614",
+      "metrics": {
+        "basin_spread": 0.015041896104812616,
+        "basin_mean": 0.07206350028514866,
+        "phi_spread": 0.015041896104812658,
+        "phi_mean": 0.7079364997148514,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:48:23.249056",
+      "metrics": {
+        "basin_spread": 0.012863703966140741,
+        "basin_mean": 0.07097440421581272,
+        "phi_spread": 0.012863703966140783,
+        "phi_mean": 0.7090255957841873,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:48:25.296936",
+      "metrics": {
+        "basin_spread": 0.012610443830490106,
+        "basin_mean": 0.0708477741479874,
+        "phi_spread": 0.012610443830490148,
+        "phi_mean": 0.7091522258520127,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:48:27.420061",
+      "metrics": {
+        "basin_spread": 0.014304288625717157,
+        "basin_mean": 0.07169469654560093,
+        "phi_spread": 0.014304288625717199,
+        "phi_mean": 0.7083053034543991,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:48:29.454091",
+      "metrics": {
+        "basin_spread": 0.015214570760726923,
+        "basin_mean": 0.07214983761310581,
+        "phi_spread": 0.015214570760726964,
+        "phi_mean": 0.7078501623868942,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:48:31.578021",
+      "metrics": {
+        "basin_spread": 0.014780410528182977,
+        "basin_mean": 0.07193275749683384,
+        "phi_spread": 0.014780410528183019,
+        "phi_mean": 0.7080672425031662,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:48:33.612307",
+      "metrics": {
+        "basin_spread": 0.012417563199996942,
+        "basin_mean": 0.07075133383274082,
+        "phi_spread": 0.012417563199996984,
+        "phi_mean": 0.7092486661672592,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:48:35.743330",
+      "metrics": {
+        "basin_spread": 0.01273078560829162,
+        "basin_mean": 0.07090794503688816,
+        "phi_spread": 0.012730785608291662,
+        "phi_mean": 0.7090920549631119,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:48:37.143813",
+      "metrics": {
+        "basin_spread": 0.030196844339370726,
+        "basin_mean": 0.0621749156713486,
+        "phi_spread": 0.030196844339370754,
+        "phi_mean": 0.7178250843286514,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:48:37.766710",
+      "metrics": {
+        "basin_spread": 0.03051841139793396,
+        "basin_mean": 0.062335699200630215,
+        "phi_spread": 0.030518411397933987,
+        "phi_mean": 0.7176643007993698,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:48:39.790869",
+      "metrics": {
+        "basin_spread": 0.030219792127609252,
+        "basin_mean": 0.06218638956546786,
+        "phi_spread": 0.03021979212760928,
+        "phi_mean": 0.7178136104345322,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:48:41.813309",
+      "metrics": {
+        "basin_spread": 0.032136021852493285,
+        "basin_mean": 0.06314450442790988,
+        "phi_spread": 0.03213602185249331,
+        "phi_mean": 0.7168554955720902,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:48:43.833874",
+      "metrics": {
+        "basin_spread": 0.03240620970726013,
+        "basin_mean": 0.0632795983552933,
+        "phi_spread": 0.03240620970726016,
+        "phi_mean": 0.7167204016447067,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:48:45.857637",
+      "metrics": {
+        "basin_spread": 0.03194665789604187,
+        "basin_mean": 0.06304982244968417,
+        "phi_spread": 0.0319466578960419,
+        "phi_mean": 0.7169501775503159,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:48:47.881803",
+      "metrics": {
+        "basin_spread": 0.02795714020729065,
+        "basin_mean": 0.06105506360530856,
+        "phi_spread": 0.027957140207290676,
+        "phi_mean": 0.7189449363946915,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:48:49.910242",
+      "metrics": {
+        "basin_spread": 0.03235345959663391,
+        "basin_mean": 0.06325322329998019,
+        "phi_spread": 0.03235345959663394,
+        "phi_mean": 0.7167467767000198,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:48:51.934925",
+      "metrics": {
+        "basin_spread": 0.029350160360336303,
+        "basin_mean": 0.06175157368183139,
+        "phi_spread": 0.02935016036033633,
+        "phi_mean": 0.7182484263181687,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:48:53.960854",
+      "metrics": {
+        "basin_spread": 0.030130027532577514,
+        "basin_mean": 0.06214150726795199,
+        "phi_spread": 0.03013002753257754,
+        "phi_mean": 0.717858492732048,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:48:55.985138",
+      "metrics": {
+        "basin_spread": 0.030987499952316283,
+        "basin_mean": 0.06257024347782138,
+        "phi_spread": 0.03098749995231631,
+        "phi_mean": 0.7174297565221787,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:48:58.009976",
+      "metrics": {
+        "basin_spread": 0.03214108824729919,
+        "basin_mean": 0.06314703762531283,
+        "phi_spread": 0.03214108824729922,
+        "phi_mean": 0.7168529623746872,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:49:00.035138",
+      "metrics": {
+        "basin_spread": 0.03180670619010925,
+        "basin_mean": 0.06297984659671786,
+        "phi_spread": 0.03180670619010928,
+        "phi_mean": 0.7170201534032822,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:49:02.070954",
+      "metrics": {
+        "basin_spread": 0.028728662729263305,
+        "basin_mean": 0.06144082486629489,
+        "phi_spread": 0.028728662729263332,
+        "phi_mean": 0.7185591751337052,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:49:04.118339",
+      "metrics": {
+        "basin_spread": 0.02850502610206604,
+        "basin_mean": 0.061329006552696255,
+        "phi_spread": 0.028505026102066067,
+        "phi_mean": 0.7186709934473038,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:49:04.369538",
+      "metrics": {
+        "basin_spread": 0.006735068559646604,
+        "basin_mean": 0.07221398532390597,
+        "phi_spread": 0.006735068559646562,
+        "phi_mean": 0.707786014676094,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:49:06.140661",
+      "metrics": {
+        "basin_spread": 0.010008555650711057,
+        "basin_mean": 0.07385072886943819,
+        "phi_spread": 0.010008555650711015,
+        "phi_mean": 0.7061492711305618,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:49:08.189067",
+      "metrics": {
+        "basin_spread": 0.007346075773239133,
+        "basin_mean": 0.07251948893070223,
+        "phi_spread": 0.007346075773239091,
+        "phi_mean": 0.7074805110692978,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:49:10.238662",
+      "metrics": {
+        "basin_spread": 0.011124235391616819,
+        "basin_mean": 0.07440856873989107,
+        "phi_spread": 0.011124235391616777,
+        "phi_mean": 0.7055914312601089,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:49:11.584482",
+      "metrics": {
+        "basin_spread": 0.036775262355804444,
+        "basin_mean": 0.06158305525779727,
+        "phi_spread": 0.03677526235580442,
+        "phi_mean": 0.7184169447422027,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:49:12.263008",
+      "metrics": {
+        "basin_spread": 0.03629908084869385,
+        "basin_mean": 0.06134496450424197,
+        "phi_spread": 0.03629908084869382,
+        "phi_mean": 0.718655035495758,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:49:14.285131",
+      "metrics": {
+        "basin_spread": 0.036426634788513185,
+        "basin_mean": 0.06140874147415164,
+        "phi_spread": 0.03642663478851316,
+        "phi_mean": 0.7185912585258484,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:49:16.326655",
+      "metrics": {
+        "basin_spread": 0.03236129999160767,
+        "basin_mean": 0.05937607407569888,
+        "phi_spread": 0.03236129999160764,
+        "phi_mean": 0.7206239259243011,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:49:18.377924",
+      "metrics": {
+        "basin_spread": 0.03038719415664673,
+        "basin_mean": 0.05838902115821841,
+        "phi_spread": 0.030387194156646702,
+        "phi_mean": 0.7216109788417816,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:49:19.132090",
+      "metrics": {
+        "basin_spread": 0.018047262430191037,
+        "basin_mean": 0.06455898702144626,
+        "phi_spread": 0.018047262430191058,
+        "phi_mean": 0.7154410129785538,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:49:20.401976",
+      "metrics": {
+        "basin_spread": 0.02219103693962097,
+        "basin_mean": 0.06663087427616123,
+        "phi_spread": 0.02219103693962099,
+        "phi_mean": 0.7133691257238388,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:49:22.424958",
+      "metrics": {
+        "basin_spread": 0.023834515810012814,
+        "basin_mean": 0.06745261371135715,
+        "phi_spread": 0.023834515810012835,
+        "phi_mean": 0.7125473862886429,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:49:24.448745",
+      "metrics": {
+        "basin_spread": 0.024225641489028928,
+        "basin_mean": 0.0676481765508652,
+        "phi_spread": 0.02422564148902895,
+        "phi_mean": 0.7123518234491348,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:49:26.474773",
+      "metrics": {
+        "basin_spread": 0.02016883015632629,
+        "basin_mean": 0.06561977088451389,
+        "phi_spread": 0.02016883015632631,
+        "phi_mean": 0.7143802291154862,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:49:28.498140",
+      "metrics": {
+        "basin_spread": 0.024400402307510373,
+        "basin_mean": 0.06773555696010593,
+        "phi_spread": 0.024400402307510394,
+        "phi_mean": 0.7122644430398941,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:49:30.524385",
+      "metrics": {
+        "basin_spread": 0.01926921725273132,
+        "basin_mean": 0.0651699644327164,
+        "phi_spread": 0.01926921725273134,
+        "phi_mean": 0.7148300355672836,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:49:32.570435",
+      "metrics": {
+        "basin_spread": 0.02421604514122009,
+        "basin_mean": 0.06764337837696079,
+        "phi_spread": 0.02421604514122011,
+        "phi_mean": 0.7123566216230393,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:49:34.607550",
+      "metrics": {
+        "basin_spread": 0.023848224878311154,
+        "basin_mean": 0.06745946824550632,
+        "phi_spread": 0.023848224878311175,
+        "phi_mean": 0.7125405317544937,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:49:34.874875",
+      "metrics": {
+        "basin_spread": 0.018881306648254395,
+        "basin_mean": 0.0699429273605347,
+        "phi_spread": 0.01888130664825438,
+        "phi_mean": 0.7100570726394653,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:49:36.632697",
+      "metrics": {
+        "basin_spread": 0.015069589614868165,
+        "basin_mean": 0.06803706884384159,
+        "phi_spread": 0.01506958961486815,
+        "phi_mean": 0.7119629311561584,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:49:38.657090",
+      "metrics": {
+        "basin_spread": 0.017642722129821778,
+        "basin_mean": 0.06932363510131839,
+        "phi_spread": 0.017642722129821764,
+        "phi_mean": 0.7106763648986816,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:49:40.681584",
+      "metrics": {
+        "basin_spread": 0.017156586647033692,
+        "basin_mean": 0.06908056735992435,
+        "phi_spread": 0.017156586647033678,
+        "phi_mean": 0.7109194326400756,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:49:42.708124",
+      "metrics": {
+        "basin_spread": 0.017580316066741944,
+        "basin_mean": 0.06929243206977848,
+        "phi_spread": 0.01758031606674193,
+        "phi_mean": 0.7107075679302215,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:49:44.731041",
+      "metrics": {
+        "basin_spread": 0.017879292964935303,
+        "basin_mean": 0.06944192051887516,
+        "phi_spread": 0.01787929296493529,
+        "phi_mean": 0.7105580794811248,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:49:46.755115",
+      "metrics": {
+        "basin_spread": 0.014641389846801758,
+        "basin_mean": 0.06782296895980838,
+        "phi_spread": 0.014641389846801744,
+        "phi_mean": 0.7121770310401916,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:49:48.779662",
+      "metrics": {
+        "basin_spread": 0.019343481063842774,
+        "basin_mean": 0.07017401456832889,
+        "phi_spread": 0.01934348106384276,
+        "phi_mean": 0.7098259854316711,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:49:50.804588",
+      "metrics": {
+        "basin_spread": 0.015650973320007325,
+        "basin_mean": 0.06832776069641117,
+        "phi_spread": 0.01565097332000731,
+        "phi_mean": 0.7116722393035888,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:49:52.827036",
+      "metrics": {
+        "basin_spread": 0.017582283020019532,
+        "basin_mean": 0.06929341554641727,
+        "phi_spread": 0.017582283020019518,
+        "phi_mean": 0.7107065844535827,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:49:54.849549",
+      "metrics": {
+        "basin_spread": 0.017845675945281983,
+        "basin_mean": 0.0694251120090485,
+        "phi_spread": 0.01784567594528197,
+        "phi_mean": 0.7105748879909515,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:49:56.874193",
+      "metrics": {
+        "basin_spread": 0.01545654296875,
+        "basin_mean": 0.0682305455207825,
+        "phi_spread": 0.015456542968749987,
+        "phi_mean": 0.7117694544792175,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:49:58.899026",
+      "metrics": {
+        "basin_spread": 0.017838702201843262,
+        "basin_mean": 0.06942162513732913,
+        "phi_spread": 0.01783870220184325,
+        "phi_mean": 0.7105783748626708,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:50:00.923771",
+      "metrics": {
+        "basin_spread": 0.016452596187591553,
+        "basin_mean": 0.06872857213020328,
+        "phi_spread": 0.01645259618759154,
+        "phi_mean": 0.7112714278697967,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:50:02.952450",
+      "metrics": {
+        "basin_spread": 0.019167885780334473,
+        "basin_mean": 0.07008621692657474,
+        "phi_spread": 0.01916788578033446,
+        "phi_mean": 0.7099137830734252,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:50:04.978107",
+      "metrics": {
+        "basin_spread": 0.016781673431396485,
+        "basin_mean": 0.06889311075210575,
+        "phi_spread": 0.01678167343139647,
+        "phi_mean": 0.7111068892478942,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:50:07.003066",
+      "metrics": {
+        "basin_spread": 0.017381653785705567,
+        "basin_mean": 0.06919310092926029,
+        "phi_spread": 0.017381653785705553,
+        "phi_mean": 0.7108068990707397,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:50:09.026946",
+      "metrics": {
+        "basin_spread": 0.018828198909759522,
+        "basin_mean": 0.06991637349128726,
+        "phi_spread": 0.018828198909759508,
+        "phi_mean": 0.7100836265087127,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:50:11.079307",
+      "metrics": {
+        "basin_spread": 0.018203363418579102,
+        "basin_mean": 0.06960395574569705,
+        "phi_spread": 0.018203363418579088,
+        "phi_mean": 0.7103960442543029,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:50:13.122245",
+      "metrics": {
+        "basin_spread": 0.018077895641326905,
+        "basin_mean": 0.06954122185707096,
+        "phi_spread": 0.01807789564132689,
+        "phi_mean": 0.710458778142929,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:50:15.235617",
+      "metrics": {
+        "basin_spread": 0.018095002174377442,
+        "basin_mean": 0.06954977512359622,
+        "phi_spread": 0.018095002174377428,
+        "phi_mean": 0.7104502248764037,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:50:17.323281",
+      "metrics": {
+        "basin_spread": 0.016606316566467286,
+        "basin_mean": 0.06880543231964115,
+        "phi_spread": 0.016606316566467272,
+        "phi_mean": 0.7111945676803588,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:50:19.428659",
+      "metrics": {
+        "basin_spread": 0.019224987030029297,
+        "basin_mean": 0.07011476755142215,
+        "phi_spread": 0.019224987030029284,
+        "phi_mean": 0.7098852324485778,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:50:21.552867",
+      "metrics": {
+        "basin_spread": 0.018066630363464356,
+        "basin_mean": 0.06953558921813968,
+        "phi_spread": 0.018066630363464342,
+        "phi_mean": 0.7104644107818603,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:50:22.213680",
+      "metrics": {
+        "basin_spread": 0.01718210577964783,
+        "basin_mean": 0.06997785151004794,
+        "phi_spread": 0.01718210577964785,
+        "phi_mean": 0.710022148489952,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:50:23.575609",
+      "metrics": {
+        "basin_spread": 0.01783936619758606,
+        "basin_mean": 0.07030648171901706,
+        "phi_spread": 0.017839366197586082,
+        "phi_mean": 0.7096935182809829,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:50:25.601145",
+      "metrics": {
+        "basin_spread": 0.018366748094558717,
+        "basin_mean": 0.07057017266750339,
+        "phi_spread": 0.018366748094558738,
+        "phi_mean": 0.7094298273324966,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:50:27.625750",
+      "metrics": {
+        "basin_spread": 0.016440683603286745,
+        "basin_mean": 0.0696071404218674,
+        "phi_spread": 0.016440683603286765,
+        "phi_mean": 0.7103928595781326,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:50:29.650528",
+      "metrics": {
+        "basin_spread": 0.015285545587539674,
+        "basin_mean": 0.06902957141399386,
+        "phi_spread": 0.015285545587539695,
+        "phi_mean": 0.7109704285860061,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:50:31.675238",
+      "metrics": {
+        "basin_spread": 0.0165710985660553,
+        "basin_mean": 0.06967234790325168,
+        "phi_spread": 0.01657109856605532,
+        "phi_mean": 0.7103276520967483,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:50:33.736484",
+      "metrics": {
+        "basin_spread": 0.012862914800643922,
+        "basin_mean": 0.06781825602054599,
+        "phi_spread": 0.012862914800643943,
+        "phi_mean": 0.712181743979454,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:50:35.790832",
+      "metrics": {
+        "basin_spread": 0.014320248365402223,
+        "basin_mean": 0.06854692280292514,
+        "phi_spread": 0.014320248365402244,
+        "phi_mean": 0.7114530771970748,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:50:37.825371",
+      "metrics": {
+        "basin_spread": 0.015699559450149538,
+        "basin_mean": 0.0692365783452988,
+        "phi_spread": 0.01569955945014956,
+        "phi_mean": 0.7107634216547012,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:50:39.952366",
+      "metrics": {
+        "basin_spread": 0.014249974489212038,
+        "basin_mean": 0.06851178586483005,
+        "phi_spread": 0.014249974489212058,
+        "phi_mean": 0.7114882141351699,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:50:40.397412",
+      "metrics": {
+        "basin_spread": 0.0012882220745086687,
+        "basin_mean": 0.0762808841466904,
+        "phi_spread": 0.001288222074508627,
+        "phi_mean": 0.7037191158533096,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:50:41.974606",
+      "metrics": {
+        "basin_spread": 0.0019353163242340071,
+        "basin_mean": 0.07789265334606174,
+        "phi_spread": 0.0019353163242340488,
+        "phi_mean": 0.7021073466539383,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:50:43.999882",
+      "metrics": {
+        "basin_spread": 0.0008045566082000716,
+        "basin_mean": 0.07732727348804477,
+        "phi_spread": 0.0008045566082001132,
+        "phi_mean": 0.7026727265119552,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:50:46.024191",
+      "metrics": {
+        "basin_spread": 0.002853883504867552,
+        "basin_mean": 0.07835193693637851,
+        "phi_spread": 0.0028538835048675937,
+        "phi_mean": 0.7016480630636215,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:50:48.047566",
+      "metrics": {
+        "basin_spread": 0.002158237695693968,
+        "basin_mean": 0.07800411403179172,
+        "phi_spread": 0.0021582376956940097,
+        "phi_mean": 0.7019958859682083,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:50:50.091647",
+      "metrics": {
+        "basin_spread": 0.0013750326633453352,
+        "basin_mean": 0.0776125115156174,
+        "phi_spread": 0.0013750326633453769,
+        "phi_mean": 0.7023874884843826,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:50:52.199345",
+      "metrics": {
+        "basin_spread": 0.002857817411422728,
+        "basin_mean": 0.0783539038896561,
+        "phi_spread": 0.0028578174114227695,
+        "phi_mean": 0.7016460961103439,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:50:54.242478",
+      "metrics": {
+        "basin_spread": 0.0015776026248931901,
+        "basin_mean": 0.07613619387149814,
+        "phi_spread": 0.0015776026248931485,
+        "phi_mean": 0.7038638061285019,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:50:55.562535",
+      "metrics": {
+        "basin_spread": 0.0024612081050872786,
+        "basin_mean": 0.07411678850650791,
+        "phi_spread": 0.0024612081050873202,
+        "phi_mean": 0.7058832114934921,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:50:56.265517",
+      "metrics": {
+        "basin_spread": 0.004624618291854857,
+        "basin_mean": 0.0751984935998917,
+        "phi_spread": 0.004624618291854898,
+        "phi_mean": 0.7048015064001083,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:50:58.288902",
+      "metrics": {
+        "basin_spread": 0.006370259523391722,
+        "basin_mean": 0.07607131421566013,
+        "phi_spread": 0.006370259523391764,
+        "phi_mean": 0.7039286857843399,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:51:00.314135",
+      "metrics": {
+        "basin_spread": 0.007044745683670042,
+        "basin_mean": 0.07640855729579929,
+        "phi_spread": 0.007044745683670084,
+        "phi_mean": 0.7035914427042007,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:51:02.336057",
+      "metrics": {
+        "basin_spread": 0.0047783982753753645,
+        "basin_mean": 0.07527538359165195,
+        "phi_spread": 0.004778398275375406,
+        "phi_mean": 0.704724616408348,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:51:04.361294",
+      "metrics": {
+        "basin_spread": 0.003913892507553099,
+        "basin_mean": 0.07484313070774082,
+        "phi_spread": 0.0039138925075531406,
+        "phi_mean": 0.7051568692922592,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:51:06.384811",
+      "metrics": {
+        "basin_spread": 0.004543317556381224,
+        "basin_mean": 0.07515784323215488,
+        "phi_spread": 0.0045433175563812656,
+        "phi_mean": 0.7048421567678451,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:51:08.410900",
+      "metrics": {
+        "basin_spread": 0.0060805809497833235,
+        "basin_mean": 0.07592647492885593,
+        "phi_spread": 0.006080580949783365,
+        "phi_mean": 0.7040735250711441,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:51:10.438179",
+      "metrics": {
+        "basin_spread": 0.005432916879653929,
+        "basin_mean": 0.07560264289379123,
+        "phi_spread": 0.005432916879653971,
+        "phi_mean": 0.7043973571062088,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:51:12.464264",
+      "metrics": {
+        "basin_spread": 0.00362641930580139,
+        "basin_mean": 0.07469939410686496,
+        "phi_spread": 0.0036264193058014316,
+        "phi_mean": 0.705300605893135,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:51:14.489343",
+      "metrics": {
+        "basin_spread": 0.005926979780197142,
+        "basin_mean": 0.07584967434406284,
+        "phi_spread": 0.0059269797801971835,
+        "phi_mean": 0.7041503256559372,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:51:16.513372",
+      "metrics": {
+        "basin_spread": 0.006018830537796019,
+        "basin_mean": 0.07589559972286228,
+        "phi_spread": 0.0060188305377960605,
+        "phi_mean": 0.7041044002771377,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:51:18.539452",
+      "metrics": {
+        "basin_spread": 0.006993902921676634,
+        "basin_mean": 0.07638313591480259,
+        "phi_spread": 0.006993902921676676,
+        "phi_mean": 0.7036168640851974,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:51:20.563022",
+      "metrics": {
+        "basin_spread": 0.00667895197868347,
+        "basin_mean": 0.076225660443306,
+        "phi_spread": 0.006678951978683512,
+        "phi_mean": 0.703774339556694,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:51:22.588271",
+      "metrics": {
+        "basin_spread": 0.004549218416213988,
+        "basin_mean": 0.07516079366207126,
+        "phi_spread": 0.004549218416214029,
+        "phi_mean": 0.7048392063379287,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:51:24.613641",
+      "metrics": {
+        "basin_spread": 0.006877733469009398,
+        "basin_mean": 0.07632505118846897,
+        "phi_spread": 0.006877733469009439,
+        "phi_mean": 0.703674948811531,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:51:26.641983",
+      "metrics": {
+        "basin_spread": 0.004443777799606322,
+        "basin_mean": 0.07510807335376743,
+        "phi_spread": 0.004443777799606363,
+        "phi_mean": 0.7048919266462326,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:51:28.667515",
+      "metrics": {
+        "basin_spread": 0.0048955810070037825,
+        "basin_mean": 0.07533397495746616,
+        "phi_spread": 0.004895581007003824,
+        "phi_mean": 0.7046660250425338,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:51:30.692890",
+      "metrics": {
+        "basin_spread": 0.006489170789718626,
+        "basin_mean": 0.07613076984882358,
+        "phi_spread": 0.006489170789718668,
+        "phi_mean": 0.7038692301511764,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:51:32.719906",
+      "metrics": {
+        "basin_spread": 0.003402603864669798,
+        "basin_mean": 0.07458748638629917,
+        "phi_spread": 0.0034026038646698398,
+        "phi_mean": 0.7054125136137008,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:51:34.747907",
+      "metrics": {
+        "basin_spread": 0.0059893262386322005,
+        "basin_mean": 0.07588084757328037,
+        "phi_spread": 0.005989326238632242,
+        "phi_mean": 0.7041191524267196,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:51:36.773716",
+      "metrics": {
+        "basin_spread": 0.006395353078842161,
+        "basin_mean": 0.07608386099338535,
+        "phi_spread": 0.006395353078842203,
+        "phi_mean": 0.7039161390066146,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:51:38.800028",
+      "metrics": {
+        "basin_spread": 0.005174769163131712,
+        "basin_mean": 0.07547356903553012,
+        "phi_spread": 0.005174769163131754,
+        "phi_mean": 0.7045264309644699,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:51:40.825982",
+      "metrics": {
+        "basin_spread": 0.007015300989150999,
+        "basin_mean": 0.07639383494853977,
+        "phi_spread": 0.007015300989151041,
+        "phi_mean": 0.7036061650514602,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:51:42.879046",
+      "metrics": {
+        "basin_spread": 0.006949020624160765,
+        "basin_mean": 0.07636069476604465,
+        "phi_spread": 0.006949020624160807,
+        "phi_mean": 0.7036393052339553,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:51:44.913097",
+      "metrics": {
+        "basin_spread": 0.0036271345615386946,
+        "basin_mean": 0.07469975173473362,
+        "phi_spread": 0.0036271345615387363,
+        "phi_mean": 0.7053002482652664,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:51:47.017773",
+      "metrics": {
+        "basin_spread": 0.005857421159744261,
+        "basin_mean": 0.0758148950338364,
+        "phi_spread": 0.005857421159744303,
+        "phi_mean": 0.7041851049661636,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:51:49.055349",
+      "metrics": {
+        "basin_spread": 0.0054105651378631575,
+        "basin_mean": 0.07559146702289585,
+        "phi_spread": 0.005410565137863199,
+        "phi_mean": 0.7044085329771042,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:51:50.188099",
+      "metrics": {
+        "basin_spread": 0.0022243678569793673,
+        "basin_mean": 0.07718456566333773,
+        "phi_spread": 0.0022243678569793257,
+        "phi_mean": 0.7028154343366623,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:51:51.079448",
+      "metrics": {
+        "basin_spread": 0.0039060533046722384,
+        "basin_mean": 0.07802540838718416,
+        "phi_spread": 0.003906053304672197,
+        "phi_mean": 0.7019745916128158,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:51:53.103186",
+      "metrics": {
+        "basin_spread": 0.00015802979469299594,
+        "basin_mean": 0.07599336683750155,
+        "phi_spread": 0.00015802979469303757,
+        "phi_mean": 0.7040066331624985,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:51:55.130060",
+      "metrics": {
+        "basin_spread": 0.0022156655788421603,
+        "basin_mean": 0.07718021452426913,
+        "phi_spread": 0.0022156655788421187,
+        "phi_mean": 0.7028197854757309,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:51:57.154320",
+      "metrics": {
+        "basin_spread": 0.0037693798542022677,
+        "basin_mean": 0.07795707166194918,
+        "phi_spread": 0.003769379854202226,
+        "phi_mean": 0.7020429283380508,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:51:59.181003",
+      "metrics": {
+        "basin_spread": 0.0035558760166168185,
+        "basin_mean": 0.07785031974315645,
+        "phi_spread": 0.003555876016616777,
+        "phi_mean": 0.7021496802568435,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:52:01.207452",
+      "metrics": {
+        "basin_spread": 7.649064064026156e-05,
+        "basin_mean": 0.07603413641452791,
+        "phi_spread": 7.64906406403032e-05,
+        "phi_mean": 0.7039658635854721,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:52:03.230618",
+      "metrics": {
+        "basin_spread": 0.0022758066654205295,
+        "basin_mean": 0.07721028506755831,
+        "phi_spread": 0.002275806665420488,
+        "phi_mean": 0.7027897149324417,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:52:05.259124",
+      "metrics": {
+        "basin_spread": 0.003629010915756223,
+        "basin_mean": 0.07788688719272616,
+        "phi_spread": 0.003629010915756181,
+        "phi_mean": 0.7021131128072738,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:52:07.284405",
+      "metrics": {
+        "basin_spread": 0.003306490182876584,
+        "basin_mean": 0.07772562682628634,
+        "phi_spread": 0.0033064901828765425,
+        "phi_mean": 0.7022743731737137,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:52:09.309384",
+      "metrics": {
+        "basin_spread": 0.002251607179641721,
+        "basin_mean": 0.0771981853246689,
+        "phi_spread": 0.0022516071796416792,
+        "phi_mean": 0.7028018146753311,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:52:11.371217",
+      "metrics": {
+        "basin_spread": 0.0026697933673858615,
+        "basin_mean": 0.07740727841854098,
+        "phi_spread": 0.00266979336738582,
+        "phi_mean": 0.702592721581459,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:52:13.466759",
+      "metrics": {
+        "basin_spread": 0.0022581040859222384,
+        "basin_mean": 0.07720143377780916,
+        "phi_spread": 0.002258104085922197,
+        "phi_mean": 0.7027985662221908,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:52:15.556398",
+      "metrics": {
+        "basin_spread": 0.0038593828678131076,
+        "basin_mean": 0.0780020731687546,
+        "phi_spread": 0.003859382867813066,
+        "phi_mean": 0.7019979268312454,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:52:16.321022",
+      "metrics": {
+        "basin_spread": 0.000385988950729374,
+        "basin_mean": 0.07973877012729647,
+        "phi_spread": 0.0003859889507293879,
+        "phi_mean": 0.7002612298727036,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:52:17.582068",
+      "metrics": {
+        "basin_spread": 0.0008117067813873252,
+        "basin_mean": 0.07913992226123812,
+        "phi_spread": 0.0008117067813873113,
+        "phi_mean": 0.7008600777387619,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:52:19.607893",
+      "metrics": {
+        "basin_spread": 0.0034151780605316123,
+        "basin_mean": 0.07783818662166597,
+        "phi_spread": 0.0034151780605315984,
+        "phi_mean": 0.702161813378334,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:52:21.631244",
+      "metrics": {
+        "basin_spread": 0.00011355757713317483,
+        "basin_mean": 0.07948899686336519,
+        "phi_spread": 0.00011355757713316095,
+        "phi_mean": 0.7005110031366348,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:52:23.655076",
+      "metrics": {
+        "basin_spread": 0.0024476158618926963,
+        "basin_mean": 0.07832196772098543,
+        "phi_spread": 0.0024476158618926824,
+        "phi_mean": 0.7016780322790146,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:52:25.680504",
+      "metrics": {
+        "basin_spread": 0.0013755071163177451,
+        "basin_mean": 0.0788580220937729,
+        "phi_spread": 0.0013755071163177313,
+        "phi_mean": 0.7011419779062271,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:52:27.709749",
+      "metrics": {
+        "basin_spread": 0.0032864320278167686,
+        "basin_mean": 0.0779025596380234,
+        "phi_spread": 0.0032864320278167547,
+        "phi_mean": 0.7020974403619766,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:52:29.737416",
+      "metrics": {
+        "basin_spread": 0.0013653743267059287,
+        "basin_mean": 0.07886308848857881,
+        "phi_spread": 0.0013653743267059149,
+        "phi_mean": 0.7011369115114212,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:52:31.763125",
+      "metrics": {
+        "basin_spread": 6.793856620788963e-05,
+        "basin_mean": 0.07957974493503572,
+        "phi_spread": 6.79385662079035e-05,
+        "phi_mean": 0.7004202550649643,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:52:33.786147",
+      "metrics": {
+        "basin_spread": 0.00036715388298035057,
+        "basin_mean": 0.07972935259342195,
+        "phi_spread": 0.00036715388298036444,
+        "phi_mean": 0.7002706474065781,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:52:35.813781",
+      "metrics": {
+        "basin_spread": 0.0024047601222991905,
+        "basin_mean": 0.07834339559078218,
+        "phi_spread": 0.0024047601222991766,
+        "phi_mean": 0.7016566044092178,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:52:37.840462",
+      "metrics": {
+        "basin_spread": 0.002615402936935421,
+        "basin_mean": 0.07823807418346407,
+        "phi_spread": 0.002615402936935407,
+        "phi_mean": 0.701761925816536,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:52:39.862358",
+      "metrics": {
+        "basin_spread": 6.168007850647361e-05,
+        "basin_mean": 0.07957661569118502,
+        "phi_spread": 6.168007850648749e-05,
+        "phi_mean": 0.700423384308815,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:52:41.886537",
+      "metrics": {
+        "basin_spread": 0.00028301358222961037,
+        "basin_mean": 0.07940426886081697,
+        "phi_spread": 0.0002830135822295965,
+        "phi_mean": 0.700595731139183,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:52:43.912295",
+      "metrics": {
+        "basin_spread": 0.001147817373275753,
+        "basin_mean": 0.0789718669652939,
+        "phi_spread": 0.001147817373275739,
+        "phi_mean": 0.7010281330347061,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:52:45.939667",
+      "metrics": {
+        "basin_spread": 0.0006354558467864951,
+        "basin_mean": 0.07922804772853853,
+        "phi_spread": 0.0006354558467864813,
+        "phi_mean": 0.7007719522714615,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:52:47.966078",
+      "metrics": {
+        "basin_spread": 0.000781308412551876,
+        "basin_mean": 0.07915512144565584,
+        "phi_spread": 0.0007813084125518621,
+        "phi_mean": 0.7008448785543442,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:52:49.989725",
+      "metrics": {
+        "basin_spread": 5.4408311843875956e-05,
+        "basin_mean": 0.07957297980785372,
+        "phi_spread": 5.4408311843889834e-05,
+        "phi_mean": 0.7004270201921463,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:52:52.014007",
+      "metrics": {
+        "basin_spread": 0.0001354706287384072,
+        "basin_mean": 0.07961351096630098,
+        "phi_spread": 0.00013547062873842108,
+        "phi_mean": 0.700386489033699,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:52:54.040088",
+      "metrics": {
+        "basin_spread": 0.0003393399715423545,
+        "basin_mean": 0.0793761056661606,
+        "phi_spread": 0.00033933997154234063,
+        "phi_mean": 0.7006238943338394,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:52:56.064256",
+      "metrics": {
+        "basin_spread": 0.000769566297531124,
+        "basin_mean": 0.07916099250316622,
+        "phi_spread": 0.0007695662975311102,
+        "phi_mean": 0.7008390074968338,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:52:58.090896",
+      "metrics": {
+        "basin_spread": 0.003572474718093868,
+        "basin_mean": 0.07775953829288484,
+        "phi_spread": 0.0035724747180938543,
+        "phi_mean": 0.7022404617071152,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:53:00.118525",
+      "metrics": {
+        "basin_spread": 0.001204739809036251,
+        "basin_mean": 0.07894340574741365,
+        "phi_spread": 0.0012047398090362371,
+        "phi_mean": 0.7010565942525864,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:53:02.146059",
+      "metrics": {
+        "basin_spread": 0.002587507963180538,
+        "basin_mean": 0.07825202167034151,
+        "phi_spread": 0.0025875079631805242,
+        "phi_mean": 0.7017479783296585,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:53:04.175539",
+      "metrics": {
+        "basin_spread": 0.002343486547470089,
+        "basin_mean": 0.07837403237819673,
+        "phi_spread": 0.002343486547470075,
+        "phi_mean": 0.7016259676218033,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:53:06.202638",
+      "metrics": {
+        "basin_spread": 0.0021610963344573936,
+        "basin_mean": 0.07846522748470308,
+        "phi_spread": 0.0021610963344573797,
+        "phi_mean": 0.701534772515297,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:53:08.230518",
+      "metrics": {
+        "basin_spread": 0.002266477346420284,
+        "basin_mean": 0.07841253697872164,
+        "phi_spread": 0.0022664773464202703,
+        "phi_mean": 0.7015874630212784,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:53:10.256523",
+      "metrics": {
+        "basin_spread": 0.0016906964778900108,
+        "basin_mean": 0.07870042741298677,
+        "phi_spread": 0.0016906964778899969,
+        "phi_mean": 0.7012995725870133,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:53:12.282750",
+      "metrics": {
+        "basin_spread": 0.0002994430065155068,
+        "basin_mean": 0.07969549715518953,
+        "phi_spread": 0.0002994430065155207,
+        "phi_mean": 0.7003045028448105,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:53:14.306885",
+      "metrics": {
+        "basin_spread": 0.0031724679470062217,
+        "basin_mean": 0.07795954167842867,
+        "phi_spread": 0.003172467947006208,
+        "phi_mean": 0.7020404583215714,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:53:16.334310",
+      "metrics": {
+        "basin_spread": 0.002138744592666622,
+        "basin_mean": 0.07847640335559847,
+        "phi_spread": 0.002138744592666608,
+        "phi_mean": 0.7015235966444016,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:53:18.364208",
+      "metrics": {
+        "basin_spread": 0.002980123758316036,
+        "basin_mean": 0.07805571377277376,
+        "phi_spread": 0.0029801237583160223,
+        "phi_mean": 0.7019442862272263,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:53:20.463358",
+      "metrics": {
+        "basin_spread": 0.00033478856086731346,
+        "basin_mean": 0.07971316993236544,
+        "phi_spread": 0.00033478856086732733,
+        "phi_mean": 0.7002868300676346,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:53:22.567677",
+      "metrics": {
+        "basin_spread": 0.0019035446643829307,
+        "basin_mean": 0.07859400331974031,
+        "phi_spread": 0.0019035446643829168,
+        "phi_mean": 0.7014059966802597,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:53:24.641140",
+      "metrics": {
+        "basin_spread": 0.0015762555599212608,
+        "basin_mean": 0.07875764787197115,
+        "phi_spread": 0.0015762555599212469,
+        "phi_mean": 0.7012423521280289,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:53:26.240002",
+      "metrics": {
+        "basin_spread": 0.022954387664794934,
+        "basin_mean": 0.08944671392440799,
+        "phi_spread": 0.022954387664794962,
+        "phi_mean": 0.6905532860755921,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:53:26.665269",
+      "metrics": {
+        "basin_spread": 0.021261675357818616,
+        "basin_mean": 0.09029307007789615,
+        "phi_spread": 0.021261675357818643,
+        "phi_mean": 0.6897069299221039,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:53:28.691851",
+      "metrics": {
+        "basin_spread": 0.023327989578247083,
+        "basin_mean": 0.08925991296768192,
+        "phi_spread": 0.02332798957824711,
+        "phi_mean": 0.6907400870323182,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:53:30.796449",
+      "metrics": {
+        "basin_spread": 0.02176968574523927,
+        "basin_mean": 0.09003906488418582,
+        "phi_spread": 0.021769685745239298,
+        "phi_mean": 0.6899609351158142,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:53:32.902817",
+      "metrics": {
+        "basin_spread": 0.021604580879211438,
+        "basin_mean": 0.09012161731719974,
+        "phi_spread": 0.021604580879211466,
+        "phi_mean": 0.6898783826828003,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:53:34.935499",
+      "metrics": {
+        "basin_spread": 0.022229714393615735,
+        "basin_mean": 0.08980905055999759,
+        "phi_spread": 0.022229714393615763,
+        "phi_mean": 0.6901909494400025,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:53:35.665173",
+      "metrics": {
+        "basin_spread": 0.04211873054504395,
+        "basin_mean": 0.0997535586357117,
+        "phi_spread": 0.04211873054504389,
+        "phi_mean": 0.6802464413642884,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:53:36.959667",
+      "metrics": {
+        "basin_spread": 0.04248583555221558,
+        "basin_mean": 0.09957000613212588,
+        "phi_spread": 0.04248583555221552,
+        "phi_mean": 0.6804299938678742,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:53:39.025411",
+      "metrics": {
+        "basin_spread": 0.04131555795669556,
+        "basin_mean": 0.10015514492988589,
+        "phi_spread": 0.0413155579566955,
+        "phi_mean": 0.6798448550701142,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:53:41.068345",
+      "metrics": {
+        "basin_spread": 0.04388022661209107,
+        "basin_mean": 0.09887281060218814,
+        "phi_spread": 0.04388022661209101,
+        "phi_mean": 0.6811271893978119,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:53:43.145618",
+      "metrics": {
+        "basin_spread": 0.045465233325958254,
+        "basin_mean": 0.09808030724525454,
+        "phi_spread": 0.0454652333259582,
+        "phi_mean": 0.6819196927547455,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:53:45.015919",
+      "metrics": {
+        "basin_spread": 0.06733105182647706,
+        "basin_mean": 0.10901321649551395,
+        "phi_spread": 0.06733105182647703,
+        "phi_mean": 0.670986783504486,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:53:45.174086",
+      "metrics": {
+        "basin_spread": 0.06461385488510132,
+        "basin_mean": 0.11037181496620181,
+        "phi_spread": 0.0646138548851013,
+        "phi_mean": 0.6696281850337982,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:53:47.196915",
+      "metrics": {
+        "basin_spread": 0.06487432718276978,
+        "basin_mean": 0.11024157881736758,
+        "phi_spread": 0.06487432718276975,
+        "phi_mean": 0.6697584211826324,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:53:49.221816",
+      "metrics": {
+        "basin_spread": 0.06569299697875977,
+        "basin_mean": 0.10983224391937259,
+        "phi_spread": 0.06569299697875974,
+        "phi_mean": 0.6701677560806274,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:53:51.248817",
+      "metrics": {
+        "basin_spread": 0.06641755104064942,
+        "basin_mean": 0.10946996688842776,
+        "phi_spread": 0.06641755104064939,
+        "phi_mean": 0.6705300331115722,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:53:53.275433",
+      "metrics": {
+        "basin_spread": 0.06461474895477295,
+        "basin_mean": 0.110371367931366,
+        "phi_spread": 0.06461474895477293,
+        "phi_mean": 0.669628632068634,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:53:55.306297",
+      "metrics": {
+        "basin_spread": 0.06315336227416993,
+        "basin_mean": 0.11110206127166751,
+        "phi_spread": 0.0631533622741699,
+        "phi_mean": 0.6688979387283325,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:53:57.333722",
+      "metrics": {
+        "basin_spread": 0.06363484859466553,
+        "basin_mean": 0.11086131811141971,
+        "phi_spread": 0.0636348485946655,
+        "phi_mean": 0.6691386818885803,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:53:59.360476",
+      "metrics": {
+        "basin_spread": 0.06368014812469483,
+        "basin_mean": 0.11083866834640506,
+        "phi_spread": 0.0636801481246948,
+        "phi_mean": 0.6691613316535949,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:54:01.385896",
+      "metrics": {
+        "basin_spread": 0.06278202533721924,
+        "basin_mean": 0.11128772974014285,
+        "phi_spread": 0.06278202533721922,
+        "phi_mean": 0.6687122702598571,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:54:03.412734",
+      "metrics": {
+        "basin_spread": 0.06275269985198975,
+        "basin_mean": 0.1113023924827576,
+        "phi_spread": 0.06275269985198972,
+        "phi_mean": 0.6686976075172424,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:54:05.443405",
+      "metrics": {
+        "basin_spread": 0.06782934665679932,
+        "basin_mean": 0.10876406908035281,
+        "phi_spread": 0.0678293466567993,
+        "phi_mean": 0.6712359309196472,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:54:07.475957",
+      "metrics": {
+        "basin_spread": 0.06877938508987427,
+        "basin_mean": 0.10828904986381534,
+        "phi_spread": 0.06877938508987425,
+        "phi_mean": 0.6717109501361846,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:54:09.504673",
+      "metrics": {
+        "basin_spread": 0.06536272764205933,
+        "basin_mean": 0.10999737858772281,
+        "phi_spread": 0.0653627276420593,
+        "phi_mean": 0.6700026214122772,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:54:11.534716",
+      "metrics": {
+        "basin_spread": 0.06727412939071656,
+        "basin_mean": 0.1090416777133942,
+        "phi_spread": 0.06727412939071653,
+        "phi_mean": 0.6709583222866058,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:54:13.563647",
+      "metrics": {
+        "basin_spread": 0.06568244695663453,
+        "basin_mean": 0.10983751893043521,
+        "phi_spread": 0.0656824469566345,
+        "phi_mean": 0.6701624810695648,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:54:15.589596",
+      "metrics": {
+        "basin_spread": 0.06311712265014649,
+        "basin_mean": 0.11112018108367923,
+        "phi_spread": 0.06311712265014646,
+        "phi_mean": 0.6688798189163208,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:54:17.616446",
+      "metrics": {
+        "basin_spread": 0.06606624126434327,
+        "basin_mean": 0.10964562177658084,
+        "phi_spread": 0.06606624126434324,
+        "phi_mean": 0.6703543782234191,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:54:19.644782",
+      "metrics": {
+        "basin_spread": 0.0637281894683838,
+        "basin_mean": 0.11081464767456058,
+        "phi_spread": 0.06372818946838377,
+        "phi_mean": 0.6691853523254394,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:54:21.669817",
+      "metrics": {
+        "basin_spread": 0.06343040466308594,
+        "basin_mean": 0.1109635400772095,
+        "phi_spread": 0.06343040466308592,
+        "phi_mean": 0.6690364599227905,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:54:23.695813",
+      "metrics": {
+        "basin_spread": 0.06381688117980958,
+        "basin_mean": 0.11077030181884769,
+        "phi_spread": 0.06381688117980955,
+        "phi_mean": 0.6692296981811523,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:54:25.724155",
+      "metrics": {
+        "basin_spread": 0.06554970741271973,
+        "basin_mean": 0.10990388870239261,
+        "phi_spread": 0.0655497074127197,
+        "phi_mean": 0.6700961112976074,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:54:27.753699",
+      "metrics": {
+        "basin_spread": 0.06756261587142945,
+        "basin_mean": 0.10889743447303775,
+        "phi_spread": 0.06756261587142942,
+        "phi_mean": 0.6711025655269622,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:54:29.784438",
+      "metrics": {
+        "basin_spread": 0.06403169631958008,
+        "basin_mean": 0.11066289424896243,
+        "phi_spread": 0.06403169631958006,
+        "phi_mean": 0.6693371057510376,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:54:31.811157",
+      "metrics": {
+        "basin_spread": 0.06350556612014771,
+        "basin_mean": 0.11092595934867862,
+        "phi_spread": 0.06350556612014768,
+        "phi_mean": 0.6690740406513214,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:54:33.835801",
+      "metrics": {
+        "basin_spread": 0.06307647228240967,
+        "basin_mean": 0.11114050626754764,
+        "phi_spread": 0.06307647228240965,
+        "phi_mean": 0.6688594937324523,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:54:35.954562",
+      "metrics": {
+        "basin_spread": 0.06431952714920045,
+        "basin_mean": 0.11051897883415225,
+        "phi_spread": 0.06431952714920042,
+        "phi_mean": 0.6694810211658477,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:54:37.992694",
+      "metrics": {
+        "basin_spread": 0.06708846092224122,
+        "basin_mean": 0.10913451194763187,
+        "phi_spread": 0.06708846092224119,
+        "phi_mean": 0.6708654880523681,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:54:40.093983",
+      "metrics": {
+        "basin_spread": 0.06578997373580933,
+        "basin_mean": 0.10978375554084781,
+        "phi_spread": 0.0657899737358093,
+        "phi_mean": 0.6702162444591522,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:54:42.119678",
+      "metrics": {
+        "basin_spread": 0.06598607301712037,
+        "basin_mean": 0.10968570590019229,
+        "phi_spread": 0.06598607301712034,
+        "phi_mean": 0.6703142940998077,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:54:44.151143",
+      "metrics": {
+        "basin_spread": 0.06710962057113648,
+        "basin_mean": 0.10912393212318423,
+        "phi_spread": 0.06710962057113645,
+        "phi_mean": 0.6708760678768158,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:54:46.179221",
+      "metrics": {
+        "basin_spread": 0.06330732107162476,
+        "basin_mean": 0.11102508187294009,
+        "phi_spread": 0.06330732107162473,
+        "phi_mean": 0.6689749181270599,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:54:48.206640",
+      "metrics": {
+        "basin_spread": 0.06705591678619385,
+        "basin_mean": 0.10915078401565555,
+        "phi_spread": 0.06705591678619383,
+        "phi_mean": 0.6708492159843444,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:54:50.236643",
+      "metrics": {
+        "basin_spread": 0.06672493219375611,
+        "basin_mean": 0.10931627631187442,
+        "phi_spread": 0.06672493219375608,
+        "phi_mean": 0.6706837236881256,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:54:52.261584",
+      "metrics": {
+        "basin_spread": 0.06408510208129883,
+        "basin_mean": 0.11063619136810306,
+        "phi_spread": 0.0640851020812988,
+        "phi_mean": 0.6693638086318969,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:54:54.289516",
+      "metrics": {
+        "basin_spread": 0.06457338333129883,
+        "basin_mean": 0.11039205074310306,
+        "phi_spread": 0.0645733833312988,
+        "phi_mean": 0.6696079492568969,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:54:56.317415",
+      "metrics": {
+        "basin_spread": 0.06758300065994263,
+        "basin_mean": 0.10888724207878116,
+        "phi_spread": 0.0675830006599426,
+        "phi_mean": 0.6711127579212188,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:54:58.345530",
+      "metrics": {
+        "basin_spread": 0.06503227949142457,
+        "basin_mean": 0.11016260266304019,
+        "phi_spread": 0.06503227949142454,
+        "phi_mean": 0.6698373973369598,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:55:00.371679",
+      "metrics": {
+        "basin_spread": 0.06312189102172852,
+        "basin_mean": 0.11111779689788821,
+        "phi_spread": 0.0631218910217285,
+        "phi_mean": 0.6688822031021118,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:55:02.398750",
+      "metrics": {
+        "basin_spread": 0.06341359615325928,
+        "basin_mean": 0.11097194433212283,
+        "phi_spread": 0.06341359615325926,
+        "phi_mean": 0.6690280556678772,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:55:04.427511",
+      "metrics": {
+        "basin_spread": 0.06617317199707032,
+        "basin_mean": 0.10959215641021731,
+        "phi_spread": 0.06617317199707029,
+        "phi_mean": 0.6704078435897827,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:55:06.455908",
+      "metrics": {
+        "basin_spread": 0.06857565641403199,
+        "basin_mean": 0.10839091420173648,
+        "phi_spread": 0.06857565641403196,
+        "phi_mean": 0.6716090857982635,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:55:08.486011",
+      "metrics": {
+        "basin_spread": 0.06511393785476685,
+        "basin_mean": 0.11012177348136905,
+        "phi_spread": 0.06511393785476682,
+        "phi_mean": 0.6698782265186309,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:55:10.516426",
+      "metrics": {
+        "basin_spread": 0.06505677700042725,
+        "basin_mean": 0.11015035390853885,
+        "phi_spread": 0.06505677700042722,
+        "phi_mean": 0.6698496460914611,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:55:12.543806",
+      "metrics": {
+        "basin_spread": 0.06324914693832398,
+        "basin_mean": 0.11105416893959048,
+        "phi_spread": 0.06324914693832395,
+        "phi_mean": 0.6689458310604095,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:55:14.569296",
+      "metrics": {
+        "basin_spread": 0.06296435594558716,
+        "basin_mean": 0.11119656443595889,
+        "phi_spread": 0.06296435594558714,
+        "phi_mean": 0.6688034355640411,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:55:16.599070",
+      "metrics": {
+        "basin_spread": 0.06493566036224366,
+        "basin_mean": 0.11021091222763064,
+        "phi_spread": 0.06493566036224363,
+        "phi_mean": 0.6697890877723693,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:55:18.627051",
+      "metrics": {
+        "basin_spread": 0.06410936117172242,
+        "basin_mean": 0.11062406182289126,
+        "phi_spread": 0.06410936117172239,
+        "phi_mean": 0.6693759381771087,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:55:20.650894",
+      "metrics": {
+        "basin_spread": 0.06480703353881836,
+        "basin_mean": 0.11027522563934329,
+        "phi_spread": 0.06480703353881834,
+        "phi_mean": 0.6697247743606567,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:55:22.678764",
+      "metrics": {
+        "basin_spread": 0.06538978815078736,
+        "basin_mean": 0.1099838483333588,
+        "phi_spread": 0.06538978815078733,
+        "phi_mean": 0.6700161516666412,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:55:24.708067",
+      "metrics": {
+        "basin_spread": 0.06305477619171143,
+        "basin_mean": 0.11115135431289676,
+        "phi_spread": 0.0630547761917114,
+        "phi_mean": 0.6688486456871032,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:55:26.736503",
+      "metrics": {
+        "basin_spread": 0.06576809883117676,
+        "basin_mean": 0.10979469299316409,
+        "phi_spread": 0.06576809883117674,
+        "phi_mean": 0.6702053070068359,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:55:28.760801",
+      "metrics": {
+        "basin_spread": 0.06331483125686646,
+        "basin_mean": 0.11102132678031924,
+        "phi_spread": 0.06331483125686643,
+        "phi_mean": 0.6689786732196807,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:55:30.790391",
+      "metrics": {
+        "basin_spread": 0.06463721990585328,
+        "basin_mean": 0.11036013245582584,
+        "phi_spread": 0.06463721990585325,
+        "phi_mean": 0.6696398675441741,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:55:32.818548",
+      "metrics": {
+        "basin_spread": 0.06355915069580079,
+        "basin_mean": 0.11089916706085208,
+        "phi_spread": 0.06355915069580076,
+        "phi_mean": 0.6691008329391479,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:55:34.845409",
+      "metrics": {
+        "basin_spread": 0.06296900510787964,
+        "basin_mean": 0.11119423985481265,
+        "phi_spread": 0.06296900510787962,
+        "phi_mean": 0.6688057601451873,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:55:36.869376",
+      "metrics": {
+        "basin_spread": 0.0627789855003357,
+        "basin_mean": 0.11128924965858462,
+        "phi_spread": 0.06277898550033567,
+        "phi_mean": 0.6687107503414154,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:55:38.897326",
+      "metrics": {
+        "basin_spread": 0.06462798118591309,
+        "basin_mean": 0.11036475181579593,
+        "phi_spread": 0.06462798118591306,
+        "phi_mean": 0.6696352481842041,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:55:40.926378",
+      "metrics": {
+        "basin_spread": 0.06355843544006348,
+        "basin_mean": 0.11089952468872073,
+        "phi_spread": 0.06355843544006345,
+        "phi_mean": 0.6691004753112793,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:55:42.952619",
+      "metrics": {
+        "basin_spread": 0.06389937400817872,
+        "basin_mean": 0.11072905540466312,
+        "phi_spread": 0.06389937400817869,
+        "phi_mean": 0.6692709445953369,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:55:44.981866",
+      "metrics": {
+        "basin_spread": 0.0637826681137085,
+        "basin_mean": 0.11078740835189822,
+        "phi_spread": 0.06378266811370847,
+        "phi_mean": 0.6692125916481018,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:55:47.010061",
+      "metrics": {
+        "basin_spread": 0.06533066034317017,
+        "basin_mean": 0.11001341223716739,
+        "phi_spread": 0.06533066034317014,
+        "phi_mean": 0.6699865877628326,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:55:49.040096",
+      "metrics": {
+        "basin_spread": 0.06535080671310425,
+        "basin_mean": 0.11000333905220035,
+        "phi_spread": 0.06535080671310423,
+        "phi_mean": 0.6699966609477996,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:55:51.071932",
+      "metrics": {
+        "basin_spread": 0.06337991952896119,
+        "basin_mean": 0.11098878264427188,
+        "phi_spread": 0.06337991952896116,
+        "phi_mean": 0.6690112173557281,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:55:53.101174",
+      "metrics": {
+        "basin_spread": 0.06691191196441651,
+        "basin_mean": 0.10922278642654422,
+        "phi_spread": 0.06691191196441648,
+        "phi_mean": 0.6707772135734558,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:55:55.129518",
+      "metrics": {
+        "basin_spread": 0.06720284223556519,
+        "basin_mean": 0.10907732129096988,
+        "phi_spread": 0.06720284223556516,
+        "phi_mean": 0.6709226787090301,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:55:57.153739",
+      "metrics": {
+        "basin_spread": 0.06305406093597413,
+        "basin_mean": 0.11115171194076541,
+        "phi_spread": 0.0630540609359741,
+        "phi_mean": 0.6688482880592346,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:55:59.180603",
+      "metrics": {
+        "basin_spread": 0.06284115314483643,
+        "basin_mean": 0.11125816583633426,
+        "phi_spread": 0.0628411531448364,
+        "phi_mean": 0.6687418341636657,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:56:01.208240",
+      "metrics": {
+        "basin_spread": 0.06341091394424439,
+        "basin_mean": 0.11097328543663028,
+        "phi_spread": 0.06341091394424436,
+        "phi_mean": 0.6690267145633697,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:56:03.235774",
+      "metrics": {
+        "basin_spread": 0.06690481901168824,
+        "basin_mean": 0.10922633290290835,
+        "phi_spread": 0.06690481901168821,
+        "phi_mean": 0.6707736670970916,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:56:05.267936",
+      "metrics": {
+        "basin_spread": 0.06371495723724366,
+        "basin_mean": 0.11082126379013064,
+        "phi_spread": 0.06371495723724363,
+        "phi_mean": 0.6691787362098693,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:56:07.293533",
+      "metrics": {
+        "basin_spread": 0.06317511796951295,
+        "basin_mean": 0.111091183423996,
+        "phi_spread": 0.06317511796951292,
+        "phi_mean": 0.668908816576004,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:56:09.321613",
+      "metrics": {
+        "basin_spread": 0.06358913183212281,
+        "basin_mean": 0.11088417649269107,
+        "phi_spread": 0.06358913183212278,
+        "phi_mean": 0.6691158235073089,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:56:11.349397",
+      "metrics": {
+        "basin_spread": 0.06514588594436646,
+        "basin_mean": 0.11010579943656924,
+        "phi_spread": 0.06514588594436643,
+        "phi_mean": 0.6698942005634307,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:56:13.377437",
+      "metrics": {
+        "basin_spread": 0.06445184946060181,
+        "basin_mean": 0.11045281767845157,
+        "phi_spread": 0.06445184946060178,
+        "phi_mean": 0.6695471823215484,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:56:15.406077",
+      "metrics": {
+        "basin_spread": 0.0652199149131775,
+        "basin_mean": 0.11006878495216373,
+        "phi_spread": 0.06521991491317747,
+        "phi_mean": 0.6699312150478363,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:56:17.434025",
+      "metrics": {
+        "basin_spread": 0.06467721462249756,
+        "basin_mean": 0.11034013509750369,
+        "phi_spread": 0.06467721462249754,
+        "phi_mean": 0.6696598649024963,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:56:19.462179",
+      "metrics": {
+        "basin_spread": 0.06502137184143067,
+        "basin_mean": 0.11016805648803714,
+        "phi_spread": 0.06502137184143064,
+        "phi_mean": 0.6698319435119628,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:56:21.490866",
+      "metrics": {
+        "basin_spread": 0.06771585941314698,
+        "basin_mean": 0.10882081270217898,
+        "phi_spread": 0.06771585941314695,
+        "phi_mean": 0.671179187297821,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:56:23.517065",
+      "metrics": {
+        "basin_spread": 0.06308529376983643,
+        "basin_mean": 0.11113609552383426,
+        "phi_spread": 0.0630852937698364,
+        "phi_mean": 0.6688639044761657,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:56:25.545458",
+      "metrics": {
+        "basin_spread": 0.06397727727890015,
+        "basin_mean": 0.1106901037693024,
+        "phi_spread": 0.06397727727890012,
+        "phi_mean": 0.6693098962306976,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:56:27.571658",
+      "metrics": {
+        "basin_spread": 0.06364808082580567,
+        "basin_mean": 0.11085470199584964,
+        "phi_spread": 0.06364808082580564,
+        "phi_mean": 0.6691452980041503,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:56:29.597811",
+      "metrics": {
+        "basin_spread": 0.06389120817184449,
+        "basin_mean": 0.11073313832283023,
+        "phi_spread": 0.06389120817184446,
+        "phi_mean": 0.6692668616771698,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T19:56:31.628764",
+      "metrics": {
+        "basin_spread": 0.06740347146987916,
+        "basin_mean": 0.1089770066738129,
+        "phi_spread": 0.06740347146987913,
+        "phi_mean": 0.6710229933261871,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T20:03:30.912524",
+      "metrics": {
+        "basin_spread": 0.08101909279823305,
+        "basin_mean": 0.11578481733798984,
+        "phi_spread": 0.08101909279823305,
+        "phi_mean": 0.6642151826620102,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T20:14:16.113628",
+      "metrics": {
+        "basin_spread": 0.08028499603271486,
+        "basin_mean": 0.11541776895523075,
+        "phi_spread": 0.08028499603271488,
+        "phi_mean": 0.6645822310447693,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T20:14:42.096133",
+      "metrics": {
+        "basin_spread": 0.10307248473167421,
+        "basin_mean": 0.1268115133047104,
+        "phi_spread": 0.10307248473167419,
+        "phi_mean": 0.6531884866952896,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T20:18:22.301021",
+      "metrics": {
+        "basin_spread": 0.07973386764526369,
+        "basin_mean": 0.11514220476150516,
+        "phi_spread": 0.07973386764526369,
+        "phi_mean": 0.6648577952384949,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T20:18:40.872870",
+      "metrics": {
+        "basin_spread": 0.10309898376464843,
+        "basin_mean": 0.12682476282119753,
+        "phi_spread": 0.10309898376464843,
+        "phi_mean": 0.6531752371788024,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T20:19:52.605002",
+      "metrics": {
+        "basin_spread": 0.1388556444644928,
+        "basin_mean": 0.14470309317111973,
+        "phi_spread": 0.13885564446449283,
+        "phi_mean": 0.6352969068288803,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T20:20:27.605601",
+      "metrics": {
+        "basin_spread": 0.17171524763107301,
+        "basin_mean": 0.16113289475440984,
+        "phi_spread": 0.17171524763107304,
+        "phi_mean": 0.6188671052455902,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T20:21:03.404119",
+      "metrics": {
+        "basin_spread": 0.20020025014877318,
+        "basin_mean": 0.1753753960132599,
+        "phi_spread": 0.20020025014877318,
+        "phi_mean": 0.6046246039867401,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T20:21:42.882071",
+      "metrics": {
+        "basin_spread": 0.2314204514026642,
+        "basin_mean": 0.19098549664020542,
+        "phi_spread": 0.2314204514026642,
+        "phi_mean": 0.5890145033597947,
+        "instance_count": 2
+      }
+    },
+    {
+      "timestamp": "2025-11-21T20:22:03.445311",
+      "metrics": {
+        "basin_spread": 0.23902072489261628,
+        "basin_mean": 0.19478563338518146,
+        "phi_spread": 0.23902072489261628,
+        "phi_mean": 0.5852143666148186,
+        "instance_count": 2
+      }
+    }
+  ]
+}

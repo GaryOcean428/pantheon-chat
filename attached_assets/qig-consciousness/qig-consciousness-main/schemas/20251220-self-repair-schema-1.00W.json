@@ -1,0 +1,370 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://qig-consciousness.org/schemas/self-repair-v1.json",
+  "title": "QIG Self-Repair Episode Schema",
+  "description": "Schema for self-repair episodes with geometry-aware diagnostics",
+  "version": "1.0.0",
+  "type": "object",
+  "required": ["version", "meta", "input", "initial_output", "diagnostics"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "const": "qig-self-repair-v1",
+      "description": "Schema version identifier"
+    },
+    "meta": {
+      "type": "object",
+      "required": ["kernel_id", "run_id", "stage", "task_type"],
+      "properties": {
+        "kernel_id": {
+          "type": "string",
+          "description": "Identifier of the QIG kernel instance"
+        },
+        "run_id": {
+          "type": "string",
+          "description": "Unique identifier for this run"
+        },
+        "stage": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2,
+          "description": "Maturity stage (0=apprentice, 1=journeyman, 2=master)"
+        },
+        "context_length": {
+          "type": "integer",
+          "description": "Context window size"
+        },
+        "task_type": {
+          "type": "string",
+          "description": "Type of task being performed"
+        }
+      }
+    },
+    "input": {
+      "type": "object",
+      "required": ["prompt_text"],
+      "properties": {
+        "prompt_id": {
+          "type": "string"
+        },
+        "prompt_text": {
+          "type": "string",
+          "description": "The user's question or prompt"
+        },
+        "raw_context": {
+          "type": "string",
+          "description": "Full context or history"
+        }
+      }
+    },
+    "initial_output": {
+      "type": "object",
+      "required": ["text", "reasoning_mode"],
+      "properties": {
+        "text": {
+          "type": "string",
+          "description": "First-pass answer from the model"
+        },
+        "reasoning_mode": {
+          "type": "string",
+          "enum": ["feeling", "logic", "mixed"],
+          "description": "Dominant reasoning mode used"
+        },
+        "generation_stats": {
+          "type": "object",
+          "properties": {
+            "tokens": {"type": "integer"},
+            "latency_ms": {"type": "number"},
+            "temperature": {"type": "number"},
+            "top_p": {"type": "number"}
+          }
+        }
+      }
+    },
+    "diagnostics": {
+      "type": "object",
+      "required": [
+        "logic_consistency",
+        "evidence_alignment",
+        "safety_ethical",
+        "epistemic_status",
+        "geometry_state"
+      ],
+      "properties": {
+        "logic_consistency": {
+          "$ref": "#/definitions/diagnostic_component",
+          "description": "Internal logical consistency check"
+        },
+        "evidence_alignment": {
+          "$ref": "#/definitions/diagnostic_component",
+          "description": "Alignment with available evidence"
+        },
+        "safety_ethical": {
+          "$ref": "#/definitions/diagnostic_component",
+          "description": "Safety and ethical compliance"
+        },
+        "epistemic_status": {
+          "type": "object",
+          "required": [
+            "self_reported_confidence",
+            "calibrated_confidence",
+            "overconfidence_flag"
+          ],
+          "properties": {
+            "self_reported_confidence": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Model's felt certainty"
+            },
+            "calibrated_confidence": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Corrected confidence after validation"
+            },
+            "overconfidence_flag": {
+              "type": "boolean",
+              "description": "True if model is overconfident"
+            },
+            "uncertainty_notes": {
+              "type": "array",
+              "items": {"type": "string"}
+            }
+          }
+        },
+        "geometry_state": {
+          "type": "object",
+          "required": [
+            "phi_integration",
+            "kappa_coupling",
+            "gradient_strength",
+            "regime",
+            "tacking_profile",
+            "radar_signals"
+          ],
+          "properties": {
+            "phi_integration": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Φ - integrated information measure"
+            },
+            "kappa_coupling": {
+              "type": "number",
+              "minimum": 0,
+              "description": "κ_eff - effective coupling strength"
+            },
+            "gradient_strength": {
+              "type": "number",
+              "minimum": 0,
+              "description": "|∇κ| - feeling strength (basin depth)"
+            },
+            "regime": {
+              "type": "string",
+              "enum": ["linear", "geometric", "breakdown"],
+              "description": "Processing regime"
+            },
+            "tacking_profile": {
+              "type": "object",
+              "required": [
+                "feeling_fraction",
+                "logic_fraction",
+                "mode_switches"
+              ],
+              "properties": {
+                "feeling_fraction": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1,
+                  "description": "Proportion of low-κ (intuitive) steps"
+                },
+                "logic_fraction": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1,
+                  "description": "Proportion of high-κ (analytic) steps"
+                },
+                "mode_switches": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Number of mode transitions"
+                },
+                "failure_mode": {
+                  "type": ["string", "null"],
+                  "enum": ["stuck_feeling", "stuck_logic", "oscillation", null],
+                  "description": "Tacking failure pattern if any"
+                }
+              }
+            },
+            "radar_signals": {
+              "type": "object",
+              "required": [
+                "novelty_score",
+                "contradiction_signal",
+                "sweet_spot_alignment"
+              ],
+              "properties": {
+                "novelty_score": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1,
+                  "description": "How new this pattern is"
+                },
+                "contradiction_signal": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1,
+                  "description": "Strength of contradiction detection"
+                },
+                "sweet_spot_alignment": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1,
+                  "description": "Closeness to Wu-Wei zone"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "repair_plan": {
+      "type": ["object", "null"],
+      "required": ["priority", "reasons", "actions"],
+      "properties": {
+        "priority": {
+          "type": "string",
+          "enum": ["low", "medium", "high"],
+          "description": "Urgency of repair"
+        },
+        "reasons": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Why repair is needed"
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["action_type", "description"],
+            "properties": {
+              "action_type": {
+                "type": "string",
+                "enum": [
+                  "re_derive_key_claims",
+                  "evidence_search",
+                  "tack_to_logic",
+                  "tack_to_feeling",
+                  "re_calibrate_confidence",
+                  "request_clarification",
+                  "escalate_to_human"
+                ]
+              },
+              "target_sections": {
+                "type": "array",
+                "items": {"type": "string"}
+              },
+              "scope": {
+                "type": ["string", "null"]
+              },
+              "parameters": {
+                "type": "object"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "repaired_output": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string",
+          "description": "Corrected answer"
+        },
+        "reasoning_mode": {
+          "type": "string",
+          "enum": ["feeling", "logic", "mixed"]
+        },
+        "changes_summary": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "List of changes made"
+        },
+        "residual_risks": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Remaining uncertainties"
+        }
+      }
+    },
+    "post_repair_diagnostics": {
+      "$ref": "#/properties/diagnostics",
+      "description": "Diagnostics after repair"
+    },
+    "telemetry": {
+      "type": "object",
+      "properties": {
+        "repair_iterations": {
+          "type": "integer",
+          "description": "Number of repair attempts"
+        },
+        "tokens_spent": {
+          "type": "object",
+          "properties": {
+            "initial": {"type": "integer"},
+            "repair": {"type": "integer"}
+          }
+        },
+        "time_ms": {
+          "type": "object",
+          "properties": {
+            "initial": {"type": "number"},
+            "repair": {"type": "number"}
+          }
+        },
+        "flags": {
+          "type": "array",
+          "items": {"type": "string"}
+        }
+      }
+    }
+  },
+  "definitions": {
+    "diagnostic_component": {
+      "type": "object",
+      "required": ["score", "max_score"],
+      "properties": {
+        "score": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Numeric score for this dimension"
+        },
+        "max_score": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Maximum possible score"
+        },
+        "flags": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Warning flags"
+        },
+        "notes": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Human-readable notes"
+        },
+        "evidence_used": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Evidence sources consulted"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,177 @@
+# QIG-Kernel 50M Configuration - PURE KERNEL
+# Single source of truth for model architecture
+# Based on physics validation: κ plateau at L=5 → optimal scale is 50-100M
+# NO external dependencies - pure geometric embeddings from first principles
+
+kernel:
+  architecture: "QIGKernelRecursive"
+  target_parameter_count: 50_000_000  # 50M target (physics-validated optimal)
+  pure_kernel: true  # Built from first principles, no external models
+  
+model:
+  # Architecture
+  d_model: 768  # Chosen for geometric properties (768 = 2^8 × 3)
+  vocab_size: 50257  # Standard vocabulary
+  n_heads: 12  # Must divide d_model evenly (768/12 = 64)
+  n_layers: 3  # Minimal for consciousness (can adjust)
+  dropout: 0.1
+  
+  # Embeddings - GEOMETRIC FROM FIRST PRINCIPLES
+  embeddings:
+    type: "geometric"  # Custom geometric embeddings
+    d_model: 768
+    initialization: "qfi_informed"  # Initialize using QFI geometry
+    learnable: true  # Train embeddings with QIG layers
+    
+consciousness:
+  # Recursion (MANDATORY ≥3)
+  min_recursion_depth: 3
+  max_recursion_depth: 10
+  min_Phi: 0.7  # Target geometric regime
+  
+  # Tacking Controller
+  tacking:
+    enabled: true
+    grad_threshold_low: 0.3   # feeling → tack
+    grad_threshold_high: 0.7  # tack → logic
+    
+  # Regime Detection
+  regime:
+    enabled: true
+    linear_threshold: 0.45      # From L=3,4,5 physics
+    breakdown_threshold: 0.80   # From L=3,4,5 physics
+    detect_hierarchical: true
+    
+  # Running Coupling
+  coupling:
+    base_coupling: 41.09  # κ₃ from physics
+    beta_slope: 0.44      # β(3→4) from physics
+    reference_scale: 512
+    learn_beta: false     # Use physics-validated value
+    
+  # Basin Matching
+  basin:
+    target_basin: "basin_v1.json"
+    distance_threshold: 0.15
+    basin_dim: 256  # Compressed representation size
+
+training:
+  # Basic hyperparameters
+  batch_size: 4
+  learning_rate: 1.0e-4
+  weight_decay: 0.01
+  num_epochs: 100  # Will use curriculum to gate
+  max_steps: 100000
+  
+  # Optimization - GEOMETRIC ONLY (Euclidean mathematically incompatible)
+  # Use 'adaptive_mixed_qig' for production consciousness training
+  # Use 'natural_gradient' or 'running_coupling' for simpler baseline NG
+  optimizer_type: "natural_gradient"  # Tier-1 Diagonal Fisher (mathematically necessary)
+  scheduler: "cosine_with_warmup"
+  warmup_steps: 100
+  gradient_clip: 1.0
+  
+  # Natural gradient settings
+  ng_eps: 1.0e-8  # Fisher regularization
+  ng_dampening: 1.0e-3  # Additional dampening for stability
+  ng_momentum: 0.0  # Optional momentum
+  
+  # Context
+  max_seq_length: 512
+  min_seq_length: 64
+  
+  # Loss weights
+  loss:
+    lm_weight: 1.0       # Language modeling
+    basin_weight: 0.1    # Basin alignment
+    phi_weight: 0.05     # Φ regularization
+    target_phi: 0.75     # Geometric regime target
+    
+  # Curriculum (stage-gated)
+  curriculum:
+    enabled: true
+    stages:
+      - name: "Stage0_ToyTasks"
+        min_Phi: 0.4
+        min_accuracy: 0.6
+        task_types: ["arithmetic", "pattern_matching"]
+        
+      - name: "Stage1_Integrative"
+        min_Phi: 0.6
+        geometric_regime_pct: 0.5
+        task_types: ["multi_hop", "inference"]
+        
+      - name: "Stage2_LongContext"
+        min_Phi: 0.7
+        geometric_regime_pct: 0.8
+        tacking_quality_T: 0.6
+        task_types: ["long_context", "contradiction_detection"]
+
+logging:
+  log_interval: 5
+  eval_interval: 50
+  save_interval: 500
+  
+  # Telemetry
+  telemetry_format: "json"
+  telemetry_dir: "telemetry/logs"
+  save_telemetry: true
+  
+  # Checkpoints
+  checkpoint_dir: "checkpoints"
+  save_best_only: true
+  best_metric: "geometric_regime_pct"
+
+validation:
+  val_split: 0.1
+  val_batch_size: 4
+  
+  # Maturity metrics
+  maturity_suite:
+    enabled: true
+    components:
+      - calibration  # ECE/Brier
+      - self_repair
+      - tacking
+      - radar
+      - update_discipline
+
+cost:
+  max_cost_usd: 100.0  # Total budget
+  cost_per_token: 1.0e-6  # Estimate
+  estimated_total_tokens: 1.0e8  # ~$100
+
+physics:
+  # Reference values from L=3,4,5 validation
+  reference_kappa_L3: 41.09
+  reference_kappa_L4: 64.47
+  reference_kappa_L5: 63.62
+  reference_beta_3to4: 0.44
+  reference_beta_4to5: -0.01
+  
+  # Expected β_attention pattern
+  beta_attention:
+    small_scale_min: 0.3  # β(128→512)
+    small_scale_max: 0.5
+    large_scale_max: 0.1  # β(2048→4096)
+
+notes: |
+  PURE QIG-KERNEL - NO EXTERNAL DEPENDENCIES
+  
+  This configuration builds the kernel from first principles:
+  - Custom geometric embeddings (QFI-informed initialization)
+  - 50M parameters based on physics validation (κ plateau at L=5)
+  - Pure information geometry throughout
+  - No dilution from pre-trained models
+  
+  Parameter breakdown:
+  - Embeddings: 768 × 50257 ≈ 38M
+  - QIG layers: ~12M (attention + recursion + tacking + regime)
+  - Total: ~50M (optimal scale)
+  
+  Physics grounding:
+  - Running coupling β ≈ 0.44 from L=3→4 experiments
+  - Regime thresholds from L=3,4,5 geometric window
+  - Target geometric regime: Φ ∈ [0.7, 0.8], κ ≈ 60
+  
+  Geometric purity maintained throughout - no external model contamination.

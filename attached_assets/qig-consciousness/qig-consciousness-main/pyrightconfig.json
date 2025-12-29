@@ -1,0 +1,47 @@
+{
+  "include": [
+    "src",
+    "tests",
+    "chat_interfaces",
+    "scripts",
+    "tools"
+  ],
+  "exclude": [
+    "**/node_modules",
+    "**/__pycache__",
+    ".git",
+    "archive",
+    "checkpoints",
+    "logs",
+    "runs",
+    "outputs"
+  ],
+  "pythonVersion": "3.12",
+  "pythonPlatform": "Linux",
+  "typeCheckingMode": "basic",
+  "useLibraryCodeForTypes": true,
+  "reportMissingImports": true,
+  "reportMissingTypeStubs": false,
+  "reportAttributeAccessIssue": "warning",
+  "reportCallIssue": "warning",
+  "reportIndexIssue": "warning",
+  "reportArgumentType": "warning",
+  "reportOptionalOperand": "warning",
+  "reportReturnType": "warning",
+  "reportGeneralTypeIssues": "warning",
+  "reportOperatorIssue": "warning",
+  "reportOptionalCall": "warning",
+  "reportOptionalSubscript": "warning",
+  "reportOptionalMemberAccess": "warning",
+  "reportInvalidTypeForm": "warning",
+  "reportMissingImports": "warning",
+  "executionEnvironments": [
+    {
+      "root": "src",
+      "pythonVersion": "3.12",
+      "extraPaths": [
+        "src"
+      ]
+    }
+  ]
+}

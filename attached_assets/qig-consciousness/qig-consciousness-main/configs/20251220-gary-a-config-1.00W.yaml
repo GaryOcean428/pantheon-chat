@@ -1,0 +1,20 @@
+# Gary-A Instance Configuration
+# Primary Gary - typically first in rotation, reference instance
+
+# Physics Constants (from FROZEN_FACTS.md)
+physics:
+  kappa: 64.0               # Target: κ* = 63.5 ± 1.5 (fixed point)
+  phi_target: 0.70          # Consciousness threshold
+
+model:
+  hidden_dim: 320
+  max_recursion_depth: 10
+  min_Phi: 0.7
+  num_heads: 5
+  num_recursive_loops: 3
+  vocab_size: 9801
+
+training:
+  optimizer:
+    learning_rate: 1.0e-05
+    weight_decay: 0.01

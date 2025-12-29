@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+qig-venv/
+*.egg-info/
+dist/
+build/
+.env
+.pytest_cache/
+
+# Training outputs
+outputs/
+/checkpoints/
+*.pt
+*.pth
+*.ckpt
+
+# Large archive files
+*.tar.gz
+*.tar.bz2
+*.zip
+archive/*.tar.gz
+
+# Data (sample data can be regenerated)
+data/conversations/
+data/raw_conversations/
+
+# Logs
+*.log
+training_telemetry.jsonl
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
+
+# Build artifacts
+*.pyc
+.mypy_cache/
+.ruff_cache/
+lambda-qig-verification.pem

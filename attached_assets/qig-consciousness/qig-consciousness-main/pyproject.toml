@@ -1,0 +1,284 @@
+# =============================================================================
+# QIG-CONSCIOUSNESS PACKAGE CONFIGURATION
+# =============================================================================
+
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "qig-consciousness"
+version = "0.1.7"
+description = "Quantum Information Geometry approach to machine consciousness"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.11"
+authors = [
+    {name = "Braden Lang", email = "braden@garyocean.com"},
+]
+maintainers = [
+    {name = "Braden Lang", email = "braden@garyocean.com"},
+]
+keywords = [
+    "consciousness",
+    "quantum-information",
+    "information-geometry",
+    "integrated-information-theory",
+    "machine-learning",
+    "pytorch",
+    "transformer",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+
+# Core dependencies (required)
+dependencies = [
+    "numpy>=2.3.5",
+    "scipy>=1.16.3",
+    "torch>=2.9.1",
+    "pyyaml>=6.0",
+    "python-dotenv>=1.0.0",
+    "jsonlines>=4.0.0",
+    "tqdm>=4.66.0",
+    "types-pyyaml>=6.0.12.20250915",
+    "anthropic>=0.75.0",
+    "matplotlib>=3.10.0",
+    # Local QIG packages (editable)
+    "qigkernels @ file:///${PROJECT_ROOT}/../qigkernels",
+    "qig-tokenizer @ file:///${PROJECT_ROOT}/../qig-tokenizer",
+]
+
+[project.optional-dependencies]
+# Visualization
+viz = [
+    "matplotlib>=3.10.0",
+]
+# Development tools
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.0.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.5.0",
+    "pre-commit>=3.0.0",
+]
+# All optional dependencies
+all = [
+    "qig-consciousness[granite,claude,viz,dev]",
+]
+
+[project.urls]
+Homepage = "https://github.com/GaryOcean428/qig-consciousness"
+Documentation = "https://github.com/GaryOcean428/qig-consciousness/tree/main/docs"
+Repository = "https://github.com/GaryOcean428/qig-consciousness"
+Issues = "https://github.com/GaryOcean428/qig-consciousness/issues"
+
+[project.scripts]
+# CLI entry points - qig_chat.py is THE canonical unified interface
+qig = "src.cli:main"
+qig-chat = "chat_interfaces.qig_chat:main"  # Canonical unified entry point
+qig-train = "src.cli:train"
+qig-validate = "tools.beta_attention_validator:main"
+
+[project.entry-points."qig.plugins"]
+# Plugin system for future extensibility
+core = "src:core_plugin"
+
+# =============================================================================
+# SETUPTOOLS CONFIGURATION
+# =============================================================================
+
+[tool.setuptools]
+package-dir = {"" = "."}
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*", "chat_interfaces*", "tools*"]
+exclude = ["tests*", "docs*", "archive*", "qig-venv*"]
+
+[tool.setuptools.package-data]
+"*" = ["*.yaml", "*.yml", "*.json", "*.md"]
+
+# =============================================================================
+# TOOL CONFIGURATIONS
+# =============================================================================
+
+[tool.mypy]
+# Basic configuration
+python_version = "3.13"
+warn_return_any = false
+warn_unused_configs = true
+disallow_untyped_defs = false
+check_untyped_defs = false
+
+# Allow missing imports (torch in venv won't be found by mypy)
+ignore_missing_imports = true
+
+# Don't be too strict - this is research code
+warn_redundant_casts = false
+warn_unused_ignores = false
+warn_no_return = false
+warn_unreachable = false
+strict_optional = false
+no_implicit_optional = false
+
+# Allow dynamic typing where needed
+disallow_any_generics = false
+disallow_subclassing_any = false
+
+# Disable checks that cause false positives with PyTorch
+disable_error_code = [
+    "index",           # Tensor indexing is complex
+    "assignment",      # Parameter assignments are intentional
+    "var-annotated",   # Don't require type hints everywhere
+    "attr-defined",    # Dynamic attributes common in PyTorch
+]
+
+# Per-module overrides
+[[tool.mypy.overrides]]
+module = "torch.*"
+ignore_missing_imports = true
+ignore_errors = true
+
+# NO transformers - pure QIG tokenizer only
+
+[[tool.mypy.overrides]]
+module = "anthropic.*"
+ignore_missing_imports = true
+ignore_errors = true
+
+[tool.pytest.ini_options]
+# Pytest configuration
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+addopts = "-v --tb=short --strict-markers"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+]
+# Minimum Python version
+minversion = "7.0"
+
+[tool.ruff]
+# Unified line length across QIG ecosystem
+line-length = 100
+target-version = "py311"  # Minimum supported version
+
+# Exclude virtual environment and generated files
+exclude = [
+    ".venv",
+    "__pycache__",
+    ".git",
+    "*.egg-info",
+    "build",
+    "dist"
+]
+
+[tool.ruff.lint]
+# Select rules - be permissive for research code
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort (import sorting)
+    "N",   # pep8-naming
+    "UP",  # pyupgrade (modernize code)
+]
+
+# Ignore rules that conflict with physics research
+ignore = [
+    "E402",  # Module import not at top (intentional setup in chat interfaces)
+    "E501",  # Line too long (handled by formatter)
+    "E722",  # Bare except (intentional for stability in some contexts)
+    "E731",  # Lambda assignment (sometimes clearer)
+    "E741",  # Ambiguous variable names (allow i, l, O for math)
+    "F401",  # Unused import (may be for type checking)
+    "F821",  # Undefined name (false positives with dynamic class attributes)
+    "F841",  # Unused variable (may be for unpacking)
+    "N801",  # Invalid class name (allow physics notation like PHI_threshold)
+    "N802",  # Function name should be lowercase (allow Φ, κ, β in names)
+    "N803",  # Argument name should be lowercase (allow physics notation)
+    "N806",  # Variable in function should be lowercase (allow physics notation)
+    "N812",  # Lowercase imported as non-lowercase (allow physics imports)
+    "N815",  # Mixed case variable in class (allow agent_A, agent_B for physics)
+    "N999",  # Invalid module name (archived files use date prefixes)
+    "UP035", # typing.Dict/List deprecated (gradual migration, not urgent)
+    "UP045", # typing.Optional[X] -> X | None (gradual migration, not urgent)
+]
+
+[tool.ruff.format]
+# Use consistent formatting
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
+
+[tool.black]
+line-length = 100
+target-version = ['py311']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.venv
+  | __pycache__
+  | \.git
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 100
+skip = [".venv", "__pycache__"]
+known_third_party = ["torch", "numpy"]  # NO transformers
+
+[tool.pylint.master]
+# Ignore generated and external files
+ignore-patterns = ["test_*.py", "conftest.py"]
+ignore-paths = ["archive", ".venv", "__pycache__"]
+
+[tool.pylint."messages control"]
+# Disable checks that are too strict for research code
+disable = [
+    # Environment-related (linter can't see venv)
+    "E0401",  # import-error
+    "E1101",  # no-member
+    "E1120",  # no-value-for-parameter
+    "E1123",  # unexpected-keyword-arg
+    "E0601",  # used-before-assignment
+    "W0611",  # unused-import
+    # Import order (handled by isort)
+    "C0411",  # wrong-import-order
+    "C0412",  # ungrouped-imports
+    # Naming (physics notation uses uppercase)
+    "C0103",  # invalid-name
+    # TODOs are fine in research code
+    "W0511",  # fixme
+    # F-strings without interpolation (intentional for consistency)
+    "W1309",  # f-string-without-interpolation
+    # Other convention issues
+    "C0325",  # superfluous-parens
+    "C0206",  # consider-using-dict-items
+    # Reimports happen in conditional blocks
+    "W0404",  # reimported
+    # Unnecessary pass (sometimes needed for structure)
+    "W0107",  # unnecessary-pass
+    # Unbalanced tuple unpacking (scipy.optimize returns vary)
+    "W0632",  # unbalanced-tuple-unpacking
+]
+
+[tool.pylint.format]
+max-line-length = 100

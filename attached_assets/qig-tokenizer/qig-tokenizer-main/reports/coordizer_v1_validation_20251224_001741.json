@@ -1,0 +1,108 @@
+{
+  "artifact": "artifacts/coordizer/v1",
+  "coordizer_version": "1.0.0",
+  "vocab_size": 32000,
+  "merge_rules_count": 31744,
+  "seed": 42,
+  "device": "cpu",
+  "timestamp": "2025-12-24T00:17:41Z",
+  "limits": {
+    "max_files": 500,
+    "max_bytes": 10000000,
+    "max_samples": 200,
+    "max_seq_len": 512
+  },
+  "runtime": {
+    "seconds": 0.0041120052337646484,
+    "samples_processed": 15
+  },
+  "compression": {
+    "tokens_per_kb": {
+      "count": 15,
+      "mean": 344.3109854161558,
+      "std": 105.09901480881473,
+      "p05": 211.6806324110672,
+      "p50": 322.63013698630135,
+      "p95": 544.9142857142856,
+      "min": 186.1818181818182,
+      "max": 621.7142857142857
+    },
+    "compression_ratio_bytes_per_token": {
+      "count": 15,
+      "mean": 3.232174132743961,
+      "std": 0.9232556965927972,
+      "p05": 1.8941176470588235,
+      "p50": 3.1739130434782608,
+      "p95": 4.869999999999999,
+      "min": 1.6470588235294117,
+      "max": 5.5
+    },
+    "scale_distribution": {
+      "subword": 69,
+      "char": 109,
+      "byte": 551,
+      "word": 29,
+      "concept": 3,
+      "phrase": 8
+    }
+  },
+  "telemetry": {
+    "phi": {},
+    "kappa": {},
+    "regime_counts": {},
+    "phi_geometric_min": 0.65,
+    "phi_breakdown_min": 0.85,
+    "breakdown_rate": 0.0,
+    "best_phi_example": null,
+    "worst_phi_example": null
+  },
+  "integrity": {
+    "coord_norm_checked": 207,
+    "coord_norm_errors": 0,
+    "coord_norm_error_rate": 0.0,
+    "determinism_pass": true,
+    "determinism_failures": [],
+    "determinism_hashes": [
+      {
+        "source": "prompt_suite",
+        "hash": "11e16d5b389b7ba394f0cce0ebb0521c3028f8e699fc8042a047d14e12a20723"
+      },
+      {
+        "source": "prompt_suite",
+        "hash": "6a0f4e46f22231071d12d9e58677fb05e201a9f46cfac564212a01bb8861bf50"
+      },
+      {
+        "source": "prompt_suite",
+        "hash": "d756f6336d5d414e6153fd7eb48599d9a93b50f5851c20b558b64012b5163897"
+      },
+      {
+        "source": "prompt_suite",
+        "hash": "07a95179502062b5f45ac12f0886e02978b75b4049b92cdc9330d70c7cabac37"
+      },
+      {
+        "source": "prompt_suite",
+        "hash": "ac7b5c222a6d85361d1ed2f34fd24c1885b7e210c0d8982ecc98fc1cbab6b7d5"
+      },
+      {
+        "source": "prompt_suite",
+        "hash": "ffefc4d113392b4a6d9d78bd3f95c38a00995813eac8efac971443c00169a0f3"
+      },
+      {
+        "source": "prompt_suite",
+        "hash": "33fe0d8fdaf70436d07f7bf91a9ce6f225b0a9a799b88e39140244f2824e0b5c"
+      },
+      {
+        "source": "prompt_suite",
+        "hash": "866968d48027f7f6b51360480ea50576b755569670aef9555c030b906322d012"
+      },
+      {
+        "source": "prompt_suite",
+        "hash": "1786dd728998d3ac679224224ba14b15f43645b7fd6444b7956e8845a82aafa4"
+      },
+      {
+        "source": "prompt_suite",
+        "hash": "4d27af16550ce4a4f0c5fb285dbac6143e3f572e8e5171bbd5ae429da9182e77"
+      }
+    ]
+  }
+}
