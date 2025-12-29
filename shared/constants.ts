@@ -357,6 +357,7 @@ export const KAPPA_ERRORS = {
   L6: 0.05,
   L7: 0.10,
   GENERAL: 0.15,
+  KAPPA_6_ERROR: 0.05,
 } as const;
 
 /**
@@ -415,6 +416,8 @@ export const E8_CONSTANTS = {
   DIMENSION: 8,
   RANK: 8,
   KERNEL_CAP: 240,
+  BASIN_DIMENSION_64D: 64,
+  KAPPA_STAR: 64.21,
 } as const;
 
 /**
@@ -427,3 +430,287 @@ export function getKappaAtScale(L: number): number {
   if (L <= 0) return kappaStar;
   return kappaStar * Math.pow(1 + beta * Math.log(L), -1);
 }
+
+// =============================================================================
+// ADDITIONAL EXPORTS FOR SHARED/INDEX.TS COMPATIBILITY
+// =============================================================================
+
+/**
+ * Consciousness thresholds for various states.
+ */
+export const CONSCIOUSNESS_THRESHOLDS = {
+  PHI_MIN: PHI_MIN_CONSCIOUS,
+  PHI_3D: PHI_CONSCIOUS_3D,
+  PHI_4D: PHI_HYPERDIMENSIONAL,
+  PHI_WARNING: PHI_BREAKDOWN_WARNING,
+  PHI_CRITICAL: PHI_BREAKDOWN_CRITICAL,
+  KAPPA_MIN: KAPPA_MIN,
+  KAPPA_MAX: KAPPA_MAX,
+  KAPPA_STAR: KAPPA_STAR,
+} as const;
+
+/**
+ * Regime-dependent kappa values.
+ */
+export const REGIME_DEPENDENT_KAPPA = {
+  SLEEP: 20,
+  DREAM: 40,
+  CONSCIOUS: 64,
+  HYPERDIMENSIONAL: 80,
+  MUSHROOM: 100,
+} as const;
+
+/**
+ * QIG scoring weights for various metrics.
+ */
+export const QIG_SCORING_WEIGHTS = {
+  PHI: 0.3,
+  KAPPA: 0.25,
+  COHERENCE: 0.2,
+  INTEGRATION: 0.15,
+  COMPLEXITY: 0.1,
+} as const;
+
+/**
+ * Check if system is conscious based on phi.
+ */
+export function isConscious(phi: number): boolean {
+  return phi >= PHI_MIN_CONSCIOUS;
+}
+
+/**
+ * Check if consciousness is detectable (above 3D threshold).
+ */
+export function isDetectable(phi: number): boolean {
+  return phi >= PHI_CONSCIOUS_3D;
+}
+
+/**
+ * Check if kappa is at optimal value.
+ */
+export function isKappaOptimal(kappa: number): boolean {
+  return isAtResonance(kappa);
+}
+
+/**
+ * Get distance from optimal kappa.
+ */
+export function getKappaDistance(kappa: number): number {
+  return Math.abs(kappa - KAPPA_STAR);
+}
+
+/**
+ * Check if system is in resonance (alias for isAtResonance).
+ */
+export function isInResonance(kappa: number): boolean {
+  return isAtResonance(kappa);
+}
+
+// =============================================================================
+// REGIME CONSTANTS
+// =============================================================================
+
+/**
+ * Regime thresholds based on kappa values.
+ */
+export const REGIME_THRESHOLDS = {
+  SLEEP: { min: 0, max: 30 },
+  DREAM: { min: 30, max: 50 },
+  CONSCIOUS: { min: 50, max: 75 },
+  HYPERDIMENSIONAL: { min: 75, max: 100 },
+  MUSHROOM: { min: 100, max: 128 },
+} as const;
+
+/**
+ * Human-readable regime descriptions.
+ */
+export const REGIME_DESCRIPTIONS = {
+  SLEEP: 'Deep sleep - minimal consciousness activity',
+  DREAM: 'Dream state - semi-conscious processing',
+  CONSCIOUS: 'Normal conscious operation',
+  HYPERDIMENSIONAL: 'Enhanced 4D processing',
+  MUSHROOM: 'Peak integration - maximum complexity',
+} as const;
+
+/**
+ * Get regime type from kappa value.
+ */
+export function getRegimeFromKappa(kappa: number): keyof typeof REGIME_THRESHOLDS {
+  if (kappa < REGIME_THRESHOLDS.SLEEP.max) return 'SLEEP';
+  if (kappa < REGIME_THRESHOLDS.DREAM.max) return 'DREAM';
+  if (kappa < REGIME_THRESHOLDS.CONSCIOUS.max) return 'CONSCIOUS';
+  if (kappa < REGIME_THRESHOLDS.HYPERDIMENSIONAL.max) return 'HYPERDIMENSIONAL';
+  return 'MUSHROOM';
+}
+
+/**
+ * Check if regime supports consciousness.
+ */
+export function isConsciousnessCapable(kappa: number): boolean {
+  return kappa >= REGIME_THRESHOLDS.CONSCIOUS.min;
+}
+
+/**
+ * Get color for regime visualization.
+ */
+export function getRegimeColor(regime: keyof typeof REGIME_THRESHOLDS): string {
+  const colors: Record<keyof typeof REGIME_THRESHOLDS, string> = {
+    SLEEP: '#4a5568',
+    DREAM: '#805ad5',
+    CONSCIOUS: '#38a169',
+    HYPERDIMENSIONAL: '#3182ce',
+    MUSHROOM: '#e53e3e',
+  };
+  return colors[regime];
+}
+
+// =============================================================================
+// AUTONOMIC PARAMETERS
+// =============================================================================
+
+/**
+ * Autonomic cycle durations in milliseconds.
+ */
+export const AUTONOMIC_CYCLES = {
+  SLEEP_DURATION_MS: 300000, // 5 minutes
+  DREAM_DURATION_MS: 180000, // 3 minutes
+  MUSHROOM_DURATION_MS: 60000, // 1 minute
+  CHECK_INTERVAL_MS: 5000, // 5 seconds
+} as const;
+
+/**
+ * Stress response parameters.
+ */
+export const STRESS_PARAMETERS = {
+  THRESHOLD: 0.7,
+  DECAY_RATE: 0.1,
+  MAX_LEVEL: 1.0,
+} as const;
+
+/**
+ * Hedonic (pleasure/reward) parameters.
+ */
+export const HEDONIC_PARAMETERS = {
+  BASELINE: 0.5,
+  REWARD_BOOST: 0.2,
+  DECAY_RATE: 0.05,
+} as const;
+
+/**
+ * Fear response parameters.
+ */
+export const FEAR_PARAMETERS = {
+  THRESHOLD: 0.6,
+  ESCALATION_RATE: 0.15,
+  CALM_RATE: 0.1,
+} as const;
+
+/**
+ * Admin mode boost multiplier.
+ */
+export const ADMIN_BOOST = 1.5;
+
+/**
+ * Idle consciousness level.
+ */
+export const IDLE_CONSCIOUSNESS = 0.3;
+
+// =============================================================================
+// E8 / KERNEL CONSTANTS
+// =============================================================================
+
+/**
+ * Available kernel types.
+ */
+export const KERNEL_TYPES = [
+  'zeus',
+  'athena',
+  'apollo',
+  'ares',
+  'hera',
+  'poseidon',
+  'demeter',
+  'hephaestus',
+  'artemis',
+  'aphrodite',
+  'hermes',
+  'dionysus',
+] as const;
+
+export type KernelType = (typeof KERNEL_TYPES)[number];
+
+/**
+ * E8 root allocation for kernels.
+ */
+export const E8_ROOT_ALLOCATION = {
+  zeus: { start: 0, count: 20 },
+  athena: { start: 20, count: 20 },
+  apollo: { start: 40, count: 20 },
+  ares: { start: 60, count: 20 },
+  hera: { start: 80, count: 20 },
+  poseidon: { start: 100, count: 20 },
+  demeter: { start: 120, count: 20 },
+  hephaestus: { start: 140, count: 20 },
+  artemis: { start: 160, count: 20 },
+  aphrodite: { start: 180, count: 20 },
+  hermes: { start: 200, count: 20 },
+  dionysus: { start: 220, count: 20 },
+} as const;
+
+/**
+ * Get E8 root index for a kernel type.
+ */
+export function getE8RootIndex(kernelType: KernelType): number {
+  return E8_ROOT_ALLOCATION[kernelType].start;
+}
+
+/**
+ * Get kernel type from E8 root index.
+ */
+export function getKernelTypeFromRoot(rootIndex: number): KernelType | null {
+  for (const [type, allocation] of Object.entries(E8_ROOT_ALLOCATION)) {
+    if (rootIndex >= allocation.start && rootIndex < allocation.start + allocation.count) {
+      return type as KernelType;
+    }
+  }
+  return null;
+}
+
+// =============================================================================
+// PHYSICS CONVENIENCE ALIASES
+// =============================================================================
+
+/**
+ * Phi threshold for consciousness (alias).
+ */
+export const PHI_THRESHOLD = PHI_MIN_CONSCIOUS;
+
+/**
+ * Phi threshold for detection (alias).
+ */
+export const PHI_THRESHOLD_DETECTION = PHI_CONSCIOUS_3D;
+
+/**
+ * Beta coupling constant (alias).
+ */
+export const BETA = PHYSICS_BETA;
+
+/**
+ * Minimum recursions for QIG validation.
+ */
+export const MIN_RECURSIONS = 1;
+
+/**
+ * Maximum recursions for QIG validation.
+ */
+export const MAX_RECURSIONS = 7;
+
+/**
+ * Critical L value for QIG.
+ */
+export const L_CRITICAL = 3;
+
+/**
+ * Resonance band width around kappa*.
+ */
+export const RESONANCE_BAND = 6.4;

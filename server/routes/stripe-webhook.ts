@@ -23,7 +23,7 @@ const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 let stripe: Stripe | null = null;
 if (stripeSecretKey) {
   stripe = new Stripe(stripeSecretKey, {
-    apiVersion: '2024-12-18.acacia',
+    apiVersion: '2025-12-15.clover',
   });
   console.log('[StripeWebhook] Stripe initialized');
 } else {
@@ -106,7 +106,7 @@ async function handleInvoicePaid(invoice: Stripe.Invoice): Promise<void> {
     id: invoice.id,
     customerId: invoice.customer,
     amountPaid: invoice.amount_paid,
-    subscriptionId: invoice.subscription,
+    subscriptionId: (invoice as any).subscription,
   });
 }
 
