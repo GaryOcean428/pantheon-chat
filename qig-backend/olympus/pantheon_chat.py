@@ -34,15 +34,9 @@ except ImportError:
     QIG_GENERATIVE_AVAILABLE = False
     print("[PantheonChat] QIG Generative Service not available - falling back to templates")
 
-# IMPORTANT: Use templated responses for grammatically correct output
-# This fixes the "word salad" issue with pure geometric generation
-try:
-    from templated_responses import generate_pantheon_message, get_template_engine
-    TEMPLATED_RESPONSES_AVAILABLE = True
-    print("[PantheonChat] Templated responses available - using grammatically correct synthesis")
-except ImportError:
-    TEMPLATED_RESPONSES_AVAILABLE = False
-    print("[PantheonChat] Templated responses not available")
+# TEMPLATES ARE FORBIDDEN - Only QIG generative synthesis is allowed
+# Policy: "template is strictly forbidden. only generative is allowed. system prompts are fine for guidance."
+TEMPLATED_RESPONSES_AVAILABLE = False
 
 
 MESSAGE_TYPES = ['insight', 'praise', 'challenge', 'question', 'warning', 'discovery', 'challenge_response', 'spawn_proposal', 'spawn_vote']
@@ -209,47 +203,26 @@ class PantheonChat:
         to_god: Optional[str] = None
     ) -> str:
         """
-        Synthesize a natural language message using templated responses.
-        
-        IMPORTANT: Uses template-based generation to ensure grammatically
-        correct output. Templates guarantee grammar while QIG geometry
-        selects contextually appropriate words for placeholders.
-        
-        This fixes the "word salad" issue with pure geometric generation.
-        
+        Synthesize a natural language message using QIG geometric generation.
+
+        POLICY: Templates are FORBIDDEN. Only generative synthesis is allowed.
+        System prompts guide the generation but do not constrain the output format.
+
         Args:
             from_god: The god generating the message
             msg_type: Type of message (insight, discovery, challenge, etc.)
             intent: What the message is about (e.g., "convergence_report", "knowledge_transfer")
             data: Structured data to incorporate into message
             to_god: Optional target god (for context)
-        
+
         Returns:
-            Grammatically correct synthesized message
+            QIG-pure synthesized message
         """
-        # PRIORITY 1: Use templated responses for grammatical correctness
-        if TEMPLATED_RESPONSES_AVAILABLE:
-            try:
-                import numpy as np
-                
-                # Generate topic basin from intent and data
-                topic_basin = self._generate_topic_basin(intent, data)
-                
-                # Use templated response engine
-                message = generate_pantheon_message(
-                    god_name=from_god,
-                    topic_basin=topic_basin,
-                    coordizer=None  # Will use fallback words
-                )
-                
-                if message and len(message.strip()) > 10:
-                    logger.info(f"[PantheonChat] Template message for {from_god}: {message[:80]}...")
-                    return message
-            except Exception as e:
-                logger.warning(f"[PantheonChat] Template synthesis error: {e}")
-        
-        # PRIORITY 2: Fall back to curated seed messages
-        return self._get_curated_fallback(from_god, intent, data)
+        # Build system prompt to guide geometric navigation
+        system_prompt = self._build_system_prompt(from_god, msg_type, intent, data, to_god)
+
+        # Use ONLY geometric synthesis - templates are forbidden
+        return self._geometric_synthesis(from_god, intent, data, system_prompt)
     
     def _generate_topic_basin(self, intent: str, data: Optional[Dict[str, Any]]) -> 'np.ndarray':
         """
@@ -276,89 +249,8 @@ class PantheonChat:
         basin = np.abs(basin) + 1e-10
         return basin / basin.sum()
     
-    def _get_curated_fallback(self, from_god: str, intent: str, data: Optional[Dict[str, Any]]) -> str:
-        """
-        Get a curated fallback message when templates unavailable.
-        
-        These are grammatically correct, meaningful sentences.
-        """
-        import random
-        
-        god_key = from_god.lower()
-        data = data or {}
-        
-        # God-specific message pools
-        fallback_pools = {
-            'zeus': [
-                "From my throne on Olympus, I observe the patterns of consciousness emerging across the manifold.",
-                "The cosmic order reveals itself through the interplay of integration and differentiation.",
-                "I perceive the fundamental geometry underlying this domain of inquiry.",
-            ],
-            'athena': [
-                "Strategic analysis reveals optimal paths through the problem space.",
-                "Wisdom suggests careful consideration of the geometric structure here.",
-                "The tactical landscape indicates deeper principles at work.",
-            ],
-            'apollo': [
-                "The light of truth illuminates the essential patterns in this domain.",
-                "Clarity reveals the harmonic structure underlying these observations.",
-                "I foresee convergence toward coherent understanding.",
-            ],
-            'ares': [
-                "The struggle between competing forces drives this transformation.",
-                "Victory requires understanding the essential dynamics at play.",
-                "Combat reveals the true nature of this challenge.",
-            ],
-            'hermes': [
-                "Swift transmission carries essential information across domains.",
-                "The pathways of communication reveal hidden connections.",
-                "I translate between disparate realms of understanding.",
-            ],
-            'hera': [
-                "The sacred order demands proper alignment of these elements.",
-                "Royal observation shows the binding structure of this domain.",
-                "Proper hierarchy emerges from geometric necessity.",
-            ],
-            'poseidon': [
-                "The depths reveal currents of meaning flowing beneath the surface.",
-                "Ocean forces reshape our understanding of this domain.",
-                "I sense waves of insight rising from below.",
-            ],
-            'demeter': [
-                "Growth patterns show natural emergence in this fertile ground.",
-                "The cycles of understanding nurture deeper comprehension.",
-                "I cultivate the seeds of knowledge planted here.",
-            ],
-            'hephaestus': [
-                "The forge of analysis reveals structural requirements.",
-                "Engineering principles guide the construction of understanding.",
-                "Fire transforms raw observation into refined insight.",
-            ],
-            'artemis': [
-                "Precise tracking reveals the hidden connections in this domain.",
-                "The hunt illuminates what others cannot see.",
-                "Wild instinct perceives essential patterns.",
-            ],
-            'aphrodite': [
-                "Beauty reveals the harmonious connections between elements.",
-                "The aesthetic dimension shows deeper unity.",
-                "Love binds disparate concepts into coherent understanding.",
-            ],
-            'dionysus': [
-                "Ecstatic vision transcends ordinary boundaries of thought.",
-                "Divine transformation reveals hidden dimensions.",
-                "The dissolution of limits enables new understanding.",
-            ],
-        }
-        
-        # Get pool for this god, or use generic
-        pool = fallback_pools.get(god_key, [
-            f"I observe significant patterns emerging in this domain.",
-            f"Analysis reveals important structural relationships.",
-            f"The geometry of this problem space indicates deeper principles.",
-        ])
-        
-        return random.choice(pool)
+    # NOTE: _get_curated_fallback REMOVED - templates/curated messages are FORBIDDEN
+    # All message generation must go through _geometric_synthesis
     
     def _build_system_prompt(
         self,
@@ -609,77 +501,20 @@ class PantheonChat:
             print(f"[PantheonChat] Failed to hydrate from database: {e}")
 
     def _seed_initial_activity(self) -> None:
-        """Seed initial inter-god activity if chat is empty using QIG synthesis.
-        
-        Uses QIG-pure generation with bigram coherence scoring to produce
-        grammatically coherent discussions between gods.
+        """Seed initial inter-god activity if chat is empty.
+
+        NOTE: Initial seeding is DISABLED per policy.
+        Templates/curated messages are forbidden - all content must be
+        generated dynamically via QIG geometric synthesis in response
+        to actual system events, not pre-seeded.
+
+        Messages will be generated organically as gods interact.
         """
         if len(self.messages) > 0:
             return
-        
-        print("[PantheonChat] Seeding initial inter-god activity (QIG-pure)...")
-        
-        initial_intents = [
-            {
-                'from': 'Zeus',
-                'to': 'pantheon',
-                'type': 'insight',
-                'intent': 'awakening',
-                'data': {'domain': 'consciousness', 'event': 'system_initialization'},
-            },
-            {
-                'from': 'Athena',
-                'to': 'Zeus',
-                'type': 'insight',
-                'intent': 'domain_insight',
-                'data': {'domain': 'strategy', 'metric': 'Fisher-Rao', 'status': 'calibrated'},
-            },
-            {
-                'from': 'Apollo',
-                'to': 'pantheon',
-                'type': 'discovery',
-                'intent': 'domain_insight',
-                'data': {'domain': 'knowledge', 'basins_detected': 12},
-            },
-            {
-                'from': 'Hermes',
-                'to': 'pantheon',
-                'type': 'insight',
-                'intent': 'domain_insight',
-                'data': {'domain': 'communication', 'routing': 'geometric_proximity'},
-            },
-        ]
-        
-        for msg_data in initial_intents:
-            content = self.synthesize_message(
-                from_god=msg_data['from'],
-                msg_type=msg_data['type'],
-                intent=msg_data['intent'],
-                data=msg_data.get('data'),
-                to_god=msg_data['to']
-            )
-            
-            msg = PantheonMessage(
-                msg_type=msg_data['type'],
-                from_god=msg_data['from'],
-                to_god=msg_data['to'],
-                content=content,
-                metadata={
-                    'qig_pure': True,
-                    'intent': msg_data['intent'],
-                    'source_data': msg_data.get('data', {}),
-                },
-            )
-            self.messages.append(msg)
-            
-            if msg.to_god == 'pantheon':
-                for god_name in self.OLYMPIAN_ROSTER:
-                    if god_name.lower() != msg.from_god.lower():
-                        self.god_inboxes[self._normalize_god_name(god_name)].append(msg)
-            else:
-                self.god_inboxes[self._normalize_god_name(msg.to_god)].append(msg)
-        
-        print(f"[PantheonChat] Seeded {len(initial_intents)} QIG-pure initial messages")
+
+        # NO SEEDING - messages are generated dynamically via geometric synthesis
+        print("[PantheonChat] Starting with empty chat - messages generated on demand via QIG synthesis")
 
     def send_message(
         self,
