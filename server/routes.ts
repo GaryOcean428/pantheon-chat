@@ -802,6 +802,91 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
   });
 
   // ============================================================
+  // RESEARCH API PROXY - Forward research endpoints to Python backend
+  // ============================================================
+  app.use("/api/research", async (req: any, res, next) => {
+    try {
+      const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
+      const targetPath = req.originalUrl.replace('/api/research', '/api/research');
+      const targetUrl = `${backendUrl}${targetPath}`;
+      
+      const fetchOptions: RequestInit = {
+        method: req.method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        signal: AbortSignal.timeout(30000),
+      };
+      
+      if (req.method !== 'GET' && req.method !== 'HEAD') {
+        fetchOptions.body = JSON.stringify(req.body);
+      }
+      
+      const response = await fetch(targetUrl, fetchOptions);
+      const contentType = response.headers.get('content-type') || '';
+      
+      if (contentType.includes('application/json')) {
+        const data = await response.json();
+        res.status(response.status).json(data);
+      } else {
+        const text = await response.text();
+        res.status(response.status).send(text);
+      }
+    } catch (error: unknown) {
+      console.error("[API] Research proxy error:", getErrorMessage(error));
+      const err = error as { name?: string; code?: string; message?: string };
+      if (err.name === 'TimeoutError' || err.message?.includes('timeout')) {
+        return res.status(504).json({ error: 'Python backend timeout' });
+      }
+      if (err.code === 'ECONNREFUSED' || err.message?.includes('fetch failed')) {
+        return res.status(503).json({ error: 'Python backend unavailable' });
+      }
+      res.status(500).json({ error: getErrorMessage(error) || 'Failed to proxy request' });
+    }
+  });
+
+  // OLYMPUS TELEMETRY PROXY - Forward telemetry endpoints to Python backend
+  // ============================================================
+  app.use("/olympus/telemetry", async (req: any, res, next) => {
+    try {
+      const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
+      const targetUrl = `${backendUrl}/olympus/telemetry`;
+      
+      const fetchOptions: RequestInit = {
+        method: req.method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        signal: AbortSignal.timeout(30000),
+      };
+      
+      if (req.method !== 'GET' && req.method !== 'HEAD') {
+        fetchOptions.body = JSON.stringify(req.body);
+      }
+      
+      const response = await fetch(targetUrl, fetchOptions);
+      const contentType = response.headers.get('content-type') || '';
+      
+      if (contentType.includes('application/json')) {
+        const data = await response.json();
+        res.status(response.status).json(data);
+      } else {
+        const text = await response.text();
+        res.status(response.status).send(text);
+      }
+    } catch (error: unknown) {
+      console.error("[API] Olympus telemetry proxy error:", getErrorMessage(error));
+      const err = error as { name?: string; code?: string; message?: string };
+      if (err.name === 'TimeoutError' || err.message?.includes('timeout')) {
+        return res.status(504).json({ error: 'Python backend timeout' });
+      }
+      if (err.code === 'ECONNREFUSED' || err.message?.includes('fetch failed')) {
+        return res.status(503).json({ error: 'Python backend unavailable' });
+      }
+      res.status(500).json({ error: getErrorMessage(error) || 'Failed to proxy request' });
+    }
+  });
+
   // PYTHON PROXY - Generic proxy for Python backend APIs
   // ============================================================
   app.use("/api/python", async (req: any, res, next) => {

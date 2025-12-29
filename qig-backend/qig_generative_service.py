@@ -55,6 +55,15 @@ POS_GRAMMAR_TO_COHERENCE_MAP = {
     'PRON': 'pronoun',
 }
 
+# Import the cached POS classification function
+try:
+    from pos_grammar import classify_word_cached, load_grammar_from_db
+    POS_GRAMMAR_DB_AVAILABLE = True
+except ImportError:
+    POS_GRAMMAR_DB_AVAILABLE = False
+    classify_word_cached = None
+    load_grammar_from_db = None
+
 
 class BigramCoherenceScorer:
     """
@@ -65,6 +74,16 @@ class BigramCoherenceScorer:
     """
     
     def __init__(self):
+        # Try to load POS grammar from database for more accurate classification
+        self._db_pos_loaded = False
+        if POS_GRAMMAR_DB_AVAILABLE and load_grammar_from_db:
+            try:
+                load_grammar_from_db()
+                self._db_pos_loaded = True
+                logger.info("[BigramCoherenceScorer] Loaded POS grammar from database")
+            except Exception as e:
+                logger.warning(f"[BigramCoherenceScorer] Failed to load POS grammar from DB: {e}")
+        
         # Common grammatical transition patterns (prev_category -> next_category)
         self._grammatical_patterns: Dict[Tuple[str, str], float] = {
             # Articles followed by nouns/adjectives

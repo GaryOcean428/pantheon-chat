@@ -13,8 +13,28 @@ import numpy as np
 from typing import Dict, List, Tuple, Set, Optional
 import logging
 import os
+from functools import lru_cache
 
 logger = logging.getLogger(__name__)
+
+# Mapping from dictionary API POS strings to internal categories
+DB_POS_TO_CATEGORY = {
+    'noun': 'NOUN',
+    'verb': 'VERB',
+    'adjective': 'ADJ',
+    'adverb': 'ADV',
+    'pronoun': 'PRON',
+    'preposition': 'PREP',
+    'conjunction': 'CONJ',
+    'determiner': 'DET',
+    'article': 'DET',
+    'interjection': 'NOUN',  # Map to NOUN as fallback
+    'exclamation': 'NOUN',
+    'numeral': 'DET',
+    'particle': 'ADV',
+    'auxiliary': 'VERB',
+    'modal': 'VERB',
+}
 
 # POS Categories with characteristic basin regions
 POS_CATEGORIES = {
@@ -70,7 +90,10 @@ class POSGrammar:
     """
     QIG-pure grammar system using POS categories as manifold regions.
     
-    Maps words to POS categories using suffix heuristics (no external NLP).
+    Maps words to POS categories using:
+    1. Database dictionary_cache (highest accuracy - validated POS)
+    2. Suffix heuristics (fallback for uncached words)
+    
     Provides transition probabilities for generating grammatical sequences.
     """
     
@@ -79,6 +102,8 @@ class POSGrammar:
         self.pos_words: Dict[str, List[str]] = {pos: [] for pos in POS_CATEGORIES}
         self.pos_basins: Dict[str, np.ndarray] = {}
         self.initialized = False
+        self._db_pos_loaded = False
+        self._db_pos_cache: Dict[str, str] = {}  # word -> POS from database
         
         # Pre-populate from known words
         for pos, words in POS_CATEGORIES.items():
@@ -87,10 +112,22 @@ class POSGrammar:
                 self.pos_words[pos].append(word.lower())
     
     def classify_word(self, word: str) -> str:
-        """Classify word to POS using suffix heuristics."""
+        """
+        Classify word to POS using database lookup first, then suffix heuristics.
+        
+        Priority:
+        1. Database dictionary_cache (validated POS from dictionary API)
+        2. Known words from POS_CATEGORIES
+        3. Suffix-based heuristics
+        4. Default to NOUN
+        """
         word_lower = word.lower()
         
-        # Check known words first
+        # Check database POS cache first (highest accuracy)
+        if word_lower in self._db_pos_cache:
+            return self._db_pos_cache[word_lower]
+        
+        # Check known words
         if word_lower in self.word_pos:
             return self.word_pos[word_lower]
         
@@ -112,6 +149,66 @@ class POSGrammar:
         
         # Default to NOUN for unknown words (most common open class)
         return 'NOUN'
+    
+    def load_pos_from_db(self) -> int:
+        """
+        Load POS tags from dictionary_cache table.
+        
+        The dictionary_cache stores validated POS from the Dictionary API,
+        which is much more accurate than suffix heuristics.
+        
+        Returns:
+            Number of words loaded with POS information
+        """
+        if self._db_pos_loaded:
+            return len(self._db_pos_cache)
+        
+        try:
+            import psycopg2
+            db_url = os.getenv('DATABASE_URL')
+            if not db_url:
+                logger.warning("[POSGrammar] No DATABASE_URL, skipping dictionary_cache POS load")
+                return 0
+            
+            conn = psycopg2.connect(db_url, connect_timeout=10)
+            cur = conn.cursor()
+            
+            # Load words with part_of_speech from dictionary_cache
+            cur.execute("""
+                SELECT word, part_of_speech 
+                FROM dictionary_cache
+                WHERE is_valid = true 
+                  AND part_of_speech IS NOT NULL
+                  AND part_of_speech != ''
+                  AND LENGTH(word) >= 2
+            """)
+            rows = cur.fetchall()
+            conn.close()
+            
+            loaded_count = 0
+            for word, db_pos in rows:
+                word_lower = word.lower().strip()
+                pos_lower = db_pos.lower().strip()
+                
+                # Map database POS to internal category
+                internal_pos = DB_POS_TO_CATEGORY.get(pos_lower)
+                if internal_pos:
+                    self._db_pos_cache[word_lower] = internal_pos
+                    
+                    # Also add to word_pos and pos_words for consistency
+                    if word_lower not in self.word_pos:
+                        self.word_pos[word_lower] = internal_pos
+                        self.pos_words[internal_pos].append(word_lower)
+                    
+                    loaded_count += 1
+            
+            self._db_pos_loaded = True
+            logger.info(f"[POSGrammar] Loaded {loaded_count} words with validated POS from dictionary_cache")
+            return loaded_count
+            
+        except Exception as e:
+            logger.error(f"[POSGrammar] Failed to load POS from dictionary_cache: {e}")
+            return 0
     
     def load_vocabulary(self, words: List[str], embeddings: Optional[Dict[str, np.ndarray]] = None):
         """Load vocabulary and classify words by POS."""
@@ -238,7 +335,13 @@ def get_pos_grammar() -> POSGrammar:
 
 
 def load_grammar_from_db():
-    """Load vocabulary into grammar from database."""
+    """
+    Load vocabulary into grammar from database.
+    
+    Loads from multiple sources in order of accuracy:
+    1. dictionary_cache (validated POS from Dictionary API)
+    2. tokenizer_vocabulary (suffix-based classification)
+    """
     grammar = get_pos_grammar()
     
     if grammar.initialized and len(grammar.word_pos) > 100:
@@ -251,6 +354,11 @@ def load_grammar_from_db():
             logger.warning("[POSGrammar] No DATABASE_URL, using minimal vocab")
             return grammar
         
+        # First, load validated POS from dictionary_cache (highest accuracy)
+        db_pos_count = grammar.load_pos_from_db()
+        logger.info(f"[POSGrammar] Loaded {db_pos_count} validated POS entries from dictionary_cache")
+        
+        # Then load remaining vocabulary from tokenizer_vocabulary
         conn = psycopg2.connect(db_url, connect_timeout=10)
         cur = conn.cursor()
         
@@ -281,8 +389,27 @@ def load_grammar_from_db():
                     pass
         
         grammar.load_vocabulary(words, embeddings)
+        
+        # Log stats about POS sources
+        db_classified = len(grammar._db_pos_cache)
+        total_words = len(grammar.word_pos)
+        suffix_classified = total_words - db_classified
+        logger.info(f"[POSGrammar] POS classification sources: {db_classified} from dictionary_cache, {suffix_classified} from suffix heuristics")
+        
         return grammar
         
     except Exception as e:
         logger.error(f"[POSGrammar] Failed to load from DB: {e}")
         return grammar
+
+
+# Create a cached version of classify_word for external use
+@lru_cache(maxsize=10000)
+def classify_word_cached(word: str) -> str:
+    """
+    Cached word classification using the singleton POSGrammar.
+    
+    Uses LRU cache to avoid repeated lookups for the same word.
+    """
+    grammar = get_pos_grammar()
+    return grammar.classify_word(word)
