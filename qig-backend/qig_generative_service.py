@@ -19,11 +19,33 @@ from typing import Dict, List, Optional, Any, Generator, Tuple
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 import numpy as np
+from functools import lru_cache
+
+# Try to import POSGrammar for improved POS tagging
+try:
+    from pos_grammar import get_pos_grammar, POSGrammar
+    POS_GRAMMAR_AVAILABLE = True
+except ImportError:
+    POS_GRAMMAR_AVAILABLE = False
+    POSGrammar = None
 
 
 # =============================================================================
 # BIGRAM COHERENCE SCORING
 # =============================================================================
+
+# Mapping from POSGrammar categories to BigramCoherenceScorer categories
+POS_GRAMMAR_TO_COHERENCE_MAP = {
+    'DET': 'article',
+    'NOUN': 'noun',
+    'VERB': 'verb',
+    'ADJ': 'adjective',
+    'ADV': 'adverb',
+    'PREP': 'preposition',
+    'CONJ': 'conjunction',
+    'PRON': 'pronoun',
+}
+
 
 class BigramCoherenceScorer:
     """
@@ -112,6 +134,18 @@ class BigramCoherenceScorer:
             'integration': 0.75,
             'geometric': 0.75,
         }
+        
+        # Initialize POSGrammar for improved POS tagging if available
+        self._pos_grammar: Optional['POSGrammar'] = None
+        if POS_GRAMMAR_AVAILABLE:
+            try:
+                self._pos_grammar = get_pos_grammar()
+                logging.getLogger(__name__).debug("[BigramCoherenceScorer] POSGrammar integration enabled")
+            except Exception as e:
+                logging.getLogger(__name__).debug(f"[BigramCoherenceScorer] POSGrammar not available: {e}")
+        
+        # LRU cache for word category lookups (cleared when instance is created)
+        self._category_cache: Dict[str, str] = {}
         
         # Trigram grammatical patterns (prev_cat, middle_cat, next_cat) -> score
         self._trigram_patterns: Dict[Tuple[str, str, str], float] = {
@@ -218,9 +252,37 @@ class BigramCoherenceScorer:
         }
     
     def _get_word_category(self, word: str) -> str:
-        """Determine the grammatical category of a word."""
+        """Determine the grammatical category of a word.
+        
+        Uses POSGrammar for accurate POS tagging when available,
+        with fallback to dictionary/suffix heuristics.
+        """
         word_lower = word.lower()
         
+        # Check cache first
+        if word_lower in self._category_cache:
+            return self._category_cache[word_lower]
+        
+        category = self._classify_word_internal(word_lower)
+        
+        # Cache the result (limit cache size to prevent memory issues)
+        if len(self._category_cache) < 10000:
+            self._category_cache[word_lower] = category
+        
+        return category
+    
+    def _classify_word_internal(self, word_lower: str) -> str:
+        """Internal word classification with POSGrammar integration."""
+        # Try POSGrammar first for more accurate classification
+        if self._pos_grammar is not None:
+            try:
+                pos_tag = self._pos_grammar.classify_word(word_lower)
+                if pos_tag in POS_GRAMMAR_TO_COHERENCE_MAP:
+                    return POS_GRAMMAR_TO_COHERENCE_MAP[pos_tag]
+            except Exception:
+                pass  # Fall through to heuristics
+        
+        # Fallback to dictionary lookups
         if word_lower in self._articles:
             return 'article'
         if word_lower in self._prepositions:
@@ -242,6 +304,10 @@ class BigramCoherenceScorer:
         
         # Default: treat as noun (most common category)
         return 'noun'
+    
+    def clear_cache(self) -> None:
+        """Clear the word category cache."""
+        self._category_cache.clear()
     
     def score_bigram(self, prev_word: str, next_word: str) -> float:
         """
