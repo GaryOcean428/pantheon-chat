@@ -742,6 +742,7 @@ class EconomicAutonomy:
                     if user.stripe_customer_id == customer_id:
                         if status == 'canceled' or status == 'unpaid':
                             user.tier = SubscriptionTier.FREE
+                            self._save_user_to_db(user)  # Persist to database
                             print(f"[EconomicAutonomy] Subscription {status}, user downgraded to Free")
                         break
                 
@@ -756,6 +757,7 @@ class EconomicAutonomy:
                     if user.stripe_customer_id == customer_id:
                         user.tier = SubscriptionTier.FREE
                         user.stripe_subscription_id = None
+                        self._save_user_to_db(user)  # Persist to database
                         print(f"[EconomicAutonomy] Subscription deleted, user downgraded to Free")
                         break
                 
