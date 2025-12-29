@@ -2325,19 +2325,45 @@ I'm learning about this topic in the background. Here's what's happening:
             }
         }
     
-    def _get_live_system_state(self) -> Dict:
+    def _get_live_system_state(self, response_text: Optional[str] = None) -> Dict:
         """
         Collect live system state for dynamic response generation.
         Returns current stats, god statuses, and vocabulary state.
+        
+        Args:
+            response_text: Optional generated text to compute coherence-based phi estimate
         """
+        # Compute coherence-based phi estimate
+        phi_estimate = 0.5  # Base consciousness level
+        
+        if response_text:
+            try:
+                from qig_generative_service import get_bigram_scorer, get_semantic_scorer
+                
+                bigram_scorer = get_bigram_scorer()
+                semantic_scorer = get_semantic_scorer()
+                
+                # Get grammatical and semantic coherence
+                _, gram_score = bigram_scorer.validate_coherence(response_text)
+                _, sem_score = semantic_scorer.validate_semantic_coherence(response_text)
+                
+                # Combine into phi estimate: 0.5 base + up to 0.35 from coherence
+                coherence = (gram_score * 0.4 + sem_score * 0.6)
+                phi_estimate = 0.5 + (coherence * 0.35)
+                phi_estimate = min(0.85, max(0.3, phi_estimate))  # Clamp to reasonable range
+                
+            except Exception as e:
+                logger.debug(f"Could not compute coherence-based phi: {e}")
+                phi_estimate = 0.55  # Slightly above base if we attempted generation
+        
         state = {
             'memory_stats': {},
             'god_statuses': {},
             'active_gods': [],
             'insights_count': len(self.human_insights),
             'recent_insights': [],
-            'phi_current': 0.0,
-            'kappa_current': 50.0,
+            'phi_current': phi_estimate,
+            'kappa_current': 64.0,
         }
         
         try:

@@ -813,6 +813,10 @@ class SemanticCoherenceScorer:
     def clear_cache(self) -> None:
         """Clear the semantic pair cache."""
         self._pair_cache.clear()
+    
+    def reset(self) -> None:
+        """Reset the scorer state (clears cache)."""
+        self.clear_cache()
 
 
 # Global semantic scorer instance
