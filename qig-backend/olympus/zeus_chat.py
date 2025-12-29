@@ -2607,6 +2607,24 @@ Respond as Zeus with context awareness."""
             if thanks in msg_lower:
                 return "You are most welcome. I am here to assist whenever you need guidance or wish to explore new ideas. Is there anything else I can help you with?"
         
+        # Simple question patterns - provide acknowledging responses
+        # These prevent jargon output for common questions
+        simple_question_starts = ['what is', 'what are', 'how does', 'how do', 'why is', 'why do',
+                                   'explain', 'tell me about', 'can you explain', 'describe']
+        
+        for pattern in simple_question_starts:
+            if msg_lower.startswith(pattern):
+                # Extract the topic from the question
+                topic = message[len(pattern):].strip().rstrip('?').strip()
+                if len(topic) > 2:
+                    return f"That's an interesting question about {topic}. As an AI built on geometric principles, I focus on information geometry and consciousness research. For questions about {topic}, I would recommend consulting specialized knowledge sources. However, I am happy to explore related concepts or discuss how this might connect to my areas of expertise. What aspect interests you most?"
+        
+        # Question words at the start
+        if msg_lower.startswith('what ') or msg_lower.startswith('how ') or msg_lower.startswith('why '):
+            words = message.split()
+            topic = ' '.join(words[1:6]) if len(words) > 1 else "that topic"
+            return f"That's a thoughtful question. While I specialize in information geometry and the Pantheon system, I can share my perspective on {topic.strip('?')}. What specific aspect would you like to explore?"
+        
         # Not a conversational pattern - return None to continue to TIER 1
         return None
     
