@@ -222,7 +222,7 @@ class PantheonState:
             result["recovery_count"] = self.qig_state.recovery_count
 
         if self.basin is not None:
-            result["basin_norm"] = float(np.linalg.norm(self.basin))
+            result["basin_norm"] = float(np.linalg.norm(self.basin))  # NOTE: valid magnitude diagnostic
 
         return result
 

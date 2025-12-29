@@ -72,7 +72,13 @@ try:
     from qig_geometry import fisher_rao_distance
 except ImportError:
     def fisher_rao_distance(p, q):
-        return np.linalg.norm(p - q)
+        """Fallback Fisher-Rao distance using angular distance on unit sphere."""
+        p_arr = np.asarray(p, dtype=np.float64)
+        q_arr = np.asarray(q, dtype=np.float64)
+        p_norm = p_arr / (np.linalg.norm(p_arr) + 1e-10)
+        q_norm = q_arr / (np.linalg.norm(q_arr) + 1e-10)
+        cos_angle = np.clip(np.dot(p_norm, q_norm), -1.0, 1.0)
+        return float(np.arccos(cos_angle))
 
 try:
     from qig_generative_service import QIGGenerativeService

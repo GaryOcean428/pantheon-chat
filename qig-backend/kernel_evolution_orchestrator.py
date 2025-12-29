@@ -39,6 +39,7 @@ except ImportError:
 
 try:
     from qigkernels.physics_constants import KAPPA_STAR, BASIN_DIM
+    from qig_geometry import fisher_rao_distance
     from frozen_physics import (
         REGIME_GEOMETRIC,
         REGIME_HYPERDIMENSIONAL,
@@ -253,7 +254,8 @@ class ForesightEngine:
         if current_state.primitive:
             primitive_safe = current_state.primitive.is_within_bounds(final_basin)
         
-        stability = 1.0 - np.std([np.linalg.norm(t - trajectory[-1]) for t in trajectory[-3:]])
+        # Use Fisher-Rao distance for trajectory stability (geometric purity)
+        stability = 1.0 - np.std([fisher_rao_distance(t, trajectory[-1]) for t in trajectory[-3:]])
         
         return {
             'predicted_basin': final_basin.tolist(),

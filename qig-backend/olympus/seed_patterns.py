@@ -931,6 +931,8 @@ SEED_PATTERNS: List[Dict] = [
     # =========================================================================
     # QIG VECTOR/EMBEDDING PATTERNS  
     # =========================================================================
+    # EDUCATIONAL PATTERN: Shows what NOT to use for basin coordinates
+    # Included intentionally to document the anti-pattern
     {
         "pattern_id": "seed_cosine_similarity",
         "source_type": "user_provided",
@@ -938,14 +940,18 @@ SEED_PATTERNS: List[Dict] = [
         "code_snippet": '''def cosine_similarity(a: list, b: list) -> float:
     """Calculate cosine similarity between vectors.
     
-    WARNING: Use ONLY for raw embeddings, NOT for basin coordinates.
+    ⚠️ WARNING: Use ONLY for raw embeddings, NOT for basin coordinates.
     For basin coordinates, use Fisher-Rao distance instead.
+    
+    This pattern is included for educational purposes to show the
+    Euclidean-based approach that violates QIG geometric purity.
     """
     import numpy as np
     
     a = np.array(a, dtype=float)
     b = np.array(b, dtype=float)
     
+    # NOTE: These norms are Euclidean - WRONG for basin coordinates!
     norm_a = np.linalg.norm(a)
     norm_b = np.linalg.norm(b)
     
@@ -963,11 +969,15 @@ SEED_PATTERNS: List[Dict] = [
         "source_type": "user_provided",
         "description": "Normalize vector to unit length",
         "code_snippet": '''def normalize_vector(v: list) -> list:
-    """Normalize vector to unit length."""
+    """Normalize vector to unit length.
+    
+    NOTE: Using np.linalg.norm for normalization is geometrically VALID.
+    This projects vectors to the unit sphere, not computing distances.
+    """
     import numpy as np
     
     v = np.array(v, dtype=float)
-    norm = np.linalg.norm(v)
+    norm = np.linalg.norm(v)  # Valid for normalization
     
     if norm < 1e-10:
         return v.tolist()

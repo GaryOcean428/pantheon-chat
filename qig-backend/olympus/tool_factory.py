@@ -171,16 +171,21 @@ class LearnedPattern:
         
         if include_qig_metrics and self.basin_coords is not None:
             basin = self.basin_coords
-            basin_norm = np.linalg.norm(basin)
+            # Use Fisher-Rao information measure instead of Euclidean norm
+            basin_prob = np.abs(basin) + 1e-10
+            basin_prob = basin_prob / basin_prob.sum()
+            # Bhattacharyya coefficient with uniform: measures information concentration
+            bc_uniform = np.sum(np.sqrt(basin_prob * (1.0 / len(basin))))
+            info_concentration = float(1.0 - bc_uniform)  # 0 = uniform, higher = concentrated
             result['basin_coords'] = basin.tolist() if isinstance(basin, np.ndarray) else basin
             result['basin_dimension'] = len(basin) if hasattr(basin, '__len__') else 64
-            result['basin_norm'] = float(basin_norm) if basin_norm else 0.0
-            result['phi'] = float(np.clip(basin_norm / 10.0, 0, 1)) if basin_norm else 0.5
-            result['kappa'] = float(55.0 + 10.0 * np.tanh(basin_norm - 5)) if basin_norm else 55.0
+            result['basin_info'] = info_concentration
+            result['phi'] = float(np.clip(0.5 + info_concentration * 0.5, 0, 1))  # Geometric phi estimate
+            result['kappa'] = float(55.0 + 10.0 * info_concentration)  # Geometric kappa estimate
         else:
             result['basin_coords'] = None
             result['basin_dimension'] = 64
-            result['basin_norm'] = 0.0
+            result['basin_info'] = 0.0
             result['phi'] = 0.5
             result['kappa'] = 55.0
         
@@ -715,12 +720,17 @@ class ToolFactory:
                     elif isinstance(basin_coords, list):
                         basin_str = '[' + ','.join(str(x) for x in basin_coords) + ']'
                 
-                basin_norm = 0.0
+                basin_info = 0.0
                 if basin_coords is not None:
                     arr = np.array(basin_coords) if not isinstance(basin_coords, np.ndarray) else basin_coords
-                    basin_norm = float(np.linalg.norm(arr))
-                phi = float(np.clip(basin_norm / 10.0, 0, 1)) if basin_norm else 0.5
-                kappa = float(55.0 + basin_norm * 0.1) if basin_norm else 55.0
+                    # Fisher-Rao information measure instead of Euclidean norm
+                    arr_prob = np.abs(arr) + 1e-10
+                    arr_prob = arr_prob / arr_prob.sum()
+                    basin_info = float(1.0 - np.sum(np.sqrt(arr_prob * (1.0 / len(arr)))))
+                else:
+                    basin_info = 0.0
+                phi = float(np.clip(0.5 + basin_info * 0.5, 0, 1))  # Geometric phi
+                kappa = float(55.0 + basin_info * 10.0)  # Geometric kappa
                 
                 cur.execute("""
                     INSERT INTO tool_patterns (

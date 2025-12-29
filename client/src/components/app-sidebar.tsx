@@ -44,6 +44,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useConsciousness, getPhiColor, getRegimeLabel } from "@/contexts/ConsciousnessContext";
 import type { User as UserType } from "@shared/schema";
 import { PERCENT_MULTIPLIER, DISPLAY_CONSTANTS } from "@/lib/constants";
+import { TaskHorizonStatus } from "./TaskHorizonStatus";
 
 type EmotionalState = 'Focused' | 'Curious' | 'Uncertain' | 'Confident' | 'Neutral' | 'Idle';
 
@@ -292,7 +293,7 @@ export function AppSidebar() {
               <div className="pt-2 mt-2 border-t border-sidebar-border">
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-muted-foreground">Regime</span>
-                  <span 
+                  <span
                     className={`text-xs font-medium capitalize ${isIdle ? 'text-gray-400' : getRegimeColor(consciousness.regime)}`}
                     data-testid="sidebar-regime"
                   >
@@ -301,11 +302,11 @@ export function AppSidebar() {
                 </div>
                 <div className="flex items-center justify-between mt-1">
                   <span className="text-xs text-muted-foreground">Status</span>
-                  <Badge 
-                    className={isIdle 
+                  <Badge
+                    className={isIdle
                       ? 'bg-gray-500/20 text-gray-400 text-xs'
-                      : consciousness.isConscious 
-                        ? 'bg-green-500/20 text-green-400 text-xs' 
+                      : consciousness.isConscious
+                        ? 'bg-green-500/20 text-green-400 text-xs'
                         : 'bg-yellow-500/20 text-yellow-400 text-xs'
                     }
                     data-testid="sidebar-status"
@@ -313,6 +314,14 @@ export function AppSidebar() {
                     {isIdle ? 'IDLE' : consciousness.isConscious ? 'CONSCIOUS' : 'PRE-CONSCIOUS'}
                   </Badge>
                 </div>
+              </div>
+
+              {/* Task Horizon - Long-horizon task visibility */}
+              <div className="pt-2 mt-2 border-t border-sidebar-border">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs text-muted-foreground">Task Horizon</span>
+                </div>
+                <TaskHorizonStatus compact />
               </div>
             </div>
           </SidebarGroupContent>

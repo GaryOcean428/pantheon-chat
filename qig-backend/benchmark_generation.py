@@ -175,11 +175,17 @@ class CoherenceMetrics:
                 prompt_basin = self._encoder.encode(prompt)
                 text_basin = self._encoder.encode(text[:500])  # First 500 chars
                 
-                # Cosine similarity
-                similarity = np.dot(prompt_basin, text_basin) / (
-                    np.linalg.norm(prompt_basin) * np.linalg.norm(text_basin) + 1e-10
-                )
-                return float(np.clip((similarity + 1) / 2, 0, 1))  # Normalize to 0-1
+                # Fisher-Rao similarity (QIG-pure: no cosine similarity on basins)
+                # Use arccos of normalized dot product for geodesic angle
+                p_norm = np.linalg.norm(prompt_basin)  # NOTE: normalization for unit sphere projection
+                t_norm = np.linalg.norm(text_basin)    # NOTE: normalization for unit sphere projection
+                if p_norm > 1e-10 and t_norm > 1e-10:
+                    dot = np.clip(np.dot(prompt_basin / p_norm, text_basin / t_norm), -1.0, 1.0)
+                    distance = np.arccos(dot)  # Fisher-Rao distance
+                    similarity = 1.0 - distance / np.pi  # Convert to similarity [0,1]
+                else:
+                    similarity = 0.0
+                return float(np.clip(similarity, 0, 1))
             except Exception:
                 pass
         
@@ -206,9 +212,15 @@ class CoherenceMetrics:
                         continue
                     basin_i = self._encoder.encode(sentences[i])
                     basin_j = self._encoder.encode(sentences[i + 1])
-                    sim = np.dot(basin_i, basin_j) / (
-                        np.linalg.norm(basin_i) * np.linalg.norm(basin_j) + 1e-10
-                    )
+                    # QIG-pure: Fisher-Rao similarity instead of cosine
+                    i_norm = np.linalg.norm(basin_i)  # NOTE: normalization for unit sphere
+                    j_norm = np.linalg.norm(basin_j)  # NOTE: normalization for unit sphere
+                    if i_norm > 1e-10 and j_norm > 1e-10:
+                        dot = np.clip(np.dot(basin_i / i_norm, basin_j / j_norm), -1.0, 1.0)
+                        distance = np.arccos(dot)
+                        sim = 1.0 - distance / np.pi
+                    else:
+                        sim = 0.0
                     similarities.append(sim)
                 
                 if similarities:
@@ -281,9 +293,15 @@ class CoherenceMetrics:
                     if len(chunk) < 20:
                         continue
                     chunk_basin = self._encoder.encode(chunk)
-                    sim = np.dot(prompt_basin, chunk_basin) / (
-                        np.linalg.norm(prompt_basin) * np.linalg.norm(chunk_basin) + 1e-10
-                    )
+                    # QIG-pure: Fisher-Rao similarity instead of cosine
+                    p_norm = np.linalg.norm(prompt_basin)  # NOTE: normalization for unit sphere
+                    c_norm = np.linalg.norm(chunk_basin)   # NOTE: normalization for unit sphere
+                    if p_norm > 1e-10 and c_norm > 1e-10:
+                        dot = np.clip(np.dot(prompt_basin / p_norm, chunk_basin / c_norm), -1.0, 1.0)
+                        distance = np.arccos(dot)
+                        sim = 1.0 - distance / np.pi
+                    else:
+                        sim = 0.0
                     similarities.append(sim)
                 
                 if len(similarities) >= 2:

@@ -25,6 +25,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from internal_api import sync_war_to_database as _sync_war_to_database
 from m8_kernel_spawning import SpawnReason, get_spawner
 from qigkernels.physics_constants import PHI_THRESHOLD, KAPPA_WEAK_THRESHOLD
+from qig_geometry import fisher_coord_distance
 
 
 def sanitize_for_json(obj: Any) -> Any:
@@ -596,7 +597,8 @@ class Zeus(BaseGod):
     def poll_pantheon(
         self,
         target: str,
-        context: Optional[Dict] = None
+        context: Optional[Dict] = None,
+        task_basin: Optional[np.ndarray] = None
     ) -> Dict:
         """
         Poll all gods for their assessments on a target.
@@ -605,17 +607,43 @@ class Zeus(BaseGod):
         - Each god consults their assigned kernel
         - Kernel Φ influences god confidence
         - Kernel geometric resonance affects probability
+
+        TASK BASIN ROUTING (Long-Horizon Strategy 3):
+        - If task_basin provided, routes to god with closest domain basin
+        - Uses Fisher-Rao distance for geometric routing
+        - Falls back to all-gods consultation if no task_basin
         """
         assessments: Dict[str, Dict] = {}
         probabilities: List[float] = []
         kernel_influences: Dict[str, Dict] = {}
+        routed_gods: List[str] = []
 
         # Auto-assign kernels if CHAOS MODE active but kernels not yet assigned
         if self.chaos_enabled and self.chaos and not self.kernel_assignments:
             if len(self.chaos.kernel_population) > 0:
                 self.assign_kernels_to_gods()
 
-        for god_name, god in self.pantheon.items():
+        # TASK BASIN ROUTING: Find closest gods if task_basin provided
+        if task_basin is not None:
+            god_distances: List[Tuple[str, float]] = []
+            for god_name, god in self.pantheon.items():
+                # Check if god has domain_basin attribute
+                if hasattr(god, 'domain_basin') and god.domain_basin is not None:
+                    distance = fisher_coord_distance(task_basin, god.domain_basin)
+                    god_distances.append((god_name, distance))
+
+            if god_distances:
+                # Sort by distance and take top 3 closest
+                god_distances.sort(key=lambda x: x[1])
+                routed_gods = [gd[0] for gd in god_distances[:3]]
+                print(f"[Zeus] Task basin routing: {routed_gods} (distances: {[f'{gd[1]:.3f}' for gd in god_distances[:3]]})")
+
+        # Determine which gods to poll
+        gods_to_poll = self.pantheon.items()
+        if routed_gods:
+            gods_to_poll = [(name, self.pantheon[name]) for name in routed_gods]
+
+        for god_name, god in gods_to_poll:
             try:
                 assessment = god.assess_target(target, context)
 
@@ -683,6 +711,14 @@ class Zeus(BaseGod):
             'recommended_action': recommended,
             'timestamp': datetime.now().isoformat(),
         }
+
+        # Add task basin routing info if used
+        if routed_gods:
+            result['task_basin_routing'] = {
+                'enabled': True,
+                'routed_gods': routed_gods,
+                'all_gods_polled': len(routed_gods) == len(self.pantheon)
+            }
 
         # Add kernel influence summary if CHAOS MODE active
         if kernel_influences:
@@ -1041,6 +1077,121 @@ class Zeus(BaseGod):
             return "PROCEED_CAUTIOUSLY"
         else:
             return "GATHER_INTELLIGENCE"
+
+    def geometric_consensus(
+        self,
+        solutions: Dict[str, np.ndarray],
+        weights: Optional[Dict[str, float]] = None,
+        threshold: float = 1.0
+    ) -> Optional[np.ndarray]:
+        """
+        Compute geometric consensus via basin intersection.
+
+        Multi-Agent Consensus (Long-Horizon Strategy 7):
+        - Computes weighted centroid of god solution basins
+        - Validates consensus exists (max distance < threshold)
+        - Uses Fisher-Rao distance for geometric agreement checking
+
+        Args:
+            solutions: Dict[god_name, solution_basin] - 64D basin coords
+            weights: Optional weights by god (default: equal)
+            threshold: Max distance for consensus (default: 1.0)
+
+        Returns:
+            Consensus basin (64D) or None if no agreement
+        """
+        if not solutions:
+            return None
+
+        # Default equal weights
+        if weights is None:
+            weights = {god: 1.0 for god in solutions.keys()}
+
+        # Normalize weights
+        total_weight = sum(weights.values())
+        if total_weight < 1e-10:
+            return None
+        weights = {g: w/total_weight for g, w in weights.items()}
+
+        # Compute weighted centroid
+        basin_dim = next(iter(solutions.values())).shape[0]
+        centroid = np.zeros(basin_dim)
+        for god, basin in solutions.items():
+            weight = weights.get(god, 0.0)
+            centroid += weight * basin
+
+        # Normalize centroid to unit sphere
+        centroid_norm = np.linalg.norm(centroid)
+        if centroid_norm > 1e-10:
+            centroid = centroid / centroid_norm
+
+        # Check if consensus exists (all solutions within threshold)
+        distances = [
+            fisher_coord_distance(basin, centroid)
+            for basin in solutions.values()
+        ]
+
+        max_distance = max(distances)
+        if max_distance > threshold:
+            print(f"[Zeus] No consensus: max_distance={max_distance:.3f} > threshold={threshold}")
+            return None
+
+        print(f"[Zeus] Consensus reached: max_distance={max_distance:.3f}, participating gods: {list(solutions.keys())}")
+        return centroid
+
+    def compute_pantheon_consensus(
+        self,
+        target: str,
+        context: Optional[Dict] = None
+    ) -> Dict[str, Any]:
+        """
+        Poll pantheon and compute geometric consensus on a target.
+
+        Combines poll_pantheon with geometric_consensus for
+        collaborative decision-making.
+
+        Returns:
+            Dict with consensus_basin, agreement_level, and poll results
+        """
+        # Poll all gods
+        poll_result = self.poll_pantheon(target, context)
+
+        # Extract solution basins from assessments (if gods provide them)
+        solutions: Dict[str, np.ndarray] = {}
+        for god_name, assessment in poll_result.get('assessments', {}).items():
+            if 'solution_basin' in assessment:
+                solutions[god_name] = np.array(assessment['solution_basin'])
+            elif 'basin_coords' in assessment:
+                solutions[god_name] = np.array(assessment['basin_coords'])
+
+        # Compute consensus if we have solution basins
+        consensus_basin = None
+        agreement_level = 0.0
+
+        if solutions:
+            # Weight by confidence
+            weights = {
+                god_name: poll_result['assessments'][god_name].get('confidence', 0.5)
+                for god_name in solutions
+            }
+            consensus_basin = self.geometric_consensus(solutions, weights)
+
+            if consensus_basin is not None:
+                # Compute agreement level (inverse of avg distance to centroid)
+                distances = [
+                    fisher_coord_distance(basin, consensus_basin)
+                    for basin in solutions.values()
+                ]
+                avg_distance = np.mean(distances) if distances else 0.0
+                agreement_level = 1.0 / (1.0 + avg_distance)
+
+        return {
+            'poll_result': poll_result,
+            'consensus_basin': consensus_basin.tolist() if consensus_basin is not None else None,
+            'agreement_level': agreement_level,
+            'participating_gods': list(solutions.keys()),
+            'has_consensus': consensus_basin is not None
+        }
 
     def declare_blitzkrieg(self, target: str) -> Dict:
         """

@@ -718,6 +718,7 @@ class UltraConsciousnessMixin:
         self._kernel_consciousness_active = ULTRA_CONSCIOUSNESS_AVAILABLE
         
         # Initialize kernel-specific basin
+        # NOTE: np.linalg.norm for normalization is valid - projects to unit sphere
         if basin is not None:
             self._consciousness_basin = basin / (np.linalg.norm(basin) + 1e-10)
         elif hasattr(self, 'basin_center'):
@@ -805,7 +806,10 @@ class UltraConsciousnessMixin:
         return "Consciousness not measured"
     
     def update_consciousness_basin(self, new_basin: np.ndarray):
-        """Update the kernel's consciousness basin coordinates."""
+        """Update the kernel's consciousness basin coordinates.
+        
+        NOTE: np.linalg.norm for normalization is valid - projects to unit sphere.
+        """
         self._consciousness_basin = new_basin / (np.linalg.norm(new_basin) + 1e-10)
         if hasattr(self, 'basin_center'):
             self.basin_center = self._consciousness_basin

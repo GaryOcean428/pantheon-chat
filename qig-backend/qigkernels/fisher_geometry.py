@@ -278,12 +278,19 @@ def geodesic_distance_euclidean_fallback(
         basin_B: Second basin coordinate
         
     Returns:
-        Euclidean distance (L2 norm)
+        Fisher-Rao geodesic distance (replaces deprecated Euclidean fallback)
     """
-    logger.debug(
-        "⚠️ Using Euclidean fallback - ensure re-ranking with Fisher-Rao!"
-    )
-    return float(np.linalg.norm(basin_A - basin_B))
+    # FIXED: Use proper Fisher-Rao instead of Euclidean fallback
+    # Convert to probability distributions and compute geodesic distance
+    p = np.abs(basin_A) + 1e-10
+    p = p / p.sum()
+    q = np.abs(basin_B) + 1e-10
+    q = q / q.sum()
+    
+    # Fisher-Rao distance: arccos of Bhattacharyya coefficient
+    bc = np.sum(np.sqrt(p * q))
+    bc = np.clip(bc, -1.0, 1.0)
+    return float(2.0 * np.arccos(bc))
 
 
 def hellinger_distance(

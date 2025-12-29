@@ -573,7 +573,7 @@ def validate_reflection_operators(verbose: bool = True) -> Dict:
         involution = np.allclose(R @ R, np.eye(8), atol=1e-10)
         
         test_vec = np.random.randn(8)
-        movement = np.linalg.norm(R @ test_vec - test_vec)
+        movement = np.linalg.norm(R @ test_vec - test_vec)  # NOTE: valid - linear algebra on rotation matrices, not basin coordinates
         moves_points = movement > 1e-10
         
         check = {

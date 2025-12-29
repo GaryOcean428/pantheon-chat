@@ -1,0 +1,50 @@
+version: '3.8'
+
+# Railway Deployment Configuration
+# Use: railway up with this compose file, or deploy individual services
+#
+# Railway automatically provisions:
+# - PostgreSQL via Railway Postgres plugin
+# - Redis via Railway Redis plugin (optional)
+# - Persistent volumes for /app/data
+
+services:
+  # Main web application (Node.js + Python QIG backend)
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.railway
+    environment:
+      NODE_ENV: production
+      PORT: ${PORT:-5000}
+      # DATABASE_URL provided by Railway Postgres plugin
+      DATABASE_URL: ${DATABASE_URL}
+      # REDIS_URL provided by Railway Redis plugin (optional)
+      REDIS_URL: ${REDIS_URL:-}
+      # Python backend runs in same container
+      PYTHONPATH: /app/qig-backend
+      # Sync configuration
+      SYNC_API_KEY: ${SYNC_API_KEY:-}
+      REPLIT_SYNC_URL: ${REPLIT_SYNC_URL:-}
+      # Federation mode
+      FEDERATION_MODE: ${FEDERATION_MODE:-standalone}
+      CENTRAL_NODE_URL: ${CENTRAL_NODE_URL:-}
+    ports:
+      - "${PORT:-5000}:${PORT:-5000}"
+    volumes:
+      - railway_data:/app/data
+      - railway_models:/app/models
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${PORT:-5000}/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  railway_data:
+    # Railway persistent volume
+    driver: local
+  railway_models:
+    # Model cache volume
+    driver: local

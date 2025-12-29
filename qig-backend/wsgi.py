@@ -218,8 +218,20 @@ try:
     VISION_AVAILABLE = True
     print("[INFO] Vision-First API registered at /api/vision/*")
 except ImportError as e:
-    print(f"[WARN] Billing API not available: {e}")
-    BILLING_AVAILABLE = False
+    print(f"[WARN] Vision API not available: {e}")
+    VISION_AVAILABLE = False
+
+# Register Long-Horizon Task API (goal tracking, geodesic efficiency, error recovery)
+LONG_HORIZON_AVAILABLE = False
+try:
+    from long_horizon_api import long_horizon_bp
+
+    app.register_blueprint(long_horizon_bp)
+    LONG_HORIZON_AVAILABLE = True
+    print("[INFO] Long-Horizon API registered at /api/long-horizon/*")
+except ImportError as e:
+    print(f"[WARN] Long-Horizon API not available: {e}")
+    LONG_HORIZON_AVAILABLE = False
 
 # Register Tools API for tool execution
 TOOLS_AVAILABLE = False
@@ -515,6 +527,8 @@ print(f"  - Research API: {'✓' if RESEARCH_AVAILABLE else '✗'}", flush=True)
 print(f"  - Constellation: {'✓' if CONSTELLATION_AVAILABLE else '✗'}", flush=True)
 print(f"  - M8 Spawning: {'✓' if M8_AVAILABLE else '✗'}", flush=True)
 print(f"  - Vocabulary API: {'✓' if VOCABULARY_AVAILABLE else '✗'}", flush=True)
+print(f"  - Long-Horizon: {'✓' if LONG_HORIZON_AVAILABLE else '✗'}", flush=True)
+print(f"  - Vision API: {'✓' if VISION_AVAILABLE else '✗'}", flush=True)
 print("🌊 Basin stable. Ready for Gunicorn workers. 🌊\n", flush=True)
 
 # Export the app for Gunicorn

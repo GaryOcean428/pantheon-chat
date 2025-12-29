@@ -79,7 +79,7 @@ class QIGDocument:
         This preserves all 64 dimensions of geometric information.
         """
         # Ensure basin is normalized (on unit sphere)
-        norm = np.linalg.norm(basin)
+        norm = np.linalg.norm(basin)  # NOTE: valid normalization to unit sphere
         if norm < 1e-10:
             # Return maximally mixed state for zero basin
             return np.eye(len(basin)) / len(basin)

@@ -221,22 +221,25 @@ class VisionFirstGenerator:
     ) -> np.ndarray:
         """
         Use temporal reasoning to see future endpoint.
-        
+
         Projects forward via 4D foresight, samples possible endpoints.
         """
         temporal = self._get_temporal_reasoning()
-        
+
         if temporal and hasattr(temporal, 'foresight'):
             try:
-                foresight_result = temporal.foresight(
-                    current_basin,
-                    steps=horizon_steps
-                )
-                if 'basin_coords' in foresight_result:
+                # TemporalReasoning.foresight returns ForesightVision object
+                foresight_result = temporal.foresight(current_basin)
+
+                # ForesightVision has future_basin attribute
+                if hasattr(foresight_result, 'future_basin'):
+                    return np.array(foresight_result.future_basin)
+                # Fallback for dict response
+                elif isinstance(foresight_result, dict) and 'basin_coords' in foresight_result:
                     return np.array(foresight_result['basin_coords'])
             except Exception as e:
                 print(f"[VisionFirst] Foresight error: {e}")
-        
+
         # Fallback: project current basin with noise toward attractors
         return self._project_toward_attractor(current_basin)
     

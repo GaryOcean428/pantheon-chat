@@ -1,0 +1,60 @@
+# Git
+.git
+.gitignore
+
+# Node
+node_modules
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+
+# Build outputs (will be created during build)
+dist
+
+# Development files
+*.md
+!README.md
+.env*
+.replit
+.replit-build
+replit.md
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Testing
+coverage
+*.test.ts
+*.test.js
+tests
+__tests__
+
+# Documentation
+docs
+
+# Python cache
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+.mypy_cache
+*.egg-info
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp
+temp
+*.tmp
+*.temp
+*.log
+
+# Docker files (not needed inside container)
+Dockerfile*
+docker-compose*.yml
+.dockerignore

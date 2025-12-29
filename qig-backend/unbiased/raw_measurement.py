@@ -385,10 +385,11 @@ class UnbiasedQIGNetwork:
             self._prev_state = current_state.copy()
             return 1.0
         
-        delta = np.linalg.norm(current_state - self._prev_state)
-        norm = np.linalg.norm(current_state) + 1e-10
-        
-        change = delta / norm
+        # Fisher-Rao style angular change on unit sphere
+        curr_norm = current_state / (np.linalg.norm(current_state) + 1e-10)
+        prev_norm = self._prev_state / (np.linalg.norm(self._prev_state) + 1e-10)
+        cos_angle = np.clip(np.dot(curr_norm, prev_norm), -1.0, 1.0)
+        change = np.arccos(cos_angle) / np.pi  # Normalize to [0, 1]
         
         self._prev_state = current_state.copy()
         

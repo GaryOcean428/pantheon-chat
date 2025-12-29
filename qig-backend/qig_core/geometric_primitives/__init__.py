@@ -33,6 +33,25 @@ from .canonical_fisher import (
     validate_basin,
 )
 
+# basin_to_probability: Convert basin coordinates to valid probability distribution
+# Inline implementation to avoid circular imports with parent module
+import numpy as np
+
+def basin_to_probability(basin, epsilon: float = 1e-10) -> np.ndarray:
+    """
+    Convert basin coordinates to a valid probability distribution.
+    
+    Args:
+        basin: Raw basin coordinates (array-like)
+        epsilon: Small value to ensure positivity
+        
+    Returns:
+        Valid probability distribution (sums to 1, all positive)
+    """
+    arr = np.asarray(basin, dtype=np.float64)
+    arr = np.abs(arr) + epsilon
+    return arr / arr.sum()
+
 # Import geometry ladder
 try:
     from .geometry_ladder import (
@@ -109,6 +128,8 @@ __all__ = [
     'geodesic_interpolate',
     'find_nearest_basins',
     'validate_basin',
+    # Basin conversion
+    'basin_to_probability',
 ]
 
 # Add optional exports if available

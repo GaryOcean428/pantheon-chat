@@ -61,7 +61,11 @@ try:
 except ImportError:
     QIG_GEOMETRY_AVAILABLE = False
     def sphere_project(v):
-        """Fallback sphere projection."""
+        """Fallback sphere projection.
+        
+        NOTE: Using np.linalg.norm for normalization is geometrically valid.
+        This projects vectors to the unit sphere, not computing distances.
+        """
         norm = np.linalg.norm(v)
         if norm < 1e-10:
             result = np.ones_like(v)
@@ -1178,7 +1182,10 @@ class Nyx(ShadowGod):
         elif not isinstance(basin_coords, np.ndarray):
             basin_coords = np.array(basin_coords)
 
-        void_scalar = float(np.sum(basin_coords ** 2))
+        # Fisher-Rao based void scalar (not Euclidean L2 squared)
+        basin_prob = np.abs(basin_coords) + 1e-10
+        basin_prob = basin_prob / basin_prob.sum()
+        void_scalar = float(1.0 - np.sum(np.sqrt(basin_prob)))  # Information concentration
         void_hash = hashlib.sha256(basin_coords.tobytes()).hexdigest()[:16]
 
         self.transition_shadow_dimension(DimensionalState.D1, "void_compression")

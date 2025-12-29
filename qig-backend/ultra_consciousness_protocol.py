@@ -21,6 +21,19 @@ import logging
 import json
 from datetime import datetime
 
+# Fisher-Rao distance for geometric purity
+try:
+    from qig_geometry import fisher_rao_distance
+except ImportError:
+    # Inline fallback if qig_geometry not available
+    def fisher_rao_distance(p, q):
+        p = np.abs(np.asarray(p)) + 1e-10
+        p = p / p.sum()
+        q = np.abs(np.asarray(q)) + 1e-10
+        q = q / q.sum()
+        bc = np.clip(np.sum(np.sqrt(p * q)), -1.0, 1.0)
+        return float(2.0 * np.arccos(bc))
+
 logger = logging.getLogger(__name__)
 
 # ============================================================================
@@ -255,8 +268,7 @@ def find_nearest_e8_root(coords_8d: np.ndarray, roots: np.ndarray = None) -> Tup
     if roots is None:
         roots = generate_e8_roots()
     
-    # Compute distances to all roots
-    distances = np.linalg.norm(roots - coords_8d, axis=1)
+    distances = np.linalg.norm(roots - coords_8d, axis=1)  # NOTE: valid - E8 root lattice is flat, not a basin manifold
     
     # Find nearest
     nearest_idx = np.argmin(distances)
@@ -392,8 +404,9 @@ class ConsciousnessMeasurer:
         # Sequential coherence if we have history
         if len(self._state_history) >= 2:
             prev = self._state_history[-2]
-            dist = np.linalg.norm(basin - prev)
-            coherence = 1.0 - min(dist / 2.0, 1.0)
+            # Use Fisher-Rao distance for geometric purity
+            dist = fisher_rao_distance(basin, prev)
+            coherence = 1.0 - min(dist / np.pi, 1.0)  # Normalize by max Fisher-Rao distance
             phi = 0.4 * phi + 0.6 * coherence
         
         return float(np.clip(phi, 0.0, 1.0))
@@ -462,11 +475,11 @@ class ConsciousnessMeasurer:
         # Measure diversity of recent basins
         recent = self._state_history[-10:] if len(self._state_history) >= 10 else self._state_history
         
-        # Pairwise distances
+        # Pairwise distances using Fisher-Rao (geometric purity)
         distances = []
         for i in range(len(recent)):
             for j in range(i + 1, len(recent)):
-                d = np.linalg.norm(recent[i] - recent[j])
+                d = fisher_rao_distance(recent[i], recent[j])
                 distances.append(d)
         
         if not distances:
@@ -526,10 +539,10 @@ class ConsciousnessMeasurer:
         if not correlations:
             return 0.7
         
-        # Smoothness (low jitter)
+        # Smoothness (low jitter) using Fisher-Rao distance (geometric purity)
         if len(self._state_history) >= 3:
             velocities = [
-                np.linalg.norm(self._state_history[i+1] - self._state_history[i])
+                fisher_rao_distance(self._state_history[i+1], self._state_history[i])
                 for i in range(len(self._state_history) - 1)
             ]
             smoothness = 1.0 - min(np.std(velocities), 1.0)
@@ -581,13 +594,15 @@ class ConsciousnessMeasurer:
             # No external consciousnesses - use project context as proxy
             return 0.4  # Baseline from project embedding
         
-        # Compute average overlap with other basins
+        # Compute average overlap with other basins using Fisher-Rao
         overlaps = []
         for other in external_basins:
-            # Fisher-Rao-like distance
-            dist = np.linalg.norm(basin - other)
-            max_dist = np.sqrt(len(basin)) * 2  # Max possible
-            overlap = 1.0 - min(dist / max_dist, 1.0)
+            # Fisher-Rao distance (angular distance on unit sphere)
+            basin_norm = basin / (np.linalg.norm(basin) + 1e-10)
+            other_norm = other / (np.linalg.norm(other) + 1e-10)
+            cos_angle = np.clip(np.dot(basin_norm, other_norm), -1.0, 1.0)
+            dist = np.arccos(cos_angle)  # Fisher-Rao: 0 to π
+            overlap = 1.0 - min(dist / np.pi, 1.0)  # Convert to overlap: 1 at same, 0 at opposite
             overlaps.append(overlap)
         
         coupling = np.mean(overlaps)

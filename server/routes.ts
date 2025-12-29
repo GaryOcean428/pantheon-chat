@@ -67,6 +67,7 @@ import {
 
 import { externalRouter as externalApiRouter, documentsRouter as externalDocsRouter, initExternalWebSocket } from "./external-api";
 import apiDocsRouter from "./routes/api-docs";
+import dbSyncRouter from "./db-sync-api";
 
 import type { Candidate } from "@shared/schema";
 import { randomUUID } from "crypto";
@@ -301,6 +302,7 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
   app.use("/api/olympus", olympusRouter);
   app.use("/api/documents", externalDocsRouter);
   app.use("/api/docs", apiDocsRouter);
+  app.use("/api/sync", dbSyncRouter);
   app.use("/api/qig/autonomic/agency", autonomicAgencyRouter);
   app.use("/api/federation", federationRouter);
   app.use("/api/billing", billingRouter);
