@@ -345,26 +345,24 @@ export const COMMON_NAMES = [
 // DICTIONARY AGGREGATOR
 // ============================================================================
 
+/**
+ * STATIC VOCABULARY for Bitcoin wallet recovery.
+ * Learning is now handled by Python vocabulary system (11,000+ words in PostgreSQL).
+ * This class provides read-only access to static word lists for passphrase generation.
+ */
 export class ExpandedVocabulary {
   private allWords: Set<string>;
   private wordsByCategory: Map<string, string[]>;
-  private learnedWords: Set<string>;
-  private wordFrequencies: Map<string, number>;
   
   constructor() {
     this.allWords = new Set();
     this.wordsByCategory = new Map();
-    this.learnedWords = new Set();
-    this.wordFrequencies = new Map();
     
-    // Initialize categories
     this.addCategory('common', COMMON_ENGLISH_WORDS);
     this.addCategory('crypto', CRYPTO_TECH_WORDS);
     this.addCategory('cultural', CULTURAL_REFERENCES);
     this.addCategory('patterns', PASSPHRASE_PATTERNS);
     this.addCategory('names', COMMON_NAMES);
-    
-    console.log(`[ExpandedVocabulary] Initialized with ${this.allWords.size} unique words across ${this.wordsByCategory.size} categories`);
   }
   
   private addCategory(name: string, words: string[]) {
@@ -373,82 +371,27 @@ export class ExpandedVocabulary {
     normalized.forEach(w => this.allWords.add(w));
   }
   
-  /**
-   * Get all words as array
-   */
   getAllWords(): string[] {
     return Array.from(this.allWords);
   }
   
-  /**
-   * Get words by category
-   */
   getCategory(category: string): string[] {
     return this.wordsByCategory.get(category) || [];
   }
   
-  /**
-   * Get categories
-   */
   getCategories(): string[] {
     return Array.from(this.wordsByCategory.keys());
   }
   
-  /**
-   * Check if word exists
-   */
   hasWord(word: string): boolean {
     return this.allWords.has(word.toLowerCase());
   }
   
-  /**
-   * Add learned word from discovery
-   */
-  learnWord(word: string, frequency: number = 1): void {
-    const normalized = word.toLowerCase().trim();
-    if (normalized.length > 0) {
-      this.learnedWords.add(normalized);
-      this.allWords.add(normalized);
-      const currentFreq = this.wordFrequencies.get(normalized) || 0;
-      this.wordFrequencies.set(normalized, currentFreq + frequency);
-    }
-  }
-  
-  /**
-   * Get learned words
-   */
-  getLearnedWords(): string[] {
-    return Array.from(this.learnedWords);
-  }
-  
-  /**
-   * Get word frequency
-   */
-  getWordFrequency(word: string): number {
-    return this.wordFrequencies.get(word.toLowerCase()) || 0;
-  }
-  
-  /**
-   * Get top words by frequency
-   */
-  getTopFrequencyWords(limit: number = 100): Array<{word: string, frequency: number}> {
-    return Array.from(this.wordFrequencies.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, limit)
-      .map(([word, frequency]) => ({ word, frequency }));
-  }
-  
-  /**
-   * Random word from category
-   */
   randomWord(category?: string): string {
     const words = category ? this.getCategory(category) : this.getAllWords();
     return words[Math.floor(Math.random() * words.length)] || 'bitcoin';
   }
   
-  /**
-   * Random words from vocabulary
-   */
   randomWords(count: number, category?: string): string[] {
     const words: string[] = [];
     for (let i = 0; i < count; i++) {
@@ -457,56 +400,15 @@ export class ExpandedVocabulary {
     return words;
   }
   
-  /**
-   * Get vocabulary statistics
-   */
   getStats(): {
     totalWords: number;
     categoryCounts: Record<string, number>;
-    learnedCount: number;
-    topFrequencies: Array<{word: string, frequency: number}>;
   } {
     const categoryCounts: Record<string, number> = {};
     for (const [name, words] of Array.from(this.wordsByCategory.entries())) {
       categoryCounts[name] = words.length;
     }
-    
-    return {
-      totalWords: this.allWords.size,
-      categoryCounts,
-      learnedCount: this.learnedWords.size,
-      topFrequencies: this.getTopFrequencyWords(20),
-    };
-  }
-  
-  /**
-   * Export vocabulary for persistence
-   */
-  export(): {
-    learned: string[];
-    frequencies: Array<[string, number]>;
-  } {
-    return {
-      learned: Array.from(this.learnedWords),
-      frequencies: Array.from(this.wordFrequencies.entries()),
-    };
-  }
-  
-  /**
-   * Import vocabulary from persistence
-   */
-  import(data: { learned?: string[]; frequencies?: Array<[string, number]> }): void {
-    if (data.learned) {
-      data.learned.forEach(w => this.learnedWords.add(w));
-      data.learned.forEach(w => this.allWords.add(w));
-    }
-    if (data.frequencies) {
-      data.frequencies.forEach(([word, freq]) => {
-        this.wordFrequencies.set(word, freq);
-        this.allWords.add(word);
-      });
-    }
-    console.log(`[ExpandedVocabulary] Imported ${data.learned?.length || 0} learned words, ${data.frequencies?.length || 0} frequency records`);
+    return { totalWords: this.allWords.size, categoryCounts };
   }
 }
 
