@@ -21,6 +21,7 @@ import {
   LearningDashboard,
   TelemetryDashboard,
   ToolFactoryDashboard,
+  Billing as BillingPage,
   NotFound,
 } from "@/pages";
 
@@ -89,6 +90,7 @@ function Router() {
         <Route path="/federation" component={FederationPage} />
         <Route path="/telemetry" component={TelemetryDashboard} />
         <Route path="/api-docs" component={ApiDocsPage} />
+        <Route path="/billing" component={BillingPage} />
         <Route component={NotFound} />
       </Switch>
     </AuthenticatedLayout>
