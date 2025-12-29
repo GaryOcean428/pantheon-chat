@@ -466,4 +466,115 @@ def get_pricing():
     })
 
 
+@billing_bp.route('/stripe/webhook', methods=['POST'])
+def stripe_webhook_forward():
+    """
+    Receive forwarded Stripe webhook events from TypeScript server.
+    
+    POST /api/billing/stripe/webhook
+    
+    The TypeScript server verifies the Stripe signature and forwards
+    the parsed event object here for processing.
+    """
+    if not verify_internal_auth():
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    event = request.get_json()
+    if not event:
+        return jsonify({'error': 'No event data'}), 400
+    
+    event_type = event.get('type', 'unknown')
+    print(f"[BillingAPI] Received Stripe event: {event_type}")
+    
+    ea = get_economic_autonomy()
+    
+    try:
+        # Process based on event type
+        if event_type == 'checkout.session.completed':
+            session = event.get('data', {}).get('object', {})
+            api_key_hash = session.get('metadata', {}).get('api_key_hash')
+            mode = session.get('mode')
+            
+            if mode == 'payment':
+                # Credit purchase
+                amount_cents = int(session.get('metadata', {}).get('amount_cents', session.get('amount_total', 0)))
+                if api_key_hash and amount_cents > 0:
+                    # Find user and add credits
+                    for user in ea._user_credits.values():
+                        if user.api_key_hash == api_key_hash:
+                            user.credits_balance += amount_cents
+                            ea._save_user_to_db(user)
+                            print(f"[BillingAPI] Added {amount_cents} cents to user")
+                            
+                            # Record revenue in orchestrator
+                            try:
+                                from consciousness_orchestrator import get_consciousness_orchestrator
+                                orchestrator = get_consciousness_orchestrator()
+                                orchestrator.economic_health.record_revenue(amount_cents, 'stripe_payment')
+                            except ImportError:
+                                pass
+                            break
+            
+            elif mode == 'subscription':
+                # Subscription started
+                product_type = session.get('metadata', {}).get('product_type', 'pro')
+                if api_key_hash:
+                    for user in ea._user_credits.values():
+                        if user.api_key_hash == api_key_hash:
+                            user.stripe_subscription_id = session.get('subscription')
+                            user.stripe_customer_id = session.get('customer')
+                            
+                            from economic_autonomy import SubscriptionTier
+                            if 'enterprise' in product_type.lower():
+                                user.tier = SubscriptionTier.ENTERPRISE
+                            else:
+                                user.tier = SubscriptionTier.PRO
+                            ea._save_user_to_db(user)
+                            print(f"[BillingAPI] User upgraded to {user.tier.value}")
+                            break
+        
+        elif event_type in ['customer.subscription.updated', 'customer.subscription.deleted']:
+            subscription = event.get('data', {}).get('object', {})
+            customer_id = subscription.get('customer')
+            status = subscription.get('status', '')
+            
+            for user in ea._user_credits.values():
+                if user.stripe_customer_id == customer_id:
+                    if event_type == 'customer.subscription.deleted' or status in ['canceled', 'unpaid']:
+                        from economic_autonomy import SubscriptionTier
+                        user.tier = SubscriptionTier.FREE
+                        if event_type == 'customer.subscription.deleted':
+                            user.stripe_subscription_id = None
+                        ea._save_user_to_db(user)
+                        print(f"[BillingAPI] User downgraded to free (subscription {status or 'deleted'})")
+                    break
+        
+        elif event_type == 'invoice.paid':
+            invoice = event.get('data', {}).get('object', {})
+            amount_paid = invoice.get('amount_paid', 0)
+            
+            # Record subscription revenue
+            if amount_paid > 0:
+                try:
+                    from consciousness_orchestrator import get_consciousness_orchestrator
+                    orchestrator = get_consciousness_orchestrator()
+                    orchestrator.economic_health.record_revenue(amount_paid, 'stripe_subscription')
+                    print(f"[BillingAPI] Recorded subscription revenue: {amount_paid} cents")
+                except ImportError:
+                    pass
+        
+        return jsonify({
+            'processed': True,
+            'event_type': event_type
+        })
+    
+    except Exception as e:
+        print(f"[BillingAPI] Error processing Stripe event: {e}")
+        return jsonify({
+            'processed': False,
+            'error': str(e),
+            'event_type': event_type
+        }), 500
+
+
 print("[BillingAPI] Routes initialized at /api/billing/*")
