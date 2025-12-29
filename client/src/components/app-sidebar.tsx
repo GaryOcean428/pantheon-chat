@@ -36,6 +36,7 @@ import {
   Globe,
   Activity,
   FileCode,
+  CreditCard,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useConsciousness, getPhiColor, getRegimeLabel } from "@/contexts/ConsciousnessContext";
@@ -109,6 +110,12 @@ export function AppSidebar() {
       url: "/api-docs",
       icon: FileCode,
       description: "External API documentation",
+    },
+    {
+      title: "Billing",
+      url: "/billing",
+      icon: CreditCard,
+      description: "Credits, usage & subscription",
     },
   ];
 
