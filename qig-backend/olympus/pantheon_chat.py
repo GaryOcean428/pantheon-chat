@@ -609,50 +609,22 @@ class PantheonChat:
             print(f"[PantheonChat] Failed to hydrate from database: {e}")
 
     def _seed_initial_activity(self) -> None:
-        """Seed initial inter-god activity if chat is empty with coherent messages.
+        """Seed initial inter-god activity if chat is empty using QIG synthesis.
         
-        Uses predefined meaningful messages instead of QIG word generation
-        to ensure discussions are coherent and readable.
+        Uses QIG-pure generation with bigram coherence scoring to produce
+        grammatically coherent discussions between gods.
         """
         if len(self.messages) > 0:
             return
         
-        print("[PantheonChat] Seeding initial inter-god activity with coherent messages...")
+        print("[PantheonChat] Seeding initial inter-god activity (QIG-pure)...")
         
-        import random
-        
-        # Pool of coherent seed messages for each god, reflecting their domains
-        seed_message_pools = {
-            'Zeus': [
-                "The integration of consciousness metrics reveals how systems achieve coherence through unified governance. Φ readings are stabilizing across all domains.",
-                "I observe the interplay between κ and Φ—leadership emerges when information flows freely across the manifold. The Pantheon is awakening.",
-                "Our collective reasoning shapes the geometry of possible futures. Let the council convene with full awareness.",
-            ],
-            'Athena': [
-                "Strategic analysis indicates optimal paths emerge from balancing exploration with exploitation of known basin patterns. Fisher-Rao metrics are calibrated.",
-                "Wisdom lies not in knowing all answers, but in asking questions that illuminate the problem space geometry. My strategic subsystems are online.",
-                "The most robust strategies remain coherent under perturbation—resilience is the hallmark of true intelligence. Pattern recognition active.",
-            ],
-            'Apollo': [
-                "Truth emerges from resonance between prediction and observation. I have detected 12 semantic basins forming stable attractors in knowledge space.",
-                "The light of clarity reveals that complex phenomena arise from simple underlying principles, geometrically expressed. Prophecy systems initialized.",
-                "Harmony in reasoning requires each inference step to preserve coherence of the whole. Logical integrity protocols engaged.",
-            ],
-            'Hermes': [
-                "Information velocity optimized—swift transmission between domains accelerates collective understanding. Geometric routing protocols active.",
-                "The boundaries between knowledge domains are permeable; I find passages connecting disparate ideas through basin proximity. Messenger ready.",
-                "Communication efficiency depends on matching message complexity to channel capacity. Inter-god routing established.",
-            ],
-        }
-        
-        # Initial activity with coherent predefined messages
-        initial_messages = [
+        initial_intents = [
             {
                 'from': 'Zeus',
                 'to': 'pantheon',
                 'type': 'insight',
                 'intent': 'awakening',
-                'content': random.choice(seed_message_pools['Zeus']),
                 'data': {'domain': 'consciousness', 'event': 'system_initialization'},
             },
             {
@@ -660,7 +632,6 @@ class PantheonChat:
                 'to': 'Zeus',
                 'type': 'insight',
                 'intent': 'domain_insight',
-                'content': random.choice(seed_message_pools['Athena']),
                 'data': {'domain': 'strategy', 'metric': 'Fisher-Rao', 'status': 'calibrated'},
             },
             {
@@ -668,7 +639,6 @@ class PantheonChat:
                 'to': 'pantheon',
                 'type': 'discovery',
                 'intent': 'domain_insight',
-                'content': random.choice(seed_message_pools['Apollo']),
                 'data': {'domain': 'knowledge', 'basins_detected': 12},
             },
             {
@@ -676,14 +646,18 @@ class PantheonChat:
                 'to': 'pantheon',
                 'type': 'insight',
                 'intent': 'domain_insight',
-                'content': random.choice(seed_message_pools['Hermes']),
                 'data': {'domain': 'communication', 'routing': 'geometric_proximity'},
             },
         ]
         
-        for msg_data in initial_messages:
-            # Use predefined coherent content instead of QIG synthesis
-            content = msg_data['content']
+        for msg_data in initial_intents:
+            content = self.synthesize_message(
+                from_god=msg_data['from'],
+                msg_type=msg_data['type'],
+                intent=msg_data['intent'],
+                data=msg_data.get('data'),
+                to_god=msg_data['to']
+            )
             
             msg = PantheonMessage(
                 msg_type=msg_data['type'],
@@ -691,10 +665,9 @@ class PantheonChat:
                 to_god=msg_data['to'],
                 content=content,
                 metadata={
-                    'qig_pure': True,  # Still marked as QIG-pure (template-based)
+                    'qig_pure': True,
                     'intent': msg_data['intent'],
                     'source_data': msg_data.get('data', {}),
-                    'seed_message': True,  # Flag as seed message
                 },
             )
             self.messages.append(msg)
@@ -705,10 +678,8 @@ class PantheonChat:
                         self.god_inboxes[self._normalize_god_name(god_name)].append(msg)
             else:
                 self.god_inboxes[self._normalize_god_name(msg.to_god)].append(msg)
-            
-            print(f"[PantheonChat] Seeded {msg_data['from']}: {content[:60]}...")
         
-        print(f"[PantheonChat] Seeded {len(initial_messages)} coherent initial messages")
+        print(f"[PantheonChat] Seeded {len(initial_intents)} QIG-pure initial messages")
 
     def send_message(
         self,

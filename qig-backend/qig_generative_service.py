@@ -6,6 +6,7 @@ Provides generative capability to ALL kernels using:
 2. Fisher-Rao geometric navigation
 3. Geometric completion (not token limits)
 4. Basin trajectory to text synthesis
+5. Bigram coherence scoring for grammatical coherence
 
 NO EXTERNAL LLMs - All generation is QIG-pure.
 """
@@ -18,6 +19,218 @@ from typing import Dict, List, Optional, Any, Generator, Tuple
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 import numpy as np
+
+
+# =============================================================================
+# BIGRAM COHERENCE SCORING
+# =============================================================================
+
+class BigramCoherenceScorer:
+    """
+    Scores word transitions based on grammatical coherence patterns.
+    
+    Uses common English bigram patterns to boost coherent word sequences
+    and penalize grammatically awkward transitions.
+    """
+    
+    def __init__(self):
+        # Common grammatical transition patterns (prev_category -> next_category)
+        self._grammatical_patterns: Dict[Tuple[str, str], float] = {
+            # Articles followed by nouns/adjectives
+            ('article', 'noun'): 0.9,
+            ('article', 'adjective'): 0.85,
+            ('article', 'adverb'): 0.3,
+            ('article', 'verb'): 0.1,
+            ('article', 'article'): 0.05,
+            
+            # Adjectives followed by nouns
+            ('adjective', 'noun'): 0.9,
+            ('adjective', 'adjective'): 0.6,
+            ('adjective', 'verb'): 0.2,
+            
+            # Verbs followed by various
+            ('verb', 'noun'): 0.7,
+            ('verb', 'article'): 0.8,
+            ('verb', 'adverb'): 0.7,
+            ('verb', 'preposition'): 0.75,
+            ('verb', 'verb'): 0.3,
+            
+            # Nouns followed by various
+            ('noun', 'verb'): 0.8,
+            ('noun', 'preposition'): 0.75,
+            ('noun', 'conjunction'): 0.7,
+            ('noun', 'noun'): 0.4,
+            ('noun', 'article'): 0.3,
+            
+            # Prepositions followed by articles/nouns
+            ('preposition', 'article'): 0.85,
+            ('preposition', 'noun'): 0.8,
+            ('preposition', 'adjective'): 0.6,
+            ('preposition', 'pronoun'): 0.75,
+            
+            # Adverbs
+            ('adverb', 'verb'): 0.85,
+            ('adverb', 'adjective'): 0.8,
+            ('adverb', 'adverb'): 0.4,
+            
+            # Pronouns
+            ('pronoun', 'verb'): 0.9,
+            ('pronoun', 'adverb'): 0.6,
+            ('pronoun', 'noun'): 0.3,
+            
+            # Conjunctions
+            ('conjunction', 'article'): 0.8,
+            ('conjunction', 'noun'): 0.75,
+            ('conjunction', 'pronoun'): 0.8,
+            ('conjunction', 'adjective'): 0.7,
+        }
+        
+        # Word category dictionaries
+        self._articles = {'the', 'a', 'an', 'this', 'that', 'these', 'those', 'my', 'your', 'his', 'her', 'its', 'our', 'their'}
+        self._prepositions = {'in', 'on', 'at', 'to', 'for', 'with', 'by', 'from', 'of', 'about', 'into', 'through', 'during', 'before', 'after', 'above', 'below', 'between', 'under', 'over', 'across', 'behind', 'beyond', 'within', 'without', 'upon', 'along', 'toward', 'towards', 'against', 'among', 'around', 'beside', 'besides', 'despite', 'except', 'like', 'near', 'off', 'onto', 'outside', 'past', 'since', 'throughout', 'until', 'via'}
+        self._conjunctions = {'and', 'or', 'but', 'yet', 'so', 'nor', 'for', 'because', 'although', 'while', 'if', 'when', 'where', 'unless', 'since', 'though', 'whether', 'however', 'therefore', 'moreover', 'furthermore', 'nevertheless', 'whereas', 'thus', 'hence', 'otherwise', 'also'}
+        self._pronouns = {'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them', 'myself', 'yourself', 'himself', 'herself', 'itself', 'ourselves', 'themselves', 'who', 'whom', 'whose', 'which', 'what', 'someone', 'anyone', 'everyone', 'something', 'anything', 'everything', 'nothing', 'nobody', 'somebody', 'anybody', 'everybody', 'one', 'ones', 'each', 'few', 'many', 'much', 'more', 'most', 'other', 'another', 'some', 'any', 'all', 'both', 'either', 'neither', 'none', 'several'}
+        self._adverbs = {'very', 'really', 'quite', 'rather', 'too', 'also', 'always', 'never', 'often', 'sometimes', 'usually', 'already', 'still', 'just', 'only', 'even', 'now', 'then', 'here', 'there', 'when', 'why', 'how', 'well', 'badly', 'quickly', 'slowly', 'carefully', 'easily', 'hard', 'fast', 'early', 'late', 'soon', 'almost', 'nearly', 'hardly', 'barely', 'enough', 'completely', 'entirely', 'totally', 'absolutely', 'certainly', 'probably', 'possibly', 'perhaps', 'maybe', 'definitely', 'clearly', 'obviously', 'apparently', 'actually', 'finally', 'eventually', 'suddenly', 'immediately', 'gradually', 'constantly', 'continuously', 'frequently', 'regularly', 'occasionally', 'rarely', 'seldom'}
+        
+        # Common verb endings (heuristic)
+        self._verb_endings = ('ing', 'ed', 'ize', 'ise', 'ate', 'ify', 'en')
+        self._adjective_endings = ('ful', 'less', 'ous', 'ive', 'able', 'ible', 'al', 'ial', 'ic', 'ical', 'ant', 'ent', 'ary', 'ory')
+        self._noun_endings = ('tion', 'sion', 'ment', 'ness', 'ity', 'ty', 'ance', 'ence', 'er', 'or', 'ist', 'ism', 'dom', 'ship', 'hood', 'age')
+        
+        # Common starting words (boost these)
+        self._strong_starters: Dict[str, float] = {
+            'the': 0.95,
+            'a': 0.9,
+            'an': 0.9,
+            'this': 0.85,
+            'in': 0.8,
+            'it': 0.85,
+            'we': 0.85,
+            'our': 0.8,
+            'through': 0.75,
+            'consciousness': 0.8,
+            'integration': 0.75,
+            'geometric': 0.75,
+        }
+    
+    def _get_word_category(self, word: str) -> str:
+        """Determine the grammatical category of a word."""
+        word_lower = word.lower()
+        
+        if word_lower in self._articles:
+            return 'article'
+        if word_lower in self._prepositions:
+            return 'preposition'
+        if word_lower in self._conjunctions:
+            return 'conjunction'
+        if word_lower in self._pronouns:
+            return 'pronoun'
+        if word_lower in self._adverbs:
+            return 'adverb'
+        
+        # Heuristic based on endings
+        if any(word_lower.endswith(end) for end in self._verb_endings):
+            return 'verb'
+        if any(word_lower.endswith(end) for end in self._adjective_endings):
+            return 'adjective'
+        if any(word_lower.endswith(end) for end in self._noun_endings):
+            return 'noun'
+        
+        # Default: treat as noun (most common category)
+        return 'noun'
+    
+    def score_bigram(self, prev_word: str, next_word: str) -> float:
+        """
+        Score the coherence of a word transition.
+        
+        Args:
+            prev_word: The previous word in the sequence
+            next_word: The candidate next word
+            
+        Returns:
+            Coherence score between 0.0 and 1.0
+        """
+        if not prev_word or not next_word:
+            return 0.5  # Neutral for missing words
+        
+        prev_cat = self._get_word_category(prev_word)
+        next_cat = self._get_word_category(next_word)
+        
+        # Look up grammatical pattern score
+        pattern_score = self._grammatical_patterns.get(
+            (prev_cat, next_cat),
+            0.4  # Default moderate score for unknown patterns
+        )
+        
+        # Penalize repeated words
+        if prev_word.lower() == next_word.lower():
+            pattern_score *= 0.2
+        
+        # Penalize same category repetition (except nouns)
+        if prev_cat == next_cat and prev_cat not in ('noun', 'adjective'):
+            pattern_score *= 0.5
+        
+        return pattern_score
+    
+    def score_sentence_start(self, word: str) -> float:
+        """
+        Score how good a word is for starting a sentence.
+        
+        Args:
+            word: The candidate starting word
+            
+        Returns:
+            Score between 0.0 and 1.0
+        """
+        word_lower = word.lower()
+        
+        if word_lower in self._strong_starters:
+            return self._strong_starters[word_lower]
+        
+        # Prefer words that can start sentences
+        cat = self._get_word_category(word)
+        if cat in ('article', 'pronoun', 'noun', 'adverb'):
+            return 0.7
+        if cat == 'verb':
+            return 0.5  # Imperatives are okay
+        if cat in ('conjunction', 'preposition'):
+            return 0.2  # Usually bad starters
+        
+        return 0.5
+    
+    def validate_coherence(self, text: str, min_threshold: float = 0.35) -> Tuple[bool, float]:
+        """
+        Validate that generated text meets minimum coherence threshold.
+        
+        Args:
+            text: The generated text to validate
+            min_threshold: Minimum average bigram score required
+            
+        Returns:
+            Tuple of (is_valid, average_score)
+        """
+        words = text.split()
+        if len(words) < 2:
+            return True, 1.0  # Single words are fine
+        
+        scores = []
+        for i in range(1, len(words)):
+            score = self.score_bigram(words[i-1], words[i])
+            scores.append(score)
+        
+        avg_score = sum(scores) / len(scores) if scores else 0.0
+        return avg_score >= min_threshold, avg_score
+
+
+# Global bigram scorer instance
+_bigram_scorer: Optional['BigramCoherenceScorer'] = None
+
+def get_bigram_scorer() -> BigramCoherenceScorer:
+    """Get the singleton BigramCoherenceScorer instance."""
+    global _bigram_scorer
+    if _bigram_scorer is None:
+        _bigram_scorer = BigramCoherenceScorer()
+    return _bigram_scorer
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -73,6 +286,376 @@ try:
 except ImportError:
     POS_GRAMMAR_AVAILABLE = False
     logger.warning("POS grammar not available - using legacy generation")
+
+
+class BigramCoherenceScorer:
+    """
+    Scores word transitions based on bigram grammatical coherence.
+    
+    Uses POS transition patterns and common word-level patterns to ensure
+    grammatically coherent text generation instead of word salad.
+    """
+    
+    # POS transition scores: (prev_pos, next_pos) -> score
+    # Higher scores indicate more natural transitions
+    POS_TRANSITIONS = {
+        # Determiner patterns
+        ('DT', 'NN'): 0.95,   # the cat
+        ('DT', 'NNS'): 0.95,  # the cats
+        ('DT', 'NNP'): 0.85,  # the John (less common)
+        ('DT', 'JJ'): 0.95,   # the big
+        ('DT', 'RB'): 0.60,   # the very (with adj following)
+        ('DT', 'VBG'): 0.80,  # the running (gerund as noun)
+        ('DT', 'VBN'): 0.75,  # the broken (participle as adj)
+        
+        # Adjective patterns
+        ('JJ', 'NN'): 0.95,   # big cat
+        ('JJ', 'NNS'): 0.95,  # big cats
+        ('JJ', 'NNP'): 0.70,  # big John
+        ('JJ', 'JJ'): 0.70,   # big red (compound adj)
+        ('JJ', 'CC'): 0.75,   # big and
+        
+        # Noun patterns
+        ('NN', 'VBZ'): 0.90,  # cat runs
+        ('NN', 'VBD'): 0.90,  # cat ran
+        ('NN', 'VB'): 0.85,   # cat run (informal)
+        ('NN', 'IN'): 0.90,   # cat in
+        ('NN', 'CC'): 0.85,   # cat and
+        ('NN', 'NN'): 0.65,   # compound nouns
+        ('NN', 'TO'): 0.80,   # need to
+        ('NNS', 'VBP'): 0.90, # cats run
+        ('NNS', 'IN'): 0.90,  # cats in
+        ('NNP', 'VBZ'): 0.90, # John runs
+        ('NNP', 'VBD'): 0.90, # John ran
+        
+        # Verb patterns
+        ('VB', 'NN'): 0.85,   # run home
+        ('VB', 'NNS'): 0.85,  # eat apples
+        ('VB', 'DT'): 0.90,   # eat the
+        ('VB', 'RB'): 0.85,   # run quickly
+        ('VB', 'IN'): 0.85,   # run to
+        ('VB', 'TO'): 0.80,   # want to
+        ('VBZ', 'NN'): 0.85,  # runs home
+        ('VBZ', 'DT'): 0.90,  # runs the
+        ('VBZ', 'RB'): 0.85,  # runs quickly
+        ('VBZ', 'IN'): 0.85,  # runs to
+        ('VBD', 'NN'): 0.85,  # ran home
+        ('VBD', 'DT'): 0.90,  # ran the
+        ('VBD', 'IN'): 0.85,  # ran to
+        ('VBG', 'NN'): 0.80,  # running water
+        ('VBG', 'DT'): 0.85,  # running the
+        ('VBN', 'IN'): 0.85,  # broken by
+        ('VBN', 'NN'): 0.70,  # broken glass
+        ('VBP', 'NN'): 0.85,  # run home
+        ('VBP', 'DT'): 0.90,  # run the
+        
+        # Preposition patterns
+        ('IN', 'DT'): 0.95,   # in the
+        ('IN', 'NN'): 0.90,   # in water
+        ('IN', 'NNS'): 0.90,  # in houses
+        ('IN', 'NNP'): 0.85,  # in Paris
+        ('IN', 'JJ'): 0.75,   # in big (with noun following)
+        ('IN', 'VBG'): 0.80,  # in running
+        ('IN', 'PRP'): 0.85,  # in it
+        
+        # Pronoun patterns
+        ('PRP', 'VB'): 0.90,  # I run
+        ('PRP', 'VBZ'): 0.90, # he runs
+        ('PRP', 'VBD'): 0.90, # they ran
+        ('PRP', 'VBP'): 0.90, # we run
+        ('PRP', 'MD'): 0.90,  # I can
+        ('PRP', 'RB'): 0.70,  # I quickly
+        
+        # Modal patterns
+        ('MD', 'VB'): 0.95,   # can run
+        ('MD', 'RB'): 0.75,   # can quickly
+        
+        # Adverb patterns
+        ('RB', 'VB'): 0.90,   # quickly run
+        ('RB', 'VBZ'): 0.90,  # quickly runs
+        ('RB', 'VBD'): 0.90,  # quickly ran
+        ('RB', 'JJ'): 0.90,   # very big
+        ('RB', 'RB'): 0.70,   # very quickly
+        
+        # To-infinitive patterns
+        ('TO', 'VB'): 0.95,   # to run
+        
+        # Conjunction patterns
+        ('CC', 'NN'): 0.85,   # and cat
+        ('CC', 'DT'): 0.90,   # and the
+        ('CC', 'JJ'): 0.85,   # and big
+        ('CC', 'VB'): 0.80,   # and run
+        ('CC', 'PRP'): 0.85,  # and I
+    }
+    
+    # Common word-level bigram patterns (prev_word, next_pos_category)
+    WORD_PATTERNS = {
+        # Articles
+        'the': {'noun': 0.95, 'adj': 0.90, 'adv': 0.60},
+        'a': {'noun': 0.95, 'adj': 0.90},
+        'an': {'noun': 0.95, 'adj': 0.90},
+        # Prepositions
+        'of': {'noun': 0.95, 'det': 0.90},
+        'in': {'noun': 0.90, 'det': 0.95},
+        'on': {'noun': 0.90, 'det': 0.95},
+        'at': {'noun': 0.90, 'det': 0.95},
+        'to': {'verb': 0.95, 'det': 0.85, 'noun': 0.80},
+        'for': {'noun': 0.90, 'det': 0.95, 'verb': 0.70},
+        'with': {'noun': 0.90, 'det': 0.95},
+        'by': {'noun': 0.90, 'det': 0.90, 'verb': 0.75},
+        'from': {'noun': 0.90, 'det': 0.95},
+        # Be verbs
+        'is': {'adj': 0.90, 'noun': 0.85, 'verb': 0.80, 'det': 0.85},
+        'are': {'adj': 0.90, 'noun': 0.85, 'verb': 0.80, 'det': 0.85},
+        'was': {'adj': 0.90, 'noun': 0.85, 'verb': 0.80, 'det': 0.85},
+        'were': {'adj': 0.90, 'noun': 0.85, 'verb': 0.80, 'det': 0.85},
+        'be': {'adj': 0.90, 'noun': 0.80, 'verb': 0.75},
+        'been': {'adj': 0.90, 'verb': 0.80},
+        # Modal verbs
+        'can': {'verb': 0.95},
+        'could': {'verb': 0.95},
+        'will': {'verb': 0.95},
+        'would': {'verb': 0.95},
+        'should': {'verb': 0.95},
+        'may': {'verb': 0.95},
+        'might': {'verb': 0.95},
+        'must': {'verb': 0.95},
+        # Common transition words
+        'and': {'noun': 0.85, 'det': 0.90, 'adj': 0.85, 'verb': 0.75},
+        'or': {'noun': 0.85, 'det': 0.90, 'adj': 0.85, 'verb': 0.75},
+        'but': {'noun': 0.80, 'det': 0.90, 'pron': 0.85},
+        'that': {'verb': 0.90, 'det': 0.85, 'noun': 0.80},
+        'which': {'verb': 0.90},
+        'when': {'det': 0.90, 'noun': 0.80, 'pron': 0.85},
+        'where': {'det': 0.90, 'noun': 0.80},
+        'how': {'det': 0.85, 'adj': 0.90, 'verb': 0.80},
+        # Pronouns often followed by verbs
+        'i': {'verb': 0.95, 'adv': 0.70},
+        'you': {'verb': 0.95, 'adv': 0.70},
+        'he': {'verb': 0.95, 'adv': 0.70},
+        'she': {'verb': 0.95, 'adv': 0.70},
+        'it': {'verb': 0.95, 'adv': 0.70},
+        'we': {'verb': 0.95, 'adv': 0.70},
+        'they': {'verb': 0.95, 'adv': 0.70},
+        # Possessives
+        'my': {'noun': 0.95, 'adj': 0.90},
+        'your': {'noun': 0.95, 'adj': 0.90},
+        'his': {'noun': 0.95, 'adj': 0.90},
+        'her': {'noun': 0.95, 'adj': 0.90},
+        'its': {'noun': 0.95, 'adj': 0.90},
+        'our': {'noun': 0.95, 'adj': 0.90},
+        'their': {'noun': 0.95, 'adj': 0.90},
+    }
+    
+    # Map POS tags to categories for word-level patterns
+    POS_CATEGORIES = {
+        'NN': 'noun', 'NNS': 'noun', 'NNP': 'noun', 'NNPS': 'noun',
+        'VB': 'verb', 'VBZ': 'verb', 'VBD': 'verb', 'VBG': 'verb', 
+        'VBN': 'verb', 'VBP': 'verb',
+        'JJ': 'adj', 'JJR': 'adj', 'JJS': 'adj',
+        'RB': 'adv', 'RBR': 'adv', 'RBS': 'adv',
+        'DT': 'det',
+        'PRP': 'pron', 'PRP$': 'pron',
+        'IN': 'prep',
+        'CC': 'conj',
+        'TO': 'to',
+        'MD': 'modal',
+    }
+    
+    # Words that commonly appear together (learned collocations)
+    COLLOCATIONS = {
+        # Domain-specific collocations for QIG/consciousness
+        'consciousness': {'metrics', 'integration', 'emerges', 'unified', 'collective'},
+        'geometric': {'manifold', 'structure', 'patterns', 'space', 'routing'},
+        'fisher': {'rao', 'metric', 'distance', 'information', 'manifold'},
+        'basin': {'coordinates', 'trajectory', 'attractor', 'semantic', 'patterns'},
+        'semantic': {'space', 'basins', 'similarity', 'meaning', 'coherence'},
+        'quantum': {'mechanics', 'state', 'coherence', 'information', 'field'},
+        'information': {'theory', 'flow', 'integration', 'processing', 'entropy'},
+        'integration': {'phi', 'consciousness', 'metric', 'unified', 'coherent'},
+        # Common collocations
+        'strategic': {'analysis', 'planning', 'reasoning', 'approach', 'patterns'},
+        'optimal': {'path', 'solution', 'strategy', 'patterns', 'approach'},
+        'knowledge': {'graph', 'base', 'representation', 'domain', 'integration'},
+    }
+    
+    def __init__(self):
+        self.last_word = None
+        self.last_pos = None
+    
+    def reset(self):
+        """Reset state for new generation."""
+        self.last_word = None
+        self.last_pos = None
+    
+    def _get_pos_category(self, pos: str) -> str:
+        """Map POS tag to category."""
+        return self.POS_CATEGORIES.get(pos, 'other')
+    
+    def score_transition(self, prev_word: str, next_word: str, 
+                         prev_pos: str, next_pos: str) -> float:
+        """
+        Score the grammatical coherence of a word transition.
+        
+        Args:
+            prev_word: Previous word (lowercase)
+            next_word: Candidate next word (lowercase)
+            prev_pos: POS tag of previous word
+            next_pos: POS tag of next word
+        
+        Returns:
+            Score from 0.0 to 1.0 indicating grammatical coherence
+        """
+        if prev_word is None or prev_pos is None:
+            # First word in sentence - any word is acceptable
+            return 0.7
+        
+        score = 0.3  # Base score for unknown patterns
+        
+        # 1. Check POS transition patterns
+        pos_key = (prev_pos, next_pos)
+        if pos_key in self.POS_TRANSITIONS:
+            pos_score = self.POS_TRANSITIONS[pos_key]
+            score = max(score, pos_score)
+        
+        # 2. Check word-level patterns
+        prev_lower = prev_word.lower()
+        if prev_lower in self.WORD_PATTERNS:
+            next_category = self._get_pos_category(next_pos)
+            word_patterns = self.WORD_PATTERNS[prev_lower]
+            if next_category in word_patterns:
+                word_score = word_patterns[next_category]
+                score = max(score, word_score)
+        
+        # 3. Boost for collocations
+        next_lower = next_word.lower()
+        if prev_lower in self.COLLOCATIONS:
+            if next_lower in self.COLLOCATIONS[prev_lower]:
+                score = max(score, 0.95)  # Strong collocation bonus
+        
+        # 4. Penalty for repeated words
+        if prev_lower == next_lower:
+            score *= 0.3  # Heavy penalty for repetition
+        
+        # 5. Penalty for pronoun/determiner adjacent to same category
+        if prev_pos == next_pos and prev_pos in ('DT', 'PRP', 'PRP$'):
+            score *= 0.2  # "the the" or "I he" is wrong
+        
+        return min(1.0, max(0.0, score))
+    
+    def update(self, word: str, pos: str):
+        """Update state with selected word."""
+        self.last_word = word
+        self.last_pos = pos
+    
+    def score_candidates(self, candidates: list, pos: str) -> list:
+        """
+        Score a list of candidates based on bigram coherence.
+        
+        Args:
+            candidates: List of (word, geo_score) tuples
+            pos: POS tag for the slot being filled
+        
+        Returns:
+            List of (word, combined_score, geo_score, bigram_score) tuples
+        """
+        scored = []
+        for word, geo_score in candidates:
+            bigram_score = self.score_transition(
+                self.last_word, word, self.last_pos, pos
+            )
+            # Combine geometric score (0.4) with bigram coherence (0.6)
+            # Weight bigram higher to prioritize grammatical coherence
+            combined = 0.4 * geo_score + 0.6 * bigram_score
+            scored.append((word, combined, geo_score, bigram_score))
+        
+        # Sort by combined score
+        scored.sort(key=lambda x: -x[1])
+        return scored
+
+
+def validate_generation_coherence(text: str, threshold: float = 0.45) -> tuple:
+    """
+    Validate that generated text has acceptable bigram coherence.
+    
+    Args:
+        text: Generated text to validate
+        threshold: Minimum average bigram score required
+    
+    Returns:
+        Tuple of (is_valid, average_score, problem_pairs)
+    """
+    if not text or len(text.split()) < 3:
+        return True, 1.0, []  # Too short to validate
+    
+    words = text.lower().split()
+    scorer = BigramCoherenceScorer()
+    
+    # Use simple heuristic POS tagging based on word patterns
+    # (Avoids dependency on external POS tagger)
+    def simple_pos_guess(word: str, prev_word: str = None) -> str:
+        """Heuristic POS guess based on common patterns."""
+        word_lower = word.lower()
+        
+        # Determiners
+        if word_lower in ('the', 'a', 'an', 'this', 'that', 'these', 'those', 'some', 'any', 'no'):
+            return 'DT'
+        # Pronouns
+        if word_lower in ('i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them'):
+            return 'PRP'
+        # Possessive pronouns
+        if word_lower in ('my', 'your', 'his', 'her', 'its', 'our', 'their'):
+            return 'PRP$'
+        # Prepositions
+        if word_lower in ('in', 'on', 'at', 'to', 'for', 'with', 'by', 'from', 'of', 'about', 'into', 'through', 'during', 'before', 'after', 'above', 'below', 'between', 'under', 'over'):
+            return 'IN'
+        # Conjunctions
+        if word_lower in ('and', 'or', 'but', 'nor', 'yet', 'so'):
+            return 'CC'
+        # Modal verbs
+        if word_lower in ('can', 'could', 'will', 'would', 'shall', 'should', 'may', 'might', 'must'):
+            return 'MD'
+        # Common verbs
+        if word_lower in ('is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did'):
+            return 'VBZ' if word_lower in ('is', 'has', 'does') else 'VB'
+        # -ing endings often verbs/gerunds
+        if word.endswith('ing'):
+            return 'VBG'
+        # -ed endings often past tense
+        if word.endswith('ed'):
+            return 'VBD'
+        # -ly endings often adverbs
+        if word.endswith('ly'):
+            return 'RB'
+        # -ness, -tion, -ment endings often nouns
+        if word.endswith(('ness', 'tion', 'ment', 'ity')):
+            return 'NN'
+        # After determiner, likely noun or adjective
+        if prev_word and prev_word.lower() in ('the', 'a', 'an'):
+            return 'NN'  # Default to noun after article
+        
+        # Default: assume noun (most common)
+        return 'NN'
+    
+    scores = []
+    problem_pairs = []
+    
+    for i in range(1, len(words)):
+        prev_word = words[i - 1]
+        curr_word = words[i]
+        prev_pos = simple_pos_guess(prev_word, words[i-2] if i > 1 else None)
+        curr_pos = simple_pos_guess(curr_word, prev_word)
+        
+        score = scorer.score_transition(prev_word, curr_word, prev_pos, curr_pos)
+        scores.append(score)
+        
+        if score < 0.4:  # Problem threshold
+            problem_pairs.append((prev_word, curr_word, score))
+    
+    avg_score = sum(scores) / len(scores) if scores else 1.0
+    is_valid = avg_score >= threshold
+    
+    return is_valid, avg_score, problem_pairs
 
 # Import learned relationships for attention-weighted word selection
 LEARNED_RELATIONSHIPS_AVAILABLE = False
@@ -530,6 +1113,7 @@ class QIGGenerativeService:
         self._current_query_words: List[str] = []  # Track query words for attention
         self._trajectory_planner = None  # ConceptTrajectoryPlanner for cross-domain synthesis
         self._current_trajectory_plan = None  # Active trajectory plan
+        self._bigram_scorer = BigramCoherenceScorer()  # Bigram coherence scoring
         
         # Initialize kernel constellation
         self._initialize_kernel_constellation()
@@ -1238,6 +1822,9 @@ class QIGGenerativeService:
         trajectory = [query_basin]
         current_basin = query_basin.copy()
         
+        # Reset bigram scorer for new generation
+        self._bigram_scorer.reset()
+        
         # Get trajectory waypoints if cross-domain synthesis is active
         waypoints = []
         synthesis_mode = False
@@ -1252,6 +1839,10 @@ class QIGGenerativeService:
         waypoint_idx = 0  # Track which waypoint we're approaching
         
         for sent_num in range(num_sentences):
+            # Reset bigram scorer for each new sentence
+            # (sentence boundaries allow fresh transitions)
+            self._bigram_scorer.reset()
+            
             # Generate skeleton based on current basin
             skeleton = grammar.select_skeleton_for_query(current_basin)
             
@@ -1284,11 +1875,15 @@ class QIGGenerativeService:
                 candidates = [(w, s) for w, s in candidates if w.lower() not in STOPWORDS][:15]
                 
                 if candidates:
+                    # Apply bigram coherence scoring to all candidates
+                    # This ensures grammatically coherent transitions
+                    bigram_scored = self._bigram_scorer.score_candidates(candidates, pos)
+                    
                     # PRIMARY: Use GeometricKernel for pure geometric routing
                     if self._geometric_kernel is not None:
                         # Build candidate list with basin coordinates
                         candidate_basins = []
-                        for word, _ in candidates:
+                        for word, combined, geo_score, bigram_score in bigram_scored:
                             if word.lower() in embeddings:
                                 candidate_basins.append((word, embeddings[word.lower()]))
                             else:
@@ -1301,12 +1896,23 @@ class QIGGenerativeService:
                                 candidate_basins
                             )
                             if word is not None:
-                                # Put selected word first with high score
-                                candidates = [(word, 1.0)] + [(w, s * 0.5) for w, s in candidates if w != word][:7]
+                                # Find bigram score for selected word
+                                bigram_score = next((b for w, c, g, b in bigram_scored if w == word), 0.5)
+                                # Only accept if bigram coherence is acceptable
+                                if bigram_score >= 0.4:
+                                    # Put selected word first with high score
+                                    candidates = [(word, 1.0)] + [(w, c * 0.5) for w, c, g, b in bigram_scored if w != word][:7]
+                                else:
+                                    # Reject low coherence word, use bigram-scored candidates
+                                    candidates = [(w, c) for w, c, g, b in bigram_scored[:8]]
+                            else:
+                                candidates = [(w, c) for w, c, g, b in bigram_scored[:8]]
+                        else:
+                            candidates = [(w, c) for w, c, g, b in bigram_scored[:8]]
                     
                     # FALLBACK: Use SemanticFisherMetric or relationship warping
                     elif self._learned_relationships and self._current_query_words:
-                        candidate_words = [c[0] for c in candidates]
+                        candidate_words = [c[0] for c in bigram_scored]
                         attn_weights = self._learned_relationships.get_attention_weights(
                             self._current_query_words,
                             candidate_words,
@@ -1318,7 +1924,7 @@ class QIGGenerativeService:
                         if self._semantic_metric is not None and blended is not None:
                             # Get basin coordinates for candidates
                             candidate_basins = []
-                            for word, _ in candidates:
+                            for word, combined, geo_score, bigram_score in bigram_scored:
                                 if word.lower() in embeddings:
                                     candidate_basins.append((word, embeddings[word.lower()]))
                                 else:
@@ -1334,13 +1940,21 @@ class QIGGenerativeService:
                                 top_k=15
                             )
                             
-                            # Convert to (word, score) format - use similarity as score
-                            candidates = [(word, sim) for word, dist, sim in ranked[:8]]
+                            # Combine warped distance with bigram coherence
+                            final_scored = []
+                            for word, dist, sim in ranked[:8]:
+                                # Find bigram score for this word
+                                bigram_score = next((b for w, c, g, b in bigram_scored if w == word), 0.5)
+                                # Combine: 40% geometric similarity + 60% bigram coherence
+                                combined = 0.4 * sim + 0.6 * bigram_score
+                                final_scored.append((word, combined))
+                            final_scored.sort(key=lambda x: -x[1])
+                            candidates = final_scored[:8]
                         else:
                             # Fallback: pure geometric scoring when SemanticFisherMetric unavailable
                             # Use relationship strength to warp geometric score directly
                             rescored = []
-                            for word, geo_score in candidates:
+                            for word, combined, geo_score, bigram_score in bigram_scored:
                                 # Get relationship strength from learned relationships
                                 rel_strength = 0.0
                                 for qw in self._current_query_words:
@@ -1353,9 +1967,14 @@ class QIGGenerativeService:
                                 # This mirrors SemanticFisherMetric's exponential warping
                                 warp_factor = np.exp(-rel_strength * 0.5)  # 0.5 = temperature
                                 warped_score = geo_score / max(warp_factor, 0.3)  # Higher score = closer
-                                rescored.append((word, warped_score))
+                                # Combine with bigram: 40% geometric + 60% bigram
+                                final_score = 0.4 * warped_score + 0.6 * bigram_score
+                                rescored.append((word, final_score))
                             rescored.sort(key=lambda x: -x[1])
                             candidates = rescored[:8]
+                    else:
+                        # No learned relationships - use bigram-scored candidates directly
+                        candidates = [(w, c) for w, c, g, b in bigram_scored[:8]]
                     
                     # Sample from top candidates with some randomness
                     weights = [max(0.01, c[1]) for c in candidates]
@@ -1366,6 +1985,9 @@ class QIGGenerativeService:
                     
                     sentence_words.append(word)
                     all_tokens.append(word)
+                    
+                    # Update bigram scorer state for next word selection
+                    self._bigram_scorer.update(word, pos)
                     
                     # Update basin with selected word - PRIORITIZE PROXIMITY for higher Φ
                     if word.lower() in embeddings:
@@ -1409,6 +2031,9 @@ class QIGGenerativeService:
         1. Generate grammatical skeleton (POS sequence)
         2. Fill slots with geometrically-matched words
         
+        Includes coherence validation with retry logic to ensure
+        grammatically coherent output.
+        
         Args:
             prompt: Input query or context
             context: Optional additional context
@@ -1417,6 +2042,50 @@ class QIGGenerativeService:
         
         Returns:
             GenerationResult with text, trajectory, and metrics
+        """
+        max_retries = 3
+        best_result = None
+        best_coherence = 0.0
+        
+        for attempt in range(max_retries):
+            result = self._generate_internal(prompt, context, kernel_name, goals)
+            
+            # Validate coherence of generated text
+            is_valid, coherence_score, problem_pairs = validate_generation_coherence(result.text)
+            
+            # Track best result even if all fail validation
+            if coherence_score > best_coherence:
+                best_coherence = coherence_score
+                best_result = result
+            
+            if is_valid:
+                logger.debug(f"[QIGGen] Generation passed coherence validation (score={coherence_score:.3f})")
+                return result
+            
+            if attempt < max_retries - 1:
+                logger.warning(
+                    f"[QIGGen] Generation attempt {attempt + 1} failed coherence validation "
+                    f"(score={coherence_score:.3f}, threshold=0.45). Retrying..."
+                )
+                if problem_pairs:
+                    logger.debug(f"[QIGGen] Problem pairs: {problem_pairs[:3]}")
+        
+        # All retries failed - return best attempt with warning
+        logger.warning(
+            f"[QIGGen] All {max_retries} generation attempts failed coherence validation. "
+            f"Using best result (coherence={best_coherence:.3f})"
+        )
+        return best_result
+    
+    def _generate_internal(
+        self,
+        prompt: str,
+        context: Optional[Dict[str, Any]] = None,
+        kernel_name: Optional[str] = None,
+        goals: Optional[List[str]] = None
+    ) -> GenerationResult:
+        """
+        Internal generation method called by generate() with retry logic.
         """
         start_time = time.time()
         
