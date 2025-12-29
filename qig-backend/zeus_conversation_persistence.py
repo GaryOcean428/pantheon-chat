@@ -43,9 +43,26 @@ class ZeusConversationPersistence:
                 maxconn=5,
                 dsn=self.database_url
             )
+            # Ensure schema is up to date
+            self._ensure_schema()
         except Exception as e:
             print(f"[ZeusConversation] Pool init failed: {e}")
             self.enabled = False
+
+    def _ensure_schema(self):
+        """Ensure zeus_sessions table has required columns."""
+        try:
+            with self._connect() as conn:
+                with conn.cursor() as cur:
+                    # Add last_phi column if missing
+                    cur.execute("""
+                        ALTER TABLE zeus_sessions
+                        ADD COLUMN IF NOT EXISTS last_phi REAL DEFAULT 0.0
+                    """)
+                    print("[ZeusConversation] Schema check complete")
+        except Exception as e:
+            # Column may already exist or table doesn't exist yet - that's ok
+            print(f"[ZeusConversation] Schema check: {e}")
     
     @contextmanager
     def _connect(self):

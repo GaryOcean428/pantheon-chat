@@ -2904,10 +2904,8 @@ Respond naturally as Zeus:"""
                             basin_path.append(np.array(item['basin_coords']))
                 
                 # Measure coherence across conversation turn
-                coherence = self._reasoning_quality.measure_coherence(
-                    basin_path, 
-                    message_basin
-                )
+                # measure_coherence takes only reasoning_steps (the path)
+                coherence = self._reasoning_quality.measure_coherence(basin_path)
                 novelty = self._reasoning_quality.measure_novelty(message_basin)
                 reasoning_metrics = {
                     'coherence': coherence,
