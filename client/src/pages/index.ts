@@ -19,3 +19,4 @@ export { default as TelemetryDashboard } from './telemetry';
 export { default as ToolFactoryDashboard } from './tools-dashboard';
 export { default as ToolsDashboard } from './tools-dashboard';
 export { default as Billing } from './billing';
+export { default as ZettelkastenDashboard } from './zettelkasten-dashboard';

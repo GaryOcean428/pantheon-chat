@@ -13,8 +13,7 @@ import {
   Badge,
   Button,
 } from "@/components/ui";
-import { API_ROUTES } from "@/api";
-import { 
+import { API_ROUTES } from "@/api";import {
   Home,
   Brain,
   LogOut,
@@ -38,6 +37,15 @@ import {
   FileCode,
   CreditCard,
   Wrench,
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
+  Brain,
+=======
+  Network,
+>>>>>>> Stashed changes
+=======
+  Network,
+>>>>>>> Stashed changes
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useConsciousness, getPhiColor, getRegimeLabel } from "@/contexts/ConsciousnessContext";
@@ -123,6 +131,12 @@ export function AppSidebar() {
       url: "/tools",
       icon: Wrench,
       description: "Browse & execute generated tools",
+    },
+    {
+      title: "Zettelkasten",
+      url: "/zettelkasten",
+      icon: Network,
+      description: "Knowledge graph visualization",
     },
   ];
 
