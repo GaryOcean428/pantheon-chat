@@ -20,7 +20,7 @@ import {
   type AuthenticatedRequest,
   type ApiKeyScope,
 } from './auth';
-import { billQuery, billResearch, getBillingStatus, PRICING } from './billing';
+import { billQuery, billResearch, billTool, getBillingStatus, PRICING } from './billing';
 import { db } from '../db';
 import { federatedInstances, externalApiKeys } from '@shared/schema';
 import { eq, sql } from 'drizzle-orm';
@@ -263,6 +263,7 @@ externalApiRouter.get(
 externalApiRouter.get(
   EXTERNAL_API_ROUTES.consciousness.metrics,
   requireScopes('consciousness', 'read'),
+  billQuery,
   async (_req, res) => {
     res.json({
       current: {
@@ -304,6 +305,7 @@ type FisherRaoMethod = typeof VALID_FISHER_RAO_METHODS[number];
 externalApiRouter.post(
   EXTERNAL_API_ROUTES.geometry.fisherRao,
   requireScopes('geometry', 'read'),
+  billQuery,
   async (req, res) => {
     const { point_a, point_b, method = 'diagonal' } = req.body;
     
@@ -359,6 +361,7 @@ externalApiRouter.post(
 externalApiRouter.post(
   EXTERNAL_API_ROUTES.geometry.basinDistance,
   requireScopes('geometry', 'read'),
+  billQuery,
   async (req, res) => {
     const { basin_a, basin_b } = req.body;
     
@@ -558,6 +561,7 @@ externalApiRouter.post(
 externalApiRouter.get(
   EXTERNAL_API_ROUTES.sync.export,
   requireScopes('sync', 'read'),
+  billQuery,
   async (_req, res) => {
     // TODO: Get actual basin packet from oceanBasinSync
     res.json({
@@ -575,6 +579,7 @@ externalApiRouter.get(
 externalApiRouter.post(
   EXTERNAL_API_ROUTES.sync.import,
   requireScopes('sync', 'write'),
+  billResearch,
   async (req, res) => {
     const { packet, mode = 'partial' } = req.body;
     
@@ -607,6 +612,7 @@ externalApiRouter.post(
 externalApiRouter.get(
   '/vocabulary/export',
   requireScopes('sync', 'read'),
+  billQuery,
   async (_req, res) => {
     if (!db) {
       return res.status(503).json({ error: 'Database unavailable' });
@@ -657,6 +663,7 @@ externalApiRouter.get(
 externalApiRouter.post(
   '/vocabulary/import',
   requireScopes('sync', 'write'),
+  billResearch,
   async (req, res) => {
     const { vocabulary, highPhiPhrases, sourceNode } = req.body;
     
@@ -728,6 +735,7 @@ externalApiRouter.post(
 externalApiRouter.get(
   '/learning/export',
   requireScopes('sync', 'read'),
+  billQuery,
   async (req, res) => {
     if (!db) {
       return res.status(503).json({ error: 'Database unavailable' });
@@ -770,6 +778,7 @@ externalApiRouter.get(
 externalApiRouter.post(
   '/learning/import',
   requireScopes('sync', 'write'),
+  billResearch,
   async (req, res) => {
     const { events, sourceNode } = req.body;
     
