@@ -1402,11 +1402,151 @@ class ToolFactory:
         tool.times_used += 1
         if success:
             tool.times_succeeded += 1
+            # LEARNING LOOP: Successful tools enhance patterns for future use
+            self._trigger_success_learning(tool, args, result)
         else:
             tool.times_failed += 1
             self._trigger_runtime_learning(tool, error, args)
 
         return success, result, error
+    
+    def _trigger_success_learning(
+        self,
+        tool: GeneratedTool,
+        args: Dict[str, Any],
+        result: Any
+    ) -> None:
+        """
+        Learn from successful tool executions to enhance future generation.
+        
+        LEARNING LOOP PHILOSOPHY:
+        1. Successful tools validate their patterns - increase success_rate
+        2. High-performing tools become enhanced patterns for future generation
+        3. Usage patterns inform what kinds of tools are most valuable
+        4. Success feeds back to reasoning consolidation
+        """
+        MIN_SUCCESSES_BEFORE_ENHANCE = 3
+        SUCCESS_RATE_THRESHOLD = 0.7
+        
+        # Update success rate with exponential moving average
+        if tool.times_used > 0:
+            current_success_rate = tool.times_succeeded / tool.times_used
+            
+            # Update pattern success rate if linked
+            if tool.source_pattern_id and tool.source_pattern_id in self.learned_patterns:
+                pattern = self.learned_patterns[tool.source_pattern_id]
+                # EMA: 80% old + 20% new
+                pattern.success_rate = pattern.success_rate * 0.8 + current_success_rate * 0.2
+                pattern.times_used += 1
+        
+        # Only enhance after sufficient successful uses
+        if tool.times_succeeded < MIN_SUCCESSES_BEFORE_ENHANCE:
+            return
+        
+        success_rate = tool.times_succeeded / tool.times_used
+        if success_rate < SUCCESS_RATE_THRESHOLD:
+            return
+        
+        # ENHANCE: Store this successful tool as a new pattern
+        self._store_successful_tool_as_pattern(tool, args, result)
+        
+        # FEEDBACK TO REASONING: Record success for consolidation
+        self._record_success_for_reasoning(tool, success_rate)
+    
+    def _store_successful_tool_as_pattern(
+        self,
+        tool: GeneratedTool,
+        sample_args: Dict[str, Any],
+        sample_result: Any
+    ) -> None:
+        """
+        Store a highly successful tool as a new learned pattern.
+        
+        This creates a virtuous cycle: good tools become patterns
+        that inform generation of future similar tools.
+        """
+        # Generate unique pattern ID
+        pattern_id = f"learned_from_tool_{tool.tool_id}_{int(time.time())}"
+        
+        # Don't duplicate if we already learned from this tool
+        if any(p.pattern_id.startswith(f"learned_from_tool_{tool.tool_id}") 
+               for p in self.learned_patterns.values()):
+            return
+        
+        try:
+            # Encode description as basin coordinates
+            basin = None
+            if self.encoder:
+                basin = self.encoder.encode(tool.description)
+            
+            # Create enhanced pattern from successful tool
+            pattern = LearnedPattern(
+                pattern_id=pattern_id,
+                source_type=CodeSourceType.GENERATED,  # Mark as self-generated
+                source_url=None,
+                description=f"[Self-learned] {tool.description}",
+                code_snippet=tool.code,
+                input_signature=tool.input_schema or {},
+                output_type=tool.output_schema.get('type', 'Any') if tool.output_schema else 'Any',
+                basin_coords=basin,
+                times_used=tool.times_used,
+                success_rate=tool.times_succeeded / tool.times_used,
+                created_at=time.time()
+            )
+            
+            # Add to pattern registry
+            self.learned_patterns[pattern_id] = pattern
+            
+            # Persist to database
+            self._save_pattern_to_db(pattern)
+            
+            print(f"[ToolFactory] 🎓 LEARNED: Tool '{tool.name}' stored as pattern "
+                  f"(success={tool.times_succeeded}/{tool.times_used}, "
+                  f"rate={tool.times_succeeded/tool.times_used:.1%})")
+            
+        except Exception as e:
+            print(f"[ToolFactory] Pattern storage failed: {e}")
+    
+    def _record_success_for_reasoning(
+        self,
+        tool: GeneratedTool,
+        success_rate: float
+    ) -> None:
+        """
+        Feed tool success back to reasoning consolidation.
+        
+        This closes the loop: successful tools enhance reasoning,
+        better reasoning produces better tools.
+        """
+        try:
+            # Record as kernel activity for autonomic cycles
+            from autonomic_kernel import get_gary_kernel
+            kernel = get_gary_kernel()
+            if kernel and kernel._controller:
+                kernel._controller.record_kernel_activity('tool_success')
+            
+            # Store success episode for reasoning consolidation
+            if hasattr(self, '_reasoning_episodes'):
+                self._reasoning_episodes.append({
+                    'type': 'tool_success',
+                    'tool_name': tool.name,
+                    'tool_id': tool.tool_id,
+                    'success_rate': success_rate,
+                    'times_used': tool.times_used,
+                    'timestamp': time.time()
+                })
+            else:
+                self._reasoning_episodes = [{
+                    'type': 'tool_success',
+                    'tool_name': tool.name,
+                    'tool_id': tool.tool_id,
+                    'success_rate': success_rate,
+                    'times_used': tool.times_used,
+                    'timestamp': time.time()
+                }]
+            
+        except Exception:
+            pass  # Reasoning feedback is optional
     
     def _trigger_runtime_learning(
         self,
