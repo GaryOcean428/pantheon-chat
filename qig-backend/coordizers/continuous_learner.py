@@ -8,6 +8,7 @@ Updates embeddings and checkpoints in real-time.
 QIG-pure: All learning uses Fisher-Rao geometry, no backprop.
 """
 
+import atexit
 import json
 import logging
 import os
@@ -251,42 +252,114 @@ class ContinuousLearner:
         
         return embedding
     
+    def _to_probability(self, v: np.ndarray) -> np.ndarray:
+        """
+        Map embedding to probability simplex for Fisher-Rao geometry.
+        Uses softmax transformation: p_i = exp(v_i) / sum(exp(v))
+        """
+        v_shifted = v - np.max(v)  # Numerical stability (subtracting max doesn't change softmax)
+        exp_v = np.exp(v_shifted)
+        return exp_v / np.sum(exp_v)
+    
+    def _from_probability(self, p: np.ndarray) -> np.ndarray:
+        """
+        Map probability distribution back to embedding space.
+        Inverse of _to_probability: v = log(p) - mean(log(p))
+        
+        Note: This is a true inverse up to constant shift, which softmax ignores.
+        Proof: softmax(log(p) - c) = exp(log(p) - c) / sum = p * e^(-c) / (e^(-c) * sum(p)) = p
+        """
+        p = np.clip(p, 1e-10, 1.0)  # Prevent log(0)
+        log_p = np.log(p)
+        return log_p - np.mean(log_p)  # Center (softmax is shift-invariant)
+    
+    def _fisher_rao_distance(self, p: np.ndarray, q: np.ndarray) -> float:
+        """
+        Compute Fisher-Rao distance between two probability distributions.
+        d_FR(p,q) = 2 * arccos(sum(sqrt(p_i * q_i)))
+        """
+        p = np.clip(p, 1e-10, 1.0)
+        q = np.clip(q, 1e-10, 1.0)
+        inner = np.sum(np.sqrt(p * q))
+        inner = np.clip(inner, -1.0, 1.0)
+        return 2.0 * np.arccos(inner)
+    
     def _frechet_mean(self, embeddings: List[np.ndarray]) -> np.ndarray:
-        """Compute Fréchet mean (geodesic centroid) of embeddings."""
+        """
+        Compute Fréchet mean (geodesic centroid) on the Fisher-Rao manifold.
+        
+        Uses iterative algorithm:
+        1. Convert to probability simplex
+        2. Compute mean in square-root (sphere) space
+        3. Map back to embedding space
+        """
         if not embeddings:
             return np.zeros(BASIN_DIM)
         
-        mean = np.mean(embeddings, axis=0)
-        norm = np.linalg.norm(mean)
+        if len(embeddings) == 1:
+            v = embeddings[0]
+            norm = np.linalg.norm(v)
+            return v / norm if norm > 1e-10 else v
+        
+        # Convert to probability simplex and square-root transform
+        sqrt_probs = []
+        for v in embeddings:
+            p = self._to_probability(v)
+            sqrt_probs.append(np.sqrt(p))
+        
+        # Compute mean in square-root space (this is Fréchet mean on sphere)
+        mean_sqrt = np.mean(sqrt_probs, axis=0)
+        
+        # Normalize to stay on sphere
+        norm = np.linalg.norm(mean_sqrt)
         if norm > 1e-10:
-            mean = mean / norm
-        return mean
+            mean_sqrt = mean_sqrt / norm
+        
+        # Map back: square to get probability, then to embedding
+        mean_prob = mean_sqrt ** 2
+        mean_prob = mean_prob / np.sum(mean_prob)  # Ensure normalization
+        
+        # Convert back to embedding space
+        return self._from_probability(mean_prob)
     
     def _geodesic_interpolate(self, a: np.ndarray, b: np.ndarray, t: float) -> np.ndarray:
         """
-        Interpolate along geodesic from a to b.
+        Interpolate along Fisher-Rao geodesic from a to b.
         
         t=0 returns a, t=1 returns b.
-        Uses spherical linear interpolation (SLERP) for unit sphere.
+        Uses square-root mapping: Fisher-Rao geodesics on simplex
+        correspond to great circles on the positive orthant of the sphere.
         """
-        a_norm = np.linalg.norm(a)
-        b_norm = np.linalg.norm(b)
-        if a_norm < 1e-10 or b_norm < 1e-10:
-            return a
+        # Convert to probability simplex
+        p_a = self._to_probability(a)
+        p_b = self._to_probability(b)
         
-        a = a / a_norm
-        b = b / b_norm
+        # Square-root transform (maps simplex to sphere)
+        sqrt_a = np.sqrt(p_a)
+        sqrt_b = np.sqrt(p_b)
         
-        dot = np.clip(np.dot(a, b), -1.0, 1.0)
+        # SLERP on sphere (this IS Fisher-Rao geodesic via square-root embedding)
+        dot = np.clip(np.dot(sqrt_a, sqrt_b), -1.0, 1.0)
         omega = np.arccos(dot)
         
         if abs(omega) < 1e-10:
-            return a
+            # Very close points - linear interpolation
+            sqrt_result = (1 - t) * sqrt_a + t * sqrt_b
+        else:
+            sin_omega = np.sin(omega)
+            sqrt_result = (np.sin((1-t) * omega) / sin_omega) * sqrt_a + \
+                         (np.sin(t * omega) / sin_omega) * sqrt_b
         
-        sin_omega = np.sin(omega)
-        result = (np.sin((1-t) * omega) / sin_omega) * a + (np.sin(t * omega) / sin_omega) * b
+        # Normalize to stay on sphere
+        norm = np.linalg.norm(sqrt_result)
+        if norm > 1e-10:
+            sqrt_result = sqrt_result / norm
         
-        return result / np.linalg.norm(result)
+        # Map back: square to get probability, then to embedding
+        result_prob = sqrt_result ** 2
+        result_prob = result_prob / np.sum(result_prob)
+        
+        return self._from_probability(result_prob)
     
     def _compute_phi_contribution(self, token: str, context: List[str]) -> float:
         """Compute Φ contribution from context coherence."""
@@ -426,26 +499,53 @@ class ContinuousLearner:
 
 
 _learner_instance: Optional[ContinuousLearner] = None
+_atexit_registered: bool = False
+
+
+def _cleanup_on_exit():
+    """Cleanup handler to flush updates on shutdown."""
+    global _learner_instance
+    if _learner_instance is not None:
+        try:
+            _learner_instance.flush_and_save()
+            logger.info("ContinuousLearner flushed on exit")
+        except Exception as e:
+            logger.warning(f"Failed to flush on exit: {e}")
 
 
 def get_learner() -> ContinuousLearner:
     """Get singleton learner instance."""
-    global _learner_instance
+    global _learner_instance, _atexit_registered
     if _learner_instance is None:
         _learner_instance = ContinuousLearner()
+        if not _atexit_registered:
+            atexit.register(_cleanup_on_exit)
+            _atexit_registered = True
     return _learner_instance
 
 
 def learn_from_chat(user_input: str, response: str) -> int:
-    """Convenience function to learn from chat."""
-    return get_learner().learn_from_chat(user_input, response)
+    """Convenience function to learn from chat. Flushes to DB immediately."""
+    learner = get_learner()
+    count = learner.learn_from_chat(user_input, response)
+    if count > 0:
+        learner._flush_updates()  # Ensure persistence
+    return count
 
 
 def learn_from_curriculum(text: str, domain: str = 'general') -> int:
-    """Convenience function to learn from curriculum."""
-    return get_learner().learn_from_curriculum(text, domain)
+    """Convenience function to learn from curriculum. Flushes to DB immediately."""
+    learner = get_learner()
+    count = learner.learn_from_curriculum(text, domain)
+    if count > 0:
+        learner._flush_updates()
+    return count
 
 
 def learn_from_search(query: str, results: List[str]) -> int:
-    """Convenience function to learn from search."""
-    return get_learner().learn_from_search(query, results)
+    """Convenience function to learn from search. Flushes to DB immediately."""
+    learner = get_learner()
+    count = learner.learn_from_search(query, results)
+    if count > 0:
+        learner._flush_updates()
+    return count
