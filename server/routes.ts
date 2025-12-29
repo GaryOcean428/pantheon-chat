@@ -53,6 +53,7 @@ import {
   autonomicAgencyRouter,
   federationRouter,
   billingRouter,
+  toolsRouter,
   consciousnessRouter,
   formatRouter,
   nearMissRouter,
@@ -302,6 +303,7 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
   app.use("/api/qig/autonomic/agency", autonomicAgencyRouter);
   app.use("/api/federation", federationRouter);
   app.use("/api/billing", billingRouter);
+  app.use("/api/olympus/tools", toolsRouter);
 
   // Mount observer and telemetry routers
   app.use("/api/observer", observerRoutes);

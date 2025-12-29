@@ -206,6 +206,18 @@ try:
     BILLING_AVAILABLE = True
     print("[INFO] Billing API registered at /api/billing/*")
 except ImportError as e:
+    print(f"[WARN] Billing API not available: {e}")
+    BILLING_AVAILABLE = False
+
+# Register Tools API for tool execution
+TOOLS_AVAILABLE = False
+try:
+    from tools_api import tools_bp
+
+    app.register_blueprint(tools_bp)
+    TOOLS_AVAILABLE = True
+    print("[INFO] Tools API registered at /api/tools/*")
+except ImportError as e:
     print(f"[WARNING] Vocabulary API not available: {e}")
 except Exception as e:
     print(f"[WARNING] Vocabulary API initialization failed: {e}")
