@@ -99,7 +99,7 @@ export default function ToolsDashboard() {
 
   const fetchTools = async () => {
     try {
-      const response = await fetch('/api/tools/list');
+      const response = await fetch('/api/olympus/zeus/tools');
       if (response.ok) {
         const data = await response.json();
         setTools(data.tools || []);
@@ -111,7 +111,7 @@ export default function ToolsDashboard() {
 
   const fetchPatterns = async () => {
     try {
-      const response = await fetch('/api/tools/patterns');
+      const response = await fetch('/api/olympus/zeus/tools/patterns');
       if (response.ok) {
         const data = await response.json();
         setPatterns(data.patterns || []);
@@ -123,7 +123,7 @@ export default function ToolsDashboard() {
 
   const fetchFactoryHealth = async () => {
     try {
-      const response = await fetch('/api/tools/health');
+      const response = await fetch('/api/olympus/zeus/tools/bridge/status');
       if (response.ok) {
         const data = await response.json();
         setFactoryHealth(data);
@@ -138,11 +138,10 @@ export default function ToolsDashboard() {
     setExecutionResult(null);
     
     try {
-      const response = await fetch('/api/tools/execute', {
+      const response = await fetch(`/api/olympus/zeus/tools/${tool.tool_id}/execute`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          tool_id: tool.tool_id,
           inputs: toolInputs,
         }),
       });
@@ -179,8 +178,10 @@ export default function ToolsDashboard() {
 
   const generateToolFromResearch = async () => {
     try {
-      const response = await fetch('/api/tools/generate-from-research', {
+      const response = await fetch('/api/olympus/zeus/tools/generate', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
       });
       const data = await response.json();
       

@@ -494,27 +494,8 @@ router.get('/zeus/search/learner/stats', isAuthenticated, (req, res) =>
  * Zeus Search Learner Time-Series endpoint
  * Get time-series metrics for the effectiveness dashboard
  */
-router.get('/zeus/search/learner/timeseries', isAuthenticated, async (req, res) => {
-  try {
-    const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
-    const days = req.query.days || 30;
-    
-    const response = await fetch(`${backendUrl}/api/zeus/search/learner/timeseries?days=${days}`, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Python backend returned ${response.status}`);
-    }
-    
-    const data = await response.json();
-    res.json(data);
-  } catch (error) {
-    logger.error({ data: error }, '[Olympus] Learner timeseries error');
-    res.status(500).json({ error: 'Failed to retrieve time series data' });
-  }
-});
+router.get('/zeus/search/learner/timeseries', isAuthenticated, (req, res) => 
+  proxyGet(req, res, '/zeus/search/learner/timeseries', 'Failed to retrieve time series data', { passQuery: true }));
 
 /** Zeus Search Learner Replay endpoint - Run a replay test comparing learning ON vs OFF */
 router.post('/zeus/search/learner/replay', isAuthenticated, validateInput(searchQuerySchema), (req, res) => 
@@ -524,27 +505,8 @@ router.post('/zeus/search/learner/replay', isAuthenticated, validateInput(search
  * Zeus Search Learner Replay History endpoint
  * Get history of replay tests
  */
-router.get('/zeus/search/learner/replay/history', isAuthenticated, async (req, res) => {
-  try {
-    const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
-    const limit = req.query.limit || 20;
-    
-    const response = await fetch(`${backendUrl}/api/zeus/search/learner/replay/history?limit=${limit}`, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Python backend returned ${response.status}`);
-    }
-    
-    const data = await response.json();
-    res.json(data);
-  } catch (error) {
-    logger.error({ data: error }, '[Olympus] Learner replay history error');
-    res.status(500).json({ error: 'Failed to retrieve replay history' });
-  }
-});
+router.get('/zeus/search/learner/replay/history', isAuthenticated, (req, res) => 
+  proxyGet(req, res, '/zeus/search/learner/replay/history', 'Failed to retrieve replay history', { passQuery: true }));
 
 /** Autonomous Replay Test Status */
 router.get('/zeus/search/learner/replay/auto/status', isAuthenticated, (req, res) => 
