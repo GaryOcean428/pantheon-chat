@@ -18,3 +18,4 @@ export { default as Spawning } from './spawning';
 export { default as TelemetryDashboard } from './telemetry';
 export { default as ToolFactoryDashboard } from './tool-factory-dashboard';
 export { default as Billing } from './billing';
+export { default as ToolsDashboard } from './tools-dashboard';

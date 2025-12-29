@@ -37,6 +37,7 @@ import {
   Activity,
   FileCode,
   CreditCard,
+  Wrench,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useConsciousness, getPhiColor, getRegimeLabel } from "@/contexts/ConsciousnessContext";
@@ -116,6 +117,12 @@ export function AppSidebar() {
       url: "/billing",
       icon: CreditCard,
       description: "Credits, usage & subscription",
+    },
+    {
+      title: "Tools",
+      url: "/tools",
+      icon: Wrench,
+      description: "Browse & execute generated tools",
     },
   ];
 
