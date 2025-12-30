@@ -1,8 +1,8 @@
 {
   "version": "1",
   "metadata": {
-    "name": "pantheon-chat-celery-worker",
-    "description": "Async kernel training worker for pantheon-chat"
+    "name": "pantheon-chat-celery-beat",
+    "description": "Celery Beat scheduler for periodic training tasks"
   },
   "build": {
     "provider": "python",
@@ -26,7 +26,7 @@
     }
   },
   "deploy": {
-    "startCommand": "cd /app && celery -A training.celery_app worker --loglevel=info --concurrency=2",
+    "startCommand": "cd /app && celery -A training.celery_app beat --loglevel=info",
     "healthCheckPath": null,
     "healthCheckTimeout": 300,
     "restartPolicyType": "ON_FAILURE",
