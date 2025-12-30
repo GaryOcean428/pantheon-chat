@@ -8,6 +8,10 @@ pypdf>=4.0.0
 openai>=1.0.0
 anthropic>=0.18.0
 
+# Celery for async training tasks
+celery[redis]>=5.3.0
+redis>=5.0.0
+
 # QIG Tokenizer (local editable install)
 # Install with: pip install -e ../../qig-tokenizer
 # Provides: qiggraph, qig_tokenizer, coordizers

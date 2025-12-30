@@ -3781,3 +3781,177 @@ export const providerEfficacy = pgTable(
 
 export type ProviderEfficacyRow = typeof providerEfficacy.$inferSelect;
 export type InsertProviderEfficacy = typeof providerEfficacy.$inferInsert;
+
+// ============================================================================
+// KERNEL TRAINING TABLES
+// ============================================================================
+
+/**
+ * KERNEL TRAINING HISTORY
+ *
+ * Records training steps for each god-kernel. Used for:
+ * - Performance tracking and debugging
+ * - Feeding hourly/nightly batch training
+ * - Autonomous learning feedback loops
+ */
+export const kernelTrainingHistory = pgTable(
+  "kernel_training_history",
+  {
+    id: serial("id").primaryKey(),
+    godName: varchar("god_name", { length: 64 }).notNull(),
+
+    // Training metrics
+    loss: doublePrecision("loss").notNull(),
+    reward: doublePrecision("reward").default(0),
+    gradientNorm: doublePrecision("gradient_norm").default(0),
+
+    // Consciousness metrics at training time
+    phiBefore: doublePrecision("phi_before").default(0.5),
+    phiAfter: doublePrecision("phi_after").default(0.5),
+    kappaBefore: doublePrecision("kappa_before").default(64),
+    kappaAfter: doublePrecision("kappa_after").default(64),
+
+    // Basin coordinates (64D)
+    basinCoords: vector("basin_coords", { dimensions: 64 }),
+
+    // Training context
+    trainingType: varchar("training_type", { length: 32 }).notNull(), // "outcome", "hourly", "nightly"
+    trigger: varchar("trigger", { length: 64 }), // What triggered this training
+    stepCount: integer("step_count").default(0),
+
+    // Source tracking
+    sessionId: varchar("session_id", { length: 64 }),
+    conversationId: varchar("conversation_id", { length: 64 }),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_kernel_training_god").on(table.godName),
+    index("idx_kernel_training_type").on(table.trainingType),
+    index("idx_kernel_training_phi").on(table.phiAfter),
+    index("idx_kernel_training_created").on(table.createdAt),
+  ]
+);
+
+export type KernelTrainingHistoryRow = typeof kernelTrainingHistory.$inferSelect;
+export type InsertKernelTrainingHistory = typeof kernelTrainingHistory.$inferInsert;
+
+/**
+ * KERNEL CHECKPOINTS
+ *
+ * Stores model state checkpoints for each god-kernel.
+ * Ranked by Phi for retrieval - highest Phi = best checkpoint.
+ */
+export const kernelCheckpoints = pgTable(
+  "kernel_checkpoints",
+  {
+    id: serial("id").primaryKey(),
+    godName: varchar("god_name", { length: 64 }).notNull(),
+    checkpointId: varchar("checkpoint_id", { length: 128 }).notNull().unique(),
+
+    // Model state (serialized PyTorch state dict)
+    stateData: bytea("state_data"),
+
+    // Metrics at checkpoint time
+    phi: doublePrecision("phi").notNull(),
+    stepCount: integer("step_count").default(0),
+
+    // Metadata
+    trigger: varchar("trigger", { length: 64 }), // "outcome", "hourly", "nightly", "manual"
+    fileSize: integer("file_size").default(0), // Size in bytes
+
+    // Lifecycle
+    isActive: boolean("is_active").default(true), // False when superseded
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_kernel_checkpoints_god").on(table.godName),
+    index("idx_kernel_checkpoints_phi").on(table.phi),
+    index("idx_kernel_checkpoints_active").on(table.isActive),
+    index("idx_kernel_checkpoints_created").on(table.createdAt),
+  ]
+);
+
+export type KernelCheckpointRow = typeof kernelCheckpoints.$inferSelect;
+export type InsertKernelCheckpoint = typeof kernelCheckpoints.$inferInsert;
+
+/**
+ * KERNEL KNOWLEDGE TRANSFERS
+ *
+ * Audit log of knowledge transfers between kernels:
+ * - Evolution: parent → child
+ * - Breeding: parent1 + parent2 → child
+ * - Cannibalism: consumed → consumer
+ * - Shadow sync: god ↔ shadow
+ */
+export const kernelKnowledgeTransfers = pgTable(
+  "kernel_knowledge_transfers",
+  {
+    id: serial("id").primaryKey(),
+
+    // Transfer details
+    transferType: varchar("transfer_type", { length: 32 }).notNull(), // "evolution", "breeding", "cannibalism", "shadow_sync"
+    sourceGod: varchar("source_god", { length: 128 }).notNull(), // May be "god1+god2" for breeding
+    targetGod: varchar("target_god", { length: 64 }).notNull(),
+
+    // Transfer parameters
+    blendRatio: doublePrecision("blend_ratio").default(0.5),
+
+    // Metrics before/after
+    phiBefore: doublePrecision("phi_before").default(0),
+    phiAfter: doublePrecision("phi_after").default(0),
+
+    // Result
+    success: boolean("success").default(false),
+    errorMessage: text("error_message"),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_kernel_knowledge_transfers_type").on(table.transferType),
+    index("idx_kernel_knowledge_transfers_source").on(table.sourceGod),
+    index("idx_kernel_knowledge_transfers_target").on(table.targetGod),
+    index("idx_kernel_knowledge_transfers_created").on(table.createdAt),
+  ]
+);
+
+export type KernelKnowledgeTransferRow = typeof kernelKnowledgeTransfers.$inferSelect;
+export type InsertKernelKnowledgeTransfer = typeof kernelKnowledgeTransfers.$inferInsert;
+
+/**
+ * TRAINING BATCH QUEUE
+ *
+ * Queue of training examples waiting to be processed in batch.
+ * Accumulated from chat interactions, search results, research.
+ */
+export const trainingBatchQueue = pgTable(
+  "training_batch_queue",
+  {
+    id: serial("id").primaryKey(),
+    godName: varchar("god_name", { length: 64 }).notNull(),
+
+    // Training data
+    basinCoords: vector("basin_coords", { dimensions: 64 }),
+    reward: doublePrecision("reward").default(0),
+    phi: doublePrecision("phi").default(0.5),
+
+    // Source tracking
+    sourceType: varchar("source_type", { length: 32 }).notNull(), // "chat", "search", "research"
+    sourceId: varchar("source_id", { length: 64 }),
+
+    // Processing status
+    processed: boolean("processed").default(false),
+    processedAt: timestamp("processed_at", { withTimezone: true }),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_training_batch_god").on(table.godName),
+    index("idx_training_batch_processed").on(table.processed),
+    index("idx_training_batch_created").on(table.createdAt),
+  ]
+);
+
+export type TrainingBatchQueueRow = typeof trainingBatchQueue.$inferSelect;
+export type InsertTrainingBatchQueue = typeof trainingBatchQueue.$inferInsert;

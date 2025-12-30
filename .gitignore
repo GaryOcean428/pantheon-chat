@@ -16,9 +16,11 @@ coverage
 # Environment
 .env
 .env.local
+.env.railway
 .env.development.local
 .env.test.local
 .env.production.local
+.env.railway
 
 # Logs
 logs
