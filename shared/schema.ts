@@ -306,10 +306,11 @@ export type RecoveryWorkflow = typeof recoveryWorkflows.$inferSelect;
 
 export const userTargetAddresses = pgTable("user_target_addresses", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id"),
   address: varchar("address", { length: 62 }).notNull(),
   label: varchar("label", { length: 255 }),
-  notes: text("notes"),
   addedAt: timestamp("added_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const balanceHits = pgTable("balance_hits", {
