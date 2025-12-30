@@ -23,12 +23,53 @@ import type {
   StorageConfig,
 } from './interfaces';
 import {
-  CandidatePostgresAdapter,
-  TargetAddressPostgresAdapter,
   UserPostgresAdapter,
 } from './adapters';
 import { db } from '../db';
 import { oceanPersistence } from '../ocean/ocean-persistence';
+import type { Candidate, TargetAddress } from '@shared/schema';
+
+class InMemoryCandidateStorage implements ICandidateStorage {
+  private candidates: Candidate[] = [];
+
+  async getCandidates(): Promise<Candidate[]> {
+    return [...this.candidates];
+  }
+
+  async addCandidate(candidate: Candidate): Promise<void> {
+    const existing = this.candidates.findIndex(c => c.id === candidate.id);
+    if (existing >= 0) {
+      this.candidates[existing] = candidate;
+    } else {
+      this.candidates.push(candidate);
+    }
+  }
+
+  async clearCandidates(): Promise<void> {
+    this.candidates = [];
+  }
+}
+
+class InMemoryTargetAddressStorage implements ITargetAddressStorage {
+  private addresses: TargetAddress[] = [];
+
+  async getTargetAddresses(): Promise<TargetAddress[]> {
+    return [...this.addresses];
+  }
+
+  async addTargetAddress(address: TargetAddress): Promise<void> {
+    const existing = this.addresses.findIndex(a => a.id === address.id);
+    if (existing >= 0) {
+      this.addresses[existing] = address;
+    } else {
+      this.addresses.push(address);
+    }
+  }
+
+  async removeTargetAddress(id: string): Promise<void> {
+    this.addresses = this.addresses.filter(a => a.id !== id);
+  }
+}
 
 class StorageFacade {
   private _candidates: ICandidateStorage;
@@ -53,8 +94,8 @@ class StorageFacade {
       throw new Error('[StorageFacade] DATABASE_URL not set - postgres backend is required for persistence');
     }
 
-    this._candidates = new CandidatePostgresAdapter();
-    this._targetAddresses = new TargetAddressPostgresAdapter();
+    this._candidates = new InMemoryCandidateStorage();
+    this._targetAddresses = new InMemoryTargetAddressStorage();
     this._users = new UserPostgresAdapter();
     
     this._searchJobs = {

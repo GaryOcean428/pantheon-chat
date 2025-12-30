@@ -3,7 +3,6 @@ import rateLimit from "express-rate-limit";
 import multer from "multer";
 import { createServer, type Server } from "http";
 import { z } from "zod";
-import observerRoutes from "./observer-routes";
 import { scorePhraseQIG } from "./qig-universal.js";
 import { storage } from "./storage";
 import { telemetryRouter } from "./telemetry-api";
@@ -299,8 +298,7 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
   app.use("/api/qig/autonomic/agency", autonomicAgencyRouter);
   app.use("/api/federation", federationRouter);
 
-  // Mount observer and telemetry routers
-  app.use("/api/observer", observerRoutes);
+  // Mount telemetry routers
   app.use("/api/telemetry", telemetryRouter);
   app.use("/api/backend-telemetry", backendTelemetryRouter);
   

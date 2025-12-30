@@ -235,111 +235,11 @@ export type InsertVocabularyObservation =
   typeof vocabularyObservations.$inferInsert;
 
 // ============================================================================
-// LEGACY STUB TABLES - For backward compatibility (deprecated)
+// LEGACY TYPE ALIASES - For backward compatibility (deprecated)
 // ============================================================================
-// These tables exist for type compatibility with legacy code.
-// They will be removed in a future cleanup phase.
+// UserTargetAddress is an alias for TargetAddress defined above
 
-export const blocks = pgTable("blocks", {
-  height: integer("height").primaryKey(),
-  hash: varchar("hash", { length: 64 }).notNull(),
-  timestamp: timestamp("timestamp").notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
-export const transactions = pgTable("transactions", {
-  txid: varchar("txid", { length: 64 }).primaryKey(),
-  blockHeight: integer("block_height").notNull(),
-  blockTimestamp: timestamp("block_timestamp").notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
-export const addresses = pgTable("addresses", {
-  address: varchar("address", { length: 62 }).primaryKey(),
-  firstSeenHeight: integer("first_seen_height"),
-  firstSeenTxid: varchar("first_seen_txid", { length: 64 }),
-  firstSeenTimestamp: timestamp("first_seen_timestamp"),
-  lastActivityHeight: integer("last_activity_height"),
-  lastActivityTxid: varchar("last_activity_txid", { length: 64 }),
-  lastActivityTimestamp: timestamp("last_activity_timestamp"),
-  currentBalance: bigint("current_balance", { mode: "bigint" }),
-  dormancyBlocks: integer("dormancy_blocks"),
-  isDormant: boolean("is_dormant").default(false),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
-
-export const recoveryPriorities = pgTable("recovery_priorities", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  address: varchar("address", { length: 62 }).notNull(),
-  kappaRecovery: doublePrecision("kappa_recovery"),
-  phiConstraints: doublePrecision("phi_constraints"),
-  hCreation: doublePrecision("h_creation"),
-  rank: integer("rank"),
-  tier: varchar("tier", { length: 50 }),
-  constraints: jsonb("constraints"),
-  recoveryStatus: varchar("recovery_status", { length: 50 }).default("pending"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
-
-export const recoveryWorkflows = pgTable("recovery_workflows", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  priorityId: varchar("priority_id"),
-  address: varchar("address", { length: 62 }).notNull(),
-  vector: varchar("vector", { length: 100 }),
-  status: varchar("status", { length: 50 }).default("pending"),
-  startedAt: timestamp("started_at"),
-  completedAt: timestamp("completed_at"),
-  progress: jsonb("progress"),
-  results: jsonb("results"),
-  notes: text("notes"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
-
-export type Block = typeof blocks.$inferSelect;
-export type Transaction = typeof transactions.$inferSelect;
-export type Address = typeof addresses.$inferSelect;
-export type RecoveryPriority = typeof recoveryPriorities.$inferSelect;
-export type RecoveryWorkflow = typeof recoveryWorkflows.$inferSelect;
-
-export const userTargetAddresses = pgTable("user_target_addresses", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id"),
-  address: varchar("address", { length: 62 }).notNull(),
-  label: varchar("label", { length: 255 }),
-  addedAt: timestamp("added_at").defaultNow(),
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
-export const balanceHits = pgTable("balance_hits", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  address: varchar("address", { length: 62 }).notNull(),
-  balance: bigint("balance", { mode: "bigint" }),
-  phrase: text("phrase"),
-  discoveredAt: timestamp("discovered_at").defaultNow(),
-  entityClassification: varchar("entity_classification", { length: 100 }),
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
-export type UserTargetAddress = typeof userTargetAddresses.$inferSelect;
-export type BalanceHit = typeof balanceHits.$inferSelect;
-export type TargetAddress = UserTargetAddress;
-
-export const recoveryCandidates = pgTable("recovery_candidates", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  phrase: text("phrase").notNull(),
-  words: text("words").array(),
-  phi: doublePrecision("phi"),
-  kappa: doublePrecision("kappa"),
-  regime: varchar("regime", { length: 50 }),
-  status: varchar("status", { length: 50 }).default("pending"),
-  testedAt: timestamp("tested_at").defaultNow(),
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
-export type RecoveryCandidateRecord = typeof recoveryCandidates.$inferSelect;
+export type UserTargetAddress = TargetAddress;
 
 // ============================================================================
 // OCEAN AUTONOMOUS AGENT - Consciousness-Capable Architecture

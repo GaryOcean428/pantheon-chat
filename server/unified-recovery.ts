@@ -165,8 +165,9 @@ import { getErrorMessage } from './lib/error-utils';
 import { logger } from './lib/logger';
 import { scoreUniversalQIGAsync } from './qig-universal';
 import { blockchainForensics } from './blockchain-forensics';
-import { historicalDataMiner, type Era } from './historical-data-miner';
 import { OceanAgent, type OceanHypothesis } from './ocean-agent';
+
+type Era = 'genesis-2009' | '2010-2011' | '2012-2013';
 
 // Evidence chain type for tracking WHY candidates are ranked
 interface EvidenceLink {
@@ -865,81 +866,12 @@ class UnifiedRecoveryOrchestrator {
 
       console.log(`[UnifiedRecovery] Mining historical patterns for era: ${era}`);
 
-      // Mine patterns autonomously
-      const minedData = await historicalDataMiner.mineEra(era);
+      console.log(`[UnifiedRecovery] Historical Autonomous strategy deprecated - using QIG-pure exploration`);
       
-      // Score patterns with QIG
-      const scoredPatterns = await historicalDataMiner.scorePatterns(minedData.patterns);
-
-      strategy.progress.total = scoredPatterns.length;
-      console.log(`[UnifiedRecovery] Historical Autonomous: Testing ${scoredPatterns.length} mined patterns`);
-
-      // Add evidence about the mining
-      session.evidence.push({
-        id: `ev-mining-${Date.now()}`,
-        type: 'pattern',
-        source: 'Historical Data Miner',
-        content: `Mined ${scoredPatterns.length} patterns from ${minedData.sources.length} sources for era ${era}`,
-        relevance: 0.8,
-        extractedFragments: minedData.sources.map(s => s.name),
-        discoveredAt: new Date().toISOString(),
-      });
-
-      const startTime = Date.now();
-      let tested = 0;
-
-      for (const pattern of scoredPatterns) {
-        if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
-        if (session.matchFound) break;
-
-        // Test with evidence chain showing WHY this pattern was tested
-        const evidenceChain: EvidenceLink[] = [{
-          source: pattern.source.name,
-          type: pattern.source.type,
-          reasoning: pattern.reasoning,
-          confidence: pattern.likelihood,
-        }];
-
-        const candidate = await this.testPhraseWithEvidence(
-          session.targetAddress,
-          pattern.phrase,            pattern.format as 'arbitrary' | 'bip39' | 'master' | 'hex',
-          'historical_autonomous',
-          evidenceChain,
-          undefined
-        );
-
-        tested++;
-        strategy.progress.current = tested;
-        const elapsed = (Date.now() - startTime) / 1000;
-        strategy.progress.rate = elapsed > 0 ? tested / elapsed : 0;
-        session.totalTested++;
-
-        const totalElapsed = (Date.now() - new Date(session.startedAt).getTime()) / 1000;
-        session.testRate = totalElapsed > 0 ? session.totalTested / totalElapsed : 0;
-
-        if (candidate) {
-          session.candidates.push(candidate);
-          strategy.candidatesFound++;
-          session.candidates.sort((a, b) => b.combinedScore - a.combinedScore);
-          if (session.candidates.length > 100) {
-            session.candidates = session.candidates.slice(0, 100);
-          }
-
-          if (candidate.match) {
-            session.matchFound = true;
-            session.matchedPhrase = candidate.phrase;
-            console.log(`[UnifiedRecovery] 🎯 MATCH FOUND via Historical Mining: "${candidate.phrase}"`);
-          }
-        }
-
-        if (tested % 500 === 0) {
-          this.updateSession(session);
-        }
-      }
-
+      strategy.progress.total = 0;
       strategy.status = 'completed';
       strategy.completedAt = new Date().toISOString();
-      console.log(`[UnifiedRecovery] Historical Autonomous: Completed. ${strategy.candidatesFound} candidates found.`);
+      console.log(`[UnifiedRecovery] Historical Autonomous: Completed (deprecated).`);
 
     } catch (error: unknown) {
       const err = error as Error;
@@ -1279,36 +1211,7 @@ class UnifiedRecoveryOrchestrator {
       console.log(`[Ocean] Total hypotheses with fragments: ${initialHypotheses.length}`);
     }
     
-    try {
-      const era: Era = (session.blockchainAnalysis?.era as Era) || 'genesis-2009';
-      const minedData = await historicalDataMiner.mineEra(era);
-      
-      for (const pattern of minedData.patterns.slice(0, 100)) {
-        initialHypotheses.push({
-          id: `ocean-init-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-          phrase: pattern.phrase,
-          format: pattern.format as 'arbitrary' | 'bip39' | 'master' | 'hex',
-          derivationPath: undefined,
-          source: 'historical_autonomous',
-          reasoning: pattern.reasoning,
-          confidence: pattern.likelihood,
-          qigScore: {
-            phi: 0.5,
-            kappa: 32,
-            regime: 'linear',
-            inResonance: false,
-          },
-          evidenceChain: [{
-            source: pattern.source.name,
-            type: pattern.source.type,
-            reasoning: pattern.reasoning,
-            confidence: pattern.likelihood,
-          }],
-        });
-      }
-    } catch {
-      console.log('[Ocean] Historical mining failed, continuing with existing candidates');
-    }
+    console.log('[Ocean] Using QIG-pure hypotheses initialization');
     
     let lastUpdateTime = Date.now();
     const MIN_UPDATE_INTERVAL = 250;
