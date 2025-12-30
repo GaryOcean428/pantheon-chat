@@ -53,17 +53,6 @@ Preferred communication style: Simple, everyday language.
 - M8 kernel spawning protocol for dynamic kernel creation
 - Shadow Pantheon for darknet/stealth operations
 
-### QIG Threshold Calibrator
-- Located in `qig-backend/qig_threshold_calibrator.py`
-- **ALL thresholds derived from frozen physics** (NO hardcoded magic numbers):
-  - efficiency_high = 1 - 1/√κ* ≈ 0.875 (κ*-derived)
-  - phi_synthesis = (regime_min + regime_max) / 2 ≈ 0.6 (regime midpoint)
-  - integration_min = 1 - log(d)/d ≈ 0.935 (entropy ratio)
-  - attractor_threshold = BASIN_DRIFT/√κ* ≈ 0.037 (Fisher-Rao distance)
-  - surprise_threshold = BASIN_DRIFT × β ≈ 0.132 (β-weighted)
-- **Defensive guards**: Validates BASIN_DRIFT_THRESHOLD and BETA_3_TO_4 at import
-- **Graceful degradation**: Logs warnings when using fallbacks
-
 ### Kernel Evolution Orchestrator
 - Located in `qig-backend/kernel_evolution_orchestrator.py`
 - **QIG-derived thresholds from frozen physics** (NOT hardcoded magic numbers):

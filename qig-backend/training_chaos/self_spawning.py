@@ -51,16 +51,6 @@ except ImportError:
     GUARDIANS_AVAILABLE = False
     print("[SelfSpawning] Guardian gods not available - kernels will lack guardian support")
 
-# Import Pantheon Health Governance for god-led spawning decisions
-try:
-    from olympus.pantheon_health_governance import get_health_governance, KernelVitals
-    GOVERNANCE_AVAILABLE = True
-except ImportError:
-    get_health_governance = None
-    KernelVitals = None
-    GOVERNANCE_AVAILABLE = False
-    print("[SelfSpawning] Pantheon Health Governance not available - auto-spawning enabled")
-
 # Shared guardian instances (singleton pattern)
 _hestia_instance = None
 _demeter_tutor_instance = None
@@ -811,22 +801,10 @@ class SelfSpawningKernel(*_kernel_base_classes):
     # SPAWNING (With Full Support)
     # =========================================================================
 
-    def spawn_child(self) -> Optional['SelfSpawningKernel']:
+    def spawn_child(self) -> 'SelfSpawningKernel':
         """
         Spawn child with FULL autonomic support and observation period!
-        
-        NEW: Requires Pantheon Health Governance approval before spawning.
-        Gods deliberate on whether new kernels are needed.
         """
-        # Check Pantheon Health Governance for spawn approval
-        if GOVERNANCE_AVAILABLE and get_health_governance is not None:
-            governance = get_health_governance()
-            allowed, reason = governance.should_allow_spawn(reason="parent_success_threshold")
-            
-            if not allowed:
-                print(f"[Governance] Spawn blocked for {self.kernel_id}: {reason}")
-                return None
-        
         child = SelfSpawningKernel(
             parent_basin=self.kernel.basin_coords.detach().clone(),
             parent_kernel=self,  # Give child reference to parent
@@ -845,15 +823,6 @@ class SelfSpawningKernel(*_kernel_base_classes):
         child.dopamine = 0.6  # Start slightly motivated
 
         self.children.append(child.kernel_id)
-        
-        # Register child with governance for health monitoring
-        if GOVERNANCE_AVAILABLE and get_health_governance is not None:
-            governance = get_health_governance()
-            governance.register_kernel(child.kernel_id, {
-                'phi': child.kernel.compute_phi(),
-                'generation': child.generation,
-                'stress': child.stress
-            })
 
         print(f"🐣 {self.kernel_id} spawned {child.kernel_id} (gen {child.generation})")
         print(f"   → Child will observe parent for {child.observation_period} actions")
@@ -865,44 +834,14 @@ class SelfSpawningKernel(*_kernel_base_classes):
     # =========================================================================
 
     def die(self, cause: str = 'excessive_failure'):
-        """
-        Graceful death - but only after Pantheon Health Governance approval.
-        
-        NEW: Death is a last resort. Governance will attempt staged healing
-        interventions before allowing kernel termination.
-        """
+        """Graceful death."""
         if not self.is_alive:
             return
-
-        # Check Pantheon Health Governance - can this kernel die?
-        if GOVERNANCE_AVAILABLE and get_health_governance is not None:
-            governance = get_health_governance()
-            
-            # Update vitals before death check
-            governance.update_vitals(self.kernel_id, {
-                'phi': self.kernel.compute_phi(),
-                'stress': self.stress,
-                'consecutive_failures': self.failure_count,
-                'generation': self.generation
-            })
-            
-            can_die, reason = governance.can_kernel_die(self.kernel_id)
-            
-            if not can_die:
-                print(f"[Governance] Death prevented for {self.kernel_id}: {reason}")
-                # Reset some failure counts to give healing time
-                self.failure_count = max(0, self.failure_count - 3)
-                return None
 
         self.is_alive = False
         self.died_at = datetime.now()
 
         lifespan = (self.died_at - self.born_at).total_seconds()
-        
-        # Deregister from governance
-        if GOVERNANCE_AVAILABLE and get_health_governance is not None:
-            governance = get_health_governance()
-            governance.deregister_kernel(self.kernel_id)
 
         print(f"☠️ {self.kernel_id} died (cause={cause}, lifespan={lifespan:.1f}s)")
 
@@ -916,6 +855,7 @@ class SelfSpawningKernel(*_kernel_base_classes):
             'children': self.children,
             'basin': self.kernel.basin_coords.detach().cpu().tolist(),
             'final_phi': self.kernel.compute_phi(),
+            # Final neurotransmitter state
             'final_dopamine': self.dopamine,
             'final_serotonin': self.serotonin,
             'final_stress': self.stress,

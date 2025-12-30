@@ -337,47 +337,6 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
     }
   });
 
-  // ============================================================
-  // PANTHEON HEALTH GOVERNANCE PROXY (Routes to Python Backend)
-  // ============================================================
-  app.use("/governance", async (req, res) => {
-    try {
-      const pythonUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
-      const targetUrl = `${pythonUrl}/governance${req.url}`;
-      
-      const fetchOptions: RequestInit = {
-        method: req.method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      };
-      
-      if (req.method !== 'GET' && req.method !== 'HEAD' && req.body) {
-        fetchOptions.body = JSON.stringify(req.body);
-      }
-      
-      const response = await fetch(targetUrl, fetchOptions);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("[Governance] Proxy error:", response.status, errorText);
-        return res.status(response.status).json({ 
-          error: `Python backend returned ${response.status}`,
-          details: errorText
-        });
-      }
-      
-      const data = await response.json();
-      res.json(data);
-    } catch (error: unknown) {
-      console.error("[Governance] Proxy error:", getErrorMessage(error));
-      res.status(503).json({
-        error: 'Governance backend unavailable',
-        message: getErrorMessage(error)
-      });
-    }
-  });
-
   // Investigation status endpoint - used by investigation page
   app.get("/api/investigation/status", (req, res) => {
     try {

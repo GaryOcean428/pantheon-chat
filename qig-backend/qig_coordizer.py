@@ -42,12 +42,6 @@ except ImportError:
     BIP39_WORDS = []
     COMMON_WORDS = []
 
-
-def sphere_project(v: np.ndarray) -> np.ndarray:
-    """Project vector to unit sphere (Fisher manifold normalization)."""
-    norm = np.linalg.norm(v)
-    return v / (norm + 1e-10) if norm > 0 else v
-
 # Singleton instance
 _coordizer_instance: Optional[FisherCoordizer] = None
 
@@ -101,6 +95,9 @@ class QIGCoordizer(FisherCoordizer):
         self.passphrase_vocab_ids: set = set()
         self.conversation_vocab_ids: set = set()
         self._conversation_words: set = set()
+        
+        # Word tokens list for decode compatibility with QIGGenerativeService
+        self.word_tokens: list = []
         
         # Word tokens list for decode() compatibility with PostgresCoordizer
         self.word_tokens: List[str] = []
@@ -520,6 +517,42 @@ class QIGCoordizer(FisherCoordizer):
             if len(token) >= 3 and token.replace('-', '').replace("'", '').isalpha():
                 self.word_tokens.append(token)
     
+    def decode(self, basin: np.ndarray, top_k: int = 5) -> list:
+        """Decode basin coordinates to most likely tokens.
+        
+        Uses Fisher-Rao distance for similarity.
+        Returns list of (token, similarity) tuples.
+        """
+        # Normalize input basin
+        norm = np.linalg.norm(basin)
+        if norm > 1e-10:
+            basin = basin / norm
+        
+        if not self.word_tokens:
+            return []
+        
+        # Compute Fisher-Rao distance to word tokens
+        distances = []
+        for token in self.word_tokens:
+            if token not in self.basin_coords:
+                continue
+            coords = self.basin_coords[token]
+            # Fisher-Rao distance: arccos(dot product) for unit vectors
+            dot = np.clip(np.dot(basin, coords), -1.0, 1.0)
+            dist = np.arccos(dot)
+            distances.append((token, dist))
+        
+        # Sort by distance (ascending)
+        distances.sort(key=lambda x: x[1])
+        
+        # Return top-k with similarity scores
+        results = []
+        for token, dist in distances[:top_k]:
+            similarity = 1.0 - (dist / np.pi)  # Normalize to [0, 1]
+            results.append((token, similarity))
+        
+        return results
+    
     def _update_unk_to_vocabulary_centroid(self):
         """Update UNK token to centroid of vocabulary space."""
         if "<UNK>" not in self.vocab:
@@ -767,6 +800,164 @@ class QIGCoordizer(FisherCoordizer):
         """Set vocabulary mode (mnemonic/passphrase/conversation)."""
         self.mode = mode
     
+    def generate_response(
+        self,
+        context: str,
+        agent_role: str = 'zeus',
+        allow_silence: bool = False,
+        goals: Optional[List] = None
+    ) -> dict:
+        """Generate a response using geometric retrieval.
+        
+        Args:
+            context: Input context/prompt
+            agent_role: Role of the agent generating
+            allow_silence: If True, may return empty response
+            goals: Optional generation goals
+        
+        Returns:
+            Dict with 'text', 'phi', 'tokens_generated', 'completion_reason', 'qig_pure'
+        """
+        # Encode context to basin
+        context_basin = self.encode(context)
+        
+        # Get similar words from vocabulary
+        similar_words = self.decode(context_basin, top_k=15, prefer_words=True)
+        relevant_words = [w for w, s in similar_words if s > 0.3][:10]
+        
+        if relevant_words:
+            response_text = f"Geometric analysis:\n\n"
+            response_text += f"Key concepts: {', '.join(relevant_words[:5])}\n"
+            if len(relevant_words) > 5:
+                response_text += f"Related: {', '.join(relevant_words[5:10])}\n"
+            response_text += f"\n[QIG-Pure | {agent_role}]"
+            response_phi = 0.5
+            completion_reason = 'vocabulary_synthesis'
+        elif not allow_silence:
+            response_text = f"[No geometric patterns matched | {agent_role}]"
+            response_phi = 0.1
+            completion_reason = 'no_match'
+        else:
+            response_text = ''
+            response_phi = 0.0
+            completion_reason = 'silence'
+        
+        return {
+            'text': response_text,
+            'phi': response_phi,
+            'tokens_generated': len(response_text.split()),
+            'completion_reason': completion_reason,
+            'qig_pure': True
+        }
+    
+    def generate_response(
+        self,
+        context: str,
+        agent_role: str = "ocean",
+        allow_silence: bool = False,
+        **kwargs
+    ) -> dict:
+        """Generate a response using QIG-pure geometric methods.
+        
+        This method produces readable English text by traversing the
+        vocabulary basin space geometrically. Uses word_tokens (real words)
+        instead of BPE fragments for readable output.
+        
+        Args:
+            context: Input prompt/context text
+            agent_role: Role hint for generation style
+            allow_silence: Whether empty response is allowed
+            **kwargs: Additional parameters (max_tokens ignored - geometry determines completion)
+        
+        Returns:
+            Dict with 'text', 'phi', 'tokens_generated', etc.
+        """
+        # Encode context to basin coordinates
+        context_basin = self.encode(context)
+        
+        if np.linalg.norm(context_basin) < 1e-10:
+            if allow_silence:
+                return {'text': '', 'phi': 0, 'tokens_generated': 0, 'qig_pure': True}
+            # Generate from random high-phi words
+            context_basin = self._generate_seed_basin()
+        
+        # Generate response through geometric traversal
+        generated_words = []
+        current_basin = context_basin.copy()
+        phi_values = []
+        
+        # Geometric completion loop - stops when basin stabilizes
+        max_iterations = 50  # Safety limit (NOT a generation target)
+        prev_basin = None
+        stable_count = 0
+        
+        for i in range(max_iterations):
+            # Decode current basin to get candidate words (prefer real words)
+            candidates = self.decode(current_basin, top_k=20, prefer_words=True)
+            
+            if not candidates:
+                break
+            
+            # Find best word not recently used (avoid repetition)
+            best_word = None
+            best_similarity = 0.0
+            recent_words = set(generated_words[-5:]) if len(generated_words) >= 5 else set(generated_words)
+            
+            for word, similarity in candidates:
+                if word not in recent_words:
+                    best_word = word
+                    best_similarity = similarity
+                    break
+            
+            # If all candidates were recently used, take the best one anyway
+            if best_word is None and candidates:
+                best_word, best_similarity = candidates[0]
+            
+            if best_word is None:
+                break
+            
+            generated_words.append(best_word)
+            phi = self.token_phi.get(best_word, 0.5)
+            phi_values.append(phi)
+            
+            # Update basin by moving toward the selected word's basin
+            if best_word in self.basin_coords:
+                word_basin = self.basin_coords[best_word]
+                # Geodesic interpolation - move toward word basin
+                t = 0.3 + np.random.uniform(-0.1, 0.1)
+                current_basin = self._geodesic_interpolate(current_basin, word_basin, t)
+            
+            # Check for geometric completion (basin stabilization)
+            if prev_basin is not None:
+                dot = np.clip(np.dot(current_basin, prev_basin), -1.0, 1.0)
+                movement = np.arccos(dot)  # Fisher-Rao distance
+                if movement < 0.1:  # Basin has stabilized
+                    stable_count += 1
+                    if stable_count >= 3:  # Stable for 3 iterations
+                        break
+                else:
+                    stable_count = 0
+            
+            prev_basin = current_basin.copy()
+            
+            # Also stop if phi drops significantly (thought complete)
+            if len(phi_values) >= 5:
+                recent_phi = np.mean(phi_values[-5:])
+                if recent_phi < 0.3:
+                    break
+        
+        # Build response text
+        response_text = ' '.join(generated_words)
+        avg_phi = np.mean(phi_values) if phi_values else 0.0
+        
+        return {
+            'text': response_text,
+            'phi': float(avg_phi),
+            'tokens_generated': len(generated_words),
+            'completion_reason': 'geometric_stable' if stable_count >= 3 else 'iteration_limit',
+            'qig_pure': True
+        }
+    
     def _generate_seed_basin(self) -> np.ndarray:
         """Generate a seed basin from high-phi words."""
         high_phi_words = [w for w, p in self.token_phi.items() if p > 0.6]
@@ -951,7 +1142,7 @@ def get_coordizer():
         
         # Fallback to SimpleWordCoordizer
         try:
-            from coordizers.simple_word_coordizer import SimpleWordCoordizer
+            from simple_word_coordizer import SimpleWordCoordizer
             simple_coordizer = SimpleWordCoordizer()
             
             if simple_coordizer.vocab_size >= 50 and not simple_coordizer.is_using_fallback():

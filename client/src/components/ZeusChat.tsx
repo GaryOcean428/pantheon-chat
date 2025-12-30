@@ -20,7 +20,7 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
-import { Send, Upload, Search, Sparkles, Brain, CheckCircle, Loader2, AlertCircle, Plus, History, MessageSquare, ChevronDown } from 'lucide-react';
+import { Send, Upload, Search, Sparkles, Brain, CheckCircle, Loader2, AlertCircle } from 'lucide-react';
 import { useZeusChat, type ZeusMessage, type SyncStatus } from '@/hooks/useZeusChat';
 
 function sanitizeText(text: string): string {
@@ -32,7 +32,7 @@ function sanitizeText(text: string): string {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 }
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, Button, Badge, Textarea, ScrollArea, DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel } from '@/components/ui';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, Button, Badge, Textarea, ScrollArea } from '@/components/ui';
 import { useToast } from '@/hooks/use-toast';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { StreamingMetricsPanel } from './StreamingMetricsPanel';
@@ -54,11 +54,6 @@ export default function ZeusChat() {
     clearLastError,
     clearLastSuccess,
     syncStatus,
-    sessionId,
-    sessions,
-    loadSession,
-    startNewSession,
-    refreshSessions,
   } = useZeusChat();
   
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -190,71 +185,15 @@ export default function ZeusChat() {
     );
   };
   
-  const currentSession = sessions.find(s => s.session_id === sessionId);
-  
   return (
     <Card className="flex flex-col h-[calc(100vh-12rem)]">
       <CardHeader>
-        <div className="flex items-center justify-between gap-2">
-          <CardTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-yellow-500" />
-            Zeus Chat - Divine Council Interface
-          </CardTitle>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={startNewSession}
-              disabled={isThinking}
-              data-testid="button-new-chat"
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              New Chat
-            </Button>
-            <DropdownMenu onOpenChange={(open) => open && refreshSessions()}>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" data-testid="button-chat-history">
-                  <History className="h-4 w-4 mr-1" />
-                  History
-                  <ChevronDown className="h-3 w-3 ml-1" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-64">
-                <DropdownMenuLabel>Recent Conversations</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {sessions.length === 0 ? (
-                  <DropdownMenuItem disabled>
-                    No previous chats
-                  </DropdownMenuItem>
-                ) : (
-                  sessions.slice(0, 10).map((session) => (
-                    <DropdownMenuItem
-                      key={session.session_id}
-                      onClick={() => loadSession(session.session_id)}
-                      className={session.session_id === sessionId ? 'bg-accent' : ''}
-                      data-testid={`menu-item-session-${session.session_id}`}
-                    >
-                      <MessageSquare className="h-4 w-4 mr-2" />
-                      <div className="flex flex-col flex-1 min-w-0">
-                        <span className="truncate text-sm">{session.title || 'Untitled'}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {session.message_count} messages
-                        </span>
-                      </div>
-                    </DropdownMenuItem>
-                  ))
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
+        <CardTitle className="flex items-center gap-2">
+          <Sparkles className="h-5 w-5 text-yellow-500" />
+          Zeus Chat - Divine Council Interface
+        </CardTitle>
         <CardDescription>
           Converse with the Olympian Pantheon. Your insights are encoded to the Fisher manifold.
-          {currentSession && (
-            <span className="ml-2 text-xs">
-              ({currentSession.message_count} messages)
-            </span>
-          )}
         </CardDescription>
       </CardHeader>
       
