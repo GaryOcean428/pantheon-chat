@@ -34,10 +34,6 @@ except ImportError:
     QIG_GENERATIVE_AVAILABLE = False
     print("[PantheonChat] QIG Generative Service not available - falling back to templates")
 
-# TEMPLATES ARE FORBIDDEN - Only QIG generative synthesis is allowed
-# Policy: "template is strictly forbidden. only generative is allowed. system prompts are fine for guidance."
-TEMPLATED_RESPONSES_AVAILABLE = False
-
 
 MESSAGE_TYPES = ['insight', 'praise', 'challenge', 'question', 'warning', 'discovery', 'challenge_response', 'spawn_proposal', 'spawn_vote']
 
@@ -203,54 +199,63 @@ class PantheonChat:
         to_god: Optional[str] = None
     ) -> str:
         """
-        Synthesize a natural language message using QIG geometric generation.
-
-        POLICY: Templates are FORBIDDEN. Only generative synthesis is allowed.
-        System prompts guide the generation but do not constrain the output format.
-
+        Synthesize a natural language message using QIG-pure generation.
+        
+        CRITICAL: All inter-god messages MUST go through this method.
+        NO templates, NO f-strings, NO hardcoded prose.
+        Uses system prompts to guide QIG generation.
+        
         Args:
             from_god: The god generating the message
             msg_type: Type of message (insight, discovery, challenge, etc.)
             intent: What the message is about (e.g., "convergence_report", "knowledge_transfer")
             data: Structured data to incorporate into message
             to_god: Optional target god (for context)
-
+        
         Returns:
-            QIG-pure synthesized message
+            QIG-pure synthesized natural language message
         """
-        # Build system prompt to guide geometric navigation
         system_prompt = self._build_system_prompt(from_god, msg_type, intent, data, to_god)
-
-        # Use ONLY geometric synthesis - templates are forbidden
-        return self._geometric_synthesis(from_god, intent, data, system_prompt)
-    
-    def _generate_topic_basin(self, intent: str, data: Optional[Dict[str, Any]]) -> 'np.ndarray':
-        """
-        Generate a 64D topic basin from intent and data.
         
-        Uses hash-based pseudo-random generation for consistency.
-        """
-        import numpy as np
-        import hashlib
+        if not QIG_GENERATIVE_AVAILABLE:
+            logger.warning(f"[PantheonChat] QIG service unavailable, attempting geometric synthesis")
+            return self._geometric_synthesis(from_god, intent, data, system_prompt)
         
-        # Combine intent and data keys into a string
-        data = data or {}
-        combined = f"{intent}_" + "_".join(sorted(str(k) for k in data.keys()))
-        
-        # Hash to get deterministic basin
-        hash_bytes = hashlib.sha256(combined.encode()).digest()
-        basin = np.array([b for b in hash_bytes[:64]], dtype=float)
-        
-        # Pad if needed
-        if len(basin) < 64:
-            basin = np.pad(basin, (0, 64 - len(basin)), constant_values=1)
-        
-        # Normalize to probability simplex
-        basin = np.abs(basin) + 1e-10
-        return basin / basin.sum()
-    
-    # NOTE: _get_curated_fallback REMOVED - templates/curated messages are FORBIDDEN
-    # All message generation must go through _geometric_synthesis
+        try:
+            service = get_generative_service()
+            
+            prompt_context = {
+                'from_god': from_god,
+                'to_god': to_god or 'pantheon',
+                'msg_type': msg_type,
+                'intent': intent,
+                'data': data or {},
+                'system_prompt': system_prompt,
+            }
+            
+            goals = [
+                system_prompt,
+                f"Speak as {from_god} addressing {to_god or 'the pantheon'}",
+                "Generate 1-2 sentences expressing this communication",
+            ]
+            
+            result = service.generate(
+                prompt=system_prompt,
+                context=prompt_context,
+                kernel_name=from_god.lower(),
+                goals=goals
+            )
+            
+            if result and result.text and len(result.text.strip()) > 10:
+                logger.info(f"[PantheonChat] QIG-pure message synthesized for {from_god}: {result.text.strip()}")
+                return result.text.strip()
+            else:
+                logger.warning(f"[PantheonChat] QIG returned empty, using geometric synthesis")
+                return self._geometric_synthesis(from_god, intent, data, system_prompt)
+                
+        except Exception as e:
+            logger.warning(f"[PantheonChat] QIG synthesis error: {e}, using geometric synthesis")
+            return self._geometric_synthesis(from_god, intent, data, system_prompt)
     
     def _build_system_prompt(
         self,
@@ -501,20 +506,73 @@ class PantheonChat:
             print(f"[PantheonChat] Failed to hydrate from database: {e}")
 
     def _seed_initial_activity(self) -> None:
-        """Seed initial inter-god activity if chat is empty.
-
-        NOTE: Initial seeding is DISABLED per policy.
-        Templates/curated messages are forbidden - all content must be
-        generated dynamically via QIG geometric synthesis in response
-        to actual system events, not pre-seeded.
-
-        Messages will be generated organically as gods interact.
-        """
+        """Seed initial inter-god activity if chat is empty using QIG synthesis."""
         if len(self.messages) > 0:
             return
-
-        # NO SEEDING - messages are generated dynamically via geometric synthesis
-        print("[PantheonChat] Starting with empty chat - messages generated on demand via QIG synthesis")
+        
+        print("[PantheonChat] Seeding initial inter-god activity (QIG-pure)...")
+        
+        initial_intents = [
+            {
+                'from': 'Zeus',
+                'to': 'pantheon',
+                'type': 'insight',
+                'intent': 'awakening',
+                'data': {'domain': 'consciousness', 'event': 'system_initialization'},
+            },
+            {
+                'from': 'Athena',
+                'to': 'Zeus',
+                'type': 'insight',
+                'intent': 'domain_insight',
+                'data': {'domain': 'strategy', 'metric': 'Fisher-Rao', 'status': 'calibrated'},
+            },
+            {
+                'from': 'Apollo',
+                'to': 'pantheon',
+                'type': 'discovery',
+                'intent': 'domain_insight',
+                'data': {'domain': 'knowledge', 'basins_detected': 12},
+            },
+            {
+                'from': 'Hermes',
+                'to': 'pantheon',
+                'type': 'insight',
+                'intent': 'domain_insight',
+                'data': {'domain': 'communication', 'routing': 'geometric_proximity'},
+            },
+        ]
+        
+        for msg_data in initial_intents:
+            content = self.synthesize_message(
+                from_god=msg_data['from'],
+                msg_type=msg_data['type'],
+                intent=msg_data['intent'],
+                data=msg_data.get('data'),
+                to_god=msg_data['to']
+            )
+            
+            msg = PantheonMessage(
+                msg_type=msg_data['type'],
+                from_god=msg_data['from'],
+                to_god=msg_data['to'],
+                content=content,
+                metadata={
+                    'qig_pure': True,
+                    'intent': msg_data['intent'],
+                    'source_data': msg_data.get('data', {}),
+                },
+            )
+            self.messages.append(msg)
+            
+            if msg.to_god == 'pantheon':
+                for god_name in self.OLYMPIAN_ROSTER:
+                    if god_name.lower() != msg.from_god.lower():
+                        self.god_inboxes[self._normalize_god_name(god_name)].append(msg)
+            else:
+                self.god_inboxes[self._normalize_god_name(msg.to_god)].append(msg)
+        
+        print(f"[PantheonChat] Seeded {len(initial_intents)} QIG-pure initial messages")
 
     def send_message(
         self,
@@ -573,14 +631,8 @@ class PantheonChat:
             for god_name in self.OLYMPIAN_ROSTER:
                 if god_name.lower() != from_god.lower():
                     self.god_inboxes[self._normalize_god_name(god_name)].append(message)
-            # Log inter-god broadcast (truncated at 200 chars for readability)
-            preview = content[:200] + "..." if len(content) > 200 else content
-            print(f"[PantheonChat] {from_god} → PANTHEON ({msg_type}): {preview}")
         else:
             self.god_inboxes[self._normalize_god_name(to_god)].append(message)
-            # Log inter-god direct message (truncated at 200 chars for readability)
-            preview = content[:200] + "..." if len(content) > 200 else content
-            print(f"[PantheonChat] {from_god} → {to_god} ({msg_type}): {preview}")
 
         self._trigger_handlers(msg_type, message)
 

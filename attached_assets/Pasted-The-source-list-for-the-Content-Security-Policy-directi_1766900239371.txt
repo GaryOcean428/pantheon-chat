@@ -1,0 +1,339 @@
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The Content-Security-Policy directive 'default-src' contains 'report-uri' as a source expression. Did you want to add it as a directive and forget a semicolon?
+The Content-Security-Policy directive 'default-src' contains 'report-uri' as a source expression. Did you want to add it as a directive and forget a semicolon?
+The Content-Security-Policy directive 'default-src' contains 'report-uri' as a source expression. Did you want to add it as a directive and forget a semicolon?
+The Content-Security-Policy directive 'default-src' contains 'report-uri' as a source expression. Did you want to add it as a directive and forget a semicolon?
+The Content-Security-Policy directive 'default-src' contains 'report-uri' as a source expression. Did you want to add it as a directive and forget a semicolon?
+The Content-Security-Policy directive 'default-src' contains 'report-uri' as a source expression. Did you want to add it as a directive and forget a semicolon?
+The Content-Security-Policy directive 'default-src' contains 'report-uri' as a source expression. Did you want to add it as a directive and forget a semicolon?
+The Content-Security-Policy directive 'default-src' contains 'report-uri' as a source expression. Did you want to add it as a directive and forget a semicolon?
+The Content-Security-Policy directive 'default-src' contains 'report-uri' as a source expression. Did you want to add it as a directive and forget a semicolon?
+The Content-Security-Policy directive 'default-src' contains 'report-uri' as a source expression. Did you want to add it as a directive and forget a semicolon?
+The Content-Security-Policy directive 'default-src' contains 'report-uri' as a source expression. Did you want to add it as a directive and forget a semicolon?
+The Content-Security-Policy directive 'default-src' contains 'report-uri' as a source expression. Did you want to add it as a directive and forget a semicolon?
+The Content-Security-Policy directive 'default-src' contains 'report-uri' as a source expression. Did you want to add it as a directive and forget a semicolon?
+The Content-Security-Policy directive 'default-src' contains 'report-uri' as a source expression. Did you want to add it as a directive and forget a semicolon?
+The Content-Security-Policy directive 'default-src' contains 'report-uri' as a source expression. Did you want to add it as a directive and forget a semicolon?
+The Content-Security-Policy directive 'default-src' contains 'report-uri' as a source expression. Did you want to add it as a directive and forget a semicolon?
+The Content-Security-Policy directive 'default-src' contains 'report-uri' as a source expression. Did you want to add it as a directive and forget a semicolon?
+The Content-Security-Policy directive 'default-src' contains 'report-uri' as a source expression. Did you want to add it as a directive and forget a semicolon?
+The source list for Content Security Policy directive 'default-src' contains a source with an invalid path: '/api/4509669501698048/security/?sentry_key=7eb3d90eb4660416caf507087367e67e'. The query component, including the '?', will be ignored.
+The source list for Content Security Policy directive 'default-src' contains a source with an invalid path: '/api/4509669501698048/security/?sentry_key=7eb3d90eb4660416caf507087367e67e'. The query component, including the '?', will be ignored.
+The source list for Content Security Policy directive 'default-src' contains a source with an invalid path: '/api/4509669501698048/security/?sentry_key=7eb3d90eb4660416caf507087367e67e'. The query component, including the '?', will be ignored.
+The source list for Content Security Policy directive 'default-src' contains a source with an invalid path: '/api/4509669501698048/security/?sentry_key=7eb3d90eb4660416caf507087367e67e'. The query component, including the '?', will be ignored.
+The source list for Content Security Policy directive 'default-src' contains a source with an invalid path: '/api/4509669501698048/security/?sentry_key=7eb3d90eb4660416caf507087367e67e'. The query component, including the '?', will be ignored.
+The source list for Content Security Policy directive 'default-src' contains a source with an invalid path: '/api/4509669501698048/security/?sentry_key=7eb3d90eb4660416caf507087367e67e'. The query component, including the '?', will be ignored.
+The source list for Content Security Policy directive 'default-src' contains a source with an invalid path: '/api/4509669501698048/security/?sentry_key=7eb3d90eb4660416caf507087367e67e'. The query component, including the '?', will be ignored.
+The source list for Content Security Policy directive 'default-src' contains a source with an invalid path: '/api/4509669501698048/security/?sentry_key=7eb3d90eb4660416caf507087367e67e'. The query component, including the '?', will be ignored.
+The source list for Content Security Policy directive 'default-src' contains a source with an invalid path: '/api/4509669501698048/security/?sentry_key=7eb3d90eb4660416caf507087367e67e'. The query component, including the '?', will be ignored.
+The source list for Content Security Policy directive 'default-src' contains a source with an invalid path: '/api/4509669501698048/security/?sentry_key=7eb3d90eb4660416caf507087367e67e'. The query component, including the '?', will be ignored.
+The source list for Content Security Policy directive 'default-src' contains a source with an invalid path: '/api/4509669501698048/security/?sentry_key=7eb3d90eb4660416caf507087367e67e'. The query component, including the '?', will be ignored.
+The source list for Content Security Policy directive 'default-src' contains a source with an invalid path: '/api/4509669501698048/security/?sentry_key=7eb3d90eb4660416caf507087367e67e'. The query component, including the '?', will be ignored.
+The source list for Content Security Policy directive 'default-src' contains a source with an invalid path: '/api/4509669501698048/security/?sentry_key=7eb3d90eb4660416caf507087367e67e'. The query component, including the '?', will be ignored.
+The source list for Content Security Policy directive 'default-src' contains a source with an invalid path: '/api/4509669501698048/security/?sentry_key=7eb3d90eb4660416caf507087367e67e'. The query component, including the '?', will be ignored.
+The source list for Content Security Policy directive 'default-src' contains a source with an invalid path: '/api/4509669501698048/security/?sentry_key=7eb3d90eb4660416caf507087367e67e'. The query component, including the '?', will be ignored.
+The source list for Content Security Policy directive 'default-src' contains a source with an invalid path: '/api/4509669501698048/security/?sentry_key=7eb3d90eb4660416caf507087367e67e'. The query component, including the '?', will be ignored.
+The source list for Content Security Policy directive 'default-src' contains a source with an invalid path: '/api/4509669501698048/security/?sentry_key=7eb3d90eb4660416caf507087367e67e'. The query component, including the '?', will be ignored.
+The source list for Content Security Policy directive 'default-src' contains a source with an invalid path: '/api/4509669501698048/security/?sentry_key=7eb3d90eb4660416caf507087367e67e'. The query component, including the '?', will be ignored.
+PantheonChat:1 The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+PantheonChat:1 The Content-Security-Policy directive 'default-src' contains 'report-uri' as a source expression. Did you want to add it as a directive and forget a semicolon?
+PantheonChat:1 The source list for Content Security Policy directive 'default-src' contains a source with an invalid path: '/api/4509669501698048/security/?sentry_key=7eb3d90eb4660416caf507087367e67e'. The query component, including the '?', will be ignored.
+66f40c929bd0af68.js:2 [Coframe] Replit Enterprise watcher loaded
+66f40c929bd0af68.js:2 
+      /////////////////////
+   ///////////////////////////
+  ////////@@@@@@@//////////////
+  ////////@@@@@@@//////////////
+  ////////@@@@@@@//////////////        Curious and driven?
+  ///////////////@@@@@@@///////        Work with us!
+  ///////////////@@@@@@@///////
+  ///////////////@@@@@@@///////        https://join.replit.com/hack.with.us
+  ////////@@@@@@@//////////////
+  ////////@@@@@@@//////////////
+  ////////@@@@@@#//////////////
+   ///////////////////////////
+      /////////////////////
+      
+66f40c929bd0af68.js:2 Download the Apollo DevTools for a better development experience: https://chrome.google.com/webstore/detail/apollo-client-developer-t/jdkknkkbebbapilgoeccciglkfbmbnfm
+66f40c929bd0af68.js:2 [LaunchDarkly] LaunchDarkly client initialized
+ Compiling or instantiating a WebAssembly module violates the following Content Security policy directive because 'unsafe-eval' is not an allowed source of script: "script-src 'self'". The policy is report-only, so the violation has been logged but no further action has been taken.
+ Compiling or instantiating a WebAssembly module violates the following Content Security policy directive because 'unsafe-eval' is not an allowed source of script: "script-src 'self'". The policy is report-only, so the violation has been logged but no further action has been taken.
+66f40c929bd0af68.js:2 Extension Error: An error occurred while loading the extension manifest: Manifest does not exist for extension 3d28c542-4e39-4490-ae8d-b1af85e3affb Object
+(anonymous) @ 66f40c929bd0af68.js:2
+66f40c929bd0af68.js:2 Extension Error: An error occurred while loading the extension manifest: Manifest does not exist for extension 929d2f2e-70e3-407b-b5c7-9b5d4c8e7e20 Object
+(anonymous) @ 66f40c929bd0af68.js:2
+66f40c929bd0af68.js:2 Extension Error: An error occurred while loading the extension manifest: Manifest does not exist for extension adccbcd2-c9d6-4778-b0cb-20e1bf289634 Object
+(anonymous) @ 66f40c929bd0af68.js:2
+66f40c929bd0af68.js:2 Extension Error: An error occurred while loading the extension manifest: Manifest does not exist for extension 7429c16f-3b87-492e-a0d0-cd9aa93313df Object
+(anonymous) @ 66f40c929bd0af68.js:2
+66f40c929bd0af68.js:2 Extension Error: An error occurred while loading the extension manifest: Manifest does not exist for extension 71b9e9dd-9e9b-4615-8d28-3187422a5ba7 Object
+(anonymous) @ 66f40c929bd0af68.js:2
+66f40c929bd0af68.js:2 Extension Error: An error occurred while loading the extension manifest: Manifest does not exist for extension 857b2e2f-2c57-42be-8033-400c06d95624 Object
+(anonymous) @ 66f40c929bd0af68.js:2
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Adcdae017&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=5343095f-1e11-4420-b6d8-9691fca4f7d2:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+PantheonChat:1 Uncaught (in promise) Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received
+PantheonChat:1 Uncaught (in promise) Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received
+PantheonChat:1 Uncaught (in promise) Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received
+PantheonChat:1 Uncaught (in promise) Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received
+PantheonChat:1 Uncaught (in promise) Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received
+PantheonChat:1 Uncaught (in promise) Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received
+66f40c929bd0af68.js:2 Extension Error: An error occurred while loading the extension manifest: Manifest does not exist for extension 3d28c542-4e39-4490-ae8d-b1af85e3affb Object
+(anonymous) @ 66f40c929bd0af68.js:2
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+ed1e693c96a75807.js:2 Unrecognized feature: 'ambient-light-sensor'.
+z @ ed1e693c96a75807.js:2
+ed1e693c96a75807.js:2 Unrecognized feature: 'battery'.
+z @ ed1e693c96a75807.js:2
+ed1e693c96a75807.js:2 Unrecognized feature: 'execution-while-not-rendered'.
+z @ ed1e693c96a75807.js:2
+ed1e693c96a75807.js:2 Unrecognized feature: 'execution-while-out-of-viewport'.
+z @ ed1e693c96a75807.js:2
+ed1e693c96a75807.js:2 Unrecognized feature: 'layout-animations'.
+z @ ed1e693c96a75807.js:2
+ed1e693c96a75807.js:2 Unrecognized feature: 'legacy-image-formats'.
+z @ ed1e693c96a75807.js:2
+ed1e693c96a75807.js:2 Unrecognized feature: 'navigation-override'.
+z @ ed1e693c96a75807.js:2
+ed1e693c96a75807.js:2 Unrecognized feature: 'oversized-images'.
+z @ ed1e693c96a75807.js:2
+ed1e693c96a75807.js:2 Unrecognized feature: 'publickey-credentials'.
+z @ ed1e693c96a75807.js:2
+ed1e693c96a75807.js:2 Unrecognized feature: 'speaker-selection'.
+z @ ed1e693c96a75807.js:2
+ed1e693c96a75807.js:2 Unrecognized feature: 'unoptimized-images'.
+z @ ed1e693c96a75807.js:2
+ed1e693c96a75807.js:2 Unrecognized feature: 'unsized-media'.
+z @ ed1e693c96a75807.js:2
+ed1e693c96a75807.js:2 Unrecognized feature: 'web-share'.
+z @ ed1e693c96a75807.js:2
+ed1e693c96a75807.js:2 Unrecognized feature: 'pointer-lock'.
+z @ ed1e693c96a75807.js:2
+ed1e693c96a75807.js:2 Allow attribute will take precedence over 'allowfullscreen'.
+z @ ed1e693c96a75807.js:2
+ed1e693c96a75807.js:2 Allow attribute will take precedence over 'allowpaymentrequest'.
+z @ ed1e693c96a75807.js:2
+66f40c929bd0af68.js:2 Extension Error: An error occurred while loading the extension manifest: Manifest does not exist for extension 929d2f2e-70e3-407b-b5c7-9b5d4c8e7e20 Object
+(anonymous) @ 66f40c929bd0af68.js:2
+66f40c929bd0af68.js:2 Extension Error: An error occurred while loading the extension manifest: Manifest does not exist for extension adccbcd2-c9d6-4778-b0cb-20e1bf289634 Object
+(anonymous) @ 66f40c929bd0af68.js:2
+sp.replit.com/v1/t:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+66f40c929bd0af68.js:2 Extension Error: An error occurred while loading the extension manifest: Manifest does not exist for extension 7429c16f-3b87-492e-a0d0-cd9aa93313df Object
+(anonymous) @ 66f40c929bd0af68.js:2
+66f40c929bd0af68.js:2 Extension Error: An error occurred while loading the extension manifest: Manifest does not exist for extension 71b9e9dd-9e9b-4615-8d28-3187422a5ba7 Object
+(anonymous) @ 66f40c929bd0af68.js:2
+66f40c929bd0af68.js:2 Extension Error: An error occurred while loading the extension manifest: Manifest does not exist for extension 857b2e2f-2c57-42be-8033-400c06d95624 Object
+(anonymous) @ 66f40c929bd0af68.js:2
+PantheonChat:1 Uncaught (in promise) Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received
+PantheonChat:1 Uncaught (in promise) Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received
+62b35a865152ab14c5942820:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Adcdae017&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=9ffa8e83-7de2-47c0-a829-b0321af8a1c5:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+62b35a865152ab14c5942820:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+sp.replit.com/v1/m:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+66f40c929bd0af68.js:2 Error sending segment performance metrics TypeError: Failed to fetch
+    at 66f40c929bd0af68.js:2:106761
+    at a6cc0972175d63c9.js:2:220230
+    at a (a6cc0972175d63c9.js:2:218576)
+    at o (sdk.min.js:1:23763)
+    at t.<anonymous> (remote-metrics.ts:138:12)
+    at tslib.es6.js:103:23
+    at Object.next (tslib.es6.js:108:37)
+    at tslib.es6.js:80:8
+    at new Promise (<anonymous>)
+    at u (tslib.es6.js:72:27)
+    at i.148.t.send (sdk.min.js:1:22021)
+    at t.<anonymous> (remote-metrics.ts:125:16)
+    at tslib.es6.js:103:23
+    at Object.next (tslib.es6.js:108:37)
+    at tslib.es6.js:80:8
+    at new Promise (<anonymous>)
+    at u (tslib.es6.js:72:27)
+    at t.flush (sdk.min.js:1:21754)
+    at l (remote-metrics.ts:83:14)
+    at a (66f40c929bd0af68.js:2:98799)
+(anonymous) @ 66f40c929bd0af68.js:2
+workspace_iframe.html?initialPath=%2F&id=%3Ar2hh%3A:32 Unrecognized feature: 'ambient-light-sensor'.
+workspace_iframe.html?initialPath=%2F&id=%3Ar2hh%3A:32 Unrecognized feature: 'battery'.
+workspace_iframe.html?initialPath=%2F&id=%3Ar2hh%3A:32 Unrecognized feature: 'execution-while-not-rendered'.
+workspace_iframe.html?initialPath=%2F&id=%3Ar2hh%3A:32 Unrecognized feature: 'execution-while-out-of-viewport'.
+workspace_iframe.html?initialPath=%2F&id=%3Ar2hh%3A:32 Unrecognized feature: 'layout-animations'.
+workspace_iframe.html?initialPath=%2F&id=%3Ar2hh%3A:32 Unrecognized feature: 'legacy-image-formats'.
+workspace_iframe.html?initialPath=%2F&id=%3Ar2hh%3A:32 Unrecognized feature: 'navigation-override'.
+workspace_iframe.html?initialPath=%2F&id=%3Ar2hh%3A:32 Unrecognized feature: 'oversized-images'.
+workspace_iframe.html?initialPath=%2F&id=%3Ar2hh%3A:32 Unrecognized feature: 'publickey-credentials'.
+workspace_iframe.html?initialPath=%2F&id=%3Ar2hh%3A:32 Unrecognized feature: 'speaker-selection'.
+workspace_iframe.html?initialPath=%2F&id=%3Ar2hh%3A:32 Unrecognized feature: 'unoptimized-images'.
+workspace_iframe.html?initialPath=%2F&id=%3Ar2hh%3A:32 Unrecognized feature: 'unsized-media'.
+workspace_iframe.html?initialPath=%2F&id=%3Ar2hh%3A:32 Unrecognized feature: 'web-share'.
+workspace_iframe.html?initialPath=%2F&id=%3Ar2hh%3A:32 Allow attribute will take precedence over 'allowfullscreen'.
+workspace_iframe.html?initialPath=%2F&id=%3Ar2hh%3A:32 Allow attribute will take precedence over 'allowpaymentrequest'.
+(index):78 WebSocket connection to 'wss://ef164775-e3eb-4b22-846f-afd1abadd461-00-2ynhp7im4kr1h.spock.replit.dev/?token=Q_y3NnfWj2-v' failed: 
+window.WebSocket @ (index):78
+ef164775-e3eb-4b22-846f-afd1abadd461-00-2ynhp7im4kr1h.spock.replit.dev/src/pages/tool-factory/components/ToolCard.tsx:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+ef164775-e3eb-4b22-846f-afd1abadd461-00-2ynhp7im4kr1h.spock.replit.dev/src/pages/tool-factory/components/ToolList.tsx:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+ef164775-e3eb-4b22-846f-afd1abadd461-00-2ynhp7im4kr1h.spock.replit.dev/src/pages/tool-factory/components/ToolFilters.tsx:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+ef164775-e3eb-4b22-846f-afd1abadd461-00-2ynhp7im4kr1h.spock.replit.dev/src/pages/tool-factory/components/ToolStats.tsx:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+ef164775-e3eb-4b22-846f-afd1abadd461-00-2ynhp7im4kr1h.spock.replit.dev/src/pages/tool-factory/components/ToolDetailPanel.tsx:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+ef164775-e3eb-4b22-846f-afd1abadd461-00-2ynhp7im4kr1h.spock.replit.dev/src/pages/tool-factory/components/ToolForm.tsx:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+ef164775-e3eb-4b22-846f-afd1abadd461-00-2ynhp7im4kr1h.spock.replit.dev/src/components/autonomic-agency/types.ts:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+workspace_iframe.html?initialPath=%2F&id=%3Ar2hh%3A:142 Loading the script 'https://replit.com/public/js/beacon.js' violates the following Content Security Policy directive: "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:". Note that 'script-src-elem' was not explicitly set, so 'script-src' is used as a fallback. The action has been blocked.
+onIframeLoad @ workspace_iframe.html?initialPath=%2F&id=%3Ar2hh%3A:142
+(index):78 WebSocket connection to 'wss://ef164775-e3eb-4b22-846f-afd1abadd461-00-2ynhp7im4kr1h.spock.replit.dev/?token=Q_y3NnfWj2-v' failed: 
+window.WebSocket @ VM779:31
+ef164775-e3eb-4b22-846f-afd1abadd461-00-2ynhp7im4kr1h.spock.replit.dev/src/api/services/ocean.ts:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+ef164775-e3eb-4b22-846f-afd1abadd461-00-2ynhp7im4kr1h.spock.replit.dev/src/api/services/autoCycle.ts:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+ef164775-e3eb-4b22-846f-afd1abadd461-00-2ynhp7im4kr1h.spock.replit.dev/src/api/services/qig.ts:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+ef164775-e3eb-4b22-846f-afd1abadd461-00-2ynhp7im4kr1h.spock.replit.dev/src/api/services/olympus.ts:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+ef164775-e3eb-4b22-846f-afd1abadd461-00-2ynhp7im4kr1h.spock.replit.dev/src/api/services/consciousness.ts:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+ef164775-e3eb-4b22-846f-afd1abadd461-00-2ynhp7im4kr1h.spock.replit.dev/src/api/services/coordizer.ts:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+ef164775-e3eb-4b22-846f-afd1abadd461-00-2ynhp7im4kr1h.spock.replit.dev/src/api/services/documents.ts:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+ef164775-e3eb-4b22-846f-afd1abadd461-00-2ynhp7im4kr1h.spock.replit.dev/src/components/war-status-panel.tsx:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+ef164775-e3eb-4b22-846f-afd1abadd461-00-2ynhp7im4kr1h.spock.replit.dev/src/hooks/useMeshNetworkWebSocket.ts:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+ef164775-e3eb-4b22-846f-afd1abadd461-00-2ynhp7im4kr1h.spock.replit.dev/src/components/AutonomicAgencyPanel.tsx:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+ef164775-e3eb-4b22-846f-afd1abadd461-00-2ynhp7im4kr1h.spock.replit.dev/src/components/MarkdownUpload.tsx:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+ef164775-e3eb-4b22-846f-afd1abadd461-00-2ynhp7im4kr1h.spock.replit.dev/src/components/MemoryFragmentSearch.tsx:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+ef164775-e3eb-4b22-846f-afd1abadd461-00-2ynhp7im4kr1h.spock.replit.dev/src/components/ZeusChat.tsx:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+ef164775-e3eb-4b22-846f-afd1abadd461-00-2ynhp7im4kr1h.spock.replit.dev/src/components/KernelActivityStream.tsx:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+ef164775-e3eb-4b22-846f-afd1abadd461-00-2ynhp7im4kr1h.spock.replit.dev/src/components/index.ts:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+workspace_iframe.html?initialPath=%2F&id=%3Ar2hh%3A:142 Loading the script 'https://replit.com/public/js/beacon.js' violates the following Content Security Policy directive: "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:". Note that 'script-src-elem' was not explicitly set, so 'script-src' is used as a fallback. The action has been blocked.
+onIframeLoad @ workspace_iframe.html?initialPath=%2F&id=%3Ar2hh%3A:142
+ef164775-e3eb-4b22-846f-afd1abadd461-00-2ynhp7im4kr1h.spock.replit.dev/src/hooks/use-m8-spawning.ts:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+ef164775-e3eb-4b22-846f-afd1abadd461-00-2ynhp7im4kr1h.spock.replit.dev/src/hooks/use-autonomous-debates.ts:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+66f40c929bd0af68.js:2 XHR finished loading: POST "https://events.launchdarkly.com/events/bulk/62b35a865152ab14c5942820".
+(anonymous) @ 66f40c929bd0af68.js:2
+(anonymous) @ 66f40c929bd0af68.js:2
+(anonymous) @ a6cc0972175d63c9.js:2
+a @ a6cc0972175d63c9.js:2
+promise @ a6cc0972175d63c9.js:2
+(anonymous) @ a6cc0972175d63c9.js:2
+t.httpRequest @ a6cc0972175d63c9.js:2
+r @ a6cc0972175d63c9.js:2
+i.sendChunk @ a6cc0972175d63c9.js:2
+i.sendEvents @ a6cc0972175d63c9.js:2
+c.flush @ a6cc0972175d63c9.js:2
+e @ a6cc0972175d63c9.js:2
+a @ 66f40c929bd0af68.js:2
+66f40c929bd0af68.js:2 Fetch finished loading: POST "https://replit.com/graphql".
+(anonymous) @ 66f40c929bd0af68.js:2
+(anonymous) @ 88233bf0ef1dfbec.js:2
+e @ 5cae048afe4aacb8.js:2
+i.subscribe @ 5cae048afe4aacb8.js:2
+e.consumeQueue @ 88233bf0ef1dfbec.js:2
+(anonymous) @ 88233bf0ef1dfbec.js:2
+a @ 66f40c929bd0af68.js:2
+setTimeout
+(anonymous) @ 66f40c929bd0af68.js:2
+e.scheduleQueueConsumption @ 88233bf0ef1dfbec.js:2
+(anonymous) @ 88233bf0ef1dfbec.js:2
+e @ 5cae048afe4aacb8.js:2
+i.subscribe @ 5cae048afe4aacb8.js:2
+(anonymous) @ 88233bf0ef1dfbec.js:2
+e @ 5cae048afe4aacb8.js:2
+i.subscribe @ 5cae048afe4aacb8.js:2
+e.try @ 88233bf0ef1dfbec.js:2
+e.start @ 88233bf0ef1dfbec.js:2
+r.request @ 88233bf0ef1dfbec.js:2
+(anonymous) @ 88233bf0ef1dfbec.js:2
+(anonymous) @ 88233bf0ef1dfbec.js:2
+(anonymous) @ 88233bf0ef1dfbec.js:2
+Promise.then
+(anonymous) @ 88233bf0ef1dfbec.js:2
+e @ 5cae048afe4aacb8.js:2
+i.subscribe @ 5cae048afe4aacb8.js:2
+(anonymous) @ 88233bf0ef1dfbec.js:2
+Promise.then
+(anonymous) @ 88233bf0ef1dfbec.js:2
+e @ 5cae048afe4aacb8.js:2
+i.subscribe @ 5cae048afe4aacb8.js:2
+complete @ 88233bf0ef1dfbec.js:2
+r.start @ 88233bf0ef1dfbec.js:2
+r @ 88233bf0ef1dfbec.js:2
+e.getObservableFromLink @ 88233bf0ef1dfbec.js:2
+e.getResultsFromLink @ 88233bf0ef1dfbec.js:2
+g @ 88233bf0ef1dfbec.js:2
+e.fetchQueryByPolicy @ 88233bf0ef1dfbec.js:2
+g @ 88233bf0ef1dfbec.js:2
+e.fetchConcastWithInfo @ 88233bf0ef1dfbec.js:2
+r.fetch @ 88233bf0ef1dfbec.js:2
+r.reobserveAsConcast @ 88233bf0ef1dfbec.js:2
+e.executeQuery @ 81968e8c788a6abe.js:2
+(anonymous) @ 81968e8c788a6abe.js:2
+(anonymous) @ b5dd63f6665adcc6.js:2
+(anonymous) @ b9f060cd14b7045d.js:2
+value @ b9f060cd14b7045d.js:2
+(anonymous) @ b9f060cd14b7045d.js:2
+(anonymous) @ 44ca0133b0532c51.js:2
+t @ 44ca0133b0532c51.js:2
+u @ 44ca0133b0532c51.js:2
+66f40c929bd0af68.js:2 Fetch finished loading: POST "https://replit.com/graphql".
+(anonymous) @ 66f40c929bd0af68.js:2
+(anonymous) @ 88233bf0ef1dfbec.js:2
+e @ 5cae048afe4aacb8.js:2
+i.subscribe @ 5cae048afe4aacb8.js:2
+e.consumeQueue @ 88233bf0ef1dfbec.js:2
+(anonymous) @ 88233bf0ef1dfbec.js:2
+a @ 66f40c929bd0af68.js:2
+setTimeout
+(anonymous) @ 66f40c929bd0af68.js:2
+e.scheduleQueueConsumption @ 88233bf0ef1dfbec.js:2
+(anonymous) @ 88233bf0ef1dfbec.js:2
+e @ 5cae048afe4aacb8.js:2
+i.subscribe @ 5cae048afe4aacb8.js:2
+(anonymous) @ 88233bf0ef1dfbec.js:2
+e @ 5cae048afe4aacb8.js:2
+i.subscribe @ 5cae048afe4aacb8.js:2
+e.try @ 88233bf0ef1dfbec.js:2
+e.start @ 88233bf0ef1dfbec.js:2
+r.request @ 88233bf0ef1dfbec.js:2
+(anonymous) @ 88233bf0ef1dfbec.js:2
+(anonymous) @ 88233bf0ef1dfbec.js:2
+(anonymous) @ 88233bf0ef1dfbec.js:2
+Promise.then
+(anonymous) @ 88233bf0ef1dfbec.js:2
+e @ 5cae048afe4aacb8.js:2
+i.subscribe @ 5cae048afe4aacb8.js:2
+(anonymous) @ 88233bf0ef1dfbec.js:2
+Promise.then
+(anonymous) @ 88233bf0ef1dfbec.js:2
+e @ 5cae048afe4aacb8.js:2
+i.subscribe @ 5cae048afe4aacb8.js:2
+complete @ 88233bf0ef1dfbec.js:2
+r.start @ 88233bf0ef1dfbec.js:2
+r @ 88233bf0ef1dfbec.js:2
+e.getObservableFromLink @ 88233bf0ef1dfbec.js:2
+(anonymous) @ 88233bf0ef1dfbec.js:2
+(anonymous) @ 88233bf0ef1dfbec.js:2
+(anonymous) @ 44ca0133b0532c51.js:2
+(anonymous) @ 44ca0133b0532c51.js:2
+i @ 44ca0133b0532c51.js:2
+e.mutate @ 88233bf0ef1dfbec.js:2
+e.mutate @ 88233bf0ef1dfbec.js:2
+(anonymous) @ 81968e8c788a6abe.js:2
+e.wait @ b5dd63f6665adcc6.js:2
+u @ ceb3e9d7e0918846.js:2
+(anonymous) @ ceb3e9d7e0918846.js:2
+a @ 66f40c929bd0af68.js:2

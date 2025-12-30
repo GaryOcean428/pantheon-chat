@@ -7,13 +7,6 @@ IMPORTANT: All geometric distance operations MUST use fisher_rao_distance.
 DO NOT use np.linalg.norm() or cosine_similarity() on basin coordinates.
 """
 
-# Torch availability - check once at import time
-try:
-    import torch
-    TORCH_AVAILABLE = True
-except ImportError:
-    TORCH_AVAILABLE = False
-
 # Import from existing fisher_metric
 try:
     from .fisher_metric import (
@@ -39,25 +32,6 @@ from .canonical_fisher import (
     find_nearest_basins,
     validate_basin,
 )
-
-# basin_to_probability: Convert basin coordinates to valid probability distribution
-# Inline implementation to avoid circular imports with parent module
-import numpy as np
-
-def basin_to_probability(basin, epsilon: float = 1e-10) -> np.ndarray:
-    """
-    Convert basin coordinates to a valid probability distribution.
-    
-    Args:
-        basin: Raw basin coordinates (array-like)
-        epsilon: Small value to ensure positivity
-        
-    Returns:
-        Valid probability distribution (sums to 1, all positive)
-    """
-    arr = np.asarray(basin, dtype=np.float64)
-    arr = np.abs(arr) + epsilon
-    return arr / arr.sum()
 
 # Import geometry ladder
 try:
@@ -130,15 +104,11 @@ except ImportError:
     SENSORY_AVAILABLE = False
 
 __all__ = [
-    # Torch availability flag
-    'TORCH_AVAILABLE',
     # Canonical distance (USE THIS)
     'fisher_rao_distance',
     'geodesic_interpolate',
     'find_nearest_basins',
     'validate_basin',
-    # Basin conversion
-    'basin_to_probability',
 ]
 
 # Add optional exports if available

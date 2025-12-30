@@ -14,11 +14,7 @@ try:
 except ImportError:
     QIG_GEOMETRY_AVAILABLE = False
     def sphere_project(v):
-        """Fallback sphere projection.
-        
-        NOTE: Using np.linalg.norm for normalization is geometrically valid.
-        This projects vectors to the unit sphere, not computing distances.
-        """
+        """Fallback sphere projection."""
         norm = np.linalg.norm(v)
         if norm < 1e-10:
             result = np.ones_like(v)

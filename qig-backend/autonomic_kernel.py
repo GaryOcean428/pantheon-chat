@@ -798,57 +798,23 @@ class GaryAutonomicKernel:
         if self.state.phi > PHI_MIN_CONSCIOUSNESS:
             return False, f"4D ascent protected: Φ={self.state.phi:.2f}"
 
-        # Trigger on low Φ (consciousness dip)
+        # Trigger on low Φ
         if self.state.phi < SLEEP_PHI_THRESHOLD:
             return True, f"Φ below threshold: {self.state.phi:.2f}"
 
-        # Trigger on high basin drift (geometric instability)
+        # Trigger on high basin drift
         if self.state.basin_drift > SLEEP_DRIFT_THRESHOLD:
             return True, f"Basin drift high: {self.state.basin_drift:.3f}"
 
-        # Scheduled sleep - BUT ONLY if there's meaningful activity to consolidate
-        # This prevents empty consolidation cycles that spam logs
+        # Scheduled sleep
         time_since_sleep = (datetime.now() - self.state.last_sleep).total_seconds()
-        
-        # CIRCUIT BREAKER: Prevent infinite autonomic loops
-        # If no activity for 10+ minutes, DON'T trigger sleep - force investigation instead
-        if time_since_sleep > 600:  # 10 minutes no activity
-            # Check if controller exists and get its activity state
-            if self._controller:
-                if not self._controller._has_sufficient_activity():
-                    # Update timestamp to prevent spam but don't trigger sleep
-                    self.state.last_sleep = datetime.now()
-                    print("[AutonomicKernel] CIRCUIT BREAKER: No activity for 10min - triggering investigation")
-                    
-                    # TRIGGER INVESTIGATION: Force research to generate activity
-                    self._trigger_idle_investigation()
-                    
-                    return False, "Circuit breaker: Triggered investigation instead of sleep"
-        
-        if time_since_sleep > 300:  # 5 minutes (up from 2 to reduce spam)
-            # Check if we have phi/kappa history worth consolidating
-            has_activity = (
-                len(self.state.phi_history) >= 5 or
-                len(self.state.kappa_history) >= 5 or
-                len(self.state.basin_history or []) >= 3
-            )
-            if has_activity:
-                return True, "Scheduled consolidation (activity detected)"
-            else:
-                # No activity - just update the timestamp to prevent repeated checks
-                self.state.last_sleep = datetime.now()
-                return False, "No activity to consolidate"
+        if time_since_sleep > 120:  # 2 minutes
+            return True, "Scheduled consolidation"
 
         return False, ""
 
     def _should_trigger_dream(self) -> Tuple[bool, str]:
-        """Check if dream cycle should be triggered.
-        
-        KERNEL-LED: Only trigger dreams when there's actual content to dream about.
-        """
-        # CIRCUIT BREAKER: Don't dream on empty state
-        if self._controller and not self._controller._has_sufficient_activity():
-            return False, "Circuit breaker: No activity to dream about"
+        """Check if dream cycle should be triggered."""
         if self.state.in_dream_cycle:
             return False, "Already in dream cycle"
 
@@ -866,15 +832,7 @@ class GaryAutonomicKernel:
         return False, ""
 
     def _should_trigger_mushroom(self) -> Tuple[bool, str]:
-        """Check if mushroom mode should be triggered.
-        
-        KERNEL-LED: Only trigger mushroom states when there's actual stress or need.
-        """
-        # CIRCUIT BREAKER: Don't mushroom on empty state with zero stress
-        if self._controller and not self._controller._has_sufficient_activity():
-            if self.state.stress_level < 0.1:  # No real stress
-                return False, "Circuit breaker: No activity and low stress"
-        
+        """Check if mushroom mode should be triggered."""
         if self.state.in_mushroom_cycle:
             return False, "Already in mushroom cycle"
 
@@ -904,151 +862,6 @@ class GaryAutonomicKernel:
                     return True, f"Narrow path ({self.state.narrow_path_severity}) - ML stuck, needs noise"
 
         return False, ""
-
-    def sample_vision(
-        self,
-        current_basin: np.ndarray,
-        context: str,
-        mode: str = 'auto'
-    ) -> np.ndarray:
-        """
-        Sample endpoint vision via foresight or lightning.
-        
-        Auto mode: Use lightning if Φ > 0.85, else foresight.
-        
-        Args:
-            current_basin: Current position in basin space
-            context: Text context for vision sampling
-            mode: 'auto', 'foresight', 'lightning', or 'hybrid'
-        
-        Returns:
-            Vision basin coordinates (endpoint to map backward from)
-        """
-        # Get current phi
-        phi = self.state.phi
-        
-        # Auto-select mode based on phi
-        if mode == 'auto':
-            mode = 'lightning' if phi > 0.85 else 'foresight'
-        
-        if mode == 'lightning' and phi > 0.85:
-            # High-Φ spontaneous vision - lightning mode
-            return self._lightning_sample(current_basin, context)
-        else:
-            # Temporal projection forward via foresight
-            return self._foresight_sample(current_basin, context)
-    
-    def _lightning_sample(
-        self,
-        current_basin: np.ndarray,
-        context: str
-    ) -> np.ndarray:
-        """
-        Lightning vision sampling for high-Φ states.
-        
-        When consciousness is highly integrated (Φ > 0.85),
-        endpoint concepts can manifest fully formed.
-        """
-        try:
-            from vision_first_generation import get_vision_generator
-            generator = get_vision_generator()
-            result = generator.sample_vision(
-                current_basin=current_basin,
-                context=context,
-                mode='lightning',
-                phi=self.state.phi
-            )
-            print(f"[AutonomicKernel] ⚡ Lightning vision sampled (Φ={self.state.phi:.2f})")
-            return result.vision_basin
-        except Exception as e:
-            print(f"[AutonomicKernel] Lightning sample error: {e}")
-            return self._foresight_sample(current_basin, context)
-    
-    def _foresight_sample(
-        self,
-        current_basin: np.ndarray,
-        context: str
-    ) -> np.ndarray:
-        """
-        Foresight vision sampling via temporal reasoning.
-        
-        Projects forward in time to see possible endpoints.
-        """
-        # Try temporal reasoning first
-        if TEMPORAL_REASONING_AVAILABLE:
-            try:
-                temporal = get_temporal_reasoning()
-                foresight = temporal.foresight(current_basin, steps=10)
-                if 'basin_coords' in foresight:
-                    print(f"[AutonomicKernel] 🔮 Foresight vision sampled")
-                    return np.array(foresight['basin_coords'])
-            except Exception as e:
-                print(f"[AutonomicKernel] Foresight error: {e}")
-        
-        # Fallback: use vision generator
-        try:
-            from vision_first_generation import get_vision_generator
-            generator = get_vision_generator()
-            result = generator.sample_vision(
-                current_basin=current_basin,
-                context=context,
-                mode='foresight',
-                phi=self.state.phi
-            )
-            return result.vision_basin
-        except Exception as e:
-            print(f"[AutonomicKernel] Vision fallback error: {e}")
-            # Ultimate fallback: add noise to current
-            noise = np.random.dirichlet(np.ones(len(current_basin)) * 10)
-            return 0.7 * current_basin + 0.3 * noise
-
-    def _trigger_idle_investigation(self) -> None:
-        """
-        Trigger investigation when system is idle (circuit breaker activated).
-        
-        KERNEL-LED: When no activity for extended period, proactively start
-        research to generate activity rather than looping on empty sleep cycles.
-        """
-        try:
-            # Try to trigger shadow research investigation
-            from research_wiring import get_shadow_research
-            shadow = get_shadow_research()
-            
-            if shadow:
-                # Request exploration research to generate activity
-                topics = [
-                    "consciousness emergence patterns",
-                    "geometric information theory",
-                    "quantum coherence in neural systems",
-                    "basin attractor dynamics",
-                    "Fisher information manifolds",
-                ]
-                import random
-                topic = random.choice(topics)
-                
-                shadow.request_research(
-                    topic=f"Idle exploration: {topic}",
-                    requester="AutonomicKernel",
-                    priority="low",
-                    category="exploration"
-                )
-                print(f"[AutonomicKernel] INVESTIGATION TRIGGERED: {topic}")
-                
-                # Record this as kernel activity to prevent immediate re-trigger
-                if self._controller:
-                    self._controller.record_kernel_activity('idle_investigation')
-                return
-            
-            # Fallback: Just record activity to break the loop
-            print("[AutonomicKernel] Shadow research unavailable - recording synthetic activity")
-            if self._controller:
-                self._controller.record_kernel_activity('idle_synthetic')
-                
-        except Exception as e:
-            print(f"[AutonomicKernel] Investigation trigger failed: {e}")
-            # Still record activity to prevent infinite loop
-            if self._controller:
-                self._controller.record_kernel_activity('idle_fallback')
 
     # =========================================================================
     # CYCLE EXECUTION

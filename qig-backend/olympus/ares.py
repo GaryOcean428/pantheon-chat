@@ -113,21 +113,17 @@ class Ares(BaseGod):
     def compute_attack_vector(self, current_basin: np.ndarray) -> Optional[np.ndarray]:
         """
         Compute next probe location via geodesic.
-        
-        NOTE: np.linalg.norm usages here are for normalization (projecting to
-        unit sphere), which is geometrically valid. Actual distances use
-        Fisher-Rao via fisher_geodesic_distance().
         """
         target, dist = self._find_nearest_success_basin(current_basin)
         if target is None:
             return None
         
         direction = target - current_basin
-        norm = np.linalg.norm(direction)  # For normalization only
+        norm = np.linalg.norm(direction)
         if norm < 1e-10:
             return None
         
-        direction = direction / norm  # Normalize to unit vector
+        direction = direction / norm
         
         G = self.compute_fisher_metric(current_basin)
         natural_direction = np.linalg.solve(G + 0.01 * np.eye(len(G)), direction)
@@ -135,7 +131,7 @@ class Ares(BaseGod):
         
         step_size = 0.1
         next_point = current_basin + step_size * natural_direction
-        next_point = next_point / (np.linalg.norm(next_point) + 1e-10)  # Project to unit sphere
+        next_point = next_point / (np.linalg.norm(next_point) + 1e-10)
         
         return next_point
     

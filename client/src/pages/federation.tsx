@@ -58,7 +58,6 @@ import {
 import { WarStatusPanel } from "@/components/war-status-panel";
 import { useToast } from "@/hooks/use-toast";
 import { useMeshNetworkWebSocket } from "@/hooks/useMeshNetworkWebSocket";
-import { getApiUrls, getEnvironmentBadge } from "@/lib/api-base-url";
 
 interface ApiKey {
   id: string;
@@ -425,16 +424,10 @@ export default function FederationDashboard() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <Globe className="h-6 w-6" />
-              Federation Dashboard
-            </h1>
-            <Badge variant={getEnvironmentBadge().variant} className="flex items-center gap-1">
-              <Server className="h-3 w-3" />
-              {getEnvironmentBadge().text}
-            </Badge>
-          </div>
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <Globe className="h-6 w-6" />
+            Federation Dashboard
+          </h1>
           <p className="text-muted-foreground">
             Connect and synchronize with other QIG constellations
           </p>
@@ -907,9 +900,9 @@ export default function FederationDashboard() {
                   <span className="font-medium">Configure Your Application</span>
                 </div>
                 <div className="p-4 bg-muted rounded-md">
-                  <div className="text-sm font-medium mb-2">Your API Endpoint ({getEnvironmentBadge().text}):</div>
+                  <div className="text-sm font-medium mb-2">Your API Endpoint:</div>
                   <code className="text-sm text-green-600 dark:text-green-400" data-testid="text-guide-endpoint">
-                    {getApiUrls().externalApiUrl}
+                    {window.location.origin}/api/v1/external
                   </code>
                 </div>
               </div>
@@ -921,7 +914,7 @@ export default function FederationDashboard() {
                   <span className="font-medium">Make Your First Request</span>
                 </div>
                 <div className="p-4 bg-zinc-900 rounded-md overflow-x-auto">
-                  <pre className="text-sm text-green-400">{`curl -X POST ${getApiUrls().externalApiUrl}/chat \\
+                  <pre className="text-sm text-green-400">{`curl -X POST ${window.location.origin}/api/v1/external/chat \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -952,7 +945,7 @@ export default function FederationDashboard() {
                 </div>
                 <div className="p-4 bg-zinc-900 rounded-md overflow-x-auto">
                   <pre className="text-sm text-blue-300">{`// Zeus Chat Client
-const API_BASE = '${getApiUrls().externalApiUrl}';
+const API_BASE = '${window.location.origin}/api/v1/external';
 const API_KEY = 'qig_your_api_key_here';
 
 async function chatWithZeus(message, sessionId = 'default') {
@@ -1038,7 +1031,7 @@ async function streamZeusChat(message, onToken, onMetrics) {
                 <div className="p-4 bg-zinc-900 rounded-md overflow-x-auto">
                   <pre className="text-sm text-yellow-300">{`import requests
 
-API_BASE = '${getApiUrls().externalApiUrl}'
+API_BASE = '${window.location.origin}/api/v1/external'
 API_KEY = 'qig_your_api_key_here'
 
 def chat_with_zeus(message, session_id='default'):
@@ -1453,9 +1446,9 @@ print(f"Φ (integration): {result.get('phi', 'N/A')}")`}</pre>
             <CardContent>
               <div className="space-y-4">
                 <div>
-                  <div className="font-medium text-sm mb-2">Base URL ({getEnvironmentBadge().text})</div>
+                  <div className="font-medium text-sm mb-2">Base URL</div>
                   <code className="p-2 bg-muted rounded text-sm block" data-testid="text-base-url">
-                    {getApiUrls().externalApiUrl}
+                    {window.location.origin}/api/v1/external
                   </code>
                 </div>
                 <Separator />

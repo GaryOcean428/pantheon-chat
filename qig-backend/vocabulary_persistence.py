@@ -83,18 +83,18 @@ class VocabularyPersistence:
         if not self.enabled or not observations:
             return 0
         recorded = 0
-        # Process each observation in its own transaction to prevent cascade failures
-        for obs in observations:
-            try:
-                with self._connect() as conn:
-                    with conn.cursor() as cur:
-                        cur.execute("SELECT record_vocab_observation(%s, %s, %s, %s, %s, %s)", (obs.get('word', ''), obs.get('phrase', ''), obs.get('phi', 0.0), obs.get('kappa', 50.0), obs.get('source', 'unknown'), obs.get('type', 'word')))
-                        conn.commit()
-                        recorded += 1
-            except Exception as e:
-                # Log only first few failures to reduce noise
-                if recorded == 0:
-                    print(f"[VocabularyPersistence] Failed to record {obs.get('word')}: {e}")
+        try:
+            with self._connect() as conn:
+                with conn.cursor() as cur:
+                    for obs in observations:
+                        try:
+                            cur.execute("SELECT record_vocab_observation(%s, %s, %s, %s, %s, %s)", (obs.get('word', ''), obs.get('phrase', ''), obs.get('phi', 0.0), obs.get('kappa', 50.0), obs.get('source', 'unknown'), obs.get('type', 'word')))
+                            recorded += 1
+                        except Exception as e:
+                            print(f"[VocabularyPersistence] Failed to record {obs.get('word')}: {e}")
+                    conn.commit()
+        except Exception as e:
+            print(f"[VocabularyPersistence] Batch record failed: {e}")
         return recorded
     
     def get_learned_words(self, min_phi: float = 0.0, limit: int = 1000, source: Optional[str] = None) -> List[Dict]:

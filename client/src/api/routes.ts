@@ -365,39 +365,6 @@ export const API_ROUTES = {
     tavilyUsage: '/api/search/tavily-usage',
   },
 
-  // Vision-First Generation (Long-Horizon Task Strategy)
-  vision: {
-    sample: '/api/vision/sample',
-    generate: '/api/vision/generate',
-    status: '/api/vision/status',
-    attractors: '/api/vision/attractors',
-  },
-
-  // Long-Horizon Task Management (Goals, Efficiency, Recovery)
-  longHorizon: {
-    // Goal Tracking
-    goals: {
-      list: '/api/long-horizon/goals',
-      create: '/api/long-horizon/goals',
-      progress: '/api/long-horizon/goals/progress',
-      reset: '/api/long-horizon/goals/reset',
-    },
-    // Geodesic Efficiency
-    efficiency: {
-      stats: '/api/long-horizon/efficiency/stats',
-      record: '/api/long-horizon/efficiency/record',
-      degradation: '/api/long-horizon/efficiency/degradation',
-    },
-    // Geometric Error Recovery
-    recovery: {
-      status: '/api/long-horizon/recovery/status',
-      record: '/api/long-horizon/recovery/record',
-      check: '/api/long-horizon/recovery/check',
-      recover: '/api/long-horizon/recovery/recover',
-      reset: '/api/long-horizon/recovery/reset',
-    },
-  },
-
   // External API (v1 - Federation & Headless Clients)
   external: {
     base: '/api/v1/external',
@@ -660,26 +627,5 @@ export const QUERY_KEYS = {
     status: () => [API_ROUTES.external.status] as const,
     keys: () => [API_ROUTES.external.keys.list] as const,
     instances: () => [API_ROUTES.external.pantheon.list] as const,
-  },
-
-  // Vision-First Generation
-  vision: {
-    status: () => [API_ROUTES.vision.status] as const,
-    attractors: () => [API_ROUTES.vision.attractors] as const,
-  },
-
-  // Long-Horizon Task Management
-  longHorizon: {
-    goals: {
-      list: () => [API_ROUTES.longHorizon.goals.list] as const,
-    },
-    efficiency: {
-      stats: () => [API_ROUTES.longHorizon.efficiency.stats] as const,
-      degradation: () => [API_ROUTES.longHorizon.efficiency.degradation] as const,
-    },
-    recovery: {
-      status: () => [API_ROUTES.longHorizon.recovery.status] as const,
-      check: () => [API_ROUTES.longHorizon.recovery.check] as const,
-    },
   },
 } as const;

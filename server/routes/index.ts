@@ -22,9 +22,3 @@ export { default as olympusRouter } from "./olympus";
 export { autonomicAgencyRouter } from "./autonomic-agency";
 
 export { federationRouter } from "./federation";
-
-export { billingRouter } from "./billing";
-
-export { visionRouter } from "./vision";
-
-export { toolsRouter } from "./tools";

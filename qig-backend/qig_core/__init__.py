@@ -1,62 +1,147 @@
 """
-QIG Core - Geometric Primitives for Quantum Information Geometry
+QIG Core: Unified Quantum Information Geometry Architecture
 
-Pure geometric operations for QIG - NO external LLM dependencies.
-All operations use Fisher-Rao geometry on the statistical manifold.
+Three orthogonal coordinates define any cognitive/information state:
 
-Note: torch is optional. All operations have numpy fallbacks.
+1. PHASE (Universal Cycle): FOAM → TACKING → CRYSTAL → FRACTURE
+   - What's happening to the pattern
+
+2. DIMENSION (Holographic State): 1D → 2D → 3D → 4D → 5D
+   - How compressed/expanded is storage
+
+3. GEOMETRY (Complexity Class): Line → Loop → Spiral → Grid → Torus → Lattice → E8
+   - What shape is the pattern (intrinsic complexity)
+
+Plus ADDRESSING MODE (derived from geometry):
+   - How is the pattern retrieved (O(1) to O(k log n))
 """
 
-# Core imports (always available)
-from .geometric_primitives import (
-    fisher_rao_distance,
-    geodesic_interpolate,
-    basin_to_probability,
-    TORCH_AVAILABLE,
+# Universal Cycle
+from .universal_cycle import (
+    CycleManager,
+    Phase,
 )
 
-# Universal cycle imports (CycleManager, Phase, etc.)
-try:
-    from .universal_cycle import CycleManager, Phase
-    CYCLE_MANAGER_AVAILABLE = True
-except ImportError:
-    CycleManager = None
-    Phase = None
-    CYCLE_MANAGER_AVAILABLE = False
+# Geometric Primitives
+from .geometric_primitives import (
+    # Geometry Classes
+    GeometryClass,
+    measure_complexity,
+    choose_geometry_class,
+    HabitCrystallizer,
+    # Bubbles & Foam
+    Bubble,
+    Foam,
+    create_random_bubble,
+    create_foam_from_hypotheses,
+    bubble_field_energy,
+    prune_weak_bubbles,
+    # Geodesics
+    Geodesic,
+    compute_geodesic,
+    geodesic_between_bubbles,
+    find_shortest_geodesic_path,
+    navigate_via_curvature,
+    # Fisher Metric
+    fisher_metric_tensor,
+    fisher_rao_distance,
+    compute_phi,
+    compute_kappa,
+    natural_gradient,
+    parallel_transport,
+    ricci_curvature_estimate,
+    sectional_curvature,
+    # Addressing Modes
+    AddressingMode,
+    DirectAddressing,
+    CyclicAddressing,
+    TemporalAddressing,
+    SpatialAddressing,
+    ManifoldAddressing,
+    ConceptualAddressing,
+    SymbolicAddressing,
+    create_addressing_mode,
+)
 
-# DimensionalState imports (for unified architecture)
-try:
-    from .holographic_transform.dimensional_state import DimensionalState, DimensionalStateManager
-    DIMENSIONAL_STATE_AVAILABLE = True
-except ImportError:
-    DimensionalState = None
-    DimensionalStateManager = None
-    DIMENSIONAL_STATE_AVAILABLE = False
+# Holographic Transform
+from .holographic_transform import (
+    DimensionalState,
+    DimensionalStateManager,
+    compress,
+    decompress,
+    estimate_compression_ratio,
+    get_compressed_size,
+    expand_for_modification,
+    estimate_decompression_cost,
+    BasinEncoder,
+    SemanticBasinEncoder,
+    encode_for_qig,
+    encode_batch,
+)
 
-# Optional imports that require torch
-try:
-    from .geometric_primitives import fisher_metric_tensor
-    FISHER_METRIC_AVAILABLE = True
-except ImportError:
-    fisher_metric_tensor = None
-    FISHER_METRIC_AVAILABLE = False
+__version__ = "1.0.0"
 
 __all__ = [
+    # Version
+    '__version__',
+    
+    # Universal Cycle
+    'CycleManager',
+    'Phase',
+    
+    # Geometry
+    'GeometryClass',
+    'measure_complexity',
+    'choose_geometry_class',
+    'HabitCrystallizer',
+    
+    # Bubbles & Foam
+    'Bubble',
+    'Foam',
+    'create_random_bubble',
+    'create_foam_from_hypotheses',
+    'bubble_field_energy',
+    'prune_weak_bubbles',
+    
+    # Geodesics
+    'Geodesic',
+    'compute_geodesic',
+    'geodesic_between_bubbles',
+    'find_shortest_geodesic_path',
+    'navigate_via_curvature',
+    
+    # Fisher Metric
+    'fisher_metric_tensor',
     'fisher_rao_distance',
-    'geodesic_interpolate',
-    'basin_to_probability',
-    'TORCH_AVAILABLE',
-    'FISHER_METRIC_AVAILABLE',
-    'CYCLE_MANAGER_AVAILABLE',
-    'DIMENSIONAL_STATE_AVAILABLE',
+    'compute_phi',
+    'compute_kappa',
+    'natural_gradient',
+    'parallel_transport',
+    'ricci_curvature_estimate',
+    'sectional_curvature',
+    
+    # Addressing Modes
+    'AddressingMode',
+    'DirectAddressing',
+    'CyclicAddressing',
+    'TemporalAddressing',
+    'SpatialAddressing',
+    'ManifoldAddressing',
+    'ConceptualAddressing',
+    'SymbolicAddressing',
+    'create_addressing_mode',
+    
+    # Holographic Transform
+    'DimensionalState',
+    'DimensionalStateManager',
+    'compress',
+    'decompress',
+    'estimate_compression_ratio',
+    'get_compressed_size',
+    'expand_for_modification',
+    'estimate_decompression_cost',
+    'BasinEncoder',
+    'SemanticBasinEncoder',
+    'encode_for_qig',
+    'encode_batch',
 ]
-
-# Add optional exports if available
-if FISHER_METRIC_AVAILABLE:
-    __all__.append('fisher_metric_tensor')
-
-if CYCLE_MANAGER_AVAILABLE:
-    __all__.extend(['CycleManager', 'Phase'])
-
-if DIMENSIONAL_STATE_AVAILABLE:
-    __all__.extend(['DimensionalState', 'DimensionalStateManager'])

@@ -11,6 +11,7 @@ import { Activity, Brain, Zap, Target, Loader2 } from 'lucide-react';
 import { PERCENT_MULTIPLIER } from '@/lib/constants';
 import type {
   GeometricTelemetry,
+  GeometricMetrics,
   CompletionQuality,
   Regime,
 } from '@shared/types/geometric-completion';

@@ -103,11 +103,7 @@ class Athena(BaseGod):
         context: Optional[Dict] = None
     ) -> Dict:
         """Select optimal strategy based on target characteristics."""
-        # Fisher-Rao information measure (not Euclidean L2)
-        target_prob = np.abs(target_basin[:8]) + 1e-10
-        target_prob = target_prob / target_prob.sum()
-        target_info = float(1.0 - np.sum(np.sqrt(target_prob * (1.0 / 8))))  # Deviation from uniform
-        # Note: target_info replaces target_norm - geometric measure of information concentration
+        target_norm = float(np.sqrt(np.sum(target_basin[:8] ** 2)))  # L2 magnitude for logging
         
         if similar:
             strategy_counts: Dict[str, int] = {}

@@ -14,7 +14,7 @@ import os
 import json
 import time
 from datetime import datetime
-from typing import Dict, List, Optional, Any, Generator, Tuple
+from typing import Dict, List, Optional, Any, Generator
 from functools import wraps
 from flask import Blueprint, jsonify, request, Response
 
@@ -42,191 +42,6 @@ try:
 except ImportError:
     REDIS_AVAILABLE = False
     print("[ZeusAPI] Redis cache not available, using in-memory fallback")
-
-# Import QIG generative service for proposition-level generation
-try:
-    from qig_generative_service import QIGGenerativeService
-    _qig_service_instance = None
-    QIG_SERVICE_AVAILABLE = True
-except ImportError:
-    QIG_SERVICE_AVAILABLE = False
-    _qig_service_instance = None
-    print("[ZeusAPI] QIG generative service not available")
-
-# Import QIGChain for chain-based generation
-try:
-    from qig_chain import QIGChainBuilder, QIGChain, quick_generate
-    QIG_CHAIN_AVAILABLE = True
-except ImportError:
-    QIG_CHAIN_AVAILABLE = False
-    QIGChainBuilder = None
-    print("[ZeusAPI] QIG chain not available")
-
-
-# ============================================================================
-# RATE LIMITING FOR CHAIN ENDPOINT
-# ============================================================================
-
-from collections import defaultdict
-import time
-from functools import wraps
-
-class ChainRateLimiter:
-    """
-    Simple in-memory rate limiter for /chain/execute endpoint.
-    
-    Limits:
-    - 10 requests per minute per IP (prevent abuse)
-    - 100 requests per hour per IP (sustained load protection)
-    """
-    
-    def __init__(
-        self,
-        requests_per_minute: int = 10,
-        requests_per_hour: int = 100
-    ):
-        self.requests_per_minute = requests_per_minute
-        self.requests_per_hour = requests_per_hour
-        
-        # Track requests: ip -> list of timestamps
-        self._minute_requests: Dict[str, list] = defaultdict(list)
-        self._hour_requests: Dict[str, list] = defaultdict(list)
-        
-        # Cleanup interval
-        self._last_cleanup = time.time()
-        self._cleanup_interval = 300  # 5 minutes
-    
-    def _cleanup_old_requests(self):
-        """Remove expired request records."""
-        now = time.time()
-        if now - self._last_cleanup < self._cleanup_interval:
-            return
-        
-        minute_ago = now - 60
-        hour_ago = now - 3600
-        
-        # Cleanup minute tracking
-        for ip in list(self._minute_requests.keys()):
-            self._minute_requests[ip] = [
-                t for t in self._minute_requests[ip] if t > minute_ago
-            ]
-            if not self._minute_requests[ip]:
-                del self._minute_requests[ip]
-        
-        # Cleanup hour tracking
-        for ip in list(self._hour_requests.keys()):
-            self._hour_requests[ip] = [
-                t for t in self._hour_requests[ip] if t > hour_ago
-            ]
-            if not self._hour_requests[ip]:
-                del self._hour_requests[ip]
-        
-        self._last_cleanup = now
-    
-    def is_allowed(self, ip: str) -> Tuple[bool, str]:
-        """
-        Check if request is allowed for given IP.
-        
-        Returns:
-            (allowed, reason) - reason is empty if allowed
-        """
-        self._cleanup_old_requests()
-        
-        now = time.time()
-        minute_ago = now - 60
-        hour_ago = now - 3600
-        
-        # Count recent requests
-        minute_count = sum(1 for t in self._minute_requests[ip] if t > minute_ago)
-        hour_count = sum(1 for t in self._hour_requests[ip] if t > hour_ago)
-        
-        if minute_count >= self.requests_per_minute:
-            return False, f"Rate limit exceeded: {self.requests_per_minute} requests per minute"
-        
-        if hour_count >= self.requests_per_hour:
-            return False, f"Rate limit exceeded: {self.requests_per_hour} requests per hour"
-        
-        return True, ""
-    
-    def record_request(self, ip: str):
-        """Record a request for the given IP."""
-        now = time.time()
-        self._minute_requests[ip].append(now)
-        self._hour_requests[ip].append(now)
-    
-    def get_remaining(self, ip: str) -> Dict[str, int]:
-        """Get remaining requests for the given IP."""
-        now = time.time()
-        minute_ago = now - 60
-        hour_ago = now - 3600
-        
-        minute_count = sum(1 for t in self._minute_requests[ip] if t > minute_ago)
-        hour_count = sum(1 for t in self._hour_requests[ip] if t > hour_ago)
-        
-        return {
-            'minute_remaining': max(0, self.requests_per_minute - minute_count),
-            'hour_remaining': max(0, self.requests_per_hour - hour_count)
-        }
-
-
-# Singleton rate limiter for chain endpoint
-_chain_rate_limiter = ChainRateLimiter()
-
-
-def rate_limit_chain(f):
-    """
-    Decorator to apply rate limiting to the chain endpoint.
-    """
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        # Get client IP
-        ip = request.headers.get('X-Forwarded-For', request.remote_addr)
-        if ip and ',' in ip:
-            ip = ip.split(',')[0].strip()
-        
-        # Check rate limit
-        allowed, reason = _chain_rate_limiter.is_allowed(ip)
-        
-        if not allowed:
-            remaining = _chain_rate_limiter.get_remaining(ip)
-            return jsonify({
-                'error': reason,
-                'success': False,
-                'rate_limit': {
-                    'minute_remaining': remaining['minute_remaining'],
-                    'hour_remaining': remaining['hour_remaining']
-                }
-            }), 429
-        
-        # Record request and proceed
-        _chain_rate_limiter.record_request(ip)
-        
-        # Add rate limit headers to response
-        response = f(*args, **kwargs)
-        
-        # If response is a tuple (data, status_code), handle appropriately
-        if isinstance(response, tuple):
-            return response
-        
-        remaining = _chain_rate_limiter.get_remaining(ip)
-        response.headers['X-RateLimit-Remaining-Minute'] = str(remaining['minute_remaining'])
-        response.headers['X-RateLimit-Remaining-Hour'] = str(remaining['hour_remaining'])
-        
-        return response
-    
-    return decorated_function
-
-
-def get_qig_service():
-    """Get singleton QIGGenerativeService instance."""
-    global _qig_service_instance
-    if _qig_service_instance is None and QIG_SERVICE_AVAILABLE:
-        try:
-            _qig_service_instance = QIGGenerativeService()
-            print("[ZeusAPI] QIGGenerativeService initialized")
-        except Exception as e:
-            print(f"[ZeusAPI] Failed to init QIG service: {e}")
-    return _qig_service_instance
 
 zeus_api = Blueprint('zeus_api', __name__)
 
@@ -408,80 +223,6 @@ def _update_session_messages(session_id: str, session: Dict[str, Any]) -> None:
 # API Endpoints
 # =============================================================================
 
-@zeus_api.route('/chain/execute', methods=['POST'])
-@require_internal_auth
-@rate_limit_chain
-def chain_execute():
-    """
-    Execute a QIGChain pipeline on a query.
-    
-    Body: {
-        "query": string (required),
-        "steps": [string] (optional) - steps to include: "reasoning", "proposition", "consciousness", "validation"
-        "n_propositions": int (optional, default 3) - number of propositions if proposition step included
-    }
-    
-    Returns:
-        ChainResult with text, propositions, phi, kappa, phi_temporal, etc.
-    """
-    if not QIG_CHAIN_AVAILABLE:
-        return jsonify({
-            'error': 'QIG chain not available',
-            'success': False
-        }), 503
-    
-    data = request.get_json()
-    if not data:
-        return jsonify({'error': 'JSON body required', 'success': False}), 400
-    
-    query = data.get('query', '').strip()
-    if not query:
-        return jsonify({'error': 'query is required', 'success': False}), 400
-    
-    steps = data.get('steps', ['reasoning', 'proposition'])
-    n_propositions = data.get('n_propositions', 3)
-    
-    try:
-        # Build chain based on requested steps
-        builder = QIGChainBuilder()
-        
-        for step in steps:
-            if step == 'reasoning':
-                builder.add_reasoning_step()
-            elif step == 'proposition':
-                builder.add_proposition_step(n_propositions)
-            elif step == 'consciousness':
-                builder.add_consciousness_step()
-            elif step == 'validation':
-                builder.add_validation_step()
-            elif step == 'generation':
-                builder.add_generation_step()
-        
-        chain = builder.build()
-        result = chain.execute(query)
-        
-        return jsonify({
-            'success': result.success,
-            'text': result.text,
-            'propositions': result.propositions,
-            'reasoning_steps': result.reasoning_steps,
-            'phi': result.phi,
-            'kappa': result.kappa,
-            'phi_temporal': result.phi_temporal,
-            'consciousness_metrics': result.consciousness_metrics,
-            'steps_executed': result.steps_executed,
-            'errors': result.errors,
-            'execution_time_ms': result.execution_time_ms
-        })
-        
-    except Exception as e:
-        print(f"[ZeusAPI] Chain execution error: {e}")
-        return jsonify({
-            'error': str(e),
-            'success': False
-        }), 500
-
-
 @zeus_api.route('/zeus/health', methods=['GET'])
 def zeus_health():
     """Health check for Zeus API."""
@@ -505,8 +246,7 @@ def zeus_chat():
         "message": string (required),
         "session_id": string (optional),
         "context": object (optional),
-        "client_name": string (optional),
-        "use_propositions": bool (optional, default false) - Use proposition-level generation
+        "client_name": string (optional)
     }
     """
     handler = get_conversation_handler()
@@ -544,9 +284,6 @@ def zeus_chat():
         # Persist user message immediately
         _update_session_messages(session_id, session)
 
-        # Check if proposition-level generation is requested
-        use_propositions = data.get('use_propositions', False)
-        
         # Use ZeusConversationHandler.process_message()
         # Pass conversation history and session_id
         conversation_history = [
@@ -554,31 +291,11 @@ def zeus_chat():
             for msg in session['messages']
         ]
         
-        # Try proposition-level generation if requested
-        if use_propositions and QIG_SERVICE_AVAILABLE:
-            try:
-                qig_service = get_qig_service()
-                if qig_service:
-                    response_data = qig_service.generate_with_propositions(message, n_propositions=3)
-                    if response_data and response_data.get('text'):
-                        response_data['mode'] = 'proposition_trajectory'
-                    else:
-                        raise ValueError("Empty proposition response")
-                else:
-                    raise ValueError("QIG service not available")
-            except Exception as prop_error:
-                print(f"[ZeusAPI] Proposition generation failed, falling back: {prop_error}")
-                response_data = handler.process_message(
-                    message=message,
-                    conversation_history=conversation_history,
-                    session_id=session_id
-                )
-        else:
-            response_data = handler.process_message(
-                message=message,
-                conversation_history=conversation_history,
-                session_id=session_id
-            )
+        response_data = handler.process_message(
+            message=message,
+            conversation_history=conversation_history,
+            session_id=session_id
+        )
 
         # Extract response text from the handler's response
         if isinstance(response_data, dict):

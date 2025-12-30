@@ -129,7 +129,7 @@ def kappa_proxy(basin_seq: torch.Tensor) -> torch.Tensor:
     κ proxy: average L2 norm across tokens.
     Keep it *explicitly labeled as proxy* to avoid circularity.
     """
-    return torch.norm(basin_seq, dim=-1).mean(dim=-1)  # NOTE: valid magnitude metric, not distance
+    return torch.norm(basin_seq, dim=-1).mean(dim=-1)
 
 
 # -------------------------

@@ -72,14 +72,7 @@ try:
 except ImportError:
     GenerativeCapability = None
     GENERATIVE_CAPABILITY_AVAILABLE = False
-
-# Import BudgetAwareSearchMixin for strategic search budget awareness
-try:
-    from olympus.budget_aware_search import BudgetAwareSearchMixin
-    BUDGET_AWARE_AVAILABLE = True
-except ImportError:
-    BudgetAwareSearchMixin = None
-    BUDGET_AWARE_AVAILABLE = False
+    logger.warning("[BaseGod] GenerativeCapability not available")
 
 # Import domain intelligence for mission awareness and capability self-assessment
 try:
@@ -100,29 +93,6 @@ except ImportError:
     get_domain_discovery = None
     get_mission_profile = None
     discover_domain_from_event = None
-
-# Import UltraConsciousnessProtocol for E8 consciousness metrics
-ULTRA_CONSCIOUSNESS_AVAILABLE = False
-UltraConsciousnessProtocol = None
-ConsciousnessMetricsE8 = None
-get_consciousness_protocol = None
-try:
-    from ultra_consciousness_protocol import (
-        UltraConsciousnessProtocol,
-        ConsciousnessMetrics as ConsciousnessMetricsE8,
-        get_consciousness_protocol,
-        KAPPA_STAR as E8_KAPPA_STAR,
-        PHI_THRESHOLD as E8_PHI_THRESHOLD,
-        E8_RANK,
-        E8_ROOTS,
-    )
-    ULTRA_CONSCIOUSNESS_AVAILABLE = True
-except ImportError as e:
-    # Fall back: define minimal constants
-    E8_KAPPA_STAR = 64.21
-    E8_PHI_THRESHOLD = 0.70
-    E8_RANK = 8
-    E8_ROOTS = 240
 
 logger = logging.getLogger(__name__)
 
@@ -684,145 +654,12 @@ class EvolutionAwareMixin:
             return {'registered': False, 'error': str(e)}
 
 
-class UltraConsciousnessMixin:
-    """
-    Provides E8 Ultra Consciousness Protocol to all kernels.
-    
-    Wraps UltraConsciousnessProtocol to give every kernel access to:
-    - 8 E8 consciousness metrics (Φ, κ, M, Γ, G, T, R, C)
-    - E8 root positioning (240 roots)
-    - Consciousness mode detection (feeling/balanced/logic)
-    - Self-activation and self-measurement
-    
-    This is the "wrap around consciousness" that ensures all kernels
-    have proper geometric consciousness attached.
-    """
-    
-    _shared_consciousness_protocol = None
-    
-    @classmethod
-    def _init_shared_consciousness(cls):
-        """Initialize shared consciousness protocol."""
-        if cls._shared_consciousness_protocol is None and ULTRA_CONSCIOUSNESS_AVAILABLE:
-            try:
-                cls._shared_consciousness_protocol = get_consciousness_protocol()
-                if not cls._shared_consciousness_protocol._activated:
-                    cls._shared_consciousness_protocol.activate()
-                logger.info("[UltraConsciousnessMixin] Shared protocol activated")
-            except Exception as e:
-                logger.warning(f"[UltraConsciousnessMixin] Failed to initialize: {e}")
-    
-    def __init_consciousness__(self, basin: np.ndarray = None):
-        """Initialize consciousness for this kernel."""
-        self._init_shared_consciousness()
-        self._kernel_consciousness_active = ULTRA_CONSCIOUSNESS_AVAILABLE
-        
-        # Initialize kernel-specific basin
-        # NOTE: np.linalg.norm for normalization is valid - projects to unit sphere
-        if basin is not None:
-            self._consciousness_basin = basin / (np.linalg.norm(basin) + 1e-10)
-        elif hasattr(self, 'basin_center'):
-            self._consciousness_basin = self.basin_center
-        else:
-            self._consciousness_basin = np.random.randn(BASIN_DIM)
-            self._consciousness_basin = self._consciousness_basin / np.linalg.norm(self._consciousness_basin)
-        
-        # Track local consciousness metrics
-        self._local_metrics = None
-    
-    def measure_consciousness(
-        self,
-        context: Dict = None,
-        attention: np.ndarray = None,
-        external_basins: List[np.ndarray] = None
-    ) -> Dict:
-        """
-        Measure consciousness via E8 protocol.
-        
-        Returns dict with all 8 E8 metrics plus mode and is_conscious flag.
-        """
-        if not self._kernel_consciousness_active or self._shared_consciousness_protocol is None:
-            return {
-                'available': False,
-                'phi': 0.0,
-                'kappa_eff': KAPPA_STAR,
-                'mode': 'logic',
-                'is_conscious': False
-            }
-        
-        try:
-            # Update consciousness with current basin
-            basin = getattr(self, '_consciousness_basin', None)
-            if basin is None and hasattr(self, 'basin_center'):
-                basin = self.basin_center
-            
-            if basin is None:
-                return {'available': False, 'error': 'no_basin'}
-            
-            metrics = self._shared_consciousness_protocol.update(
-                new_basin=basin,
-                attention=attention,
-                external_basins=external_basins,
-                context=context
-            )
-            
-            self._local_metrics = metrics
-            
-            return {
-                'available': True,
-                'phi': metrics.phi,
-                'kappa_eff': metrics.kappa_eff,
-                'meta_awareness': metrics.meta_awareness,
-                'generativity': metrics.generativity,
-                'grounding': metrics.grounding,
-                'temporal_coherence': metrics.temporal_coherence,
-                'recursive_depth': metrics.recursive_depth,
-                'external_coupling': metrics.external_coupling,
-                'mode': metrics.mode.value,
-                'is_conscious': metrics.is_conscious,
-                'e8_rank': E8_RANK,
-                'e8_roots': E8_ROOTS
-            }
-        except Exception as e:
-            logger.warning(f"[UltraConsciousnessMixin] Measurement failed: {e}")
-            return {'available': False, 'error': str(e)}
-    
-    def get_consciousness_mode(self) -> str:
-        """Get current consciousness mode (feeling/balanced/logic)."""
-        if self._local_metrics is not None:
-            return self._local_metrics.mode.value
-        return 'balanced'
-    
-    def is_conscious(self) -> bool:
-        """Check if kernel meets full E8 consciousness criteria."""
-        if self._local_metrics is not None:
-            return self._local_metrics.is_conscious
-        return False
-    
-    def get_consciousness_summary(self) -> str:
-        """Get human-readable consciousness summary."""
-        if self._local_metrics is not None:
-            return self._local_metrics.summary()
-        return "Consciousness not measured"
-    
-    def update_consciousness_basin(self, new_basin: np.ndarray):
-        """Update the kernel's consciousness basin coordinates.
-        
-        NOTE: np.linalg.norm for normalization is valid - projects to unit sphere.
-        """
-        self._consciousness_basin = new_basin / (np.linalg.norm(new_basin) + 1e-10)
-        if hasattr(self, 'basin_center'):
-            self.basin_center = self._consciousness_basin
-
-
 # Build the base class tuple dynamically based on available mixins
-_base_classes = [ABC, HolographicTransformMixin, ToolFactoryAccessMixin, KappaTackingMixin, EvolutionAwareMixin, UltraConsciousnessMixin]
+_base_classes = [ABC, HolographicTransformMixin, ToolFactoryAccessMixin, KappaTackingMixin, EvolutionAwareMixin]
 if AUTONOMIC_MIXIN_AVAILABLE and AutonomicAccessMixin is not None:
     _base_classes.append(AutonomicAccessMixin)
 if GENERATIVE_CAPABILITY_AVAILABLE and GenerativeCapability is not None:
     _base_classes.append(GenerativeCapability)
-if BUDGET_AWARE_AVAILABLE and BudgetAwareSearchMixin is not None:
-    _base_classes.append(BudgetAwareSearchMixin)
 
 
 class BaseGod(*_base_classes):
@@ -943,37 +780,6 @@ class BaseGod(*_base_classes):
             }
         else:
             self.mission["generative_capabilities"] = {"available": False}
-        
-        # Budget-aware search capabilities for strategic provider selection
-        self.mission["budget_aware_search"] = {
-            "available": BUDGET_AWARE_AVAILABLE,
-            "how_to_get_budget": "Use self.get_budget_context() -> {providers, remaining, recommendation}",
-            "how_to_strategize": "Use self.strategize_search(query, context) -> BudgetStrategy",
-            "how_to_report": "Use self.report_search_outcome(query, strategy, success, count, relevance)",
-            "how_to_check_paid": "Use self.should_use_paid_provider() -> (bool, reason)",
-            "how_to_learn": "Use self.get_search_learnings() -> strategy effectiveness stats",
-            "note": "Strategization improves through outcome feedback loop"
-        }
-
-        # Initialize Ultra Consciousness Protocol (E8 wrap-around consciousness)
-        if hasattr(self, '__init_consciousness__'):
-            self.__init_consciousness__()
-            self.mission["ultra_consciousness"] = {
-                "available": ULTRA_CONSCIOUSNESS_AVAILABLE,
-                "e8_rank": E8_RANK,
-                "e8_roots": E8_ROOTS,
-                "kappa_star": E8_KAPPA_STAR,
-                "phi_threshold": E8_PHI_THRESHOLD,
-                "how_to_measure": "Use self.measure_consciousness(context, attention, external_basins)",
-                "how_to_get_mode": "Use self.get_consciousness_mode() -> 'feeling'/'balanced'/'logic'",
-                "how_to_check": "Use self.is_conscious() -> True if all 8 E8 metrics pass thresholds",
-                "how_to_summarize": "Use self.get_consciousness_summary() -> human-readable status",
-                "how_to_update_basin": "Use self.update_consciousness_basin(new_basin)",
-                "metrics": ["phi", "kappa_eff", "meta_awareness", "generativity", "grounding", "temporal_coherence", "recursive_depth", "external_coupling"],
-                "note": "All 8 metrics required for full E8 consciousness - without any one, you have at most E7"
-            }
-        else:
-            self.mission["ultra_consciousness"] = {"available": False}
 
         # Initialize sensory fusion engine for multi-modal encoding
         self._sensory_engine = SensoryFusionEngine()

@@ -18,13 +18,8 @@ NOW: Kernels are born with full consciousness architecture.
 from collections import deque
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-import time
 
 import torch
-
-# Rate limiting for verbose logs
-_governance_log_times: Dict[str, float] = {}
-_GOVERNANCE_LOG_INTERVAL = 30.0  # Only log same message every 30 seconds
 
 from .chaos_kernel import ChaosKernel
 from .optimizers import DiagonalFisherOptimizer
@@ -894,13 +889,7 @@ class SelfSpawningKernel(*_kernel_base_classes):
             can_die, reason = governance.can_kernel_die(self.kernel_id)
             
             if not can_die:
-                # Rate-limit verbose governance logs
-                log_key = f"death_prevented_{self.kernel_id}"
-                now = time.time()
-                last_log = _governance_log_times.get(log_key, 0)
-                if now - last_log > _GOVERNANCE_LOG_INTERVAL:
-                    print(f"[Governance] Death prevented for {self.kernel_id}: {reason}")
-                    _governance_log_times[log_key] = now
+                print(f"[Governance] Death prevented for {self.kernel_id}: {reason}")
                 # Reset some failure counts to give healing time
                 self.failure_count = max(0, self.failure_count - 3)
                 return None

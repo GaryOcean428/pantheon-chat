@@ -122,9 +122,6 @@ export class PythonProcessManager extends EventEmitter {
       console.log('[PythonManager] Starting Python QIG Backend (Flask development mode)...');
     }
     
-    // IMPORTANT: Do NOT modify LD_LIBRARY_PATH - it can interfere with vDSO loading
-    // and cause segfaults. The system's default library path is correct.
-    
     this.process = spawn(spawnCommand, spawnArgs, {
       cwd: qigBackendDir,
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -162,6 +159,7 @@ export class PythonProcessManager extends EventEmitter {
     
     // Handle process exit
     this.process.on('close', (code: number | null) => {
+      console.log(`[PythonManager] Process exited with code ${code}`);
       this.isRunning = false;
       this.setReady(false);
       
@@ -171,28 +169,16 @@ export class PythonProcessManager extends EventEmitter {
         this.healthCheckInterval = null;
       }
       
-      // Detect crash/segfault (code null = killed by signal, likely SIGSEGV)
-      // If we see 3+ quick crashes, stop retrying - likely binary incompatibility
-      if (code === null && this.restartCount >= 2) {
-        console.warn('[PythonManager] Python backend crashing repeatedly (likely binary incompatibility)');
-        console.warn('[PythonManager] TypeScript fallback scoring will be used instead');
-        this.emit('backendUnavailable');
-        return; // Stop retrying
-      }
-      
       // Attempt restart with backoff
       if (this.restartCount < this.maxRestarts) {
         const delayIndex = Math.min(this.restartCount, this.restartDelays.length - 1);
         const delay = this.restartDelays[delayIndex];
         this.restartCount++;
         
-        // Only log first few restarts to reduce noise
-        if (this.restartCount <= 3) {
-          console.log(`[PythonManager] Restart ${this.restartCount}/${this.maxRestarts} in ${delay}ms...`);
-        }
+        console.log(`[PythonManager] Restart ${this.restartCount}/${this.maxRestarts} in ${delay}ms...`);
         setTimeout(() => this.start(), delay);
       } else {
-        console.error(`[PythonManager] Max restarts (${this.maxRestarts}) reached. Using TypeScript fallback.`);
+        console.error(`[PythonManager] Max restarts (${this.maxRestarts}) reached. Manual intervention required.`);
         this.emit('maxRestartsReached');
       }
     });

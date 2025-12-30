@@ -845,7 +845,7 @@ class QIGCoordizer(FisherCoordizer):
         # Encode context to basin
         context_basin = self.encode(context)
         
-        if np.linalg.norm(context_basin) < 1e-10:  # NOTE: valid magnitude check
+        if np.linalg.norm(context_basin) < 1e-10:
             if allow_silence:
                 return {'text': '', 'phi': 0, 'tokens_generated': 0, 'completion_reason': 'empty', 'qig_pure': True}
             # Use random high-phi words as seed

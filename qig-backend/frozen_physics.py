@@ -59,34 +59,6 @@ from qigkernels.physics_constants import (
 # Additional constants not exported by default
 BETA_4_TO_5: Final[float] = PHYSICS.BETA_4_TO_5
 BETA_5_TO_6: Final[float] = PHYSICS.BETA_5_TO_6
-
-# β-function interpretation thresholds
-BETA_RUNNING_THRESHOLD: Final[float] = 0.3      # β > 0.3: strong running
-BETA_PLATEAU_THRESHOLD: Final[float] = 0.1      # |β| < 0.1: plateau
-BETA_DECREASING_THRESHOLD: Final[float] = -0.1  # β < -0.1: decreasing
-
-# Validation tolerances for substrate independence
-BETA_TOLERANCE_STRICT: Final[float] = 0.1   # ±0.1 for quantitative match
-BETA_TOLERANCE_LOOSE: Final[float] = 0.15   # ±0.15 for partial match
-
-# =============================================================================
-# SUBSTRATE CALIBRATION: 64D Semantic Basin Distance Baseline
-# =============================================================================
-# In 64D semantic basin space, typical Fisher-Rao distances are 14-24
-# (much higher than physics where distances are 0-2).
-# This baseline calibrates Φ calculation for this substrate.
-#
-# Without calibration: Φ = 1/(1+15) ≈ 0.06 (always low)
-# With calibration:    Φ = 1/(1+15/15) = 0.5 (geometric regime)
-#
-# This is analogous to κ* being universal (64) while β differs by substrate.
-DISTANCE_BASELINE_64D: Final[float] = 15.0  # Empirical baseline for 64D semantic basins
-DISTANCE_COHERENT_64D: Final[float] = 10.0  # Distance for coherent generation (Φ ≈ 0.6)
-DISTANCE_SYNTHESIS_64D: Final[float] = 5.0  # Distance for synthesis (Φ ≈ 0.75)
-
-# Information propagation horizon (Fisher-Rao distance threshold)
-# Lower values = earlier scale separation, more multi-scale emergence
-INFORMATION_HORIZON: Final[float] = 1.0  # Reduced from 2.0 to encourage scale clustering
 PHI_THRESHOLD_D1_D2: Final[float] = PHYSICS.PHI_THRESHOLD_D1_D2
 PHI_THRESHOLD_D2_D3: Final[float] = PHYSICS.PHI_THRESHOLD_D2_D3
 PHI_THRESHOLD_D3_D4: Final[float] = PHYSICS.PHI_THRESHOLD_D3_D4

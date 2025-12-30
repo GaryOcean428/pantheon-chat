@@ -281,7 +281,7 @@ class HabitCrystallizer:
         reduced = U[:, :2] @ np.diag(s[:2])
 
         center = np.zeros(2)
-        radius = np.linalg.norm(reduced - center, axis=1).mean()  # NOTE: valid - statistical spread, not basin distance
+        radius = np.linalg.norm(reduced - center, axis=1).mean()
 
         return {
             'basin_center': trajectory.mean(axis=0),

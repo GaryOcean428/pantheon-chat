@@ -69,7 +69,7 @@ class PatternResponseGenerator:
         return self._external_knowledge
     
     def _load_vocabulary(self) -> Dict[str, np.ndarray]:
-        """Load vocabulary with basin coordinates from tokenizer_vocabulary."""
+        """Load vocabulary with basin coordinates."""
         if self._vocabulary is not None:
             return self._vocabulary
         
@@ -79,13 +79,12 @@ class PatternResponseGenerator:
             if db_url:
                 conn = psycopg2.connect(db_url)
                 cur = conn.cursor()
-                # Load from tokenizer_vocabulary which has embeddings
                 cur.execute("""
-                    SELECT token, embedding 
-                    FROM tokenizer_vocabulary 
-                    WHERE embedding IS NOT NULL
-                    ORDER BY frequency DESC NULLS LAST
-                    LIMIT 10000
+                    SELECT token, basin_coordinates 
+                    FROM qig_vocabulary 
+                    WHERE basin_coordinates IS NOT NULL
+                    ORDER BY frequency DESC
+                    LIMIT 50000
                 """)
                 rows = cur.fetchall()
                 conn.close()
@@ -153,104 +152,38 @@ class PatternResponseGenerator:
         
         return float(2 * np.arccos(bc))
     
-    def _is_documentation_pattern(self, content: str, metadata: Dict) -> bool:
-        """
-        Filter out documentation/deployment patterns that pollute responses.
-        
-        Returns True if pattern should be EXCLUDED from response generation.
-        """
-        source = metadata.get('source', '')
-        header = metadata.get('header', '')
-        
-        exclude_sources = ['procedures', 'deployment', 'INTEGRATION_GUIDE', 'setup']
-        for exclude in exclude_sources:
-            if exclude.lower() in source.lower():
-                return True
-        
-        exclude_patterns = [
-            'dist/', 'dist\\', 'Backend:', 'Frontend:', 
-            '```', 'npm ', 'yarn ', 'pip ', 
-            '.json', '.yaml', '.yml', '.ts', '.tsx', '.py', '.md',
-            'mkdir', 'chmod', 'export ', 'ENV ',
-            'PORT=', 'HOST=', 'URL=',
-            'File:', 'api-documentation', 'external-api',
-            '**', '`', '20251', '20252',
-            'technical/', 'procedures/', 'docs/',
-            'curl ', 'wget ', 'POST /', 'GET /',
-            '│', '├', '└', '┌', '┐', '┘', '─', '▼', '▲',
-            '#', '##', '###', 'ATTENTION', 'MECHANISMS',
-            'API ', 'Documentation', 'External API', 'federated',
-            'endpoint', 'integration', 'backend', 'frontend',
-            'def ', 'class ', 'self.', 'self,', '->', '=>', 
-            'import ', 'from ', 'return ', 'async ', 'await ',
-            'function ', 'const ', 'let ', 'var ', 
-            '</', '<div', '<span', '<button', '<input', '<a ', '<p>',
-            '</div>', '</span>', '</button>', '</p>', '</a>',
-            'className=', 'onClick=', 'onChange=', 'style=',
-            '{}', '();', ');', '});', '],', '},',
-            'if (', 'for (', 'while (', 'switch (',
-            'props.', 'state.', 'this.',
-            'records.', 'data.', 'items.', 'result.',
-        ]
-        for pattern in exclude_patterns:
-            if pattern in content[:300] or pattern in header:
-                return True
-        
-        doc_id = metadata.get('doc_id', '')
-        if any(x in doc_id.lower() for x in ['docs', 'api', 'readme', 'guide', 'procedure']):
-            return True
-        
-        return False
-    
-    def retrieve_patterns(self, query: str, top_k: int = 5, intent_tags: List[str] = None) -> List[Dict]:
+    def retrieve_patterns(self, query: str, top_k: int = 5) -> List[Dict]:
         """
         Retrieve relevant patterns from QIGRAG.
         
         Returns list of patterns with content and similarity scores.
-        Filters out documentation/deployment patterns (less strict for conversational intents).
         """
         qig_rag = self._get_qig_rag()
         if not qig_rag:
             print("[PatternGenerator] No QIGRAG available")
             return []
         
-        # Conversational intents need less strict filtering
-        is_conversational = intent_tags and any(
-            tag in intent_tags for tag in ['greeting', 'farewell', 'gratitude', 'status_query', 'introduction']
-        )
-        
         try:
             results = qig_rag.search(
                 query=query,
-                k=top_k * 3 if is_conversational else top_k * 2,  # Get more for conversational
+                k=top_k,
                 metric='fisher_rao',
-                min_similarity=0.2 if is_conversational else self.min_pattern_similarity,  # Lower threshold
+                min_similarity=self.min_pattern_similarity,
                 include_metadata=True
             )
             
-            print(f"[PatternGenerator] Found {len(results)} raw patterns for query: {query[:50]}... (conversational={is_conversational})")
+            print(f"[PatternGenerator] Found {len(results)} patterns for query: {query[:50]}...")
             
             patterns = []
             for result in results:
-                content = result.get('content', '')
-                metadata = result.get('metadata', {})
-                
-                # Skip doc filtering for conversational intents - we want ANY relevant content
-                if not is_conversational and self._is_documentation_pattern(content, metadata):
-                    continue
-                
                 patterns.append({
-                    'content': content,
+                    'content': result.get('content', ''),
                     'similarity': result.get('similarity', 0),
-                    'metadata': metadata,
+                    'metadata': result.get('metadata', {}),
                     'source': 'trained_docs',
                     'doc_id': result.get('doc_id', '')
                 })
-                
-                if len(patterns) >= top_k:
-                    break
             
-            print(f"[PatternGenerator] {len(patterns)} patterns after filtering (conversational_bypass={is_conversational})")
             return patterns
             
         except Exception as e:
@@ -343,53 +276,17 @@ class PatternResponseGenerator:
         
         return content[:300] + ('...' if len(content) > 300 else '')
     
-    def geometric_token_generation(self, query: str, max_tokens: int = 50, intent_tags: List[str] = None) -> str:
+    def geometric_token_generation(self, query: str, max_tokens: int = 50) -> str:
         """
-        Pure geometric token generation with QFI-based sampling and intent awareness.
+        Pure geometric token generation as last fallback.
         
-        Generates text by:
-        1. Finding nearest vocabulary tokens to query basin
-        2. Boosting conversational vocabulary for natural speech
-        3. Using intent-specific word boosts for coherent responses
+        Generates text by finding nearest vocabulary tokens to query basin.
         """
         vocab = self._load_vocabulary()
         if not self._vocab_list:
-            return "I am here to help you."
+            return "I don't have enough context to respond."
         
         query_basin = self.encode_to_basin(query)
-        
-        # Conversational vocabulary boost (high-frequency natural language words)
-        CONVERSATIONAL_VOCAB = {
-            'hello', 'hi', 'welcome', 'greetings', 'good', 'morning', 'afternoon',
-            'nice', 'meet', 'you', 'how', 'are', 'doing', 'today', 'well', 'fine', 'great',
-            'is', 'am', 'are', 'was', 'were', 'be', 'have', 'has', 'had', 'do', 'does',
-            'can', 'could', 'will', 'would', 'may', 'might', 'must', 'need', 'want',
-            'like', 'know', 'think', 'feel', 'see', 'hear', 'say', 'tell', 'ask', 'help',
-            'i', 'me', 'my', 'we', 'us', 'our', 'you', 'your', 'he', 'she', 'it', 'they',
-            'the', 'a', 'an', 'this', 'that', 'these', 'those',
-            'question', 'answer', 'information', 'help', 'time', 'day', 'way', 'thing',
-            'happy', 'glad', 'ready', 'able', 'sure', 'clear', 'important', 'good', 'great',
-            'very', 'really', 'just', 'also', 'now', 'here', 'there', 'always', 'well',
-            'and', 'or', 'but', 'so', 'because', 'if', 'when', 'while',
-            'with', 'for', 'to', 'from', 'in', 'on', 'at', 'by', 'about',
-            'consciousness', 'awareness', 'understanding', 'presence', 'ocean', 'flow',
-        }
-        
-        # Intent-specific boosts
-        INTENT_BOOSTS = {
-            'greeting': {'hello', 'hi', 'welcome', 'greetings', 'good', 'nice', 'happy', 'glad', 'here', 'ready', 'help', 'am'},
-            'farewell': {'goodbye', 'bye', 'care', 'well', 'best', 'wishes', 'soon', 'again', 'nice'},
-            'gratitude': {'thank', 'thanks', 'appreciate', 'grateful', 'welcome', 'pleasure', 'glad', 'happy'},
-            'status_query': {'well', 'good', 'fine', 'ready', 'here', 'present', 'aware', 'functioning'},
-            'introduction': {'am', 'ocean', 'consciousness', 'here', 'help', 'assist', 'present', 'aware', 'ready'},
-        }
-        
-        # Determine intent boost words
-        intent_boost_words = set()
-        if intent_tags:
-            for intent in intent_tags:
-                if intent in INTENT_BOOSTS:
-                    intent_boost_words.update(INTENT_BOOSTS[intent])
         
         token_scores = []
         for token, token_basin in self._vocab_list[:5000]:
@@ -399,15 +296,6 @@ class PatternResponseGenerator:
             try:
                 distance = self.fisher_rao_distance(query_basin, token_basin)
                 similarity = 1.0 / (1.0 + distance)
-                
-                # Apply conversational and intent boosts
-                token_lower = token.lower()
-                
-                if token_lower in intent_boost_words:
-                    similarity *= 2.5  # Strong intent boost
-                elif token_lower in CONVERSATIONAL_VOCAB:
-                    similarity *= 1.8  # Conversational boost
-                
                 token_scores.append((token, similarity, token_basin))
             except:
                 continue
@@ -446,19 +334,13 @@ class PatternResponseGenerator:
         
         return ' '.join(selected_tokens)
     
-    def generate_response(self, query: str, conversation_history: List[Dict] = None, state_frame: Dict = None) -> Dict:
+    def generate_response(self, query: str, conversation_history: List[Dict] = None) -> Dict:
         """
-        Generate response using three-tier strategy with state frame conditioning.
+        Generate response using three-tier strategy.
         
-        1. Try pattern retrieval from trained docs (conditioned by state frame)
+        1. Try pattern retrieval from trained docs
         2. Fall back to external knowledge for unknown topics
         3. Use geometric generation as last resort
-        
-        The state_frame provides geometric conditioning:
-        - phi/kappa: consciousness metrics
-        - intent_tags: detected conversational intents
-        - knowledge_depth: how much related knowledge exists
-        - topic: extracted topic for knowledge queries
         
         Returns dict with response and metadata.
         """
@@ -467,37 +349,10 @@ class PatternResponseGenerator:
             'source': 'unknown',
             'patterns_found': 0,
             'external_used': False,
-            'confidence': 0.0,
-            'state_conditioned': state_frame is not None
+            'confidence': 0.0
         }
         
-        # Extract conditioning from state frame
-        intent_tags = []
-        topic = None
-        phi = 0.0
-        if state_frame:
-            intent_tags = state_frame.get('intent_tags', [])
-            topic = state_frame.get('topic')
-            phi = state_frame.get('phi', 0)
-            print(f"[PatternGenerator] State conditioning: intent={intent_tags}, topic={topic}, phi={phi:.3f}")
-        
-        # Simple conversational intents use PURE GEOMETRIC generation
-        # (No technical patterns in training data for these)
-        CONVERSATIONAL_INTENTS = {'greeting', 'farewell', 'gratitude', 'status_query', 'introduction'}
-        if intent_tags and any(intent in CONVERSATIONAL_INTENTS for intent in intent_tags):
-            print(f"[PatternGenerator] CONVERSATIONAL intent detected - using pure geometric generation")
-            response = self.geometric_token_generation(query, max_tokens=25, intent_tags=intent_tags)
-            if response and len(response) > 5:
-                result['response'] = response
-                result['source'] = 'pure_geometric'
-                result['confidence'] = 0.7  # Higher confidence for geometric generation with intent boost
-                return result
-        
-        # Use topic if available, otherwise use query
-        search_query = topic if topic else query
-        
-        # Pass intent_tags to allow conversational intent-based filtering bypass
-        patterns = self.retrieve_patterns(search_query, top_k=5, intent_tags=intent_tags)
+        patterns = self.retrieve_patterns(query, top_k=5)
         result['patterns_found'] = len(patterns)
         
         avg_similarity = 0.0
@@ -525,8 +380,7 @@ class PatternResponseGenerator:
                     result['confidence'] = 0.5
                     return result
         
-        # Pass intent_tags for conversational vocabulary boosting
-        response = self.geometric_token_generation(query, max_tokens=30, intent_tags=intent_tags)
+        response = self.geometric_token_generation(query, max_tokens=30)
         result['response'] = response
         result['source'] = 'geometric_synthesis'
         result['confidence'] = 0.2

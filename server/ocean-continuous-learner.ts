@@ -13,6 +13,7 @@
 
 import { oceanPersistence } from './ocean/ocean-persistence';
 import { geometricMemory } from './geometric-memory';
+import { expandedVocabulary } from './expanded-vocabulary';
 
 export interface LearnedPattern {
   pattern: string;
@@ -197,6 +198,9 @@ export class OceanContinuousLearner {
         });
       }
     }
+    
+    // Also add to expanded vocabulary system
+    expandedVocabulary.learnWord(pattern);
     
     console.log(`[OceanContinuousLearner] 🌟 Expanded "${pattern}" → ${variantArray.length} variants`);
     

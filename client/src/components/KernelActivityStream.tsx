@@ -183,6 +183,7 @@ export function KernelActivityStream({
     error: wsError,
     refetch, 
     isFetching,
+    clearActivities 
   } = useKernelActivityWebSocket({ maxItems: limit });
   
   const error = wsError ? new Error(wsError) : null;

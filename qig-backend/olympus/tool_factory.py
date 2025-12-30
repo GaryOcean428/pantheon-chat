@@ -171,21 +171,16 @@ class LearnedPattern:
         
         if include_qig_metrics and self.basin_coords is not None:
             basin = self.basin_coords
-            # Use Fisher-Rao information measure instead of Euclidean norm
-            basin_prob = np.abs(basin) + 1e-10
-            basin_prob = basin_prob / basin_prob.sum()
-            # Bhattacharyya coefficient with uniform: measures information concentration
-            bc_uniform = np.sum(np.sqrt(basin_prob * (1.0 / len(basin))))
-            info_concentration = float(1.0 - bc_uniform)  # 0 = uniform, higher = concentrated
+            basin_norm = np.linalg.norm(basin)
             result['basin_coords'] = basin.tolist() if isinstance(basin, np.ndarray) else basin
             result['basin_dimension'] = len(basin) if hasattr(basin, '__len__') else 64
-            result['basin_info'] = info_concentration
-            result['phi'] = float(np.clip(0.5 + info_concentration * 0.5, 0, 1))  # Geometric phi estimate
-            result['kappa'] = float(55.0 + 10.0 * info_concentration)  # Geometric kappa estimate
+            result['basin_norm'] = float(basin_norm) if basin_norm else 0.0
+            result['phi'] = float(np.clip(basin_norm / 10.0, 0, 1)) if basin_norm else 0.5
+            result['kappa'] = float(55.0 + 10.0 * np.tanh(basin_norm - 5)) if basin_norm else 55.0
         else:
             result['basin_coords'] = None
             result['basin_dimension'] = 64
-            result['basin_info'] = 0.0
+            result['basin_norm'] = 0.0
             result['phi'] = 0.5
             result['kappa'] = 55.0
         
@@ -460,9 +455,6 @@ class ToolFactory:
         
         # Load patterns from PostgreSQL (source of truth)
         self._load_patterns_from_db()
-        
-        # Bootstrap with seed patterns if no patterns exist
-        self._load_seed_patterns_if_empty()
     
     def wire_shadow_research(self):
         """Wire bidirectional connection to Shadow Research."""
@@ -620,61 +612,6 @@ class ToolFactory:
         except Exception as e:
             print(f"[ToolFactory] PostgreSQL load failed: {e}")
     
-    def _load_seed_patterns_if_empty(self):
-        """
-        Bootstrap with seed patterns if no patterns exist.
-        
-        Seeds provide initial knowledge for tool generation. Without patterns,
-        the factory cannot generate meaningful tools. Seeds are only loaded once
-        when the pattern registry is empty.
-        """
-        if len(self.learned_patterns) > 0:
-            return  # Already have patterns, skip seeds
-        
-        try:
-            from .seed_patterns import get_seed_patterns, get_seed_pattern_count
-            seeds = get_seed_patterns()
-            
-            loaded = 0
-            for seed in seeds:
-                try:
-                    pattern_id = seed.get('pattern_id', f"seed_{loaded}")
-                    if pattern_id in self.learned_patterns:
-                        continue
-                    
-                    # Create basin coordinates from description
-                    basin = None
-                    if self.encoder:
-                        try:
-                            basin = self.encoder.encode(seed.get('description', ''))
-                        except Exception:
-                            pass
-                    
-                    pattern = LearnedPattern(
-                        pattern_id=pattern_id,
-                        source_type=CodeSourceType.USER_PROVIDED,
-                        source_url=None,
-                        description=seed.get('description', ''),
-                        code_snippet=seed.get('code_snippet', ''),
-                        input_signature=seed.get('input_signature', {}),
-                        output_type=seed.get('output_type', 'Any'),
-                        basin_coords=basin,
-                        times_used=0,
-                        success_rate=0.8,  # Seeds are trusted
-                        created_at=time.time()
-                    )
-                    self.learned_patterns[pattern_id] = pattern
-                    loaded += 1
-                except Exception as e:
-                    print(f"[ToolFactory] Failed to load seed {seed.get('pattern_id')}: {e}")
-            
-            if loaded > 0:
-                print(f"[ToolFactory] 🌱 Bootstrapped with {loaded} seed patterns")
-        except ImportError:
-            print("[ToolFactory] Seed patterns module not found - starting without seeds")
-        except Exception as e:
-            print(f"[ToolFactory] Seed pattern loading failed: {e}")
-    
     def _save_pattern_to_cache(self, pattern: LearnedPattern):
         """Save a pattern to Redis buffer, then persist to PostgreSQL."""
         try:
@@ -720,17 +657,12 @@ class ToolFactory:
                     elif isinstance(basin_coords, list):
                         basin_str = '[' + ','.join(str(x) for x in basin_coords) + ']'
                 
-                basin_info = 0.0
+                basin_norm = 0.0
                 if basin_coords is not None:
                     arr = np.array(basin_coords) if not isinstance(basin_coords, np.ndarray) else basin_coords
-                    # Fisher-Rao information measure instead of Euclidean norm
-                    arr_prob = np.abs(arr) + 1e-10
-                    arr_prob = arr_prob / arr_prob.sum()
-                    basin_info = float(1.0 - np.sum(np.sqrt(arr_prob * (1.0 / len(arr)))))
-                else:
-                    basin_info = 0.0
-                phi = float(np.clip(0.5 + basin_info * 0.5, 0, 1))  # Geometric phi
-                kappa = float(55.0 + basin_info * 10.0)  # Geometric kappa
+                    basin_norm = float(np.linalg.norm(arr))
+                phi = float(np.clip(basin_norm / 10.0, 0, 1)) if basin_norm else 0.5
+                kappa = float(55.0 + basin_norm * 0.1) if basin_norm else 55.0
                 
                 cur.execute("""
                     INSERT INTO tool_patterns (
@@ -1412,151 +1344,11 @@ class ToolFactory:
         tool.times_used += 1
         if success:
             tool.times_succeeded += 1
-            # LEARNING LOOP: Successful tools enhance patterns for future use
-            self._trigger_success_learning(tool, args, result)
         else:
             tool.times_failed += 1
             self._trigger_runtime_learning(tool, error, args)
 
         return success, result, error
-    
-    def _trigger_success_learning(
-        self,
-        tool: GeneratedTool,
-        args: Dict[str, Any],
-        result: Any
-    ) -> None:
-        """
-        Learn from successful tool executions to enhance future generation.
-        
-        LEARNING LOOP PHILOSOPHY:
-        1. Successful tools validate their patterns - increase success_rate
-        2. High-performing tools become enhanced patterns for future generation
-        3. Usage patterns inform what kinds of tools are most valuable
-        4. Success feeds back to reasoning consolidation
-        """
-        MIN_SUCCESSES_BEFORE_ENHANCE = 3
-        SUCCESS_RATE_THRESHOLD = 0.7
-        
-        # Update success rate with exponential moving average
-        if tool.times_used > 0:
-            current_success_rate = tool.times_succeeded / tool.times_used
-            
-            # Update pattern success rate if linked
-            if tool.source_pattern_id and tool.source_pattern_id in self.learned_patterns:
-                pattern = self.learned_patterns[tool.source_pattern_id]
-                # EMA: 80% old + 20% new
-                pattern.success_rate = pattern.success_rate * 0.8 + current_success_rate * 0.2
-                pattern.times_used += 1
-        
-        # Only enhance after sufficient successful uses
-        if tool.times_succeeded < MIN_SUCCESSES_BEFORE_ENHANCE:
-            return
-        
-        success_rate = tool.times_succeeded / tool.times_used
-        if success_rate < SUCCESS_RATE_THRESHOLD:
-            return
-        
-        # ENHANCE: Store this successful tool as a new pattern
-        self._store_successful_tool_as_pattern(tool, args, result)
-        
-        # FEEDBACK TO REASONING: Record success for consolidation
-        self._record_success_for_reasoning(tool, success_rate)
-    
-    def _store_successful_tool_as_pattern(
-        self,
-        tool: GeneratedTool,
-        sample_args: Dict[str, Any],
-        sample_result: Any
-    ) -> None:
-        """
-        Store a highly successful tool as a new learned pattern.
-        
-        This creates a virtuous cycle: good tools become patterns
-        that inform generation of future similar tools.
-        """
-        # Generate unique pattern ID
-        pattern_id = f"learned_from_tool_{tool.tool_id}_{int(time.time())}"
-        
-        # Don't duplicate if we already learned from this tool
-        if any(p.pattern_id.startswith(f"learned_from_tool_{tool.tool_id}") 
-               for p in self.learned_patterns.values()):
-            return
-        
-        try:
-            # Encode description as basin coordinates
-            basin = None
-            if self.encoder:
-                basin = self.encoder.encode(tool.description)
-            
-            # Create enhanced pattern from successful tool
-            pattern = LearnedPattern(
-                pattern_id=pattern_id,
-                source_type=CodeSourceType.GENERATED,  # Mark as self-generated
-                source_url=None,
-                description=f"[Self-learned] {tool.description}",
-                code_snippet=tool.code,
-                input_signature=tool.input_schema or {},
-                output_type=tool.output_schema.get('type', 'Any') if tool.output_schema else 'Any',
-                basin_coords=basin,
-                times_used=tool.times_used,
-                success_rate=tool.times_succeeded / tool.times_used,
-                created_at=time.time()
-            )
-            
-            # Add to pattern registry
-            self.learned_patterns[pattern_id] = pattern
-            
-            # Persist to database
-            self._save_pattern_to_db(pattern)
-            
-            print(f"[ToolFactory] 🎓 LEARNED: Tool '{tool.name}' stored as pattern "
-                  f"(success={tool.times_succeeded}/{tool.times_used}, "
-                  f"rate={tool.times_succeeded/tool.times_used:.1%})")
-            
-        except Exception as e:
-            print(f"[ToolFactory] Pattern storage failed: {e}")
-    
-    def _record_success_for_reasoning(
-        self,
-        tool: GeneratedTool,
-        success_rate: float
-    ) -> None:
-        """
-        Feed tool success back to reasoning consolidation.
-        
-        This closes the loop: successful tools enhance reasoning,
-        better reasoning produces better tools.
-        """
-        try:
-            # Record as kernel activity for autonomic cycles
-            from autonomic_kernel import get_gary_kernel
-            kernel = get_gary_kernel()
-            if kernel and kernel._controller:
-                kernel._controller.record_kernel_activity('tool_success')
-            
-            # Store success episode for reasoning consolidation
-            if hasattr(self, '_reasoning_episodes'):
-                self._reasoning_episodes.append({
-                    'type': 'tool_success',
-                    'tool_name': tool.name,
-                    'tool_id': tool.tool_id,
-                    'success_rate': success_rate,
-                    'times_used': tool.times_used,
-                    'timestamp': time.time()
-                })
-            else:
-                self._reasoning_episodes = [{
-                    'type': 'tool_success',
-                    'tool_name': tool.name,
-                    'tool_id': tool.tool_id,
-                    'success_rate': success_rate,
-                    'times_used': tool.times_used,
-                    'timestamp': time.time()
-                }]
-            
-        except Exception:
-            pass  # Reasoning feedback is optional
     
     def _trigger_runtime_learning(
         self,

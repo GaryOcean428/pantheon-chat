@@ -309,6 +309,11 @@ export class VocabularyTracker {
       }
     }
     
+    // Learn to expanded vocabulary
+    expandedVocabulary.learnWord(phrase, 1);
+    for (const token of tokens) {
+      expandedVocabulary.learnWord(token, 1);
+    }
   }
   
   /**

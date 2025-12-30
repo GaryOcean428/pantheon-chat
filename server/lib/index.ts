@@ -33,12 +33,3 @@ export {
   // Types
   type Result,
 } from './error-utils';
-
-// Logger utilities
-export { logger, createChildLogger } from './logger';
-
-// Cache utilities
-export { cache, withCache, CACHE_TTL } from './cache';
-
-// Lazy wordlist utilities
-export { getWordlist, isValidWord, getWordIndex } from './lazy-wordlist';

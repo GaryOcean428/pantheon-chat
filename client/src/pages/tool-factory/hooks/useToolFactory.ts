@@ -11,14 +11,13 @@ interface UseToolFactoryOptions {
 }
 
 const fetchTools = async (): Promise<Tool[]> => {
-  const response = await fetch('/api/olympus/zeus/tools');
+  const response = await fetch('/api/tools');
   if (!response.ok) throw new Error('Failed to fetch tools');
-  const data = await response.json();
-  return data.tools || [];
+  return response.json();
 };
 
 const createTool = async (data: ToolFormData): Promise<Tool> => {
-  const response = await fetch('/api/olympus/zeus/tools/generate', {
+  const response = await fetch('/api/tools', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -28,8 +27,8 @@ const createTool = async (data: ToolFormData): Promise<Tool> => {
 };
 
 const updateTool = async ({ id, data }: { id: string; data: Partial<ToolFormData> }): Promise<Tool> => {
-  const response = await fetch(`/api/olympus/zeus/tools/${id}/rate`, {
-    method: 'POST',
+  const response = await fetch(`/api/tools/${id}`, {
+    method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
@@ -38,7 +37,8 @@ const updateTool = async ({ id, data }: { id: string; data: Partial<ToolFormData
 };
 
 const deleteTool = async (id: string): Promise<void> => {
-  console.warn(`Tool deletion not yet implemented for ${id}`);
+  const response = await fetch(`/api/tools/${id}`, { method: 'DELETE' });
+  if (!response.ok) throw new Error('Failed to delete tool');
 };
 
 export function useToolFactory(options: UseToolFactoryOptions = {}) {

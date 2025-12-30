@@ -14,10 +14,6 @@ import time
 
 from qig_geometry import fisher_rao_distance
 
-# Rate limiting for verbose diagnostic logs
-_chiron_log_times: Dict[str, float] = {}
-_CHIRON_LOG_INTERVAL = 60.0  # Only log examining same kernel every 60 seconds
-
 
 @dataclass
 class DiagnosticIssue:
@@ -164,12 +160,7 @@ class Chiron:
         """
         kernel_id = getattr(kernel, 'kernel_id', str(id(kernel)))
         
-        # Rate-limit verbose examination logs
-        now = time.time()
-        last_log = _chiron_log_times.get(kernel_id, 0)
-        if now - last_log > _CHIRON_LOG_INTERVAL:
-            print(f"Chiron: Examining {kernel_id}...")
-            _chiron_log_times[kernel_id] = now
+        print(f"Chiron: Examining {kernel_id}...")
         
         vitals = self._comprehensive_examination(kernel)
         

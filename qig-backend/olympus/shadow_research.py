@@ -83,7 +83,6 @@ def normalize_topic(topic: str) -> str:
     - Prefixes: historical, comparative, advanced, practical, etc.
     - Suffixes: (cycle XXXXX), domain modifiers like "for knowledge discovery"
     - Cycle markers and timestamps
-    - Variant markers: variant-XXX-Y, discovery-XXX
     
     This is a module-level function shared by ResearchQueue and KnowledgeBase.
     """
@@ -96,12 +95,6 @@ def normalize_topic(topic: str) -> str:
     
     # Strip iteration markers
     normalized = re.sub(r'\s*\(iteration\s*\d+[^)]*\)\s*$', '', normalized)
-    
-    # Strip variant markers: "variant-123-0", "variant-123", "discovery-123-4567"
-    normalized = re.sub(r'\s+variant-\d+-\d+$', '', normalized)
-    normalized = re.sub(r'\s+variant-\d+$', '', normalized)
-    normalized = re.sub(r'\s+discovery-\d+-\d+$', '', normalized)
-    normalized = re.sub(r'\s+discovery-\d+$', '', normalized)
     
     # Strip domain modifiers at the end
     for suffix_pattern in _DOMAIN_SUFFIX_PATTERNS:
@@ -1082,10 +1075,6 @@ class ShadowLearningLoop:
         self._meta_reflections: List[Dict] = []
         self._learning_cycles = 0
         
-        # Base topic cooldown tracker - prevents rapid re-research of same topics
-        self._base_topic_cooldowns: Dict[str, float] = {}
-        self._base_topic_cooldown_seconds = 3600  # 1 hour cooldown per base topic
-        
         self._scrapy_orchestrator: Optional['ScrapyOrchestrator'] = None
         if HAS_SCRAPY:
             self._scrapy_orchestrator = get_scrapy_orchestrator(
@@ -1505,22 +1494,9 @@ class ShadowLearningLoop:
             return
         
         base_topic = random.choice(base_topics)
-        
-        # Check base topic cooldown - prevent rapid re-research of same base topics
-        normalized_base = normalize_topic(base_topic)
-        current_time = time.time()
-        last_research_time = self._base_topic_cooldowns.get(normalized_base, 0)
-        
-        if current_time - last_research_time < self._base_topic_cooldown_seconds:
-            # Base topic is on cooldown, skip this research
-            return
-        
         unique_variation = self._generate_unique_variation(god, base_topic)
         
         if unique_variation and not self.knowledge_base.has_discovered(unique_variation):
-            # Update cooldown before submitting
-            self._base_topic_cooldowns[normalized_base] = current_time
-            
             self.research_queue.submit(
                 topic=unique_variation,
                 category=ResearchCategory.KNOWLEDGE,

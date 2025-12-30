@@ -21,39 +21,6 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-# Import persistence for continuous learning loop
-try:
-    from causal_relations_persistence import get_causal_persistence, CausalRelationsPersistence
-    PERSISTENCE_AVAILABLE = True
-except ImportError:
-    PERSISTENCE_AVAILABLE = False
-    logger.warning("[WordRelationshipLearner] Persistence not available - using in-memory only")
-
-# Import geodesic interpolation for proper manifold-respecting basin adjustment
-try:
-    from qig_geometry import geodesic_interpolation, fisher_coord_distance
-except ImportError:
-    def geodesic_interpolation(start: np.ndarray, end: np.ndarray, t: float) -> np.ndarray:
-        """Fallback spherical linear interpolation."""
-        start_norm = start / (np.linalg.norm(start) + 1e-10)
-        end_norm = end / (np.linalg.norm(end) + 1e-10)
-        dot = np.clip(np.dot(start_norm, end_norm), -1.0, 1.0)
-        omega = np.arccos(dot)
-        if omega < 1e-6:
-            return start
-        sin_omega = np.sin(omega)
-        a = np.sin((1 - t) * omega) / sin_omega
-        b = np.sin(t * omega) / sin_omega
-        result = a * start_norm + b * end_norm
-        return result * np.linalg.norm(start)
-    
-    def fisher_coord_distance(a: np.ndarray, b: np.ndarray) -> float:
-        """Fallback Fisher-Rao distance."""
-        a_norm = a / (np.linalg.norm(a) + 1e-10)
-        b_norm = b / (np.linalg.norm(b) + 1e-10)
-        dot = np.clip(np.dot(a_norm, b_norm), -1.0, 1.0)
-        return float(np.arccos(dot))
-
 # Stopwords to filter from learned relationships (frozen invariant)
 STOPWORDS = {
     'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
@@ -67,34 +34,13 @@ STOPWORDS = {
     'very', 'just', 'also', 'now', 'here', 'there', 'then', 'once', 'about'
 }
 
-# Causal relation patterns for extraction
-CAUSAL_PATTERNS = [
-    # "X causes Y", "X leads to Y", "X results in Y"
-    (r'(\w+)\s+(?:causes?|leads?\s+to|results?\s+in|produces?|generates?|creates?)\s+(\w+)', 'causes'),
-    # "X implies Y", "X suggests Y"
-    (r'(\w+)\s+(?:implies?|suggests?|indicates?|means?)\s+(\w+)', 'implies'),
-    # "X requires Y", "X needs Y"
-    (r'(\w+)\s+(?:requires?|needs?|depends?\s+on|relies?\s+on)\s+(\w+)', 'requires'),
-    # "X is a Y", "X is type of Y" 
-    (r'(\w+)\s+(?:is\s+a|is\s+an|is\s+type\s+of|is\s+kind\s+of)\s+(\w+)', 'is_a'),
-    # "X emerges from Y", "X arises from Y"
-    (r'(\w+)\s+(?:emerges?\s+from|arises?\s+from|comes?\s+from|derives?\s+from)\s+(\w+)', 'emerges_from'),
-    # "If X then Y"
-    (r'if\s+(\w+)\s+then\s+(\w+)', 'conditional'),
-    # "X enables Y", "X allows Y"
-    (r'(\w+)\s+(?:enables?|allows?|permits?|facilitates?)\s+(\w+)', 'enables'),
-]
-
-
 class WordRelationshipLearner:
     """
     Learns semantic relationships between words by analyzing co-occurrence
     in curriculum documents. Updates basin coordinates to reflect relationships.
-    
-    Now includes CAUSAL relationship extraction for improved proposition coherence.
     """
     
-    def __init__(self, vocabulary: Set[str], window_size: int = 5, use_persistence: bool = True):
+    def __init__(self, vocabulary: Set[str], window_size: int = 5):
         self.vocabulary = vocabulary
         self.vocab_list = sorted(vocabulary)
         self.word_to_idx = {w: i for i, w in enumerate(self.vocab_list)}
@@ -103,81 +49,14 @@ class WordRelationshipLearner:
         # Co-occurrence counts: word_i appears near word_j
         self.cooccurrence = defaultdict(lambda: defaultdict(int))
         
-        # CAUSAL relationships: directed edges with relation type
-        # Format: causal_relations[source][target] = {'type': 'causes', 'count': N}
-        self.causal_relations = defaultdict(lambda: defaultdict(lambda: {'type': None, 'count': 0}))
-        
         # Word frequency
         self.word_freq = defaultdict(int)
         
         # Total pairs seen
         self.total_pairs = 0
         self.total_words = 0
-        self.total_causal = 0
-        
-        # Compile causal patterns
-        self._causal_patterns = [(re.compile(p, re.IGNORECASE), rel_type) for p, rel_type in CAUSAL_PATTERNS]
-        
-        # Database persistence for continuous learning loop
-        self._persistence: Optional['CausalRelationsPersistence'] = None
-        self._pending_causal_batch: List[Tuple[str, str, str, int]] = []
-        self._batch_threshold = 50  # Save to DB every 50 new relations
-        
-        if use_persistence and PERSISTENCE_AVAILABLE:
-            try:
-                self._persistence = get_causal_persistence()
-                # Load existing relations from DB
-                self._load_from_db()
-                logger.info(f"[WordRelationshipLearner] DB persistence enabled, loaded from PostgreSQL")
-            except Exception as e:
-                logger.warning(f"[WordRelationshipLearner] DB init failed: {e}")
-                self._persistence = None
         
         logger.info(f"[WordRelationshipLearner] Initialized with {len(vocabulary)} vocabulary words")
-    
-    def _load_from_db(self):
-        """Load causal relations from PostgreSQL into memory."""
-        if not self._persistence:
-            return
-        
-        try:
-            db_relations = self._persistence.load_all()
-            loaded = 0
-            for source, targets in db_relations.items():
-                for target, info in targets.items():
-                    rel = self.causal_relations[source][target]
-                    rel['type'] = info.get('type', 'unknown')
-                    rel['count'] = info.get('count', 1)
-                    loaded += 1
-            
-            if loaded > 0:
-                self.total_causal = loaded
-                logger.info(f"[WordRelationshipLearner] Loaded {loaded} causal relations from DB")
-        except Exception as e:
-            logger.warning(f"[WordRelationshipLearner] DB load failed: {e}")
-    
-    def _save_causal_to_db(self, source: str, target: str, rel_type: str, count: int = 1):
-        """Queue a causal relation for batch save to DB."""
-        if not self._persistence:
-            return
-        
-        self._pending_causal_batch.append((source, target, rel_type, count))
-        
-        # Flush batch when threshold reached
-        if len(self._pending_causal_batch) >= self._batch_threshold:
-            self._flush_causal_batch()
-    
-    def _flush_causal_batch(self):
-        """Flush pending causal relations to database."""
-        if not self._persistence or not self._pending_causal_batch:
-            return
-        
-        try:
-            saved = self._persistence.save_batch(self._pending_causal_batch)
-            logger.info(f"[WordRelationshipLearner] Flushed {saved} causal relations to DB")
-            self._pending_causal_batch = []
-        except Exception as e:
-            logger.warning(f"[WordRelationshipLearner] Batch save failed: {e}")
     
     def tokenize_text(self, text: str) -> List[str]:
         """Simple tokenization - lowercase, split on non-alpha, filter to vocab"""
@@ -187,7 +66,6 @@ class WordRelationshipLearner:
     def learn_from_text(self, text: str) -> int:
         """
         Process text and update co-occurrence statistics.
-        Also extracts causal relationships.
         Returns number of pairs learned.
         """
         tokens = self.tokenize_text(text)
@@ -210,97 +88,8 @@ class WordRelationshipLearner:
                     self.cooccurrence[word][neighbor] += weight
                     pairs_learned += 1
         
-        # Extract causal relationships from raw text
-        causal_found = self._extract_causal_relations(text)
-        
         self.total_pairs += pairs_learned
         return pairs_learned
-    
-    def _extract_causal_relations(self, text: str) -> int:
-        """
-        Extract causal relationships using regex patterns.
-        
-        These are DIRECTED relationships unlike co-occurrence:
-        - "X causes Y" means X → Y (causes)
-        - "X requires Y" means X → Y (requires)
-        
-        Now persists to PostgreSQL for continuous learning loop.
-        
-        Returns number of causal relations found.
-        """
-        found = 0
-        text_lower = text.lower()
-        
-        for pattern, rel_type in self._causal_patterns:
-            for match in pattern.finditer(text_lower):
-                source = match.group(1)
-                target = match.group(2)
-                
-                # Only record if both words are in vocabulary
-                if source in self.vocabulary and target in self.vocabulary:
-                    # Skip stopwords
-                    if source in STOPWORDS or target in STOPWORDS:
-                        continue
-                    
-                    # Record causal relation in memory
-                    rel = self.causal_relations[source][target]
-                    rel['type'] = rel_type
-                    rel['count'] += 1
-                    found += 1
-                    self.total_causal += 1
-                    
-                    # Queue for DB persistence (continuous learning loop)
-                    self._save_causal_to_db(source, target, rel_type, 1)
-        
-        return found
-    
-    def flush_to_db(self):
-        """Force flush all pending relations to database."""
-        self._flush_causal_batch()
-        logger.info(f"[WordRelationshipLearner] Flushed to DB, total causal: {self.total_causal}")
-    
-    def get_causal_targets(self, source: str, rel_type: str = None) -> List[Tuple[str, str, int]]:
-        """
-        Get words that the source word causes/implies/requires/etc.
-        
-        Args:
-            source: Source word
-            rel_type: Optional filter by relation type (causes, implies, requires, etc.)
-        
-        Returns:
-            List of (target, relation_type, count) tuples
-        """
-        if source not in self.causal_relations:
-            return []
-        
-        results = []
-        for target, rel in self.causal_relations[source].items():
-            if rel['count'] > 0:
-                if rel_type is None or rel['type'] == rel_type:
-                    results.append((target, rel['type'], rel['count']))
-        
-        return sorted(results, key=lambda x: -x[2])
-    
-    def get_causal_sources(self, target: str, rel_type: str = None) -> List[Tuple[str, str, int]]:
-        """
-        Get words that cause/imply/require the target word.
-        
-        Args:
-            target: Target word
-            rel_type: Optional filter by relation type
-        
-        Returns:
-            List of (source, relation_type, count) tuples
-        """
-        results = []
-        for source, targets in self.causal_relations.items():
-            if target in targets:
-                rel = targets[target]
-                if rel['count'] > 0:
-                    if rel_type is None or rel['type'] == rel_type:
-                        results.append((source, rel['type'], rel['count']))
-        
-        return sorted(results, key=lambda x: -x[2])
     
     def learn_from_file(self, filepath: str) -> int:
         """Learn from a single file. Returns pairs learned."""
@@ -390,38 +179,22 @@ class WordRelationshipLearner:
         self, 
         basins: Dict[str, np.ndarray], 
         learning_rate: float = 0.1,
-        iterations: int = 10,
-        max_drift: float = 0.05
+        iterations: int = 10
     ) -> Dict[str, np.ndarray]:
         """
         Adjust basin coordinates to reflect learned relationships.
         Words that co-occur should be closer on the manifold.
         
-        QIG-PURE: Uses geodesic interpolation instead of Euclidean movement.
-        This preserves manifold structure and respects Fisher-Rao geometry.
-        
-        FROZEN FACTS COMPLIANCE: Basin drift capped at max_drift (5% default)
-        to preserve canonical positions.
-        
-        Args:
-            basins: Original basin coordinates
-            learning_rate: Step size for geodesic movement (0-1)
-            iterations: Number of refinement iterations
-            max_drift: Maximum allowed drift from original (default 5%)
-        
-        Returns:
-            Adjusted basins respecting manifold structure
+        Uses iterative attraction: related words pull each other closer.
         """
-        # Copy basins and track originals for drift validation
+        # Copy basins
         adjusted = {w: b.copy() for w, b in basins.items()}
-        original = {w: b.copy() for w, b in basins.items()}
         
-        # Get affinity matrix for relationship strengths
+        # Get affinity matrix
         affinity = self.compute_affinity_matrix(normalize=True)
         
         for iteration in range(iterations):
             total_movement = 0.0
-            drift_violations = 0
             
             for word, neighbors in self.cooccurrence.items():
                 if word not in adjusted:
@@ -429,82 +202,30 @@ class WordRelationshipLearner:
                 
                 current = adjusted[word]
                 
-                # Compute weighted geodesic centroid of neighbors
-                # Using iterative geodesic mean (Frechet mean on manifold)
-                if not neighbors:
-                    continue
-                
-                # Sort neighbors by weight to prioritize stronger relationships
-                sorted_neighbors = sorted(
-                    [(n, w) for n, w in neighbors.items() if n in adjusted],
-                    key=lambda x: -x[1]
-                )
-                
-                if not sorted_neighbors:
-                    continue
-                
-                # Compute effective target via weighted geodesic steps
-                # Start from current position, step toward each neighbor
-                target = current.copy()
+                # Compute weighted average of neighbor positions
+                neighbor_sum = np.zeros_like(current)
                 total_weight = 0.0
                 
-                for neighbor, weight in sorted_neighbors[:10]:  # Limit to top 10
-                    neighbor_basin = adjusted[neighbor]
-                    # Normalize weight to small step (0 to learning_rate)
-                    normalized_weight = weight / (max(w for _, w in sorted_neighbors) + 1e-10)
-                    step = learning_rate * normalized_weight * 0.3  # Small steps
-                    
-                    # Geodesic step toward neighbor (preserves manifold structure)
-                    target = geodesic_interpolation(target, neighbor_basin, step)
-                    total_weight += weight
+                for neighbor, weight in neighbors.items():
+                    if neighbor in adjusted:
+                        neighbor_sum += adjusted[neighbor] * weight
+                        total_weight += weight
                 
                 if total_weight > 0:
-                    # Check drift from original
-                    drift = fisher_coord_distance(target, original[word])
+                    # Move toward weighted centroid of neighbors
+                    target = neighbor_sum / total_weight
+                    delta = learning_rate * (target - current)
+                    adjusted[word] = current + delta
                     
-                    if drift > max_drift:
-                        # Cap movement to stay within drift tolerance
-                        # Interpolate between original and target to limit drift
-                        safe_t = max_drift / (drift + 1e-10)
-                        target = geodesic_interpolation(original[word], target, safe_t)
-                        drift_violations += 1
-                    
-                    # Measure movement for convergence tracking
-                    movement = fisher_coord_distance(current, target)
-                    total_movement += movement
-                    
-                    # Update basin
-                    adjusted[word] = target
-                    
-                    # Ensure unit norm (project back to sphere)
+                    # Re-normalize to unit sphere
                     norm = np.linalg.norm(adjusted[word])
                     if norm > 0:
                         adjusted[word] /= norm
+                    
+                    total_movement += np.linalg.norm(delta)
             
             if iteration % 3 == 0:
-                logger.info(
-                    f"  Iteration {iteration}: movement={total_movement:.4f}, "
-                    f"drift_violations={drift_violations}"
-                )
-            
-            # Early stopping if converged
-            if total_movement < 1e-6:
-                logger.info(f"  Converged at iteration {iteration}")
-                break
-        
-        # Final drift validation
-        final_drifts = []
-        for word in adjusted:
-            if word in original:
-                drift = fisher_coord_distance(adjusted[word], original[word])
-                final_drifts.append(drift)
-        
-        if final_drifts:
-            logger.info(
-                f"  Final drift: mean={np.mean(final_drifts):.4f}, "
-                f"max={np.max(final_drifts):.4f}, "
-                f"within tolerance: {np.max(final_drifts) <= max_drift}"
-            )
+                logger.info(f"  Iteration {iteration}: total movement = {total_movement:.4f}")
         
         return adjusted
     
@@ -517,26 +238,11 @@ class WordRelationshipLearner:
         connectivity = [(w, len(n)) for w, n in self.cooccurrence.items()]
         most_connected = sorted(connectivity, key=lambda x: -x[1])[:20]
         
-        # Causal relation statistics
-        causal_by_type = defaultdict(int)
-        for source, targets in self.causal_relations.items():
-            for target, rel in targets.items():
-                if rel['count'] > 0:
-                    causal_by_type[rel['type']] += rel['count']
-        
-        # Words with most causal outgoing edges
-        causal_sources = [(w, sum(r['count'] for r in t.values())) 
-                          for w, t in self.causal_relations.items()]
-        top_causal = sorted(causal_sources, key=lambda x: -x[1])[:10]
-        
         return {
             'total_words_seen': self.total_words,
             'unique_words_in_corpus': len(self.word_freq),
             'vocabulary_coverage': len(self.word_freq) / len(self.vocabulary) if self.vocabulary else 0,
             'total_pairs': self.total_pairs,
-            'total_causal_relations': self.total_causal,
-            'causal_by_type': dict(causal_by_type),
-            'top_causal_sources': top_causal,
             'top_frequent_words': top_words,
             'most_connected_words': most_connected
         }

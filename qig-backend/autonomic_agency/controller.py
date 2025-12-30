@@ -118,13 +118,7 @@ class AutonomicController:
         self._plateau_window: int = 10
         self._plateau_threshold: float = 0.01
         
-        # KERNEL-LED: Track activity to avoid empty cycles
-        self._last_activity_time: float = 0.0
-        self._activity_count: int = 0
-        self._min_activity_for_cycle: int = 3  # Require at least 3 activities before cycling
-        self._idle_threshold_seconds: float = 60.0  # Consider idle after 60s no activity
-        
-        print("[AutonomicController] Initialized - Ocean will self-regulate (KERNEL-LED mode)")
+        print("[AutonomicController] Initialized - Ocean will self-regulate")
     
     def start(self) -> None:
         """Start autonomous monitoring thread."""
@@ -152,40 +146,9 @@ class AutonomicController:
         except queue.Full:
             return False
     
-    def record_kernel_activity(self, activity_type: str = 'generic') -> None:
-        """
-        Record kernel activity to enable autonomic cycles.
-        
-        KERNEL-LED: Autonomic cycles only trigger when there's actual
-        kernel activity to consolidate, not just time-based polling.
-        """
-        self._last_activity_time = time.time()
-        self._activity_count += 1
-    
-    def _has_sufficient_activity(self) -> bool:
-        """
-        Check if there's sufficient kernel activity to warrant a cycle.
-        
-        Returns True if:
-        - At least _min_activity_for_cycle activities recorded, OR
-        - System is NOT idle (activity within _idle_threshold_seconds)
-        """
-        time_since_activity = time.time() - self._last_activity_time
-        is_idle = time_since_activity > self._idle_threshold_seconds
-        
-        # If idle with no activity, don't trigger cycles
-        if is_idle and self._activity_count < self._min_activity_for_cycle:
-            return False
-        
-        return self._activity_count >= self._min_activity_for_cycle
-    
-    def _reset_activity_counter(self) -> None:
-        """Reset activity counter after a cycle completes."""
-        self._activity_count = 0
-    
     def _run_loop(self) -> None:
-        """Main autonomic loop - runs in background thread (KERNEL-LED)."""
-        print("[AutonomicController] 🌊 Ocean autonomic loop running (KERNEL-LED)...")
+        """Main autonomic loop - runs in background thread."""
+        print("[AutonomicController] 🌊 Ocean autonomic loop running...")
         
         while self._running:
             try:
@@ -196,13 +159,6 @@ class AutonomicController:
                 
                 if snapshot is None:
                     time.sleep(1.0)
-                    continue
-                
-                # KERNEL-LED: Skip cycle if no meaningful activity
-                if not self._has_sufficient_activity():
-                    # Still update state tracking, but don't trigger interventions
-                    self._last_snapshot = snapshot
-                    time.sleep(self.decision_interval)
                     continue
                 
                 consciousness = self.state_encoder.encode(
@@ -261,9 +217,6 @@ class AutonomicController:
                         self._learn()
                     
                     self._log_decision(action, info, result, reward)
-                    
-                    # KERNEL-LED: Reset activity counter after intervention
-                    self._reset_activity_counter()
                 
                 self._last_snapshot = snapshot
                 self._last_consciousness = consciousness
@@ -521,13 +474,6 @@ class AutonomicController:
                 'hyperdimensional_4d': '0.75 - 0.85',
                 'breakdown_warning': '0.85 - 0.95',
                 'breakdown_critical': '>= 0.95',
-            },
-            'kernel_led': {
-                'activity_count': self._activity_count,
-                'min_activity_for_cycle': self._min_activity_for_cycle,
-                'idle_threshold_seconds': self._idle_threshold_seconds,
-                'has_sufficient_activity': self._has_sufficient_activity(),
-                'time_since_last_activity': time.time() - self._last_activity_time if self._last_activity_time > 0 else None,
             },
         }
     

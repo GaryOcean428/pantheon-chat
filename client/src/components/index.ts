@@ -10,13 +10,13 @@ export * from './ui';
 
 // Custom application components
 export { AppSidebar } from './app-sidebar';
-export { BasinCoordinateViewer } from './basin-coordinate-viewer';
+export { BasinCoordinateViewer } from './BasinCoordinateViewer';
 export { BetaAttentionDisplay } from './BetaAttentionDisplay';
 export { ThemeProvider } from './ThemeProvider';
 export { ThemeToggle } from './ThemeToggle';
-export { CapabilityTelemetryPanel, default as CapabilityTelemetryPanelDefault } from './capability-telemetry';
+export { default as CapabilityTelemetryPanel } from './CapabilityTelemetryPanel';
 export { ConsciousnessDashboard } from './ConsciousnessDashboard';
-export { ConsciousnessMonitoringDemo } from './consciousness-monitoring';
+export { ConsciousnessMonitoringDemo } from './ConsciousnessMonitoringDemo';
 export { EmptyDebatesState } from './EmptyDebatesState';
 export { AutonomicAgencyPanel } from './AutonomicAgencyPanel';
 export { EmotionalStatePanel } from './EmotionalStatePanel';
@@ -34,9 +34,6 @@ export { MemoryFragmentSearch } from './MemoryFragmentSearch';
 export { default as NeurochemistryAdminPanel } from './NeurochemistryAdminPanel';
 export { default as NeurochemistryDisplay } from './NeurochemistryDisplay';
 export { PhiVisualization } from './PhiVisualization';
-export { SearchBudgetPanel } from './SearchBudgetPanel';
 export { SessionExpirationModal } from './SessionExpirationModal';
 export { WarStatusPanel } from './war-status-panel';
 export { default as ZeusChat } from './ZeusChat';
-export { TaskHorizonStatus } from './TaskHorizonStatus';
-export { LongHorizonPanel } from './LongHorizonPanel';

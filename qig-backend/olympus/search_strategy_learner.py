@@ -32,11 +32,7 @@ try:
 except ImportError:
     QIG_GEOMETRY_AVAILABLE = False
     def sphere_project(v):
-        """Fallback sphere projection.
-        
-        NOTE: Using np.linalg.norm for normalization is geometrically valid.
-        This projects vectors to the unit sphere, not computing distances.
-        """
+        """Fallback sphere projection."""
         norm = np.linalg.norm(v)
         if norm < 1e-10:
             result = np.ones_like(v)
@@ -84,21 +80,6 @@ except ImportError:
 
 BASIN_DIMENSION = 64
 DEFAULT_DISTANCE_THRESHOLD = 1.5
-
-
-def _compute_basin_info_measure(basin: np.ndarray) -> float:
-    """Compute Fisher-Rao information measure for a basin.
-    
-    Returns a geometric measure of information concentration,
-    NOT Euclidean norm. Based on Bhattacharyya coefficient with uniform.
-    """
-    if basin is None or len(basin) == 0:
-        return 0.0
-    basin_prob = np.abs(basin) + 1e-10
-    basin_prob = basin_prob / basin_prob.sum()
-    # Deviation from uniform distribution via Bhattacharyya
-    bc_uniform = np.sum(np.sqrt(basin_prob * (1.0 / len(basin))))
-    return float(1.0 - bc_uniform)
 DEFAULT_OUTCOME_QUALITY = 0.5
 OUTCOME_QUALITY_DECAY = 0.95
 OUTCOME_QUALITY_BOOST = 0.1
@@ -133,10 +114,9 @@ class FeedbackRecord:
             "query": self.query,
             "user_feedback": self.user_feedback,
             "results_summary": self.results_summary,
-            # Fisher-Rao information measures instead of Euclidean norms
-            "query_basin_info": _compute_basin_info_measure(self.query_basin),
-            "feedback_basin_info": _compute_basin_info_measure(self.feedback_basin),
-            "modification_basin_info": _compute_basin_info_measure(self.modification_basin),
+            "query_basin_norm": float(np.linalg.norm(self.query_basin)),
+            "feedback_basin_norm": float(np.linalg.norm(self.feedback_basin)),
+            "modification_basin_norm": float(np.linalg.norm(self.modification_basin)),
             "search_params": self.search_params,
             "outcome_quality": self.outcome_quality,
             "timestamp": self.timestamp,
@@ -783,18 +763,12 @@ class SearchStrategyLearner:
             combined_context = f"{combined_context} {results_summary}"
         combined_basin = self.encoder.encode(combined_context)
         
-        # Compute modification as difference, then normalize
         modification_basin = combined_basin - query_basin
-        mod_norm = np.linalg.norm(modification_basin)  # Only for normalization check
+        mod_norm = np.linalg.norm(modification_basin)
         if mod_norm > 1e-10:
             modification_basin = modification_basin / mod_norm
-            # Compute Fisher-Rao based modification magnitude
-            mod_prob = np.abs(modification_basin) + 1e-10
-            mod_prob = mod_prob / mod_prob.sum()
-            mod_info = 1.0 - np.sum(np.sqrt(mod_prob * (1.0 / len(mod_prob))))
         else:
             modification_basin = np.zeros(BASIN_DIMENSION)
-            mod_info = 0.0
         
         record = FeedbackRecord(
             query_basin=query_basin,
@@ -818,8 +792,8 @@ class SearchStrategyLearner:
         return {
             "success": True,
             "record_id": record.record_id,
-            "modification_magnitude": float(mod_info),  # Fisher-Rao based
-            "combined_basin_info": _compute_basin_info_measure(combined_basin),
+            "modification_magnitude": float(mod_norm),
+            "combined_basin_norm": float(np.linalg.norm(combined_basin)),
             "total_records": len(self.feedback_records),
             "persisted": self.persistence is not None and self.persistence.enabled,
         }

@@ -11,7 +11,6 @@ import {
   requireScopes,
   type AuthenticatedRequest,
 } from './auth';
-import { billQuery } from './billing';
 
 export const externalZeusRouter = Router();
 
@@ -22,7 +21,7 @@ externalZeusRouter.use(authenticateExternalApi);
  * POST /api/v1/external/zeus/chat
  * Send a message to Zeus and get a response
  */
-externalZeusRouter.post('/chat', requireScopes('chat'), billQuery, async (req: AuthenticatedRequest, res: Response) => {
+externalZeusRouter.post('/chat', requireScopes('chat'), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { message, sessionId, context } = req.body;
     
@@ -84,7 +83,7 @@ externalZeusRouter.post('/chat', requireScopes('chat'), billQuery, async (req: A
  * POST /api/v1/external/zeus/stream
  * Stream a response from Zeus (Server-Sent Events)
  */
-externalZeusRouter.post('/stream', requireScopes('chat'), billQuery, async (req: AuthenticatedRequest, res: Response) => {
+externalZeusRouter.post('/stream', requireScopes('chat'), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { message, sessionId, context } = req.body;
     

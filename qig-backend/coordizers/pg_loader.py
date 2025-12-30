@@ -7,7 +7,7 @@ Falls back to hardcoded English vocabulary if database is unavailable.
 
 import logging
 import os
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -80,49 +80,37 @@ class PostgresCoordizer(FisherCoordizer):
         try:
             with conn.cursor() as cur:
                 cur.execute("""
-                    SELECT token, embedding, phi_score, frequency, source_type, token_id
+                    SELECT token, basin_embedding, phi_score, frequency, source_type, token_id
                     FROM tokenizer_vocabulary
-                    WHERE embedding IS NOT NULL
-                      AND array_length(embedding, 1) = 64
-                    ORDER BY token_id ASC
-                    LIMIT 24000
+                    WHERE basin_embedding IS NOT NULL
+                      AND LENGTH(token) >= 3
+                      AND source_type NOT IN ('byte_level', 'checkpoint_byte', 'special')
+                      AND token ~ '^[a-zA-Z]+$'
+                    ORDER BY phi_score DESC
+                    LIMIT 5000
                 """)
                 rows = cur.fetchall()
             
             if not rows:
                 return False
             
-            tokens_loaded = 0
-            byte_tokens_skipped = 0
-            for token, embedding, phi_score, frequency, source_type, token_id in rows:
-                # CRITICAL: Skip byte tokens - they corrupt natural language output
-                if token.startswith('<byte_') or token.startswith('\\x') or source_type == 'checkpoint_byte':
-                    byte_tokens_skipped += 1
-                    continue
-                
-                coords = self._parse_embedding(embedding)
+            words_loaded = 0
+            for token, basin_embedding, phi_score, frequency, source_type, token_id in rows:
+                coords = self._parse_embedding(basin_embedding)
                 if coords is None:
                     continue
                 
                 idx = token_id if token_id is not None else len(self.vocab)
-                self._add_token(token, coords, phi_score or 0.5, frequency or 1, idx, source_type or 'checkpoint')
+                self._add_token(token, coords, phi_score or 0.5, frequency or 1, idx, source_type)
                 
                 if token.isalpha() and len(token) >= 3:
                     self.word_tokens.append(token)
-                tokens_loaded += 1
+                    words_loaded += 1
             
-            if byte_tokens_skipped > 0:
-                logger.info(f"Skipped {byte_tokens_skipped} byte tokens (not used for natural language)")
-            
-            logger.info(f"Loaded {tokens_loaded} tokens from database (64D embeddings)")
-            return tokens_loaded >= 100
+            logger.info(f"Loaded {words_loaded} words from database")
+            return words_loaded >= 100
         except Exception as e:
             logger.error(f"Database query failed: {e}")
-            try:
-                if conn:
-                    conn.rollback()
-            except Exception:
-                pass
             return False
     
     def _parse_embedding(self, basin_embedding) -> Optional[np.ndarray]:
@@ -221,19 +209,12 @@ class PostgresCoordizer(FisherCoordizer):
         Decode basin coordinates to most likely tokens using domain-aware search.
         
         Boosts words from matching semantic domains for better relevance.
-        CRITICAL: Never returns byte tokens - only natural language words.
         """
         norm = np.linalg.norm(basin)
         if norm > 1e-10:
             basin = basin / norm
         
-        # Prefer word_tokens (pre-filtered), fallback to basin_coords but filter out byte tokens
-        if self.word_tokens:
-            search_tokens = self.word_tokens
-        else:
-            # Filter out byte tokens and non-alphabetic tokens for natural language
-            search_tokens = [t for t in self.basin_coords.keys() 
-                           if t.isalpha() and len(t) >= 2 and not t.startswith('<byte_')]
+        search_tokens = self.word_tokens if self.word_tokens else list(self.basin_coords.keys())
         if not search_tokens:
             return []
         
@@ -500,34 +481,12 @@ class PostgresCoordizer(FisherCoordizer):
                 
                 conn.commit()
             
-            total_learned = added + updated  # Both new words AND reinforced words count as learning
-            logger.info(f"[VocabularyObservations] Added {added} new, reinforced {updated} existing = {total_learned} total learned")
-            return (total_learned, updated > 0)
+            logger.info(f"[VocabularyObservations] Added {added}, updated {updated} words")
+            return (added, updated > 0)
             
         except Exception as e:
             logger.error(f"[VocabularyObservations] Error: {e}")
-            # Rollback to clear aborted transaction state
-            try:
-                if conn:
-                    conn.rollback()
-            except Exception:
-                pass
             return (added, False)
-    
-    def get_stats(self) -> Dict[str, Any]:
-        """Get coordizer statistics.
-        
-        Returns:
-            Dictionary with vocabulary stats
-        """
-        return {
-            'vocabulary_size': len(self.basin_coords),
-            'basin_dimension': 64,
-            'initialized': len(self.basin_coords) > 0,
-            'cache_size': len(self.basin_coords),
-            'coordizer_type': 'PostgresCoordizer',
-            'token_count': len(self.basin_coords),
-        }
     
     def close(self):
         if self._connection:

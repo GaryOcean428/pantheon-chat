@@ -1,5 +1,4 @@
 import type { Express } from "express";
-import { raw } from "express";
 import rateLimit from "express-rate-limit";
 import multer from "multer";
 import { createServer, type Server } from "http";
@@ -13,7 +12,6 @@ import TelemetryStreamer from "./telemetry-websocket";
 import KernelActivityStreamer from "./kernel-activity-websocket";
 import MeshNetworkStreamer from "./mesh-network-websocket";
 import telemetryDashboardRouter from "./routes/telemetry";
-import stripeWebhookRouter from "./routes/stripe-webhook";
 
 // WebSocket message validation schema (addresses Issue 13/14 from bottleneck report)
 const wsMessageSchema = z.object({
@@ -52,9 +50,6 @@ import {
   authRouter,
   autonomicAgencyRouter,
   federationRouter,
-  billingRouter,
-  visionRouter,
-  toolsRouter,
   consciousnessRouter,
   formatRouter,
   nearMissRouter,
@@ -67,7 +62,6 @@ import {
 
 import { externalRouter as externalApiRouter, documentsRouter as externalDocsRouter, initExternalWebSocket } from "./external-api";
 import apiDocsRouter from "./routes/api-docs";
-import dbSyncRouter from "./db-sync-api";
 
 import type { Candidate } from "@shared/schema";
 import { randomUUID } from "crypto";
@@ -302,52 +296,8 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
   app.use("/api/olympus", olympusRouter);
   app.use("/api/documents", externalDocsRouter);
   app.use("/api/docs", apiDocsRouter);
-  app.use("/api/sync", dbSyncRouter);
   app.use("/api/qig/autonomic/agency", autonomicAgencyRouter);
   app.use("/api/federation", federationRouter);
-  app.use("/api/billing", billingRouter);
-  app.use("/api/vision", visionRouter);
-  app.use("/api/olympus/tools", toolsRouter);
-
-  // ============================================================
-  // ZETTELKASTEN PROXY - Routes to Python Backend
-  // ============================================================
-  app.use("/api/zettelkasten", async (req: any, res) => {
-    try {
-      const pythonUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
-      const targetUrl = `${pythonUrl}/api/zettelkasten${req.url}`;
-      
-      const fetchOptions: RequestInit = {
-        method: req.method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        signal: AbortSignal.timeout(30000),
-      };
-      
-      if (req.method !== 'GET' && req.method !== 'HEAD' && req.body) {
-        fetchOptions.body = JSON.stringify(req.body);
-      }
-      
-      const response = await fetch(targetUrl, fetchOptions);
-      const contentType = response.headers.get('content-type') || '';
-      
-      if (contentType.includes('application/json')) {
-        const data = await response.json();
-        res.status(response.status).json(data);
-      } else {
-        const text = await response.text();
-        res.status(response.status).send(text);
-      }
-    } catch (error: unknown) {
-      console.error("[Zettelkasten] Proxy error:", getErrorMessage(error));
-      res.status(503).json({
-        success: false,
-        error: 'Zettelkasten service unavailable',
-        message: getErrorMessage(error)
-      });
-    }
-  });
 
   // Mount observer and telemetry routers
   app.use("/api/observer", observerRoutes);
@@ -356,52 +306,9 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
   
   // Mount versioned telemetry dashboard API (unified metrics)
   app.use("/api/v1/telemetry", telemetryDashboardRouter);
-
-  // ============================================================
-  // LONG-HORIZON TASK MANAGEMENT PROXY - Routes to Python Backend
-  // ============================================================
-  app.use("/api/long-horizon", async (req: any, res) => {
-    try {
-      const pythonUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
-      const targetUrl = `${pythonUrl}/api/long-horizon${req.url}`;
-
-      const fetchOptions: RequestInit = {
-        method: req.method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        signal: AbortSignal.timeout(30000),
-      };
-
-      if (req.method !== 'GET' && req.method !== 'HEAD' && req.body) {
-        fetchOptions.body = JSON.stringify(req.body);
-      }
-
-      const response = await fetch(targetUrl, fetchOptions);
-      const contentType = response.headers.get('content-type') || '';
-
-      if (contentType.includes('application/json')) {
-        const data = await response.json();
-        res.status(response.status).json(data);
-      } else {
-        const text = await response.text();
-        res.status(response.status).send(text);
-      }
-    } catch (error: unknown) {
-      console.error("[LongHorizon] Proxy error:", getErrorMessage(error));
-      res.status(503).json({
-        success: false,
-        error: 'Long-horizon service unavailable',
-        message: getErrorMessage(error)
-      });
-    }
-  });
   
   // Mount external API router (for federated instances, headless clients, integrations)
   app.use("/api/v1/external", externalApiRouter);
-  
-  // Mount Stripe webhook router (needs raw body for signature verification)
-  app.use("/api/stripe/webhook", raw({ type: 'application/json' }), stripeWebhookRouter);
 
   // ============================================================
   // COORDIZER STATS PROXY (Routes to Python Backend)
@@ -844,91 +751,6 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
   });
 
   // ============================================================
-  // RESEARCH API PROXY - Forward research endpoints to Python backend
-  // ============================================================
-  app.use("/api/research", async (req: any, res, next) => {
-    try {
-      const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
-      const targetPath = req.originalUrl.replace('/api/research', '/api/research');
-      const targetUrl = `${backendUrl}${targetPath}`;
-      
-      const fetchOptions: RequestInit = {
-        method: req.method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        signal: AbortSignal.timeout(30000),
-      };
-      
-      if (req.method !== 'GET' && req.method !== 'HEAD') {
-        fetchOptions.body = JSON.stringify(req.body);
-      }
-      
-      const response = await fetch(targetUrl, fetchOptions);
-      const contentType = response.headers.get('content-type') || '';
-      
-      if (contentType.includes('application/json')) {
-        const data = await response.json();
-        res.status(response.status).json(data);
-      } else {
-        const text = await response.text();
-        res.status(response.status).send(text);
-      }
-    } catch (error: unknown) {
-      console.error("[API] Research proxy error:", getErrorMessage(error));
-      const err = error as { name?: string; code?: string; message?: string };
-      if (err.name === 'TimeoutError' || err.message?.includes('timeout')) {
-        return res.status(504).json({ error: 'Python backend timeout' });
-      }
-      if (err.code === 'ECONNREFUSED' || err.message?.includes('fetch failed')) {
-        return res.status(503).json({ error: 'Python backend unavailable' });
-      }
-      res.status(500).json({ error: getErrorMessage(error) || 'Failed to proxy request' });
-    }
-  });
-
-  // OLYMPUS TELEMETRY PROXY - Forward telemetry endpoints to Python backend
-  // ============================================================
-  app.use("/olympus/telemetry", async (req: any, res, next) => {
-    try {
-      const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
-      const targetUrl = `${backendUrl}/olympus/telemetry`;
-      
-      const fetchOptions: RequestInit = {
-        method: req.method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        signal: AbortSignal.timeout(30000),
-      };
-      
-      if (req.method !== 'GET' && req.method !== 'HEAD') {
-        fetchOptions.body = JSON.stringify(req.body);
-      }
-      
-      const response = await fetch(targetUrl, fetchOptions);
-      const contentType = response.headers.get('content-type') || '';
-      
-      if (contentType.includes('application/json')) {
-        const data = await response.json();
-        res.status(response.status).json(data);
-      } else {
-        const text = await response.text();
-        res.status(response.status).send(text);
-      }
-    } catch (error: unknown) {
-      console.error("[API] Olympus telemetry proxy error:", getErrorMessage(error));
-      const err = error as { name?: string; code?: string; message?: string };
-      if (err.name === 'TimeoutError' || err.message?.includes('timeout')) {
-        return res.status(504).json({ error: 'Python backend timeout' });
-      }
-      if (err.code === 'ECONNREFUSED' || err.message?.includes('fetch failed')) {
-        return res.status(503).json({ error: 'Python backend unavailable' });
-      }
-      res.status(500).json({ error: getErrorMessage(error) || 'Failed to proxy request' });
-    }
-  });
-
   // PYTHON PROXY - Generic proxy for Python backend APIs
   // ============================================================
   app.use("/api/python", async (req: any, res, next) => {
@@ -1146,23 +968,6 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
 
   console.log("[KernelActivityWS] WebSocket server initialized on /ws/kernel-activity");
 
-  // Set up WebSocket server for mesh network streaming
-  const meshNetworkWss = new WebSocketServer({
-    server: httpServer,
-    path: "/ws/mesh-network",
-  });
-
-  const meshNetworkStreamer = new MeshNetworkStreamer();
-
-  meshNetworkWss.on("connection", (ws) => {
-    const clientId = `mesh-${Date.now()}-${Math.random()
-      .toString(36)
-      .slice(2, 6)}`;
-    meshNetworkStreamer.handleConnection(ws, clientId);
-  });
-
-  console.log("[MeshNetworkWS] WebSocket server initialized on /ws/mesh-network");
-
   // Set up WebSocket server for external API streaming
   initExternalWebSocket(httpServer);
   console.log("[ExternalWS] WebSocket server initialized on /ws/v1/external/stream");
@@ -1171,7 +976,6 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
   const cleanup = () => {
     telemetryStreamer.destroy();
     kernelActivityStreamer.destroy();
-    meshNetworkStreamer.destroy();
   };
   process.on("SIGTERM", cleanup);
   process.on("SIGINT", cleanup);

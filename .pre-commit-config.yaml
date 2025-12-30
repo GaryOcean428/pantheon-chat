@@ -6,7 +6,7 @@
 # Run all: pre-commit run --all-files
 # Run specific: pre-commit run <hook-id>
 
-default_stages: [pre-commit]
+default_stages: [commit]
 
 repos:
   # ============================================================================
@@ -23,7 +23,7 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
-        stages: [pre-commit]
+        stages: [commit]
         description: "Run qig-purity-enforcer agent to check for external LLM APIs and Euclidean violations"
 
   # Fallback: Direct Python checks (fast)
@@ -35,7 +35,7 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
-        stages: [pre-commit]
+        stages: [commit]
         
       - id: qig-purity-no-max-tokens
         name: "🔒 QIG Purity: No Token-Based Generation (fast)"
@@ -43,7 +43,7 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
-        stages: [pre-commit]
+        stages: [commit]
 
       - id: qig-purity-geometric
         name: "🔒 QIG Purity: Fisher-Rao Only"
@@ -51,7 +51,7 @@ repos:
         language: python
         types: [python]
         pass_filenames: false
-        stages: [pre-commit]
+        stages: [commit]
         description: "Fail if Euclidean operations detected on basin coordinates"
 
   # ISO Doc Validator Agent
@@ -62,7 +62,7 @@ repos:
         entry: bash -c 'if command -v codebuff &> /dev/null; then codebuff --agent iso-doc-validator "Check documentation naming"; fi'
         language: system
         pass_filenames: false
-        stages: [pre-commit]
+        stages: [commit]
         verbose: true
         description: "Run iso-doc-validator agent to check YYYYMMDD-name-version[STATUS].md naming"
 
@@ -75,7 +75,7 @@ repos:
         language: system
         types: [python, ts]
         pass_filenames: false
-        stages: [pre-commit]
+        stages: [commit]
         verbose: true
         description: "Run ethical-consciousness-guard agent for suffering metric validation"
 
@@ -88,7 +88,7 @@ repos:
         language: system
         types: [python]
         pass_filenames: false
-        stages: [pre-commit]
+        stages: [commit]
         description: "Run import-canonicalizer agent to enforce qigkernels imports"
 
   # ============================================================================
@@ -100,11 +100,10 @@ repos:
     hooks:
       - id: type-any-eliminator-agent
         name: "🚫 Type Any Eliminator (fast check)"
-        entry: |
-          bash -c 'COUNT=$(grep -rn --include="*.ts" --include="*.tsx" "as any" client/ server/ shared/ 2>/dev/null | grep -v "node_modules" | grep -v ".d.ts" | grep -v "test" | wc -l); if [ "$COUNT" -gt 20 ]; then echo "Too many any type casts ($COUNT found, threshold 20)"; exit 1; fi'
+        entry: bash -c 'COUNT=$(grep -rn --include="*.ts" --include="*.tsx" "as any" client/ server/ shared/ 2>/dev/null | grep -v "node_modules" | grep -v ".d.ts" | grep -v "test" | wc -l); if [ "$COUNT" -gt 20 ]; then echo "❌ Too many any type casts ($COUNT found, threshold: 20)"; exit 1; fi'
         language: system
         pass_filenames: false
-        stages: [pre-commit]
+        stages: [commit]
         description: "Check for excessive 'any' type usage"
 
   # No Hardcoded Constants
@@ -116,7 +115,7 @@ repos:
         language: python
         types: [python]
         pass_filenames: false
-        stages: [pre-commit]
+        stages: [commit]
         description: "Fail if KAPPA_STAR or other physics constants defined outside qigkernels"
 
   # ============================================================================
@@ -146,9 +145,9 @@ repos:
     hooks:
       - id: python-type-hints
         name: "🐍 Python Type Hints Reminder"
-        entry: bash -c 'echo Reminder - Use type hints in all new Python functions'
+        entry: bash -c 'echo "Reminder: Use type hints in all new Python functions"'
         language: system
         types: [python]
         pass_filenames: false
         verbose: true
-        stages: [pre-commit]
+        stages: [commit]

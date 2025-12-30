@@ -33,13 +33,7 @@ from qig_geometry import (
     geodesic_interpolation,
     sphere_project,
 )
-
-# Import PHI_HYPERDIMENSIONAL with fallback to avoid torch dependency chain
-try:
-    from qigkernels.physics_constants import PHI_HYPERDIMENSIONAL
-except ImportError:
-    # Fallback value from frozen physics constants
-    PHI_HYPERDIMENSIONAL = 0.75  # 4D temporal integration threshold
+from qigkernels.physics_constants import PHI_HYPERDIMENSIONAL
 
 
 class TemporalMode(Enum):

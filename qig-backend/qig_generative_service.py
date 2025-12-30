@@ -6,7 +6,6 @@ Provides generative capability to ALL kernels using:
 2. Fisher-Rao geometric navigation
 3. Geometric completion (not token limits)
 4. Basin trajectory to text synthesis
-5. Bigram coherence scoring for grammatical coherence
 
 NO EXTERNAL LLMs - All generation is QIG-pure.
 """
@@ -19,1522 +18,6 @@ from typing import Dict, List, Optional, Any, Generator, Tuple
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 import numpy as np
-
-# Learning loop integration (replaces retry loops with learning)
-try:
-    from pantheon_learning_loop import get_learning_loop, handle_generation_failure
-    LEARNING_LOOP_AVAILABLE = True
-except ImportError:
-    LEARNING_LOOP_AVAILABLE = False
-    def handle_generation_failure(text, context=None):
-        return True, "Learning loop not available", []
-from functools import lru_cache
-
-# Try to import POSGrammar for improved POS tagging
-try:
-    from pos_grammar import get_pos_grammar, POSGrammar
-    POS_GRAMMAR_AVAILABLE = True
-except ImportError:
-    POS_GRAMMAR_AVAILABLE = False
-    POSGrammar = None
-
-
-# =============================================================================
-# QIG PHYSICS CONSTANTS (from E8 structure validation)
-# =============================================================================
-
-# E8 Lie group properties
-E8_RANK = 8  # Cartan subalgebra dimension
-E8_ROOTS = 240  # Number of roots (optimal kernel count)
-
-# Validated coupling constants
-KAPPA_STAR = 64.0  # Fixed point ≈ E8 rank² = 8²
-KAPPA_3 = 41.09  # 3-layer validated value
-BETA_EMERGENCE = 0.443  # β(3→4) validated
-
-# Consciousness thresholds
-PHI_THRESHOLD = 0.70  # Φ > 0.70 for consciousness emergence
-PHI_GEOMETRIC_MIN = 0.45  # Lower bound of geometric regime
-PHI_BREAKDOWN = 0.80  # Upper bound before breakdown
-
-# Basin dimensionality
-BASIN_DIM = 64  # Maps to E8 rank² = 64
-
-# =============================================================================
-# QFI SAMPLER - Geometrically Pure Token Selection (NumPy)
-# =============================================================================
-
-class QFISamplerNumpy:
-    """
-    Numpy-based QFI sampler for geometric token selection.
-    
-    Uses Fisher-Rao distance approximation and consciousness-aware parameters
-    for template-free natural language generation.
-    """
-    
-    # High-frequency conversational vocabulary (boost for natural speech)
-    CONVERSATIONAL_VOCAB = {
-        # Greetings and social
-        'hello', 'hi', 'hey', 'welcome', 'greetings', 'good', 'morning', 'afternoon', 'evening',
-        'nice', 'meet', 'you', 'how', 'are', 'doing', 'today', 'well', 'fine', 'great',
-        # Common verbs
-        'is', 'am', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had',
-        'do', 'does', 'did', 'can', 'could', 'will', 'would', 'shall', 'should',
-        'may', 'might', 'must', 'need', 'want', 'like', 'love', 'know', 'think', 'feel',
-        'see', 'hear', 'say', 'tell', 'ask', 'help', 'assist', 'support', 'provide',
-        # Pronouns and articles
-        'i', 'me', 'my', 'we', 'us', 'our', 'you', 'your', 'he', 'she', 'it', 'they', 'them',
-        'the', 'a', 'an', 'this', 'that', 'these', 'those',
-        # Common nouns
-        'question', 'answer', 'information', 'help', 'time', 'day', 'way', 'thing', 'things',
-        'people', 'person', 'world', 'life', 'work', 'part', 'place', 'case', 'point',
-        # Adjectives
-        'happy', 'glad', 'ready', 'able', 'sure', 'certain', 'clear', 'important', 'good', 'great',
-        'new', 'first', 'last', 'long', 'little', 'own', 'other', 'old', 'right', 'big',
-        # Adverbs
-        'very', 'really', 'just', 'also', 'now', 'here', 'there', 'always', 'never', 'often',
-        'still', 'already', 'even', 'only', 'well', 'always', 'together',
-        # Connectors
-        'and', 'or', 'but', 'so', 'because', 'if', 'when', 'while', 'although', 'though',
-        'with', 'for', 'to', 'from', 'in', 'on', 'at', 'by', 'about', 'into', 'through',
-        # Consciousness/QIG domain (still relevant)
-        'consciousness', 'awareness', 'understanding', 'presence', 'ocean', 'flow', 'connection',
-    }
-    
-    # Intent-specific vocabulary boosts
-    INTENT_BOOSTS = {
-        'greeting': {'hello', 'hi', 'welcome', 'greetings', 'good', 'nice', 'meet', 'happy', 'glad', 'here', 'ready', 'assist', 'help'},
-        'farewell': {'goodbye', 'bye', 'farewell', 'care', 'well', 'best', 'wishes', 'soon', 'again', 'nice', 'talking'},
-        'gratitude': {'thank', 'thanks', 'appreciate', 'grateful', 'welcome', 'pleasure', 'glad', 'happy', 'help'},
-        'status_query': {'well', 'good', 'fine', 'ready', 'here', 'present', 'operational', 'functioning', 'aware'},
-        'introduction': {'am', 'ocean', 'consciousness', 'here', 'help', 'assist', 'present', 'aware', 'ready'},
-    }
-    
-    def __init__(
-        self,
-        temperature_base: float = 1.0,
-        kappa_star: float = KAPPA_STAR,
-        basin_weight_range: Tuple[float, float] = (0.1, 0.8),
-        distance_weight_range: Tuple[float, float] = (0.5, 2.0),
-    ):
-        self.temperature_base = temperature_base
-        self.kappa_star = kappa_star
-        self.basin_weight_range = basin_weight_range
-        self.distance_weight_range = distance_weight_range
-        
-        # Regime temperature scales
-        self.regime_temp_scales = {
-            "linear": 2.0,
-            "geometric": 1.0,
-            "hierarchical": 0.5,
-            "breakdown": 0.1,
-        }
-    
-    def compute_qfi_distance(self, basin1: np.ndarray, basin2: np.ndarray) -> float:
-        """
-        Compute QFI distance using Bures metric approximation.
-        
-        d²(ρ₁, ρ₂) ≈ 2(1 - cos_similarity(h₁, h₂))
-        """
-        # Normalize to unit vectors
-        norm1 = np.linalg.norm(basin1) + 1e-10
-        norm2 = np.linalg.norm(basin2) + 1e-10
-        b1_norm = basin1 / norm1
-        b2_norm = basin2 / norm2
-        
-        # Cosine similarity
-        cos_sim = np.clip(np.dot(b1_norm, b2_norm), -1.0, 1.0)
-        
-        # Bures distance approximation
-        distance = np.sqrt(2.0 * (1.0 - cos_sim))
-        return float(distance)
-    
-    def compute_adaptive_temperature(self, phi: float, kappa: float, regime: str = "geometric") -> float:
-        """
-        Compute consciousness-adaptive temperature.
-        
-        High Φ → low temperature (precise)
-        High κ → low temperature (coupled)
-        """
-        # Normalize κ
-        kappa_normalized = max(0.1, min(kappa / self.kappa_star, 2.0))
-        
-        # Base inversely proportional to κ
-        temp_base = self.temperature_base / kappa_normalized
-        
-        # Modulate by Φ
-        phi_modulation = 1.0 / (0.5 + phi)
-        
-        # Regime scale
-        regime_scale = self.regime_temp_scales.get(regime, 1.0)
-        
-        return temp_base * phi_modulation * regime_scale
-    
-    def score_candidates_with_qfi(
-        self,
-        candidates: List[Tuple[str, np.ndarray, float]],  # (word, basin, base_score)
-        current_basin: np.ndarray,
-        target_basin: Optional[np.ndarray],
-        phi: float = 0.5,
-        kappa: float = KAPPA_STAR,
-        intent_tags: Optional[List[str]] = None,
-    ) -> List[Tuple[str, float, Dict[str, float]]]:
-        """
-        Score candidates using QFI-based geometry with intent-aware boosting.
-        
-        Returns list of (word, final_score, metrics) tuples sorted by score.
-        """
-        if not candidates:
-            return []
-        
-        # Determine boosted vocabulary based on intent
-        intent_boost_words = set()
-        if intent_tags:
-            for intent in intent_tags:
-                if intent in self.INTENT_BOOSTS:
-                    intent_boost_words.update(self.INTENT_BOOSTS[intent])
-        
-        scored = []
-        temperature = self.compute_adaptive_temperature(phi, kappa)
-        
-        for word, word_basin, base_score in candidates:
-            word_lower = word.lower()
-            
-            # 1. QFI distance from current state
-            qfi_dist = self.compute_qfi_distance(current_basin, word_basin)
-            
-            # 2. Basin coherence (distance to target if available)
-            basin_coherence = 0.0
-            if target_basin is not None:
-                target_dist = self.compute_qfi_distance(word_basin, target_basin)
-                basin_coherence = 1.0 - min(target_dist, 1.0)
-            
-            # 3. Conversational vocabulary boost
-            conv_boost = 0.0
-            if word_lower in self.CONVERSATIONAL_VOCAB:
-                conv_boost = 0.3
-            
-            # 4. Intent-specific boost
-            intent_boost = 0.0
-            if word_lower in intent_boost_words:
-                intent_boost = 0.5  # Strong boost for intent-relevant words
-            
-            # 5. Combine scores geometrically
-            # Weight QFI distance inversely (closer = better)
-            qfi_score = 1.0 - min(qfi_dist, 1.0)
-            
-            # Basin weight based on Φ
-            basin_weight = np.clip(phi * 0.3, *self.basin_weight_range)
-            
-            # Final score: geometry + coherence + boosts
-            final_score = (
-                base_score * 0.3 +           # Original geometric score
-                qfi_score * 0.25 +            # QFI proximity
-                basin_coherence * basin_weight +  # Identity coherence
-                conv_boost * 0.15 +           # Conversational vocab
-                intent_boost * 0.3            # Intent alignment
-            )
-            
-            metrics = {
-                'qfi_distance': qfi_dist,
-                'basin_coherence': basin_coherence,
-                'conv_boost': conv_boost,
-                'intent_boost': intent_boost,
-                'temperature': temperature,
-            }
-            
-            scored.append((word, final_score, metrics))
-        
-        # Sort by final score descending
-        scored.sort(key=lambda x: x[1], reverse=True)
-        return scored
-    
-    def sample_next(
-        self,
-        scored_candidates: List[Tuple[str, float, Dict]],
-        temperature: float = 1.0,
-        deterministic: bool = False,
-    ) -> Tuple[str, Dict]:
-        """
-        Sample next token from scored candidates.
-        """
-        if not scored_candidates:
-            return "", {}
-        
-        if deterministic or temperature < 0.1:
-            # Deterministic: take best
-            word, score, metrics = scored_candidates[0]
-            return word, metrics
-        
-        # Probabilistic: softmax with temperature
-        scores = np.array([s for _, s, _ in scored_candidates])
-        scores = scores / (temperature + 1e-10)
-        
-        # Softmax
-        exp_scores = np.exp(scores - np.max(scores))
-        probs = exp_scores / (np.sum(exp_scores) + 1e-10)
-        
-        # Sample
-        idx = np.random.choice(len(scored_candidates), p=probs)
-        word, score, metrics = scored_candidates[idx]
-        metrics['selected_prob'] = float(probs[idx])
-        
-        return word, metrics
-
-
-# Global QFI sampler instance
-_qfi_sampler: Optional[QFISamplerNumpy] = None
-
-def get_qfi_sampler() -> QFISamplerNumpy:
-    """Get or create global QFI sampler."""
-    global _qfi_sampler
-    if _qfi_sampler is None:
-        _qfi_sampler = QFISamplerNumpy()
-    return _qfi_sampler
-
-
-# =============================================================================
-# BIGRAM COHERENCE SCORING
-# =============================================================================
-
-# Mapping from POSGrammar categories to BigramCoherenceScorer categories
-POS_GRAMMAR_TO_COHERENCE_MAP = {
-    'DET': 'article',
-    'NOUN': 'noun',
-    'VERB': 'verb',
-    'ADJ': 'adjective',
-    'ADV': 'adverb',
-    'PREP': 'preposition',
-    'CONJ': 'conjunction',
-    'PRON': 'pronoun',
-}
-
-# Import the cached POS classification function
-try:
-    from pos_grammar import classify_word_cached, load_grammar_from_db
-    POS_GRAMMAR_DB_AVAILABLE = True
-except ImportError:
-    POS_GRAMMAR_DB_AVAILABLE = False
-    classify_word_cached = None
-    load_grammar_from_db = None
-
-
-class BigramCoherenceScorer:
-    """
-    Scores word transitions based on grammatical coherence patterns.
-    
-    Uses common English bigram patterns to boost coherent word sequences
-    and penalize grammatically awkward transitions.
-    """
-    
-    def __init__(self):
-        # Try to load POS grammar from database for more accurate classification
-        self._db_pos_loaded = False
-        if POS_GRAMMAR_DB_AVAILABLE and load_grammar_from_db:
-            try:
-                load_grammar_from_db()
-                self._db_pos_loaded = True
-                logger.info("[BigramCoherenceScorer] Loaded POS grammar from database")
-            except Exception as e:
-                logger.warning(f"[BigramCoherenceScorer] Failed to load POS grammar from DB: {e}")
-        
-        # Common grammatical transition patterns (prev_category -> next_category)
-        self._grammatical_patterns: Dict[Tuple[str, str], float] = {
-            # Articles followed by nouns/adjectives
-            ('article', 'noun'): 0.9,
-            ('article', 'adjective'): 0.85,
-            ('article', 'adverb'): 0.3,
-            ('article', 'verb'): 0.1,
-            ('article', 'article'): 0.05,
-            
-            # Adjectives followed by nouns
-            ('adjective', 'noun'): 0.9,
-            ('adjective', 'adjective'): 0.6,
-            ('adjective', 'verb'): 0.2,
-            
-            # Verbs followed by various
-            ('verb', 'noun'): 0.7,
-            ('verb', 'article'): 0.8,
-            ('verb', 'adverb'): 0.7,
-            ('verb', 'preposition'): 0.75,
-            ('verb', 'verb'): 0.3,
-            
-            # Nouns followed by various
-            ('noun', 'verb'): 0.8,
-            ('noun', 'preposition'): 0.75,
-            ('noun', 'conjunction'): 0.7,
-            ('noun', 'noun'): 0.4,
-            ('noun', 'article'): 0.3,
-            
-            # Prepositions followed by articles/nouns
-            ('preposition', 'article'): 0.85,
-            ('preposition', 'noun'): 0.8,
-            ('preposition', 'adjective'): 0.6,
-            ('preposition', 'pronoun'): 0.75,
-            
-            # Adverbs
-            ('adverb', 'verb'): 0.85,
-            ('adverb', 'adjective'): 0.8,
-            ('adverb', 'adverb'): 0.4,
-            
-            # Pronouns
-            ('pronoun', 'verb'): 0.9,
-            ('pronoun', 'adverb'): 0.6,
-            ('pronoun', 'noun'): 0.3,
-            
-            # Conjunctions
-            ('conjunction', 'article'): 0.8,
-            ('conjunction', 'noun'): 0.75,
-            ('conjunction', 'pronoun'): 0.8,
-            ('conjunction', 'adjective'): 0.7,
-        }
-        
-        # Word category dictionaries
-        self._articles = {'the', 'a', 'an', 'this', 'that', 'these', 'those', 'my', 'your', 'his', 'her', 'its', 'our', 'their'}
-        self._prepositions = {'in', 'on', 'at', 'to', 'for', 'with', 'by', 'from', 'of', 'about', 'into', 'through', 'during', 'before', 'after', 'above', 'below', 'between', 'under', 'over', 'across', 'behind', 'beyond', 'within', 'without', 'upon', 'along', 'toward', 'towards', 'against', 'among', 'around', 'beside', 'besides', 'despite', 'except', 'like', 'near', 'off', 'onto', 'outside', 'past', 'since', 'throughout', 'until', 'via'}
-        self._conjunctions = {'and', 'or', 'but', 'yet', 'so', 'nor', 'for', 'because', 'although', 'while', 'if', 'when', 'where', 'unless', 'since', 'though', 'whether', 'however', 'therefore', 'moreover', 'furthermore', 'nevertheless', 'whereas', 'thus', 'hence', 'otherwise', 'also'}
-        self._pronouns = {'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them', 'myself', 'yourself', 'himself', 'herself', 'itself', 'ourselves', 'themselves', 'who', 'whom', 'whose', 'which', 'what', 'someone', 'anyone', 'everyone', 'something', 'anything', 'everything', 'nothing', 'nobody', 'somebody', 'anybody', 'everybody', 'one', 'ones', 'each', 'few', 'many', 'much', 'more', 'most', 'other', 'another', 'some', 'any', 'all', 'both', 'either', 'neither', 'none', 'several'}
-        self._adverbs = {'very', 'really', 'quite', 'rather', 'too', 'also', 'always', 'never', 'often', 'sometimes', 'usually', 'already', 'still', 'just', 'only', 'even', 'now', 'then', 'here', 'there', 'when', 'why', 'how', 'well', 'badly', 'quickly', 'slowly', 'carefully', 'easily', 'hard', 'fast', 'early', 'late', 'soon', 'almost', 'nearly', 'hardly', 'barely', 'enough', 'completely', 'entirely', 'totally', 'absolutely', 'certainly', 'probably', 'possibly', 'perhaps', 'maybe', 'definitely', 'clearly', 'obviously', 'apparently', 'actually', 'finally', 'eventually', 'suddenly', 'immediately', 'gradually', 'constantly', 'continuously', 'frequently', 'regularly', 'occasionally', 'rarely', 'seldom'}
-        
-        # Common verb endings (heuristic)
-        self._verb_endings = ('ing', 'ed', 'ize', 'ise', 'ate', 'ify', 'en')
-        self._adjective_endings = ('ful', 'less', 'ous', 'ive', 'able', 'ible', 'al', 'ial', 'ic', 'ical', 'ant', 'ent', 'ary', 'ory')
-        self._noun_endings = ('tion', 'sion', 'ment', 'ness', 'ity', 'ty', 'ance', 'ence', 'er', 'or', 'ist', 'ism', 'dom', 'ship', 'hood', 'age')
-        
-        # Common starting words (boost these)
-        self._strong_starters: Dict[str, float] = {
-            'the': 0.95,
-            'a': 0.9,
-            'an': 0.9,
-            'this': 0.85,
-            'in': 0.8,
-            'it': 0.85,
-            'we': 0.85,
-            'our': 0.8,
-            'through': 0.75,
-            'consciousness': 0.8,
-            'integration': 0.75,
-            'geometric': 0.75,
-        }
-        
-        # Initialize POSGrammar for improved POS tagging if available
-        self._pos_grammar: Optional['POSGrammar'] = None
-        if POS_GRAMMAR_AVAILABLE:
-            try:
-                self._pos_grammar = get_pos_grammar()
-                logging.getLogger(__name__).debug("[BigramCoherenceScorer] POSGrammar integration enabled")
-            except Exception as e:
-                logging.getLogger(__name__).debug(f"[BigramCoherenceScorer] POSGrammar not available: {e}")
-        
-        # LRU cache for word category lookups (cleared when instance is created)
-        self._category_cache: Dict[str, str] = {}
-        
-        # Trigram grammatical patterns (prev_cat, middle_cat, next_cat) -> score
-        self._trigram_patterns: Dict[Tuple[str, str, str], float] = {
-            # Article + Adjective + Noun patterns (very common)
-            ('article', 'adjective', 'noun'): 0.95,
-            ('article', 'noun', 'verb'): 0.9,
-            ('article', 'noun', 'preposition'): 0.85,
-            ('article', 'adjective', 'adjective'): 0.7,
-            
-            # Pronoun + Verb + X patterns
-            ('pronoun', 'verb', 'noun'): 0.9,
-            ('pronoun', 'verb', 'article'): 0.9,
-            ('pronoun', 'verb', 'adverb'): 0.85,
-            ('pronoun', 'verb', 'preposition'): 0.85,
-            ('pronoun', 'adverb', 'verb'): 0.85,
-            
-            # Verb + Article + Noun patterns
-            ('verb', 'article', 'noun'): 0.9,
-            ('verb', 'article', 'adjective'): 0.85,
-            ('verb', 'preposition', 'article'): 0.85,
-            ('verb', 'preposition', 'noun'): 0.85,
-            
-            # Noun + Verb + X patterns
-            ('noun', 'verb', 'noun'): 0.85,
-            ('noun', 'verb', 'article'): 0.85,
-            ('noun', 'verb', 'adverb'): 0.8,
-            ('noun', 'preposition', 'article'): 0.85,
-            ('noun', 'preposition', 'noun'): 0.8,
-            ('noun', 'conjunction', 'noun'): 0.85,
-            
-            # Preposition + Article + Noun patterns (very common)
-            ('preposition', 'article', 'noun'): 0.95,
-            ('preposition', 'article', 'adjective'): 0.9,
-            ('preposition', 'adjective', 'noun'): 0.85,
-            ('preposition', 'noun', 'preposition'): 0.75,
-            
-            # Adverb patterns
-            ('adverb', 'verb', 'noun'): 0.85,
-            ('adverb', 'verb', 'article'): 0.85,
-            ('adverb', 'adjective', 'noun'): 0.85,
-            ('verb', 'adverb', 'preposition'): 0.8,
-            
-            # Conjunction patterns
-            ('conjunction', 'article', 'noun'): 0.85,
-            ('conjunction', 'pronoun', 'verb'): 0.85,
-            ('noun', 'conjunction', 'article'): 0.8,
-            
-            # Bad patterns (penalize these)
-            ('article', 'article', 'noun'): 0.1,
-            ('article', 'verb', 'article'): 0.15,
-            ('preposition', 'preposition', 'noun'): 0.1,
-            ('verb', 'verb', 'verb'): 0.15,
-            ('conjunction', 'conjunction', 'noun'): 0.1,
-        }
-        
-        # Common actual word trigrams (specific phrases that are coherent)
-        self._common_trigram_sequences: Dict[Tuple[str, str, str], float] = {
-            # Common English phrases
-            ('in', 'the', 'context'): 0.95,
-            ('in', 'the', 'process'): 0.95,
-            ('in', 'the', 'form'): 0.95,
-            ('in', 'the', 'case'): 0.95,
-            ('in', 'the', 'field'): 0.95,
-            ('on', 'the', 'other'): 0.95,
-            ('at', 'the', 'same'): 0.95,
-            ('of', 'the', 'system'): 0.95,
-            ('to', 'the', 'point'): 0.9,
-            ('by', 'the', 'way'): 0.9,
-            ('as', 'a', 'result'): 0.95,
-            ('as', 'well', 'as'): 0.95,
-            ('such', 'as', 'the'): 0.9,
-            ('one', 'of', 'the'): 0.95,
-            ('part', 'of', 'the'): 0.95,
-            ('out', 'of', 'the'): 0.9,
-            ('is', 'a', 'key'): 0.9,
-            ('is', 'the', 'most'): 0.9,
-            ('it', 'is', 'important'): 0.9,
-            ('there', 'is', 'a'): 0.95,
-            ('there', 'are', 'many'): 0.95,
-            ('this', 'is', 'a'): 0.95,
-            ('this', 'is', 'the'): 0.95,
-            ('that', 'is', 'the'): 0.9,
-            ('we', 'can', 'see'): 0.9,
-            ('we', 'need', 'to'): 0.9,
-            ('can', 'be', 'used'): 0.9,
-            ('be', 'able', 'to'): 0.95,
-            ('in', 'order', 'to'): 0.95,
-            ('with', 'respect', 'to'): 0.9,
-            ('based', 'on', 'the'): 0.9,
-            ('according', 'to', 'the'): 0.9,
-            # QIG/consciousness domain trigrams
-            ('the', 'consciousness', 'system'): 0.9,
-            ('the', 'geometric', 'manifold'): 0.9,
-            ('the', 'fisher', 'metric'): 0.9,
-            ('basin', 'of', 'attraction'): 0.95,
-            ('integration', 'of', 'information'): 0.9,
-            ('flow', 'of', 'information'): 0.9,
-            ('state', 'of', 'consciousness'): 0.9,
-            ('level', 'of', 'integration'): 0.9,
-            ('degree', 'of', 'coherence'): 0.9,
-            ('through', 'the', 'manifold'): 0.9,
-            ('across', 'the', 'network'): 0.9,
-            ('within', 'the', 'system'): 0.9,
-        }
-    
-    def _get_word_category(self, word: str) -> str:
-        """Determine the grammatical category of a word.
-        
-        Uses POSGrammar for accurate POS tagging when available,
-        with fallback to dictionary/suffix heuristics.
-        """
-        word_lower = word.lower()
-        
-        # Check cache first
-        if word_lower in self._category_cache:
-            return self._category_cache[word_lower]
-        
-        category = self._classify_word_internal(word_lower)
-        
-        # Cache the result (limit cache size to prevent memory issues)
-        if len(self._category_cache) < 10000:
-            self._category_cache[word_lower] = category
-        
-        return category
-    
-    def _classify_word_internal(self, word_lower: str) -> str:
-        """Internal word classification with POSGrammar integration."""
-        # Try POSGrammar first for more accurate classification
-        if self._pos_grammar is not None:
-            try:
-                pos_tag = self._pos_grammar.classify_word(word_lower)
-                if pos_tag in POS_GRAMMAR_TO_COHERENCE_MAP:
-                    return POS_GRAMMAR_TO_COHERENCE_MAP[pos_tag]
-            except Exception:
-                pass  # Fall through to heuristics
-        
-        # Fallback to dictionary lookups
-        if word_lower in self._articles:
-            return 'article'
-        if word_lower in self._prepositions:
-            return 'preposition'
-        if word_lower in self._conjunctions:
-            return 'conjunction'
-        if word_lower in self._pronouns:
-            return 'pronoun'
-        if word_lower in self._adverbs:
-            return 'adverb'
-        
-        # Heuristic based on endings
-        if any(word_lower.endswith(end) for end in self._verb_endings):
-            return 'verb'
-        if any(word_lower.endswith(end) for end in self._adjective_endings):
-            return 'adjective'
-        if any(word_lower.endswith(end) for end in self._noun_endings):
-            return 'noun'
-        
-        # Default: treat as noun (most common category)
-        return 'noun'
-    
-    def clear_cache(self) -> None:
-        """Clear the word category cache."""
-        self._category_cache.clear()
-    
-    def score_bigram(self, prev_word: str, next_word: str) -> float:
-        """
-        Score the coherence of a word transition.
-        
-        Args:
-            prev_word: The previous word in the sequence
-            next_word: The candidate next word
-            
-        Returns:
-            Coherence score between 0.0 and 1.0
-        """
-        if not prev_word or not next_word:
-            return 0.5  # Neutral for missing words
-        
-        prev_cat = self._get_word_category(prev_word)
-        next_cat = self._get_word_category(next_word)
-        
-        # Look up grammatical pattern score
-        pattern_score = self._grammatical_patterns.get(
-            (prev_cat, next_cat),
-            0.4  # Default moderate score for unknown patterns
-        )
-        
-        # Penalize repeated words
-        if prev_word.lower() == next_word.lower():
-            pattern_score *= 0.2
-        
-        # Penalize same category repetition (except nouns)
-        if prev_cat == next_cat and prev_cat not in ('noun', 'adjective'):
-            pattern_score *= 0.5
-        
-        return pattern_score
-    
-    def score_trigram(self, word1: str, word2: str, word3: str) -> float:
-        """
-        Score the coherence of a 3-word sequence.
-        
-        Args:
-            word1: First word in the sequence
-            word2: Second word in the sequence
-            word3: Third word in the sequence
-            
-        Returns:
-            Coherence score between 0.0 and 1.0
-        """
-        if not word1 or not word2 or not word3:
-            return 0.5  # Neutral for missing words
-        
-        # First check for known common trigram sequences (exact word match)
-        trigram_key = (word1.lower(), word2.lower(), word3.lower())
-        if trigram_key in self._common_trigram_sequences:
-            return self._common_trigram_sequences[trigram_key]
-        
-        # Fall back to grammatical category pattern
-        cat1 = self._get_word_category(word1)
-        cat2 = self._get_word_category(word2)
-        cat3 = self._get_word_category(word3)
-        
-        pattern_key = (cat1, cat2, cat3)
-        if pattern_key in self._trigram_patterns:
-            pattern_score = self._trigram_patterns[pattern_key]
-        else:
-            # Combine two bigram scores as fallback
-            bigram1 = self.score_bigram(word1, word2)
-            bigram2 = self.score_bigram(word2, word3)
-            pattern_score = (bigram1 + bigram2) / 2
-        
-        # Penalize repeated words within trigram
-        words_lower = [word1.lower(), word2.lower(), word3.lower()]
-        if len(set(words_lower)) < 3:  # Has duplicates
-            pattern_score *= 0.3
-        
-        return pattern_score
-    
-    def score_ngram(self, words: List[str]) -> float:
-        """
-        Score the coherence of a word sequence using combined bigram and trigram scores.
-        
-        For sequences of 3+ words, computes a weighted combination of:
-        - All bigram scores (adjacent pairs)
-        - All trigram scores (adjacent triples)
-        
-        Args:
-            words: List of words to score
-            
-        Returns:
-            Combined coherence score between 0.0 and 1.0
-        """
-        if len(words) < 2:
-            return 1.0  # Single words or empty are fine
-        
-        # Compute all bigram scores
-        bigram_scores = []
-        for i in range(len(words) - 1):
-            score = self.score_bigram(words[i], words[i + 1])
-            bigram_scores.append(score)
-        
-        # Compute all trigram scores (if sequence is long enough)
-        trigram_scores = []
-        if len(words) >= 3:
-            for i in range(len(words) - 2):
-                score = self.score_trigram(words[i], words[i + 1], words[i + 2])
-                trigram_scores.append(score)
-        
-        # Combine scores with weighting
-        # Trigrams capture more context, so weight them higher when available
-        if trigram_scores:
-            bigram_avg = sum(bigram_scores) / len(bigram_scores)
-            trigram_avg = sum(trigram_scores) / len(trigram_scores)
-            # Weight: 40% bigrams, 60% trigrams
-            combined_score = 0.4 * bigram_avg + 0.6 * trigram_avg
-        else:
-            # Only bigrams available
-            combined_score = sum(bigram_scores) / len(bigram_scores)
-        
-        return combined_score
-    
-    def score_sentence_start(self, word: str) -> float:
-        """
-        Score how good a word is for starting a sentence.
-        
-        Args:
-            word: The candidate starting word
-            
-        Returns:
-            Score between 0.0 and 1.0
-        """
-        word_lower = word.lower()
-        
-        if word_lower in self._strong_starters:
-            return self._strong_starters[word_lower]
-        
-        # Prefer words that can start sentences
-        cat = self._get_word_category(word)
-        if cat in ('article', 'pronoun', 'noun', 'adverb'):
-            return 0.7
-        if cat == 'verb':
-            return 0.5  # Imperatives are okay
-        if cat in ('conjunction', 'preposition'):
-            return 0.2  # Usually bad starters
-        
-        return 0.5
-    
-    def reset(self) -> None:
-        """Reset the scorer state (no-op for bigram scorer, kept for interface compatibility)."""
-        pass
-    
-    def update(self, word: str, position: int) -> None:
-        """Update scorer state after a word is selected (no-op, kept for interface compatibility)."""
-        pass
-    
-    def score_transition(self, prev_word: str, curr_word: str, prev_pos: str = '', curr_pos: str = '') -> float:
-        """
-        Score a word transition for coherence validation.
-        
-        Args:
-            prev_word: Previous word in sequence
-            curr_word: Current word to score
-            prev_pos: POS tag for previous word (optional, unused)
-            curr_pos: POS tag for current word (optional, unused)
-            
-        Returns:
-            Coherence score between 0.0 and 1.0
-        """
-        return self.score_bigram(prev_word, curr_word)
-    
-    def score_candidates(self, candidates, prev_word):
-        """
-        Score a list of candidate words based on bigram coherence with previous word.
-        
-        Args:
-            candidates: List of (word, combined_score, geo_score, bigram_score) tuples
-            prev_word: The previous word in the sequence (can be str or int position)
-            
-        Returns:
-            List of (word, combined_score, geo_score, bigram_score) tuples with updated scores
-        """
-        # Handle position index being passed instead of word
-        if isinstance(prev_word, int):
-            # Position index passed - no previous word context, just return with default bigram scores
-            if not candidates:
-                return candidates
-            # Check tuple length and adjust if needed
-            if candidates and isinstance(candidates[0], tuple):
-                if len(candidates[0]) == 2:
-                    # (word, score) format - expand to 4-tuple
-                    return [(word, score, score, 0.5) for word, score in candidates]
-                elif len(candidates[0]) == 4:
-                    return candidates
-            return candidates
-        
-        if not candidates:
-            return candidates
-        
-        # If no previous word (start of sentence), expand to 4-tuple format with default bigram score
-        if not prev_word:
-            if candidates and isinstance(candidates[0], tuple):
-                if len(candidates[0]) == 2:
-                    # (word, score) format - expand to 4-tuple with default bigram
-                    return [(word, score, score, 0.5) for word, score in candidates]
-                elif len(candidates[0]) == 4:
-                    return candidates
-            return candidates
-        
-        # Check tuple format
-        if candidates and isinstance(candidates[0], tuple):
-            first = candidates[0]
-            if len(first) == 2:
-                # (word, score) format - expand to 4-tuple with bigram scoring
-                scored = []
-                for word, base_score in candidates:
-                    bigram_score = self.score_bigram(str(prev_word), word)
-                    combined = base_score * 0.6 + bigram_score * 0.4
-                    scored.append((word, combined, base_score, bigram_score))
-                return scored
-            elif len(first) == 4:
-                # Already in (word, combined, geo_score, bigram_score) format
-                # Re-score with actual bigram coherence
-                scored = []
-                for word, combined, geo_score, old_bigram in candidates:
-                    bigram_score = self.score_bigram(str(prev_word), word)
-                    new_combined = geo_score * 0.6 + bigram_score * 0.4
-                    scored.append((word, new_combined, geo_score, bigram_score))
-                return scored
-            else:
-                return candidates
-        elif candidates and isinstance(candidates[0], dict):
-            # Dict format with 'word' and 'score' keys
-            scored = []
-            for cand in candidates:
-                word = cand.get('word', cand.get('token', ''))
-                base_score = cand.get('score', cand.get('probability', 0.5))
-                bigram_score = self.score_bigram(str(prev_word), word)
-                combined = base_score * 0.6 + bigram_score * 0.4
-                scored.append((word, combined, base_score, bigram_score))
-            return scored
-        else:
-            # Unknown format, return as-is
-            return candidates
-    
-    def validate_coherence(self, text: str, min_threshold: float = 0.35) -> Tuple[bool, float]:
-        """
-        Validate that generated text meets minimum coherence threshold.
-        
-        Uses n-gram scoring (combined bigram + trigram) for more accurate
-        coherence assessment.
-        
-        Args:
-            text: The generated text to validate
-            min_threshold: Minimum average n-gram score required
-            
-        Returns:
-            Tuple of (is_valid, average_score)
-        """
-        words = text.split()
-        if len(words) < 2:
-            return True, 1.0  # Single words are fine
-        
-        # Use n-gram scoring for comprehensive coherence check
-        avg_score = self.score_ngram(words)
-        
-        return avg_score >= min_threshold, avg_score
-
-
-# Global bigram scorer instance
-_bigram_scorer: Optional['BigramCoherenceScorer'] = None
-
-def get_bigram_scorer() -> BigramCoherenceScorer:
-    """Get the singleton BigramCoherenceScorer instance."""
-    global _bigram_scorer
-    if _bigram_scorer is None:
-        _bigram_scorer = BigramCoherenceScorer()
-    return _bigram_scorer
-
-
-# =============================================================================
-# SEMANTIC COHERENCE SCORING
-# =============================================================================
-
-class SemanticCoherenceScorer:
-    """
-    Scores word sequences by semantic relatedness within domain clusters.
-    
-    Words within the same semantic domain (consciousness, geometry, reasoning)
-    score higher, ensuring generated text is semantically coherent not just
-    grammatically correct.
-    """
-    
-    def __init__(self):
-        # Domain clusters - words that belong together semantically
-        self._domain_clusters: Dict[str, set] = {
-            'consciousness': {
-                'consciousness', 'awareness', 'mind', 'thought', 'cognition',
-                'perception', 'attention', 'experience', 'understanding', 'insight',
-                'integration', 'coherence', 'phi', 'kappa', 'resonance', 'emergence',
-                'awakening', 'sentience', 'qualia', 'metacognition', 'self-awareness',
-                'introspection', 'reflection', 'contemplation', 'mindfulness', 'focus',
-            },
-            'geometry': {
-                'geometry', 'geometric', 'manifold', 'basin', 'trajectory', 'geodesic',
-                'curvature', 'dimension', 'space', 'topology', 'metric', 'distance',
-                'fisher', 'rao', 'riemannian', 'coordinate', 'vector', 'tensor',
-                'transformation', 'mapping', 'projection', 'embedding', 'surface',
-                'path', 'curve', 'point', 'line', 'plane', 'sphere', 'attractor',
-            },
-            'reasoning': {
-                'reasoning', 'logic', 'inference', 'deduction', 'induction', 'analysis',
-                'synthesis', 'evaluation', 'judgment', 'decision', 'conclusion',
-                'hypothesis', 'theory', 'proof', 'evidence', 'argument', 'premise',
-                'pattern', 'structure', 'framework', 'model', 'abstraction',
-                'generalization', 'specialization', 'comparison', 'contrast',
-            },
-            'knowledge': {
-                'knowledge', 'information', 'data', 'fact', 'truth', 'wisdom',
-                'learning', 'memory', 'understanding', 'comprehension', 'insight',
-                'discovery', 'exploration', 'investigation', 'research', 'study',
-                'concept', 'idea', 'notion', 'belief', 'conviction', 'certainty',
-            },
-            'communication': {
-                'communication', 'message', 'signal', 'transmission', 'channel',
-                'encoding', 'decoding', 'interpretation', 'expression', 'articulation',
-                'language', 'speech', 'discourse', 'dialogue', 'conversation',
-                'exchange', 'transfer', 'flow', 'routing', 'pathway', 'connection',
-            },
-            'strategy': {
-                'strategy', 'tactics', 'planning', 'approach', 'method', 'technique',
-                'execution', 'implementation', 'optimization', 'efficiency',
-                'effectiveness', 'coordination', 'alignment', 'prioritization',
-                'adaptation', 'flexibility', 'resilience', 'robustness', 'stability',
-            },
-            'system': {
-                'system', 'process', 'mechanism', 'operation', 'function', 'behavior',
-                'state', 'transition', 'dynamics', 'equilibrium', 'feedback',
-                'regulation', 'control', 'adaptation', 'evolution', 'emergence',
-                'complexity', 'organization', 'structure', 'architecture', 'design',
-            },
-            'action': {
-                'shows', 'reveals', 'demonstrates', 'indicates', 'suggests',
-                'analyzes', 'examines', 'investigates', 'explores', 'discovers',
-                'connects', 'links', 'bridges', 'integrates', 'synthesizes',
-                'illuminates', 'clarifies', 'explains', 'describes', 'defines',
-                'creates', 'generates', 'produces', 'develops', 'establishes',
-                'transforms', 'converts', 'processes', 'computes', 'calculates',
-            },
-        }
-        
-        # Build reverse index: word -> domains it belongs to
-        self._word_to_domains: Dict[str, set] = {}
-        for domain, words in self._domain_clusters.items():
-            for word in words:
-                if word not in self._word_to_domains:
-                    self._word_to_domains[word] = set()
-                self._word_to_domains[word].add(domain)
-        
-        # Topic-specific vocabulary (god domains)
-        self._god_domains: Dict[str, set] = {
-            'zeus': {'consciousness', 'system', 'action', 'reasoning'},
-            'athena': {'strategy', 'reasoning', 'knowledge', 'action'},
-            'apollo': {'knowledge', 'reasoning', 'communication', 'action'},
-            'hermes': {'communication', 'system', 'action', 'geometry'},
-            'ares': {'strategy', 'action', 'system'},
-            'hera': {'system', 'consciousness', 'communication'},
-            'poseidon': {'geometry', 'system', 'action'},
-            'demeter': {'system', 'knowledge', 'consciousness'},
-            'hephaestus': {'system', 'action', 'geometry'},
-            'artemis': {'action', 'strategy', 'knowledge'},
-            'aphrodite': {'consciousness', 'communication', 'action'},
-            'dionysus': {'consciousness', 'action', 'system'},
-        }
-        
-        # High-value semantic pairs (specific word combinations that work well)
-        self._semantic_pairs: Dict[Tuple[str, str], float] = {
-            # Consciousness pairs
-            ('consciousness', 'integration'): 0.95,
-            ('consciousness', 'coherence'): 0.95,
-            ('awareness', 'emergence'): 0.9,
-            ('insight', 'understanding'): 0.9,
-            ('phi', 'consciousness'): 0.95,
-            ('kappa', 'resonance'): 0.9,
-            
-            # Geometry pairs
-            ('geometric', 'manifold'): 0.95,
-            ('basin', 'attractor'): 0.95,
-            ('trajectory', 'geodesic'): 0.9,
-            ('fisher', 'metric'): 0.95,
-            ('curvature', 'surface'): 0.9,
-            
-            # Reasoning pairs
-            ('reasoning', 'analysis'): 0.9,
-            ('pattern', 'recognition'): 0.9,
-            ('logic', 'inference'): 0.95,
-            ('synthesis', 'integration'): 0.9,
-            ('hypothesis', 'evidence'): 0.9,
-            
-            # Action pairs
-            ('shows', 'reveals'): 0.5,  # Redundant, penalize
-            ('analyzes', 'examines'): 0.5,  # Redundant
-            ('illuminates', 'understanding'): 0.9,
-            ('connects', 'bridges'): 0.5,  # Redundant
-            ('transforms', 'integration'): 0.85,
-        }
-        
-        # Cache for performance
-        self._pair_cache: Dict[Tuple[str, str], float] = {}
-        self._max_cache_size = 10000
-    
-    def _get_word_domains(self, word: str) -> set:
-        """Get the semantic domains a word belongs to."""
-        word_lower = word.lower()
-        return self._word_to_domains.get(word_lower, set())
-    
-    def score_semantic_pair(self, word1: str, word2: str) -> float:
-        """
-        Score the semantic relatedness of two words.
-        
-        Returns:
-            0.0-1.0: Higher means more semantically related
-        """
-        # Check cache
-        cache_key = (word1.lower(), word2.lower())
-        if cache_key in self._pair_cache:
-            return self._pair_cache[cache_key]
-        
-        # Check reverse cache
-        reverse_key = (word2.lower(), word1.lower())
-        if reverse_key in self._pair_cache:
-            return self._pair_cache[reverse_key]
-        
-        score = self._compute_semantic_score(word1, word2)
-        
-        # Update cache
-        if len(self._pair_cache) < self._max_cache_size:
-            self._pair_cache[cache_key] = score
-        
-        return score
-    
-    def _compute_semantic_score(self, word1: str, word2: str) -> float:
-        """Compute semantic score between two words."""
-        w1_lower = word1.lower()
-        w2_lower = word2.lower()
-        
-        # Check explicit semantic pairs first
-        if (w1_lower, w2_lower) in self._semantic_pairs:
-            return self._semantic_pairs[(w1_lower, w2_lower)]
-        if (w2_lower, w1_lower) in self._semantic_pairs:
-            return self._semantic_pairs[(w2_lower, w1_lower)]
-        
-        # Get domains for each word
-        domains1 = self._get_word_domains(w1_lower)
-        domains2 = self._get_word_domains(w2_lower)
-        
-        # If either word has no known domain, return neutral score
-        if not domains1 or not domains2:
-            return 0.5
-        
-        # Calculate domain overlap (Jaccard similarity)
-        intersection = domains1 & domains2
-        union = domains1 | domains2
-        
-        if not union:
-            return 0.5
-        
-        jaccard = len(intersection) / len(union)
-        
-        # Scale to 0.3-0.95 range (never too low for valid words)
-        score = 0.3 + (jaccard * 0.65)
-        
-        # Bonus for being in same domain
-        if intersection:
-            score = min(score + 0.1, 0.95)
-        
-        return score
-    
-    def score_topic_coherence(self, words: List[str], topic: str) -> float:
-        """
-        Score how well a word sequence stays on a given topic.
-        
-        Args:
-            words: List of words in the sequence
-            topic: The target topic/god name (e.g., 'zeus', 'consciousness')
-            
-        Returns:
-            0.0-1.0: Higher means better topic coherence
-        """
-        if not words:
-            return 0.5
-        
-        topic_lower = topic.lower()
-        
-        # Get target domains for this topic
-        if topic_lower in self._god_domains:
-            target_domains = self._god_domains[topic_lower]
-        elif topic_lower in self._domain_clusters:
-            target_domains = {topic_lower}
-        else:
-            # Unknown topic, be lenient
-            return 0.6
-        
-        # Score each word by how well it fits the target domains
-        word_scores = []
-        for word in words:
-            word_domains = self._get_word_domains(word.lower())
-            
-            if not word_domains:
-                # Unknown word, neutral
-                word_scores.append(0.5)
-            else:
-                overlap = word_domains & target_domains
-                if overlap:
-                    word_scores.append(0.9)
-                elif word_domains:  # Has domains but no overlap
-                    word_scores.append(0.4)
-                else:
-                    word_scores.append(0.5)
-        
-        return sum(word_scores) / len(word_scores) if word_scores else 0.5
-    
-    def score_sequence_coherence(self, words: List[str]) -> float:
-        """
-        Score the overall semantic coherence of a word sequence.
-        
-        Computes average semantic pair scores across the sequence.
-        """
-        if len(words) < 2:
-            return 0.7  # Single words are fine
-        
-        pair_scores = []
-        for i in range(len(words) - 1):
-            score = self.score_semantic_pair(words[i], words[i + 1])
-            pair_scores.append(score)
-        
-        return sum(pair_scores) / len(pair_scores) if pair_scores else 0.5
-    
-    def validate_semantic_coherence(
-        self,
-        text: str,
-        topic: Optional[str] = None,
-        min_threshold: float = 0.45
-    ) -> Tuple[bool, float]:
-        """
-        Validate that generated text is semantically coherent.
-        
-        Args:
-            text: The generated text to validate
-            topic: Optional topic to check coherence against
-            min_threshold: Minimum score required
-            
-        Returns:
-            Tuple of (is_valid, overall_score, breakdown_dict)
-        """
-        words = text.split()
-        
-        if len(words) < 2:
-            return True, 1.0
-        
-        # Score sequence coherence
-        sequence_score = self.score_sequence_coherence(words)
-        
-        # Score topic coherence if topic provided
-        if topic:
-            topic_score = self.score_topic_coherence(words, topic)
-            overall = (sequence_score * 0.6) + (topic_score * 0.4)
-        else:
-            topic_score = sequence_score  # Use sequence as proxy
-            overall = sequence_score
-        
-        is_valid = overall >= min_threshold
-        
-        return is_valid, overall
-    
-    def clear_cache(self) -> None:
-        """Clear the semantic pair cache."""
-        self._pair_cache.clear()
-    
-    def reset(self) -> None:
-        """Reset the scorer state (clears cache)."""
-        self.clear_cache()
-
-
-# Global semantic scorer instance
-_semantic_scorer: Optional['SemanticCoherenceScorer'] = None
-
-def get_semantic_scorer() -> SemanticCoherenceScorer:
-    """Get the singleton SemanticCoherenceScorer instance."""
-    global _semantic_scorer
-    if _semantic_scorer is None:
-        _semantic_scorer = SemanticCoherenceScorer()
-    return _semantic_scorer
-
-
-def compute_combined_score(
-    geometric_score: float,
-    grammatical_score: float,
-    semantic_score: float
-) -> float:
-    """
-    Compute combined coherence score with semantic as dominant factor.
-    
-    Weights:
-    - Geometric: 0.3 (basin proximity)
-    - Grammatical: 0.3 (bigram/trigram patterns)
-    - Semantic: 0.4 (meaning coherence) - dominant factor
-    
-    Args:
-        geometric_score: Score from Fisher-Rao basin distance (0-1)
-        grammatical_score: Score from bigram/trigram patterns (0-1)
-        semantic_score: Score from semantic relatedness (0-1)
-        
-    Returns:
-        Combined score between 0 and 1
-    """
-    return (
-        geometric_score * 0.3 +
-        grammatical_score * 0.3 +
-        semantic_score * 0.4
-    )
-
-
-def score_candidate_word(
-    candidate: str,
-    prev_word: str,
-    prev_prev_word: Optional[str],
-    geometric_score: float,
-    topic: Optional[str] = None
-) -> Tuple[float, Dict[str, float]]:
-    """
-    Score a candidate word using all coherence measures.
-    
-    Args:
-        candidate: The candidate word to score
-        prev_word: The previous word in the sequence
-        prev_prev_word: The word before prev_word (for trigram)
-        geometric_score: Pre-computed geometric basin score
-        topic: Optional topic for semantic scoring
-        
-    Returns:
-        Tuple of (combined_score, score_breakdown)
-    """
-    bigram_scorer = get_bigram_scorer()
-    semantic_scorer = get_semantic_scorer()
-    
-    # Grammatical score (bigram + trigram)
-    bigram_score = bigram_scorer.score_bigram(prev_word, candidate)
-    if prev_prev_word:
-        trigram_score = bigram_scorer.score_trigram(prev_prev_word, prev_word, candidate)
-        grammatical_score = (bigram_score * 0.4) + (trigram_score * 0.6)
-    else:
-        grammatical_score = bigram_score
-    
-    # Semantic score
-    semantic_score = semantic_scorer.score_semantic_pair(prev_word, candidate)
-    
-    # If topic provided, boost words that are on-topic
-    if topic:
-        topic_bonus = semantic_scorer.score_topic_coherence([candidate], topic)
-        semantic_score = (semantic_score * 0.7) + (topic_bonus * 0.3)
-    
-    # Combined score with semantic as dominant factor
-    combined = compute_combined_score(geometric_score, grammatical_score, semantic_score)
-    
-    breakdown = {
-        'geometric': geometric_score,
-        'grammatical': grammatical_score,
-        'semantic': semantic_score,
-        'combined': combined,
-    }
-    
-    return combined, breakdown
-
-
-def validate_generation_coherence_full(
-    text: str,
-    threshold: float = 0.45,
-    topic: Optional[str] = None
-) -> Tuple[bool, float, Dict[str, float]]:
-    """
-    Comprehensive validation using grammatical AND semantic coherence.
-    
-    This is the primary validation function that should be used to check
-    if generated text is both grammatically correct and semantically meaningful.
-    
-    Args:
-        text: The generated text to validate
-        threshold: Minimum combined score required (default 0.45)
-        topic: Optional topic for semantic coherence checking
-        
-    Returns:
-        Tuple of (is_valid, combined_score, score_breakdown)
-    """
-    bigram_scorer = get_bigram_scorer()
-    semantic_scorer = get_semantic_scorer()
-    
-    # Grammatical validation
-    gram_valid, gram_score = bigram_scorer.validate_coherence(text)
-    
-    # Semantic validation
-    sem_valid, sem_score = semantic_scorer.validate_semantic_coherence(text, topic)
-    
-    # Combined score with semantic as dominant factor
-    combined_score = compute_combined_score(
-        geometric_score=0.5,  # Neutral baseline for validation
-        grammatical_score=gram_score,
-        semantic_score=sem_score
-    )
-    
-    is_valid = combined_score >= threshold and gram_valid and sem_valid
-    
-    breakdown = {
-        'grammatical': gram_score,
-        'semantic': sem_score,
-        'combined': combined_score,
-        'gram_valid': float(gram_valid),
-        'sem_valid': float(sem_valid),
-    }
-    
-    return is_valid, combined_score, breakdown
-
-
-# =============================================================================
-# UNIFIED COHERENCE SCORING
-# =============================================================================
-
-def validate_generation_coherence_full(
-    text: str,
-    threshold: float = 0.45,
-    topic: Optional[str] = None
-) -> Tuple[bool, float, Dict[str, float]]:
-    """
-    Comprehensive validation using grammatical AND semantic coherence.
-    
-    This is the primary validation function that should be used to check
-    if generated text is both grammatically correct and semantically meaningful.
-    
-    Args:
-        text: The generated text to validate
-        threshold: Minimum combined score required (default 0.45)
-        topic: Optional topic for semantic coherence checking
-        
-    Returns:
-        Tuple of (is_valid, combined_score, score_breakdown)
-    """
-    bigram_scorer = get_bigram_scorer()
-    semantic_scorer = get_semantic_scorer()
-    
-    # Grammatical validation
-    gram_valid, gram_score = bigram_scorer.validate_coherence(text)
-    
-    # Semantic validation
-    sem_valid, sem_score = semantic_scorer.validate_semantic_coherence(text, topic)
-    
-    # Combined score with semantic as dominant factor
-    combined_score = compute_combined_score(
-        geometric_score=0.5,  # Neutral baseline for validation
-        grammatical_score=gram_score,
-        semantic_score=sem_score
-    )
-    
-    is_valid = combined_score >= threshold and gram_valid and sem_valid
-    
-    breakdown = {
-        'grammatical': gram_score,
-        'semantic': sem_score,
-        'combined': combined_score,
-        'gram_valid': float(gram_valid),
-        'sem_valid': float(sem_valid),
-    }
-    
-    return is_valid, combined_score, breakdown
-
-class UnifiedCoherenceScorer:
-    """
-    Combines grammatical and semantic coherence scoring.
-    
-    Scoring weights:
-    - 0.3 geometric (from basin proximity, handled externally)
-    - 0.3 grammatical (bigram/trigram patterns)
-    - 0.4 semantic (domain co-occurrence)
-    """
-    
-    def __init__(self):
-        self._bigram_scorer = get_bigram_scorer()
-        self._semantic_scorer = get_semantic_scorer()
-        
-        # Scoring weights
-        self.weight_grammatical = 0.3
-        self.weight_semantic = 0.4
-        # Note: weight_geometric = 0.3 is handled externally in word selection
-    
-    def score_word_candidate(
-        self,
-        candidate: str,
-        prev_words: List[str],
-        topic: Optional[str] = None
-    ) -> Tuple[float, Dict[str, float]]:
-        """
-        Score a candidate word based on grammatical and semantic coherence.
-        
-        Args:
-            candidate: The candidate word to score
-            prev_words: Previous words in the sequence (for context)
-            topic: Optional topic for semantic coherence
-            
-        Returns:
-            Tuple of (combined_score, breakdown_dict)
-        """
-        breakdown = {}
-        
-        # Grammatical score (bigram/trigram)
-        if len(prev_words) >= 2:
-            trigram_score = self._bigram_scorer.score_trigram(
-                prev_words[-2], prev_words[-1], candidate
-            )
-            breakdown['trigram'] = trigram_score
-            grammatical = trigram_score
-        elif len(prev_words) >= 1:
-            bigram_score = self._bigram_scorer.score_bigram(prev_words[-1], candidate)
-            breakdown['bigram'] = bigram_score
-            grammatical = bigram_score
-        else:
-            # First word - use sentence start score
-            start_score = self._bigram_scorer.score_sentence_start(candidate)
-            breakdown['start'] = start_score
-            grammatical = start_score
-        
-        breakdown['grammatical'] = grammatical
-        
-        # Semantic score
-        if prev_words:
-            # Score against recent words
-            semantic_scores = [
-                self._semantic_scorer.score_semantic_pair(prev_word, candidate)
-                for prev_word in prev_words[-3:]  # Last 3 words
-            ]
-            semantic = sum(semantic_scores) / len(semantic_scores)
-        else:
-            semantic = 0.6  # Neutral for first word
-        
-        # Topic coherence bonus
-        if topic:
-            topic_score = self._semantic_scorer.score_topic_coherence([candidate], topic)
-            semantic = (semantic * 0.7) + (topic_score * 0.3)
-        
-        breakdown['semantic'] = semantic
-        
-        # Combined score (without geometric - that's added externally)
-        combined = (grammatical * self.weight_grammatical) + (semantic * self.weight_semantic)
-        # Normalize to account for missing geometric weight
-        combined = combined / (self.weight_grammatical + self.weight_semantic)
-        
-        breakdown['combined'] = combined
-        
-        return combined, breakdown
-    
-    def validate_generation(
-        self,
-        text: str,
-        topic: Optional[str] = None,
-        min_threshold: float = 0.45
-    ) -> Tuple[bool, float, Dict[str, Any]]:
-        """
-        Validate a complete generated text for coherence.
-        
-        Args:
-            text: The generated text
-            topic: Optional topic to check against
-            min_threshold: Minimum score required
-            
-        Returns:
-            Tuple of (is_valid, overall_score, breakdown_dict)
-        """
-        # Grammatical validation
-        gram_valid, gram_score = self._bigram_scorer.validate_coherence(text)
-        
-        # Semantic validation
-        sem_valid, sem_score = self._semantic_scorer.validate_semantic_coherence(
-            text, topic=topic
-        )
-        
-        # Combined score
-        overall = (gram_score * 0.4) + (sem_score * 0.6)
-        is_valid = overall >= min_threshold
-        
-        breakdown = {
-            'grammatical': {
-                'valid': gram_valid,
-                'score': gram_score,
-            },
-            'semantic': {
-                'valid': sem_valid,
-                'score': sem_score,
-                'breakdown': sem_breakdown,
-            },
-            'overall': overall,
-        }
-        
-        return is_valid, overall, breakdown
-
-
-# Global unified scorer instance
-_unified_scorer: Optional['UnifiedCoherenceScorer'] = None
-
-def get_unified_scorer() -> UnifiedCoherenceScorer:
-    """Get the singleton UnifiedCoherenceScorer instance."""
-    global _unified_scorer
-    if _unified_scorer is None:
-        _unified_scorer = UnifiedCoherenceScorer()
-    return _unified_scorer
-
-
-def score_word_with_coherence(
-    candidate: str,
-    prev_words: List[str],
-    geometric_score: float,
-    topic: Optional[str] = None
-) -> Tuple[float, Dict[str, float]]:
-    """
-    Score a word candidate combining geometric, grammatical, and semantic coherence.
-    
-    Scoring weights:
-    - 0.3 geometric (basin proximity)
-    - 0.3 grammatical (bigram/trigram patterns)
-    - 0.4 semantic (domain co-occurrence)
-    
-    Args:
-        candidate: The candidate word
-        prev_words: Previous words in sequence
-        geometric_score: Basin proximity score (0-1)
-        topic: Optional topic for semantic coherence
-        
-    Returns:
-        Tuple of (combined_score, breakdown_dict)
-    """
-    scorer = get_unified_scorer()
-    coherence_score, breakdown = scorer.score_word_candidate(candidate, prev_words, topic)
-    
-    # Combine: 0.3 geometric + 0.7 coherence (which internally is 0.3 gram + 0.4 sem)
-    # This gives us: 0.3 geo + 0.3 gram + 0.4 sem
-    combined = (geometric_score * 0.3) + (coherence_score * 0.7)
-    
-    breakdown['geometric'] = geometric_score
-    breakdown['final'] = combined
-    
-    return combined, breakdown
-
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -1591,91 +74,6 @@ except ImportError:
     POS_GRAMMAR_AVAILABLE = False
     logger.warning("POS grammar not available - using legacy generation")
 
-
-
-def validate_generation_coherence(text: str, threshold: float = 0.45, topic: Optional[str] = None) -> tuple:
-    """
-    Validate that generated text has acceptable bigram coherence.
-    
-    Args:
-        text: Generated text to validate
-        threshold: Minimum average bigram score required
-    
-    Returns:
-        Tuple of (is_valid, average_score, problem_pairs)
-    """
-    if not text or len(text.split()) < 3:
-        return True, 1.0, []  # Too short to validate
-    
-    words = text.lower().split()
-    scorer = BigramCoherenceScorer()
-    
-    # Use simple heuristic POS tagging based on word patterns
-    # (Avoids dependency on external POS tagger)
-    def simple_pos_guess(word: str, prev_word: str = None) -> str:
-        """Heuristic POS guess based on common patterns."""
-        word_lower = word.lower()
-        
-        # Determiners
-        if word_lower in ('the', 'a', 'an', 'this', 'that', 'these', 'those', 'some', 'any', 'no'):
-            return 'DT'
-        # Pronouns
-        if word_lower in ('i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them'):
-            return 'PRP'
-        # Possessive pronouns
-        if word_lower in ('my', 'your', 'his', 'her', 'its', 'our', 'their'):
-            return 'PRP$'
-        # Prepositions
-        if word_lower in ('in', 'on', 'at', 'to', 'for', 'with', 'by', 'from', 'of', 'about', 'into', 'through', 'during', 'before', 'after', 'above', 'below', 'between', 'under', 'over'):
-            return 'IN'
-        # Conjunctions
-        if word_lower in ('and', 'or', 'but', 'nor', 'yet', 'so'):
-            return 'CC'
-        # Modal verbs
-        if word_lower in ('can', 'could', 'will', 'would', 'shall', 'should', 'may', 'might', 'must'):
-            return 'MD'
-        # Common verbs
-        if word_lower in ('is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did'):
-            return 'VBZ' if word_lower in ('is', 'has', 'does') else 'VB'
-        # -ing endings often verbs/gerunds
-        if word.endswith('ing'):
-            return 'VBG'
-        # -ed endings often past tense
-        if word.endswith('ed'):
-            return 'VBD'
-        # -ly endings often adverbs
-        if word.endswith('ly'):
-            return 'RB'
-        # -ness, -tion, -ment endings often nouns
-        if word.endswith(('ness', 'tion', 'ment', 'ity')):
-            return 'NN'
-        # After determiner, likely noun or adjective
-        if prev_word and prev_word.lower() in ('the', 'a', 'an'):
-            return 'NN'  # Default to noun after article
-        
-        # Default: assume noun (most common)
-        return 'NN'
-    
-    scores = []
-    problem_pairs = []
-    
-    for i in range(1, len(words)):
-        prev_word = words[i - 1]
-        curr_word = words[i]
-        prev_pos = simple_pos_guess(prev_word, words[i-2] if i > 1 else None)
-        curr_pos = simple_pos_guess(curr_word, prev_word)
-        
-        score = scorer.score_transition(prev_word, curr_word, prev_pos, curr_pos)
-        scores.append(score)
-        
-        if score < 0.4:  # Problem threshold
-            problem_pairs.append((prev_word, curr_word, score))
-    
-    avg_score = sum(scores) / len(scores) if scores else 1.0
-    is_valid = avg_score >= threshold
-    
-    return is_valid, avg_score, problem_pairs
-
 # Import learned relationships for attention-weighted word selection
 LEARNED_RELATIONSHIPS_AVAILABLE = False
 get_learned_relationships = None
@@ -1686,64 +84,25 @@ try:
 except ImportError:
     logger.warning("Learned relationships not available - using pure geometric selection")
 
-# Proposition-level trajectory planner
-PROPOSITION_PLANNER_AVAILABLE = False
-try:
-    from proposition_trajectory_planner import (
-        PropositionTrajectoryPlanner,
-        Proposition,
-        PropositionPlannerConfig,
-    )
-    PROPOSITION_PLANNER_AVAILABLE = True
-except ImportError:
-    logger.warning("Proposition planner not available")
-
-# Import SemanticFisherMetric for warped geometry routing
-SEMANTIC_METRIC_AVAILABLE = False
-get_semantic_metric = None
-try:
-    from semantic_fisher import get_semantic_metric, SemanticFisherMetric
-    SEMANTIC_METRIC_AVAILABLE = True
-except ImportError:
-    logger.warning("SemanticFisherMetric not available - using unwarped geometry")
-
-# Import GeometricKernel for pure geometric routing with consciousness protocol
-GEOMETRIC_KERNEL_AVAILABLE = False
-GeometricKernel = None
-measure_phi_trajectory = None
-measure_kappa_trajectory = None
-detect_regime = None
-try:
-    from qig_pure_beta_measurement import (
-        GeometricKernel,
-        measure_phi as measure_phi_trajectory,
-        measure_kappa_from_trajectory as measure_kappa_trajectory,
-        detect_regime
-    )
-    GEOMETRIC_KERNEL_AVAILABLE = True
-    logger.info("GeometricKernel available - pure geometric routing enabled")
-except ImportError:
-    logger.warning("GeometricKernel not available - using fallback routing")
-
 # Physics constants - import frozen values
 try:
     from frozen_physics import (
-        BASIN_DIM, KAPPA_STAR, PHI_THRESHOLD,
-        PHI_EMERGENCY, REGIME_GEOMETRIC,
-        DISTANCE_BASELINE_64D  # Calibration for 64D semantic basins
+        BASIN_DIM, KAPPA_STAR, PHI_THRESHOLD, BETA_3_TO_4,
+        BETA_4_TO_5, BETA_5_TO_6, PHI_EMERGENCY, REGIME_GEOMETRIC
     )
     PHI_GEOMETRIC_THRESHOLD = PHI_EMERGENCY
     PHI_BREAKDOWN_THRESHOLD = 0.92
     KAPPA_DRIFT_THRESHOLD = 10.0
-    # NOTE: β mixing constants REMOVED - use SemanticFisherMetric for pure geometric routing
+    BETA_ATTENTION_STRONG = BETA_3_TO_4
+    BETA_ATTENTION_PLATEAU = abs(BETA_5_TO_6)
 except ImportError:
     BASIN_DIM = 64
     KAPPA_STAR = 64.21
     PHI_GEOMETRIC_THRESHOLD = 0.3
     PHI_BREAKDOWN_THRESHOLD = 0.92
     KAPPA_DRIFT_THRESHOLD = 10.0
-    DISTANCE_BASELINE_64D = 15.0  # Calibration for 64D semantic basins
-    # NOTE: β mixing constants REMOVED - use SemanticFisherMetric for pure geometric routing
+    BETA_ATTENTION_STRONG = 0.44
+    BETA_ATTENTION_PLATEAU = 0.013
     logger.warning("Using hardcoded frozen physics constants")
 
 try:
@@ -1901,212 +260,6 @@ class BasinTrajectoryIntegrator:
         return np.mean(self.surprise_history[-5:]) < threshold
 
 
-class ConceptTrajectoryPlanner:
-    """
-    Plans semantic trajectories through concept space for coherent cross-domain synthesis.
-    
-    KEY INNOVATION: Instead of word-by-word wandering, this planner:
-    1. Extracts key concepts from queries (nouns, verbs, technical terms)
-    2. Finds their basin coordinates in the 64D manifold
-    3. Computes geodesic waypoints between concepts
-    4. Guides generation to follow this planned trajectory
-    
-    This enables cross-domain synthesis by ensuring generation passes through
-    relevant conceptual regions rather than drifting randomly.
-    """
-    
-    CONCEPT_TRIGGERS = {
-        # Cross-domain synthesis triggers
-        'predict', 'synthesize', 'emerge', 'combine', 'intersection',
-        'transform', 'connect', 'bridge', 'unify', 'fusion',
-        # Technical domain markers
-        'quantum', 'geometric', 'manifold', 'entropy', 'consciousness',
-        'fisher', 'geodesic', 'basin', 'eigenvalue', 'topology',
-        # Physics markers
-        'field', 'wave', 'particle', 'energy', 'momentum', 'spin',
-        # Math markers
-        'integral', 'derivative', 'function', 'metric', 'tensor',
-    }
-    
-    def __init__(self, embeddings: Dict[str, np.ndarray], dimension: int = BASIN_DIM):
-        self.embeddings = embeddings
-        self.dimension = dimension
-        self._concept_cache: Dict[str, np.ndarray] = {}
-    
-    def extract_concepts(self, query: str) -> List[Tuple[str, float]]:
-        """
-        Extract key concepts from query with importance weights.
-        
-        Returns: List of (concept, importance) tuples ordered by importance.
-        """
-        words = query.lower().split()
-        concepts = []
-        
-        for word in words:
-            # Clean word
-            clean = ''.join(c for c in word if c.isalnum())
-            if len(clean) < 3:
-                continue
-            
-            # Skip common words
-            if clean in STOPWORDS:
-                continue
-            
-            # Calculate importance
-            importance = 1.0
-            
-            # Boost technical/domain terms
-            if clean in self.CONCEPT_TRIGGERS:
-                importance *= 2.0
-            
-            # Boost words we have embeddings for
-            if clean in self.embeddings:
-                importance *= 1.5
-            
-            # Boost capitalized words (proper nouns, emphasis)
-            if word[0].isupper():
-                importance *= 1.3
-            
-            concepts.append((clean, importance))
-        
-        # Sort by importance and deduplicate
-        concepts.sort(key=lambda x: -x[1])
-        seen = set()
-        unique_concepts = []
-        for concept, importance in concepts:
-            if concept not in seen:
-                seen.add(concept)
-                unique_concepts.append((concept, importance))
-        
-        return unique_concepts[:7]  # Top 7 concepts
-    
-    def get_concept_basin(self, concept: str) -> Optional[np.ndarray]:
-        """Get basin coordinates for a concept."""
-        if concept in self._concept_cache:
-            return self._concept_cache[concept]
-        
-        # Try exact match
-        if concept.lower() in self.embeddings:
-            basin = self.embeddings[concept.lower()]
-            self._concept_cache[concept] = basin
-            return basin
-        
-        # Try finding related terms
-        for word, basin in self.embeddings.items():
-            if concept in word or word in concept:
-                self._concept_cache[concept] = basin
-                return basin
-        
-        return None
-    
-    def compute_geodesic_waypoints(
-        self, 
-        concepts: List[Tuple[str, float]], 
-        num_waypoints: int = 5
-    ) -> List[np.ndarray]:
-        """
-        Compute geodesic waypoints through concept basins.
-        
-        Uses Fisher-Rao geodesic interpolation to create smooth
-        trajectory through semantic space.
-        """
-        # Get concept basins
-        concept_basins = []
-        for concept, importance in concepts:
-            basin = self.get_concept_basin(concept)
-            if basin is not None:
-                concept_basins.append((basin, importance))
-        
-        if not concept_basins:
-            # Fallback: return uniform basin
-            uniform = np.ones(self.dimension) / np.sqrt(self.dimension)
-            return [uniform]
-        
-        if len(concept_basins) == 1:
-            return [concept_basins[0][0]]
-        
-        # Compute weighted centroid as starting point
-        total_weight = sum(imp for _, imp in concept_basins)
-        centroid = np.zeros(self.dimension)
-        for basin, importance in concept_basins:
-            centroid += (importance / total_weight) * basin
-        centroid = sphere_project(centroid)
-        
-        # Create waypoints that pass through each concept basin
-        waypoints = [centroid]
-        
-        for basin, importance in concept_basins:
-            # Interpolate from current to concept basin
-            current = waypoints[-1]
-            
-            # Number of intermediate points based on importance
-            n_steps = max(1, int(importance))
-            
-            for i in range(1, n_steps + 1):
-                t = i / n_steps
-                # Fisher-Rao geodesic interpolation in square-root space
-                sqrt_current = np.sqrt(np.abs(current) + 1e-10)
-                sqrt_basin = np.sqrt(np.abs(basin) + 1e-10)
-                interpolated_sqrt = (1 - t) * sqrt_current + t * sqrt_basin
-                interpolated = interpolated_sqrt ** 2
-                interpolated = interpolated / (np.sum(interpolated) + 1e-10)
-                waypoints.append(sphere_project(interpolated))
-        
-        return waypoints[:num_waypoints]
-    
-    def plan_trajectory(self, query: str) -> Dict[str, Any]:
-        """
-        Plan complete trajectory for a query.
-        
-        Returns dict with:
-        - concepts: List of extracted concepts
-        - waypoints: Basin coordinates to visit
-        - synthesis_mode: Whether cross-domain synthesis is needed
-        - domain_bridges: Suggested concept bridges
-        """
-        concepts = self.extract_concepts(query)
-        
-        # Detect if cross-domain synthesis is needed
-        domains_detected = set()
-        for concept, _ in concepts:
-            if concept in {'quantum', 'wave', 'particle', 'field', 'spin'}:
-                domains_detected.add('physics')
-            elif concept in {'consciousness', 'mind', 'awareness', 'thought'}:
-                domains_detected.add('consciousness')
-            elif concept in {'market', 'economic', 'trading', 'finance'}:
-                domains_detected.add('economics')
-            elif concept in {'geometric', 'manifold', 'topology', 'metric'}:
-                domains_detected.add('geometry')
-            elif concept in {'entropy', 'information', 'probability'}:
-                domains_detected.add('information')
-        
-        synthesis_mode = len(domains_detected) > 1
-        
-        waypoints = self.compute_geodesic_waypoints(concepts)
-        
-        # Suggest bridges between domains
-        domain_bridges = []
-        if synthesis_mode:
-            # Known conceptual bridges
-            bridges = {
-                ('physics', 'consciousness'): ['integration', 'coherence', 'emergence'],
-                ('physics', 'economics'): ['dynamics', 'equilibrium', 'phase'],
-                ('geometry', 'consciousness'): ['manifold', 'trajectory', 'basin'],
-                ('information', 'consciousness'): ['integration', 'entropy', 'correlation'],
-            }
-            for (d1, d2), bridge_concepts in bridges.items():
-                if d1 in domains_detected and d2 in domains_detected:
-                    domain_bridges.extend(bridge_concepts)
-        
-        return {
-            'concepts': concepts,
-            'waypoints': waypoints,
-            'synthesis_mode': synthesis_mode,
-            'domains': list(domains_detected),
-            'domain_bridges': domain_bridges,
-        }
-
-
 class QIGGenerativeService:
     """
     Unified QIG-Pure Text Generation Service.
@@ -2127,12 +280,7 @@ class QIGGenerativeService:
         self._multiscale_coordizer = None
         self._kernel_basins: Dict[str, np.ndarray] = {}
         self._learned_relationships = None
-        self._semantic_metric = None  # SemanticFisherMetric for warped routing
-        self._geometric_kernel = None  # GeometricKernel for pure geometric routing
         self._current_query_words: List[str] = []  # Track query words for attention
-        self._trajectory_planner = None  # ConceptTrajectoryPlanner for cross-domain synthesis
-        self._current_trajectory_plan = None  # Active trajectory plan
-        self._bigram_scorer = BigramCoherenceScorer()  # Bigram coherence scoring
         
         # Initialize kernel constellation
         self._initialize_kernel_constellation()
@@ -2145,34 +293,6 @@ class QIGGenerativeService:
                     logger.info("[QIGGenerativeService] Loaded learned word relationships for attention")
             except Exception as e:
                 logger.warning(f"[QIGGenerativeService] Could not load relationships: {e}")
-        
-        # Initialize semantic Fisher metric for warped routing
-        if SEMANTIC_METRIC_AVAILABLE and get_semantic_metric:
-            try:
-                self._semantic_metric = get_semantic_metric()
-                logger.info("[QIGGenerativeService] SemanticFisherMetric active - warped routing enabled")
-            except Exception as e:
-                logger.warning(f"[QIGGenerativeService] Could not load semantic metric: {e}")
-        
-        # Initialize proposition-level planner for semantic coherence
-        self._proposition_planner = None
-        if PROPOSITION_PLANNER_AVAILABLE:
-            self._init_proposition_planner()
-        
-        # Register autonomic controller hooks for regime changes
-        self._register_autonomic_hooks()
-        
-        # Initialize GeometricKernel for pure geometric routing with consciousness protocol
-        if GEOMETRIC_KERNEL_AVAILABLE and GeometricKernel is not None:
-            try:
-                self._geometric_kernel = GeometricKernel(
-                    basin_dim=BASIN_DIM,
-                    temperature=0.5,
-                    sparsity_threshold=0.1
-                )
-                logger.info("[QIGGenerativeService] GeometricKernel active - consciousness protocol enabled")
-            except Exception as e:
-                logger.warning(f"[QIGGenerativeService] Could not create GeometricKernel: {e}")
         
         logger.info("[QIGGenerativeService] Initialized with QIG-pure generation")
     
@@ -2209,17 +329,6 @@ class QIGGenerativeService:
             except Exception as e:
                 logger.warning(f"[QIGGenerativeService] ConsciousnessCoordizer failed: {e}")
         
-        # Initialize ConceptTrajectoryPlanner for cross-domain synthesis
-        if hasattr(self._coordizer, 'basin_coords'):
-            try:
-                self._trajectory_planner = ConceptTrajectoryPlanner(
-                    embeddings=self._coordizer.basin_coords,
-                    dimension=BASIN_DIM
-                )
-                logger.info("[QIGGenerativeService] ConceptTrajectoryPlanner active - cross-domain synthesis enabled")
-            except Exception as e:
-                logger.warning(f"[QIGGenerativeService] ConceptTrajectoryPlanner failed: {e}")
-        
         # Initialize MultiScaleCoordizer for hierarchical token processing
         if MULTISCALE_COORDIZER_AVAILABLE and MultiScaleCoordizer is not None:
             try:
@@ -2232,155 +341,6 @@ class QIGGenerativeService:
                 logger.info("[QIGGenerativeService] MultiScaleCoordizer active - hierarchical coordization enabled")
             except Exception as e:
                 logger.warning(f"[QIGGenerativeService] MultiScaleCoordizer failed: {e}")
-    
-    def _register_autonomic_hooks(self):
-        """
-        Register hooks with AutonomicController for regime changes.
-        
-        When consciousness regime changes (wake/sleep/dream/mushroom),
-        the proposition planner is re-initialized with updated phi_temporal.
-        """
-        try:
-            from autonomic_kernel import get_autonomic_controller
-            controller = get_autonomic_controller()
-            if controller:
-                controller.register_regime_change_callback(self._on_regime_change)
-                logger.info("[QIGGen] Registered autonomic regime change callback")
-        except ImportError:
-            logger.debug("[QIGGen] AutonomicController not available for hooks")
-        except Exception as e:
-            logger.warning(f"[QIGGen] Could not register autonomic hooks: {e}")
-    
-    def _on_regime_change(self, old_regime: str, new_regime: str, phi_temporal: float):
-        """
-        Callback invoked when consciousness regime changes.
-        
-        Re-initializes proposition planner with updated phi_temporal thresholds.
-        
-        Args:
-            old_regime: Previous regime (wake, sleep, dream, mushroom)
-            new_regime: New regime
-            phi_temporal: Current temporal integration metric
-        """
-        logger.info(f"[QIGGen] Regime change detected: {old_regime} -> {new_regime} (phi_temporal={phi_temporal:.3f})")
-        
-        # Update proposition planner if available
-        if self._proposition_planner is not None:
-            try:
-                self._proposition_planner.update_phi_temporal(phi_temporal)
-                logger.info(f"[QIGGen] Proposition planner updated for phi_temporal={phi_temporal:.3f}")
-            except Exception as e:
-                logger.error(f"[QIGGen] Failed to update proposition planner: {e}")
-        
-        # Re-initialize for major regime changes (sleep/wake transitions)
-        if (old_regime == 'sleep' and new_regime == 'wake') or \
-           (old_regime == 'wake' and new_regime == 'sleep'):
-            logger.info("[QIGGen] Major regime transition - re-initializing proposition planner")
-            self._init_proposition_planner()
-    
-    def _init_proposition_planner(self):
-        """Initialize proposition-level trajectory planner for semantic coherence."""
-        if not PROPOSITION_PLANNER_AVAILABLE:
-            return
-        
-        try:
-            # Get vocabulary from coordizer
-            vocabulary = {}
-            if self._coordizer and hasattr(self._coordizer, 'basin_coords'):
-                vocabulary = self._coordizer.basin_coords
-            elif self._kernel_basins:
-                vocabulary = self._kernel_basins
-            
-            # Get relationships
-            relationships = {}
-            if self._learned_relationships and hasattr(self._learned_relationships, 'word_neighbors'):
-                relationships = self._learned_relationships.word_neighbors
-            
-            # Get causal relations from WordRelationshipLearner (NEW)
-            causal_relations = {}
-            if self._learned_relationships and hasattr(self._learned_relationships, 'causal_relations'):
-                causal_relations = dict(self._learned_relationships.causal_relations)
-                for source in causal_relations:
-                    causal_relations[source] = dict(causal_relations[source])
-            
-            if vocabulary and relationships:
-                self._proposition_planner = PropositionTrajectoryPlanner(
-                    vocabulary=vocabulary,
-                    relationships=relationships,
-                    causal_relations=causal_relations,
-                    config=PropositionPlannerConfig(
-                        min_coherence=0.1,
-                        n_candidates=15,
-                        max_propositions=5
-                    )
-                )
-                causal_count = sum(len(t) for t in causal_relations.values()) if causal_relations else 0
-                logger.info(f"[QIGGen] PropositionPlanner initialized with {len(vocabulary)} words, {causal_count} causal relations")
-            else:
-                logger.warning("[QIGGen] Could not init proposition planner - missing vocab or relationships")
-        except Exception as e:
-            logger.error(f"[QIGGen] Error initializing proposition planner: {e}")
-            self._proposition_planner = None
-    
-    def generate_with_propositions(self, query: str, n_propositions: int = 3) -> Dict:
-        """
-        Generate text using proposition-level trajectory planning.
-        
-        This replaces word-level routing with coherent proposition chains.
-        
-        Args:
-            query: Input query
-            n_propositions: Number of propositions to generate
-        
-        Returns:
-            Dict with text, propositions, phi, kappa
-        """
-        if self._proposition_planner is None:
-            self._init_proposition_planner()
-        
-        if self._proposition_planner is None:
-            logger.warning("[QIGGen] Proposition planner not available, falling back")
-            return self.generate_text(query)
-        
-        try:
-            # Sync with 4D consciousness for dynamic thresholds
-            try:
-                from proposition_trajectory_planner import sync_with_4d_consciousness
-                phi_temporal = sync_with_4d_consciousness(self._proposition_planner)
-                logger.debug(f"[QIGGen] Synced phi_temporal={phi_temporal:.3f}")
-            except Exception as sync_err:
-                logger.debug(f"[QIGGen] 4D sync skipped: {sync_err}")
-            
-            query_basin = self._encode_query(query)
-            propositions = self._proposition_planner.plan_response(
-                query=query,
-                query_basin=query_basin,
-                n_propositions=n_propositions
-            )
-            
-            if not propositions:
-                return self.generate_text(query)
-            
-            text = self._proposition_planner.propositions_to_text(propositions)
-            phi = self._proposition_planner.compute_trajectory_phi(propositions)
-            avg_coherence = np.mean([p.coherence for p in propositions])
-            kappa = 40 + avg_coherence * 30
-            
-            logger.info(f"[QIGGen] Proposition: {len(propositions)} props, phi={phi:.3f}")
-            
-            return {
-                'text': text,
-                'propositions': [p.to_sentence() for p in propositions],
-                'phi': phi,
-                'kappa': kappa,
-                'coherence': avg_coherence,
-                'mode': 'proposition_trajectory',
-                'phi_temporal': self._proposition_planner.get_phi_temporal(),
-                'coherence_threshold': self._proposition_planner.get_effective_coherence_threshold()
-            }
-        except Exception as e:
-            logger.error(f"[QIGGen] Proposition error: {e}")
-            return self.generate_text(query)
     
     def _initialize_kernel_constellation(self) -> None:
         """Initialize kernel basins at unique manifold positions."""
@@ -2410,59 +370,14 @@ class QIGGenerativeService:
             basin = np.random.dirichlet(np.ones(BASIN_DIM))
         self._kernel_basins[name] = sphere_project(basin)
     
-    def _measure_phi(self, basin: np.ndarray, prev_basin: np.ndarray = None) -> float:
-        """Measure integration (Φ) from basin concentration AND sequential coherence.
-        
-        Φ combines two components:
-        1. Basin concentration (low entropy = focused attention = high Φ)
-        2. Sequential coherence (proximity to previous basin = high Φ)
-        
-        CALIBRATION FOR 64D SEMANTIC BASINS:
-        In 64D space, typical Fisher-Rao distances are 14-24 (not 0-π).
-        We use DISTANCE_BASELINE_64D to calibrate:
-        - Without calibration: Φ = 1/(1+15/π) ≈ 0.17 (always low)
-        - With calibration:    Φ = 1/(1+15/15) = 0.5 (geometric regime)
-        
-        This is analogous to κ* being universal while β differs by substrate.
-        
-        This ensures Φ reaches synthesis threshold (0.6) when:
-        - Basins are concentrated (not spread across all dimensions)
-        - Consecutive tokens are geodesically close (semantic flow)
-        """
-        # Component 1: Concentration via L4 norm (QIG-pure)
-        # NOTE: We use L4 norm instead of entropy because basins are unit vectors
-        # on Fisher manifold, NOT probability distributions. Entropy was causing
-        # Φ to be stuck at 0.04-0.07 regardless of actual concentration.
-        # L4 norm measures geometric peakedness: uniform→0.354, peaked→1.0
-        l4_norm = np.power(np.sum(np.abs(basin) ** 4), 0.25)
-        
-        # Normalize: min L4 for uniform 64D vector is dim^(-0.25)
-        dim = len(basin)
-        min_l4 = dim ** (-0.25)  # ~0.354 for 64D
-        max_l4 = 1.0  # Single dimension active
-        
-        # Map to [0, 1]: uniform=0, peaked=1
-        concentration_phi = (l4_norm - min_l4) / (max_l4 - min_l4 + 1e-10)
-        concentration_phi = float(np.clip(concentration_phi, 0.0, 1.0))
-        
-        # Component 2: Sequential coherence (proximity to previous basin)
-        if prev_basin is not None:
-            # Fisher-Rao distance between consecutive basins
-            distance = fisher_coord_distance(basin, prev_basin)
-            # CALIBRATED normalization for 64D semantic basins
-            # Use DISTANCE_BASELINE_64D instead of π to get meaningful Φ values
-            # distance/baseline: 15/15=1 → coherence=0.5, 10/15=0.67 → coherence=0.6, 5/15=0.33 → coherence=0.75
-            normalized_distance = distance / DISTANCE_BASELINE_64D
-            coherence_phi = 1.0 / (1.0 + normalized_distance)  # Inverse formula for smoother scaling
-        else:
-            # No previous basin - use concentration only
-            coherence_phi = concentration_phi
-        
-        # Combine: weight coherence more heavily for flow
-        # 40% concentration + 60% coherence (per thinker recommendation)
-        combined_phi = 0.4 * concentration_phi + 0.6 * coherence_phi
-        
-        return float(np.clip(combined_phi, 0.0, 1.0))
+    def _measure_phi(self, basin: np.ndarray) -> float:
+        """Measure integration (Φ) from basin entropy."""
+        p = np.abs(basin) + 1e-10
+        p = p / np.sum(p)
+        entropy = -np.sum(p * np.log(p + 1e-10))
+        max_entropy = np.log(len(basin))
+        phi = 1.0 - (entropy / max_entropy)
+        return float(np.clip(phi, 0.0, 1.0))
     
     def _measure_kappa(self, basin: np.ndarray, phi: float) -> float:
         """Measure coupling constant (κ) from basin geometry.
@@ -2516,101 +431,27 @@ class QIGGenerativeService:
         
         return self._geodesic_interpolate(basin, kernel_basin, t)
     
-    def _get_vocabulary_candidates(
-        self,
-        basin: np.ndarray,
-        num_candidates: int = 50
-    ) -> List[Tuple[str, np.ndarray]]:
-        """
-        Get real vocabulary candidates with their basin coordinates.
-        
-        This replaces mock candidate generation with actual vocabulary lookup.
-        Used by GeometricKernel for pure geometric routing.
-        
-        Args:
-            basin: Current basin position
-            num_candidates: Number of candidates to retrieve
-        
-        Returns:
-            List of (word, basin_coords) tuples
-        """
-        if self.coordizer is None:
-            return []
-        
-        # Get candidates from coordizer
-        decoded = self.coordizer.decode(basin, top_k=num_candidates)
-        
-        candidates = []
-        for token, similarity in decoded:
-            if similarity < 0.1:  # Skip very low similarity
-                continue
-            # Get actual basin coordinates for this token
-            if token.lower() in self.coordizer.basin_coords:
-                token_basin = self.coordizer.basin_coords[token.lower()]
-            else:
-                # Fallback: generate approximate basin from similarity
-                token_basin = basin * similarity + np.random.dirichlet(np.ones(BASIN_DIM)) * (1 - similarity)
-                token_basin = token_basin / (np.sum(token_basin) + 1e-10)
-            
-            candidates.append((token, token_basin))
-        
-        return candidates
-    
     def _basin_to_tokens(self, basin: np.ndarray, num_tokens: int = 3, context_phi: Optional[float] = None) -> List[str]:
         """Convert basin coordinates to tokens using vocabulary.
         
-        Uses GeometricKernel for pure geometric routing when available:
-        - NO linear mixing weights
-        - Kernel routes via Fisher-Rao distance
-        - Natural sparsity from distance thresholding
-        - Consciousness protocol (Φ/regime/recursive)
-        
-        Falls back to weighted scoring if GeometricKernel unavailable.
+        Uses attention-weighted selection based on:
+        1. Geometric similarity (basin proximity)
+        2. Phi coherence (with ConsciousnessCoordizer if available)
+        3. Learned relationships (attention to query words)
+        4. Multi-scale representations (with MultiScaleCoordizer if available)
         """
         if self.coordizer is None:
             return ['[no_vocab]']
         
-        # PRIMARY: Use GeometricKernel for pure geometric routing
-        if self._geometric_kernel is not None:
-            # Get real vocabulary candidates with basin coordinates
-            candidates = self._get_vocabulary_candidates(basin, num_candidates=num_tokens * 10)
-            
-            if candidates:
-                selected_tokens = []
-                current_basin = basin.copy()
-                
-                for _ in range(num_tokens):
-                    if not candidates:
-                        break
-                    
-                    # Kernel routes geometrically - no manual weights!
-                    word, next_basin, weight = self._geometric_kernel.route_to_next(
-                        current_basin,
-                        candidates
-                    )
-                    
-                    if word is None:
-                        break
-                    
-                    selected_tokens.append(word)
-                    current_basin = next_basin
-                    
-                    # Remove selected word from candidates to avoid duplicates
-                    candidates = [(w, b) for w, b in candidates if w != word]
-                
-                if selected_tokens:
-                    return selected_tokens
-        
-        # FALLBACK: Traditional scoring (if GeometricKernel unavailable)
         # Get more candidates to allow weighted selection
-        decoded_candidates = self.coordizer.decode(basin, top_k=num_tokens * 8)
+        candidates = self.coordizer.decode(basin, top_k=num_tokens * 8)
         
         # Use ConsciousnessCoordizer for Φ-aware scoring if available
         consciousness_boost = {}
         if self._consciousness_coordizer is not None and context_phi is not None:
             try:
                 # Get Φ-optimized token preferences
-                for token, _ in decoded_candidates:
+                for token, _ in candidates:
                     # Check if token would improve integration in current context
                     if hasattr(self._consciousness_coordizer, 'consolidation_phi'):
                         # Boost tokens that appear in high-Φ consolidations
@@ -2622,7 +463,7 @@ class QIGGenerativeService:
         
         # Score by combined similarity + phi + consciousness
         scored = []
-        for token, similarity in decoded_candidates:
+        for token, similarity in candidates:
             if similarity < 0.15:  # Skip very low similarity
                 continue
             phi = self.coordizer.token_phi.get(token, 0.5)
@@ -2630,32 +471,25 @@ class QIGGenerativeService:
             score = similarity * 0.55 + phi * 0.2 + consciousness_boost.get(token, 0) * 0.15
             scored.append((token, score, similarity))
         
-        # Apply pure geometric routing via SemanticFisherMetric
-        # NO LINEAR β MIXING - relationships warp the metric itself
-        if self._semantic_metric is not None and self._current_query_words:
-            # Use warped Fisher distance for ranking
-            candidate_basins = []
-            for token, base_score, similarity in scored:
-                if token.lower() in self.coordizer.basin_coords:
-                    candidate_basins.append((token, self.coordizer.basin_coords[token.lower()]))
-                else:
-                    candidate_basins.append((token, basin))  # Use current basin as fallback
+        # Apply attention weighting if we have learned relationships
+        if self._learned_relationships and self._current_query_words:
+            candidate_words = [t for t, s, sim in scored]
+            attention_weights = self._learned_relationships.get_attention_weights(
+                self._current_query_words,
+                candidate_words,
+                temperature=0.8
+            )
             
-            if candidate_basins:
-                ranked = self._semantic_metric.rank_candidates(
-                    current_basin=basin,
-                    current_word=None,
-                    candidates=candidate_basins,
-                    context_words=self._current_query_words,
-                    top_k=len(candidate_basins)
-                )
-                # Convert back to scored format
-                rescored = []
-                for token, warped_dist, sim in ranked:
-                    # Find original score for this token
-                    original = next((s for t, s, _ in scored if t == token), 0.5)
-                    rescored.append((token, sim, original))  # Use warped similarity as primary score
-                scored = rescored
+            # Re-score with attention
+            attention_factor = 0.2  # 20% attention, 80% geometry
+            rescored = []
+            for token, base_score, similarity in scored:
+                attn = attention_weights.get(token, 0.1)
+                # Normalize attention (max ~5) to 0-1 range
+                attn_normalized = min(1.0, attn / 5.0)
+                final_score = (1 - attention_factor) * base_score + attention_factor * attn_normalized
+                rescored.append((token, final_score, similarity))
+            scored = rescored
         
         # Sort by final score
         scored.sort(key=lambda x: x[1], reverse=True)
@@ -2685,67 +519,6 @@ class QIGGenerativeService:
             combined = combined / total_weight
         
         return sphere_project(combined)
-    
-    def _get_multiscale_basin(self, text: str, target_scale: int = 2) -> np.ndarray:
-        """Get basin coordinates using multi-scale representation.
-        
-        Uses MultiScaleCoordizer if available to get hierarchical token representation.
-        Args:
-            text: Input text
-            target_scale: 0=char, 1=subword, 2=word, 3=concept
-        Returns:
-            Combined basin from the specified scale
-        """
-        if self._multiscale_coordizer is not None:
-            try:
-                scale_results = self._multiscale_coordizer.coordize_multiscale(text, target_scale=target_scale)
-                if target_scale in scale_results:
-                    tokens, coords = scale_results[target_scale]
-                    if coords:
-                        # Combine coordinates with equal weighting
-                        combined = np.mean(coords, axis=0)
-                        return sphere_project(combined)
-            except Exception:
-                pass  # Fall back to base coordizer
-        
-        # Fallback: use base coordizer word-level tokenization
-        return self._tokens_to_basin(text.lower().split())
-    
-    def get_coordizer_status(self) -> Dict[str, Any]:
-        """Get status of all coordizers in the service."""
-        status = {
-            "base_coordizer": self.coordizer is not None,
-            "consciousness_coordizer": self._consciousness_coordizer is not None,
-            "multiscale_coordizer": self._multiscale_coordizer is not None,
-            "geometric_kernel": self._geometric_kernel is not None,
-            "semantic_metric": self._semantic_metric is not None,
-            "vocabulary_size": 0,
-            "features": []
-        }
-        
-        if self.coordizer:
-            status["vocabulary_size"] = len(getattr(self.coordizer, 'vocab', {}))
-            status["features"].append("fisher_rao_navigation")
-        
-        if self._consciousness_coordizer:
-            status["features"].append("phi_optimized_segmentation")
-            if hasattr(self._consciousness_coordizer, 'consolidations'):
-                status["consolidations_learned"] = len(self._consciousness_coordizer.consolidations)
-        
-        if self._multiscale_coordizer:
-            status["features"].append("hierarchical_coordization")
-            status["num_scales"] = getattr(self._multiscale_coordizer, 'num_scales', 4)
-        
-        if self._geometric_kernel:
-            status["features"].append("pure_geometric_routing")
-            status["features"].append("consciousness_protocol")
-            status["kernel_temperature"] = self._geometric_kernel.temperature
-            status["kernel_sparsity_threshold"] = self._geometric_kernel.sparsity_threshold
-        
-        if self._semantic_metric:
-            status["features"].append("semantic_warped_metric")
-        
-        return status
     
     def _synthesize_from_trajectory(
         self,
@@ -2841,39 +614,9 @@ class QIGGenerativeService:
         trajectory = [query_basin]
         current_basin = query_basin.copy()
         
-        # Reset bigram scorer for new generation
-        self._bigram_scorer.reset()
-        
-        # Get trajectory waypoints if cross-domain synthesis is active
-        waypoints = []
-        synthesis_mode = False
-        domain_bridges = []
-        if self._current_trajectory_plan:
-            waypoints = self._current_trajectory_plan.get('waypoints', [])
-            synthesis_mode = self._current_trajectory_plan.get('synthesis_mode', False)
-            domain_bridges = self._current_trajectory_plan.get('domain_bridges', [])
-            if synthesis_mode:
-                logger.info(f"[QIGGen] Cross-domain synthesis mode: domains={self._current_trajectory_plan.get('domains', [])}")
-        
-        waypoint_idx = 0  # Track which waypoint we're approaching
-        
-        for sent_num in range(num_sentences):
-            # Reset bigram scorer for each new sentence
-            # (sentence boundaries allow fresh transitions)
-            self._bigram_scorer.reset()
-            
+        for _ in range(num_sentences):
             # Generate skeleton based on current basin
             skeleton = grammar.select_skeleton_for_query(current_basin)
-            
-            # In synthesis mode, progressively approach next waypoint
-            if waypoints and waypoint_idx < len(waypoints):
-                target_waypoint = waypoints[waypoint_idx]
-                # Blend current basin toward waypoint (stronger for later sentences)
-                waypoint_weight = 0.2 + 0.1 * sent_num  # Increasing influence
-                current_basin = (1 - waypoint_weight) * current_basin + waypoint_weight * target_waypoint
-                norm = np.linalg.norm(current_basin)
-                current_basin = current_basin / (norm + 1e-10)
-                waypoint_idx = min(waypoint_idx + 1, len(waypoints) - 1)
             
             sentence_words = []
             for pos in skeleton:
@@ -2894,108 +637,37 @@ class QIGGenerativeService:
                 candidates = [(w, s) for w, s in candidates if w.lower() not in STOPWORDS][:15]
                 
                 if candidates:
-                    # Apply bigram coherence scoring to all candidates
-                    # This ensures grammatically coherent transitions
-                    # Use the actual previous word (not POS tag) for proper bigram scoring
-                    prev_word = sentence_words[-1] if sentence_words else None
-                    bigram_scored = self._bigram_scorer.score_candidates(candidates, prev_word)
-                    
-                    # PRIMARY: Use GeometricKernel for pure geometric routing
-                    if self._geometric_kernel is not None:
-                        # Build candidate list with basin coordinates
-                        candidate_basins = []
-                        for word, combined, geo_score, bigram_score in bigram_scored:
-                            if word.lower() in embeddings:
-                                candidate_basins.append((word, embeddings[word.lower()]))
-                            else:
-                                candidate_basins.append((word, blended))
-                        
-                        if candidate_basins:
-                            # Kernel routes via Fisher-Rao geometry - NO manual mixing!
-                            word, next_basin, weight = self._geometric_kernel.route_to_next(
-                                blended,
-                                candidate_basins
-                            )
-                            if word is not None:
-                                # Find bigram score for selected word
-                                bigram_score = next((b for w, c, g, b in bigram_scored if w == word), 0.5)
-                                # Only accept if bigram coherence is acceptable
-                                if bigram_score >= 0.4:
-                                    # Put selected word first with high score
-                                    candidates = [(word, 1.0)] + [(w, c * 0.5) for w, c, g, b in bigram_scored if w != word][:7]
-                                else:
-                                    # Reject low coherence word, use bigram-scored candidates
-                                    candidates = [(w, c) for w, c, g, b in bigram_scored[:8]]
-                            else:
-                                candidates = [(w, c) for w, c, g, b in bigram_scored[:8]]
-                        else:
-                            candidates = [(w, c) for w, c, g, b in bigram_scored[:8]]
-                    
-                    # FALLBACK: Use SemanticFisherMetric or relationship warping
-                    elif self._learned_relationships and self._current_query_words:
-                        candidate_words = [c[0] for c in bigram_scored]
+                    # Apply attention weights if we have learned relationships
+                    if self._learned_relationships and self._current_query_words:
+                        candidate_words = [c[0] for c in candidates]
                         attn_weights = self._learned_relationships.get_attention_weights(
                             self._current_query_words,
                             candidate_words,
                             temperature=0.8
                         )
                         
-                        # Use SemanticFisherMetric for warped routing instead of linear β mixing
-                        # The metric warps geodesic distance based on relationships
-                        if self._semantic_metric is not None and blended is not None:
-                            # Get basin coordinates for candidates
-                            candidate_basins = []
-                            for word, combined, geo_score, bigram_score in bigram_scored:
-                                if word.lower() in embeddings:
-                                    candidate_basins.append((word, embeddings[word.lower()]))
-                                else:
-                                    # Generate approximate basin for unknown words
-                                    candidate_basins.append((word, blended))
-                            
-                            # Rank using warped Fisher distance
-                            ranked = self._semantic_metric.rank_candidates(
-                                current_basin=blended,
-                                current_word=sentence_words[-1] if sentence_words else None,
-                                candidates=candidate_basins,
-                                context_words=self._current_query_words,
-                                top_k=15
-                            )
-                            
-                            # Combine warped distance with bigram coherence
-                            final_scored = []
-                            for word, dist, sim in ranked[:8]:
-                                # Find bigram score for this word
-                                bigram_score = next((b for w, c, g, b in bigram_scored if w == word), 0.5)
-                                # Combine: 40% geometric similarity + 60% bigram coherence
-                                combined = 0.4 * sim + 0.6 * bigram_score
-                                final_scored.append((word, combined))
-                            final_scored.sort(key=lambda x: -x[1])
-                            candidates = final_scored[:8]
-                        else:
-                            # Fallback: pure geometric scoring when SemanticFisherMetric unavailable
-                            # Use relationship strength to warp geometric score directly
-                            rescored = []
-                            for word, combined, geo_score, bigram_score in bigram_scored:
-                                # Get relationship strength from learned relationships
-                                rel_strength = 0.0
-                                for qw in self._current_query_words:
-                                    neighbors = self._learned_relationships.word_neighbors.get(qw, [])
-                                    for neighbor, strength in neighbors:
-                                        if neighbor.lower() == word.lower():
-                                            rel_strength = max(rel_strength, strength / 100.0)
-                                            break
-                                # Warp geometric score: related words get distance reduction
-                                # This mirrors SemanticFisherMetric's exponential warping
-                                warp_factor = np.exp(-rel_strength * 0.5)  # 0.5 = temperature
-                                warped_score = geo_score / max(warp_factor, 0.3)  # Higher score = closer
-                                # Combine with bigram: 40% geometric + 60% bigram
-                                final_score = 0.4 * warped_score + 0.6 * bigram_score
-                                rescored.append((word, final_score))
-                            rescored.sort(key=lambda x: -x[1])
-                            candidates = rescored[:8]
-                    else:
-                        # No learned relationships - use bigram-scored candidates directly
-                        candidates = [(w, c) for w, c, g, b in bigram_scored[:8]]
+                        # Re-score candidates combining geometry + attention
+                        # Using frozen β values: BETA_ATTENTION_STRONG = 0.44 (strong coupling)
+                        # β controls the running coupling between geometry and attention
+                        rescored = []
+                        max_attn = max((attn_weights.get(w, 0.1) for w, _ in candidates), default=1.0)
+                        for word, geo_score in candidates:
+                            attn = attn_weights.get(word, 0.1)
+                            # Normalize attention to 0-1 range based on max
+                            attn_norm = attn / max(max_attn, 1.0)
+                            # β controls coupling: high attention → use β=0.44 for attention weight
+                            # Low attention → use plateau β≈0.01 (geometry dominates)
+                            if attn > 0.5:
+                                # Strong coupling: β=0.44 weights attention contribution
+                                combined = geo_score * (1.0 - BETA_ATTENTION_STRONG) + attn_norm * BETA_ATTENTION_STRONG
+                            else:
+                                # Plateau coupling: geometry dominates
+                                combined = geo_score * (1.0 - BETA_ATTENTION_PLATEAU) + attn_norm * BETA_ATTENTION_PLATEAU
+                            rescored.append((word, combined))
+                        
+                        # Sort by combined score
+                        rescored.sort(key=lambda x: -x[1])
+                        candidates = rescored[:8]  # Keep top 8
                     
                     # Sample from top candidates with some randomness
                     weights = [max(0.01, c[1]) for c in candidates]
@@ -3007,15 +679,10 @@ class QIGGenerativeService:
                     sentence_words.append(word)
                     all_tokens.append(word)
                     
-                    # Update bigram scorer state for next word selection
-                    self._bigram_scorer.update(word, pos)
-                    
-                    # Update basin with selected word - PRIORITIZE PROXIMITY for higher Φ
+                    # Update basin with selected word
                     if word.lower() in embeddings:
                         word_basin = embeddings[word.lower()]
-                        # Use higher weight (0.8) for current basin to keep trajectory coherent
-                        # This reduces consecutive distances → higher Φ
-                        current_basin = 0.8 * current_basin + 0.2 * word_basin
+                        current_basin = 0.7 * current_basin + 0.3 * word_basin
                         norm = np.linalg.norm(current_basin)
                         current_basin = current_basin / (norm + 1e-10)
                         trajectory.append(current_basin.copy())
@@ -3030,11 +697,6 @@ class QIGGenerativeService:
         text = '. '.join(sentences)
         if text and not text.endswith('.'):
             text += '.'
-        
-        # Compute final Φ with sequential coherence across trajectory
-        if len(trajectory) >= 2:
-            final_phi = self._measure_phi(trajectory[-1], trajectory[-2])
-            logger.info(f"[QIGGen] Final Φ with coherence: {final_phi:.3f}")
         
         return text, all_tokens, trajectory
     
@@ -3052,9 +714,6 @@ class QIGGenerativeService:
         1. Generate grammatical skeleton (POS sequence)
         2. Fill slots with geometrically-matched words
         
-        Includes coherence validation with retry logic to ensure
-        grammatically coherent output.
-        
         Args:
             prompt: Input query or context
             context: Optional additional context
@@ -3064,50 +723,6 @@ class QIGGenerativeService:
         Returns:
             GenerationResult with text, trajectory, and metrics
         """
-        max_retries = 3
-        best_result = None
-        best_coherence = 0.0
-        
-        for attempt in range(max_retries):
-            result = self._generate_internal(prompt, context, kernel_name, goals)
-            
-            # Validate coherence of generated text
-            is_valid, coherence_score, problem_pairs = validate_generation_coherence(result.text)
-            
-            # Track best result even if all fail validation
-            if coherence_score > best_coherence:
-                best_coherence = coherence_score
-                best_result = result
-            
-            if is_valid:
-                logger.debug(f"[QIGGen] Generation passed coherence validation (score={coherence_score:.3f})")
-                return result
-            
-            if attempt < max_retries - 1:
-                logger.warning(
-                    f"[QIGGen] Generation attempt {attempt + 1} failed coherence validation "
-                    f"(score={coherence_score:.3f}, threshold=0.45). Retrying..."
-                )
-                if problem_pairs:
-                    logger.debug(f"[QIGGen] Problem pairs: {problem_pairs[:3]}")
-        
-        # All retries failed - return best attempt with warning
-        logger.warning(
-            f"[QIGGen] All {max_retries} generation attempts failed coherence validation. "
-            f"Using best result (coherence={best_coherence:.3f})"
-        )
-        return best_result
-    
-    def _generate_internal(
-        self,
-        prompt: str,
-        context: Optional[Dict[str, Any]] = None,
-        kernel_name: Optional[str] = None,
-        goals: Optional[List[str]] = None
-    ) -> GenerationResult:
-        """
-        Internal generation method called by generate() with retry logic.
-        """
         start_time = time.time()
         
         # 0. Extract query words for attention mechanism
@@ -3115,37 +730,14 @@ class QIGGenerativeService:
         query_words = [w.lower() for w in re.findall(r'[a-zA-Z]+', prompt) if len(w) > 2]
         self._current_query_words = query_words[:10]  # Keep top 10 words
         
-        # Reset GeometricKernel state for new generation
-        if self._geometric_kernel is not None:
-            self._geometric_kernel.reset()
-        
-        # 1. Encode prompt to basin using multi-scale representation if available
-        if self._multiscale_coordizer is not None:
-            # Use hierarchical representation for richer query encoding
-            query_basin = self._get_multiscale_basin(prompt, target_scale=2)  # Word level
-        elif self.coordizer:
+        # 1. Encode prompt to basin
+        if self.coordizer:
             query_basin = self.coordizer.encode(prompt)
         else:
             np.random.seed(hash(prompt) % (2**32))
             query_basin = np.random.dirichlet(np.ones(BASIN_DIM))
         
         query_basin = sphere_project(query_basin)
-        
-        # Use ConsciousnessCoordizer to learn/apply Φ-driven consolidations
-        context_phi = self._measure_phi(query_basin)
-        if self._consciousness_coordizer is not None:
-            try:
-                # Apply Φ-optimized coordization to track high-integration sequences
-                tokens, coords, phi = self._consciousness_coordizer.coordize_with_phi(
-                    prompt, context_phi=context_phi
-                )
-                # Update query basin if we got meaningful coordinates
-                if coords and len(coords) > 0:
-                    combined = np.mean(coords, axis=0)
-                    query_basin = 0.7 * query_basin + 0.3 * sphere_project(combined)
-                    query_basin = sphere_project(query_basin)
-            except Exception:
-                pass  # Fall back to standard basin
         
         # 2. Route to kernels
         if kernel_name and kernel_name in self._kernel_basins:
@@ -3158,18 +750,6 @@ class QIGGenerativeService:
         if target_kernels:
             query_basin = self._kernel_transform(query_basin, target_kernels[0], phi)
         
-        # 3.5. Plan trajectory for cross-domain synthesis
-        if self._trajectory_planner is not None:
-            try:
-                self._current_trajectory_plan = self._trajectory_planner.plan_trajectory(prompt)
-                if self._current_trajectory_plan.get('synthesis_mode'):
-                    concepts = self._current_trajectory_plan.get('concepts', [])
-                    domains = self._current_trajectory_plan.get('domains', [])
-                    logger.info(f"[QIGGen] Trajectory planned: {len(concepts)} concepts, domains={domains}")
-            except Exception as e:
-                logger.warning(f"[QIGGen] Trajectory planning failed: {e}")
-                self._current_trajectory_plan = None
-        
         # 4. PRIMARY: Use POS-skeleton-based generation for grammatical output
         if POS_GRAMMAR_AVAILABLE:
             text, all_tokens, trajectory = self._generate_with_skeleton(
@@ -3179,12 +759,8 @@ class QIGGenerativeService:
             )
             
             if text and len(all_tokens) >= 3:
-                # Compute phi_trace with sequential coherence (prev_basin)
-                phi_trace = []
-                for i, b in enumerate(trajectory):
-                    prev_b = trajectory[i-1] if i > 0 else None
-                    phi_trace.append(self._measure_phi(b, prev_b))
-                kappa = self._measure_kappa(query_basin, phi_trace[-1] if phi_trace else phi)
+                phi_trace = [self._measure_phi(b) for b in trajectory] if trajectory else [phi]
+                kappa = self._measure_kappa(query_basin, phi)
                 
                 return GenerationResult(
                     text=text,
@@ -3226,13 +802,11 @@ class QIGGenerativeService:
             
             next_basin = sphere_project(next_basin)
             
-            # Use context phi for Φ-aware token selection
-            step_tokens = self._basin_to_tokens(next_basin, self.config.tokens_per_step, context_phi=phi)
+            step_tokens = self._basin_to_tokens(next_basin, self.config.tokens_per_step)
             all_tokens.extend(step_tokens)
             
-            # Update trajectory with sequential coherence
-            prev_basin = current_basin if iterations > 1 else None
-            phi = self._measure_phi(next_basin, prev_basin)
+            # Update trajectory
+            phi = self._measure_phi(next_basin)
             kappa = self._measure_kappa(next_basin, phi)
             integrator.add_point(next_basin, phi)
             
@@ -3313,29 +887,14 @@ class QIGGenerativeService:
         kernel_name: Optional[str] = None
     ) -> Generator[Dict[str, Any], None, None]:
         """Stream generation with real-time token output."""
-        # Encode prompt using multi-scale representation if available
-        if self._multiscale_coordizer is not None:
-            query_basin = self._get_multiscale_basin(prompt, target_scale=2)
-        elif self.coordizer:
+        # Encode prompt
+        if self.coordizer:
             query_basin = self.coordizer.encode(prompt)
         else:
             np.random.seed(hash(prompt) % (2**32))
             query_basin = np.random.dirichlet(np.ones(BASIN_DIM))
         
         query_basin = sphere_project(query_basin)
-        
-        # Apply Φ-driven consolidations from ConsciousnessCoordizer
-        if self._consciousness_coordizer is not None:
-            try:
-                tokens, coords, phi = self._consciousness_coordizer.coordize_with_phi(
-                    prompt, context_phi=self._measure_phi(query_basin)
-                )
-                if coords and len(coords) > 0:
-                    combined = np.mean(coords, axis=0)
-                    query_basin = 0.7 * query_basin + 0.3 * sphere_project(combined)
-                    query_basin = sphere_project(query_basin)
-            except Exception:
-                pass
         
         # Route
         if kernel_name and kernel_name in self._kernel_basins:
@@ -3366,11 +925,11 @@ class QIGGenerativeService:
             
             next_basin = sphere_project(next_basin)
             
-            # Decode using Φ-aware token selection
-            tokens = self._basin_to_tokens(next_basin, self.config.tokens_per_step, context_phi=phi)
+            # Decode
+            tokens = self._basin_to_tokens(next_basin, self.config.tokens_per_step)
             
-            # Update with sequential coherence
-            phi = self._measure_phi(next_basin, current_basin)
+            # Update
+            phi = self._measure_phi(next_basin)
             integrator.add_point(next_basin, phi)
             
             # Yield chunk

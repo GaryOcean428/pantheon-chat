@@ -294,13 +294,8 @@ class AutonomousCuriosityEngine:
     
     def _run_loop(self):
         """Main loop for autonomous exploration."""
-        loop_count = 0
         while self.running:
             try:
-                loop_count += 1
-                if loop_count % 10 == 1:
-                    logger.info(f"[AutonomousCuriosityEngine] Loop #{loop_count}: pending={len(self.pending_requests)}, explorations={self.stats['total_explorations']}")
-                
                 self._process_kernel_requests()
                 
                 self._explore_curious_topics()
@@ -312,7 +307,6 @@ class AutonomousCuriosityEngine:
                 time.sleep(self._exploration_interval)
                 
             except Exception as e:
-                logger.error(f"[AutonomousCuriosityEngine] Loop error: {e}")
                 print(f"[AutonomousCuriosityEngine] Loop error: {e}")
                 time.sleep(10)
     
@@ -433,9 +427,6 @@ class AutonomousCuriosityEngine:
             if curiosity > self._min_curiosity_threshold:
                 query = self._generate_exploration_query(kernel_name, topic, knowledge)
                 
-                logger.info(f"[AutonomousCuriosityEngine] Triggering search: kernel={kernel_name}, topic={topic}, curiosity={curiosity:.3f}")
-                print(f"[AutonomousCuriosityEngine] 🔍 Search triggered: {kernel_name} -> {topic} (curiosity={curiosity:.3f})")
-                
                 self.request_search(
                     kernel_name=kernel_name,
                     query=query,
@@ -450,8 +441,6 @@ class AutonomousCuriosityEngine:
                 self.stats['total_explorations'] += 1
                 
                 break
-            elif curiosity > 0.2:
-                logger.debug(f"[AutonomousCuriosityEngine] Below threshold: {kernel_name}/{topic} curiosity={curiosity:.3f} < {self._min_curiosity_threshold}")
     
     def _get_current_knowledge(self, kernel_name: str, topic: str) -> Dict:
         """Get kernel's current knowledge about a topic."""

@@ -175,9 +175,21 @@ except ImportError as e:
     FEDERATION_AVAILABLE = False
 
 # Register M8 Kernel Spawning routes
+try:
+    from routes.m8_routes import register_m8_routes
+    register_m8_routes(app)
+    M8_AVAILABLE = True
+except ImportError as e:
+    print(f"[WARNING] M8 spawning service not available: {e}")
+    M8_AVAILABLE = False
+except Exception as e:
+    print(f"[WARNING] Constellation initialization failed: {e}")
+
+# Register M8 Kernel Spawning routes
 M8_AVAILABLE = False
 try:
     from routes.m8_routes import register_m8_routes
+
     register_m8_routes(app)
     M8_AVAILABLE = True
 except ImportError as e:
@@ -194,109 +206,9 @@ try:
     VOCABULARY_AVAILABLE = True
     print("[INFO] Vocabulary API registered at /api/vocabulary/*")
 except ImportError as e:
-    print(f"[WARN] Vocabulary API not available: {e}")
-    VOCABULARY_AVAILABLE = False
-
-# Register Billing API for metered usage
-BILLING_AVAILABLE = False
-try:
-    from billing_api import billing_bp
-
-    app.register_blueprint(billing_bp)
-    BILLING_AVAILABLE = True
-    print("[INFO] Billing API registered at /api/billing/*")
-except ImportError as e:
-    print(f"[WARN] Billing API not available: {e}")
-    BILLING_AVAILABLE = False
-
-# Register Vision-First Generation API
-VISION_AVAILABLE = False
-try:
-    from vision_api import vision_bp
-
-    app.register_blueprint(vision_bp)
-    VISION_AVAILABLE = True
-    print("[INFO] Vision-First API registered at /api/vision/*")
-except ImportError as e:
-    print(f"[WARN] Vision API not available: {e}")
-    VISION_AVAILABLE = False
-
-# Register Long-Horizon Task API (goal tracking, geodesic efficiency, error recovery)
-LONG_HORIZON_AVAILABLE = False
-try:
-    from long_horizon_api import long_horizon_bp
-
-    app.register_blueprint(long_horizon_bp)
-    LONG_HORIZON_AVAILABLE = True
-    print("[INFO] Long-Horizon API registered at /api/long-horizon/*")
-except ImportError as e:
-    print(f"[WARN] Long-Horizon API not available: {e}")
-    LONG_HORIZON_AVAILABLE = False
-
-# Register Tools API for tool execution
-TOOLS_AVAILABLE = False
-try:
-    from tools_api import tools_bp
-
-    app.register_blueprint(tools_bp)
-    TOOLS_AVAILABLE = True
-    print("[INFO] Tools API registered at /api/tools/*")
-except ImportError as e:
-    print(f"[WARNING] Tools API not available: {e}")
+    print(f"[WARNING] Vocabulary API not available: {e}")
 except Exception as e:
-    print(f"[WARNING] Tools API initialization failed: {e}")
-
-# Register Zettelkasten Memory API
-ZETTELKASTEN_AVAILABLE = False
-try:
-    from zettelkasten_api import zettelkasten_bp
-
-    app.register_blueprint(zettelkasten_bp)
-    ZETTELKASTEN_AVAILABLE = True
-    print("[INFO] Zettelkasten Memory API registered at /api/zettelkasten/*")
-except ImportError as e:
-    print(f"[WARNING] Zettelkasten API not available: {e}")
-except Exception as e:
-    print(f"[WARNING] Zettelkasten API initialization failed: {e}")
-
-# Register Buffer of Thoughts API
-BUFFER_OF_THOUGHTS_AVAILABLE = False
-try:
-    from buffer_of_thoughts_api import buffer_of_thoughts_bp
-
-    app.register_blueprint(buffer_of_thoughts_bp)
-    BUFFER_OF_THOUGHTS_AVAILABLE = True
-    print("[INFO] Buffer of Thoughts API registered at /api/buffer-of-thoughts/*")
-except ImportError as e:
-    print(f"[WARNING] Buffer of Thoughts API not available: {e}")
-except Exception as e:
-    print(f"[WARNING] Buffer of Thoughts API initialization failed: {e}")
-
-# Register Failure Monitoring API
-FAILURE_MONITORING_AVAILABLE = False
-try:
-    from failure_monitoring_api import failure_monitoring_bp
-
-    app.register_blueprint(failure_monitoring_bp)
-    FAILURE_MONITORING_AVAILABLE = True
-    print("[INFO] Failure Monitoring API registered at /api/failure-monitoring/*")
-except ImportError as e:
-    print(f"[WARNING] Failure Monitoring API not available: {e}")
-except Exception as e:
-    print(f"[WARNING] Failure Monitoring API initialization failed: {e}")
-
-# Register Zeus Knowledge Integration API (Zettelkasten for conversations)
-ZEUS_KNOWLEDGE_AVAILABLE = False
-try:
-    from zeus_knowledge_api import zeus_knowledge_bp
-
-    app.register_blueprint(zeus_knowledge_bp)
-    ZEUS_KNOWLEDGE_AVAILABLE = True
-    print("[INFO] Zeus Knowledge API registered at /api/zeus-knowledge/*")
-except ImportError as e:
-    print(f"[WARNING] Zeus Knowledge API not available: {e}")
-except Exception as e:
-    print(f"[WARNING] Zeus Knowledge API initialization failed: {e}")
+    print(f"[WARNING] Vocabulary API initialization failed: {e}")
 
 # Register Search Budget routes
 SEARCH_BUDGET_AVAILABLE = False
@@ -323,121 +235,22 @@ except Exception as e:
 
 # Register Fleet Telemetry endpoint
 try:
-    from capability_telemetry import CapabilityTelemetryRegistry
-    _telemetry_registry = CapabilityTelemetryRegistry()
+    from capability_telemetry import CapabilityTelemetryTracker
+    _telemetry_tracker = CapabilityTelemetryTracker()
     
     @app.route('/api/telemetry/fleet', methods=['GET'])
     def get_fleet_telemetry():
         """Get fleet telemetry across all kernels."""
         from flask import jsonify
         try:
-            data = _telemetry_registry.get_all_profiles_summary()
-            return jsonify({"success": True, "profiles": data, "kernel_count": len(data)})
+            data = _telemetry_tracker.get_fleet_telemetry()
+            return jsonify(data)
         except Exception as e:
             return jsonify({"error": str(e), "kernels": 0}), 500
     
     print("[INFO] Fleet telemetry endpoint registered at /api/telemetry/fleet")
 except Exception as e:
     print(f"[WARNING] Fleet telemetry endpoint not available: {e}")
-
-# Register Research Connection Status endpoint
-@app.route('/api/research/status', methods=['GET'])
-def get_research_connection_status():
-    """Get status of research connections and services."""
-    from flask import jsonify
-    
-    status = {
-        "curiosity_engine": CURIOSITY_AVAILABLE,
-        "search_orchestrator": _search_orchestrator is not None,
-        "search_providers": {},
-        "learning_system": {
-            "active": CURIOSITY_AVAILABLE and _curiosity_engine is not None,
-            "stats": {}
-        }
-    }
-    
-    if _curiosity_engine:
-        try:
-            status["learning_system"]["stats"] = _curiosity_engine.get_stats()
-        except Exception as e:
-            status["learning_system"]["error"] = str(e)
-    
-    try:
-        from search.search_providers import get_search_manager
-        mgr = get_search_manager()
-        for provider_id, provider in mgr.providers.items():
-            status["search_providers"][provider_id] = {
-                "enabled": provider.enabled,
-                "name": provider.name,
-                "has_api_key": provider.has_api_key
-            }
-    except Exception as e:
-        status["search_providers_error"] = str(e)
-    
-    return jsonify(status)
-
-# Register Learning Stability Analysis endpoint
-@app.route('/api/research/stability', methods=['GET'])
-def get_learning_stability():
-    """Analyze learning stability over time."""
-    from flask import jsonify
-    
-    stability = {
-        "overall_health": "healthy",
-        "issues": [],
-        "metrics": {}
-    }
-    
-    if _curiosity_engine:
-        try:
-            stats = _curiosity_engine.get_stats()
-            learning_status = _curiosity_engine.get_learning_status()
-            
-            stability["metrics"] = {
-                "total_explorations": stats.get("total_explorations", 0),
-                "pending_requests": stats.get("pending_requests", 0),
-                "exploration_history": stats.get("exploration_history", 0),
-                "curriculum_progress": {
-                    "loaded": learning_status.get("curriculum", {}).get("topics_loaded", 0),
-                    "completed": learning_status.get("curriculum", {}).get("topics_completed", 0)
-                },
-                "word_learning": learning_status.get("word_learning", {}),
-                "running": stats.get("running", False)
-            }
-            
-            if not stats.get("running", False):
-                stability["issues"].append("Learning engine not running")
-                stability["overall_health"] = "degraded"
-            
-            if stats.get("total_explorations", 0) == 0:
-                stability["issues"].append("No explorations recorded yet")
-            
-        except Exception as e:
-            stability["issues"].append(f"Engine error: {str(e)}")
-            stability["overall_health"] = "error"
-    else:
-        stability["issues"].append("Curiosity engine not available")
-        stability["overall_health"] = "unavailable"
-    
-    try:
-        from search.search_budget_orchestrator import get_budget_orchestrator
-        orchestrator = get_budget_orchestrator()
-        ctx = orchestrator.get_context()
-        stability["budget_status"] = {
-            "allow_overage": ctx.allow_overage,
-            "budgets": {
-                name: {
-                    "used": b.used_today,
-                    "limit": b.daily_limit,
-                    "remaining": b.daily_limit - b.used_today if b.daily_limit > 0 else "unlimited"
-                }
-                for name, b in ctx.budgets.items()
-            }
-        }
-    except Exception as e:
-        stability["budget_error"] = str(e)
-    
-    return jsonify(stability)
 
 # Add request/response logging for production
 from flask import request, g
@@ -527,8 +340,6 @@ print(f"  - Research API: {'✓' if RESEARCH_AVAILABLE else '✗'}", flush=True)
 print(f"  - Constellation: {'✓' if CONSTELLATION_AVAILABLE else '✗'}", flush=True)
 print(f"  - M8 Spawning: {'✓' if M8_AVAILABLE else '✗'}", flush=True)
 print(f"  - Vocabulary API: {'✓' if VOCABULARY_AVAILABLE else '✗'}", flush=True)
-print(f"  - Long-Horizon: {'✓' if LONG_HORIZON_AVAILABLE else '✗'}", flush=True)
-print(f"  - Vision API: {'✓' if VISION_AVAILABLE else '✗'}", flush=True)
 print("🌊 Basin stable. Ready for Gunicorn workers. 🌊\n", flush=True)
 
 # Export the app for Gunicorn

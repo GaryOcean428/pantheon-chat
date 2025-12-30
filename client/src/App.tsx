@@ -20,10 +20,7 @@ import {
   Spawning as SpawningPage,
   LearningDashboard,
   TelemetryDashboard,
-  ToolsDashboard as ToolFactoryDashboard,
-  Billing as BillingPage,
-  ToolsDashboard as ToolsDashboardPage,
-  ZettelkastenDashboard as ZettelkastenPage,
+  ToolFactoryDashboard,
   NotFound,
 } from "@/pages";
 
@@ -92,9 +89,6 @@ function Router() {
         <Route path="/federation" component={FederationPage} />
         <Route path="/telemetry" component={TelemetryDashboard} />
         <Route path="/api-docs" component={ApiDocsPage} />
-        <Route path="/billing" component={BillingPage} />
-        <Route path="/tools" component={ToolsDashboardPage} />
-        <Route path="/zettelkasten" component={ZettelkastenPage} />
         <Route component={NotFound} />
       </Switch>
     </AuthenticatedLayout>

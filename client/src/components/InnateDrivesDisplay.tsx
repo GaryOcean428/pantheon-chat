@@ -3,6 +3,7 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  Progress,
   Badge,
   Tooltip,
   TooltipContent,

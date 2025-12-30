@@ -3,9 +3,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Copy, ExternalLink, Key, Upload, MessageSquare, Search, Zap, Shield, Server } from "lucide-react";
+import { Copy, ExternalLink, Key, Upload, MessageSquare, Search, Zap, Shield } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { getApiUrls, getEnvironmentBadge } from "@/lib/api-base-url";
 
 function CodeBlock({ code, language = "bash" }: { code: string; language?: string }) {
   const { toast } = useToast();
@@ -97,31 +96,18 @@ function EndpointCard({
 }
 
 export default function ApiDocsPage() {
-  const { baseUrl, externalApiUrl, environment } = getApiUrls();
-  const envBadge = getEnvironmentBadge();
+  const baseUrl = typeof window !== "undefined" ? window.location.origin : "https://your-domain.replit.app";
 
   return (
     <ScrollArea className="h-full">
       <div className="container max-w-5xl py-8 px-4">
         <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <h1 className="text-3xl font-bold" data-testid="text-page-title">
-              External API Documentation
-            </h1>
-            <Badge variant={envBadge.variant} className="flex items-center gap-1">
-              <Server className="h-3 w-3" />
-              {envBadge.text}
-            </Badge>
-          </div>
+          <h1 className="text-3xl font-bold mb-2" data-testid="text-page-title">
+            External API Documentation
+          </h1>
           <p className="text-muted-foreground">
             Integrate Ocean Agentic Platform into your applications using our REST API.
           </p>
-          <div className="mt-3 p-3 bg-muted rounded-md">
-            <div className="text-sm font-medium mb-1">Your API Base URL:</div>
-            <code className="text-sm text-green-600 dark:text-green-400" data-testid="text-api-base-url">
-              {externalApiUrl}
-            </code>
-          </div>
         </div>
 
         <div className="grid gap-4 md:grid-cols-3 mb-8">

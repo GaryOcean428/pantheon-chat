@@ -2,7 +2,7 @@ import { useState, useCallback, useRef } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { Button, Badge, Checkbox, Progress } from '@/components/ui';
 import { Upload, FileText, CheckCircle2, XCircle, Loader2, X, BookOpen } from 'lucide-react';
-import { queryClient } from '@/lib/queryClient';
+import { apiRequest, queryClient } from '@/lib/queryClient';
 
 interface ChatUploadResult {
   success: boolean;

@@ -41,11 +41,3 @@ Thumbs.db
 
 # Logs
 *.log
-
-# QIG-specific excludes
-emergency_logs/
-results/*.json
-data/learned/*.json
-checkpoints/
-qig_logs/
-beta_measurement_complete.json

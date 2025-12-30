@@ -4,18 +4,17 @@ import { ConsciousnessDashboard } from "@/components/ConsciousnessDashboard";
 import { BetaAttentionDisplay } from "@/components/BetaAttentionDisplay";
 import NeurochemistryDisplay from "@/components/NeurochemistryDisplay";
 import { InnateDrivesDisplay } from "@/components/InnateDrivesDisplay";
-import { CapabilityTelemetryPanel } from "@/components/capability-telemetry";
-import { ConsciousnessMonitoringDemo } from "@/components/consciousness-monitoring";
+import CapabilityTelemetryPanel from "@/components/CapabilityTelemetryPanel";
+import { ConsciousnessMonitoringDemo } from "@/components/ConsciousnessMonitoringDemo";
 import { EmotionalStatePanel } from "@/components/EmotionalStatePanel";
 import NeurochemistryAdminPanel from "@/components/NeurochemistryAdminPanel";
 import SearchBudgetPanel from "@/components/SearchBudgetPanel";
-import { LongHorizonPanel } from "@/components/LongHorizonPanel";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Activity, Brain, Shield, Zap, Server, TrendingUp, AlertCircle, CheckCircle2, Radio, Flag } from "lucide-react";
+import { Activity, Brain, Shield, Zap, Server, TrendingUp, AlertCircle, CheckCircle2, Radio } from "lucide-react";
 
 interface TelemetryOverview {
   success: boolean;
@@ -557,10 +556,6 @@ export default function TelemetryDashboard() {
         <TabsList data-testid="tabs-telemetry">
           <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
           <TabsTrigger value="consciousness" data-testid="tab-consciousness">Consciousness</TabsTrigger>
-          <TabsTrigger value="long-horizon" data-testid="tab-long-horizon">
-            <Flag className="h-3 w-3 mr-1" />
-            Long-Horizon
-          </TabsTrigger>
           <TabsTrigger value="usage" data-testid="tab-usage">API Usage</TabsTrigger>
           <TabsTrigger value="learning" data-testid="tab-learning">Learning</TabsTrigger>
           <TabsTrigger value="defense" data-testid="tab-defense">Defense</TabsTrigger>
@@ -719,18 +714,14 @@ export default function TelemetryDashboard() {
             </Card>
           </div>
         </TabsContent>
-
-        <TabsContent value="long-horizon" className="space-y-6">
-          <LongHorizonPanel />
-        </TabsContent>
-
+        
         <TabsContent value="usage" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <ApiUsageCard usage={data.usage} />
             <SearchBudgetPanel />
           </div>
         </TabsContent>
-
+        
         <TabsContent value="learning" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <LearningCard learning={data.learning} />

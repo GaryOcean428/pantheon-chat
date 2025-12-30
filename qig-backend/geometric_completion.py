@@ -29,12 +29,6 @@ from typing import List, Dict, Any, Optional, Tuple
 from enum import Enum
 import time
 
-# Re-export StreamingGenerationMonitor for convenience
-try:
-    from streaming_collapse import StreamingGenerationMonitor
-except ImportError:
-    StreamingGenerationMonitor = None
-
 # Import QIG primitives
 try:
     from qig_core.geometric_primitives.fisher_metric import (

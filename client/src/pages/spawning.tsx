@@ -40,20 +40,12 @@ import {
   useMergeKernels,
   useAutoCannibalize,
   useAutoMerge,
-  useGovernanceStats,
-  useGovernanceProposals,
-  useE8Capacity,
-  useProposeLifecycleAction,
-  useVoteOnLifecycleProposal,
-  useExecuteLifecycleProposal,
   type WarHistoryRecord,
   type WarMode,
   type WarOutcome,
   type PostgresKernel,
   type KernelStatus,
   type IdleKernel,
-  type GovernanceProposal,
-  type LifecycleAction,
 } from '@/hooks/use-m8-spawning';
 import {
   useDebateServiceStatus,
@@ -739,37 +731,15 @@ function formatIdleTime(seconds: number): string {
   return `${hours}h ${mins}m`;
 }
 
-const GOV_ACTION_COLORS: Record<LifecycleAction, string> = {
-  spawn: 'bg-green-500/20 text-green-400',
-  merge: 'bg-cyan-500/20 text-cyan-400',
-  cannibalize: 'bg-purple-500/20 text-purple-400',
-  evolve: 'bg-amber-500/20 text-amber-400',
-  hibernate: 'bg-gray-500/20 text-gray-400',
-  awaken: 'bg-blue-500/20 text-blue-400',
-};
-
-const GOV_STATUS_COLORS: Record<string, string> = {
-  pending: 'bg-yellow-500/20 text-yellow-400',
-  debating: 'bg-blue-500/20 text-blue-400',
-  approved: 'bg-green-500/20 text-green-400',
-  rejected: 'bg-red-500/20 text-red-400',
-  executed: 'bg-gray-500/20 text-gray-400',
-};
-
 function KernelLifecycleActionsPanel() {
   const { toast } = useToast();
   const { data: idleData, isLoading: idleLoading } = useIdleKernels(300);
   const { data: allKernels } = useListSpawnedKernels();
-  const { data: govStats, isLoading: govStatsLoading } = useGovernanceStats();
-  const { data: govProposals, isLoading: govProposalsLoading } = useGovernanceProposals();
-  const { data: e8Capacity } = useE8Capacity();
   const deleteMutation = useDeleteKernel();
   const cannibalizeMutation = useCannibalizeKernel();
   const mergeMutation = useMergeKernels();
   const autoCannibalizeMutation = useAutoCannibalize();
   const autoMergeMutation = useAutoMerge();
-  const voteMutation = useVoteOnLifecycleProposal();
-  const executeMutation = useExecuteLifecycleProposal();
   
   const [cannibalizeSource, setCannibalizeSource] = useState<string>('');
   const [cannibalizeTarget, setCannibalizeTarget] = useState<string>('');
@@ -899,170 +869,10 @@ function KernelLifecycleActionsPanel() {
     }
   };
 
-  const handleVote = async (proposalId: string, godName: string, vote: 'approve' | 'reject') => {
-    try {
-      await voteMutation.mutateAsync({ proposalId, god_name: godName, vote });
-      toast({
-        title: 'Vote Recorded',
-        description: `${godName} voted to ${vote} the proposal`,
-      });
-    } catch (error) {
-      toast({
-        title: 'Vote Failed',
-        description: error instanceof Error ? error.message : 'Failed to record vote',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const handleExecute = async (proposalId: string) => {
-    try {
-      const result = await executeMutation.mutateAsync(proposalId);
-      toast({
-        title: 'Proposal Executed',
-        description: result.message || 'Lifecycle action completed',
-      });
-    } catch (error) {
-      toast({
-        title: 'Execution Failed',
-        description: error instanceof Error ? error.message : 'Failed to execute proposal',
-        variant: 'destructive',
-      });
-    }
-  };
-
   const availableKernels = allKernels?.kernels || [];
-  const proposals = govProposals?.proposals || [];
-  const stats = govStats?.data;
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5 text-blue-400" />
-            God Oversight - E8 Governance
-          </CardTitle>
-          <CardDescription>
-            All lifecycle decisions require god debate and consensus voting
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="text-center p-3 border rounded-md">
-              <div className="text-2xl font-bold font-mono text-cyan-400" data-testid="text-e8-current">
-                {e8Capacity?.current ?? stats?.current_kernels ?? 0}
-              </div>
-              <div className="text-xs text-muted-foreground">Kernels</div>
-            </div>
-            <div className="text-center p-3 border rounded-md">
-              <div className="text-2xl font-bold font-mono text-gray-400" data-testid="text-e8-cap">
-                {e8Capacity?.cap ?? 240}
-              </div>
-              <div className="text-xs text-muted-foreground">E8 Cap</div>
-            </div>
-            <div className="text-center p-3 border rounded-md">
-              <div className={`text-2xl font-bold font-mono ${e8Capacity?.at_capacity ? 'text-red-400' : 'text-green-400'}`} data-testid="text-e8-available">
-                {e8Capacity?.available ?? stats?.available_slots ?? 240}
-              </div>
-              <div className="text-xs text-muted-foreground">Available</div>
-            </div>
-            <div className="text-center p-3 border rounded-md">
-              <div className="text-2xl font-bold font-mono text-amber-400" data-testid="text-active-proposals">
-                {stats?.active_proposals ?? proposals.length}
-              </div>
-              <div className="text-xs text-muted-foreground">Active Proposals</div>
-            </div>
-          </div>
-
-          {govProposalsLoading ? (
-            <div className="flex items-center justify-center py-4">
-              <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : proposals.length > 0 ? (
-            <ScrollArea className="h-[250px]">
-              <div className="space-y-3 pr-4">
-                {proposals.map((proposal: GovernanceProposal) => (
-                  <div
-                    key={proposal.proposal_id}
-                    className="p-3 border rounded-md space-y-2"
-                    data-testid={`card-gov-proposal-${proposal.proposal_id}`}
-                  >
-                    <div className="flex items-center justify-between gap-2 flex-wrap">
-                      <div className="flex items-center gap-2">
-                        <Badge className={GOV_ACTION_COLORS[proposal.action] || 'bg-gray-500/20'}>
-                          {proposal.action}
-                        </Badge>
-                        <Badge className={GOV_STATUS_COLORS[proposal.status] || 'bg-gray-500/20'}>
-                          {proposal.status}
-                        </Badge>
-                      </div>
-                      <span className="text-xs text-muted-foreground">
-                        by {proposal.proposed_by}
-                      </span>
-                    </div>
-                    <p className="text-sm">{proposal.reason}</p>
-                    {proposal.target_kernel_id && (
-                      <p className="text-xs text-muted-foreground">Target: {proposal.target_kernel_id}</p>
-                    )}
-                    <div className="flex items-center gap-2 text-xs">
-                      <span className="text-green-400">
-                        {Object.values(proposal.votes).filter(v => v === 'approve').length} approve
-                      </span>
-                      <span className="text-red-400">
-                        {Object.values(proposal.votes).filter(v => v === 'reject').length} reject
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {proposal.status === 'pending' || proposal.status === 'debating' ? (
-                        <>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleVote(proposal.proposal_id, 'zeus', 'approve')}
-                            disabled={voteMutation.isPending}
-                            data-testid={`button-vote-approve-${proposal.proposal_id}`}
-                          >
-                            <CheckCircle2 className="h-3 w-3 mr-1" />
-                            Approve
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleVote(proposal.proposal_id, 'zeus', 'reject')}
-                            disabled={voteMutation.isPending}
-                            data-testid={`button-vote-reject-${proposal.proposal_id}`}
-                          >
-                            <XCircle className="h-3 w-3 mr-1" />
-                            Reject
-                          </Button>
-                        </>
-                      ) : proposal.status === 'approved' ? (
-                        <Button
-                          size="sm"
-                          onClick={() => handleExecute(proposal.proposal_id)}
-                          disabled={executeMutation.isPending}
-                          data-testid={`button-execute-${proposal.proposal_id}`}
-                        >
-                          {executeMutation.isPending ? (
-                            <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-                          ) : (
-                            <Rocket className="h-3 w-3 mr-1" />
-                          )}
-                          Execute
-                        </Button>
-                      ) : null}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </ScrollArea>
-          ) : (
-            <p className="text-muted-foreground text-center py-4">No active lifecycle proposals</p>
-          )}
-        </CardContent>
-      </Card>
-
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">

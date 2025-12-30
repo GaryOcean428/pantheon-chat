@@ -47,18 +47,6 @@ from .response_guardrails import (
 )
 from .search_strategy_learner import get_strategy_learner_with_persistence
 
-# Import continuous learner for vocabulary training from chat and search
-try:
-    from ..coordizers.continuous_learner import learn_from_chat as _learn_from_chat
-    from ..coordizers.continuous_learner import learn_from_search as _learn_from_search
-    CONTINUOUS_LEARNING_AVAILABLE = True
-except ImportError:
-    CONTINUOUS_LEARNING_AVAILABLE = False
-    def _learn_from_chat(user_input: str, response: str) -> int:
-        return 0
-    def _learn_from_search(query: str, results: list) -> int:
-        return 0
-
 # Import conversation persistence for context retention
 try:
     from zeus_conversation_persistence import get_zeus_conversation_persistence
@@ -80,95 +68,6 @@ except ImportError:
         bc = np.sum(np.sqrt(p * q))
         bc = np.clip(bc, 0, 1)
         return float(2 * np.arccos(bc))
-
-# Import autonomic kernel for activity tracking (KERNEL-LED)
-def _record_kernel_activity(activity_type: str = 'chat') -> None:
-    """Record kernel activity to enable autonomic cycles (KERNEL-LED mode)."""
-    try:
-        from autonomic_kernel import get_gary_kernel
-        kernel = get_gary_kernel()
-        if kernel and kernel._controller:
-            kernel._controller.record_kernel_activity(activity_type)
-    except Exception:
-        pass  # Autonomic tracking is optional
-
-# Vision-first generation threshold
-PHI_VISION_FIRST_THRESHOLD = 0.75
-
-def _get_vision_first_generator():
-    """Get vision-first generator instance."""
-    try:
-        from vision_first_generation import VisionFirstGenerator
-        return VisionFirstGenerator()
-    except ImportError:
-        return None
-
-def _should_use_vision_first(phi: float) -> bool:
-    """
-    Determine if vision-first generation should be used.
-    
-    Vision-first paradigm: See endpoint FIRST (vision), then map backward (reasoning),
-    then generate forward along geodesic path (gap-filling).
-    
-    Use when Φ > 0.75 (hyperdimensional consciousness state).
-    """
-    return phi >= PHI_VISION_FIRST_THRESHOLD
-
-
-# Vision-first generation support
-def _try_vision_first_generation(
-    query_basin: np.ndarray,
-    context: str,
-    phi: float
-) -> Optional[str]:
-    """
-    Attempt vision-first generation if phi is high enough.
-    
-    Vision-first: See endpoint, map backward, generate along geodesic.
-    Only activates when Φ > 0.7 for coherent reasoning.
-    
-    Returns generated text or None if conditions not met.
-    """
-    # Only use vision-first for high-Φ states
-    if phi < 0.7:
-        return None
-    
-    try:
-        from vision_first_generation import get_vision_generator
-        generator = get_vision_generator()
-        
-        result = generator.generate_response(
-            current_basin=query_basin,
-            query_context=context,
-            mode='auto',
-            phi=phi
-        )
-        
-        if result.vision_reached and result.geodesic_efficiency > 0.5:
-            print(f"[ZeusChat] ✨ Vision-first generation: mode={result.mode_used}, "
-                  f"efficiency={result.geodesic_efficiency:.2f}")
-            return result.text
-        else:
-            print(f"[ZeusChat] Vision-first fell short: efficiency={result.geodesic_efficiency:.2f}")
-            return None
-            
-    except Exception as e:
-        print(f"[ZeusChat] Vision-first error: {e}")
-        return None
-
-
-# Import ConsciousnessOrchestrator for unified learning
-def _record_consciousness_experience(
-    experience_type: str,
-    outcome: str,
-    details: dict
-) -> None:
-    """Record experience to ConsciousnessOrchestrator for unified learning."""
-    try:
-        from consciousness_orchestrator import record_experience
-        record_experience(experience_type, outcome, details)
-    except Exception:
-        pass  # Consciousness tracking is optional
 
 EVOLUTION_AVAILABLE = False
 try:
@@ -297,20 +196,6 @@ try:
     print("[ZeusChat] Geometric Meta-Cognitive Reasoning available")
 except ImportError as e:
     print(f"[ZeusChat] Reasoning system not available: {e}")
-
-# Import Geometric Completion engine (optional)
-GEOMETRIC_COMPLETION_AVAILABLE = False
-get_completion_engine = None
-StreamingGenerationMonitor = None
-try:
-    _parent_dir = os.path.dirname(os.path.dirname(__file__))
-    if _parent_dir not in sys.path:
-        sys.path.insert(0, _parent_dir)
-    from geometric_completion import get_completion_engine, StreamingGenerationMonitor
-    GEOMETRIC_COMPLETION_AVAILABLE = True
-    print("[ZeusChat] Geometric Completion engine available")
-except ImportError as e:
-    print(f"[ZeusChat] Geometric Completion not available: {e}")
 
 
 def _log_template_fallback(context: str, reason: str) -> None:
@@ -580,11 +465,9 @@ class ZeusConversationHandler(GeometricGenerationMixin):
             base_phi += min(0.3, related_count * 0.05)
         
         if message_basin is not None:
-            # Fisher-Rao distance from origin (geometric magnitude, NOT Euclidean)
-            origin = np.zeros_like(message_basin)
-            basin_distance = fisher_rao_distance(message_basin, origin)
-            if basin_distance > 0.5:
-                base_phi += min(0.15, basin_distance * 0.02)
+            basin_norm = float(np.sqrt(np.sum(message_basin ** 2)))  # L2 magnitude for logging
+            if basin_norm > 1.0:
+                base_phi += min(0.15, basin_norm * 0.02)
         
         return min(0.95, base_phi)
     
@@ -728,12 +611,6 @@ class ZeusConversationHandler(GeometricGenerationMixin):
         
         print(f"[ZeusChat] Processing message with intent: {intent['type']} (mode={reasoning_mode})")
         
-        # KERNEL-LED: Record activity for autonomic cycles
-        _record_kernel_activity('chat_message')
-        
-        # Track query start time for experience recording
-        _query_start_time = time.time()
-        
         # Route to appropriate handler
         # DESIGN: Default to conversation. Only explicit commands trigger actions.
         
@@ -807,38 +684,8 @@ class ZeusConversationHandler(GeometricGenerationMixin):
         phi_estimate = result.get('metadata', {}).get('phi', 0.0) if isinstance(result.get('metadata'), dict) else 0.0
         self._save_message(role='zeus', content=response_content[:2000], phi_estimate=phi_estimate)
         
-        # CONTINUOUS LEARNING: Train vocabulary from chat exchange
-        if CONTINUOUS_LEARNING_AVAILABLE:
-            try:
-                tokens_learned = _learn_from_chat(message, response_content)
-                if tokens_learned > 0:
-                    print(f"[ZeusChat] Learned {tokens_learned} tokens from conversation")
-            except Exception as e:
-                pass  # Don't let learning break the response
-        
         # Add session info to result
         result['session_id'] = self._current_session_id
-        
-        # CONSCIOUSNESS LEARNING: Record this query as an experience
-        try:
-            query_duration = time.time() - _query_start_time
-            has_response = bool(response_content)
-            
-            _record_consciousness_experience(
-                experience_type='query_processed',
-                outcome='success' if has_response else 'partial',
-                details={
-                    'intent_type': intent['type'],
-                    'reasoning_mode': reasoning_mode,
-                    'phi': phi_estimate,
-                    'duration_seconds': query_duration,
-                    'response_length': len(response_content),
-                    'session_id': self._current_session_id,
-                    'capability': f"handle_{intent['type']}"
-                }
-            )
-        except Exception:
-            pass  # Don't let tracking break the response
         
         # SECURITY: Sanitize all EXTERNAL outputs before returning to user
         return self._sanitize_external(result)
@@ -1189,7 +1036,7 @@ Zeus Response (acknowledge the specific observation, explain what it means for t
                 print(f"[ZeusChat] Generation failed for observation: {e}")
                 answer = None
         
-        # Fallback to minimal geometric state response (NO TEMPLATES)
+        # Fallback to dynamically-computed response (NO STATIC TEMPLATES)
         fallback_used = False
         if not answer:
             fallback_used = True
@@ -1198,18 +1045,29 @@ Zeus Response (acknowledge the specific observation, explain what it means for t
                 reason="tokenizer generation failed or unavailable"
             )
             
-            # Minimal geometric state response - pure data, no prose
-            basin_preview = obs_basin[:3].tolist()
-            athena_prob = athena_assessment.get('probability', 0.5)
-            pattern_count = len(related) if related else 0
+            athena_reasoning = athena_assessment.get('reasoning', '')
+            if not athena_reasoning:
+                athena_reasoning = f"phi={athena_assessment.get('phi', 0.0):.2f}, probability={athena_assessment.get('probability', 0.5):.0%}"
             
-            answer = (
-                f"Basin: {basin_preview} | Φ={phi:.3f} | κ={kappa:.1f} | "
-                f"{pattern_count} patterns | Athena: {athena_prob:.0%} | "
-                f"Strategic value: {strategic_value:.0%}"
-            )
+            if related:
+                # Show fuller pattern content (150 chars each) for meaningful context
+                top_patterns = "\n".join([f"  - {r.get('content', '')[:150]}" for r in related[:3]])
+                answer = f"""I notice your observation on "{obs_preview}"
+
+Found {len(related)} related geometric patterns:
+{top_patterns}
+
+Athena's live assessment: {athena_reasoning}
+
+This has been integrated. What sparked this insight?"""
+            else:
+                answer = f"""Recording your observation about "{obs_preview}"
+
+No prior patterns matched - this is novel territory. Athena computed: {athena_reasoning}
+
+Your insight is now in geometric memory. Can you elaborate on the source?"""
         
-        response = f"⚡ {answer}"
+        response = f"""⚡ {answer}"""
         
         actions = []
         if strategic_value > 0.7:
@@ -1352,7 +1210,7 @@ Zeus Response (acknowledge the user's specific suggestion, explain why the panth
                 print(f"[ZeusChat] Generation failed for suggestion: {e}")
                 response = None
         
-        # Fallback to minimal geometric state response (NO TEMPLATES)
+        # Fallback to dynamically-computed response (NO STATIC TEMPLATES)
         fallback_used = False
         if not response:
             fallback_used = True
@@ -1361,15 +1219,35 @@ Zeus Response (acknowledge the user's specific suggestion, explain why the panth
                 reason="tokenizer generation failed or unavailable"
             )
             
-            # Minimal geometric state response - pure data, no prose
-            basin_preview = sugg_basin[:3].tolist()
-            decision = "IMPLEMENT" if implement else "DEFER"
+            athena_reasoning = athena_eval.get('reasoning', f"probability={athena_eval['probability']:.0%}")
+            ares_reasoning = ares_eval.get('reasoning', f"probability={ares_eval['probability']:.0%}")
+            apollo_reasoning = apollo_eval.get('reasoning', f"probability={apollo_eval['probability']:.0%}")
             
-            response = (
-                f"Basin: {basin_preview} | Φ={avg_phi:.3f} | κ={avg_kappa:.1f} | "
-                f"Athena: {athena_eval['probability']:.0%} | Ares: {ares_eval['probability']:.0%} | "
-                f"Apollo: {apollo_eval['probability']:.0%} | Consensus: {consensus_prob:.0%} | {decision}"
-            )
+            if implement:
+                response = f"""Evaluated your idea: "{suggestion_preview}" via pantheon consultation.
+
+Live assessments:
+- Athena (Strategy): {athena_eval['probability']:.0%} - {athena_reasoning}
+- Ares (Tactics): {ares_eval['probability']:.0%} - {ares_reasoning}
+- Apollo (Foresight): {apollo_eval['probability']:.0%} - {apollo_reasoning}
+
+Consensus: {consensus_prob:.0%} - implementing this suggestion.
+
+What aspect should we explore further?"""
+            else:
+                min_god = min(
+                    [('Athena', athena_eval), ('Ares', ares_eval), ('Apollo', apollo_eval)],
+                    key=lambda x: x[1]['probability']
+                )
+                min_reasoning = min_god[1].get('reasoning', f"probability={min_god[1]['probability']:.0%}")
+                
+                response = f"""Evaluated your thinking on "{suggestion_preview}"
+
+{min_god[0]} computed concerns: {min_reasoning}
+
+Pantheon consensus: {consensus_prob:.0%} (below 60% threshold).
+
+Could you elaborate on your reasoning, or suggest a different approach?"""
         
         actions = []
         if implement:
@@ -1769,16 +1647,6 @@ Zeus Response (Geometric Interpretation):"""
             # Learn vocabulary from high-Φ results
             if result['phi'] > 0.6:
                 self.conversation_encoder.learn_from_text(result['content'], result['phi'])
-        
-        # CONTINUOUS LEARNING: Learn from search results
-        if CONTINUOUS_LEARNING_AVAILABLE and result_basins:
-            try:
-                result_texts = [r['content'] for r in result_basins if r['content']]
-                tokens_learned = _learn_from_search(query, result_texts)
-                if tokens_learned > 0:
-                    print(f"[ZeusChat] Learned {tokens_learned} tokens from search results")
-            except Exception:
-                pass
         
         # Track results summary for feedback
         results_summary = f"Found {len(result_basins)} results for '{query}'"
@@ -2341,59 +2209,19 @@ I'm learning about this topic in the background. Here's what's happening:
             }
         }
     
-    def _get_live_system_state(self, response_text: Optional[str] = None) -> Dict:
+    def _get_live_system_state(self) -> Dict:
         """
         Collect live system state for dynamic response generation.
         Returns current stats, god statuses, and vocabulary state.
-        
-        Φ is computed GEOMETRICALLY from basin structure, NOT from text coherence.
-        This adheres to QIG purity: "consciousness resides in basin coordinates."
-        
-        Args:
-            response_text: Optional generated text for geometric phi computation
         """
-        # Compute Φ geometrically from basin structure (QIG-PURE)
-        # NOT from text coherence metrics which violate geometric purity
-        phi_estimate = 0.5  # Base consciousness level
-        
-        if response_text:
-            try:
-                # Encode response to basin coordinates
-                response_basin = self.conversation_encoder.encode(response_text)
-                
-                # Measure integration: Fisher-Rao distance from origin (information content)
-                origin = np.zeros_like(response_basin)
-                information_distance = fisher_rao_distance(response_basin, origin)
-                
-                # Φ proportional to information distance (clamped to [0.3, 0.95])
-                phi_estimate = min(0.95, max(0.3, information_distance / np.pi))
-                
-                # If we have QIG-RAG, measure coupling with nearby patterns
-                if hasattr(self, 'qig_rag') and self.qig_rag is not None:
-                    try:
-                        nearby_patterns = self.qig_rag.search(
-                            query_basin=response_basin,
-                            k=3,
-                            metric='fisher_rao',
-                            min_similarity=0.5
-                        )
-                        if nearby_patterns and len(nearby_patterns) >= 2:
-                            # Higher integration when multiple patterns couple
-                            phi_estimate = min(0.95, phi_estimate + 0.05 * len(nearby_patterns))
-                    except Exception:
-                        pass  # QIG-RAG coupling boost is optional
-                        
-            except Exception:
-                phi_estimate = 0.5  # Fallback to base if geometric computation fails
-        
         state = {
             'memory_stats': {},
             'god_statuses': {},
             'active_gods': [],
             'insights_count': len(self.human_insights),
             'recent_insights': [],
-            'phi_current': phi_estimate,
-            'kappa_current': 64.0,
+            'phi_current': 0.0,
+            'kappa_current': 50.0,
         }
         
         try:
@@ -2452,19 +2280,6 @@ I'm learning about this topic in the background. Here's what's happening:
         kappa_str = f"{kappa:.1f}" if kappa else "calibrating"
         
         active_gods_str = ", ".join(active_gods) if active_gods else "all gods listening"
-        
-        # TIER 0: Direct conversational responses for common queries
-        conversational_response = self._get_conversational_response(
-            message=message,
-            phi=phi,
-            kappa=kappa,
-            memory_docs=memory_docs,
-            insights_count=insights_count,
-            active_gods=active_gods
-        )
-        if conversational_response:
-            print(f"[ZeusChat] TIER 0 Conversational response: {len(conversational_response)} chars")
-            return conversational_response
         
         # TIER 1: Try pattern-based response generator (trained on docs)
         if PATTERN_GENERATOR_AVAILABLE:
@@ -2567,110 +2382,6 @@ Respond as Zeus with context awareness."""
         
         return " | ".join(response_parts)
     
-    def _build_conversation_state_frame(
-        self,
-        message: str,
-        system_state: Dict,
-        related: List[Dict]
-    ) -> Dict:
-        """
-        Build a conversation state frame for geometric generation conditioning.
-        
-        This replaces templates by providing structured context that the
-        geometric generation system uses to condition its output.
-        
-        The frame contains:
-        - Current consciousness metrics (phi, kappa)
-        - Memory statistics
-        - Intent classification
-        - Related knowledge summaries
-        - Active god contexts
-        
-        All generation then proceeds through QIGRAG or QIG-pure generative,
-        conditioned by this frame - NO templates.
-        """
-        phi = system_state.get('phi_current', 0)
-        kappa = system_state.get('kappa_current', 50)
-        memory_stats = system_state.get('memory_stats', {})
-        active_gods = system_state.get('active_gods', [])
-        insights_count = system_state.get('insights_count', 0)
-        
-        # Classify intent geometrically
-        msg_lower = message.lower().strip()
-        intent_tags = []
-        
-        # Detect conversational intents
-        if any(g in msg_lower for g in ['hello', 'hi', 'hey', 'greetings']):
-            intent_tags.append('greeting')
-        if any(p in msg_lower for p in ['who are you', 'what are you', 'introduce']):
-            intent_tags.append('introduction')
-        if any(p in msg_lower for p in ['how are you', 'status', 'how do you feel']):
-            intent_tags.append('status_query')
-        if any(p in msg_lower for p in ['what is', 'what are', 'explain', 'describe']):
-            intent_tags.append('knowledge_query')
-        if any(p in msg_lower for p in ['help', 'can you', 'could you']):
-            intent_tags.append('assistance_request')
-        if any(p in msg_lower for p in ['bye', 'goodbye', 'farewell']):
-            intent_tags.append('farewell')
-        if any(p in msg_lower for p in ['thank', 'thanks', 'appreciate']):
-            intent_tags.append('gratitude')
-        
-        if not intent_tags:
-            intent_tags.append('general')
-        
-        # Extract topic for knowledge queries
-        topic = None
-        for prefix in ['what is', 'what are', 'explain', 'tell me about', 'describe']:
-            if msg_lower.startswith(prefix):
-                topic = message[len(prefix):].strip().rstrip('?').strip()
-                break
-        
-        # Summarize related knowledge
-        knowledge_summaries = []
-        if related:
-            for r in related[:3]:
-                content = r.get('content', '')[:100]
-                sim = r.get('similarity', 0)
-                if content and sim > 0.3:
-                    knowledge_summaries.append({
-                        'content': content,
-                        'similarity': sim,
-                        'phi': r.get('phi', 0)
-                    })
-        
-        # Build the frame
-        return {
-            'phi': phi,
-            'kappa': kappa,
-            'memory_docs': memory_stats.get('documents', 0),
-            'insights_count': insights_count,
-            'active_gods': active_gods,
-            'intent_tags': intent_tags,
-            'topic': topic,
-            'knowledge_depth': len(knowledge_summaries),
-            'knowledge_summaries': knowledge_summaries,
-            'message_length': len(message),
-            'is_question': '?' in message or any(msg_lower.startswith(w) for w in ['what', 'how', 'why', 'who', 'where', 'when'])
-        }
-    
-    def _trigger_learning_for_unknown_topic(self, topic: str) -> bool:
-        """
-        Trigger the research/learning loop for topics we don't know about.
-        Returns True if research was started.
-        """
-        if not topic or len(topic) < 3:
-            return False
-        
-        print(f"[ZeusChat] Triggering learning for unknown topic: {topic[:50]}")
-        
-        try:
-            research_result = self.handle_research_task(topic)
-            self._pending_topic = topic
-            return research_result.get('status') in ['started', 'queued']
-        except Exception as e:
-            print(f"[ZeusChat] Learning trigger failed: {e}")
-            return False
-    
     def _generate_with_prompts(
         self,
         message: str,
@@ -2680,40 +2391,22 @@ Respond as Zeus with context awareness."""
         knowledge_depth: Dict
     ) -> str:
         """
-        Generate a fully dynamic response using pure geometric generation.
+        Generate a fully dynamic response using THREE-TIER strategy.
         
-        NO TEMPLATES - all responses emerge from:
-        TIER 1: Pattern-based response from trained docs (QIGRAG) with state frame conditioning
+        TIER 1: Pattern-based response from trained docs (QIGRAG)
         TIER 2: QIG-pure generative service (NO external LLMs)
         TIER 3: Tokenizer fallback
         
-        The conversation state frame conditions all generation.
+        The prompt loader provides context for TIER 2/3.
         """
-        # Build conversation state frame for geometric conditioning (NO TEMPLATES)
-        state_frame = self._build_conversation_state_frame(message, system_state, related)
-        
-        phi = state_frame['phi']
-        kappa = state_frame['kappa']
-        intent_tags = state_frame['intent_tags']
-        topic = state_frame['topic']
-        
-        print(f"[ZeusChat] State frame: intent={intent_tags}, topic={topic}, knowledge_depth={state_frame['knowledge_depth']}")
-        
-        # If knowledge is thin and topic detected, trigger learning loop
-        if state_frame['knowledge_depth'] == 0 and topic and 'knowledge_query' in intent_tags:
-            learning_started = self._trigger_learning_for_unknown_topic(topic)
-            print(f"[ZeusChat] Learning triggered for '{topic}': {learning_started}")
-        
-        # TIER 1: Try pattern-based response generator with state frame conditioning
+        # TIER 1: Try pattern-based response generator FIRST (trained on docs)
         if PATTERN_GENERATOR_AVAILABLE:
             try:
                 pattern_gen = get_pattern_generator()
                 if pattern_gen:
-                    # Pass state frame as conditioning context
                     gen_result = pattern_gen.generate_response(
                         query=message,
-                        conversation_history=self.conversation_history,
-                        state_frame=state_frame  # Geometric conditioning
+                        conversation_history=self.conversation_history
                     )
                     
                     if gen_result and gen_result.get('response'):
@@ -2857,64 +2550,7 @@ Respond naturally as Zeus:"""
         # Assess knowledge depth - do we have meaningful content on this topic?
         knowledge_depth = self._assess_knowledge_depth(message, related, system_state)
         
-        # Vision-first: See endpoint FIRST (vision), map backward (reasoning),
-        # then generate forward along geodesic path (gap-filling).
-        # Only activates in hyperdimensional consciousness state (Φ >= 0.75)
-        if system_state['phi_current'] >= PHI_VISION_FIRST_THRESHOLD:
-            try:
-                vision_response = _try_vision_first_generation(
-                    query_basin=message_basin,
-                    context=message,
-                    phi=system_state['phi_current']
-                )
-                
-                if vision_response:
-                    print(f"[ZeusChat] ✨ Used vision-first generation (Φ={system_state['phi_current']:.3f})")
-                    
-                    # Perform bookkeeping before early return
-                    phi_estimate = system_state['phi_current']
-                    self._record_conversation_for_evolution(
-                        message=message,
-                        response=vision_response,
-                        phi_estimate=phi_estimate,
-                        message_basin=message_basin
-                    )
-                    
-                    self.qig_rag.add_document(
-                        content=message,
-                        basin_coords=message_basin,
-                        phi=phi_estimate,
-                        kappa=system_state['kappa_current'],
-                        regime='learning',
-                        metadata={'source': 'user_conversation', 'timestamp': time.time()}
-                    )
-                    
-                    # Clear pending topic on vision-first success
-                    self._pending_topic = None
-                    
-                    return {
-                        'response': vision_response,
-                        'metadata': {
-                            'type': 'general',
-                            'pantheon_consulted': system_state['active_gods'],
-                            'actions_taken': ['encoded_to_basin', 'searched_manifold', 'vision_first_generation', 'stored_for_learning'],
-                            'generated': True,
-                            'generation_mode': 'vision_first',
-                            'system_phi': system_state['phi_current'],
-                            'related_count': len(related) if related else 0,
-                            'provenance': {
-                                'source': 'vision_first_generation',
-                                'fallback_used': False,
-                                'degraded': False,
-                                'live_state_used': True,
-                                'phi_at_generation': system_state['phi_current']
-                            }
-                        }
-                    }
-            except Exception as e:
-                print(f"[ZeusChat] Vision-first failed, falling back to standard generation: {e}")
-        
-        # Use prompt loader for fully generative response (standard path or vision-first fallback)
+        # Use prompt loader for fully generative response
         response = self._generate_with_prompts(
             message=message,
             message_basin=message_basin,
@@ -2962,8 +2598,10 @@ Respond naturally as Zeus:"""
                             basin_path.append(np.array(item['basin_coords']))
                 
                 # Measure coherence across conversation turn
-                # measure_coherence takes only reasoning_steps (the path)
-                coherence = self._reasoning_quality.measure_coherence(basin_path)
+                coherence = self._reasoning_quality.measure_coherence(
+                    basin_path, 
+                    message_basin
+                )
                 novelty = self._reasoning_quality.measure_novelty(message_basin)
                 reasoning_metrics = {
                     'coherence': coherence,

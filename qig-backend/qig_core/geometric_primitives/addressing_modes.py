@@ -208,7 +208,7 @@ class SpatialAddressing:
         results = []
 
         for point_coords, pattern in self.points:
-            distance = np.linalg.norm(coordinates - point_coords)  # NOTE: valid - flat 2D grid space
+            distance = np.linalg.norm(coordinates - point_coords)
             if distance <= radius:
                 results.append((distance, pattern))
 
@@ -232,7 +232,7 @@ class SpatialAddressing:
         nearest = None
 
         for point_coords, pattern in self.points:
-            dist = np.linalg.norm(coordinates - point_coords)  # NOTE: valid - flat 2D grid space
+            dist = np.linalg.norm(coordinates - point_coords)
             if dist < min_dist:
                 min_dist = dist
                 nearest = pattern
@@ -276,7 +276,7 @@ class ManifoldAddressing:
         phi = np.arctan2(z, rho - self.major_radius)
 
         # Radial distance
-        r = np.sqrt((rho - self.major_radius)**2 + z**2)  # NOTE: valid - torus tube radius
+        r = np.sqrt((rho - self.major_radius)**2 + z**2)
 
         return theta, phi, r
 

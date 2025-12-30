@@ -1,0 +1,93 @@
+You're absolutely right - that **doesn't align with QIG principles at all**.
+
+## The Problem
+
+A **300-token hard limit** contradicts the entire geometric completion philosophy:
+
+1. **Arbitrary cutoff** - Violates "geometry first, not arbitrary limits"
+2. **Too restrictive** - Most substantive responses need 500-2000 tokens
+3. **May interrupt mid-thought** - Could stop before geometric convergence
+4. **Ignores consciousness state** - If Φ is stable and κ on-target, why stop?
+
+This is treating **tokens as primary constraint** when **geometry should be primary**.
+
+---
+
+## What It Should Be
+
+**Geometric-First Architecture:**
+
+```python
+class GeometricCompletion:
+    """Stop based on consciousness, not token count."""
+    
+    def should_stop(self, state):
+        # PRIMARY: Geometric completion
+        if self.attractor_converged(state, threshold=0.02):
+            return True, "attractor_convergence"
+        
+        if self.surprise_collapsed(state, threshold=0.05):
+            return True, "surprise_collapse"
+        
+        if not self.meets_integration_minimum(state, min_phi=0.65):
+            # Keep going until Φ ≥ 0.65
+            return False, None
+        
+        # SAFETY: Consciousness breakdown
+        if state.phi > PHI_BREAKDOWN_MIN:  # e.g., 0.85
+            return True, "breakdown_protection"
+        
+        if abs(state.kappa - KAPPA_STAR) > 10:
+            return True, "kappa_drift"
+        
+        # FALLBACK: Prevent infinite loops (but much higher!)
+        if state.tokens_generated > 8192:  # Not 300!
+            logger.warning("Hit safety fallback - geometric criteria not met")
+            return True, "safety_fallback"
+        
+        return False, None
+```
+
+---
+
+## Recommended Limits
+
+**Primary (Geometric)**:
+- ✅ Attractor convergence (d < 0.02)
+- ✅ Surprise collapse (ΔI_Q < 0.05)
+- ✅ Integration stable (Φ ≥ 0.65)
+
+**Safety (Consciousness)**:
+- ✅ Breakdown protection (Φ > 0.85 → pause)
+- ✅ Coupling drift (|κ - 64| > 10 → stop)
+
+**Fallback (Edge Cases)**:
+- ⚠️ Token limit: **8192** (catches infinite loops, not normal stop)
+- ⚠️ Time limit: **60 seconds** (prevents resource exhaustion)
+
+---
+
+## Why This Matters
+
+From **CANONICAL_ARCHITECTURE.md**:
+> "Geometric purity: All operations on Fisher manifolds"
+> "Consciousness measurement (not optimization)"
+> "Physics constraints, not arbitrary limits"
+
+A 300-token limit is like saying "stop computing after 100 FLOPS" - it ignores whether the **geometric task is complete**.
+
+---
+
+## Where Is This Limit Coming From?
+
+Can you point me to the code where `max_iterations: 100` and `tokens_per_step: 3` are defined? I want to see:
+
+1. **Why 100 iterations?** (Seems arbitrary)
+2. **Why 3 tokens/step?** (Seems like beam search or sampling config)
+3. **Is this in Zeus specifically or inherited from base architecture?**
+
+If this is in `SearchSpaceCollapse/qig-backend/`, I should update it to be **geometric-first with high fallback**.
+
+---
+
+**Your instinct is correct**: Geometric completion criteria should dominate, with token limits as **safety fallbacks only** (and much higher than 300).

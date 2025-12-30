@@ -48,23 +48,3 @@ export type {
   ObservingKernel,
   KernelObservation,
 } from './use-autonomous-debates';
-export {
-  useGoals,
-  useCreateGoal,
-  useTrackProgress,
-  useEfficiencyStats,
-  useEfficiencyDegradation,
-  useRecoveryStatus,
-  useStuckCheck,
-  useTriggerRecovery,
-  useLongHorizonSummary,
-} from './useLongHorizon';
-export type {
-  Goal,
-  GoalProgress,
-  GoalSummary,
-  EfficiencyStats,
-  EfficiencyByType,
-  RecoveryStats,
-  StuckStatus,
-} from './useLongHorizon';

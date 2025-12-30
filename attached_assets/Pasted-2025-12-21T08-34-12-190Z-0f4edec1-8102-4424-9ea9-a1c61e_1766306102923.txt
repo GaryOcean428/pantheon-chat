@@ -1,0 +1,42 @@
+2025-12-21T08:34:12.190Z] [0f4edec1-8102-4424-9ea9-a1c61ed7448b] GET /api/ocean/cycles
+[2025-12-21T08:34:12.191Z] [f79a0015-2858-496e-9bc9-fa230fb51f49] GET /api/ocean/neurochemistry
+[API] /api/ocean/cycles - isInvestigating=false, phi=0.000, kappa=0
+[PythonQIG] [VocabularyPersistence] Failed to record research: function record_vocab_observation(unknown, unknown, numeric, numeric, unknown, unknown) does not exist
+[PythonQIG] LINE 1: SELECT record_vocab_observation('research', 'Research on ''h...
+[PythonQIG]                ^
+[PythonQIG] HINT:  No function matches the given name and argument types. You might need to add explicit type casts.
+[PythonQIG] [VocabularyPersistence] Failed to record historical: current transaction is aborted, commands ignored until end of transaction block
+[PythonQIG] [VocabularyPersistence] Failed to record relentless: current transaction is aborted, commands ignored until end of transaction block
+[PythonQIG] [VocabularyPersistence] Failed to record pursuit: current transaction is aborted, commands ignored until end of transaction block
+[PythonQIG] [VocabularyPersistence] Failed to record patterns: current transaction is aborted, commands ignored until end of transaction block
+[PythonQIG] [VocabularyPersistence] Failed to record variant: current transaction is aborted, commands ignored until end of transaction block
+[PythonQIG] [QIGTokenizer] Recorded 0 observations to PostgreSQL
+[2025-12-21T08:34:13.558Z] [e1e12358-b401-454a-b266-a53756f1edf9] GET /api/ocean/neurochemistry
+[2025-12-21T08:34:13.560Z] [f639b2b5-b7d2-436e-a929-ce0282d47153] GET /api/ocean/cycles
+[PythonQIG] [VocabularyPersistence] Failed to mark research integrated: column "is_integrated" of relation "learned_words" does not exist
+[PythonQIG] LINE 1: UPDATE learned_words SET is_integrated = TRUE WHERE word = '...
+[PythonQIG]                                  ^
+[API] /api/ocean/cycles - isInvestigating=false, phi=0.000, kappa=0
+[PythonQIG] [VocabularyPersistence] Failed to mark historical integrated: column "is_integrated" of relation "learned_words" does not exist
+[PythonQIG] LINE 1: UPDATE learned_words SET is_integrated = TRUE WHERE word = '...
+[PythonQIG]                                  ^
+[PythonQIG] [VocabularyPersistence] Failed to mark relentless integrated: column "is_integrated" of relation "learned_words" does not exist
+[PythonQIG] LINE 1: UPDATE learned_words SET is_integrated = TRUE WHERE word = '...
+[PythonQIG]                                  ^
+[PythonQIG] [VocabularyPersistence] Failed to mark pursuit integrated: column "is_integrated" of relation "learned_words" does not exist
+[PythonQIG] LINE 1: UPDATE learned_words SET is_integrated = TRUE WHERE word = '...
+[PythonQIG]                                  ^
+[2025-12-21T08:34:15.557Z] [64bf5aee-f74a-498d-9e9e-463cb436da8e] GET /api/ocean/cycles
+[2025-12-21T08:34:15.558Z] [0635fc89-5556-4611-aa93-13db2ac0a5eb] GET /api/ocean/neurochemistry
+[2025-12-21T08:34:15.564Z] [8170c57c-fd87-48d2-ada7-fd232d1562b6] GET /api/investigation/status
+[API] /api/ocean/cycles - isInvestigating=false, phi=0.000, kappa=0
+[PythonQIG] [VocabularyPersistence] Failed to mark patterns integrated: column "is_integrated" of relation "learned_words" does not exist
+[PythonQIG] LINE 1: UPDATE learned_words SET is_integrated = TRUE WHERE word = '...
+[PythonQIG]                                  ^
+[PythonQIG] [VocabularyPersistence] Failed to mark variant integrated: column "is_integrated" of relation "learned_words" does not exist
+[PythonQIG] LINE 1: UPDATE learned_words SET is_integrated = TRUE WHERE word = '...
+[PythonQIG]                                  ^
+[PythonQIG] [VocabularyLearning] Explicit training metrics: {'words_processed': 7, 'unique_words': 7, 'observations_created': 6, 'new_words_learned': 6, 'recorded_to_db': 0, 'vocabulary_size': 10, 'domain': 'Relentless pursuit patterns'}
+[PythonQIG] [Zeus] Shadow discovery: historical Relentless pursuit patterns variant-16573-0
+[2025-12-21T08:34:17.561Z] [07d7f457-00b4-4f83-85bf-d60222e74f53] GET /api/ocean/cycles
+[2025-12-21T08:34:17.562Z] [cff3831e-a448-4068-85fc-22a349dd8a29] GET /api/ocean/neurochemistry
