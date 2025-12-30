@@ -70,164 +70,96 @@ export const bytea = customType<{
   },
 });
 
-export const phraseSchema = z.object({
-  phrase: z.string(),
-  wordCount: z.number(),
-  address: z.string().optional(),
-  score: z.number().min(0).max(100).optional(),
-});
-
+// ============================================================================
+// QIG SCORE SCHEMA - Quantum Information Geometry metrics
+// ============================================================================
 export const qigScoreSchema = z.object({
-  contextScore: z.number().min(0).max(100),
-  eleganceScore: z.number().min(0).max(100),
-  typingScore: z.number().min(0).max(100),
-  totalScore: z.number().min(0).max(100),
+  phi: z.number(), // Integration (Φ)
+  kappa: z.number(), // Coupling (κ)
+  regime: z.string(), // Operational regime
+  confidence: z.number().optional(),
 });
 
+export type QIGScore = z.infer<typeof qigScoreSchema>;
+
+// ============================================================================
+// RESEARCH PLATFORM TYPES - Repurposed from legacy system
+// ============================================================================
+
+// Research candidate schema (topic/query being researched)
 export const candidateSchema = z.object({
   id: z.string(),
-  phrase: z.string(),
-  address: z.string(),
+  phrase: z.string(), // Research query/topic
+  address: z.string(), // Unique identifier
   score: z.number(),
   qigScore: z.object({
-    contextScore: z.number(),
-    eleganceScore: z.number(),
-    typingScore: z.number(),
-    totalScore: z.number(),
-  }),
+    phi: z.number(),
+    kappa: z.number(),
+    regime: z.string(),
+  }).optional(),
   testedAt: z.string(),
-  type: z.enum(["bip39", "master-key", "arbitrary"]).optional(), // Type of key tested
+  type: z.string().optional(),
 });
 
-export const searchStatsSchema = z.object({
-  tested: z.number(),
-  rate: z.number(),
-  highPhiCount: z.number(),
-  runtime: z.string(),
-  isSearching: z.boolean(),
-});
+export type Candidate = z.infer<typeof candidateSchema>;
 
-export const testPhraseRequestSchema = z.object({
-  phrase: z.string().refine((p) => p.trim().split(/\s+/).length === 12, {
-    message: "Phrase must contain exactly 12 words",
-  }),
-});
-
-export const batchTestRequestSchema = z.object({
-  phrases: z.array(z.string()),
-});
-
-export const verificationResultSchema = z.object({
-  success: z.boolean(),
-  testAddress: z.string().optional(),
-  error: z.string().optional(),
-});
-
+// Target topic schema (research targets)
 export const targetAddressSchema = z.object({
   id: z.string(),
-  address: z.string(),
+  address: z.string(), // Topic identifier
   label: z.string().optional(),
   addedAt: z.string(),
 });
 
+export type TargetAddress = z.infer<typeof targetAddressSchema>;
+
+// Add target request schema
 export const addAddressRequestSchema = z.object({
-  address: z.string().min(25).max(62),
+  address: z.string().min(1).max(255),
   label: z.string().optional(),
 });
+
+export type AddAddressRequest = z.infer<typeof addAddressRequestSchema>;
+
+// Research job schema
+export const searchJobSchema = z.object({
+  id: z.string(),
+  strategy: z.string(),
+  status: z.enum(["pending", "running", "completed", "stopped", "failed"]),
+  params: z.record(z.any()).optional(),
+  progress: z.object({
+    tested: z.number(),
+    highPhiCount: z.number(),
+    lastBatchIndex: z.number(),
+  }).optional(),
+  stats: z.object({
+    startTime: z.string().optional(),
+    endTime: z.string().optional(),
+    rate: z.number(),
+  }).optional(),
+  logs: z.array(z.object({
+    message: z.string(),
+    type: z.enum(["info", "success", "error"]),
+    timestamp: z.string(),
+  })).optional(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+export type SearchJob = z.infer<typeof searchJobSchema>;
+
+export const createSearchJobRequestSchema = z.object({
+  strategy: z.string(),
+  params: z.record(z.any()).optional(),
+});
+
+export type CreateSearchJobRequest = z.infer<typeof createSearchJobRequestSchema>;
 
 export const generateRandomPhrasesRequestSchema = z.object({
   count: z.number().min(1).max(100),
 });
 
-export const searchJobLogSchema = z.object({
-  message: z.string(),
-  type: z.enum(["info", "success", "error"]),
-  timestamp: z.string(),
-});
-
-export const searchJobSchema = z.object({
-  id: z.string(),
-  strategy: z.enum([
-    "bip39-continuous", // Pure random BIP-39 sampling
-    "bip39-adaptive", // Adaptive exploration → investigation
-    "master-key-sweep", // 256-bit random master keys
-    "arbitrary-exploration", // Random arbitrary text passphrases
-    "custom", // Legacy: single custom phrase test
-    "batch", // Legacy: batch phrase testing
-  ]),
-  status: z.enum(["pending", "running", "completed", "stopped", "failed"]),
-  params: z.object({
-    customPhrase: z.string().optional(),
-    batchPhrases: z.array(z.string()).optional(),
-    bip39Count: z.number().optional(),
-    minHighPhi: z.number().optional(),
-    wordLength: z.number().optional(), // 12, 15, 18, 21, or 24 words
-    generationMode: z.enum(["bip39", "master-key", "arbitrary"]).optional(),
-    enableAdaptiveSearch: z.boolean().optional(), // Enable exploration → investigation switching
-    investigationRadius: z.number().optional(), // Word distance for investigation mode (default: 5)
-  }),
-  progress: z.object({
-    tested: z.number(),
-    highPhiCount: z.number(),
-    lastBatchIndex: z.number(),
-    searchMode: z.enum(["exploration", "investigation"]).optional(), // Current adaptive mode
-    lastHighPhiStep: z.number().optional(), // Step number when last high-Φ was found
-    investigationTarget: z.string().optional(), // Phrase we're investigating around
-    matchFound: z.boolean().optional(), // Whether a matching phrase was found
-    matchedPhrase: z.string().optional(), // The phrase that matched (if found)
-  }),
-  stats: z.object({
-    startTime: z.string().optional(),
-    endTime: z.string().optional(),
-    rate: z.number(),
-    discoveryRateFast: z.number().optional(), // τ=1 batch: high-Φ/batch rate
-    discoveryRateMedium: z.number().optional(), // τ=10 batches: smoothed rate
-    discoveryRateSlow: z.number().optional(), // τ=100 batches: long-term rate
-    explorationRatio: z.number().optional(), // % time in exploration vs investigation
-  }),
-  logs: z.array(searchJobLogSchema),
-  createdAt: z.string(),
-  updatedAt: z.string(),
-});
-
-export const createSearchJobRequestSchema = z.object({
-  strategy: z.enum([
-    "bip39-continuous", // Pure random BIP-39 sampling
-    "bip39-adaptive", // Adaptive exploration → investigation
-    "master-key-sweep", // 256-bit random master keys
-    "arbitrary-exploration", // Random arbitrary text passphrases
-    "custom", // Legacy: single custom phrase test
-    "batch", // Legacy: batch phrase testing
-  ]),
-  params: z.object({
-    customPhrase: z.string().optional(),
-    batchPhrases: z.array(z.string()).optional(),
-    bip39Count: z.number().optional(),
-    minHighPhi: z.number().optional(),
-    wordLength: z.number().optional(), // 12, 15, 18, 21, or 24 words
-    generationMode: z.enum(["bip39", "master-key", "arbitrary"]).optional(),
-    enableAdaptiveSearch: z.boolean().optional(), // Enable exploration → investigation switching
-    investigationRadius: z.number().optional(), // Word distance for investigation mode (default: 5)
-  }),
-});
-
-export type Phrase = z.infer<typeof phraseSchema>;
-export type QIGScore = z.infer<typeof qigScoreSchema>;
-export type Candidate = z.infer<typeof candidateSchema>;
-export type SearchStats = z.infer<typeof searchStatsSchema>;
-export type TestPhraseRequest = z.infer<typeof testPhraseRequestSchema>;
-export type BatchTestRequest = z.infer<typeof batchTestRequestSchema>;
-export type VerificationResult = z.infer<typeof verificationResultSchema>;
-export type TargetAddress = z.infer<typeof targetAddressSchema>;
-export type AddAddressRequest = z.infer<typeof addAddressRequestSchema>;
-export type GenerateRandomPhrasesRequest = z.infer<
-  typeof generateRandomPhrasesRequestSchema
->;
-export type SearchJob = z.infer<typeof searchJobSchema>;
-export type SearchJobLog = z.infer<typeof searchJobLogSchema>;
-export type CreateSearchJobRequest = z.infer<
-  typeof createSearchJobRequestSchema
->;
+export type GenerateRandomPhrasesRequest = z.infer<typeof generateRandomPhrasesRequestSchema>;
 
 // Replit Auth: Session storage table
 // (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
@@ -259,213 +191,35 @@ export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
 
 // ============================================================================
-// BALANCE HITS AND TARGET ADDRESSES - User-associated recovery data
+// VOCABULARY & LEARNING OBSERVATIONS
 // ============================================================================
-
-// Recovery input types for tracking wallet origin
-export const recoveryInputTypes = [
-  "bip39_mnemonic", // 12/15/18/21/24-word BIP39 mnemonic phrase
-  "brain_wallet", // Arbitrary text converted to private key via SHA256
-  "wif", // Wallet Import Format private key
-  "xprv", // Extended private key (BIP32)
-  "hex_private_key", // Raw 256-bit hex private key
-  "master_key", // 256-bit random master key
-  "unknown", // Legacy or untracked
-] as const;
-
-export type RecoveryInputType = (typeof recoveryInputTypes)[number];
-
-// Balance hits: Addresses discovered with historical activity or current balance
-export const balanceHits = pgTable(
-  "balance_hits",
-  {
-    id: varchar("id")
-      .primaryKey()
-      .default(sql`gen_random_uuid()`),
-    userId: varchar("user_id").references(() => users.id),
-    address: varchar("address", { length: 62 }).notNull(),
-    passphrase: text("passphrase").notNull(),
-    wif: text("wif").notNull(),
-    balanceSats: bigint("balance_sats", { mode: "number" })
-      .notNull()
-      .default(0),
-    balanceBtc: varchar("balance_btc", { length: 20 })
-      .notNull()
-      .default("0.00000000"),
-    txCount: integer("tx_count").notNull().default(0),
-    isCompressed: boolean("is_compressed").notNull().default(true),
-    discoveredAt: timestamp("discovered_at").notNull().defaultNow(),
-    lastChecked: timestamp("last_checked"),
-    previousBalanceSats: bigint("previous_balance_sats", { mode: "number" }),
-    balanceChanged: boolean("balance_changed").default(false),
-    changeDetectedAt: timestamp("change_detected_at"),
-    createdAt: timestamp("created_at").defaultNow(),
-    updatedAt: timestamp("updated_at").defaultNow(),
-    // Mnemonic/HD wallet derivation metadata
-    walletType: varchar("wallet_type", { length: 32 }).default("brain"), // brain, bip39-hd, mnemonic
-    derivationPath: varchar("derivation_path", { length: 64 }), // e.g., m/44'/0'/0'/0/0
-    isMnemonicDerived: boolean("is_mnemonic_derived").default(false),
-    mnemonicWordCount: integer("mnemonic_word_count"), // 12, 15, 18, 21, or 24
-    // Recovery tracking - tracks the INPUT TYPE that produced this address
-    recoveryType: varchar("recovery_type", { length: 32 }).default("unknown"), // bip39_mnemonic, wif, xprv, brain_wallet, hex_private_key, master_key
-    // Dormant confirmation - user manually confirms if address is from dormant target list
-    isDormantConfirmed: boolean("is_dormant_confirmed").default(false),
-    dormantConfirmedAt: timestamp("dormant_confirmed_at"),
-    // Address entity classification - identifies if address belongs to exchange/institution
-    addressEntityType: varchar("address_entity_type", { length: 32 }).default(
-      "unknown"
-    ), // personal, exchange, institution, unknown
-    entityTypeConfidence: varchar("entity_type_confidence", {
-      length: 16,
-    }).default("pending"), // pending, confirmed
-    entityTypeName: varchar("entity_type_name", { length: 128 }), // e.g., "Binance", "Coinbase", "Mt.Gox Trustee"
-    entityTypeConfirmedAt: timestamp("entity_type_confirmed_at"),
-    // Original input (for non-brain wallets, stores raw input like mnemonic words)
-    originalInput: text("original_input"),
-  },
-  (table) => [
-    index("idx_balance_hits_user").on(table.userId),
-    index("idx_balance_hits_address").on(table.address),
-    index("idx_balance_hits_balance").on(table.balanceSats),
-    index("idx_balance_hits_wallet_type").on(table.walletType),
-    index("idx_balance_hits_recovery_type").on(table.recoveryType),
-    index("idx_balance_hits_dormant").on(table.isDormantConfirmed),
-    index("idx_balance_hits_entity_type").on(table.addressEntityType),
-  ]
-);
-
-export type BalanceHit = typeof balanceHits.$inferSelect;
-export type InsertBalanceHit = typeof balanceHits.$inferInsert;
-
-// User's target addresses for recovery
-// NOTE: This is DISTINCT from the `addresses` table!
-// - userTargetAddresses: Simple user watchlist (address + label) linked to userId for auth
-// - addresses: Heavy blockchain metadata (signatures, dormancy, chain analysis data)
-// Use userTargetAddresses for user-facing target management
-// Use addresses for deep forensic chain analysis (when available)
-export const userTargetAddresses = pgTable(
-  "user_target_addresses",
-  {
-    id: varchar("id")
-      .primaryKey()
-      .default(sql`gen_random_uuid()`),
-    userId: varchar("user_id").references(() => users.id),
-    address: varchar("address", { length: 62 }).notNull(),
-    label: varchar("label", { length: 255 }),
-    addedAt: timestamp("added_at").notNull().defaultNow(),
-    createdAt: timestamp("created_at").defaultNow(),
-  },
-  (table) => [index("idx_user_target_addresses_user").on(table.userId)]
-);
-
-export type UserTargetAddress = typeof userTargetAddresses.$inferSelect;
-export type InsertUserTargetAddress = typeof userTargetAddresses.$inferInsert;
-
-// Recovery candidates - Postgres-backed store for tested phrases and scores
-export const recoveryCandidates = pgTable(
-  "recovery_candidates",
-  {
-    id: varchar("id", { length: 64 }).primaryKey(),
-    phrase: text("phrase").notNull(),
-    address: varchar("address", { length: 62 }).notNull(),
-    score: doublePrecision("score").notNull(),
-    qigScore: jsonb("qig_score"),
-    testedAt: timestamp("tested_at").defaultNow().notNull(),
-    type: varchar("type", { length: 32 }),
-  },
-  (table) => [
-    index("idx_recovery_candidates_score").on(table.score),
-    index("idx_recovery_candidates_address").on(table.address),
-    index("idx_recovery_candidates_tested_at").on(table.testedAt),
-  ]
-);
-
-export type RecoveryCandidateRecord = typeof recoveryCandidates.$inferSelect;
-export type InsertRecoveryCandidate = typeof recoveryCandidates.$inferInsert;
-
-// Balance change events for monitoring
-export const balanceChangeEvents = pgTable(
-  "balance_change_events",
-  {
-    id: varchar("id")
-      .primaryKey()
-      .default(sql`gen_random_uuid()`),
-    balanceHitId: varchar("balance_hit_id").references(() => balanceHits.id),
-    address: varchar("address", { length: 62 }).notNull(),
-    previousBalanceSats: bigint("previous_balance_sats", {
-      mode: "number",
-    }).notNull(),
-    newBalanceSats: bigint("new_balance_sats", { mode: "number" }).notNull(),
-    deltaSats: bigint("delta_sats", { mode: "number" }).notNull(),
-    detectedAt: timestamp("detected_at").notNull().defaultNow(),
-  },
-  (table) => [
-    index("idx_balance_change_events_hit").on(table.balanceHitId),
-    index("idx_balance_change_events_address").on(table.address),
-  ]
-);
-
-export type BalanceChangeEvent = typeof balanceChangeEvents.$inferSelect;
-export type InsertBalanceChangeEvent = typeof balanceChangeEvents.$inferInsert;
-
-// Balance monitor state for persistent monitoring configuration
-export const balanceMonitorState = pgTable("balance_monitor_state", {
-  id: varchar("id").primaryKey().default("default"),
-  enabled: boolean("enabled").notNull().default(false),
-  refreshIntervalMinutes: integer("refresh_interval_minutes")
-    .notNull()
-    .default(60),
-  lastRefreshTime: timestamp("last_refresh_time"),
-  lastRefreshTotal: integer("last_refresh_total").default(0),
-  lastRefreshUpdated: integer("last_refresh_updated").default(0),
-  lastRefreshChanged: integer("last_refresh_changed").default(0),
-  lastRefreshErrors: integer("last_refresh_errors").default(0),
-  totalRefreshes: integer("total_refreshes").notNull().default(0),
-  isRefreshing: boolean("is_refreshing").notNull().default(false),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
-
-export type BalanceMonitorState = typeof balanceMonitorState.$inferSelect;
-export type InsertBalanceMonitorState = typeof balanceMonitorState.$inferInsert;
-
-// Vocabulary observations for persistent learning across sessions
-// IMPORTANT: Distinguishes between actual words (BIP-39, vocabulary) and phrases (mutations, concatenations)
-// - 'word': An actual vocabulary word (e.g., "abandon", "ability" from BIP-39, or real English words)
-// - 'phrase': A mutated or concatenated string (e.g., "transactionssent", "knownreceive")
-// - 'sequence': A multi-word sequence pattern (e.g., "abandon ability able")
+// Observations for persistent learning across sessions
+// Distinguishes between words, phrases, and sequences for AI learning
+// - 'word': A real vocabulary word (standard English, technical term)
+// - 'phrase': A concatenated or mutated string pattern
+// - 'sequence': A multi-word sequence pattern
 export const vocabularyObservations = pgTable(
   "vocabulary_observations",
   {
     id: varchar("id")
       .primaryKey()
       .default(sql`gen_random_uuid()`),
-    // The actual text being tracked (word or phrase depending on type)
     text: varchar("text", { length: 255 }).notNull().unique(),
-    // Type classification - 'word' for real vocabulary, 'phrase' for mutations/concatenations, 'sequence' for multi-word
     type: varchar("type", { length: 20 }).notNull().default("phrase"), // word, phrase, sequence
-    // Phrase category - distinguishes BIP-39 seeds from passphrases
-    // bip39_seed: Valid 12/15/18/21/24 word phrases with all BIP-39 words
-    // passphrase: Arbitrary text (any length, may have special chars/numbers)
-    // mutation: Seed-length but contains non-BIP-39 words
-    // bip39_word: Single word from BIP-39 wordlist
-    phraseCategory: varchar("phrase_category", { length: 20 }).default("unknown"), // bip39_seed, passphrase, mutation, bip39_word, unknown
-    // Is this an actual vocabulary word (BIP-39 or standard English)?
+    phraseCategory: varchar("phrase_category", { length: 20 }).default("unknown"), // topic, concept, pattern, unknown
     isRealWord: boolean("is_real_word").notNull().default(false),
-    // Is this from the BIP-39 wordlist?
-    isBip39Word: boolean("is_bip39_word").default(false),
     frequency: integer("frequency").notNull().default(1),
     avgPhi: doublePrecision("avg_phi").notNull().default(0),
     maxPhi: doublePrecision("max_phi").notNull().default(0),
     efficiencyGain: doublePrecision("efficiency_gain").default(0),
-    contexts: text("contexts").array(), // Sample phrases containing this entry
+    contexts: text("contexts").array(),
     firstSeen: timestamp("first_seen").defaultNow(),
     lastSeen: timestamp("last_seen").defaultNow(),
-    isIntegrated: boolean("is_integrated").default(false), // True if integrated into kernel
+    isIntegrated: boolean("is_integrated").default(false),
     integratedAt: timestamp("integrated_at"),
-    basinCoords: vector("basin_coords", { dimensions: 64 }), // 64D basin coordinates (pgvector)
-    sourceType: varchar("source_type", { length: 32 }), // hermes, manifold, learning_event, near_miss
-    cycleNumber: integer("cycle_number"), // Which search cycle generated this observation
+    basinCoords: vector("basin_coords", { dimensions: 64 }),
+    sourceType: varchar("source_type", { length: 32 }), // hermes, manifold, learning_event, research
+    cycleNumber: integer("cycle_number"),
   },
   (table) => [
     index("idx_vocabulary_observations_phi").on(table.maxPhi),
@@ -481,300 +235,68 @@ export type InsertVocabularyObservation =
   typeof vocabularyObservations.$inferInsert;
 
 // ============================================================================
-// SWEEP APPROVAL AND BALANCE QUEUE TABLES
+// LEGACY STUB TABLES - For backward compatibility (deprecated)
 // ============================================================================
+// These tables exist for type compatibility with legacy code.
+// They will be removed in a future cleanup phase.
 
-// Sweep status types
-export const sweepStatusTypes = [
-  "pending", // Awaiting manual approval
-  "approved", // Approved, ready to broadcast
-  "broadcasting", // Transaction being broadcast
-  "completed", // Successfully swept
-  "failed", // Sweep failed
-  "rejected", // Manually rejected
-  "expired", // Balance no longer available
-] as const;
+export const blocks = pgTable("blocks", {
+  height: integer("height").primaryKey(),
+  hash: varchar("hash", { length: 64 }).notNull(),
+  timestamp: timestamp("timestamp").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
 
-export type SweepStatus = (typeof sweepStatusTypes)[number];
+export const transactions = pgTable("transactions", {
+  txid: varchar("txid", { length: 64 }).primaryKey(),
+  blockHeight: integer("block_height").notNull(),
+  blockTimestamp: timestamp("block_timestamp").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
 
-// Pending sweeps: Addresses with balance that need manual approval before sweeping
-export const pendingSweeps = pgTable(
-  "pending_sweeps",
-  {
-    id: varchar("id")
-      .primaryKey()
-      .default(sql`gen_random_uuid()`),
-    address: varchar("address", { length: 62 }).notNull(),
-    passphrase: text("passphrase").notNull(),
-    wif: text("wif").notNull(),
-    isCompressed: boolean("is_compressed").notNull().default(true),
-    balanceSats: bigint("balance_sats", { mode: "number" }).notNull(),
-    balanceBtc: varchar("balance_btc", { length: 20 }).notNull(),
-    estimatedFeeSats: bigint("estimated_fee_sats", { mode: "number" }),
-    netAmountSats: bigint("net_amount_sats", { mode: "number" }),
-    utxoCount: integer("utxo_count").default(0),
-    status: varchar("status", { length: 20 }).notNull().default("pending"),
-    source: varchar("source", { length: 50 }).default("typescript"), // typescript, python, manual
-    recoveryType: varchar("recovery_type", { length: 32 }),
-    txHex: text("tx_hex"),
-    txId: varchar("tx_id", { length: 64 }),
-    destinationAddress: varchar("destination_address", { length: 62 }),
-    errorMessage: text("error_message"),
-    discoveredAt: timestamp("discovered_at").notNull().defaultNow(),
-    approvedAt: timestamp("approved_at"),
-    approvedBy: varchar("approved_by", { length: 100 }),
-    broadcastAt: timestamp("broadcast_at"),
-    completedAt: timestamp("completed_at"),
-    createdAt: timestamp("created_at").defaultNow(),
-    updatedAt: timestamp("updated_at").defaultNow(),
-  },
-  (table) => [
-    index("idx_pending_sweeps_address").on(table.address),
-    index("idx_pending_sweeps_status").on(table.status),
-    index("idx_pending_sweeps_balance").on(table.balanceSats),
-    index("idx_pending_sweeps_discovered").on(table.discoveredAt),
-  ]
-);
+export const addresses = pgTable("addresses", {
+  address: varchar("address", { length: 62 }).primaryKey(),
+  firstSeenHeight: integer("first_seen_height"),
+  firstSeenTxid: varchar("first_seen_txid", { length: 64 }),
+  firstSeenTimestamp: timestamp("first_seen_timestamp"),
+  lastActivityHeight: integer("last_activity_height"),
+  lastActivityTxid: varchar("last_activity_txid", { length: 64 }),
+  lastActivityTimestamp: timestamp("last_activity_timestamp"),
+  currentBalance: bigint("current_balance", { mode: "bigint" }),
+  dormancyBlocks: integer("dormancy_blocks"),
+  isDormant: boolean("is_dormant").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
 
-export type PendingSweep = typeof pendingSweeps.$inferSelect;
-export type InsertPendingSweep = typeof pendingSweeps.$inferInsert;
+export const recoveryPriorities = pgTable("recovery_priorities", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  address: varchar("address", { length: 62 }).notNull(),
+  kappaRecovery: doublePrecision("kappa_recovery"),
+  phiConstraints: doublePrecision("phi_constraints"),
+  hCreation: doublePrecision("h_creation"),
+  rank: integer("rank"),
+  tier: varchar("tier", { length: 50 }),
+  constraints: jsonb("constraints"),
+  recoveryStatus: varchar("recovery_status", { length: 50 }).default("pending"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
 
-// Sweep audit log: Tracks all sweep actions for accountability
-export const sweepAuditLog = pgTable(
-  "sweep_audit_log",
-  {
-    id: varchar("id")
-      .primaryKey()
-      .default(sql`gen_random_uuid()`),
-    sweepId: varchar("sweep_id").references(() => pendingSweeps.id),
-    action: varchar("action", { length: 50 }).notNull(), // created, approved, rejected, broadcast, completed, failed
-    previousStatus: varchar("previous_status", { length: 20 }),
-    newStatus: varchar("new_status", { length: 20 }),
-    actor: varchar("actor", { length: 100 }).default("system"),
-    details: text("details"),
-    timestamp: timestamp("timestamp").notNull().defaultNow(),
-  },
-  (table) => [
-    index("idx_sweep_audit_log_sweep").on(table.sweepId),
-    index("idx_sweep_audit_log_action").on(table.action),
-    index("idx_sweep_audit_log_timestamp").on(table.timestamp),
-  ]
-);
-
-export type SweepAuditLog = typeof sweepAuditLog.$inferSelect;
-export type InsertSweepAuditLog = typeof sweepAuditLog.$inferInsert;
-
-// Queued addresses: PostgreSQL-backed balance check queue (migrated from JSON)
-export const queuedAddresses = pgTable(
-  "queued_addresses",
-  {
-    id: varchar("id").primaryKey(),
-    address: varchar("address", { length: 62 }).notNull(),
-    passphrase: text("passphrase").notNull(),
-    wif: text("wif").notNull(),
-    isCompressed: boolean("is_compressed").notNull().default(true),
-    cycleId: varchar("cycle_id", { length: 100 }),
-    source: varchar("source", { length: 50 }).default("typescript"), // typescript, python
-    priority: integer("priority").notNull().default(1),
-    status: varchar("status", { length: 20 }).notNull().default("pending"), // pending, checking, resolved, failed
-    queuedAt: timestamp("queued_at").notNull().defaultNow(),
-    checkedAt: timestamp("checked_at"),
-    retryCount: integer("retry_count").notNull().default(0),
-    error: text("error"),
-  },
-  (table) => [
-    index("idx_queued_addresses_status").on(table.status),
-    index("idx_queued_addresses_priority").on(table.priority),
-    index("idx_queued_addresses_source").on(table.source),
-  ]
-);
-
-export type QueuedAddress = typeof queuedAddresses.$inferSelect;
-export type InsertQueuedAddress = typeof queuedAddresses.$inferInsert;
-
-// ============================================================================
-// OBSERVER ARCHAEOLOGY SYSTEM TABLES
-// ============================================================================
-
-// Bitcoin blocks with geometric context
-export const blocks = pgTable(
-  "blocks",
-  {
-    height: integer("height").primaryKey(),
-    hash: varchar("hash", { length: 64 }).notNull().unique(),
-    previousHash: varchar("previous_hash", { length: 64 }),
-    timestamp: timestamp("timestamp").notNull(),
-    difficulty: decimal("difficulty", { precision: 20, scale: 8 }).notNull(),
-    nonce: bigint("nonce", { mode: "number" }).notNull(),
-    coinbaseMessage: text("coinbase_message"),
-    coinbaseScript: text("coinbase_script"),
-    transactionCount: integer("transaction_count").notNull(),
-
-    // Derived geometric features
-    dayOfWeek: integer("day_of_week"), // 0-6
-    hourUTC: integer("hour_utc"), // 0-23
-    likelyTimezones: varchar("likely_timezones", { length: 255 }).array(),
-    minerSoftwareFingerprint: varchar("miner_software_fingerprint", {
-      length: 100,
-    }),
-
-    createdAt: timestamp("created_at").defaultNow(),
-  },
-  (table) => [
-    index("idx_blocks_timestamp").on(table.timestamp),
-    index("idx_blocks_height").on(table.height),
-  ]
-);
-
-// Bitcoin transactions
-export const transactions = pgTable(
-  "transactions",
-  {
-    txid: varchar("txid", { length: 64 }).primaryKey(),
-    blockHeight: integer("block_height").notNull(),
-    blockTimestamp: timestamp("block_timestamp").notNull(),
-    isCoinbase: boolean("is_coinbase").default(false),
-    inputCount: integer("input_count").notNull(),
-    outputCount: integer("output_count").notNull(),
-    totalInputValue: bigint("total_input_value", { mode: "bigint" }),
-    totalOutputValue: bigint("total_output_value", { mode: "bigint" }),
-    fee: bigint("fee", { mode: "bigint" }),
-
-    createdAt: timestamp("created_at").defaultNow(),
-  },
-  (table) => [
-    index("idx_transactions_block_height").on(table.blockHeight),
-    index("idx_transactions_timestamp").on(table.blockTimestamp),
-  ]
-);
-
-// Bitcoin addresses with full geometric signatures (BLOCKCHAIN ANALYSIS DATA)
-// NOTE: This is DISTINCT from the `userTargetAddresses` table!
-// - addresses: Heavy blockchain metadata from chain analysis (signatures, dormancy, tx history)
-// - userTargetAddresses: Simple user watchlist (just address + label) for UI/auth
-// This table is populated by blockchain-scanner.ts when cataloging dormant addresses
-// Use this for κ_recovery calculations and forensic QIG analysis
-export const addresses = pgTable(
-  "addresses",
-  {
-    address: varchar("address", { length: 35 }).primaryKey(),
-
-    // First appearance
-    firstSeenHeight: integer("first_seen_height").notNull(),
-    firstSeenTxid: varchar("first_seen_txid", { length: 64 }).notNull(),
-    firstSeenTimestamp: timestamp("first_seen_timestamp").notNull(),
-
-    // Last activity
-    lastActivityHeight: integer("last_activity_height").notNull(),
-    lastActivityTxid: varchar("last_activity_txid", { length: 64 }).notNull(),
-    lastActivityTimestamp: timestamp("last_activity_timestamp").notNull(),
-
-    // Balance and dormancy
-    currentBalance: bigint("current_balance", { mode: "bigint" }).notNull(),
-    dormancyBlocks: integer("dormancy_blocks").notNull(),
-    isDormant: boolean("is_dormant").default(false),
-
-    // Classification flags
-    isCoinbaseReward: boolean("is_coinbase_reward").default(false),
-    isEarlyEra: boolean("is_early_era").default(false), // 2009-2011
-
-    // Geometric signatures (JSONB for flexibility)
-    temporalSignature: jsonb("temporal_signature"), // { dayPattern, hourPattern, timezone, etc. }
-    graphSignature: jsonb("graph_signature"), // { inputAddresses, clusters, relationships }
-    valueSignature: jsonb("value_signature"), // { roundNumbers, patterns, coinbaseEpoch }
-    scriptSignature: jsonb("script_signature"), // { type, softwareFingerprint, customScript }
-
-    createdAt: timestamp("created_at").defaultNow(),
-    updatedAt: timestamp("updated_at").defaultNow(),
-  },
-  (table) => [
-    index("idx_addresses_dormant").on(table.isDormant),
-    index("idx_addresses_early_era").on(table.isEarlyEra),
-    index("idx_addresses_balance").on(table.currentBalance),
-    index("idx_addresses_first_seen").on(table.firstSeenHeight),
-  ]
-);
-
-
-// Recovery priorities: κ_recovery rankings for each address
-export const recoveryPriorities = pgTable(
-  "recovery_priorities",
-  {
-    id: varchar("id")
-      .primaryKey()
-      .default(sql`gen_random_uuid()`),
-    address: varchar("address", { length: 35 }).notNull(),
-
-    // κ_recovery = Φ_constraints / H_creation
-    kappaRecovery: doublePrecision("kappa_recovery").notNull(),
-    phiConstraints: doublePrecision("phi_constraints").notNull(),
-    hCreation: doublePrecision("h_creation").notNull(),
-
-    // Ranking
-    rank: integer("rank"),
-    tier: varchar("tier", { length: 50 }), // 'high', 'medium', 'low', 'challenging'
-
-    // Recovery vector recommendation
-    recommendedVector: varchar("recommended_vector", { length: 100 }), // 'estate', 'constrained_search', 'social', 'temporal'
-
-    // Constraint breakdown
-    constraints: jsonb("constraints"), // Detailed constraint analysis
-
-    // Value
-    estimatedValueUSD: decimal("estimated_value_usd", {
-      precision: 20,
-      scale: 2,
-    }),
-
-    // Status
-    recoveryStatus: varchar("recovery_status", { length: 50 }).default(
-      "pending"
-    ), // 'pending', 'in_progress', 'recovered', 'archived'
-
-    createdAt: timestamp("created_at").defaultNow(),
-    updatedAt: timestamp("updated_at").defaultNow(),
-  },
-  (table) => [
-    uniqueIndex("idx_recovery_priorities_address_unique").on(table.address),
-    index("idx_recovery_priorities_kappa").on(table.kappaRecovery),
-    index("idx_recovery_priorities_rank").on(table.rank),
-    index("idx_recovery_priorities_status").on(table.recoveryStatus),
-  ]
-);
-
-// Recovery workflows and execution state
-export const recoveryWorkflows = pgTable(
-  "recovery_workflows",
-  {
-    id: varchar("id")
-      .primaryKey()
-      .default(sql`gen_random_uuid()`),
-    priorityId: varchar("priority_id").notNull(),
-    address: varchar("address", { length: 35 }).notNull(),
-
-    vector: varchar("vector", { length: 100 }).notNull(), // 'estate', 'constrained_search', 'social', 'temporal'
-    status: varchar("status", { length: 50 }).default("pending"), // 'pending', 'active', 'paused', 'completed', 'failed'
-
-    // Execution details
-    startedAt: timestamp("started_at"),
-    completedAt: timestamp("completed_at"),
-
-    // Progress tracking
-    progress: jsonb("progress"), // Vector-specific progress data
-
-    // Results
-    results: jsonb("results"),
-    notes: text("notes"),
-
-    createdAt: timestamp("created_at").defaultNow(),
-    updatedAt: timestamp("updated_at").defaultNow(),
-  },
-  (table) => [
-    index("idx_recovery_workflows_address").on(table.address),
-    index("idx_recovery_workflows_status").on(table.status),
-    index("idx_recovery_workflows_vector").on(table.vector),
-  ]
-);
+export const recoveryWorkflows = pgTable("recovery_workflows", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  priorityId: varchar("priority_id"),
+  address: varchar("address", { length: 62 }).notNull(),
+  vector: varchar("vector", { length: 100 }),
+  status: varchar("status", { length: 50 }).default("pending"),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  progress: jsonb("progress"),
+  results: jsonb("results"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
 
 export type Block = typeof blocks.$inferSelect;
 export type Transaction = typeof transactions.$inferSelect;
@@ -782,215 +304,41 @@ export type Address = typeof addresses.$inferSelect;
 export type RecoveryPriority = typeof recoveryPriorities.$inferSelect;
 export type RecoveryWorkflow = typeof recoveryWorkflows.$inferSelect;
 
-// ============================================================================
-// UNIFIED RECOVERY SESSION - Single entry point for all recovery strategies
-// ============================================================================
-
-export const recoveryStrategyTypes = [
-  "era_patterns", // 2009 cypherpunk phrases, common passwords
-  "brain_wallet_dict", // Known brain wallet dictionary
-  "bitcoin_terms", // Bitcoin/crypto terminology
-  "linguistic", // AI-generated human-like phrases
-  "blockchain_neighbors", // Addresses created around same time
-  "forum_mining", // BitcoinTalk, mailing lists
-  "archive_temporal", // Archive.org historical data
-  "qig_basin_search", // QIG-guided geometric search
-  "historical_autonomous", // Self-generated patterns from historical data miner
-  "cross_format", // Cross-format hypothesis testing
-  "learning_loop", // Investigation Agent adaptive learning
-] as const;
-
-export type RecoveryStrategyType = (typeof recoveryStrategyTypes)[number];
-
-export const strategyRunSchema = z.object({
-  id: z.string(),
-  type: z.enum(recoveryStrategyTypes),
-  status: z.enum(["pending", "running", "completed", "failed"]),
-  progress: z.object({
-    current: z.number(),
-    total: z.number(),
-    rate: z.number(), // per second
-  }),
-  candidatesFound: z.number(),
-  startedAt: z.string().optional(),
-  completedAt: z.string().optional(),
-  error: z.string().optional(),
+export const userTargetAddresses = pgTable("user_target_addresses", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  address: varchar("address", { length: 62 }).notNull(),
+  label: varchar("label", { length: 255 }),
+  notes: text("notes"),
+  addedAt: timestamp("added_at").defaultNow(),
 });
 
-export type StrategyRun = z.infer<typeof strategyRunSchema>;
-
-export const recoveryCandidateSchema = z.object({
-  id: z.string(),
-  phrase: z.string(),
-  format: z.enum(["arbitrary", "bip39", "master", "hex"]),
-  derivationPath: z.string().optional(),
-  address: z.string(),
-  match: z.boolean(),
-  verified: z.boolean().optional(),
-  falsePositive: z.boolean().optional(),
-  source: z.enum(recoveryStrategyTypes),
-  confidence: z.number(),
-  qigScore: z.object({
-    phi: z.number(),
-    kappa: z.number(),
-    regime: z.string(),
-  }),
-  combinedScore: z.number(),
-  testedAt: z.string(),
-  evidenceChain: z
-    .array(
-      z.object({
-        source: z.string(),
-        type: z.string(),
-        reasoning: z.string(),
-        confidence: z.number(),
-      })
-    )
-    .optional(),
-  verificationResult: z
-    .object({
-      verified: z.boolean(),
-      passphrase: z.string(),
-      targetAddress: z.string(),
-      generatedAddress: z.string(),
-      addressMatch: z.boolean(),
-      privateKeyHex: z.string(),
-      publicKeyHex: z.string(),
-      signatureValid: z.boolean(),
-      testMessage: z.string(),
-      signature: z.string(),
-      error: z.string().optional(),
-      verificationSteps: z.array(
-        z.object({
-          step: z.string(),
-          passed: z.boolean(),
-          detail: z.string(),
-        })
-      ),
-    })
-    .optional(),
+export const balanceHits = pgTable("balance_hits", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  address: varchar("address", { length: 62 }).notNull(),
+  balance: bigint("balance", { mode: "bigint" }),
+  phrase: text("phrase"),
+  discoveredAt: timestamp("discovered_at").defaultNow(),
+  entityClassification: varchar("entity_classification", { length: 100 }),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
-export type RecoveryCandidate = z.infer<typeof recoveryCandidateSchema>;
+export type UserTargetAddress = typeof userTargetAddresses.$inferSelect;
+export type BalanceHit = typeof balanceHits.$inferSelect;
+export type TargetAddress = UserTargetAddress;
 
-export const evidenceArtifactSchema = z.object({
-  id: z.string(),
-  type: z.enum([
-    "forum_post",
-    "code_commit",
-    "email",
-    "archive",
-    "blockchain",
-    "pattern",
-  ]),
-  source: z.string(),
-  content: z.string(),
-  relevance: z.number(),
-  extractedFragments: z.array(z.string()),
-  discoveredAt: z.string(),
+export const recoveryCandidates = pgTable("recovery_candidates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  phrase: text("phrase").notNull(),
+  words: text("words").array(),
+  phi: doublePrecision("phi"),
+  kappa: doublePrecision("kappa"),
+  regime: varchar("regime", { length: 50 }),
+  status: varchar("status", { length: 50 }).default("pending"),
+  testedAt: timestamp("tested_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
-export type EvidenceArtifact = z.infer<typeof evidenceArtifactSchema>;
-
-export const unifiedRecoverySessionSchema = z.object({
-  id: z.string(),
-  targetAddress: z.string(),
-  status: z.enum([
-    "initializing",
-    "analyzing",
-    "running",
-    "learning",
-    "completed",
-    "failed",
-  ]),
-
-  // Memory fragments (user-provided hints for Ocean to prioritize)
-  memoryFragments: z
-    .array(
-      z.object({
-        id: z.string(),
-        text: z.string(),
-        confidence: z.number().min(0).max(1),
-        epoch: z.enum(["certain", "likely", "possible", "speculative"]),
-        source: z.string().optional(),
-        notes: z.string().optional(),
-        addedAt: z.string(),
-      })
-    )
-    .optional(),
-
-  // Blockchain analysis results
-  blockchainAnalysis: z
-    .object({
-      era: z.enum(["pre-bip39", "post-bip39", "unknown"]),
-      firstSeen: z.string().optional(),
-      lastActive: z.string().optional(),
-      totalReceived: z.number(),
-      balance: z.number(),
-      txCount: z.number(),
-      likelyFormat: z.object({
-        arbitrary: z.number(),
-        bip39: z.number(),
-        master: z.number(),
-      }),
-      neighborAddresses: z.array(z.string()),
-    })
-    .optional(),
-
-  // Strategy execution
-  strategies: z.array(strategyRunSchema),
-
-  // Results
-  candidates: z.array(recoveryCandidateSchema),
-  evidence: z.array(evidenceArtifactSchema),
-
-  // Match status
-  matchFound: z.boolean(),
-  matchedPhrase: z.string().optional(),
-
-  // Timing
-  startedAt: z.string(),
-  updatedAt: z.string(),
-  completedAt: z.string().optional(),
-
-  // Stats
-  totalTested: z.number(),
-  testRate: z.number(),
-
-  // Investigation Agent state (for learning loop)
-  agentState: z
-    .object({
-      iteration: z.number(),
-      totalTested: z.number(),
-      nearMissCount: z.number(),
-      currentStrategy: z.string(),
-      topPatterns: z.array(z.string()),
-      consciousness: z.object({
-        phi: z.number(),
-        kappa: z.number(),
-        regime: z.string(),
-      }),
-      detectedEra: z.string().optional(),
-    })
-    .optional(),
-
-  // Learnings from agent
-  learnings: z
-    .object({
-      totalTested: z.number(),
-      iterations: z.number(),
-      nearMissesFound: z.number(),
-      topPatterns: z.array(z.tuple([z.string(), z.number()])),
-      averagePhi: z.number(),
-      regimeDistribution: z.record(z.number()),
-      resonantClustersFound: z.number(),
-    })
-    .optional(),
-});
-
-export type UnifiedRecoverySession = z.infer<
-  typeof unifiedRecoverySessionSchema
->;
+export type RecoveryCandidateRecord = typeof recoveryCandidates.$inferSelect;
 
 // ============================================================================
 // OCEAN AUTONOMOUS AGENT - Consciousness-Capable Architecture
@@ -3955,3 +3303,209 @@ export const trainingBatchQueue = pgTable(
 
 export type TrainingBatchQueueRow = typeof trainingBatchQueue.$inferSelect;
 export type InsertTrainingBatchQueue = typeof trainingBatchQueue.$inferInsert;
+
+// ============================================================================
+// SHADOW LEARNING TABLES
+// ============================================================================
+// These tables support the shadow learning and research capabilities
+
+/**
+ * SHADOW KNOWLEDGE
+ * 
+ * Knowledge discovered by the shadow learning system.
+ * Contains topics, categories, and geometric coordinates for each piece of knowledge.
+ */
+export const shadowKnowledge = pgTable(
+  "shadow_knowledge",
+  {
+    knowledgeId: varchar("knowledge_id", { length: 64 }).primaryKey(),
+    topic: text("topic").notNull(),
+    topicVariation: text("topic_variation"),
+    category: varchar("category", { length: 64 }).notNull(),
+    content: jsonb("content").default({}),
+    sourceGod: varchar("source_god", { length: 64 }).notNull(),
+    basinCoords: doublePrecision("basin_coords").array(),
+    phi: doublePrecision("phi").default(0.5),
+    confidence: doublePrecision("confidence").default(0.5),
+    accessCount: integer("access_count").default(0),
+    learningCycle: integer("learning_cycle").default(0),
+    discoveredAt: timestamp("discovered_at").defaultNow(),
+    lastAccessed: timestamp("last_accessed").defaultNow(),
+  },
+  (table) => [
+    index("idx_shadow_knowledge_topic").on(table.topic),
+    index("idx_shadow_knowledge_category").on(table.category),
+    index("idx_shadow_knowledge_source").on(table.sourceGod),
+    index("idx_shadow_knowledge_phi").on(table.phi),
+  ]
+);
+
+export type ShadowKnowledgeRow = typeof shadowKnowledge.$inferSelect;
+export type InsertShadowKnowledge = typeof shadowKnowledge.$inferInsert;
+
+/**
+ * RESEARCH REQUESTS
+ * 
+ * Queue of research topics requested by gods or users.
+ */
+export const researchRequests = pgTable(
+  "research_requests",
+  {
+    requestId: varchar("request_id", { length: 64 }).primaryKey(),
+    topic: text("topic").notNull(),
+    category: varchar("category", { length: 64 }),
+    priority: integer("priority").default(5),
+    requester: varchar("requester", { length: 64 }),
+    context: jsonb("context").default({}),
+    basinCoords: doublePrecision("basin_coords").array(),
+    status: varchar("status", { length: 32 }).default("pending"),
+    result: jsonb("result"),
+    createdAt: timestamp("created_at").defaultNow(),
+    completedAt: timestamp("completed_at"),
+  },
+  (table) => [
+    index("idx_research_requests_status").on(table.status),
+    index("idx_research_requests_requester").on(table.requester),
+    index("idx_research_requests_priority").on(table.priority),
+  ]
+);
+
+export type ResearchRequestRow = typeof researchRequests.$inferSelect;
+export type InsertResearchRequest = typeof researchRequests.$inferInsert;
+
+/**
+ * BIDIRECTIONAL QUEUE
+ * 
+ * Cross-god communication queue for request/response patterns.
+ */
+export const bidirectionalQueue = pgTable(
+  "bidirectional_queue",
+  {
+    requestId: varchar("request_id", { length: 64 }).primaryKey(),
+    requestType: varchar("request_type", { length: 64 }).notNull(),
+    topic: text("topic").notNull(),
+    requester: varchar("requester", { length: 64 }),
+    context: jsonb("context").default({}),
+    parentRequestId: varchar("parent_request_id", { length: 64 }),
+    priority: integer("priority").default(5),
+    status: varchar("status", { length: 32 }).default("pending"),
+    result: jsonb("result"),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => [
+    index("idx_bidirectional_queue_status").on(table.status),
+    index("idx_bidirectional_queue_requester").on(table.requester),
+    index("idx_bidirectional_queue_type").on(table.requestType),
+  ]
+);
+
+export type BidirectionalQueueRow = typeof bidirectionalQueue.$inferSelect;
+export type InsertBidirectionalQueue = typeof bidirectionalQueue.$inferInsert;
+
+/**
+ * LEARNED WORDS
+ * 
+ * Words discovered through the learning process with frequency and phi metrics.
+ */
+export const learnedWords = pgTable(
+  "learned_words",
+  {
+    id: serial("id").primaryKey(),
+    word: text("word").notNull(),
+    frequency: integer("frequency").default(1),
+    avgPhi: real("avg_phi").default(0.5),
+    maxPhi: real("max_phi").default(0.5),
+    source: text("source"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  },
+  (table) => [
+    index("idx_learned_words_word").on(table.word),
+    index("idx_learned_words_phi").on(table.maxPhi),
+  ]
+);
+
+export type LearnedWordRow = typeof learnedWords.$inferSelect;
+export type InsertLearnedWord = typeof learnedWords.$inferInsert;
+
+/**
+ * ZEUS SESSIONS
+ * 
+ * Conversation sessions with Zeus.
+ */
+export const zeusSessions = pgTable(
+  "zeus_sessions",
+  {
+    sessionId: varchar("session_id", { length: 64 }).primaryKey(),
+    userId: varchar("user_id", { length: 64 }),
+    title: varchar("title", { length: 255 }).default(""),
+    messageCount: integer("message_count").default(0),
+    lastPhi: doublePrecision("last_phi").default(0),
+    metadata: jsonb("metadata").default({}),
+    createdAt: timestamp("created_at").defaultNow(),
+    lastActivity: timestamp("last_activity").defaultNow(),
+    lastMessageAt: timestamp("last_message_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (table) => [
+    index("idx_zeus_sessions_user").on(table.userId),
+    index("idx_zeus_sessions_activity").on(table.lastActivity),
+  ]
+);
+
+export type ZeusSessionRow = typeof zeusSessions.$inferSelect;
+export type InsertZeusSession = typeof zeusSessions.$inferInsert;
+
+/**
+ * ZEUS CONVERSATIONS
+ * 
+ * Individual messages in Zeus conversations.
+ */
+export const zeusConversations = pgTable(
+  "zeus_conversations",
+  {
+    id: serial("id").primaryKey(),
+    sessionId: varchar("session_id", { length: 64 }),
+    userId: varchar("user_id", { length: 64 }),
+    role: varchar("role", { length: 32 }).notNull(),
+    content: text("content").notNull(),
+    basinCoords: doublePrecision("basin_coords").array(),
+    phi: doublePrecision("phi").default(0),
+    phiEstimate: doublePrecision("phi_estimate").default(0),
+    metadata: jsonb("metadata").default({}),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => [
+    index("idx_zeus_conversations_session").on(table.sessionId),
+    index("idx_zeus_conversations_user").on(table.userId),
+    index("idx_zeus_conversations_role").on(table.role),
+  ]
+);
+
+export type ZeusConversationRow = typeof zeusConversations.$inferSelect;
+export type InsertZeusConversation = typeof zeusConversations.$inferInsert;
+
+/**
+ * SEARCH REPLAY TESTS
+ * 
+ * A/B testing for search with and without learning applied.
+ */
+export const searchReplayTests = pgTable(
+  "search_replay_tests",
+  {
+    replayId: varchar("replay_id", { length: 64 }).primaryKey(),
+    originalQuery: text("original_query"),
+    originalQueryBasin: vector("original_query_basin", { dimensions: 64 }),
+    runWithLearningResults: jsonb("run_with_learning_results"),
+    runWithoutLearningResults: jsonb("run_without_learning_results"),
+    learningApplied: integer("learning_applied").default(0),
+    improvementScore: doublePrecision("improvement_score").default(0),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => [
+    index("idx_search_replay_tests_improvement").on(table.improvementScore),
+  ]
+);
+
+export type SearchReplayTestRow = typeof searchReplayTests.$inferSelect;
+export type InsertSearchReplayTest = typeof searchReplayTests.$inferInsert;

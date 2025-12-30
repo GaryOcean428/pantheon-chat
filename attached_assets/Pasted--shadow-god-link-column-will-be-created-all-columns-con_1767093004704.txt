@@ -1,0 +1,39 @@
++ shadow_god_link column will be created
+--- all columns conflicts in kernel_geometry table resolved ---
+
+· You're about to add users_email_unique unique constraint to the table, which contains 1 items. If this statement fails, you will receive an error from the database. Do you want to truncate users table?
+
+· You're about to add tokenizer_vocabulary_token_unique unique constraint to the table, which contains 33957 items. If this statement fails, you will receive an error from the database. Do you want to truncate tokenizer_vocabulary table?
+
+· You're about to add tokenizer_vocabulary_token_id_unique unique constraint to the table, which contains 33957 items. If this statement fails, you will receive an error from the database. Do you want to truncate tokenizer_vocabulary table?
+
+· You're about to add external_api_keys_api_key_unique unique constraint to the table, which contains 12 items. If this statement fails, you will receive an error from the database. Do you want to truncate external_api_keys table?
+
+· You're about to add discovered_sources_url_unique unique constraint to the table, which contains 10 items. If this statement fails, you will receive an error from the database. Do you want to truncate discovered_sources table?
+
+ Warning  Found data-loss statements:
+· You're about to delete shadow_knowledge table with 8490 items
+· You're about to delete research_requests table with 4193 items
+· You're about to delete bidirectional_queue table with 1212 items
+· You're about to delete learned_words table with 369 items
+· You're about to delete search_replay_tests table with 3 items
+· You're about to delete zeus_sessions table with 9 items
+· You're about to delete zeus_conversations table with 32 items
+· You're about to add not-null doc_id column without default value, which contains 103 items
+· You're about to delete embedding column in tokenizer_vocabulary table with 33957 items
+· You're about to delete metadata column in tokenizer_vocabulary table with 33957 items
+· You're about to delete event_data column in chaos_events table with 24726 items
+· You're about to delete id column in learning_events table with 321345 items
+· You're about to delete data column in learning_events table with 321345 items
+· You're about to delete id column in basin_documents table with 103 items
+· You're about to delete remote_api_key column in federated_instances table with 1 items
+· You're about to delete id column in kernel_geometry table with 452 items
+· You're about to delete snapshot_data column in kernel_geometry table with 452 items
+· You're about to delete passes column in kernel_geometry table with 452 items
+· You're about to delete created_at column in kernel_geometry table with 452 items
+
+THIS ACTION WILL CAUSE DATA LOSS AND CANNOT BE REVERTED
+
+Do you still want to push changes?
+❯ No, abort
+  Yes, I want to remove 7 tables, remove 11 columns, truncate 1 table 
