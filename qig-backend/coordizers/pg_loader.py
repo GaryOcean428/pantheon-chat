@@ -93,7 +93,13 @@ class PostgresCoordizer(FisherCoordizer):
                 return False
             
             tokens_loaded = 0
+            byte_tokens_skipped = 0
             for token, embedding, phi_score, frequency, source_type, token_id in rows:
+                # CRITICAL: Skip byte tokens - they corrupt natural language output
+                if token.startswith('<byte_') or token.startswith('\\x') or source_type == 'checkpoint_byte':
+                    byte_tokens_skipped += 1
+                    continue
+                
                 coords = self._parse_embedding(embedding)
                 if coords is None:
                     continue
@@ -104,6 +110,9 @@ class PostgresCoordizer(FisherCoordizer):
                 if token.isalpha() and len(token) >= 3:
                     self.word_tokens.append(token)
                 tokens_loaded += 1
+            
+            if byte_tokens_skipped > 0:
+                logger.info(f"Skipped {byte_tokens_skipped} byte tokens (not used for natural language)")
             
             logger.info(f"Loaded {tokens_loaded} tokens from database (64D embeddings)")
             return tokens_loaded >= 100
@@ -212,12 +221,19 @@ class PostgresCoordizer(FisherCoordizer):
         Decode basin coordinates to most likely tokens using domain-aware search.
         
         Boosts words from matching semantic domains for better relevance.
+        CRITICAL: Never returns byte tokens - only natural language words.
         """
         norm = np.linalg.norm(basin)
         if norm > 1e-10:
             basin = basin / norm
         
-        search_tokens = self.word_tokens if self.word_tokens else list(self.basin_coords.keys())
+        # Prefer word_tokens (pre-filtered), fallback to basin_coords but filter out byte tokens
+        if self.word_tokens:
+            search_tokens = self.word_tokens
+        else:
+            # Filter out byte tokens and non-alphabetic tokens for natural language
+            search_tokens = [t for t in self.basin_coords.keys() 
+                           if t.isalpha() and len(t) >= 2 and not t.startswith('<byte_')]
         if not search_tokens:
             return []
         
