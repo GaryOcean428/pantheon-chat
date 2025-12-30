@@ -21,6 +21,7 @@ import {
   LearningDashboard,
   TelemetryDashboard,
   ToolFactoryDashboard,
+  ZettelkastenDashboard,
   NotFound,
 } from "@/pages";
 
@@ -88,6 +89,7 @@ function Router() {
         <Route path="/autonomic" component={AutonomicAgencyPage} />
         <Route path="/federation" component={FederationPage} />
         <Route path="/telemetry" component={TelemetryDashboard} />
+        <Route path="/zettelkasten" component={ZettelkastenDashboard} />
         <Route path="/api-docs" component={ApiDocsPage} />
         <Route component={NotFound} />
       </Switch>
