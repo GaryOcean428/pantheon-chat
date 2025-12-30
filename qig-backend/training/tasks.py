@@ -5,7 +5,7 @@ Celery Tasks for Kernel Training
 Async tasks for:
 - Outcome-based training (per interaction)
 - Hourly batch training
-- Nightly consolidation
+- Nightly consolidation (with curriculum)
 - Knowledge transfer operations
 - Checkpoint management
 """
@@ -13,17 +13,19 @@ Async tasks for:
 import os
 import json
 from typing import Dict, List, Any, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 import numpy as np
 
 from .celery_app import celery_app, is_training_enabled, get_checkpoint_dir
 from .kernel_training_orchestrator import KernelTrainingOrchestrator, TrainingConfig
 from .knowledge_transfer import KnowledgeTransferManager
+from .curriculum_loader import load_curriculum_for_god, get_curriculum_stats
 
 
-# Shared orchestrator instance (lazy loaded)
+# Shared instances (lazy loaded)
 _orchestrator: Optional[KernelTrainingOrchestrator] = None
 _transfer_manager: Optional[KnowledgeTransferManager] = None
+_coordizer = None
 
 
 def get_orchestrator() -> KernelTrainingOrchestrator:
@@ -45,6 +47,32 @@ def get_transfer_manager() -> KnowledgeTransferManager:
     if _transfer_manager is None:
         _transfer_manager = KnowledgeTransferManager()
     return _transfer_manager
+
+
+def get_coordizer():
+    """Get or create the coordizer for text embedding."""
+    global _coordizer
+    if _coordizer is None:
+        try:
+            # Try to import coordizer from qig-backend
+            from coordizers.simple_word_coordizer import SimpleWordCoordizer
+            from coordizers.pg_loader import load_vocabulary_from_pg
+
+            # Try to load vocabulary from database
+            vocab = load_vocabulary_from_pg()
+            if vocab:
+                _coordizer = SimpleWordCoordizer(vocabulary=vocab)
+                print("[Training] Loaded coordizer with database vocabulary")
+            else:
+                _coordizer = SimpleWordCoordizer()
+                print("[Training] Using coordizer with fallback vocabulary")
+        except ImportError as e:
+            print(f"[Training] Coordizer not available: {e}")
+            _coordizer = None
+        except Exception as e:
+            print(f"[Training] Error loading coordizer: {e}")
+            _coordizer = None
+    return _coordizer
 
 
 # =============================================================================
@@ -200,13 +228,68 @@ def _fetch_hourly_batch_data(god_name: str) -> List[Dict[str, Any]]:
     """
     Fetch training data accumulated in the last hour.
 
-    TODO: Integrate with database to fetch:
-    - Recent chat interactions
-    - Search results
+    Sources:
+    - Recent chat interactions from training_batch_queue
+    - Search results with high relevance
     - Research summaries
     """
-    # Placeholder - will integrate with database
-    return []
+    examples = []
+
+    try:
+        # Try to fetch from database
+        import psycopg2
+        from urllib.parse import urlparse
+
+        db_url = os.getenv("DATABASE_URL")
+        if db_url:
+            parsed = urlparse(db_url)
+            conn = psycopg2.connect(
+                host=parsed.hostname,
+                port=parsed.port,
+                database=parsed.path[1:],
+                user=parsed.username,
+                password=parsed.password,
+            )
+            cursor = conn.cursor()
+
+            # Fetch unprocessed training examples from last hour
+            one_hour_ago = datetime.now() - timedelta(hours=1)
+            cursor.execute("""
+                SELECT basin_coords, reward, phi, source_type, source_id
+                FROM training_batch_queue
+                WHERE god_name = %s
+                  AND processed = false
+                  AND created_at >= %s
+                ORDER BY created_at DESC
+                LIMIT 100
+            """, (god_name, one_hour_ago))
+
+            rows = cursor.fetchall()
+            for row in rows:
+                examples.append({
+                    "basin_coords": row[0] if row[0] else np.zeros(64).tolist(),
+                    "reward": float(row[1]) if row[1] else 0.0,
+                    "phi": float(row[2]) if row[2] else 0.5,
+                    "source_type": row[3],
+                    "source_id": row[4],
+                })
+
+            # Mark as processed
+            if examples:
+                cursor.execute("""
+                    UPDATE training_batch_queue
+                    SET processed = true, processed_at = NOW()
+                    WHERE god_name = %s AND processed = false AND created_at >= %s
+                """, (god_name, one_hour_ago))
+                conn.commit()
+
+            cursor.close()
+            conn.close()
+
+    except Exception as e:
+        print(f"[Training] Error fetching hourly batch for {god_name}: {e}")
+
+    return examples
 
 
 # =============================================================================
@@ -287,13 +370,81 @@ def _fetch_curriculum_data(god_name: str) -> List[Dict[str, Any]]:
     """
     Fetch full training curriculum for nightly consolidation.
 
-    TODO: Integrate with database to fetch:
-    - All recent interactions (past 24h)
-    - High-value examples (high reward)
-    - Domain-specific training data
+    Combines:
+    - Curriculum files from docs/09-curriculum/ (domain knowledge)
+    - Recent high-value interactions from database (experiential learning)
+    - All coordized to 64D basin embeddings
     """
-    # Placeholder - will integrate with database
-    return []
+    examples = []
+    coordizer = get_coordizer()
+
+    # 1. Load curriculum files for this god's domain
+    try:
+        curriculum_examples = load_curriculum_for_god(
+            god_name=god_name,
+            max_examples=100,
+            coordizer=coordizer,
+        )
+        examples.extend(curriculum_examples)
+        print(f"[Training] Loaded {len(curriculum_examples)} curriculum examples for {god_name}")
+    except Exception as e:
+        print(f"[Training] Error loading curriculum for {god_name}: {e}")
+
+    # 2. Fetch recent high-value interactions from database
+    try:
+        import psycopg2
+        from urllib.parse import urlparse
+
+        db_url = os.getenv("DATABASE_URL")
+        if db_url:
+            parsed = urlparse(db_url)
+            conn = psycopg2.connect(
+                host=parsed.hostname,
+                port=parsed.port,
+                database=parsed.path[1:],
+                user=parsed.username,
+                password=parsed.password,
+            )
+            cursor = conn.cursor()
+
+            # Fetch high-value examples from past 24 hours
+            one_day_ago = datetime.now() - timedelta(hours=24)
+            cursor.execute("""
+                SELECT basin_coords, reward, phi, source_type, source_id
+                FROM training_batch_queue
+                WHERE god_name = %s
+                  AND reward >= 0.5
+                  AND created_at >= %s
+                ORDER BY reward DESC
+                LIMIT 50
+            """, (god_name, one_day_ago))
+
+            rows = cursor.fetchall()
+            for row in rows:
+                examples.append({
+                    "basin_coords": row[0] if row[0] else np.zeros(64).tolist(),
+                    "reward": float(row[1]) if row[1] else 0.0,
+                    "phi": float(row[2]) if row[2] else 0.5,
+                    "source": "interaction",
+                    "source_type": row[3],
+                    "source_id": row[4],
+                })
+
+            print(f"[Training] Loaded {len(rows)} high-value interactions for {god_name}")
+
+            cursor.close()
+            conn.close()
+
+    except Exception as e:
+        print(f"[Training] Error fetching interactions for {god_name}: {e}")
+
+    # Log curriculum stats on first load
+    if not hasattr(_fetch_curriculum_data, '_logged_stats'):
+        stats = get_curriculum_stats()
+        print(f"[Training] Curriculum stats: {stats}")
+        _fetch_curriculum_data._logged_stats = True
+
+    return examples
 
 
 # =============================================================================

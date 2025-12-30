@@ -36,6 +36,11 @@ from .tasks import (
     knowledge_transfer_task,
     save_checkpoint_task,
 )
+from .curriculum_loader import (
+    load_curriculum_for_god,
+    load_all_curriculum,
+    get_curriculum_stats,
+)
 
 __all__ = [
     # Loss functions
@@ -55,4 +60,8 @@ __all__ = [
     "train_nightly_consolidation_task",
     "knowledge_transfer_task",
     "save_checkpoint_task",
+    # Curriculum
+    "load_curriculum_for_god",
+    "load_all_curriculum",
+    "get_curriculum_stats",
 ]

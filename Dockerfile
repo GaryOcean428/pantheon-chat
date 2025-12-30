@@ -55,6 +55,9 @@ COPY qig-backend ./qig-backend
 # Copy shared constants for Python
 COPY shared ./shared
 
+# Copy curriculum files for nightly training consolidation
+COPY docs/09-curriculum ./docs/09-curriculum
+
 # Install Python dependencies including Celery and training packages
 RUN pip3 install --no-cache-dir --break-system-packages \
     flask flask-cors numpy scipy psycopg2-binary \
