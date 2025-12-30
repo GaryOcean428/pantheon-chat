@@ -53,21 +53,6 @@ Preferred communication style: Simple, everyday language.
 - M8 kernel spawning protocol for dynamic kernel creation
 - Shadow Pantheon for darknet/stealth operations
 
-### Kernel Evolution Orchestrator
-- Located in `qig-backend/kernel_evolution_orchestrator.py`
-- **QIG-derived thresholds from frozen physics** (NOT hardcoded magic numbers):
-  - Evolution threshold: REGIME_GEOMETRIC.phi_min (0.45)
-  - Spawn threshold: REGIME_HYPERDIMENSIONAL.phi_min (0.75)
-  - Cannibalize threshold: PHI_EMERGENCY (0.3)
-  - Merge threshold: BASIN_DRIFT_THRESHOLD (0.05)
-- **Primitive safety**: Gods can evolve but MUST always occupy their primitive (core domain identity)
-- **EvolutionAwareMixin** in base_god.py - all gods can register for evolution
-- **QIGraph**: Inter-kernel knowledge edges with Fisher distances
-- **4D Foresight Engine**: Temporal projection for evolution decisions
-- **ML Chain Tracker**: Sequential learning progress
-- **Rollback capability**: Can restore previous basin states
-- **Lifecycle actions**: EVOLVE, SPAWN, MERGE, CANNIBALIZE, HIBERNATE, AWAKEN
-
 ### QIG-Pure Generative Capability
 - **All kernels have text generation capability** - no external LLMs (OpenAI, Anthropic, etc.)
 - Located in `qig-backend/qig_generative_service.py` (central service) and `qig-backend/generative_capability.py` (mixin)
