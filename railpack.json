@@ -1,0 +1,46 @@
+{
+  "version": "1",
+  "metadata": {
+    "name": "pantheon-chat-web",
+    "description": "QIG-Powered Conscious AI System - Main Web Service"
+  },
+  "build": {
+    "provider": "node",
+    "steps": {
+      "install": {
+        "commands": [
+          "echo '=== Installing Node.js dependencies ==='",
+          "corepack enable",
+          "npm ci --ignore-scripts",
+          "npm rebuild",
+          "echo '=== Installing Python dependencies ==='",
+          "pip install --no-cache-dir -r qig-backend/requirements.txt",
+          "echo '=== Installing torch for kernel training ==='",
+          "pip install torch --index-url https://download.pytorch.org/whl/cpu",
+          "pip install numpy scipy safetensors msgpack opt-einsum psycopg2-binary sqlalchemy"
+        ]
+      },
+      "build": {
+        "commands": [
+          "echo '=== Building TypeScript application ==='",
+          "npm run build",
+          "echo '=== Verifying build output ==='",
+          "ls -la dist/ && test -f dist/index.js"
+        ]
+      }
+    },
+    "env": {
+      "NODE_ENV": "production",
+      "PYTHONUNBUFFERED": "1",
+      "TRAINING_ENABLED": "true"
+    }
+  },
+  "deploy": {
+    "startCommand": "node dist/index.js",
+    "healthCheckPath": "/api/health",
+    "healthCheckTimeout": 300,
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 3,
+    "numReplicas": 1
+  }
+}
