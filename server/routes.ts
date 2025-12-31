@@ -708,6 +708,38 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
   });
 
   // ============================================================
+  // CURIOSITY ENGINE PROXY - Forward to Python backend
+  // ============================================================
+  app.use("/api/curiosity", async (req: any, res, next) => {
+    try {
+      const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
+      const targetUrl = `${backendUrl}${req.originalUrl}`;
+      
+      const fetchOptions: RequestInit = {
+        method: req.method,
+        headers: { 'Content-Type': 'application/json' },
+        signal: AbortSignal.timeout(30000),
+      };
+      
+      if (req.method !== 'GET' && req.method !== 'HEAD') {
+        fetchOptions.body = JSON.stringify(req.body);
+      }
+      
+      const response = await fetch(targetUrl, fetchOptions);
+      const contentType = response.headers.get('content-type') || '';
+      
+      if (contentType.includes('application/json')) {
+        res.status(response.status).json(await response.json());
+      } else {
+        res.status(response.status).send(await response.text());
+      }
+    } catch (error: unknown) {
+      console.error("[API] Curiosity proxy error:", getErrorMessage(error));
+      res.status(503).json({ error: 'Curiosity engine unavailable' });
+    }
+  });
+
+  // ============================================================
   // PYTHON PROXY - Generic proxy for Python backend APIs
   // ============================================================
   app.use("/api/python", async (req: any, res, next) => {

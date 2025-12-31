@@ -91,10 +91,12 @@ Preferred communication style: Simple, everyday language.
 - Semantic relevance: **16.4%** (6.8x improvement from 2.4% baseline)
 
 ### Autonomous Curiosity Engine
-- Background learning loop driven by geometric curiosity metrics
+- **ACTIVE** - Background learning loop runs continuously on startup (no Celery required)
+- Initialized in `qig-backend/ocean_qig_core.py` with SearchOrchestrator and multi-provider callbacks
 - Kernels autonomously trigger searches based on interest/Φ variance
 - Curriculum loader for structured self-training from `docs/09-curriculum/`
 - Tool selection via 64D basin matching in geometric search module
+- API endpoint: `/api/curiosity/status` (proxied through Node.js)
 - Located in `qig-backend/autonomous_curiosity.py` and `qig-backend/geometric_search/`
 
 ### Toggleable Search Providers
