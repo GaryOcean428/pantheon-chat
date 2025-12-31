@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Pretrained 32K Coordizer - Fast BPE tokenizer with 64D basin embeddings.
+Pretrained 50K Coordizer - Fast BPE tokenizer with 64D basin embeddings.
 
 Loads the pretrained coordizer from:
-- vectors: attached_assets/vectors_1766884537920.npy (32K × 64D)
-- merge_rules: qig-backend/data/merge_rules.json
+- vectors: attached_assets/vectors_50000.npy (50K × 64D)
+- merge_rules: qig-backend/data/merge_rules_50k.json
 
 Usage:
     from pretrained_coordizer import get_pretrained_coordizer
@@ -21,10 +21,10 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Paths - can be overridden
-VECTORS_PATH = os.path.join(os.path.dirname(__file__), "../attached_assets/vectors_1766884537920.npy")
-MERGE_RULES_PATH = os.path.join(os.path.dirname(__file__), "data/merge_rules.json")
-COORDIZER_JSON_PATH = os.path.join(os.path.dirname(__file__), "../attached_assets/coordizer_1766884537919.json")
+# Paths - 50K vocabulary trained on full corpus (2024-12-31)
+VECTORS_PATH = os.path.join(os.path.dirname(__file__), "../attached_assets/vectors_50000.npy")
+MERGE_RULES_PATH = os.path.join(os.path.dirname(__file__), "data/merge_rules_50k.json")
+COORDIZER_JSON_PATH = os.path.join(os.path.dirname(__file__), "../attached_assets/coordizer_50000.json")
 
 # Basin dimension
 BASIN_DIM = 64
@@ -32,13 +32,14 @@ BASIN_DIM = 64
 
 class PretrainedCoordizer:
     """
-    Fast coordizer using pretrained 32K vocabulary with 64D basin embeddings.
+    Fast coordizer using pretrained 50K vocabulary with 64D basin embeddings.
     
     Features:
-    - BPE tokenization with 31K+ merge rules
+    - BPE tokenization with 49K+ merge rules
     - 64D unit-normalized basin embeddings for all tokens
     - Multi-scale tokens (char/subword/word/phrase/concept)
     - Fast numpy-based encode/decode
+    - Trained on full corpus (2024-12-31)
     """
     
     def __init__(self, 
@@ -109,6 +110,40 @@ class PretrainedCoordizer:
         """Return basin embedding dimension."""
         return BASIN_DIM
     
+    @property
+    def basin_coords(self) -> Dict[str, np.ndarray]:
+        """PostgresCoordizer-compatible: dict of token -> basin coordinates."""
+        if not hasattr(self, '_basin_coords_cache'):
+            self._basin_coords_cache = {}
+            for token_id, token_name in self.id_to_token.items():
+                if token_name and 0 <= token_id < len(self.vectors):
+                    self._basin_coords_cache[token_name] = self.vectors[token_id]
+        return self._basin_coords_cache
+    
+    @property
+    def token_phi(self) -> Dict[str, float]:
+        """PostgresCoordizer-compatible: dict of token -> phi score."""
+        if not hasattr(self, '_token_phi_cache'):
+            self._token_phi_cache = {}
+            for token_id, token_name in self.id_to_token.items():
+                if token_name:
+                    # Compute phi from token properties (longer words have higher integration)
+                    base_phi = 0.5
+                    if len(token_name) >= 3:
+                        base_phi = 0.6 + min(len(token_name) / 20.0, 0.2)
+                    self._token_phi_cache[token_name] = base_phi
+        return self._token_phi_cache
+    
+    @property
+    def word_tokens(self) -> List[str]:
+        """PostgresCoordizer-compatible: list of word tokens for generation."""
+        if not hasattr(self, '_word_tokens_cache'):
+            self._word_tokens_cache = [
+                name for name in self.id_to_token.values()
+                if name and len(name) >= 2  # Include all tokens with 2+ chars
+            ]
+        return self._word_tokens_cache
+    
     def get_embedding(self, token_id: int) -> np.ndarray:
         """Get 64D basin embedding for token ID."""
         if self.vectors is not None and 0 <= token_id < len(self.vectors):
@@ -144,7 +179,7 @@ class PretrainedCoordizer:
         
         return tokens
     
-    def decode(self, token_ids: List[int]) -> str:
+    def decode_ids(self, token_ids: List[int]) -> str:
         """Decode token IDs back to text."""
         # Build reverse merge table
         merge_parents = {}
@@ -169,6 +204,47 @@ class PretrainedCoordizer:
             return bytes(bytes_list).decode('utf-8', errors='replace')
         except:
             return ''.join(chr(b) if 32 <= b < 127 else '?' for b in bytes_list)
+    
+    def decode(self, basin: np.ndarray, top_k: int = 5) -> List[Tuple[str, float]]:
+        """PostgresCoordizer-compatible: decode basin to nearest tokens.
+        
+        Uses vectorized operations on full 50K vocabulary for efficiency.
+        
+        Args:
+            basin: 64D basin coordinate
+            top_k: Number of nearest tokens to return
+            
+        Returns:
+            List of (token_name, similarity_score) tuples
+        """
+        if self.vectors is None:
+            return []
+        
+        # Normalize query basin
+        query = basin / (np.linalg.norm(basin) + 1e-10)
+        
+        # Vectorized cosine similarity across full 50K vocabulary
+        # vectors are already unit-normalized from training
+        similarities = np.dot(self.vectors, query)
+        
+        # Get top-k indices efficiently
+        if top_k >= len(similarities):
+            top_indices = np.argsort(similarities)[::-1]
+        else:
+            # Use argpartition for O(n) instead of O(n log n) full sort
+            partition_idx = len(similarities) - top_k
+            top_indices = np.argpartition(similarities, partition_idx)[partition_idx:]
+            top_indices = top_indices[np.argsort(similarities[top_indices])[::-1]]
+        
+        results = []
+        for idx in top_indices[:top_k]:
+            token_name = self.id_to_token.get(idx, f'<{idx}>')
+            if token_name:
+                # Add phi boost for word-like tokens
+                phi_boost = self.token_phi.get(token_name, 0.5) * 0.1
+                results.append((token_name, float(similarities[idx]) + phi_boost))
+        
+        return results
     
     def text_to_basin(self, text: str) -> np.ndarray:
         """Convert text to single aggregated 64D basin coordinate."""
@@ -277,14 +353,21 @@ if __name__ == "__main__":
     print(f"Basin dim: {coordizer.basin_dim}")
     print(f"Merge rules: {len(coordizer.merge_rules)}")
     
-    # Test encode/decode
+    # Test encode/decode_ids
     text = "Hello, quantum information geometry!"
     tokens = coordizer.encode(text)
-    decoded = coordizer.decode(tokens)
+    decoded = coordizer.decode_ids(tokens)
     print(f"\nEncode/Decode test:")
     print(f"  Input:   '{text}'")
     print(f"  Tokens:  {tokens[:10]}...")
     print(f"  Decoded: '{decoded}'")
+    
+    # Test PostgresCoordizer-compatible decode(basin)
+    basin = coordizer.text_to_basin("quantum physics")
+    nearest = coordizer.decode(basin, top_k=5)
+    print(f"\nBasin decode test (PostgresCoordizer-compatible):")
+    print(f"  Query: 'quantum physics'")
+    print(f"  Nearest tokens: {nearest[:5]}")
     
     # Test basin embedding
     basin = coordizer.text_to_basin(text)

@@ -56,7 +56,7 @@ Preferred communication style: Simple, everyday language.
 ### QIG-Pure Generative Capability
 - **All kernels have text generation capability** - no external LLMs (OpenAI, Anthropic, etc.)
 - Located in `qig-backend/qig_generative_service.py` (central service) and `qig-backend/generative_capability.py` (mixin)
-- Uses 32K vocabulary stored in PostgreSQL (`qig_vocabulary` table) with 64D basin coordinates
+- Uses 50K vocabulary with 64D basin coordinates (pretrained coordizer checkpoint: `attached_assets/vectors_50000.npy`, `coordizer_50000.json`, `data/merge_rules_50k.json`)
 - **Basin-to-text synthesis** via Fisher-Rao distance for token matching
 - **Geometric completion criteria** (NOT token limits):
   - Attractor convergence: trajectory stabilizes in manifold
