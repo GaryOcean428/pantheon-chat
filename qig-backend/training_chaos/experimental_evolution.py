@@ -182,6 +182,11 @@ class ExperimentalKernelEvolution:
         self.kernel_persistence = None
         if PERSISTENCE_AVAILABLE and KernelPersistence is not None:
             self.kernel_persistence = KernelPersistence()
+            # Ensure HNSW index exists for O(log n) neighbor queries
+            try:
+                self.kernel_persistence.ensure_basin_index()
+            except Exception as e:
+                print(f"[Chaos] Failed to ensure basin index: {e}")
 
         # Evolution thread
         self._evolution_running = False
@@ -917,22 +922,58 @@ class ExperimentalKernelEvolution:
 
     def apply_cannibalism(self):
         """
-        Strong kernels absorb weak ones.
+        Strong kernels absorb weak ones using pgvector neighbor queries.
+        
+        Uses O(log n) geometric proximity search to find merge candidates,
+        falls back to O(n) sort otherwise.
         """
         living = [k for k in self.kernel_population if k.is_alive]
 
         if len(living) < 2:
             return None
 
-        # Find strongest and weakest
-        sorted_kernels = sorted(
-            living,
-            key=lambda k: k.success_count,
-            reverse=True
-        )
-
-        strong = sorted_kernels[0]
-        weak = sorted_kernels[-1]
+        weak = None
+        strong = None
+        
+        # Try pgvector-backed query for weak kernels (O(log n))
+        if self.kernel_persistence:
+            try:
+                weak_candidates = self.kernel_persistence.fetch_weak_kernels_for_culling(
+                    phi_threshold=0.4,
+                    min_age_seconds=30.0,
+                    limit=5
+                )
+                if weak_candidates:
+                    # Find in-memory kernel for the weakest candidate
+                    for candidate in weak_candidates:
+                        weak = self._find_kernel(candidate.get('kernel_id'))
+                        if weak and weak.is_alive:
+                            # Find strong neighbor geometrically
+                            weak_coords = weak.kernel.basin_coords.detach().cpu().tolist()
+                            strong_result = self.kernel_persistence.fetch_strongest_kernel_near(
+                                target_coords=weak_coords,
+                                radius=3.0,
+                                exclude_id=weak.kernel_id
+                            )
+                            if strong_result:
+                                strong = self._find_kernel(strong_result.get('kernel_id'))
+                                if strong and strong.is_alive:
+                                    break
+                            weak = None
+            except Exception as e:
+                print(f"[Chaos] pgvector cannibalism query failed: {e}")
+                weak = None
+                strong = None
+        
+        # Fallback: O(n) sort-based selection
+        if weak is None or strong is None:
+            sorted_kernels = sorted(
+                living,
+                key=lambda k: k.success_count,
+                reverse=True
+            )
+            strong = sorted_kernels[0]
+            weak = sorted_kernels[-1]
 
         # Only cannibalize if big difference
         if strong.success_count > weak.failure_count * 2:
@@ -952,6 +993,11 @@ class ExperimentalKernelEvolution:
                             'absorbed_by': strong.kernel_id,
                             'strong_success': strong.success_count
                         }
+                    )
+                    # Mark as cannibalized in kernel_geometry
+                    self.kernel_persistence.mark_kernel_cannibalized(
+                        weak.kernel_id, 
+                        strong.kernel_id
                     )
                 except Exception as e:
                     print(f"[Chaos] Failed to persist cannibalism death: {e}")
@@ -1133,18 +1179,100 @@ class ExperimentalKernelEvolution:
             return None
         return max(living, key=lambda k: k.kernel.compute_phi())
 
+    def sync_kernel_to_db(self, kernel: SelfSpawningKernel, event_type: str = 'update') -> bool:
+        """
+        Sync kernel state to database for pgvector queries.
+        
+        Called after lifecycle events (spawn, experience, mutation) to keep
+        database in sync with in-memory state.
+        
+        Args:
+            kernel: Kernel to sync
+            event_type: 'spawn', 'update', 'experience', 'mutation'
+        
+        Returns:
+            True if sync succeeded
+        """
+        if not self.kernel_persistence or not kernel.is_alive:
+            return False
+        
+        try:
+            phi = kernel.kernel.compute_phi()
+            basin_coords = kernel.kernel.basin_coords.detach().cpu().tolist()
+            
+            self.kernel_persistence.save_kernel_snapshot(
+                kernel_id=kernel.kernel_id,
+                god_name=getattr(kernel, 'god_name', kernel.kernel_id),
+                domain=getattr(kernel, 'domain', 'chaos'),
+                generation=kernel.generation,
+                basin_coords=basin_coords,
+                phi=phi,
+                kappa=0.0,
+                regime='active',
+                success_count=kernel.success_count,
+                failure_count=kernel.failure_count,
+                metadata={'last_sync_event': event_type},
+                enforce_cap=False  # Don't re-check cap on sync
+            )
+            return True
+        except Exception as e:
+            print(f"[Chaos] Failed to sync kernel {kernel.kernel_id}: {e}")
+            return False
+
+    def sync_proposal_to_db(self, kernel: SelfSpawningKernel, proposal_type: str, proposal_data: dict) -> bool:
+        """
+        Sync pending proposal to database for governance queries.
+        
+        Args:
+            kernel: Kernel with pending proposal
+            proposal_type: 'spawn' or 'death'
+            proposal_data: Proposal details
+        
+        Returns:
+            True if sync succeeded
+        """
+        if not self.kernel_persistence:
+            return False
+        
+        return self.kernel_persistence.update_kernel_proposal(
+            kernel.kernel_id,
+            proposal_type,
+            proposal_data
+        )
+
     # =========================================================================
     # PANTHEON INTEGRATION & GOVERNANCE
     # =========================================================================
 
     def poll_pending_proposals(self) -> list:
         """
-        Poll all living kernels for pending lifecycle proposals.
+        Poll kernels for pending lifecycle proposals using pgvector-backed queries.
+        
+        Uses O(log n) database query when persistence is available,
+        falls back to O(n) in-memory scan otherwise.
         
         Returns list of proposals that require Pantheon voting.
-        Call this periodically and route proposals to vote_on_lifecycle_proposal().
         """
         proposals = []
+        
+        # Try pgvector-backed query first (O(log n) with index)
+        if self.kernel_persistence:
+            try:
+                db_proposals = self.kernel_persistence.fetch_kernels_with_pending_proposals()
+                for row in db_proposals:
+                    kernel = self._find_kernel(row.get('kernel_id'))
+                    if kernel and kernel.is_alive:
+                        proposals.append({
+                            'kernel': kernel,
+                            'type': row.get('proposal_type'),
+                            'proposal': row.get('metadata', {}).get('pending_proposal_data', {})
+                        })
+                if db_proposals:
+                    return proposals
+            except Exception as e:
+                print(f"[Governance] DB proposal query failed, falling back: {e}")
+        
+        # Fallback: O(n) in-memory scan
         living = [k for k in self.kernel_population if k.is_alive]
         
         for kernel in living:

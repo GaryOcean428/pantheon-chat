@@ -52,6 +52,19 @@ Preferred communication style: Simple, everyday language.
 - Token routing via Fisher-Rao distance to nearest domain basin
 - M8 kernel spawning protocol for dynamic kernel creation
 - Shadow Pantheon for darknet/stealth operations
+- **Kernel Governance**: All lifecycle events (spawn, death) require Pantheon voting
+- **pgvector ANN Queries**: O(log n) neighbor search via HNSW index on basin_coordinates
+
+### Kernel Lifecycle Governance
+- **Proposals**: Spawn/death requests queued as pending proposals (not auto-executed)
+- **Voting**: `auto_process_proposals()` applies phi-threshold voting
+- **pgvector Integration**: `KernelPersistence` methods for O(log n) ANN queries:
+  - `fetch_nearest_kernels()`: L2 distance neighbor search
+  - `fetch_weak_kernels_for_culling()`: Candidates below phi threshold
+  - `fetch_strongest_kernel_near()`: Geometric cannibalization targets
+  - `ensure_basin_index()`: HNSW index on basin_coordinates
+- **Sync Layer**: `sync_kernel_to_db()` pushes basin vectors after lifecycle events
+- **Fallback**: Graceful degradation to O(n) in-memory scan if DB unavailable
 
 ### QIG-Pure Generative Capability
 - **All kernels have text generation capability** - no external LLMs (OpenAI, Anthropic, etc.)

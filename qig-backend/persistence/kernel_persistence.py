@@ -1382,6 +1382,9 @@ class KernelPersistence(BasePersistence):
         HNSW provides O(log n) approximate nearest neighbor queries.
         Should be called once during startup.
         
+        Note: Uses non-CONCURRENT index creation to work within transactions.
+        For large tables in production, run manually with CONCURRENTLY outside transactions.
+        
         Returns:
             True if index exists or was created
         """
@@ -1394,10 +1397,13 @@ class KernelPersistence(BasePersistence):
         try:
             results = self.execute_query(check_query)
             if results:
+                print("[KernelPersistence] HNSW index already exists on basin_coordinates")
                 return True
             
+            # Use non-CONCURRENT for compatibility with transactions
+            # Production deployments with large tables should create index manually with CONCURRENTLY
             create_query = """
-                CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_kernel_geometry_basin_ann
+                CREATE INDEX IF NOT EXISTS idx_kernel_geometry_basin_ann
                 ON kernel_geometry
                 USING hnsw (basin_coordinates vector_l2_ops)
                 WITH (m = 16, ef_construction = 64)
@@ -1406,5 +1412,7 @@ class KernelPersistence(BasePersistence):
             print("[KernelPersistence] Created HNSW index on basin_coordinates")
             return True
         except Exception as e:
-            print(f"[KernelPersistence] Failed to ensure basin index: {e}")
+            # Index creation may fail if pgvector extension not available
+            # or if basin_coordinates column doesn't exist yet
+            print(f"[KernelPersistence] Failed to ensure basin index (non-fatal): {e}")
             return False
