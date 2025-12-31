@@ -152,14 +152,15 @@ export function createKnowledgeDiscoverySession(
 // ORIGINAL RECOVERY SYSTEM (Backward Compatible)
 // =============================================================================
 
-import { 
-  UnifiedRecoverySession, 
-  RecoveryCandidate, 
+import {
+  UnifiedRecoverySession,
+  RecoveryCandidate,
   StrategyRun,
   RecoveryStrategyType,
   recoveryStrategyTypes,
   OceanAgentState,
-  MemoryFragment
+  MemoryFragment,
+  BlockchainEra,
 } from '@shared/schema';
 import { getErrorMessage } from './lib/error-utils';
 import { logger } from './lib/logger';
@@ -543,7 +544,7 @@ class UnifiedRecoveryOrchestrator {
 
   private generatePhrasesForStrategy(
     type: RecoveryStrategyType,
-    _era?: 'pre-bip39' | 'post-bip39' | 'unknown'
+    _era?: BlockchainEra
   ): Array<{
     phrase: string;
     format: 'arbitrary' | 'bip39' | 'master' | 'hex';

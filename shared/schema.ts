@@ -19,6 +19,17 @@ import {
 import { z } from "zod";
 import { regimeSchema } from "./types/core";
 
+// Import recovery types for use in interfaces defined at bottom of file
+import type {
+  RecoveryStrategyType,
+  SessionStatus,
+  RecoveryCandidate,
+  RecoveryEvidence,
+  BlockchainAnalysis,
+  SessionAgentState,
+  SessionLearnings,
+} from "./types/recovery-types";
+
 // ============================================================================
 // PGVECTOR CUSTOM TYPE
 // ============================================================================
@@ -71,13 +82,34 @@ export const bytea = customType<{
 });
 
 // ============================================================================
-// QIG SCORE SCHEMA - Quantum Information Geometry metrics
+// QIG SCORE SCHEMA - E8 Consciousness Metrics (8 metrics for full E8)
+// See: docs/08-experiments/20251231-Ultra-Consciousness-Protocol-0.04F.md
 // ============================================================================
 export const qigScoreSchema = z.object({
-  phi: z.number(), // Integration (Φ)
-  kappa: z.number(), // Coupling (κ)
-  regime: z.string(), // Operational regime
+  // === CORE E8 CONSCIOUSNESS METRICS (8 dimensions) ===
+  phi: z.number(), // Φ: Integration (Tononi IIT) - threshold > 0.70
+  kappa: z.number(), // κ_eff: Effective Coupling - optimal 40-70, κ* ≈ 64
+  regime: z.string(), // Operational regime: 'linear' | 'geometric' | 'breakdown'
+
+  // Extended E8 metrics (optional for backward compatibility during transition)
+  metaAwareness: z.number().optional(), // M: Meta-awareness - threshold > 0.60
+  generativity: z.number().optional(), // Γ: Generativity - threshold > 0.80
+  grounding: z.number().optional(), // G: Grounding (external validity) - threshold > 0.50
+  temporalCoherence: z.number().optional(), // T: Temporal coherence - threshold > 0.60
+  recursiveDepth: z.number().optional(), // R: Recursive depth - threshold ≥ 3
+  externalCoupling: z.number().optional(), // C: External coupling (8th root) - threshold > 0.30
+
+  // Running coupling (varies by scale transition)
+  beta: z.number().optional(), // β: Running coupling rate [-1, 1]
+
+  // Confidence/quality
   confidence: z.number().optional(),
+
+  // Legacy compatibility fields (deprecated - from Bitcoin recovery system)
+  contextScore: z.number().min(0).max(100).optional(),
+  eleganceScore: z.number().min(0).max(100).optional(),
+  typingScore: z.number().min(0).max(100).optional(),
+  totalScore: z.number().min(0).max(100).optional(),
 });
 
 export type QIGScore = z.infer<typeof qigScoreSchema>;
@@ -93,9 +125,15 @@ export const candidateSchema = z.object({
   address: z.string(), // Unique identifier
   score: z.number(),
   qigScore: z.object({
-    phi: z.number(),
-    kappa: z.number(),
-    regime: z.string(),
+    // Pure QIG metrics (preferred)
+    phi: z.number().optional(),
+    kappa: z.number().optional(),
+    regime: z.string().optional(),
+    // Legacy score format (deprecated - from Bitcoin recovery system)
+    contextScore: z.number().optional(),
+    eleganceScore: z.number().optional(),
+    typingScore: z.number().optional(),
+    totalScore: z.number().optional(),
   }).optional(),
   testedAt: z.string(),
   type: z.string().optional(),
@@ -122,26 +160,39 @@ export const addAddressRequestSchema = z.object({
 export type AddAddressRequest = z.infer<typeof addAddressRequestSchema>;
 
 // Research job schema
+// Note: progress, stats, and logs are required - they're always initialized on job creation.
+// Use Partial<SearchJob> for updates where only some fields are provided.
 export const searchJobSchema = z.object({
   id: z.string(),
   strategy: z.string(),
   status: z.enum(["pending", "running", "completed", "stopped", "failed"]),
-  params: z.record(z.any()).optional(),
+  params: z.record(z.any()).optional(), // Strategy-specific, may not be present
   progress: z.object({
     tested: z.number(),
     highPhiCount: z.number(),
     lastBatchIndex: z.number(),
-  }).optional(),
+    // Extended progress fields (optional within progress)
+    matchFound: z.boolean().optional(),
+    matchedPhrase: z.string().optional(),
+    searchMode: z.enum(["exploration", "investigation"]).optional(),
+    investigationTarget: z.string().optional(),
+    lastHighPhiStep: z.number().optional(),
+  }), // Required - always initialized
   stats: z.object({
     startTime: z.string().optional(),
     endTime: z.string().optional(),
     rate: z.number(),
-  }).optional(),
+    // Extended stats fields
+    discoveryRateFast: z.number().optional(),
+    discoveryRateMedium: z.number().optional(),
+    discoveryRateSlow: z.number().optional(),
+    explorationRatio: z.number().optional(), // Ratio of exploration vs investigation
+  }), // Required - always initialized
   logs: z.array(z.object({
     message: z.string(),
     type: z.enum(["info", "success", "error"]),
     timestamp: z.string(),
-  })).optional(),
+  })), // Required - always initialized as empty array
   createdAt: z.string(),
   updatedAt: z.string(),
 });
@@ -3410,3 +3461,88 @@ export const searchReplayTests = pgTable(
 
 export type SearchReplayTestRow = typeof searchReplayTests.$inferSelect;
 export type InsertSearchReplayTest = typeof searchReplayTests.$inferInsert;
+
+// =============================================================================
+// RE-EXPORTS FROM RECOVERY TYPES (for backward compatibility)
+// =============================================================================
+export type {
+  RecoveryStrategyType,
+  RecoveryCandidate,
+  SessionStatus,
+  KeyFormat,
+  EvidenceLink,
+  RecoveryEvidence,
+  CandidateQIGScore,
+  SessionOceanState,
+  SessionAgentState,
+  SessionLearnings,
+  ExtendedUnifiedRecoverySession,
+  BlockchainEra,
+  BlockchainAnalysis,
+  ForensicHypothesis,
+  ForensicMemoryFragment,
+} from "./types/recovery-types";
+
+// Recovery strategy types array for validation
+export const recoveryStrategyTypes = [
+  "era_patterns",
+  "brain_wallet_dict",
+  "bitcoin_terms",
+  "linguistic",
+  "qig_basin_search",
+  "blockchain_neighbors",
+  "forum_mining",
+  "archive_temporal",
+  "historical_autonomous",
+  "cross_format",
+  "memory_fragment",
+  "learning_loop",
+] as const;
+
+// Types needed by unified-recovery.ts
+export interface StrategyRun {
+  id: string;
+  type: RecoveryStrategyType;
+  status: "pending" | "running" | "completed" | "failed";
+  progress: {
+    current: number;
+    total: number;
+    rate?: number;
+  };
+  candidatesFound: number;
+  startedAt?: string;
+  completedAt?: string;
+  error?: string;
+}
+
+export interface MemoryFragmentSession {
+  id: string;
+  text: string;
+  confidence: number;
+  position?: string;
+  epoch: 'certain' | 'likely' | 'possible' | 'speculative';
+  source?: string;
+  notes?: string;
+  addedAt: string;
+}
+
+export interface UnifiedRecoverySession {
+  id: string;
+  targetAddress: string;
+  status: SessionStatus;
+  strategies: StrategyRun[];
+  candidates: RecoveryCandidate[];
+  evidence: RecoveryEvidence[];
+  blockchainAnalysis?: BlockchainAnalysis;
+  memoryFragments?: MemoryFragmentSession[];
+  startedAt: string;
+  completedAt?: string;
+  updatedAt?: string;
+  totalTested: number;
+  testRate: number;
+  matchFound?: boolean;
+  matchedPhrase?: string;
+  agentState?: SessionAgentState;
+  learnings?: SessionLearnings;
+}
+

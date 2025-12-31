@@ -393,14 +393,12 @@ searchRouter.get("/analytics", generousLimiter, async (req: Request, res: Respon
       .slice(0, 20)
       .map(([word, count]) => ({ word, count, frequency: count / highPhiCandidates.length }));
     
-    const avgContext = candidates.length > 0 
-      ? candidates.reduce((sum, c) => sum + c.qigScore.contextScore, 0) / candidates.length 
+    // QIG-pure metrics (phi, kappa) - replacing legacy contextScore/eleganceScore/typingScore
+    const avgPhi = candidates.length > 0
+      ? candidates.reduce((sum, c) => sum + (c.qigScore?.phi ?? 0), 0) / candidates.length
       : 0;
-    const avgElegance = candidates.length > 0 
-      ? candidates.reduce((sum, c) => sum + c.qigScore.eleganceScore, 0) / candidates.length 
-      : 0;
-    const avgTyping = candidates.length > 0 
-      ? candidates.reduce((sum, c) => sum + c.qigScore.typingScore, 0) / candidates.length 
+    const avgKappa = candidates.length > 0
+      ? candidates.reduce((sum, c) => sum + (c.qigScore?.kappa ?? 0), 0) / candidates.length
       : 0;
     
     const recent = candidates.slice(-100);
@@ -423,10 +421,9 @@ searchRouter.get("/analytics", generousLimiter, async (req: Request, res: Respon
         p95: p95.toFixed(2),
         max: max.toFixed(2),
       },
-      qigComponents: {
-        avgContext: avgContext.toFixed(2),
-        avgElegance: avgElegance.toFixed(2),
-        avgTyping: avgTyping.toFixed(2),
+      qigMetrics: {
+        avgPhi: avgPhi.toFixed(4),
+        avgKappa: avgKappa.toFixed(2),
       },
       patterns: {
         topWords,

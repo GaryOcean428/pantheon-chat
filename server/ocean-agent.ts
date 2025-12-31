@@ -54,6 +54,12 @@ import { knowledgeCompressionEngine } from "./knowledge-compression-engine";
 
 type Era = 'genesis-2009' | '2010-2011' | '2012-2013';
 
+interface EraDetectionResult {
+  era: Era;
+  confidence: number;
+  reasoning: string;
+}
+
 const HistoricalDataMiner = {
   detectEraFromTimestamp: (timestamp: Date): Era => {
     const year = timestamp.getFullYear();
@@ -61,7 +67,23 @@ const HistoricalDataMiner = {
     if (year <= 2011) return '2010-2011';
     return '2012-2013';
   },
-  detectEraFromAddressFormat: (_address: string): Era => 'genesis-2009',
+  detectEraFromAddressFormat: (address: string): EraDetectionResult => {
+    // Analyze address format to estimate era
+    // P2PKH (1...) addresses existed from genesis
+    // P2SH (3...) addresses from 2012 (BIP16)
+    // Bech32 (bc1...) from 2017 (SegWit)
+    if (address.startsWith('bc1')) {
+      return { era: '2012-2013', confidence: 0.95, reasoning: 'Bech32/SegWit address format (post-2017)' };
+    }
+    if (address.startsWith('3')) {
+      return { era: '2012-2013', confidence: 0.85, reasoning: 'P2SH address format (post-BIP16, 2012+)' };
+    }
+    if (address.startsWith('1')) {
+      // P2PKH - could be any era, lower confidence
+      return { era: 'genesis-2009', confidence: 0.4, reasoning: 'P2PKH address format (any era possible)' };
+    }
+    return { era: 'genesis-2009', confidence: 0.3, reasoning: 'Unknown address format' };
+  },
 };
 import { nearMissManager } from "./near-miss-manager";
 import { negativeKnowledgeUnified as negativeKnowledgeRegistry } from "./negative-knowledge-unified";
