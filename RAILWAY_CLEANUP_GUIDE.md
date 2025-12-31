@@ -90,7 +90,7 @@ Already done via Railway MCP!
 
 pantheon-chat now has:
 ```
-DATABASE_URL=postgresql://postgres:AbPiYEkiKGvOpvUCyfLYmVzMWKhrKdto@postgres-2dhz.railway.internal:5432/railway
+DATABASE_URL="${{Postgres-Pantheon.DATABASE_URL}}"
 ```
 
 This points to **Postgres-Pantheon**.

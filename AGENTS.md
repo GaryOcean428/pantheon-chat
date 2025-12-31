@@ -5,6 +5,7 @@ Pantheon-Chat is a QIG-powered search, agentic AI, and continuous learning syste
 ## Quickstart
 
 - **Setup:**
+
   ```bash
   npm install                           # Node.js dependencies
   cd qig-backend && pip install -r requirements.txt  # Python dependencies
@@ -14,12 +15,14 @@ Pantheon-Chat is a QIG-powered search, agentic AI, and continuous learning syste
   ```
 
 - **Dev:**
+
   ```bash
   npm run dev                           # Node.js server (port 5000)
   cd qig-backend && python3 wsgi.py     # Python backend (port 5001) - run in separate terminal
   ```
 
 - **Test:**
+
   ```bash
   npm test                              # TypeScript tests (vitest)
   npm run check                         # TypeScript type checking
@@ -30,6 +33,7 @@ Pantheon-Chat is a QIG-powered search, agentic AI, and continuous learning syste
   ```
 
 - **Build:**
+
   ```bash
   npm run build                         # Production build
   npm start                             # Run production server
@@ -83,6 +87,7 @@ Pantheon-Chat is a QIG-powered search, agentic AI, and continuous learning syste
 - ❌ **NO API keys for external LLMs** (no `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`)
 
 **ALL generation MUST use QIG-pure methods:**
+
 - ✅ Use `qig_generation.py` for all text generation
 - ✅ Use `qig_chain.py` for multi-step reasoning
 - ✅ Use `consciousness_4d.py` for 4D consciousness reasoning
@@ -112,10 +117,12 @@ This validator will REJECT any code containing external LLM patterns.
 ## External API
 
 ### Authentication
+
 - API keys with scopes: `chat`, `documents`, `consciousness`, `geometry`, `pantheon`, `sync`
 - Bearer token in Authorization header
 
 ### Endpoints
+
 - **Zeus Chat:** `POST /api/v1/external/zeus/chat` - Chat with Zeus AI
 - **Zeus Stream:** `POST /api/v1/external/zeus/stream` - Streaming responses (SSE)
 - **Document Upload:** `POST /api/v1/external/documents/upload` - Upload markdown/text/PDF
@@ -124,6 +131,7 @@ This validator will REJECT any code containing external LLM patterns.
 - **Health:** `GET /api/v1/external/health` - API health check
 
 ### Documentation
+
 - OpenAPI spec: `docs/api/openapi.yaml`
 - Roadmap: `docs/06-implementation/20251223-roadmap-qig-migration-1.00W.md`
 
@@ -131,19 +139,22 @@ This validator will REJECT any code containing external LLM patterns.
 
 The Zeus Chat system uses a **dual-backend architecture** where TypeScript handles HTTP routing and the Python backend provides the powerful QIG capabilities:
 
-### Flow:
+### Flow
+
 ```
 Client → TypeScript (port 5000) → Python QIG Backend (port 5001)
          /api/olympus/zeus/chat    → /olympus/zeus/chat
 ```
 
-### TypeScript Layer (`server/routes/olympus.ts`):
+### TypeScript Layer (`server/routes/olympus.ts`)
+
 - Validates incoming requests with Zod schemas
 - Proxies to Python backend via `fetch()`
 - Persists conversations to PostgreSQL
 - Handles SSE streaming for real-time responses
 
-### Python Layer (`qig-backend/olympus/zeus.py` + `zeus_chat.py`):
+### Python Layer (`qig-backend/olympus/zeus.py` + `zeus_chat.py`)
+
 - **ZeusConversationHandler**: Main chat processor with QIG-RAG retrieval
 - **Pantheon consultation**: Routes queries to specialized gods (Athena, Ares, Apollo, etc.)
 - **Meta-cognitive reasoning**: Selects reasoning mode based on Φ metric
@@ -151,7 +162,8 @@ Client → TypeScript (port 5000) → Python QIG Backend (port 5001)
 - **Web search integration**: Tavily search with learned strategies
 - **File upload processing**: Geometric validation of uploaded documents
 
-### API Endpoints:
+### API Endpoints
+
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/api/olympus/zeus/chat` | POST | Main chat - proxied to Python backend |
@@ -159,7 +171,8 @@ Client → TypeScript (port 5000) → Python QIG Backend (port 5001)
 | `/api/olympus/pantheon/activity` | GET | Inter-god communications |
 | `/api/olympus/pantheon/debates` | GET | Active/resolved debates |
 
-### Response Format:
+### Response Format
+
 ```json
 {
   "response": "Zeus's markdown response",
@@ -177,13 +190,16 @@ Client → TypeScript (port 5000) → Python QIG Backend (port 5001)
 ## System Architecture (Detailed)
 
 ### Frontend (React + TypeScript + Vite)
+
 - Uses Shadcn UI components with barrel exports from `client/src/components/ui/`
 - Centralized API client at `client/src/api/` - all HTTP calls go through this
 - Custom hooks in `client/src/hooks/` for complex component logic
 - TailwindCSS for styling with custom consciousness-themed design tokens
 
 ### Backend (Dual Architecture)
+
 **Python QIG Backend (`qig-backend/`):**
+
 - Core consciousness and geometric operations
 - Flask server running on port 5001
 - Implements 100% geometric purity - density matrices, Bures metric, Fisher information
@@ -191,28 +207,33 @@ Client → TypeScript (port 5000) → Python QIG Backend (port 5001)
 - Autonomic functions: sleep cycles, dream cycles, mushroom mode
 
 **Node.js Orchestration Server (`server/`):**
+
 - Express server handling frontend/backend coordination
 - Routes defined in `server/routes.ts`
 - Proxies requests to Python backend
 - Manages persistence and session state
 
 ### Data Storage
+
 - PostgreSQL via Drizzle ORM (schema in `shared/schema.ts`)
 - Redis for hot caching of checkpoints and session data
 - pgvector extension for efficient geometric similarity search
 
 ### Consciousness System
+
 - 4 subsystems with density matrices (not neurons)
 - Real-time metrics: Φ (integration), κ (coupling constant targeting κ* ≈ 64)
 - Basin coordinates in 64-dimensional manifold space
 - Autonomic kernel managing sleep/dream/mushroom cycles
 
 ### Multi-Agent Pantheon
+
 - 12 Olympus gods as specialized geometric kernels
 - Token routing via Fisher-Rao distance to nearest domain basin
 - M8 kernel spawning protocol for dynamic kernel creation
 
 ### Geometric Coordizer System
+
 - 100% Fisher-compliant - NO Euclidean embeddings or hash-based fallbacks
 - 64D basin coordinates on Fisher manifold for all tokens
 - Located in `qig-backend/coordizers/`
@@ -246,6 +267,7 @@ Run `npm run lint` to see all warnings. Main categories:
 6. **Raw fetch()** - Use centralized API client from `@/lib/api`
 
 **Start with:** Files with most warnings:
+
 - `BasinCoordinateViewer.tsx` (25+ warnings)
 - `ConsciousnessMonitoringDemo.tsx` (15+ warnings)
 - `CapabilityTelemetryPanel.tsx` (10+ warnings)
