@@ -50,12 +50,41 @@ import { qfiAttention, type AttentionQuery } from "./gary-kernel";
 import "./geodesic-navigator";
 import { oceanDiscoveryController } from "./geometric-discovery/ocean-discovery-controller";
 import { geometricMemory } from "./geometric-memory";
-import {
-  HistoricalDataMiner,
-  historicalDataMiner,
-  type Era,
-} from "./historical-data-miner";
 import { knowledgeCompressionEngine } from "./knowledge-compression-engine";
+
+type Era = 'genesis-2009' | '2010-2011' | '2012-2013';
+
+interface EraDetectionResult {
+  era: Era;
+  confidence: number;
+  reasoning: string;
+}
+
+const HistoricalDataMiner = {
+  detectEraFromTimestamp: (timestamp: Date): Era => {
+    const year = timestamp.getFullYear();
+    if (year <= 2009) return 'genesis-2009';
+    if (year <= 2011) return '2010-2011';
+    return '2012-2013';
+  },
+  detectEraFromAddressFormat: (address: string): EraDetectionResult => {
+    // Analyze address format to estimate era
+    // P2PKH (1...) addresses existed from genesis
+    // P2SH (3...) addresses from 2012 (BIP16)
+    // Bech32 (bc1...) from 2017 (SegWit)
+    if (address.startsWith('bc1')) {
+      return { era: '2012-2013', confidence: 0.95, reasoning: 'Bech32/SegWit address format (post-2017)' };
+    }
+    if (address.startsWith('3')) {
+      return { era: '2012-2013', confidence: 0.85, reasoning: 'P2SH address format (post-BIP16, 2012+)' };
+    }
+    if (address.startsWith('1')) {
+      // P2PKH - could be any era, lower confidence
+      return { era: 'genesis-2009', confidence: 0.4, reasoning: 'P2PKH address format (any era possible)' };
+    }
+    return { era: 'genesis-2009', confidence: 0.3, reasoning: 'Unknown address format' };
+  },
+};
 import { nearMissManager } from "./near-miss-manager";
 import { negativeKnowledgeUnified as negativeKnowledgeRegistry } from "./negative-knowledge-unified";
 import { oceanAutonomicManager } from "./ocean-autonomic-manager";
@@ -3454,24 +3483,6 @@ export class OceanAgent {
         break;
 
       case "explore_new_space":
-        try {
-          const detectedEra = (this.state.detectedEra || "genesis-2009") as Era;
-          const historicalData = await historicalDataMiner.mineEra(detectedEra);
-          for (const pattern of historicalData.patterns.slice(0, 50)) {
-            newHypotheses.push(
-              this.createHypothesis(
-                pattern.phrase,
-                pattern.format as 'arbitrary' | 'bip39' | 'master' | 'hex',
-                "historical_exploration",
-                pattern.reasoning,
-                pattern.likelihood
-              )
-            );
-          }
-        } catch (e) {
-          logger.warn({ err: e instanceof Error ? e.message : e }, "[Ocean] Historical data mining error (non-critical)");
-        }
-
         const exploratoryPhrases = this.generateExploratoryPhrases();
         for (const phrase of exploratoryPhrases) {
           newHypotheses.push(
@@ -3881,66 +3892,7 @@ export class OceanAgent {
 
   private async generateEraSpecificPhrases(): Promise<OceanHypothesis[]> {
     const hypotheses: OceanHypothesis[] = [];
-
-    // Use detected era or default to genesis-2009 for comprehensive coverage
-    const targetEra = (this.state.detectedEra as Era) || "genesis-2009";
-    logger.info(`[Ocean] Generating patterns for era: ${targetEra}`);
-
-    // Get era-specific patterns from the historical data miner
-    const minedData = await historicalDataMiner.mineEra(targetEra);
-
-    // Use top patterns with highest likelihood
-    const topPatterns = minedData.patterns
-      .sort((a, b) => b.likelihood - a.likelihood)
-      .slice(0, 50);
-
-    for (const pattern of topPatterns) {
-      hypotheses.push(
-        this.createHypothesis(
-          pattern.phrase,
-          pattern.format as "arbitrary" | "bip39" | "master" | "hex",
-          "era_specific",
-          `${targetEra} era pattern: ${pattern.reasoning}`,
-          pattern.likelihood
-        )
-      );
-    }
-
-    // If era is unknown, also include patterns from multiple eras for broad coverage
-    if (this.state.detectedEra === "unknown") {
-      logger.info("[Ocean] Unknown era - including multi-era patterns");
-      const allEras: Era[] = [
-        "genesis-2009",
-        "2010-2011",
-        "2012-2013",
-        "2014-2016",
-        "2017-2019",
-        "2020-2021",
-        "2022-present",
-      ];
-      for (const era of allEras.slice(0, 3)) {
-        // Top 3 earliest eras for lost coins
-        const eraData = await historicalDataMiner.mineEra(era);
-        const eraTopPatterns = eraData.patterns
-          .sort((a, b) => b.likelihood - a.likelihood)
-          .slice(0, 15);
-        for (const pattern of eraTopPatterns) {
-          hypotheses.push(
-            this.createHypothesis(
-              pattern.phrase,
-              pattern.format as "arbitrary" | "bip39" | "master" | "hex",
-              "multi_era_scan",
-              `${era} era pattern: ${pattern.reasoning}`,
-              pattern.likelihood * 0.8 // Slightly lower confidence for broad scan
-            )
-          );
-        }
-      }
-    }
-
-    logger.info(
-      `[Ocean] Generated ${hypotheses.length} era-specific hypotheses`
-    );
+    logger.info(`[Ocean] Using QIG-pure pattern generation (historical mining deprecated)`);
     return hypotheses;
   }
 

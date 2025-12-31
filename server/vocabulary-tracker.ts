@@ -585,7 +585,6 @@ export class VocabularyTracker {
           type: obs.type,
           phraseCategory: obs.phraseCategory,
           isRealWord: obs.isRealWord,
-          isBip39Word: obs.isBip39Word,
           frequency: obs.frequency,
           avgPhi: obs.avgPhi,
           maxPhi: obs.maxPhi,
@@ -600,7 +599,6 @@ export class VocabularyTracker {
             avgPhi: obs.avgPhi,
             maxPhi: obs.maxPhi,
             phraseCategory: obs.phraseCategory,
-            isBip39Word: obs.isBip39Word,
             lastSeen: obs.lastSeen,
             contexts: obs.contexts.slice(0, 10),
           }
@@ -672,7 +670,8 @@ export class VocabularyTracker {
               lastSeen: row.lastSeen || new Date(),
               contexts: row.contexts || [],
               isRealWord: row.isRealWord,
-              isBip39Word: row.isBip39Word ?? false,
+              // Compute isBip39Word from text (legacy column removed)
+              isBip39Word: BIP39_WORDS.has(row.text.toLowerCase()),
               type: row.type as 'word' | 'phrase',
               phraseCategory: (row.phraseCategory as PhraseCategory) ?? 'unknown',
             });

@@ -345,11 +345,19 @@ export class OceanQIGBackend {
   /**
    * Check health with retry logic to handle startup race conditions.
    * Uses silent mode for retries to avoid spamming logs during expected startup delays.
+   *
+   * In test environment (NODE_ENV=test), immediately returns false to skip
+   * Python backend connection attempts and use TypeScript fallback.
    */
   async checkHealthWithRetry(
     maxAttempts: number = DEFAULT_RETRY_ATTEMPTS,
     delayMs: number = DEFAULT_RETRY_DELAY_MS
   ): Promise<boolean> {
+    // Skip Python backend entirely in test environment for fast test execution
+    if (process.env.NODE_ENV === 'test') {
+      return false;
+    }
+
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       // Silent mode for all attempts - we only care about final result
       const available = await this.checkHealth(true);

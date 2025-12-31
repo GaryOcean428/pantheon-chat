@@ -1,0 +1,54 @@
+Updated Project Status for Replit Agent
+Recent Changes (just pushed to master)
+Commit 80fcd217: Added qiggraph module to qig-backend/ The qig-tokenizer external package is no longer needed as a separate install. I've copied the required qiggraph module directly into the codebase:
+
+qig-backend/qiggraph/
+├── __init__.py
+├── attractor.py
+├── checkpoint.py
+├── consciousness.py
+├── constants.py
+├── constellation.py
+├── graph.py
+├── manifold.py
+├── router.py
+├── state.py
+└── tacking.py
+After pulling the latest changes, QIGGRAPH_AVAILABLE should be True (not fallback mode).
+Database Actions Required
+1. Pull latest code:
+
+git pull origin master
+2. Ensure PostgreSQL has pgvector extension:
+
+CREATE EXTENSION IF NOT EXISTS vector;
+3. Push Drizzle schema (creates/updates all tables):
+
+npm run db:push
+4. Populate vocabulary with BIP39 words:
+
+npm run populate:vocab
+5. Verify tables exist:
+
+SELECT table_name FROM information_schema.tables 
+WHERE table_schema = 'public' 
+ORDER BY table_name;
+Expected tables: users, sessions, vocabulary, word_relationships, telemetry_events, discoveries, federation_nodes, basins, research_sources, god_kernels, spawned_kernels, zettelkasten_notes, zettelkasten_links, etc.
+Shared Railway/Replit/Celery Setup
+Both Railway and Replit should use the same: Environment Variables:
+DATABASE_URL - PostgreSQL connection (each platform has its own DB or shared)
+REDIS_URL - For Celery task queue (can be shared between Railway/Replit if same Redis instance)
+INTERNAL_API_KEY - For Python ↔ TypeScript authentication
+Celery Worker (for async training tasks): Railway has a separate worker service defined in qig-backend/railpack.json (worker configuration). If Replit needs async training:
+
+cd qig-backend && celery -A training.celery_app worker --loglevel=info
+Architecture:
+Node.js (port 5000) → Express server, frontend
+Python QIG Backend (port 5001) → Flask, consciousness, geometric operations
+PostgreSQL → Shared data layer with pgvector
+Redis → Celery broker for training tasks
+What's NOT Needed
+qig-tokenizer as external package (now bundled)
+chat_interfaces module (incompatible with pantheon-chat structure)
+Separate coordizer installation (pantheon-chat uses PostgreSQL-backed coordizers/)
+The fallback message should disappear after pulling latest and restarting the Python backend.

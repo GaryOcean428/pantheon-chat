@@ -151,8 +151,12 @@ Preferred communication style: Simple, everyday language.
 ### APIs & Services
 - **SearXNG:** Federated search for research capabilities
 - **Dictionary API:** `dictionaryapi.dev` for word validation
-- **Blockchain APIs:** Balance checking for Bitcoin recovery features
 - **Tor/SOCKS5 Proxy:** Optional darknet proxy for stealth queries
+
+### Schema Architecture Notes (2024-12-30)
+- **Shadow Learning Tables:** shadow_knowledge, research_requests, bidirectional_queue, learned_words, zeus_sessions, zeus_conversations, search_replay_tests
+- **Deprecated Stub Tables:** blocks, transactions, addresses, recoveryPriorities, recoveryWorkflows, userTargetAddresses, balanceHits, recoveryCandidates (kept for backward compatibility with legacy code, will be removed in future cleanup)
+- The system is now a pure AI research platform - all wallet/blockchain recovery functionality has been deprecated
 
 ### Key NPM Packages
 - `@tanstack/react-query` for data fetching

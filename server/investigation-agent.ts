@@ -1,6 +1,7 @@
 import { getSharedController } from './consciousness-search-controller';
 import { scoreUniversalQIGAsync } from './qig-universal';
-import { historicalDataMiner, type Era } from './historical-data-miner';
+
+type Era = 'genesis-2009' | '2010-2011' | '2012-2013';
 
 export interface EvidenceLink {
   source: string;
@@ -497,17 +498,6 @@ export class InvestigationAgent {
         break;
         
       case 'explore_new_space':
-        const historicalData = await historicalDataMiner.mineEra('genesis-2009');
-        for (const pattern of historicalData.patterns.slice(0, 50)) {
-          newHypotheses.push(this.createHypothesis(
-            pattern.phrase,
-            pattern.format as 'arbitrary' | 'bip39' | 'master' | 'hex',
-            'historical_exploration',
-            pattern.reasoning,
-            pattern.likelihood
-          ));
-        }
-        
         const exploratoryPhrases = this.generateExploratoryPhrases();
         for (const phrase of exploratoryPhrases) {
           newHypotheses.push(this.createHypothesis(
@@ -822,19 +812,15 @@ export class InvestigationAgent {
   }
   
   private async expandSearchSpace(): Promise<AgentHypothesis[]> {
-    console.log('[Agent] Expanding search space with historical patterns...');
+    console.log('[Agent] Expanding search space with QIG-pure pattern generation...');
     
-    const eras: Era[] = ['genesis-2009', '2010-2011', '2012-2013'];
-    const era = eras[this.memory.iteration % eras.length];
-    
-    const historicalData = await historicalDataMiner.mineEra(era);
-    
-    return historicalData.patterns.slice(0, 100).map(p => this.createHypothesis(
-      p.phrase,
-      p.format as 'arbitrary' | 'bip39' | 'master' | 'hex',
+    const randomPhrases = this.generateRandomHighEntropyPhrases(100);
+    return randomPhrases.map(phrase => this.createHypothesis(
+      phrase,
+      'arbitrary',
       'search_expansion',
-      `Historical pattern from ${era}: ${p.reasoning}`,
-      p.likelihood
+      'QIG-pure pattern exploration',
+      0.5
     ));
   }
   

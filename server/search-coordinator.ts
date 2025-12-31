@@ -311,11 +311,13 @@ class SearchCoordinator {
   private async executeContinuousJob(jobId: string) {
     const BATCH_SIZE = 10;
     let job = (await storage.getSearchJob(jobId)) as SearchJob;
-    const minHighPhi = job.params.minHighPhi || 2;
-    const wordLength = job.params.wordLength || 24; // Default to max entropy
+    // Extract params with defaults (params is optional for flexible strategy configs)
+    const params = job.params ?? {};
+    const minHighPhi = params.minHighPhi || 2;
+    const wordLength = params.wordLength || 24; // Default to max entropy
     const allLengths = wordLength === 0; // 0 = all lengths
     const validLengths = [12, 15, 18, 21, 24];
-    const generationMode = job.params.generationMode || "bip39"; // Default to BIP-39
+    const generationMode = params.generationMode || "bip39"; // Default to BIP-39
 
     // Initialize discovery tracker for this job
     if (!this.discoveryTrackers.has(jobId)) {
@@ -633,12 +635,13 @@ class SearchCoordinator {
   }
 
   private async getPhrasesForStrategy(job: SearchJob): Promise<string[]> {
+    const params = job.params ?? {};
     switch (job.strategy) {
       case "custom":
-        return job.params.customPhrase ? [job.params.customPhrase] : [];
+        return params.customPhrase ? [params.customPhrase] : [];
 
       case "batch":
-        return job.params.batchPhrases || [];
+        return params.batchPhrases || [];
 
       case "bip39-continuous":
       case "bip39-adaptive":

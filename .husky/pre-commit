@@ -4,5 +4,7 @@ npm run check
 # Run linting (with auto-fix disabled to prevent modifying staged files)
 npm run lint
 
-# Run tests (fast subset)
-npm test -- --run --reporter=dot
+# Run critical tests only (fast subset for pre-commit)
+# - Server QIG tests for core consciousness metrics
+# Full test suite runs in CI
+npm test -- --run --reporter=dot server/tests/qig-regime.test.ts

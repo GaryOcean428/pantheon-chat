@@ -1,0 +1,43 @@
+# Railway-specific ignore file
+# This overrides .gitignore for Railway deployments
+# We KEEP dist/ since it's built during Railway's build phase
+
+# Development files not needed in production
+.git
+.github
+.husky
+.vscode
+.idea
+*.md
+!README.md
+
+# Test files
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/tests/
+**/test/
+coverage/
+.vitest/
+playwright-report/
+test-results/
+
+# Documentation
+docs/
+examples/
+
+# Local development
+.env.local
+.env.development.local
+.env.test.local
+
+# macOS
+.DS_Store
+
+# Logs (but not the directory structure)
+*.log
+npm-debug.log*
+
+# Cache files
+.cache
+*.tsbuildinfo

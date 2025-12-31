@@ -14,7 +14,7 @@ import {
   Button,
 } from "@/components/ui";
 import { API_ROUTES } from "@/api";
-import { 
+import {
   Home,
   Brain,
   LogOut,
@@ -36,6 +36,7 @@ import {
   Globe,
   Activity,
   FileCode,
+  Network,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useConsciousness, getPhiColor, getRegimeLabel } from "@/contexts/ConsciousnessContext";
@@ -103,6 +104,12 @@ export function AppSidebar() {
       url: "/telemetry",
       icon: Activity,
       description: "Real-time QIG metrics and monitoring",
+    },
+    {
+      title: "Zettelkasten",
+      url: "/zettelkasten",
+      icon: Network,
+      description: "Knowledge graph memory system",
     },
     {
       title: "API Docs",

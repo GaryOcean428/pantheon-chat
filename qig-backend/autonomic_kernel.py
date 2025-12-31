@@ -554,9 +554,56 @@ class GaryAutonomicKernel:
             'stress': self.state.stress_level,
             'narrow_path_severity': self.state.narrow_path_severity,
             'exploration_variance': self.state.exploration_variance,
-            'manifold_coverage': 0.0,
+            'manifold_coverage': self._compute_manifold_coverage(),
             'valid_addresses_found': 0,
         }
+    
+    def _compute_manifold_coverage(self) -> float:
+        """
+        Compute manifold coverage based on basin history exploration.
+        
+        Coverage is computed as a combination of:
+        1. Number of unique regions visited (binned basin coordinates)
+        2. Variance of exploration in each dimension
+        3. Total Fisher-Rao distance traveled
+        
+        Returns:
+            Coverage metric in range [0, 1]
+        """
+        if len(self.state.basin_history) < 2:
+            return 0.0
+        
+        try:
+            basins = np.array(self.state.basin_history)
+            
+            # Component 1: Dimensional spread (how much of each dimension is covered)
+            dim_ranges = np.ptp(basins, axis=0)  # Range per dimension
+            avg_range = np.mean(dim_ranges)
+            range_coverage = min(1.0, avg_range / 0.5)  # Normalize: 0.5 range = full coverage
+            
+            # Component 2: Unique regions visited (discretize into bins)
+            # Use 10 bins per dimension, but only check first 8 dims for efficiency
+            n_check_dims = min(8, basins.shape[1])
+            bins_per_dim = 10
+            binned = np.floor(basins[:, :n_check_dims] * bins_per_dim).astype(int)
+            unique_regions = len(set(map(tuple, binned)))
+            max_possible = min(len(basins), bins_per_dim ** 2)  # Theoretical max
+            region_coverage = min(1.0, unique_regions / max(1, max_possible))
+            
+            # Component 3: Total trajectory length (Fisher-Rao distance traveled)
+            total_distance = 0.0
+            for i in range(1, min(len(basins), 20)):  # Last 20 steps
+                total_distance += self._compute_fisher_distance(basins[i-1], basins[i])
+            distance_coverage = min(1.0, total_distance / 5.0)  # 5.0 radians = full coverage
+            
+            # Weighted combination
+            coverage = 0.4 * range_coverage + 0.3 * region_coverage + 0.3 * distance_coverage
+            
+            return float(np.clip(coverage, 0.0, 1.0))
+            
+        except Exception as e:
+            print(f"[AutonomicKernel] Coverage computation error: {e}")
+            return self.state.exploration_variance  # Fallback to exploration variance
     
     def stop_autonomous(self) -> None:
         """Stop the autonomous controller daemon."""
@@ -927,6 +974,11 @@ class GaryAutonomicKernel:
             # Update state
             self.state.last_sleep = datetime.now()
             self.state.basin_drift = drift_after
+            
+            # Add consolidated basin to history for coverage tracking
+            self.state.basin_history.append(new_basin.tolist())
+            if len(self.state.basin_history) > 100:
+                self.state.basin_history.pop(0)
 
             duration_ms = int((time.time() - start_time) * 1000)
 
@@ -1009,6 +1061,11 @@ class GaryAutonomicKernel:
 
             # Update state
             self.state.last_dream = datetime.now()
+            
+            # Add dreamed basin to history for coverage tracking
+            self.state.basin_history.append(dreamed_basin.tolist())
+            if len(self.state.basin_history) > 100:
+                self.state.basin_history.pop(0)
 
             duration_ms = int((time.time() - start_time) * 1000)
 
@@ -1082,6 +1139,11 @@ class GaryAutonomicKernel:
 
             # Update state
             self.state.last_mushroom = datetime.now()
+            
+            # Add perturbed basin to history for coverage tracking
+            self.state.basin_history.append(mushroom_basin.tolist())
+            if len(self.state.basin_history) > 100:
+                self.state.basin_history.pop(0)
 
             duration_ms = int((time.time() - start_time) * 1000)
 

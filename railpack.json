@@ -6,6 +6,7 @@
   },
   "build": {
     "provider": "node",
+    "nodeVersion": "24",
     "steps": {
       "install": {
         "commands": [
@@ -23,9 +24,10 @@
       "build": {
         "commands": [
           "echo '=== Building TypeScript application ==='",
-          "npm run build",
+          "npm run build || (echo 'Build failed!' && exit 1)",
           "echo '=== Verifying build output ==='",
-          "ls -la dist/ && test -f dist/index.js"
+          "ls -la dist/",
+          "test -f dist/index.js || (echo 'dist/index.js not found!' && exit 1)"
         ]
       }
     },
