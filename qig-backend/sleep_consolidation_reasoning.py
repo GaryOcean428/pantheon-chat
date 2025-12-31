@@ -11,6 +11,12 @@ import numpy as np
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass, field
 import time
+import logging
+
+logger = logging.getLogger(__name__)
+
+# Log interval: only log every Nth consolidation cycle unless something changes
+LOG_INTERVAL = 10
 
 
 @dataclass
@@ -48,6 +54,7 @@ class SleepConsolidationReasoning:
         self.min_success_rate = 0.2
         self.high_success_threshold = 0.8
         self.low_success_threshold = 0.4
+        self._consolidation_count = 0
     
     def set_learner(self, reasoning_learner):
         """Set the reasoning learner."""
@@ -77,56 +84,43 @@ class SleepConsolidationReasoning:
         exploration_before = self.reasoning_learner.exploration_rate
         total_episodes = len(self.reasoning_learner.reasoning_episodes)
         
-        print("Sleep: Consolidating reasoning strategies...")
-        print(f"  Total episodes in memory: {total_episodes}")
-        print(f"  Current strategies: {strategies_before}")
+        # Increment cycle counter
+        self._consolidation_count += 1
         
-        print("  Stage 1 (NREM): Pruning failed strategies...")
+        # Stage 1 (NREM): Prune failed strategies
         self.reasoning_learner.consolidate_strategies()
         strategies_after_prune = len(self.reasoning_learner.strategies)
         strategies_pruned = strategies_before - strategies_after_prune
-        print(f"  Pruned {strategies_pruned} ineffective strategies")
         
-        print("  Stage 2 (REM): Strengthening successful patterns...")
+        # Stage 2 (REM): Strengthen successful patterns
         successful_episodes = [
             ep for ep in self.reasoning_learner.reasoning_episodes
             if ep.success and ep.efficiency > 0.7
         ]
-        print(f"  Found {len(successful_episodes)} high-efficiency episodes (success + efficiency > 0.7)")
         
         if successful_episodes:
-            print(f"  Replaying {len(successful_episodes)} successful episodes...")
-            for i, episode in enumerate(successful_episodes):
-                print(f"    Episode {i+1}: efficiency={episode.efficiency:.2f}")
+            for episode in successful_episodes:
                 self.reasoning_learner.learn_from_episode(episode)
-        else:
-            print("  No high-efficiency episodes available yet - need successful reasoning with efficiency > 0.7")
         
-        print("  Stage 3 (Deep): Meta-learning adjustments...")
+        # Stage 3 (Deep): Meta-learning adjustments
         recent_episodes = self.reasoning_learner.reasoning_episodes[-100:]
-        print(f"  Analyzing last {len(recent_episodes)} episodes for meta-learning")
+        exploration_changed = False
         
         if recent_episodes:
             successful_count = sum(1 for ep in recent_episodes if ep.success)
             recent_success_rate = successful_count / len(recent_episodes)
-            print(f"  Success count: {successful_count}/{len(recent_episodes)} = {recent_success_rate:.1%}")
             
             if recent_success_rate > self.high_success_threshold:
-                old_rate = self.reasoning_learner.exploration_rate
                 self.reasoning_learner.exploration_rate *= 0.9
-                print(f"  Reducing exploration: {old_rate:.2%} -> {self.reasoning_learner.exploration_rate:.2%} (success > {self.high_success_threshold:.0%})")
+                exploration_changed = True
             elif recent_success_rate < self.low_success_threshold:
-                old_rate = self.reasoning_learner.exploration_rate
                 self.reasoning_learner.exploration_rate = min(
                     0.5,
                     self.reasoning_learner.exploration_rate * 1.1
                 )
-                print(f"  Increasing exploration: {old_rate:.2%} -> {self.reasoning_learner.exploration_rate:.2%} (success < {self.low_success_threshold:.0%})")
-            else:
-                print(f"  Exploration rate unchanged (success rate {recent_success_rate:.1%} within [{self.low_success_threshold:.0%}, {self.high_success_threshold:.0%}])")
+                exploration_changed = True
         else:
             recent_success_rate = 0.5
-            print("  No recent episodes - using default success rate of 50%")
         
         strategies_after = len(self.reasoning_learner.strategies)
         exploration_after = self.reasoning_learner.exploration_rate
@@ -143,12 +137,20 @@ class SleepConsolidationReasoning:
         
         self.consolidation_history.append(result)
         
-        print(f"Sleep consolidation complete:")
-        print(f"  Strategies before: {strategies_before} -> after: {strategies_after}")
-        print(f"  Exploration rate: {exploration_before:.2%} -> {exploration_after:.2%}")
-        print(f"  Episodes in memory: {total_episodes}")
-        print(f"  Episodes replayed: {len(successful_episodes)}")
-        print(f"  Recent success rate: {recent_success_rate:.1%}")
+        # Only log when something actually changed OR every Nth cycle
+        something_changed = (
+            strategies_pruned > 0 or 
+            len(successful_episodes) > 0 or 
+            exploration_changed
+        )
+        
+        if something_changed:
+            logger.info(f"[SleepConsolidation] Cycle #{self._consolidation_count}: "
+                       f"pruned={strategies_pruned}, replayed={len(successful_episodes)}, "
+                       f"ε={exploration_after:.2%}, success={recent_success_rate:.1%}")
+        elif self._consolidation_count % LOG_INTERVAL == 0:
+            logger.debug(f"[SleepConsolidation] Cycle #{self._consolidation_count}: "
+                        f"no changes (episodes={total_episodes}, strategies={strategies_after})")
         
         return result
     
@@ -160,8 +162,6 @@ class SleepConsolidationReasoning:
         """
         if self.reasoning_learner is None:
             return {'error': 'No reasoning learner configured'}
-        
-        print("Dream: Creative strategy recombination...")
         
         successful_strategies = [
             s for s in self.reasoning_learner.strategies
@@ -202,7 +202,8 @@ class SleepConsolidationReasoning:
             self.reasoning_learner.strategies.append(child)
             novel_strategies.append(child.name)
         
-        print(f"Dream recombination: Created {len(novel_strategies)} novel strategies")
+        if novel_strategies:
+            logger.info(f"[DreamRecombination] Created {len(novel_strategies)} novel strategies")
         
         return {
             'novel_strategies': novel_strategies,

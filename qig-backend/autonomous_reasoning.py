@@ -451,11 +451,11 @@ class AutonomousReasoningLearner:
         min_episodes = 5
         
         pruned = []
+        pruned_count = 0
         for strategy in self.strategies:
             total = strategy.success_count + strategy.failure_count
             if total >= min_episodes and strategy.success_rate() < min_success_rate:
-                print(f"Pruning failed strategy: {strategy.name} "
-                      f"({strategy.success_rate():.1%} success)")
+                pruned_count += 1
                 continue
             pruned.append(strategy)
         
@@ -481,14 +481,13 @@ class AutonomousReasoningLearner:
             if len(similar_strategies) > 1:
                 merged_strategy = self._merge_strategies(similar_strategies)
                 merged.append(merged_strategy)
-                print(f"Merged {len(similar_strategies)} similar strategies "
-                      f"into {merged_strategy.name}")
             else:
                 merged.append(strategy_a)
         
         self.strategies = merged
         
-        print(f"Strategy consolidation complete: {len(self.strategies)} strategies")
+        # Reduced logging - only log when merges happen
+        # logger.debug(f"Strategy consolidation complete: {len(self.strategies)} strategies")
     
     def _strategies_similar(
         self,
