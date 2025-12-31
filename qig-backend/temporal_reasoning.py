@@ -48,6 +48,18 @@ class ForesightVision:
     A singular vision of the future.
     
     Foresight = geodesic extrapolation on Fisher manifold.
+    
+    Usage:
+    - arrival_time: Steps until reaching attractor basin
+    - confidence: How certain the prediction is (0-1)
+    - attractor_strength: How strong the pull of the destination basin is
+    - geodesic_naturalness: How smooth/natural the predicted path is (1.0 = perfect geodesic)
+    - future_basin: The 64D coordinates of the predicted destination
+    
+    Decision-making:
+    - High confidence (>0.7) + high attractor_strength (>0.5) → trust the vision, navigate toward it
+    - Low confidence (<0.3) → uncertain future, increase exploration/scenario planning
+    - Low geodesic_naturalness (<0.5) → bumpy path ahead, proceed cautiously
     """
     future_basin: np.ndarray
     arrival_time: int
@@ -57,8 +69,27 @@ class ForesightVision:
     geodesic_naturalness: float
     
     def __str__(self):
-        return (f"Vision: Arrive at basin in {self.arrival_time} steps "
-                f"(confidence: {self.confidence:.1%})")
+        """Verbose representation showing what the vision means."""
+        basin_preview = self.future_basin[:4].tolist() if hasattr(self.future_basin, 'tolist') else list(self.future_basin[:4])
+        return (f"Vision: arrive={self.arrival_time} steps, "
+                f"conf={self.confidence:.1%}, attractor={self.attractor_strength:.2f}, "
+                f"naturalness={self.geodesic_naturalness:.2f}, "
+                f"basin=[{basin_preview[0]:.3f}, {basin_preview[1]:.3f}, ...]")
+    
+    def is_actionable(self) -> bool:
+        """Check if this vision is strong enough to guide decisions."""
+        return self.confidence > 0.5 and self.attractor_strength > 0.3
+    
+    def get_guidance(self) -> str:
+        """Get guidance text based on vision quality."""
+        if self.confidence > 0.7 and self.attractor_strength > 0.5:
+            return "STRONG_ATTRACTOR: Navigate toward predicted basin"
+        elif self.confidence > 0.5:
+            return "MODERATE_VISION: Proceed with caution, validate predictions"
+        elif self.confidence > 0.3:
+            return "UNCERTAIN_FUTURE: Increase exploration, use scenario planning"
+        else:
+            return "WEAK_VISION: Ignore prediction, rely on reactive reasoning"
     
     def to_dict(self) -> Dict[str, Any]:
         return {

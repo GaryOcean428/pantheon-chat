@@ -112,6 +112,9 @@ class AutonomicState:
     # Narrow path state
     is_narrow_path: bool = False
     narrow_path_severity: str = 'none'  # none, mild, moderate, severe
+    
+    # Foresight vision (4D temporal prediction)
+    last_foresight: Optional[Dict[str, Any]] = None
 
     def __post_init__(self):
         if self.last_sleep is None:
@@ -967,7 +970,15 @@ class GaryAutonomicKernel:
                     if temporal.can_use_temporal_reasoning(self.state.phi):
                         foresight_vision = temporal.foresight(new_basin)
                         temporal.record_basin(new_basin)
+                        
+                        # Verbose logging with guidance
                         print(f"[AutonomicKernel] Foresight: {foresight_vision}")
+                        print(f"[AutonomicKernel]   Guidance: {foresight_vision.get_guidance()}")
+                        
+                        # Store vision for decision-making
+                        self.state.last_foresight = foresight_vision.to_dict()
+                        self.state.last_foresight['guidance'] = foresight_vision.get_guidance()
+                        self.state.last_foresight['actionable'] = foresight_vision.is_actionable()
                 except Exception as fe:
                     print(f"[AutonomicKernel] Temporal foresight error: {fe}")
 

@@ -1386,8 +1386,26 @@ class KernelPersistence(BasePersistence):
         For large tables in production, run manually with CONCURRENTLY outside transactions.
         
         Returns:
-            True if index exists or was created
+            True if index exists or was created, False if column type incompatible
         """
+        # First check if the column is a proper pgvector type (not real[])
+        type_check_query = """
+            SELECT udt_name FROM information_schema.columns 
+            WHERE table_name = 'kernel_geometry' AND column_name = 'basin_coordinates'
+        """
+        
+        try:
+            type_results = self.execute_query(type_check_query)
+            if type_results:
+                udt_name = type_results[0].get('udt_name', '')
+                if udt_name == '_float4' or udt_name.startswith('_'):
+                    # Column is a regular array type, not pgvector - skip HNSW index
+                    # System will use fallback O(n) distance calculations
+                    print("[KernelPersistence] basin_coordinates is array type, skipping HNSW index (using O(n) fallback)")
+                    return False
+        except Exception:
+            pass  # Continue with index creation attempt
+        
         check_query = """
             SELECT indexname FROM pg_indexes 
             WHERE tablename = 'kernel_geometry' 
