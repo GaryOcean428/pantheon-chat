@@ -1118,3 +1118,293 @@ class KernelPersistence(BasePersistence):
                 'error': str(e),
                 'archived_count': 0,
             }
+
+    # =========================================================================
+    # PGVECTOR NEIGHBOR QUERIES - O(log n) via ANN index
+    # =========================================================================
+
+    def fetch_nearest_kernels(
+        self,
+        target_coords: List[float],
+        k: int = 10,
+        status_filter: Optional[List[str]] = None,
+        exclude_ids: Optional[List[str]] = None
+    ) -> List[Dict]:
+        """
+        Fetch k nearest kernels to target basin coordinates using pgvector ANN.
+        
+        Uses L2 distance (<->) for geometric proximity in basin space.
+        This is O(log n) with proper HNSW/IVFFlat index vs O(n) linear scan.
+        
+        Args:
+            target_coords: 64D basin coordinates to search from
+            k: Number of nearest neighbors to return
+            status_filter: Only include kernels with these statuses (default: live statuses)
+            exclude_ids: Kernel IDs to exclude from results
+        
+        Returns:
+            List of kernel dicts with distance field, ordered by proximity
+        """
+        coords_64d = ensure_64d_coords(target_coords)
+        
+        if status_filter is None:
+            status_filter = ['observing', 'graduated', 'active', 'idle', 'breeding']
+        
+        exclude_clause = ""
+        params = [coords_64d, status_filter]
+        
+        if exclude_ids:
+            exclude_clause = "AND kernel_id != ALL(%s)"
+            params.append(exclude_ids)
+        
+        params.append(k)
+        
+        query = f"""
+            SELECT kernel_id, god_name, domain, status, phi, kappa,
+                   success_count, failure_count, generation,
+                   basin_coordinates <-> %s::vector(64) as distance,
+                   observation_status, metadata
+            FROM kernel_geometry
+            WHERE status = ANY(%s)
+              AND basin_coordinates IS NOT NULL
+              {exclude_clause}
+            ORDER BY basin_coordinates <-> %s::vector(64)
+            LIMIT %s
+        """
+        
+        params_final = [coords_64d, status_filter]
+        if exclude_ids:
+            params_final.append(exclude_ids)
+        params_final.extend([coords_64d, k])
+        
+        try:
+            results = self.execute_query(query, tuple(params_final))
+            return results or []
+        except Exception as e:
+            print(f"[KernelPersistence] ANN query failed: {e}")
+            return []
+
+    def fetch_weak_kernels_for_culling(
+        self,
+        phi_threshold: float = 0.5,
+        min_age_seconds: float = 10.0,
+        limit: int = 50
+    ) -> List[Dict]:
+        """
+        Fetch kernels that are candidates for phi-selection culling.
+        
+        Returns kernels with phi below threshold, excluding those in observation
+        or younger than the grace period.
+        
+        Args:
+            phi_threshold: Kernels with phi below this are candidates
+            min_age_seconds: Minimum age before kernel can be culled (grace period)
+            limit: Maximum kernels to return
+        
+        Returns:
+            List of weak kernel dicts ordered by phi ascending (weakest first)
+        """
+        cutoff = datetime.now(timezone.utc) - timedelta(seconds=min_age_seconds)
+        
+        query = """
+            SELECT kernel_id, god_name, domain, status, phi, kappa,
+                   success_count, failure_count, generation,
+                   observation_status, spawned_at
+            FROM kernel_geometry
+            WHERE status IN ('active', 'graduated', 'idle')
+              AND observation_status != 'observing'
+              AND phi < %s
+              AND spawned_at < %s
+            ORDER BY phi ASC
+            LIMIT %s
+        """
+        
+        try:
+            results = self.execute_query(query, (phi_threshold, cutoff, limit))
+            return results or []
+        except Exception as e:
+            print(f"[KernelPersistence] Weak kernel query failed: {e}")
+            return []
+
+    def fetch_kernels_with_pending_proposals(
+        self,
+        proposal_types: Optional[List[str]] = None,
+        limit: int = 100
+    ) -> List[Dict]:
+        """
+        Fetch kernels that have pending governance proposals.
+        
+        Proposals are stored in metadata->>'pending_proposal_type'.
+        
+        Args:
+            proposal_types: Filter by proposal types (spawn, death)
+            limit: Maximum kernels to return
+        
+        Returns:
+            List of kernels with pending proposals
+        """
+        if proposal_types:
+            query = """
+                SELECT kernel_id, god_name, domain, status, phi,
+                       success_count, failure_count,
+                       metadata->>'pending_proposal_type' as proposal_type,
+                       metadata
+                FROM kernel_geometry
+                WHERE metadata->>'pending_proposal_type' = ANY(%s)
+                  AND status NOT IN ('dead', 'cannibalized')
+                LIMIT %s
+            """
+            params = (proposal_types, limit)
+        else:
+            query = """
+                SELECT kernel_id, god_name, domain, status, phi,
+                       success_count, failure_count,
+                       metadata->>'pending_proposal_type' as proposal_type,
+                       metadata
+                FROM kernel_geometry
+                WHERE metadata->>'pending_proposal_type' IS NOT NULL
+                  AND status NOT IN ('dead', 'cannibalized')
+                LIMIT %s
+            """
+            params = (limit,)
+        
+        try:
+            results = self.execute_query(query, params)
+            return results or []
+        except Exception as e:
+            print(f"[KernelPersistence] Pending proposals query failed: {e}")
+            return []
+
+    def update_kernel_proposal(
+        self,
+        kernel_id: str,
+        proposal_type: Optional[str],
+        proposal_data: Optional[Dict] = None
+    ) -> bool:
+        """
+        Update kernel's pending proposal in metadata.
+        
+        Args:
+            kernel_id: Kernel to update
+            proposal_type: 'spawn', 'death', or None to clear
+            proposal_data: Optional additional proposal details
+        
+        Returns:
+            True if update succeeded
+        """
+        if proposal_type is None:
+            query = """
+                UPDATE kernel_geometry
+                SET metadata = metadata - 'pending_proposal_type' - 'pending_proposal_data'
+                WHERE kernel_id = %s
+            """
+            params = (kernel_id,)
+        else:
+            query = """
+                UPDATE kernel_geometry
+                SET metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object(
+                    'pending_proposal_type', %s,
+                    'pending_proposal_data', %s,
+                    'proposal_created_at', %s
+                )
+                WHERE kernel_id = %s
+            """
+            params = (
+                proposal_type,
+                json.dumps(proposal_data or {}),
+                datetime.now(timezone.utc).isoformat(),
+                kernel_id
+            )
+        
+        try:
+            self.execute_query(query, params, fetch=False)
+            return True
+        except Exception as e:
+            print(f"[KernelPersistence] Failed to update proposal: {e}")
+            return False
+
+    def fetch_strongest_kernel_near(
+        self,
+        target_coords: List[float],
+        radius: float = 2.0,
+        exclude_id: Optional[str] = None
+    ) -> Optional[Dict]:
+        """
+        Find the strongest kernel within geometric radius of target.
+        
+        Useful for finding cannibalization/merge targets.
+        
+        Args:
+            target_coords: 64D basin coordinates
+            radius: Maximum L2 distance to consider
+            exclude_id: Kernel to exclude (the dying kernel itself)
+        
+        Returns:
+            Strongest kernel dict or None
+        """
+        coords_64d = ensure_64d_coords(target_coords)
+        
+        exclude_clause = ""
+        params = [coords_64d, radius]
+        
+        if exclude_id:
+            exclude_clause = "AND kernel_id != %s"
+            params.append(exclude_id)
+        
+        query = f"""
+            SELECT kernel_id, god_name, domain, status, phi, kappa,
+                   success_count, failure_count, generation,
+                   basin_coordinates <-> %s::vector(64) as distance
+            FROM kernel_geometry
+            WHERE status IN ('active', 'graduated', 'idle')
+              AND basin_coordinates IS NOT NULL
+              AND basin_coordinates <-> %s::vector(64) < %s
+              {exclude_clause}
+            ORDER BY phi DESC, success_count DESC
+            LIMIT 1
+        """
+        
+        params_final = [coords_64d, coords_64d, radius]
+        if exclude_id:
+            params_final.append(exclude_id)
+        
+        try:
+            results = self.execute_query(query, tuple(params_final))
+            return results[0] if results else None
+        except Exception as e:
+            print(f"[KernelPersistence] Strongest kernel query failed: {e}")
+            return None
+
+    def ensure_basin_index(self) -> bool:
+        """
+        Ensure pgvector HNSW index exists on basin_coordinates.
+        
+        HNSW provides O(log n) approximate nearest neighbor queries.
+        Should be called once during startup.
+        
+        Returns:
+            True if index exists or was created
+        """
+        check_query = """
+            SELECT indexname FROM pg_indexes 
+            WHERE tablename = 'kernel_geometry' 
+              AND indexname = 'idx_kernel_geometry_basin_ann'
+        """
+        
+        try:
+            results = self.execute_query(check_query)
+            if results:
+                return True
+            
+            create_query = """
+                CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_kernel_geometry_basin_ann
+                ON kernel_geometry
+                USING hnsw (basin_coordinates vector_l2_ops)
+                WITH (m = 16, ef_construction = 64)
+            """
+            self.execute_query(create_query, fetch=False)
+            print("[KernelPersistence] Created HNSW index on basin_coordinates")
+            return True
+        except Exception as e:
+            print(f"[KernelPersistence] Failed to ensure basin index: {e}")
+            return False
