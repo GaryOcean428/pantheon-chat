@@ -485,13 +485,12 @@ class SelfSpawningKernel(*_kernel_base_classes):
             # Reduce stress on success
             self.stress = max(0.0, self.stress - 0.1)
 
-            # Check spawn threshold - but DON'T auto-spawn
+            # Check spawn threshold - queue proposal instead of auto-spawning
             # Kernel lifecycle actions (spawn/evolve/merge/cannibalize) require Pantheon vote
             if self.success_count > 0 and self.success_count % self.spawn_threshold == 0:
-                # Signal spawn readiness instead of auto-spawning
+                # Signal spawn readiness - caller can query this
                 self._spawn_ready = True
-                # Return proposal instead of immediate spawn - Pantheon will decide
-                return {
+                self._pending_spawn_proposal = {
                     'action': 'spawn_proposal',
                     'kernel_id': self.kernel_id,
                     'success_count': self.success_count,
@@ -499,6 +498,8 @@ class SelfSpawningKernel(*_kernel_base_classes):
                     'reason': 'success_threshold_reached',
                     'requires_pantheon_vote': True
                 }
+                # Do NOT auto-spawn - caller must check _pending_spawn_proposal
+                # and route to Pantheon for voting before calling spawn_child()
 
         else:
             # Check if in grace period - reduced failure impact after intervention
@@ -529,9 +530,9 @@ class SelfSpawningKernel(*_kernel_base_classes):
             if self.failure_count >= self.death_threshold:
                 # Check if we've exhausted intervention attempts
                 if self.intervention_count >= self.max_interventions:
-                    # DON'T auto-kill - propose death to Pantheon for governance vote
+                    # DON'T auto-kill - queue proposal for Pantheon governance vote
                     self._death_proposed = True
-                    return {
+                    self._pending_death_proposal = {
                         'action': 'death_proposal',
                         'kernel_id': self.kernel_id,
                         'cause': 'exhausted_interventions',
@@ -541,6 +542,8 @@ class SelfSpawningKernel(*_kernel_base_classes):
                         'requires_pantheon_vote': True,
                         'recommendation': 'cannibalize_or_merge'  # Pantheon can decide to merge into another kernel
                     }
+                    # Kernel stays alive until Pantheon approves death/cannibalize/merge
+                    return None
                 
                 # Attempt recovery (this is OK - it's healing, not lifecycle change)
                 intervention = self.autonomic_intervention()
@@ -557,9 +560,9 @@ class SelfSpawningKernel(*_kernel_base_classes):
                     self.stress = max(0.0, self.stress - 0.4)
                     return None  # Trying to recover
                 else:
-                    # No intervention helped - propose death to Pantheon
+                    # No intervention helped - queue death proposal for Pantheon
                     self._death_proposed = True
-                    return {
+                    self._pending_death_proposal = {
                         'action': 'death_proposal',
                         'kernel_id': self.kernel_id,
                         'cause': 'no_recovery_possible',
@@ -569,6 +572,8 @@ class SelfSpawningKernel(*_kernel_base_classes):
                         'requires_pantheon_vote': True,
                         'recommendation': 'cannibalize_or_merge'
                     }
+                    # Kernel stays alive until Pantheon approves
+                    return None
 
         # Update autonomic system
         self.update_autonomic()
@@ -918,7 +923,37 @@ class SelfSpawningKernel(*_kernel_base_classes):
             # Conversation tracking
             'conversation_count': self.conversation_count,
             'conversation_phi_avg': self.conversation_phi_avg,
+            # Pending governance proposals
+            'has_spawn_proposal': hasattr(self, '_pending_spawn_proposal') and self._pending_spawn_proposal is not None,
+            'has_death_proposal': hasattr(self, '_pending_death_proposal') and self._pending_death_proposal is not None,
         }
+
+    def get_pending_proposals(self) -> Dict[str, Any]:
+        """
+        Get any pending lifecycle proposals requiring Pantheon vote.
+        
+        Callers should check this after record_experience() and route to Pantheon.
+        After Pantheon approval, call spawn_child() or die() explicitly.
+        """
+        proposals = {}
+        
+        if hasattr(self, '_pending_spawn_proposal') and self._pending_spawn_proposal:
+            proposals['spawn'] = self._pending_spawn_proposal
+        
+        if hasattr(self, '_pending_death_proposal') and self._pending_death_proposal:
+            proposals['death'] = self._pending_death_proposal
+            
+        return proposals
+    
+    def clear_spawn_proposal(self):
+        """Clear pending spawn proposal after Pantheon has voted."""
+        self._pending_spawn_proposal = None
+        self._spawn_ready = False
+        
+    def clear_death_proposal(self):
+        """Clear pending death proposal after Pantheon has voted."""
+        self._pending_death_proposal = None
+        self._death_proposed = False
 
     # =========================================================================
     # CONVERSATION INTEGRATION

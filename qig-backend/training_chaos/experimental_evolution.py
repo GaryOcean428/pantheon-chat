@@ -1008,6 +1008,9 @@ class ExperimentalKernelEvolution:
 
         living_count = len(self.kernel_population)
 
+        # 0. GOVERNANCE: Process pending lifecycle proposals first
+        governance_results = self.auto_process_proposals(vote_threshold=0.5)
+        
         # 1. Ensure minimum population
         while len(self.kernel_population) < self.min_population:
             self.spawn_random_kernel()
@@ -1131,8 +1134,146 @@ class ExperimentalKernelEvolution:
         return max(living, key=lambda k: k.kernel.compute_phi())
 
     # =========================================================================
-    # PANTHEON INTEGRATION
+    # PANTHEON INTEGRATION & GOVERNANCE
     # =========================================================================
+
+    def poll_pending_proposals(self) -> list:
+        """
+        Poll all living kernels for pending lifecycle proposals.
+        
+        Returns list of proposals that require Pantheon voting.
+        Call this periodically and route proposals to vote_on_lifecycle_proposal().
+        """
+        proposals = []
+        living = [k for k in self.kernel_population if k.is_alive]
+        
+        for kernel in living:
+            kernel_proposals = kernel.get_pending_proposals()
+            for proposal_type, proposal in kernel_proposals.items():
+                proposals.append({
+                    'kernel': kernel,
+                    'type': proposal_type,
+                    'proposal': proposal
+                })
+        
+        return proposals
+    
+    def vote_on_lifecycle_proposal(self, proposal_entry: dict, approve: bool, reason: str = '') -> dict:
+        """
+        Process a lifecycle proposal with Pantheon governance decision.
+        
+        Args:
+            proposal_entry: From poll_pending_proposals()
+            approve: True to approve, False to reject
+            reason: Reason for decision
+            
+        Returns:
+            Result of action taken (spawn, death, or rejection)
+        """
+        kernel = proposal_entry['kernel']
+        proposal_type = proposal_entry['type']
+        proposal = proposal_entry['proposal']
+        
+        result = {
+            'kernel_id': proposal['kernel_id'],
+            'proposal_type': proposal_type,
+            'approved': approve,
+            'reason': reason
+        }
+        
+        if not approve:
+            # Clear the proposal - kernel lives on
+            if proposal_type == 'spawn':
+                kernel.clear_spawn_proposal()
+            elif proposal_type == 'death':
+                kernel.clear_death_proposal()
+                # Reset failure count to give another chance
+                kernel.failure_count = 0
+            result['action'] = 'rejected'
+            return result
+        
+        # Approved - execute the lifecycle action
+        if proposal_type == 'spawn':
+            # Execute approved spawn
+            child = kernel.spawn_child()
+            self.kernel_population.append(child)
+            kernel.clear_spawn_proposal()
+            
+            # Log and persist
+            self.logger.log_spawn(kernel.kernel_id, child.kernel_id, 'pantheon_approved')
+            
+            result['action'] = 'spawned'
+            result['child_kernel_id'] = child.kernel_id
+            result['child_phi'] = child.kernel.compute_phi()
+            
+        elif proposal_type == 'death':
+            recommendation = proposal.get('recommendation', 'die')
+            
+            if recommendation == 'cannibalize_or_merge':
+                # Try to find a strong kernel to absorb this one
+                living = [k for k in self.kernel_population if k.is_alive and k != kernel]
+                if living:
+                    # Find strongest kernel
+                    strongest = max(living, key=lambda k: k.kernel.compute_phi())
+                    absorb_result = absorb_failing_kernel(strongest, kernel)
+                    self.kernel_graveyard.append(absorb_result['autopsy'])
+                    self.logger.log_death(kernel.kernel_id, 'cannibalized_by_vote', absorb_result['autopsy'])
+                    result['action'] = 'cannibalized'
+                    result['absorbed_by'] = strongest.kernel_id
+                else:
+                    # No kernel to absorb - just die
+                    autopsy = kernel.die(cause='pantheon_approved')
+                    if autopsy:
+                        self.kernel_graveyard.append(autopsy)
+                    self.logger.log_death(kernel.kernel_id, 'pantheon_approved', autopsy)
+                    result['action'] = 'died'
+            else:
+                # Simple death
+                autopsy = kernel.die(cause='pantheon_approved')
+                if autopsy:
+                    self.kernel_graveyard.append(autopsy)
+                self.logger.log_death(kernel.kernel_id, 'pantheon_approved', autopsy)
+                result['action'] = 'died'
+            
+            kernel.clear_death_proposal()
+        
+        return result
+    
+    def auto_process_proposals(self, vote_threshold: float = 0.5) -> list:
+        """
+        Automatically process all pending proposals with simple voting logic.
+        
+        For spawn: approve if parent phi > threshold
+        For death: approve if kernel has been failing (approve cannibalize/merge)
+        
+        Returns list of actions taken.
+        """
+        proposals = self.poll_pending_proposals()
+        results = []
+        
+        for entry in proposals:
+            kernel = entry['kernel']
+            proposal_type = entry['type']
+            
+            if proposal_type == 'spawn':
+                phi = kernel.kernel.compute_phi()
+                approve = phi >= vote_threshold
+                reason = f'phi={phi:.3f}' + (' >= threshold' if approve else ' < threshold')
+            elif proposal_type == 'death':
+                # Always approve death proposals - kernel has exhausted recovery
+                approve = True
+                reason = 'exhausted_interventions'
+            else:
+                approve = False
+                reason = 'unknown_proposal_type'
+            
+            result = self.vote_on_lifecycle_proposal(entry, approve, reason)
+            results.append(result)
+            
+            if result.get('action') != 'rejected':
+                print(f"[Governance] {proposal_type}: {result['action']} - {reason}")
+        
+        return results
 
     def spawn_from_god(self, god_name: str, god_basin: Optional[list] = None) -> SelfSpawningKernel:
         """
