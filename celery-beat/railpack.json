@@ -2,10 +2,12 @@
   "version": "1",
   "metadata": {
     "name": "pantheon-chat-celery-beat",
-    "description": "Celery Beat scheduler for periodic training tasks"
+    "description": "Celery Beat scheduler for QIG kernel training tasks"
   },
   "build": {
     "provider": "python",
+    "pythonVersion": "3.11",
+    "rootDirectory": "qig-backend",
     "steps": {
       "install": {
         "commands": [
@@ -13,20 +15,22 @@
           "pip install --no-cache-dir flask flask-cors numpy scipy psycopg2-binary",
           "pip install --no-cache-dir celery[redis] redis",
           "pip install --no-cache-dir pypdf openai anthropic",
-          "echo '=== Installing PyTorch (CPU) for training ==='",
-          "pip install torch --index-url https://download.pytorch.org/whl/cpu"
+          "echo '=== Installing PyTorch (CPU) for kernel training ==='",
+          "pip install torch --index-url https://download.pytorch.org/whl/cpu",
+          "pip install safetensors msgpack opt-einsum sqlalchemy"
         ]
       }
     },
     "env": {
       "PYTHONUNBUFFERED": "1",
       "PYTHONDONTWRITEBYTECODE": "1",
+      "PYTHONPATH": "/app/qig-backend",
       "TRAINING_ENABLED": "true",
       "C_FORCE_ROOT": "true"
     }
   },
   "deploy": {
-    "startCommand": "cd /app && celery -A training.celery_app beat --loglevel=info",
+    "startCommand": "cd /app/qig-backend && celery -A training.celery_app beat --loglevel=info",
     "healthCheckPath": null,
     "healthCheckTimeout": 300,
     "restartPolicyType": "ON_FAILURE",

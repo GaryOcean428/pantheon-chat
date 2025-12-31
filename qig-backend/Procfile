@@ -1,2 +1,0 @@
-worker: celery -A training.celery_app worker --concurrency=2 -l INFO -Q training,batch,consolidation,transfer,checkpoints
-beat: celery -A training.celery_app beat -l INFO
