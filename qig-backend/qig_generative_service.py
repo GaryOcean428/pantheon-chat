@@ -640,9 +640,9 @@ class QIGGenerativeService:
         query_words = [w.lower() for w in re.findall(r'[a-zA-Z]+', prompt) if len(w) > 2]
         self._current_query_words = query_words[:10]  # Keep top 10 words
         
-        # 1. Encode prompt to basin
-        if self.coordizer:
-            query_basin = self.coordizer.encode(prompt)
+        # 1. Encode prompt to basin (64D coordinate, not token IDs)
+        if self.coordizer and hasattr(self.coordizer, 'text_to_basin'):
+            query_basin = self.coordizer.text_to_basin(prompt)
         else:
             np.random.seed(hash(prompt) % (2**32))
             query_basin = np.random.dirichlet(np.ones(BASIN_DIM))
@@ -797,9 +797,9 @@ class QIGGenerativeService:
         kernel_name: Optional[str] = None
     ) -> Generator[Dict[str, Any], None, None]:
         """Stream generation with real-time token output."""
-        # Encode prompt
-        if self.coordizer:
-            query_basin = self.coordizer.encode(prompt)
+        # Encode prompt to 64D basin (not token IDs)
+        if self.coordizer and hasattr(self.coordizer, 'text_to_basin'):
+            query_basin = self.coordizer.text_to_basin(prompt)
         else:
             np.random.seed(hash(prompt) % (2**32))
             query_basin = np.random.dirichlet(np.ones(BASIN_DIM))
