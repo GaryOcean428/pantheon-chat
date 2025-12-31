@@ -290,6 +290,23 @@ router.post('/zeus/chat', isAuthenticated, async (req, res) => {
             type: data.metadata?.type,
           },
         ).catch(err => logger.warn('[Olympus] Conversation persistence failed:', err));
+        
+        // AUTO-ADD TO ZETTELKASTEN (non-blocking)
+        // Save significant responses to knowledge graph
+        if (systemResponse.length > 50 && data.metadata?.phi > 0.4) {
+          const { getInternalHeaders } = require('../internal-auth');
+          fetch('http://localhost:5000/api/zettelkasten/add-from-conversation', {
+            method: 'POST',
+            headers: getInternalHeaders(),
+            body: JSON.stringify({
+              content: systemResponse.slice(0, 1000),
+              role: data.metadata?.responding_god || 'zeus',
+              phi: data.metadata?.phi,
+              source_kernel: data.metadata?.responding_god || 'zeus'
+            })
+          }).then(r => r.ok ? logger.debug('[Olympus] Zettelkasten auto-saved') : logger.warn('[Olympus] Zettelkasten save failed:', r.status))
+            .catch(err => logger.debug('[Olympus] Zettelkasten auto-save skipped:', err));
+        }
       }
       
       // Log to activity stream for visibility

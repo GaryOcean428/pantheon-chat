@@ -22,3 +22,5 @@ export { default as olympusRouter } from "./olympus";
 export { autonomicAgencyRouter } from "./autonomic-agency";
 
 export { federationRouter } from "./federation";
+
+export { default as zettelkastenRouter } from "./zettelkasten";

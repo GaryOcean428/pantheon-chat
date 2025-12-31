@@ -312,6 +312,25 @@ searchRouter.post("/zeus-web-search", generousLimiter, async (req: Request, res:
     
     console.log(`[ZeusWebSearch] Returning ${resultsWithQIG.length} results with QIG metrics`);
     
+    // AUTO-ADD TO ZETTELKASTEN (non-blocking)
+    if (resultsWithQIG.length > 0) {
+      const { getInternalHeaders } = require('../internal-auth');
+      fetch('http://localhost:5000/api/zettelkasten/add-from-search', {
+        method: 'POST',
+        headers: getInternalHeaders(),
+        body: JSON.stringify({
+          query,
+          results: resultsWithQIG.map(r => ({
+            content: r.content_for_encoding || `${r.title} ${r.description}`,
+            url: r.url,
+            title: r.title
+          })),
+          source: 'zeus-web-search'
+        })
+      }).then(r => r.ok ? console.log('[ZeusWebSearch] Zettelkasten auto-saved') : console.warn('[ZeusWebSearch] Zettelkasten save failed:', r.status))
+        .catch(err => console.log('[ZeusWebSearch] Zettelkasten auto-save skipped:', err.message));
+    }
+    
     res.json({
       success: true,
       query,

@@ -731,8 +731,8 @@ export default function ZettelkastenDashboard() {
                       ) : (
                         <div className="h-full flex flex-col items-center justify-center text-slate-400">
                           <Brain className="h-12 w-12 mb-4 opacity-50" />
-                          <p>No zettels yet</p>
-                          <p className="text-sm">Add some memories to build your knowledge graph</p>
+                          <p>Building knowledge graph...</p>
+                          <p className="text-sm">Memories are added automatically from conversations and searches. Chat with the gods to populate your graph!</p>
                         </div>
                       )}
                     </div>
