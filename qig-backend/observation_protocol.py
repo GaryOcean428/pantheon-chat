@@ -85,7 +85,7 @@ class ObservationProtocol:
         self._lock = threading.Lock()
         self._running = False
         self._thread: Optional[threading.Thread] = None
-        self._observation_interval = 5.0
+        self._observation_interval = 30.0  # Increased to reduce monitoring frequency
         
         print("ObservationProtocol: Observation system initialized")
     
@@ -352,7 +352,8 @@ class ObservationProtocol:
                     except Exception as e:
                         print(f"[ObservationProtocol] Error observing {kernel_id}: {e}")
                 
-                if cycle_count % 10 == 0:
+                # Only log every 100 cycles to reduce spam
+                if cycle_count % 100 == 0:
                     print(f"[ObservationProtocol] Cycle {cycle_count}: "
                           f"observing {len(kernel_ids)} kernels, "
                           f"{observations_run} observations run, "

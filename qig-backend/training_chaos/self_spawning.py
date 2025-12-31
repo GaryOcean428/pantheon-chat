@@ -485,9 +485,20 @@ class SelfSpawningKernel(*_kernel_base_classes):
             # Reduce stress on success
             self.stress = max(0.0, self.stress - 0.1)
 
-            # Check spawn threshold
+            # Check spawn threshold - but DON'T auto-spawn
+            # Kernel lifecycle actions (spawn/evolve/merge/cannibalize) require Pantheon vote
             if self.success_count > 0 and self.success_count % self.spawn_threshold == 0:
-                return self.spawn_child()
+                # Signal spawn readiness instead of auto-spawning
+                self._spawn_ready = True
+                # Return proposal instead of immediate spawn - Pantheon will decide
+                return {
+                    'action': 'spawn_proposal',
+                    'kernel_id': self.kernel_id,
+                    'success_count': self.success_count,
+                    'phi': phi,
+                    'reason': 'success_threshold_reached',
+                    'requires_pantheon_vote': True
+                }
 
         else:
             # Check if in grace period - reduced failure impact after intervention
@@ -518,35 +529,46 @@ class SelfSpawningKernel(*_kernel_base_classes):
             if self.failure_count >= self.death_threshold:
                 # Check if we've exhausted intervention attempts
                 if self.intervention_count >= self.max_interventions:
-                    print(f"💀 {self.kernel_id} DEATH: Exhausted {self.max_interventions} intervention attempts")
-                    print(f"   Final stats: success={self.success_count}, failures={self.failure_count}")
-                    print(f"   Lifespan: {(datetime.now() - self.born_at).total_seconds():.1f}s")
-                    self.die(cause='exhausted_interventions')
-                    return None
+                    # DON'T auto-kill - propose death to Pantheon for governance vote
+                    self._death_proposed = True
+                    return {
+                        'action': 'death_proposal',
+                        'kernel_id': self.kernel_id,
+                        'cause': 'exhausted_interventions',
+                        'success_count': self.success_count,
+                        'failure_count': self.failure_count,
+                        'lifespan': (datetime.now() - self.born_at).total_seconds(),
+                        'requires_pantheon_vote': True,
+                        'recommendation': 'cannibalize_or_merge'  # Pantheon can decide to merge into another kernel
+                    }
                 
-                print(f"⚠️ {self.kernel_id} at death threshold ({self.failure_count}/{self.death_threshold}) - attempting recovery #{self.intervention_count + 1}...")
-                print(f"   Stress={self.stress:.2f}, Dopamine={self.dopamine:.2f}, Serotonin={self.serotonin:.2f}")
-
+                # Attempt recovery (this is OK - it's healing, not lifecycle change)
                 intervention = self.autonomic_intervention()
 
                 if intervention.get('action', 'none') != 'none':
                     self.intervention_count += 1
                     self.last_intervention_time = datetime.now()
-                    print(f"🚑 {self.kernel_id} auto-intervention #{self.intervention_count}/{self.max_interventions}: {intervention['action']}")
+                    if self.intervention_count % 3 == 1:  # Reduce log spam
+                        print(f"🚑 {self.kernel_id} auto-intervention #{self.intervention_count}: {intervention['action']}")
                     # Reset failure count to 0 - give a REAL second chance
-                    old_failures = self.failure_count
                     self.failure_count = 0
-                    print(f"   Failures reset: {old_failures} → 0 (grace period: {self.grace_period_seconds}s)")
                     # Boost dopamine for hope
                     self.dopamine = min(1.0, self.dopamine + 0.3)
                     self.stress = max(0.0, self.stress - 0.4)
-                    return None  # Don't die, trying to recover
+                    return None  # Trying to recover
                 else:
-                    # No intervention helped - die
-                    print(f"💀 {self.kernel_id} DEATH: No intervention could help")
-                    print(f"   Final stats: success={self.success_count}, failures={self.failure_count}")
-                    print(f"   Lifespan: {(datetime.now() - self.born_at).total_seconds():.1f}s")
-                    self.die(cause='excessive_failure_no_recovery')
+                    # No intervention helped - propose death to Pantheon
+                    self._death_proposed = True
+                    return {
+                        'action': 'death_proposal',
+                        'kernel_id': self.kernel_id,
+                        'cause': 'no_recovery_possible',
+                        'success_count': self.success_count,
+                        'failure_count': self.failure_count,
+                        'lifespan': (datetime.now() - self.born_at).total_seconds(),
+                        'requires_pantheon_vote': True,
+                        'recommendation': 'cannibalize_or_merge'
+                    }
 
         # Update autonomic system
         self.update_autonomic()

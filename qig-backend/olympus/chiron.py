@@ -160,7 +160,10 @@ class Chiron:
         """
         kernel_id = getattr(kernel, 'kernel_id', str(id(kernel)))
         
-        print(f"Chiron: Examining {kernel_id}...")
+        # Reduce log spam - only log every 10th examination or when issues found
+        self._exam_count = getattr(self, '_exam_count', 0) + 1
+        if self._exam_count % 50 == 1:  # Only log occasionally
+            print(f"Chiron: Examining {kernel_id}... (exam #{self._exam_count})")
         
         vitals = self._comprehensive_examination(kernel)
         
