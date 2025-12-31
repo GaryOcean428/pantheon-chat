@@ -274,16 +274,47 @@ class AutonomousCuriosityEngine:
         self._last_word_learning_time = 0
         self._checkpoint_dir = Path('data/checkpoints')
         self._checkpoint_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Track recent queries to avoid repetition
+        self._recent_queries: deque = deque(maxlen=100)
+        self._query_cooldown = set()  # Queries made in current cycle
     
     def start(self):
         """Start the autonomous curiosity loop."""
         if self.running:
             return
         
+        # Auto-load curriculum on startup
+        self._load_all_curriculum()
+        
         self.running = True
         self._loop_thread = threading.Thread(target=self._run_loop, daemon=True)
         self._loop_thread.start()
         print("[AutonomousCuriosityEngine] Started autonomous learning loop")
+    
+    def _load_all_curriculum(self):
+        """Load all curriculum files from docs/09-curriculum/."""
+        # Try relative to project root first (when running from qig-backend/)
+        curriculum_dir = Path('../docs/09-curriculum')
+        if not curriculum_dir.exists():
+            # Try absolute path from script location
+            curriculum_dir = Path(__file__).parent.parent / 'docs' / '09-curriculum'
+        if not curriculum_dir.exists():
+            # Try direct relative (when running from project root)
+            curriculum_dir = Path('docs/09-curriculum')
+        if not curriculum_dir.exists():
+            print(f"[AutonomousCuriosityEngine] Curriculum directory not found (tried: ../docs/09-curriculum, {Path(__file__).parent.parent / 'docs' / '09-curriculum'}, docs/09-curriculum)")
+            return
+        
+        loaded_count = 0
+        for filepath in curriculum_dir.glob('*.md'):
+            try:
+                topics = self.curriculum_loader.load_curriculum_from_file(str(filepath))
+                loaded_count += len(topics)
+            except Exception as e:
+                print(f"[AutonomousCuriosityEngine] Error loading {filepath}: {e}")
+        
+        print(f"[AutonomousCuriosityEngine] Loaded {loaded_count} curriculum topics from {curriculum_dir}")
     
     def stop(self):
         """Stop the autonomous curiosity loop."""
@@ -471,27 +502,67 @@ class AutonomousCuriosityEngine:
         topic: str,
         knowledge: Dict
     ) -> str:
-        """Generate an exploration query based on kernel interests."""
-        query_templates = [
-            f"Latest developments in {topic} for {kernel_name} domain",
-            f"Advanced techniques in {topic}",
-            f"Research papers on {topic} applications",
-            f"How to improve {topic} using geometric methods",
-            f"Best practices for {topic} in AI systems",
-            f"Novel approaches to {topic}",
+        """Generate diverse exploration queries from curriculum and curiosity."""
+        
+        # Pull from curriculum topics for variety
+        curriculum_keywords = []
+        for ct in self.curriculum_loader.curriculum_topics[:50]:
+            curriculum_keywords.extend(ct.get('keywords', [])[:3])
+        
+        # Diverse query templates aligned with QIG research themes
+        exploration_themes = [
+            # Foundational understanding
+            f"Introduction to {topic} fundamentals and core concepts",
+            f"Mathematical foundations of {topic}",
+            f"Key theorems and principles in {topic}",
+            
+            # Advanced research
+            f"Latest research advances in {topic} 2024 2025",
+            f"Open problems in {topic} research",
+            f"State of the art techniques for {topic}",
+            
+            # Geometric/QIG specific
+            f"{topic} from information geometry perspective",
+            f"Fisher information metric applied to {topic}",
+            f"Quantum information theory and {topic}",
+            f"Density matrices in {topic} context",
+            
+            # Tool improvement
+            f"Algorithms and tools for {topic}",
+            f"Computational methods for {topic}",
+            f"Software libraries for {topic}",
+            
+            # Cross-domain
+            f"{topic} applications in consciousness research",
+            f"{topic} connections to machine learning",
+            f"Interdisciplinary approaches to {topic}",
         ]
         
-        if knowledge.get('depth', 0) < 0.3:
-            query = f"Introduction to {topic} fundamentals"
-        elif knowledge.get('depth', 0) < 0.6:
-            query = random.choice(query_templates[:3])
+        # Mix in curriculum keywords for novelty
+        if curriculum_keywords and random.random() > 0.5:
+            kw = random.choice(curriculum_keywords)
+            exploration_themes.append(f"{kw} relationship to {topic}")
+            exploration_themes.append(f"How {kw} informs understanding of {topic}")
+        
+        # Select based on knowledge depth
+        depth = knowledge.get('depth', 0)
+        if depth < 0.3:
+            # Beginner - foundational
+            query = random.choice(exploration_themes[:3])
+        elif depth < 0.6:
+            # Intermediate - research focus
+            query = random.choice(exploration_themes[3:9])
         else:
-            query = random.choice(query_templates[3:])
+            # Advanced - tools and cross-domain
+            query = random.choice(exploration_themes[9:])
         
         return query
     
     def _train_on_curriculum(self):
-        """Train on curriculum topics."""
+        """Train on curriculum topics with diverse, non-repetitive queries."""
+        # Clear cooldown at start of cycle
+        self._query_cooldown.clear()
+        
         for kernel_name in self.kernel_interests.keys():
             skills = {
                 'domains': self.kernel_interests[kernel_name],
@@ -503,17 +574,38 @@ class AutonomousCuriosityEngine:
             if topic:
                 print(f"[AutonomousCuriosityEngine] Training {kernel_name} on: {topic['title'][:50]}...")
                 
-                for keyword in topic.get('keywords', [])[:3]:
-                    self.request_search(
-                        kernel_name=kernel_name,
-                        query=f"{keyword} in context of {topic['title']}",
-                        priority=0.3,
-                        context={
-                            'exploration_type': 'curriculum',
-                            'topic_title': topic['title'],
-                            'keyword': keyword
-                        }
-                    )
+                # Generate diverse queries from topic
+                keywords = topic.get('keywords', [])[:5]
+                title = topic['title']
+                
+                query_patterns = [
+                    f"Mathematical foundations of {title}",
+                    f"Key concepts in {title}",
+                    f"Applications of {title} in AI research",
+                    f"{title} from information geometry perspective",
+                    f"Latest advances in {title} 2024 2025",
+                ]
+                
+                # Add keyword-specific queries
+                for kw in keywords[:3]:
+                    query_patterns.append(f"{kw} in context of {title}")
+                    query_patterns.append(f"How {kw} relates to quantum information")
+                
+                # Submit non-duplicate queries
+                for query in query_patterns[:4]:
+                    query_key = query.lower()[:50]
+                    if query_key not in self._query_cooldown and query_key not in [q[:50].lower() for q in self._recent_queries]:
+                        self.request_search(
+                            kernel_name=kernel_name,
+                            query=query,
+                            priority=0.3,
+                            context={
+                                'exploration_type': 'curriculum',
+                                'topic_title': title,
+                            }
+                        )
+                        self._query_cooldown.add(query_key)
+                        self._recent_queries.append(query)
                 
                 self.curriculum_loader.mark_completed(topic['title'])
                 self.stats['curriculum_completions'] += 1

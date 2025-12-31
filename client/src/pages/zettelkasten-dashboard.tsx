@@ -439,8 +439,8 @@ export default function ZettelkastenDashboard() {
     try {
       const response = await fetch('/api/zettelkasten/stats');
       const data = await response.json();
-      if (data.success) {
-        setStats(data);
+      if (data.success && data.data) {
+        setStats(data.data);
       }
     } catch (error) {
       console.error('Error fetching stats:', error);
@@ -453,8 +453,8 @@ export default function ZettelkastenDashboard() {
     try {
       const response = await fetch('/api/zettelkasten/graph?max_nodes=50');
       const data = await response.json();
-      if (data.success) {
-        setGraphData(data);
+      if (data.success && data.data) {
+        setGraphData(data.data);
       }
     } catch (error) {
       console.error('Error fetching graph:', error);
@@ -468,8 +468,8 @@ export default function ZettelkastenDashboard() {
     try {
       const response = await fetch('/api/zettelkasten/hubs?top_n=10');
       const data = await response.json();
-      if (data.success) {
-        setHubs(data.hubs);
+      if (data.success && data.data) {
+        setHubs(data.data);
       }
     } catch (error) {
       console.error('Error fetching hubs:', error);
@@ -481,8 +481,8 @@ export default function ZettelkastenDashboard() {
     try {
       const response = await fetch('/api/zettelkasten/clusters?min_size=2');
       const data = await response.json();
-      if (data.success) {
-        setClusters(data.clusters);
+      if (data.success && data.data) {
+        setClusters(data.data);
       }
     } catch (error) {
       console.error('Error fetching clusters:', error);
@@ -498,11 +498,11 @@ export default function ZettelkastenDashboard() {
       const response = await fetch('/api/zettelkasten/retrieve', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: searchQuery, max_results: 20 })
+        body: JSON.stringify({ query: searchQuery, top_k: 20 })
       });
       const data = await response.json();
-      if (data.success) {
-        setSearchResults(data.results);
+      if (data.success && data.data) {
+        setSearchResults(data.data);
       }
     } catch (error) {
       console.error('Error searching:', error);
@@ -521,8 +521,8 @@ export default function ZettelkastenDashboard() {
     try {
       const response = await fetch(`/api/zettelkasten/zettel/${zettelId}`);
       const data = await response.json();
-      if (data.success) {
-        setSelectedZettel(data.zettel);
+      if (data.success && data.data) {
+        setSelectedZettel(data.data);
         setSelectedNodeId(zettelId);
       }
     } catch (error) {
@@ -975,7 +975,7 @@ export default function ZettelkastenDashboard() {
                     <div>
                       <h4 className="text-xs text-slate-500 uppercase tracking-wide mb-1">Keywords</h4>
                       <div className="flex flex-wrap gap-1">
-                        {selectedZettel.keywords.map((kw, i) => (
+                        {(selectedZettel.keywords || []).map((kw, i) => (
                           <Badge key={i} variant="secondary" className="bg-purple-500/20 text-purple-300 text-xs">
                             {kw}
                           </Badge>
@@ -994,7 +994,7 @@ export default function ZettelkastenDashboard() {
                       </div>
                     </div>
 
-                    {selectedZettel.links.length > 0 && (
+                    {selectedZettel.links && selectedZettel.links.length > 0 && (
                       <div>
                         <h4 className="text-xs text-slate-500 uppercase tracking-wide mb-2">
                           Links ({selectedZettel.links.length})

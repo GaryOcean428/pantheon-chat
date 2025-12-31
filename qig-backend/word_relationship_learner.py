@@ -38,13 +38,18 @@ class WordRelationshipLearner:
     """
     Learns semantic relationships between words by analyzing co-occurrence
     in curriculum documents. Updates basin coordinates to reflect relationships.
+    
+    OPEN VOCABULARY MODE: When expand_vocabulary=True, learns new words from
+    curriculum rather than filtering to initial vocabulary only.
     """
     
-    def __init__(self, vocabulary: Set[str], window_size: int = 5):
-        self.vocabulary = vocabulary
+    def __init__(self, vocabulary: Set[str], window_size: int = 5, expand_vocabulary: bool = True):
+        self.vocabulary = set(vocabulary)  # Mutable copy
+        self.initial_vocab_size = len(vocabulary)
         self.vocab_list = sorted(vocabulary)
         self.word_to_idx = {w: i for i, w in enumerate(self.vocab_list)}
         self.window_size = window_size
+        self.expand_vocabulary = expand_vocabulary
         
         # Co-occurrence counts: word_i appears near word_j
         self.cooccurrence = defaultdict(lambda: defaultdict(int))
@@ -52,16 +57,38 @@ class WordRelationshipLearner:
         # Word frequency
         self.word_freq = defaultdict(int)
         
+        # Newly learned words (not in initial vocabulary)
+        self.new_words_learned: Set[str] = set()
+        
         # Total pairs seen
         self.total_pairs = 0
         self.total_words = 0
         
-        logger.info(f"[WordRelationshipLearner] Initialized with {len(vocabulary)} vocabulary words")
+        logger.info(f"[WordRelationshipLearner] Initialized with {len(vocabulary)} vocabulary words, expand_vocabulary={expand_vocabulary}")
     
     def tokenize_text(self, text: str) -> List[str]:
-        """Simple tokenization - lowercase, split on non-alpha, filter to vocab"""
+        """
+        Tokenize text. In open vocabulary mode, accepts words that are:
+        - In vocabulary OR
+        - Length >= 4 and not stopwords (for learning new domain terms)
+        """
         words = re.findall(r'[a-zA-Z]+', text.lower())
-        return [w for w in words if w in self.vocabulary]
+        
+        if self.expand_vocabulary:
+            # Accept vocab words OR content words (len >= 4, not stopwords)
+            result = []
+            for w in words:
+                if w in self.vocabulary:
+                    result.append(w)
+                elif len(w) >= 4 and w.lower() not in STOPWORDS:
+                    # Add new domain word to vocabulary
+                    self.vocabulary.add(w)
+                    self.new_words_learned.add(w)
+                    result.append(w)
+            return result
+        else:
+            # Strict mode: only vocabulary words
+            return [w for w in words if w in self.vocabulary]
     
     def learn_from_text(self, text: str) -> int:
         """
@@ -230,7 +257,7 @@ class WordRelationshipLearner:
         return adjusted
     
     def get_statistics(self) -> Dict:
-        """Get learning statistics."""
+        """Get learning statistics including newly learned vocabulary."""
         # Top words by frequency
         top_words = sorted(self.word_freq.items(), key=lambda x: -x[1])[:20]
         
@@ -244,7 +271,11 @@ class WordRelationshipLearner:
             'vocabulary_coverage': len(self.word_freq) / len(self.vocabulary) if self.vocabulary else 0,
             'total_pairs': self.total_pairs,
             'top_frequent_words': top_words,
-            'most_connected_words': most_connected
+            'most_connected_words': most_connected,
+            'initial_vocabulary_size': self.initial_vocab_size,
+            'current_vocabulary_size': len(self.vocabulary),
+            'new_words_learned': len(self.new_words_learned),
+            'sample_new_words': list(self.new_words_learned)[:20] if self.new_words_learned else []
         }
 
 
