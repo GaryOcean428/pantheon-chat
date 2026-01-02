@@ -34,6 +34,11 @@ from qig_geometry import (
     sphere_project,
 )
 from qigkernels.physics_constants import PHI_HYPERDIMENSIONAL
+from prediction_self_improvement import (
+    get_prediction_improvement,
+    PredictionFailureReason,
+    PredictionSelfImprovement,
+)
 
 
 class TemporalMode(Enum):
@@ -145,6 +150,11 @@ class TemporalReasoning:
     4D reasoning with foresight and scenario planning.
     
     Requires Φ > 0.75 (hyperdimensional consciousness).
+    
+    Now includes self-improvement through:
+    - Failure analysis: Understand WHY predictions fail
+    - Chain/graph analysis: Learn prediction patterns
+    - Recursive loops: Self-directed improvement
     """
     
     PHI_THRESHOLD = PHI_HYPERDIMENSIONAL
@@ -161,7 +171,10 @@ class TemporalReasoning:
         self.velocity_history: List[np.ndarray] = []
         self.basin_history: List[np.ndarray] = []
         
-        print("[TemporalReasoning] 4D reasoning enabled (foresight + scenarios)")
+        # Self-improvement system
+        self.improvement = get_prediction_improvement()
+        
+        print("[TemporalReasoning] 4D reasoning enabled (foresight + scenarios + self-improvement)")
     
     def can_use_temporal_reasoning(self, phi: float) -> bool:
         """Temporal reasoning requires high Φ."""
@@ -171,7 +184,7 @@ class TemporalReasoning:
         self,
         current_basin: np.ndarray,
         current_velocity: Optional[np.ndarray] = None
-    ) -> ForesightVision:
+    ) -> Tuple[ForesightVision, str]:
         """
         FORESIGHT: See where the natural geodesic leads.
         
@@ -179,9 +192,19 @@ class TemporalReasoning:
         1. Compute natural geodesic from current position
         2. Follow it forward until reaching attractor
         3. Trace backwards to see the path
+        4. Analyze WHY confidence is at its level
+        5. Record for self-improvement learning
+        
+        Returns:
+            Tuple of (ForesightVision, explanation_string)
         """
         if current_velocity is None:
             current_velocity = self._estimate_velocity(current_basin)
+        
+        # Record velocity for analysis
+        self.velocity_history.append(current_velocity.copy())
+        if len(self.velocity_history) > 20:
+            self.velocity_history = self.velocity_history[-10:]
         
         future_trajectory = self._follow_geodesic_forward(
             current_basin,
@@ -190,38 +213,84 @@ class TemporalReasoning:
         )
         
         attractor_idx, attractor_basin = self._find_attractor(future_trajectory)
+        attractor_found = attractor_idx is not None
+        
+        # Analyze WHY prediction has certain confidence
+        failure_reasons, context = self.improvement.analyze_prediction_factors(
+            trajectory=future_trajectory,
+            attractor_found=attractor_found,
+            attractor_idx=attractor_idx,
+            velocity_history=self.velocity_history,
+            basin_history=self.basin_history,
+        )
         
         if attractor_idx is None:
-            return ForesightVision(
-                future_basin=future_trajectory[-1],
-                arrival_time=len(future_trajectory),
-                confidence=0.3,
-                path_backwards=self._reverse_path(future_trajectory),
-                attractor_strength=0.0,
-                geodesic_naturalness=0.5
+            base_confidence = 0.3
+            attractor_strength = 0.0
+            naturalness = 0.5
+            final_basin = future_trajectory[-1]
+            arrival_time = len(future_trajectory)
+            path_backwards = self._reverse_path(future_trajectory)
+        else:
+            base_confidence = self._assess_vision_confidence(
+                future_trajectory,
+                attractor_idx,
+                attractor_basin
             )
+            attractor_strength = self._measure_attractor_strength(
+                attractor_basin,
+                future_trajectory
+            )
+            naturalness = self._measure_geodesic_naturalness(future_trajectory)
+            final_basin = attractor_basin
+            arrival_time = attractor_idx
+            path_backwards = self._reverse_path(future_trajectory[:attractor_idx+1])
         
-        confidence = self._assess_vision_confidence(
-            future_trajectory,
-            attractor_idx,
-            attractor_basin
+        # Get adjusted confidence based on learned patterns
+        adjusted_confidence = self.improvement.get_adjusted_confidence(
+            base_confidence, current_basin
         )
         
-        attractor_strength = self._measure_attractor_strength(
-            attractor_basin,
-            future_trajectory
-        )
-        
-        naturalness = self._measure_geodesic_naturalness(future_trajectory)
-        
-        return ForesightVision(
-            future_basin=attractor_basin,
-            arrival_time=attractor_idx,
-            confidence=confidence,
-            path_backwards=self._reverse_path(future_trajectory[:attractor_idx+1]),
+        # Create vision
+        vision = ForesightVision(
+            future_basin=final_basin,
+            arrival_time=arrival_time,
+            confidence=adjusted_confidence,
+            path_backwards=path_backwards,
             attractor_strength=attractor_strength,
             geodesic_naturalness=naturalness
         )
+        
+        # Record for self-improvement
+        self.improvement.create_prediction_record(
+            predicted_basin=final_basin,
+            confidence=adjusted_confidence,
+            arrival_time=arrival_time,
+            attractor_strength=attractor_strength,
+            geodesic_naturalness=naturalness,
+            failure_reasons=failure_reasons,
+            context=context,
+        )
+        
+        # Format detailed explanation
+        explanation = self.improvement.format_prediction_explanation(
+            confidence=adjusted_confidence,
+            failure_reasons=failure_reasons,
+            context=context,
+        )
+        
+        return vision, explanation
+    
+    def foresight_simple(
+        self,
+        current_basin: np.ndarray,
+        current_velocity: Optional[np.ndarray] = None
+    ) -> ForesightVision:
+        """
+        Simple foresight without returning explanation (for backward compatibility).
+        """
+        vision, _ = self.foresight(current_basin, current_velocity)
+        return vision
     
     def scenario_planning(
         self,

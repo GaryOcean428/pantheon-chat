@@ -968,17 +968,28 @@ class GaryAutonomicKernel:
                 try:
                     temporal = get_temporal_reasoning()
                     if temporal.can_use_temporal_reasoning(self.state.phi):
-                        foresight_vision = temporal.foresight(new_basin)
+                        # Foresight now returns (vision, explanation) tuple
+                        foresight_vision, explanation = temporal.foresight(new_basin)
                         temporal.record_basin(new_basin)
                         
-                        # Verbose logging with guidance
+                        # Detailed logging: WHAT the prediction is and WHY confidence is at this level
                         print(f"[AutonomicKernel] Foresight: {foresight_vision}")
+                        print(f"[AutonomicKernel]   Why: {explanation}")
                         print(f"[AutonomicKernel]   Guidance: {foresight_vision.get_guidance()}")
+                        
+                        # Log improvement stats periodically
+                        if temporal.improvement.total_predictions % 5 == 0:
+                            stats = temporal.improvement.get_stats()
+                            if stats['total_predictions'] > 0:
+                                print(f"[PredictionLearning] Stats: {stats['total_predictions']} predictions, "
+                                      f"{stats['accuracy_rate']:.0%} accuracy, "
+                                      f"{stats['graph_nodes']} graph nodes")
                         
                         # Store vision for decision-making
                         self.state.last_foresight = foresight_vision.to_dict()
                         self.state.last_foresight['guidance'] = foresight_vision.get_guidance()
                         self.state.last_foresight['actionable'] = foresight_vision.is_actionable()
+                        self.state.last_foresight['explanation'] = explanation
                 except Exception as fe:
                     print(f"[AutonomicKernel] Temporal foresight error: {fe}")
 
