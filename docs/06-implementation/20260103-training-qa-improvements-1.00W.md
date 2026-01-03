@@ -192,12 +192,14 @@ cd qig-backend && python -m pytest tests/ -v
 ## Remaining QA Activities
 
 ### High Priority
-1. **Complete API Client Migration:**
-   - Fix zettelkasten-dashboard.tsx to use centralized client
-   - Audit all remaining fetch() calls (9 remaining)
+1. **Complete API Client Migration:** ✅ COMPLETE
+   - [x] Fixed zettelkasten-dashboard.tsx (7 fetch() calls converted)
+   - [x] All internal API calls use centralized client
+   - [x] External API calls in federation.tsx (acceptable, external endpoints)
 
 2. **Database Schema Validation:** ✅ COMPLETE
    - [x] Created validation script (qig-backend/scripts/validate_db_schema.py)
+   - [x] Ran validation with network access
    - [x] Documented schema compatibility
    - [x] Confirmed QIG-purity (no neural embeddings)
    - [x] Verified flexible storage strategy (Redis + PostgreSQL + file fallback)
@@ -235,11 +237,11 @@ cd qig-backend && python -m pytest tests/ -v
 - [x] Centralized checkpoint management (already existed)
 - [x] Unified training entrypoints (already correct)
 - [x] Fixed some API client violations
-- [x] Database schema validation (script created, compatibility confirmed)
+- [x] Database schema validation (script created, ran successfully with network access)
 - [x] Dependency audit (npm vulnerabilities documented)
+- [x] Complete API client migration (zettelkasten fixed - 7 fetch() calls)
 
 ### In Progress 🔄
-- [ ] Complete API client migration (zettelkasten, 9 fetch() calls remaining)
 - [ ] Apply npm audit fix (awaiting user decision - breaking change)
 
 ### Not Started ⏳
