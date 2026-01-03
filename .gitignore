@@ -68,5 +68,8 @@ env/
 .eggs/
 *.egg
 
+# Legacy checkpoint files (now stored in PostgreSQL)
+attached_assets/checkpoint_*.json
+
 # Husky
 .husky/_
