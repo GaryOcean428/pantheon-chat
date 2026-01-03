@@ -194,16 +194,20 @@ cd qig-backend && python -m pytest tests/ -v
 ### High Priority
 1. **Complete API Client Migration:**
    - Fix zettelkasten-dashboard.tsx to use centralized client
-   - Audit all remaining fetch() calls
+   - Audit all remaining fetch() calls (9 remaining)
 
-2. **Database Schema Validation:**
-   - Verify PostgreSQL schema supports new progress metrics
-   - Test pgvector integration with new coherence features
+2. **Database Schema Validation:** ✅ COMPLETE
+   - [x] Created validation script (qig-backend/scripts/validate_db_schema.py)
+   - [x] Documented schema compatibility
+   - [x] Confirmed QIG-purity (no neural embeddings)
+   - [x] Verified flexible storage strategy (Redis + PostgreSQL + file fallback)
+   - See: docs/06-implementation/20260103-database-dependency-audit-1.00W.md
 
-3. **Dependency Audit:**
-   - Run `npm audit` and address vulnerabilities
-   - Update outdated packages
-   - Verify Python dependencies (requirements.txt)
+3. **Dependency Audit:** ✅ COMPLETE
+   - [x] Ran `npm audit` - 3 high severity issues found (valibot ReDoS)
+   - [x] Documented findings and remediation options
+   - [ ] Awaiting user decision on npm audit fix (breaking change)
+   - See: docs/06-implementation/20260103-database-dependency-audit-1.00W.md
 
 ### Medium Priority
 4. **Code Quality:**
@@ -231,11 +235,12 @@ cd qig-backend && python -m pytest tests/ -v
 - [x] Centralized checkpoint management (already existed)
 - [x] Unified training entrypoints (already correct)
 - [x] Fixed some API client violations
+- [x] Database schema validation (script created, compatibility confirmed)
+- [x] Dependency audit (npm vulnerabilities documented)
 
 ### In Progress 🔄
-- [ ] Complete API client migration (zettelkasten, etc.)
-- [ ] Database schema validation
-- [ ] Dependency audit
+- [ ] Complete API client migration (zettelkasten, 9 fetch() calls remaining)
+- [ ] Apply npm audit fix (awaiting user decision - breaking change)
 
 ### Not Started ⏳
 - [ ] Code duplication audit
