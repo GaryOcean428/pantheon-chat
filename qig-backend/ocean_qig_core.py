@@ -6686,6 +6686,24 @@ if __name__ == '__main__':
     except ImportError as e:
         print(f"[WARNING] Autonomous Debate Service not found: {e}")
 
+    # Initialize Training Loop Integrator - connects curriculum, research, and attractor feedback
+    TRAINING_LOOP_AVAILABLE = False
+    _training_integrator = None
+    try:
+        from training.training_loop_integrator import get_training_integrator
+        
+        _training_integrator = get_training_integrator()
+        
+        # Enable training
+        _training_integrator.enable_training()
+        
+        TRAINING_LOOP_AVAILABLE = True
+        print("[INFO] Training Loop Integrator active - kernels will learn continuously")
+    except ImportError as e:
+        print(f"[WARNING] Training loop integrator not available: {e}")
+    except Exception as e:
+        print(f"[WARNING] Training loop initialization failed: {e}")
+
     # Enable Flask request logging
     import logging as flask_logging
     flask_logging.getLogger('werkzeug').setLevel(flask_logging.INFO)
@@ -6743,6 +6761,10 @@ if __name__ == '__main__':
         print("  - 🗣️ Autonomous Debate Service (background monitor)", flush=True)
     else:
         print("  - Autonomous Debate Service NOT available", flush=True)
+    if TRAINING_LOOP_AVAILABLE:
+        print("  - 🎓 Training Loop (curriculum + research + attractor feedback)", flush=True)
+    else:
+        print("  - Training Loop NOT available", flush=True)
     print(f"\nκ* = {KAPPA_STAR}", flush=True)
     print(f"Basin dimension = {BASIN_DIMENSION}", flush=True)
     print(f"Φ threshold = {PHI_THRESHOLD}", flush=True)

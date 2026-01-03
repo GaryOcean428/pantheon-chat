@@ -28,14 +28,27 @@ from .loss_functions import (
 from .trainable_kernel import TrainableKernel
 from .kernel_training_orchestrator import KernelTrainingOrchestrator
 from .knowledge_transfer import KnowledgeTransferManager
-from .celery_app import celery_app
-from .tasks import (
-    train_from_outcome_task,
-    train_hourly_batch_task,
-    train_nightly_consolidation_task,
-    knowledge_transfer_task,
-    save_checkpoint_task,
-)
+
+# Celery imports are optional - only used when celery worker is running
+celery_app = None
+train_from_outcome_task = None
+train_hourly_batch_task = None
+train_nightly_consolidation_task = None
+knowledge_transfer_task = None
+save_checkpoint_task = None
+
+try:
+    from .celery_app import celery_app
+    from .tasks import (
+        train_from_outcome_task,
+        train_hourly_batch_task,
+        train_nightly_consolidation_task,
+        knowledge_transfer_task,
+        save_checkpoint_task,
+    )
+except ImportError:
+    pass  # Celery not installed - training loop will work without async tasks
+
 from .curriculum_loader import (
     load_curriculum_for_god,
     load_all_curriculum,

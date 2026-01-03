@@ -154,6 +154,29 @@ except ImportError as e:
 except Exception as e:
     print(f"[WARNING] Curiosity engine initialization failed: {e}")
 
+# Initialize Training Loop Integrator - connects curriculum, research, and attractor feedback
+TRAINING_LOOP_AVAILABLE = False
+_training_integrator = None
+try:
+    from training.training_loop_integrator import get_training_integrator
+    
+    _training_integrator = get_training_integrator()
+    
+    # Wire training integrator to curiosity engine if available
+    if CURIOSITY_AVAILABLE and _curiosity_engine:
+        _training_integrator.wire_curiosity_engine(_curiosity_engine)
+        print("[INFO] Training loop wired to curiosity engine")
+    
+    # Enable training
+    _training_integrator.enable_training()
+    
+    TRAINING_LOOP_AVAILABLE = True
+    print("[INFO] Training Loop Integrator active - kernels will learn continuously")
+except ImportError as e:
+    print(f"[WARNING] Training loop integrator not available: {e}")
+except Exception as e:
+    print(f"[WARNING] Training loop initialization failed: {e}")
+
 # Register QIG Constellation routes
 CONSTELLATION_AVAILABLE = False
 try:
@@ -294,6 +317,7 @@ print(f"  - Autonomic kernel: {'✓' if AUTONOMIC_AVAILABLE else '✗'}", flush=
 print(f"  - Immune system: {'✓' if IMMUNE_AVAILABLE else '✗'}", flush=True)
 print(f"  - Self-Healing: {'✓' if SELF_HEALING_AVAILABLE else '✗'}", flush=True)
 print(f"  - Curiosity engine: {'✓' if CURIOSITY_AVAILABLE else '✗'}", flush=True)
+print(f"  - Training loop: {'✓' if TRAINING_LOOP_AVAILABLE else '✗'}", flush=True)
 print(f"  - Research API: {'✓' if RESEARCH_AVAILABLE else '✗'}", flush=True)
 print(f"  - Constellation: {'✓' if CONSTELLATION_AVAILABLE else '✗'}", flush=True)
 print(f"  - M8 Spawning: {'✓' if M8_AVAILABLE else '✗'}", flush=True)
