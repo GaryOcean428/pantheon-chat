@@ -2556,6 +2556,7 @@ export const tokenizerVocabulary = pgTable(
     frequency: integer("frequency").default(1),
     phiScore: doublePrecision("phi_score").default(0),
     basinEmbedding: vector("basin_embedding", { dimensions: 64 }),
+    scale: varchar("scale", { length: 20 }).default("char"),
     sourceType: varchar("source_type", { length: 32 }).default("base"),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow(),

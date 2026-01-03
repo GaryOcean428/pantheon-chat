@@ -2,9 +2,8 @@
 """
 Pretrained 50K Coordizer - Fast BPE tokenizer with 64D basin embeddings.
 
-Loads the pretrained coordizer from:
-- vectors: attached_assets/vectors_50000.npy (50K × 64D)
-- merge_rules: qig-backend/data/merge_rules_50k.json
+Loads vocabulary and 64D embeddings from PostgreSQL database.
+Merge rules loaded from: qig-backend/data/merge_rules_50k.json
 
 Usage:
     from pretrained_coordizer import get_pretrained_coordizer
@@ -21,12 +20,9 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Paths - 50K vocabulary trained on full corpus (2024-12-31)
-VECTORS_PATH = os.path.join(os.path.dirname(__file__), "../attached_assets/vectors_50000.npy")
 MERGE_RULES_PATH = os.path.join(os.path.dirname(__file__), "data/merge_rules_50k.json")
-COORDIZER_JSON_PATH = os.path.join(os.path.dirname(__file__), "../attached_assets/coordizer_50000.json")
+DATABASE_URL = os.environ.get("DATABASE_URL")
 
-# Basin dimension
 BASIN_DIM = 64
 
 
@@ -36,38 +32,109 @@ class PretrainedCoordizer:
     
     Features:
     - BPE tokenization with 49K+ merge rules
-    - 64D unit-normalized basin embeddings for all tokens
+    - 64D unit-normalized basin embeddings loaded from PostgreSQL
     - Multi-scale tokens (char/subword/word/phrase/concept)
     - Fast numpy-based encode/decode
-    - Trained on full corpus (2024-12-31)
     """
     
-    def __init__(self, 
-                 vectors_path: str = VECTORS_PATH,
-                 merge_rules_path: str = MERGE_RULES_PATH,
-                 coordizer_json_path: str = COORDIZER_JSON_PATH):
-        """Initialize with pretrained data files."""
+    def __init__(self, merge_rules_path: str = MERGE_RULES_PATH):
+        """Initialize with PostgreSQL data and merge rules file."""
         self.vectors: Optional[np.ndarray] = None
         self.merge_rules: List[Tuple[int, int, int]] = []
         self.vocab: Dict[int, Dict] = {}
         self.token_to_id: Dict[str, int] = {}
         self.id_to_token: Dict[int, str] = {}
+        self.token_scales: Dict[int, str] = {}
+        self.token_phi_scores: Dict[int, float] = {}
         
-        self._load_vectors(vectors_path)
+        self._load_from_postgres()
         self._load_merge_rules(merge_rules_path)
-        self._load_vocab(coordizer_json_path)
     
-    def _load_vectors(self, path: str):
-        """Load 32K × 64D embedding vectors."""
-        if os.path.exists(path):
-            self.vectors = np.load(path)
-            logger.info(f"[PretrainedCoordizer] Loaded vectors: {self.vectors.shape}")
-        else:
-            logger.warning(f"[PretrainedCoordizer] Vectors not found: {path}")
-            self.vectors = np.zeros((256, BASIN_DIM))  # Fallback to byte-level
+    def _load_from_postgres(self):
+        """Load vocabulary and 64D embeddings from PostgreSQL."""
+        if not DATABASE_URL:
+            logger.warning("[PretrainedCoordizer] DATABASE_URL not set, using byte-level fallback")
+            self._init_byte_level_fallback()
+            return
+        
+        try:
+            import psycopg2
+            conn = psycopg2.connect(DATABASE_URL)
+            cur = conn.cursor()
+            
+            cur.execute("""
+                SELECT token_id, token, scale, phi_score, basin_embedding
+                FROM tokenizer_vocabulary 
+                WHERE basin_embedding IS NOT NULL
+                ORDER BY token_id
+            """)
+            
+            rows = cur.fetchall()
+            cur.close()
+            conn.close()
+            
+            if not rows:
+                logger.warning("[PretrainedCoordizer] No tokens found in PostgreSQL, using byte-level fallback")
+                self._init_byte_level_fallback()
+                return
+            
+            valid_rows = [(r[0], r[1], r[2], r[3], r[4]) for r in rows if r[0] is not None]
+            if not valid_rows:
+                logger.warning("[PretrainedCoordizer] No valid tokens found in PostgreSQL")
+                self._init_byte_level_fallback()
+                return
+            
+            max_id = max(row[0] for row in valid_rows)
+            self.vectors = np.zeros((max_id + 1, BASIN_DIM), dtype=np.float32)
+            
+            for token_id, token_name, scale, phi_score, embedding in valid_rows:
+                if embedding is not None and token_name:
+                    if isinstance(embedding, str):
+                        emb_str = embedding.strip('[]')
+                        emb_array = np.array([float(x) for x in emb_str.split(',')], dtype=np.float32)
+                    elif hasattr(embedding, 'tolist'):
+                        emb_array = np.array(embedding.tolist(), dtype=np.float32)
+                    elif isinstance(embedding, (list, tuple)):
+                        emb_array = np.array(embedding, dtype=np.float32)
+                    else:
+                        emb_array = np.array(list(embedding), dtype=np.float32)
+                    
+                    if len(emb_array) == BASIN_DIM:
+                        self.vectors[token_id] = emb_array
+                        self.id_to_token[token_id] = token_name
+                        self.token_to_id[token_name] = token_id
+                        self.vocab[token_id] = {'name': token_name, 'scale': scale or 'char'}
+                        self.token_scales[token_id] = scale or 'char'
+                        self.token_phi_scores[token_id] = phi_score or 0.5
+            
+            for i in range(256):
+                if i not in self.id_to_token:
+                    byte_name = chr(i) if 32 <= i < 127 else f'<byte_{i:02x}>'
+                    self.id_to_token[i] = byte_name
+                    self.token_to_id[byte_name] = i
+                    self.vocab[i] = {'name': byte_name, 'scale': 'char'}
+            
+            logger.info(f"[PretrainedCoordizer] Loaded {len(self.vocab)} tokens from PostgreSQL, vectors shape: {self.vectors.shape}")
+            
+        except Exception as e:
+            logger.error(f"[PretrainedCoordizer] Failed to load from PostgreSQL: {e}")
+            self._init_byte_level_fallback()
+    
+    def _init_byte_level_fallback(self):
+        """Initialize with byte-level vocabulary as fallback."""
+        self.vectors = np.zeros((256, BASIN_DIM), dtype=np.float32)
+        for i in range(256):
+            np.random.seed(i)
+            vec = np.random.randn(BASIN_DIM)
+            self.vectors[i] = vec / np.linalg.norm(vec)
+            byte_name = chr(i) if 32 <= i < 127 else f'<byte_{i:02x}>'
+            self.id_to_token[i] = byte_name
+            self.token_to_id[byte_name] = i
+            self.vocab[i] = {'name': byte_name, 'scale': 'char'}
+        logger.warning("[PretrainedCoordizer] Using byte-level fallback vocab")
     
     def _load_merge_rules(self, path: str):
-        """Load BPE merge rules."""
+        """Load BPE merge rules from file."""
         if os.path.exists(path):
             with open(path, 'r') as f:
                 data = json.load(f)
@@ -75,30 +142,6 @@ class PretrainedCoordizer:
             logger.info(f"[PretrainedCoordizer] Loaded {len(self.merge_rules)} merge rules")
         else:
             logger.warning(f"[PretrainedCoordizer] Merge rules not found: {path}")
-    
-    def _load_vocab(self, path: str):
-        """Load vocabulary with token info."""
-        if os.path.exists(path):
-            with open(path, 'r') as f:
-                data = json.load(f)
-            
-            vocab_data = data.get('vocab', {})
-            for token_id_str, token_info in vocab_data.items():
-                token_id = int(token_id_str)
-                if isinstance(token_info, dict):
-                    name = token_info.get('name', '')
-                    self.vocab[token_id] = token_info
-                    self.id_to_token[token_id] = name
-                    if name:
-                        self.token_to_id[name] = token_id
-            
-            logger.info(f"[PretrainedCoordizer] Loaded {len(self.vocab)} tokens")
-        else:
-            # Build basic byte-level vocabulary
-            for i in range(256):
-                self.id_to_token[i] = chr(i) if 32 <= i < 127 else f'<byte_{i:02x}>'
-                self.token_to_id[self.id_to_token[i]] = i
-            logger.warning(f"[PretrainedCoordizer] Using byte-level fallback vocab")
     
     @property
     def vocab_size(self) -> int:
@@ -127,11 +170,13 @@ class PretrainedCoordizer:
             self._token_phi_cache = {}
             for token_id, token_name in self.id_to_token.items():
                 if token_name:
-                    # Compute phi from token properties (longer words have higher integration)
-                    base_phi = 0.5
-                    if len(token_name) >= 3:
-                        base_phi = 0.6 + min(len(token_name) / 20.0, 0.2)
-                    self._token_phi_cache[token_name] = base_phi
+                    phi = self.token_phi_scores.get(token_id, 0.5)
+                    if phi == 0:
+                        base_phi = 0.5
+                        if len(token_name) >= 3:
+                            base_phi = 0.6 + min(len(token_name) / 20.0, 0.2)
+                        phi = base_phi
+                    self._token_phi_cache[token_name] = phi
         return self._token_phi_cache
     
     @property
@@ -140,7 +185,7 @@ class PretrainedCoordizer:
         if not hasattr(self, '_word_tokens_cache'):
             self._word_tokens_cache = [
                 name for name in self.id_to_token.values()
-                if name and len(name) >= 2  # Include all tokens with 2+ chars
+                if name and len(name) >= 2
             ]
         return self._word_tokens_cache
     
@@ -148,7 +193,6 @@ class PretrainedCoordizer:
         """Get 64D basin embedding for token ID."""
         if self.vectors is not None and 0 <= token_id < len(self.vectors):
             return self.vectors[token_id].copy()
-        # Fallback: deterministic hash-based embedding
         np.random.seed(token_id)
         vec = np.random.randn(BASIN_DIM)
         return vec / np.linalg.norm(vec)
@@ -161,10 +205,8 @@ class PretrainedCoordizer:
     
     def encode(self, text: str) -> List[int]:
         """Encode text to token IDs using BPE merge rules."""
-        # Start with byte-level tokens
         tokens = list(text.encode('utf-8'))
         
-        # Apply merge rules
         for a, b, merged in self.merge_rules:
             i = 0
             new_tokens = []
@@ -181,12 +223,10 @@ class PretrainedCoordizer:
     
     def decode_ids(self, token_ids: List[int]) -> str:
         """Decode token IDs back to text."""
-        # Build reverse merge table
         merge_parents = {}
         for a, b, merged in self.merge_rules:
             merge_parents[merged] = (a, b)
         
-        # Recursively expand merged tokens to bytes
         def expand(token_id: int) -> List[int]:
             if token_id < 256:
                 return [token_id]
@@ -195,7 +235,6 @@ class PretrainedCoordizer:
                 return expand(a) + expand(b)
             return []
         
-        # Expand all tokens and decode as UTF-8
         bytes_list = []
         for tid in token_ids:
             bytes_list.extend(expand(tid))
@@ -206,32 +245,16 @@ class PretrainedCoordizer:
             return ''.join(chr(b) if 32 <= b < 127 else '?' for b in bytes_list)
     
     def decode(self, basin: np.ndarray, top_k: int = 5) -> List[Tuple[str, float]]:
-        """PostgresCoordizer-compatible: decode basin to nearest tokens.
-        
-        Uses vectorized operations on full 50K vocabulary for efficiency.
-        
-        Args:
-            basin: 64D basin coordinate
-            top_k: Number of nearest tokens to return
-            
-        Returns:
-            List of (token_name, similarity_score) tuples
-        """
+        """PostgresCoordizer-compatible: decode basin to nearest tokens."""
         if self.vectors is None:
             return []
         
-        # Normalize query basin
         query = basin / (np.linalg.norm(basin) + 1e-10)
-        
-        # Vectorized cosine similarity across full 50K vocabulary
-        # vectors are already unit-normalized from training
         similarities = np.dot(self.vectors, query)
         
-        # Get top-k indices efficiently
         if top_k >= len(similarities):
             top_indices = np.argsort(similarities)[::-1]
         else:
-            # Use argpartition for O(n) instead of O(n log n) full sort
             partition_idx = len(similarities) - top_k
             top_indices = np.argpartition(similarities, partition_idx)[partition_idx:]
             top_indices = top_indices[np.argsort(similarities[top_indices])[::-1]]
@@ -240,7 +263,6 @@ class PretrainedCoordizer:
         for idx in top_indices[:top_k]:
             token_name = self.id_to_token.get(idx, f'<{idx}>')
             if token_name:
-                # Add phi boost for word-like tokens
                 phi_boost = self.token_phi.get(token_name, 0.5) * 0.1
                 results.append((token_name, float(similarities[idx]) + phi_boost))
         
@@ -252,7 +274,6 @@ class PretrainedCoordizer:
         if len(basins) == 0:
             return np.zeros(BASIN_DIM)
         
-        # Aggregate: weighted mean normalized to unit sphere
         aggregated = np.mean(basins, axis=0)
         norm = np.linalg.norm(aggregated)
         if norm > 1e-10:
@@ -264,13 +285,8 @@ class PretrainedCoordizer:
         if self.vectors is None:
             return []
         
-        # Normalize query basin
         query = basin / (np.linalg.norm(basin) + 1e-10)
-        
-        # Compute similarities (dot product = cosine similarity for unit vectors)
         similarities = np.dot(self.vectors, query)
-        
-        # Get top-k
         top_indices = np.argsort(similarities)[-top_k:][::-1]
         
         results = []
@@ -285,18 +301,20 @@ class PretrainedCoordizer:
         if self.vectors is None:
             return {'text': '', 'tokens': 0, 'qig_pure': True}
         
-        # Encode context to starting basin
         current_basin = self.text_to_basin(context) if context else np.random.randn(BASIN_DIM)
-        current_basin = current_basin / np.linalg.norm(current_basin)
+        norm = np.linalg.norm(current_basin)
+        if norm > 1e-10:
+            current_basin = current_basin / norm
+        else:
+            current_basin = np.random.randn(BASIN_DIM)
+            current_basin = current_basin / np.linalg.norm(current_basin)
         
         generated_tokens = []
         used_tokens = set()
         
         for _ in range(max_tokens):
-            # Get nearest tokens
             candidates = self.basin_to_text(current_basin, top_k=20)
             
-            # Filter used tokens
             available = [(t, s) for t, s in candidates if t not in used_tokens]
             if not available:
                 used_tokens.clear()
@@ -305,7 +323,6 @@ class PretrainedCoordizer:
             if not available:
                 break
             
-            # Temperature-based sampling
             scores = np.array([s for _, s in available])
             logits = scores / temperature
             logits = logits - np.max(logits)
@@ -317,23 +334,22 @@ class PretrainedCoordizer:
             generated_tokens.append(chosen_token)
             used_tokens.add(chosen_token)
             
-            # Move basin toward chosen token
             if chosen_token in self.token_to_id:
                 token_id = self.token_to_id[chosen_token]
                 token_basin = self.get_embedding(token_id)
-                # Geodesic interpolation
                 current_basin = 0.7 * current_basin + 0.3 * token_basin
-                current_basin = current_basin / np.linalg.norm(current_basin)
+                norm = np.linalg.norm(current_basin)
+                if norm > 1e-10:
+                    current_basin = current_basin / norm
         
         return {
             'text': ' '.join(generated_tokens),
             'tokens': len(generated_tokens),
             'qig_pure': True,
-            'method': 'pretrained_basin_trajectory'
+            'method': 'postgres_basin_trajectory'
         }
 
 
-# Singleton instance
 _pretrained_coordizer: Optional[PretrainedCoordizer] = None
 
 
@@ -346,14 +362,12 @@ def get_pretrained_coordizer() -> PretrainedCoordizer:
 
 
 if __name__ == "__main__":
-    # Test the coordizer
     coordizer = get_pretrained_coordizer()
     
     print(f"Vocab size: {coordizer.vocab_size}")
     print(f"Basin dim: {coordizer.basin_dim}")
     print(f"Merge rules: {len(coordizer.merge_rules)}")
     
-    # Test encode/decode_ids
     text = "Hello, quantum information geometry!"
     tokens = coordizer.encode(text)
     decoded = coordizer.decode_ids(tokens)
@@ -362,18 +376,15 @@ if __name__ == "__main__":
     print(f"  Tokens:  {tokens[:10]}...")
     print(f"  Decoded: '{decoded}'")
     
-    # Test PostgresCoordizer-compatible decode(basin)
     basin = coordizer.text_to_basin("quantum physics")
     nearest = coordizer.decode(basin, top_k=5)
-    print(f"\nBasin decode test (PostgresCoordizer-compatible):")
+    print(f"\nBasin decode test:")
     print(f"  Query: 'quantum physics'")
     print(f"  Nearest tokens: {nearest[:5]}")
     
-    # Test basin embedding
     basin = coordizer.text_to_basin(text)
     print(f"\nBasin embedding: shape={basin.shape}, norm={np.linalg.norm(basin):.4f}")
     
-    # Test generation
     result = coordizer.generate("consciousness", max_tokens=10)
     print(f"\nGeneration test:")
     print(f"  Context: 'consciousness'")
