@@ -1,0 +1,38 @@
+2) Unify progress counters (avoid semantic drift)
+You now use topics_completed as a monotonic counter for step checkpoint naming. Good. But “topics completed” reads like “unique curriculum topics learned” (which it is not in random sampling mode).
+
+Recommendation: rename/introduce separate fields (when you’re ready):
+train_steps_completed (monotonic)
+unique_topics_seen (set size)
+curriculum_index (sequential progress) This avoids future confusion and bad dashboards.
+Validated by {TESTING_SPECIALIST} + {CODE_REVIEWER}.
+
+3) Centralize checkpoint policy
+You currently have checkpoint writes scattered across commands (/train, /auto, /save, etc.). You’ve done a good job patching guards, but the pattern is still distributed.
+
+Recommendation: a single “checkpoint manager” function that enforces:
+“is constellation active?”
+naming policy
+retention policy
+atomic writes Then all commands call that.
+This reduces regression risk.
+
+Validated by {DEVOPS_ENGINEER} + {CODE_REVIEWER}.
+
+4) Trim dead/duplicated training infrastructure
+You have multiple training entrypoints (chat, headless scripts, docker, runpod templates). That’s fine, but it’s easy for them to diverge.
+
+Recommendation: pick one canonical headless training entrypoint for cloud (probably scripts/train_charlie_headless.py + entrypoint) and ensure chat uses the same underlying trainer functions, not duplicated logic.
+Validated by {DEVOPS_ENGINEER}.
+
+How to know you’re “there” (objective coherence checks)
+If you want a crisp definition of “coherent generation,” track these over time:
+
+Perplexity trend on a fixed evaluation slice.
+Self-consistency: same prompt, multiple generations → similar content distribution.
+Long-range coherence score: your CoherenceTracker metrics should improve monotonically (or at least stabilize).
+Degeneracy detectors: repetition rate, entropy collapse, empty outputs.
+If you want, I can suggest a minimal eval harness that runs every N steps and logs those signals (without expanding docs/comments).
+
+Completion status
+Answer provided: Coherence is achievable, but depends on representation quality (Coordizer), objective weighting/curriculum, and decoding; wrappers mainly stabilize/accelerate rather than guarantee coherence.
