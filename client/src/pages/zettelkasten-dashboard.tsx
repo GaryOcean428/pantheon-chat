@@ -19,6 +19,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
+import { get, post } from '@/api/client';
 
 // Types
 interface ZettelStats {
@@ -437,8 +438,7 @@ export default function ZettelkastenDashboard() {
   // Fetch stats
   const fetchStats = async () => {
     try {
-      const response = await fetch('/api/zettelkasten/stats');
-      const data = await response.json();
+      const data = await get<{ success: boolean; data: ZettelStats }>('/api/zettelkasten/stats');
       if (data.success && data.data) {
         setStats(data.data);
       }
@@ -451,8 +451,7 @@ export default function ZettelkastenDashboard() {
   const fetchGraph = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/zettelkasten/graph?max_nodes=50');
-      const data = await response.json();
+      const data = await get<{ success: boolean; data: GraphData }>('/api/zettelkasten/graph?max_nodes=50');
       if (data.success && data.data) {
         setGraphData(data.data);
       }
@@ -466,8 +465,7 @@ export default function ZettelkastenDashboard() {
   // Fetch hubs
   const fetchHubs = async () => {
     try {
-      const response = await fetch('/api/zettelkasten/hubs?top_n=10');
-      const data = await response.json();
+      const data = await get<{ success: boolean; data: HubZettel[] }>('/api/zettelkasten/hubs?top_n=10');
       if (data.success && data.data) {
         setHubs(data.data);
       }
@@ -479,8 +477,7 @@ export default function ZettelkastenDashboard() {
   // Fetch clusters
   const fetchClusters = async () => {
     try {
-      const response = await fetch('/api/zettelkasten/clusters?min_size=2');
-      const data = await response.json();
+      const data = await get<{ success: boolean; data: Cluster[] }>('/api/zettelkasten/clusters?min_size=2');
       if (data.success && data.data) {
         setClusters(data.data);
       }
@@ -495,12 +492,10 @@ export default function ZettelkastenDashboard() {
     
     setIsSearching(true);
     try {
-      const response = await fetch('/api/zettelkasten/retrieve', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: searchQuery, top_k: 20 })
+      const data = await post<{ success: boolean; data: SearchResult[] }>('/api/zettelkasten/retrieve', {
+        query: searchQuery,
+        top_k: 20
       });
-      const data = await response.json();
       if (data.success && data.data) {
         setSearchResults(data.data);
       }
@@ -519,8 +514,7 @@ export default function ZettelkastenDashboard() {
   // Fetch zettel details
   const fetchZettelDetails = async (zettelId: string) => {
     try {
-      const response = await fetch(`/api/zettelkasten/zettel/${zettelId}`);
-      const data = await response.json();
+      const data = await get<{ success: boolean; data: ZettelDetail }>(`/api/zettelkasten/zettel/${zettelId}`);
       if (data.success && data.data) {
         setSelectedZettel(data.data);
         setSelectedNodeId(zettelId);
@@ -543,12 +537,10 @@ export default function ZettelkastenDashboard() {
 
     setIsAdding(true);
     try {
-      const response = await fetch('/api/zettelkasten/add', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: newContent, source: newSource || 'manual' })
+      const data = await post<{ success: boolean; links_created: number }>('/api/zettelkasten/add', {
+        content: newContent,
+        source: newSource || 'manual'
       });
-      const data = await response.json();
       
       if (data.success) {
         toast({

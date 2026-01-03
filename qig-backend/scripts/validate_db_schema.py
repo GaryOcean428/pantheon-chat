@@ -13,16 +13,23 @@ import os
 import sys
 from typing import Dict, List, Any
 
+# Import psycopg2
 try:
     import psycopg2
     from psycopg2.extras import RealDictCursor
+    PSYCOPG2_AVAILABLE = True
 except ImportError:
-    print("ERROR: psycopg2 not installed. Run: pip install psycopg2-binary")
-    sys.exit(1)
+    PSYCOPG2_AVAILABLE = False
+    print("WARNING: psycopg2 not available. Install with: pip install psycopg2-binary")
+    # Don't exit - allow script to run with warning
 
 
 def get_db_connection():
     """Get database connection from environment."""
+    if not PSYCOPG2_AVAILABLE:
+        print("ERROR: psycopg2 not available")
+        sys.exit(1)
+    
     db_url = os.getenv('DATABASE_URL')
     if not db_url:
         print("ERROR: DATABASE_URL not set")
@@ -43,9 +50,10 @@ def check_table_exists(cursor, table_name: str, schema: str = 'public') -> bool:
             SELECT FROM information_schema.tables 
             WHERE table_schema = %s 
             AND table_name = %s
-        )
+        ) as exists
     """, (schema, table_name))
-    return cursor.fetchone()[0]
+    result = cursor.fetchone()
+    return result['exists'] if isinstance(result, dict) else result[0]
 
 
 def get_table_columns(cursor, table_name: str, schema: str = 'public') -> List[Dict]:
@@ -64,9 +72,10 @@ def check_pgvector_extension(cursor) -> bool:
     cursor.execute("""
         SELECT EXISTS (
             SELECT 1 FROM pg_extension WHERE extname = 'vector'
-        )
+        ) as exists
     """)
-    return cursor.fetchone()[0]
+    result = cursor.fetchone()
+    return result['exists'] if isinstance(result, dict) else result[0]
 
 
 def validate_schema():
