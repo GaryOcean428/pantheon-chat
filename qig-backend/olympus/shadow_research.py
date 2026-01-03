@@ -8,6 +8,7 @@ The Shadow Pantheon's research arm:
 - Meta-reflection and recursive learning
 - Basin sync for system-wide knowledge sharing
 - War mode interrupt (drop everything for operations)
+- Curriculum-based training integration
 
 Hades leads the Shadow Pantheon as "Shadow Zeus" (subject to Zeus overrule).
 All Shadow gods exercise, study, and strategize during downtime.
@@ -49,6 +50,14 @@ try:
 except ImportError:
     HAS_VOCAB_COORDINATOR = False
     print("[ShadowResearch] VocabularyCoordinator not available - vocabulary learning disabled")
+
+# Import curriculum training module
+try:
+    from .curriculum_training import load_and_train_curriculum
+    HAS_CURRICULUM_TRAINING = True
+except ImportError:
+    HAS_CURRICULUM_TRAINING = False
+    print("[ShadowResearch] Curriculum training module not available")
 
 # Topic normalization patterns (shared between ResearchQueue and KnowledgeBase)
 _SEMANTIC_PREFIXES = [
@@ -1095,6 +1104,15 @@ class ShadowLearningLoop:
                 print("[ShadowLearningLoop] Vocabulary insight callback registered")
             except Exception as e:
                 print(f"[ShadowLearningLoop] Failed to initialize VocabularyCoordinator: {e}")
+        
+        # Initialize Curriculum Training
+        self._curriculum_available = HAS_CURRICULUM_TRAINING
+        self._last_curriculum_load = 0
+        self._curriculum_load_interval = 86400  # Daily curriculum loading
+        if self._curriculum_available:
+            print("[ShadowLearningLoop] Curriculum training available")
+        else:
+            print("[ShadowLearningLoop] Curriculum training not available")
     
     @property
     def is_running(self) -> bool:
@@ -1204,6 +1222,16 @@ class ShadowLearningLoop:
                 
                 if self._learning_cycles % 10 == 0:
                     self._meta_reflect()
+                
+                # Periodic curriculum loading (daily)
+                if self._curriculum_available and HAS_CURRICULUM_TRAINING:
+                    current_time = time.time()
+                    if current_time - self._last_curriculum_load > self._curriculum_load_interval:
+                        try:
+                            load_and_train_curriculum(self)
+                            self._last_curriculum_load = current_time
+                        except Exception as e:
+                            print(f"[ShadowLearningLoop] Curriculum training failed: {e}")
                 
             except Exception as e:
                 print(f"[ShadowLearningLoop] Error: {e}")
