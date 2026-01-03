@@ -412,6 +412,9 @@ class AutonomousCuriosityEngine:
                 request.status = 'completed'
                 request.result = result
                 
+                # Learn from search results immediately
+                self._learn_from_search_result(result)
+                
                 self.curiosity_drive.record_exploration(
                     topic=request.query,
                     outcome={
@@ -435,6 +438,58 @@ class AutonomousCuriosityEngine:
         else:
             request.status = 'no_callback'
             request.result = {'message': 'Search callback not configured'}
+    
+    def _learn_from_search_result(self, result: Dict):
+        """
+        Learn word relationships from search result immediately.
+        Updates word relationships and kernel basins in real-time.
+        """
+        try:
+            from word_relationship_learner import WordRelationshipLearner
+            from coordizers.pg_loader import PostgresCoordizer
+            
+            # Extract text from result
+            text_content = []
+            if isinstance(result, dict):
+                content = result.get('content', '') or result.get('text', '') or result.get('summary', '')
+                if content:
+                    text_content.append(str(content))
+                
+                snippets = result.get('snippets', []) or result.get('results', [])
+                for snippet in snippets:
+                    if isinstance(snippet, dict):
+                        text = snippet.get('text', '') or snippet.get('content', '') or snippet.get('description', '')
+                        if text:
+                            text_content.append(str(text))
+                    elif isinstance(snippet, str):
+                        text_content.append(snippet)
+            
+            if not text_content:
+                return
+            
+            # Initialize learner with current vocabulary
+            coordizer = PostgresCoordizer()
+            vocab = set(coordizer.word_tokens)
+            learner = WordRelationshipLearner(vocab, window_size=5, expand_vocabulary=True)
+            
+            # Learn from all text
+            total_pairs = 0
+            for text in text_content:
+                pairs = learner.learn_from_text(text)
+                total_pairs += pairs
+            
+            if total_pairs > 0:
+                # Update word relationships cache (using curriculum_training module)
+                try:
+                    from olympus.curriculum_training import update_word_relationships_cache, adjust_kernel_basins_from_relationships
+                    update_word_relationships_cache(learner)
+                    adjust_kernel_basins_from_relationships(learner, coordizer)
+                    print(f"[AutonomousCuriosityEngine] Learned {total_pairs} word pairs from search, updated basins")
+                except ImportError:
+                    print(f"[AutonomousCuriosityEngine] Learned {total_pairs} word pairs (curriculum_training not available)")
+                
+        except Exception as e:
+            print(f"[AutonomousCuriosityEngine] Error learning from search: {e}")
     
     def _execute_tool_refinement(self, request: KernelToolRequest):
         """Execute a tool refinement request."""
