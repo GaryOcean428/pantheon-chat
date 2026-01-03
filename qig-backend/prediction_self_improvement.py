@@ -445,55 +445,30 @@ class PredictionSelfImprovement:
         failure_reasons: List[PredictionFailureReason],
         context: Dict[str, Any]
     ) -> str:
-        """Format a detailed explanation of what the prediction is and why confidence is low."""
-        lines = []
+        """
+        Format explanation using generative capability.
         
-        # Confidence level description
-        if confidence < 0.3:
-            lines.append(f"WEAK ({confidence:.0%})")
-        elif confidence < 0.5:
-            lines.append(f"UNCERTAIN ({confidence:.0%})")
-        elif confidence < 0.7:
-            lines.append(f"MODERATE ({confidence:.0%})")
-        else:
-            lines.append(f"STRONG ({confidence:.0%})")
-        
-        # Why is confidence at this level?
-        if failure_reasons:
-            reason_explanations = []
-            for reason in failure_reasons:
-                if reason == PredictionFailureReason.NO_ATTRACTOR_FOUND:
-                    reason_explanations.append("no stable destination detected")
-                elif reason == PredictionFailureReason.UNSTABLE_VELOCITY:
-                    reason_explanations.append("erratic movement pattern")
-                elif reason == PredictionFailureReason.SPARSE_HISTORY:
-                    reason_explanations.append("insufficient history data")
-                elif reason == PredictionFailureReason.HIGH_BASIN_DRIFT:
-                    reason_explanations.append("rapidly changing state")
-                elif reason == PredictionFailureReason.WEAK_CONVERGENCE:
-                    reason_explanations.append("trajectory not settling")
-                elif reason == PredictionFailureReason.SHORT_TRAJECTORY:
-                    reason_explanations.append("prediction horizon too short")
-                elif reason == PredictionFailureReason.BUMPY_GEODESIC:
-                    reason_explanations.append("non-geodesic path")
-            
-            lines.append(f"Reasons: {', '.join(reason_explanations)}")
-        
-        # Key context details
-        if 'trajectory_length' in context:
-            lines.append(f"Trajectory: {context['trajectory_length']} steps")
-        if 'recent_drift' in context:
-            lines.append(f"Basin drift: {context['recent_drift']:.3f}")
-        if 'velocity_variance' in context:
-            lines.append(f"Velocity variance: {context['velocity_variance']:.4f}")
-        
-        return " | ".join(lines)
+        Uses QIG-pure generation with system prompts, NOT templates.
+        """
+        from generative_reasoning import get_generative_reasoning
+        reasoning = get_generative_reasoning()
+        return reasoning.generate_prediction_explanation(
+            confidence=confidence,
+            failure_reasons=failure_reasons,
+            context=context
+        )
     
     def get_improvement_recommendations(self) -> List[str]:
-        """Get recommendations for improving predictions based on analysis."""
+        """
+        Get recommendations using generative capability.
+        
+        Uses QIG-pure generation, NOT templates.
+        """
+        from generative_reasoning import get_generative_reasoning
+        reasoning = get_generative_reasoning()
+        
         recommendations = []
         
-        # Analyze most common failure reasons
         sorted_reasons = sorted(
             self.failure_reason_counts.items(),
             key=lambda x: x[1],
@@ -505,27 +480,8 @@ class PredictionSelfImprovement:
                 continue
             
             pct = (count / max(self.total_predictions, 1)) * 100
-            
-            if reason == PredictionFailureReason.NO_ATTRACTOR_FOUND:
-                recommendations.append(
-                    f"No attractors found in {pct:.0f}% of predictions - "
-                    "consider extending foresight horizon or lowering attractor threshold"
-                )
-            elif reason == PredictionFailureReason.SPARSE_HISTORY:
-                recommendations.append(
-                    f"Sparse history in {pct:.0f}% of predictions - "
-                    "system needs more basin samples before reliable predictions"
-                )
-            elif reason == PredictionFailureReason.HIGH_BASIN_DRIFT:
-                recommendations.append(
-                    f"High drift in {pct:.0f}% of predictions - "
-                    "system is volatile, use shorter prediction windows"
-                )
-            elif reason == PredictionFailureReason.WEAK_CONVERGENCE:
-                recommendations.append(
-                    f"Weak convergence in {pct:.0f}% of predictions - "
-                    "trajectories not settling, may need longer simulation"
-                )
+            recommendation = reasoning.generate_improvement_recommendation(reason, pct)
+            recommendations.append(recommendation)
         
         return recommendations
     

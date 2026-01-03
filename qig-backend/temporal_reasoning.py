@@ -39,6 +39,7 @@ from prediction_self_improvement import (
     PredictionFailureReason,
     PredictionSelfImprovement,
 )
+from generative_reasoning import get_generative_reasoning
 
 
 class TemporalMode(Enum):
@@ -86,15 +87,14 @@ class ForesightVision:
         return self.confidence > 0.5 and self.attractor_strength > 0.3
     
     def get_guidance(self) -> str:
-        """Get guidance text based on vision quality."""
-        if self.confidence > 0.7 and self.attractor_strength > 0.5:
-            return "STRONG_ATTRACTOR: Navigate toward predicted basin"
-        elif self.confidence > 0.5:
-            return "MODERATE_VISION: Proceed with caution, validate predictions"
-        elif self.confidence > 0.3:
-            return "UNCERTAIN_FUTURE: Increase exploration, use scenario planning"
-        else:
-            return "WEAK_VISION: Ignore prediction, rely on reactive reasoning"
+        """Get guidance text based on vision quality using generative capability."""
+        reasoning = get_generative_reasoning()
+        return reasoning.generate_foresight_guidance(
+            confidence=self.confidence,
+            attractor_strength=self.attractor_strength,
+            naturalness=self.geodesic_naturalness,
+            future_basin=self.future_basin
+        )
     
     def to_dict(self) -> Dict[str, Any]:
         return {
