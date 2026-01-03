@@ -16,7 +16,7 @@ load_dotenv(dotenv_path='../.env')
 import psycopg2
 from psycopg2 import sql
 
-CHECKPOINT_PATH = '../shared/coordizer/checkpoint_32000.json'
+CHECKPOINT_PATH = '../attached_assets/checkpoint_50000_1767152901611.json'
 
 def normalize_vector(v):
     """Normalize to unit sphere."""
