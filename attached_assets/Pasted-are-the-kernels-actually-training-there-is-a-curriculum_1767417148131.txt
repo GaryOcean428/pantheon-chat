@@ -1,0 +1,37 @@
+are the kernels actually training? there is a curriculum they should be training on and the search and research should also be in the training/learning loop.
+
+
+Show less
+
+Investigating kernel training and learning
+The Honest Answer: No, They're Not Actually Training
+After analyzing the architecture, here's what's happening:
+
+What's Broken
+Curriculum is never loaded - The curriculum files in docs/09-curriculum/ exist, but nothing actually reads them and feeds them to the learning system. The code to do it exists (CurriculumLoader) but it's never called.
+
+Search/Research doesn't update kernels - The shadow learning loop scrapes content and sends it to vocabulary_learning.learn_from_text, but:
+
+It keeps showing 0 new words learned because the filters are too aggressive
+Even when words are learned, they don't update the kernel basins
+Results terminate at logging, not training
+Word relationships are frozen - The 3,249 learned pairs were pre-computed and cached in word_relationships.json. Nothing refreshes this cache at runtime, so generation keeps using stale relationships.
+
+No attractor training data - The foresight system reports 0% accuracy because there are no labeled examples of "successful predictions" to learn from. It's predicting blindly with no feedback loop.
+
+No actual training loop - The dream/sleep cycles log activity but don't adjust basin coordinates or strengthen word associations. There's no gradient descent, no basin updates, no reinforcement.
+
+The Result
+Kernels will produce the same quality "word salad" forever unless we wire the learning components together.
+
+The Fix
+I can connect these pieces so kernels actually improve over time:
+
+Schedule curriculum ingestion - Load curriculum files into the word relationship learner on startup and periodically
+Wire research → learning - Make scraped content update word relationships and kernel basins (with better filters)
+Enable online relationship updates - Write new relationships back to cache so generation improves
+Add attractor feedback - Track successful predictions to train foresight
+Would you like me to implement this training loop?
+
+Worked for 51 seconds
+check recent pulls to see if the imprvements ahve been made.
