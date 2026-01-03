@@ -4,6 +4,7 @@
 
 import { useState, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { get, post, patch, del } from '@/api/client';
 import type { Tool, ToolFormData, ViewMode, SortField, SortDirection } from '../types';
 
 interface UseToolFactoryOptions {
@@ -11,34 +12,19 @@ interface UseToolFactoryOptions {
 }
 
 const fetchTools = async (): Promise<Tool[]> => {
-  const response = await fetch('/api/tools');
-  if (!response.ok) throw new Error('Failed to fetch tools');
-  return response.json();
+  return get<Tool[]>('/api/tools');
 };
 
 const createTool = async (data: ToolFormData): Promise<Tool> => {
-  const response = await fetch('/api/tools', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
-  if (!response.ok) throw new Error('Failed to create tool');
-  return response.json();
+  return post<Tool, ToolFormData>('/api/tools', data);
 };
 
 const updateTool = async ({ id, data }: { id: string; data: Partial<ToolFormData> }): Promise<Tool> => {
-  const response = await fetch(`/api/tools/${id}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
-  if (!response.ok) throw new Error('Failed to update tool');
-  return response.json();
+  return patch<Tool, Partial<ToolFormData>>(`/api/tools/${id}`, data);
 };
 
 const deleteTool = async (id: string): Promise<void> => {
-  const response = await fetch(`/api/tools/${id}`, { method: 'DELETE' });
-  if (!response.ok) throw new Error('Failed to delete tool');
+  return del<void>(`/api/tools/${id}`);
 };
 
 export function useToolFactory(options: UseToolFactoryOptions = {}) {
