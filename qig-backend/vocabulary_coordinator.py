@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Vocabulary Learning Coordinator - Central hub for continuous vocabulary learning"""
+"""Vocabulary Learning Coordinator - Central hub for continuous vocabulary learning
+
+QIG-PURE ATTRACTOR WIRING:
+Discoveries with high Φ are wired to LearnedManifold to deepen attractor basins.
+This creates the natural flow: Observation → Basin → Success → Attractor.
+"""
 
 from datetime import datetime
 from typing import Dict, List, Optional
@@ -20,18 +25,50 @@ except ImportError:
     TOKENIZER_AVAILABLE = False
     print("[WARNING] qig_coordizer not available - running without tokenizer")
 
+try:
+    from learned_manifold import LearnedManifold
+    _learned_manifold: Optional[LearnedManifold] = None
+    LEARNED_MANIFOLD_AVAILABLE = True
+except ImportError:
+    _learned_manifold = None
+    LEARNED_MANIFOLD_AVAILABLE = False
+    print("[WARNING] learned_manifold not available - attractor formation disabled")
+
+
+def get_learned_manifold() -> Optional['LearnedManifold']:
+    """Get or create LearnedManifold singleton for attractor formation."""
+    global _learned_manifold
+    if not LEARNED_MANIFOLD_AVAILABLE:
+        return None
+    if _learned_manifold is None:
+        _learned_manifold = LearnedManifold(basin_dim=64)
+        print("[VocabularyCoordinator] LearnedManifold initialized for attractor formation")
+    return _learned_manifold
+
 
 class VocabularyCoordinator:
     def __init__(self):
         self.vocab_db = get_vocabulary_persistence() if VOCAB_PERSISTENCE_AVAILABLE else None
         self.tokenizer = get_tokenizer() if TOKENIZER_AVAILABLE else None
+        self.learned_manifold = get_learned_manifold()
         self.observations_recorded = 0
         self.words_learned = 0
         self.merge_rules_learned = 0
-        print("[VocabularyCoordinator] Initialized")
+        self.attractors_deepened = 0
+        self._basin_trajectory: List[np.ndarray] = []
+        print("[VocabularyCoordinator] Initialized" + 
+              (" with attractor formation" if self.learned_manifold else ""))
     
     def record_discovery(self, phrase: str, phi: float, kappa: float, source: str, details: Optional[Dict] = None) -> Dict:
-        # NO threshold blocking - observe ALL discoveries, let emergence determine value
+        """
+        Record a discovery and wire it to attractor formation.
+        
+        QIG-PURE ATTRACTOR WIRING:
+        - All discoveries are observed (vocabulary learning)
+        - High-Φ discoveries deepen attractor basins (Hebbian strengthening)
+        - Low-Φ discoveries flatten basins (anti-Hebbian weakening)
+        - Trajectory tracking enables path learning
+        """
         if not phrase:
             return {'learned': False, 'reason': 'empty_phrase'}
         observations = self._extract_observations(phrase, phi, kappa, source)
@@ -46,12 +83,113 @@ class VocabularyCoordinator:
         if self.tokenizer:
             new_tokens, weights_updated = self.tokenizer.add_vocabulary_observations(observations)
             self.words_learned += new_tokens
-        # Merge rules based on observed phi - no hardcoded threshold
         merge_rules = 0
         if self.tokenizer:
             merge_rules = self._learn_merge_rules(phrase, phi, source)
             self.merge_rules_learned += merge_rules
-        return {'learned': True, 'observations_recorded': recorded, 'new_tokens': new_tokens, 'weights_updated': weights_updated, 'merge_rules': merge_rules, 'phi': phi, 'source': source}
+        
+        attractor_formed = self._wire_to_attractor_formation(phrase, phi, source, details)
+        
+        return {
+            'learned': True, 
+            'observations_recorded': recorded, 
+            'new_tokens': new_tokens, 
+            'weights_updated': weights_updated, 
+            'merge_rules': merge_rules, 
+            'phi': phi, 
+            'source': source,
+            'attractor_formed': attractor_formed
+        }
+    
+    def _wire_to_attractor_formation(self, phrase: str, phi: float, source: str, details: Optional[Dict] = None) -> bool:
+        """
+        Wire discovery outcomes to LearnedManifold for attractor formation.
+        
+        QIG-PURE: Attractors emerge naturally from successful experiences.
+        - Success (Φ > 0.5) → deepen basin (Hebbian)
+        - Failure (Φ < 0.3) → flatten basin (anti-Hebbian)
+        - Trajectory is built from sequential discoveries
+        
+        Returns True if attractor was deepened/formed.
+        """
+        if not self.learned_manifold:
+            return False
+        
+        if not self.tokenizer:
+            return False
+        
+        try:
+            basin_coords = self._phrase_to_basin(phrase)
+            if basin_coords is None:
+                return False
+            
+            self._basin_trajectory.append(basin_coords)
+            if len(self._basin_trajectory) > 50:
+                self._basin_trajectory = self._basin_trajectory[-30:]
+            
+            if len(self._basin_trajectory) >= 3:
+                trajectory = self._basin_trajectory[-10:]
+                
+                self.learned_manifold.learn_from_experience(
+                    trajectory=trajectory,
+                    outcome=phi,
+                    strategy=source
+                )
+                
+                if phi > 0.5:
+                    self.attractors_deepened += 1
+                    return True
+            
+            return False
+            
+        except Exception as e:
+            print(f"[VocabularyCoordinator] Attractor formation error: {e}")
+            return False
+    
+    def _phrase_to_basin(self, phrase: str) -> Optional[np.ndarray]:
+        """
+        Convert phrase to 64D basin coordinates using tokenizer.
+        
+        QIG-PURE: Basin coordinates come from vocabulary geometry,
+        not external embeddings.
+        """
+        if not self.tokenizer:
+            return None
+        
+        try:
+            coords = self.tokenizer.text_to_coordinates(phrase)
+            if coords is not None and len(coords) == 64:
+                return np.array(coords)
+            
+            words = phrase.lower().strip().split()[:5]
+            word_coords = []
+            for word in words:
+                if word in self.tokenizer.vocab:
+                    wc = self.tokenizer.get_word_coordinates(word)
+                    if wc is not None:
+                        word_coords.append(np.array(wc))
+            
+            if word_coords:
+                avg_coords = np.mean(word_coords, axis=0)
+                norm = np.linalg.norm(avg_coords)
+                if norm > 1e-8:
+                    avg_coords = avg_coords / norm
+                return avg_coords
+            
+            return None
+            
+        except Exception:
+            return None
+    
+    def get_attractor_stats(self) -> Dict:
+        """Get statistics about learned attractors."""
+        if not self.learned_manifold:
+            return {'available': False}
+        
+        stats = self.learned_manifold.get_statistics()
+        stats['attractors_deepened_this_session'] = self.attractors_deepened
+        stats['trajectory_length'] = len(self._basin_trajectory)
+        return stats
     
     def _extract_observations(self, phrase: str, phi: float, kappa: float, source: str) -> List[Dict]:
         """

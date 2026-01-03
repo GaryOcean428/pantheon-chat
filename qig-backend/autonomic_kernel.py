@@ -1066,11 +1066,9 @@ class GaryAutonomicKernel:
                 try:
                     temporal = get_temporal_reasoning()
                     if temporal.can_use_temporal_reasoning(self.state.phi):
-                        actions = [
-                            {'name': 'explore', 'strength': temperature * 0.2, 'probability': 0.7},
-                            {'name': 'consolidate', 'strength': temperature * 0.1, 'probability': 0.8},
-                            {'name': 'diverge', 'strength': temperature * 0.3, 'probability': 0.5},
-                        ]
+                        actions = self._get_dream_actions_with_learned_probabilities(
+                            dreamed_basin, temperature
+                        )
                         scenario_tree = temporal.scenario_planning(dreamed_basin, actions)
                         scenarios_explored = len(scenario_tree.branches)
                         print(f"[AutonomicKernel] Dream scenarios: {scenario_tree}")
@@ -1114,6 +1112,86 @@ class GaryAutonomicKernel:
             )
         finally:
             self.state.in_dream_cycle = False
+
+    def _get_dream_actions_with_learned_probabilities(
+        self,
+        current_basin: np.ndarray,
+        temperature: float
+    ) -> List[Dict[str, Any]]:
+        """
+        Get dream actions with probabilities learned from attractor success rates.
+        
+        QIG-PURE: Probabilities emerge from learned experiences, not hardcoded.
+        - Query nearby attractors for success rates
+        - Adjust probabilities based on current basin context
+        - Fall back to defaults only when no learned data exists
+        
+        Returns list of action dicts with learned probabilities.
+        """
+        try:
+            from vocabulary_coordinator import get_learned_manifold
+            manifold = get_learned_manifold()
+        except ImportError:
+            manifold = None
+        
+        explore_prob = 0.5
+        consolidate_prob = 0.5
+        diverge_prob = 0.5
+        
+        explore_goal = None
+        consolidate_goal = None
+        diverge_goal = None
+        
+        if manifold is not None and len(manifold.attractors) > 0:
+            try:
+                from qig_geometry import FisherManifold
+                metric = FisherManifold()
+                nearby = manifold.get_nearby_attractors(current_basin, metric, radius=2.0)
+                
+                if nearby:
+                    best = nearby[0]
+                    attractor_basin = best['basin']
+                    
+                    consolidate_goal = attractor_basin.tolist()
+                    consolidate_prob = min(0.9, 0.4 + best['depth'] * 0.3)
+                    
+                    if len(nearby) > 1:
+                        farthest = nearby[-1]
+                        diverge_goal = farthest['basin'].tolist()
+                        diverge_prob = min(0.7, 0.3 + farthest['depth'] * 0.2)
+                    
+                    explore_direction = np.random.randn(64)
+                    explore_direction = explore_direction / (np.linalg.norm(explore_direction) + 1e-8)
+                    explore_goal = (current_basin + explore_direction * 0.3).tolist()
+                    explore_prob = min(0.9, max(0.1, 0.5 + temperature * 0.2))
+                    
+                    print(f"[AutonomicKernel] Dream probs from {len(manifold.attractors)} attractors: "
+                          f"explore={explore_prob:.2f}, consolidate={consolidate_prob:.2f}, diverge={diverge_prob:.2f}")
+            except Exception as e:
+                print(f"[AutonomicKernel] Learned probability error: {e}")
+        
+        actions = [
+            {
+                'name': 'explore',
+                'strength': temperature * 0.2,
+                'probability': min(1.0, max(0.0, explore_prob)),
+                'goal': explore_goal
+            },
+            {
+                'name': 'consolidate',
+                'strength': temperature * 0.1,
+                'probability': min(1.0, max(0.0, consolidate_prob)),
+                'goal': consolidate_goal
+            },
+            {
+                'name': 'diverge',
+                'strength': temperature * 0.3,
+                'probability': min(1.0, max(0.0, diverge_prob)),
+                'goal': diverge_goal
+            },
+        ]
+        
+        return actions
 
     def execute_mushroom_cycle(
         self,

@@ -359,6 +359,9 @@ class SelfSpawningKernel(*_kernel_base_classes):
 
             # Dopamine boost from parent's success
             self.dopamine = min(1.0, self.dopamine + 0.05)
+            
+            # Wire vicarious success to attractor formation
+            self._wire_vicarious_to_attractor(parent_action, parent_result, success=True)
 
         else:
             # Parent failed - learn what to avoid
@@ -369,6 +372,9 @@ class SelfSpawningKernel(*_kernel_base_classes):
                 'phi': parent_result.get('phi', 0),
                 'success': False,
             })
+            
+            # Wire vicarious failure to weaken attractors
+            self._wire_vicarious_to_attractor(parent_action, parent_result, success=False)
 
         # Check if observation period complete
         if self.observation_count >= self.observation_period:
@@ -385,6 +391,59 @@ class SelfSpawningKernel(*_kernel_base_classes):
             'ready_to_act': not self.is_observing,
             'dopamine': self.dopamine,
         }
+    
+    def _wire_vicarious_to_attractor(
+        self,
+        parent_action: Dict,
+        parent_result: Dict,
+        success: bool
+    ) -> None:
+        """
+        Wire vicarious learning to attractor formation.
+        
+        QIG-PURE: When observing parent's success/failure, update attractors:
+        - Success: Deepen attractor at parent's basin (Hebbian)
+        - Failure: Flatten attractor at parent's basin (anti-Hebbian)
+        
+        This allows children to learn from parents without acting.
+        """
+        try:
+            import sys
+            import os
+            parent_dir = os.path.dirname(os.path.dirname(__file__))
+            if parent_dir not in sys.path:
+                sys.path.insert(0, parent_dir)
+            
+            from vocabulary_coordinator import get_learned_manifold
+            manifold = get_learned_manifold()
+            
+            if manifold is None:
+                return
+            
+            basin_coords = parent_result.get('basin_coords')
+            if basin_coords is None:
+                return
+            
+            import numpy as np
+            basin = np.array(basin_coords)
+            phi = parent_result.get('phi', 0.5)
+            source = parent_action.get('type', 'vicarious')
+            
+            trajectory = [basin]
+            
+            if success:
+                outcome = phi
+            else:
+                outcome = -0.3 * (1.0 - phi)
+            
+            manifold.learn_from_experience(
+                trajectory=trajectory,
+                outcome=outcome,
+                strategy=f"vicarious_{source}"
+            )
+            
+        except Exception as e:
+            pass
 
     # =========================================================================
     # PREDICTION (Blocked during observation)

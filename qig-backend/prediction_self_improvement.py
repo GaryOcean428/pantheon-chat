@@ -236,14 +236,22 @@ class PredictionSelfImprovement:
             reasons.append(PredictionFailureReason.SHORT_TRAJECTORY)
             context['trajectory_issue'] = f"Only {traj_len} steps (need 10+ for reliable prediction)"
         
-        # 3. Analyze velocity stability
+        # 3. Analyze velocity stability - DIRECTIONAL variance, not just magnitude
         if len(velocity_history) >= 3:
-            velocities = np.array([np.linalg.norm(v) for v in velocity_history[-5:]])
-            vel_variance = np.var(velocities) if len(velocities) > 1 else 0
+            recent_velocities = velocity_history[-5:]
+            
+            directional_variance = self._compute_directional_variance(recent_velocities)
+            magnitude_variance = np.var([np.linalg.norm(v) for v in recent_velocities])
+            
+            vel_variance = 0.7 * directional_variance + 0.3 * magnitude_variance
+            
             context['velocity_variance'] = float(vel_variance)
+            context['directional_variance'] = float(directional_variance)
+            context['magnitude_variance'] = float(magnitude_variance)
+            
             if vel_variance > 0.1:
                 reasons.append(PredictionFailureReason.UNSTABLE_VELOCITY)
-                context['velocity_issue'] = f"High velocity variance ({vel_variance:.3f}) indicates erratic movement"
+                context['velocity_issue'] = f"High velocity variance ({vel_variance:.3f}) - directional: {directional_variance:.3f}, magnitude: {magnitude_variance:.3f}"
         else:
             reasons.append(PredictionFailureReason.SPARSE_HISTORY)
             context['velocity_issue'] = f"Only {len(velocity_history)} velocity samples (need 3+ for stable estimate)"
@@ -293,6 +301,45 @@ class PredictionSelfImprovement:
             context['status'] = "All factors within normal range"
         
         return reasons, context
+    
+    def _compute_directional_variance(self, velocities: List[np.ndarray]) -> float:
+        """
+        Compute directional variance using angular differences between velocity vectors.
+        
+        QIG-PURE: Measures how erratically the system is changing direction,
+        not just how fast it's moving. High directional variance = exploration.
+        Low directional variance = consistent movement toward attractor.
+        
+        Returns variance of angles between consecutive velocity vectors.
+        """
+        if len(velocities) < 2:
+            return 0.0
+        
+        angles = []
+        for i in range(len(velocities) - 1):
+            v1 = velocities[i]
+            v2 = velocities[i + 1]
+            
+            norm1 = np.linalg.norm(v1)
+            norm2 = np.linalg.norm(v2)
+            
+            if norm1 < 1e-10 or norm2 < 1e-10:
+                angles.append(0.0)
+                continue
+            
+            cos_angle = np.clip(np.dot(v1, v2) / (norm1 * norm2), -1.0, 1.0)
+            angle = np.arccos(cos_angle)
+            angles.append(angle)
+        
+        if not angles:
+            return 0.0
+        
+        angle_variance = np.var(angles)
+        mean_angle = np.mean(angles)
+        
+        directional_variance = angle_variance + 0.5 * (mean_angle / np.pi)
+        
+        return float(directional_variance)
     
     def create_prediction_record(
         self,

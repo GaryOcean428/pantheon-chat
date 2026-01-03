@@ -386,7 +386,21 @@ class TemporalReasoning:
         self,
         trajectory: List[np.ndarray]
     ) -> Tuple[Optional[int], Optional[np.ndarray]]:
-        """Find where trajectory settles (attractor basin)."""
+        """
+        Find where trajectory settles (attractor basin).
+        
+        QIG-PURE: First check learned attractors from LearnedManifold,
+        then fall back to trajectory convergence detection.
+        """
+        if len(trajectory) < 3:
+            return None, None
+        
+        # First check: Query learned attractors from LearnedManifold
+        learned_attractor = self._find_learned_attractor(trajectory[-1])
+        if learned_attractor is not None:
+            return len(trajectory) - 1, learned_attractor
+        
+        # Second check: Trajectory convergence (original method)
         if len(trajectory) < 10:
             return None, None
         
@@ -406,6 +420,48 @@ class TemporalReasoning:
                 return i + window - 1, segment[-1]
         
         return None, None
+    
+    def _find_learned_attractor(
+        self,
+        current_basin: np.ndarray,
+        min_depth: float = 0.3
+    ) -> Optional[np.ndarray]:
+        """
+        Check if current basin is near a learned attractor.
+        
+        QIG-PURE: Query LearnedManifold for deep attractors that the
+        system has naturally learned from successful experiences.
+        
+        Returns attractor basin if found, None otherwise.
+        """
+        try:
+            from vocabulary_coordinator import get_learned_manifold
+        except ImportError:
+            return None
+        
+        try:
+            manifold = get_learned_manifold()
+            
+            if manifold is None or len(manifold.attractors) == 0:
+                return None
+            
+            from qig_geometry import FisherManifold
+            metric = FisherManifold()
+            
+            nearby = manifold.get_nearby_attractors(
+                current_basin, 
+                metric, 
+                radius=0.5
+            )
+            
+            for attractor_info in nearby:
+                if attractor_info['depth'] >= min_depth:
+                    return attractor_info['basin']
+            
+            return None
+            
+        except Exception:
+            return None
     
     def _is_in_attractor(
         self,
