@@ -16,6 +16,9 @@ from datetime import datetime
 from typing import Optional, Dict, Any
 import numpy as np
 
+from .progress_metrics import get_progress_tracker
+from .coherence_evaluator import get_coherence_evaluator
+
 
 class TrainingLoopIntegrator:
     """
@@ -37,6 +40,10 @@ class TrainingLoopIntegrator:
         self._training_active = False
         self._outcome_count = 0
         self._basin_update_count = 0
+        
+        # Initialize progress tracking and coherence evaluation
+        self.progress_tracker = get_progress_tracker()
+        self.coherence_evaluator = get_coherence_evaluator()
         
         print("[TrainingLoopIntegrator] Initialized")
     
@@ -105,6 +112,15 @@ class TrainingLoopIntegrator:
             return {"status": "training_disabled"}
         
         try:
+            # Evaluate coherence of response
+            coherence_metrics = self.coherence_evaluator.evaluate(
+                text=response,
+                basin_trajectory=basin_trajectory
+            )
+            
+            # Use evaluated coherence score
+            evaluated_coherence = coherence_metrics.overall_coherence
+            
             # Train via orchestrator
             metrics = self.orchestrator.train_from_outcome(
                 god_name=god_name,
@@ -114,15 +130,33 @@ class TrainingLoopIntegrator:
                 phi=phi,
                 kappa=kappa,
                 basin_trajectory=basin_trajectory,
-                coherence_score=coherence_score
+                coherence_score=evaluated_coherence
             )
             
             self._outcome_count += 1
             
+            # Record progress
+            session_id = f"training_{god_name}"
+            progress_update = self.progress_tracker.record_training_step(
+                session_id=session_id,
+                topic=god_name,
+                phi=phi,
+                coherence=evaluated_coherence
+            )
+            
             return {
                 "status": "success",
                 "metrics": metrics,
-                "outcome_count": self._outcome_count
+                "outcome_count": self._outcome_count,
+                "coherence": coherence_metrics.overall_coherence,
+                "coherence_details": {
+                    "perplexity": coherence_metrics.perplexity,
+                    "self_consistency": coherence_metrics.self_consistency,
+                    "long_range_coherence": coherence_metrics.long_range_coherence,
+                    "repetition_score": coherence_metrics.repetition_score,
+                    "entropy_collapse": coherence_metrics.entropy_collapse_score,
+                },
+                "progress": progress_update
             }
             
         except Exception as e:
@@ -297,6 +331,13 @@ class TrainingLoopIntegrator:
         
         if self.curiosity_engine:
             status["curiosity_stats"] = self.curiosity_engine.get_stats()
+        
+        # Add progress and coherence stats
+        status["progress"] = self.progress_tracker.get_summary()
+        status["coherence"] = {
+            "stats": self.coherence_evaluator.get_stats(),
+            "trend": self.coherence_evaluator.get_coherence_trend(),
+        }
         
         return status
     

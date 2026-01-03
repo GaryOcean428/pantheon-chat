@@ -304,7 +304,7 @@ router.post('/zeus/chat', isAuthenticated, async (req, res) => {
               phi: data.metadata?.phi,
               source_kernel: data.metadata?.responding_god || 'zeus'
             })
-          }).then(r => r.ok ? logger.debug('[Olympus] Zettelkasten auto-saved') : logger.warn('[Olympus] Zettelkasten save failed:', r.status))
+          }).then(r => r.ok ? logger.debug('[Olympus] Zettelkasten auto-saved') : logger.warn(`[Olympus] Zettelkasten save failed: ${r.status}`))
             .catch(err => logger.debug('[Olympus] Zettelkasten auto-save skipped:', err));
         }
       }
