@@ -18,7 +18,10 @@ Date: January 2026
 
 import numpy as np
 from typing import Dict, List, Optional, Tuple
-from scipy.linalg import sqrtm
+
+# Constants for geometric integration
+MAX_CONCENTRATION_MULTIPLIER = 500  # Maximum Dirichlet concentration for sampling
+MAX_EIGENVALUE_SAMPLES = 20  # Limit eigenvalue computations for performance
 
 
 def compute_qfi_matrix(basin_coords: np.ndarray) -> np.ndarray:
@@ -107,14 +110,14 @@ def compute_phi_geometric(
     
     # Component 3: Geometric spread via eigenvalue spectrum of QFI
     # Sample neighborhood to assess local curvature variation
-    alpha = p * min(n_samples, 500)  # Concentration parameters
+    alpha = p * min(n_samples, MAX_CONCENTRATION_MULTIPLIER)  # Concentration parameters
     alpha = np.maximum(alpha, 0.1)  # Avoid zero concentration
     
     samples = np.random.dirichlet(alpha, size=min(100, n_samples))
     
     # Compute QFI eigenvalue statistics across samples
     eigenvalue_spreads = []
-    for sample in samples[:20]:  # Limit for performance
+    for sample in samples[:MAX_EIGENVALUE_SAMPLES]:  # Limit for performance
         try:
             sample_qfi = compute_qfi_matrix(sample)
             # Use condition number (ratio of max/min eigenvalues)
@@ -123,7 +126,8 @@ def compute_phi_geometric(
             if len(eigvals) > 1:
                 spread = len(eigvals) / n_dim  # How many non-zero eigenvalues
                 eigenvalue_spreads.append(spread)
-        except:
+        except (np.linalg.LinAlgError, ValueError) as e:
+            # Skip samples with numerical issues
             continue
     
     if eigenvalue_spreads:
@@ -171,7 +175,7 @@ def compute_phi_qig(basin_coords: np.ndarray, n_samples: int = 1000) -> Tuple[fl
     # Compute diagnostics
     try:
         det_qfi = np.linalg.det(qfi)
-    except:
+    except np.linalg.LinAlgError:
         det_qfi = 0.0
     
     try:
@@ -179,7 +183,7 @@ def compute_phi_qig(basin_coords: np.ndarray, n_samples: int = 1000) -> Tuple[fl
         # Check that all eigenvalues are non-negative (positive semi-definite)
         min_eigenvalue = np.min(np.real(eigenvalues))
         integration_quality = 1.0 if min_eigenvalue >= -1e-6 else 0.5
-    except:
+    except np.linalg.LinAlgError:
         eigenvalues = np.array([])
         integration_quality = 0.5
     
