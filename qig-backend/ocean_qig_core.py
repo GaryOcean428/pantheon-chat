@@ -648,6 +648,12 @@ CORS(app)  # Allow CORS for Node.js server
 if OLYMPUS_AVAILABLE:
     app.register_blueprint(olympus_app, url_prefix='/olympus')
     print("[INFO] Olympus Pantheon registered at /olympus")
+    
+    # Wire SearchOrchestrator to BaseGod so all kernels can search
+    if _search_orchestrator:
+        from olympus.base_god import BaseGod
+        BaseGod.set_search_orchestrator(_search_orchestrator)
+        print("[INFO] SearchOrchestrator wired to all gods/kernels")
 
 # Register DRY route blueprints (barrel imports)
 try:

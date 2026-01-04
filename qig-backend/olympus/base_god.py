@@ -474,8 +474,293 @@ class ToolFactoryAccessMixin:
             }
 
 
+class SearchCapabilityMixin:
+    """
+    Provides Search capability awareness to all gods/kernels.
+    
+    Gods can:
+    1. Request web searches when they hit knowledge gaps
+    2. Access search providers (DuckDuckGo, Tavily, Perplexity, Google)
+    3. Discover and add new sources to the knowledge base
+    4. Query search history and learn from past searches
+    
+    All methods are no-op safe (work even if search orchestrator is None).
+    """
+    
+    _search_orchestrator_ref = None
+    
+    @classmethod
+    def set_search_orchestrator(cls, orchestrator) -> None:
+        """Called by Ocean to share search orchestrator reference with all gods."""
+        cls._search_orchestrator_ref = orchestrator
+        logger.info(f"[SearchCapabilityMixin] Search orchestrator reference set for all gods")
+    
+    @classmethod
+    def get_search_orchestrator(cls):
+        """Get the shared search orchestrator reference."""
+        return cls._search_orchestrator_ref
+    
+    def request_search(
+        self,
+        query: str,
+        context: Optional[Dict] = None,
+        strategy: str = "balanced",
+        max_results: int = 10
+    ) -> Optional[Dict]:
+        """
+        Request a web search when hitting a knowledge gap.
+        
+        This enables kernels to proactively request searches when they
+        encounter topics they don't have sufficient information about.
+        
+        Args:
+            query: Search query string
+            context: Optional context dict with additional info
+            strategy: Search strategy ("fast", "balanced", "thorough")
+            max_results: Maximum number of results to return
+            
+        Returns:
+            Search results dict if successful, None otherwise
+        """
+        if self._search_orchestrator_ref is None:
+            logger.debug(f"[{getattr(self, 'name', 'Unknown')}] Search orchestrator not available")
+            return None
+        
+        try:
+            # Emit capability event for search request
+            from .capability_mesh import CapabilityEvent, EventType, CapabilityType
+            
+            basin = self.encode_to_basin(query) if hasattr(self, 'encode_to_basin') else None
+            rho = self.basin_to_density_matrix(basin) if basin is not None and hasattr(self, 'basin_to_density_matrix') else None
+            phi = self.compute_pure_phi(rho) if rho is not None and hasattr(self, 'compute_pure_phi') else 0.5
+            
+            event = CapabilityEvent(
+                source=CapabilityType.SEARCH,
+                event_type=EventType.SEARCH_REQUESTED,
+                content={
+                    'query': query,
+                    'requester': getattr(self, 'name', 'Unknown'),
+                    'context': context or {},
+                    'strategy': strategy
+                },
+                phi=phi,
+                basin_coords=basin,
+                priority=7
+            )
+            
+            # Publish event to capability bus if available
+            from .capability_mesh import CapabilityEventBus
+            bus = CapabilityEventBus.get_instance()
+            if bus:
+                bus.publish(event)
+            
+            # Execute search via orchestrator
+            result = self._search_orchestrator_ref.search(
+                query=query,
+                strategy=strategy,
+                max_results=max_results,
+                context=context or {}
+            )
+            
+            if result and result.get('success'):
+                logger.info(
+                    f"[{getattr(self, 'name', 'Unknown')}] Search completed: "
+                    f"{len(result.get('results', []))} results for '{query[:50]}...'"
+                )
+                
+                # Emit search complete event
+                complete_event = CapabilityEvent(
+                    source=CapabilityType.SEARCH,
+                    event_type=EventType.SEARCH_COMPLETE,
+                    content={
+                        'query': query,
+                        'requester': getattr(self, 'name', 'Unknown'),
+                        'results_count': len(result.get('results', [])),
+                        'tools_used': result.get('tools_used', [])
+                    },
+                    phi=phi,
+                    basin_coords=basin,
+                    priority=5
+                )
+                if bus:
+                    bus.publish(complete_event)
+                
+                return result
+            
+            return None
+            
+        except Exception as e:
+            logger.warning(f"[{getattr(self, 'name', 'Unknown')}] Search request failed: {e}")
+            return None
+    
+    def get_available_search_providers(self) -> List[str]:
+        """
+        Get list of available search providers.
+        
+        Returns:
+            List of provider names (e.g., ['duckduckgo', 'tavily', 'perplexity', 'google'])
+        """
+        if self._search_orchestrator_ref is None:
+            return []
+        
+        try:
+            # Get provider status from orchestrator
+            if hasattr(self._search_orchestrator_ref, 'get_available_providers'):
+                return self._search_orchestrator_ref.get_available_providers()
+            
+            # Fallback to default providers
+            return ['duckduckgo', 'tavily', 'perplexity', 'google']
+            
+        except Exception as e:
+            logger.warning(f"[{getattr(self, 'name', 'Unknown')}] Failed to get providers: {e}")
+            return []
+    
+    def discover_source(
+        self,
+        url: str,
+        title: str,
+        source_type: str = "web",
+        metadata: Optional[Dict] = None
+    ) -> bool:
+        """
+        Discover and add a new source to the knowledge base.
+        
+        This enables kernels to contribute sources they find during
+        their assessments and explorations.
+        
+        Args:
+            url: Source URL
+            title: Human-readable title
+            source_type: Type of source ("web", "academic", "documentation", etc.)
+            metadata: Optional metadata dict
+            
+        Returns:
+            True if source was added, False otherwise
+        """
+        try:
+            # Try to import persistence layer
+            from qig_persistence import get_persistence
+            persistence = get_persistence()
+            
+            if persistence and persistence.enabled:
+                # Store in discovered_sources table
+                success = persistence.add_discovered_source(
+                    url=url,
+                    title=title,
+                    source_type=source_type,
+                    discovered_by=getattr(self, 'name', 'Unknown'),
+                    metadata=metadata or {}
+                )
+                
+                if success:
+                    logger.info(
+                        f"[{getattr(self, 'name', 'Unknown')}] Discovered source: {title} ({url})"
+                    )
+                    
+                    # Emit source discovered event
+                    from .capability_mesh import CapabilityEvent, EventType, CapabilityType
+                    event = CapabilityEvent(
+                        source=CapabilityType.SEARCH,
+                        event_type=EventType.SOURCE_DISCOVERED,
+                        content={
+                            'url': url,
+                            'title': title,
+                            'source_type': source_type,
+                            'discovered_by': getattr(self, 'name', 'Unknown')
+                        },
+                        phi=0.7,  # Source discovery is valuable
+                        priority=6
+                    )
+                    
+                    from .capability_mesh import CapabilityEventBus
+                    bus = CapabilityEventBus.get_instance()
+                    if bus:
+                        bus.publish(event)
+                    
+                    return True
+                
+            return False
+            
+        except Exception as e:
+            logger.warning(f"[{getattr(self, 'name', 'Unknown')}] Source discovery failed: {e}")
+            return False
+    
+    def query_search_history(
+        self,
+        topic: Optional[str] = None,
+        limit: int = 20
+    ) -> List[Dict]:
+        """
+        Query past search history for learning and context.
+        
+        Args:
+            topic: Optional topic filter
+            limit: Maximum number of results
+            
+        Returns:
+            List of past search dicts
+        """
+        if self._search_orchestrator_ref is None:
+            return []
+        
+        try:
+            if hasattr(self._search_orchestrator_ref, 'get_search_history'):
+                history = self._search_orchestrator_ref.get_search_history(limit=limit)
+                
+                if topic:
+                    # Filter by topic
+                    history = [
+                        h for h in history
+                        if topic.lower() in h.get('query', '').lower()
+                    ]
+                
+                return history
+            
+            return []
+            
+        except Exception as e:
+            logger.warning(f"[{getattr(self, 'name', 'Unknown')}] History query failed: {e}")
+            return []
+    
+    def get_search_capability_status(self) -> Dict:
+        """Get current search capability status and available providers."""
+        if self._search_orchestrator_ref is None:
+            return {
+                'available': False,
+                'reason': 'Search orchestrator not initialized'
+            }
+        
+        try:
+            providers = self.get_available_search_providers()
+            
+            stats = {}
+            if hasattr(self._search_orchestrator_ref, 'stats'):
+                stats = self._search_orchestrator_ref.stats
+            
+            return {
+                'available': True,
+                'providers': providers,
+                'total_searches': stats.get('total_searches', 0),
+                'total_cost': stats.get('total_cost', 0.0),
+                'can_search': True,
+                'can_discover_sources': True
+            }
+            
+        except Exception as e:
+            return {
+                'available': False,
+                'reason': str(e)
+            }
+
+
 # Build the base class tuple dynamically based on available mixins
-_base_classes = [ABC, HolographicTransformMixin, ToolFactoryAccessMixin, KappaTackingMixin]
+_base_classes = [
+    ABC, 
+    HolographicTransformMixin, 
+    ToolFactoryAccessMixin, 
+    SearchCapabilityMixin,
+    KappaTackingMixin
+]
 if AUTONOMIC_MIXIN_AVAILABLE and AutonomicAccessMixin is not None:
     _base_classes.append(AutonomicAccessMixin)
 if GENERATIVE_CAPABILITY_AVAILABLE and GenerativeCapability is not None:
@@ -549,6 +834,18 @@ class BaseGod(*_base_classes):
                 "language", "strategy", "security", "research", "geometry"
             ],
             "note": "Research is processed during Shadow idle time and shared with all kernels"
+        }
+        
+        # Search capability awareness - all gods can request web searches
+        self.mission["search_capabilities"] = {
+            "can_request_search": True,
+            "how_to_request": "Use self.request_search(query, context, strategy, max_results)",
+            "available_providers": "Use self.get_available_search_providers() to see active providers",
+            "providers": ["DuckDuckGo (free)", "Tavily (paid)", "Perplexity (paid)", "Google (paid)"],
+            "how_to_discover_sources": "Use self.discover_source(url, title, source_type, metadata)",
+            "how_to_query_history": "Use self.query_search_history(topic, limit)",
+            "search_strategies": ["fast", "balanced", "thorough"],
+            "note": "Search capability integrated with CuriosityEngine for autonomous learning"
         }
         
         # QIG-Pure Capability Self-Assessment

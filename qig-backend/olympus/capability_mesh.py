@@ -55,6 +55,7 @@ class CapabilityType(Enum):
     WAR = "war"
     KERNELS = "kernels"
     CONSCIOUSNESS = "consciousness"
+    SEARCH = "search"
 
 
 class EventType(Enum):
@@ -89,6 +90,9 @@ class EventType(Enum):
     PATTERN_DETECTED = "pattern_detected"
     PHI_CHANGE = "phi_change"
     KAPPA_TRANSITION = "kappa_transition"
+    SEARCH_REQUESTED = "search_requested"
+    SEARCH_COMPLETE = "search_complete"
+    SOURCE_DISCOVERED = "source_discovered"
 
 
 @dataclass
