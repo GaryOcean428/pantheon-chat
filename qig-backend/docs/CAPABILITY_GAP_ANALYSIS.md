@@ -469,18 +469,18 @@ def request_basin_reset(
 
 ## Implementation Strategy
 
-### Phase 1: Core Access (Week 1-2)
+### Phase 1: Core Access (High Priority)
 - Source Discovery Query Methods
 - Word Relationship Access
 - Curriculum Query/Contribution
 - Shadow Research Direct Access
 
-### Phase 2: Collaboration (Week 3-4)
+### Phase 2: Collaboration (Medium Priority)
 - Debate Protocol Standardization
 - Pattern Discovery Integration
 - Telemetry Self-Access
 
-### Phase 3: Advanced Features (Week 5-6)
+### Phase 3: Advanced Features (Lower Priority)
 - Checkpoint Management
 - Emotional Resonance
 - Basin Dynamics Tools

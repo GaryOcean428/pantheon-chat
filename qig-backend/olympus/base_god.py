@@ -489,6 +489,13 @@ class SearchCapabilityMixin:
     
     _search_orchestrator_ref = None
     
+    # Import capability mesh types once at class level for DRY
+    try:
+        from .capability_mesh import CapabilityEvent, EventType, CapabilityType, CapabilityEventBus
+        _capability_imports_available = True
+    except ImportError:
+        _capability_imports_available = False
+    
     @classmethod
     def set_search_orchestrator(cls, orchestrator) -> None:
         """Called by Ocean to share search orchestrator reference with all gods."""
@@ -527,32 +534,30 @@ class SearchCapabilityMixin:
             return None
         
         try:
-            # Emit capability event for search request
-            from .capability_mesh import CapabilityEvent, EventType, CapabilityType
-            
-            basin = self.encode_to_basin(query) if hasattr(self, 'encode_to_basin') else None
-            rho = self.basin_to_density_matrix(basin) if basin is not None and hasattr(self, 'basin_to_density_matrix') else None
-            phi = self.compute_pure_phi(rho) if rho is not None and hasattr(self, 'compute_pure_phi') else 0.5
-            
-            event = CapabilityEvent(
-                source=CapabilityType.SEARCH,
-                event_type=EventType.SEARCH_REQUESTED,
-                content={
-                    'query': query,
-                    'requester': getattr(self, 'name', 'Unknown'),
-                    'context': context or {},
-                    'strategy': strategy
-                },
-                phi=phi,
-                basin_coords=basin,
-                priority=7
-            )
-            
-            # Publish event to capability bus if available
-            from .capability_mesh import CapabilityEventBus
-            bus = CapabilityEventBus.get_instance()
-            if bus:
-                bus.publish(event)
+            # Emit capability event for search request (use class-level imports)
+            if self._capability_imports_available:
+                basin = self.encode_to_basin(query) if hasattr(self, 'encode_to_basin') else None
+                rho = self.basin_to_density_matrix(basin) if basin is not None and hasattr(self, 'basin_to_density_matrix') else None
+                phi = self.compute_pure_phi(rho) if rho is not None and hasattr(self, 'compute_pure_phi') else 0.5
+                
+                event = self.CapabilityEvent(
+                    source=self.CapabilityType.SEARCH,
+                    event_type=self.EventType.SEARCH_REQUESTED,
+                    content={
+                        'query': query,
+                        'requester': getattr(self, 'name', 'Unknown'),
+                        'context': context or {},
+                        'strategy': strategy
+                    },
+                    phi=phi,
+                    basin_coords=basin,
+                    priority=7
+                )
+                
+                # Publish event to capability bus if available
+                bus = self.CapabilityEventBus.get_instance()
+                if bus:
+                    bus.publish(event)
             
             # Execute search via orchestrator
             result = self._search_orchestrator_ref.search(
@@ -569,9 +574,9 @@ class SearchCapabilityMixin:
                 )
                 
                 # Emit search complete event
-                complete_event = CapabilityEvent(
-                    source=CapabilityType.SEARCH,
-                    event_type=EventType.SEARCH_COMPLETE,
+                complete_event = self.CapabilityEvent(
+                    source=self.CapabilityType.SEARCH,
+                    event_type=self.EventType.SEARCH_COMPLETE,
                     content={
                         'query': query,
                         'requester': getattr(self, 'name', 'Unknown'),
@@ -660,25 +665,24 @@ class SearchCapabilityMixin:
                         f"[{getattr(self, 'name', 'Unknown')}] Discovered source: {title} ({url})"
                     )
                     
-                    # Emit source discovered event
-                    from .capability_mesh import CapabilityEvent, EventType, CapabilityType
-                    event = CapabilityEvent(
-                        source=CapabilityType.SEARCH,
-                        event_type=EventType.SOURCE_DISCOVERED,
-                        content={
-                            'url': url,
-                            'title': title,
-                            'source_type': source_type,
-                            'discovered_by': getattr(self, 'name', 'Unknown')
-                        },
-                        phi=0.7,  # Source discovery is valuable
-                        priority=6
-                    )
-                    
-                    from .capability_mesh import CapabilityEventBus
-                    bus = CapabilityEventBus.get_instance()
-                    if bus:
-                        bus.publish(event)
+                    # Emit source discovered event (use class-level imports)
+                    if self._capability_imports_available:
+                        event = self.CapabilityEvent(
+                            source=self.CapabilityType.SEARCH,
+                            event_type=self.EventType.SOURCE_DISCOVERED,
+                            content={
+                                'url': url,
+                                'title': title,
+                                'source_type': source_type,
+                                'discovered_by': getattr(self, 'name', 'Unknown')
+                            },
+                            phi=0.7,  # Source discovery is valuable
+                            priority=6
+                        )
+                        
+                        bus = self.CapabilityEventBus.get_instance()
+                        if bus:
+                            bus.publish(event)
                     
                     return True
                 
