@@ -607,10 +607,13 @@ class SearchCapabilityMixin:
             # Get provider status from orchestrator
             if hasattr(self._search_orchestrator_ref, 'get_available_providers'):
                 return self._search_orchestrator_ref.get_available_providers()
-            
-            # Fallback to default providers
-            return ['duckduckgo', 'tavily', 'perplexity', 'google']
-            
+        
+            logger.warning(
+                f"[{getattr(self, 'name', 'Unknown')}] Search orchestrator is missing "
+                f"'get_available_providers' method. Returning empty list."
+            )
+            return []
+        
         except Exception as e:
             logger.warning(f"[{getattr(self, 'name', 'Unknown')}] Failed to get providers: {e}")
             return []
