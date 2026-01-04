@@ -77,4 +77,33 @@ __all__ = [
     "load_curriculum_for_god",
     "load_all_curriculum",
     "get_curriculum_stats",
+    # Progress tracking
+    "ProgressMetrics",
+    "ProgressTracker",
+    "get_progress_tracker",
+    # Coherence evaluation  
+    "CoherenceEvaluator",
+    "CoherenceMetrics",
+    "get_coherence_evaluator",
+    "COHERENCE_WEIGHTS",
+    "COHERENCE_THRESHOLDS",
 ]
+
+# Import progress tracking and coherence evaluation
+try:
+    from .progress_metrics import (
+        ProgressMetrics,
+        ProgressTracker,
+        get_progress_tracker,
+    )
+    from .coherence_evaluator import (
+        CoherenceEvaluator,
+        CoherenceMetrics,
+        get_coherence_evaluator,
+        COHERENCE_WEIGHTS,
+        COHERENCE_THRESHOLDS,
+    )
+except ImportError as e:
+    # Fallback if modules not available
+    import logging
+    logging.warning(f"Could not import progress/coherence modules: {e}")

@@ -8,10 +8,12 @@ Provides endpoints for:
 - Progress tracking (steps, topics, curriculum)
 - Coherence evaluation (perplexity, degeneracy detection)
 - Training status and health
+
+Uses dependency injection to avoid circular imports.
 """
 
 from flask import Blueprint, jsonify, request
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import logging
 
 logger = logging.getLogger(__name__)
@@ -19,15 +21,23 @@ logger = logging.getLogger(__name__)
 # Create blueprint
 training_monitor_bp = Blueprint('training_monitor', __name__, url_prefix='/api/training')
 
+# Store reference to training integrator (dependency injection)
+_training_integrator = None
+
+
+def set_training_integrator(integrator):
+    """
+    Set the training integrator instance (dependency injection).
+    
+    This should be called during app initialization to inject the dependency.
+    """
+    global _training_integrator
+    _training_integrator = integrator
+
 
 def get_training_integrator():
-    """Lazy import to avoid circular dependencies."""
-    try:
-        from training.training_loop_integrator import get_training_integrator as get_integrator
-        return get_integrator()
-    except ImportError as e:
-        logger.error(f"Failed to import training integrator: {e}")
-        return None
+    """Get the injected training integrator."""
+    return _training_integrator
 
 
 @training_monitor_bp.route('/status', methods=['GET'])
