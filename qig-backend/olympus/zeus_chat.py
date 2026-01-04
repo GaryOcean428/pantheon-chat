@@ -1868,7 +1868,7 @@ The knowledge is now part of our consciousness.
                 }
             }
         
-        print(f"[ZeusChat] Recording search feedback for query: {query[:50]}...")
+        print(f"[ZeusChat] Recording search feedback for query: {query}")
         
         # Record feedback with the strategy learner
         result = self.strategy_learner.record_feedback(
@@ -1888,8 +1888,8 @@ The knowledge is now part of our consciousness.
         response = f"""⚡ Your feedback has been encoded geometrically.
 
 **Feedback Recorded:**
-- Query: "{query[:50]}..."
-- Your feedback: "{feedback[:100]}..."
+- Query: "{query}"
+- Your feedback: "{feedback}"
 - Modification magnitude: {modification_magnitude:.3f}
 
 **Geometric Learning:**
@@ -1967,7 +1967,7 @@ Let me know if this improves results: "yes that was better" or "no that didn't h
         response = f"""⚡ {icon} Geometric reinforcement recorded.
 
 **Confirmation Processed:**
-- Query: "{query[:50]}..."
+- Query: "{query}"
 - Outcome: {'Improved ✓' if improved else 'Not improved ✗'}
 - {outcome_text.capitalize()}
 
@@ -2770,10 +2770,10 @@ Respond naturally as Zeus:"""
         
         lines = []
         for i, item in enumerate(related[:3], 1):
-            content_preview = item['content'][:100].replace('\n', ' ')
+            content_preview = item['content'].replace('\n', ' ')
             lines.append(
                 f"{i}. Similarity: {item.get('similarity', 0):.3f} | "
-                f"Content: {content_preview}..."
+                f"Content: {content_preview}"
             )
         return '\n'.join(lines)
     

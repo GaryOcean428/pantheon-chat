@@ -2974,7 +2974,7 @@ class ToolResearchBridge:
                         print(f"[ToolResearchBridge] ToolFactory learn error: {e}")
                 
                 if patterns_extracted:
-                    print(f"[ToolResearchBridge] Auto-learned {len(patterns_extracted)} patterns from research: {topic[:50]}...")
+                    print(f"[ToolResearchBridge] Auto-learned {len(patterns_extracted)} patterns from research: {topic}")
                 
         except Exception as e:
             print(f"[ToolResearchBridge] Auto-learning error: {e}")
@@ -3444,7 +3444,7 @@ class CuriosityResearchBridge:
                 self._last_trigger_time = now
                 self._tool_requests += 1  # Increment counter
                 self._trigger_count += 1  # Increment overall trigger count
-                print(f"[CuriosityResearchBridge] Tool request routed: {topic[:40]}...")
+                print(f"[CuriosityResearchBridge] Tool request routed: {topic}")
                 return request_id
         except Exception as e:
             # On failure, don't update any state - allow retry
@@ -3495,7 +3495,7 @@ class CuriosityResearchBridge:
                 self._last_trigger_time = now
                 self._clarification_requests += 1  # Increment counter
                 self._trigger_count += 1  # Increment overall trigger count
-                print(f"[CuriosityResearchBridge] Clarification routed: {topic[:40]}...")
+                print(f"[CuriosityResearchBridge] Clarification routed: {topic}")
                 return request_id
             
             self._duplicate_prevented += 1
@@ -3624,7 +3624,7 @@ class ResearchInsightBridge:
             insight = lightning.ingest_event(event)
             if insight:
                 self._insights_generated += 1
-                print(f"[ResearchInsightBridge] Generated insight from research: {insight.insight_text[:50]}...")
+                print(f"[ResearchInsightBridge] Generated insight from research: {insight.insight_text}")
                 
         except ImportError as e:
             print(f"[ResearchInsightBridge] Could not import lightning_kernel: {e}")
