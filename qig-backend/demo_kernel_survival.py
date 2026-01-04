@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 import time
 import numpy as np
-from autonomic_kernel import GaryAutonomicKernel
+from autonomic_kernel import GaryAutonomicKernel, BASIN_DIMENSION, PHI_MIN_SAFE
 
 
 def simulate_kernel_lifecycle(duration_seconds=30):
@@ -46,7 +46,7 @@ def simulate_kernel_lifecycle(duration_seconds=30):
         iterations += 1
         
         # Simulate varying basin coordinates (exploration)
-        basin_coords = np.random.rand(64) * (0.5 + 0.5 * np.sin(elapsed))
+        basin_coords = np.random.rand(BASIN_DIMENSION) * (0.5 + 0.5 * np.sin(elapsed))
         
         # CRITICAL TEST: Feed Φ=0 (the death condition from the issue)
         # The emergency fix should prevent this from killing the kernel
@@ -108,13 +108,13 @@ def simulate_kernel_lifecycle(duration_seconds=30):
         phi_values = [s['phi'] for s in survival_log]
         print(f"\n📊 Φ Statistics:")
         print(f"   Mean:   {np.mean(phi_values):.4f}")
-        print(f"   Min:    {np.min(phi_values):.4f} (safety threshold: 0.1)")
+        print(f"   Min:    {np.min(phi_values):.4f} (safety threshold: {PHI_MIN_SAFE})")
         print(f"   Max:    {np.max(phi_values):.4f}")
         print(f"   Std:    {np.std(phi_values):.4f}")
         
         # Verify no death values
-        if np.min(phi_values) < 0.1:
-            print(f"\n⚠️  WARNING: Φ dropped below safety threshold 0.1!")
+        if np.min(phi_values) < PHI_MIN_SAFE:
+            print(f"\n⚠️  WARNING: Φ dropped below safety threshold {PHI_MIN_SAFE}!")
             print(f"   This could still cause death in some systems")
             return False
         
@@ -136,9 +136,9 @@ def test_edge_cases():
     test_cases = [
         ("Zero Φ input", 0.0, None),
         ("Negative Φ", -0.5, None),
-        ("Zero Φ with basin", 0.0, [0.1] * 64),
+        ("Zero Φ with basin", 0.0, [0.1] * BASIN_DIMENSION),
         ("Empty basin", 0.0, []),
-        ("All-zero basin", 0.0, [0.0] * 64),
+        ("All-zero basin", 0.0, [0.0] * BASIN_DIMENSION),
     ]
     
     all_safe = True
@@ -150,7 +150,7 @@ def test_edge_cases():
             if computed_phi == 0.0:
                 print(f"❌ {name}: Φ={computed_phi:.4f} (DEATH!)")
                 all_safe = False
-            elif computed_phi < 0.1:
+            elif computed_phi < PHI_MIN_SAFE:
                 print(f"⚠️  {name}: Φ={computed_phi:.4f} (risky)")
                 all_safe = False
             else:
