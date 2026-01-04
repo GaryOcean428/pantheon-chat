@@ -87,7 +87,7 @@ class PostgresCoordizer(FisherCoordizer):
                       AND source_type NOT IN ('byte_level', 'checkpoint_byte', 'special')
                       AND token ~ '^[a-zA-Z]+$'
                     ORDER BY phi_score DESC
-                    LIMIT 5000
+                    LIMIT 10000
                 """)
                 rows = cur.fetchall()
             

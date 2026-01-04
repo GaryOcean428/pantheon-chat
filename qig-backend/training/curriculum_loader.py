@@ -47,9 +47,10 @@ def get_curriculum_path() -> Path:
     """Get the absolute path to curriculum directory."""
     # Try multiple possible locations
     possible_paths = [
-        Path("/app") / CURRICULUM_DIR,  # Railway container
+        Path("/home/runner/workspace") / CURRICULUM_DIR,  # Replit workspace
         Path(__file__).parent.parent.parent / CURRICULUM_DIR,  # Relative to training module
         Path.cwd() / CURRICULUM_DIR,  # Current working directory
+        Path("/app") / CURRICULUM_DIR,  # Railway container
     ]
 
     for path in possible_paths:
