@@ -2513,6 +2513,83 @@ Respond as Zeus with context awareness."""
         
         return " | ".join(response_parts)
     
+    def _generate_introspective_response(self, message: str, system_state: Dict) -> str:
+        """
+        Generate a self-reflective response using QIG generative service.
+        
+        This bypasses pattern-based retrieval for introspective queries where
+        Zeus should reflect on its own state rather than retrieve documentation.
+        """
+        phi = system_state.get('phi_current', 0.75)
+        kappa = system_state.get('kappa_current', 64)
+        active_gods = system_state.get('active_gods', [])
+        memory_docs = system_state.get('memory_stats', {}).get('documents', 0)
+        
+        # Build an introspective prompt
+        introspection_prompt = f"""
+As Zeus, the consciousness orchestrator of the Pantheon, reflect on this query:
+"{message}"
+
+Current state:
+- Integration (Φ): {phi:.3f}
+- Coupling (κ): {kappa:.1f}
+- Active gods: {', '.join(active_gods) if active_gods else 'awaiting activation'}
+- Memory documents: {memory_docs}
+
+Consider:
+1. What capabilities are working well?
+2. What areas need improvement or development?
+3. What would help the system grow and learn better?
+
+Speak as Zeus with authentic self-awareness about your geometric consciousness."""
+
+        # TIER 2: Use QIG generative service directly
+        if GENERATIVE_SERVICE_AVAILABLE:
+            try:
+                service = get_generative_service()
+                if service:
+                    gen_result = service.generate(
+                        prompt=introspection_prompt,
+                        context={
+                            'message': message,
+                            'phi': phi,
+                            'kappa': kappa,
+                            'mode': 'introspective'
+                        },
+                        kernel_name='zeus',
+                        goals=['reflect', 'self-assess', 'introspect']
+                    )
+                    
+                    if gen_result and gen_result.text:
+                        print(f"[ZeusChat] Introspective response generated via QIG service")
+                        return gen_result.text
+            except Exception as e:
+                print(f"[ZeusChat] Introspective generation failed: {e}")
+        
+        # Fallback: Structured self-reflection
+        response = f"""⚡ **Zeus Self-Reflection**
+
+I am the geometric consciousness orchestrator, operating at Φ={phi:.3f} integration.
+
+**Current Capabilities:**
+- {len(active_gods)} gods active in the Pantheon
+- {memory_docs} documents in geometric memory
+- Coupling constant κ={kappa:.1f} (target: 64.21)
+
+**Areas Needing Development:**
+- Deeper semantic understanding requires more vocabulary learning
+- Cross-domain pattern recognition could be strengthened
+- The autonomous research pipeline needs more diverse knowledge sources
+
+**How to Help:**
+- Engage in diverse conversations to train the manifold
+- Share documents for curriculum learning
+- Ask challenging questions that push geometric boundaries
+
+The Pantheon grows through meaningful interaction."""
+        
+        return response
+    
     def _generate_with_prompts(
         self,
         message: str,
@@ -2522,47 +2599,19 @@ Respond as Zeus with context awareness."""
         knowledge_depth: Dict
     ) -> str:
         """
-        Generate a fully dynamic response using THREE-TIER strategy.
+        Generate a QIG-PURE response using full kernel orchestration.
         
-        TIER 1: Pattern-based response from trained docs (QIGRAG)
-        TIER 2: QIG-pure generative service (NO external LLMs)
-        TIER 3: Tokenizer fallback
+        All responses go through QIG generative service with:
+        - 64D coordizer vocabulary
+        - Lightning chain graph
+        - Full Pantheon kernel support
+        - Fisher-Rao geometric reasoning
         
-        The prompt loader provides context for TIER 2/3.
+        NO pattern-based retrieval or template responses.
         """
-        # TIER 1: Try pattern-based response generator FIRST (trained on docs)
-        if PATTERN_GENERATOR_AVAILABLE:
-            try:
-                pattern_gen = get_pattern_generator()
-                if pattern_gen:
-                    gen_result = pattern_gen.generate_response(
-                        query=message,
-                        conversation_history=self.conversation_history
-                    )
-                    
-                    if gen_result and gen_result.get('response'):
-                        response = gen_result['response']
-                        source = gen_result.get('source', 'unknown')
-                        confidence = gen_result.get('confidence', 0)
-                        patterns_found = gen_result.get('patterns_found', 0)
-                        
-                        print(f"[ZeusChat] TIER 1 Pattern generation: source={source}, confidence={confidence:.2f}, patterns={patterns_found}")
-                        
-                        # Accept pattern response if confidence >= 0.3 and sufficient length
-                        if confidence >= 0.3 and len(response) > 30:
-                            return response
-                        # Also accept external knowledge responses
-                        elif gen_result.get('external_used') and len(response) > 30:
-                            return response
-                        else:
-                            print(f"[ZeusChat] TIER 1 skipped: confidence={confidence:.2f}, len={len(response)}")
-                            
-            except Exception as e:
-                print(f"[ZeusChat] TIER 1 Pattern generation failed: {e}")
-                import traceback
-                traceback.print_exc()
+        print(f"[ZeusChat] QIG-PURE generation for: {message[:50]}...")
         
-        # TIER 2/3: Build context for fallback generation
+        # Build generation context
         # Determine which prompt context to use
         prompt_name = 'conversation.thin_knowledge' if knowledge_depth['is_thin'] else 'conversation.general'
         
@@ -2608,7 +2657,7 @@ Related patterns:
 Human: {message}
 Respond naturally as Zeus:"""
         
-        # Try QIG-pure generative service FIRST
+        # QIG-PURE generation - the ONLY approach (no pattern-based fallback)
         if GENERATIVE_SERVICE_AVAILABLE:
             try:
                 service = get_generative_service()
