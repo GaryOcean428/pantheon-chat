@@ -163,7 +163,10 @@ class TemporalReasoning:
         self.basin_dim = basin_dim
         
         self.foresight_horizon = 50
-        self.attractor_detection_threshold = 0.1
+        # Increased threshold so attractors are detected with moderate convergence
+        # Old: 0.1 was too strict - only perfect stationarity detected as attractor
+        # New: 0.2 allows detection when movement significantly slows
+        self.attractor_detection_threshold = 0.2
         
         self.scenario_branches = 5
         self.scenario_depth = 20
@@ -404,10 +407,10 @@ class TemporalReasoning:
         if distance < 1e-8:
             return velocity
         
-        # Reduce decay rate so velocity persists longer
-        # Old: 0.1 caused velocity to die too fast → always 1.0 attractor/naturalness
-        # New: 0.02 allows trajectory to evolve with realistic dynamics
-        decay = np.exp(-distance * 0.02)
+        # Tuned decay rate for realistic trajectory evolution
+        # History: 0.1 too fast, 0.02 too slow, 0.05 gentle but didn't show convergence
+        # 0.08 provides visible convergence over 50-step trajectory for attractor_strength > 0
+        decay = np.exp(-distance * 0.08)
         return velocity * decay
     
     def _find_attractor(
