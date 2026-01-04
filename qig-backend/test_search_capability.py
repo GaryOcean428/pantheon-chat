@@ -181,7 +181,7 @@ def test_capability_event_creation():
         print(f"   Type: {event.event_type.value}")
         
         # Create a search complete event
-        complete_event = CapabilityEvent(
+        CapabilityEvent(
             source=CapabilityType.SEARCH,
             event_type=EventType.SEARCH_COMPLETE,
             content={

@@ -648,12 +648,6 @@ CORS(app)  # Allow CORS for Node.js server
 if OLYMPUS_AVAILABLE:
     app.register_blueprint(olympus_app, url_prefix='/olympus')
     print("[INFO] Olympus Pantheon registered at /olympus")
-    
-    # Wire SearchOrchestrator to BaseGod so all kernels can search
-    if _search_orchestrator:
-        from olympus.base_god import BaseGod
-        BaseGod.set_search_orchestrator(_search_orchestrator)
-        print("[INFO] SearchOrchestrator wired to all gods/kernels")
 
 # Register DRY route blueprints (barrel imports)
 try:
@@ -749,6 +743,12 @@ try:
 
     CURIOSITY_AVAILABLE = True
     print("[INFO] Autonomous Curiosity Engine active - continuous coordizer training enabled")
+    
+    # Wire SearchOrchestrator to BaseGod after initialization
+    if OLYMPUS_AVAILABLE and _search_orchestrator:
+        from olympus.base_god import BaseGod
+        BaseGod.set_search_orchestrator(_search_orchestrator)
+        print("[INFO] SearchOrchestrator wired to all gods/kernels")
 except ImportError as e:
     print(f"[WARNING] Curiosity engine not available: {e}")
 except Exception as e:
