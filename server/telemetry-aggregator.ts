@@ -99,6 +99,9 @@ export interface AutonomyStats {
   feedbackLoopsHealthy: number;
   lastAutonomicAction: string | null;
   selfRegulationScore: number;
+  phiDataStale: boolean;
+  cachedKernelPhi: number | null;
+  cachedKernelPhiAgeMs: number | null;
 }
 
 export interface TelemetryOverview {
@@ -145,6 +148,9 @@ class TelemetryAggregator {
     feedbackLoopsHealthy: 4,
     lastAutonomicAction: null,
     selfRegulationScore: 0.8,
+    phiDataStale: false,
+    cachedKernelPhi: null,
+    cachedKernelPhiAgeMs: null,
   };
 
   async getOverview(): Promise<TelemetryOverview> {
@@ -358,6 +364,9 @@ class TelemetryAggregator {
         feedbackLoopsHealthy: autonomicState.feedbackLoopsHealthy,
         lastAutonomicAction: autonomicState.lastAutonomicAction,
         selfRegulationScore: autonomicState.selfRegulationScore,
+        phiDataStale: autonomicState.phiDataStale,
+        cachedKernelPhi: autonomicState.cachedKernelPhi,
+        cachedKernelPhiAgeMs: autonomicState.cachedKernelPhiAgeMs,
       };
     } catch (error) {
       console.error('[TelemetryAggregator] Failed to get autonomy stats:', error);

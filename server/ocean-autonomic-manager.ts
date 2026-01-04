@@ -1278,6 +1278,9 @@ export class OceanAutonomicManager {
     lastAutonomicAction: string | null;
     selfRegulationScore: number;
     cycleStats: { sleep: number; dream: number; mushroom: number };
+    phiDataStale: boolean;
+    cachedKernelPhi: number | null;
+    cachedKernelPhiAgeMs: number | null;
   } {
     const cycleStats = {
       sleep: this.cycles.filter(c => c.type === 'sleep').length,
@@ -1295,12 +1298,17 @@ export class OceanAutonomicManager {
       ? `${lastCycle.type} at ${lastCycle.triggeredAt}` 
       : null;
     
+    const kernelPhiAge = this.lastKernelPhiFetch ? Date.now() - this.lastKernelPhiFetch : null;
+    
     return {
       kernelsActive: 12,
       feedbackLoopsHealthy: 4,
       lastAutonomicAction: lastAction,
       selfRegulationScore: successRate * 0.5 + (1 - this.computeStress()) * 0.5,
       cycleStats,
+      phiDataStale: this.phiDataStale,
+      cachedKernelPhi: this.cachedKernelPhi,
+      cachedKernelPhiAgeMs: kernelPhiAge,
     };
   }
 }
