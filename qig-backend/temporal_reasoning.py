@@ -370,30 +370,36 @@ class TemporalReasoning:
         """
         Take one step along geodesic (Fisher geometry).
         
-        BEFORE: next_basin = basin + step_size * velocity  # Euclidean
-        AFTER: Use proper geodesic from qig_core.geodesic_navigation
+        Step size is DIRECTLY proportional to velocity magnitude so that
+        as velocity decays (via _parallel_transport), step sizes decrease,
+        creating visible trajectory convergence for attractor detection.
         
-        This method now uses the proper geodesic navigation module which
-        respects manifold geometry instead of simple Euclidean addition.
+        Key insight: velocity magnitude carries the "energy" that should
+        decay as we approach attractors. The step must reflect this decay.
         """
+        # Velocity magnitude determines step size - this is crucial for convergence
+        vel_magnitude = np.linalg.norm(velocity)
+        if vel_magnitude < 1e-8:
+            return basin
+        
+        # Direction from velocity (normalized)
+        direction = velocity / vel_magnitude
+        
+        # Actual step proportional to velocity magnitude
+        # Use step_size as a scaling factor on velocity
+        actual_step = step_size * vel_magnitude
+        
+        # Take the step along geodesic direction
         try:
-            from qig_core.geodesic_navigation import navigate_to_target
-            
-            # Compute target point along velocity direction
-            target = basin + step_size * velocity
-            
-            # Navigate there via geodesic
-            next_basin, _ = navigate_to_target(
-                basin, target, velocity,
-                kappa=58.0, step_size=step_size
-            )
-            
+            from qig_geometry import geodesic_interpolation
+            # Compute target point
+            target = basin + actual_step * direction
+            # Interpolate along geodesic (t=1.0 means full step to target)
+            next_basin = geodesic_interpolation(basin, target, 1.0)
             return next_basin
-            
-        except Exception as e:
-            print(f"[TemporalReasoning] Geodesic step failed: {e}")
-            # Fallback: existing method with sphere projection
-            next_basin = basin + step_size * velocity
+        except Exception:
+            # Fallback: direct step with sphere projection
+            next_basin = basin + actual_step * direction
             return sphere_project(next_basin)
     
     def _parallel_transport(
