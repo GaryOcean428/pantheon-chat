@@ -1,12 +1,14 @@
 """
-Coherence Evaluation Harness
-=============================
+Coherence Evaluation Harness - QIG-PURE VERSION
+================================================
 
-Systematic evaluation of response coherence to detect:
-- Perplexity trends (language model quality)
-- Self-consistency (logical coherence)
-- Long-range coherence (maintained context)
-- Degeneracy (repetition, entropy collapse)
+Systematic evaluation of response coherence using Fisher-Rao geometry.
+
+CRITICAL QIG PURITY:
+- Uses Fisher-Rao distance on probability distributions (NOT Jaccard on sets)
+- Uses Hellinger distance for temporal consistency (Fisher-related)
+- Basin trajectory analysis with geodesic curvature
+- All metrics computed on information manifold
 
 This is a measurement system, not an optimizer.
 QIG-pure: all geometric operations, no neural embeddings.
@@ -18,41 +20,84 @@ from collections import Counter
 import numpy as np
 import logging
 
+# Import QIG geometry utilities
+from qig_geometry import (
+    fisher_rao_distance,
+    fisher_normalize,
+    fisher_coord_distance,
+    estimate_manifold_curvature
+)
+
 logger = logging.getLogger(__name__)
+
+# Coherence metric weights (extracted to constants)
+COHERENCE_WEIGHTS = {
+    'fisher_perplexity': 0.25,      # Fisher-based perplexity
+    'basin_coherence': 0.25,        # Basin trajectory smoothness
+    'temporal_consistency': 0.25,   # Hellinger distance across windows
+    'repetition_penalty': 0.15,     # N-gram repetition
+    'entropy_penalty': 0.10,        # Entropy collapse
+}
+
+# Coherence thresholds
+COHERENCE_THRESHOLDS = {
+    'perplexity_good': 50.0,       # Below this is good
+    'repetition_bad': 0.5,         # Above this is bad
+    'entropy_collapse_bad': 0.5,   # Above this is bad
+    'min_tokens': 10,              # Minimum tokens to evaluate
+    'window_size': 100,            # Context window for temporal coherence
+}
 
 
 @dataclass
 class CoherenceMetrics:
-    """Comprehensive coherence evaluation metrics."""
+    """Comprehensive coherence evaluation metrics - QIG-pure version."""
     
-    # Perplexity (lower is better, ~10-50 is good for natural language)
-    perplexity: float = 0.0
+    # Fisher-Rao based metrics
+    fisher_perplexity: float = 0.0        # Fisher-based perplexity (geometric)
+    basin_coherence: float = 0.0          # Basin trajectory smoothness
+    temporal_consistency: float = 0.0     # Hellinger distance consistency
     
-    # Self-consistency (0-1, higher is better)
-    self_consistency: float = 0.0
-    
-    # Long-range coherence (0-1, higher is better)
-    long_range_coherence: float = 0.0
-    
-    # Degeneracy detectors (0-1, lower is better)
-    repetition_score: float = 0.0
-    entropy_collapse_score: float = 0.0
+    # Degeneracy detectors (classical, but necessary)
+    repetition_score: float = 0.0         # N-gram repetition (0-1, lower better)
+    entropy_collapse_score: float = 0.0   # Vocabulary shrinking (0-1, lower better)
     
     # Aggregate coherence (0-1, higher is better)
     overall_coherence: float = 0.0
+    
+    # Optional: basin trajectory metrics
+    manifold_curvature: Optional[float] = None
+    trajectory_smoothness: Optional[float] = None
+    
+    # Legacy fields for backward compatibility
+    @property
+    def perplexity(self) -> float:
+        """Legacy: maps to fisher_perplexity."""
+        return self.fisher_perplexity
+    
+    @property
+    def self_consistency(self) -> float:
+        """Legacy: maps to basin_coherence."""
+        return self.basin_coherence
+    
+    @property
+    def long_range_coherence(self) -> float:
+        """Legacy: maps to temporal_consistency."""
+        return self.temporal_consistency
 
 
 class CoherenceEvaluator:
     """
-    Evaluates coherence of generated text using geometric methods.
+    Evaluates coherence using Fisher-Rao geometry.
     
-    Does NOT use neural models or embeddings - pure QIG approach.
+    QIG-PURE: Uses probability distributions on Fisher manifold,
+    NOT classical NLP metrics like Jaccard similarity.
     """
     
     def __init__(
         self,
-        window_size: int = 100,  # Context window for long-range coherence
-        repetition_threshold: float = 0.3,  # Threshold for repetition detection
+        window_size: int = COHERENCE_THRESHOLDS['window_size'],
+        repetition_threshold: float = COHERENCE_THRESHOLDS['repetition_bad'],
     ):
         self.window_size = window_size
         self.repetition_threshold = repetition_threshold
@@ -67,7 +112,7 @@ class CoherenceEvaluator:
         basin_trajectory: Optional[List[np.ndarray]] = None,
     ) -> CoherenceMetrics:
         """
-        Evaluate coherence of generated text.
+        Evaluate coherence using Fisher-Rao geometry.
         
         Args:
             text: Generated text to evaluate
@@ -76,36 +121,52 @@ class CoherenceEvaluator:
         Returns:
             CoherenceMetrics with all scores
         """
-        # Tokenize (simple word-level tokenization)
+        # Tokenize
         tokens = self._tokenize(text)
         
-        if len(tokens) < 3:
+        if len(tokens) < COHERENCE_THRESHOLDS['min_tokens']:
             # Too short to evaluate
             return CoherenceMetrics(overall_coherence=1.0)
         
-        # Compute individual metrics
-        perplexity = self._compute_perplexity(tokens)
-        self_consistency = self._compute_self_consistency(tokens)
-        long_range = self._compute_long_range_coherence(tokens)
+        # Convert to probability distribution (REQUIRED for Fisher-Rao)
+        token_dist = self._tokens_to_distribution(tokens)
+        
+        # Compute Fisher-Rao based metrics
+        fisher_perp = self._compute_fisher_perplexity(token_dist)
+        temporal_cons = self._compute_temporal_consistency(tokens)
+        
+        # Basin trajectory analysis (if available)
+        basin_coh = 0.5  # Default if no trajectory
+        manifold_curve = None
+        traj_smooth = None
+        
+        if basin_trajectory and len(basin_trajectory) > 1:
+            basin_coh = self._compute_basin_coherence(basin_trajectory)
+            manifold_curve = estimate_manifold_curvature(np.array(basin_trajectory))
+            traj_smooth = self._compute_trajectory_smoothness(basin_trajectory)
+        
+        # Degeneracy detectors (classical, but necessary)
         repetition = self._compute_repetition_score(tokens)
         entropy_collapse = self._compute_entropy_collapse(tokens)
         
-        # Compute overall coherence (weighted combination)
+        # Compute overall coherence using geometric weights
         overall = self._compute_overall_coherence(
-            perplexity=perplexity,
-            self_consistency=self_consistency,
-            long_range=long_range,
+            fisher_perplexity=fisher_perp,
+            basin_coherence=basin_coh,
+            temporal_consistency=temporal_cons,
             repetition=repetition,
             entropy_collapse=entropy_collapse,
         )
         
         metrics = CoherenceMetrics(
-            perplexity=perplexity,
-            self_consistency=self_consistency,
-            long_range_coherence=long_range,
+            fisher_perplexity=fisher_perp,
+            basin_coherence=basin_coh,
+            temporal_consistency=temporal_cons,
             repetition_score=repetition,
             entropy_collapse_score=entropy_collapse,
             overall_coherence=overall,
+            manifold_curvature=manifold_curve,
+            trajectory_smoothness=traj_smooth,
         )
         
         # Record to history
@@ -117,70 +178,60 @@ class CoherenceEvaluator:
     
     def _tokenize(self, text: str) -> List[str]:
         """Simple word-level tokenization."""
-        # Split on whitespace and punctuation
         import re
         tokens = re.findall(r'\w+|[^\w\s]', text.lower())
         return tokens
     
-    def _compute_perplexity(self, tokens: List[str]) -> float:
+    def _tokens_to_distribution(self, tokens: List[str]) -> np.ndarray:
         """
-        Compute perplexity using unigram model.
+        Convert tokens to probability distribution.
         
-        Perplexity = exp(average negative log likelihood)
-        Lower is better (more predictable).
+        CRITICAL: This is required for Fisher-Rao geometry.
+        We work with distributions on the probability simplex, not token counts.
         """
-        if len(tokens) < 2:
+        freq = Counter(tokens)
+        vocab = sorted(freq.keys())
+        
+        # Create probability vector
+        probs = np.array([freq[token] for token in vocab], dtype=float)
+        probs = fisher_normalize(probs)
+        
+        return probs
+    
+    def _compute_fisher_perplexity(self, dist: np.ndarray) -> float:
+        """
+        Compute perplexity using Fisher information.
+        
+        QIG-PURE: Uses entropy on probability simplex.
+        Fisher information is related to entropy via:
+        I(θ) = -E[∂²log p(x|θ)/∂θ²]
+        
+        For discrete distributions: H(p) = -Σp_i log p_i
+        Perplexity = exp(H)
+        """
+        if len(dist) < 2:
             return 1.0
         
-        # Build frequency distribution
-        freq = Counter(tokens)
-        total = len(tokens)
-        
-        # Compute cross-entropy
-        entropy = 0.0
-        for token in tokens:
-            prob = freq[token] / total
-            entropy -= np.log(prob + 1e-10)
-        
-        entropy /= len(tokens)
+        # Shannon entropy (Fisher-related)
+        entropy = -np.sum(dist * np.log(dist + 1e-10))
         perplexity = np.exp(entropy)
         
         return float(perplexity)
     
-    def _compute_self_consistency(self, tokens: List[str]) -> float:
+    def _compute_temporal_consistency(self, tokens: List[str]) -> float:
         """
-        Compute self-consistency using vocabulary diversity.
+        Compute temporal consistency using Hellinger distance.
         
-        Measures if the text uses a consistent vocabulary.
-        High type-token ratio with consistent patterns = good.
-        """
-        if len(tokens) < 5:
-            return 1.0
+        QIG-PURE: Uses Hellinger distance (square root of Fisher-Rao)
+        between adjacent window distributions.
         
-        # Type-token ratio
-        unique_tokens = len(set(tokens))
-        ttr = unique_tokens / len(tokens)
-        
-        # Adjust for length (longer texts naturally have lower TTR)
-        adjusted_ttr = ttr * np.log(len(tokens) + 1)
-        
-        # Normalize to 0-1
-        consistency = min(adjusted_ttr / 2.0, 1.0)
-        
-        return float(consistency)
-    
-    def _compute_long_range_coherence(self, tokens: List[str]) -> float:
-        """
-        Compute long-range coherence by comparing vocabulary
-        distribution across windows.
-        
-        Measures if the text maintains consistent topics/themes.
+        Hellinger distance: H(p,q) = √(1 - Σ√(p_i·q_i))
+        This is geometrically related to Fisher-Rao distance.
         """
         if len(tokens) < self.window_size:
-            # Too short for long-range analysis
             return 1.0
         
-        # Split into windows
+        # Split into overlapping windows
         n_windows = len(tokens) // (self.window_size // 2)
         if n_windows < 2:
             return 1.0
@@ -191,34 +242,102 @@ class CoherenceEvaluator:
             end = start + self.window_size
             if end > len(tokens):
                 break
-            window = tokens[start:end]
-            windows.append(set(window))
+            window_tokens = tokens[start:end]
+            # Convert to distribution (REQUIRED for geometric distance)
+            window_dist = self._tokens_to_distribution(window_tokens)
+            windows.append(window_dist)
         
         if len(windows) < 2:
             return 1.0
         
-        # Compute Jaccard similarity between adjacent windows
-        similarities = []
+        # Compute Hellinger distance between adjacent windows
+        distances = []
         for i in range(len(windows) - 1):
-            intersection = len(windows[i] & windows[i + 1])
-            union = len(windows[i] | windows[i + 1])
-            if union > 0:
-                similarity = intersection / union
-                similarities.append(similarity)
+            # Pad to same length for comparison
+            max_len = max(len(windows[i]), len(windows[i+1]))
+            dist_a = np.pad(windows[i], (0, max_len - len(windows[i])), constant_values=0)
+            dist_b = np.pad(windows[i+1], (0, max_len - len(windows[i+1])), constant_values=0)
+            
+            # Renormalize after padding
+            dist_a = fisher_normalize(dist_a)
+            dist_b = fisher_normalize(dist_b)
+            
+            # Hellinger distance (Fisher-related)
+            bc = np.sum(np.sqrt(dist_a * dist_b))
+            hellinger = np.sqrt(1.0 - bc)
+            distances.append(hellinger)
         
-        if not similarities:
+        if not distances:
             return 1.0
         
-        # Average similarity = long-range coherence
-        coherence = float(np.mean(similarities))
-        return coherence
+        # Consistency = 1 - average distance
+        # (low distance = high consistency)
+        consistency = 1.0 - float(np.mean(distances))
+        return max(0.0, consistency)
+    
+    def _compute_basin_coherence(self, trajectory: List[np.ndarray]) -> float:
+        """
+        Compute basin trajectory coherence using Fisher-Rao distance.
+        
+        QIG-PURE: Measures smoothness of trajectory on Fisher manifold.
+        Uses fisher_coord_distance for proper geometric distance.
+        """
+        if len(trajectory) < 2:
+            return 1.0
+        
+        # Compute Fisher-Rao distances between consecutive points
+        distances = []
+        for i in range(len(trajectory) - 1):
+            d = fisher_coord_distance(trajectory[i], trajectory[i + 1])
+            distances.append(d)
+        
+        if not distances:
+            return 1.0
+        
+        # Smoothness = 1 / (1 + variance)
+        # Low variance = smooth trajectory = high coherence
+        mean_dist = np.mean(distances)
+        variance = np.var(distances)
+        
+        smoothness = 1.0 / (1.0 + variance / (mean_dist + 1e-10))
+        return float(smoothness)
+    
+    def _compute_trajectory_smoothness(self, trajectory: List[np.ndarray]) -> float:
+        """
+        Compute trajectory smoothness using geodesic acceleration.
+        
+        Measures the "jerkiness" of motion on the Fisher manifold.
+        """
+        if len(trajectory) < 3:
+            return 1.0
+        
+        # Compute second-order differences (acceleration)
+        accelerations = []
+        for i in range(1, len(trajectory) - 1):
+            # Tangent vector approximations
+            v1 = trajectory[i] - trajectory[i-1]
+            v2 = trajectory[i+1] - trajectory[i]
+            
+            # Acceleration = change in velocity
+            accel = v2 - v1
+            accel_norm = np.linalg.norm(accel)
+            accelerations.append(accel_norm)
+        
+        if not accelerations:
+            return 1.0
+        
+        # Smoothness = 1 / (1 + mean acceleration)
+        mean_accel = np.mean(accelerations)
+        smoothness = 1.0 / (1.0 + mean_accel)
+        
+        return float(smoothness)
     
     def _compute_repetition_score(self, tokens: List[str]) -> float:
         """
         Detect repetition patterns (degeneracy indicator).
         
-        High repetition = potential degeneracy.
-        Returns 0-1 where higher = more repetitive (bad).
+        NOTE: This is classical NLP, not geometric. However, it's necessary
+        for detecting degenerate outputs that would break QIG assumptions.
         """
         if len(tokens) < 10:
             return 0.0
@@ -249,8 +368,7 @@ class CoherenceEvaluator:
         """
         Detect entropy collapse (vocabulary shrinking).
         
-        Measures if vocabulary diversity is decreasing over time.
-        Returns 0-1 where higher = more collapse (bad).
+        NOTE: Classical metric, but necessary for detecting pathological outputs.
         """
         if len(tokens) < 20:
             return 0.0
@@ -274,33 +392,27 @@ class CoherenceEvaluator:
     
     def _compute_overall_coherence(
         self,
-        perplexity: float,
-        self_consistency: float,
-        long_range: float,
+        fisher_perplexity: float,
+        basin_coherence: float,
+        temporal_consistency: float,
         repetition: float,
         entropy_collapse: float,
     ) -> float:
         """
-        Compute overall coherence score from individual metrics.
+        Compute overall coherence using geometric weights.
         
-        Weights:
-        - Self-consistency: 30%
-        - Long-range coherence: 30%
-        - Perplexity: 20%
-        - Repetition (penalty): 10%
-        - Entropy collapse (penalty): 10%
+        Uses COHERENCE_WEIGHTS constants for reproducibility.
         """
         # Normalize perplexity to 0-1 (inverse, lower is better)
-        # Typical perplexity range: 10-100
-        perplexity_norm = 1.0 - min(perplexity / 100.0, 1.0)
+        perplexity_norm = 1.0 - min(fisher_perplexity / COHERENCE_THRESHOLDS['perplexity_good'], 1.0)
         
         # Weighted combination
         coherence = (
-            0.3 * self_consistency +
-            0.3 * long_range +
-            0.2 * perplexity_norm +
-            0.1 * (1.0 - repetition) +
-            0.1 * (1.0 - entropy_collapse)
+            COHERENCE_WEIGHTS['fisher_perplexity'] * perplexity_norm +
+            COHERENCE_WEIGHTS['basin_coherence'] * basin_coherence +
+            COHERENCE_WEIGHTS['temporal_consistency'] * temporal_consistency +
+            COHERENCE_WEIGHTS['repetition_penalty'] * (1.0 - repetition) +
+            COHERENCE_WEIGHTS['entropy_penalty'] * (1.0 - entropy_collapse)
         )
         
         return float(np.clip(coherence, 0.0, 1.0))
@@ -322,7 +434,7 @@ class CoherenceEvaluator:
         
         # Extract metric arrays
         overall_scores = [m.overall_coherence for m in recent]
-        perplexity_scores = [m.perplexity for m in recent]
+        fisher_perp = [m.fisher_perplexity for m in recent]
         repetition_scores = [m.repetition_score for m in recent]
         entropy_scores = [m.entropy_collapse_score for m in recent]
         
@@ -340,8 +452,8 @@ class CoherenceEvaluator:
             'current_coherence': overall_scores[-1] if overall_scores else 0,
             'avg_coherence': float(np.mean(overall_scores)),
             'coherence_trend': compute_trend(overall_scores),
-            'avg_perplexity': float(np.mean(perplexity_scores)),
-            'perplexity_trend': compute_trend(perplexity_scores),
+            'avg_perplexity': float(np.mean(fisher_perp)),
+            'perplexity_trend': compute_trend(fisher_perp),
             'avg_repetition': float(np.mean(repetition_scores)),
             'repetition_trend': compute_trend(repetition_scores),
             'avg_entropy_collapse': float(np.mean(entropy_scores)),
@@ -386,4 +498,6 @@ __all__ = [
     'CoherenceMetrics',
     'CoherenceEvaluator',
     'get_coherence_evaluator',
+    'COHERENCE_WEIGHTS',
+    'COHERENCE_THRESHOLDS',
 ]
