@@ -452,15 +452,44 @@ class ExperimentalKernelEvolution:
         # Average across the 8 octets
         return basins.view(-1, 8, 8).mean(dim=1)
 
-    def spawn_at_e8_root(self, root_index: int) -> SelfSpawningKernel:
+    def spawn_at_e8_root(self, root_index: int, pantheon_approved: bool = False, 
+                        reason: str = "") -> SelfSpawningKernel:
         """
         Spawn kernel at specific E8 root.
 
         Each kernel occupies a root in E8 space.
         E8 kernels also observe Ocean for initial learning.
+        
+        GOVERNANCE: Requires Pantheon approval unless explicitly authorized.
+        
+        Args:
+            root_index: E8 root index (0-239)
+            pantheon_approved: Explicit Pantheon approval
+            reason: Reason for spawning
+            
+        Returns:
+            Spawned kernel at E8 root
+            
+        Raises:
+            PermissionError: If spawning not authorized by Pantheon
         """
         if self.e8_roots is None:
-            return self.spawn_random_kernel(domain='e8_exploration')
+            return self.spawn_random_kernel(domain='e8_exploration', pantheon_approved=pantheon_approved, reason=reason)
+
+        # Check governance permission
+        try:
+            from olympus.pantheon_governance import get_governance
+            governance = get_governance()
+            
+            governance.check_spawn_permission(
+                reason=reason if reason else f'e8_root_{root_index}',
+                pantheon_approved=pantheon_approved
+            )
+        except ImportError:
+            print(f"[Chaos] ⚠️ Governance not available, spawning without checks")
+        except PermissionError as e:
+            print(f"[Chaos] ❌ E8 spawn blocked: {e}")
+            raise
 
         root_vector = self.e8_roots[root_index]
         basin_coords = self._root_to_basin(root_vector)
@@ -501,9 +530,12 @@ class ExperimentalKernelEvolution:
                     phi=phi,
                     kappa=0.0,
                     regime='e8_aligned',
-                    metadata={'primitive_root': root_index, 'spawn_reason': 'e8_root_alignment'}
+                    metadata={
+                        'primitive_root': root_index,
+                        'spawn_reason': reason if reason else 'e8_root_alignment'
+                    }
                 )
-                print(f"[Chaos] 🏛️ Spawned {god_name} at E8 root {root_index} (Φ={phi:.3f})")
+                print(f"[Chaos] 🏛️ Spawned {god_name} at E8 root {root_index} (Φ={phi:.3f}, reason: {reason if reason else 'e8_root_alignment'})")
             except Exception as e:
                 print(f"[Chaos] Failed to persist E8 kernel {god_name}: {e}")
 
