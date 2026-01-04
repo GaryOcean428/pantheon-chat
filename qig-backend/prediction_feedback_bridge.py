@@ -383,8 +383,8 @@ def get_prediction_feedback_bridge() -> PredictionFeedbackBridge:
         _bridge_instance = PredictionFeedbackBridge()
         
         try:
-            from prediction_self_improvement import PredictionSelfImprovement
-            tps = PredictionSelfImprovement()
+            from prediction_self_improvement import get_prediction_improvement
+            tps = get_prediction_improvement()  # Use existing singleton, not new instance
             _bridge_instance.wire_tps(tps)
         except Exception as e:
             logger.warning(f"[PredictionFeedbackBridge] Could not wire TPS: {e}")

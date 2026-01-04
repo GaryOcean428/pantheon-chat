@@ -21,7 +21,7 @@ import numpy as np
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple
 from enum import Enum
 
 logger = logging.getLogger(__name__)
@@ -380,8 +380,6 @@ class EthicsInvarianceService:
         """Add a post-check hook."""
         self._post_hooks.append(hook)
 
-
-from typing import Tuple
 
 _service_instance: Optional[EthicsInvarianceService] = None
 

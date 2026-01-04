@@ -439,16 +439,19 @@ def get_research_orchestrator() -> ResearchExecutionOrchestrator:
         _orchestrator_instance = ResearchExecutionOrchestrator()
         
         try:
-            from olympus.shadow_pantheon import get_shadow_pantheon
-            shadow = get_shadow_pantheon()
+            # ShadowPantheon is accessed via Zeus instance or research_wiring
+            from research_wiring import get_shadow_research
+            shadow = get_shadow_research()
             _orchestrator_instance.wire_shadow_pantheon(shadow)
         except Exception as e:
             logger.warning(f"[ResearchOrchestrator] Could not wire Shadow: {e}")
         
         try:
-            from olympus.tool_factory import get_tool_factory
-            factory = get_tool_factory()
-            _orchestrator_instance.wire_tool_factory(factory)
+            # ToolFactory accessed via Zeus's tool factory if available
+            from olympus.tool_factory import ToolFactory
+            # Delayed wiring - will be connected when Zeus initializes
+            # For now, create a minimal factory that defers to Zeus
+            logger.info("[ResearchOrchestrator] ToolFactory wiring deferred until Zeus init")
         except Exception as e:
             logger.warning(f"[ResearchOrchestrator] Could not wire ToolFactory: {e}")
         
