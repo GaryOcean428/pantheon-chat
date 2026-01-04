@@ -851,6 +851,50 @@ class GaryAutonomicKernel:
         # Fisher-Rao distance
         return float(2 * np.arccos(bc))
 
+    def find_nearby_attractors(
+        self,
+        current_basin: np.ndarray,
+        search_radius: float = 1.0
+    ) -> List[Tuple[np.ndarray, float]]:
+        """
+        Find attractors near current basin position using Fisher-Rao geometry.
+        
+        This uses geometric attractor finding based on Fisher potential,
+        which identifies stable basins where the system naturally settles.
+        
+        Args:
+            current_basin: Current 64D basin coordinates
+            search_radius: Search radius in Fisher-Rao distance
+            
+        Returns:
+            List of (attractor_basin, potential) sorted by strength (lowest potential = strongest)
+        """
+        try:
+            from qig_core.attractor_finding import find_attractors_in_region
+            from qiggraph.manifold import FisherManifold
+            
+            # Initialize Fisher metric
+            metric = FisherManifold()
+            
+            # Find attractors in region
+            attractors = find_attractors_in_region(
+                current_basin,
+                metric,
+                radius=search_radius,
+                n_samples=20
+            )
+            
+            if not attractors:
+                print("[AutonomicKernel] Warning: No attractors found in region")
+            else:
+                print(f"[AutonomicKernel] Found {len(attractors)} attractors within radius {search_radius}")
+            
+            return attractors
+            
+        except Exception as e:
+            print(f"[AutonomicKernel] Attractor finding failed: {e}")
+            return []
+
     def _compute_stress(self) -> float:
         """Compute stress from metric variance."""
         if len(self.state.phi_history) < 3:
