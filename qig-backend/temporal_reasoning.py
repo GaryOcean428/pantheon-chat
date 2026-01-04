@@ -414,18 +414,39 @@ class TemporalReasoning:
         """
         Find where trajectory settles (attractor basin).
         
-        QIG-PURE: First check learned attractors from LearnedManifold,
-        then fall back to trajectory convergence detection.
+        PRIMARY: Use geometric attractor finding from Fisher-Rao potential
+        FALLBACK 1: Query learned attractors from LearnedManifold
+        FALLBACK 2: Trajectory convergence detection
         """
         if len(trajectory) < 3:
             return None, None
         
-        # First check: Query learned attractors from LearnedManifold
-        learned_attractor = self._find_learned_attractor(trajectory[-1])
+        current = trajectory[-1]
+        
+        # PRIMARY: Geometric attractor finding using Fisher-Rao potential
+        try:
+            from qig_core.attractor_finding import find_attractors_in_region
+            from qiggraph.manifold import FisherManifold
+            
+            metric = FisherManifold()
+            attractors = find_attractors_in_region(
+                current, metric, radius=0.5, n_samples=10
+            )
+            
+            if attractors:
+                # Return strongest (lowest potential) attractor
+                attractor_basin, _ = attractors[0]
+                return len(trajectory) - 1, attractor_basin
+        
+        except Exception as e:
+            print(f"[TemporalReasoning] Geometric attractor finding failed: {e}")
+        
+        # FALLBACK 1: Query learned attractors from LearnedManifold
+        learned_attractor = self._find_learned_attractor(current)
         if learned_attractor is not None:
             return len(trajectory) - 1, learned_attractor
         
-        # Second check: Trajectory convergence (original method)
+        # FALLBACK 2: Trajectory convergence (original method)
         if len(trajectory) < 10:
             return None, None
         
