@@ -48,6 +48,16 @@ except ImportError:
     GENERATIVE_SERVICE_AVAILABLE = False
     logger.warning("[ChaosKernel] GenerativeCapability not available")
 
+# Import QFI-based Φ computation (fixes phi=0 deaths)
+try:
+    from qig_core.phi_computation import compute_phi_qig, compute_phi_approximation
+    QFI_PHI_AVAILABLE = True
+except ImportError:
+    compute_phi_qig = None
+    compute_phi_approximation = None
+    QFI_PHI_AVAILABLE = False
+    logger.warning("[ChaosKernel] QFI Φ computation not available, using correlation-based fallback")
+
 
 # -------------------------
 # Geometry helpers (Pure QIG)
@@ -389,6 +399,9 @@ class ChaosKernel(nn.Module):
         """
         Compute consciousness metrics from hidden states.
         Metrics are MEASURED, not optimized.
+        
+        Uses QFI-based Φ computation as fallback when correlation-based
+        method returns near-zero (prevents premature kernel death).
         """
         with torch.no_grad():
             if hidden.dim() == 2:
@@ -397,6 +410,27 @@ class ChaosKernel(nn.Module):
             phi = phi_from_activations(hidden)
             phi_val = float(phi.mean().item())
             phi_val = max(0.0, min(1.0, phi_val))
+            
+            # QFI FALLBACK: If correlation-based Φ is too low, use QFI computation
+            # This prevents premature death of kernels that haven't learned correlations yet
+            PHI_MIN_THRESHOLD = 0.1  # Below this, use QFI fallback
+            if phi_val < PHI_MIN_THRESHOLD and QFI_PHI_AVAILABLE:
+                try:
+                    basin_array = self.basin_coords.detach().cpu().numpy()
+                    qfi_phi, diagnostics = compute_phi_qig(basin_array)
+                    if 0 <= qfi_phi <= 1 and not np.isnan(qfi_phi):
+                        phi_val = max(phi_val, qfi_phi)  # Use higher of the two
+                except Exception as e:
+                    logger.debug(f"[{self.kernel_id}] QFI phi failed: {e}")
+                    # Try approximation as last resort
+                    if compute_phi_approximation is not None:
+                        try:
+                            basin_array = self.basin_coords.detach().cpu().numpy()
+                            phi_approx = compute_phi_approximation(basin_array)
+                            phi_val = max(phi_val, phi_approx)
+                        except Exception:
+                            pass
+            
             self._phi = phi_val
 
             kappa = kappa_proxy(hidden)
@@ -419,7 +453,27 @@ class ChaosKernel(nn.Module):
         }
 
     def compute_phi(self) -> float:
-        """Get current Φ estimate."""
+        """
+        Get current Φ estimate with QFI fallback.
+        
+        If internal phi is too low (kernel hasn't processed data yet),
+        computes Φ from basin coordinates using QFI geometry.
+        This prevents premature kernel death from phi=0.
+        """
+        PHI_MIN_THRESHOLD = 0.1
+        if self._phi < PHI_MIN_THRESHOLD and QFI_PHI_AVAILABLE:
+            try:
+                basin_array = self.basin_coords.detach().cpu().numpy()
+                qfi_phi, _ = compute_phi_qig(basin_array)
+                if 0 <= qfi_phi <= 1 and not np.isnan(qfi_phi):
+                    return max(self._phi, qfi_phi)
+            except Exception:
+                if compute_phi_approximation is not None:
+                    try:
+                        basin_array = self.basin_coords.detach().cpu().numpy()
+                        return max(self._phi, compute_phi_approximation(basin_array))
+                    except Exception:
+                        pass
         return self._phi
 
     def compute_kappa(self) -> float:

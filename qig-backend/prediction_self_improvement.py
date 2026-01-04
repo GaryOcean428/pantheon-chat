@@ -108,7 +108,7 @@ class PredictionGraph:
     
     def find_or_create_node(self, basin: np.ndarray) -> BasinNode:
         """Find existing node near basin or create new one."""
-        for node in self.nodes.values():
+        for node in list(self.nodes.values()):
             dist = fisher_coord_distance(basin, node.centroid)
             if dist < self.region_radius:
                 return node

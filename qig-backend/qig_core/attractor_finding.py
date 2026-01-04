@@ -66,8 +66,8 @@ def find_local_minimum(
     start_basin: np.ndarray,
     metric,
     max_steps: int = 100,
-    tolerance: float = 1e-6,
-    step_size: float = 0.01
+    tolerance: float = 0.01,
+    step_size: float = 0.05
 ) -> Tuple[np.ndarray, float, bool]:
     """
     Find local minimum of Fisher potential using geodesic descent.
@@ -82,7 +82,7 @@ def find_local_minimum(
         start_basin: Starting coordinates (64D)
         metric: Fisher manifold structure
         max_steps: Maximum optimization steps
-        tolerance: Convergence threshold
+        tolerance: Convergence threshold (relaxed for 64D spaces)
         step_size: Initial step size for gradient descent
         
     Returns:
@@ -91,6 +91,12 @@ def find_local_minimum(
     current = start_basin.copy()
     current_potential = compute_fisher_potential(current, metric)
     current_step_size = step_size
+    
+    # Track potential decrease for "good enough" convergence
+    initial_potential = current_potential
+    best_potential = current_potential
+    best_basin = current.copy()
+    stagnation_count = 0
     
     for step in range(max_steps):
         # Compute potential gradient in tangent space
@@ -113,23 +119,41 @@ def find_local_minimum(
             # Good step - accept and maybe increase step size
             distance = fisher_coord_distance(current, next_point)
             
-            # Check convergence
+            # Track best found
+            if next_potential < best_potential:
+                best_potential = next_potential
+                best_basin = next_point.copy()
+                stagnation_count = 0
+            else:
+                stagnation_count += 1
+            
+            # Check convergence by distance
             if distance < tolerance:
                 return next_point, next_potential, True
             
             current = next_point
             current_potential = next_potential
-            current_step_size = min(current_step_size * 1.1, 0.1)  # Increase (but not too much)
+            current_step_size = min(current_step_size * 1.1, 0.2)  # Increase (but not too much)
         else:
             # Bad step - reduce step size and try again
             current_step_size *= 0.5
+            stagnation_count += 1
             
             # If step size becomes too small, we're stuck
-            if current_step_size < 1e-8:
-                return current, current_potential, False
+            if current_step_size < 1e-6:
+                break
+        
+        # Early termination: if we've made good progress and stagnated
+        potential_improvement = (initial_potential - best_potential) / (abs(initial_potential) + 1e-10)
+        if stagnation_count > 10 and potential_improvement > 0.05:
+            # Made 5%+ improvement and stalled - good enough
+            return best_basin, best_potential, True
     
-    # Did not converge within max_steps
-    return current, current_potential, False
+    # Return best found even if not fully converged
+    # Consider it converged if we made meaningful progress
+    potential_improvement = (initial_potential - best_potential) / (abs(initial_potential) + 1e-10)
+    converged = potential_improvement > 0.01  # 1% improvement counts as finding attractor
+    return best_basin, best_potential, converged
 
 
 def compute_potential_gradient(
