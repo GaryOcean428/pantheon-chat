@@ -345,7 +345,7 @@ class AutonomousCuriosityEngine:
         """Submit a search/tool request from a kernel."""
         self.pending_requests.append(request)
         self.stats['kernel_requests'] += 1
-        print(f"[AutonomousCuriosityEngine] Received request from {request.kernel_name}: {request.query[:50]}...")
+        print(f"[AutonomousCuriosityEngine] Received request from {request.kernel_name}: {request.query}")
     
     def request_search(
         self,
@@ -404,7 +404,7 @@ class AutonomousCuriosityEngine:
     
     def _execute_search(self, request: KernelToolRequest):
         """Execute a search request."""
-        print(f"[AutonomousCuriosityEngine] Executing search for {request.kernel_name}: {request.query[:50]}...")
+        print(f"[AutonomousCuriosityEngine] Executing search for {request.kernel_name}: {request.query}")
         
         if self.search_callback:
             try:
@@ -627,7 +627,7 @@ class AutonomousCuriosityEngine:
             topic = self.curriculum_loader.get_next_topic(skills)
             
             if topic:
-                print(f"[AutonomousCuriosityEngine] Training {kernel_name} on: {topic['title'][:50]}...")
+                print(f"[AutonomousCuriosityEngine] Training {kernel_name} on: {topic['title']}")
                 
                 # Generate diverse queries from topic
                 keywords = topic.get('keywords', [])[:5]
