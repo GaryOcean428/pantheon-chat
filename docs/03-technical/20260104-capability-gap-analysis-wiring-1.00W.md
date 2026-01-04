@@ -1,7 +1,9 @@
-# Capability Gap Analysis
+# Capability Gap Analysis - Kernel Wiring Disconnections
 
+**Document ID:** `ISMS-TECH-CAP-001`  
+**Version:** 1.00W (Working)  
 **Date:** 2026-01-04  
-**Status:** Working Document  
+**Status:** 🔨 Working  
 **Purpose:** Identify and track disconnections between implemented capabilities and kernel awareness
 
 ## Overview
