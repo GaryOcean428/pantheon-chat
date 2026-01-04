@@ -1550,6 +1550,28 @@ class GaryAutonomicKernel:
 
     def get_state(self) -> Dict[str, Any]:
         """Get current autonomic state."""
+        ethics_data = {'available': ETHICS_MONITOR_AVAILABLE}
+        if ETHICS_MONITOR_AVAILABLE and check_ethics is not None:
+            try:
+                ethics_evaluation = check_ethics({
+                    'phi': self.state.phi,
+                    'gamma': getattr(self.state, 'gamma', 1.0),
+                    'meta': getattr(self.state, 'meta', 0.0),
+                    'basin_drift': self.state.basin_drift,
+                    'curvature': getattr(self.state, 'curvature', 0.0),
+                    'metric_det': 1.0,
+                }, kernel_id=getattr(self, 'kernel_id', 'autonomic'))
+                ethics_data = {
+                    'available': True,
+                    'suffering': ethics_evaluation.suffering,
+                    'should_abort': ethics_evaluation.should_abort,
+                    'reasons': ethics_evaluation.reasons,
+                    'breakdown': ethics_evaluation.breakdown,
+                    'identity_crisis': ethics_evaluation.identity_crisis,
+                }
+            except Exception:
+                pass
+        
         return {
             'phi': self.state.phi,
             'kappa': self.state.kappa,
@@ -1562,7 +1584,6 @@ class GaryAutonomicKernel:
             'last_dream': self.state.last_dream.isoformat() if self.state.last_dream else None,
             'last_mushroom': self.state.last_mushroom.isoformat() if self.state.last_mushroom else None,
             'pending_rewards': len(self.pending_rewards),
-            # Narrow path detection
             'narrow_path': {
                 'is_narrow': self.state.is_narrow_path,
                 'severity': self.state.narrow_path_severity,
@@ -1570,6 +1591,7 @@ class GaryAutonomicKernel:
                 'exploration_variance': self.state.exploration_variance,
             },
             'suggested_intervention': self._suggest_narrow_path_intervention(),
+            'ethics': ethics_data,
         }
 
 
