@@ -193,6 +193,8 @@ class SearchFeedbackPersistence:
         try:
             with self.get_connection() as conn:
                 with conn.cursor() as cur:
+                    # Ensure pgvector extension is available
+                    cur.execute("CREATE EXTENSION IF NOT EXISTS vector")
                     cur.execute("""
                         CREATE TABLE IF NOT EXISTS search_feedback (
                             record_id VARCHAR(64) PRIMARY KEY,

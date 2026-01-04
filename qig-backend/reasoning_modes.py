@@ -418,7 +418,14 @@ class ReasoningModeSelector:
     Select appropriate reasoning mode based on task and consciousness state.
     """
     
-    def __init__(self):
+    def __init__(self, basin_dim: int = 64):
+        """
+        Initialize reasoning mode selector.
+        
+        Args:
+            basin_dim: Dimensionality of basin coordinates (default: 64)
+        """
+        self.basin_dim = basin_dim
         self.linear = LinearReasoner()
         self.geometric = GeometricReasoner()
         self.hyperdimensional = HyperdimensionalReasoner()
