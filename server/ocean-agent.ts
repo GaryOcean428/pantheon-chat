@@ -16,7 +16,6 @@ import {
   logOceanStrategy,
 } from "./activity-log-store";
 import { generateRandomBIP39Phrase, isValidBIP39Phrase } from "./bip39-words";
-import { BlockchainForensics } from "./blockchain-forensics";
 import { getSharedController } from "./consciousness-search-controller";
 import { culturalManifold } from "./cultural-manifold";
 
@@ -833,53 +832,31 @@ export class OceanAgent {
         );
       }
 
-      // AUTONOMOUS ERA DETECTION - Analyze target address to determine Bitcoin era
+      // ERA DETECTION - Use address format analysis (blockchain APIs removed)
       logger.info("[Ocean] Analyzing target address for era detection...");
       try {
-        const forensics = new BlockchainForensics();
-        const addressAnalysis = await forensics.analyzeAddress(targetAddress);
-
-        if (addressAnalysis.creationTimestamp) {
-          const detectedEra = HistoricalDataMiner.detectEraFromTimestamp(
-            addressAnalysis.creationTimestamp
-          );
-          this.state.detectedEra = detectedEra;
-          logger.info(`[Ocean] Era detected from blockchain: ${detectedEra}`);
-          logger.info(
-            `[Ocean] Address first seen: ${addressAnalysis.creationTimestamp.toISOString()}`
-          );
-
-          // Store era detection as recent observation in working memory
-          this.memory.workingMemory.recentObservations.push(
-            `Era ${detectedEra} detected from blockchain`
-          );
-          this.memory.patterns.failedStrategies =
-            this.memory.patterns.failedStrategies || [];
-          logger.info(`[Ocean] Stored era insight: ${detectedEra}`);
-        } else {
-          // FALLBACK: Use address format to estimate era when blockchain data unavailable
-          logger.info(
-            "[Ocean] Blockchain data unavailable - using address format analysis for era estimation"
-          );
-          const formatEra =
-            HistoricalDataMiner.detectEraFromAddressFormat(targetAddress);
-          this.state.detectedEra = formatEra.era;
-          logger.info(
-            `[Ocean] Era estimated from address format: ${
-              formatEra.era
-            } (confidence: ${(formatEra.confidence * 100).toFixed(0)}%)`
-          );
-          logger.info(`[Ocean] Reasoning: ${formatEra.reasoning}`);
-          this.memory.workingMemory.recentObservations.push(
-            `Era ${formatEra.era} estimated from address format (${(
-              formatEra.confidence * 100
-            ).toFixed(0)}% confidence)`
-          );
-        }
-      } catch {
-        // FALLBACK: Use address format to estimate era when API calls fail
+        // Use address format to estimate era (blockchain analysis removed)
         logger.info(
-          "[Ocean] Era detection APIs failed - using address format analysis as fallback"
+          "[Ocean] Using address format analysis for era estimation"
+        );
+        const formatEra =
+          HistoricalDataMiner.detectEraFromAddressFormat(targetAddress);
+        this.state.detectedEra = formatEra.era;
+        logger.info(
+          `[Ocean] Era estimated from address format: ${
+            formatEra.era
+          } (confidence: ${(formatEra.confidence * 100).toFixed(0)}%)`
+        );
+        logger.info(`[Ocean] Reasoning: ${formatEra.reasoning}`);
+        this.memory.workingMemory.recentObservations.push(
+          `Era ${formatEra.era} estimated from address format (${(
+            formatEra.confidence * 100
+          ).toFixed(0)}% confidence)`
+        );
+      } catch {
+        // FALLBACK: Use address format to estimate era when analysis fails
+        logger.info(
+          "[Ocean] Era detection failed - using address format analysis as fallback"
         );
         const formatEra =
           HistoricalDataMiner.detectEraFromAddressFormat(targetAddress);

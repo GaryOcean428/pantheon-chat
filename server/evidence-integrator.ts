@@ -11,9 +11,46 @@
  */
 
 import { forensicInvestigator, type ForensicHypothesis, type MemoryFragment } from './forensic-investigator';
-import { blockchainForensics, type AddressForensics } from './blockchain-forensics';
 import { type UniversalQIGScore } from './qig-universal';
 import './qig-basin-matching';
+
+// Stub types for removed blockchain-forensics module
+interface TransactionPattern {
+  type: string;
+  frequency: number;
+  description: string;
+}
+
+interface AddressForensics {
+  address: string;
+  creationBlock?: number;
+  creationTimestamp?: Date;
+  firstTxHash?: string;
+  totalReceived: number;
+  totalSent: number;
+  balance: number;
+  txCount: number;
+  siblingAddresses: string[];
+  relatedAddresses: string[];
+  transactionPatterns: TransactionPattern[];
+}
+
+// Stub blockchain forensics - returns empty data (blockchain functionality removed)
+const blockchainForensics = {
+  analyzeAddress: async (_address: string): Promise<AddressForensics> => ({
+    address: _address,
+    totalReceived: 0,
+    totalSent: 0,
+    balance: 0,
+    txCount: 0,
+    siblingAddresses: [],
+    relatedAddresses: [],
+    transactionPatterns: [],
+  }),
+  estimateLikelyKeyFormat: (_forensics: AddressForensics) => [
+    { format: 'unknown', confidence: 0.5, reasoning: 'Blockchain analysis disabled' }
+  ],
+};
 
 export interface EvidenceSource {
   type: 'memory' | 'blockchain' | 'social' | 'temporal' | 'geometric';

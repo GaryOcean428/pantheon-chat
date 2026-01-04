@@ -41,9 +41,9 @@ async function loadWordlist(): Promise<string[]> {
   const startTime = Date.now();
   
   try {
-    // Dynamic import to avoid loading at startup
-    const bip39 = await import('bip39');
-    cachedWordlist = bip39.wordlists.english;
+    // Load from bip39-words.ts instead of bip39 npm package (removed)
+    const { BIP39_WORDS } = await import('../bip39-words');
+    cachedWordlist = BIP39_WORDS;
     cachedWordSet = new Set(cachedWordlist);
     
     logger.debug({ 

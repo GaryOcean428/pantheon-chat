@@ -165,7 +165,6 @@ import {
 import { getErrorMessage } from './lib/error-utils';
 import { logger } from './lib/logger';
 import { scoreUniversalQIGAsync } from './qig-universal';
-import { blockchainForensics } from './blockchain-forensics';
 import { OceanAgent, type OceanHypothesis } from './ocean-agent';
 
 type Era = 'genesis-2009' | '2010-2011' | '2012-2013';
@@ -340,35 +339,28 @@ class UnifiedRecoveryOrchestrator {
       console.log(`[UnifiedRecovery] Analyzing blockchain for ${session.targetAddress}`);
       
       try {
-        const forensics = await blockchainForensics.analyzeAddress(session.targetAddress);
-        const isPreBIP39 = blockchainForensics.isPreBIP39Era(forensics);
-        const likelyFormats = blockchainForensics.estimateLikelyKeyFormat(forensics);
-        
-        // Convert likely formats to probability map
-        const likelyFormat = { arbitrary: 0, bip39: 0, master: 0 };
-        for (const fmt of likelyFormats) {
-          if (fmt.format === 'arbitrary') likelyFormat.arbitrary = fmt.confidence;
-          else if (fmt.format === 'bip39') likelyFormat.bip39 = fmt.confidence;
-          else if (fmt.format === 'hd_wallet') likelyFormat.master = fmt.confidence;
-        }
+        // Blockchain analysis removed - use defaults based on address format
+        const isLegacyAddress = session.targetAddress.startsWith('1');
+        const isPreBIP39 = isLegacyAddress; // Legacy P2PKH addresses may be pre-BIP39
         
         session.blockchainAnalysis = {
           era: isPreBIP39 ? 'pre-bip39' : 'post-bip39',
-          firstSeen: forensics.creationTimestamp?.toISOString(),
-          totalReceived: forensics.totalReceived,
-          balance: forensics.balance,
-          txCount: forensics.txCount,
-          likelyFormat,
-          neighborAddresses: forensics.siblingAddresses || [],
+          totalReceived: 0,
+          balance: 0,
+          txCount: 0,
+          likelyFormat: isPreBIP39 
+            ? { arbitrary: 0.7, bip39: 0.2, master: 0.1 }
+            : { arbitrary: 0.2, bip39: 0.6, master: 0.2 },
+          neighborAddresses: [],
         };
         
-        // Add evidence from blockchain analysis
+        // Add evidence from address format analysis
         session.evidence.push({
-          id: `ev-blockchain-${Date.now()}`,
+          id: `ev-format-${Date.now()}`,
           type: 'blockchain',
-          source: 'Blockstream API',
-          content: `Era: ${isPreBIP39 ? 'pre-bip39' : 'post-bip39'}, First seen: ${forensics.creationTimestamp?.toISOString() || 'unknown'}`,
-          relevance: 0.9,
+          source: 'Address Format Analysis',
+          content: `Era: ${isPreBIP39 ? 'pre-bip39' : 'post-bip39'} (estimated from address format)`,
+          relevance: 0.6,
           extractedFragments: [],
           discoveredAt: new Date().toISOString(),
         });

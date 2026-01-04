@@ -553,7 +553,7 @@ export default function ZettelkastenDashboard() {
         fetchStats();
         fetchGraph();
       } else {
-        throw new Error(data.error || 'Failed to add memory');
+        throw new Error('Failed to add memory');
       }
     } catch (error) {
       console.error('Error adding zettel:', error);

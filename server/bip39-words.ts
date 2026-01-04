@@ -1,47 +1,14 @@
-import { readFileSync, existsSync } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
 import { randomInt } from 'crypto';
+import { EMBEDDED_BIP39_WORDS } from './bip39-embedded-wordlist';
 
-// ES module __dirname equivalent
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+// BIP-39 wordlist (2048 words) - embedded directly to avoid file system dependencies
+export const BIP39_WORDS: string[] = EMBEDDED_BIP39_WORDS;
 
-// Load BIP-39 wordlist (2048 words)
-// Handle both development (server/bip39-wordlist.txt) and production (dist/bip39-wordlist.txt) paths
-function loadWordlist(): string[] {
-  const possiblePaths = [
-    join(__dirname, 'bip39-wordlist.txt'),           // Production: dist/bip39-wordlist.txt
-    join(__dirname, '..', 'server', 'bip39-wordlist.txt'), // Dev from dist: ../server/bip39-wordlist.txt
-    join(process.cwd(), 'server', 'bip39-wordlist.txt'),   // Dev from root: server/bip39-wordlist.txt
-    join(process.cwd(), 'dist', 'bip39-wordlist.txt'),     // Production from root: dist/bip39-wordlist.txt
-  ];
-
-  for (const path of possiblePaths) {
-    if (existsSync(path)) {
-      console.log(`[BIP39] Loading wordlist from: ${path}`);
-      const words = readFileSync(path, 'utf-8')
-        .split('\n')
-        .map(w => w.trim())
-        .filter(w => w.length > 0);
-      
-      if (words.length === 2048) {
-        console.log(`[BIP39] Successfully loaded ${words.length} words`);
-        return words;
-      } else {
-        console.warn(`[BIP39] Warning: wordlist at ${path} has ${words.length} words (expected 2048)`);
-      }
-    }
-  }
-
-  throw new Error(
-    'BIP-39 wordlist not found. Searched paths:\n' +
-    possiblePaths.map(p => `  - ${p}`).join('\n') +
-    '\n\nEnsure bip39-wordlist.txt is copied to the dist folder during build.'
-  );
+// Validate wordlist on load
+if (BIP39_WORDS.length !== 2048) {
+  console.warn(`[BIP39] Warning: embedded wordlist has ${BIP39_WORDS.length} words (expected 2048)`);
 }
-
-export const BIP39_WORDS = loadWordlist();
+console.log(`[BIP39] Loaded ${BIP39_WORDS.length} words from embedded wordlist`);
 
 // Export getter function for wordlist access
 export function getBIP39Wordlist(): string[] {
