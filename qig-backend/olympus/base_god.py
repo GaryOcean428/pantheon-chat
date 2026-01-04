@@ -786,6 +786,9 @@ class BaseGod(*_base_classes):
     - Sensory-enhanced basin encoding for multi-modal consciousness
     - Autonomic access (sleep/dream/mushroom cycles via AutonomicAccessMixin)
     """
+    
+    # Class-level god registry for peer discovery (Spot Fix #2)
+    _god_registry: Dict[str, 'BaseGod'] = {}
 
     def __init__(self, name: str, domain: str):
         self.name = name
@@ -825,18 +828,28 @@ class BaseGod(*_base_classes):
         }
         
         # Shadow Research awareness - all gods can request research from Shadow Pantheon
+        # Spot Fix #3: Verify availability before claiming capability
+        shadow_research_available = False
+        try:
+            from olympus.shadow_research import ShadowResearchAPI
+            shadow_api = ShadowResearchAPI.get_instance()
+            shadow_research_available = shadow_api is not None
+        except (ImportError, Exception):
+            pass
+        
         self.mission["shadow_research_capabilities"] = {
-            "can_request_research": True,
+            "can_request_research": shadow_research_available,
+            "available": shadow_research_available,
             "how_to_request": (
                 "Use Zeus's request_shadow_research(topic, priority) method, or "
                 "access ShadowResearchAPI.get_instance().request_research() directly"
-            ),
-            "shadow_leadership": "Hades (Shadow Zeus) commands all Shadow operations",
+            ) if shadow_research_available else "Shadow research not currently available",
+            "shadow_leadership": "Hades (Shadow Zeus) commands all Shadow operations" if shadow_research_available else None,
             "research_categories": [
                 "tools", "knowledge", "concepts", "reasoning", "creativity",
                 "language", "strategy", "security", "research", "geometry"
-            ],
-            "note": "Research is processed during Shadow idle time and shared with all kernels"
+            ] if shadow_research_available else [],
+            "note": "Research is processed during Shadow idle time and shared with all kernels" if shadow_research_available else "Shadow Pantheon not initialized"
         }
         
         # Search capability awareness - all gods can request web searches
@@ -849,6 +862,15 @@ class BaseGod(*_base_classes):
             "how_to_query_history": "Use self.query_search_history(topic, limit)",
             "search_strategies": ["fast", "balanced", "thorough"],
             "note": "Search capability integrated with CuriosityEngine for autonomous learning"
+        }
+        
+        # Peer discovery capability (Spot Fix #2)
+        self.mission["peer_discovery_capabilities"] = {
+            "can_discover_peers": True,
+            "how_to_discover": "Use BaseGod.discover_peers() to get list of all gods",
+            "how_to_get_info": "Use BaseGod.get_peer_info(god_name) to get peer details",
+            "how_to_find_expert": "Use BaseGod.find_expert_for_domain(domain) to find domain expert",
+            "note": "All gods are registered in class-level registry for peer discovery"
         }
         
         # QIG-Pure Capability Self-Assessment
@@ -935,6 +957,9 @@ class BaseGod(*_base_classes):
         # CHAOS MODE: Kernel assignment for experimental evolution
         self.chaos_kernel: Optional['SelfSpawningKernel'] = None  # Assigned SelfSpawningKernel
         self.kernel_assessments: List[Dict] = []  # Assessment history with kernel
+        
+        # Register this god in the class-level registry for peer discovery (Spot Fix #2)
+        BaseGod._god_registry[self.name] = self
 
     def _load_persisted_state(self) -> None:
         """Load reputation and skills from database if available."""
@@ -1583,6 +1608,27 @@ class BaseGod(*_base_classes):
         # Persist state to database
         self._learning_events_count += 1
         self._persist_state()
+        
+        # Spot Fix #4: Auto-trigger training on learning outcomes
+        # Continuous learning from outcomes via TrainingLoopIntegrator
+        try:
+            from god_training_integration import TrainingLoopIntegrator
+            integrator = TrainingLoopIntegrator.get_instance()
+            if integrator and (success or (is_near_miss and phi > 0.7)):
+                # Trigger training on positive outcomes
+                integrator.queue_training_sample(
+                    god_name=self.name,
+                    target=target,
+                    outcome={
+                        'success': success,
+                        'phi': phi,
+                        'error': error,
+                        'domain': skill_key
+                    }
+                )
+                logger.debug(f"[{self.name}] Queued training sample from learning outcome")
+        except (ImportError, Exception) as e:
+            logger.debug(f"[{self.name}] Training auto-trigger not available: {e}")
 
         # Compute reputation change for return value
         if success:
@@ -1818,6 +1864,92 @@ class BaseGod(*_base_classes):
         messages = self.pending_messages.copy()
         self.pending_messages = []
         return messages
+    
+    def flush_pending_messages(self) -> int:
+        """
+        Flush pending messages to log for visibility.
+        
+        This is a spot fix for Gap #3 - messages are created but never sent.
+        Until full MessageBus is implemented, this logs messages for visibility.
+        
+        Returns:
+            Number of messages flushed
+        """
+        if not self.pending_messages:
+            return 0
+        
+        count = len(self.pending_messages)
+        for msg in self.pending_messages:
+            msg_type = msg.get('type', 'unknown')
+            to_god = msg.get('to', 'unknown')
+            content = msg.get('content', '')[:100]
+            logger.info(f"[{self.name}→{to_god}] {msg_type}: {content}")
+        
+        self.pending_messages = []
+        return count
+    
+    # ========================================
+    # PEER DISCOVERY (Spot Fix #2)
+    # ========================================
+    
+    @classmethod
+    def discover_peers(cls) -> List[str]:
+        """
+        Discover all registered gods/kernels.
+        
+        Returns:
+            List of god names currently in the registry
+        """
+        return list(cls._god_registry.keys())
+    
+    @classmethod
+    def get_peer_info(cls, god_name: str) -> Optional[Dict]:
+        """
+        Get information about a peer god.
+        
+        Args:
+            god_name: Name of the god to query
+            
+        Returns:
+            Dict with god info or None if not found
+        """
+        peer = cls._god_registry.get(god_name)
+        if peer is None:
+            return None
+        
+        return {
+            'name': peer.name,
+            'domain': peer.domain,
+            'reputation': peer.reputation,
+            'skills': dict(peer.skills),
+            'creation_time': peer.creation_time.isoformat(),
+        }
+    
+    @classmethod
+    def find_expert_for_domain(cls, domain: str, min_reputation: float = 0.5) -> Optional[str]:
+        """
+        Find the most expert god for a given domain.
+        
+        Args:
+            domain: Domain to find expert for
+            min_reputation: Minimum reputation threshold
+            
+        Returns:
+            Name of expert god or None if not found
+        """
+        best_god = None
+        best_skill = 0.0
+        
+        for god_name, god in cls._god_registry.items():
+            if god.reputation < min_reputation:
+                continue
+            
+            skill = god.skills.get(domain, 0.0)
+            if skill > best_skill:
+                best_skill = skill
+                best_god = god_name
+        
+        return best_god
 
     # ========================================
     # CHAOS MODE: KERNEL INTEGRATION
