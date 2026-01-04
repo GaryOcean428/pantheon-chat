@@ -408,9 +408,10 @@ class TemporalReasoning:
             return velocity
         
         # Tuned decay rate for realistic trajectory evolution
-        # History: 0.1 too fast, 0.02 too slow, 0.05 gentle but didn't show convergence
-        # 0.08 provides visible convergence over 50-step trajectory for attractor_strength > 0
-        decay = np.exp(-distance * 0.08)
+        # The actual step distance from fisher_coord_distance is very small (~0.001-0.01)
+        # Need high decay rate (10-20) to achieve visible convergence in 9 steps
+        # With dist~0.005, rate=15: decay=exp(-0.075)≈0.93 per step → 0.93^8≈0.56 after 8 steps
+        decay = np.exp(-distance * 15.0)
         return velocity * decay
     
     def _find_attractor(
@@ -579,18 +580,31 @@ class TemporalReasoning:
         trajectory: Optional[List[np.ndarray]] = None
     ) -> float:
         """Measure attractor strength from trajectory convergence."""
-        if trajectory is None or len(trajectory) < 10:
+        if trajectory is None or len(trajectory) < 4:
             return 0.5
+        
+        n_movements = len(trajectory) - 1
+        
+        # For short trajectories, compare first half vs second half
+        # For longer ones, use first 10 vs last 10
+        if n_movements < 20:
+            # Short trajectory: split in half
+            mid = n_movements // 2
+            initial_range = range(0, mid)
+            final_range = range(mid, n_movements)
+        else:
+            # Longer trajectory: first 10 vs last 10
+            initial_range = range(0, 10)
+            final_range = range(n_movements - 10, n_movements)
+        
+        initial_movements = [
+            fisher_coord_distance(trajectory[i], trajectory[i+1])
+            for i in initial_range
+        ]
         
         final_movements = [
             fisher_coord_distance(trajectory[i], trajectory[i+1])
-            for i in range(max(0, len(trajectory)-10), len(trajectory)-1)
-        ]
-        
-        # Compare final vs initial movement to measure actual convergence
-        initial_movements = [
-            fisher_coord_distance(trajectory[i], trajectory[i+1])
-            for i in range(min(10, len(trajectory)-1))
+            for i in final_range
         ]
         
         avg_final = np.mean(final_movements) if final_movements else 0.0
