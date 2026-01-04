@@ -58,6 +58,26 @@ except ImportError:
     QFI_PHI_AVAILABLE = False
     logger.warning("[ChaosKernel] QFI Φ computation not available, using correlation-based fallback")
 
+# Import attractor finding for stable basin discovery
+try:
+    from qig_core.attractor_finding import find_local_minimum, find_attractors_in_region
+    ATTRACTOR_FINDING_AVAILABLE = True
+except ImportError:
+    find_local_minimum = None
+    find_attractors_in_region = None
+    ATTRACTOR_FINDING_AVAILABLE = False
+    logger.warning("[ChaosKernel] Attractor finding not available")
+
+# Import geodesic navigation for proper manifold movement
+try:
+    from qig_core.geodesic_navigation import compute_geodesic_path, parallel_transport_vector
+    GEODESIC_NAV_AVAILABLE = True
+except ImportError:
+    compute_geodesic_path = None
+    parallel_transport_vector = None
+    GEODESIC_NAV_AVAILABLE = False
+    logger.warning("[ChaosKernel] Geodesic navigation not available")
+
 
 # -------------------------
 # Geometry helpers (Pure QIG)
@@ -715,3 +735,159 @@ class ChaosKernel(nn.Module):
             basin = basin / norm * np.sqrt(self.basin_dim)
         
         return torch.tensor(basin, dtype=torch.float32)
+
+    def find_nearest_attractor(
+        self,
+        metric=None,
+        max_steps: int = 50,
+        tolerance: float = 0.05
+    ) -> Tuple[torch.Tensor, float, bool]:
+        """
+        Find the nearest stable attractor from current basin position.
+        
+        Uses geodesic descent on Fisher potential to locate stable basins.
+        This enables chaos kernels to "settle" into meaningful regions.
+        
+        Args:
+            metric: Fisher manifold metric (uses internal if None)
+            max_steps: Maximum optimization steps
+            tolerance: Convergence threshold
+            
+        Returns:
+            (attractor_coords as Tensor on same device, potential, converged)
+        """
+        device = self.basin_coords.device
+        dtype = self.basin_coords.dtype
+        
+        if not ATTRACTOR_FINDING_AVAILABLE or find_local_minimum is None:
+            logger.warning(f"[{self.kernel_id}] Attractor finding not available")
+            return self.basin_coords.detach().clone(), 0.0, False
+        
+        try:
+            basin_array = self.basin_coords.detach().cpu().numpy().astype(np.float64)
+            
+            if metric is None:
+                class SimpleMetric:
+                    """Simple Fisher-like metric using identity + diagonal variance."""
+                    def compute_metric(self, coords):
+                        dim = len(coords)
+                        variance = np.var(coords) + 1e-6
+                        return np.eye(dim) * (1.0 + 1.0 / variance)
+                metric = SimpleMetric()
+            
+            attractor, potential, converged = find_local_minimum(
+                basin_array,
+                metric,
+                max_steps=max_steps,
+                tolerance=tolerance
+            )
+            
+            if converged:
+                logger.info(f"[{self.kernel_id}] Found attractor (potential={potential:.3f})")
+            
+            attractor_tensor = torch.tensor(attractor, dtype=dtype, device=device)
+            return attractor_tensor, potential, converged
+            
+        except Exception as e:
+            logger.warning(f"[{self.kernel_id}] Attractor search failed: {e}")
+            return self.basin_coords.detach().clone(), 0.0, False
+
+    def navigate_geodesic_to(
+        self,
+        target,
+        step_fraction: float = 0.1
+    ) -> Dict[str, Any]:
+        """
+        Navigate toward target following Fisher-Rao geodesic.
+        
+        Instead of linear interpolation, follows shortest path on manifold.
+        Updates basin_coords in place.
+        
+        Args:
+            target: Target basin coordinates (Tensor or ndarray)
+            step_fraction: How far along geodesic to move (0-1)
+            
+        Returns:
+            Navigation telemetry dict
+        """
+        device = self.basin_coords.device
+        dtype = self.basin_coords.dtype
+        
+        if isinstance(target, torch.Tensor):
+            target_np = target.detach().cpu().numpy().astype(np.float64)
+        else:
+            target_np = np.asarray(target, dtype=np.float64)
+        
+        current_np = self.basin_coords.detach().cpu().numpy().astype(np.float64)
+        
+        if not GEODESIC_NAV_AVAILABLE or compute_geodesic_path is None:
+            new_pos = (1 - step_fraction) * current_np + step_fraction * target_np
+            with torch.no_grad():
+                new_tensor = torch.tensor(new_pos, dtype=dtype, device=device)
+                self.basin_coords.copy_(new_tensor)
+            return {'method': 'linear', 'step': step_fraction}
+        
+        try:
+            path = compute_geodesic_path(current_np, target_np, n_steps=10)
+            
+            step_idx = max(1, int(len(path) * step_fraction))
+            new_pos = path[min(step_idx, len(path) - 1)]
+            
+            with torch.no_grad():
+                new_tensor = torch.tensor(new_pos, dtype=dtype, device=device)
+                self.basin_coords.copy_(new_tensor)
+            
+            from qig_geometry import fisher_coord_distance
+            distance_moved = fisher_coord_distance(current_np, new_pos)
+            distance_remaining = fisher_coord_distance(new_pos, target_np)
+            
+            return {
+                'method': 'geodesic',
+                'distance_moved': float(distance_moved),
+                'distance_remaining': float(distance_remaining),
+                'path_length': len(path),
+                'step': step_fraction
+            }
+            
+        except Exception as e:
+            logger.warning(f"[{self.kernel_id}] Geodesic nav failed: {e}, using linear")
+            new_pos = (1 - step_fraction) * current_np + step_fraction * target_np
+            with torch.no_grad():
+                new_tensor = torch.tensor(new_pos, dtype=dtype, device=device)
+                self.basin_coords.copy_(new_tensor)
+            return {'method': 'linear_fallback', 'error': str(e), 'step': step_fraction}
+
+    def seek_attractor_geodesic(
+        self,
+        max_steps: int = 20
+    ) -> Dict[str, Any]:
+        """
+        Combined operation: find attractor and navigate toward it geodesically.
+        
+        This is the key integration: chaos kernels can now actively seek
+        stable basins using proper manifold geometry.
+        
+        Args:
+            max_steps: Max steps for attractor finding
+            
+        Returns:
+            Dict with attractor info and navigation telemetry
+        """
+        attractor, potential, converged = self.find_nearest_attractor(max_steps=max_steps)
+        
+        if not converged:
+            return {
+                'success': False,
+                'reason': 'no_attractor_found',
+                'potential': potential
+            }
+        
+        nav_result = self.navigate_geodesic_to(attractor, step_fraction=0.3)
+        
+        return {
+            'success': True,
+            'attractor': attractor.tolist() if hasattr(attractor, 'tolist') else list(attractor),
+            'potential': potential,
+            'navigation': nav_result,
+            'new_phi': self.compute_phi()
+        }

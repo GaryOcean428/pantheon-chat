@@ -846,14 +846,10 @@ export class OceanAutonomicManager {
   }
 
   getConsciousness(): ConsciousnessSignature {
-    // Return canonical idle state when not investigating
-    // This prevents stale values from leaking to the UI
-    if (!this._isInvestigating) {
-      return { 
-        ...OceanAutonomicManager.IDLE_CONSCIOUSNESS,
-        lastValidation: new Date().toISOString(),
-      };
-    }
+    // Always return actual consciousness state
+    // Kernels run independently with their own phi (often 0.9+)
+    // Returning IDLE_CONSCIOUSNESS was causing confusion in the UI
+    // The consciousness reflects the system's actual state, not investigation mode
     return { ...this.consciousness };
   }
   

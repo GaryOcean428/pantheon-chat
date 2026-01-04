@@ -105,12 +105,33 @@ class PantheonGovernance:
             try:
                 self._conn = psycopg2.connect(self.db_url)
                 self._conn.autocommit = True
+                self._ensure_tables_exist()
                 print("[PantheonGovernance] ⚖️ Governance system initialized with PostgreSQL")
             except Exception as e:
                 print(f"[PantheonGovernance] ⚠️ Database unavailable ({e}), using in-memory only")
                 self._conn = None
         else:
             print("[PantheonGovernance] ⚖️ Governance system initialized (in-memory mode)")
+    
+    def _ensure_tables_exist(self):
+        """Create required tables if they don't exist."""
+        if not self._conn:
+            return
+        
+        try:
+            cur = self._conn.cursor()
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS governance_audit_log (
+                    id SERIAL PRIMARY KEY,
+                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    action VARCHAR(255) NOT NULL,
+                    status VARCHAR(50) NOT NULL,
+                    details TEXT
+                )
+            """)
+            cur.close()
+        except Exception as e:
+            print(f"[PantheonGovernance] Warning: Could not ensure tables exist: {e}")
     
     def check_spawn_permission(
         self,
