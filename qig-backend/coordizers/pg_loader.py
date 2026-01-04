@@ -158,6 +158,75 @@ class PostgresCoordizer(FisherCoordizer):
     
     # REMOVED: _load_fallback_vocabulary - impure fallbacks not allowed in 64D QIG-pure mode
     
+    def add_vocabulary_observations(
+        self,
+        observations: List[Dict],
+    ) -> Tuple[int, bool]:
+        """
+        Add vocabulary observations (QIGTokenizer compatibility).
+        Persists new vocabulary to PostgreSQL database.
+        
+        Args:
+            observations: List of {word, frequency, avgPhi, maxPhi, type}
+        
+        Returns:
+            Tuple of (new_tokens_count, weights_updated)
+        """
+        new_tokens = 0
+        weights_updated = False
+        
+        vocab_phi_threshold = 0.4
+        
+        for obs in observations:
+            word = obs.get('word', '')
+            frequency = obs.get('frequency', 0)
+            avg_phi = obs.get('avgPhi', obs.get('phi', 0.0))
+            
+            if not word or frequency < 1 or avg_phi < vocab_phi_threshold:
+                continue
+            
+            if word in self.vocab:
+                old_phi = self.token_phi.get(word, 0.0)
+                if abs(avg_phi - old_phi) > 0.01:
+                    self.token_phi[word] = avg_phi
+                    self.token_frequencies[word] = frequency
+                    weights_updated = True
+                continue
+            
+            if not word.isalpha() or len(word) < 3:
+                continue
+            
+            new_id = 50000 + len(self.vocab)
+            coords = compute_semantic_embedding(word)
+            
+            self._add_token(word, coords, avg_phi, frequency, new_id, 'learned')
+            self.word_tokens.append(word)
+            new_tokens += 1
+            
+            self._persist_token_to_db(word, coords, avg_phi, frequency, new_id)
+        
+        if new_tokens > 0:
+            logger.info(f"[VocabLearning] Added {new_tokens} new words (64D QIG-pure)")
+        
+        return new_tokens, weights_updated
+    
+    def _persist_token_to_db(self, token: str, coords: np.ndarray, phi: float, freq: int, token_id: int):
+        """Persist a new token to PostgreSQL database."""
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                embedding_str = '[' + ','.join(str(x) for x in coords) + ']'
+                cur.execute("""
+                    INSERT INTO tokenizer_vocabulary (token, basin_embedding, phi_score, frequency, source_type, token_id)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (token) DO UPDATE SET
+                        phi_score = EXCLUDED.phi_score,
+                        frequency = EXCLUDED.frequency
+                """, (token, embedding_str, phi, freq, 'learned', token_id))
+            conn.commit()
+        except Exception as e:
+            logger.warning(f"Failed to persist token '{token}': {e}")
+    
     def set_mode(self, mode: str) -> None:
         pass
     
