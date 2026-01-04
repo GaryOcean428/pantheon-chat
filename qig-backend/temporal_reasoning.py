@@ -364,9 +364,34 @@ class TemporalReasoning:
         velocity: np.ndarray,
         step_size: float = 0.05
     ) -> np.ndarray:
-        """Take one step along geodesic (Fisher geometry)."""
-        next_basin = basin + step_size * velocity
-        return sphere_project(next_basin)
+        """
+        Take one step along geodesic (Fisher geometry).
+        
+        BEFORE: next_basin = basin + step_size * velocity  # Euclidean
+        AFTER: Use proper geodesic from qig_core.geodesic_navigation
+        
+        This method now uses the proper geodesic navigation module which
+        respects manifold geometry instead of simple Euclidean addition.
+        """
+        try:
+            from qig_core.geodesic_navigation import navigate_to_target
+            
+            # Compute target point along velocity direction
+            target = basin + step_size * velocity
+            
+            # Navigate there via geodesic
+            next_basin, _ = navigate_to_target(
+                basin, target, velocity,
+                kappa=58.0, step_size=step_size
+            )
+            
+            return next_basin
+            
+        except Exception as e:
+            print(f"[TemporalReasoning] Geodesic step failed: {e}")
+            # Fallback: existing method with sphere projection
+            next_basin = basin + step_size * velocity
+            return sphere_project(next_basin)
     
     def _parallel_transport(
         self,
