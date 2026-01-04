@@ -382,6 +382,137 @@ class ZeusConversationHandler(GeometricGenerationMixin):
         
         if EVOLUTION_AVAILABLE:
             print("[ZeusChat] CHAOS MODE evolution integration available")
+        
+        # ========================================
+        # CAPABILITY DELEGATION (PR #4 WIRING)
+        # Delegate to Zeus god-kernel for capability access
+        # ========================================
+        print("[ZeusChat] Wiring capability access via composition pattern")
+    
+    # ========================================
+    # CAPABILITY DELEGATION METHODS
+    # Zeus god-kernel capabilities accessible to chat interface
+    # ========================================
+    
+    def request_search(
+        self,
+        query: str,
+        context: Optional[Dict] = None,
+        strategy: str = "balanced",
+        max_results: int = 10
+    ) -> Optional[Dict]:
+        """
+        Request a web search when hitting a knowledge gap.
+        Delegates to Zeus god-kernel's SearchCapabilityMixin.
+        """
+        return self.zeus.request_search(query, context, strategy, max_results)
+    
+    def discover_peers(self) -> List[str]:
+        """
+        Discover all registered gods/kernels.
+        Delegates to Zeus god-kernel's PeerDiscoveryMixin.
+        """
+        return self.zeus.discover_peers()
+    
+    def query_curriculum(
+        self,
+        topic: Optional[str] = None,
+        difficulty: Optional[float] = None
+    ) -> List[Dict]:
+        """
+        Query available curriculum topics.
+        Delegates to Zeus god-kernel's CurriculumAccessMixin.
+        """
+        return self.zeus.query_curriculum(topic, difficulty)
+    
+    def query_discovered_sources(
+        self,
+        topic: Optional[str] = None,
+        source_type: Optional[str] = None,
+        min_quality: float = 0.0,
+        limit: int = 20
+    ) -> List[Dict]:
+        """
+        Query previously discovered sources.
+        Delegates to Zeus god-kernel's SourceDiscoveryQueryMixin.
+        """
+        return self.zeus.query_discovered_sources(topic, source_type, min_quality, limit)
+    
+    def query_word_relationships(
+        self,
+        word1: str,
+        word2: Optional[str] = None,
+        min_strength: float = 0.0
+    ) -> List[Tuple[str, str, float]]:
+        """
+        Query learned word relationships.
+        Delegates to Zeus god-kernel's WordRelationshipAccessMixin.
+        """
+        return self.zeus.query_word_relationships(word1, word2, min_strength)
+    
+    def request_curriculum_learning(
+        self,
+        topic: str,
+        priority: float = 0.5
+    ) -> Optional[str]:
+        """
+        Request specific curriculum topic learning.
+        Delegates to Zeus god-kernel's CurriculumAccessMixin.
+        """
+        if hasattr(self.zeus, 'request_curriculum_learning'):
+            return self.zeus.request_curriculum_learning(topic, priority)
+        return None
+    
+    def discover_pattern(
+        self,
+        observation: str,
+        context: Optional[Dict] = None
+    ) -> Optional[Dict]:
+        """
+        Discover patterns from observations.
+        Delegates to Zeus god-kernel's PatternDiscoveryMixin.
+        """
+        if hasattr(self.zeus, 'discover_pattern'):
+            return self.zeus.discover_pattern(observation, context)
+        return None
+    
+    def save_checkpoint(
+        self,
+        checkpoint_name: str,
+        metadata: Optional[Dict] = None
+    ) -> bool:
+        """
+        Save conversation checkpoint.
+        Delegates to Zeus god-kernel's CheckpointManagementMixin.
+        """
+        if hasattr(self.zeus, 'save_checkpoint'):
+            return self.zeus.save_checkpoint(checkpoint_name, metadata)
+        return False
+    
+    def load_checkpoint(
+        self,
+        checkpoint_name: str
+    ) -> Optional[Dict]:
+        """
+        Load conversation checkpoint.
+        Delegates to Zeus god-kernel's CheckpointManagementMixin.
+        """
+        if hasattr(self.zeus, 'load_checkpoint'):
+            return self.zeus.load_checkpoint(checkpoint_name)
+        return None
+    
+    def get_peer_info(self, god_name: str) -> Optional[Dict]:
+        """
+        Get information about a peer god.
+        Delegates to Zeus god-kernel's PeerDiscoveryMixin.
+        """
+        if hasattr(self.zeus, 'get_peer_info'):
+            return self.zeus.get_peer_info(god_name)
+        return None
+    
+    # ========================================
+    # END CAPABILITY DELEGATION
+    # ========================================
     
     def _sanitize_external(self, response: Dict) -> Dict:
         """
