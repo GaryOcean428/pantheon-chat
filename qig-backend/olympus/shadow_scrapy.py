@@ -972,7 +972,7 @@ class ScrapyOrchestrator:
             discovered = self.source_discovery.get_sources_for_topic(topic, max_sources=1)
             if discovered:
                 telemetry_url = discovered[0]['url']
-                print(f"[ScrapyOrchestrator] Using telemetry URL: {telemetry_url[:50]}...")
+                print(f"[ScrapyOrchestrator] Using telemetry URL: {telemetry_url}")
         
         self.pending_crawls[crawl_id] = {
             'spider_type': spider_type,
@@ -1156,8 +1156,8 @@ class ScrapyOrchestrator:
                             metadata={'category': result.get('category', 'exploratory')}
                         )
                         
-                        content_parts.append(f"Discovered source: {source_url[:50]}...")
-                        content_parts.append(result['content'][:800])
+                        content_parts.append(f"Discovered source: {source_url}")
+                        content_parts.append(result['content'])
                         content_parts.append("")
             
             live_content = "\n".join(content_parts)

@@ -741,7 +741,7 @@ class ToolFactory:
                 }
             )
 
-        print(f"[ToolFactory] Learned pattern from user: {description[:50]}...")
+        print(f"[ToolFactory] Learned pattern from user: {description}")
         return pattern
 
     def learn_from_git_link(self, git_url: str, description: str, secret_key_name: Optional[str] = None) -> Optional[LearnedPattern]:
@@ -982,7 +982,7 @@ class ToolFactory:
             new_patterns = current_matching_ids - last_fail_pattern_ids
             
             if cooldown_expired:
-                print(f"[ToolFactory] Cooldown expired, allowing retry for: {description[:50]}...")
+                print(f"[ToolFactory] Cooldown expired, allowing retry for: {description}")
                 del self.failed_descriptions[description]
             elif new_patterns:
                 print(f"[ToolFactory] Found {len(new_patterns)} new compatible patterns, allowing retry")
@@ -996,7 +996,7 @@ class ToolFactory:
             print("[ToolFactory] For better results, provide patterns via:")
             print("[ToolFactory]   - /learn/template, /learn/git, /learn/file, /learn/search")
             # Queue proactive search to learn patterns for future
-            print(f"[ToolFactory] Queuing proactive search for: {description[:50]}...")
+            print(f"[ToolFactory] Queuing proactive search for: {description}")
             self.proactive_search(description)
             # Continue with best-effort generation instead of failing
 
@@ -1817,7 +1817,7 @@ class AutonomousToolPipeline:
         with self._lock:
             self._requests[request_id] = request
         
-        print(f"[AutonomousPipeline] New request from {requester}: {description[:50]}...")
+        print(f"[AutonomousPipeline] New request from {requester}: {description}")
         
         # Immediately start research if bridge available
         self._initiate_research(request)
@@ -1848,7 +1848,7 @@ class AutonomousToolPipeline:
                         requester=f"AutonomousPipeline:{request.requester}"
                     )
                     request.research_requests.append(research_id)
-                    print(f"[AutonomousPipeline] Research requested: {topic[:40]}...")
+                    print(f"[AutonomousPipeline] Research requested: {topic}")
                 except Exception as e:
                     print(f"[AutonomousPipeline] Research request failed: {e}")
         
@@ -1900,10 +1900,10 @@ class AutonomousToolPipeline:
             # Show last 3 active requests
             active = [r for r in requests if r.state not in [ToolLifecycleState.DEPLOYED, ToolLifecycleState.FAILED]][-3:]
             for r in active:
-                print(f"  Request {r.request_id[:8]}... ({r.state.value}): '{r.description[:40]}...'")
+                print(f"  Request {r.request_id} ({r.state.value}): '{r.description}'")
                 print(f"    Requester: {r.requester}, Iteration: {r.iteration}/{r.max_iterations}")
                 if r.error_history:
-                    print(f"    Last error: {r.error_history[-1][:60]}...")
+                    print(f"    Last error: {r.error_history[-1]}")
         
         # Show factory patterns
         stats = self.tool_factory.get_learning_stats()
