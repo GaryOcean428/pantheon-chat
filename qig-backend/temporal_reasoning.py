@@ -399,12 +399,15 @@ class TemporalReasoning:
         from_basin: np.ndarray,
         to_basin: np.ndarray
     ) -> np.ndarray:
-        """Parallel transport velocity along geodesic."""
+        """Parallel transport velocity along geodesic with realistic decay."""
         distance = fisher_coord_distance(from_basin, to_basin)
         if distance < 1e-8:
             return velocity
         
-        decay = np.exp(-distance * 0.1)
+        # Reduce decay rate so velocity persists longer
+        # Old: 0.1 caused velocity to die too fast → always 1.0 attractor/naturalness
+        # New: 0.02 allows trajectory to evolve with realistic dynamics
+        decay = np.exp(-distance * 0.02)
         return velocity * decay
     
     def _find_attractor(
@@ -545,15 +548,27 @@ class TemporalReasoning:
     def _measure_path_smoothness(self, trajectory: List[np.ndarray]) -> float:
         """Measure geodesic smoothness using Fisher distance."""
         if len(trajectory) < 3:
-            return 1.0
+            return 0.7  # Uncertain when trajectory too short
         
         step_sizes = [
             fisher_coord_distance(trajectory[i], trajectory[i+1])
             for i in range(len(trajectory)-1)
         ]
         
-        variance = np.var(step_sizes)
-        return float(np.exp(-variance * 10))
+        if len(step_sizes) < 2:
+            return 0.7
+        
+        # Coefficient of variation (CV) - more robust than raw variance
+        mean_step = np.mean(step_sizes)
+        if mean_step < 1e-8:
+            return 0.5  # Stationary trajectory, not "smooth" in meaningful sense
+        
+        std_step = np.std(step_sizes)
+        cv = std_step / mean_step  # 0 = perfect smoothness, high = bumpy
+        
+        # Map CV to smoothness: CV=0 → 1.0, CV=1 → 0.37, CV=2 → 0.14
+        smoothness = float(np.exp(-cv))
+        return np.clip(smoothness, 0.1, 0.95)  # Avoid extreme values
     
     def _measure_attractor_strength(
         self,
@@ -569,8 +584,24 @@ class TemporalReasoning:
             for i in range(max(0, len(trajectory)-10), len(trajectory)-1)
         ]
         
-        convergence = 1.0 - min(1.0, np.mean(final_movements) / 0.5)
-        return float(np.clip(convergence, 0.0, 1.0))
+        # Compare final vs initial movement to measure actual convergence
+        initial_movements = [
+            fisher_coord_distance(trajectory[i], trajectory[i+1])
+            for i in range(min(10, len(trajectory)-1))
+        ]
+        
+        avg_final = np.mean(final_movements) if final_movements else 0.0
+        avg_initial = np.mean(initial_movements) if initial_movements else 0.001
+        
+        # Ratio-based convergence: how much did movement decrease?
+        # 0 = no convergence (final same as initial), 1 = perfect convergence (final << initial)
+        if avg_initial < 1e-6:
+            return 0.5  # No initial movement, can't measure convergence
+        
+        ratio = avg_final / avg_initial
+        convergence = float(np.clip(1.0 - ratio, 0.0, 1.0))
+        
+        return convergence
     
     def _measure_geodesic_naturalness(self, trajectory: List[np.ndarray]) -> float:
         """Measure how natural the geodesic path is."""
