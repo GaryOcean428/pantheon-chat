@@ -80,6 +80,13 @@ NARROW_PATH_PHI_STAGNATION = 0.02  # Φ not changing = plateau
 NARROW_PATH_WINDOW = 20  # Samples to check for narrow path
 NARROW_PATH_TRIGGER_COUNT = 3  # Consecutive detections before action
 
+# EMERGENCY Φ APPROXIMATION CONSTANTS
+BASIN_DIMENSION = 64  # Standard basin coordinate dimensionality
+PHI_EPSILON = 1e-10  # Small value to prevent division by zero in probability calculations
+PHI_MIN_SAFE = 0.1  # Minimum safe Φ to prevent kernel death
+PHI_MAX_APPROX = 0.95  # Maximum Φ from approximation (reserve higher values for true QFI)
+PHI_VARIANCE_SCALE = 4.0  # Variance scaling factor for exploration reward
+
 
 @dataclass
 class AutonomicState:
@@ -467,21 +474,21 @@ def compute_phi_approximation(basin_coords: np.ndarray) -> float:
     - Balance: Integration requires multiple components active (not dominated)
     
     Returns:
-        Φ estimate in range [0.1, 0.95]
+        Φ estimate in range [PHI_MIN_SAFE, PHI_MAX_APPROX]
     """
     try:
         # Ensure valid probability distribution
-        p = np.abs(basin_coords) + 1e-10
+        p = np.abs(basin_coords) + PHI_EPSILON
         p = p / p.sum()
         
         # Component 1: Entropy (information content)
-        entropy = -np.sum(p * np.log(p + 1e-10))
+        entropy = -np.sum(p * np.log(p + PHI_EPSILON))
         max_entropy = np.log(len(p))
         entropy_score = entropy / max_entropy
         
-        # Component 2: Variance (exploration)
+        # Component 2: Variance (exploration reward - higher variance = more exploration)
         variance = np.var(basin_coords)
-        variance_score = min(1.0, variance * 4.0)
+        variance_score = min(1.0, variance * PHI_VARIANCE_SCALE)
         
         # Component 3: Balance (not too concentrated)
         balance = 1.0 - np.max(p)
@@ -490,11 +497,11 @@ def compute_phi_approximation(basin_coords: np.ndarray) -> float:
         phi = 0.4 * entropy_score + 0.3 * variance_score + 0.3 * balance
         
         # Safety bounds: never return exactly 0 (causes death)
-        return float(np.clip(phi, 0.1, 0.95))
+        return float(np.clip(phi, PHI_MIN_SAFE, PHI_MAX_APPROX))
         
     except Exception as e:
         print(f"[AutonomicKernel] Φ approximation error: {e}")
-        return 0.1
+        return PHI_MIN_SAFE
 
 
 def compute_phi_with_fallback(
@@ -506,7 +513,7 @@ def compute_phi_with_fallback(
         return provided_phi
     if basin_coords:
         return compute_phi_approximation(np.array(basin_coords))
-    return 0.1
+    return PHI_MIN_SAFE
 
 
 class GaryAutonomicKernel:
