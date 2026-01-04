@@ -760,12 +760,603 @@ class SearchCapabilityMixin:
             }
 
 
+class SourceDiscoveryQueryMixin:
+    """
+    Provides Source Discovery query capability to all gods/kernels.
+    
+    Gods can:
+    1. Query previously discovered sources by topic/domain
+    2. Get source quality scores
+    3. Search discovered sources efficiently
+    
+    All methods are no-op safe (work even if persistence unavailable).
+    """
+    
+    def query_discovered_sources(
+        self,
+        topic: Optional[str] = None,
+        source_type: Optional[str] = None,
+        min_quality: float = 0.0,
+        limit: int = 20
+    ) -> List[Dict]:
+        """
+        Query previously discovered sources.
+        
+        Args:
+            topic: Optional topic filter (searches in title/url)
+            source_type: Optional type filter ("web", "academic", "documentation", etc.)
+            min_quality: Minimum quality score threshold
+            limit: Maximum number of results
+            
+        Returns:
+            List of source dicts with metadata
+        """
+        try:
+            from qig_persistence import get_persistence
+            persistence = get_persistence()
+            
+            if not persistence or not persistence.enabled:
+                logger.debug(f"[{getattr(self, 'name', 'Unknown')}] Persistence not available for source query")
+                return []
+            
+            # Query discovered sources from PostgreSQL
+            sources = persistence.query_discovered_sources(
+                topic=topic,
+                source_type=source_type,
+                min_quality=min_quality,
+                limit=limit
+            )
+            
+            logger.info(f"[{getattr(self, 'name', 'Unknown')}] Queried {len(sources)} discovered sources")
+            return sources
+            
+        except Exception as e:
+            logger.warning(f"[{getattr(self, 'name', 'Unknown')}] Source query failed: {e}")
+            return []
+    
+    def get_source_quality(self, url: str) -> Optional[float]:
+        """
+        Get quality score for a discovered source.
+        
+        Args:
+            url: Source URL to query
+            
+        Returns:
+            Quality score (0.0-1.0) or None if not found
+        """
+        try:
+            from qig_persistence import get_persistence
+            persistence = get_persistence()
+            
+            if not persistence or not persistence.enabled:
+                return None
+            
+            quality = persistence.get_source_quality(url)
+            return quality
+            
+        except Exception as e:
+            logger.warning(f"[{getattr(self, 'name', 'Unknown')}] Quality query failed: {e}")
+            return None
+    
+    def get_sources_by_domain(
+        self,
+        domain: str,
+        limit: int = 10
+    ) -> List[Dict]:
+        """
+        Get top sources for a specific domain.
+        
+        Args:
+            domain: Domain name (e.g., "strategy", "war", "wisdom")
+            limit: Maximum number of results
+            
+        Returns:
+            List of top-quality sources for the domain
+        """
+        # Query sources with domain as topic filter
+        sources = self.query_discovered_sources(
+            topic=domain,
+            limit=limit
+        )
+        
+        # Sort by quality if available
+        sources.sort(key=lambda s: s.get('quality', 0.0), reverse=True)
+        return sources[:limit]
+
+
+class WordRelationshipAccessMixin:
+    """
+    Provides Word Relationship access capability to all gods/kernels.
+    
+    Gods can:
+    1. Query learned word relationships (3.19M pairs)
+    2. Contribute new word pairs from observations
+    3. Get domain-specific vocabulary
+    
+    All methods are no-op safe.
+    """
+    
+    def query_word_relationships(
+        self,
+        word1: str,
+        word2: Optional[str] = None,
+        min_strength: float = 0.0
+    ) -> List[Tuple[str, str, float]]:
+        """
+        Query learned word relationships.
+        
+        Args:
+            word1: First word
+            word2: Optional second word (if None, returns all relationships for word1)
+            min_strength: Minimum relationship strength threshold
+            
+        Returns:
+            List of (word1, word2, strength) tuples
+        """
+        try:
+            from learned_relationships import get_word_relationships
+            
+            relationships = get_word_relationships(
+                word1=word1,
+                word2=word2,
+                min_strength=min_strength
+            )
+            
+            logger.debug(f"[{getattr(self, 'name', 'Unknown')}] Found {len(relationships)} word relationships")
+            return relationships
+            
+        except Exception as e:
+            logger.warning(f"[{getattr(self, 'name', 'Unknown')}] Word relationship query failed: {e}")
+            return []
+    
+    def contribute_word_pair(
+        self,
+        word1: str,
+        word2: str,
+        context: str,
+        strength_hint: Optional[float] = None
+    ) -> bool:
+        """
+        Contribute a word pair from observation.
+        
+        Args:
+            word1: First word
+            word2: Second word
+            context: Context where the relationship was observed
+            strength_hint: Optional strength hint (0.0-1.0)
+            
+        Returns:
+            True if contribution was accepted
+        """
+        try:
+            from word_relationship_learner import WordRelationshipLearner
+            
+            learner = WordRelationshipLearner.get_instance()
+            if learner:
+                success = learner.add_observation(
+                    word1=word1,
+                    word2=word2,
+                    context=context,
+                    strength=strength_hint,
+                    source=getattr(self, 'name', 'Unknown')
+                )
+                
+                if success:
+                    logger.info(f"[{getattr(self, 'name', 'Unknown')}] Contributed word pair: {word1}-{word2}")
+                return success
+            
+            return False
+            
+        except Exception as e:
+            logger.warning(f"[{getattr(self, 'name', 'Unknown')}] Word pair contribution failed: {e}")
+            return False
+    
+    def get_domain_vocabulary(
+        self,
+        domain: Optional[str] = None,
+        top_n: int = 100
+    ) -> Dict[str, float]:
+        """
+        Get most important words for this domain.
+        
+        Args:
+            domain: Domain name (defaults to self.domain)
+            top_n: Number of top words to return
+            
+        Returns:
+            Dict mapping words to importance scores
+        """
+        domain = domain or getattr(self, 'domain', None)
+        if not domain:
+            return {}
+        
+        try:
+            from learned_relationships import get_domain_vocabulary
+            
+            vocabulary = get_domain_vocabulary(
+                domain=domain,
+                top_n=top_n
+            )
+            
+            logger.debug(f"[{getattr(self, 'name', 'Unknown')}] Retrieved {len(vocabulary)} domain words")
+            return vocabulary
+            
+        except Exception as e:
+            logger.warning(f"[{getattr(self, 'name', 'Unknown')}] Domain vocabulary query failed: {e}")
+            return {}
+
+
+class CurriculumAccessMixin:
+    """
+    Provides Curriculum access capability to all gods/kernels.
+    
+    Gods can:
+    1. Query available curriculum topics
+    2. Request specific curriculum learning
+    3. Contribute curriculum content
+    4. Track learning progress
+    
+    All methods are no-op safe.
+    """
+    
+    def query_curriculum(
+        self,
+        topic: Optional[str] = None,
+        difficulty: Optional[float] = None
+    ) -> List[Dict]:
+        """
+        Query available curriculum topics.
+        
+        Args:
+            topic: Optional topic filter
+            difficulty: Optional difficulty filter (0.0-1.0)
+            
+        Returns:
+            List of curriculum topic dicts
+        """
+        try:
+            from autonomous_curiosity import get_curiosity_engine
+            
+            engine = get_curiosity_engine()
+            if not engine or not hasattr(engine, 'curriculum_loader'):
+                return []
+            
+            topics = engine.curriculum_loader.curriculum_topics
+            
+            # Apply filters
+            if topic:
+                topics = [t for t in topics if topic.lower() in t.get('title', '').lower()]
+            
+            if difficulty is not None:
+                topics = [t for t in topics if abs(t.get('difficulty', 0.5) - difficulty) < 0.2]
+            
+            logger.debug(f"[{getattr(self, 'name', 'Unknown')}] Found {len(topics)} curriculum topics")
+            return topics
+            
+        except Exception as e:
+            logger.warning(f"[{getattr(self, 'name', 'Unknown')}] Curriculum query failed: {e}")
+            return []
+    
+    def request_curriculum_learning(
+        self,
+        topic: str,
+        priority: float = 0.5
+    ) -> Optional[str]:
+        """
+        Request specific curriculum topic learning.
+        
+        Args:
+            topic: Topic to learn
+            priority: Priority level (0.0-1.0)
+            
+        Returns:
+            Request ID if successful
+        """
+        try:
+            from autonomous_curiosity import get_curiosity_engine
+            
+            engine = get_curiosity_engine()
+            if not engine:
+                return None
+            
+            # Create a learning request
+            from autonomous_curiosity import KernelRequest
+            request = KernelRequest(
+                kernel_name=getattr(self, 'name', 'Unknown'),
+                request_type='curriculum',
+                query=topic,
+                priority=priority
+            )
+            
+            engine.pending_requests.append(request)
+            logger.info(f"[{getattr(self, 'name', 'Unknown')}] Requested curriculum learning: {topic}")
+            
+            return f"curriculum_{topic}_{datetime.now().timestamp()}"
+            
+        except Exception as e:
+            logger.warning(f"[{getattr(self, 'name', 'Unknown')}] Curriculum request failed: {e}")
+            return None
+    
+    def contribute_curriculum(
+        self,
+        title: str,
+        content: str,
+        keywords: List[str],
+        difficulty: float = 0.5
+    ) -> bool:
+        """
+        Contribute curriculum content based on expertise.
+        
+        Args:
+            title: Curriculum title
+            content: Content text
+            keywords: List of keywords
+            difficulty: Difficulty level (0.0-1.0)
+            
+        Returns:
+            True if contribution was accepted
+        """
+        try:
+            from autonomous_curiosity import get_curiosity_engine
+            
+            engine = get_curiosity_engine()
+            if not engine or not hasattr(engine, 'curriculum_loader'):
+                return False
+            
+            topic = {
+                'title': title,
+                'content': content,
+                'keywords': keywords,
+                'difficulty': difficulty,
+                'type': 'contributed',
+                'contributor': getattr(self, 'name', 'Unknown')
+            }
+            
+            engine.curriculum_loader.curriculum_topics.append(topic)
+            logger.info(f"[{getattr(self, 'name', 'Unknown')}] Contributed curriculum: {title}")
+            
+            return True
+            
+        except Exception as e:
+            logger.warning(f"[{getattr(self, 'name', 'Unknown')}] Curriculum contribution failed: {e}")
+            return False
+    
+    def get_learning_progress(self) -> Dict:
+        """
+        Get this kernel's curriculum learning progress.
+        
+        Returns:
+            Dict with progress stats
+        """
+        try:
+            from autonomous_curiosity import get_curiosity_engine
+            
+            engine = get_curiosity_engine()
+            if not engine or not hasattr(engine, 'curriculum_loader'):
+                return {'available': False}
+            
+            loader = engine.curriculum_loader
+            total = len(loader.curriculum_topics)
+            completed = len(loader.completed_topics)
+            
+            return {
+                'available': True,
+                'total_topics': total,
+                'completed_topics': completed,
+                'completion_rate': completed / total if total > 0 else 0.0,
+                'completed_list': list(loader.completed_topics)
+            }
+            
+        except Exception as e:
+            logger.warning(f"[{getattr(self, 'name', 'Unknown')}] Progress query failed: {e}")
+            return {'available': False, 'error': str(e)}
+
+
+class PatternDiscoveryMixin:
+    """
+    Provides Pattern Discovery capability to all gods/kernels.
+    
+    Gods can:
+    1. Request pattern discovery on data
+    2. Query previously discovered patterns
+    3. Use unbiased QIG measurements
+    
+    All methods are no-op safe.
+    """
+    
+    def discover_patterns(
+        self,
+        data: np.ndarray,
+        pattern_type: str = "auto"
+    ) -> Dict:
+        """
+        Request pattern discovery on data.
+        
+        Args:
+            data: Data array to analyze
+            pattern_type: Type of pattern ("auto", "regimes", "correlations", "thresholds")
+            
+        Returns:
+            Dict with discovered patterns
+        """
+        try:
+            from unbiased.pattern_discovery import PatternDiscovery
+            
+            discovery = PatternDiscovery()
+            discovery.add_measurements(data)
+            
+            if pattern_type == "auto" or pattern_type == "regimes":
+                patterns = discovery.discover_regimes_clustering()
+            elif pattern_type == "correlations":
+                patterns = discovery.discover_correlations()
+            elif pattern_type == "thresholds":
+                patterns = discovery.discover_thresholds()
+            else:
+                patterns = discovery.discover_regimes_clustering()
+            
+            logger.info(f"[{getattr(self, 'name', 'Unknown')}] Discovered {pattern_type} patterns")
+            return patterns
+            
+        except Exception as e:
+            logger.warning(f"[{getattr(self, 'name', 'Unknown')}] Pattern discovery failed: {e}")
+            return {'success': False, 'error': str(e)}
+    
+    def get_discovered_patterns(
+        self,
+        domain: Optional[str] = None
+    ) -> List[Dict]:
+        """
+        Get previously discovered patterns.
+        
+        Args:
+            domain: Optional domain filter
+            
+        Returns:
+            List of pattern dicts
+        """
+        # TODO: Implement pattern storage and retrieval when persistence is added
+        logger.debug(f"[{getattr(self, 'name', 'Unknown')}] Pattern history not yet persisted")
+        return []
+
+
+class CheckpointManagementMixin:
+    """
+    Provides Checkpoint Management capability to all gods/kernels.
+    
+    Gods can:
+    1. Create checkpoints of their state
+    2. Restore from checkpoints
+    3. Query checkpoint history
+    
+    All methods are no-op safe.
+    """
+    
+    def create_checkpoint(
+        self,
+        description: str,
+        metadata: Optional[Dict] = None
+    ) -> str:
+        """
+        Create a checkpoint of current state.
+        
+        Args:
+            description: Checkpoint description
+            metadata: Optional metadata dict
+            
+        Returns:
+            Checkpoint ID
+        """
+        try:
+            from checkpoint_manager import CheckpointManager
+            
+            manager = CheckpointManager.get_instance()
+            if not manager:
+                return ""
+            
+            checkpoint_data = {
+                'god_name': getattr(self, 'name', 'Unknown'),
+                'domain': getattr(self, 'domain', 'unknown'),
+                'reputation': getattr(self, 'reputation', 1.0),
+                'skills': dict(getattr(self, 'skills', {})),
+                'observations_count': len(getattr(self, 'observations', [])),
+                'learning_count': len(getattr(self, 'learning_history', [])),
+                'description': description,
+                'metadata': metadata or {}
+            }
+            
+            checkpoint_id = manager.create_checkpoint(
+                name=f"{getattr(self, 'name', 'Unknown')}_checkpoint",
+                data=checkpoint_data
+            )
+            
+            logger.info(f"[{getattr(self, 'name', 'Unknown')}] Created checkpoint: {checkpoint_id}")
+            return checkpoint_id
+            
+        except Exception as e:
+            logger.warning(f"[{getattr(self, 'name', 'Unknown')}] Checkpoint creation failed: {e}")
+            return ""
+    
+    def restore_from_checkpoint(
+        self,
+        checkpoint_id: str
+    ) -> bool:
+        """
+        Restore state from a checkpoint.
+        
+        Args:
+            checkpoint_id: Checkpoint ID to restore
+            
+        Returns:
+            True if restoration successful
+        """
+        try:
+            from checkpoint_manager import CheckpointManager
+            
+            manager = CheckpointManager.get_instance()
+            if not manager:
+                return False
+            
+            data = manager.restore_checkpoint(checkpoint_id)
+            if not data:
+                return False
+            
+            # Restore state
+            if 'reputation' in data:
+                self.reputation = data['reputation']
+            if 'skills' in data:
+                self.skills.update(data['skills'])
+            
+            logger.info(f"[{getattr(self, 'name', 'Unknown')}] Restored from checkpoint: {checkpoint_id}")
+            return True
+            
+        except Exception as e:
+            logger.warning(f"[{getattr(self, 'name', 'Unknown')}] Checkpoint restoration failed: {e}")
+            return False
+    
+    def query_checkpoints(
+        self,
+        limit: int = 10
+    ) -> List[Dict]:
+        """
+        Query available checkpoints for this god.
+        
+        Args:
+            limit: Maximum number of checkpoints to return
+            
+        Returns:
+            List of checkpoint dicts
+        """
+        try:
+            from checkpoint_manager import CheckpointManager
+            
+            manager = CheckpointManager.get_instance()
+            if not manager:
+                return []
+            
+            checkpoints = manager.list_checkpoints(
+                filter_name=getattr(self, 'name', 'Unknown'),
+                limit=limit
+            )
+            
+            logger.debug(f"[{getattr(self, 'name', 'Unknown')}] Found {len(checkpoints)} checkpoints")
+            return checkpoints
+            
+        except Exception as e:
+            logger.warning(f"[{getattr(self, 'name', 'Unknown')}] Checkpoint query failed: {e}")
+            return []
+
+
 # Build the base class tuple dynamically based on available mixins
 _base_classes = [
     ABC, 
     HolographicTransformMixin, 
     ToolFactoryAccessMixin, 
     SearchCapabilityMixin,
+    SourceDiscoveryQueryMixin,
+    WordRelationshipAccessMixin,
+    CurriculumAccessMixin,
+    PatternDiscoveryMixin,
+    CheckpointManagementMixin,
     KappaTackingMixin
 ]
 if AUTONOMIC_MIXIN_AVAILABLE and AutonomicAccessMixin is not None:
@@ -875,6 +1466,53 @@ class BaseGod(*_base_classes):
             "how_to_get_info": "Use BaseGod.get_peer_info(god_name) to get peer details",
             "how_to_find_expert": "Use BaseGod.find_expert_for_domain(domain) to find domain expert",
             "note": "All gods are registered in class-level registry for peer discovery"
+        }
+        
+        # Source discovery query capability
+        self.mission["source_discovery_capabilities"] = {
+            "can_query_sources": True,
+            "how_to_query": "Use self.query_discovered_sources(topic, source_type, min_quality, limit)",
+            "how_to_check_quality": "Use self.get_source_quality(url)",
+            "how_to_get_domain_sources": "Use self.get_sources_by_domain(domain, limit)",
+            "note": "Query 387+ discovered sources from PostgreSQL"
+        }
+        
+        # Word relationship access capability
+        self.mission["word_relationship_capabilities"] = {
+            "can_query_relationships": True,
+            "how_to_query": "Use self.query_word_relationships(word1, word2, min_strength)",
+            "how_to_contribute": "Use self.contribute_word_pair(word1, word2, context, strength_hint)",
+            "how_to_get_vocabulary": "Use self.get_domain_vocabulary(domain, top_n)",
+            "total_pairs": "3.19M word pairs learned",
+            "note": "Leverages learned relationships for domain-specific vocabulary"
+        }
+        
+        # Curriculum access capability
+        self.mission["curriculum_capabilities"] = {
+            "can_query_curriculum": True,
+            "how_to_query": "Use self.query_curriculum(topic, difficulty)",
+            "how_to_request": "Use self.request_curriculum_learning(topic, priority)",
+            "how_to_contribute": "Use self.contribute_curriculum(title, content, keywords, difficulty)",
+            "how_to_track_progress": "Use self.get_learning_progress()",
+            "note": "Access curriculum from docs/09-curriculum/ for targeted learning"
+        }
+        
+        # Pattern discovery capability
+        self.mission["pattern_discovery_capabilities"] = {
+            "can_discover_patterns": True,
+            "how_to_discover": "Use self.discover_patterns(data, pattern_type)",
+            "how_to_query": "Use self.get_discovered_patterns(domain)",
+            "pattern_types": ["auto", "regimes", "correlations", "thresholds"],
+            "note": "Unbiased QIG measurements without forced thresholds"
+        }
+        
+        # Checkpoint management capability
+        self.mission["checkpoint_capabilities"] = {
+            "can_manage_checkpoints": True,
+            "how_to_create": "Use self.create_checkpoint(description, metadata)",
+            "how_to_restore": "Use self.restore_from_checkpoint(checkpoint_id)",
+            "how_to_query": "Use self.query_checkpoints(limit)",
+            "note": "Save and restore god state for recovery and experimentation"
         }
         
         # QIG-Pure Capability Self-Assessment
