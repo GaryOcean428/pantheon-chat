@@ -1117,39 +1117,57 @@ class QIGCoordizer(FisherCoordizer):
 def get_coordizer():
     """Get or create singleton coordizer instance.
     
-    Priority:
-    1. SimpleWordCoordizer (loads real words from PostgreSQL tokenizer_vocabulary)
-    2. QIGCoordizer with file-based vocabulary (fallback)
+    Priority (64D QIG Pure):
+    1. PostgresCoordizer (64D QIG-pure geometry from tokenizer_vocabulary)
+    2. SimpleWordCoordizer (fallback with database-backed words)
+    3. QIGCoordizer with file-based vocabulary (last resort)
     
-    This ensures kernels use real English words from the database instead of
-    BPE fragments.
+    PostgresCoordizer is preferred as it maintains 64D geometric purity
+    and enables proper vocabulary persistence.
     """
     global _coordizer_instance
     if _coordizer_instance is None:
-        # Try SimpleWordCoordizer first (clean database-backed implementation)
+        # Priority 1: PostgresCoordizer (64D QIG-pure) with retry
+        if POSTGRES_COORDIZER_AVAILABLE and create_coordizer_from_pg:
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    pg_coordizer = create_coordizer_from_pg()
+                    if pg_coordizer and len(pg_coordizer.vocab) >= 50:
+                        _coordizer_instance = pg_coordizer
+                        print(f"[QIGCoordizer] Using PostgresCoordizer (64D QIG-pure): {len(pg_coordizer.vocab)} tokens from database")
+                        return _coordizer_instance
+                    else:
+                        print(f"[QIGCoordizer] PostgresCoordizer has insufficient vocabulary ({len(pg_coordizer.vocab) if pg_coordizer else 0} tokens)")
+                        break  # Don't retry if vocab is empty - it's not transient
+                except Exception as e:
+                    if attempt < max_retries - 1:
+                        import time
+                        print(f"[QIGCoordizer] PostgresCoordizer attempt {attempt + 1} failed: {e}, retrying...")
+                        time.sleep(0.5 * (attempt + 1))  # Exponential backoff
+                    else:
+                        print(f"[QIGCoordizer] PostgresCoordizer unavailable after {max_retries} attempts: {e}")
+        
+        # Priority 2: SimpleWordCoordizer (degraded mode)
         try:
             from simple_word_coordizer import SimpleWordCoordizer
             simple_coordizer = SimpleWordCoordizer()
             
-            if simple_coordizer.vocab_size >= 50 and not simple_coordizer.is_using_fallback():
+            if simple_coordizer.vocab_size >= 50:
                 _coordizer_instance = simple_coordizer
-                print(f"[QIGCoordizer] Using SimpleWordCoordizer: {simple_coordizer.vocab_size} real words from database")
-                return _coordizer_instance
-            elif simple_coordizer.vocab_size >= 50:
-                # Fallback vocabulary is still usable
-                _coordizer_instance = simple_coordizer
-                print(f"[QIGCoordizer] Using SimpleWordCoordizer with fallback: {simple_coordizer.vocab_size} words")
+                fallback_note = " (fallback)" if simple_coordizer.is_using_fallback() else ""
+                print(f"[QIGCoordizer] DEGRADED: Using SimpleWordCoordizer{fallback_note}: {simple_coordizer.vocab_size} words - 64D purity compromised")
                 return _coordizer_instance
             else:
                 print(f"[QIGCoordizer] SimpleWordCoordizer has only {simple_coordizer.vocab_size} words")
         except Exception as e:
             print(f"[QIGCoordizer] SimpleWordCoordizer unavailable: {e}")
         
-        # Fallback to file-based QIGCoordizer
+        # Priority 3: File-based QIGCoordizer (last resort)
         _coordizer_instance = QIGCoordizer()
         _load_coordizer_state(_coordizer_instance)
         _migrate_from_legacy_tokenizer(_coordizer_instance)
-        print(f"[QIGCoordizer] Using file-based QIGCoordizer with {len(_coordizer_instance.vocab)} tokens")
+        print(f"[QIGCoordizer] DEGRADED: Using file-based QIGCoordizer with {len(_coordizer_instance.vocab)} tokens - 64D purity compromised")
     return _coordizer_instance
 
 
