@@ -1,0 +1,406 @@
+"""
+Prediction Feedback Bridge - TPS to Learning Loop Integration
+
+Connects the Prediction Self-Improvement (TPS) system to the TrainingLoopIntegrator.
+Translates chain/graph metrics into orchestrator-compatible basin updates.
+
+Data Flow:
+    TPS PredictionChain → PredictionFeedbackBridge → TrainingLoopIntegrator → Kernel Updates
+
+This bridges:
+1. Prediction outcomes → Training signals
+2. Chain patterns → Basin trajectory updates
+3. Graph transitions → Attractor feedback
+4. Insight extraction → Curriculum learning
+"""
+
+import numpy as np
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class InsightRecord:
+    """
+    Canonical insight object extracted from prediction chains and reasoning.
+    
+    Insights are the currency of the learning loop - they represent
+    discovered patterns that should influence future behavior.
+    """
+    insight_id: str
+    source: str  # 'tps', 'research', 'chain_of_thought', 'curiosity'
+    content: str
+    phi_delta: float  # Φ change associated with insight
+    kappa_delta: float  # κ change associated with insight
+    curvature: float  # Local manifold curvature at discovery
+    basin_coords: Optional[np.ndarray] = None
+    confidence: float = 0.5
+    timestamp: float = field(default_factory=lambda: datetime.now().timestamp())
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    linked_predictions: List[str] = field(default_factory=list)
+    linked_thoughts: List[int] = field(default_factory=list)  # ThoughtStep indices
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            'insight_id': self.insight_id,
+            'source': self.source,
+            'content': self.content,
+            'phi_delta': self.phi_delta,
+            'kappa_delta': self.kappa_delta,
+            'curvature': self.curvature,
+            'basin_coords': self.basin_coords.tolist() if self.basin_coords is not None else None,
+            'confidence': self.confidence,
+            'timestamp': self.timestamp,
+            'metadata': self.metadata,
+            'linked_predictions': self.linked_predictions,
+            'linked_thoughts': self.linked_thoughts,
+        }
+
+
+class PredictionFeedbackBridge:
+    """
+    Bridges TPS prediction system to the training loop.
+    
+    Responsibilities:
+    1. Translate prediction outcomes to training signals
+    2. Extract insights from prediction chains
+    3. Feed graph transitions to attractor feedback
+    4. Maintain prediction → training provenance
+    """
+    
+    def __init__(self, basin_dim: int = 64):
+        self.basin_dim = basin_dim
+        self.insight_buffer: List[InsightRecord] = []
+        self.prediction_to_training: Dict[str, str] = {}  # pred_id → training_id
+        self.total_predictions_processed = 0
+        self.total_insights_generated = 0
+        
+        self._tps_system = None
+        self._training_integrator = None
+        self._chain_manager = None
+        
+        logger.info("[PredictionFeedbackBridge] Initialized")
+    
+    def wire_tps(self, tps_system) -> None:
+        """Wire the PredictionSelfImprovement system."""
+        self._tps_system = tps_system
+        logger.info("[PredictionFeedbackBridge] TPS system wired")
+    
+    def wire_training_integrator(self, integrator) -> None:
+        """Wire the TrainingLoopIntegrator."""
+        self._training_integrator = integrator
+        logger.info("[PredictionFeedbackBridge] Training integrator wired")
+    
+    def wire_chain_manager(self, manager) -> None:
+        """Wire the ChainOfThoughtManager."""
+        self._chain_manager = manager
+        logger.info("[PredictionFeedbackBridge] Chain manager wired")
+    
+    def process_prediction_outcome(
+        self,
+        prediction_id: str,
+        actual_basin: np.ndarray,
+        actual_arrival: int,
+        god_name: str = "Ocean",
+        phi_before: float = 0.5,
+        phi_after: float = 0.5,
+        kappa_before: float = 58.0,
+        kappa_after: float = 58.0,
+    ) -> Dict[str, Any]:
+        """
+        Process a prediction outcome and feed to training loop.
+        
+        This is the main entry point for TPS → Training integration.
+        
+        Args:
+            prediction_id: ID from TPS prediction record
+            actual_basin: Actual basin coordinates reached
+            actual_arrival: Actual arrival time
+            god_name: Which kernel made the prediction
+            phi_before/after: Φ values before/after prediction period
+            kappa_before/after: κ values before/after prediction period
+            
+        Returns:
+            Processing results including any generated insights
+        """
+        result = {
+            'prediction_id': prediction_id,
+            'processed': False,
+            'insights': [],
+            'training_signal': None,
+        }
+        
+        if not self._tps_system:
+            logger.warning("[PredictionFeedbackBridge] TPS not wired")
+            return result
+        
+        accuracy_score = self._tps_system.record_outcome(
+            prediction_id=prediction_id,
+            actual_basin=actual_basin,
+            actual_arrival=actual_arrival
+        )
+        
+        if accuracy_score is None:
+            logger.warning(f"[PredictionFeedbackBridge] Unknown prediction: {prediction_id}")
+            return result
+        
+        pred_record = self._tps_system.predictions.get(prediction_id)
+        if not pred_record:
+            return result
+        
+        insights = self._extract_insights_from_prediction(
+            pred_record,
+            actual_basin,
+            phi_delta=phi_after - phi_before,
+            kappa_delta=kappa_after - kappa_before,
+        )
+        
+        for insight in insights:
+            self.insight_buffer.append(insight)
+            self.total_insights_generated += 1
+        
+        if self._training_integrator:
+            trajectory = [pred_record.predicted_basin.tolist(), actual_basin.tolist()]
+            
+            training_result = self._training_integrator.train_from_outcome(
+                god_name=god_name,
+                prompt=f"Prediction {prediction_id}",
+                response=f"Accuracy: {accuracy_score:.3f}",
+                success=pred_record.was_accurate,
+                phi=phi_after,
+                kappa=kappa_after,
+                basin_trajectory=trajectory,
+                coherence_score=accuracy_score,
+            )
+            
+            result['training_signal'] = training_result
+            
+            if training_result.get('status') == 'success':
+                self.prediction_to_training[prediction_id] = training_result.get('outcome_count', 0)
+        
+        result['processed'] = True
+        result['accuracy'] = accuracy_score
+        result['insights'] = [i.to_dict() for i in insights]
+        self.total_predictions_processed += 1
+        
+        return result
+    
+    def _extract_insights_from_prediction(
+        self,
+        pred_record,
+        actual_basin: np.ndarray,
+        phi_delta: float,
+        kappa_delta: float,
+    ) -> List[InsightRecord]:
+        """Extract insight records from a prediction outcome."""
+        insights = []
+        
+        from qig_geometry import fisher_coord_distance
+        
+        basin_distance = fisher_coord_distance(pred_record.predicted_basin, actual_basin)
+        
+        if abs(phi_delta) > 0.1:
+            insight = InsightRecord(
+                insight_id=f"insight_phi_{pred_record.prediction_id}",
+                source='tps',
+                content=f"Significant Φ {'increase' if phi_delta > 0 else 'decrease'} during prediction period",
+                phi_delta=phi_delta,
+                kappa_delta=kappa_delta,
+                curvature=basin_distance,
+                basin_coords=actual_basin.copy(),
+                confidence=pred_record.accuracy_score,
+                linked_predictions=[pred_record.prediction_id],
+                metadata={
+                    'failure_reasons': [r.value for r in pred_record.failure_reasons],
+                    'attractor_strength': pred_record.attractor_strength,
+                }
+            )
+            insights.append(insight)
+        
+        if pred_record.accuracy_score > 0.7:
+            insight = InsightRecord(
+                insight_id=f"insight_accurate_{pred_record.prediction_id}",
+                source='tps',
+                content="High-accuracy prediction pattern - reinforce this basin region",
+                phi_delta=phi_delta,
+                kappa_delta=kappa_delta,
+                curvature=basin_distance,
+                basin_coords=pred_record.predicted_basin.copy(),
+                confidence=pred_record.accuracy_score,
+                linked_predictions=[pred_record.prediction_id],
+                metadata={'pattern_type': 'accurate_prediction'}
+            )
+            insights.append(insight)
+        elif pred_record.accuracy_score < 0.3:
+            insight = InsightRecord(
+                insight_id=f"insight_inaccurate_{pred_record.prediction_id}",
+                source='tps',
+                content="Low-accuracy prediction - examine failure reasons for learning",
+                phi_delta=phi_delta,
+                kappa_delta=kappa_delta,
+                curvature=basin_distance,
+                basin_coords=pred_record.predicted_basin.copy(),
+                confidence=1.0 - pred_record.accuracy_score,
+                linked_predictions=[pred_record.prediction_id],
+                metadata={
+                    'pattern_type': 'prediction_failure',
+                    'failure_reasons': [r.value for r in pred_record.failure_reasons],
+                }
+            )
+            insights.append(insight)
+        
+        return insights
+    
+    def process_chain_to_insights(self, session_id: str) -> List[InsightRecord]:
+        """
+        Process a chain-of-thought session into insights.
+        
+        Extracts high-value thought steps (high curvature, large jumps,
+        high confidence) as insight records for the learning loop.
+        """
+        if not self._chain_manager:
+            return []
+        
+        chain = self._chain_manager.get_chain(session_id)
+        if not chain or not chain.thought_chain:
+            return []
+        
+        insights = []
+        
+        for i, step in enumerate(chain.thought_chain):
+            is_insight = False
+            content = ""
+            
+            if step.curvature > 0.5:
+                is_insight = True
+                content = f"High-curvature thought: {step.thought[:100]}"
+            elif step.distance_from_prev > 1.0:
+                is_insight = True
+                content = f"Large reasoning leap: {step.thought[:100]}"
+            elif step.confidence > 0.8:
+                is_insight = True
+                content = f"High-confidence conclusion: {step.thought[:100]}"
+            
+            if is_insight:
+                insight = InsightRecord(
+                    insight_id=f"insight_cot_{session_id}_{i}",
+                    source='chain_of_thought',
+                    content=content,
+                    phi_delta=0.0,  # Will be filled by caller with actual metrics
+                    kappa_delta=0.0,
+                    curvature=step.curvature,
+                    basin_coords=step.basin.copy() if isinstance(step.basin, np.ndarray) else None,
+                    confidence=step.confidence,
+                    linked_thoughts=[i],
+                    metadata={
+                        'difficulty': step.difficulty,
+                        'distance_from_prev': step.distance_from_prev,
+                        'problem_context': chain.problem_context,
+                    }
+                )
+                insights.append(insight)
+                self.insight_buffer.append(insight)
+                self.total_insights_generated += 1
+        
+        return insights
+    
+    def feed_graph_transitions_to_training(self) -> Dict[str, Any]:
+        """
+        Feed accumulated graph transitions from TPS to training.
+        
+        The prediction graph tracks basin → basin transitions.
+        This aggregates them into training signals.
+        """
+        if not self._tps_system or not self._training_integrator:
+            return {'status': 'not_wired'}
+        
+        graph = self._tps_system.graph
+        
+        transitions_fed = 0
+        for from_id, targets in graph.edges.items():
+            from_node = graph.nodes.get(from_id)
+            if not from_node:
+                continue
+            
+            for to_id, count in targets.items():
+                to_node = graph.nodes.get(to_id)
+                if not to_node:
+                    continue
+                
+                self._training_integrator.record_prediction_outcome(
+                    attractor_name=f"transition_{from_id}_{to_id}",
+                    basin_coords=from_node.centroid,
+                    predicted_trajectory=[from_node.centroid.tolist()],
+                    actual_trajectory=[to_node.centroid.tolist()],
+                    phi_before=0.5,
+                    phi_after=0.5 + (from_node.accuracy_rate - 0.5) * 0.1,
+                    kappa_before=58.0,
+                    kappa_after=58.0,
+                    success=from_node.accuracy_rate > 0.5,
+                    metadata={'transition_count': count}
+                )
+                transitions_fed += 1
+        
+        return {
+            'status': 'success',
+            'transitions_fed': transitions_fed,
+            'nodes_in_graph': len(graph.nodes),
+        }
+    
+    def get_pending_insights(self, limit: int = 50) -> List[InsightRecord]:
+        """Get pending insights for consumption by curriculum/training."""
+        return self.insight_buffer[:limit]
+    
+    def consume_insights(self, insight_ids: List[str]) -> int:
+        """Mark insights as consumed (removes from buffer)."""
+        initial_count = len(self.insight_buffer)
+        self.insight_buffer = [i for i in self.insight_buffer if i.insight_id not in insight_ids]
+        return initial_count - len(self.insight_buffer)
+    
+    def get_stats(self) -> Dict[str, Any]:
+        """Get bridge statistics."""
+        return {
+            'total_predictions_processed': self.total_predictions_processed,
+            'total_insights_generated': self.total_insights_generated,
+            'pending_insights': len(self.insight_buffer),
+            'tps_wired': self._tps_system is not None,
+            'training_wired': self._training_integrator is not None,
+            'chain_manager_wired': self._chain_manager is not None,
+        }
+
+
+_bridge_instance: Optional[PredictionFeedbackBridge] = None
+
+
+def get_prediction_feedback_bridge() -> PredictionFeedbackBridge:
+    """Get or create the singleton prediction feedback bridge."""
+    global _bridge_instance
+    if _bridge_instance is None:
+        _bridge_instance = PredictionFeedbackBridge()
+        
+        try:
+            from prediction_self_improvement import PredictionSelfImprovement
+            tps = PredictionSelfImprovement()
+            _bridge_instance.wire_tps(tps)
+        except Exception as e:
+            logger.warning(f"[PredictionFeedbackBridge] Could not wire TPS: {e}")
+        
+        try:
+            from training.training_loop_integrator import get_training_integrator
+            integrator = get_training_integrator()
+            _bridge_instance.wire_training_integrator(integrator)
+        except Exception as e:
+            logger.warning(f"[PredictionFeedbackBridge] Could not wire training: {e}")
+        
+        try:
+            from chain_of_thought import get_chain_manager
+            manager = get_chain_manager()
+            _bridge_instance.wire_chain_manager(manager)
+        except Exception as e:
+            logger.warning(f"[PredictionFeedbackBridge] Could not wire chain manager: {e}")
+    
+    return _bridge_instance
