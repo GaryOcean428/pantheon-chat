@@ -349,17 +349,101 @@ class SimpleWordCoordizer:
             'qig_pure': True
         }
     
-    def add_vocabulary_observations(self, observations: List[Dict]) -> Tuple[int, int]:
-        """Stub method for vocabulary learning compatibility.
+    def save_learned_token(self, token: str, basin_coords: np.ndarray, phi: float = 0.6, frequency: int = 1) -> bool:
+        """
+        Persist a newly learned token to the database for continuous vocabulary training.
         
-        SimpleWordCoordizer uses a fixed vocabulary and doesn't support
-        dynamic vocabulary learning. This method is a no-op for compatibility
-        with the VocabularyCoordinator.
+        This enables vocabulary to persist between restarts, solving the continuous
+        learning problem where tokens are learned during sessions but lost on restart.
+        
+        Args:
+            token: The token/word to persist
+            basin_coords: 64D basin coordinates for the token
+            phi: Phi score (integration measure)
+            frequency: Observation frequency
+            
+        Returns:
+            True if successfully persisted, False otherwise
+        """
+        if self._using_fallback:
+            logger.debug(f"Cannot persist token '{token}' - using fallback vocabulary (no DB)")
+            return False
+        
+        if not self.db_url:
+            return False
+        
+        try:
+            import psycopg2
+            conn = psycopg2.connect(self.db_url, connect_timeout=5)
+            cursor = conn.cursor()
+            
+            coords_list = basin_coords.tolist() if isinstance(basin_coords, np.ndarray) else list(basin_coords)
+            
+            cursor.execute("""
+                INSERT INTO tokenizer_vocabulary (token, token_id, basin_embedding, phi_score, frequency, source_type)
+                VALUES (%s, %s, %s, %s, %s, 'learned')
+                ON CONFLICT (token) DO UPDATE SET
+                    phi_score = GREATEST(tokenizer_vocabulary.phi_score, EXCLUDED.phi_score),
+                    frequency = tokenizer_vocabulary.frequency + EXCLUDED.frequency,
+                    updated_at = NOW()
+                RETURNING token_id
+            """, (token.lower(), len(self.vocab) + 50000, coords_list, phi, frequency))
+            
+            result = cursor.fetchone()
+            conn.commit()
+            conn.close()
+            
+            token_lower = token.lower()
+            if token_lower not in self.vocab:
+                token_id = result[0] if result else len(self.vocab)
+                self.vocab[token_lower] = token_id
+                self.word_tokens.append(token_lower)
+                self.token_phi[token_lower] = phi
+                self.basin_coords[token_lower] = sphere_project(np.array(coords_list))
+            
+            logger.info(f"Persisted learned token '{token}' to database (phi={phi:.3f})")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to persist token '{token}': {e}")
+            return False
+    
+    def add_vocabulary_observations(self, observations: List[Dict]) -> Tuple[int, int]:
+        """Add vocabulary observations and optionally persist to database.
+        
+        Updates local vocabulary and phi scores for observed tokens.
+        High-phi tokens (>= 0.6) are automatically persisted to database.
         
         Returns:
-            Tuple of (new_tokens_added=0, weights_updated=0)
+            Tuple of (new_tokens_added, weights_updated)
         """
-        return (0, 0)
+        new_tokens = 0
+        weights_updated = 0
+        
+        for obs in observations:
+            word = obs.get('word', '').lower()
+            phi = obs.get('phi', 0.5)
+            freq = obs.get('frequency', 1)
+            
+            if not word or len(word) < 3:
+                continue
+            
+            if word in self.vocab:
+                old_phi = self.token_phi.get(word, 0.5)
+                self.token_phi[word] = max(old_phi, phi)
+                weights_updated += 1
+            else:
+                self.vocab[word] = len(self.vocab)
+                self.word_tokens.append(word)
+                self.token_phi[word] = phi
+                self.basin_coords[word] = compute_basin_embedding(word)
+                new_tokens += 1
+            
+            if phi >= 0.6 and not self._using_fallback:
+                basin = self.basin_coords.get(word, compute_basin_embedding(word))
+                self.save_learned_token(word, basin, phi, freq)
+        
+        return (new_tokens, weights_updated)
 
 
 # Module-level singleton

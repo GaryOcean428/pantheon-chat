@@ -350,12 +350,28 @@ class SearchBudgetOrchestrator:
         self._provider_efficacy[provider] = current * (1 - alpha) + relevance * alpha
     
     def set_provider_enabled(self, provider: str, enabled: bool) -> bool:
-        """Enable or disable a provider."""
+        """
+        Enable or disable a provider.
+        
+        Also syncs with GeometricProviderSelector for premium providers (tavily, perplexity)
+        to ensure they are included/excluded from geometric provider selection.
+        """
         if provider not in self.budgets:
             return False
         
         self.budgets[provider].enabled = enabled
         self._save_state()
+        
+        # Sync with GeometricProviderSelector for premium providers
+        try:
+            from search.provider_selector import get_provider_selector
+            selector = get_provider_selector('regular')
+            if provider in selector.PREMIUM_PROVIDERS:
+                selector.enable_premium_provider(provider, enabled)
+                logger.info(f"[SearchBudget] Synced {provider} enabled={enabled} with GeometricProviderSelector")
+        except Exception as e:
+            logger.warning(f"[SearchBudget] Failed to sync with provider selector: {e}")
+        
         logger.info(f"[SearchBudget] {provider} enabled={enabled}")
         return True
     

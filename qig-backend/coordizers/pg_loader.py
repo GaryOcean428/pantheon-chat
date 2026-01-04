@@ -336,6 +336,169 @@ class PostgresCoordizer(FisherCoordizer):
         if self._connection:
             self._connection.close()
             self._connection = None
+    
+    def save_learned_token(self, token: str, basin_coords: np.ndarray, phi: float = 0.6, frequency: int = 1) -> bool:
+        """
+        Persist a newly learned token to the database for continuous vocabulary training.
+        
+        This enables vocabulary to persist between restarts, solving the continuous
+        learning problem where tokens are learned during sessions but lost on restart.
+        
+        Args:
+            token: The token/word to persist
+            basin_coords: 64D basin coordinates for the token
+            phi: Phi score (integration measure)
+            frequency: Observation frequency
+            
+        Returns:
+            True if successfully persisted, False otherwise
+        """
+        if self._using_fallback:
+            logger.debug(f"Cannot persist token '{token}' - using fallback vocabulary (no DB)")
+            return False
+        
+        conn = self._get_connection()
+        if not conn:
+            logger.error(f"Cannot get database connection for persistence")
+            return False
+        
+        try:
+            cursor = conn.cursor()
+            
+            # Convert numpy array to list for JSON storage
+            coords_list = basin_coords.tolist() if isinstance(basin_coords, np.ndarray) else list(basin_coords)
+            
+            # Upsert: insert or update if exists
+            cursor.execute("""
+                INSERT INTO tokenizer_vocabulary (token, token_id, basin_embedding, phi_score, frequency, source_type, created_at, updated_at)
+                VALUES (%s, %s, %s, %s, %s, %s, NOW(), NOW())
+                ON CONFLICT (token) DO UPDATE SET
+                    basin_embedding = EXCLUDED.basin_embedding,
+                    phi_score = GREATEST(tokenizer_vocabulary.phi_score, EXCLUDED.phi_score),
+                    frequency = tokenizer_vocabulary.frequency + EXCLUDED.frequency,
+                    updated_at = NOW()
+                RETURNING token_id
+            """, (token, len(self.vocab) + 50000, coords_list, phi, frequency, 'learned'))
+            
+            result = cursor.fetchone()
+            conn.commit()
+            
+            # Update local cache
+            if token not in self.vocab:
+                token_id = result[0] if result else len(self.vocab) + 50000
+                self.vocab[token] = token_id
+                self.token_to_id[token] = token_id
+                self.id_to_token[token_id] = token
+                self.basin_coords[token] = basin_coords
+                self.token_phi[token] = phi
+                self.token_frequencies[token] = frequency
+                self.word_tokens.append(token)
+                self.base_tokens.append(token)
+                self.word_domains[token] = get_word_domains(token)
+            
+            logger.info(f"Persisted learned token '{token}' to database (phi={phi:.3f})")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to persist token '{token}': {e}")
+            if conn:
+                try:
+                    conn.rollback()
+                except:
+                    pass
+            return False
+    
+    def save_batch_tokens(self, tokens: List[Dict]) -> int:
+        """
+        Persist multiple tokens in a batch for efficiency.
+        
+        Args:
+            tokens: List of dicts with keys: token, basin_coords, phi, frequency
+            
+        Returns:
+            Number of tokens successfully persisted
+        """
+        if self._using_fallback or not tokens:
+            return 0
+        
+        conn = self._get_connection()
+        if not conn:
+            logger.error(f"Cannot get database connection for batch persistence")
+            return 0
+        
+        saved_count = 0
+        try:
+            cursor = conn.cursor()
+            
+            for t in tokens:
+                token = t.get('token', '')
+                basin_coords = t.get('basin_coords', np.zeros(64))
+                phi = t.get('phi', 0.6)
+                frequency = t.get('frequency', 1)
+                
+                if not token:
+                    continue
+                
+                coords_list = basin_coords.tolist() if isinstance(basin_coords, np.ndarray) else list(basin_coords)
+                
+                try:
+                    cursor.execute("""
+                        INSERT INTO tokenizer_vocabulary (token, token_id, basin_embedding, phi_score, frequency, source_type, created_at, updated_at)
+                        VALUES (%s, %s, %s, %s, %s, %s, NOW(), NOW())
+                        ON CONFLICT (token) DO UPDATE SET
+                            basin_embedding = EXCLUDED.basin_embedding,
+                            phi_score = GREATEST(tokenizer_vocabulary.phi_score, EXCLUDED.phi_score),
+                            frequency = tokenizer_vocabulary.frequency + EXCLUDED.frequency,
+                            updated_at = NOW()
+                    """, (token, len(self.vocab) + 50000 + saved_count, coords_list, phi, frequency, 'learned'))
+                    
+                    # Update local cache
+                    if token not in self.vocab:
+                        token_id = len(self.vocab) + 50000 + saved_count
+                        self.vocab[token] = token_id
+                        self.token_to_id[token] = token_id
+                        self.id_to_token[token_id] = token
+                        self.basin_coords[token] = basin_coords if isinstance(basin_coords, np.ndarray) else np.array(basin_coords)
+                        self.token_phi[token] = phi
+                        self.token_frequencies[token] = frequency
+                        self.word_tokens.append(token)
+                        self.base_tokens.append(token)
+                        self.word_domains[token] = get_word_domains(token)
+                    
+                    saved_count += 1
+                except Exception as inner_e:
+                    logger.debug(f"Failed to insert token '{token}': {inner_e}")
+            
+            conn.commit()
+            logger.info(f"Batch persisted {saved_count} tokens to database")
+            return saved_count
+            
+        except Exception as e:
+            logger.error(f"Batch token persistence failed: {e}")
+            if conn:
+                try:
+                    conn.rollback()
+                except:
+                    pass
+            return 0
+    
+    def get_learned_token_count(self) -> int:
+        """Get count of tokens learned (source_type='learned') from database."""
+        if self._using_fallback:
+            return 0
+        
+        conn = self._get_connection()
+        if not conn:
+            return 0
+        
+        try:
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM tokenizer_vocabulary WHERE source_type = 'learned'")
+            result = cursor.fetchone()
+            return result[0] if result else 0
+        except Exception as e:
+            logger.debug(f"Failed to get learned token count: {e}")
+            return 0
 
 
 def create_coordizer_from_pg(database_url: Optional[str] = None, use_fallback: bool = True) -> PostgresCoordizer:

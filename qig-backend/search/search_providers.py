@@ -179,6 +179,9 @@ class SearchProviderManager:
             
             if selected_provider:
                 providers_to_use = [selected_provider]
+                # Log when premium providers are actually used
+                if selected_provider in ('tavily', 'perplexity'):
+                    logger.info(f"[SearchProviderManager] PREMIUM PROVIDER SELECTED: {selected_provider} for query: '{query[:50]}...' (reason: {selection_reason})")
             else:
                 providers_to_use = ['duckduckgo'] if self.providers.get('duckduckgo', {}) else []
         elif provider and provider in self.providers:

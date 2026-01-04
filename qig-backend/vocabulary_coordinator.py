@@ -26,6 +26,13 @@ except ImportError:
     print("[WARNING] qig_coordizer not available - running without tokenizer")
 
 try:
+    from coordizers.pg_loader import PostgresCoordizer
+    PG_COORDIZER_AVAILABLE = True
+except ImportError:
+    PG_COORDIZER_AVAILABLE = False
+    PostgresCoordizer = None
+
+try:
     from learned_manifold import LearnedManifold
     _learned_manifold: Optional[LearnedManifold] = None
     LEARNED_MANIFOLD_AVAILABLE = True
@@ -55,9 +62,23 @@ class VocabularyCoordinator:
         self.words_learned = 0
         self.merge_rules_learned = 0
         self.attractors_deepened = 0
+        self.tokens_persisted = 0
         self._basin_trajectory: List[np.ndarray] = []
-        print("[VocabularyCoordinator] Initialized" + 
-              (" with attractor formation" if self.learned_manifold else ""))
+        
+        # Track coordizer for direct vocabulary persistence (supports PostgresCoordizer or SimpleWordCoordizer)
+        self._pg_coordizer = None
+        if self.tokenizer and hasattr(self.tokenizer, 'save_learned_token'):
+            # If tokenizer has save_learned_token (PostgresCoordizer or SimpleWordCoordizer), use it
+            self._pg_coordizer = self.tokenizer
+        
+        features = []
+        if self.learned_manifold:
+            features.append("attractor formation")
+        if self._pg_coordizer:
+            features.append("continuous vocabulary persistence")
+        
+        feature_str = f" with {', '.join(features)}" if features else ""
+        print(f"[VocabularyCoordinator] Initialized{feature_str}")
     
     def record_discovery(self, phrase: str, phi: float, kappa: float, source: str, details: Optional[Dict] = None) -> Dict:
         """
@@ -90,6 +111,12 @@ class VocabularyCoordinator:
         
         attractor_formed = self._wire_to_attractor_formation(phrase, phi, source, details)
         
+        # Persist high-phi vocabulary to PostgresCoordizer for continuous learning
+        persisted = 0
+        if phi >= 0.6 and observations:
+            persisted = self._persist_to_coordizer(observations)
+            self.tokens_persisted += persisted
+        
         return {
             'learned': True, 
             'observations_recorded': recorded, 
@@ -98,8 +125,56 @@ class VocabularyCoordinator:
             'merge_rules': merge_rules, 
             'phi': phi, 
             'source': source,
-            'attractor_formed': attractor_formed
+            'attractor_formed': attractor_formed,
+            'tokens_persisted': persisted
         }
+    
+    def _persist_to_coordizer(self, observations: List[Dict]) -> int:
+        """
+        Persist vocabulary observations to PostgresCoordizer for continuous learning.
+        
+        This solves the critical issue where vocabulary was learned during sessions
+        but lost on restart because it was never written back to the tokenizer_vocabulary table.
+        
+        Args:
+            observations: List of vocabulary observation dicts with word, phi, etc.
+            
+        Returns:
+            Number of tokens successfully persisted to database
+        """
+        if not self._pg_coordizer:
+            return 0
+        
+        if not hasattr(self._pg_coordizer, 'save_learned_token'):
+            return 0
+        
+        persisted = 0
+        for obs in observations:
+            word = obs.get('word', '')
+            phi = obs.get('phi', 0.5)
+            freq = obs.get('frequency', 1)
+            
+            if not word or len(word) < 3 or phi < 0.5:
+                continue
+            
+            try:
+                # Get basin coords from tokenizer if available
+                basin_coords = None
+                if hasattr(self._pg_coordizer, 'basin_coords') and word in self._pg_coordizer.basin_coords:
+                    basin_coords = self._pg_coordizer.basin_coords[word]
+                elif hasattr(self._pg_coordizer, 'encode'):
+                    basin_coords = self._pg_coordizer.encode(word)
+                
+                if basin_coords is not None:
+                    if self._pg_coordizer.save_learned_token(word, basin_coords, phi, freq):
+                        persisted += 1
+            except Exception as e:
+                print(f"[VocabularyCoordinator] Failed to persist '{word}': {e}")
+        
+        if persisted > 0:
+            print(f"[VocabularyCoordinator] Persisted {persisted} tokens to coordizer DB")
+        
+        return persisted
     
     def _wire_to_attractor_formation(self, phrase: str, phi: float, source: str, details: Optional[Dict] = None) -> bool:
         """
@@ -278,7 +353,13 @@ class VocabularyCoordinator:
         return {'imported': imported, 'new_tokens': new_tokens}
     
     def get_stats(self) -> Dict:
-        stats = {'coordinator': {'observations_recorded': self.observations_recorded, 'words_learned': self.words_learned, 'merge_rules_learned': self.merge_rules_learned}}
+        stats = {'coordinator': {
+            'observations_recorded': self.observations_recorded, 
+            'words_learned': self.words_learned, 
+            'merge_rules_learned': self.merge_rules_learned,
+            'tokens_persisted': self.tokens_persisted,
+            'continuous_learning_enabled': self._pg_coordizer is not None
+        }}
         if self.tokenizer:
             stats['tokenizer'] = self.tokenizer.get_stats()
         if self.vocab_db and self.vocab_db.enabled:

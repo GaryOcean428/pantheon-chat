@@ -129,9 +129,16 @@ class GeometricProviderSelector:
     - Provider historical performance
     - Current availability
     - Domain-specific effectiveness
+    
+    Premium providers (Tavily, Perplexity) are included when enabled via budget orchestrator.
     """
     
-    REGULAR_PROVIDERS = ['google-free', 'searxng', 'duckduckgo']
+    # Base providers always available
+    BASE_PROVIDERS = ['google-free', 'searxng', 'duckduckgo']
+    # Premium providers (require API keys and explicit enablement)
+    PREMIUM_PROVIDERS = ['tavily', 'perplexity']
+    # All regular providers (includes premium when enabled)
+    REGULAR_PROVIDERS = ['google-free', 'searxng', 'duckduckgo', 'tavily', 'perplexity']
     SHADOW_PROVIDERS = ['duckduckgo-tor', 'wayback', 'pastebin', 'rss', 'breach']
     
     def __init__(self, mode: str = 'regular'):
@@ -169,12 +176,19 @@ class GeometricProviderSelector:
             'google-free': {'news': 0.9, 'general': 0.8, 'technical': 0.7},
             'searxng': {'academic': 0.8, 'technical': 0.8, 'general': 0.7},
             'duckduckgo': {'general': 0.8, 'technical': 0.7, 'news': 0.7},
+            # Premium providers - highest quality for all domains
+            'tavily': {'academic': 0.95, 'technical': 0.95, 'news': 0.9, 'general': 0.9, 'crypto': 0.85, 'security': 0.8},
+            'perplexity': {'academic': 0.95, 'general': 0.95, 'technical': 0.9, 'news': 0.85, 'crypto': 0.8, 'security': 0.75},
+            # Shadow providers
             'duckduckgo-tor': {'security': 0.9, 'crypto': 0.8, 'general': 0.6},
             'wayback': {'academic': 0.7, 'technical': 0.6, 'general': 0.5},
             'pastebin': {'security': 0.8, 'crypto': 0.7, 'technical': 0.6},
             'rss': {'news': 0.9, 'technical': 0.7, 'general': 0.5},
             'breach': {'security': 0.9, 'crypto': 0.8, 'general': 0.3},
         }
+        
+        # Track which premium providers are currently enabled
+        self._enabled_premium: Dict[str, bool] = {p: False for p in self.PREMIUM_PROVIDERS}
     
     def _detect_query_domain(self, query: str) -> str:
         """Detect the domain of a query based on keywords."""
@@ -296,57 +310,6 @@ class GeometricProviderSelector:
         
         return min(1.0, max(0.0, fitness))
     
-    def select_provider(self, query: str) -> Tuple[str, Dict]:
-        """
-        Select the best provider for a query using geometric reasoning.
-        
-        Returns:
-            Tuple of (provider_name, selection_metadata)
-        """
-        domain = self._detect_query_domain(query)
-        query_basin = self._encode_query_basin(query)
-        
-        fitness_scores = {}
-        for provider in self.providers:
-            fitness = self._compute_provider_fitness(provider, domain, query_basin)
-            fitness_scores[provider] = fitness
-        
-        if not fitness_scores:
-            return self.providers[0], {'reason': 'no_providers', 'domain': domain}
-        
-        best_provider = max(fitness_scores, key=fitness_scores.get)
-        best_score = fitness_scores[best_provider]
-        
-        metadata = {
-            'domain': domain,
-            'selected_provider': best_provider,
-            'fitness_score': best_score,
-            'all_scores': fitness_scores,
-            'reasoning': f"Selected {best_provider} for {domain} domain (fitness={best_score:.3f})",
-            'timestamp': datetime.now().isoformat(),
-        }
-        
-        return best_provider, metadata
-    
-    def select_providers_ranked(self, query: str, max_providers: int = 3) -> List[Tuple[str, float]]:
-        """
-        Get ranked list of providers for fallback chain.
-        
-        Returns:
-            List of (provider_name, fitness_score) tuples, sorted by fitness
-        """
-        domain = self._detect_query_domain(query)
-        query_basin = self._encode_query_basin(query)
-        
-        fitness_scores = []
-        for provider in self.providers:
-            fitness = self._compute_provider_fitness(provider, domain, query_basin)
-            fitness_scores.append((provider, fitness))
-        
-        fitness_scores.sort(key=lambda x: x[1], reverse=True)
-        
-        return fitness_scores[:max_providers]
-    
     def record_result(
         self,
         provider: str,
@@ -396,7 +359,134 @@ class GeometricProviderSelector:
             'providers': {p: s.to_dict() for p, s in self.stats.items()},
             'query_count': len(self.query_history),
             'last_queries': self.query_history[-10:] if self.query_history else [],
+            'enabled_premium': self._enabled_premium,
+            'active_providers': self.get_active_providers(),
         }
+    
+    def enable_premium_provider(self, provider: str, enabled: bool = True) -> bool:
+        """
+        Enable or disable a premium provider (tavily, perplexity).
+        
+        This allows the budget orchestrator UI toggles to control whether
+        premium providers are included in search selection.
+        
+        Args:
+            provider: Provider name ('tavily' or 'perplexity')
+            enabled: Whether to enable (True) or disable (False)
+            
+        Returns:
+            True if state changed, False if invalid provider
+        """
+        if provider not in self.PREMIUM_PROVIDERS:
+            return False
+        
+        was_enabled = self._enabled_premium.get(provider, False)
+        self._enabled_premium[provider] = enabled
+        
+        # Initialize stats for newly enabled provider if needed
+        if enabled and provider not in self.stats:
+            self.stats[provider] = ProviderStats(provider)
+            self.provider_basins[provider] = []
+        
+        if was_enabled != enabled:
+            action = "enabled" if enabled else "disabled"
+            print(f"[GeometricProviderSelector] Premium provider '{provider}' {action}")
+        
+        return True
+    
+    def is_premium_enabled(self, provider: str) -> bool:
+        """Check if a premium provider is currently enabled."""
+        return self._enabled_premium.get(provider, False)
+    
+    def get_active_providers(self) -> List[str]:
+        """
+        Get list of currently active providers (base + enabled premium).
+        
+        This filters REGULAR_PROVIDERS to only include base providers
+        plus any premium providers that have been explicitly enabled.
+        """
+        if self.mode == 'shadow':
+            return list(self.SHADOW_PROVIDERS)
+        
+        active = list(self.BASE_PROVIDERS)
+        for p in self.PREMIUM_PROVIDERS:
+            if self._enabled_premium.get(p, False):
+                active.append(p)
+        return active
+    
+    def select_provider(self, query: str) -> Tuple[str, Dict]:
+        """
+        Select the best provider for a query using geometric reasoning.
+        
+        Only considers base providers + enabled premium providers.
+        
+        Returns:
+            Tuple of (provider_name, selection_metadata)
+        """
+        domain = self._detect_query_domain(query)
+        query_basin = self._encode_query_basin(query)
+        
+        # Get active providers only (filters out disabled premium)
+        active_providers = self.get_active_providers()
+        
+        fitness_scores = {}
+        for provider in active_providers:
+            # Ensure stats exist for this provider
+            if provider not in self.stats:
+                self.stats[provider] = ProviderStats(provider)
+                self.provider_basins[provider] = []
+            
+            fitness = self._compute_provider_fitness(provider, domain, query_basin)
+            fitness_scores[provider] = fitness
+        
+        if not fitness_scores:
+            fallback = self.BASE_PROVIDERS[0]
+            return fallback, {'reason': 'no_providers', 'domain': domain}
+        
+        best_provider = max(fitness_scores, key=fitness_scores.get)
+        best_score = fitness_scores[best_provider]
+        
+        # Log when premium provider is selected
+        if best_provider in self.PREMIUM_PROVIDERS:
+            print(f"[GeometricProviderSelector] Selected PREMIUM provider '{best_provider}' for {domain} query (fitness={best_score:.3f})")
+        
+        metadata = {
+            'domain': domain,
+            'selected_provider': best_provider,
+            'fitness_score': best_score,
+            'all_scores': fitness_scores,
+            'active_providers': active_providers,
+            'premium_enabled': {p: self._enabled_premium.get(p, False) for p in self.PREMIUM_PROVIDERS},
+            'reasoning': f"Selected {best_provider} for {domain} domain (fitness={best_score:.3f})",
+            'timestamp': datetime.now().isoformat(),
+        }
+        
+        return best_provider, metadata
+    
+    def select_providers_ranked(self, query: str, max_providers: int = 3) -> List[Tuple[str, float]]:
+        """
+        Get ranked list of active providers for fallback chain.
+        
+        Returns:
+            List of (provider_name, fitness_score) tuples, sorted by fitness
+        """
+        domain = self._detect_query_domain(query)
+        query_basin = self._encode_query_basin(query)
+        
+        active_providers = self.get_active_providers()
+        
+        fitness_scores = []
+        for provider in active_providers:
+            if provider not in self.stats:
+                self.stats[provider] = ProviderStats(provider)
+                self.provider_basins[provider] = []
+            
+            fitness = self._compute_provider_fitness(provider, domain, query_basin)
+            fitness_scores.append((provider, fitness))
+        
+        fitness_scores.sort(key=lambda x: x[1], reverse=True)
+        
+        return fitness_scores[:max_providers]
 
 
 _regular_selector: Optional[GeometricProviderSelector] = None
