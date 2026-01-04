@@ -21,7 +21,7 @@ import {
 } from "@/components/ui";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Globe, Plus, Trash2, RefreshCw, Activity, TrendingUp, Clock, ExternalLink, Search, Key, AlertTriangle } from "lucide-react";
+import { Globe, Plus, Trash2, RefreshCw, Activity, TrendingUp, Clock, ExternalLink, Search, Key, AlertTriangle, Sparkles } from "lucide-react";
 
 interface Source {
   url: string;
@@ -53,6 +53,7 @@ interface ProvidersResponse {
   data: {
     google_free: ProviderInfo;
     tavily: ProviderInfo;
+    perplexity: ProviderInfo;
   };
 }
 
@@ -203,7 +204,7 @@ export default function Sources() {
                 <Skeleton className="h-16 w-full" />
               </div>
             ) : (
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 <div className="flex items-center justify-between p-4 rounded-lg border">
                   <div className="flex items-start gap-3">
                     <Globe className="h-5 w-5 mt-0.5 text-blue-500" />
@@ -258,6 +259,37 @@ export default function Sources() {
                       toggleProviderMutation.mutate({ provider: 'tavily', enabled: checked })
                     }
                     data-testid="switch-tavily"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between p-4 rounded-lg border">
+                  <div className="flex items-start gap-3">
+                    <Sparkles className="h-5 w-5 mt-0.5 text-cyan-500" />
+                    <div>
+                      <div className="font-medium">Perplexity Search</div>
+                      <p className="text-sm text-muted-foreground">
+                        AI-powered search ($0.005/query)
+                      </p>
+                      {!providersData?.data?.perplexity?.has_key && (
+                        <Badge variant="outline" className="mt-1 text-amber-500 border-amber-500">
+                          <Key className="h-3 w-3 mr-1" />
+                          API Key Not Set
+                        </Badge>
+                      )}
+                      {providersData?.data?.perplexity?.has_key && providersData?.data?.perplexity?.available && (
+                        <Badge variant="outline" className="mt-1 text-green-500 border-green-500">
+                          Ready
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                  <Switch
+                    checked={providersData?.data?.perplexity?.enabled ?? false}
+                    disabled={!providersData?.data?.perplexity?.has_key || toggleProviderMutation.isPending}
+                    onCheckedChange={(checked) => 
+                      toggleProviderMutation.mutate({ provider: 'perplexity', enabled: checked })
+                    }
+                    data-testid="switch-perplexity"
                   />
                 </div>
               </div>
