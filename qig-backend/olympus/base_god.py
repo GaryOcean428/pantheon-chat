@@ -72,7 +72,7 @@ try:
 except ImportError:
     GenerativeCapability = None
     GENERATIVE_CAPABILITY_AVAILABLE = False
-    logger.warning("[BaseGod] GenerativeCapability not available")
+    # Note: Logger not yet defined at this point, warning will be logged in BaseGod.__init__ if needed
 
 # Import domain intelligence for mission awareness and capability self-assessment
 try:
