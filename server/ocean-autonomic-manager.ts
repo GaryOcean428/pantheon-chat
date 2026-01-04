@@ -142,8 +142,13 @@ export class OceanAutonomicManager {
   private computeDiscoveryDrivenPhi(baselinePhi: number): number {
     const recentProbes = geometricMemory.getRecentProbes(50);
 
+    // CRITICAL FIX: Minimum baseline of 0.75 to prevent phi=0 race condition
+    // When Python backend isn't ready, baselinePhi may be 0 - use initialized value instead
+    const MINIMUM_PHI_BASELINE = 0.75;
+    const effectiveBaseline = Math.max(baselinePhi, MINIMUM_PHI_BASELINE);
+
     if (recentProbes.length === 0) {
-      return baselinePhi;
+      return effectiveBaseline;
     }
 
     const recentPhis = recentProbes.map(p => p.phi);
