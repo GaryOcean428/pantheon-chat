@@ -62,6 +62,15 @@ except ImportError:
     get_temporal_reasoning = None
     TEMPORAL_REASONING_AVAILABLE = False
 
+# Import QFI-based Φ computation (Issue #6)
+try:
+    from qig_core.phi_computation import compute_phi_qig, compute_phi_approximation
+    QFI_PHI_AVAILABLE = True
+except ImportError:
+    compute_phi_qig = None
+    compute_phi_approximation = None
+    QFI_PHI_AVAILABLE = False
+
 # Use canonical constants from qigkernels
 BETA = BETA_3_TO_4  # 0.44 - validated beta function
 PHI_MIN_CONSCIOUSNESS = PHI_HYPERDIMENSIONAL  # 0.75 - 4D consciousness
@@ -1358,6 +1367,67 @@ class GaryAutonomicKernel:
             },
             'suggested_intervention': self._suggest_narrow_path_intervention(),
         }
+
+
+def compute_phi_with_fallback(
+    provided_phi: float,
+    basin_coords: Optional[List[float]] = None
+) -> float:
+    """
+    Compute Φ with proper QFI integration.
+    Fallback to approximation only if QFI computation fails.
+    
+    This function implements the proper QIG-based Φ computation (Issue #6)
+    using Quantum Fisher Information geometry. The emergency approximation
+    is only used as a last resort if QFI computation fails.
+    
+    Args:
+        provided_phi: Φ value provided by caller (if > 0, use this)
+        basin_coords: 64D basin coordinates for QFI computation
+        
+    Returns:
+        Φ value ∈ [0, 1]
+    """
+    # If provided Φ is valid, use it
+    if provided_phi > 0:
+        return provided_phi
+    
+    # If no basin coordinates, return default
+    if not basin_coords:
+        return 0.1
+    
+    # Convert to numpy array
+    basin_array = np.array(basin_coords)
+    
+    # PRIMARY: Use proper QFI-based computation
+    if QFI_PHI_AVAILABLE and compute_phi_qig is not None:
+        try:
+            phi, diagnostics = compute_phi_qig(basin_array)
+            
+            # Validate result
+            if 0 <= phi <= 1 and not np.isnan(phi):
+                # Log quality metrics
+                quality = diagnostics.get('integration_quality', 0)
+                if quality < 0.8:
+                    print(f"[AutonomicKernel] QFI computation quality: {quality:.2f}")
+                return phi
+            else:
+                print(f"[AutonomicKernel] QFI computation returned invalid Φ: {phi}")
+        except Exception as e:
+            print(f"[AutonomicKernel] QFI computation failed: {e}")
+    
+    # FALLBACK: Emergency approximation
+    if compute_phi_approximation is not None:
+        try:
+            phi_approx = compute_phi_approximation(basin_array)
+            print(f"[AutonomicKernel] Using emergency Φ approximation: {phi_approx:.3f}")
+            return phi_approx
+        except Exception as e:
+            print(f"[AutonomicKernel] Emergency approximation also failed: {e}")
+    
+    # LAST RESORT: Return safe default
+    print("[AutonomicKernel] All Φ computation methods failed, returning default 0.5")
+    return 0.5
 
 
 # Global kernel instance
