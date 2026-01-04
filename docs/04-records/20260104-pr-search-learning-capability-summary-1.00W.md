@@ -1,8 +1,10 @@
-# PR Summary: Search Capability + 4 Spot Fixes
+# PR Summary: Search and Learning Capability Wiring
 
-**PR:** copilot/trace-kernel-to-search-flow  
+**Document ID:** `ISMS-REC-PR-001`  
+**Version:** 1.00W (Working)  
 **Date:** 2026-01-04  
-**Status:** Complete ✅
+**Status:** 🔨 Working  
+**PR:** copilot/trace-kernel-to-search-flow
 
 ## Overview
 
