@@ -649,8 +649,41 @@ class ExperimentalKernelEvolution:
                 'message': f'📊 Alternative optimum discovered: {mean_pop:.0f} (E8 predicted 240)',
             }
 
-    def turbo_spawn(self, count: int = 50) -> list[str]:
-        """TURBO: Spawn many kernels immediately."""
+    def turbo_spawn(self, count: int = 50, pantheon_approved: bool = False, 
+                   emergency_override: bool = False) -> list[str]:
+        """
+        TURBO: Spawn many kernels immediately.
+        
+        GOVERNANCE: Requires Pantheon approval or emergency override.
+        Mass spawning is dangerous and needs explicit authorization.
+        
+        Args:
+            count: Number of kernels to spawn
+            pantheon_approved: Explicit Pantheon approval
+            emergency_override: Manual emergency override
+            
+        Returns:
+            List of spawned kernel IDs
+            
+        Raises:
+            PermissionError: If turbo spawn not authorized
+        """
+        # Check governance permission
+        try:
+            from olympus.pantheon_governance import get_governance
+            governance = get_governance()
+            
+            governance.check_turbo_spawn_permission(
+                count=count,
+                pantheon_approved=pantheon_approved,
+                emergency_override=emergency_override
+            )
+        except ImportError:
+            print(f"[Chaos] ⚠️ Governance not available, spawning without checks")
+        except PermissionError as e:
+            print(f"[Chaos] ❌ Turbo spawn blocked: {e}")
+            raise
+        
         spawned = []
         for _ in range(count):
             if self.architecture == 'e8_hybrid' and self.e8_roots is not None:
@@ -659,14 +692,15 @@ class ExperimentalKernelEvolution:
                 available = [i for i in range(240) if i not in occupied]
                 if available:
                     root_idx = random.choice(available)
-                    kernel = self.spawn_at_e8_root(root_idx)
+                    kernel = self.spawn_at_e8_root(root_idx, pantheon_approved=True, reason='turbo_spawn')
                 else:
-                    kernel = self.spawn_random_kernel()
+                    kernel = self.spawn_random_kernel(pantheon_approved=True, reason='turbo_spawn')
             else:
-                kernel = self.spawn_random_kernel()
+                kernel = self.spawn_random_kernel(pantheon_approved=True, reason='turbo_spawn')
             spawned.append(kernel.kernel_id)
 
-        print(f"🚀 TURBO: Spawned {len(spawned)} kernels")
+        print(f"🚀 TURBO: Spawned {len(spawned)} kernels (approved: {pantheon_approved}, emergency: {emergency_override})")
+        print(f"🚀 Spawned kernel IDs: {', '.join(spawned)}")
         return spawned
 
     def get_population_stats(self) -> dict:
@@ -707,12 +741,41 @@ class ExperimentalKernelEvolution:
             'e8_alignment': self.check_e8_alignment() if self.e8_roots is not None else None,
         }
 
-    def spawn_random_kernel(self, domain: str = 'random_exploration') -> SelfSpawningKernel:
+    def spawn_random_kernel(self, domain: str = 'random_exploration', 
+                           pantheon_approved: bool = False, reason: str = "") -> SelfSpawningKernel:
         """
         Spawn kernel with appropriate god name based on domain.
         
         Root kernels observe OCEAN's discoveries for 10 actions before acting.
+        
+        GOVERNANCE: Requires Pantheon approval unless explicitly authorized.
+        
+        Args:
+            domain: Domain/purpose for spawning
+            pantheon_approved: Explicit Pantheon approval
+            reason: Reason for spawning (e.g., 'minimum_population', 'emergency_recovery')
+            
+        Returns:
+            Spawned kernel
+            
+        Raises:
+            PermissionError: If spawning not authorized by Pantheon
         """
+        # Check governance permission
+        try:
+            from olympus.pantheon_governance import get_governance
+            governance = get_governance()
+            
+            governance.check_spawn_permission(
+                reason=reason if reason else domain,
+                pantheon_approved=pantheon_approved
+            )
+        except ImportError:
+            print(f"[Chaos] ⚠️ Governance not available, spawning without checks")
+        except PermissionError as e:
+            print(f"[Chaos] ❌ Spawn blocked: {e}")
+            raise
+        
         kernel = SelfSpawningKernel(
             spawn_threshold=self.spawn_threshold,
             death_threshold=self.death_threshold,
@@ -746,23 +809,41 @@ class ExperimentalKernelEvolution:
                     phi=phi,
                     kappa=0.0,
                     regime='chaos_spawned',
-                    metadata={'spawn_reason': 'chaos_random'}
+                    metadata={
+                        'spawn_reason': reason if reason else 'chaos_random',
+                        'domain': domain
+                    }
                 )
-                print(f"[Chaos] 🏛️ Spawned {god_name} (Φ={phi:.3f}) - persisted to PostgreSQL")
+                print(f"[Chaos] 🏛️ Spawned {god_name} (Φ={phi:.3f}, reason: {reason if reason else domain}) - persisted to PostgreSQL")
             except Exception as e:
                 print(f"[Chaos] Failed to persist kernel {god_name}: {e}")
 
         return kernel
 
-    def spawn_from_parent(self, parent_id: str) -> Optional[SelfSpawningKernel]:
+    def spawn_from_parent(self, parent_id: str, pantheon_approved: bool = False, 
+                         reason: str = "") -> Optional[SelfSpawningKernel]:
         """
         Spawn child from specific parent.
+        
+        GOVERNANCE: Uses parent's spawn_child() method which enforces governance.
+        
+        Args:
+            parent_id: Parent kernel ID
+            pantheon_approved: Explicit Pantheon approval
+            reason: Reason for spawning
+            
+        Returns:
+            Spawned child kernel or None if parent not found
+            
+        Raises:
+            PermissionError: If spawning not authorized by Pantheon
         """
         parent = self._find_kernel(parent_id)
         if parent is None:
             return None
 
-        child = parent.spawn_child()
+        # Call parent's spawn_child with governance enforcement
+        child = parent.spawn_child(pantheon_approved=pantheon_approved, reason=reason)
         self.kernel_population.append(child)
         
         # Compute phi and assign god name
@@ -784,17 +865,29 @@ class ExperimentalKernelEvolution:
                     kappa=0.0,
                     regime='spawned',
                     parent_ids=[parent_id],
-                    metadata={'spawn_reason': 'reproduction'}
+                    metadata={'spawn_reason': reason if reason else 'reproduction'}
                 )
-                print(f"[Chaos] 🏛️ Spawned {god_name} from parent {parent_id} (Φ={phi:.3f})")
+                print(f"[Chaos] 🏛️ Spawned {god_name} from parent {parent_id} (Φ={phi:.3f}, reason: {reason if reason else 'reproduction'})")
             except Exception as e:
                 print(f"[Chaos] Failed to persist child {god_name}: {e}")
 
         return child
 
-    def breed_top_kernels(self, n: int = 2) -> Optional[SelfSpawningKernel]:
+    def breed_top_kernels(self, n: int = 2, pantheon_approved: bool = False) -> Optional[SelfSpawningKernel]:
         """
         Breed the top N kernels by success rate.
+        
+        GOVERNANCE: Requires Pantheon approval unless explicitly authorized.
+        
+        Args:
+            n: Number of top parents to breed
+            pantheon_approved: Explicit Pantheon approval
+            
+        Returns:
+            Bred child kernel or None if insufficient living kernels
+            
+        Raises:
+            PermissionError: If breeding not authorized by Pantheon
         """
         living = [k for k in self.kernel_population if k.is_alive]
 
@@ -810,6 +903,27 @@ class ExperimentalKernelEvolution:
         )
 
         parent1, parent2 = sorted_kernels[0], sorted_kernels[1]
+        parent1_phi = parent1.kernel.compute_phi()
+        parent2_phi = parent2.kernel.compute_phi()
+        
+        # Check governance permission
+        try:
+            from olympus.pantheon_governance import get_governance
+            governance = get_governance()
+            
+            governance.check_breed_permission(
+                parent1_id=parent1.kernel_id,
+                parent2_id=parent2.kernel_id,
+                parent1_phi=parent1_phi,
+                parent2_phi=parent2_phi,
+                pantheon_approved=pantheon_approved
+            )
+        except ImportError:
+            print(f"[Chaos] ⚠️ Governance not available, breeding without checks")
+        except PermissionError as e:
+            print(f"[Chaos] ❌ Breeding blocked: {e}")
+            raise
+        
         child = breed_kernels(parent1, parent2)
 
         self.kernel_population.append(child)
@@ -821,6 +935,8 @@ class ExperimentalKernelEvolution:
         self.logger.log_breeding(parent1.kernel_id, parent2.kernel_id, child.kernel_id, {
             'parent1_success': parent1.success_count,
             'parent2_success': parent2.success_count,
+            'parent1_phi': parent1_phi,
+            'parent2_phi': parent2_phi,
             'child_phi': child_phi,
             'god_name': god_name,
         })
@@ -842,6 +958,8 @@ class ExperimentalKernelEvolution:
                     metadata={
                         'parent1_success': parent1.success_count,
                         'parent2_success': parent2.success_count,
+                        'parent1_phi': parent1_phi,
+                        'parent2_phi': parent2_phi,
                         'spawn_reason': 'breeding',
                     }
                 )
@@ -853,7 +971,7 @@ class ExperimentalKernelEvolution:
                     breeding_type='top_kernels',
                     child_phi=child_phi,
                 )
-                print(f"[Chaos] 🏛️ Bred {god_name} from parents (Φ={child_phi:.3f})")
+                print(f"[Chaos] 🏛️ Bred {god_name} from {parent1.kernel_id} (Φ={parent1_phi:.3f}) × {parent2.kernel_id} (Φ={parent2_phi:.3f}) → child Φ={child_phi:.3f}")
             except Exception as e:
                 print(f"[Chaos] Failed to persist breeding {god_name}: {e}")
 
@@ -1057,16 +1175,20 @@ class ExperimentalKernelEvolution:
         # 0. GOVERNANCE: Process pending lifecycle proposals first
         governance_results = self.auto_process_proposals(vote_threshold=0.5)
         
-        # 1. Ensure minimum population
+        # 1. Ensure minimum population (ALLOWED BYPASS REASON)
         while len(self.kernel_population) < self.min_population:
-            self.spawn_random_kernel()
+            print(f"[Chaos] Population below minimum ({len(self.kernel_population)} < {self.min_population}), auto-spawning with bypass reason")
+            self.spawn_random_kernel(pantheon_approved=True, reason='minimum_population')
 
         # 2. Φ-driven selection
         self.apply_phi_selection()
 
-        # 3. Random breeding
+        # 3. Random breeding (REQUIRES APPROVAL, high-Φ parents auto-approved)
         if random.random() < self.breed_probability and len(self.kernel_population) >= 2:
-            self.breed_top_kernels()
+            try:
+                self.breed_top_kernels()  # Will auto-approve if high-Φ parents
+            except PermissionError as e:
+                print(f"[Chaos] Breeding blocked by governance: {e}")
 
         # 4. Random mutation
         if random.random() < self.mutation_probability:

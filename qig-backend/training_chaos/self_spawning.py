@@ -884,13 +884,44 @@ class SelfSpawningKernel(*_kernel_base_classes):
         }
 
     # =========================================================================
-    # SPAWNING (With Full Support)
+    # SPAWNING (With Full Support & Governance)
     # =========================================================================
 
-    def spawn_child(self) -> 'SelfSpawningKernel':
+    def spawn_child(self, pantheon_approved: bool = False, reason: str = "") -> 'SelfSpawningKernel':
         """
         Spawn child with FULL autonomic support and observation period!
+        
+        GOVERNANCE: Requires Pantheon approval unless explicitly authorized.
+        
+        Args:
+            pantheon_approved: Explicit Pantheon approval for spawning
+            reason: Reason for spawning (e.g., 'minimum_population', 'test_mode')
+            
+        Returns:
+            Spawned child kernel
+            
+        Raises:
+            PermissionError: If spawning not authorized by Pantheon
         """
+        # Import governance (lazy import to avoid circular dependency)
+        try:
+            from olympus.pantheon_governance import get_governance
+            governance = get_governance()
+            
+            # Check permission (will raise PermissionError if not approved)
+            parent_phi = self.kernel.compute_phi()
+            governance.check_spawn_permission(
+                reason=reason,
+                parent_id=self.kernel_id,
+                parent_phi=parent_phi,
+                pantheon_approved=pantheon_approved
+            )
+        except ImportError:
+            print(f"[SelfSpawningKernel] ⚠️ Governance not available, spawning without checks")
+        except PermissionError as e:
+            print(f"[SelfSpawningKernel] ❌ Spawn blocked: {e}")
+            raise
+        
         child = SelfSpawningKernel(
             parent_basin=self.kernel.basin_coords.detach().clone(),
             parent_kernel=self,  # Give child reference to parent
@@ -911,6 +942,7 @@ class SelfSpawningKernel(*_kernel_base_classes):
         self.children.append(child.kernel_id)
 
         print(f"🐣 {self.kernel_id} spawned {child.kernel_id} (gen {child.generation})")
+        print(f"   → Parent Φ={parent_phi:.3f}, Reason: {reason if reason else 'approved'}")
         print(f"   → Child will observe parent for {child.observation_period} actions")
 
         return child
