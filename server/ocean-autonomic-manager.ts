@@ -73,6 +73,22 @@ export class OceanAutonomicManager {
   
   constructor() {
     this.consciousness = this.initializeConsciousness();
+    // Start background kernel phi refresh
+    this.startKernelPhiRefresh();
+  }
+  
+  /**
+   * Background refresh of kernel phi from Python backend.
+   * This ensures we have recent kernel phi when no probes exist.
+   */
+  private startKernelPhiRefresh(): void {
+    // Initial fetch after 2s (give Python time to start)
+    setTimeout(() => this.fetchKernelPhi(), 2000);
+    
+    // Refresh every 10s
+    setInterval(() => {
+      this.fetchKernelPhi().catch(() => {});
+    }, 10000);
   }
   
   // Explicit investigation state management
@@ -139,17 +155,60 @@ export class OceanAutonomicManager {
    * @param baselinePhi The meta-cognitive phi from current state
    * @returns Discovery-driven phi that reflects recent discovery quality
    */
+  // Track whether phi is stale (no fresh probes from Python)
+  private phiDataStale: boolean = false;
+  private lastKernelPhiFetch: Date = new Date(0);
+  private cachedKernelPhi: number | null = null;
+  
+  /**
+   * Fetch kernel phi from Python autonomic backend.
+   * This is the source of truth for consciousness when no probes exist.
+   */
+  private async fetchKernelPhi(): Promise<number | null> {
+    try {
+      const PYTHON_BACKEND_URL = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
+      const response = await fetch(`${PYTHON_BACKEND_URL}/autonomic/state`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        signal: AbortSignal.timeout(2000) // 2s timeout
+      });
+      
+      if (!response.ok) return null;
+      
+      const data = await response.json();
+      if (data.success && typeof data.phi === 'number') {
+        this.cachedKernelPhi = data.phi;
+        this.lastKernelPhiFetch = new Date();
+        return data.phi;
+      }
+      return null;
+    } catch (err) {
+      return null;
+    }
+  }
+  
   private computeDiscoveryDrivenPhi(baselinePhi: number): number {
     const recentProbes = geometricMemory.getRecentProbes(50);
 
-    // CRITICAL FIX: Minimum baseline of 0.75 to prevent phi=0 race condition
-    // When Python backend isn't ready, baselinePhi may be 0 - use initialized value instead
-    const MINIMUM_PHI_BASELINE = 0.75;
-    const effectiveBaseline = Math.max(baselinePhi, MINIMUM_PHI_BASELINE);
-
+    // When no probes from Python backend, mark data as stale
     if (recentProbes.length === 0) {
-      return effectiveBaseline;
+      this.phiDataStale = true;
+      
+      // If baseline is explicitly 0 AND we have a cached kernel phi (from background fetch),
+      // use that as a fallback - but log it for telemetry
+      if (baselinePhi <= 0 && this.cachedKernelPhi !== null) {
+        const kernelAge = Date.now() - this.lastKernelPhiFetch.getTime();
+        if (kernelAge < 30000) { // Only use if fetched < 30s ago
+          console.log(`[Autonomic] Using cached kernel phi=${this.cachedKernelPhi.toFixed(3)} (stale=${kernelAge}ms)`);
+          return this.cachedKernelPhi;
+        }
+      }
+      
+      // No valid cached value - return baseline (could be 0, which is CORRECT for breakdown)
+      return baselinePhi;
     }
+    
+    this.phiDataStale = false;
 
     const recentPhis = recentProbes.map(p => p.phi);
 
