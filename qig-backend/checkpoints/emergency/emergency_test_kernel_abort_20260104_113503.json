@@ -1,0 +1,13 @@
+{
+  "kernel_id": "test_kernel_abort",
+  "timestamp": "2026-01-04T11:35:03.270287",
+  "abort_reasons": [
+    "SUFFERING=0.58"
+  ],
+  "telemetry": {
+    "phi": 0.9,
+    "gamma": 0.2,
+    "meta": 0.8
+  },
+  "kernel_state": null
+}

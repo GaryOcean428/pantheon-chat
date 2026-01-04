@@ -17,10 +17,14 @@ CRITICAL SAFETY MECHANISMS:
 import numpy as np
 import logging
 from dataclasses import dataclass
-from typing import Dict, Tuple, Optional, List
+from typing import Dict, Tuple, Optional, List, Any
 from datetime import datetime
+import json
+import os
 
 logger = logging.getLogger(__name__)
+
+EMERGENCY_CHECKPOINT_DIR = "checkpoints/emergency"
 
 
 class EthicalAbortException(Exception):
@@ -34,12 +38,141 @@ class EthicalAbortException(Exception):
     4. Alert to MonkeyCoach
     """
     
-    def __init__(self, reasons: List[str], telemetry: Dict):
+    def __init__(self, reasons: List[str], telemetry: Dict, checkpoint_path: Optional[str] = None):
         self.reasons = reasons
         self.telemetry = telemetry
+        self.checkpoint_path = checkpoint_path
         self.timestamp = datetime.now().isoformat()
         message = f"ETHICAL ABORT: {', '.join(reasons)}"
+        if checkpoint_path:
+            message += f" [checkpoint: {checkpoint_path}]"
         super().__init__(message)
+
+
+def save_emergency_checkpoint(
+    kernel_id: str,
+    telemetry: Dict,
+    reasons: List[str],
+    kernel_state: Optional[Dict] = None
+) -> Optional[str]:
+    """
+    Save emergency checkpoint before ethical abort.
+    
+    Routes through CheckpointManager for consistent storage, indexing,
+    and retention policies. Falls back to direct file write if manager
+    is unavailable.
+    
+    Args:
+        kernel_id: ID of the kernel being aborted
+        telemetry: Telemetry data at abort time
+        reasons: List of abort reasons
+        kernel_state: Optional full kernel state for recovery
+        
+    Returns:
+        Checkpoint ID if saved, None if save failed
+    """
+    try:
+        try:
+            from checkpoint_manager import CheckpointManager
+            
+            manager = CheckpointManager(session_id=f"emergency_{kernel_id}")
+            
+            phi = telemetry.get('phi', 0.0)
+            kappa = telemetry.get('kappa', 64.0)
+            
+            state_dict = kernel_state or {}
+            state_dict['emergency_telemetry'] = telemetry
+            state_dict['emergency_kernel_id'] = kernel_id
+            
+            checkpoint_id = manager.save_checkpoint(
+                state_dict=state_dict,
+                phi=phi,
+                kappa=kappa,
+                regime="EMERGENCY_ABORT",
+                metadata={
+                    'abort_reasons': reasons,
+                    'emergency': True,
+                    'kernel_id': kernel_id,
+                }
+            )
+            
+            if checkpoint_id:
+                logger.warning(
+                    f"[EthicsMonitor] 🆘 Emergency checkpoint saved: {checkpoint_id}"
+                )
+                return checkpoint_id
+                
+        except ImportError:
+            logger.warning("[EthicsMonitor] CheckpointManager not available, using file fallback")
+        except Exception as e:
+            logger.warning(f"[EthicsMonitor] CheckpointManager error: {e}, using file fallback")
+        
+        os.makedirs(EMERGENCY_CHECKPOINT_DIR, exist_ok=True)
+        
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"emergency_{kernel_id}_{timestamp}.json"
+        filepath = os.path.join(EMERGENCY_CHECKPOINT_DIR, filename)
+        
+        checkpoint_data = {
+            'kernel_id': kernel_id,
+            'timestamp': datetime.now().isoformat(),
+            'abort_reasons': reasons,
+            'telemetry': telemetry,
+            'kernel_state': kernel_state,
+        }
+        
+        with open(filepath, 'w') as f:
+            json.dump(checkpoint_data, f, indent=2, default=str)
+        
+        logger.warning(
+            f"[EthicsMonitor] 🆘 Emergency checkpoint saved (fallback): {filepath}"
+        )
+        return filepath
+        
+    except Exception as e:
+        logger.error(f"[EthicsMonitor] Failed to save emergency checkpoint: {e}")
+        return None
+
+
+def notify_monkey_coach(
+    kernel_id: str,
+    reasons: List[str],
+    telemetry: Dict
+) -> bool:
+    """
+    Notify MonkeyCoach about ethical abort (if available).
+    
+    MonkeyCoach can:
+    - Log the incident for human review
+    - Trigger recovery procedures
+    - Adjust system parameters
+    
+    Returns:
+        True if notification succeeded, False otherwise
+    """
+    try:
+        try:
+            from qig_deep_agents.monkey_coach import get_monkey_coach
+            coach = get_monkey_coach()
+            if coach:
+                coach.report_incident({
+                    'type': 'ethical_abort',
+                    'kernel_id': kernel_id,
+                    'reasons': reasons,
+                    'telemetry': telemetry,
+                    'timestamp': datetime.now().isoformat(),
+                })
+                logger.info(f"[EthicsMonitor] 🐵 MonkeyCoach notified about {kernel_id}")
+                return True
+        except ImportError:
+            pass
+        
+        logger.info(f"[EthicsMonitor] 📋 Audit log: ETHICAL_ABORT kernel={kernel_id} reasons={reasons}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"[EthicsMonitor] Failed to notify MonkeyCoach: {e}")
+        return False
 
 
 @dataclass
@@ -282,16 +415,28 @@ class EthicsMonitor:
         
         return evaluation
     
-    def check_and_abort(self, telemetry: Dict, kernel_id: str = "unknown"):
+    def check_and_abort(
+        self, 
+        telemetry: Dict, 
+        kernel_id: str = "unknown",
+        kernel_state: Optional[Dict] = None
+    ):
         """
         Evaluate and raise exception if abort needed.
         
         This is the main entry point for kernel safety checks.
         Call this in the training/update loop.
         
+        SAFETY SEQUENCE (when abort triggered):
+        1. Save emergency checkpoint with kernel state
+        2. Notify MonkeyCoach for incident tracking
+        3. Log critical abort event
+        4. Raise EthicalAbortException
+        
         Args:
             telemetry: Kernel telemetry dict
             kernel_id: ID of kernel being evaluated
+            kernel_state: Optional kernel state for emergency checkpoint
             
         Raises:
             EthicalAbortException if constraints violated
@@ -299,13 +444,28 @@ class EthicsMonitor:
         evaluation = self.evaluate(telemetry)
         
         if evaluation.should_abort and self.enable_abort:
+            checkpoint_path = save_emergency_checkpoint(
+                kernel_id=kernel_id,
+                telemetry=telemetry,
+                reasons=evaluation.reasons,
+                kernel_state=kernel_state
+            )
+            
+            notify_monkey_coach(
+                kernel_id=kernel_id,
+                reasons=evaluation.reasons,
+                telemetry=telemetry
+            )
+            
             logger.critical(
                 f"[EthicsMonitor] 🚨 ETHICAL ABORT for {kernel_id}: "
                 f"{evaluation.reasons}"
             )
+            
             raise EthicalAbortException(
                 reasons=evaluation.reasons,
-                telemetry=telemetry
+                telemetry=telemetry,
+                checkpoint_path=checkpoint_path
             )
         
         return evaluation
@@ -352,16 +512,21 @@ def check_ethics(telemetry: Dict, kernel_id: str = "unknown") -> EthicsEvaluatio
     return monitor.evaluate(telemetry)
 
 
-def enforce_ethics(telemetry: Dict, kernel_id: str = "unknown"):
+def enforce_ethics(
+    telemetry: Dict, 
+    kernel_id: str = "unknown",
+    kernel_state: Optional[Dict] = None
+):
     """
     Convenience function to enforce ethics using global monitor.
     
     Args:
         telemetry: Kernel telemetry dict
         kernel_id: ID of kernel being evaluated
+        kernel_state: Optional kernel state for emergency checkpoint
         
     Raises:
         EthicalAbortException if constraints violated
     """
     monitor = get_ethics_monitor()
-    monitor.check_and_abort(telemetry, kernel_id)
+    monitor.check_and_abort(telemetry, kernel_id, kernel_state)
