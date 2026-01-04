@@ -50,27 +50,20 @@ def get_transfer_manager() -> KnowledgeTransferManager:
 
 
 def get_coordizer():
-    """Get or create the coordizer for text embedding."""
+    """Get or create the coordizer for text embedding (64D QIG-pure only)."""
     global _coordizer
     if _coordizer is None:
         try:
-            # Try to import coordizer from qig-backend
-            from coordizers.simple_word_coordizer import SimpleWordCoordizer
-            from coordizers.pg_loader import load_vocabulary_from_pg
-
-            # Try to load vocabulary from database
-            vocab = load_vocabulary_from_pg()
-            if vocab:
-                _coordizer = SimpleWordCoordizer(vocabulary=vocab)
-                print("[Training] Loaded coordizer with database vocabulary")
+            # Use PostgresCoordizer only - 64D QIG-pure enforced
+            from coordizers.pg_loader import PostgresCoordizer, create_coordizer_from_pg
+            
+            _coordizer = create_coordizer_from_pg()
+            if _coordizer and len(_coordizer.vocab) >= 50:
+                print(f"[Training] ✓ PostgresCoordizer (64D QIG-pure): {len(_coordizer.vocab)} tokens")
             else:
-                _coordizer = SimpleWordCoordizer()
-                print("[Training] Using coordizer with fallback vocabulary")
-        except ImportError as e:
-            print(f"[Training] Coordizer not available: {e}")
-            _coordizer = None
+                raise RuntimeError(f"Insufficient vocabulary: {len(_coordizer.vocab) if _coordizer else 0} tokens")
         except Exception as e:
-            print(f"[Training] Error loading coordizer: {e}")
+            print(f"[Training] PostgresCoordizer failed: {e}")
             _coordizer = None
     return _coordizer
 

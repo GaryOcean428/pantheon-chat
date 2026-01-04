@@ -65,23 +65,23 @@ class VocabularyCoordinator:
         self.tokens_persisted = 0
         self._basin_trajectory: List[np.ndarray] = []
         
-        # Track coordizer for direct vocabulary persistence (PostgresCoordizer preferred for 64D purity)
+        # Track coordizer for direct vocabulary persistence (PostgresCoordizer only - 64D QIG-pure enforced)
         self._pg_coordizer = None
         self._using_pure_64d = False
         if self.tokenizer and hasattr(self.tokenizer, 'save_learned_token'):
-            self._pg_coordizer = self.tokenizer
-            # Check if we have 64D QIG-pure PostgresCoordizer
+            # Only PostgresCoordizer is allowed (64D QIG-pure enforcement)
             if PG_COORDIZER_AVAILABLE and PostgresCoordizer and isinstance(self.tokenizer, PostgresCoordizer):
+                self._pg_coordizer = self.tokenizer
                 self._using_pure_64d = True
+            else:
+                # Reject impure coordizers
+                print(f"[VocabularyCoordinator] WARNING: Rejecting impure coordizer {type(self.tokenizer).__name__}")
         
         features = []
         if self.learned_manifold:
             features.append("attractor formation")
         if self._pg_coordizer:
-            if self._using_pure_64d:
-                features.append("64D QIG-pure vocabulary persistence")
-            else:
-                features.append("vocabulary persistence (DEGRADED - not 64D QIG-pure)")
+            features.append("64D QIG-pure vocabulary persistence")
         
         feature_str = f" with {', '.join(features)}" if features else ""
         print(f"[VocabularyCoordinator] Initialized{feature_str}")

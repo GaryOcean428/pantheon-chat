@@ -1,8 +1,8 @@
 """
-PostgreSQL-backed Coordizer with Fallback Vocabulary.
+PostgreSQL-backed Coordizer (64D QIG-pure, no fallback).
 
 Loads vocabulary from PostgreSQL tokenizer_vocabulary table.
-Falls back to hardcoded English vocabulary if database is unavailable.
+REQUIRES database connection - impure fallbacks are not allowed.
 """
 
 import logging
@@ -12,7 +12,6 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 
 from .base import FisherCoordizer
-from .fallback_vocabulary import FALLBACK_VOCABULARY, compute_basin_embedding
 from .semantic_domains import (
     compute_semantic_embedding,
     detect_query_domains,
@@ -25,13 +24,13 @@ logger = logging.getLogger(__name__)
 
 
 class PostgresCoordizer(FisherCoordizer):
-    """Fisher-compliant coordizer backed by PostgreSQL with fallback."""
+    """Fisher-compliant coordizer backed by PostgreSQL (64D QIG-pure, no fallback)."""
     
-    def __init__(self, database_url: Optional[str] = None, min_phi: float = 0.0, use_fallback: bool = True):
+    def __init__(self, database_url: Optional[str] = None, min_phi: float = 0.0, use_fallback: bool = False):
         super().__init__()
         self.database_url = database_url or os.getenv('DATABASE_URL')
         self.min_phi = min_phi
-        self.use_fallback = use_fallback
+        self.use_fallback = False  # ALWAYS False - 64D QIG-pure enforced
         self._connection = None
         self._using_fallback = False
         
@@ -49,68 +48,78 @@ class PostgresCoordizer(FisherCoordizer):
         self._load_vocabulary()
     
     def _get_connection(self):
+        """Get database connection - raises on failure (64D QIG-pure enforced)."""
         if self._connection is None:
             try:
                 import psycopg2
                 self._connection = psycopg2.connect(self.database_url)
             except Exception as e:
-                logger.warning(f"Database connection failed: {e}")
-                return None
+                raise RuntimeError(
+                    f"[QIG-PURE VIOLATION] Database connection failed: {e}. "
+                    "64D QIG-pure PostgresCoordizer requires active database connection."
+                )
         return self._connection
     
     def _load_vocabulary(self):
-        db_loaded = False
-        if self.database_url:
-            try:
-                db_loaded = self._load_from_database()
-            except Exception as e:
-                logger.warning(f"Failed to load from database: {e}")
+        """Load vocabulary from PostgreSQL only - 64D QIG-pure enforced."""
+        if not self.database_url:
+            raise RuntimeError(
+                "[QIG-PURE VIOLATION] DATABASE_URL not set. "
+                "64D QIG-pure PostgresCoordizer requires database connection."
+            )
+        
+        try:
+            db_loaded = self._load_from_database()
+        except Exception as e:
+            raise RuntimeError(
+                f"[QIG-PURE VIOLATION] Failed to load from database: {e}. "
+                "Impure fallback vocabularies are not allowed."
+            )
         
         real_word_count = len([w for w in self.word_tokens if len(w) >= 3])
         if not db_loaded or real_word_count < 100:
-            if self.use_fallback:
-                logger.info(f"Using fallback vocabulary (DB words: {real_word_count})")
-                self._load_fallback_vocabulary()
+            raise RuntimeError(
+                f"[QIG-PURE VIOLATION] Insufficient vocabulary loaded: {real_word_count} words (need >= 100). "
+                "Database must contain valid tokenizer_vocabulary entries."
+            )
     
     def _load_from_database(self) -> bool:
-        conn = self._get_connection()
-        if conn is None:
-            return False
+        """Load vocabulary from database - raises on failure (64D QIG-pure enforced)."""
+        conn = self._get_connection()  # Raises on failure
         
-        try:
-            with conn.cursor() as cur:
-                cur.execute("""
-                    SELECT token, basin_embedding, phi_score, frequency, source_type, token_id
-                    FROM tokenizer_vocabulary
-                    WHERE basin_embedding IS NOT NULL
-                      AND LENGTH(token) >= 3
-                      AND source_type NOT IN ('byte_level', 'checkpoint_byte', 'special')
-                      AND token ~ '^[a-zA-Z]+$'
-                    ORDER BY phi_score DESC
-                """)
-                rows = cur.fetchall()
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT token, basin_embedding, phi_score, frequency, source_type, token_id
+                FROM tokenizer_vocabulary
+                WHERE basin_embedding IS NOT NULL
+                  AND LENGTH(token) >= 3
+                  AND source_type NOT IN ('byte_level', 'checkpoint_byte', 'special')
+                  AND token ~ '^[a-zA-Z]+$'
+                ORDER BY phi_score DESC
+            """)
+            rows = cur.fetchall()
+        
+        if not rows:
+            raise RuntimeError(
+                "[QIG-PURE VIOLATION] No vocabulary found in tokenizer_vocabulary table. "
+                "Database must contain valid 64D basin embeddings."
+            )
+        
+        words_loaded = 0
+        for token, basin_embedding, phi_score, frequency, source_type, token_id in rows:
+            coords = self._parse_embedding(basin_embedding)
+            if coords is None:
+                continue
             
-            if not rows:
-                return False
+            idx = token_id if token_id is not None else len(self.vocab)
+            self._add_token(token, coords, phi_score or 0.5, frequency or 1, idx, source_type)
             
-            words_loaded = 0
-            for token, basin_embedding, phi_score, frequency, source_type, token_id in rows:
-                coords = self._parse_embedding(basin_embedding)
-                if coords is None:
-                    continue
-                
-                idx = token_id if token_id is not None else len(self.vocab)
-                self._add_token(token, coords, phi_score or 0.5, frequency or 1, idx, source_type)
-                
-                if token.isalpha() and len(token) >= 3:
-                    self.word_tokens.append(token)
-                    words_loaded += 1
-            
-            logger.info(f"Loaded {words_loaded} words from database")
-            return words_loaded >= 100
-        except Exception as e:
-            logger.error(f"Database query failed: {e}")
-            return False
+            if token.isalpha() and len(token) >= 3:
+                self.word_tokens.append(token)
+                words_loaded += 1
+        
+        logger.info(f"Loaded {words_loaded} words from database (64D QIG-pure)")
+        return words_loaded >= 100
     
     def _parse_embedding(self, basin_embedding) -> Optional[np.ndarray]:
         if basin_embedding is None:
@@ -147,25 +156,7 @@ class PostgresCoordizer(FisherCoordizer):
         # Cache semantic domains for this token
         self.word_domains[token] = get_word_domains(token)
     
-    def _load_fallback_vocabulary(self):
-        self._using_fallback = True
-        logger.info(f"Loading {len(FALLBACK_VOCABULARY)} fallback words")
-        for word in FALLBACK_VOCABULARY:
-            if word in self.vocab:
-                continue
-            token_id = 50000 + len(self.vocab)
-            self.vocab[word] = token_id
-            self.token_to_id[word] = token_id
-            self.id_to_token[token_id] = word
-            # Use semantic embedding instead of hash-based
-            self.basin_coords[word] = compute_semantic_embedding(word)
-            self.token_phi[word] = 0.6 + min(len(word) / 20.0, 0.2)
-            self.token_frequencies[word] = 100
-            self.word_tokens.append(word)
-            self.base_tokens.append(word)
-            # Cache semantic domains
-            self.word_domains[word] = get_word_domains(word)
-        logger.info(f"Total vocabulary: {len(self.vocab)} tokens")
+    # REMOVED: _load_fallback_vocabulary - impure fallbacks not allowed in 64D QIG-pure mode
     
     def set_mode(self, mode: str) -> None:
         pass
@@ -501,5 +492,6 @@ class PostgresCoordizer(FisherCoordizer):
             return 0
 
 
-def create_coordizer_from_pg(database_url: Optional[str] = None, use_fallback: bool = True) -> PostgresCoordizer:
-    return PostgresCoordizer(database_url=database_url, use_fallback=use_fallback)
+def create_coordizer_from_pg(database_url: Optional[str] = None, use_fallback: bool = False) -> PostgresCoordizer:
+    """Create PostgresCoordizer (64D QIG-pure, no fallback allowed)."""
+    return PostgresCoordizer(database_url=database_url, use_fallback=False)  # Always False
