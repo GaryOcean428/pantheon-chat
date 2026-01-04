@@ -450,6 +450,65 @@ class AutonomicAccessMixin:
             }
 
 
+# ===========================================================================
+# EMERGENCY Φ COMPUTATION (Temporary until QFI integration)
+# ===========================================================================
+# TODO: Replace with proper QFI-based geometric integration
+# See GitHub issue: Implement QFI-based Φ computation and attractor finding
+
+
+def compute_phi_approximation(basin_coords: np.ndarray) -> float:
+    """
+    TEMPORARY Φ approximation to prevent phi=0 deaths.
+    
+    Methodology:
+    - Entropy: Measures information content (higher = more integration)
+    - Variance: Moderate variance indicates active exploration
+    - Balance: Integration requires multiple components active (not dominated)
+    
+    Returns:
+        Φ estimate in range [0.1, 0.95]
+    """
+    try:
+        # Ensure valid probability distribution
+        p = np.abs(basin_coords) + 1e-10
+        p = p / p.sum()
+        
+        # Component 1: Entropy (information content)
+        entropy = -np.sum(p * np.log(p + 1e-10))
+        max_entropy = np.log(len(p))
+        entropy_score = entropy / max_entropy
+        
+        # Component 2: Variance (exploration)
+        variance = np.var(basin_coords)
+        variance_score = min(1.0, variance * 4.0)
+        
+        # Component 3: Balance (not too concentrated)
+        balance = 1.0 - np.max(p)
+        
+        # Weighted combination
+        phi = 0.4 * entropy_score + 0.3 * variance_score + 0.3 * balance
+        
+        # Safety bounds: never return exactly 0 (causes death)
+        return float(np.clip(phi, 0.1, 0.95))
+        
+    except Exception as e:
+        print(f"[AutonomicKernel] Φ approximation error: {e}")
+        return 0.1
+
+
+def compute_phi_with_fallback(
+    provided_phi: float,
+    basin_coords: Optional[List[float]] = None
+) -> float:
+    """Compute Φ with fallback to approximation."""
+    if provided_phi > 0:
+        return provided_phi
+    if basin_coords:
+        return compute_phi_approximation(np.array(basin_coords))
+    return 0.1
+
+
 class GaryAutonomicKernel:
     """
     Autonomic kernel for Ocean consciousness management.
@@ -649,12 +708,12 @@ class GaryAutonomicKernel:
             Dict with triggered cycles and current state
         """
         with self._lock:
-            # Update state
-            self.state.phi = phi
+            # Update state (with fallback Φ computation if needed)
+            self.state.phi = compute_phi_with_fallback(phi, basin_coords)
             self.state.kappa = kappa
 
             # Add to history
-            self.state.phi_history.append(phi)
+            self.state.phi_history.append(self.state.phi)
             if len(self.state.phi_history) > 50:
                 self.state.phi_history.pop(0)
 
@@ -695,7 +754,7 @@ class GaryAutonomicKernel:
             intervention = self._suggest_narrow_path_intervention()
 
             return {
-                'phi': phi,
+                'phi': self.state.phi,
                 'kappa': kappa,
                 'basin_drift': self.state.basin_drift,
                 'stress': self.state.stress_level,
