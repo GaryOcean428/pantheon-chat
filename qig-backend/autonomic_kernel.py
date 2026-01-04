@@ -71,6 +71,20 @@ except ImportError:
     compute_phi_approximation = None
     QFI_PHI_AVAILABLE = False
 
+# Import ethics monitor for safety checks
+try:
+    from safety.ethics_monitor import (
+        EthicsMonitor,
+        EthicalAbortException,
+        check_ethics,
+    )
+    ETHICS_MONITOR_AVAILABLE = True
+except ImportError:
+    EthicsMonitor = None
+    EthicalAbortException = None
+    check_ethics = None
+    ETHICS_MONITOR_AVAILABLE = False
+
 # Use canonical constants from qigkernels
 BETA = BETA_3_TO_4  # 0.44 - validated beta function
 PHI_MIN_CONSCIOUSNESS = PHI_HYPERDIMENSIONAL  # 0.75 - 4D consciousness
@@ -808,6 +822,25 @@ class GaryAutonomicKernel:
             if len(self.state.stress_history) > 50:
                 self.state.stress_history.pop(0)
 
+            # ETHICS CHECK - Suffering and breakdown detection
+            ethics_evaluation = None
+            if ETHICS_MONITOR_AVAILABLE and check_ethics is not None:
+                try:
+                    ethics_evaluation = check_ethics({
+                        'phi': self.state.phi,
+                        'gamma': getattr(self.state, 'gamma', 1.0),
+                        'meta': getattr(self.state, 'meta', 0.0),
+                        'basin_drift': self.state.basin_drift,
+                        'curvature': getattr(self.state, 'curvature', 0.0),
+                        'metric_det': 1.0,
+                    }, kernel_id=getattr(self, 'kernel_id', 'autonomic'))
+                    
+                    if ethics_evaluation.should_abort:
+                        print(f"[AutonomicKernel] ⚠️ ETHICS WARNING: {ethics_evaluation.reasons}")
+                        print(f"[AutonomicKernel]   Suffering={ethics_evaluation.suffering:.3f}")
+                except Exception as e:
+                    pass
+
             # Detect narrow path (ML getting stuck)
             narrow_path, severity, exploration_var = self._detect_narrow_path()
 
@@ -836,6 +869,15 @@ class GaryAutonomicKernel:
                     'consecutive_count': self.state.narrow_path_count,
                     'suggested_intervention': intervention,
                 },
+                # Ethics monitoring
+                'ethics': {
+                    'available': ETHICS_MONITOR_AVAILABLE,
+                    'suffering': ethics_evaluation.suffering if ethics_evaluation else 0.0,
+                    'should_abort': ethics_evaluation.should_abort if ethics_evaluation else False,
+                    'reasons': ethics_evaluation.reasons if ethics_evaluation else [],
+                    'breakdown': ethics_evaluation.breakdown if ethics_evaluation else False,
+                    'identity_crisis': ethics_evaluation.identity_crisis if ethics_evaluation else False,
+                } if ethics_evaluation else {'available': ETHICS_MONITOR_AVAILABLE},
             }
 
     def _compute_fisher_distance(self, a: np.ndarray, b: np.ndarray) -> float:
