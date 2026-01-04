@@ -27,10 +27,11 @@ import { scoreUniversalQIGAsync } from "../qig-universal";
 export const searchProviderState = {
   google_free: { enabled: true },
   tavily: { enabled: false },
+  perplexity: { enabled: false },
   duckduckgo: { enabled: true, torEnabled: true },
 };
 
-export function isProviderEnabled(provider: 'google_free' | 'tavily' | 'duckduckgo'): boolean {
+export function isProviderEnabled(provider: 'google_free' | 'tavily' | 'perplexity' | 'duckduckgo'): boolean {
   return searchProviderState[provider].enabled;
 }
 
@@ -122,6 +123,7 @@ searchRouter.post("/web", generousLimiter, async (req: Request, res: Response) =
 searchRouter.get("/providers", generousLimiter, async (req: Request, res: Response) => {
   try {
     const tavilyKey = process.env.TAVILY_API_KEY;
+    const perplexityKey = process.env.PERPLEXITY_API_KEY;
     
     res.json({
       success: true,
@@ -137,6 +139,12 @@ searchRouter.get("/providers", generousLimiter, async (req: Request, res: Respon
           requires_key: true,
           has_key: !!tavilyKey,
         },
+        perplexity: {
+          available: !!perplexityKey,
+          enabled: searchProviderState.perplexity.enabled,
+          requires_key: true,
+          has_key: !!perplexityKey,
+        },
       },
     });
   } catch (error: unknown) {
@@ -149,7 +157,7 @@ searchRouter.post("/providers/:provider/toggle", generousLimiter, async (req: Re
     const { provider } = req.params;
     const { enabled } = req.body;
     
-    if (provider !== 'google_free' && provider !== 'tavily') {
+    if (provider !== 'google_free' && provider !== 'tavily' && provider !== 'perplexity') {
       return res.status(400).json({ success: false, error: `Unknown provider: ${provider}` });
     }
     
@@ -161,11 +169,20 @@ searchRouter.post("/providers/:provider/toggle", generousLimiter, async (req: Re
       });
     }
     
+    if (provider === 'perplexity' && enabled && !process.env.PERPLEXITY_API_KEY) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'PERPLEXITY_API_KEY not set. Please add it to your secrets.',
+        error_code: 'MISSING_API_KEY'
+      });
+    }
+    
     searchProviderState[provider].enabled = enabled;
     
     console.log(`[SearchProviders] ${provider} ${enabled ? 'enabled' : 'disabled'}`);
     
     const tavilyKey = process.env.TAVILY_API_KEY;
+    const perplexityKey = process.env.PERPLEXITY_API_KEY;
     
     res.json({
       success: true,
@@ -184,6 +201,12 @@ searchRouter.post("/providers/:provider/toggle", generousLimiter, async (req: Re
             enabled: searchProviderState.tavily.enabled,
             requires_key: true,
             has_key: !!tavilyKey,
+          },
+          perplexity: {
+            available: !!perplexityKey,
+            enabled: searchProviderState.perplexity.enabled,
+            requires_key: true,
+            has_key: !!perplexityKey,
           },
         },
       },
