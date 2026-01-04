@@ -544,6 +544,9 @@ class GaryAutonomicKernel:
         self._controller = None
         self._autonomous_enabled = enable_autonomous
         
+        # Geodesic navigation state
+        self.current_velocity: Optional[np.ndarray] = None
+        
         # Initialize reasoning consolidation for sleep cycles
         # NOTE: Only wire if reasoning modules use Fisher-Rao (QIG-pure)
         self.reasoning_learner = None
@@ -694,6 +697,55 @@ class GaryAutonomicKernel:
         if not self._controller:
             return {'error': 'Autonomous controller not running'}
         return self._controller.force_intervention(action_name)
+    
+    def navigate_to_basin(
+        self,
+        current_basin: np.ndarray,
+        target_basin: np.ndarray
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Navigate from current to target following Fisher-Rao geodesic.
+        
+        This replaces simple Euclidean interpolation with proper geodesic
+        navigation on the information manifold. Uses the new geodesic_navigation
+        module to compute paths that respect manifold geometry.
+        
+        Args:
+            current_basin: Current basin coordinates (64D)
+            target_basin: Target basin coordinates (64D)
+            
+        Returns:
+            Tuple of (next_basin, next_velocity)
+        """
+        try:
+            from qig_core.geodesic_navigation import navigate_to_target
+            
+            next_basin, next_velocity = navigate_to_target(
+                current_basin,
+                target_basin,
+                self.current_velocity,
+                kappa=self.state.kappa,
+                step_size=0.05
+            )
+            
+            # Update stored velocity
+            self.current_velocity = next_velocity
+            
+            return next_basin, next_velocity
+            
+        except Exception as e:
+            print(f"[AutonomicKernel] Geodesic navigation failed: {e}")
+            # Fallback: simple step toward target
+            direction = target_basin - current_basin
+            magnitude = np.linalg.norm(direction)
+            if magnitude > 1e-8:
+                direction = direction / magnitude
+            next_basin = current_basin + 0.01 * direction
+            
+            # Update velocity even in fallback
+            self.current_velocity = direction * 0.01
+            
+            return next_basin, direction * 0.01
 
     def update_metrics(
         self,
