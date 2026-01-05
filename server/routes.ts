@@ -48,6 +48,7 @@ import {
   adminRouter,
   attentionMetricsRouter,
   authRouter,
+  autonomicRouter,
   autonomicAgencyRouter,
   federationRouter,
   consciousnessRouter,
@@ -59,6 +60,12 @@ import {
   ucpRouter,
   vocabularyRouter,
   zettelkastenRouter,
+  // New comprehensive routers
+  immuneRouter,
+  trainingRouter,
+  memoryRouter,
+  feedbackRouter,
+  coordizerRouter,
 } from "./routes/index";
 
 import { externalRouter as externalApiRouter, documentsRouter as externalDocsRouter, initExternalWebSocket } from "./external-api";
@@ -139,8 +146,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // CRITICAL: Simple liveness endpoint for Autoscale deployment health checks
-  // This must respond immediately without waiting for any dependencies (database, Python, etc.)
-  // Autoscale uses this to verify the server is alive and accepting HTTP requests
   app.get("/health", (req, res) => {
     res.status(200).json({
       status: "ok",
@@ -149,7 +154,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Comprehensive health endpoint for frontend monitoring
-  // Returns detailed subsystem status including database and Python backend
   app.get("/api/health", async (req, res) => {
     const startTime = Date.now();
     const subsystems: Record<string, any> = {
@@ -158,7 +162,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       storage: { status: 'healthy' as const, message: 'In-memory storage active' },
     };
 
-    // Check database
     try {
       const { db } = await import("./db");
       if (db) {
@@ -176,7 +179,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       subsystems.database = { status: 'down', message: 'Database connection failed' };
     }
 
-    // Check Python backend
     try {
       const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
       const pyStart = Date.now();
@@ -197,7 +199,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       subsystems.pythonBackend = { status: 'down', message: 'Python backend unreachable' };
     }
 
-    // Determine overall status
     const statuses = Object.values(subsystems).map((s: any) => s.status);
     let overallStatus: 'healthy' | 'degraded' | 'down' = 'healthy';
     if (statuses.includes('down')) {
@@ -215,7 +216,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
-  // Replit Auth: Only setup auth if database connection is available
   const { db } = await import("./db");
   const authEnabled = !!db;
 
@@ -223,7 +223,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     await setupAuth(app);
     console.log("[Auth] Replit Auth enabled");
 
-    // Replit Auth: Auth routes - optimized with session caching
     app.get("/api/auth/user", isAuthenticated, async (req: any, res) => {
       try {
         const { getCachedUser } = await import("./replitAuth");
@@ -251,21 +250,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
   } else {
-    console.log(
-      "[Auth] Replit Auth disabled (no DATABASE_URL) - recovery tool accessible without login"
-    );
+    console.log("[Auth] Replit Auth disabled (no DATABASE_URL)");
 
     app.get("/api/auth/user", (req, res) => {
       res.status(503).json({
-        message:
-          "Authentication unavailable - database not provisioned. Please provision a PostgreSQL database to enable Replit Auth.",
+        message: "Authentication unavailable - database not provisioned.",
       });
     });
 
     app.get("/api/login", (req, res) => {
       res.status(503).json({
-        message:
-          "Authentication unavailable - database not provisioned. Please provision a PostgreSQL database to enable Replit Auth.",
+        message: "Authentication unavailable - database not provisioned.",
       });
     });
 
@@ -276,7 +271,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   }
 
-  // Emergency reset page - static HTML that clears cookies client-side
   app.get("/reset", (req, res) => {
     res.clearCookie("connect.sid");
     res.send(`<!DOCTYPE html>
@@ -295,7 +289,6 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
 </body></html>`);
   });
 
-  // Emergency session clear (no auth required) - for auth loop recovery
   app.get("/api/clear-session", (req, res) => {
     if (req.session) {
       req.session.destroy((err) => {
@@ -332,125 +325,73 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
   app.use("/api/federation", federationRouter);
   app.use("/api/zettelkasten", zettelkastenRouter);
 
+  // New comprehensive routers (full Python backend proxies)
+  app.use("/api/autonomic", autonomicRouter);
+  app.use("/api/immune", immuneRouter);
+  app.use("/api/training", trainingRouter);
+  app.use("/api/memory", memoryRouter);
+  app.use("/api/feedback", feedbackRouter);
+  app.use("/api/coordize", coordizerRouter);
+
   // Mount telemetry routers
   app.use("/api/telemetry", telemetryRouter);
   app.use("/api/backend-telemetry", backendTelemetryRouter);
-  
-  // Mount versioned telemetry dashboard API (unified metrics)
   app.use("/api/v1/telemetry", telemetryDashboardRouter);
-  
-  // Mount external API router (for federated instances, headless clients, integrations)
   app.use("/api/v1/external", externalApiRouter);
 
-  // ============================================================
-  // COORDIZER STATS PROXY (Routes to Python Backend)
-  // ============================================================
-  app.get("/api/coordize/stats", async (req, res) => {
-    try {
-      const pythonUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
-      const response = await fetch(`${pythonUrl}/api/coordize/stats`);
-      
-      if (!response.ok) {
-        throw new Error(`Python backend returned ${response.status}`);
-      }
-      
-      const stats = await response.json();
-      res.json(stats);
-    } catch (error: unknown) {
-      console.error("[Coordizer] Stats proxy error:", getErrorMessage(error));
-      res.json({
-        vocab_size: 0,
-        coordinate_dim: 64,
-        geometric_purity: true,
-        special_tokens: ['[PAD]', '[UNK]', '[BOS]', '[EOS]'],
-        status: 'backend_unavailable',
-        error: getErrorMessage(error)
-      });
-    }
-  });
+  console.log("[Routes] All sub-routers mounted");
+  console.log("[Routes] New routers: autonomic, immune, training, memory, feedback, coordize");
 
-  // Investigation status endpoint - used by investigation page
+  // Investigation status endpoint
   app.get("/api/investigation/status", (req, res) => {
     try {
       const status = oceanSessionManager.getInvestigationStatus();
       res.json(status);
     } catch (error: unknown) {
       console.error("[API] Investigation status error:", getErrorMessage(error));
-      res
-        .status(500)
-        .json({ error: getErrorMessage(error) || "Failed to get investigation status" });
+      res.status(500).json({ error: getErrorMessage(error) });
     }
   });
 
-  // ============================================================
-  // AUTO-CYCLE MANAGEMENT ENDPOINTS
-  // ============================================================
-
+  // Auto-cycle endpoints
   app.get("/api/auto-cycle/status", (req, res) => {
     try {
       const status = autoCycleManager.getStatus();
       const position = autoCycleManager.getPositionString();
-      res.json({
-        success: true,
-        ...status,
-        positionString: position,
-      });
+      res.json({ success: true, ...status, positionString: position });
     } catch (error: unknown) {
-      console.error("[API] Auto-cycle status error:", getErrorMessage(error));
       res.status(500).json({ error: getErrorMessage(error) });
     }
   });
 
   app.post("/api/auto-cycle/enable", async (req, res) => {
     try {
-      console.log("[API] Auto-cycle enable request received");
       const result = await autoCycleManager.enable();
-      res.json({
-        success: result.success,
-        message: result.message,
-        status: autoCycleManager.getStatus(),
-      });
+      res.json({ success: result.success, message: result.message, status: autoCycleManager.getStatus() });
     } catch (error: unknown) {
-      console.error("[API] Auto-cycle enable error:", getErrorMessage(error));
       res.status(500).json({ error: getErrorMessage(error) });
     }
   });
 
   app.post("/api/auto-cycle/disable", (req, res) => {
     try {
-      console.log("[API] Auto-cycle disable request received");
       const result = autoCycleManager.disable();
-      res.json({
-        success: result.success,
-        message: result.message,
-        status: autoCycleManager.getStatus(),
-      });
+      res.json({ success: result.success, message: result.message, status: autoCycleManager.getStatus() });
     } catch (error: unknown) {
-      console.error("[API] Auto-cycle disable error:", getErrorMessage(error));
       res.status(500).json({ error: getErrorMessage(error) });
     }
   });
 
   app.post("/api/auto-cycle/force-resume", async (req, res) => {
     try {
-      console.log("[API] Auto-cycle force-resume request received");
       const result = await autoCycleManager.forceResume();
-      res.json({
-        success: result.success,
-        message: result.message,
-        status: autoCycleManager.getStatus(),
-      });
+      res.json({ success: result.success, message: result.message, status: autoCycleManager.getStatus() });
     } catch (error: unknown) {
-      console.error("[API] Auto-cycle force-resume error:", getErrorMessage(error));
       res.status(500).json({ error: getErrorMessage(error) });
     }
   });
 
-  console.log("[Routes] All sub-routers mounted");
-
-  // ============================================================
-  // LEARNING UPLOAD ENDPOINT - Proxy to Python backend
-  // ============================================================
+  // Learning upload endpoint
   const uploadMiddleware = multer({ 
     storage: multer.memoryStorage(),
     limits: { fileSize: 5 * 1024 * 1024 },
@@ -458,21 +399,18 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
       if (file.originalname.toLowerCase().endsWith('.md')) {
         cb(null, true);
       } else {
-        cb(new Error('Only .md (markdown) files are accepted'));
+        cb(new Error('Only .md files accepted'));
       }
     }
   });
-  
+
   app.post("/api/learning/upload", uploadMiddleware.single('file'), async (req: any, res) => {
     try {
       if (!req.file) {
-        return res.status(400).json({ error: 'No file provided. Use "file" field in multipart/form-data' });
+        return res.status(400).json({ error: 'No file provided' });
       }
 
-      // Parse markdown content directly in Node.js (fallback mode)
       const content = req.file.buffer.toString('utf-8');
-      
-      // Remove code blocks, inline code, URLs, and HTML
       let text = content
         .replace(/```[\s\S]*?```/g, ' ')
         .replace(/`[^`]+`/g, ' ')
@@ -480,36 +418,19 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
         .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
         .replace(/<[^>]+>/g, ' ');
       
-      // Extract words (letters only, 3+ chars)
       const wordPattern = /[a-zA-Z][a-zA-Z'-]*[a-zA-Z]|[a-zA-Z]{3,}/g;
       const rawWords = text.toLowerCase().match(wordPattern) || [];
-      
-      // Filter to valid words (simple heuristic - exclude common noise)
       const stopWords = new Set(['the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'had', 'her', 'was', 'one', 'our', 'out', 'has', 'have', 'been', 'will', 'with', 'this', 'that', 'from', 'they', 'were', 'said', 'each', 'which', 'their', 'would', 'there', 'could', 'other', 'into', 'more', 'some', 'than', 'them', 'these', 'then', 'its', 'also', 'just', 'only', 'come', 'made', 'may', 'now', 'way', 'many', 'like', 'use', 'such', 'when', 'what', 'how', 'who', 'did', 'get', 'very', 'being', 'about']);
       
       const validWords = rawWords.filter((word: string) => 
-        word.length >= 3 && 
-        !stopWords.has(word) &&
-        !/^\d+$/.test(word)
+        word.length >= 3 && !stopWords.has(word) && !/^\d+$/.test(word)
       );
       
-      if (validWords.length === 0) {
-        return res.json({
-          success: true,
-          filename: req.file.originalname,
-          words_processed: 0,
-          words_learned: 0,
-          message: 'No valid vocabulary words found in the markdown file'
-        });
-      }
-      
-      // Count word frequencies
       const wordCounts: Record<string, number> = {};
       for (const word of validWords) {
         wordCounts[word] = (wordCounts[word] || 0) + 1;
       }
       
-      // Try to forward to Python backend for proper learning
       const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
       try {
         const formData = new FormData();
@@ -523,18 +444,13 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
         });
         
         if (response.ok) {
-          const contentType = response.headers.get('content-type') || '';
-          if (contentType.includes('application/json')) {
-            const data = await response.json();
-            return res.json(data);
-          }
+          const data = await response.json();
+          return res.json(data);
         }
       } catch {
-        // Python backend unavailable - continue with Node.js fallback
-        console.log("[API] Learning upload - Python backend unavailable, using Node.js fallback");
+        console.log("[API] Learning upload - Python backend unavailable, using fallback");
       }
       
-      // Return parsed results (Node.js fallback mode)
       res.json({
         success: true,
         filename: req.file.originalname,
@@ -547,110 +463,16 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
         timestamp: new Date().toISOString()
       });
     } catch (error: unknown) {
-      console.error("[API] Learning upload error:", getErrorMessage(error));
-      res.status(500).json({ error: getErrorMessage(error) || 'Failed to process markdown upload' });
-    }
-  });
-
-
-  // ============================================================
-  // FILE UPLOAD ENDPOINTS - Curriculum and Chat RAG
-  // ============================================================
-  const uploadMultiMiddleware = multer({ 
-    storage: multer.memoryStorage(),
-    limits: { fileSize: 10 * 1024 * 1024 },
-    fileFilter: (_req, file, cb) => {
-      const ext = file.originalname.toLowerCase();
-      if (ext.endsWith('.md') || ext.endsWith('.txt') || ext.endsWith('.markdown')) {
-        cb(null, true);
-      } else {
-        cb(new Error('Only .md, .txt, and .markdown files are accepted'));
-      }
-    }
-  });
-
-  app.post("/api/uploads/curriculum", uploadMultiMiddleware.single('file'), async (req: any, res) => {
-    try {
-      if (!req.file) {
-        return res.status(400).json({ error: 'No file provided' });
-      }
-
-      const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
-      
-      try {
-        const response = await fetch(`${backendUrl}/api/uploads/curriculum`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            content: req.file.buffer.toString('base64'),
-            filename: req.file.originalname,
-          }),
-          signal: AbortSignal.timeout(30000),
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          return res.json(data);
-        }
-      } catch {
-        console.log("[API] Curriculum upload - Python backend unavailable");
-      }
-      
-      res.status(503).json({ error: 'Upload service unavailable' });
-    } catch (error: unknown) {
-      console.error("[API] Curriculum upload error:", getErrorMessage(error));
       res.status(500).json({ error: getErrorMessage(error) });
     }
   });
 
-  app.post("/api/uploads/chat", uploadMultiMiddleware.single('file'), async (req: any, res) => {
-    try {
-      if (!req.file) {
-        return res.status(400).json({ error: 'No file provided' });
-      }
-
-      const addToCurriculum = req.body?.add_to_curriculum === 'true';
-      const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
-      
-      try {
-        const response = await fetch(`${backendUrl}/api/uploads/chat`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            content: req.file.buffer.toString('base64'),
-            filename: req.file.originalname,
-            add_to_curriculum: addToCurriculum,
-          }),
-          signal: AbortSignal.timeout(30000),
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          return res.json(data);
-        }
-      } catch {
-        console.log("[API] Chat upload - Python backend unavailable");
-      }
-      
-      res.status(503).json({ error: 'Upload service unavailable' });
-    } catch (error: unknown) {
-      console.error("[API] Chat upload error:", getErrorMessage(error));
-      res.status(500).json({ error: getErrorMessage(error) });
-    }
-  });
-
-  // ============================================================
-  // SEARCH BUDGET PROXY - Routes to Python Backend
-  // ============================================================
+  // Search budget proxies
   app.get("/api/search/budget/status", async (req, res) => {
     try {
       const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
-      const response = await fetch(`${backendUrl}/api/search/budget/status`, {
-        signal: AbortSignal.timeout(10000),
-      });
-      if (response.ok) {
-        return res.json(await response.json());
-      }
+      const response = await fetch(`${backendUrl}/api/search/budget/status`, { signal: AbortSignal.timeout(10000) });
+      if (response.ok) return res.json(await response.json());
       res.status(response.status).json({ error: 'Backend error' });
     } catch {
       res.status(503).json({ error: 'Search budget service unavailable' });
@@ -660,12 +482,8 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
   app.get("/api/search/budget/context", async (req, res) => {
     try {
       const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
-      const response = await fetch(`${backendUrl}/api/search/budget/context`, {
-        signal: AbortSignal.timeout(10000),
-      });
-      if (response.ok) {
-        return res.json(await response.json());
-      }
+      const response = await fetch(`${backendUrl}/api/search/budget/context`, { signal: AbortSignal.timeout(10000) });
+      if (response.ok) return res.json(await response.json());
       res.status(response.status).json({ error: 'Backend error' });
     } catch {
       res.status(503).json({ error: 'Search budget service unavailable' });
@@ -676,14 +494,10 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
     try {
       const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
       const response = await fetch(`${backendUrl}/api/search/budget/toggle`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(req.body),
-        signal: AbortSignal.timeout(10000),
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(req.body), signal: AbortSignal.timeout(10000)
       });
-      if (response.ok) {
-        return res.json(await response.json());
-      }
+      if (response.ok) return res.json(await response.json());
       res.status(response.status).json({ error: 'Backend error' });
     } catch {
       res.status(503).json({ error: 'Search budget service unavailable' });
@@ -694,14 +508,10 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
     try {
       const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
       const response = await fetch(`${backendUrl}/api/search/budget/limits`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(req.body),
-        signal: AbortSignal.timeout(10000),
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(req.body), signal: AbortSignal.timeout(10000)
       });
-      if (response.ok) {
-        return res.json(await response.json());
-      }
+      if (response.ok) return res.json(await response.json());
       res.status(response.status).json({ error: 'Backend error' });
     } catch {
       res.status(503).json({ error: 'Search budget service unavailable' });
@@ -712,14 +522,10 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
     try {
       const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
       const response = await fetch(`${backendUrl}/api/search/budget/overage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(req.body),
-        signal: AbortSignal.timeout(10000),
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(req.body), signal: AbortSignal.timeout(10000)
       });
-      if (response.ok) {
-        return res.json(await response.json());
-      }
+      if (response.ok) return res.json(await response.json());
       res.status(response.status).json({ error: 'Backend error' });
     } catch {
       res.status(503).json({ error: 'Search budget service unavailable' });
@@ -729,28 +535,17 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
   app.get("/api/search/budget/learning", async (req, res) => {
     try {
       const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
-      const response = await fetch(`${backendUrl}/api/search/budget/learning`, {
-        signal: AbortSignal.timeout(10000),
-      });
-      if (response.ok) {
-        return res.json(await response.json());
-      }
+      const response = await fetch(`${backendUrl}/api/search/budget/learning`, { signal: AbortSignal.timeout(10000) });
+      if (response.ok) return res.json(await response.json());
       res.status(response.status).json({ error: 'Backend error' });
     } catch {
       res.status(503).json({ error: 'Search budget service unavailable' });
     }
   });
 
-  // ============================================================
-  // RESEARCH API PROXY - Forward user research requests to Python backend
-  // ============================================================
-  
-  // Special handling for SSE streaming endpoint
+  // Research proxy with SSE support
   app.get("/api/research/activity/stream", async (req: any, res) => {
     const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
-    const targetUrl = `${backendUrl}${req.originalUrl}`;
-    
-    // Set SSE headers
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
@@ -758,24 +553,15 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
     
     try {
       const controller = new AbortController();
+      req.on('close', () => controller.abort());
       
-      // Clean up on client disconnect
-      req.on('close', () => {
-        controller.abort();
-      });
-      
-      const response = await fetch(targetUrl, {
-        method: 'GET',
-        signal: controller.signal,
-      });
-      
+      const response = await fetch(`${backendUrl}${req.originalUrl}`, { signal: controller.signal });
       if (!response.ok || !response.body) {
         res.write(`data: ${JSON.stringify({ error: 'Backend unavailable' })}\n\n`);
         res.end();
         return;
       }
       
-      // Pipe the stream
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       
@@ -794,150 +580,96 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
           res.end();
         }
       };
-      
       pump();
     } catch (error: unknown) {
-      console.error("[API] SSE proxy error:", getErrorMessage(error));
       res.write(`data: ${JSON.stringify({ error: 'Stream failed' })}\n\n`);
       res.end();
     }
   });
-  
-  // Standard proxy for other research endpoints
+
   app.use("/api/research", async (req: any, res, next) => {
     try {
       const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
-      const targetUrl = `${backendUrl}${req.originalUrl}`;
-      
       const fetchOptions: RequestInit = {
         method: req.method,
         headers: { 'Content-Type': 'application/json' },
         signal: AbortSignal.timeout(60000),
       };
-      
       if (req.method !== 'GET' && req.method !== 'HEAD') {
         fetchOptions.body = JSON.stringify(req.body);
       }
-      
-      const response = await fetch(targetUrl, fetchOptions);
+      const response = await fetch(`${backendUrl}${req.originalUrl}`, fetchOptions);
       const contentType = response.headers.get('content-type') || '';
-      
       if (contentType.includes('application/json')) {
         res.status(response.status).json(await response.json());
       } else {
         res.status(response.status).send(await response.text());
       }
     } catch (error: unknown) {
-      console.error("[API] Research proxy error:", getErrorMessage(error));
-      const state = pythonReadiness.getState();
-      res.status(503).json(createTypedErrorResponse(state));
+      res.status(503).json(createTypedErrorResponse(pythonReadiness.getState()));
     }
   });
 
-  // ============================================================
-  // CURIOSITY ENGINE PROXY - Forward to Python backend
-  // ============================================================
   app.use("/api/curiosity", async (req: any, res, next) => {
     try {
       const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
-      const targetUrl = `${backendUrl}${req.originalUrl}`;
-      
       const fetchOptions: RequestInit = {
         method: req.method,
         headers: { 'Content-Type': 'application/json' },
         signal: AbortSignal.timeout(30000),
       };
-      
       if (req.method !== 'GET' && req.method !== 'HEAD') {
         fetchOptions.body = JSON.stringify(req.body);
       }
-      
-      const response = await fetch(targetUrl, fetchOptions);
+      const response = await fetch(`${backendUrl}${req.originalUrl}`, fetchOptions);
       const contentType = response.headers.get('content-type') || '';
-      
       if (contentType.includes('application/json')) {
         res.status(response.status).json(await response.json());
       } else {
         res.status(response.status).send(await response.text());
       }
     } catch (error: unknown) {
-      console.error("[API] Curiosity proxy error:", getErrorMessage(error));
-      const state = pythonReadiness.getState();
-      res.status(503).json(createTypedErrorResponse(state));
+      res.status(503).json(createTypedErrorResponse(pythonReadiness.getState()));
     }
   });
 
-  // ============================================================
-  // PYTHON PROXY - Generic proxy for Python backend APIs
-  // ============================================================
   app.use("/api/python", async (req: any, res, next) => {
     try {
       const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
       const targetPath = req.originalUrl.replace('/api/python', '/api');
-      const targetUrl = `${backendUrl}${targetPath}`;
-      
       const fetchOptions: RequestInit = {
         method: req.method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         signal: AbortSignal.timeout(30000),
       };
-      
       if (req.method !== 'GET' && req.method !== 'HEAD') {
         fetchOptions.body = JSON.stringify(req.body);
       }
-      
-      const response = await fetch(targetUrl, fetchOptions);
+      const response = await fetch(`${backendUrl}${targetPath}`, fetchOptions);
       const contentType = response.headers.get('content-type') || '';
-      
       if (contentType.includes('application/json')) {
-        const data = await response.json();
-        res.status(response.status).json(data);
+        res.status(response.status).json(await response.json());
       } else {
-        const text = await response.text();
-        res.status(response.status).send(text);
+        res.status(response.status).send(await response.text());
       }
     } catch (error: unknown) {
-      console.error("[API] Python proxy error:", getErrorMessage(error));
-      const state = pythonReadiness.getState();
-      const err = error as { name?: string; code?: string; message?: string };
+      const err = error as { name?: string; message?: string };
       if (err.name === 'TimeoutError' || err.message?.includes('timeout')) {
-        return res.status(504).json({ ...createTypedErrorResponse(state), error: 'Python backend timeout' });
+        return res.status(504).json({ error: 'Python backend timeout' });
       }
-      res.status(503).json(createTypedErrorResponse(state));
+      res.status(503).json(createTypedErrorResponse(pythonReadiness.getState()));
     }
   });
 
-  // ============================================================
-  // SERVER INITIALIZATION
-  // ============================================================
-
-  // Start the background search coordinator
+  // Server initialization
   searchCoordinator.start();
-
   const httpServer = createServer(app);
 
-  // Set up WebSocket server for real-time basin sync
   const { WebSocketServer } = await import("ws");
-  const wss = new WebSocketServer({
-    server: httpServer,
-    path: "/ws/basin-sync",
-  });
+  const wss = new WebSocketServer({ server: httpServer, path: "/ws/basin-sync" });
+  const wsConnections = new Map<string, { ws: any; sessionId: string | null }>();
 
-  // Track WebSocket connections for cleanup on session change
-  const wsConnections = new Map<
-    string,
-    { ws: any; sessionId: string | null }
-  >();
-
-  // Register session change handler to clean up old WebSocket connections
   oceanSessionManager.onSessionChange((oldSessionId, newSessionId) => {
-    console.log(
-      `[BasinSync WS] Session changed: ${oldSessionId} → ${newSessionId}`
-    );
-
-    // Close all connections associated with the old session
     let closedCount = 0;
     for (const [peerId, conn] of wsConnections.entries()) {
       if (conn.sessionId === oldSessionId && oldSessionId !== null) {
@@ -945,69 +677,36 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
           conn.ws.close(1000, "Session ended");
           wsConnections.delete(peerId);
           closedCount++;
-        } catch (err) {
-          console.error(
-            `[BasinSync WS] Error closing connection ${peerId}:`,
-            err
-          );
-        }
+        } catch (err) {}
       }
-    }
-    if (closedCount > 0) {
-      console.log(
-        `[BasinSync WS] Cleaned up ${closedCount} connections from old session`
-      );
     }
   });
 
   wss.on("connection", (ws) => {
-    const peerId = `peer-${Date.now()}-${Math.random()
-      .toString(36)
-      .slice(2, 6)}`;
+    const peerId = `peer-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
     const currentSession = oceanSessionManager.getActiveSession();
     const sessionId = currentSession?.sessionId || null;
-
-    // Track connection with its session ID
     wsConnections.set(peerId, { ws, sessionId });
-
-    console.log(
-      `[BasinSync WS] New connection: ${peerId} (session: ${sessionId})`
-    );
-    console.log(`[BasinSync WS] Total connections: ${wsConnections.size}`);
 
     const activeOcean = oceanSessionManager.getActiveAgent();
     if (activeOcean) {
       const coordinator = activeOcean.getBasinSyncCoordinator();
-      if (coordinator) {
-        coordinator.registerPeer(peerId, "observer", ws);
-      }
+      if (coordinator) coordinator.registerPeer(peerId, "observer", ws);
     }
 
     ws.on("message", async (data) => {
       try {
-        // Rate limiting check (Issue 13/14 fix)
         if (!checkWsRateLimit(peerId)) {
-          console.warn(`[BasinSync WS] Rate limit exceeded for ${peerId}`);
           ws.send(JSON.stringify({ error: "Rate limit exceeded" }));
           return;
         }
-
-        // Parse and validate message with Zod schema
         const rawMessage = JSON.parse(data.toString());
         const parseResult = wsMessageSchema.safeParse(rawMessage);
-
-        if (!parseResult.success) {
-          console.warn(
-            `[BasinSync WS] Invalid message from ${peerId}:`,
-            parseResult.error.message
-          );
-          return;
-        }
+        if (!parseResult.success) return;
 
         const message = parseResult.data;
         const currentOcean = oceanSessionManager.getActiveAgent();
         if (!currentOcean) return;
-
         const coordinator = currentOcean.getBasinSyncCoordinator();
         if (!coordinator) return;
 
@@ -1018,76 +717,43 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
         } else if (message.type === "set-mode" && message.mode) {
           coordinator.registerPeer(peerId, message.mode, ws);
         }
-      } catch (err) {
-        console.error("[BasinSync WS] Message parse error:", err);
-      }
+      } catch (err) {}
     });
 
     ws.on("close", () => {
-      console.log(`[BasinSync WS] Connection closed: ${peerId}`);
-
-      // Remove from connection tracking and rate limiter
       wsConnections.delete(peerId);
       wsRateLimiter.delete(peerId);
-      console.log(
-        `[BasinSync WS] Remaining connections: ${wsConnections.size}`
-      );
-
       const currentOcean = oceanSessionManager.getActiveAgent();
       if (currentOcean) {
         const coordinator = currentOcean.getBasinSyncCoordinator();
-        if (coordinator) {
-          coordinator.unregisterPeer(peerId);
-        }
+        if (coordinator) coordinator.unregisterPeer(peerId);
       }
     });
 
-    ws.on("error", (err) => {
-      console.error(`[BasinSync WS] Error for ${peerId}:`, err);
-    });
+    ws.on("error", (err) => {});
   });
 
   console.log("[BasinSync] WebSocket server initialized on /ws/basin-sync");
 
-  // Set up WebSocket server for real-time telemetry streaming
-  const telemetryWss = new WebSocketServer({
-    server: httpServer,
-    path: "/ws/telemetry",
-  });
-
+  const telemetryWss = new WebSocketServer({ server: httpServer, path: "/ws/telemetry" });
   const telemetryStreamer = new TelemetryStreamer();
-
   telemetryWss.on("connection", (ws) => {
-    const clientId = `telemetry-${Date.now()}-${Math.random()
-      .toString(36)
-      .slice(2, 6)}`;
+    const clientId = `telemetry-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
     telemetryStreamer.handleConnection(ws, clientId);
   });
-
   console.log("[TelemetryWS] WebSocket server initialized on /ws/telemetry");
 
-  // Set up WebSocket server for kernel activity streaming
-  const kernelActivityWss = new WebSocketServer({
-    server: httpServer,
-    path: "/ws/kernel-activity",
-  });
-
+  const kernelActivityWss = new WebSocketServer({ server: httpServer, path: "/ws/kernel-activity" });
   const kernelActivityStreamer = new KernelActivityStreamer();
-
   kernelActivityWss.on("connection", (ws) => {
-    const clientId = `kernel-activity-${Date.now()}-${Math.random()
-      .toString(36)
-      .slice(2, 6)}`;
+    const clientId = `kernel-activity-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
     kernelActivityStreamer.handleConnection(ws, clientId);
   });
-
   console.log("[KernelActivityWS] WebSocket server initialized on /ws/kernel-activity");
 
-  // Set up WebSocket server for external API streaming
   initExternalWebSocket(httpServer);
   console.log("[ExternalWS] WebSocket server initialized on /ws/v1/external/stream");
 
-  // Cleanup on server shutdown
   const cleanup = () => {
     telemetryStreamer.destroy();
     kernelActivityStreamer.destroy();
