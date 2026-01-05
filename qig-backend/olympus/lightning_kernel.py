@@ -457,6 +457,23 @@ class LightningKernel(BaseGod):
                         "validated": False,
                         "validation_score": validation_result.validation_score
                     }
+                    
+                    # Broadcast validation failure so Zeus and other gods can see it
+                    try:
+                        _pantheon_chat.broadcast_generative(
+                            from_god="Lightning",
+                            intent="validation_failed",
+                            data={
+                                "insight_id": insight.insight_id,
+                                "validation_score": validation_result.validation_score,
+                                "failure_reason": "External validation score below threshold",
+                                "insight_text_preview": insight.insight_text[:100] if len(insight.insight_text) > 100 else insight.insight_text,
+                            },
+                            msg_type="warning"
+                        )
+                        print(f"[Lightning] 🔔 Broadcast validation failure to Pantheon")
+                    except Exception as be:
+                        print(f"[Lightning] ⚠️ Failed to broadcast validation failure: {be}")
             except Exception as e:
                 print(f"[Lightning] ⚠️ Validation error: {e}")
                 # Continue broadcasting even if validation fails

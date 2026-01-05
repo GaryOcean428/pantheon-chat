@@ -368,6 +368,17 @@ class ZeusConversationHandler(GeometricGenerationMixin):
         self._chain_of_thought = None
         self._current_reasoning_mode = 'linear'
         
+        # Initialize Prediction Feedback Bridge for learning loop
+        self._prediction_bridge = None
+        self._last_prediction_id = None
+        self._prediction_basin = None
+        try:
+            from prediction_feedback_bridge import get_prediction_feedback_bridge
+            self._prediction_bridge = get_prediction_feedback_bridge()
+            print("[ZeusChat] Prediction feedback bridge initialized - learning loop enabled")
+        except Exception as e:
+            print(f"[ZeusChat] Prediction feedback bridge unavailable: {e}")
+        
         if REASONING_AVAILABLE:
             try:
                 self._reasoning_quality = ReasoningQuality(basin_dim=64)
@@ -809,6 +820,39 @@ class ZeusConversationHandler(GeometricGenerationMixin):
         else:
             # DEFAULT: General conversation - gods share what they know
             result = self.handle_general_conversation(message)
+        
+        # Record prediction outcome if we had a previous prediction
+        if self._prediction_bridge and self._last_prediction_id:
+            try:
+                current_basin = self.conversation_encoder.encode(message)
+                turn_count = len(self.conversation_history) // 2
+                
+                # Get phi/kappa from result metadata
+                metadata = result.get('metadata', {}) if isinstance(result.get('metadata'), dict) else {}
+                phi_after = metadata.get('phi', 0.5)
+                kappa_after = metadata.get('kappa', 58.0)
+                
+                outcome_result = self._prediction_bridge.process_prediction_outcome(
+                    prediction_id=self._last_prediction_id,
+                    actual_basin=current_basin,
+                    actual_arrival=turn_count,
+                    god_name="Zeus",
+                    phi_before=getattr(self, '_prediction_phi', 0.5),
+                    phi_after=phi_after,
+                    kappa_before=getattr(self, '_prediction_kappa', 58.0),
+                    kappa_after=kappa_after,
+                )
+                
+                if outcome_result['processed']:
+                    print(f"[ZeusChat] ✅ Prediction outcome recorded: "
+                          f"accuracy={outcome_result.get('accuracy', 0):.3f}, "
+                          f"insights={len(outcome_result.get('insights', []))}")
+                
+                # Clear prediction tracking
+                self._last_prediction_id = None
+                self._prediction_basin = None
+            except Exception as e:
+                print(f"[ZeusChat] ⚠️ Failed to record prediction outcome: {e}")
         
         # Save Zeus response to persistent storage
         response_content = result.get('response', result.get('content', ''))
