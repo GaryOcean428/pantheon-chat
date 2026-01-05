@@ -48,6 +48,8 @@ from .response_guardrails import (
 from .search_strategy_learner import get_strategy_learner_with_persistence
 
 # Constants for prediction defaults
+# DEFAULT_PREDICTION_PHI: Neutral integration level (mid-range between fragmented and integrated)
+# DEFAULT_PREDICTION_KAPPA: Sub-resonance coupling constant (below κ* ≈ 64 resonance peak)
 DEFAULT_PREDICTION_PHI = 0.5
 DEFAULT_PREDICTION_KAPPA = 58.0
 
@@ -547,7 +549,7 @@ class ZeusConversationHandler(GeometricGenerationMixin):
             # Get the most recent prediction ID from the improvement system
             if hasattr(self.zeus.temporal_reasoning, 'improvement'):
                 improvement = self.zeus.temporal_reasoning.improvement
-                if improvement.prediction_history and len(improvement.prediction_history) > 0:
+                if improvement.prediction_history:
                     latest_pred_id = improvement.prediction_history[-1]
                     return {
                         'prediction_id': latest_pred_id,
@@ -801,7 +803,7 @@ class ZeusConversationHandler(GeometricGenerationMixin):
                 current_velocity = None
                 if len(self.conversation_history) >= 4:
                     # Get last two message basins to estimate velocity
-                    prev_msg = self.conversation_history[-2] if len(self.conversation_history) >= 2 else ""
+                    prev_msg = self.conversation_history[-2]
                     prev_basin = self.conversation_encoder.encode(prev_msg) if prev_msg else None
                     if prev_basin is not None:
                         current_velocity = _message_basin_for_meta - prev_basin
