@@ -472,7 +472,8 @@ class SourceDiscoveryService:
                     """)
                     for row in cur.fetchall():
                         source_url = row[0]
-                        if source_url:
+                        # Only add if not already loaded from discovered_sources table
+                        if source_url and source_url not in self.discovered_sources:
                             self._register_source(
                                 source_url=source_url,
                                 category=row[1] or 'intel',
@@ -609,10 +610,16 @@ class SourceDiscoveryService:
         Returns:
             True if saved successfully
         """
-        if not persist or not self.enabled:
+        if not persist:
+            print(f"[SourceDiscovery] Not saving {source_url}: persist=False")
+            return False
+            
+        if not self.enabled:
+            print(f"[SourceDiscovery] Not saving {source_url}: database not enabled (DATABASE_URL not set)")
             return False
             
         if source_url not in self.discovered_sources:
+            print(f"[SourceDiscovery] Not saving {source_url}: not in discovered_sources")
             return False
             
         info = self.discovered_sources[source_url]
