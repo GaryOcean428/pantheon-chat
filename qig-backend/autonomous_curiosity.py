@@ -114,6 +114,150 @@ class KernelToolRequest:
         self.result: Optional[Dict[str, Any]] = None
 
 
+class CurriculumProgressPersistence:
+    """
+    Database persistence for curriculum learning progress.
+    
+    Ensures completed topics are not re-processed after restart.
+    """
+    
+    _instance = None
+    
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
+    
+    def __init__(self):
+        if self._initialized:
+            return
+        
+        import os
+        self._db_url = os.environ.get('DATABASE_URL')
+        self._initialized = True
+        self._ensure_table()
+    
+    def _get_connection(self):
+        """Get database connection."""
+        if not self._db_url:
+            return None
+        try:
+            import psycopg2
+            return psycopg2.connect(self._db_url)
+        except Exception as e:
+            logger.warning(f"[CurriculumProgressPersistence] DB connection failed: {e}")
+            return None
+    
+    def _ensure_table(self):
+        """Create curriculum_progress table if not exists."""
+        conn = self._get_connection()
+        if not conn:
+            return
+        
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS curriculum_progress (
+                        id SERIAL PRIMARY KEY,
+                        topic_title TEXT UNIQUE NOT NULL,
+                        kernel_name TEXT,
+                        completed_at TIMESTAMPTZ DEFAULT NOW(),
+                        exploration_count INTEGER DEFAULT 1
+                    )
+                """)
+                conn.commit()
+                logger.info("[CurriculumProgressPersistence] Table ready")
+        except Exception as e:
+            logger.warning(f"[CurriculumProgressPersistence] Table creation failed: {e}")
+        finally:
+            conn.close()
+    
+    def load_completed_topics(self) -> Set[str]:
+        """Load all completed topics from database."""
+        conn = self._get_connection()
+        if not conn:
+            return set()
+        
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT topic_title FROM curriculum_progress")
+                rows = cur.fetchall()
+                completed = {row[0] for row in rows}
+                logger.info(f"[CurriculumProgressPersistence] Loaded {len(completed)} completed topics from DB")
+                return completed
+        except Exception as e:
+            logger.warning(f"[CurriculumProgressPersistence] Load failed: {e}")
+            return set()
+        finally:
+            conn.close()
+    
+    def save_completed_topic(self, topic_title: str, kernel_name: str = None):
+        """Save a completed topic to database."""
+        conn = self._get_connection()
+        if not conn:
+            return
+        
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO curriculum_progress (topic_title, kernel_name)
+                    VALUES (%s, %s)
+                    ON CONFLICT (topic_title) 
+                    DO UPDATE SET exploration_count = curriculum_progress.exploration_count + 1,
+                                  completed_at = NOW()
+                """, (topic_title, kernel_name))
+                conn.commit()
+                logger.debug(f"[CurriculumProgressPersistence] Saved: {topic_title[:50]}...")
+        except Exception as e:
+            logger.warning(f"[CurriculumProgressPersistence] Save failed: {e}")
+        finally:
+            conn.close()
+    
+    def load_recent_queries(self, limit: int = 100) -> List[str]:
+        """Load recent exploration queries to avoid repetition."""
+        conn = self._get_connection()
+        if not conn:
+            return []
+        
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT topic_title FROM curriculum_progress
+                    ORDER BY completed_at DESC
+                    LIMIT %s
+                """, (limit,))
+                return [row[0] for row in cur.fetchall()]
+        except Exception as e:
+            logger.warning(f"[CurriculumProgressPersistence] Recent queries load failed: {e}")
+            return []
+        finally:
+            conn.close()
+    
+    def get_stats(self) -> Dict:
+        """Get curriculum progress statistics."""
+        conn = self._get_connection()
+        if not conn:
+            return {'total': 0, 'today': 0}
+        
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT COUNT(*) FROM curriculum_progress")
+                total = cur.fetchone()[0]
+                
+                cur.execute("""
+                    SELECT COUNT(*) FROM curriculum_progress
+                    WHERE completed_at >= NOW() - INTERVAL '24 hours'
+                """)
+                today = cur.fetchone()[0]
+                
+                return {'total': total, 'today': today}
+        except Exception as e:
+            return {'total': 0, 'today': 0}
+        finally:
+            conn.close()
+
+
 class CurriculumLoader:
     """
     Load and manage training curriculum for kernel self-learning.
@@ -123,12 +267,26 @@ class CurriculumLoader:
     - Knowledge base
     - Previous search results
     - Peer learning outcomes
+    
+    Now with DATABASE PERSISTENCE for completed topics.
     """
     
     def __init__(self):
         self.curriculum_topics: List[Dict] = []
         self.completed_topics: Set[str] = set()
         self.topic_dependencies: Dict[str, List[str]] = {}
+        self._persistence = CurriculumProgressPersistence()
+        
+        # Load completed topics from database on init
+        self._load_from_db()
+    
+    def _load_from_db(self):
+        """Load completed topics from database."""
+        try:
+            db_completed = self._persistence.load_completed_topics()
+            self.completed_topics.update(db_completed)
+        except Exception as e:
+            logger.warning(f"[CurriculumLoader] Failed to load from DB: {e}")
     
     def load_curriculum_from_file(self, filepath: str) -> List[Dict]:
         """Load curriculum topics from a file."""
@@ -214,9 +372,15 @@ class CurriculumLoader:
         overlap = len(keywords & kernel_domains)
         return overlap / len(keywords)
     
-    def mark_completed(self, topic_title: str):
-        """Mark a topic as completed."""
+    def mark_completed(self, topic_title: str, kernel_name: str = None):
+        """Mark a topic as completed and persist to database."""
         self.completed_topics.add(topic_title)
+        
+        # Persist to database so it's not re-requested after restart
+        try:
+            self._persistence.save_completed_topic(topic_title, kernel_name)
+        except Exception as e:
+            logger.warning(f"[CurriculumLoader] Failed to persist completion: {e}")
 
 
 class AutonomousCuriosityEngine:
@@ -284,6 +448,9 @@ class AutonomousCuriosityEngine:
         if self.running:
             return
         
+        # Load recent queries from DB to avoid repetition
+        self._load_recent_queries_from_db()
+        
         # Auto-load curriculum on startup
         self._load_all_curriculum()
         
@@ -291,6 +458,19 @@ class AutonomousCuriosityEngine:
         self._loop_thread = threading.Thread(target=self._run_loop, daemon=True)
         self._loop_thread.start()
         print("[AutonomousCuriosityEngine] Started autonomous learning loop")
+    
+    def _load_recent_queries_from_db(self):
+        """Load recent queries from database to avoid re-exploring same topics."""
+        try:
+            persistence = CurriculumProgressPersistence()
+            recent = persistence.load_recent_queries(limit=100)
+            for query in recent:
+                self._recent_queries.append(query)
+                self._query_cooldown.add(query)
+            if recent:
+                logger.info(f"[AutonomousCuriosityEngine] Loaded {len(recent)} recent queries from DB to avoid repetition")
+        except Exception as e:
+            logger.warning(f"[AutonomousCuriosityEngine] Failed to load recent queries: {e}")
     
     def _load_all_curriculum(self):
         """Load all curriculum files from docs/09-curriculum/."""
@@ -314,7 +494,9 @@ class AutonomousCuriosityEngine:
             except Exception as e:
                 print(f"[AutonomousCuriosityEngine] Error loading {filepath}: {e}")
         
+        completed_count = len(self.curriculum_loader.completed_topics)
         print(f"[AutonomousCuriosityEngine] Loaded {loaded_count} curriculum topics from {curriculum_dir}")
+        print(f"[AutonomousCuriosityEngine] {completed_count} topics already completed (from DB), {loaded_count - completed_count} remaining")
     
     def stop(self):
         """Stop the autonomous curiosity loop."""
