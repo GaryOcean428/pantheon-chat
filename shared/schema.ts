@@ -3415,6 +3415,33 @@ export type LearnedWordRow = typeof learnedWords.$inferSelect;
 export type InsertLearnedWord = typeof learnedWords.$inferInsert;
 
 /**
+ * WORD RELATIONSHIPS
+ * 
+ * Word co-occurrence relationships for attention-weighted generation.
+ * Replaces the legacy word_relationships.json file.
+ */
+export const wordRelationships = pgTable(
+  "word_relationships",
+  {
+    id: serial("id").primaryKey(),
+    word: text("word").notNull(),
+    neighbor: text("neighbor").notNull(),
+    cooccurrenceCount: real("cooccurrence_count").default(1),
+    strength: real("strength").default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  },
+  (table) => [
+    index("idx_word_relationships_word").on(table.word),
+    index("idx_word_relationships_neighbor").on(table.neighbor),
+    uniqueIndex("idx_word_relationships_pair").on(table.word, table.neighbor),
+  ]
+);
+
+export type WordRelationshipRow = typeof wordRelationships.$inferSelect;
+export type InsertWordRelationship = typeof wordRelationships.$inferInsert;
+
+/**
  * ZEUS SESSIONS
  * 
  * Conversation sessions with Zeus.
