@@ -744,6 +744,66 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
   // ============================================================
   // RESEARCH API PROXY - Forward user research requests to Python backend
   // ============================================================
+  
+  // Special handling for SSE streaming endpoint
+  app.get("/api/research/activity/stream", async (req: any, res) => {
+    const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
+    const targetUrl = `${backendUrl}${req.originalUrl}`;
+    
+    // Set SSE headers
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+    
+    try {
+      const controller = new AbortController();
+      
+      // Clean up on client disconnect
+      req.on('close', () => {
+        controller.abort();
+      });
+      
+      const response = await fetch(targetUrl, {
+        method: 'GET',
+        signal: controller.signal,
+      });
+      
+      if (!response.ok || !response.body) {
+        res.write(`data: ${JSON.stringify({ error: 'Backend unavailable' })}\n\n`);
+        res.end();
+        return;
+      }
+      
+      // Pipe the stream
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      
+      const pump = async () => {
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            res.write(decoder.decode(value, { stream: true }));
+          }
+        } catch (err: unknown) {
+          if (getErrorMessage(err) !== 'The operation was aborted') {
+            console.error("[API] SSE stream error:", getErrorMessage(err));
+          }
+        } finally {
+          res.end();
+        }
+      };
+      
+      pump();
+    } catch (error: unknown) {
+      console.error("[API] SSE proxy error:", getErrorMessage(error));
+      res.write(`data: ${JSON.stringify({ error: 'Stream failed' })}\n\n`);
+      res.end();
+    }
+  });
+  
+  // Standard proxy for other research endpoints
   app.use("/api/research", async (req: any, res, next) => {
     try {
       const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
