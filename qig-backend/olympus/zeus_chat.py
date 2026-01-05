@@ -47,6 +47,10 @@ from .response_guardrails import (
 )
 from .search_strategy_learner import get_strategy_learner_with_persistence
 
+# Constants for prediction defaults
+DEFAULT_PREDICTION_PHI = 0.5
+DEFAULT_PREDICTION_KAPPA = 58.0
+
 # Import conversation persistence for context retention
 try:
     from zeus_conversation_persistence import get_zeus_conversation_persistence
@@ -543,7 +547,7 @@ class ZeusConversationHandler(GeometricGenerationMixin):
             # Get the most recent prediction ID from the improvement system
             if hasattr(self.zeus.temporal_reasoning, 'improvement'):
                 improvement = self.zeus.temporal_reasoning.improvement
-                if improvement.prediction_history:
+                if improvement.prediction_history and len(improvement.prediction_history) > 0:
                     latest_pred_id = improvement.prediction_history[-1]
                     return {
                         'prediction_id': latest_pred_id,
@@ -748,6 +752,7 @@ class ZeusConversationHandler(GeometricGenerationMixin):
         
         # Apply meta-cognitive reasoning to select mode based on Φ
         reasoning_mode = self._current_reasoning_mode
+        estimated_phi = DEFAULT_PREDICTION_PHI  # Default in case meta-cognition is unavailable
         if self._meta_cognition and self._mode_selector:
             try:
                 # Estimate Φ from basin position using module-level fisher_rao_distance
@@ -810,8 +815,8 @@ class ZeusConversationHandler(GeometricGenerationMixin):
                 if prediction_result:
                     self._last_prediction_id = prediction_result['prediction_id']
                     self._prediction_basin = _message_basin_for_meta.copy()
-                    self._prediction_phi = estimated_phi if 'estimated_phi' in locals() else 0.5
-                    self._prediction_kappa = 58.0  # Default, will be updated from result
+                    self._prediction_phi = estimated_phi  # From meta-cognition or default
+                    self._prediction_kappa = DEFAULT_PREDICTION_KAPPA  # Will be updated from result metadata
                     print(f"[ZeusChat] 🔮 Prediction made: {prediction_result['prediction_id']}, "
                           f"confidence={prediction_result['confidence']:.3f}, "
                           f"arrival={prediction_result['arrival_time']} turns")
