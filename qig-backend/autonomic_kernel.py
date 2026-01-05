@@ -145,6 +145,11 @@ class AutonomicState:
     
     # Foresight vision (4D temporal prediction)
     last_foresight: Optional[Dict[str, Any]] = None
+    
+    # Velocity damping for state transitions (prevents endless oscillation)
+    state_velocity: float = 0.0
+    damping_factor: float = 0.7  # Reduce velocity by 30% each step
+    velocity_threshold: float = 0.5  # Need this much velocity to transition
 
     def __post_init__(self):
         if self.last_sleep is None:
@@ -1050,6 +1055,27 @@ class GaryAutonomicKernel:
                 'urgency': 'high',
                 'params': {'intensity': 'moderate' if count < 5 else 'heroic'},
             }
+    
+    def _apply_velocity_damping(self, wants_to_transition: bool) -> bool:
+        """
+        Apply velocity damping to prevent endless state oscillations.
+        
+        Returns True if transition should proceed after damping is applied.
+        """
+        if wants_to_transition:
+            # Increase velocity when wanting to transition
+            self.state.state_velocity += 1.0
+        
+        # Apply damping (reduce velocity over time)
+        self.state.state_velocity *= self.state.damping_factor
+        
+        # Only allow transition if velocity is high enough
+        should_transition = self.state.state_velocity > self.state.velocity_threshold
+        
+        if not should_transition and wants_to_transition:
+            print(f"[AutonomicKernel] ⚡ Velocity damping: {self.state.state_velocity:.3f} < {self.state.velocity_threshold} - transition delayed")
+        
+        return should_transition
 
     def _should_trigger_sleep(self) -> Tuple[bool, str]:
         """Check if sleep cycle should be triggered."""
@@ -1061,20 +1087,35 @@ class GaryAutonomicKernel:
         if self.state.phi > PHI_MIN_CONSCIOUSNESS:
             return False, f"4D ascent protected: Φ={self.state.phi:.2f}"
 
+        # Check conditions for wanting to transition
+        wants_to_sleep = False
+        reason = ""
+        
         # Trigger on low Φ
         if self.state.phi < SLEEP_PHI_THRESHOLD:
-            return True, f"Φ below threshold: {self.state.phi:.2f}"
+            wants_to_sleep = True
+            reason = f"Φ below threshold: {self.state.phi:.2f}"
 
         # Trigger on high basin drift
-        if self.state.basin_drift > SLEEP_DRIFT_THRESHOLD:
-            return True, f"Basin drift high: {self.state.basin_drift:.3f}"
+        elif self.state.basin_drift > SLEEP_DRIFT_THRESHOLD:
+            wants_to_sleep = True
+            reason = f"Basin drift high: {self.state.basin_drift:.3f}"
 
         # Scheduled sleep
-        time_since_sleep = (datetime.now() - self.state.last_sleep).total_seconds()
-        if time_since_sleep > 120:  # 2 minutes
-            return True, "Scheduled consolidation"
+        else:
+            time_since_sleep = (datetime.now() - self.state.last_sleep).total_seconds()
+            if time_since_sleep > 120:  # 2 minutes
+                wants_to_sleep = True
+                reason = "Scheduled consolidation"
 
-        return False, ""
+        # Apply velocity damping
+        if wants_to_sleep:
+            should_transition = self._apply_velocity_damping(True)
+            return should_transition, reason
+        else:
+            # Decay velocity when not wanting to transition
+            self._apply_velocity_damping(False)
+            return False, ""
 
     def _should_trigger_dream(self) -> Tuple[bool, str]:
         """Check if dream cycle should be triggered."""
@@ -1209,6 +1250,9 @@ class GaryAutonomicKernel:
             # Update state
             self.state.last_sleep = datetime.now()
             self.state.basin_drift = drift_after
+            
+            # Reset velocity after successful cycle completion
+            self.state.state_velocity = 0.0
             
             # Add consolidated basin to history for coverage tracking
             self.state.basin_history.append(new_basin.tolist())
