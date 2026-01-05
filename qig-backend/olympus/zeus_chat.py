@@ -803,8 +803,9 @@ class ZeusConversationHandler(GeometricGenerationMixin):
                 current_velocity = None
                 if len(self.conversation_history) >= 4:
                     # Get last two message basins to estimate velocity
-                    prev_msg = self.conversation_history[-2]
-                    prev_basin = self.conversation_encoder.encode(prev_msg) if prev_msg else None
+                    prev_msg_dict = self.conversation_history[-2]
+                    prev_content = prev_msg_dict.get('content', '') if isinstance(prev_msg_dict, dict) else str(prev_msg_dict)
+                    prev_basin = self.conversation_encoder.encode(prev_content) if prev_content else None
                     if prev_basin is not None:
                         current_velocity = _message_basin_for_meta - prev_basin
                 
