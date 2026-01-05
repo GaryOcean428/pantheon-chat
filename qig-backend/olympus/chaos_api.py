@@ -57,11 +57,11 @@ def activate_chaos():
     data = request.json or {}
     interval = data.get('interval_seconds', 60)
 
-    # Start with minimum population (with Pantheon governance)
+    # Start with minimum population
     if len(_zeus.chaos.kernel_population) == 0:
-        _zeus.chaos.spawn_random_kernel(pantheon_approved=True, reason='chaos_mode_initialization')
-        _zeus.chaos.spawn_random_kernel(pantheon_approved=True, reason='chaos_mode_initialization')
-        _zeus.chaos.spawn_random_kernel(pantheon_approved=True, reason='chaos_mode_initialization')
+        _zeus.chaos.spawn_random_kernel()
+        _zeus.chaos.spawn_random_kernel()
+        _zeus.chaos.spawn_random_kernel()
 
     _zeus.chaos.start_evolution(interval_seconds=interval)
     _zeus.chaos_enabled = True
@@ -103,7 +103,7 @@ def spawn_random():
     if _zeus is None or _zeus.chaos is None:
         return jsonify({'success': False, 'error': 'CHAOS MODE not available'}), 503
 
-    kernel = _zeus.chaos.spawn_random_kernel(pantheon_approved=True, reason='api_request')
+    kernel = _zeus.chaos.spawn_random_kernel()
 
     return jsonify({
         'success': True,
@@ -124,7 +124,7 @@ def breed_best():
     if _zeus is None or _zeus.chaos is None:
         return jsonify({'success': False, 'error': 'CHAOS MODE not available'}), 503
 
-    child = _zeus.chaos.breed_top_kernels(pantheon_approved=True, reason='api_request')
+    child = _zeus.chaos.breed_top_kernels()
 
     if child is None:
         return jsonify({
@@ -565,7 +565,7 @@ def turbo_mode():
     data = request.json or {}
     count = data.get('count', 50)
 
-    spawned = _zeus.chaos.turbo_spawn(count=count, pantheon_approved=True, reason='turbo_mode_api')
+    spawned = _zeus.chaos.turbo_spawn(count=count)
 
     return jsonify({
         'success': True,
