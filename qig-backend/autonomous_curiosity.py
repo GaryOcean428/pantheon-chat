@@ -748,6 +748,8 @@ class AutonomousCuriosityEngine:
             with open(checkpoint_path, 'w') as f:
                 json.dump(checkpoint_data, f, indent=2)
             
+            self._cleanup_old_checkpoints(keep_last=5)
+            
             self.stats['word_learning_cycles'] += 1
             self.stats['last_word_learning'] = datetime.now().isoformat()
             self.stats['word_learning_relevance'] = validation['stats'].get('total_relationships', 0)
@@ -792,6 +794,34 @@ class AutonomousCuriosityEngine:
         
         pairs_after = learner.total_pairs
         return pairs_after - pairs_before
+    
+    def _cleanup_old_checkpoints(self, keep_last: int = 5):
+        """
+        Remove old word relationship checkpoint files, keeping only the most recent ones.
+        
+        Args:
+            keep_last: Number of most recent checkpoint files to keep
+        """
+        try:
+            checkpoint_files = sorted(
+                self._checkpoint_dir.glob('word_relationships_*.json'),
+                key=lambda f: f.stat().st_mtime,
+                reverse=True
+            )
+            
+            files_to_delete = checkpoint_files[keep_last:]
+            
+            for filepath in files_to_delete:
+                try:
+                    filepath.unlink()
+                    logger.info(f"[AutonomousCuriosityEngine] Deleted old checkpoint: {filepath.name}")
+                except Exception as e:
+                    logger.warning(f"[AutonomousCuriosityEngine] Failed to delete {filepath}: {e}")
+            
+            if files_to_delete:
+                logger.info(f"[AutonomousCuriosityEngine] Cleaned up {len(files_to_delete)} old checkpoint files, kept {len(checkpoint_files[:keep_last])}")
+        except Exception as e:
+            logger.error(f"[AutonomousCuriosityEngine] Checkpoint cleanup failed: {e}")
     
     def get_learning_status(self) -> Dict:
         """Get comprehensive learning status including curriculum and search-based learning."""
