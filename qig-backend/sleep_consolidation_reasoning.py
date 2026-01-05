@@ -120,7 +120,14 @@ class SleepConsolidationReasoning:
                 )
                 exploration_changed = True
         else:
-            recent_success_rate = 0.5
+            # No episodes yet - estimate from strategy performance or use prior
+            if self.reasoning_learner and self.reasoning_learner.strategies:
+                # Calculate average success rate from existing strategies
+                strategy_rates = [s.success_rate() for s in self.reasoning_learner.strategies]
+                recent_success_rate = np.mean(strategy_rates) if strategy_rates else 0.0
+            else:
+                # True cold start - no data yet
+                recent_success_rate = 0.0
         
         strategies_after = len(self.reasoning_learner.strategies)
         exploration_after = self.reasoning_learner.exploration_rate

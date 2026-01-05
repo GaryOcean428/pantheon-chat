@@ -513,6 +513,10 @@ class AutonomousCuriosityEngine:
             if curiosity > self._min_curiosity_threshold:
                 query = self._generate_exploration_query(kernel_name, topic, knowledge)
                 
+                # Use Wikipedia and GitHub directly for enriched learning
+                self._explore_with_direct_sources(kernel_name, query, topic)
+                
+                # Also submit to main search callback
                 self.request_search(
                     kernel_name=kernel_name,
                     query=query,
@@ -527,6 +531,77 @@ class AutonomousCuriosityEngine:
                 self.stats['total_explorations'] += 1
                 
                 break
+    
+    def _explore_with_direct_sources(self, kernel_name: str, query: str, topic: str):
+        """
+        Explore using ALL available knowledge sources for autonomous learning.
+        
+        Uses the pluggable KnowledgeOrchestrator to query any registered source.
+        Kernels can add their own sources dynamically.
+        """
+        try:
+            from knowledge_sources import get_orchestrator, SourceQuery
+            
+            orchestrator = get_orchestrator()
+            
+            source_query = SourceQuery(
+                query=topic,
+                context={'kernel': kernel_name, 'original_query': query},
+                max_results=5,
+                requester_kernel=kernel_name
+            )
+            
+            results = orchestrator.query_all_sources(
+                query_text=topic,
+                context={'kernel': kernel_name},
+                requester=kernel_name
+            )
+            
+            if results:
+                sources_used = list(set(r.source_name for r in results))
+                logger.info(f"[AutonomousCuriosityEngine] Queried {len(sources_used)} sources for '{topic}': {sources_used}")
+                
+                combined_text = " ".join([r.content for r in results if r.content])
+                if combined_text.strip():
+                    combined_dict = {
+                        'content': combined_text,
+                        'results': [
+                            {
+                                'title': r.title,
+                                'content': r.content,
+                                'url': r.url,
+                                'source': r.source_name
+                            }
+                            for r in results
+                        ]
+                    }
+                    self._learn_from_search_result(combined_dict)
+                    
+                    self.curiosity_drive.record_exploration(
+                        topic=topic,
+                        outcome={
+                            'success': True,
+                            'information_gain': len(results) * 0.15,
+                            'source': 'unified_knowledge_sources',
+                            'sources_count': len(sources_used),
+                            'sources_used': sources_used
+                        }
+                    )
+                    
+                    self.exploration_results.append({
+                        'type': 'unified_source_exploration',
+                        'kernel': kernel_name,
+                        'query': query,
+                        'topic': topic,
+                        'sources': sources_used,
+                        'result_count': len(results),
+                        'timestamp': datetime.now().isoformat()
+                    })
+                    
+        except ImportError as e:
+            logger.warning(f"[AutonomousCuriosityEngine] Knowledge sources not available: {e}")
+        except Exception as e:
+            logger.error(f"[AutonomousCuriosityEngine] Source exploration failed: {e}")
     
     def _get_current_knowledge(self, kernel_name: str, topic: str) -> Dict:
         """Get kernel's current knowledge about a topic."""

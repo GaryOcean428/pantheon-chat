@@ -690,8 +690,38 @@ class TemporalReasoning:
         return float(np.exp(-distance))
     
     def _estimate_probability(self, action: Dict) -> float:
-        """Estimate action success probability."""
-        return action.get('probability', 0.5)
+        """
+        Estimate action success probability based on action characteristics.
+        
+        Uses geometric factors instead of hardcoded 0.5 default.
+        """
+        # Use provided probability if available
+        if 'probability' in action:
+            return action['probability']
+        
+        # Calculate from action characteristics
+        base_prob = 0.6  # Slightly optimistic baseline
+        
+        # Factor 1: Action clarity (has direction = more predictable)
+        if 'direction' in action:
+            direction = np.array(action['direction'])
+            # Normalize to unit vector, stronger direction = higher probability
+            norm = np.linalg.norm(direction)
+            clarity_bonus = min(0.2, norm * 0.1)
+            base_prob += clarity_bonus
+        
+        # Factor 2: Action has goal (more structured = higher probability)
+        if 'goal' in action:
+            base_prob += 0.1
+        
+        # Factor 3: Historical success rate if tracked
+        if hasattr(self, 'improvement') and self.improvement.total_predictions > 10:
+            historical_rate = self.improvement.accurate_predictions / self.improvement.total_predictions
+            # Blend with base (weighted toward history as data grows)
+            weight = min(0.5, self.improvement.total_predictions / 100)
+            base_prob = (1 - weight) * base_prob + weight * historical_rate
+        
+        return np.clip(base_prob, 0.1, 0.95)
     
     def _estimate_velocity(self, basin: np.ndarray) -> np.ndarray:
         """Estimate current velocity from history."""
