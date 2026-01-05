@@ -14,7 +14,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Activity, Brain, Shield, Zap, Server, TrendingUp, AlertCircle, CheckCircle2, Radio } from "lucide-react";
+import { Activity, Brain, Shield, Zap, Server, TrendingUp, AlertCircle, CheckCircle2, Radio, Database, Cpu } from "lucide-react";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from "recharts";
+import { API_ROUTES, QUERY_KEYS } from "@/api/routes";
 
 interface TelemetryOverview {
   success: boolean;
@@ -104,6 +106,301 @@ interface StreamData {
     tavilyToday: number;
     tavilyCost: number;
   };
+}
+
+interface TelemetryHistoryResponse {
+  success: boolean;
+  data: {
+    hours: number;
+    snapshots: Array<{
+      timestamp: string;
+      phi: number;
+      kappa: number;
+      regime: string;
+    }>;
+    count: number;
+  };
+}
+
+interface CoordizerStats {
+  vocab_size: number;
+  coordinate_dim: number;
+  geometric_purity: boolean;
+  special_tokens: string[];
+  multi_scale?: {
+    num_scales: number;
+    tokens_per_scale: Record<string, number>;
+  };
+  consciousness?: {
+    total_consolidations: number;
+    avg_phi: number;
+  };
+  pair_merging?: {
+    merges_learned: number;
+    merge_coordinates: number;
+  };
+}
+
+const REGIME_COLORS: Record<string, string> = {
+  linear: '#22c55e',
+  geometric: '#3b82f6',
+  hierarchical: '#8b5cf6',
+  breakdown: '#ef4444',
+  unknown: '#6b7280',
+};
+
+function ParamsHistoryChart() {
+  const { data, isLoading, error } = useQuery<TelemetryHistoryResponse>({
+    queryKey: QUERY_KEYS.telemetryDashboard.history(24),
+  });
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5 text-primary" />
+            Params History (24h)
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Skeleton className="h-64 w-full" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error || !data?.data?.snapshots) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5 text-primary" />
+            Params History (24h)
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">No historical data available</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const chartData = data.data.snapshots.map((s, idx) => ({
+    idx,
+    time: new Date(s.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    phi: s.phi,
+    kappa: s.kappa,
+    regime: s.regime,
+  }));
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <TrendingUp className="h-5 w-5 text-primary" />
+          Params History (24h)
+        </CardTitle>
+        <CardDescription>{data.data.count} snapshots over {data.data.hours} hours</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {chartData.length > 0 ? (
+          <ResponsiveContainer width="100%" height={280}>
+            <LineChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+              <XAxis 
+                dataKey="time" 
+                tick={{ fontSize: 10 }}
+                interval="preserveStartEnd"
+              />
+              <YAxis 
+                yAxisId="phi" 
+                domain={[0, 1]} 
+                tick={{ fontSize: 10 }}
+                label={{ value: 'Φ', angle: -90, position: 'insideLeft', fontSize: 12 }}
+              />
+              <YAxis 
+                yAxisId="kappa" 
+                orientation="right" 
+                domain={[0, 100]}
+                tick={{ fontSize: 10 }}
+                label={{ value: 'κ', angle: 90, position: 'insideRight', fontSize: 12 }}
+              />
+              <Tooltip 
+                content={({ active, payload }) => {
+                  if (!active || !payload?.length) return null;
+                  const d = payload[0].payload;
+                  return (
+                    <div className="bg-background border rounded-lg p-2 shadow-lg text-sm">
+                      <div className="font-medium">{d.time}</div>
+                      <div className="text-muted-foreground">Φ: {d.phi.toFixed(3)}</div>
+                      <div className="text-muted-foreground">κ: {d.kappa.toFixed(1)}</div>
+                      <Badge 
+                        style={{ backgroundColor: REGIME_COLORS[d.regime] || REGIME_COLORS.unknown }}
+                        className="text-white text-xs mt-1"
+                      >
+                        {d.regime}
+                      </Badge>
+                    </div>
+                  );
+                }}
+              />
+              <Legend />
+              <ReferenceLine yAxisId="kappa" y={64} stroke="#8b5cf6" strokeDasharray="3 3" />
+              <Line yAxisId="phi" type="monotone" dataKey="phi" stroke="#3b82f6" dot={false} name="Φ (Integration)" />
+              <Line yAxisId="kappa" type="monotone" dataKey="kappa" stroke="#f59e0b" dot={false} name="κ (Coupling)" />
+            </LineChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="h-64 flex items-center justify-center text-muted-foreground">
+            No data points recorded yet
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function CoordizerStatsPanel() {
+  const { data, isLoading, error } = useQuery<CoordizerStats>({
+    queryKey: QUERY_KEYS.coordizer.stats(),
+  });
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Database className="h-5 w-5 text-primary" />
+            Coordizer Stats
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Skeleton className="h-32 w-full" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Database className="h-5 w-5 text-primary" />
+            Coordizer Stats
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">Coordizer service unavailable</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Database className="h-5 w-5 text-primary" />
+          Coordizer Stats
+        </CardTitle>
+        <CardDescription>Geometric tokenization system</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <div className="text-2xl font-bold font-mono" data-testid="metric-vocab-size">
+              {data.vocab_size.toLocaleString()}
+            </div>
+            <div className="text-xs text-muted-foreground">Vocabulary Size</div>
+          </div>
+          <div>
+            <div className="text-2xl font-bold font-mono" data-testid="metric-coord-dim">
+              {data.coordinate_dim}D
+            </div>
+            <div className="text-xs text-muted-foreground">Basin Dimension</div>
+          </div>
+        </div>
+        
+        <div className="pt-4 border-t space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <span>Geometric Purity</span>
+            {data.geometric_purity ? (
+              <Badge variant="default" className="bg-green-600">Pure</Badge>
+            ) : (
+              <Badge variant="secondary">Mixed</Badge>
+            )}
+          </div>
+          
+          {data.multi_scale && (
+            <div className="flex items-center justify-between text-sm">
+              <span>Multi-Scale Levels</span>
+              <span className="font-mono">{data.multi_scale.num_scales}</span>
+            </div>
+          )}
+          
+          {data.pair_merging && (
+            <div className="flex items-center justify-between text-sm">
+              <span>Merges Learned</span>
+              <span className="font-mono">{data.pair_merging.merges_learned}</span>
+            </div>
+          )}
+          
+          {data.consciousness && (
+            <div className="flex items-center justify-between text-sm">
+              <span>Avg Consolidation Φ</span>
+              <span className="font-mono">{data.consciousness.avg_phi.toFixed(3)}</span>
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function KernelParamsPanel({ autonomy }: { autonomy: TelemetryOverview['data']['autonomy'] }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Cpu className="h-5 w-5 text-primary" />
+          Kernel Parameters
+        </CardTitle>
+        <CardDescription>Active kernel configuration</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <div className="text-2xl font-bold font-mono" data-testid="metric-active-kernels">
+              {autonomy.kernelsActive}
+            </div>
+            <div className="text-xs text-muted-foreground">Active Kernels</div>
+          </div>
+          <div>
+            <div className="text-2xl font-bold font-mono" data-testid="metric-healthy-loops">
+              {autonomy.feedbackLoopsHealthy}
+            </div>
+            <div className="text-xs text-muted-foreground">Healthy Loops</div>
+          </div>
+        </div>
+        
+        <div className="pt-4 border-t space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <span>Self-Regulation</span>
+            <span className="font-mono">{(autonomy.selfRegulationScore * 100).toFixed(0)}%</span>
+          </div>
+          <Progress value={autonomy.selfRegulationScore * 100} className="h-2" />
+        </div>
+        
+        {autonomy.lastAutonomicAction && (
+          <div className="pt-2 text-xs text-muted-foreground">
+            Last action: {autonomy.lastAutonomicAction}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
 }
 
 function MetricCard({ 
@@ -725,6 +1022,11 @@ export default function TelemetryDashboard() {
         <TabsContent value="learning" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <LearningCard learning={data.learning} />
+            <CoordizerStatsPanel />
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <KernelParamsPanel autonomy={data.autonomy} />
             <Card>
               <CardHeader>
                 <CardTitle>Learning Metrics Explained</CardTitle>
@@ -774,6 +1076,8 @@ export default function TelemetryDashboard() {
         </TabsContent>
         
         <TabsContent value="advanced" className="space-y-6">
+          <ParamsHistoryChart />
+          
           <div className="grid grid-cols-1 gap-6">
             <ConsciousnessMonitoringDemo />
           </div>
