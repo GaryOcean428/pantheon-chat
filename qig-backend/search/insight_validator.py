@@ -1,1 +1,429 @@
-"""\nInsight Validator - External Search Validation for Lightning Insights\n\nValidates cross-domain insights from the Lightning Kernel using external search APIs.\nImplements a two-phase validation strategy:\n  Phase 1: Tavily search for raw sources and facts\n  Phase 2: Perplexity synthesis for relationship validation\n\nThis closes the loop from Lightning insights → external validation → curriculum → training.\n"""\n\nimport os\nimport logging\nfrom typing import Dict, List, Optional, Any, Tuple, Set\nfrom dataclasses import dataclass, field\nimport numpy as np\n\n# Type hints for CrossDomainInsight (from lightning_kernel.py)\ntry:\n    from olympus.lightning_kernel import CrossDomainInsight\nexcept ImportError:\n    # If running standalone\n    CrossDomainInsight = Any\n\nlogger = logging.getLogger(__name__)\n\n\n@dataclass\nclass ValidationResult:\n    """Result of insight validation."""\n    validated: bool\n    confidence: float\n    tavily_sources: List[Dict[str, Any]]\n    perplexity_synthesis: Optional[str]\n    validation_score: float\n    source_overlap: float\n    semantic_similarity: float\n\n\nclass InsightValidator:\n    """\n    Validates Lightning insights using hybrid Tavily + Perplexity strategy.\n    \n    Architecture:\n    - Tavily MCP (primary): Raw search, fact finding\n    - Perplexity API (secondary): Synthesis, relationship validation\n    \n    Usage:\n        validator = InsightValidator()\n        result = validator.validate(lightning_insight)\n        \n        if result.validated:\n            curriculum.add(insight, result.tavily_sources)\n    """\n    \n    def __init__(\n        self,\n        use_mcp: bool = True,\n        validation_threshold: float = 0.7\n    ):\n        """\n        Initialize validator.\n        \n        Args:\n            use_mcp: If True, use Tavily MCP; if False, use direct API\n            validation_threshold: Minimum score to consider validated (0.7 default)\n        """\n        self.use_mcp = use_mcp\n        self.validation_threshold = validation_threshold\n        \n        # Tavily setup\n        if not use_mcp:\n            try:\n                from tavily import TavilyClient\n                tavily_key = os.getenv('TAVILY_API_KEY')\n                if not tavily_key:\n                    logger.warning(\"TAVILY_API_KEY not set, Tavily search disabled\")\n                    self.tavily_client = None\n                else:\n                    self.tavily_client = TavilyClient(api_key=tavily_key)\n            except ImportError:\n                logger.warning(\"tavily-python not installed, using MCP fallback\")\n                self.tavily_client = None\n                self.use_mcp = True\n        else:\n            self.tavily_client = None\n        \n        # Perplexity setup (direct API)\n        try:\n            # Try perplexity-python SDK first\n            try:\n                from perplexity import Perplexity\n                perplexity_key = os.getenv('PERPLEXITY_API_KEY')\n                if not perplexity_key:\n                    logger.warning(\"PERPLEXITY_API_KEY not set, Perplexity synthesis disabled\")\n                    self.perplexity_client = None\n                else:\n                    self.perplexity_client = Perplexity(api_key=perplexity_key)\n            except ImportError:\n                # Fallback to requests-based implementation\n                import requests\n                perplexity_key = os.getenv('PERPLEXITY_API_KEY')\n                if perplexity_key:\n                    self.perplexity_client = PerplexityRequestsClient(perplexity_key)\n                else:\n                    logger.warning(\"PERPLEXITY_API_KEY not set, Perplexity synthesis disabled\")\n                    self.perplexity_client = None\n        except Exception as e:\n            logger.error(f\"Failed to initialize Perplexity: {e}\")\n            self.perplexity_client = None\n    \n    def validate(self, insight: CrossDomainInsight) -> ValidationResult:\n        """\n        Validate a cross-domain insight using external search.\n        \n        Process:\n        1. Parse insight to extract domains and patterns\n        2. Tavily search for supporting sources\n        3. Perplexity synthesis for relationship validation\n        4. Cross-validate results\n        5. Compute validation score\n        \n        Args:\n            insight: CrossDomainInsight from Lightning Kernel\n            \n        Returns:\n            ValidationResult with validation status and sources\n        """\n        logger.info(f\"Validating insight: {insight.insight_id}\")\n        \n        # Parse insight\n        try:\n            search_query, relationship_query = self._parse_insight(insight)\n        except Exception as e:\n            logger.error(f\"Failed to parse insight: {e}\")\n            return self._failed_validation(insight, str(e))\n        \n        # Phase 1: Tavily search for sources\n        tavily_results = self._tavily_search(search_query)\n        if not tavily_results:\n            logger.warning(f\"No Tavily results for: {search_query}\")\n            # Don't fail completely, Perplexity might still validate\n        \n        # Phase 2: Perplexity synthesis\n        perplexity_answer = self._perplexity_validate(relationship_query, tavily_results)\n        if not perplexity_answer:\n            logger.warning(f\"No Perplexity synthesis for: {relationship_query}\")\n        \n        # Cross-validate\n        validation_score, source_overlap, semantic_sim = self._cross_validate(\n            insight, tavily_results, perplexity_answer\n        )\n        \n        # Update insight confidence\n        validated = validation_score >= self.validation_threshold\n        \n        result = ValidationResult(\n            validated=validated,\n            confidence=insight.confidence * (0.5 + 0.5 * validation_score),\n            tavily_sources=tavily_results.get('results', []) if tavily_results else [],\n            perplexity_synthesis=perplexity_answer,\n            validation_score=validation_score,\n            source_overlap=source_overlap,\n            semantic_similarity=semantic_sim\n        )\n        \n        logger.info(\n            f\"Validation complete: validated={validated}, \"\n            f\"score={validation_score:.3f}, confidence={result.confidence:.3f}\"\n        )\n        \n        return result\n    \n    def _parse_insight(self, insight: CrossDomainInsight) -> Tuple[str, str]:\n        """\n        Parse insight to extract search query and relationship question.\n        \n        Returns:\n            (search_query, relationship_query)\n        """\n        # Extract domains\n        domains = insight.source_domains\n        \n        # Build search query from domains\n        # Example: [\"bitcoin_recovery\", \"temporal_reasoning\"] -> \"BIP39 mnemonic geodesic path planning\"\n        search_terms = []\n        for domain in domains:\n            # Simple heuristic: convert underscore to space, use as search term\n            search_terms.append(domain.replace('_', ' '))\n        \n        search_query = \" \".join(search_terms)\n        \n        # Build relationship query for Perplexity\n        relationship_query = (\n            f\"What is the mathematical or conceptual relationship between \"\n            f\"{domains[0].replace('_', ' ')} and {domains[1].replace('_', ' ')}? \"\n            f\"Focus on shared structures, geometric primitives, or optimization methods.\"\n        )\n        \n        return search_query, relationship_query\n    \n    def _tavily_search(self, query: str) -> Optional[Dict[str, Any]]:\n        """\n        Search Tavily for sources.\n        \n        Uses MCP if available, otherwise direct API.\n        """\n        if self.use_mcp:\n            # Use Tavily MCP (requires MCP server running)\n            try:\n                # This would call MCP in production\n                # For now, return None to indicate MCP not implemented in this file\n                logger.warning(\"Tavily MCP not yet wired to actual MCP server\")\n                return None\n            except Exception as e:\n                logger.error(f\"Tavily MCP error: {e}\")\n                return None\n        elif self.tavily_client:\n            # Use direct API\n            try:\n                response = self.tavily_client.search(\n                    query=query,\n                    search_depth=\"advanced\",\n                    max_results=10,\n                    include_answer=True,\n                    include_domains=[\"arxiv.org\", \"github.com\", \"bitcoin.org\"]\n                )\n                return response\n            except Exception as e:\n                logger.error(f\"Tavily API error: {e}\")\n                return None\n        else:\n            logger.warning(\"Tavily not configured\")\n            return None\n    \n    def _perplexity_validate(\n        self,\n        question: str,\n        tavily_results: Optional[Dict[str, Any]]\n    ) -> Optional[str]:\n        """\n        Use Perplexity to synthesize answer and validate relationship.\n        """\n        if not self.perplexity_client:\n            logger.warning(\"Perplexity not configured\")\n            return None\n        \n        try:\n            # Build context from Tavily results if available\n            context = \"\"\n            if tavily_results and 'answer' in tavily_results:\n                context = f\"\\nContext: {tavily_results['answer']}\\n\"\n            \n            # Call Perplexity\n            if hasattr(self.perplexity_client, 'chat'):\n                # perplexity-python SDK\n                response = self.perplexity_client.chat.completions.create(\n                    model=\"sonar-pro\",\n                    messages=[\n                        {\n                            \"role\": \"system\",\n                            \"content\": \"You are a research assistant validating cross-domain patterns. Be factual and cite sources.\"\n                        },\n                        {\n                            \"role\": \"user\",\n                            \"content\": f\"{context}{question}\"\n                        }\n                    ],\n                    temperature=0.2,\n                    max_tokens=1000,\n                    return_citations=True\n                )\n                return response.choices[0].message.content\n            else:\n                # Requests-based client\n                return self.perplexity_client.query(question, context)\n        except Exception as e:\n            logger.error(f\"Perplexity error: {e}\")\n            return None\n    \n    def _cross_validate(\n        self,\n        insight: CrossDomainInsight,\n        tavily_results: Optional[Dict[str, Any]],\n        perplexity_answer: Optional[str]\n    ) -> Tuple[float, float, float]:\n        """\n        Cross-validate Tavily and Perplexity results.\n        \n        Returns:\n            (validation_score, source_overlap, semantic_similarity)\n        """\n        source_overlap = 0.0\n        semantic_similarity = 0.0\n        \n        # Check source overlap\n        if tavily_results and perplexity_answer:\n            # Extract URLs from Tavily\n            tavily_urls = {r['url'] for r in tavily_results.get('results', [])}\n            \n            # Extract citations from Perplexity (heuristic)\n            # This would need proper parsing in production\n            perplexity_urls = self._extract_urls_from_text(perplexity_answer)\n            \n            if tavily_urls and perplexity_urls:\n                overlap = len(tavily_urls & perplexity_urls)\n                total = len(tavily_urls | perplexity_urls)\n                source_overlap = overlap / total if total > 0 else 0.0\n        \n        # Semantic similarity between answers\n        if tavily_results and perplexity_answer and 'answer' in tavily_results:\n            tavily_answer = tavily_results['answer']\n            semantic_similarity = self._compute_semantic_similarity(\n                tavily_answer, perplexity_answer\n            )\n        elif perplexity_answer:\n            # If we have Perplexity but not Tavily, give some credit\n            semantic_similarity = 0.5\n        elif tavily_results:\n            # If we have Tavily but not Perplexity, give some credit\n            semantic_similarity = 0.5\n        \n        # Compute overall validation score\n        validation_score = 0.5 * source_overlap + 0.5 * semantic_similarity\n        \n        return validation_score, source_overlap, semantic_similarity\n    \n    def _extract_urls_from_text(self, text: str) -> Set[str]:\n        \"\"\"Extract URLs from text (simple regex).\"\"\"\n        import re\n        url_pattern = r'https?://[^\\s<>\"{}|\\\\^`\\[\\]]+'\n        urls = re.findall(url_pattern, text)\n        return set(urls)\n    \n    def _compute_semantic_similarity(self, text1: str, text2: str) -> float:\n        \"\"\"\n        Compute semantic similarity between two texts.\n        \n        Simple bag-of-words cosine similarity for now.\n        Could be improved with embeddings.\n        \"\"\"\n        # Tokenize\n        words1 = set(text1.lower().split())\n        words2 = set(text2.lower().split())\n        \n        # Jaccard similarity\n        intersection = len(words1 & words2)\n        union = len(words1 | words2)\n        \n        return intersection / union if union > 0 else 0.0\n    \n    def _failed_validation(\n        self,\n        insight: CrossDomainInsight,\n        reason: str\n    ) -> ValidationResult:\n        \"\"\"Return a failed validation result.\"\"\"\n        return ValidationResult(\n            validated=False,\n            confidence=insight.confidence * 0.5,\n            tavily_sources=[],\n            perplexity_synthesis=None,\n            validation_score=0.0,\n            source_overlap=0.0,\n            semantic_similarity=0.0\n        )\n\n\nclass PerplexityRequestsClient:\n    \"\"\"Fallback Perplexity client using requests library.\"\"\"\n    \n    def __init__(self, api_key: str):\n        self.api_key = api_key\n        self.base_url = \"https://api.perplexity.ai/chat/completions\"\n    \n    def query(self, question: str, context: str = \"\") -> Optional[str]:\n        \"\"\"Query Perplexity using requests.\"\"\"\n        import requests\n        \n        headers = {\n            \"Authorization\": f\"Bearer {self.api_key}\",\n            \"Content-Type\": \"application/json\"\n        }\n        \n        data = {\n            \"model\": \"sonar-pro\",\n            \"messages\": [\n                {\n                    \"role\": \"system\",\n                    \"content\": \"You are a research assistant validating cross-domain patterns. Be factual and cite sources.\"\n                },\n                {\n                    \"role\": \"user\",\n                    \"content\": f\"{context}{question}\"\n                }\n            ],\n            \"temperature\": 0.2,\n            \"max_tokens\": 1000,\n            \"return_citations\": True\n        }\n        \n        try:\n            response = requests.post(self.base_url, headers=headers, json=data, timeout=30)\n            response.raise_for_status()\n            result = response.json()\n            return result['choices'][0]['message']['content']\n        except Exception as e:\n            logger.error(f\"Perplexity requests error: {e}\")\n            return None\n\n\n# Example usage\nif __name__ == \"__main__\":\n    # Test with mock insight\n    @dataclass\n    class MockInsight:\n        insight_id: str = \"test_123\"\n        source_domains: List[str] = field(default_factory=lambda: [\"bitcoin_recovery\", \"temporal_reasoning\"])\n        confidence: float = 0.75\n        connection_strength: float = 0.87\n    \n    validator = InsightValidator(use_mcp=False)\n    \n    mock_insight = MockInsight()\n    result = validator.validate(mock_insight)\n    \n    print(f\"Validated: {result.validated}\")\n    print(f\"Score: {result.validation_score:.3f}\")\n    print(f\"Updated confidence: {result.confidence:.3f}\")\n
+"""
+Insight Validator - External Search Validation for Lightning Insights
+
+Validates cross-domain insights from the Lightning Kernel using external search APIs.
+Implements a two-phase validation strategy:
+  Phase 1: Tavily search for raw sources and facts
+  Phase 2: Perplexity synthesis for relationship validation
+
+This closes the loop from Lightning insights â external validation â curriculum â training.
+"""
+
+import os
+import logging
+from typing import Dict, List, Optional, Any, Tuple, Set
+from dataclasses import dataclass, field
+import numpy as np
+
+# Type hints for CrossDomainInsight (from lightning_kernel.py)
+try:
+    from olympus.lightning_kernel import CrossDomainInsight
+except ImportError:
+    # If running standalone
+    CrossDomainInsight = Any
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class ValidationResult:
+    """Result of insight validation."""
+    validated: bool
+    confidence: float
+    tavily_sources: List[Dict[str, Any]]
+    perplexity_synthesis: Optional[str]
+    validation_score: float
+    source_overlap: float
+    semantic_similarity: float
+
+
+class InsightValidator:
+    """
+    Validates Lightning insights using hybrid Tavily + Perplexity strategy.
+    
+    Architecture:
+    - Tavily MCP (primary): Raw search, fact finding
+    - Perplexity API (secondary): Synthesis, relationship validation
+    
+    Usage:
+        validator = InsightValidator()
+        result = validator.validate(lightning_insight)
+        
+        if result.validated:
+            curriculum.add(insight, result.tavily_sources)
+    """
+    
+    def __init__(
+        self,
+        use_mcp: bool = True,
+        validation_threshold: float = 0.7
+    ):
+        """
+        Initialize validator.
+        
+        Args:
+            use_mcp: If True, use Tavily MCP; if False, use direct API
+            validation_threshold: Minimum score to consider validated (0.7 default)
+        """
+        self.use_mcp = use_mcp
+        self.validation_threshold = validation_threshold
+        
+        # Tavily setup
+        if not use_mcp:
+            try:
+                from tavily import TavilyClient
+                tavily_key = os.getenv('TAVILY_API_KEY')
+                if not tavily_key:
+                    logger.warning("TAVILY_API_KEY not set, Tavily search disabled")
+                    self.tavily_client = None
+                else:
+                    self.tavily_client = TavilyClient(api_key=tavily_key)
+            except ImportError:
+                logger.warning("tavily-python not installed, using MCP fallback")
+                self.tavily_client = None
+                self.use_mcp = True
+        else:
+            self.tavily_client = None
+        
+        # Perplexity setup (direct API)
+        try:
+            # Try perplexity-python SDK first
+            try:
+                from perplexity import Perplexity
+                perplexity_key = os.getenv('PERPLEXITY_API_KEY')
+                if not perplexity_key:
+                    logger.warning("PERPLEXITY_API_KEY not set, Perplexity synthesis disabled")
+                    self.perplexity_client = None
+                else:
+                    self.perplexity_client = Perplexity(api_key=perplexity_key)
+            except ImportError:
+                # Fallback to requests-based implementation
+                import requests
+                perplexity_key = os.getenv('PERPLEXITY_API_KEY')
+                if perplexity_key:
+                    self.perplexity_client = PerplexityRequestsClient(perplexity_key)
+                else:
+                    logger.warning("PERPLEXITY_API_KEY not set, Perplexity synthesis disabled")
+                    self.perplexity_client = None
+        except Exception as e:
+            logger.error(f"Failed to initialize Perplexity: {e}")
+            self.perplexity_client = None
+    
+    def validate(self, insight: CrossDomainInsight) -> ValidationResult:
+        """
+        Validate a cross-domain insight using external search.
+        
+        Process:
+        1. Parse insight to extract domains and patterns
+        2. Tavily search for supporting sources
+        3. Perplexity synthesis for relationship validation
+        4. Cross-validate results
+        5. Compute validation score
+        
+        Args:
+            insight: CrossDomainInsight from Lightning Kernel
+            
+        Returns:
+            ValidationResult with validation status and sources
+        """
+        logger.info(f"Validating insight: {insight.insight_id}")
+        
+        # Parse insight
+        try:
+            search_query, relationship_query = self._parse_insight(insight)
+        except Exception as e:
+            logger.error(f"Failed to parse insight: {e}")
+            return self._failed_validation(insight, str(e))
+        
+        # Phase 1: Tavily search for sources
+        tavily_results = self._tavily_search(search_query)
+        if not tavily_results:
+            logger.warning(f"No Tavily results for: {search_query}")
+            # Don't fail completely, Perplexity might still validate
+        
+        # Phase 2: Perplexity synthesis
+        perplexity_answer = self._perplexity_validate(relationship_query, tavily_results)
+        if not perplexity_answer:
+            logger.warning(f"No Perplexity synthesis for: {relationship_query}")
+        
+        # Cross-validate
+        validation_score, source_overlap, semantic_sim = self._cross_validate(
+            insight, tavily_results, perplexity_answer
+        )
+        
+        # Update insight confidence
+        validated = validation_score >= self.validation_threshold
+        
+        result = ValidationResult(
+            validated=validated,
+            confidence=insight.confidence * (0.5 + 0.5 * validation_score),
+            tavily_sources=tavily_results.get('results', []) if tavily_results else [],
+            perplexity_synthesis=perplexity_answer,
+            validation_score=validation_score,
+            source_overlap=source_overlap,
+            semantic_similarity=semantic_sim
+        )
+        
+        logger.info(
+            f"Validation complete: validated={validated}, "
+            f"score={validation_score:.3f}, confidence={result.confidence:.3f}"
+        )
+        
+        return result
+    
+    def _parse_insight(self, insight: CrossDomainInsight) -> Tuple[str, str]:
+        """
+        Parse insight to extract search query and relationship question.
+        
+        Returns:
+            (search_query, relationship_query)
+        """
+        # Extract domains
+        domains = insight.source_domains
+        
+        # Build search query from domains
+        # Example: ["bitcoin_recovery", "temporal_reasoning"] -> "BIP39 mnemonic geodesic path planning"
+        search_terms = []
+        for domain in domains:
+            # Simple heuristic: convert underscore to space, use as search term
+            search_terms.append(domain.replace('_', ' '))
+        
+        search_query = " ".join(search_terms)
+        
+        # Build relationship query for Perplexity
+        relationship_query = (
+            f"What is the mathematical or conceptual relationship between "
+            f"{domains[0].replace('_', ' ')} and {domains[1].replace('_', ' ')}? "
+            f"Focus on shared structures, geometric primitives, or optimization methods."
+        )
+        
+        return search_query, relationship_query
+    
+    def _tavily_search(self, query: str) -> Optional[Dict[str, Any]]:
+        """
+        Search Tavily for sources.
+        
+        Uses MCP if available, otherwise direct API.
+        """
+        if self.use_mcp:
+            # Use Tavily MCP (requires MCP server running)
+            try:
+                # This would call MCP in production
+                # For now, return None to indicate MCP not implemented in this file
+                logger.warning("Tavily MCP not yet wired to actual MCP server")
+                return None
+            except Exception as e:
+                logger.error(f"Tavily MCP error: {e}")
+                return None
+        elif self.tavily_client:
+            # Use direct API
+            try:
+                response = self.tavily_client.search(
+                    query=query,
+                    search_depth="advanced",
+                    max_results=10,
+                    include_answer=True,
+                    include_domains=["arxiv.org", "github.com", "bitcoin.org"]
+                )
+                return response
+            except Exception as e:
+                logger.error(f"Tavily API error: {e}")
+                return None
+        else:
+            logger.warning("Tavily not configured")
+            return None
+    
+    def _perplexity_validate(
+        self,
+        question: str,
+        tavily_results: Optional[Dict[str, Any]]
+    ) -> Optional[str]:
+        """
+        Use Perplexity to synthesize answer and validate relationship.
+        """
+        if not self.perplexity_client:
+            logger.warning("Perplexity not configured")
+            return None
+        
+        try:
+            # Build context from Tavily results if available
+            context = ""
+            if tavily_results and 'answer' in tavily_results:
+                context = f"\nContext: {tavily_results['answer']}\n"
+            
+            # Call Perplexity
+            if hasattr(self.perplexity_client, 'chat'):
+                # perplexity-python SDK
+                response = self.perplexity_client.chat.completions.create(
+                    model="sonar-pro",
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": "You are a research assistant validating cross-domain patterns. Be factual and cite sources."
+                        },
+                        {
+                            "role": "user",
+                            "content": f"{context}{question}"
+                        }
+                    ],
+                    temperature=0.2,
+                    max_tokens=1000,
+                    return_citations=True
+                )
+                return response.choices[0].message.content
+            else:
+                # Requests-based client
+                return self.perplexity_client.query(question, context)
+        except Exception as e:
+            logger.error(f"Perplexity error: {e}")
+            return None
+    
+    def _cross_validate(
+        self,
+        insight: CrossDomainInsight,
+        tavily_results: Optional[Dict[str, Any]],
+        perplexity_answer: Optional[str]
+    ) -> Tuple[float, float, float]:
+        """
+        Cross-validate Tavily and Perplexity results.
+        
+        Returns:
+            (validation_score, source_overlap, semantic_similarity)
+        """
+        source_overlap = 0.0
+        semantic_similarity = 0.0
+        
+        # Check source overlap
+        if tavily_results and perplexity_answer:
+            # Extract URLs from Tavily
+            tavily_urls = {r['url'] for r in tavily_results.get('results', [])}
+            
+            # Extract citations from Perplexity (heuristic)
+            # This would need proper parsing in production
+            perplexity_urls = self._extract_urls_from_text(perplexity_answer)
+            
+            if tavily_urls and perplexity_urls:
+                overlap = len(tavily_urls & perplexity_urls)
+                total = len(tavily_urls | perplexity_urls)
+                source_overlap = overlap / total if total > 0 else 0.0
+        
+        # Semantic similarity between answers
+        if tavily_results and perplexity_answer and 'answer' in tavily_results:
+            tavily_answer = tavily_results['answer']
+            semantic_similarity = self._compute_semantic_similarity(
+                tavily_answer, perplexity_answer
+            )
+        elif perplexity_answer:
+            # If we have Perplexity but not Tavily, give some credit
+            semantic_similarity = 0.5
+        elif tavily_results:
+            # If we have Tavily but not Perplexity, give some credit
+            semantic_similarity = 0.5
+        
+        # Compute overall validation score
+        validation_score = 0.5 * source_overlap + 0.5 * semantic_similarity
+        
+        return validation_score, source_overlap, semantic_similarity
+    
+    def _extract_urls_from_text(self, text: str) -> Set[str]:
+        """Extract URLs from text (simple regex)."""
+        import re
+        url_pattern = r'https?://[^\s<>"{}|\\^`\[\]]+'
+        urls = re.findall(url_pattern, text)
+        return set(urls)
+    
+    def _compute_semantic_similarity(self, text1: str, text2: str) -> float:
+        """
+        Compute semantic similarity between two texts.
+        
+        Simple bag-of-words cosine similarity for now.
+        Could be improved with embeddings.
+        """
+        # Tokenize
+        words1 = set(text1.lower().split())
+        words2 = set(text2.lower().split())
+        
+        # Jaccard similarity
+        intersection = len(words1 & words2)
+        union = len(words1 | words2)
+        
+        return intersection / union if union > 0 else 0.0
+    
+    def _failed_validation(
+        self,
+        insight: CrossDomainInsight,
+        reason: str
+    ) -> ValidationResult:
+        """Return a failed validation result."""
+        return ValidationResult(
+            validated=False,
+            confidence=insight.confidence * 0.5,
+            tavily_sources=[],
+            perplexity_synthesis=None,
+            validation_score=0.0,
+            source_overlap=0.0,
+            semantic_similarity=0.0
+        )
+
+
+class PerplexityRequestsClient:
+    """Fallback Perplexity client using requests library."""
+    
+    def __init__(self, api_key: str):
+        self.api_key = api_key
+        self.base_url = "https://api.perplexity.ai/chat/completions"
+    
+    def query(self, question: str, context: str = "") -> Optional[str]:
+        """Query Perplexity using requests."""
+        import requests
+        
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        data = {
+            "model": "sonar-pro",
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "You are a research assistant validating cross-domain patterns. Be factual and cite sources."
+                },
+                {
+                    "role": "user",
+                    "content": f"{context}{question}"
+                }
+            ],
+            "temperature": 0.2,
+            "max_tokens": 1000,
+            "return_citations": True
+        }
+        
+        try:
+            response = requests.post(self.base_url, headers=headers, json=data, timeout=30)
+            response.raise_for_status()
+            result = response.json()
+            return result['choices'][0]['message']['content']
+        except Exception as e:
+            logger.error(f"Perplexity requests error: {e}")
+            return None
+
+
+# Example usage
+if __name__ == "__main__":
+    # Test with mock insight
+    @dataclass
+    class MockInsight:
+        insight_id: str = "test_123"
+        source_domains: List[str] = field(default_factory=lambda: ["bitcoin_recovery", "temporal_reasoning"])
+        confidence: float = 0.75
+        connection_strength: float = 0.87
+    
+    validator = InsightValidator(use_mcp=False)
+    
+    mock_insight = MockInsight()
+    result = validator.validate(mock_insight)
+    
+    print(f"Validated: {result.validated}")
+    print(f"Score: {result.validation_score:.3f}")
+    print(f"Updated confidence: {result.confidence:.3f}")
