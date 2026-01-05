@@ -6442,10 +6442,7 @@ def chaos_spawn_random():
         if evolution is None:
             return jsonify({'error': 'CHAOS MODE not available'}), 500
         
-        kernel = evolution.spawn_random_kernel(
-            pantheon_approved=True,
-            reason='ocean_core_command'
-        )
+        kernel = evolution.spawn_random_kernel()
         
         return jsonify({
             'success': True,
@@ -6468,7 +6465,7 @@ def chaos_breed_best():
         if len(living) < 2:
             return jsonify({'error': 'Need at least 2 living kernels to breed'}), 400
         
-        child = evolution.breed_top_kernels(n=2, pantheon_approved=True)
+        child = evolution.breed_top_kernels(n=2)
         if child is None:
             return jsonify({'error': 'Breeding failed'}), 500
         
