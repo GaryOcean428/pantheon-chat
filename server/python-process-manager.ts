@@ -190,8 +190,9 @@ export class PythonProcessManager extends EventEmitter {
       this.setReady(false);
     });
     
-    // Wait for initial readiness
-    const ready = await this.waitForHealthy(30, 1000);
+    // Wait for initial readiness - production needs more time due to heavy imports
+    const maxRetries = isProduction ? 90 : 30;  // 90 seconds in production
+    const ready = await this.waitForHealthy(maxRetries, 1000);
     
     if (ready) {
       console.log('[PythonManager] ✅ Backend is ready');
