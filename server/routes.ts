@@ -56,6 +56,7 @@ import {
   nearMissRouter,
   oceanRouter,
   olympusRouter,
+  pythonProxiesRouter,
   searchRouter,
   ucpRouter,
   vocabularyRouter,
@@ -324,6 +325,7 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
   app.use("/api/qig/autonomic/agency", autonomicAgencyRouter);
   app.use("/api/federation", federationRouter);
   app.use("/api/zettelkasten", zettelkastenRouter);
+  app.use("/api", pythonProxiesRouter);
 
   // New comprehensive routers (full Python backend proxies)
   app.use("/api/autonomic", autonomicRouter);
