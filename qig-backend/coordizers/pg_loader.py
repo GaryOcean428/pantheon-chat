@@ -246,14 +246,14 @@ class PostgresCoordizer(FisherCoordizer):
                 # Weight by phi score for better semantic representation
                 weights.append(self.token_phi.get(clean, 0.5))
             else:
-                # Use semantic embedding for unknown tokens
+                # Use semantic basin coordinates for unknown tokens
                 coords_list.append(compute_semantic_embedding(clean))
                 weights.append(0.3)  # Lower weight for unknown
         
         if not coords_list:
             return compute_semantic_embedding(text)
         
-        # Weighted average of embeddings
+        # Weighted average of basin coordinates
         weights = np.array(weights)
         weights = weights / weights.sum()  # Normalize
         basin = np.average(coords_list, axis=0, weights=weights)

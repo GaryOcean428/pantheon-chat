@@ -330,7 +330,7 @@ def compute_basin_embedding(word: str, dimension: int = 64) -> np.ndarray:
     word_hash = hashlib.sha256(word.lower().encode('utf-8')).hexdigest()
     seed = int(word_hash[:8], 16)
     
-    # Generate embedding with golden ratio perturbation
+    # Generate basin coordinates with golden ratio perturbation
     rng = np.random.RandomState(seed)
     phi_golden = (1 + np.sqrt(5)) / 2
     
