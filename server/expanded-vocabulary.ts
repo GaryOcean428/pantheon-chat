@@ -364,7 +364,7 @@ export class ExpandedVocabulary {
     this.addCategory('patterns', PASSPHRASE_PATTERNS);
     this.addCategory('names', COMMON_NAMES);
     
-    console.log(`[ExpandedVocabulary] Initialized with ${this.allWords.size} unique words across ${this.wordsByCategory.size} categories`);
+    console.log(`[ExpandedVocabulary] Base vocabulary: ${this.allWords.size} words across ${this.wordsByCategory.size} categories (dynamic learning enabled)`);
   }
   
   private addCategory(name: string, words: string[]) {

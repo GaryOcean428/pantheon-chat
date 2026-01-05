@@ -311,7 +311,7 @@ export class OceanMemoryManager {
   private loadFromJson(): void {
     try {
       if (!fs.existsSync(MEMORY_FILE)) {
-        console.log('[OceanMemory] No saved state found, starting fresh');
+        // Normal for first run - episodes accumulate during runtime
         return;
       }
 
