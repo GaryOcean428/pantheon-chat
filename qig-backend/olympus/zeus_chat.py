@@ -521,6 +521,42 @@ class ZeusConversationHandler(GeometricGenerationMixin):
             return self.zeus.get_peer_info(god_name)
         return None
     
+    def make_foresight_prediction(
+        self,
+        current_basin: np.ndarray,
+        current_velocity: Optional[np.ndarray] = None
+    ) -> Optional[Dict]:
+        """
+        Make a foresight prediction about conversation trajectory.
+        Delegates to Zeus god-kernel's temporal reasoning.
+        Returns prediction dict with ID for outcome tracking.
+        """
+        if not hasattr(self.zeus, 'temporal_reasoning') or not self.zeus.temporal_reasoning:
+            return None
+        
+        try:
+            vision, explanation = self.zeus.temporal_reasoning.foresight(
+                current_basin=current_basin,
+                current_velocity=current_velocity
+            )
+            
+            # Get the most recent prediction ID from the improvement system
+            if hasattr(self.zeus.temporal_reasoning, 'improvement'):
+                improvement = self.zeus.temporal_reasoning.improvement
+                if improvement.prediction_history:
+                    latest_pred_id = improvement.prediction_history[-1]
+                    return {
+                        'prediction_id': latest_pred_id,
+                        'vision': vision,
+                        'explanation': explanation,
+                        'confidence': vision.confidence,
+                        'arrival_time': vision.arrival_time
+                    }
+        except Exception as e:
+            print(f"[ZeusChat] Foresight prediction failed: {e}")
+        
+        return None
+    
     # ========================================
     # END CAPABILITY DELEGATION
     # ========================================
@@ -753,6 +789,35 @@ class ZeusConversationHandler(GeometricGenerationMixin):
         
         print(f"[ZeusChat] Processing message with intent: {intent['type']} (mode={reasoning_mode})")
         
+        # Make foresight prediction before processing for learning loop
+        if self._prediction_bridge:
+            try:
+                # Calculate velocity from recent conversation history
+                current_velocity = None
+                if len(self.conversation_history) >= 4:
+                    # Get last two message basins to estimate velocity
+                    prev_msg = self.conversation_history[-2] if len(self.conversation_history) >= 2 else ""
+                    prev_basin = self.conversation_encoder.encode(prev_msg) if prev_msg else None
+                    if prev_basin is not None:
+                        current_velocity = _message_basin_for_meta - prev_basin
+                
+                # Make prediction
+                prediction_result = self.make_foresight_prediction(
+                    current_basin=_message_basin_for_meta,
+                    current_velocity=current_velocity
+                )
+                
+                if prediction_result:
+                    self._last_prediction_id = prediction_result['prediction_id']
+                    self._prediction_basin = _message_basin_for_meta.copy()
+                    self._prediction_phi = estimated_phi if 'estimated_phi' in locals() else 0.5
+                    self._prediction_kappa = 58.0  # Default, will be updated from result
+                    print(f"[ZeusChat] 🔮 Prediction made: {prediction_result['prediction_id']}, "
+                          f"confidence={prediction_result['confidence']:.3f}, "
+                          f"arrival={prediction_result['arrival_time']} turns")
+            except Exception as e:
+                print(f"[ZeusChat] ⚠️ Failed to make prediction: {e}")
+        
         # Route to appropriate handler
         # DESIGN: Default to conversation. Only explicit commands trigger actions.
         
@@ -854,10 +919,31 @@ class ZeusConversationHandler(GeometricGenerationMixin):
             except Exception as e:
                 print(f"[ZeusChat] ⚠️ Failed to record prediction outcome: {e}")
         
+        # Extract chain-of-thought insights if available
+        if self._prediction_bridge and self._chain_of_thought and hasattr(self._chain_of_thought, 'session_id'):
+            try:
+                session_id = getattr(self._chain_of_thought, 'session_id', self._current_session_id)
+                insights = self._prediction_bridge.process_chain_to_insights(session_id)
+                if insights:
+                    print(f"[ZeusChat] 💡 Extracted {len(insights)} insights from chain-of-thought")
+            except Exception as e:
+                print(f"[ZeusChat] ⚠️ Failed to extract chain insights: {e}")
+        
         # Save Zeus response to persistent storage
         response_content = result.get('response', result.get('content', ''))
         phi_estimate = result.get('metadata', {}).get('phi', 0.0) if isinstance(result.get('metadata'), dict) else 0.0
         self._save_message(role='zeus', content=response_content[:2000], phi_estimate=phi_estimate)
+        
+        # Periodically feed graph transitions to training (every 10 conversations)
+        if self._prediction_bridge:
+            turn_count = len(self.conversation_history) // 2
+            if turn_count > 0 and turn_count % 10 == 0:
+                try:
+                    feed_result = self._prediction_bridge.feed_graph_transitions_to_training()
+                    if feed_result.get('status') == 'success':
+                        print(f"[ZeusChat] 🔄 Fed {feed_result.get('transitions_fed', 0)} graph transitions to training")
+                except Exception as e:
+                    print(f"[ZeusChat] ⚠️ Failed to feed graph transitions: {e}")
         
         # Add session info to result
         result['session_id'] = self._current_session_id
