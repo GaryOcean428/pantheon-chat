@@ -145,14 +145,14 @@ class SearchBudgetOrchestrator:
         
         for provider, limit in self.DEFAULT_LIMITS.items():
             # Auto-enable if API key is available
-            has_api_key = provider in api_key_map and os.environ.get(api_key_map[provider])
+            has_api_key = bool(provider in api_key_map and os.environ.get(api_key_map[provider]))
             should_enable = (provider == 'duckduckgo') or has_api_key
             
             self.budgets[provider] = ProviderBudget(
                 name=provider,
                 daily_limit=limit if has_api_key or provider == 'duckduckgo' else 0,
                 cost_per_query=self.COST_PER_QUERY.get(provider, 0.0),
-                enabled=should_enable,
+                enabled=bool(should_enable),
                 toggle_only=(provider == 'tavily'),
             )
             

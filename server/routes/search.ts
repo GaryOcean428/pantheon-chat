@@ -24,12 +24,21 @@ import { scoreUniversalQIGAsync } from "../qig-universal";
 
 // Search provider state (in-memory, persists until restart)
 // Exported so other modules can check provider state
+// Auto-enable premium providers when API keys are available
 export const searchProviderState = {
   google_free: { enabled: true },
-  tavily: { enabled: false },
-  perplexity: { enabled: false },
+  tavily: { enabled: !!process.env.TAVILY_API_KEY },
+  perplexity: { enabled: !!process.env.PERPLEXITY_API_KEY },
   duckduckgo: { enabled: true, torEnabled: true },
 };
+
+// Log auto-enable status at startup
+if (searchProviderState.tavily.enabled) {
+  console.log('[SearchProviders] tavily auto-enabled (API key detected)');
+}
+if (searchProviderState.perplexity.enabled) {
+  console.log('[SearchProviders] perplexity auto-enabled (API key detected)');
+}
 
 export function isProviderEnabled(provider: 'google_free' | 'tavily' | 'perplexity' | 'duckduckgo'): boolean {
   return searchProviderState[provider].enabled;
