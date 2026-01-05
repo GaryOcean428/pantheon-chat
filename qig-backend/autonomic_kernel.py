@@ -53,6 +53,18 @@ except ImportError:
     AutonomousReasoningLearner = None
     REASONING_LEARNER_AVAILABLE = False
 
+# Import search strategy learner for search feedback consolidation
+try:
+    from olympus.search_strategy_learner import (
+        get_strategy_learner_with_persistence,
+        SearchStrategyLearner,
+    )
+    SEARCH_STRATEGY_AVAILABLE = True
+except ImportError:
+    get_strategy_learner_with_persistence = None
+    SearchStrategyLearner = None
+    SEARCH_STRATEGY_AVAILABLE = False
+
 # Import temporal reasoning for 4D foresight
 try:
     from temporal_reasoning import TemporalReasoning, get_temporal_reasoning
@@ -579,6 +591,7 @@ class GaryAutonomicKernel:
         # NOTE: Only wire if reasoning modules use Fisher-Rao (QIG-pure)
         self.reasoning_learner = None
         self.sleep_consolidation = None
+        self.search_strategy_learner = None
         
         try:
             if REASONING_LEARNER_AVAILABLE and AutonomousReasoningLearner is not None:
@@ -589,10 +602,16 @@ class GaryAutonomicKernel:
                     reasoning_learner=self.reasoning_learner
                 )
                 print("[AutonomicKernel] Reasoning consolidation wired to sleep cycle")
+            
+            # Initialize search strategy learner for search feedback consolidation
+            if SEARCH_STRATEGY_AVAILABLE and get_strategy_learner_with_persistence is not None:
+                self.search_strategy_learner = get_strategy_learner_with_persistence()
+                print("[AutonomicKernel] Search strategy learner wired to sleep cycle")
         except Exception as reasoning_err:
             print(f"[AutonomicKernel] Reasoning module initialization failed: {reasoning_err}")
             self.reasoning_learner = None
             self.sleep_consolidation = None
+            self.search_strategy_learner = None
 
         if checkpoint_path:
             self._load_checkpoint(checkpoint_path)
@@ -1216,6 +1235,20 @@ class GaryAutonomicKernel:
                 except Exception as ce:
                     print(f"[AutonomicKernel] Reasoning consolidation error: {ce}")
             
+            # Execute search strategy consolidation during sleep
+            search_strategies_pruned = 0
+            if self.search_strategy_learner is not None:
+                try:
+                    decay_result = self.search_strategy_learner.decay_old_records()
+                    search_strategies_pruned = decay_result.get('removed_count', 0)
+                    if search_strategies_pruned > 0:
+                        print(f"[AutonomicKernel] Search strategy consolidation: pruned {search_strategies_pruned} strategies")
+                except Exception as sse:
+                    print(f"[AutonomicKernel] Search strategy consolidation error: {sse}")
+            
+            # Total strategies pruned across both systems
+            strategies_pruned += search_strategies_pruned
+            
             # Execute 4D temporal foresight during sleep (if Φ is high enough)
             foresight_vision = None
             if TEMPORAL_REASONING_AVAILABLE and self.state.phi >= PHI_HYPERDIMENSIONAL:
@@ -1591,6 +1624,64 @@ class GaryAutonomicKernel:
             rewards = self.get_pending_rewards()
             self.pending_rewards.clear()
             return rewards
+
+    # =========================================================================
+    # PREDICTION OUTCOME CONFIRMATION (Strategy Weight Adjustment)
+    # =========================================================================
+
+    def confirm_prediction_outcome(
+        self,
+        query: str,
+        strategy_name: Optional[str] = None,
+        improved: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Confirm a prediction outcome and adjust strategy weights accordingly.
+        
+        This closes the feedback loop between predictions and strategy learning:
+        - When a prediction is confirmed as correct, boost associated strategy weights
+        - When a prediction is refuted, apply penalty to strategy weights
+        
+        Args:
+            query: The query or context associated with the prediction
+            strategy_name: Optional specific strategy to adjust (if known)
+            improved: True if prediction was correct, False otherwise
+        
+        Returns:
+            Dict with adjustment results from both strategy systems
+        """
+        results = {
+            'query': query,
+            'improved': improved,
+            'reasoning_adjusted': False,
+            'search_adjusted': False,
+            'reasoning_weight': None,
+            'search_result': None,
+        }
+        
+        # Adjust reasoning strategy weight (if strategy_name provided)
+        if strategy_name and self.reasoning_learner is not None:
+            try:
+                new_weight = self.reasoning_learner.adjust_strategy_weight(strategy_name, improved)
+                if new_weight is not None:
+                    results['reasoning_adjusted'] = True
+                    results['reasoning_weight'] = new_weight
+            except Exception as re:
+                print(f"[AutonomicKernel] Reasoning weight adjustment error: {re}")
+        
+        # Adjust search strategy weights based on query
+        if self.search_strategy_learner is not None:
+            try:
+                search_result = self.search_strategy_learner.confirm_strategy_outcome(
+                    query=query,
+                    improved=improved
+                )
+                results['search_adjusted'] = search_result.get('records_updated', 0) > 0
+                results['search_result'] = search_result
+            except Exception as se:
+                print(f"[AutonomicKernel] Search strategy adjustment error: {se}")
+        
+        return results
 
     def get_state(self) -> Dict[str, Any]:
         """Get current autonomic state."""

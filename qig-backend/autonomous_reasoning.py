@@ -17,6 +17,13 @@ import uuid
 from qig_geometry import fisher_rao_distance, sphere_project, geodesic_interpolation
 
 
+# Weight adjustment constants
+WEIGHT_BOOST = 0.1      # Boost on successful outcome
+WEIGHT_PENALTY = 0.15   # Penalty on failed outcome
+WEIGHT_DECAY = 0.95     # Temporal decay multiplier
+WEIGHT_PRUNE_THRESHOLD = 0.05  # Prune when weight drops below this
+
+
 @dataclass
 class ReasoningStrategy:
     """
@@ -24,6 +31,11 @@ class ReasoningStrategy:
     
     Strategies are defined by their preferred Φ range and exploration parameters.
     They are updated through reinforcement learning based on success/failure.
+    
+    Weight system:
+    - weight: Dynamic weight (0.0-1.0) adjusted by outcomes
+    - Boost on success (+0.1), penalty on failure (-0.15)
+    - Temporal decay (0.95x) and pruning when weight < 0.05
     """
     name: str
     description: str
@@ -34,7 +46,9 @@ class ReasoningStrategy:
     success_count: int = 0
     failure_count: int = 0
     avg_efficiency: float = 0.5
+    weight: float = 0.5  # Dynamic weight for outcome-based learning
     created_at: float = field(default_factory=time.time)
+    last_used: float = field(default_factory=time.time)
     
     def success_rate(self) -> float:
         """Calculate success rate of this strategy."""
@@ -42,6 +56,38 @@ class ReasoningStrategy:
         if total == 0:
             return 0.5
         return self.success_count / total
+    
+    def adjust_weight(self, improved: bool) -> float:
+        """
+        Adjust weight based on outcome.
+        
+        Args:
+            improved: True if outcome was positive, False otherwise
+        
+        Returns:
+            New weight value
+        """
+        old_weight = self.weight
+        if improved:
+            self.weight = min(1.0, self.weight + WEIGHT_BOOST)
+        else:
+            self.weight = max(0.0, self.weight - WEIGHT_PENALTY)
+        self.last_used = time.time()
+        return self.weight
+    
+    def apply_decay(self) -> float:
+        """
+        Apply temporal decay to weight.
+        
+        Returns:
+            New weight after decay
+        """
+        self.weight *= WEIGHT_DECAY
+        return self.weight
+    
+    def should_prune(self) -> bool:
+        """Check if strategy weight is below prune threshold."""
+        return self.weight < WEIGHT_PRUNE_THRESHOLD
     
     def copy(self) -> 'ReasoningStrategy':
         """Create a copy of this strategy."""
@@ -54,7 +100,8 @@ class ReasoningStrategy:
             task_features=dict(self.task_features) if self.task_features else None,
             success_count=0,
             failure_count=0,
-            avg_efficiency=self.avg_efficiency
+            avg_efficiency=self.avg_efficiency,
+            weight=0.5  # Fresh weight for copy
         )
 
 
@@ -438,21 +485,51 @@ class AutonomousReasoningLearner:
         if len(self.reasoning_episodes) > self.max_episodes:
             self.reasoning_episodes = self.reasoning_episodes[-self.max_episodes:]
     
-    def consolidate_strategies(self):
+    def adjust_strategy_weight(self, strategy_name: str, improved: bool) -> Optional[float]:
+        """
+        Adjust weight for a specific strategy based on outcome.
+        
+        Args:
+            strategy_name: Name of strategy to adjust
+            improved: True if outcome was positive
+        
+        Returns:
+            New weight or None if strategy not found
+        """
+        for strategy in self.strategies:
+            if strategy.name == strategy_name:
+                return strategy.adjust_weight(improved)
+        return None
+    
+    def consolidate_strategies(self) -> int:
         """
         Called during sleep: consolidate successful strategies.
         
         Actions:
-        1. Prune failed strategies
-        2. Merge similar strategies
-        3. Strengthen successful patterns
+        1. Apply temporal decay to all strategies
+        2. Prune strategies with weight below threshold OR low success rate
+        3. Merge similar strategies
+        4. Strengthen successful patterns
+        
+        Returns:
+            Number of strategies pruned
         """
         min_success_rate = 0.2
         min_episodes = 5
         
+        # Apply temporal decay to all strategies
+        for strategy in self.strategies:
+            strategy.apply_decay()
+        
         pruned = []
         pruned_count = 0
         for strategy in self.strategies:
+            # Prune if weight below threshold
+            if strategy.should_prune():
+                pruned_count += 1
+                continue
+            
+            # Also prune by success rate (existing logic)
             total = strategy.success_count + strategy.failure_count
             if total >= min_episodes and strategy.success_rate() < min_success_rate:
                 pruned_count += 1
@@ -486,8 +563,8 @@ class AutonomousReasoningLearner:
         
         self.strategies = merged
         
-        # Reduced logging - only log when merges happen
-        # logger.debug(f"Strategy consolidation complete: {len(self.strategies)} strategies")
+        # Return pruned count for caller visibility
+        return pruned_count
     
     def _strategies_similar(
         self,
@@ -514,6 +591,13 @@ class AutonomousReasoningLearner:
             weights = [1.0] * len(strategies)
             total_weight = len(strategies)
         
+        # Use dynamic weights for merging (weighted average of strategy weights)
+        dynamic_weights = [s.weight for s in strategies]
+        total_dynamic = sum(dynamic_weights)
+        if total_dynamic == 0:
+            dynamic_weights = [1.0] * len(strategies)
+            total_dynamic = len(strategies)
+        
         merged = ReasoningStrategy(
             name=f"merged_{strategies[0].name}",
             description=f"Merged from {len(strategies)} strategies",
@@ -525,7 +609,8 @@ class AutonomousReasoningLearner:
             exploration_beta=sum(w * s.exploration_beta for w, s in zip(weights, strategies)) / total_weight,
             success_count=sum(s.success_count for s in strategies),
             failure_count=sum(s.failure_count for s in strategies),
-            avg_efficiency=sum(w * s.avg_efficiency for w, s in zip(weights, strategies)) / total_weight
+            avg_efficiency=sum(w * s.avg_efficiency for w, s in zip(weights, strategies)) / total_weight,
+            weight=sum(dw * s.weight for dw, s in zip(dynamic_weights, strategies)) / total_dynamic
         )
         
         return merged
@@ -549,6 +634,7 @@ class AutonomousReasoningLearner:
                 {
                     'name': s.name,
                     'success_rate': s.success_rate(),
+                    'weight': s.weight,
                     'avg_efficiency': s.avg_efficiency,
                     'phi_range': s.preferred_phi_range,
                     'episodes': s.success_count + s.failure_count
