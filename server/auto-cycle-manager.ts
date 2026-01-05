@@ -70,19 +70,9 @@ class AutoCycleManager {
     // DISABLED: Force disabled on startup - legacy auto-cycling deprecated
     // Clear any persisted enabled state
     if (this.state.enabled) {
-      console.log('[AutoCycleManager] DISABLED: Clearing persisted enabled state - legacy mode deprecated');
       this.state.enabled = false;
       this.saveState();
     }
-    
-    console.log(
-      `[AutoCycleManager] Initialized - DISABLED for agentic research platform`
-    );
-    console.log(
-      `[AutoCycleManager] Mode: ${
-        IS_DEV ? "DEVELOPMENT" : "PRODUCTION"
-      } - legacy auto-cycling disabled`
-    );
     
     // DISABLED: Do not start any check loops or auto-enable
     // Legacy functionality deprecated in favor of agentic research
@@ -140,8 +130,6 @@ class AutoCycleManager {
   private loadState(): AutoCycleState {
     // DISABLED: Return disabled state - do not load from Redis or file
     // Legacy mode is deprecated, force disabled state
-    console.log("[AutoCycleManager] DISABLED: Ignoring persisted state - legacy mode deprecated");
-    
     return {
       enabled: false,
       currentIndex: 0,
