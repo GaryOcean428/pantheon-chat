@@ -1,6 +1,5 @@
 import { execSync } from 'child_process';
-import { copyFileSync, existsSync, mkdirSync } from 'fs';
-import { join } from 'path';
+import { existsSync, mkdirSync } from 'fs';
 
 console.log('Starting build process...\n');
 
@@ -15,21 +14,10 @@ try {
   execSync('esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist', { stdio: 'inherit' });
   console.log('✓ Backend bundle complete\n');
 
-  // Step 3: Copy BIP-39 wordlist to dist
-  console.log('Copying BIP-39 wordlist...');
-  const sourceFile = 'server/bip39-wordlist.txt';
-  const destFile = 'dist/bip39-wordlist.txt';
-  
+  // Ensure dist directory exists
   if (!existsSync('dist')) {
     mkdirSync('dist', { recursive: true });
   }
-  
-  if (!existsSync(sourceFile)) {
-    throw new Error(`Source file not found: ${sourceFile}`);
-  }
-  
-  copyFileSync(sourceFile, destFile);
-  console.log('✓ BIP-39 wordlist copied to dist/\n');
 
   console.log('Build completed successfully!');
 } catch (error) {
