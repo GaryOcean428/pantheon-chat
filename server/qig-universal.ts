@@ -20,7 +20,7 @@
 
 import { QIG_CONSTANTS } from "@shared/constants";
 import { createHash } from "crypto";
-import "./bip39-words.js";
+// BIP39 removed - legacy wallet recovery functionality deprecated
 import { OceanQIGBackend, getOceanQIGBackend } from "./ocean-qig-backend-adapter";
 
 // Re-export for backwards compatibility

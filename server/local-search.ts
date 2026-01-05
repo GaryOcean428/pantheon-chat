@@ -6,7 +6,8 @@
  * by generating nearby passphrases through word substitutions and permutations.
  */
 
-import { BIP39_WORDS } from './bip39-words';
+// BIP39 removed - legacy wallet recovery functionality deprecated
+const BIP39_WORDS: string[] = [];
 
 const WORD_TO_INDEX = new Map(BIP39_WORDS.map((word, i) => [word, i]));
 

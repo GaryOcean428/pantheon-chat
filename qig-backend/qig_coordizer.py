@@ -126,22 +126,15 @@ class QIGCoordizer(FisherCoordizer):
         )
     
     def _load_bip39_base(self):
-        """Load BIP39 wordlist as base vocabulary."""
-        bip39_path = os.path.join(os.path.dirname(__file__), "bip39_wordlist.txt")
-        
-        # Try to load from coordizers fallback vocabulary first (guaranteed 2048 words)
+        """Load base English vocabulary."""
+        # Load from coordizers fallback vocabulary (2048 common English words)
         try:
             from coordizers.fallback_vocabulary import BIP39_WORDS
             words = BIP39_WORDS
         except ImportError:
             words = None
         
-        # If not available, try file
-        if not words and os.path.exists(bip39_path):
-            with open(bip39_path, 'r') as f:
-                words = [line.strip() for line in f if line.strip()]
-        
-        # Final fallback - complete 2048 BIP39 words inline
+        # Final fallback - use inline word list
         if not words or len(words) < 100:
             words = self._get_full_bip39_wordlist()
         

@@ -138,15 +138,10 @@ export function createResearchSession(
 // =============================================================================
 
 import { scoreUniversalQIGAsync, UniversalQIGScore } from './qig-universal';
-import { getBIP39Wordlist } from './bip39-words';
 
-let cachedWordlist: string[] | null = null;
-
+// BIP39 removed - legacy wallet recovery functionality deprecated
 function getWordlist(): string[] {
-  if (!cachedWordlist) {
-    cachedWordlist = getBIP39Wordlist();
-  }
-  return cachedWordlist;
+  return [];
 }
 
 function levenshteinDistance(a: string, b: string): number {

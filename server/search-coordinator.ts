@@ -2,7 +2,8 @@ import { QIG_CONSTANTS } from "@shared/constants";
 import type { Candidate, SearchJob } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { BasinVelocityMonitor } from "./basin-velocity-monitor.js";
-import { generateRandomBIP39Phrase } from "./bip39-words";
+// BIP39 removed - legacy wallet recovery functionality deprecated
+function generateRandomBIP39Phrase(_wordCount?: number): string { return ''; }
 import { getSharedController } from "./consciousness-search-controller";
 import { DiscoveryTracker } from "./discovery-tracker";
 

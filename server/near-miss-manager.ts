@@ -23,7 +23,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { NEAR_MISS_CONFIG } from './ocean-config';
 import { oceanPersistence } from './ocean/ocean-persistence';
-import { isValidBIP39Phrase } from './bip39-words';
+// BIP39 removed - legacy wallet recovery functionality deprecated
+function isValidBIP39Phrase(_phrase: string): boolean { return false; }
 import { cacheGet, cacheSet, isRedisAvailable, CACHE_KEYS, CACHE_TTL } from './redis-cache';
 
 export type NearMissTier = 'hot' | 'warm' | 'cool';

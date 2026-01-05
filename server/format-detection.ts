@@ -5,7 +5,8 @@
  * mnemonic formats (BIP39, Electrum, etc.) with validation.
  */
 
-import { BIP39_WORDS } from './bip39-words';
+// BIP39 removed - legacy wallet recovery functionality deprecated
+const BIP39_WORDS: string[] = [];
 
 export type AddressFormat = 
   | 'legacy'           // P2PKH - starts with 1

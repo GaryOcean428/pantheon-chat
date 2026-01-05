@@ -499,8 +499,8 @@ vocabularyRouter.post("/classify", generousLimiter, async (req: Request, res: Re
       return res.status(400).json({ error: 'phrase is required' });
     }
 
-    const { BIP39_WORDS } = await import("../bip39-words");
-    const bip39Set = new Set(BIP39_WORDS);
+    // BIP39 removed - legacy wallet recovery functionality deprecated
+    const bip39Set = new Set<string>();
     const words = phrase.trim().toLowerCase().split(/\s+/);
     const wordCount = words.length;
     const validSeedLengths = [12, 15, 18, 21, 24];

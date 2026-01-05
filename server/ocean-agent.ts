@@ -15,7 +15,9 @@ import {
   logOceanStart,
   logOceanStrategy,
 } from "./activity-log-store";
-import { generateRandomBIP39Phrase, isValidBIP39Phrase } from "./bip39-words";
+// BIP39 removed - legacy wallet recovery functionality deprecated
+function generateRandomBIP39Phrase(_wordCount?: number): string { return ''; }
+function isValidBIP39Phrase(_phrase: string): boolean { return false; }
 import { getSharedController } from "./consciousness-search-controller";
 import { culturalManifold } from "./cultural-manifold";
 
