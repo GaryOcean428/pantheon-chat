@@ -338,7 +338,7 @@ def compute_semantic_embedding(word: str, fallback_hash: bool = True) -> np.ndar
         embedding = embedding + offset
         
     elif fallback_hash:
-        # Unknown word: use pure hash-based embedding
+        # Unknown word: use pure hash-based basin coordinates
         # Still deterministic, but won't cluster with known words
         h = hashlib.sha256(word.encode()).digest()
         embedding = np.array([h[i % 32] / 255.0 - 0.5 for i in range(64)])

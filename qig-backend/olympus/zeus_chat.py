@@ -105,7 +105,7 @@ try:
 except ImportError:
     print("[ZeusChat] Prompt loader not available")
 
-# Import pretrained 50K coordizer with 64D basin embeddings
+# Import pretrained 50K coordizer with 64D basins
 TOKENIZER_AVAILABLE = False
 get_tokenizer = None
 _pretrained_coordizer = None

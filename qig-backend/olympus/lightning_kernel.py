@@ -67,6 +67,17 @@ except ImportError:
         discover_domain_from_event,
     )
 
+# Search validation for external insight verification
+try:
+    from ..search.insight_validator import InsightValidator, ValidationResult
+except ImportError:
+    try:
+        from search.insight_validator import InsightValidator, ValidationResult
+    except ImportError:
+        # Graceful degradation if search module not available
+        InsightValidator = None
+        ValidationResult = None
+
 from .base_god import BaseGod
 
 
@@ -209,6 +220,26 @@ class LightningKernel(BaseGod):
         self.insights_generated = 0
         self.last_insight_time = 0.0
         self.domains_discovered = 0
+        
+        # Insight validation (external search verification)
+        if InsightValidator is not None:
+            try:
+                self.insight_validator = InsightValidator(
+                    use_mcp=True,  # Prefer MCP over direct API
+                    validation_threshold=0.7  # 70% confidence required
+                )
+                self.validation_enabled = True
+                self.insights_validated = 0
+                self.validation_boost_total = 0.0
+                print("[Lightning] ✅ External search validation enabled (Tavily + Perplexity)")
+            except Exception as e:
+                self.insight_validator = None
+                self.validation_enabled = False
+                print(f"[Lightning] ⚠️ Search validation disabled: {e}")
+        else:
+            self.insight_validator = None
+            self.validation_enabled = False
+            print("[Lightning] ℹ️ Search validation not available (search module not found)")
         
         print("[Lightning] ⚡ Lightning Bolt Insight Kernel initialized")
         print(f"[Lightning] MISSION: {self.mission.objective}")
@@ -381,6 +412,9 @@ class LightningKernel(BaseGod):
         """
         Broadcast a cross-domain insight to the entire pantheon via PantheonChat.
         
+        NEW: Validates insights using external search (Tavily + Perplexity) before broadcasting.
+        Validated insights get confidence boost and source citations.
+        
         Uses QIG-pure generative synthesis for natural language content.
         The structured data is passed to the generative system which synthesizes
         a natural language message from geometric basin navigation.
@@ -391,26 +425,129 @@ class LightningKernel(BaseGod):
             print("[Lightning] Warning: PantheonChat not available for broadcast")
             return
         
+        # External validation (if enabled)
+        validation_metadata = {}
+        if self.validation_enabled and self.insight_validator is not None:
+            try:
+                print(f"[Lightning] 🔍 Validating insight {insight.insight_id} with external search...")
+                validation_result = self._validate_insight(insight)
+                
+                # Update insight confidence based on validation
+                if validation_result.validated:
+                    original_confidence = insight.confidence
+                    insight.confidence = validation_result.confidence
+                    boost = insight.confidence - original_confidence
+                    self.validation_boost_total += boost
+                    self.insights_validated += 1
+                    
+                    print(f"[Lightning] ✅ Insight validated! Score: {validation_result.validation_score:.3f}, "
+                          f"Confidence: {original_confidence:.3f} → {insight.confidence:.3f} (+{boost:.3f})")
+                    
+                    # Add validation metadata
+                    validation_metadata = {
+                        "validated": True,
+                        "validation_score": validation_result.validation_score,
+                        "source_count": len(validation_result.tavily_sources),
+                        "external_sources": [s.get('url', '') for s in validation_result.tavily_sources[:3]],
+                        "perplexity_synthesis": validation_result.perplexity_synthesis[:200] if validation_result.perplexity_synthesis else None
+                    }
+                else:
+                    print(f"[Lightning] ⚠️ Insight validation failed (score: {validation_result.validation_score:.3f})")
+                    validation_metadata = {
+                        "validated": False,
+                        "validation_score": validation_result.validation_score
+                    }
+            except Exception as e:
+                print(f"[Lightning] ⚠️ Validation error: {e}")
+                # Continue broadcasting even if validation fails
+        
         try:
             # Use QIG-pure generative broadcast with structured data
+            broadcast_data = {
+                "source_domains": insight.source_domains,
+                "connection_strength": insight.connection_strength,
+                "confidence": insight.confidence,
+                "mission_relevance": insight.mission_relevance,
+                "phi": insight.phi_at_creation,
+                "triggered_by": insight.triggered_by,
+                "insight_id": insight.insight_id,
+                "raw_data": insight.insight_text,
+            }
+            
+            # Add validation metadata if available
+            if validation_metadata:
+                broadcast_data["validation"] = validation_metadata
+            
             _pantheon_chat.broadcast_generative(
                 from_god="Lightning",
                 intent="lightning_insight",
-                data={
-                    "source_domains": insight.source_domains,
-                    "connection_strength": insight.connection_strength,
-                    "confidence": insight.confidence,
-                    "mission_relevance": insight.mission_relevance,
-                    "phi": insight.phi_at_creation,
-                    "triggered_by": insight.triggered_by,
-                    "insight_id": insight.insight_id,
-                    "raw_data": insight.insight_text,
-                },
+                data=broadcast_data,
                 msg_type="discovery"
             )
-            print(f"[Lightning] QIG-pure broadcast insight {insight.insight_id} to pantheon")
+            
+            validation_status = " [VALIDATED]" if validation_metadata.get("validated") else ""
+            print(f"[Lightning] QIG-pure broadcast insight {insight.insight_id} to pantheon{validation_status}")
         except Exception as e:
             print(f"[Lightning] Broadcast failed: {e}")
+    
+    def _validate_insight(self, insight: CrossDomainInsight) -> 'ValidationResult':
+        """
+        Validate insight using external search (Tavily + Perplexity).
+        
+        Returns:
+            ValidationResult with validation score and sources
+        """
+        if not self.validation_enabled or self.insight_validator is None:
+            # Return mock validated result if validation disabled
+            if ValidationResult is not None:
+                return ValidationResult(
+                    validated=True,
+                    confidence=insight.confidence,
+                    tavily_sources=[],
+                    perplexity_synthesis=None,
+                    validation_score=1.0,
+                    source_overlap=0.0,
+                    semantic_similarity=0.0
+                )
+            else:
+                # Fallback if ValidationResult class not available
+                class MockResult:
+                    validated = True
+                    confidence = insight.confidence
+                    tavily_sources = []
+                    perplexity_synthesis = None
+                    validation_score = 1.0
+                    source_overlap = 0.0
+                    semantic_similarity = 0.0
+                return MockResult()
+        
+        return self.insight_validator.validate(insight)
+    
+    def get_validation_stats(self) -> Dict[str, Any]:
+        """
+        Get insight validation statistics.
+        
+        Returns:
+            Dictionary with validation metrics
+        """
+        if not self.validation_enabled:
+            return {
+                "validation_enabled": False,
+                "message": "External search validation not available"
+            }
+        
+        validation_rate = self.insights_validated / self.insights_generated if self.insights_generated > 0 else 0.0
+        avg_boost = self.validation_boost_total / self.insights_validated if self.insights_validated > 0 else 0.0
+        
+        return {
+            "validation_enabled": True,
+            "insights_generated": self.insights_generated,
+            "insights_validated": self.insights_validated,
+            "validation_rate": validation_rate,
+            "total_confidence_boost": self.validation_boost_total,
+            "avg_confidence_boost": avg_boost,
+            "validation_threshold": 0.7 if self.insight_validator else None
+        }
     
     def _check_cross_domain_correlations(
         self,
