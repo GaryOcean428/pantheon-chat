@@ -432,10 +432,19 @@ _search_manager: Optional[SearchProviderManager] = None
 
 
 def get_search_manager() -> SearchProviderManager:
-    """Get or create singleton search manager."""
+    """Get or create singleton search manager with auto-enabled providers."""
     global _search_manager
     if _search_manager is None:
         _search_manager = SearchProviderManager()
+        
+        # Auto-enable providers when API keys are available
+        for provider_name in ['tavily', 'perplexity', 'google']:
+            config = _search_manager.providers.get(provider_name)
+            if config and config.api_key_env:
+                if os.environ.get(config.api_key_env):
+                    _search_manager.enable(provider_name)
+                    logger.info(f"[SearchProviderManager] Auto-enabled {provider_name} (API key detected)")
+    
     return _search_manager
 
 

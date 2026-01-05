@@ -133,15 +133,31 @@ class SearchBudgetOrchestrator:
         logger.info("[SearchBudget] Orchestrator initialized")
     
     def _init_budgets(self):
-        """Initialize provider budgets."""
+        """Initialize provider budgets with auto-enable for available API keys."""
+        import os
+        
+        # Map providers to their API key environment variables
+        api_key_map = {
+            'tavily': 'TAVILY_API_KEY',
+            'perplexity': 'PERPLEXITY_API_KEY',
+            'google': 'GOOGLE_API_KEY',
+        }
+        
         for provider, limit in self.DEFAULT_LIMITS.items():
+            # Auto-enable if API key is available
+            has_api_key = provider in api_key_map and os.environ.get(api_key_map[provider])
+            should_enable = (provider == 'duckduckgo') or has_api_key
+            
             self.budgets[provider] = ProviderBudget(
                 name=provider,
-                daily_limit=limit,
+                daily_limit=limit if has_api_key or provider == 'duckduckgo' else 0,
                 cost_per_query=self.COST_PER_QUERY.get(provider, 0.0),
-                enabled=(provider == 'duckduckgo'),  # Only DDG enabled by default
+                enabled=should_enable,
                 toggle_only=(provider == 'tavily'),
             )
+            
+            if has_api_key and provider != 'duckduckgo':
+                logger.info(f"[SearchBudget] Auto-enabled {provider} (API key detected)")
     
     def _get_redis_key(self, provider: str) -> str:
         """Get Redis key for daily counter."""
