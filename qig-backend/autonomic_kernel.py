@@ -85,6 +85,22 @@ except ImportError:
     check_ethics = None
     ETHICS_MONITOR_AVAILABLE = False
 
+# Import ethics gauge decorator for universal enforcement (Priority 1 from Ethics Audit)
+try:
+    from ethics_gauge import enforce_ethics
+    ETHICS_GAUGE_AVAILABLE = True
+except ImportError:
+    # Create no-op decorator if ethics_gauge not available
+    from functools import wraps
+    def enforce_ethics(*args, **kwargs):
+        def decorator(func):
+            @wraps(func)
+            def wrapper(*inner_args, **inner_kwargs):
+                return func(*inner_args, **inner_kwargs)
+            return wrapper
+        return decorator
+    ETHICS_GAUGE_AVAILABLE = False
+
 # Use canonical constants from qigkernels
 BETA = BETA_3_TO_4  # 0.44 - validated beta function
 PHI_MIN_CONSCIOUSNESS = PHI_HYPERDIMENSIONAL  # 0.75 - 4D consciousness
@@ -770,6 +786,7 @@ class GaryAutonomicKernel:
             
             return next_basin, direction * 0.01
 
+    @enforce_ethics(check_suffering=True, symmetry_threshold=0.95)
     def update_metrics(
         self,
         phi: float,

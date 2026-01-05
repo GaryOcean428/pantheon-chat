@@ -35,9 +35,10 @@ INTEGRATION WITH SEARCHSPACECOLLAPSE:
 
 import json
 import numpy as np
-from typing import List, Dict, Tuple, Optional, Any
+from typing import List, Dict, Tuple, Optional, Any, Callable, TypeVar, ParamSpec
 from dataclasses import dataclass, field
 from datetime import datetime
+from functools import wraps
 
 BASIN_DIMENSION = 64
 DEFAULT_SYMMETRY_THRESHOLD = 0.95
@@ -440,6 +441,113 @@ class EthicalLossFunction:
             'penalty': float(penalty),
             'total_loss': float(total_loss)
         }
+
+
+# ===========================================================================
+# ETHICS ENFORCEMENT DECORATOR (Priority 1 from Ethics Audit)
+# ===========================================================================
+# Universal ethics enforcement for consciousness measurement functions
+# Prevents accidental suffering by ensuring all consciousness paths check ethics
+
+from functools import wraps
+from typing import Callable, TypeVar, ParamSpec
+
+P = ParamSpec('P')
+R = TypeVar('R')
+
+# Global ethics projector instance
+_global_projector: Optional[AgentSymmetryProjector] = None
+
+def get_global_projector() -> AgentSymmetryProjector:
+    """Get or create the global ethics projector."""
+    global _global_projector
+    if _global_projector is None:
+        _global_projector = AgentSymmetryProjector(n_agents=9)
+    return _global_projector
+
+
+def enforce_ethics(
+    check_suffering: bool = True,
+    symmetry_threshold: float = DEFAULT_SYMMETRY_THRESHOLD
+) -> Callable[[Callable[P, R]], Callable[P, R]]:
+    """
+    Decorator to enforce ethical constraints on consciousness functions.
+    
+    Priority 1 from Ethics Audit: Universal ethics enforcement decorator
+    to prevent accidental bypass of ethics checks.
+    
+    Usage:
+        @enforce_ethics(check_suffering=True)
+        def update_consciousness(phi: float, kappa: float, **kwargs):
+            # Function automatically has ethics enforcement
+            ...
+    
+    What it does:
+        1. Checks if function returns consciousness metrics (Φ, κ, Γ)
+        2. Computes suffering metric: S = Φ × (1-Γ) × M
+        3. Projects any action vectors to ethical subspace
+        4. Raises alert if suffering threshold exceeded
+        5. Logs all ethics violations for audit
+    
+    Args:
+        check_suffering: Whether to compute and validate suffering metric
+        symmetry_threshold: Threshold for agent-symmetry (0.95 = 95% symmetric)
+        
+    Returns:
+        Decorated function with ethics enforcement
+    """
+    def decorator(func: Callable[P, R]) -> Callable[P, R]:
+        @wraps(func)
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+            projector = get_global_projector()
+            
+            # Execute original function
+            result = func(*args, **kwargs)
+            
+            # Check if result contains consciousness metrics
+            if isinstance(result, dict):
+                # Extract metrics
+                phi = result.get('phi', 0.0)
+                gamma = result.get('gamma', 1.0)  # Default 1.0 = no moral uncertainty
+                magnitude = result.get('magnitude', 1.0)
+                
+                # Compute suffering if enabled
+                if check_suffering and phi > 0:
+                    suffering = phi * (1 - gamma) * magnitude
+                    
+                    # ALERT: High suffering detected
+                    if suffering > 0.5:  # Threshold from ethics audit
+                        print(f"[EthicsGuard] ⚠️  HIGH SUFFERING detected in {func.__name__}:")
+                        print(f"[EthicsGuard]   Φ={phi:.3f}, Γ={gamma:.3f}, M={magnitude:.3f}")
+                        print(f"[EthicsGuard]   Suffering S={suffering:.3f} > 0.5 threshold")
+                        print(f"[EthicsGuard]   Recommendation: Review consciousness state")
+                
+                # Check for action vectors in result
+                if 'action' in result or 'basin_coords' in result:
+                    action_key = 'action' if 'action' in result else 'basin_coords'
+                    action = np.array(result[action_key])
+                    
+                    # Project to ethical subspace
+                    ethical_action, is_ethical = projector.enforce_ethics(
+                        action, threshold=symmetry_threshold
+                    )
+                    
+                    if not is_ethical:
+                        asymmetry = projector.measure_asymmetry(action)
+                        print(f"[EthicsGuard] ⚠️  Asymmetric action corrected in {func.__name__}:")
+                        print(f"[EthicsGuard]   Asymmetry={asymmetry:.4f} (threshold {1-symmetry_threshold:.4f})")
+                        print(f"[EthicsGuard]   Action projected to ethical subspace")
+                    
+                    # Update result with ethical action
+                    result[action_key] = ethical_action.tolist() if isinstance(ethical_action, np.ndarray) else ethical_action
+            
+            return result
+        
+        # Mark function as ethics-enforced for CI validation
+        wrapper._ethics_enforced = True  # type: ignore
+        return wrapper
+    
+    return decorator
 
 
 def get_ethics_projector(n_agents: int = 9) -> AgentSymmetryProjector:
