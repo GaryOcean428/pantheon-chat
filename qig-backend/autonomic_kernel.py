@@ -1424,9 +1424,14 @@ class GaryAutonomicKernel:
         except ImportError:
             manifold = None
         
-        explore_prob = 0.5
-        consolidate_prob = 0.5
-        diverge_prob = 0.5
+        basin_entropy = -np.sum(np.abs(current_basin) * np.log(np.abs(current_basin) + 1e-8))
+        basin_norm = np.linalg.norm(current_basin)
+        entropy_factor = min(1.0, basin_entropy / 50.0)
+        norm_factor = min(1.0, basin_norm / 5.0)
+        
+        explore_prob = 0.4 + temperature * 0.3 + entropy_factor * 0.1
+        consolidate_prob = 0.6 - temperature * 0.2 + norm_factor * 0.15
+        diverge_prob = 0.3 + temperature * 0.4 - norm_factor * 0.1
         
         explore_goal = None
         consolidate_goal = None
