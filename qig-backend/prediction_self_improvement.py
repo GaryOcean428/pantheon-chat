@@ -249,7 +249,8 @@ class PredictionSelfImprovement:
             context['directional_variance'] = float(directional_variance)
             context['magnitude_variance'] = float(magnitude_variance)
             
-            if vel_variance > 0.1:
+            # Increased threshold from 0.1 to 0.25 for more lenient velocity stability
+            if vel_variance > 0.25:
                 reasons.append(PredictionFailureReason.UNSTABLE_VELOCITY)
                 context['velocity_issue'] = f"High velocity variance ({vel_variance:.3f}) - directional: {directional_variance:.3f}, magnitude: {magnitude_variance:.3f}"
         else:
@@ -264,7 +265,8 @@ class PredictionSelfImprovement:
                 for i in range(len(recent_basins)-1)
             )
             context['recent_drift'] = float(total_drift)
-            if total_drift > 1.0:
+            # Increased threshold from 1.0 to 2.0 for more lenient basin drift tolerance
+            if total_drift > 2.0:
                 reasons.append(PredictionFailureReason.HIGH_BASIN_DRIFT)
                 context['drift_issue'] = f"High basin drift ({total_drift:.3f}) - system is rapidly changing"
         else:
@@ -402,15 +404,32 @@ class PredictionSelfImprovement:
         arrival_error = abs(record.arrival_time - actual_arrival) / max(record.arrival_time, 1)
         
         # Accuracy score: 0-1 (higher is better)
-        basin_accuracy = np.exp(-basin_distance)
+        # Use softer exponential decay for more lenient scoring
+        # exp(-d/2) instead of exp(-d) gives more tolerance for larger distances
+        basin_accuracy = np.exp(-basin_distance / 2.0)
         time_accuracy = np.exp(-arrival_error)
         record.accuracy_score = 0.7 * basin_accuracy + 0.3 * time_accuracy
         
-        # Threshold for "accurate" prediction
-        record.was_accurate = record.accuracy_score > 0.5
+        # Lowered threshold from 0.5 to 0.35 for more lenient accuracy classification
+        # 0.35 threshold allows basin distances up to ~2.1 to count as "accurate"
+        record.was_accurate = record.accuracy_score > 0.35
         
         if record.was_accurate:
             self.accurate_predictions += 1
+        
+        # Track outcomes for periodic logging
+        self._outcome_count = getattr(self, '_outcome_count', 0) + 1
+        
+        # Log residuals periodically for debugging (every 50 outcomes)
+        if self._outcome_count % 50 == 0:
+            accuracy_pct = (self.accurate_predictions / max(self._outcome_count, 1)) * 100
+            print(f"[PredictionLearning] Stats: {self._outcome_count} outcomes, "
+                  f"{accuracy_pct:.0f}% accuracy, {len(self.graph.nodes)} graph nodes")
+        
+        # Log individual residual when debugging extreme cases
+        if basin_distance > 2.0 or record.accuracy_score < 0.2:
+            print(f"[PredictionLearning] High residual: d_FR={basin_distance:.3f}, "
+                  f"score={record.accuracy_score:.3f}, conf={record.confidence:.3f}")
         
         # Update graph with this transition
         self.graph.record_transition(record.predicted_basin, actual_basin)

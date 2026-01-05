@@ -329,6 +329,23 @@ class TelemetryAggregator {
         this.learningStats.highPhiDiscoveries = todayMetrics[0].highPhiDiscoveries;
         this.learningStats.recentExpansions = todayMetrics[0].vocabularyExpansions;
       }
+      
+      // Fetch real vocabulary size from Python backend /learning/status endpoint
+      try {
+        const pythonUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
+        const response = await fetch(`${pythonUrl}/learning/status`, { 
+          signal: AbortSignal.timeout(3000) 
+        });
+        if (response.ok) {
+          const data = await response.json();
+          // Use vocabulary_size from word relationship learner (actual learned words)
+          if (data.vocabulary_size && data.vocabulary_size > 0) {
+            this.learningStats.vocabularySize = data.vocabulary_size;
+          }
+        }
+      } catch {
+        // Keep existing value if Python backend unavailable
+      }
     } catch (error) {
       console.error('[TelemetryAggregator] Failed to fetch learning stats:', error);
     }
