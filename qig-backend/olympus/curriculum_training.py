@@ -6,13 +6,30 @@ Implements curriculum-based training for kernel basins:
 - Scheduled curriculum ingestion
 - Word relationship learning from curriculum
 - Online basin coordinate updates
-- Word relationships cache refresh
+- Word relationships PostgreSQL persistence (NO JSON files)
 """
 
-import json
 import os
 import numpy as np
 from datetime import datetime
+
+# Database connection
+try:
+    import psycopg2
+    from psycopg2.extras import execute_values
+    DB_AVAILABLE = True
+except ImportError:
+    DB_AVAILABLE = False
+
+def get_db_connection():
+    """Get PostgreSQL connection."""
+    if not DB_AVAILABLE:
+        return None
+    try:
+        return psycopg2.connect(os.environ.get('DATABASE_URL'))
+    except Exception as e:
+        print(f"[CurriculumTraining] Database connection error: {e}")
+        return None
 
 
 def load_and_train_curriculum(shadow_loop):
@@ -81,51 +98,55 @@ def load_and_train_curriculum(shadow_loop):
 
 def update_word_relationships_cache(learner):
     """
-    Update word_relationships.json cache with newly learned relationships.
+    Update word_relationships in PostgreSQL.
     
     This enables online relationship updates so generation improves over time.
+    PERSISTENCE: Uses PostgreSQL word_relationships table (NO JSON files).
     """
+    conn = get_db_connection()
+    if not conn:
+        print("[CurriculumTraining] No database connection - skipping relationship update")
+        return
+    
     try:
-        cache_path = os.path.join(
-            os.path.dirname(__file__),
-            '../data/learned/word_relationships.json'
-        )
-        
-        # Load existing cache
-        existing_relationships = {}
-        if os.path.exists(cache_path):
-            try:
-                with open(cache_path, 'r') as f:
-                    existing_relationships = json.load(f)
-            except Exception as e:
-                print(f"[CurriculumTraining] Could not load existing cache: {e}")
-        
-        # Add newly learned relationships
-        new_count = 0
+        # Prepare batch data for upsert
+        records = []
         for word, neighbors in learner.cooccurrence.items():
-            if word not in existing_relationships:
-                existing_relationships[word] = {}
-            
             for neighbor, count in neighbors.items():
-                if neighbor not in existing_relationships[word]:
-                    existing_relationships[word][neighbor] = float(count)
-                    new_count += 1
-                else:
-                    # Update with higher count
-                    existing_relationships[word][neighbor] = float(max(
-                        existing_relationships[word][neighbor],
-                        count
-                    ))
+                records.append((word, neighbor, float(count)))
         
-        # Save updated cache
-        os.makedirs(os.path.dirname(cache_path), exist_ok=True)
-        with open(cache_path, 'w') as f:
-            json.dump(existing_relationships, f, indent=2)
+        if not records:
+            print("[CurriculumTraining] No relationships to update")
+            conn.close()
+            return
         
-        print(f"[CurriculumTraining] Updated word relationships cache (+{new_count} new relationships)")
+        with conn.cursor() as cur:
+            # Upsert using ON CONFLICT - update count if higher
+            execute_values(
+                cur,
+                """
+                INSERT INTO word_relationships (word, neighbor, cooccurrence_count, updated_at)
+                VALUES %s
+                ON CONFLICT (word, neighbor) 
+                DO UPDATE SET 
+                    cooccurrence_count = GREATEST(word_relationships.cooccurrence_count, EXCLUDED.cooccurrence_count),
+                    updated_at = NOW()
+                """,
+                records,
+                template="(%s, %s, %s, NOW())"
+            )
+        
+        conn.commit()
+        conn.close()
+        
+        print(f"[CurriculumTraining] Saved {len(records)} word relationships to PostgreSQL")
         
     except Exception as e:
-        print(f"[CurriculumTraining] Cache update error: {e}")
+        print(f"[CurriculumTraining] PostgreSQL update error: {e}")
+        try:
+            conn.close()
+        except:
+            pass
 
 
 def adjust_kernel_basins_from_relationships(learner, coordizer):

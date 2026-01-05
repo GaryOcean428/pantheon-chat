@@ -8,16 +8,26 @@ FROZEN FACTS COMPLIANCE:
 - Adjusted basins must stay within ±5% of canonical positions
 - Stopwords cannot be promoted to high-attention words
 - Learning must respect frozen β values for attention weighting
+
+PERSISTENCE: Uses PostgreSQL word_relationships table (NO JSON files).
 """
 
 import os
-import json
 import logging
 import numpy as np
 from typing import Dict, List, Set, Tuple, Optional
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+# Database connection
+try:
+    import psycopg2
+    from psycopg2.extras import execute_values
+    DB_AVAILABLE = True
+except ImportError:
+    DB_AVAILABLE = False
+    logger.warning("psycopg2 not available - PostgreSQL persistence disabled")
 
 # Import frozen physics constants for validation
 try:
@@ -37,9 +47,19 @@ except ImportError:
     BETA_ATTENTION_ACCEPTANCE = 0.1
     logger.warning("Frozen physics not available - using hardcoded defaults")
 
+# Legacy paths (no longer used but kept for migration)
 CACHE_DIR = Path(__file__).parent / 'data' / 'learned'
-RELATIONSHIPS_FILE = CACHE_DIR / 'word_relationships.json'
 ADJUSTED_BASINS_FILE = CACHE_DIR / 'adjusted_basins.npz'
+
+def get_db_connection():
+    """Get PostgreSQL connection."""
+    if not DB_AVAILABLE:
+        return None
+    try:
+        return psycopg2.connect(os.environ.get('DATABASE_URL'))
+    except Exception as e:
+        logger.error(f"Failed to connect to PostgreSQL: {e}")
+        return None
 
 
 STOPWORDS = {
@@ -58,6 +78,8 @@ class LearnedRelationships:
     """
     Manages learned word relationships and provides attention-weighted
     word selection for query-relevant generation.
+    
+    PERSISTENCE: Uses PostgreSQL word_relationships table.
     """
     
     def __init__(self):
@@ -66,67 +88,139 @@ class LearnedRelationships:
         self.word_frequency: Dict[str, int] = {}
         self.learning_complete = False
         
-        self._load_from_cache()
+        self._load_from_db()
     
-    def _load_from_cache(self) -> bool:
-        """Load cached relationships if available."""
-        if not RELATIONSHIPS_FILE.exists():
-            logger.info("No cached relationships found")
+    def _load_from_db(self) -> bool:
+        """Load relationships from PostgreSQL."""
+        conn = get_db_connection()
+        if not conn:
+            logger.info("No database connection - starting with empty relationships")
             return False
         
         try:
-            with open(RELATIONSHIPS_FILE, 'r') as f:
-                data = json.load(f)
+            with conn.cursor() as cur:
+                # Load word relationships
+                cur.execute("""
+                    SELECT word, neighbor, cooccurrence_count 
+                    FROM word_relationships 
+                    ORDER BY word, cooccurrence_count DESC
+                """)
+                rows = cur.fetchall()
+                
+                # Load word frequencies from learned_words table
+                cur.execute("""
+                    SELECT word, frequency 
+                    FROM learned_words 
+                    WHERE frequency > 0
+                """)
+                freq_rows = cur.fetchall()
             
-            self.word_neighbors = {
-                k: [(n, w) for n, w in v] 
-                for k, v in data.get('neighbors', {}).items()
-            }
-            self.word_frequency = data.get('frequency', {})
-            self.learning_complete = data.get('learning_complete', False)
+            # Group relationships by word
+            for word, neighbor, count in rows:
+                if word not in self.word_neighbors:
+                    self.word_neighbors[word] = []
+                self.word_neighbors[word].append((neighbor, float(count)))
             
+            # Load word frequencies from learned_words table
+            for word, freq in freq_rows:
+                self.word_frequency[word] = int(freq)
+            
+            # Set learning_complete if we have relationships OR frequencies
+            self.learning_complete = len(self.word_neighbors) > 0 or len(self.word_frequency) > 0
+            
+            # Load adjusted basins from npz (still using file for large arrays)
             if ADJUSTED_BASINS_FILE.exists():
-                npz = np.load(str(ADJUSTED_BASINS_FILE), allow_pickle=True)
-                if 'words' in npz.files:
-                    words = npz['words']
-                    self.adjusted_basins = {}
-                    for i, word in enumerate(words):
-                        key = f'word_{i}'
-                        if key in npz.files:
-                            self.adjusted_basins[str(word)] = npz[key]
+                try:
+                    npz = np.load(str(ADJUSTED_BASINS_FILE), allow_pickle=True)
+                    if 'words' in npz.files:
+                        words = npz['words']
+                        for i, word in enumerate(words):
+                            key = f'word_{i}'
+                            if key in npz.files:
+                                self.adjusted_basins[str(word)] = npz[key]
+                except Exception as e:
+                    logger.warning(f"Could not load adjusted basins: {e}")
             
-            logger.info(f"Loaded {len(self.word_neighbors)} word relationships from cache")
+            logger.info(f"[LearnedRelationships] Loaded {len(self.word_neighbors)} relationships, {len(self.word_frequency)} word frequencies from PostgreSQL")
+            conn.close()
             return True
         except Exception as e:
-            logger.warning(f"Failed to load cache: {e}")
+            logger.warning(f"Failed to load from PostgreSQL: {e}")
+            conn.close()
             return False
     
-    def save_to_cache(self) -> bool:
-        """Save relationships to cache."""
-        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    def save_to_db(self) -> bool:
+        """Save relationships to PostgreSQL."""
+        conn = get_db_connection()
+        if not conn:
+            logger.error("No database connection - cannot save relationships")
+            return False
         
         try:
-            data = {
-                'neighbors': self.word_neighbors,
-                'frequency': self.word_frequency,
-                'learning_complete': self.learning_complete
-            }
-            with open(RELATIONSHIPS_FILE, 'w') as f:
-                json.dump(data, f)
+            # Prepare relationship batch data
+            records = []
+            for word, neighbors in self.word_neighbors.items():
+                for neighbor, count in neighbors:
+                    records.append((word, neighbor, float(count)))
             
+            # Prepare word frequency batch data
+            freq_records = [(word, freq) for word, freq in self.word_frequency.items()]
+            
+            with conn.cursor() as cur:
+                # Save relationships
+                if records:
+                    execute_values(
+                        cur,
+                        """
+                        INSERT INTO word_relationships (word, neighbor, cooccurrence_count, updated_at)
+                        VALUES %s
+                        ON CONFLICT (word, neighbor) 
+                        DO UPDATE SET 
+                            cooccurrence_count = GREATEST(word_relationships.cooccurrence_count, EXCLUDED.cooccurrence_count),
+                            updated_at = NOW()
+                        """,
+                        records,
+                        template="(%s, %s, %s, NOW())"
+                    )
+                
+                # Save word frequencies to learned_words table
+                if freq_records:
+                    execute_values(
+                        cur,
+                        """
+                        INSERT INTO learned_words (word, frequency, updated_at)
+                        VALUES %s
+                        ON CONFLICT (word) 
+                        DO UPDATE SET 
+                            frequency = GREATEST(learned_words.frequency, EXCLUDED.frequency),
+                            updated_at = NOW()
+                        """,
+                        freq_records,
+                        template="(%s, %s, NOW())"
+                    )
+            
+            conn.commit()
+            
+            # Save adjusted basins to npz (still using file for large arrays)
             if self.adjusted_basins:
-                # Convert to arrays with string keys
+                CACHE_DIR.mkdir(parents=True, exist_ok=True)
                 arrays_dict = {f'word_{i}': arr for i, arr in enumerate(self.adjusted_basins.values())}
                 words_list = list(self.adjusted_basins.keys())
                 np.savez_compressed(str(ADJUSTED_BASINS_FILE), 
                                     words=np.array(words_list, dtype=object),
                                     **arrays_dict)
             
-            logger.info(f"Saved {len(self.word_neighbors)} relationships to cache")
+            logger.info(f"[LearnedRelationships] Saved {len(records)} relationships to PostgreSQL")
+            conn.close()
             return True
         except Exception as e:
-            logger.error(f"Failed to save cache: {e}")
+            logger.error(f"Failed to save to PostgreSQL: {e}")
+            conn.close()
             return False
+    
+    def save_to_cache(self) -> bool:
+        """Alias for save_to_db for backward compatibility."""
+        return self.save_to_db()
     
     def update_from_learner(self, learner, adjusted_basins: Dict[str, np.ndarray]):
         """Update from a WordRelationshipLearner instance."""
