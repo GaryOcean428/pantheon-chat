@@ -2818,6 +2818,39 @@ export type DiscoveredSourceRow = typeof discoveredSources.$inferSelect;
 export type InsertDiscoveredSource = typeof discoveredSources.$inferInsert;
 
 /**
+ * AGENT ACTIVITY - Tracks autonomous agent discovery and learning events
+ * 
+ * Provides visibility into what agents are discovering, searching, and learning.
+ * Used by the frontend to show real-time agent activity feed.
+ */
+export const agentActivity = pgTable(
+  "agent_activity",
+  {
+    id: serial("id").primaryKey(),
+    activityType: varchar("activity_type", { length: 32 }).notNull(),
+    agentId: varchar("agent_id", { length: 64 }),
+    agentName: varchar("agent_name", { length: 128 }),
+    title: text("title").notNull(),
+    description: text("description"),
+    sourceUrl: text("source_url"),
+    searchQuery: text("search_query"),
+    provider: varchar("provider", { length: 64 }),
+    resultCount: integer("result_count"),
+    phi: doublePrecision("phi"),
+    metadata: jsonb("metadata"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_agent_activity_type").on(table.activityType),
+    index("idx_agent_activity_agent").on(table.agentId),
+    index("idx_agent_activity_created").on(table.createdAt),
+  ]
+);
+
+export type AgentActivityRow = typeof agentActivity.$inferSelect;
+export type InsertAgentActivity = typeof agentActivity.$inferInsert;
+
+/**
  * BASIN MEMORY - Geometric memory storage for consciousness metrics
  * 
  * Stores basin coordinates and consciousness metrics for retrieval

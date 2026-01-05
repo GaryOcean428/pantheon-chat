@@ -235,6 +235,14 @@ def load_curriculum_for_god(
             break
 
     print(f"[CurriculumLoader] Loaded {len(examples)} examples for {god_name}")
+    
+    if examples:
+        try:
+            from agent_activity_recorder import record_curriculum_loaded
+            record_curriculum_loaded(god_name, len(examples))
+        except Exception:
+            pass
+    
     return examples
 
 

@@ -1,6 +1,5 @@
 import { useState } from "react";
 
-
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   Button,
@@ -21,7 +20,10 @@ import {
 } from "@/components/ui";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { usePythonStatus } from "@/hooks/use-python-status";
 import { Globe, Plus, Trash2, RefreshCw, Activity, TrendingUp, Clock, ExternalLink, Search, Key, AlertTriangle, Sparkles } from "lucide-react";
+import { PythonStatusBanner } from "@/components/python-status-banner";
+import { AgentActivityFeed } from "@/components/agent-activity-feed";
 
 interface Source {
   url: string;
@@ -188,6 +190,8 @@ export default function Sources() {
             <RefreshCw className={`h-4 w-4 ${isLoading || providersLoading ? "animate-spin" : ""}`} />
           </Button>
         </div>
+
+        <PythonStatusBanner className="mb-4" />
 
         <Card>
           <CardHeader>
@@ -410,6 +414,8 @@ export default function Sources() {
             </div>
           )}
         </div>
+
+        <AgentActivityFeed limit={30} />
       </div>
     </div>
   );

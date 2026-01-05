@@ -654,6 +654,18 @@ class SourceDiscoveryService:
                     ))
                     conn.commit()
                     print(f"[SourceDiscovery] Saved source to DB: {source_url}")
+                    
+                    try:
+                        from agent_activity_recorder import record_source_discovered
+                        record_source_discovered(
+                            url=source_url,
+                            category=info.get('category', 'general'),
+                            agent_name="SourceDiscovery",
+                            phi=info.get('phi_avg')
+                        )
+                    except Exception as ae:
+                        pass
+                    
                     return True
         except Exception as e:
             print(f"[SourceDiscovery] Failed to save source {source_url}: {e}")

@@ -1116,6 +1116,120 @@ def enhanced_rag_search():
         }), 500
 
 
+@research_bp.route('/activity', methods=['GET'])
+def get_agent_activity():
+    """
+    Get recent agent activity for discovery visibility.
+    
+    Query params:
+        limit: int - Max activities to return (default 50)
+        offset: int - Pagination offset (default 0)
+        type: str - Filter by activity type
+        agent: str - Filter by agent ID
+    
+    Returns:
+        List of recent agent activities.
+    """
+    try:
+        from agent_activity_recorder import activity_recorder
+        
+        limit = request.args.get('limit', 50, type=int)
+        offset = request.args.get('offset', 0, type=int)
+        activity_type = request.args.get('type')
+        agent_id = request.args.get('agent')
+        
+        activities = activity_recorder.get_from_db(
+            limit=limit,
+            offset=offset,
+            activity_type=activity_type,
+            agent_id=agent_id
+        )
+        
+        serialized = []
+        for activity in activities:
+            item = {}
+            for key, value in activity.items():
+                if hasattr(value, 'isoformat'):
+                    item[key] = value.isoformat()
+                elif hasattr(value, 'tolist'):
+                    item[key] = value.tolist()
+                else:
+                    item[key] = value
+            serialized.append(item)
+        
+        return jsonify({
+            'success': True,
+            'activities': serialized,
+            'count': len(serialized),
+            'limit': limit,
+            'offset': offset
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'activities': []
+        }), 500
+
+
+@research_bp.route('/activity/stream', methods=['GET'])
+def stream_agent_activity():
+    """
+    SSE endpoint for real-time agent activity streaming.
+    
+    Returns:
+        Server-sent events with new agent activities.
+    """
+    from flask import Response
+    import json
+    import queue
+    
+    try:
+        from agent_activity_recorder import activity_recorder
+        
+        event_queue = queue.Queue()
+        
+        def on_activity(activity):
+            serialized = {}
+            for key, value in activity.items():
+                if hasattr(value, 'isoformat'):
+                    serialized[key] = value.isoformat()
+                elif hasattr(value, 'tolist'):
+                    serialized[key] = value.tolist()
+                else:
+                    serialized[key] = value
+            event_queue.put(serialized)
+        
+        unsubscribe = activity_recorder.subscribe(on_activity)
+        
+        def generate():
+            try:
+                while True:
+                    try:
+                        activity = event_queue.get(timeout=30)
+                        yield f"data: {json.dumps(activity)}\n\n"
+                    except queue.Empty:
+                        yield f"data: {json.dumps({'type': 'heartbeat'})}\n\n"
+            finally:
+                unsubscribe()
+        
+        return Response(
+            generate(),
+            mimetype='text/event-stream',
+            headers={
+                'Cache-Control': 'no-cache',
+                'Connection': 'keep-alive'
+            }
+        )
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 def register_research_routes(app):
     """Register research blueprint with Flask app."""
     app.register_blueprint(research_bp)
@@ -1123,3 +1237,4 @@ def register_research_routes(app):
     print("[ResearchAPI] Scrapy endpoints: /api/research/scrapy, /api/research/scrapy/status, /api/research/scrapy/poll")
     print("[ResearchAPI] Sources endpoints: /api/research/sources (GET, POST, DELETE)")
     print("[ResearchAPI] External knowledge: /api/research/external-knowledge, /api/research/enhanced-search")
+    print("[ResearchAPI] Activity endpoints: /api/research/activity, /api/research/activity/stream")

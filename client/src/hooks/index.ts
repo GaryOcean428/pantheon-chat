@@ -48,3 +48,5 @@ export type {
   ObservingKernel,
   KernelObservation,
 } from './use-autonomous-debates';
+export { usePythonStatus, useWaitForPythonReady } from './use-python-status';
+export type { PythonBackendStatus, PythonStatusState } from './use-python-status';

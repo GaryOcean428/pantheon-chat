@@ -11,6 +11,7 @@ import TelemetryStreamer from "./telemetry-websocket";
 import KernelActivityStreamer from "./kernel-activity-websocket";
 import MeshNetworkStreamer from "./mesh-network-websocket";
 import telemetryDashboardRouter from "./routes/telemetry";
+import { pythonReadiness, createTypedErrorResponse } from "./python-readiness";
 
 // WebSocket message validation schema (addresses Issue 13/14 from bottleneck report)
 const wsMessageSchema = z.object({
@@ -101,9 +102,40 @@ autoCycleManager.setOnCycleCallback(
 );
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Start Python backend readiness tracker
+  pythonReadiness.start();
+  
   // Handle favicon.ico requests - redirect to favicon.png
   app.get("/favicon.ico", (req, res) => {
     res.redirect(301, "/favicon.png");
+  });
+
+  // Python backend status endpoint for frontend initialization UI
+  app.get("/api/python/status", (req, res) => {
+    const state = pythonReadiness.getState();
+    res.json({
+      ...state,
+      ready: state.status === 'ready',
+    });
+  });
+
+  // SSE endpoint for Python status updates
+  app.get("/api/python/status/stream", (req, res) => {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    
+    const sendState = () => {
+      const state = pythonReadiness.getState();
+      res.write(`data: ${JSON.stringify({ ...state, ready: state.status === 'ready' })}\n\n`);
+    };
+    
+    sendState();
+    const unsubscribe = pythonReadiness.subscribe(sendState);
+    
+    req.on('close', () => {
+      unsubscribe();
+    });
   });
 
   // CRITICAL: Simple liveness endpoint for Autoscale deployment health checks
@@ -737,7 +769,8 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
       }
     } catch (error: unknown) {
       console.error("[API] Research proxy error:", getErrorMessage(error));
-      res.status(503).json({ error: 'Research API unavailable' });
+      const state = pythonReadiness.getState();
+      res.status(503).json(createTypedErrorResponse(state));
     }
   });
 
@@ -769,7 +802,8 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
       }
     } catch (error: unknown) {
       console.error("[API] Curiosity proxy error:", getErrorMessage(error));
-      res.status(503).json({ error: 'Curiosity engine unavailable' });
+      const state = pythonReadiness.getState();
+      res.status(503).json(createTypedErrorResponse(state));
     }
   });
 
@@ -806,14 +840,12 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
       }
     } catch (error: unknown) {
       console.error("[API] Python proxy error:", getErrorMessage(error));
+      const state = pythonReadiness.getState();
       const err = error as { name?: string; code?: string; message?: string };
       if (err.name === 'TimeoutError' || err.message?.includes('timeout')) {
-        return res.status(504).json({ error: 'Python backend timeout' });
+        return res.status(504).json({ ...createTypedErrorResponse(state), error: 'Python backend timeout' });
       }
-      if (err.code === 'ECONNREFUSED' || err.message?.includes('fetch failed')) {
-        return res.status(503).json({ error: 'Python backend unavailable' });
-      }
-      res.status(500).json({ error: getErrorMessage(error) || 'Failed to proxy request' });
+      res.status(503).json(createTypedErrorResponse(state));
     }
   });
 
