@@ -129,11 +129,11 @@ class Zeus(BaseGod):
         try:
             from training_chaos import ExperimentalKernelEvolution
             self.chaos = ExperimentalKernelEvolution()
-            # Auto-activate chaos mode on startup (with Pantheon governance)
+            # Auto-activate chaos mode on startup
             if len(self.chaos.kernel_population) == 0:
-                self.chaos.spawn_random_kernel(pantheon_approved=True, reason='zeus_initialization')
-                self.chaos.spawn_random_kernel(pantheon_approved=True, reason='zeus_initialization')
-                self.chaos.spawn_random_kernel(pantheon_approved=True, reason='zeus_initialization')
+                self.chaos.spawn_random_kernel()
+                self.chaos.spawn_random_kernel()
+                self.chaos.spawn_random_kernel()
             self.chaos.start_evolution(interval_seconds=60)
             self.chaos_enabled = True
             print(f"🌪️ CHAOS MODE AUTO-ACTIVATED with {len(self.chaos.kernel_population)} kernels")
@@ -929,11 +929,11 @@ class Zeus(BaseGod):
         
         if should_activate:
             try:
-                # Spawn initial population if needed (with Pantheon governance)
+                # Spawn initial population if needed
                 if len(self.chaos.kernel_population) == 0:
-                    self.chaos.spawn_random_kernel(pantheon_approved=True, reason='auto_chaos_activation')
-                    self.chaos.spawn_random_kernel(pantheon_approved=True, reason='auto_chaos_activation')
-                    self.chaos.spawn_random_kernel(pantheon_approved=True, reason='auto_chaos_activation')
+                    self.chaos.spawn_random_kernel()
+                    self.chaos.spawn_random_kernel()
+                    self.chaos.spawn_random_kernel()
                 
                 # Start evolution
                 self.chaos.start_evolution(interval_seconds=60)
