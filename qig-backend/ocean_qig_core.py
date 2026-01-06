@@ -669,6 +669,16 @@ try:
 except ImportError as e:
     print(f"[WARN] Could not import QIGGraph integration: {e}")
 
+# Register Coordizer API routes
+try:
+    from api_coordizers import coordizer_api
+    app.register_blueprint(coordizer_api)
+    print("[INFO] Coordizer API registered at /api/coordize/*")
+except ImportError as e:
+    print(f"[WARN] Coordizer API not available: {e}")
+except Exception as e:
+    print(f"[WARN] Coordizer API initialization failed: {e}")
+
 # Register trained kernel API blueprint
 try:
     from trained_kernel_integration import create_kernel_blueprint, KERNEL_AVAILABLE

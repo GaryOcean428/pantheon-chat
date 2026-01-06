@@ -224,6 +224,7 @@ def _update_session_messages(session_id: str, session: Dict[str, Any]) -> None:
 # =============================================================================
 
 @zeus_api.route('/zeus/health', methods=['GET'])
+@zeus_api.route('/zeus/status', methods=['GET'])  # Alias for compatibility
 def zeus_health():
     """Health check for Zeus API."""
     session_count = len(_list_sessions())
