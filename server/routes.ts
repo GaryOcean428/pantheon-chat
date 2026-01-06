@@ -58,6 +58,7 @@ import {
   olympusRouter,
   pythonProxiesRouter,
   searchRouter,
+  sscBridgeRouter,
   ucpRouter,
   vocabularyRouter,
   zettelkastenRouter,
@@ -334,6 +335,9 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
   app.use("/api/memory", memoryRouter);
   app.use("/api/feedback", feedbackRouter);
   app.use("/api/coordize", coordizerRouter);
+  
+  // SSC Bridge - Connects to SearchSpaceCollapse for Bitcoin recovery
+  app.use("/api/ssc", sscBridgeRouter);
 
   // Mount telemetry routers
   app.use("/api/telemetry", telemetryRouter);
@@ -342,7 +346,7 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
   app.use("/api/v1/external", externalApiRouter);
 
   console.log("[Routes] All sub-routers mounted");
-  console.log("[Routes] New routers: autonomic, immune, training, memory, feedback, coordize");
+  console.log("[Routes] New routers: autonomic, immune, training, memory, feedback, coordize, ssc");
 
   // Investigation status endpoint
   app.get("/api/investigation/status", (req, res) => {
