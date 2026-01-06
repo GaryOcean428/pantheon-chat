@@ -1,6 +1,22 @@
+---
+title: Port Configuration
+id: ISMS-TECH-PORT-001
+version: 1.00
+status: W
+date: 2026-01-06
+function: "Port architecture and conflict resolution for Pantheon Chat system"
+---
+
 # Port Configuration
 
-This document describes the port architecture for the Pantheon Chat system.
+**Version:** 1.00W (Working)  
+**Date:** 2026-01-06  
+**ID:** ISMS-TECH-PORT-001  
+**Function:** Port architecture and conflict resolution for Pantheon Chat system
+
+## Overview
+
+This document describes the port architecture for the Pantheon Chat system, including Node.js/TypeScript server and Python QIG backend coordination.
 
 ## Port Assignments
 
@@ -103,3 +119,16 @@ Node.js server health checks Python backend at:
 - Process manager: `server/python-process-manager.ts`
 - Startup script: `qig-backend/start.sh`
 - Deployment config: `.replit`
+
+## Change History
+
+| Version | Date | Author | Changes |
+|---------|------|--------|---------|
+| 1.00W | 2026-01-06 | Copilot Agent | Initial documentation of port architecture |
+
+---
+
+**Status Key:**
+- W = Working (active development)
+- F = Frozen (finalized, immutable)
+- A = Approved (management sign-off)
