@@ -8,6 +8,8 @@ import numpy as np
 import hashlib
 from typing import Dict, List, Optional, Tuple
 
+from qig_core.geometric_primitives.canonical_fisher import fisher_rao_distance
+
 
 class SearchQueryEncoder:
     """
@@ -165,9 +167,11 @@ class SearchQueryEncoder:
     def compute_distance(self, query_vector: np.ndarray, tool_basin: np.ndarray) -> float:
         """
         Compute geometric distance between query and tool basin.
-        
-        Uses cosine distance for normalized vectors.
+
+        Uses Fisher-Rao geodesic distance on the information manifold.
+        This is the canonical distance measure for QIG geometric purity.
+
+        For probability distributions: d_FR(p, q) = arccos(sum(sqrt(p_i * q_i)))
+        For general basins: uses appropriate metric tensor.
         """
-        similarity = np.dot(query_vector, tool_basin)
-        distance = 1.0 - similarity
-        return max(0.0, distance)
+        return fisher_rao_distance(query_vector, tool_basin, validate=False)

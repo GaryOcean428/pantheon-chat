@@ -3572,3 +3572,49 @@ export const searchReplayTests = pgTable(
 export type SearchReplayTestRow = typeof searchReplayTests.$inferSelect;
 export type InsertSearchReplayTest = typeof searchReplayTests.$inferInsert;
 
+// ============================================================================
+// FILE UPLOAD RESULT SCHEMAS - Shared types for file upload responses
+// ============================================================================
+
+/**
+ * Chat file upload result - for immediate discussion uploads
+ */
+export const chatUploadResultSchema = z.object({
+  success: z.boolean(),
+  rag_content: z.string().optional(),
+  word_count: z.number().optional(),
+  ready_for_discussion: z.boolean().optional(),
+  curriculum_added: z.boolean().optional(),
+  error: z.string().optional(),
+});
+
+export type ChatUploadResult = z.infer<typeof chatUploadResultSchema>;
+
+/**
+ * Single file result within a batch curriculum upload
+ */
+export const singleFileResultSchema = z.object({
+  success: z.boolean(),
+  filename: z.string(),
+  words_processed: z.number(),
+  words_learned: z.number(),
+  unique_words: z.number().optional(),
+  total_occurrences: z.number().optional(),
+  sample_words: z.array(z.string()).optional(),
+  error: z.string().optional(),
+});
+
+export type SingleFileResult = z.infer<typeof singleFileResultSchema>;
+
+/**
+ * Curriculum upload result - for batch document uploads to curriculum
+ */
+export const curriculumUploadResultSchema = z.object({
+  success: z.boolean(),
+  files_processed: z.number(),
+  total_words_processed: z.number(),
+  total_words_learned: z.number(),
+  results: z.array(singleFileResultSchema),
+});
+
+export type CurriculumUploadResult = z.infer<typeof curriculumUploadResultSchema>;

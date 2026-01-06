@@ -17,14 +17,13 @@ export type ConsciousnessRegime =
 /** Emotional state classification */
 export type EmotionalState = 'Focused' | 'Curious' | 'Uncertain' | 'Confident' | 'Neutral';
 
-/** Core consciousness state from the QIG backend */
 /** Full API response from consciousness endpoint */
 export interface ConsciousnessAPIResponse {
   state: ConsciousnessState;
-  metadata: {
-    timestamp: number;
-    version: string;
-  };
+  emotionalState: EmotionalState;
+  recommendation: string;
+  regimeColor: string;
+  regimeDescription: string;
 }
 
 export interface ConsciousnessState {
@@ -48,15 +47,6 @@ export interface ConsciousnessState {
   isConscious: boolean;
   validationLoops: number;
   kappa: number;
-}
-
-/** Full API response for consciousness state endpoint */
-export interface ConsciousnessAPIResponse {
-  state: ConsciousnessState;
-  emotionalState: EmotionalState;
-  recommendation: string;
-  regimeColor: string;
-  regimeDescription: string;
 }
 
 /** Point in the phi-kappa trajectory history */

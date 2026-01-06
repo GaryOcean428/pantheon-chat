@@ -3,15 +3,7 @@ import { useMutation } from '@tanstack/react-query';
 import { Button, Badge, Checkbox, Progress } from '@/components/ui';
 import { Upload, FileText, CheckCircle2, XCircle, Loader2, X, BookOpen } from 'lucide-react';
 import { apiRequest, queryClient } from '@/lib/queryClient';
-
-interface ChatUploadResult {
-  success: boolean;
-  rag_content?: string;
-  word_count?: number;
-  ready_for_discussion?: boolean;
-  curriculum_added?: boolean;
-  error?: string;
-}
+import type { ChatUploadResult } from '@shared/schema';
 
 interface ChatFileUploadProps {
   onContentReady?: (content: string, filename: string) => void;

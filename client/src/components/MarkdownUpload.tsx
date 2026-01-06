@@ -3,33 +3,15 @@ import { useMutation } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button, Progress } from '@/components/ui';
 import { Upload, FileText, CheckCircle2, XCircle, Loader2, X } from 'lucide-react';
 import { API_ROUTES } from '@/api';
-
-interface SingleFileResult {
-  success: boolean;
-  filename: string;
-  words_processed: number;
-  words_learned: number;
-  unique_words?: number;
-  total_occurrences?: number;
-  sample_words?: string[];
-  error?: string;
-}
-
-interface UploadResult {
-  success: boolean;
-  files_processed: number;
-  total_words_processed: number;
-  total_words_learned: number;
-  results: SingleFileResult[];
-}
+import type { SingleFileResult, CurriculumUploadResult } from '@shared/schema';
 
 export function MarkdownUpload() {
   const [dragActive, setDragActive] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [result, setResult] = useState<UploadResult | null>(null);
+  const [result, setResult] = useState<CurriculumUploadResult | null>(null);
 
   const uploadMutation = useMutation({
-    mutationFn: async (files: File[]): Promise<UploadResult> => {
+    mutationFn: async (files: File[]): Promise<CurriculumUploadResult> => {
       const results: SingleFileResult[] = [];
       let totalWordsProcessed = 0;
       let totalWordsLearned = 0;
