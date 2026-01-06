@@ -204,6 +204,27 @@ except ImportError as e:
 except Exception as e:
     print(f"[WARNING] Training loop initialization failed: {e}")
 
+# Initialize Prediction Event Bus - connects prediction system to capability mesh
+PREDICTION_EVENTS_AVAILABLE = False
+_prediction_improvement = None
+try:
+    from olympus.capability_mesh import get_event_bus
+    from prediction_self_improvement import get_prediction_improvement
+
+    # Get the global event bus and prediction improvement singleton
+    _event_bus = get_event_bus()
+    _prediction_improvement = get_prediction_improvement()
+
+    # Wire event bus to prediction system for PREDICTION_MADE/VALIDATED events
+    _prediction_improvement.set_event_bus(_event_bus)
+
+    PREDICTION_EVENTS_AVAILABLE = True
+    print("[INFO] Prediction event bus wired - kernels can observe prediction outcomes")
+except ImportError as e:
+    print(f"[WARNING] Prediction event bus not available: {e}")
+except Exception as e:
+    print(f"[WARNING] Prediction event bus initialization failed: {e}")
+
 # Initialize ShadowResearchAPI - handles curriculum training, web research, and meta-reflection
 SHADOW_RESEARCH_AVAILABLE = False
 _shadow_research_api = None
@@ -389,6 +410,7 @@ print(f"  - Immune system: {'✓' if IMMUNE_AVAILABLE else '✗'}", flush=True)
 print(f"  - Self-Healing: {'✓' if SELF_HEALING_AVAILABLE else '✗'}", flush=True)
 print(f"  - Curiosity engine: {'✓' if CURIOSITY_AVAILABLE else '✗'}", flush=True)
 print(f"  - Training loop: {'✓' if TRAINING_LOOP_AVAILABLE else '✗'}", flush=True)
+print(f"  - Prediction events: {'✓' if PREDICTION_EVENTS_AVAILABLE else '✗'}", flush=True)
 print(f"  - Shadow research: {'✓' if SHADOW_RESEARCH_AVAILABLE else '✗'}", flush=True)
 print(f"  - Research API: {'✓' if RESEARCH_AVAILABLE else '✗'}", flush=True)
 print(f"  - Constellation: {'✓' if CONSTELLATION_AVAILABLE else '✗'}", flush=True)

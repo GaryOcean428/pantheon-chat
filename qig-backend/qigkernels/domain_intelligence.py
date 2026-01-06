@@ -451,6 +451,18 @@ class DomainDiscovery:
             key=lambda d: d.mission_relevance,
             reverse=True
         )
+
+    def get_domain_descriptor(self, domain_name: str) -> Optional[DomainDescriptor]:
+        """
+        Get descriptor for a specific domain by name.
+
+        Args:
+            domain_name: The domain identifier
+
+        Returns:
+            DomainDescriptor if found, None otherwise
+        """
+        return self.domains.get(domain_name)
     
     def get_domains_for_kernel(
         self, 

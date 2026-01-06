@@ -22,12 +22,24 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Event bus for publishing prediction feedback events
+try:
+    from olympus.capability_mesh import (
+        CapabilityEventBus,
+        EventType,
+        emit_prediction_event,
+    )
+    EVENT_BUS_AVAILABLE = True
+except ImportError:
+    EVENT_BUS_AVAILABLE = False
+    CapabilityEventBus = None
+
 
 @dataclass
 class InsightRecord:
     """
     Canonical insight object extracted from prediction chains and reasoning.
-    
+
     Insights are the currency of the learning loop - they represent
     discovered patterns that should influence future behavior.
     """
@@ -43,7 +55,7 @@ class InsightRecord:
     metadata: Dict[str, Any] = field(default_factory=dict)
     linked_predictions: List[str] = field(default_factory=list)
     linked_thoughts: List[int] = field(default_factory=list)  # ThoughtStep indices
-    
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             'insight_id': self.insight_id,
@@ -59,6 +71,84 @@ class InsightRecord:
             'linked_predictions': self.linked_predictions,
             'linked_thoughts': self.linked_thoughts,
         }
+
+
+@dataclass
+class InsightOutcomeRecord:
+    """
+    Tracks downstream prediction outcomes for insights.
+
+    Closes the loop: Insight -> Prediction -> Outcome -> Insight Confidence Update
+
+    This enables insights to be validated not just once (via Tavily/Perplexity)
+    but continuously based on how well predictions that used them performed.
+    """
+    insight_id: str
+    prediction_ids: List[str] = field(default_factory=list)  # Predictions influenced by this insight
+    accuracy_when_used: float = 0.0  # Average accuracy of predictions using this insight
+    initial_confidence: float = 0.5  # Confidence at insight creation
+    validated_confidence: float = 0.5  # Updated confidence based on prediction outcomes
+    times_used: int = 0  # Number of predictions that used this insight
+    successful_uses: int = 0  # Number of accurate predictions using this insight
+    last_outcome_at: Optional[datetime] = None
+    outcome_history: List[Dict[str, Any]] = field(default_factory=list)  # Recent outcome records
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            'insight_id': self.insight_id,
+            'prediction_ids': self.prediction_ids,
+            'accuracy_when_used': self.accuracy_when_used,
+            'initial_confidence': self.initial_confidence,
+            'validated_confidence': self.validated_confidence,
+            'times_used': self.times_used,
+            'successful_uses': self.successful_uses,
+            'last_outcome_at': self.last_outcome_at.isoformat() if self.last_outcome_at else None,
+            'outcome_history_count': len(self.outcome_history),
+        }
+
+    def record_outcome(self, prediction_id: str, accuracy: float, was_accurate: bool) -> float:
+        """
+        Record a prediction outcome for this insight.
+
+        Returns the new validated_confidence after update.
+        """
+        self.prediction_ids.append(prediction_id)
+        self.times_used += 1
+        if was_accurate:
+            self.successful_uses += 1
+        self.last_outcome_at = datetime.now()
+
+        # Update running average accuracy
+        if self.times_used == 1:
+            self.accuracy_when_used = accuracy
+        else:
+            # Exponential moving average with alpha=0.3 for recent emphasis
+            alpha = 0.3
+            self.accuracy_when_used = alpha * accuracy + (1 - alpha) * self.accuracy_when_used
+
+        # Update validated confidence based on outcomes
+        # Uses Bayesian-like update: confidence moves toward accuracy
+        success_rate = self.successful_uses / self.times_used
+        # Blend initial confidence with empirical success rate
+        # Weight shifts toward empirical as more data accumulates
+        empirical_weight = min(0.8, self.times_used / 10.0)  # Max 80% empirical after 10 uses
+        self.validated_confidence = (
+            (1 - empirical_weight) * self.initial_confidence +
+            empirical_weight * success_rate
+        )
+
+        # Store in outcome history (keep last 20)
+        self.outcome_history.append({
+            'prediction_id': prediction_id,
+            'accuracy': accuracy,
+            'was_accurate': was_accurate,
+            'timestamp': datetime.now().timestamp(),
+            'validated_confidence_after': self.validated_confidence,
+        })
+        if len(self.outcome_history) > 20:
+            self.outcome_history = self.outcome_history[-20:]
+
+        return self.validated_confidence
 
 
 class PredictionFeedbackBridge:
@@ -78,11 +168,16 @@ class PredictionFeedbackBridge:
         self.prediction_to_training: Dict[str, str] = {}  # pred_id → training_id
         self.total_predictions_processed = 0
         self.total_insights_generated = 0
-        
+
+        # Insight outcome tracking
+        self.insight_outcomes: Dict[str, InsightOutcomeRecord] = {}
+        self.total_insight_updates = 0
+
         self._tps_system = None
         self._training_integrator = None
         self._chain_manager = None
-        
+        self._lightning_kernel = None
+
         logger.info("[PredictionFeedbackBridge] Initialized")
     
     def wire_tps(self, tps_system) -> None:
@@ -99,7 +194,61 @@ class PredictionFeedbackBridge:
         """Wire the ChainOfThoughtManager."""
         self._chain_manager = manager
         logger.info("[PredictionFeedbackBridge] Chain manager wired")
-    
+
+    def wire_lightning(self, lightning_kernel) -> None:
+        """Wire the Lightning kernel for insight outcome tracking."""
+        self._lightning_kernel = lightning_kernel
+        logger.info("[PredictionFeedbackBridge] Lightning kernel wired for insight outcome tracking")
+
+    def _publish_prediction_feedback(
+        self,
+        insights: List[InsightRecord],
+        pred_record,
+        phi_delta: float,
+        kappa_delta: float,
+    ) -> None:
+        """
+        Publish PREDICTION_FEEDBACK event after extracting insights.
+
+        This allows other kernels to learn from prediction feedback patterns.
+        """
+        if not EVENT_BUS_AVAILABLE:
+            return
+
+        if not insights:
+            return
+
+        try:
+            # Aggregate linked predictions from all insights
+            linked_predictions = []
+            for insight in insights:
+                linked_predictions.extend(insight.linked_predictions)
+            linked_predictions = list(set(linked_predictions))
+
+            # Get failure reasons from the prediction record
+            failure_reasons = []
+            if hasattr(pred_record, 'failure_reasons'):
+                failure_reasons = [r.value for r in pred_record.failure_reasons]
+
+            emit_prediction_event(
+                event_type=EventType.PREDICTION_FEEDBACK,
+                prediction_id=pred_record.prediction_id if hasattr(pred_record, 'prediction_id') else "",
+                source_kernel=getattr(pred_record, 'source', 'tps'),
+                predicted_basin=getattr(pred_record, 'predicted_basin', None),
+                actual_basin=getattr(pred_record, 'actual_basin', None),
+                phi=getattr(pred_record, 'context', {}).get('phi', 0.5),
+                phi_delta=phi_delta,
+                kappa_delta=kappa_delta,
+                linked_predictions=linked_predictions,
+                failure_reasons=failure_reasons,
+                confidence=getattr(pred_record, 'confidence', 0.5),
+                accuracy_score=getattr(pred_record, 'accuracy_score', 0.0),
+                outcome="accurate" if getattr(pred_record, 'was_accurate', False) else "inaccurate",
+                priority=6,
+            )
+        except Exception as e:
+            logger.warning(f"[PredictionFeedbackBridge] Failed to publish PREDICTION_FEEDBACK: {e}")
+
     def process_prediction_outcome(
         self,
         prediction_id: str,
@@ -162,7 +311,15 @@ class PredictionFeedbackBridge:
         for insight in insights:
             self.insight_buffer.append(insight)
             self.total_insights_generated += 1
-        
+
+        # Publish PREDICTION_FEEDBACK event with extracted insights
+        self._publish_prediction_feedback(
+            insights=insights,
+            pred_record=pred_record,
+            phi_delta=phi_after - phi_before,
+            kappa_delta=kappa_after - kappa_before,
+        )
+
         if self._training_integrator:
             trajectory = [pred_record.predicted_basin.tolist(), actual_basin.tolist()]
             
@@ -186,9 +343,137 @@ class PredictionFeedbackBridge:
         result['accuracy'] = accuracy_score
         result['insights'] = [i.to_dict() for i in insights]
         self.total_predictions_processed += 1
-        
+
+        # Update insight confidence based on prediction outcome
+        insight_updates = self._update_insight_outcomes(
+            prediction_id=prediction_id,
+            accuracy_score=accuracy_score,
+            was_accurate=pred_record.was_accurate,
+        )
+        result['insight_updates'] = insight_updates
+
         return result
-    
+
+    def _update_insight_outcomes(
+        self,
+        prediction_id: str,
+        accuracy_score: float,
+        was_accurate: bool,
+    ) -> List[Dict[str, Any]]:
+        """
+        Update insights that influenced this prediction based on its outcome.
+
+        Closes the validation loop: Insight -> Prediction -> Outcome -> Confidence Update
+
+        Args:
+            prediction_id: The prediction whose outcome we're processing
+            accuracy_score: How accurate the prediction was (0-1)
+            was_accurate: Whether the prediction was considered accurate
+
+        Returns:
+            List of insight update results
+        """
+        updates = []
+
+        # Get the Lightning kernel (lazily if not already wired)
+        lightning = self._lightning_kernel
+        if lightning is None:
+            try:
+                from olympus.lightning_kernel import get_lightning_kernel
+                lightning = get_lightning_kernel()
+                self._lightning_kernel = lightning
+            except ImportError:
+                logger.warning("[PredictionFeedbackBridge] Could not import Lightning kernel")
+                return updates
+
+        # Get insights that influenced this prediction
+        insight_ids = lightning.get_insights_for_prediction(prediction_id)
+
+        if not insight_ids:
+            # Also check our local insight buffer for linked predictions
+            for insight in self.insight_buffer:
+                if prediction_id in insight.linked_predictions:
+                    insight_ids.append(insight.insight_id)
+
+        for insight_id in insight_ids:
+            # Update insight confidence via Lightning kernel
+            new_confidence = lightning.update_insight_confidence(
+                insight_id=insight_id,
+                prediction_id=prediction_id,
+                accuracy=accuracy_score,
+                was_accurate=was_accurate,
+            )
+
+            if new_confidence is not None:
+                self.total_insight_updates += 1
+                updates.append({
+                    'insight_id': insight_id,
+                    'prediction_id': prediction_id,
+                    'accuracy': accuracy_score,
+                    'was_accurate': was_accurate,
+                    'new_confidence': new_confidence,
+                })
+                logger.info(
+                    f"[PredictionFeedbackBridge] Updated insight {insight_id} "
+                    f"confidence to {new_confidence:.3f} based on prediction {prediction_id}"
+                )
+
+        return updates
+
+    def link_insight_to_prediction(self, insight_id: str, prediction_id: str) -> bool:
+        """
+        Link an insight to a prediction it influenced.
+
+        Call this when creating a prediction that uses insights.
+        Enables downstream outcome tracking.
+
+        Args:
+            insight_id: The insight being used
+            prediction_id: The prediction being made
+
+        Returns:
+            True if link was created successfully
+        """
+        # Get Lightning kernel
+        lightning = self._lightning_kernel
+        if lightning is None:
+            try:
+                from olympus.lightning_kernel import get_lightning_kernel
+                lightning = get_lightning_kernel()
+                self._lightning_kernel = lightning
+            except ImportError:
+                logger.warning("[PredictionFeedbackBridge] Could not import Lightning kernel")
+                return False
+
+        return lightning.link_prediction_to_insight(prediction_id, insight_id)
+
+    def get_insight_outcome_stats(self) -> Dict[str, Any]:
+        """
+        Get statistics about insight outcome tracking.
+
+        Returns:
+            Dict with tracking statistics
+        """
+        stats = {
+            'total_insight_updates': self.total_insight_updates,
+            'bridge_tracked_insights': len(self.insight_outcomes),
+        }
+
+        # Get Lightning kernel stats if available
+        lightning = self._lightning_kernel
+        if lightning is None:
+            try:
+                from olympus.lightning_kernel import get_lightning_kernel
+                lightning = get_lightning_kernel()
+            except ImportError:
+                pass
+
+        if lightning is not None:
+            lightning_stats = lightning.get_all_insight_outcome_stats()
+            stats['lightning_stats'] = lightning_stats
+
+        return stats
+
     def _extract_insights_from_prediction(
         self,
         pred_record,
@@ -363,14 +648,29 @@ class PredictionFeedbackBridge:
     
     def get_stats(self) -> Dict[str, Any]:
         """Get bridge statistics."""
-        return {
+        stats = {
             'total_predictions_processed': self.total_predictions_processed,
             'total_insights_generated': self.total_insights_generated,
             'pending_insights': len(self.insight_buffer),
             'tps_wired': self._tps_system is not None,
             'training_wired': self._training_integrator is not None,
             'chain_manager_wired': self._chain_manager is not None,
+            'lightning_wired': self._lightning_kernel is not None,
+            'insight_outcome_tracking': {
+                'total_insight_updates': self.total_insight_updates,
+                'tracked_insights': len(self.insight_outcomes),
+            },
         }
+
+        # Add Lightning kernel stats if available
+        if self._lightning_kernel is not None:
+            try:
+                lightning_stats = self._lightning_kernel.get_all_insight_outcome_stats()
+                stats['insight_outcome_tracking']['lightning'] = lightning_stats
+            except Exception:
+                pass
+
+        return stats
 
 
 _bridge_instance: Optional[PredictionFeedbackBridge] = None
@@ -402,5 +702,12 @@ def get_prediction_feedback_bridge() -> PredictionFeedbackBridge:
             _bridge_instance.wire_chain_manager(manager)
         except Exception as e:
             logger.warning(f"[PredictionFeedbackBridge] Could not wire chain manager: {e}")
-    
+
+        try:
+            from olympus.lightning_kernel import get_lightning_kernel
+            lightning = get_lightning_kernel()
+            _bridge_instance.wire_lightning(lightning)
+        except Exception as e:
+            logger.warning(f"[PredictionFeedbackBridge] Could not wire Lightning kernel: {e}")
+
     return _bridge_instance

@@ -237,6 +237,108 @@ class Zeus(BaseGod):
         except ImportError as e:
             print(f"⚠️ TEMPORAL REASONING not available: {e}")
 
+        # 🔗 WIRE: TemporalReasoning <-> Lightning bidirectional connection
+        self._wire_temporal_lightning_integration()
+
+        # 🔄 Domain sync interval tracking
+        self._last_domain_sync = 0.0
+        self._domain_sync_interval = 30.0  # Sync every 30 seconds
+
+    def _wire_temporal_lightning_integration(self) -> None:
+        """
+        Wire the bidirectional connection between TemporalReasoning and Lightning.
+
+        Direction 1: TemporalReasoning -> Lightning
+            Predictions from foresight() are sent to Lightning for cross-domain
+            pattern correlation via ingest_prediction().
+
+        Direction 2: Lightning -> TemporalReasoning
+            Discovered domains are periodically synced to TemporalReasoning
+            to inform attractor finding and prediction context.
+        """
+        if self.temporal_reasoning is None or self.lightning_kernel is None:
+            print("[Zeus] Cannot wire Temporal<->Lightning: one or both not available")
+            return
+
+        try:
+            # Direction 1: TemporalReasoning predictions -> Lightning
+            self.temporal_reasoning.set_lightning_callback(
+                self.lightning_kernel.ingest_prediction
+            )
+            print("[Zeus] Wired TemporalReasoning -> Lightning (predictions)")
+
+            # Direction 2: Initial domain sync from Lightning -> TemporalReasoning
+            self._sync_domains_to_temporal()
+            print("[Zeus] Wired Lightning -> TemporalReasoning (domains)")
+
+            print("🔗 TEMPORAL<->LIGHTNING bidirectional integration complete")
+
+        except Exception as e:
+            print(f"[Zeus] Temporal<->Lightning wiring failed: {e}")
+
+    def _sync_domains_to_temporal(self) -> None:
+        """
+        Sync discovered domains from Lightning to TemporalReasoning.
+
+        Called periodically to keep TemporalReasoning informed about
+        active domain patterns for improved attractor detection.
+        """
+        if self.temporal_reasoning is None or self.lightning_kernel is None:
+            return
+
+        try:
+            import time
+            current_time = time.time()
+
+            # Check if enough time has passed since last sync
+            if current_time - self._last_domain_sync < self._domain_sync_interval:
+                return
+
+            # Get discovered domains from Lightning
+            domains = self.lightning_kernel.get_discovered_domains()
+
+            if domains:
+                # Register with TemporalReasoning
+                self.temporal_reasoning.register_discovered_domains(domains)
+                self._last_domain_sync = current_time
+
+        except Exception as e:
+            print(f"[Zeus] Domain sync failed: {e}")
+
+    def periodic_domain_sync(self) -> Dict[str, Any]:
+        """
+        Public method to trigger domain sync between Lightning and TemporalReasoning.
+
+        Can be called from API endpoints or background tasks.
+
+        Returns:
+            Dict with sync status and domain count
+        """
+        if self.temporal_reasoning is None or self.lightning_kernel is None:
+            return {
+                'synced': False,
+                'reason': 'TemporalReasoning or Lightning not available'
+            }
+
+        try:
+            domains = self.lightning_kernel.get_discovered_domains()
+            self.temporal_reasoning.register_discovered_domains(domains)
+
+            import time
+            self._last_domain_sync = time.time()
+
+            return {
+                'synced': True,
+                'domains_synced': len(domains),
+                'timestamp': self._last_domain_sync
+            }
+
+        except Exception as e:
+            return {
+                'synced': False,
+                'reason': str(e)
+            }
+
     def speak(self, category: str, context: Optional[Dict] = None) -> str:
         """
         Generate DYNAMIC speech from Zeus based on actual system state.

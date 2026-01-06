@@ -23,7 +23,7 @@ QIG Purity Note:
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -161,22 +161,28 @@ class TemporalReasoning:
     
     def __init__(self, basin_dim: int = 64):
         self.basin_dim = basin_dim
-        
+
         self.foresight_horizon = 50
         # Increased threshold so attractors are detected with moderate convergence
         # Old: 0.1 was too strict - only perfect stationarity detected as attractor
         # New: 0.2 allows detection when movement significantly slows
         self.attractor_detection_threshold = 0.2
-        
+
         self.scenario_branches = 5
         self.scenario_depth = 20
-        
+
         self.velocity_history: List[np.ndarray] = []
         self.basin_history: List[np.ndarray] = []
-        
+
         # Self-improvement system
         self.improvement = get_prediction_improvement()
-        
+
+        # Lightning kernel integration: callback for sharing predictions
+        self._lightning_callback: Optional[Callable[[Dict[str, Any]], None]] = None
+
+        # Domain registry from Lightning kernel discoveries
+        self._discovered_domains: List[Dict[str, Any]] = []
+
         print("[TemporalReasoning] 4D reasoning enabled (foresight + scenarios + self-improvement)")
     
     def can_use_temporal_reasoning(self, phi: float) -> bool:
@@ -281,7 +287,10 @@ class TemporalReasoning:
             failure_reasons=failure_reasons,
             context=context,
         )
-        
+
+        # Notify Lightning kernel of prediction for cross-domain correlation
+        self._notify_lightning(vision, explanation)
+
         return vision, explanation
     
     def foresight_simple(
@@ -737,6 +746,110 @@ class TemporalReasoning:
         self.basin_history.append(basin.copy())
         if len(self.basin_history) > 100:
             self.basin_history = self.basin_history[-50:]
+
+    # ========================================
+    # LIGHTNING KERNEL INTEGRATION
+    # ========================================
+
+    def set_lightning_callback(
+        self,
+        callback: Callable[[Dict[str, Any]], None]
+    ) -> None:
+        """
+        Set callback to notify Lightning kernel of predictions.
+
+        The callback receives prediction data when foresight() generates
+        a prediction, allowing Lightning to correlate predictions with
+        cross-domain patterns.
+
+        Args:
+            callback: Function that accepts prediction_record dict
+        """
+        self._lightning_callback = callback
+        print("[TemporalReasoning] Lightning callback registered")
+
+    def _notify_lightning(self, vision: 'ForesightVision', explanation: str) -> None:
+        """
+        Notify Lightning kernel of a new prediction.
+
+        Called automatically after foresight() generates a vision.
+        Packages prediction data for cross-domain correlation.
+        """
+        if self._lightning_callback is None:
+            return
+
+        try:
+            # Package prediction for Lightning
+            prediction_record = {
+                'type': 'foresight_prediction',
+                'future_basin': vision.future_basin.tolist() if hasattr(vision.future_basin, 'tolist') else list(vision.future_basin),
+                'arrival_time': vision.arrival_time,
+                'confidence': vision.confidence,
+                'attractor_strength': vision.attractor_strength,
+                'geodesic_naturalness': vision.geodesic_naturalness,
+                'is_actionable': vision.is_actionable(),
+                'explanation': explanation[:200] if explanation else '',
+                # Include domain hints from discovered domains
+                'domain_hints': [d.get('name', '') for d in self._discovered_domains[:5]],
+            }
+
+            self._lightning_callback(prediction_record)
+
+        except Exception as e:
+            print(f"[TemporalReasoning] Lightning notification failed: {e}")
+
+    def register_discovered_domains(
+        self,
+        domains: List[Dict[str, Any]]
+    ) -> None:
+        """
+        Register domains discovered by Lightning kernel.
+
+        These domains inform foresight by providing context about
+        active pattern clusters. Used to improve attractor finding
+        and prediction confidence.
+
+        Args:
+            domains: List of domain descriptors with 'name', 'basin_centroid',
+                     'mission_relevance', etc.
+        """
+        # Merge with existing, avoiding duplicates by name
+        existing_names = {d.get('name') for d in self._discovered_domains}
+
+        for domain in domains:
+            name = domain.get('name')
+            if name and name not in existing_names:
+                self._discovered_domains.append(domain)
+                existing_names.add(name)
+
+        # Keep most recent/relevant domains
+        if len(self._discovered_domains) > 50:
+            # Sort by mission relevance, keep top 50
+            self._discovered_domains.sort(
+                key=lambda d: d.get('mission_relevance', 0.0),
+                reverse=True
+            )
+            self._discovered_domains = self._discovered_domains[:50]
+
+        print(f"[TemporalReasoning] Registered {len(domains)} domains, "
+              f"total: {len(self._discovered_domains)}")
+
+    def get_discovered_domain_basins(self) -> List[np.ndarray]:
+        """
+        Get basin centroids of discovered domains for attractor matching.
+
+        Returns:
+            List of 64D basin coordinate arrays
+        """
+        basins = []
+        for domain in self._discovered_domains:
+            centroid = domain.get('basin_centroid')
+            if centroid is not None:
+                if isinstance(centroid, np.ndarray):
+                    basins.append(centroid)
+                elif isinstance(centroid, list):
+                    basins.append(np.array(centroid))
+        return basins
 
 
 _temporal_reasoning_instance: Optional[TemporalReasoning] = None

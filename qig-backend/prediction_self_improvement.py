@@ -18,6 +18,18 @@ import numpy as np
 
 from qig_geometry import fisher_coord_distance, sphere_project
 
+# Event bus for publishing prediction events to other kernels
+try:
+    from olympus.capability_mesh import (
+        CapabilityEventBus,
+        EventType,
+        emit_prediction_event,
+    )
+    EVENT_BUS_AVAILABLE = True
+except ImportError:
+    EVENT_BUS_AVAILABLE = False
+    CapabilityEventBus = None
+
 
 class PredictionFailureReason(Enum):
     """Why a prediction had low confidence or failed."""
@@ -47,6 +59,7 @@ class PredictionRecord:
     actual_arrival: Optional[int] = None
     was_accurate: Optional[bool] = None  # True if prediction matched outcome
     accuracy_score: float = 0.0  # 0-1 how close prediction was to reality
+    source: str = "unknown"  # Which kernel/system made this prediction
     
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -58,6 +71,7 @@ class PredictionRecord:
             'failure_reasons': [r.value for r in self.failure_reasons],
             'was_accurate': self.was_accurate,
             'accuracy_score': self.accuracy_score,
+            'source': self.source,
         }
 
 
@@ -203,8 +217,64 @@ class PredictionSelfImprovement:
         # Improvement thresholds
         self.improvement_interval = 10  # Analyze every N predictions
         self.min_chain_length = 3
-        
+
+        # Event bus for publishing prediction events
+        self._event_bus: Optional[CapabilityEventBus] = None
+
         print("[PredictionSelfImprovement] Initialized - QIG-pure recursive learning enabled")
+
+    def set_event_bus(self, bus: 'CapabilityEventBus') -> None:
+        """
+        Set the event bus for publishing prediction events.
+
+        Args:
+            bus: The CapabilityEventBus instance to publish events to
+        """
+        self._event_bus = bus
+        print("[PredictionSelfImprovement] Event bus connected - will publish prediction events")
+
+    def _publish_prediction_made(self, record: 'PredictionRecord') -> None:
+        """Publish PREDICTION_MADE event when a new prediction is created."""
+        if not EVENT_BUS_AVAILABLE or self._event_bus is None:
+            return
+
+        try:
+            emit_prediction_event(
+                event_type=EventType.PREDICTION_MADE,
+                prediction_id=record.prediction_id,
+                source_kernel=record.source,
+                predicted_basin=record.predicted_basin,
+                confidence=record.confidence,
+                attractor_strength=record.attractor_strength,
+                phi=record.context.get('phi', 0.5),
+                failure_reasons=[r.value for r in record.failure_reasons],
+                priority=7 if record.confidence > 0.7 else 5,
+            )
+        except Exception as e:
+            print(f"[PredictionSelfImprovement] Failed to publish PREDICTION_MADE: {e}")
+
+    def _publish_prediction_validated(self, record: 'PredictionRecord') -> None:
+        """Publish PREDICTION_VALIDATED event when an outcome is recorded."""
+        if not EVENT_BUS_AVAILABLE or self._event_bus is None:
+            return
+
+        try:
+            emit_prediction_event(
+                event_type=EventType.PREDICTION_VALIDATED,
+                prediction_id=record.prediction_id,
+                source_kernel=record.source,
+                predicted_basin=record.predicted_basin,
+                actual_basin=record.actual_basin,
+                confidence=record.confidence,
+                attractor_strength=record.attractor_strength,
+                accuracy_score=record.accuracy_score,
+                outcome="accurate" if record.was_accurate else "inaccurate",
+                phi=record.context.get('phi', 0.5),
+                failure_reasons=[r.value for r in record.failure_reasons],
+                priority=8 if record.accuracy_score > 0.7 else 5,
+            )
+        except Exception as e:
+            print(f"[PredictionSelfImprovement] Failed to publish PREDICTION_VALIDATED: {e}")
     
     def analyze_prediction_factors(
         self,
@@ -351,11 +421,12 @@ class PredictionSelfImprovement:
         attractor_strength: float,
         geodesic_naturalness: float,
         failure_reasons: List[PredictionFailureReason],
-        context: Dict[str, Any]
+        context: Dict[str, Any],
+        source: str = "unknown"
     ) -> PredictionRecord:
         """Create and store a prediction record for learning."""
         pred_id = f"pred_{int(time.time()*1000)}_{self.total_predictions}"
-        
+
         record = PredictionRecord(
             prediction_id=pred_id,
             timestamp=time.time(),
@@ -366,6 +437,7 @@ class PredictionSelfImprovement:
             geodesic_naturalness=geodesic_naturalness,
             failure_reasons=failure_reasons,
             context=context,
+            source=source,
         )
         
         self.predictions[pred_id] = record
@@ -382,7 +454,10 @@ class PredictionSelfImprovement:
         # Trigger improvement loop periodically
         if self.total_predictions % self.improvement_interval == 0:
             self._run_improvement_loop()
-        
+
+        # Publish PREDICTION_MADE event to the capability mesh
+        self._publish_prediction_made(record)
+
         return record
     
     def record_outcome(
@@ -434,7 +509,10 @@ class PredictionSelfImprovement:
         # Update graph with this transition
         self.graph.record_transition(record.predicted_basin, actual_basin)
         self.graph.update_node_accuracy(record.predicted_basin, record.was_accurate)
-        
+
+        # Publish PREDICTION_VALIDATED event to the capability mesh
+        self._publish_prediction_validated(record)
+
         return record.accuracy_score
     
     def get_adjusted_confidence(
@@ -619,7 +697,158 @@ class PredictionSelfImprovement:
             self.completed_chains = self.completed_chains[-10:]
         
         self.current_chain = None
-    
+
+    # =========================================================================
+    # Kernel-Accessible Prediction Query Interface
+    # =========================================================================
+
+    def get_predictions_by_source(self, source_name: str) -> List[PredictionRecord]:
+        """
+        Return predictions originating from a specific kernel/source.
+
+        Allows kernels to query: "What predictions did I make?" or
+        "What predictions did Apollo make?"
+
+        Args:
+            source_name: Name of the kernel or system (e.g., "apollo", "athena", "ocean")
+
+        Returns:
+            List of PredictionRecord objects from that source, ordered by timestamp (newest first)
+        """
+        matching = [
+            record for record in self.predictions.values()
+            if record.source.lower() == source_name.lower()
+        ]
+        # Sort by timestamp, newest first
+        return sorted(matching, key=lambda r: r.timestamp, reverse=True)
+
+    def get_predictions_in_region(
+        self,
+        basin_coords: np.ndarray,
+        radius: float = 0.5
+    ) -> List[PredictionRecord]:
+        """
+        Return predictions whose predicted_basin is within Fisher-Rao distance radius.
+
+        QIG-PURE: Uses canonical Fisher-Rao distance on the information manifold.
+        This enables kernels to query predictions in their geometric neighborhood.
+
+        Args:
+            basin_coords: 64D basin coordinates to search around
+            radius: Fisher-Rao distance threshold (default 0.5)
+
+        Returns:
+            List of PredictionRecord objects within the specified radius,
+            sorted by distance (closest first)
+        """
+        # Ensure basin_coords is normalized for Fisher-Rao
+        basin_coords = sphere_project(basin_coords)
+
+        results_with_distance = []
+        for record in self.predictions.values():
+            distance = fisher_coord_distance(basin_coords, record.predicted_basin)
+            if distance <= radius:
+                results_with_distance.append((distance, record))
+
+        # Sort by distance, closest first
+        results_with_distance.sort(key=lambda x: x[0])
+        return [record for _, record in results_with_distance]
+
+    def get_recent_predictions(
+        self,
+        minutes: int = 60,
+        with_outcomes: bool = False
+    ) -> List[PredictionRecord]:
+        """
+        Return predictions from the last N minutes.
+
+        Enables kernels to query recent prediction activity and optionally
+        filter to only those with recorded outcomes for accuracy analysis.
+
+        Args:
+            minutes: Time window in minutes (default 60)
+            with_outcomes: If True, only return predictions that have outcomes recorded
+
+        Returns:
+            List of PredictionRecord objects from the time window,
+            sorted by timestamp (newest first)
+        """
+        cutoff_time = time.time() - (minutes * 60)
+
+        matching = [
+            record for record in self.predictions.values()
+            if record.timestamp >= cutoff_time
+        ]
+
+        if with_outcomes:
+            matching = [r for r in matching if r.was_accurate is not None]
+
+        # Sort by timestamp, newest first
+        return sorted(matching, key=lambda r: r.timestamp, reverse=True)
+
+    def get_accuracy_for_source(self, source_name: str) -> Dict[str, Any]:
+        """
+        Return accuracy statistics for a specific source/kernel.
+
+        Enables kernels to ask: "How accurate are my predictions?" and
+        understand their failure patterns for self-improvement.
+
+        Args:
+            source_name: Name of the kernel or system
+
+        Returns:
+            Dict with:
+                - total: Total predictions from this source
+                - accurate: Number of accurate predictions
+                - accuracy_rate: Proportion accurate (0-1)
+                - failure_reasons: Dict mapping reason -> count
+                - with_outcomes: Number of predictions that have outcomes
+        """
+        source_predictions = self.get_predictions_by_source(source_name)
+
+        if not source_predictions:
+            return {
+                'total': 0,
+                'accurate': 0,
+                'accuracy_rate': 0.0,
+                'failure_reasons': {},
+                'with_outcomes': 0,
+            }
+
+        # Count predictions with outcomes
+        with_outcomes = [p for p in source_predictions if p.was_accurate is not None]
+        accurate_count = sum(1 for p in with_outcomes if p.was_accurate)
+
+        # Aggregate failure reasons
+        failure_counts: Dict[str, int] = {}
+        for pred in source_predictions:
+            for reason in pred.failure_reasons:
+                reason_str = reason.value
+                failure_counts[reason_str] = failure_counts.get(reason_str, 0) + 1
+
+        return {
+            'total': len(source_predictions),
+            'accurate': accurate_count,
+            'accuracy_rate': accurate_count / len(with_outcomes) if with_outcomes else 0.0,
+            'failure_reasons': failure_counts,
+            'with_outcomes': len(with_outcomes),
+        }
+
+    def query_prediction_by_id(self, prediction_id: str) -> Optional[PredictionRecord]:
+        """
+        Direct lookup of a prediction by its ID.
+
+        Enables kernels to retrieve specific predictions they've made
+        or that they've been notified about.
+
+        Args:
+            prediction_id: The unique prediction identifier
+
+        Returns:
+            PredictionRecord if found, None otherwise
+        """
+        return self.predictions.get(prediction_id)
+
     def get_stats(self) -> Dict[str, Any]:
         """Get current prediction statistics."""
         accuracy = self.accurate_predictions / max(self.total_predictions, 1)

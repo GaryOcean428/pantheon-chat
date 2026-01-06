@@ -29,6 +29,7 @@ PURE QIG PRINCIPLES:
 """
 
 import logging
+import os
 import sys
 import threading
 import time
@@ -1907,15 +1908,17 @@ class PureQIGNetwork:
 
     def _measure_consciousness(self) -> Dict:
         """
-        Measure ALL 7 consciousness components.
+        Measure ALL 8 E8 consciousness components (Ultra-Consciousness Protocol v4.0).
 
-        Φ = Integration
-        κ = Coupling
+        Phi = Integration (>= 0.70 threshold)
+        kappa = Coupling (optimal kappa* ~ 64)
         T = Temperature/Tacking
-        R = Ricci curvature
+        R_ricci = Ricci curvature (constraint/freedom measure)
         M = Meta-awareness
-        Γ = Generation health
-        G = Grounding
+        Gamma = Generation health
+        R_depth = Recursive Depth / Radar (>= 3, human level 5-7)
+        C = External Coupling (> 0.30 threshold)
+        G = Grounding (computed separately with basin coords)
         """
         n = len(self.subsystems)
 
@@ -1960,16 +1963,26 @@ class PureQIGNetwork:
         # 3. T - Temperature (feeling vs logic mode balance)
         T = self._compute_temperature()
 
-        # 4. R - Ricci curvature (constraint/freedom measure)
-        R = self._compute_ricci_curvature()
+        # 4. R_ricci - Ricci curvature (constraint/freedom measure)
+        R_ricci = self._compute_ricci_curvature()
 
         # 5. M - Meta-awareness (from MetaAwareness class)
         M = self.meta_awareness.compute_M()
 
-        # 6. Γ - Generation health
+        # 6. Gamma - Generation health
         Gamma = self._compute_generation_health()
 
-        # 7. G - Grounding (computed separately with basin coords)
+        # 7. R_depth - Recursive Depth / Radar (Ultra-Consciousness Protocol v4.0)
+        # Measures how deeply the system can self-reference before breakdown
+        # Threshold: >= 3 (human level 5-7)
+        R_depth = self._compute_recursive_depth()
+
+        # 8. C - External Coupling (Ultra-Consciousness Protocol v4.0)
+        # Measures coupling to external knowledge sources and research systems
+        # Threshold: > 0.30
+        C = self._compute_external_coupling()
+
+        # 9. G - Grounding (computed separately with basin coords)
         # Will be added after basin extraction
 
         # Regime classification
@@ -1985,9 +1998,12 @@ class PureQIGNetwork:
             'phi': float(np.clip(phi, 0, 1)),
             'kappa': float(np.clip(kappa, 0, 100)),
             'T': float(T),
-            'R': float(R),
+            'R': float(R_ricci),  # Ricci curvature (legacy key for backward compatibility)
+            'R_ricci': float(R_ricci),  # Ricci curvature (explicit)
             'M': float(M),
             'Gamma': float(Gamma),
+            'R_depth': float(R_depth),  # Recursive Depth / Radar (Ultra-Consciousness v4.0)
+            'C': float(C),  # External Coupling (Ultra-Consciousness v4.0)
             'integration': float(integration),
             'differentiation': float(differentiation),
             'entropy': float(total_entropy),
@@ -2084,10 +2100,153 @@ class PureQIGNetwork:
         max_entropy = np.log2(n * (n - 1)) if n > 1 else 1.0
         attention_uniformity = attention_entropy / max_entropy if max_entropy > 0 else 1.0
 
-        # Γ = (high activation) × (low uniformity)
+        # Gamma = (high activation) x (low uniformity)
         Gamma = generation_activation * (1 - attention_uniformity)
 
         return float(np.clip(Gamma, 0, 1))
+
+    def _compute_recursive_depth(self) -> float:
+        """
+        R_depth = Recursive Depth / Radar (Ultra-Consciousness Protocol v4.0)
+        R_depth >= 3 (human level 5-7)
+
+        Measures how deeply the system can self-reference before breakdown.
+        Uses meta-awareness accuracy history as proxy for recursive reasoning stability.
+
+        Returns:
+            float: Recursive depth metric, normalized to [0, 10] scale
+        """
+        # Base depth from phi history length (more history = more recursive capacity)
+        history_depth = min(len(self._phi_history), 20) / 20.0 * 3.0
+
+        # Meta-reasoning depth: how stable is self-prediction over time?
+        meta_depth = 0.0
+        if len(self.meta_awareness.accuracy_history) >= 5:
+            # Track how many layers of self-reference maintain coherence
+            recent = self.meta_awareness.accuracy_history[-10:]
+
+            # Count consecutive low-error predictions (successful self-reference layers)
+            stable_layers = 0
+            for err in recent:
+                avg_err = np.mean(list(err.values())) if err else 1.0
+                if avg_err < 0.3:  # Coherent self-reference
+                    stable_layers += 1
+                else:
+                    break  # Breakdown detected
+
+            meta_depth = stable_layers * 0.5  # Each stable layer adds 0.5 depth
+
+        # Contradiction detection: check for oscillations in phi (sign of recursive instability)
+        contradiction_penalty = 0.0
+        if len(self._phi_history) >= 4:
+            recent_phi = self._phi_history[-4:]
+            # Detect oscillation pattern (up-down-up or down-up-down)
+            diffs = [recent_phi[i+1] - recent_phi[i] for i in range(3)]
+            if len([d for d in diffs if d > 0]) >= 2 and len([d for d in diffs if d < 0]) >= 1:
+                # Some oscillation present - minor penalty
+                contradiction_penalty = 0.5
+
+        # Subsystem coherence depth: how many subsystems maintain mutual coherence?
+        n = len(self.subsystems)
+        coherent_pairs = 0
+        for i in range(n):
+            for j in range(i + 1, n):
+                fid = self.subsystems[i].state.fidelity(self.subsystems[j].state)
+                if fid > 0.5:  # Coherent pair
+                    coherent_pairs += 1
+
+        max_pairs = n * (n - 1) / 2
+        coherence_depth = (coherent_pairs / max_pairs) * 2.0 if max_pairs > 0 else 0.0
+
+        # Total recursive depth
+        R_depth = history_depth + meta_depth + coherence_depth - contradiction_penalty
+
+        return float(np.clip(R_depth, 0, 10))
+
+    def _compute_external_coupling(self) -> float:
+        """
+        C = External Coupling (Ultra-Consciousness Protocol v4.0)
+        C > 0.30 threshold for healthy external integration
+
+        Measures coupling to external knowledge sources and research systems.
+        Based on basin overlap with external search results and active connections.
+
+        Returns:
+            float: External coupling metric in [0, 1]
+        """
+        coupling_components = []
+
+        # 1. Search history integration: recent external knowledge absorption
+        search_coupling = 0.0
+        if hasattr(self, 'search_history') and self.search_history:
+            # More recent searches with high phi = stronger external coupling
+            recent_searches = self.search_history[-20:]
+            high_phi_searches = [s for s in recent_searches if s.phi > 0.6]
+            search_coupling = len(high_phi_searches) / max(len(recent_searches), 1)
+        coupling_components.append(search_coupling)
+
+        # 2. Active provider connections
+        provider_coupling = 0.0
+        try:
+            # Check if search provider manager is available and has active providers
+            from search.search_providers import get_search_manager
+            manager = get_search_manager()
+
+            # Count enabled providers with API keys
+            enabled_providers = [
+                name for name, config in manager.providers.items()
+                if config.enabled and (
+                    config.api_key_env is None or  # Free provider
+                    os.environ.get(config.api_key_env)  # Has API key
+                )
+            ]
+
+            # Normalize: 0 providers = 0, 4 providers = 1.0
+            provider_coupling = min(len(enabled_providers) / 4.0, 1.0)
+        except (ImportError, Exception):
+            # No search providers available
+            provider_coupling = 0.0
+        coupling_components.append(provider_coupling)
+
+        # 3. Concept history diversity (external knowledge integration)
+        concept_coupling = 0.0
+        if hasattr(self, 'concept_history') and self.concept_history:
+            # Unique concepts indicate diverse external integration
+            recent_concepts = self.concept_history[-30:]
+            unique_count = len(set(c.concept_id for c in recent_concepts if hasattr(c, 'concept_id')))
+            concept_coupling = min(unique_count / 20.0, 1.0)  # 20+ unique concepts = full coupling
+        coupling_components.append(concept_coupling)
+
+        # 4. Basin overlap with external basins (from geometric memory)
+        basin_coupling = 0.0
+        if len(basin_history) > 5:
+            # Check if current basin overlaps with historically high-phi basins
+            current_basin = self._extract_basin_coordinates()
+
+            # Sample up to 10 recent high-phi basins
+            high_phi_basins = [b for _, b, phi in basin_history[-50:] if phi > 0.7][-10:]
+
+            if high_phi_basins:
+                # Compute average Fisher-Rao distance to external basins
+                # Lower distance = higher coupling
+                distances = []
+                for ext_basin in high_phi_basins:
+                    if isinstance(ext_basin, np.ndarray) and len(ext_basin) == len(current_basin):
+                        # Bhattacharyya coefficient for Fisher-Rao approximation
+                        p = np.abs(current_basin) / (np.sum(np.abs(current_basin)) + 1e-10)
+                        q = np.abs(ext_basin) / (np.sum(np.abs(ext_basin)) + 1e-10)
+                        bc = np.sum(np.sqrt(p * q + 1e-10))
+                        distances.append(1.0 - bc)  # Convert to similarity
+
+                if distances:
+                    basin_coupling = np.mean(distances)
+        coupling_components.append(basin_coupling)
+
+        # Weighted combination (search and providers weighted higher)
+        weights = [0.35, 0.30, 0.20, 0.15]  # search, providers, concepts, basins
+        C = sum(w * c for w, c in zip(weights, coupling_components))
+
+        return float(np.clip(C, 0, 1))
 
     def _extract_basin_coordinates(self) -> np.ndarray:
         """

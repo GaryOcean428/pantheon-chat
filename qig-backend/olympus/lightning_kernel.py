@@ -32,11 +32,14 @@ a sudden discharge (insight) connects previously disconnected domains.
 
 import numpy as np
 import hashlib
+import logging
 from typing import Dict, List, Optional, Any, Tuple, Set
 from dataclasses import dataclass, field
 from datetime import datetime
 from collections import deque, defaultdict
 from enum import Enum
+
+logger = logging.getLogger(__name__)
 
 try:
     from ..qig_geometry import fisher_rao_distance as centralized_fisher_rao
@@ -220,7 +223,18 @@ class LightningKernel(BaseGod):
         self.insights_generated = 0
         self.last_insight_time = 0.0
         self.domains_discovered = 0
-        
+
+        # Insight-Prediction outcome tracking
+        # Maps insight_id -> list of prediction_ids that used this insight
+        self.insight_to_predictions: Dict[str, List[str]] = defaultdict(list)
+        # Maps prediction_id -> list of insight_ids that influenced it
+        self.prediction_to_insights: Dict[str, List[str]] = defaultdict(list)
+        # Insight outcome records (insight_id -> InsightOutcomeRecord)
+        self._insight_outcome_records: Dict[str, Any] = {}
+        # Statistics for outcome tracking
+        self.insights_with_outcomes = 0
+        self.total_outcome_updates = 0
+
         # Insight validation (external search verification)
         if InsightValidator is not None:
             try:
@@ -976,6 +990,209 @@ class LightningKernel(BaseGod):
             'phi_trend': self.capability.phi_trajectory[-10:] if self.capability.phi_trajectory else [],
         }
     
+    def link_prediction_to_insight(self, prediction_id: str, insight_id: str) -> bool:
+        """
+        Link a prediction to an insight that influenced it.
+
+        This enables downstream outcome tracking: when the prediction outcome
+        is known, we can update the insight's validated_confidence.
+
+        Args:
+            prediction_id: The prediction being made
+            insight_id: The insight that influenced this prediction
+
+        Returns:
+            True if link was created, False if insight doesn't exist
+        """
+        # Find the insight (either in our list or outcome records)
+        insight_exists = (
+            any(i.insight_id == insight_id for i in self.insights) or
+            insight_id in self._insight_outcome_records
+        )
+
+        if not insight_exists:
+            # Check if it's a Lightning insight we should track
+            if not insight_id.startswith('lightning_'):
+                return False
+            # Create outcome record for new insight
+            self._ensure_outcome_record(insight_id)
+
+        # Create bidirectional mapping
+        self.insight_to_predictions[insight_id].append(prediction_id)
+        self.prediction_to_insights[prediction_id].append(insight_id)
+
+        logger.info(f"[Lightning] Linked prediction {prediction_id} to insight {insight_id}")
+        return True
+
+    def _ensure_outcome_record(self, insight_id: str) -> Any:
+        """
+        Ensure an InsightOutcomeRecord exists for the given insight.
+
+        Lazily imports InsightOutcomeRecord to avoid circular imports.
+        """
+        if insight_id not in self._insight_outcome_records:
+            try:
+                from prediction_feedback_bridge import InsightOutcomeRecord
+            except ImportError:
+                # Fallback: store as dict
+                self._insight_outcome_records[insight_id] = {
+                    'insight_id': insight_id,
+                    'prediction_ids': [],
+                    'accuracy_when_used': 0.0,
+                    'initial_confidence': 0.5,
+                    'validated_confidence': 0.5,
+                    'times_used': 0,
+                    'successful_uses': 0,
+                }
+                return self._insight_outcome_records[insight_id]
+
+            # Find the insight to get initial confidence
+            initial_confidence = 0.5
+            for insight in self.insights:
+                if insight.insight_id == insight_id:
+                    initial_confidence = insight.confidence
+                    break
+
+            self._insight_outcome_records[insight_id] = InsightOutcomeRecord(
+                insight_id=insight_id,
+                initial_confidence=initial_confidence,
+                validated_confidence=initial_confidence,
+            )
+            self.insights_with_outcomes += 1
+
+        return self._insight_outcome_records[insight_id]
+
+    def get_insights_for_prediction(self, prediction_id: str) -> List[str]:
+        """
+        Get all insight IDs that influenced a given prediction.
+
+        Args:
+            prediction_id: The prediction to look up
+
+        Returns:
+            List of insight IDs that influenced this prediction
+        """
+        return self.prediction_to_insights.get(prediction_id, [])
+
+    def get_predictions_for_insight(self, insight_id: str) -> List[str]:
+        """
+        Get all prediction IDs that were influenced by a given insight.
+
+        Args:
+            insight_id: The insight to look up
+
+        Returns:
+            List of prediction IDs influenced by this insight
+        """
+        return self.insight_to_predictions.get(insight_id, [])
+
+    def update_insight_confidence(
+        self,
+        insight_id: str,
+        prediction_id: str,
+        accuracy: float,
+        was_accurate: bool
+    ) -> Optional[float]:
+        """
+        Update an insight's validated confidence based on prediction outcome.
+
+        Called by PredictionFeedbackBridge when a prediction outcome is processed.
+        This closes the insight validation loop with empirical data.
+
+        Args:
+            insight_id: The insight to update
+            prediction_id: The prediction whose outcome we're recording
+            accuracy: The prediction accuracy score (0-1)
+            was_accurate: Whether the prediction was considered accurate
+
+        Returns:
+            New validated_confidence, or None if insight not found
+        """
+        outcome_record = self._ensure_outcome_record(insight_id)
+        self.total_outcome_updates += 1
+
+        # Handle dict fallback
+        if isinstance(outcome_record, dict):
+            outcome_record['prediction_ids'].append(prediction_id)
+            outcome_record['times_used'] += 1
+            if was_accurate:
+                outcome_record['successful_uses'] += 1
+
+            # Update running average
+            if outcome_record['times_used'] == 1:
+                outcome_record['accuracy_when_used'] = accuracy
+            else:
+                alpha = 0.3
+                outcome_record['accuracy_when_used'] = (
+                    alpha * accuracy + (1 - alpha) * outcome_record['accuracy_when_used']
+                )
+
+            # Update validated confidence
+            success_rate = outcome_record['successful_uses'] / outcome_record['times_used']
+            empirical_weight = min(0.8, outcome_record['times_used'] / 10.0)
+            outcome_record['validated_confidence'] = (
+                (1 - empirical_weight) * outcome_record['initial_confidence'] +
+                empirical_weight * success_rate
+            )
+            new_confidence = outcome_record['validated_confidence']
+        else:
+            # Use InsightOutcomeRecord's method
+            new_confidence = outcome_record.record_outcome(prediction_id, accuracy, was_accurate)
+
+        # Update the actual insight object if it exists
+        for insight in self.insights:
+            if insight.insight_id == insight_id:
+                old_confidence = insight.confidence
+                insight.confidence = new_confidence
+                logger.info(
+                    f"[Lightning] Updated insight {insight_id} confidence: "
+                    f"{old_confidence:.3f} -> {new_confidence:.3f} "
+                    f"(prediction {prediction_id}, accuracy={accuracy:.3f})"
+                )
+                break
+
+        return new_confidence
+
+    def get_insight_outcome_stats(self, insight_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get outcome statistics for a specific insight.
+
+        Args:
+            insight_id: The insight to get stats for
+
+        Returns:
+            Dict with outcome stats, or None if not tracked
+        """
+        if insight_id not in self._insight_outcome_records:
+            return None
+
+        record = self._insight_outcome_records[insight_id]
+        if isinstance(record, dict):
+            return record
+        return record.to_dict()
+
+    def get_all_insight_outcome_stats(self) -> Dict[str, Any]:
+        """
+        Get outcome tracking statistics for all insights.
+
+        Returns:
+            Summary dict with per-insight stats
+        """
+        stats = {
+            'total_insights_tracked': len(self._insight_outcome_records),
+            'total_outcome_updates': self.total_outcome_updates,
+            'insights_with_outcomes': self.insights_with_outcomes,
+            'insights': {}
+        }
+
+        for insight_id, record in self._insight_outcome_records.items():
+            if isinstance(record, dict):
+                stats['insights'][insight_id] = record
+            else:
+                stats['insights'][insight_id] = record.to_dict()
+
+        return stats
+
     def get_status(self) -> Dict:
         """Get current Lightning kernel status."""
         return {
@@ -992,7 +1209,170 @@ class LightningKernel(BaseGod):
             'correlations': self.get_correlations()[:10],
             'recent_insights': self.get_recent_insights(5),
             'capability_summary': self.get_capability_summary(),
+            'insight_outcome_tracking': {
+                'insights_tracked': len(self._insight_outcome_records),
+                'total_outcome_updates': self.total_outcome_updates,
+            },
         }
+
+    # ========================================
+    # TEMPORAL REASONING INTEGRATION
+    # ========================================
+
+    def ingest_prediction(self, prediction_record: Dict[str, Any]) -> Optional[CrossDomainInsight]:
+        """
+        Ingest a prediction from TemporalReasoning for cross-domain correlation.
+
+        Converts foresight predictions into DomainEvents for pattern detection.
+        This enables Lightning to correlate temporal predictions with other
+        domain events, potentially generating insights about prediction accuracy
+        or emerging patterns.
+
+        Args:
+            prediction_record: Dict containing:
+                - type: 'foresight_prediction'
+                - future_basin: List[float] - predicted destination
+                - arrival_time: int - steps to arrival
+                - confidence: float - prediction confidence
+                - attractor_strength: float
+                - geodesic_naturalness: float
+                - is_actionable: bool
+                - explanation: str
+                - domain_hints: List[str] - related domains
+
+        Returns:
+            CrossDomainInsight if correlation triggers insight, None otherwise
+        """
+        if not prediction_record:
+            return None
+
+        try:
+            # Extract prediction data
+            pred_type = prediction_record.get('type', 'unknown')
+            future_basin = prediction_record.get('future_basin')
+            confidence = prediction_record.get('confidence', 0.5)
+            attractor_strength = prediction_record.get('attractor_strength', 0.0)
+            is_actionable = prediction_record.get('is_actionable', False)
+            explanation = prediction_record.get('explanation', '')
+            domain_hints = prediction_record.get('domain_hints', [])
+
+            # Convert basin to numpy array if provided
+            basin_coords = None
+            if future_basin is not None:
+                basin_coords = np.array(future_basin) if isinstance(future_basin, list) else future_basin
+
+            # Compute effective Phi from prediction quality
+            # High confidence + high attractor strength = high Phi event
+            effective_phi = 0.5 + (0.3 * confidence) + (0.2 * attractor_strength)
+
+            # Build event content from prediction data
+            content_parts = [
+                f"prediction:{pred_type}",
+                f"conf={confidence:.3f}",
+                f"strength={attractor_strength:.3f}",
+            ]
+            if is_actionable:
+                content_parts.append("ACTIONABLE")
+            if explanation:
+                content_parts.append(explanation[:100])
+
+            content = "|".join(content_parts)
+
+            # Create domain event for the prediction
+            # Domain is 'temporal_prediction' unless hints suggest otherwise
+            primary_domain = 'temporal_prediction'
+            if domain_hints and len(domain_hints) > 0:
+                # Use first domain hint if available
+                primary_domain = domain_hints[0] if domain_hints[0] else 'temporal_prediction'
+
+            event = DomainEvent(
+                domain=primary_domain,
+                event_type='foresight_prediction',
+                content=content,
+                phi=effective_phi,
+                timestamp=datetime.now().timestamp(),
+                metadata={
+                    'source': 'temporal_reasoning',
+                    'confidence': confidence,
+                    'attractor_strength': attractor_strength,
+                    'is_actionable': is_actionable,
+                    'domain_hints': domain_hints,
+                },
+                basin_coords=basin_coords
+            )
+
+            # Ingest the event for cross-domain correlation
+            insight = self.ingest_event(event)
+
+            if insight:
+                print(f"[Lightning] Prediction triggered insight: {insight.insight_id}")
+
+            return insight
+
+        except Exception as e:
+            print(f"[Lightning] Prediction ingestion failed: {e}")
+            return None
+
+    def get_discovered_domains(self) -> List[Dict[str, Any]]:
+        """
+        Get list of discovered domains with their properties.
+
+        Returns domain descriptors that can be shared with TemporalReasoning
+        to inform foresight about active pattern clusters.
+
+        Returns:
+            List of domain descriptors with:
+                - name: str - domain identifier
+                - event_count: int - events seen in this domain
+                - avg_phi: float - average Phi for domain events
+                - mission_relevance: float - relevance to mission
+                - basin_centroid: Optional[List[float]] - average basin coords
+        """
+        domains = []
+
+        for domain_name in self.active_domains:
+            # Get trend data for this domain
+            trends = self.get_trend_analysis(domain_name)
+            short_trend = trends.get('short', {})
+
+            # Calculate average Phi from trend
+            avg_phi = short_trend.get('average_phi', 0.5)
+
+            # Get event count from buffers
+            domain_buffer = self.domain_buffers.get(domain_name, {})
+            short_buffer = domain_buffer.get(TrendTimescale.SHORT, [])
+            event_count = len(short_buffer)
+
+            # Compute basin centroid from recent events if available
+            basin_centroid = None
+            basins = []
+            for event in short_buffer:
+                if event.basin_coords is not None:
+                    basins.append(event.basin_coords)
+
+            if basins:
+                # Average basin coordinates using geometric mean (QIG-appropriate)
+                basin_stack = np.stack(basins)
+                basin_centroid = np.mean(basin_stack, axis=0).tolist()
+
+            # Get mission relevance from domain discovery
+            descriptor = self.domain_discovery.get_domain_descriptor(domain_name)
+            mission_relevance = descriptor.mission_relevance if descriptor else 0.0
+
+            domains.append({
+                'name': domain_name,
+                'event_count': event_count,
+                'avg_phi': avg_phi,
+                'mission_relevance': mission_relevance,
+                'basin_centroid': basin_centroid,
+                'trend': short_trend.get('trend', 'unknown'),
+                'velocity': short_trend.get('velocity', 0.0),
+            })
+
+        # Sort by mission relevance
+        domains.sort(key=lambda d: d.get('mission_relevance', 0.0), reverse=True)
+
+        return domains
 
 
 # Singleton instance

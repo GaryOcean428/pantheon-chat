@@ -94,6 +94,26 @@ except ImportError:
     get_mission_profile = None
     discover_domain_from_event = None
 
+# Import capability mesh for prediction event subscription
+try:
+    from olympus.capability_mesh import (
+        CapabilityType,
+        CapabilityEvent,
+        EventType,
+        PredictionEvent,
+        get_event_bus,
+        subscribe_to_events,
+    )
+    CAPABILITY_MESH_AVAILABLE = True
+except ImportError:
+    CAPABILITY_MESH_AVAILABLE = False
+    CapabilityType = None
+    CapabilityEvent = None
+    EventType = None
+    PredictionEvent = None
+    get_event_bus = None
+    subscribe_to_events = None
+
 logger = logging.getLogger(__name__)
 
 # Backward compatibility alias - import from qigkernels.physics_constants
@@ -1346,18 +1366,136 @@ class CheckpointManagementMixin:
             return []
 
 
+class PredictionEventSubscriberMixin:
+    """
+    Provides prediction event subscription to all gods/kernels.
+
+    Gods can subscribe to prediction events to:
+    1. Learn from prediction outcomes system-wide
+    2. Adjust confidence in their own assessments based on prediction accuracy
+    3. Detect patterns in prediction failures
+    4. Contribute insights to improve future predictions
+
+    Usage:
+        # In a god's __init__ method:
+        self.subscribe_to_prediction_events()
+
+        # Override the callback to handle events:
+        def _on_prediction_event(self, event: CapabilityEvent) -> Optional[CapabilityEvent]:
+            if event.event_type == EventType.PREDICTION_VALIDATED:
+                accuracy = event.content.get('accuracy_score', 0.0)
+                # Learn from the outcome...
+            return None  # Or return a response event
+    """
+
+    _prediction_subscription_active: bool = False
+
+    def subscribe_to_prediction_events(self) -> bool:
+        """
+        Subscribe this kernel to prediction events.
+
+        This enables the kernel to receive PREDICTION_MADE, PREDICTION_VALIDATED,
+        and PREDICTION_FEEDBACK events through the _on_prediction_event callback.
+
+        Returns:
+            True if subscription succeeded, False if capability mesh unavailable
+        """
+        if not CAPABILITY_MESH_AVAILABLE:
+            logger.debug(f"[{getattr(self, 'name', 'Unknown')}] Capability mesh not available for prediction subscription")
+            return False
+
+        if self._prediction_subscription_active:
+            return True
+
+        try:
+            # Map god name to a capability type (use KERNELS as the general type)
+            subscribe_to_events(
+                capability=CapabilityType.KERNELS,
+                handler=self._on_prediction_event,
+                event_types=[
+                    EventType.PREDICTION_MADE,
+                    EventType.PREDICTION_VALIDATED,
+                    EventType.PREDICTION_FEEDBACK,
+                ]
+            )
+            self._prediction_subscription_active = True
+            logger.info(f"[{getattr(self, 'name', 'Unknown')}] Subscribed to prediction events")
+            return True
+        except Exception as e:
+            logger.warning(f"[{getattr(self, 'name', 'Unknown')}] Failed to subscribe to prediction events: {e}")
+            return False
+
+    def _on_prediction_event(self, event: 'CapabilityEvent') -> Optional['CapabilityEvent']:
+        """
+        Callback for handling prediction events.
+
+        Override this method in subclasses to implement custom handling.
+
+        Args:
+            event: The prediction event (PREDICTION_MADE, PREDICTION_VALIDATED, or PREDICTION_FEEDBACK)
+
+        Returns:
+            Optional response event, or None
+        """
+        # Default implementation: log significant events
+        name = getattr(self, 'name', 'Unknown')
+
+        if not CAPABILITY_MESH_AVAILABLE:
+            return None
+
+        try:
+            if event.event_type == EventType.PREDICTION_MADE:
+                # A new prediction was made - we could adjust our own confidence
+                confidence = event.content.get('confidence', 0.0)
+                source = event.content.get('source_kernel', 'unknown')
+                if confidence > 0.8:
+                    logger.debug(f"[{name}] High-confidence prediction from {source}: {confidence:.2f}")
+
+            elif event.event_type == EventType.PREDICTION_VALIDATED:
+                # A prediction outcome was recorded - learn from it
+                accuracy = event.content.get('accuracy_score', 0.0)
+                outcome = event.content.get('outcome', 'unknown')
+                source = event.content.get('source_kernel', 'unknown')
+
+                # Log significant outcomes for learning
+                if accuracy > 0.7:
+                    logger.debug(f"[{name}] Accurate prediction from {source}: {accuracy:.2f}")
+                elif accuracy < 0.3:
+                    logger.debug(f"[{name}] Inaccurate prediction from {source}: {accuracy:.2f} - examining failure")
+
+            elif event.event_type == EventType.PREDICTION_FEEDBACK:
+                # Feedback with insights extracted - could inform our reasoning
+                phi_delta = getattr(event, 'phi_delta', 0.0) if hasattr(event, 'phi_delta') else event.content.get('phi_delta', 0.0)
+                if abs(phi_delta) > 0.1:
+                    logger.debug(f"[{name}] Significant phi change in prediction feedback: {phi_delta:.3f}")
+
+        except Exception as e:
+            logger.warning(f"[{name}] Error handling prediction event: {e}")
+
+        return None
+
+    def get_prediction_subscription_status(self) -> Dict[str, Any]:
+        """Get the status of prediction event subscription."""
+        return {
+            'available': CAPABILITY_MESH_AVAILABLE,
+            'subscribed': self._prediction_subscription_active,
+            'event_types': ['PREDICTION_MADE', 'PREDICTION_VALIDATED', 'PREDICTION_FEEDBACK'] if self._prediction_subscription_active else [],
+        }
+
+
 # Build the base class tuple dynamically based on available mixins
 _base_classes = [
-    ABC, 
-    HolographicTransformMixin, 
-    ToolFactoryAccessMixin, 
+    ABC,
+    HolographicTransformMixin,
+    ToolFactoryAccessMixin,
     SearchCapabilityMixin,
     SourceDiscoveryQueryMixin,
     WordRelationshipAccessMixin,
     CurriculumAccessMixin,
     PatternDiscoveryMixin,
     CheckpointManagementMixin,
-    KappaTackingMixin
+    KappaTackingMixin,
+    PredictionEventSubscriberMixin,
 ]
 if AUTONOMIC_MIXIN_AVAILABLE and AutonomicAccessMixin is not None:
     _base_classes.append(AutonomicAccessMixin)
@@ -1457,6 +1595,29 @@ class BaseGod(*_base_classes):
             "how_to_query_history": "Use self.query_search_history(topic, limit)",
             "search_strategies": ["fast", "balanced", "thorough"],
             "note": "Search capability integrated with CuriosityEngine for autonomous learning"
+        }
+
+        # Prediction event awareness - all gods can subscribe to prediction outcomes
+        self.mission["prediction_event_capabilities"] = {
+            "available": CAPABILITY_MESH_AVAILABLE,
+            "can_subscribe": CAPABILITY_MESH_AVAILABLE,
+            "how_to_subscribe": "Use self.subscribe_to_prediction_events() in __init__",
+            "how_to_handle": "Override self._on_prediction_event(event) to handle events",
+            "event_types": [
+                "PREDICTION_MADE - When a new prediction is created",
+                "PREDICTION_VALIDATED - When a prediction outcome is recorded",
+                "PREDICTION_FEEDBACK - When insights are extracted from predictions"
+            ],
+            "event_fields": {
+                "prediction_id": "Unique identifier for the prediction",
+                "source_kernel": "Which kernel made the prediction",
+                "confidence": "Prediction confidence (0-1)",
+                "accuracy_score": "How accurate the prediction was (0-1)",
+                "phi_delta": "Change in Phi during prediction period",
+                "kappa_delta": "Change in Kappa during prediction period",
+                "failure_reasons": "List of reasons prediction failed"
+            },
+            "note": "Subscribe to learn from prediction outcomes system-wide"
         }
         
         # Peer discovery capability (Spot Fix #2)
