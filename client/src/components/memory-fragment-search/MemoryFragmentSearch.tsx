@@ -10,6 +10,7 @@ import { ConsciousnessStatusPanel } from './ConsciousnessStatusPanel';
 import { ResonanceChart } from './ResonanceChart';
 import { useConsciousnessStatus } from './hooks/useConsciousnessStatus';
 import { SEARCH_CONSTANTS } from './constants';
+import { post } from '@/api';
 import type { SearchFormState, SearchResult, ResonanceDataPoint, MemoryFragment } from './types';
 
 interface MemoryFragmentSearchProps {
@@ -17,15 +18,7 @@ interface MemoryFragmentSearchProps {
 }
 
 const searchFragments = async (params: SearchFormState): Promise<SearchResult> => {
-  const response = await fetch('/api/memory/search', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(params),
-  });
-  if (!response.ok) {
-    throw new Error('Search failed');
-  }
-  return response.json();
+  return post<SearchResult>('/api/memory/search', params);
 };
 
 export function MemoryFragmentSearch({ onFragmentSelect }: MemoryFragmentSearchProps) {

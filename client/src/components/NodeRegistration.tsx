@@ -7,15 +7,28 @@
 
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Button,
+  Input,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Badge,
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from '@/components/ui';
 import { useToast } from '@/hooks/use-toast';
 import { Copy, Key, CheckCircle2, AlertTriangle, Globe, Bot, Server } from 'lucide-react';
+import { post } from '@/api';
 
 interface RegistrationResult {
   success: boolean;
@@ -36,18 +49,12 @@ export function NodeRegistration() {
 
   const registerMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch('/api/federation/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          node_name: nodeName,
-          node_type: nodeType,
-          capabilities,
-          endpoint_url: endpointUrl || undefined
-        })
+      return post<RegistrationResult>('/api/federation/register', {
+        node_name: nodeName,
+        node_type: nodeType,
+        capabilities,
+        endpoint_url: endpointUrl || undefined
       });
-      if (!response.ok) throw new Error('Registration failed');
-      return response.json();
     },
     onSuccess: (data: RegistrationResult) => {
       setRegistrationResult(data);

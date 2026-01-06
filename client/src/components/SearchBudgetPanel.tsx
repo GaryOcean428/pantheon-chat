@@ -1,14 +1,20 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { API_ROUTES } from "@/api/routes";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Switch,
+  Label,
+  Input,
+  Button,
+  Badge,
+  Progress,
+  Skeleton,
+} from "@/components/ui";
 import { useToast } from "@/hooks/use-toast";
 import { Search, AlertTriangle, CheckCircle2, DollarSign, Zap, Globe, Brain, RefreshCw } from "lucide-react";
 import { useState } from "react";

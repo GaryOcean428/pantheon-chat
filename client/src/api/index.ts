@@ -23,7 +23,7 @@
 export { API_ROUTES, QUERY_KEYS } from './routes';
 
 // HTTP client utilities
-export { get, post, del, put, patch } from './client';
+export { get, post, del, put, patch, postMultipart } from './client';
 
 // Service modules
 import * as ocean from './services/ocean';

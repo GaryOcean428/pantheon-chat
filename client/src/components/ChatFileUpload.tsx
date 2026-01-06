@@ -2,7 +2,8 @@ import { useState, useCallback, useRef } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { Button, Badge, Checkbox, Progress } from '@/components/ui';
 import { Upload, FileText, CheckCircle2, XCircle, Loader2, X, BookOpen } from 'lucide-react';
-import { apiRequest, queryClient } from '@/lib/queryClient';
+import { queryClient } from '@/lib/queryClient';
+import { postMultipart, API_ROUTES } from '@/api';
 import type { ChatUploadResult } from '@shared/schema';
 
 interface ChatFileUploadProps {
@@ -23,17 +24,7 @@ export function ChatFileUpload({ onContentReady, compact = false }: ChatFileUplo
       formData.append('file', file);
       formData.append('add_to_curriculum', addToCurriculum.toString());
 
-      const response = await fetch('/api/uploads/chat', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Upload failed');
-      }
-
-      return response.json();
+      return postMultipart<ChatUploadResult>(API_ROUTES.uploads.chat, formData);
     },
     onSuccess: (data) => {
       setResult(data);

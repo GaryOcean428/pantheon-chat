@@ -173,6 +173,12 @@ class PredictionFeedbackBridge:
         self.insight_outcomes: Dict[str, InsightOutcomeRecord] = {}
         self.total_insight_updates = 0
 
+        # Chain reinforcement tracking
+        self.total_chains_reinforced = 0
+        self.total_steps_reinforced = 0
+        self._reinforcement_interval = 10  # Reinforce every N predictions
+        self._last_reinforcement_count = 0
+
         self._tps_system = None
         self._training_integrator = None
         self._chain_manager = None
@@ -352,6 +358,18 @@ class PredictionFeedbackBridge:
         )
         result['insight_updates'] = insight_updates
 
+        # Update associated chain's accuracy (chain-to-attractor feedback)
+        chain_update = self._update_chain_accuracy(
+            prediction_id=prediction_id,
+            accuracy_score=accuracy_score,
+        )
+        result['chain_update'] = chain_update
+
+        # Periodically reinforce successful chains
+        reinforcement_result = self._maybe_reinforce_chains()
+        if reinforcement_result:
+            result['reinforcement'] = reinforcement_result
+
         return result
 
     def _update_insight_outcomes(
@@ -420,6 +438,83 @@ class PredictionFeedbackBridge:
 
         return updates
 
+    def _update_chain_accuracy(
+        self,
+        prediction_id: str,
+        accuracy_score: float,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Update accuracy of chains associated with this prediction.
+
+        Args:
+            prediction_id: ID of the prediction
+            accuracy_score: Accuracy score (0.0 to 1.0)
+
+        Returns:
+            Dict with update results or None if no chains updated
+        """
+        if not self._chain_manager:
+            return None
+
+        # Update chain accuracy via the manager
+        chain_id = self._chain_manager.record_prediction_outcome_for_chain(
+            prediction_id=prediction_id,
+            accuracy=accuracy_score,
+        )
+
+        if chain_id:
+            # Get the updated chain for logging
+            chain = self._chain_manager.get_chain(chain_id) or \
+                    self._chain_manager._get_completed_chain(chain_id)
+
+            if chain:
+                logger.info(
+                    f"[PredictionFeedbackBridge] Updated chain {chain_id} "
+                    f"accuracy to {chain.overall_accuracy:.3f} based on prediction {prediction_id}"
+                )
+                return {
+                    'chain_id': chain_id,
+                    'prediction_id': prediction_id,
+                    'accuracy': accuracy_score,
+                    'chain_overall_accuracy': chain.overall_accuracy,
+                }
+
+        return None
+
+    def _maybe_reinforce_chains(self) -> Optional[Dict[str, Any]]:
+        """
+        Periodically reinforce successful chains.
+
+        Called after processing each prediction outcome.
+        Triggers reinforcement every N predictions.
+
+        Returns:
+            Reinforcement result dict or None if not triggered
+        """
+        # Check if we should reinforce
+        predictions_since_last = self.total_predictions_processed - self._last_reinforcement_count
+
+        if predictions_since_last < self._reinforcement_interval:
+            return None
+
+        # Time to reinforce
+        self._last_reinforcement_count = self.total_predictions_processed
+
+        result = self.reinforce_successful_chains(min_accuracy=0.7)
+
+        if result.get('status') == 'success':
+            self.total_chains_reinforced += result.get('chains_reinforced', 0)
+            self.total_steps_reinforced += result.get('steps_reinforced', 0)
+
+            logger.info(
+                f"[PredictionFeedbackBridge] Periodic reinforcement: "
+                f"{result.get('chains_reinforced', 0)} chains, "
+                f"{result.get('steps_reinforced', 0)} steps (total: {self.total_chains_reinforced} chains, "
+                f"{self.total_steps_reinforced} steps)"
+            )
+
+        return result
+
     def link_insight_to_prediction(self, insight_id: str, prediction_id: str) -> bool:
         """
         Link an insight to a prediction it influenced.
@@ -473,6 +568,140 @@ class PredictionFeedbackBridge:
             stats['lightning_stats'] = lightning_stats
 
         return stats
+
+    def reinforce_successful_chains(self, min_accuracy: float = 0.7) -> Dict[str, Any]:
+        """
+        Reinforce chains that led to accurate predictions.
+
+        This closes the chain-to-attractor feedback loop by feeding high-value
+        reasoning steps back into kernel training.
+
+        Args:
+            min_accuracy: Minimum overall_accuracy to consider a chain successful
+
+        Returns:
+            Dict with reinforcement statistics
+        """
+        if not self._chain_manager:
+            logger.warning("[PredictionFeedbackBridge] Chain manager not wired for reinforcement")
+            return {'status': 'not_wired', 'chains_reinforced': 0}
+
+        if not self._training_integrator:
+            logger.warning("[PredictionFeedbackBridge] Training integrator not wired for reinforcement")
+            return {'status': 'training_not_wired', 'chains_reinforced': 0}
+
+        # Get completed chains with high accuracy
+        successful_chains = self._chain_manager.get_successful_chains(min_accuracy)
+
+        chains_reinforced = 0
+        steps_reinforced = 0
+        training_results = []
+
+        for chain in successful_chains:
+            # Extract key reasoning steps (high curvature, high confidence, large leaps)
+            key_steps = chain.get_key_steps()
+
+            for step in key_steps:
+                # Feed each key step to training integrator as positive example
+                try:
+                    # Determine source kernel (from metadata or default to 'chain')
+                    source = step.metadata.get('source', 'chain')
+                    if not source:
+                        source = 'chain'
+
+                    # Build basin trajectory from this step
+                    basin_trajectory = None
+                    if isinstance(step.basin, np.ndarray):
+                        basin_trajectory = [step.basin.tolist()]
+
+                    # Train from outcome with high success signal
+                    result = self._training_integrator.train_from_outcome(
+                        god_name=source,
+                        prompt=f"chain_step_{chain.chain_id}_{step.step}",
+                        response=step.thought[:200] if step.thought else "",
+                        success=True,  # Positive reinforcement
+                        phi=step.metadata.get('phi', 0.7),
+                        kappa=step.metadata.get('kappa', 64.0),
+                        basin_trajectory=basin_trajectory,
+                        coherence_score=step.confidence,
+                    )
+
+                    if result and result.get('status') == 'success':
+                        steps_reinforced += 1
+                        training_results.append({
+                            'chain_id': chain.chain_id,
+                            'step': step.step,
+                            'curvature': step.curvature,
+                            'confidence': step.confidence,
+                        })
+
+                except Exception as e:
+                    logger.warning(
+                        f"[PredictionFeedbackBridge] Failed to reinforce step {step.step} "
+                        f"from chain {chain.chain_id}: {e}"
+                    )
+
+            if key_steps:
+                chains_reinforced += 1
+
+        logger.info(
+            f"[PredictionFeedbackBridge] Reinforced {steps_reinforced} steps "
+            f"from {chains_reinforced} successful chains"
+        )
+
+        return {
+            'status': 'success',
+            'chains_reinforced': chains_reinforced,
+            'steps_reinforced': steps_reinforced,
+            'min_accuracy': min_accuracy,
+            'training_results': training_results[:20],  # Limit for response size
+        }
+
+    def get_successful_chain_patterns(self, min_accuracy: float = 0.7) -> List[Dict[str, Any]]:
+        """
+        Get patterns from successful chains for analysis.
+
+        Extracts pattern information from high-accuracy chains to understand
+        what reasoning approaches work well.
+
+        Args:
+            min_accuracy: Minimum overall_accuracy threshold
+
+        Returns:
+            List of pattern dictionaries with chain analysis
+        """
+        if not self._chain_manager:
+            return []
+
+        successful_chains = self._chain_manager.get_successful_chains(min_accuracy)
+
+        patterns = []
+        for chain in successful_chains:
+            try:
+                pattern_info = chain.detect_pattern()
+                key_steps = chain.get_key_steps()
+
+                patterns.append({
+                    'chain_id': chain.chain_id,
+                    'pattern': pattern_info,
+                    'key_steps': [
+                        {
+                            'step': s.step,
+                            'thought': s.thought[:100] if s.thought else "",
+                            'curvature': s.curvature,
+                            'distance': s.distance_from_prev,
+                            'confidence': s.confidence,
+                        }
+                        for s in key_steps
+                    ],
+                    'accuracy': chain.overall_accuracy,
+                    'total_steps': len(chain.thought_chain),
+                    'problem_context': chain.problem_context[:200] if chain.problem_context else "",
+                })
+            except Exception as e:
+                logger.warning(f"[PredictionFeedbackBridge] Error extracting pattern from chain: {e}")
+
+        return patterns
 
     def _extract_insights_from_prediction(
         self,
@@ -660,6 +889,13 @@ class PredictionFeedbackBridge:
                 'total_insight_updates': self.total_insight_updates,
                 'tracked_insights': len(self.insight_outcomes),
             },
+            'chain_reinforcement': {
+                'total_chains_reinforced': self.total_chains_reinforced,
+                'total_steps_reinforced': self.total_steps_reinforced,
+                'reinforcement_interval': self._reinforcement_interval,
+                'predictions_until_next': max(0, self._reinforcement_interval -
+                    (self.total_predictions_processed - self._last_reinforcement_count)),
+            },
         }
 
         # Add Lightning kernel stats if available
@@ -667,6 +903,14 @@ class PredictionFeedbackBridge:
             try:
                 lightning_stats = self._lightning_kernel.get_all_insight_outcome_stats()
                 stats['insight_outcome_tracking']['lightning'] = lightning_stats
+            except Exception:
+                pass
+
+        # Add chain manager stats if available
+        if self._chain_manager is not None:
+            try:
+                chain_stats = self._chain_manager.get_summary()
+                stats['chain_manager'] = chain_stats
             except Exception:
                 pass
 

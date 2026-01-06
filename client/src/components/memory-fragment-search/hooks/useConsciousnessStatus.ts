@@ -4,14 +4,11 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { SEARCH_CONSTANTS } from '../constants';
+import { get } from '@/api';
 import type { ConsciousnessStatus } from '../types';
 
 const fetchConsciousnessStatus = async (): Promise<ConsciousnessStatus> => {
-  const response = await fetch('/api/consciousness/status');
-  if (!response.ok) {
-    throw new Error('Failed to fetch consciousness status');
-  }
-  return response.json();
+  return get<ConsciousnessStatus>('/api/consciousness/status');
 };
 
 export function useConsciousnessStatus() {

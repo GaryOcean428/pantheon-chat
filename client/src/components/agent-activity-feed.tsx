@@ -1,9 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState, useCallback } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Badge,
+  ScrollArea,
+  Button,
+} from "@/components/ui";
 import { 
   Search, 
   Globe, 

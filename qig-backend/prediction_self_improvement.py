@@ -221,6 +221,18 @@ class PredictionSelfImprovement:
         # Event bus for publishing prediction events
         self._event_bus: Optional[CapabilityEventBus] = None
 
+        # Meta-learning state for adaptive parameter adjustment
+        # These parameters are adjusted based on failure pattern analysis
+        self._meta_learning_state: Dict[str, Any] = {
+            'velocity_smoothing': 1.0,      # Multiplier for velocity smoothing (higher = more smoothing)
+            'search_radius': 0.5,           # Radius for attractor search (Fisher-Rao distance)
+            'trajectory_length': 20,        # Target trajectory length for predictions
+            'geodesic_weight': 1.0,         # Weight for geodesic smoothness in confidence
+            'adjustments_made': 0,          # Total number of parameter adjustments
+            'last_adjustment': None,        # Timestamp of last adjustment
+            'adjustment_history': [],       # History of adjustments for analysis
+        }
+
         print("[PredictionSelfImprovement] Initialized - QIG-pure recursive learning enabled")
 
     def set_event_bus(self, bus: 'CapabilityEventBus') -> None:
@@ -307,22 +319,30 @@ class PredictionSelfImprovement:
             context['trajectory_issue'] = f"Only {traj_len} steps (need 10+ for reliable prediction)"
         
         # 3. Analyze velocity stability - DIRECTIONAL variance, not just magnitude
+        # Apply meta-learned velocity_smoothing to adjust threshold
+        velocity_smoothing = self._meta_learning_state['velocity_smoothing']
         if len(velocity_history) >= 3:
             recent_velocities = velocity_history[-5:]
-            
+
             directional_variance = self._compute_directional_variance(recent_velocities)
             magnitude_variance = np.var([np.linalg.norm(v) for v in recent_velocities])
-            
+
             vel_variance = 0.7 * directional_variance + 0.3 * magnitude_variance
-            
+
             context['velocity_variance'] = float(vel_variance)
             context['directional_variance'] = float(directional_variance)
             context['magnitude_variance'] = float(magnitude_variance)
-            
+            context['velocity_smoothing_applied'] = velocity_smoothing
+
             # Increased threshold from 0.1 to 0.25 for more lenient velocity stability
-            if vel_variance > 0.25:
+            # META-LEARNING: velocity_smoothing > 1.0 raises the threshold, making us more
+            # tolerant of velocity variance (because we're smoothing it downstream)
+            adjusted_threshold = 0.25 * velocity_smoothing
+            if vel_variance > adjusted_threshold:
                 reasons.append(PredictionFailureReason.UNSTABLE_VELOCITY)
-                context['velocity_issue'] = f"High velocity variance ({vel_variance:.3f}) - directional: {directional_variance:.3f}, magnitude: {magnitude_variance:.3f}"
+                context['velocity_issue'] = (f"High velocity variance ({vel_variance:.3f}) exceeds "
+                                            f"threshold {adjusted_threshold:.3f} - directional: "
+                                            f"{directional_variance:.3f}, magnitude: {magnitude_variance:.3f}")
         else:
             reasons.append(PredictionFailureReason.SPARSE_HISTORY)
             context['velocity_issue'] = f"Only {len(velocity_history)} velocity samples (need 3+ for stable estimate)"
@@ -424,14 +444,44 @@ class PredictionSelfImprovement:
         context: Dict[str, Any],
         source: str = "unknown"
     ) -> PredictionRecord:
-        """Create and store a prediction record for learning."""
+        """
+        Create and store a prediction record for learning.
+
+        Applies meta-learning adjustments to confidence based on learned parameters:
+        - geodesic_weight: Adjusts how much geodesic smoothness affects confidence
+        - velocity_smoothing/search_radius: Stored in context for callers to use
+        """
         pred_id = f"pred_{int(time.time()*1000)}_{self.total_predictions}"
+
+        # Apply meta-learned geodesic weight to confidence
+        # Higher geodesic_weight means geodesic_naturalness matters more
+        meta = self._meta_learning_state
+        geodesic_weight = meta['geodesic_weight']
+
+        # Adjust confidence based on meta-learned geodesic importance
+        # Base confidence already incorporates geodesic_naturalness, but we can
+        # further penalize low naturalness when geodesic_weight has been increased
+        adjusted_confidence = confidence
+        if geodesic_weight > 1.0 and geodesic_naturalness < 0.5:
+            # Reduce confidence more aggressively for bumpy geodesics
+            penalty = (1.0 - geodesic_naturalness) * (geodesic_weight - 1.0) * 0.1
+            adjusted_confidence = max(0.1, confidence - penalty)
+
+        # Store meta-learning parameters in context for downstream use
+        context['meta_learning'] = {
+            'velocity_smoothing': meta['velocity_smoothing'],
+            'search_radius': meta['search_radius'],
+            'trajectory_length': meta['trajectory_length'],
+            'geodesic_weight': geodesic_weight,
+            'confidence_adjusted': adjusted_confidence != confidence,
+            'original_confidence': confidence if adjusted_confidence != confidence else None,
+        }
 
         record = PredictionRecord(
             prediction_id=pred_id,
             timestamp=time.time(),
             predicted_basin=predicted_basin.copy(),
-            confidence=confidence,
+            confidence=adjusted_confidence,
             arrival_time=arrival_time,
             attractor_strength=attractor_strength,
             geodesic_naturalness=geodesic_naturalness,
@@ -671,8 +721,15 @@ class PredictionSelfImprovement:
             if count / total_recent > 0.5:
                 # This failure reason is dominant
                 print(f"[PredictionImprovement] Dominant failure: {reason.value} ({count}/{total_recent})")
-        
-        # 4. Complete and archive chain if long enough
+
+        # 4. RUN META-LEARNING: Adjust parameters based on failure patterns
+        # This is the core recursive self-improvement mechanism
+        adjustment_result = self._adjust_parameters_from_failures()
+        if adjustment_result.get('adjustments'):
+            print(f"[PredictionImprovement] Meta-learning made {len(adjustment_result['adjustments'])} "
+                  f"parameter adjustments based on failure analysis")
+
+        # 5. Complete and archive chain if long enough
         if self.current_chain and len(self.current_chain.links) >= 10:
             self._finalize_chain()
     
@@ -691,12 +748,162 @@ class PredictionSelfImprovement:
             )
         
         self.completed_chains.append(self.current_chain)
-        
+
         # Keep only recent chains
         if len(self.completed_chains) > 20:
             self.completed_chains = self.completed_chains[-10:]
-        
+
         self.current_chain = None
+
+    def _adjust_parameters_from_failures(self) -> Dict[str, Any]:
+        """
+        Adapt prediction parameters based on dominant failure reasons.
+
+        QIG-PURE META-LEARNING: Analyzes the distribution of failure reasons
+        and adjusts geometric parameters to reduce future failures.
+
+        Returns:
+            Dict describing what adjustments were made (for logging/debugging)
+        """
+        stats = self.get_stats()
+        failure_counts = stats.get('failure_reasons', {})
+        total_failures = sum(failure_counts.values())
+
+        if total_failures == 0:
+            return {'adjustments': [], 'reason': 'no_failures_to_analyze'}
+
+        adjustments_made = []
+        meta = self._meta_learning_state
+
+        # Calculate failure proportions
+        unstable_velocity_pct = failure_counts.get('unstable_velocity', 0) / total_failures
+        no_attractor_pct = failure_counts.get('no_attractor_found', 0) / total_failures
+        bumpy_geodesic_pct = failure_counts.get('bumpy_geodesic', 0) / total_failures
+        sparse_history_pct = failure_counts.get('sparse_history', 0) / total_failures
+        short_trajectory_pct = failure_counts.get('short_trajectory', 0) / total_failures
+
+        # Adjustment 1: UNSTABLE_VELOCITY dominates (>30%) - increase smoothing
+        # High velocity variance indicates erratic movement - smooth it out
+        if unstable_velocity_pct > 0.3:
+            old_smoothing = meta['velocity_smoothing']
+            # Increase smoothing by 10%, cap at 3.0 to prevent over-smoothing
+            meta['velocity_smoothing'] = min(3.0, meta['velocity_smoothing'] * 1.1)
+            adjustments_made.append({
+                'parameter': 'velocity_smoothing',
+                'reason': 'UNSTABLE_VELOCITY',
+                'proportion': unstable_velocity_pct,
+                'old_value': old_smoothing,
+                'new_value': meta['velocity_smoothing'],
+            })
+
+        # Adjustment 2: NO_ATTRACTOR_FOUND dominates (>40%) - widen search, extend trajectory
+        # Can't find attractors means we need to look harder and longer
+        if no_attractor_pct > 0.4:
+            old_radius = meta['search_radius']
+            old_length = meta['trajectory_length']
+            # Widen search radius by 20%, cap at 2.0 (large geometric neighborhood)
+            meta['search_radius'] = min(2.0, meta['search_radius'] * 1.2)
+            # Extend trajectory by 5 steps, cap at 50
+            meta['trajectory_length'] = min(50, meta['trajectory_length'] + 5)
+            adjustments_made.append({
+                'parameter': 'search_radius',
+                'reason': 'NO_ATTRACTOR_FOUND',
+                'proportion': no_attractor_pct,
+                'old_value': old_radius,
+                'new_value': meta['search_radius'],
+            })
+            adjustments_made.append({
+                'parameter': 'trajectory_length',
+                'reason': 'NO_ATTRACTOR_FOUND',
+                'proportion': no_attractor_pct,
+                'old_value': old_length,
+                'new_value': meta['trajectory_length'],
+            })
+
+        # Adjustment 3: BUMPY_GEODESIC dominates (>25%) - increase geodesic weight
+        # Bumpy paths indicate we should weight smoothness more in confidence
+        if bumpy_geodesic_pct > 0.25:
+            old_weight = meta['geodesic_weight']
+            # Increase geodesic weight by 15%, cap at 2.0
+            meta['geodesic_weight'] = min(2.0, meta['geodesic_weight'] * 1.15)
+            adjustments_made.append({
+                'parameter': 'geodesic_weight',
+                'reason': 'BUMPY_GEODESIC',
+                'proportion': bumpy_geodesic_pct,
+                'old_value': old_weight,
+                'new_value': meta['geodesic_weight'],
+            })
+
+        # Adjustment 4: SPARSE_HISTORY dominates (>35%) - extend trajectory to gather more data
+        if sparse_history_pct > 0.35:
+            old_length = meta['trajectory_length']
+            meta['trajectory_length'] = min(50, meta['trajectory_length'] + 3)
+            if old_length != meta['trajectory_length']:
+                adjustments_made.append({
+                    'parameter': 'trajectory_length',
+                    'reason': 'SPARSE_HISTORY',
+                    'proportion': sparse_history_pct,
+                    'old_value': old_length,
+                    'new_value': meta['trajectory_length'],
+                })
+
+        # Adjustment 5: SHORT_TRAJECTORY dominates (>30%) - extend trajectory
+        if short_trajectory_pct > 0.3:
+            old_length = meta['trajectory_length']
+            meta['trajectory_length'] = min(50, meta['trajectory_length'] + 5)
+            if old_length != meta['trajectory_length']:
+                adjustments_made.append({
+                    'parameter': 'trajectory_length',
+                    'reason': 'SHORT_TRAJECTORY',
+                    'proportion': short_trajectory_pct,
+                    'old_value': old_length,
+                    'new_value': meta['trajectory_length'],
+                })
+
+        # Record adjustment metadata
+        if adjustments_made:
+            meta['adjustments_made'] += len(adjustments_made)
+            meta['last_adjustment'] = time.time()
+
+            # Keep history of last 50 adjustments
+            meta['adjustment_history'].extend(adjustments_made)
+            if len(meta['adjustment_history']) > 50:
+                meta['adjustment_history'] = meta['adjustment_history'][-50:]
+
+            # Log the adjustments
+            for adj in adjustments_made:
+                print(f"[MetaLearning] Adjusted {adj['parameter']}: "
+                      f"{adj['old_value']:.3f} -> {adj['new_value']:.3f} "
+                      f"(reason: {adj['reason']} at {adj['proportion']:.1%})")
+
+        return {
+            'adjustments': adjustments_made,
+            'failure_distribution': {
+                'unstable_velocity': unstable_velocity_pct,
+                'no_attractor_found': no_attractor_pct,
+                'bumpy_geodesic': bumpy_geodesic_pct,
+                'sparse_history': sparse_history_pct,
+                'short_trajectory': short_trajectory_pct,
+            },
+            'current_parameters': {
+                'velocity_smoothing': meta['velocity_smoothing'],
+                'search_radius': meta['search_radius'],
+                'trajectory_length': meta['trajectory_length'],
+                'geodesic_weight': meta['geodesic_weight'],
+            },
+        }
+
+    def get_meta_learning_state(self) -> Dict[str, Any]:
+        """
+        Return the current meta-learning state for introspection.
+
+        Enables other systems to see how prediction parameters have adapted
+        over time based on failure analysis.
+        """
+        return {
+            **self._meta_learning_state,
+            'adjustment_history': self._meta_learning_state['adjustment_history'][-10:],  # Last 10 only
+        }
 
     # =========================================================================
     # Kernel-Accessible Prediction Query Interface
@@ -850,9 +1057,9 @@ class PredictionSelfImprovement:
         return self.predictions.get(prediction_id)
 
     def get_stats(self) -> Dict[str, Any]:
-        """Get current prediction statistics."""
+        """Get current prediction statistics including meta-learning state."""
         accuracy = self.accurate_predictions / max(self.total_predictions, 1)
-        
+
         return {
             'total_predictions': self.total_predictions,
             'accurate_predictions': self.accurate_predictions,
@@ -862,6 +1069,14 @@ class PredictionSelfImprovement:
             'completed_chains': len(self.completed_chains),
             'current_chain_length': len(self.current_chain.links) if self.current_chain else 0,
             'confidence_adjustments': self.confidence_adjustments,
+            'meta_learning': {
+                'velocity_smoothing': self._meta_learning_state['velocity_smoothing'],
+                'search_radius': self._meta_learning_state['search_radius'],
+                'trajectory_length': self._meta_learning_state['trajectory_length'],
+                'geodesic_weight': self._meta_learning_state['geodesic_weight'],
+                'total_adjustments': self._meta_learning_state['adjustments_made'],
+                'last_adjustment': self._meta_learning_state['last_adjustment'],
+            },
         }
 
 

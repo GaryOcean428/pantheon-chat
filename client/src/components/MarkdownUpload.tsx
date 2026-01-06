@@ -2,8 +2,16 @@ import { useState, useCallback } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button, Progress } from '@/components/ui';
 import { Upload, FileText, CheckCircle2, XCircle, Loader2, X } from 'lucide-react';
-import { API_ROUTES } from '@/api';
+import { API_ROUTES, postMultipart } from '@/api';
 import type { SingleFileResult, CurriculumUploadResult } from '@shared/schema';
+
+interface LearningUploadResponse {
+  words_processed?: number;
+  words_learned?: number;
+  unique_words?: number;
+  sample_words?: string[];
+  error?: string;
+}
 
 export function MarkdownUpload() {
   const [dragActive, setDragActive] = useState(false);
@@ -21,40 +29,24 @@ export function MarkdownUpload() {
           const formData = new FormData();
           formData.append('file', file);
 
-          const response = await fetch(API_ROUTES.learning.upload, {
-            method: 'POST',
-            body: formData,
+          const data = await postMultipart<LearningUploadResponse>(API_ROUTES.learning.upload, formData);
+          results.push({
+            success: true,
+            filename: file.name,
+            words_processed: data.words_processed || 0,
+            words_learned: data.words_learned || 0,
+            unique_words: data.unique_words,
+            sample_words: data.sample_words,
           });
-
-          if (!response.ok) {
-            const error = await response.json();
-            results.push({
-              success: false,
-              filename: file.name,
-              words_processed: 0,
-              words_learned: 0,
-              error: error.error || 'Upload failed',
-            });
-          } else {
-            const data = await response.json();
-            results.push({
-              success: true,
-              filename: file.name,
-              words_processed: data.words_processed || 0,
-              words_learned: data.words_learned || 0,
-              unique_words: data.unique_words,
-              sample_words: data.sample_words,
-            });
-            totalWordsProcessed += data.words_processed || 0;
-            totalWordsLearned += data.words_learned || 0;
-          }
+          totalWordsProcessed += data.words_processed || 0;
+          totalWordsLearned += data.words_learned || 0;
         } catch (error: any) {
           results.push({
             success: false,
             filename: file.name,
             words_processed: 0,
             words_learned: 0,
-            error: error.message || 'Network error',
+            error: error.message || 'Upload failed',
           });
         }
       }
