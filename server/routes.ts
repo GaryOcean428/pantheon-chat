@@ -58,6 +58,7 @@ import {
   olympusRouter,
   pythonProxiesRouter,
   searchRouter,
+  sscBridgeRouter,
   ucpRouter,
   vocabularyRouter,
   zettelkastenRouter,
@@ -324,6 +325,7 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
   app.use("/api/docs", apiDocsRouter);
   app.use("/api/qig/autonomic/agency", autonomicAgencyRouter);
   app.use("/api/federation", federationRouter);
+  app.use("/api/ssc", sscBridgeRouter);
   app.use("/api/zettelkasten", zettelkastenRouter);
   app.use("/api", pythonProxiesRouter);
 
@@ -343,6 +345,7 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
 
   console.log("[Routes] All sub-routers mounted");
   console.log("[Routes] New routers: autonomic, immune, training, memory, feedback, coordize");
+  console.log("[Routes] Federation enabled: SSC bridge mounted at /api/ssc");
 
   // Investigation status endpoint
   app.get("/api/investigation/status", (req, res) => {

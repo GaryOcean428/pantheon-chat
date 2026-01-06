@@ -39,6 +39,8 @@ export { coordizerRouter } from "./coordizer";
 
 export { federationRouter } from "./federation";
 
+export { sscBridgeRouter } from "./ssc-bridge";
+
 export { default as zettelkastenRouter } from "./zettelkasten";
 
 export { default as pythonProxiesRouter } from "./python-proxies";

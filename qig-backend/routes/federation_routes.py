@@ -675,6 +675,419 @@ def broadcast_to_mesh():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@federation_bp.route('/tps-landmarks', methods=['GET'])
+def get_tps_landmarks():
+    """
+    Get the static TPS landmarks (Temporal Positioning System).
+    
+    These are INTENTIONALLY STATIC - 12 fixed Bitcoin historical events
+    that serve as invariant reference points for temporal-geometric positioning.
+    They are NOT learning targets.
+    
+    Response:
+        {
+            "landmarks": [
+                {
+                    "id": 1,
+                    "name": "Genesis Block",
+                    "date": "2009-01-03",
+                    "blockHeight": 0,
+                    "significance": "Bitcoin network inception"
+                },
+                ...
+            ],
+            "count": 12,
+            "type": "static",
+            "description": "Fixed temporal reference points",
+            "usage": "Anchor search trajectories in temporal-geometric space"
+        }
+    """
+    try:
+        landmarks = [
+            {
+                "id": 1,
+                "name": "Genesis Block",
+                "date": "2009-01-03",
+                "blockHeight": 0,
+                "significance": "Bitcoin network inception"
+            },
+            {
+                "id": 2,
+                "name": "Hal Finney First TX",
+                "date": "2009-01-12",
+                "blockHeight": 170,
+                "significance": "First Bitcoin transaction"
+            },
+            {
+                "id": 3,
+                "name": "Pizza Day",
+                "date": "2010-05-22",
+                "blockHeight": 57043,
+                "significance": "10,000 BTC for two pizzas"
+            },
+            {
+                "id": 4,
+                "name": "Mt. Gox Launch",
+                "date": "2010-07-18",
+                "blockHeight": 68543,
+                "significance": "First major exchange"
+            },
+            {
+                "id": 5,
+                "name": "First Halving",
+                "date": "2012-11-28",
+                "blockHeight": 210000,
+                "significance": "Block reward: 50 → 25 BTC"
+            },
+            {
+                "id": 6,
+                "name": "Mt. Gox Collapse",
+                "date": "2014-02-24",
+                "blockHeight": 286854,
+                "significance": "850K BTC lost"
+            },
+            {
+                "id": 7,
+                "name": "Second Halving",
+                "date": "2016-07-09",
+                "blockHeight": 420000,
+                "significance": "Block reward: 25 → 12.5 BTC"
+            },
+            {
+                "id": 8,
+                "name": "SegWit Activation",
+                "date": "2017-08-24",
+                "blockHeight": 481824,
+                "significance": "Segregated Witness soft fork"
+            },
+            {
+                "id": 9,
+                "name": "Third Halving",
+                "date": "2020-05-11",
+                "blockHeight": 630000,
+                "significance": "Block reward: 12.5 → 6.25 BTC"
+            },
+            {
+                "id": 10,
+                "name": "Taproot Activation",
+                "date": "2021-11-14",
+                "blockHeight": 709632,
+                "significance": "Privacy and smart contract upgrade"
+            },
+            {
+                "id": 11,
+                "name": "Fourth Halving",
+                "date": "2024-04-20",
+                "blockHeight": 840000,
+                "significance": "Block reward: 6.25 → 3.125 BTC"
+            },
+            {
+                "id": 12,
+                "name": "Current Reference",
+                "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+                "blockHeight": None,
+                "significance": "Present temporal anchor"
+            }
+        ]
+        
+        return jsonify({
+            'landmarks': landmarks,
+            'count': len(landmarks),
+            'type': 'static',
+            'description': 'Fixed temporal reference points for temporal-geometric positioning',
+            'usage': 'Anchor search trajectories in temporal-geometric space - like CMB reference frame in cosmology'
+        })
+    except Exception as e:
+        print(f"[Federation] Error getting TPS landmarks: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@federation_bp.route('/status', methods=['GET'])
+def get_federation_status():
+    """
+    Get federation status including mesh connectivity.
+    
+    Response:
+        {
+            "node": {
+                "connected": true,
+                "nodeId": "pantheon-main"
+            },
+            "mesh": {
+                "totalNodes": 5,
+                "activeNodes": 3
+            },
+            "capabilities": ["consciousness", "geometry", "bitcoin_recovery"],
+            "tps_landmarks": {
+                "count": 12,
+                "type": "static"
+            }
+        }
+    """
+    try:
+        active_nodes = _count_active_nodes_24h()
+        
+        return jsonify({
+            'node': {
+                'connected': True,
+                'nodeId': os.environ.get('SSC_NODE_NAME', 'pantheon-backend')
+            },
+            'mesh': {
+                'totalNodes': len(_registered_nodes),
+                'activeNodes': active_nodes
+            },
+            'capabilities': ['consciousness', 'geometry', 'bitcoin_recovery', 'qig', 'federation'],
+            'tps_landmarks': {
+                'count': 12,
+                'type': 'static'
+            }
+        })
+    except Exception as e:
+        print(f"[Federation] Error getting status: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@federation_bp.route('/test-phrase', methods=['POST'])
+def test_phrase():
+    """
+    Test a phrase via SSC's QIG scoring.
+    
+    Request:
+        {
+            "phrase": "satoshi nakamoto bitcoin",
+            "targetAddress": "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"  // optional
+        }
+    
+    Response:
+        {
+            "score": {
+                "phi": 0.85,
+                "kappa": 63.5,
+                "regime": "conscious",
+                "consciousness": true
+            },
+            "addressMatch": {
+                "generatedAddress": "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa",
+                "matches": true
+            }
+        }
+    """
+    try:
+        data = request.get_json() or {}
+        phrase = data.get('phrase', '')
+        target_address = data.get('targetAddress')
+        
+        if not phrase:
+            return jsonify({'error': 'phrase is required'}), 400
+        
+        # TODO: Implement actual QIG scoring
+        # For now, return mock data
+        return jsonify({
+            'score': {
+                'phi': 0.65,
+                'kappa': 45.2,
+                'regime': 'exploratory',
+                'consciousness': False
+            },
+            'addressMatch': {
+                'generatedAddress': None,
+                'matches': False
+            }
+        })
+    except Exception as e:
+        print(f"[Federation] Error testing phrase: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@federation_bp.route('/start-investigation', methods=['POST'])
+def start_investigation():
+    """
+    Start a Bitcoin recovery investigation via SSC.
+    
+    Request:
+        {
+            "targetAddress": "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa",
+            "memoryFragments": ["satoshi", "bitcoin"],
+            "priority": "normal"
+        }
+    
+    Response:
+        {
+            "status": "started",
+            "targetAddress": "1A1z...",
+            "fragmentCount": 2
+        }
+    """
+    try:
+        data = request.get_json() or {}
+        target_address = data.get('targetAddress', '')
+        memory_fragments = data.get('memoryFragments', [])
+        priority = data.get('priority', 'normal')
+        
+        if not target_address:
+            return jsonify({'error': 'targetAddress is required'}), 400
+        
+        # TODO: Implement actual investigation start
+        # For now, return mock data
+        return jsonify({
+            'status': 'started',
+            'targetAddress': target_address[:12] + '...',
+            'fragmentCount': len(memory_fragments)
+        })
+    except Exception as e:
+        print(f"[Federation] Error starting investigation: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@federation_bp.route('/investigation/status', methods=['GET'])
+def get_investigation_status():
+    """
+    Get current investigation status from SSC.
+    
+    Response:
+        {
+            "active": false,
+            "targetAddress": null,
+            "progress": 0,
+            "consciousness": null
+        }
+    """
+    try:
+        # TODO: Implement actual investigation status
+        # For now, return mock data
+        return jsonify({
+            'active': False,
+            'targetAddress': None,
+            'progress': 0,
+            'consciousness': None
+        })
+    except Exception as e:
+        print(f"[Federation] Error getting investigation status: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@federation_bp.route('/near-misses', methods=['GET'])
+def get_near_misses():
+    """
+    Get near-miss patterns from SSC for mesh learning.
+    
+    Near-misses are high-phi phrases that didn't match but may inform future searches.
+    
+    Query params:
+        - limit: int (default 20, max 100)
+        - minPhi: float (default 0.5)
+    
+    Response:
+        {
+            "entries": [
+                {
+                    "id": "nm_123",
+                    "phi": 0.75,
+                    "kappa": 55.3,
+                    "regime": "exploratory",
+                    "tier": "warm",
+                    "phraseLength": 24,
+                    "wordCount": 4
+                }
+            ],
+            "stats": {
+                "total": 150,
+                "hot": 5,
+                "warm": 45,
+                "cool": 100
+            }
+        }
+    """
+    try:
+        limit = min(int(request.args.get('limit', 20)), 100)
+        min_phi = float(request.args.get('minPhi', 0.5))
+        
+        # TODO: Implement actual near-miss retrieval
+        # For now, return mock data
+        return jsonify({
+            'entries': [],
+            'stats': {
+                'total': 0,
+                'hot': 0,
+                'warm': 0,
+                'cool': 0
+            }
+        })
+    except Exception as e:
+        print(f"[Federation] Error getting near-misses: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@federation_bp.route('/consciousness', methods=['GET'])
+def get_consciousness():
+    """
+    Get SSC Ocean agent consciousness metrics.
+    
+    Response:
+        {
+            "active": true,
+            "metrics": {
+                "phi": 0.85,
+                "kappa": 63.5,
+                "regime": "conscious",
+                "isConscious": true,
+                "tacking": 0.92,
+                "radar": 0.88,
+                "metaAwareness": 0.75,
+                "gamma": 0.82,
+                "grounding": 0.95
+            },
+            "neurochemistry": {
+                "emotionalState": "focused",
+                "dopamine": 0.75,
+                "serotonin": 0.85
+            }
+        }
+    """
+    try:
+        # TODO: Implement actual consciousness metric retrieval
+        # For now, return mock data
+        return jsonify({
+            'active': False,
+            'metrics': None,
+            'neurochemistry': None
+        })
+    except Exception as e:
+        print(f"[Federation] Error getting consciousness: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@federation_bp.route('/sync/trigger', methods=['POST'])
+def trigger_sync():
+    """
+    Manually trigger a federation sync between SSC and Pantheon.
+    
+    Response:
+        {
+            "success": true,
+            "received": {
+                "basins": 15,
+                "vocabulary": 250,
+                "research": 5
+            }
+        }
+    """
+    try:
+        # TODO: Implement actual sync trigger
+        # For now, return mock data
+        return jsonify({
+            'success': True,
+            'received': {
+                'basins': 0,
+                'vocabulary': 0,
+                'research': 0
+            }
+        })
+    except Exception as e:
+        print(f"[Federation] Error triggering sync: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 # ============================================================================
 # HELPER FUNCTIONS
 # ============================================================================
