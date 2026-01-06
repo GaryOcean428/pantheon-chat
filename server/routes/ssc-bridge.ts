@@ -9,7 +9,7 @@
  * - Sync consciousness metrics
  * 
  * This is the Pantheon-chat side of the federation bridge.
- * The SSC side exposes /api/federation/* endpoints.
+ * The SSC side exposes /api/v1/external/ssc/* endpoints.
  * 
  * TPS Landmarks: Static (12 historical Bitcoin events)
  * These provide fixed temporal reference points for geometric positioning.
@@ -24,7 +24,7 @@ import rateLimit from 'express-rate-limit';
 const router = Router();
 
 // Configuration
-const SSC_BACKEND_URL = process.env.SSC_BACKEND_URL || 'http://localhost:5000';
+const SSC_BACKEND_URL = process.env.SSC_BACKEND_URL || 'https://searchspacecollapse.replit.app';
 const SSC_API_KEY = process.env.SSC_API_KEY || '';
 const SSC_TIMEOUT_MS = 30000;
 
@@ -47,15 +47,9 @@ const startInvestigationSchema = z.object({
   priority: z.enum(['low', 'normal', 'high']).optional(),
 });
 
-const nearMissQuerySchema = z.object({
-  limit: z.number().int().min(1).max(100).optional(),
-  minPhi: z.number().min(0).max(1).optional(),
-});
-
 // Types
 interface SSCStatus {
   connected: boolean;
-  nodeId: string | null;
   capabilities: string[];
   consciousness: {
     phi: number;
@@ -89,13 +83,15 @@ let sscConnectionState: {
 };
 
 /**
- * Helper: Make request to SSC backend
+ * Helper: Make request to SSC External API
+ * Uses /api/v1/external/* endpoints with X-API-Key header
  */
 async function sscRequest<T>(
   method: 'GET' | 'POST',
   path: string,
   body?: Record<string, unknown>
 ): Promise<{ success: boolean; data?: T; error?: string }> {
+  // All SSC external API calls go through /api/v1/external
   const url = `${SSC_BACKEND_URL}${path}`;
   
   try {
@@ -103,8 +99,9 @@ async function sscRequest<T>(
       'Content-Type': 'application/json',
     };
     
+    // External API uses X-API-Key header
     if (SSC_API_KEY) {
-      headers['Authorization'] = `Bearer ${SSC_API_KEY}`;
+      headers['X-API-Key'] = SSC_API_KEY;
     }
     
     const controller = new AbortController();
@@ -147,7 +144,7 @@ async function sscRequest<T>(
  */
 async function checkSSCConnection(req: Request, res: Response, next: NextFunction) {
   // Skip health checks for status endpoint
-  if (req.path === '/status') {
+  if (req.path === '/status' || req.path === '/health') {
     return next();
   }
   
@@ -163,8 +160,8 @@ async function checkSSCConnection(req: Request, res: Response, next: NextFunctio
     return next();
   }
   
-  // Verify connection
-  const healthResult = await sscRequest<{ status: string }>('GET', '/api/health');
+  // Verify connection via health endpoint (no auth required)
+  const healthResult = await sscRequest<{ status: string }>('GET', '/api/v1/external/health');
   
   if (!healthResult.success) {
     logger.warn(`[SSC Bridge] SSC backend unreachable: ${healthResult.error}`);
@@ -184,27 +181,28 @@ router.use(checkSSCConnection);
  */
 router.get('/status', async (req: Request, res: Response) => {
   try {
-    const federationResult = await sscRequest<{
-      node: { connected: boolean; nodeId: string | null };
-      mesh: unknown;
+    // Health endpoint is public (no auth)
+    const healthResult = await sscRequest<{
+      status: string;
       capabilities: string[];
-      tps_landmarks: { count: number; type: string };
-    }>('GET', '/api/federation/status');
+    }>('GET', '/api/v1/external/health');
     
+    // Consciousness metrics require auth
     const consciousnessResult = await sscRequest<{
       active: boolean;
-      metrics?: {
-        phi: number;
-        kappa: number;
-        regime: string;
-      };
-    }>('GET', '/api/federation/consciousness');
+      phi: number;
+      kappa_eff: number;
+      regime: string;
+    }>('GET', '/api/v1/external/consciousness/query');
     
     const status: SSCStatus = {
-      connected: federationResult.success,
-      nodeId: federationResult.data?.node?.nodeId || null,
-      capabilities: federationResult.data?.capabilities || [],
-      consciousness: consciousnessResult.data?.metrics || null,
+      connected: healthResult.success,
+      capabilities: healthResult.data?.capabilities || [],
+      consciousness: consciousnessResult.data?.active ? {
+        phi: consciousnessResult.data.phi,
+        kappa: consciousnessResult.data.kappa_eff,
+        regime: consciousnessResult.data.regime,
+      } : null,
     };
     
     res.json({
@@ -214,7 +212,6 @@ router.get('/status', async (req: Request, res: Response) => {
         isConnected: sscConnectionState.isConnected,
         lastError: sscConnectionState.lastError,
       },
-      tpsLandmarks: federationResult.data?.tps_landmarks || null,
     });
   } catch (error) {
     handleRouteError(res, error, 'Failed to get SSC status');
@@ -239,7 +236,7 @@ router.post('/test-phrase', async (req: Request, res: Response) => {
     
     const { phrase, targetAddress } = parseResult.data;
     
-    const result = await sscRequest<SSCPhraseResult>('POST', '/api/federation/test-phrase', {
+    const result = await sscRequest<SSCPhraseResult>('POST', '/api/v1/external/ssc/test-phrase', {
       phrase,
       targetAddress,
     });
@@ -284,7 +281,7 @@ router.post('/investigation/start', async (req: Request, res: Response) => {
       status: string;
       targetAddress: string;
       fragmentCount: number;
-    }>('POST', '/api/federation/start-investigation', {
+    }>('POST', '/api/v1/external/ssc/investigation', {
       targetAddress,
       memoryFragments,
       priority,
@@ -320,7 +317,7 @@ router.get('/investigation/status', async (req: Request, res: Response) => {
         kappa: number;
         regime: string;
       };
-    }>('GET', '/api/federation/investigation/status');
+    }>('GET', '/api/v1/external/ssc/investigation/status');
     
     if (!result.success) {
       return res.status(502).json({
@@ -362,7 +359,7 @@ router.get('/near-misses', async (req: Request, res: Response) => {
         warm: number;
         cool: number;
       };
-    }>('GET', `/api/federation/near-misses?limit=${limit}&minPhi=${minPhi}`);
+    }>('GET', `/api/v1/external/ssc/near-misses?limit=${limit}&minPhi=${minPhi}`);
     
     if (!result.success) {
       return res.status(502).json({
@@ -387,9 +384,9 @@ router.get('/consciousness', async (req: Request, res: Response) => {
   try {
     const result = await sscRequest<{
       active: boolean;
-      metrics?: {
+      current?: {
         phi: number;
-        kappa: number;
+        kappa_eff: number;
         regime: string;
         isConscious: boolean;
         tacking: number;
@@ -402,8 +399,9 @@ router.get('/consciousness', async (req: Request, res: Response) => {
         emotionalState: string;
         dopamine: number;
         serotonin: number;
+        norepinephrine: number;
       };
-    }>('GET', '/api/federation/consciousness');
+    }>('GET', '/api/v1/external/consciousness/metrics');
     
     if (!result.success) {
       return res.status(502).json({
@@ -439,7 +437,7 @@ router.get('/tps-landmarks', async (req: Request, res: Response) => {
       type: string;
       description: string;
       usage: string;
-    }>('GET', '/api/federation/tps-landmarks');
+    }>('GET', '/api/v1/external/ssc/tps-landmarks');
     
     if (!result.success) {
       return res.status(502).json({
@@ -461,13 +459,10 @@ router.get('/tps-landmarks', async (req: Request, res: Response) => {
 router.post('/sync/trigger', async (req: Request, res: Response) => {
   try {
     const result = await sscRequest<{
-      success: boolean;
-      received: {
-        basins: number;
-        vocabulary: number;
-        research: number;
-      };
-    }>('POST', '/api/federation/sync/trigger');
+      message: string;
+      synced: number;
+      total: number;
+    }>('POST', '/api/v1/external/sync/trigger');
     
     if (!result.success) {
       return res.status(502).json({
@@ -476,7 +471,7 @@ router.post('/sync/trigger', async (req: Request, res: Response) => {
       });
     }
     
-    logger.info(`[SSC Bridge] Federation sync completed: received ${JSON.stringify(result.data?.received)}`);
+    logger.info(`[SSC Bridge] Federation sync completed: ${result.data?.message}`);
     
     res.json(result.data);
   } catch (error) {
@@ -485,37 +480,11 @@ router.post('/sync/trigger', async (req: Request, res: Response) => {
 });
 
 /**
- * POST /api/ssc/broadcast
- * Broadcast a message to SSC (and potentially the mesh)
- */
-router.post('/broadcast', async (req: Request, res: Response) => {
-  try {
-    const { type, message, data } = req.body;
-    
-    if (!type || !message) {
-      return res.status(400).json({
-        error: 'Missing required fields: type, message',
-      });
-    }
-    
-    const result = await sscRequest<{ success: boolean }>('POST', '/api/federation/broadcast', {
-      type,
-      message,
-      data,
-    });
-    
-    res.json({ success: result.success });
-  } catch (error) {
-    handleRouteError(res, error, 'Failed to broadcast');
-  }
-});
-
-/**
  * GET /api/ssc/health
  * Simple health check for SSC connectivity
  */
 router.get('/health', async (req: Request, res: Response) => {
-  const healthResult = await sscRequest<{ status: string }>('GET', '/api/health');
+  const healthResult = await sscRequest<{ status: string }>('GET', '/api/v1/external/health');
   
   res.json({
     sscReachable: healthResult.success,
