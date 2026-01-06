@@ -42,3 +42,6 @@ export { federationRouter } from "./federation";
 export { default as zettelkastenRouter } from "./zettelkasten";
 
 export { default as pythonProxiesRouter } from "./python-proxies";
+
+// SSC Bridge - connects to SearchSpaceCollapse for Bitcoin recovery
+export { sscBridgeRouter } from "./ssc-bridge";
