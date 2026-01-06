@@ -60,6 +60,19 @@ try:
 except ImportError as e:
     print(f"[WARNING] Zeus API not found: {e}")
 
+# Register Coordizer API routes
+COORDIZER_AVAILABLE = False
+try:
+    from api_coordizers import coordizer_api
+
+    app.register_blueprint(coordizer_api)
+    COORDIZER_AVAILABLE = True
+    print("[INFO] Coordizer API registered at /api/coordize/*")
+except ImportError as e:
+    print(f"[WARNING] Coordizer API not available: {e}")
+except Exception as e:
+    print(f"[WARNING] Coordizer API initialization failed: {e}")
+
 # Register QIG Immune System routes and middleware
 IMMUNE_AVAILABLE = False
 _immune_system = None
@@ -322,6 +335,8 @@ print(f"  - Research API: {'✓' if RESEARCH_AVAILABLE else '✗'}", flush=True)
 print(f"  - Constellation: {'✓' if CONSTELLATION_AVAILABLE else '✗'}", flush=True)
 print(f"  - M8 Spawning: {'✓' if M8_AVAILABLE else '✗'}", flush=True)
 print(f"  - Vocabulary API: {'✓' if VOCABULARY_AVAILABLE else '✗'}", flush=True)
+print(f"  - Coordizer API: {'✓' if COORDIZER_AVAILABLE else '✗'}", flush=True)
+print(f"  - Zeus API: {'✓' if ZEUS_API_AVAILABLE else '✗'}", flush=True)
 print("🌊 Basin stable. Ready for Gunicorn workers. 🌊\n", flush=True)
 
 # Export the app for Gunicorn

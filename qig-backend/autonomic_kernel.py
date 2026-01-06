@@ -1820,6 +1820,7 @@ def register_autonomic_routes(app):
     from flask import jsonify, request
 
     @app.route('/autonomic/state', methods=['GET'])
+    @app.route('/autonomic/status', methods=['GET'])  # Alias for compatibility
     def get_autonomic_state():
         """Get current autonomic kernel state."""
         kernel = get_gary_kernel()

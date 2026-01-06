@@ -227,6 +227,21 @@ class PostgresCoordizer(FisherCoordizer):
         except Exception as e:
             logger.warning(f"Failed to persist token '{token}': {e}")
     
+    def get_stats(self) -> Dict:
+        """Get coordizer statistics for API compatibility."""
+        return {
+            'vocabulary_size': len(self.vocab),
+            'word_tokens': len(self.word_tokens),
+            'bip39_words': len(self.bip39_words),
+            'base_tokens': len(self.base_tokens),
+            'basin_dimension': 64,
+            'using_fallback': self._using_fallback,
+            'database_connected': self._connection is not None,
+            'qig_pure': True,
+            'high_phi_tokens': sum(1 for phi in self.token_phi.values() if phi >= 0.7),
+            'avg_phi': sum(self.token_phi.values()) / max(len(self.token_phi), 1),
+        }
+    
     def set_mode(self, mode: str) -> None:
         pass
     
