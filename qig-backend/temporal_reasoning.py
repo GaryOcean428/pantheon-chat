@@ -76,12 +76,11 @@ class ForesightVision:
     
     def __str__(self):
         """Verbose representation showing what the vision means."""
-        basin_list = self.future_basin.tolist() if hasattr(self.future_basin, 'tolist') else list(self.future_basin)
-        basin_str = ', '.join(f'{v:.4f}' for v in basin_list)
+        basin_preview = self.future_basin[:4].tolist() if hasattr(self.future_basin, 'tolist') else list(self.future_basin[:4])
         return (f"Vision: arrive={self.arrival_time} steps, "
                 f"conf={self.confidence:.1%}, attractor={self.attractor_strength:.2f}, "
                 f"naturalness={self.geodesic_naturalness:.2f}, "
-                f"basin=[{basin_str}]")
+                f"basin=[{basin_preview[0]:.3f}, {basin_preview[1]:.3f}, ...]")
     
     def is_actionable(self) -> bool:
         """Check if this vision is strong enough to guide decisions."""

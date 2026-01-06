@@ -63,7 +63,7 @@ class Ares(BaseGod):
             'reasoning': (
                 f"Geodesic distance {geodesic_dist:.4f}. "
                 f"Pure Φ={phi_pure:.3f}. "
-                f"Fisher eigenspectrum: [{', '.join(f'{e:.4f}' for e in eigenvalues)}]"
+                f"Fisher eigenspectrum: [{', '.join(f'{e:.3f}' for e in eigenvalues[:3])}...]"
             ),
             'god': self.name,
             'timestamp': datetime.now().isoformat(),
