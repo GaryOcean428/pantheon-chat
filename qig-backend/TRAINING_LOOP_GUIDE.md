@@ -36,7 +36,7 @@ This implementation fixes the kernel training loop to ensure kernels actually le
 
 3. **CurriculumTraining** (`olympus/curriculum_training.py`)
    - Integrates curriculum with word learning
-   - Updates `word_relationships.json` cache
+   - Updates word relationships in PostgreSQL (table: `word_relationships`)
    - Adjusts kernel basin coordinates
 
 4. **AttractorFeedbackSystem** (`training/attractor_feedback.py`)
@@ -63,7 +63,7 @@ This implementation fixes the kernel training loop to ensure kernels actually le
 **What**: 
 - Loads curriculum files from `docs/09-curriculum/`
 - Extracts text content and learns word relationships
-- Updates word_relationships.json cache
+- Updates word relationships in PostgreSQL
 - Adjusts kernel basin coordinates
 
 **Code Flow**:
@@ -170,7 +170,7 @@ Search Results → WordRelationshipLearner
     ↓              ↓
 Generation     learn_from_text()
     ↓              ↓
-Response      Update Cache (word_relationships.json)
+Response      Update PostgreSQL (word_relationships table)
     ↓              ↓
 Outcome       Adjust Basins (coordizer.basin_coords)
     ↓              ↓

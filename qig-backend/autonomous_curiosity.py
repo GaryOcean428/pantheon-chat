@@ -436,8 +436,6 @@ class AutonomousCuriosityEngine:
         
         self._word_learning_interval = 3600
         self._last_word_learning_time = 0
-        self._checkpoint_dir = Path('data/checkpoints')
-        self._checkpoint_dir.mkdir(parents=True, exist_ok=True)
         
         # Track recent queries to avoid repetition
         self._recent_queries: deque = deque(maxlen=100)
@@ -947,8 +945,6 @@ class AutonomousCuriosityEngine:
             
             logger.info("[AutonomousCuriosityEngine] Starting scheduled word relationship learning")
             
-            checkpoint_path = self._checkpoint_dir / f"word_relationships_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-            
             lr = get_learned_relationships()
             baseline_count = len(lr.word_neighbors)
             
@@ -989,29 +985,11 @@ class AutonomousCuriosityEngine:
             
             fresh_lr.save_to_cache()
             
-            improvement_pct = ((new_count - baseline_count) / baseline_count * 100) if baseline_count > 0 else 0
-            
-            checkpoint_data = {
-                'timestamp': datetime.now().isoformat(),
-                'files_processed': stats['files_processed'],
-                'pairs_learned': stats['total_pairs'],
-                'exploration_pairs': exploration_pairs,
-                'relationships_count': new_count,
-                'baseline_count': baseline_count,
-                'improvement_percent': improvement_pct,
-                'validation': validation['stats']
-            }
-            
-            with open(checkpoint_path, 'w') as f:
-                json.dump(checkpoint_data, f, indent=2)
-            
-            self._cleanup_old_checkpoints(keep_last=5)
-            
             self.stats['word_learning_cycles'] += 1
             self.stats['last_word_learning'] = datetime.now().isoformat()
             self.stats['word_learning_relevance'] = validation['stats'].get('total_relationships', 0)
             
-            logger.info(f"[AutonomousCuriosityEngine] Word learning complete: {len(fresh_lr.word_neighbors)} relationships, checkpoint saved")
+            logger.info(f"[AutonomousCuriosityEngine] Word learning complete: {len(fresh_lr.word_neighbors)} relationships saved to PostgreSQL")
             
         except Exception as e:
             logger.error(f"[AutonomousCuriosityEngine] Word learning failed: {e}")
@@ -1051,34 +1029,6 @@ class AutonomousCuriosityEngine:
         
         pairs_after = learner.total_pairs
         return pairs_after - pairs_before
-    
-    def _cleanup_old_checkpoints(self, keep_last: int = 5):
-        """
-        Remove old word relationship checkpoint files, keeping only the most recent ones.
-        
-        Args:
-            keep_last: Number of most recent checkpoint files to keep
-        """
-        try:
-            checkpoint_files = sorted(
-                self._checkpoint_dir.glob('word_relationships_*.json'),
-                key=lambda f: f.stat().st_mtime,
-                reverse=True
-            )
-            
-            files_to_delete = checkpoint_files[keep_last:]
-            
-            for filepath in files_to_delete:
-                try:
-                    filepath.unlink()
-                    logger.info(f"[AutonomousCuriosityEngine] Deleted old checkpoint: {filepath.name}")
-                except Exception as e:
-                    logger.warning(f"[AutonomousCuriosityEngine] Failed to delete {filepath}: {e}")
-            
-            if files_to_delete:
-                logger.info(f"[AutonomousCuriosityEngine] Cleaned up {len(files_to_delete)} old checkpoint files, kept {len(checkpoint_files[:keep_last])}")
-        except Exception as e:
-            logger.error(f"[AutonomousCuriosityEngine] Checkpoint cleanup failed: {e}")
     
     def get_learning_status(self) -> Dict:
         """Get comprehensive learning status including curriculum and search-based learning."""
