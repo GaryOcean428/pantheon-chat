@@ -71,6 +71,9 @@ from .tool_request_persistence import (
     RequestPriority, PatternDiscovery, get_tool_request_persistence
 )
 
+# Telemetry API
+from .telemetry_api import telemetry_bp, register_telemetry_routes, initialize_god_telemetry
+
 # Core hierarchy
 from .zeus import Zeus, olympus_app, zeus
 
@@ -190,6 +193,11 @@ __all__ = [
     'RequestPriority',
     'PatternDiscovery',
     'get_tool_request_persistence',
+    
+    # Telemetry API
+    'telemetry_bp',
+    'register_telemetry_routes',
+    'initialize_god_telemetry',
     
     # Guardian Gods
     'Hestia',
