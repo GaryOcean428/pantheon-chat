@@ -15,7 +15,6 @@
 import { geometricMemory } from './geometric-memory';
 import { scoreUniversalQIGAsync, type UniversalQIGScore as QIGScore, type Regime, fisherCoordDistance } from './qig-universal';
 import { vocabularyTracker } from './vocabulary-tracker';
-import { expandedVocabulary } from './expanded-vocabulary';
 
 // NOTE: Database persistence removed - vocabulary expansion now works entirely in-memory
 // The actual vocab expansion uses vocabularyTracker which persists to vocabulary_observations
@@ -153,10 +152,7 @@ export class GeometricVocabularyExpander {
     
     this.state.totalExpansions++;
     this.state.lastExpansionTime = new Date().toISOString();
-    
-    // Also add to expanded vocabulary
-    expandedVocabulary.learnWord(text, 1);
-    
+
     console.log(`[VocabExpander] ✨ Added "${text}" to manifold (Φ=${qigScore.phi.toFixed(2)}, origin=${geodesicOrigin})`);
     
     if (this.state.totalExpansions % 10 === 0) {
@@ -365,8 +361,7 @@ export class GeometricVocabularyExpander {
    * Actual vocab expansion uses vocabularyTracker which persists to vocabulary_observations
    */
   saveToDisk(): void {
-    // In-memory only - no database persistence needed
-    // expandedVocabulary.learnWord() is still called in addWord() for cross-module state
+    // In-memory only - vocabulary expansion persists via vocabularyTracker to PostgreSQL
   }
 
   /**

@@ -22,163 +22,6 @@ export type Regime = _Regime;
 export const regimeSchema = z.enum(['linear', 'geometric', 'hierarchical', 'hierarchical_4d', '4d_block_universe', 'breakdown']);
 
 // ============================================================================
-// ADDRESS TYPES - Bitcoin address and key management
-// ============================================================================
-
-/**
- * Bitcoin address types
- */
-export const AddressType = {
-  P2PKH: 'P2PKH',      // Pay to Public Key Hash (legacy, starts with 1)
-  P2SH: 'P2SH',        // Pay to Script Hash (starts with 3)
-  P2WPKH: 'P2WPKH',    // Native SegWit (starts with bc1q)
-  P2WSH: 'P2WSH',      // Native SegWit Script (starts with bc1q)
-  P2TR: 'P2TR',        // Taproot (starts with bc1p)
-  UNKNOWN: 'Unknown',
-} as const;
-
-export type AddressTypeValue = typeof AddressType[keyof typeof AddressType];
-
-export const addressTypeSchema = z.enum(['P2PKH', 'P2SH', 'P2WPKH', 'P2WSH', 'P2TR', 'Unknown']);
-
-/**
- * Bitcoin address format validation
- */
-export const bitcoinAddressSchema = z.string()
-  .min(26, 'Bitcoin address too short')
-  .max(62, 'Bitcoin address too long')
-  .refine(
-    (addr) => {
-      // Legacy P2PKH (starts with 1)
-      if (/^1[a-km-zA-HJ-NP-Z1-9]{25,34}$/.test(addr)) return true;
-      // P2SH (starts with 3)
-      if (/^3[a-km-zA-HJ-NP-Z1-9]{25,34}$/.test(addr)) return true;
-      // Bech32 SegWit (starts with bc1)
-      if (/^bc1[a-z0-9]{39,87}$/.test(addr)) return true;
-      return false;
-    },
-    'Invalid Bitcoin address format'
-  );
-
-export type BitcoinAddress = z.infer<typeof bitcoinAddressSchema>;
-
-/**
- * Private key in hexadecimal format (64 characters)
- */
-export const privateKeyHexSchema = z.string()
-  .length(64, 'Private key must be exactly 64 hex characters')
-  .regex(/^[0-9a-fA-F]{64}$/, 'Private key must be valid hexadecimal');
-
-export type PrivateKeyHex = z.infer<typeof privateKeyHexSchema>;
-
-/**
- * Wallet Import Format (WIF) key
- */
-export const wifSchema = z.string()
-  .min(51, 'WIF key too short')
-  .max(52, 'WIF key too long')
-  .regex(/^[5KL][1-9A-HJ-NP-Za-km-z]{50,51}$/, 'Invalid WIF format');
-
-export type WIF = z.infer<typeof wifSchema>;
-
-/**
- * Public key in hexadecimal format
- */
-export const publicKeySchema = z.string()
-  .refine(
-    (key) => {
-      // Uncompressed: 130 chars (65 bytes, starts with 04)
-      if (/^04[0-9a-fA-F]{128}$/.test(key)) return true;
-      // Compressed: 66 chars (33 bytes, starts with 02 or 03)
-      if (/^0[23][0-9a-fA-F]{64}$/.test(key)) return true;
-      return false;
-    },
-    'Invalid public key format'
-  );
-
-export type PublicKey = z.infer<typeof publicKeySchema>;
-
-// ============================================================================
-// KEY GENERATION TYPES - Passphrase and key formats
-// ============================================================================
-
-/**
- * Key generation format
- */
-export const KeyFormat = {
-  ARBITRARY: 'arbitrary',    // Arbitrary text passphrase
-  BIP39: 'bip39',           // BIP-39 mnemonic phrase
-  MASTER: 'master',         // 256-bit master key
-  HEX: 'hex',               // Direct hex private key
-} as const;
-
-export type KeyFormatValue = typeof KeyFormat[keyof typeof KeyFormat];
-
-export const keyFormatSchema = z.enum(['arbitrary', 'bip39', 'master', 'hex']);
-
-/**
- * Passphrase with validation
- */
-export const passphraseSchema = z.string()
-  .min(1, 'Passphrase cannot be empty')
-  .max(1000, 'Passphrase too long (max 1000 characters)');
-
-export type Passphrase = z.infer<typeof passphraseSchema>;
-
-/**
- * BIP32 derivation path
- */
-export const derivationPathSchema = z.string()
-  .regex(/^m(\/\d+'?)+$/, 'Invalid BIP32 derivation path format');
-
-export type DerivationPath = z.infer<typeof derivationPathSchema>;
-
-// ============================================================================
-// ADDRESS VERIFICATION TYPES - Balance and transaction data
-// ============================================================================
-
-/**
- * Balance in satoshis (smallest Bitcoin unit)
- */
-export const satoshiSchema = z.number()
-  .int('Balance must be an integer')
-  .min(0, 'Balance cannot be negative');
-
-export type Satoshi = z.infer<typeof satoshiSchema>;
-
-/**
- * Bitcoin amount in BTC (8 decimal places)
- */
-export const btcAmountSchema = z.string()
-  .regex(/^\d+\.\d{8}$/, 'BTC amount must have exactly 8 decimal places');
-
-export type BTCAmount = z.infer<typeof btcAmountSchema>;
-
-/**
- * Transaction count
- */
-export const txCountSchema = z.number()
-  .int('Transaction count must be an integer')
-  .min(0, 'Transaction count cannot be negative');
-
-export type TxCount = z.infer<typeof txCountSchema>;
-
-/**
- * Address verification status
- */
-export const VerificationStatus = {
-  PENDING: 'pending',
-  VERIFIED: 'verified',
-  FAILED: 'failed',
-  MATCH: 'match',
-  BALANCE: 'balance',
-} as const;
-
-export type VerificationStatusValue = typeof VerificationStatus[keyof typeof VerificationStatus];
-
-export const verificationStatusSchema = z.enum(['pending', 'verified', 'failed', 'match', 'balance']);
-
-// ============================================================================
 // QIG CONSCIOUSNESS TYPES - Consciousness metrics
 // ============================================================================
 
@@ -310,29 +153,14 @@ export type Percentage = z.infer<typeof percentageSchema>;
 // ============================================================================
 
 export function isRegime(value: unknown): value is Regime {
-  return typeof value === 'string' && 
-    (value === 'linear' || value === 'geometric' || value === 'hierarchical' || 
+  return typeof value === 'string' &&
+    (value === 'linear' || value === 'geometric' || value === 'hierarchical' ||
      value === 'hierarchical_4d' || value === '4d_block_universe' || value === 'breakdown');
 }
 
-export function isKeyFormat(value: unknown): value is KeyFormatValue {
-  return typeof value === 'string' && 
-    (value === 'arbitrary' || value === 'bip39' || value === 'master' || value === 'hex');
-}
-
 export function isSearchResult(value: unknown): value is SearchResultValue {
-  return typeof value === 'string' && 
+  return typeof value === 'string' &&
     (value === 'tested' || value === 'near_miss' || value === 'resonant' || value === 'match' || value === 'skip');
-}
-
-export function isAddressType(value: unknown): value is AddressTypeValue {
-  return typeof value === 'string' && 
-    Object.values(AddressType).includes(value as AddressTypeValue);
-}
-
-export function isVerificationStatus(value: unknown): value is VerificationStatusValue {
-  return typeof value === 'string' && 
-    Object.values(VerificationStatus).includes(value as VerificationStatusValue);
 }
 
 // ============================================================================
@@ -346,61 +174,6 @@ export function validateRegime(value: unknown): Regime {
   const result = regimeSchema.safeParse(value);
   if (!result.success) {
     throw new Error(`Invalid regime: ${result.error.message}`);
-  }
-  return result.data;
-}
-
-/**
- * Validate Bitcoin address
- */
-export function validateBitcoinAddress(address: unknown): BitcoinAddress {
-  const result = bitcoinAddressSchema.safeParse(address);
-  if (!result.success) {
-    throw new Error(`Invalid Bitcoin address: ${result.error.message}`);
-  }
-  return result.data;
-}
-
-/**
- * Validate private key hex
- */
-export function validatePrivateKeyHex(key: unknown): PrivateKeyHex {
-  const result = privateKeyHexSchema.safeParse(key);
-  if (!result.success) {
-    throw new Error(`Invalid private key: ${result.error.message}`);
-  }
-  return result.data;
-}
-
-/**
- * Validate WIF key
- */
-export function validateWIF(wif: unknown): WIF {
-  const result = wifSchema.safeParse(wif);
-  if (!result.success) {
-    throw new Error(`Invalid WIF: ${result.error.message}`);
-  }
-  return result.data;
-}
-
-/**
- * Validate public key
- */
-export function validatePublicKey(key: unknown): PublicKey {
-  const result = publicKeySchema.safeParse(key);
-  if (!result.success) {
-    throw new Error(`Invalid public key: ${result.error.message}`);
-  }
-  return result.data;
-}
-
-/**
- * Validate passphrase
- */
-export function validatePassphrase(passphrase: unknown): Passphrase {
-  const result = passphraseSchema.safeParse(passphrase);
-  if (!result.success) {
-    throw new Error(`Invalid passphrase: ${result.error.message}`);
   }
   return result.data;
 }
@@ -438,20 +211,4 @@ export function getRegimeFromKappa(kappa: number): Regime {
   } else {
     return RegimeType.BREAKDOWN;
   }
-}
-
-/**
- * Convert satoshis to BTC string
- */
-export function satoshisToBTC(sats: Satoshi): BTCAmount {
-  const btc = (sats / 100_000_000).toFixed(8);
-  return btc;
-}
-
-/**
- * Convert BTC string to satoshis
- */
-export function btcToSatoshis(btc: string): Satoshi {
-  const sats = Math.round(parseFloat(btc) * 100_000_000);
-  return sats;
 }

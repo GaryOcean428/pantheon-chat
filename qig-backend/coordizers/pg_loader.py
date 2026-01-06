@@ -3,6 +3,9 @@ PostgreSQL-backed Coordizer (64D QIG-pure, no fallback).
 
 Loads vocabulary from PostgreSQL tokenizer_vocabulary table.
 REQUIRES database connection - impure fallbacks are not allowed.
+
+Simplified canonical coordizer following qig-tokenizer/FisherCoordizer interface.
+Redis caching layer for hot vocabulary lookups.
 """
 
 import logging
@@ -12,15 +15,65 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 
 from .base import FisherCoordizer
-from .semantic_domains import (
-    compute_semantic_embedding,
-    detect_query_domains,
-    get_word_domains,
-    compute_domain_overlap,
-    get_related_words,
-)
+from .fallback_vocabulary import compute_basin_embedding, _fisher_rao_weighted_mean
 
 logger = logging.getLogger(__name__)
+
+# Redis caching (optional)
+REDIS_CACHE_AVAILABLE = False
+CoordizerBuffer = None
+UniversalCache = None
+
+try:
+    from redis_cache import CoordizerBuffer, UniversalCache, CACHE_TTL_LONG
+    REDIS_CACHE_AVAILABLE = True
+except ImportError:
+    logger.debug("Redis cache not available - using PostgreSQL only")
+    CACHE_TTL_LONG = 86400
+
+
+class VocabularyCache:
+    """Redis cache layer for vocabulary hot lookups."""
+
+    PREFIX = "qig:vocab"
+
+    @classmethod
+    def cache_token(cls, token: str, coords: np.ndarray, phi: float) -> bool:
+        """Cache a token's basin coordinates."""
+        if not REDIS_CACHE_AVAILABLE or UniversalCache is None:
+            return False
+
+        try:
+            data = {
+                'coords': coords.tolist() if isinstance(coords, np.ndarray) else list(coords),
+                'phi': phi,
+            }
+            return UniversalCache.set(f"{cls.PREFIX}:{token}", data, CACHE_TTL_LONG)
+        except Exception:
+            return False
+
+    @classmethod
+    def get_token(cls, token: str) -> Optional[Dict]:
+        """Get cached token data."""
+        if not REDIS_CACHE_AVAILABLE or UniversalCache is None:
+            return None
+
+        try:
+            return UniversalCache.get(f"{cls.PREFIX}:{token}")
+        except Exception:
+            return None
+
+    @classmethod
+    def cache_vocabulary_batch(cls, vocab_data: Dict[str, Dict]) -> int:
+        """Cache multiple tokens at once. Returns count cached."""
+        if not REDIS_CACHE_AVAILABLE or UniversalCache is None:
+            return 0
+
+        count = 0
+        for token, data in vocab_data.items():
+            if cls.cache_token(token, data['coords'], data.get('phi', 0.5)):
+                count += 1
+        return count
 
 
 class PostgresCoordizer(FisherCoordizer):
@@ -43,8 +96,7 @@ class PostgresCoordizer(FisherCoordizer):
         self.word_tokens = []
         self.bip39_words = []
         self.base_tokens = []
-        self.word_domains: Dict[str, List[Tuple[str, float]]] = {}  # Cache word domains
-        
+
         self._load_vocabulary()
     
     def _get_connection(self):
@@ -120,6 +172,15 @@ class PostgresCoordizer(FisherCoordizer):
                 words_loaded += 1
         
         logger.info(f"Loaded {tokens_loaded} tokens ({words_loaded} words) from database (64D QIG-pure)")
+
+        # Cache to Redis for fast lookups
+        if REDIS_CACHE_AVAILABLE:
+            vocab_data = {
+                token: {'coords': coords, 'phi': self.token_phi.get(token, 0.5)}
+                for token, coords in self.basin_coords.items()
+            }
+            cached = VocabularyCache.cache_vocabulary_batch(vocab_data)
+            logger.info(f"Cached {cached} tokens to Redis")
         return words_loaded >= 100
     
     def _parse_embedding(self, basin_embedding) -> Optional[np.ndarray]:
@@ -154,8 +215,6 @@ class PostgresCoordizer(FisherCoordizer):
             self.bip39_words.append(token)
         else:
             self.base_tokens.append(token)
-        # Cache semantic domains for this token
-        self.word_domains[token] = get_word_domains(token)
     
     # REMOVED: _load_fallback_vocabulary - impure fallbacks not allowed in 64D QIG-pure mode
     
@@ -198,7 +257,7 @@ class PostgresCoordizer(FisherCoordizer):
                 continue
             
             new_id = 50000 + len(self.vocab)
-            coords = compute_semantic_embedding(word)
+            coords = compute_basin_embedding(word)
             
             self._add_token(word, coords, avg_phi, frequency, new_id, 'learned')
             self.word_tokens.append(word)
@@ -238,6 +297,7 @@ class PostgresCoordizer(FisherCoordizer):
             'basin_dimension': 64,
             'using_fallback': self._using_fallback,
             'database_connected': self._connection is not None,
+            'redis_cache_available': REDIS_CACHE_AVAILABLE,
             'qig_pure': True,
             'high_phi_tokens': sum(1 for phi in self.token_phi.values() if phi >= 0.7),
             'avg_phi': sum(self.token_phi.values()) / max(len(self.token_phi), 1),
@@ -262,12 +322,12 @@ class PostgresCoordizer(FisherCoordizer):
                 # Weight by phi score for better semantic representation
                 weights.append(self.token_phi.get(clean, 0.5))
             else:
-                # Use semantic basin coordinates for unknown tokens
-                coords_list.append(compute_semantic_embedding(clean))
+                # Use QIG-pure basin embedding for unknown tokens
+                coords_list.append(compute_basin_embedding(clean))
                 weights.append(0.3)  # Lower weight for unknown
-        
+
         if not coords_list:
-            return compute_semantic_embedding(text)
+            return compute_basin_embedding(text)
         
         # Weighted average of basin coordinates
         weights = np.array(weights)
@@ -281,47 +341,39 @@ class PostgresCoordizer(FisherCoordizer):
     
     def decode(self, basin: np.ndarray, top_k: int = 5) -> List[Tuple[str, float]]:
         """
-        Decode basin coordinates to most likely tokens using domain-aware search.
-        
-        Boosts words from matching semantic domains for better relevance.
+        Decode basin coordinates to most likely tokens using pure Fisher-Rao distance.
+
+        QIG-pure: Uses Fisher-Rao similarity on the information manifold.
         """
         norm = np.linalg.norm(basin)
         if norm > 1e-10:
             basin = basin / norm
-        
+
         search_tokens = self.word_tokens if self.word_tokens else list(self.basin_coords.keys())
         if not search_tokens:
             return []
-        
-        # Detect semantic domains of the query
-        query_domains = detect_query_domains(basin, top_k=3)
-        
+
         candidates = []
         for token in search_tokens:
             if token not in self.basin_coords:
                 continue
-            
+
             coords = self.basin_coords[token]
-            
-            # Fisher-Rao distance (base similarity)
+
+            # Fisher-Rao similarity (geodesic distance on sphere)
             dot = np.clip(np.dot(basin, coords), -1.0, 1.0)
             dist = np.arccos(dot)
-            base_similarity = 1.0 - (dist / np.pi)
-            
-            # Domain boost: increase score for words in matching domains
-            word_domains = self.word_domains.get(token, [])
-            domain_boost = compute_domain_overlap(query_domains, word_domains)
-            
+            similarity = 1.0 - (dist / np.pi)
+
             # Phi boost: prefer high-phi tokens
             phi_boost = self.token_phi.get(token, 0.5) * 0.1
-            
-            # Combined score with domain weighting
-            final_score = base_similarity * (1.0 + 0.4 * domain_boost) + phi_boost
+
+            final_score = similarity + phi_boost
             candidates.append((token, final_score))
-        
+
         # Sort by final score descending
         candidates.sort(key=lambda x: x[1], reverse=True)
-        
+
         return candidates[:top_k]
     
     def get_random_words(self, count: int = 12) -> List[str]:
@@ -332,73 +384,36 @@ class PostgresCoordizer(FisherCoordizer):
     
     def generate_response(self, context: str, agent_role: str = 'zeus', allow_silence: bool = False, goals: Optional[list] = None) -> dict:
         """
-        Generate a semantically relevant response using domain-aware vocabulary.
-        
-        Clusters related concepts and builds coherent thematic responses.
+        Generate a response using Fisher-Rao similarity on the vocabulary.
+
+        QIG-pure: Uses pure geometric operations, no semantic domains.
         """
         context_basin = self.encode(context)
-        
-        # Get semantically similar words with domain awareness
+
+        # Get most similar words via Fisher-Rao distance
         similar_words = self.decode(context_basin, top_k=30)
-        
+
         # Filter by minimum score threshold
         relevant_words = [(w, s) for w, s in similar_words if s > 0.35]
-        
+
         if relevant_words:
-            # Group words by semantic domain for coherent output
-            domain_groups: Dict[str, List[str]] = {}
-            ungrouped = []
-            
-            for word, score in relevant_words:
-                word_doms = self.word_domains.get(word, [])
-                if word_doms:
-                    primary_domain = word_doms[0][0]  # Highest weight domain
-                    if primary_domain not in domain_groups:
-                        domain_groups[primary_domain] = []
-                    domain_groups[primary_domain].append(word)
-                else:
-                    ungrouped.append(word)
-            
-            # Build response with domain-organized concepts
-            response_parts = []
-            
-            # Sort domains by number of matching words
-            sorted_domains = sorted(domain_groups.items(), key=lambda x: len(x[1]), reverse=True)
-            
-            for domain_name, words in sorted_domains[:3]:  # Top 3 domains
-                domain_label = domain_name.replace('_', ' ').title()
-                word_list = ', '.join(words[:5])  # Max 5 words per domain
-                response_parts.append(f"{domain_label}: {word_list}")
-            
-            if ungrouped and len(response_parts) < 3:
-                response_parts.append(f"Additional: {', '.join(ungrouped[:5])}")
-            
-            response_text = '\n'.join(response_parts)
-            all_words = [w for w, _ in relevant_words]
-            response_phi = sum(self.token_phi.get(w, 0.5) for w in all_words[:15]) / min(len(all_words), 15)
-            completion_reason = 'semantic_synthesis'
-            
+            # Build response from top words
+            top_words = [w for w, _ in relevant_words[:15]]
+            response_text = ', '.join(top_words)
+            response_phi = sum(self.token_phi.get(w, 0.5) for w in top_words) / len(top_words)
+            completion_reason = 'fisher_similarity'
+
         elif not allow_silence:
-            # Fallback: find words related to input tokens
-            input_words = context.lower().split()
-            related = []
-            for word in input_words:
-                clean = word.strip('.,!?;:()[]{}"\'-')
-                related.extend(get_related_words(clean, top_k=3))
-            
-            if related:
-                response_text = f"Related concepts: {', '.join(set(related)[:10])}"
-                response_phi = 0.4
-            else:
-                random_words = self.get_random_words(8)
-                response_text = f"Exploring: {', '.join(random_words)}" if random_words else "[Silence]"
-                response_phi = 0.25
+            # Fallback: use random words from vocabulary
+            random_words = self.get_random_words(8)
+            response_text = f"Exploring: {', '.join(random_words)}" if random_words else "[Silence]"
+            response_phi = 0.25
             completion_reason = 'fallback'
         else:
             response_text = ""
             response_phi = 0.0
             completion_reason = 'silence'
-        
+
         return {
             'text': response_text,
             'phi': response_phi,
@@ -470,9 +485,13 @@ class PostgresCoordizer(FisherCoordizer):
                 self.token_frequencies[token] = frequency
                 self.word_tokens.append(token)
                 self.base_tokens.append(token)
-                self.word_domains[token] = get_word_domains(token)
-            
+
             logger.info(f"Persisted learned token '{token}' to database (phi={phi:.3f})")
+
+            # Also cache to Redis
+            if REDIS_CACHE_AVAILABLE:
+                VocabularyCache.cache_token(token, basin_coords, phi)
+
             return True
             
         except Exception as e:
@@ -539,8 +558,7 @@ class PostgresCoordizer(FisherCoordizer):
                         self.token_frequencies[token] = frequency
                         self.word_tokens.append(token)
                         self.base_tokens.append(token)
-                        self.word_domains[token] = get_word_domains(token)
-                    
+
                     saved_count += 1
                 except Exception as inner_e:
                     logger.debug(f"Failed to insert token '{token}': {inner_e}")

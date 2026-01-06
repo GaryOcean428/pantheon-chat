@@ -6,9 +6,6 @@ import { generousLimiter } from "../rate-limiters";
 import { storage } from "../storage";
 import { storageFacade } from "../persistence";
 import { KNOWN_12_WORD_PHRASES } from "../known-phrases";
-// BIP39 removed - legacy wallet recovery functionality deprecated
-function generateRandomBIP39Phrase(_wordCount?: number): string { return ''; }
-function getBIP39Wordlist(): string[] { return []; }
 import { searchCoordinator } from "../search-coordinator";
 import { activityLogStore } from "../activity-log-store";
 import { oceanSessionManager } from "../ocean-session-manager";

@@ -40,20 +40,11 @@ export {
   BrandedTypeError,
 } from './branded';
 
-// Core types (primary source for address types, validation, etc.)
+// Core types (primary source for regime types, validation, etc.)
 export {
   RegimeType,
   type Regime,
   regimeSchema,
-  AddressType,
-  type AddressTypeValue,
-  addressTypeSchema,
-  bitcoinAddressSchema,
-  type BitcoinAddress,
-  privateKeyHexSchema,
-  type PrivateKeyHex,
-  wifSchema,
-  type WIF,
 } from './core';
 
 // QIG geometry types
@@ -89,12 +80,6 @@ export * from './python-responses';
 
 // Server-side types (auth, workflows, constraints)
 export * from './server-types';
-
-// Blockchain API response types
-export * from './blockchain-types';
-
-// Recovery system types
-export * from './recovery-types';
 
 // Olympus Pantheon types
 export {

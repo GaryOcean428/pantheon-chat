@@ -2098,16 +2098,16 @@ class GeometricMemory {
       return 'Ocean Agent';
     }
     
-    // BIP39/Mnemonic strategies
+    // Multi-word phrase strategies
     if (lowerSource.includes('bip39') || lowerSource.includes('mnemonic') ||
         lowerSource.includes('seed')) {
-      return 'BIP39 Mnemonic';
+      return 'Multi-Word Phrase';
     }
-    
-    // Brain wallet / arbitrary
+
+    // Arbitrary text input
     if (lowerSource.includes('brain') || lowerSource.includes('arbitrary') ||
         lowerSource.includes('passphrase')) {
-      return 'Brain Wallet';
+      return 'Arbitrary Text';
     }
     
     // User-provided

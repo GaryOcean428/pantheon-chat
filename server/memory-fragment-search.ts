@@ -1,10 +1,10 @@
 /**
  * Memory Fragment Search Module
- * 
- * Intelligent brain wallet recovery using memory fragments with confidence weighting.
- * Generates candidate passphrases by combining user-remembered fragments,
+ *
+ * Intelligent search using memory fragments with confidence weighting.
+ * Generates candidate combinations by combining user-remembered fragments,
  * prioritized by QIG geometric scoring and memory confidence.
- * 
+ *
  * Key Features:
  * - Confidence-weighted fragment combination
  * - QWERTY-aware typo simulation
@@ -202,9 +202,9 @@ export function generateAllVariants(phrase: string): string[] {
 
 /**
  * Generate fragment combinations with confidence weighting
- * 
+ *
  * Strategy: Start from high-confidence fragments, expand using combinations
- * to find likely passphrase structures
+ * to find likely structures
  */
 export function generateFragmentCandidates(
   fragments: MemoryFragment[],
@@ -295,9 +295,9 @@ export function generateFragmentCandidates(
 
 /**
  * Score candidates with QIG and compute combined score
- * 
+ *
  * Combined score = Φ × confidence × resonance_bonus
- * Higher combined score = more likely to be the correct passphrase
+ * Higher combined score = more likely candidate
  */
 export async function scoreFragmentCandidates(
   candidates: FragmentCandidate[],

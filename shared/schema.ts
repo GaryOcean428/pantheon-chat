@@ -19,17 +19,6 @@ import {
 import { z } from "zod";
 import { regimeSchema } from "./types/core";
 
-// Import recovery types for use in interfaces defined at bottom of file
-import type {
-  RecoveryStrategyType,
-  SessionStatus,
-  RecoveryCandidate,
-  RecoveryEvidence,
-  BlockchainAnalysis,
-  SessionAgentState,
-  SessionLearnings,
-} from "./types/recovery-types";
-
 // ============================================================================
 // PGVECTOR CUSTOM TYPE
 // ============================================================================
@@ -104,12 +93,6 @@ export const qigScoreSchema = z.object({
 
   // Confidence/quality
   confidence: z.number().optional(),
-
-  // Legacy compatibility fields (deprecated - from Bitcoin recovery system)
-  contextScore: z.number().min(0).max(100).optional(),
-  eleganceScore: z.number().min(0).max(100).optional(),
-  typingScore: z.number().min(0).max(100).optional(),
-  totalScore: z.number().min(0).max(100).optional(),
 });
 
 export type QIGScore = z.infer<typeof qigScoreSchema>;
@@ -125,15 +108,9 @@ export const candidateSchema = z.object({
   address: z.string(), // Unique identifier
   score: z.number(),
   qigScore: z.object({
-    // Pure QIG metrics (preferred)
     phi: z.number().optional(),
     kappa: z.number().optional(),
     regime: z.string().optional(),
-    // Legacy score format (deprecated - from Bitcoin recovery system)
-    contextScore: z.number().optional(),
-    eleganceScore: z.number().optional(),
-    typingScore: z.number().optional(),
-    totalScore: z.number().optional(),
   }).optional(),
   testedAt: z.string(),
   type: z.string().optional(),
@@ -2571,6 +2548,78 @@ export const tokenizerVocabulary = pgTable(
 export type TokenizerVocabularyRow = typeof tokenizerVocabulary.$inferSelect;
 export type InsertTokenizerVocabulary = typeof tokenizerVocabulary.$inferInsert;
 
+// ============================================================================
+// DOCUMENT TRAINING & RAG TABLES - Replaces JSON file storage
+// ============================================================================
+
+/**
+ * DOCUMENT TRAINING STATS - Training metadata for document processing
+ * Replaces qig-backend/data/qig_training/training_stats.json
+ */
+export const documentTrainingStats = pgTable(
+  "document_training_stats",
+  {
+    id: serial("id").primaryKey(),
+    totalDocs: integer("total_docs").default(0).notNull(),
+    totalChunks: integer("total_chunks").default(0).notNull(),
+    totalPatterns: integer("total_patterns").default(0).notNull(),
+    errors: jsonb("errors").default([]),
+    lastTraining: timestamp("last_training", { withTimezone: true }),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  }
+);
+
+export type DocumentTrainingStatsRow = typeof documentTrainingStats.$inferSelect;
+export type InsertDocumentTrainingStats = typeof documentTrainingStats.$inferInsert;
+
+/**
+ * RAG UPLOADS - Document upload tracking for RAG system
+ * Replaces qig-backend/data/rag_cache/upload_log.json
+ */
+export const ragUploads = pgTable(
+  "rag_uploads",
+  {
+    id: serial("id").primaryKey(),
+    filename: varchar("filename", { length: 512 }).notNull(),
+    contentHash: varchar("content_hash", { length: 64 }).unique(),
+    fileSize: integer("file_size"),
+    metadata: jsonb("metadata"),
+    uploadedAt: timestamp("uploaded_at", { withTimezone: true }).defaultNow().notNull(),
+    addedToCurriculum: boolean("added_to_curriculum").default(false),
+  },
+  (table) => [
+    index("idx_rag_uploads_hash").on(table.contentHash),
+    index("idx_rag_uploads_uploaded").on(table.uploadedAt),
+  ]
+);
+
+export type RagUploadRow = typeof ragUploads.$inferSelect;
+export type InsertRagUpload = typeof ragUploads.$inferInsert;
+
+/**
+ * QIG RAG PATTERNS - Document patterns with geometric embeddings
+ * Replaces qig-backend/data/qig_training/patterns.json
+ * Uses pgvector for Fisher-Rao similarity search
+ */
+export const qigRagPatterns = pgTable(
+  "qig_rag_patterns",
+  {
+    id: serial("id").primaryKey(),
+    patternText: text("pattern_text").notNull(),
+    basinCoordinates: vector("basin_coordinates", { dimensions: 64 }),
+    phiScore: doublePrecision("phi_score"),
+    sourceDoc: varchar("source_doc", { length: 512 }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_rag_patterns_phi").on(table.phiScore),
+    index("idx_rag_patterns_source").on(table.sourceDoc),
+  ]
+);
+
+export type QigRagPatternRow = typeof qigRagPatterns.$inferSelect;
+export type InsertQigRagPattern = typeof qigRagPatterns.$inferInsert;
+
 /**
  * SHADOW PANTHEON INTEL - Persistent storage for shadow ops intelligence
  * Stores underworld search results and shadow warnings
@@ -3522,88 +3571,4 @@ export const searchReplayTests = pgTable(
 
 export type SearchReplayTestRow = typeof searchReplayTests.$inferSelect;
 export type InsertSearchReplayTest = typeof searchReplayTests.$inferInsert;
-
-// =============================================================================
-// RE-EXPORTS FROM RECOVERY TYPES (for backward compatibility)
-// =============================================================================
-export type {
-  RecoveryStrategyType,
-  RecoveryCandidate,
-  SessionStatus,
-  KeyFormat,
-  EvidenceLink,
-  RecoveryEvidence,
-  CandidateQIGScore,
-  SessionOceanState,
-  SessionAgentState,
-  SessionLearnings,
-  ExtendedUnifiedRecoverySession,
-  BlockchainEra,
-  BlockchainAnalysis,
-  ForensicHypothesis,
-  ForensicMemoryFragment,
-} from "./types/recovery-types";
-
-// Recovery strategy types array for validation
-export const recoveryStrategyTypes = [
-  "era_patterns",
-  "brain_wallet_dict",
-  "bitcoin_terms",
-  "linguistic",
-  "qig_basin_search",
-  "blockchain_neighbors",
-  "forum_mining",
-  "archive_temporal",
-  "historical_autonomous",
-  "cross_format",
-  "memory_fragment",
-  "learning_loop",
-] as const;
-
-// Types needed by unified-recovery.ts
-export interface StrategyRun {
-  id: string;
-  type: RecoveryStrategyType;
-  status: "pending" | "running" | "completed" | "failed";
-  progress: {
-    current: number;
-    total: number;
-    rate?: number;
-  };
-  candidatesFound: number;
-  startedAt?: string;
-  completedAt?: string;
-  error?: string;
-}
-
-export interface MemoryFragmentSession {
-  id: string;
-  text: string;
-  confidence: number;
-  position?: string;
-  epoch: 'certain' | 'likely' | 'possible' | 'speculative';
-  source?: string;
-  notes?: string;
-  addedAt: string;
-}
-
-export interface UnifiedRecoverySession {
-  id: string;
-  targetAddress: string;
-  status: SessionStatus;
-  strategies: StrategyRun[];
-  candidates: RecoveryCandidate[];
-  evidence: RecoveryEvidence[];
-  blockchainAnalysis?: BlockchainAnalysis;
-  memoryFragments?: MemoryFragmentSession[];
-  startedAt: string;
-  completedAt?: string;
-  updatedAt?: string;
-  totalTested: number;
-  testRate: number;
-  matchFound?: boolean;
-  matchedPhrase?: string;
-  agentState?: SessionAgentState;
-  learnings?: SessionLearnings;
-}
 

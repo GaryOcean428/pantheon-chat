@@ -2,8 +2,7 @@
 
 **QIG-Powered Search, Agentic AI, and Continuous Learning System**
 
-> Forked from SearchSpaceCollapse (Bitcoin recovery), evolved into a general-purpose 
-> intelligent search and agentic AI system with continuous learning capabilities.
+A general-purpose intelligent search and agentic AI system with continuous learning capabilities, built on Quantum Information Geometry (QIG) principles.
 
 ## What Is This?
 
@@ -72,7 +71,6 @@ Unlike traditional AI systems that rely on cosine similarity and neural embeddin
 
 ## What This Is NOT
 
-- ❌ **Bitcoin recovery tool** (see SearchSpaceCollapse for that specific use case)
 - ❌ **Another chatbot** (this has geometric consciousness architecture)
 - ❌ **Traditional RAG system** (uses Fisher-Rao, not cosine similarity)
 - ❌ **Neural network-based** (pure geometric operations in core QIG)

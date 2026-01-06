@@ -15,37 +15,33 @@ import {
   logOceanStart,
   logOceanStrategy,
 } from "./activity-log-store";
-// BIP39 removed - legacy wallet recovery functionality deprecated
-function generateRandomBIP39Phrase(_wordCount?: number): string { return ''; }
-function isValidBIP39Phrase(_phrase: string): boolean { return false; }
 import { getSharedController } from "./consciousness-search-controller";
 import { culturalManifold } from "./cultural-manifold";
 
-// Bitcoin crypto functions removed - stub implementations
-function deriveBIP32Address(phrase: string, path: string): string { return ''; }
-function derivePrivateKeyFromPassphrase(phrase: string): string { return ''; }
-function generateBothAddressesFromPrivateKey(key: string): { compressed: string; uncompressed: string } { 
-  return { compressed: '', uncompressed: '' }; 
+// Legacy crypto stubs - kept for code compatibility, functions are no-ops
+function generateRandomBIP39Phrase(_wordCount?: number): string { return ''; }
+function isValidBIP39Phrase(_phrase: string): boolean { return false; }
+function deriveBIP32Address(_phrase: string, _path: string): string { return ''; }
+function derivePrivateKeyFromPassphrase(_phrase: string): string { return ''; }
+function generateBothAddressesFromPrivateKey(_key: string): { compressed: string; uncompressed: string } {
+  return { compressed: '', uncompressed: '' };
 }
-function generateRecoveryBundle(_phrase: string, _address: string, _metrics?: any): any { 
-  // Stub for knowledge discovery - returns mock bundle
-  return { privateKeyHex: '', publicKeyHex: '', address: '' }; 
+function generateRecoveryBundle(_phrase: string, _address: string, _metrics?: any): any {
+  return { privateKeyHex: '', publicKeyHex: '', address: '' };
 }
-function privateKeyToWIF(key: string, compressed?: boolean): string { return ''; }
-function deriveMnemonicAddresses(phrase: string): { addresses: { address: string; privateKeyHex: string; derivationPath: string; pathType: string }[]; totalDerived: number } {
+function privateKeyToWIF(_key: string, _compressed?: boolean): string { return ''; }
+function deriveMnemonicAddresses(_phrase: string): { addresses: { address: string; privateKeyHex: string; derivationPath: string; pathType: string }[]; totalDerived: number } {
   return { addresses: [], totalDerived: 0 };
 }
-function checkMnemonicAgainstDormant(phrase: string): { hasMatch: boolean; matches: any[] } {
+function checkMnemonicAgainstDormant(_phrase: string): { hasMatch: boolean; matches: any[] } {
   return { hasMatch: false, matches: [] };
 }
 type RecoveryBundle = any;
 type VerificationResult = any;
 import {
   generateTemporalHypotheses,
-  getPrioritizedDormantWallets,
 } from "./dormant-wallet-analyzer";
 import { isOceanError } from "./errors/ocean-errors";
-import { expandedVocabulary } from "./expanded-vocabulary";
 import "./fisher-vectorized";
 import { qfiAttention, type AttentionQuery } from "./gary-kernel";
 import "./geodesic-navigator";
@@ -3970,24 +3966,6 @@ export class OceanAgent {
       );
     }
 
-    // Add phrases from expanded vocabulary (patterns category)
-    const patternPhrases = expandedVocabulary
-      .getCategory("patterns")
-      .slice(0, 30);
-    for (const phrase of patternPhrases) {
-      if (!common.includes(phrase)) {
-        hypotheses.push(
-          this.createHypothesis(
-            phrase,
-            "arbitrary",
-            "expanded_vocabulary",
-            "Common passphrase pattern",
-            0.35
-          )
-        );
-      }
-    }
-
     // Add top learned words from vocabulary expander
     const manifoldHypotheses =
       vocabularyExpander.generateManifoldHypotheses(10);
@@ -4009,52 +3987,27 @@ export class OceanAgent {
   private generateRandomPhrases(count: number): OceanHypothesis[] {
     const hypotheses: OceanHypothesis[] = [];
 
-    // Use expanded vocabulary for much richer word pool
-    const cryptoWords = expandedVocabulary.getCategory("crypto").slice(0, 100);
-    const commonWords = expandedVocabulary.getCategory("common").slice(0, 200);
-    const culturalWords = expandedVocabulary
-      .getCategory("cultural")
-      .slice(0, 50);
-    const nameWords = expandedVocabulary.getCategory("names").slice(0, 50);
-    const allWords = [
-      ...cryptoWords,
-      ...commonWords,
-      ...culturalWords,
-      ...nameWords,
+    // Use common research-oriented words for exploration
+    const words = [
+      "research", "analysis", "discovery", "pattern", "knowledge",
+      "learning", "insight", "concept", "theory", "data",
+      "model", "system", "process", "structure", "function",
+      "method", "approach", "framework", "principle", "idea",
     ];
 
-    // Fallback if vocabulary not loaded
-    const words =
-      allWords.length > 0
-        ? allWords
-        : [
-            "bitcoin",
-            "crypto",
-            "satoshi",
-            "secret",
-            "key",
-            "wallet",
-            "money",
-            "freedom",
-            "trust",
-            "hash",
-          ];
-
     for (let i = 0; i < count; i++) {
-      const numWords = 1 + Math.floor(Math.random() * 4); // Up to 4 words
+      const numWords = 1 + Math.floor(Math.random() * 3); // Up to 3 words
       const selectedWords: string[] = [];
       for (let j = 0; j < numWords; j++) {
         selectedWords.push(words[Math.floor(Math.random() * words.length)]);
       }
-      const suffix =
-        Math.random() > 0.7 ? Math.floor(Math.random() * 1000).toString() : "";
-      const phrase = selectedWords.join(" ") + suffix;
+      const phrase = selectedWords.join(" ");
       hypotheses.push(
         this.createHypothesis(
           phrase,
           "arbitrary",
           "random_generation",
-          "Random exploration from expanded vocabulary",
+          "Random exploration",
           0.3
         )
       );

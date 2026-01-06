@@ -18,7 +18,6 @@
 import { geometricMemory, type BasinProbe } from './geometric-memory';
 import { logger } from './lib/logger';
 import type { Regime } from '@shared/types';
-import { expandedVocabulary } from './expanded-vocabulary';
 import { vocabDecisionEngine, type WordContext } from './vocabulary-decision';
 import { db, withDbRetry } from './db';
 import { vocabularyObservations } from '@shared/schema';
@@ -309,11 +308,6 @@ export class VocabularyTracker {
       }
     }
     
-    // Learn to expanded vocabulary
-    expandedVocabulary.learnWord(phrase, 1);
-    for (const token of tokens) {
-      expandedVocabulary.learnWord(token, 1);
-    }
   }
   
   /**
@@ -424,9 +418,8 @@ export class VocabularyTracker {
     
     // Phrases (mutations) with high frequency and Φ
     for (const [_text, obs] of Array.from(this.phraseObservations.entries())) {
-      if (obs.frequency >= this.minFrequency && 
-          obs.avgPhi >= this.minPhi &&
-          !expandedVocabulary.hasWord(obs.text)) {
+      if (obs.frequency >= this.minFrequency &&
+          obs.avgPhi >= this.minPhi) {
         candidates.push({
           text: obs.text,
           type: obs.type,

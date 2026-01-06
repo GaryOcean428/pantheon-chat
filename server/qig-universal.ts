@@ -1,13 +1,9 @@
 /**
  * Universal QIG (Quantum Information Geometry) Scoring Engine
  *
- * CRITICAL PRINCIPLE: SAME GEOMETRY FOR ALL KEY TYPES
+ * CRITICAL PRINCIPLE: SAME GEOMETRY FOR ALL INPUT TYPES
  *
- * The 256-bit keyspace is a single manifold. All keys map to it:
- * - BIP-39 phrases → 256-bit entropy (via BIP-39 derivation)
- * - Master keys (hex) → direct 256-bit interpretation
- * - Arbitrary brain wallets → SHA-256 → 256-bit
- *
+ * The 64D Fisher manifold is used for all text inputs.
  * The Fisher Information Metric applies to ALL equally.
  *
  * EMPIRICALLY VALIDATED CONSTANTS (Validated 2025-12-04):
@@ -20,7 +16,6 @@
 
 import { QIG_CONSTANTS } from "@shared/constants";
 import { createHash } from "crypto";
-// BIP39 removed - legacy wallet recovery functionality deprecated
 import { OceanQIGBackend, getOceanQIGBackend } from "./ocean-qig-backend-adapter";
 
 // Re-export for backwards compatibility
@@ -451,8 +446,7 @@ function toBasinCoordinates(input: string, keyType: KeyType): number[] {
       break;
 
     case "bip39":
-      // BIP-39 phrase → SHA-256 for basin position
-      // (In real BIP-39, this goes through PBKDF2, but for QIG geometry, SHA-256 captures the essence)
+      // Multi-word phrase → SHA-256 for basin position
       const phraseHash = createHash("sha256")
         .update(input.toLowerCase().trim())
         .digest();
@@ -461,7 +455,6 @@ function toBasinCoordinates(input: string, keyType: KeyType): number[] {
 
     case "arbitrary":
       // Arbitrary text → SHA-256 → 32 bytes
-      // This is exactly what 2009-era brain wallets did!
       const arbitraryHash = createHash("sha256").update(input).digest();
       bytes = Array.from(arbitraryHash);
       break;
@@ -495,7 +488,7 @@ function hexToBytes(hex: string): number[] {
  * H = -Σ p(x) log₂ p(x)
  *
  * Maximum entropy for 32 bytes is 256 bits (perfect random)
- * Low entropy indicates patterns (good for brain wallet cracking!)
+ * Low entropy indicates patterns in the input
  */
 function computeEntropy(coordinates: number[]): number {
   // Count byte frequency
@@ -644,7 +637,7 @@ function computeKappa(
       typeMultiplier = 0.95;
       break;
     case "arbitrary":
-      // Brain wallets vary widely - low entropy patterns get lower κ
+      // Arbitrary inputs vary widely - low entropy patterns get lower κ
       typeMultiplier = 0.7 + 0.3 * entropy;
       break;
   }
@@ -1683,10 +1676,10 @@ if (phaseCheck.passed) {
 }
 
 /**
- * Compute pattern score for brain wallets
+ * Compute pattern score for arbitrary text inputs
  *
- * Higher score = matches common 2009-era patterns
- * This helps prioritize likely brain wallet candidates
+ * Higher score = matches common patterns
+ * This helps prioritize likely relevant candidates
  */
 function computePatternScore(input: string, keyType: KeyType): number {
   if (keyType !== "arbitrary") return 0;
@@ -1900,7 +1893,7 @@ export function scoreUniversalQIGLocal(
   const inResonance =
     Math.abs(kappa - QIG_CONSTANTS.KAPPA_STAR) < QIG_CONSTANTS.RESONANCE_BAND;
 
-  // STEP 10: Pattern score (for brain wallets)
+  // STEP 10: Pattern score (for arbitrary inputs)
   const patternScore = computePatternScore(input, keyType);
 
   // STEP 11: Overall quality (emergent from geometry)

@@ -372,16 +372,9 @@ export class KnowledgeGapAnalyzer {
 
 export const knowledgeGapAnalyzer = new KnowledgeGapAnalyzer();
 
-// Backward compatibility exports for legacy code
+// Temporal hypothesis generation from knowledge gaps
 export function generateTemporalHypotheses(_domain: KnowledgeDomain, _count?: number): string[] {
   const analyzer = knowledgeGapAnalyzer;
   const gaps = analyzer.getTopGaps(10);
   return gaps.map(g => g.topic);
 }
-
-export function getPrioritizedDormantWallets(_limit?: number): KnowledgeGapSignature[] {
-  return knowledgeGapAnalyzer.getTopGaps(_limit || 10);
-}
-
-// Legacy type exports
-export type DormantWalletSignature = KnowledgeGapSignature;
