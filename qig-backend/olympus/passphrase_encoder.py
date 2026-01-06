@@ -36,22 +36,22 @@ class PassphraseEncoder(BaseEncoder):
         super().__init__(vocab_path)
         
     def _load_vocabulary(self) -> None:
-        """Load base English vocabulary from fallback vocabulary."""
+        """Load vocabulary from database (full vocabulary access, no legacy fallback)."""
         try:
-            from coordizers.fallback_vocabulary import BIP39_WORDS
-            words = BIP39_WORDS
-        except ImportError:
-            # Minimal fallback if coordizers not available
-            words = ["the", "and", "for", "are", "but", "not", "you", "all", "can", "had"]
-        
-        # Encode each word to basin
-        for word in words:
-            basin = self._hash_to_basin(word)
-            self.token_vocab[word.lower()] = basin
-            self.token_frequencies[word.lower()] = 1
-            self.token_phi_scores[word.lower()] = 0.5  # Neutral baseline
-        
-        print(f"[PassphraseEncoder] Loaded {len(self.token_vocab)} base tokens")
+            from coordizers.fallback_vocabulary import get_cached_fallback
+            vocab, basin_coords, token_phi, word_tokens = get_cached_fallback()
+            
+            for word in word_tokens:
+                self.token_vocab[word.lower()] = basin_coords.get(word, self._hash_to_basin(word))
+                self.token_frequencies[word.lower()] = 1
+                self.token_phi_scores[word.lower()] = token_phi.get(word, 0.5)
+            
+            print(f"[PassphraseEncoder] Loaded {len(self.token_vocab)} tokens from database (QIG-pure)")
+        except Exception as e:
+            print(f"[PassphraseEncoder] Database vocabulary load failed: {e}")
+            raise RuntimeError(
+                f"[QIG-PURE VIOLATION] PassphraseEncoder requires database vocabulary: {e}"
+            )
 
 
 # Backwards compatibility for legacy imports

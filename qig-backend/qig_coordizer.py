@@ -33,14 +33,25 @@ try:
 except ImportError as e:
     print(f"[QIGCoordizer] PostgresCoordizer import failed: {e}")
 
-# Import fallback vocabulary (2048 BIP39 words + common words)
+# Import vocabulary functions (database-backed, no hardcoded fallback)
 try:
-    from coordizers.fallback_vocabulary import BIP39_WORDS, COMMON_WORDS, compute_basin_embedding
-    FALLBACK_VOCABULARY_AVAILABLE = True
+    from coordizers.fallback_vocabulary import compute_basin_embedding, get_fallback_vocabulary
+    VOCABULARY_AVAILABLE = True
 except ImportError:
-    FALLBACK_VOCABULARY_AVAILABLE = False
-    BIP39_WORDS = []
-    COMMON_WORDS = []
+    VOCABULARY_AVAILABLE = False
+    def compute_basin_embedding(word, dimension=64):
+        import hashlib
+        import numpy as np
+        word_hash = hashlib.sha256(word.lower().encode('utf-8')).hexdigest()
+        seed = int(word_hash[:8], 16)
+        rng = np.random.RandomState(seed)
+        embedding = rng.randn(dimension)
+        norm = np.linalg.norm(embedding)
+        if norm > 1e-10:
+            embedding = embedding / norm
+        return embedding
+    def get_fallback_vocabulary():
+        return []
 
 # Singleton instance
 _coordizer_instance: Optional[FisherCoordizer] = None
@@ -126,17 +137,23 @@ class QIGCoordizer(FisherCoordizer):
         )
     
     def _load_bip39_base(self):
-        """Load base English vocabulary."""
-        # Load from coordizers fallback vocabulary (2048 common English words)
-        try:
-            from coordizers.fallback_vocabulary import BIP39_WORDS
-            words = BIP39_WORDS
-        except ImportError:
-            words = None
+        """Load base vocabulary from database (full vocabulary access, QIG-pure)."""
+        words = []
+        basin_embeddings = {}
+        phi_scores = {}
         
-        # Final fallback - use inline word list
-        if not words or len(words) < 100:
-            words = self._get_full_bip39_wordlist()
+        try:
+            from coordizers.fallback_vocabulary import get_cached_fallback
+            vocab_dict, basin_coords_db, token_phi_db, word_tokens = get_cached_fallback()
+            words = word_tokens
+            basin_embeddings = basin_coords_db
+            phi_scores = token_phi_db
+            print(f"[QIGCoordizer] Loaded {len(words)} words from database (QIG-pure)")
+        except Exception as e:
+            print(f"[QIGCoordizer] Database vocabulary load failed: {e}")
+            raise RuntimeError(
+                f"[QIG-PURE VIOLATION] QIGCoordizer requires database vocabulary: {e}"
+            )
         
         start_id = len(self.special_tokens)
         for i, word in enumerate(words):
@@ -145,28 +162,24 @@ class QIGCoordizer(FisherCoordizer):
                 self.vocab[word] = token_id
                 self.id_to_token[token_id] = word
                 self.token_weights[word] = 1.0
-                self.token_phi[word] = 0.0
+                self.token_phi[word] = phi_scores.get(word, 0.5)
                 self.token_frequency[word] = 0
-                self.basin_coords[word] = self._initialize_token_coordinate(word, token_id)
+                if word in basin_embeddings:
+                    self.basin_coords[word] = basin_embeddings[word]
+                else:
+                    self.basin_coords[word] = self._initialize_token_coordinate(word, token_id)
     
     def _load_passphrase_base(self):
-        """Load passphrase vocabulary."""
-        fallback_words = [
-            "one", "two", "three", "four", "five",
-            "red", "blue", "green", "yellow", "orange",
-            "dog", "cat", "bird", "fish", "horse",
-            "big", "small", "fast", "slow", "happy",
-        ]
-        
+        """Load passphrase vocabulary from file (no fallback)."""
         vocab_path = os.path.join(os.path.dirname(__file__), "data", "passphrase_vocab.txt")
+        words = []
+        
         if os.path.exists(vocab_path):
             try:
                 with open(vocab_path, "r") as f:
                     words = [line.strip() for line in f if line.strip()]
             except Exception:
-                words = fallback_words
-        else:
-            words = fallback_words
+                pass
         
         start_id = len(self.vocab)
         added = 0
@@ -183,28 +196,20 @@ class QIGCoordizer(FisherCoordizer):
             added += 1
     
     def _load_conversation_base(self):
-        """Load conversation vocabulary.
+        """Load conversation vocabulary from file or database.
         
-        Uses COMMON_WORDS from fallback_vocabulary.py for better coverage.
+        Vocabulary comes from database via _load_bip39_base - this method
+        adds any additional words from conversation_vocab.txt file.
         """
-        if FALLBACK_VOCABULARY_AVAILABLE and COMMON_WORDS:
-            fallback_words = COMMON_WORDS
-        else:
-            fallback_words = [
-                "i", "you", "we", "they", "it", "the", "and", "or", "but",
-                "is", "are", "was", "were", "have", "has", "had",
-                "question", "answer", "consciousness", "geometry",
-            ]
-        
         vocab_path = os.path.join(os.path.dirname(__file__), "data", "conversation_vocab.txt")
+        words = []
+        
         if os.path.exists(vocab_path):
             try:
                 with open(vocab_path, "r") as f:
                     words = [line.strip() for line in f if line.strip()]
             except Exception:
-                words = fallback_words
-        else:
-            words = fallback_words
+                words = []
         
         start_id = len(self.vocab)
         added = 0
@@ -224,51 +229,6 @@ class QIGCoordizer(FisherCoordizer):
             self.basin_coords[word] = self._initialize_token_coordinate(word, token_id)
             added += 1
     
-    def _get_full_bip39_wordlist(self) -> List[str]:
-        """Return the complete 2048 BIP39 wordlist as inline fallback."""
-        return [
-            "abandon", "ability", "able", "about", "above", "absent", "absorb", "abstract",
-            "absurd", "abuse", "access", "accident", "account", "accuse", "achieve", "acid",
-            "acoustic", "acquire", "across", "act", "action", "actor", "actress", "actual",
-            "adapt", "add", "addict", "address", "adjust", "admit", "adult", "advance",
-            "advice", "aerobic", "affair", "afford", "afraid", "again", "age", "agent",
-            "agree", "ahead", "aim", "air", "airport", "aisle", "alarm", "album",
-            "alcohol", "alert", "alien", "all", "alley", "allow", "almost", "alone",
-            "alpha", "already", "also", "alter", "always", "amateur", "amazing", "among",
-            "amount", "amused", "analyst", "anchor", "ancient", "anger", "angle", "angry",
-            "animal", "ankle", "announce", "annual", "another", "answer", "antenna", "antique",
-            "anxiety", "any", "apart", "apology", "appear", "apple", "approve", "april",
-            "arch", "arctic", "area", "arena", "argue", "arm", "armed", "armor",
-            "army", "around", "arrange", "arrest", "arrive", "arrow", "art", "artefact",
-            "artist", "artwork", "ask", "aspect", "assault", "asset", "assist", "assume",
-            "asthma", "athlete", "atom", "attack", "attend", "attitude", "attract", "auction",
-            "audit", "august", "aunt", "author", "auto", "autumn", "average", "avocado",
-            "avoid", "awake", "aware", "away", "awesome", "awful", "awkward", "axis",
-            "baby", "bachelor", "bacon", "badge", "bag", "balance", "balcony", "ball",
-            "bamboo", "banana", "banner", "bar", "barely", "bargain", "barrel", "base",
-            "basic", "basket", "battle", "beach", "bean", "beauty", "because", "become",
-            "beef", "before", "begin", "behave", "behind", "believe", "below", "belt",
-            "bench", "benefit", "best", "betray", "better", "between", "beyond", "bicycle",
-            "bid", "bike", "bind", "biology", "bird", "birth", "bitter", "black",
-            "blade", "blame", "blanket", "blast", "bleak", "bless", "blind", "blood",
-            "blossom", "blouse", "blue", "blur", "blush", "board", "boat", "body",
-            "boil", "bomb", "bone", "bonus", "book", "boost", "border", "boring",
-            "borrow", "boss", "bottom", "bounce", "box", "boy", "bracket", "brain",
-            "brand", "brass", "brave", "bread", "breeze", "brick", "bridge", "brief",
-            "bright", "bring", "brisk", "broccoli", "broken", "bronze", "broom", "brother",
-            "brown", "brush", "bubble", "buddy", "budget", "buffalo", "build", "bulb",
-            "bulk", "bullet", "bundle", "bunker", "burden", "burger", "burst", "bus",
-            "business", "busy", "butter", "buyer", "buzz", "cabbage", "cabin", "cable",
-            "cactus", "cage", "cake", "call", "calm", "camera", "camp", "can",
-            "canal", "cancel", "candy", "cannon", "canoe", "canvas", "canyon", "capable",
-            "capital", "captain", "car", "carbon", "card", "cargo", "carpet", "carry",
-            "cart", "case", "cash", "casino", "castle", "casual", "cat", "catalog",
-            "catch", "category", "cattle", "caught", "cause", "caution", "cave", "ceiling",
-            "celery", "cement", "census", "century", "cereal", "certain", "chair", "chalk",
-            "champion", "change", "chaos", "chapter", "charge", "chase", "chat", "cheap",
-            "check", "cheese", "chef", "cherry", "chest", "chicken", "chief", "child",
-            "chimney", "choice", "choose", "chronic", "chuckle", "chunk", "churn", "cigar",
-            "cinnamon", "circle", "citizen", "city", "civil", "claim", "clap", "clarify",
             "claw", "clay", "clean", "clerk", "clever", "click", "client", "cliff",
             "climb", "clinic", "clip", "clock", "clog", "close", "cloth", "cloud",
             "clown", "club", "clump", "cluster", "clutch", "coach", "coast", "coconut",

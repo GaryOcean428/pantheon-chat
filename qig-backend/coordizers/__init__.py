@@ -23,12 +23,11 @@ from .consciousness_aware import ConsciousnessCoordizer
 from .multi_scale import MultiScaleCoordizer
 from .pg_loader import PostgresCoordizer, create_coordizer_from_pg
 from .fallback_vocabulary import (
-    FALLBACK_VOCABULARY,
-    BIP39_WORDS,
-    COMMON_WORDS,
     compute_basin_embedding,
     get_fallback_vocabulary,
     get_cached_fallback,
+    get_vocabulary_stats,
+    clear_vocabulary_cache,
 )
 
 __all__ = [
@@ -39,12 +38,11 @@ __all__ = [
     'MultiScaleCoordizer',
     'PostgresCoordizer',
     'create_coordizer_from_pg',
-    'FALLBACK_VOCABULARY',
-    'BIP39_WORDS',
-    'COMMON_WORDS',
     'compute_basin_embedding',
     'get_fallback_vocabulary',
     'get_cached_fallback',
+    'get_vocabulary_stats',
+    'clear_vocabulary_cache',
 ]
 
 __version__ = '2.2.0'
