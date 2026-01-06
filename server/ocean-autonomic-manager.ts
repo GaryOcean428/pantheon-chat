@@ -1298,7 +1298,7 @@ export class OceanAutonomicManager {
       ? `${lastCycle.type} at ${lastCycle.triggeredAt}` 
       : null;
     
-    const kernelPhiAge = this.lastKernelPhiFetch ? Date.now() - this.lastKernelPhiFetch : null;
+    const kernelPhiAge = this.lastKernelPhiFetch ? Date.now() - this.lastKernelPhiFetch.getTime() : null;
     
     return {
       kernelsActive: 12,

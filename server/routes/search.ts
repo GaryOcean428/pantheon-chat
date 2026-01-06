@@ -10,16 +10,25 @@ import { searchCoordinator } from "../search-coordinator";
 import { activityLogStore } from "../activity-log-store";
 import { oceanSessionManager } from "../ocean-session-manager";
 import { runMemoryFragmentSearch, type MemoryFragment } from "../memory-fragment-search";
-import { 
-  addAddressRequestSchema, 
-  generateRandomPhrasesRequestSchema, 
+import {
+  addAddressRequestSchema,
+  generateRandomPhrasesRequestSchema,
   createSearchJobRequestSchema,
   type Candidate,
   type TargetAddress,
-  type SearchJob 
+  type SearchJob
 } from "@shared/schema";
 import { googleWebSearchAdapter } from "../geometric-discovery/google-web-search-adapter";
 import { scoreUniversalQIGAsync } from "../qig-universal";
+
+// Stub functions for removed legacy Bitcoin code
+function getBIP39Wordlist(): string[] { return []; }
+function generateRandomBIP39Phrase(): string { return 'random phrase ' + Math.random().toString(36).substring(7); }
+
+// Stub format detection functions (legacy Bitcoin code removed)
+function detectAddressFormat(_address: string) { return { format: 'unknown', valid: false }; }
+function estimateAddressEra(_address: string) { return { era: 'unknown', confidence: 0 }; }
+function detectMnemonicFormat(_phrase: string) { return { format: 'unknown', wordCount: 0, valid: false }; }
 
 // Search provider state (in-memory, persists until restart)
 // Exported so other modules can check provider state
@@ -791,12 +800,11 @@ export const formatRouter = Router();
 
 formatRouter.get("/address/:address", async (req: Request, res: Response) => {
   try {
-    const { detectAddressFormat, estimateAddressEra } = await import('../format-detection');
     const { address } = req.params;
-    
+
     const formatInfo = detectAddressFormat(address);
     const eraInfo = estimateAddressEra(address);
-    
+
     res.json({
       address,
       ...formatInfo,
@@ -809,15 +817,14 @@ formatRouter.get("/address/:address", async (req: Request, res: Response) => {
 
 formatRouter.post("/mnemonic", async (req: Request, res: Response) => {
   try {
-    const { detectMnemonicFormat } = await import('../format-detection');
     const { phrase } = req.body;
-    
+
     if (!phrase || typeof phrase !== 'string') {
       return res.status(400).json({ error: 'phrase is required' });
     }
-    
+
     const formatInfo = detectMnemonicFormat(phrase);
-    
+
     res.json({
       phrase: phrase.split(/\s+/).slice(0, 3).join(' ') + '...',
       ...formatInfo,
@@ -829,13 +836,12 @@ formatRouter.post("/mnemonic", async (req: Request, res: Response) => {
 
 formatRouter.post("/batch-addresses", async (req: Request, res: Response) => {
   try {
-    const { detectAddressFormat, estimateAddressEra } = await import('../format-detection');
     const { addresses } = req.body;
-    
+
     if (!Array.isArray(addresses)) {
       return res.status(400).json({ error: 'addresses array is required' });
     }
-    
+
     const results = addresses.slice(0, 100).map((address: string) => ({
       address,
       format: detectAddressFormat(address),

@@ -21,6 +21,12 @@ import {
   recordTelemetrySnapshot,
 } from "./telemetry-api";
 
+// Stub functions for removed legacy Bitcoin code
+function generateMasterPrivateKey(): string { return 'stub_private_key_' + Math.random().toString(36).substring(7); }
+function generateRandomBIP39Phrase(_wordCount?: number): string { return 'stub phrase ' + Math.random().toString(36).substring(7); }
+function generateBitcoinAddress(_phrase: string): string { return 'stub_address_' + Math.random().toString(36).substring(7); }
+function generateBitcoinAddressFromPrivateKey(_key: string): string { return 'stub_address_' + Math.random().toString(36).substring(7); }
+
 class SearchCoordinator {
   private isRunning = false;
   private currentJobId: string | null = null;
@@ -726,10 +732,9 @@ class SearchCoordinator {
           address,
           score: pureScore.quality * 100, // Convert to 0-100 scale for consistency
           qigScore: {
-            contextScore: 0,
-            eleganceScore: 0,
-            typingScore: 0,
-            totalScore: pureScore.quality * 100,
+            phi: pureScore.phi,
+            kappa: pureScore.kappa,
+            regime: pureScore.regime,
           },
           testedAt: new Date().toISOString(),
           type: "bip39",
@@ -814,12 +819,9 @@ class SearchCoordinator {
           address,
           score: 100, // Exact match = 100% score
           qigScore: {
-            contextScore: Math.round(universalScore.phi * 100),
-            eleganceScore: Math.round(
-              (1 - Math.abs(universalScore.kappa - 64) / 64) * 100
-            ),
-            typingScore: Math.round(universalScore.patternScore * 100),
-            totalScore: Math.round(universalScore.quality * 100),
+            phi: universalScore.phi,
+            kappa: universalScore.kappa,
+            regime: universalScore.regime,
           },
           testedAt: new Date().toISOString(),
           type: item.type,
@@ -910,12 +912,9 @@ class SearchCoordinator {
           address,
           score: qualityPercent,
           qigScore: {
-            contextScore: Math.round(universalScore.phi * 100),
-            eleganceScore: Math.round(
-              (1 - Math.abs(universalScore.kappa - 64) / 64) * 100
-            ),
-            typingScore: Math.round(universalScore.patternScore * 100),
-            totalScore: Math.round(qualityPercent),
+            phi: universalScore.phi,
+            kappa: universalScore.kappa,
+            regime: universalScore.regime,
           },
           testedAt: new Date().toISOString(),
           type: item.type,

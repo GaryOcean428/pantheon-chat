@@ -170,25 +170,70 @@ except Exception as e:
 # Initialize Training Loop Integrator - connects curriculum, research, and attractor feedback
 TRAINING_LOOP_AVAILABLE = False
 _training_integrator = None
+_feedback_system = None
+_research_orchestrator = None
 try:
     from training.training_loop_integrator import get_training_integrator
-    
+    from training.attractor_feedback import get_feedback_system
+    from research_execution_orchestrator import get_research_orchestrator
+
     _training_integrator = get_training_integrator()
-    
+    _feedback_system = get_feedback_system()
+    _research_orchestrator = get_research_orchestrator()
+
     # Wire training integrator to curiosity engine if available
     if CURIOSITY_AVAILABLE and _curiosity_engine:
         _training_integrator.wire_curiosity_engine(_curiosity_engine)
         print("[INFO] Training loop wired to curiosity engine")
-    
+
+    # Wire attractor feedback system
+    _training_integrator.wire_feedback_system(_feedback_system)
+    print("[INFO] Attractor feedback system wired")
+
+    # Wire research execution orchestrator
+    _training_integrator.wire_orchestrator(_research_orchestrator)
+    print("[INFO] Research orchestrator wired")
+
     # Enable training
     _training_integrator.enable_training()
-    
+
     TRAINING_LOOP_AVAILABLE = True
     print("[INFO] Training Loop Integrator active - kernels will learn continuously")
 except ImportError as e:
     print(f"[WARNING] Training loop integrator not available: {e}")
 except Exception as e:
     print(f"[WARNING] Training loop initialization failed: {e}")
+
+# Initialize ShadowResearchAPI - handles curriculum training, web research, and meta-reflection
+SHADOW_RESEARCH_AVAILABLE = False
+_shadow_research_api = None
+try:
+    from olympus.shadow_research import ShadowResearchAPI
+
+    _shadow_research_api = ShadowResearchAPI.get_instance()
+
+    # Define basin sync callback to propagate learned knowledge system-wide
+    def _shadow_basin_sync(topic: str, basin_coords, phi: float):
+        """Sync shadow research discoveries to the main basin system."""
+        if CURIOSITY_AVAILABLE and _curiosity_engine:
+            try:
+                _curiosity_engine.record_exploration(topic, {"phi": phi, "source": "shadow_research"})
+            except Exception as e:
+                print(f"[ShadowResearch] Basin sync failed: {e}")
+
+    _shadow_research_api.initialize(basin_sync_callback=_shadow_basin_sync)
+
+    # Wire shadow learning loop to training integrator if available
+    if TRAINING_LOOP_AVAILABLE and _training_integrator and _shadow_research_api.learning_loop:
+        _training_integrator.wire_shadow_loop(_shadow_research_api.learning_loop)
+        print("[INFO] Shadow loop wired to training integrator")
+
+    SHADOW_RESEARCH_AVAILABLE = True
+    print("[INFO] ShadowResearchAPI initialized - ShadowLearningLoop active")
+except ImportError as e:
+    print(f"[WARNING] ShadowResearchAPI not available: {e}")
+except Exception as e:
+    print(f"[WARNING] ShadowResearchAPI initialization failed: {e}")
 
 # Register QIG Constellation routes
 CONSTELLATION_AVAILABLE = False
@@ -344,6 +389,7 @@ print(f"  - Immune system: {'✓' if IMMUNE_AVAILABLE else '✗'}", flush=True)
 print(f"  - Self-Healing: {'✓' if SELF_HEALING_AVAILABLE else '✗'}", flush=True)
 print(f"  - Curiosity engine: {'✓' if CURIOSITY_AVAILABLE else '✗'}", flush=True)
 print(f"  - Training loop: {'✓' if TRAINING_LOOP_AVAILABLE else '✗'}", flush=True)
+print(f"  - Shadow research: {'✓' if SHADOW_RESEARCH_AVAILABLE else '✗'}", flush=True)
 print(f"  - Research API: {'✓' if RESEARCH_AVAILABLE else '✗'}", flush=True)
 print(f"  - Constellation: {'✓' if CONSTELLATION_AVAILABLE else '✗'}", flush=True)
 print(f"  - M8 Spawning: {'✓' if M8_AVAILABLE else '✗'}", flush=True)

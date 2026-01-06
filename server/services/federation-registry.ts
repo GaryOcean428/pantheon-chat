@@ -144,11 +144,11 @@ export class FederationRegistry {
         return this.fallbackToEnvVars(capability);
       }
       
-      const partner = rowToPartner(result.rows[0] as PartnerRow);
-      
+      const partner = rowToPartner(result.rows[0] as unknown as PartnerRow);
+
       // Cache the result
       this.cache.set(cacheKey, { partner, cachedAt: new Date() });
-      
+
       logger.debug(`[FederationRegistry] Found partner ${partner.name} for capability ${capability}`);
       return partner;
       
@@ -184,10 +184,10 @@ export class FederationRegistry {
         return null;
       }
       
-      const partner = rowToPartner(result.rows[0] as PartnerRow);
+      const partner = rowToPartner(result.rows[0] as unknown as PartnerRow);
       this.cache.set(cacheKey, { partner, cachedAt: new Date() });
       return partner;
-      
+
     } catch (error) {
       logger.error({ err: error }, '[FederationRegistry] Failed to find partner by name');
       return null;
@@ -210,7 +210,7 @@ export class FederationRegistry {
         ORDER BY name ASC
       `);
       
-      return result.rows.map(row => rowToPartner(row as PartnerRow));
+      return result.rows.map(row => rowToPartner(row as unknown as PartnerRow));
       
     } catch (error) {
       logger.error({ err: error }, '[FederationRegistry] Failed to get all partners');

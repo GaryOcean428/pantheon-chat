@@ -20,7 +20,6 @@ oceanRouter.get(
         await import("../negative-knowledge-unified");
       const { vocabularyTracker } = await import("../vocabulary-tracker");
       const { vocabularyExpander } = await import("../vocabulary-expander");
-      const { expandedVocabulary } = await import("../expanded-vocabulary");
 
       const session = oceanSessionManager.getActiveSession();
       const agent = oceanSessionManager.getActiveAgent();
@@ -28,7 +27,6 @@ oceanRouter.get(
       const nkStats = await negativeKnowledgeRegistry.getStats();
       const vtStats = vocabularyTracker.getStats();
       const veStats = vocabularyExpander.getStats();
-      const evStats = expandedVocabulary.getStats();
       const acStatus = autoCycleManager.getStatus();
 
       const health = {
@@ -58,11 +56,6 @@ oceanRouter.get(
             status: "initialized",
             totalWords: veStats.totalWords,
             totalExpansions: veStats.totalExpansions,
-          },
-          expandedVocabulary: {
-            status: "initialized",
-            wordCount: evStats.totalWords,
-            categories: Object.keys(evStats.categoryCounts).length,
           },
           autoCycle: {
             status: acStatus.enabled ? "enabled" : "disabled",
