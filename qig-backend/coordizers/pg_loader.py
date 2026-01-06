@@ -92,9 +92,8 @@ class PostgresCoordizer(FisherCoordizer):
                 SELECT token, basin_embedding, phi_score, frequency, source_type, token_id
                 FROM tokenizer_vocabulary
                 WHERE basin_embedding IS NOT NULL
-                  AND LENGTH(token) >= 3
-                  AND source_type NOT IN ('byte_level', 'checkpoint_byte', 'special')
-                  AND token ~ '^[a-zA-Z]+$'
+                  AND LENGTH(token) >= 2
+                  AND source_type NOT IN ('byte_level', 'checkpoint_byte', 'checkpoint_char', 'special')
                 ORDER BY phi_score DESC
             """)
             rows = cur.fetchall()
@@ -105,6 +104,7 @@ class PostgresCoordizer(FisherCoordizer):
                 "Database must contain valid 64D basin embeddings."
             )
         
+        tokens_loaded = 0
         words_loaded = 0
         for token, basin_embedding, phi_score, frequency, source_type, token_id in rows:
             coords = self._parse_embedding(basin_embedding)
@@ -113,12 +113,13 @@ class PostgresCoordizer(FisherCoordizer):
             
             idx = token_id if token_id is not None else len(self.vocab)
             self._add_token(token, coords, phi_score or 0.5, frequency or 1, idx, source_type)
+            tokens_loaded += 1
             
             if token.isalpha() and len(token) >= 3:
                 self.word_tokens.append(token)
                 words_loaded += 1
         
-        logger.info(f"Loaded {words_loaded} words from database (64D QIG-pure)")
+        logger.info(f"Loaded {tokens_loaded} tokens ({words_loaded} words) from database (64D QIG-pure)")
         return words_loaded >= 100
     
     def _parse_embedding(self, basin_embedding) -> Optional[np.ndarray]:

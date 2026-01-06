@@ -3751,6 +3751,56 @@ def training_status():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/learning/status', methods=['GET'])
+def learning_status():
+    """
+    Get comprehensive learning status for telemetry.
+    
+    Returns vocabulary_size from PostgreSQL tokenizer_vocabulary table,
+    plus word relationship and curiosity engine stats.
+    """
+    try:
+        import psycopg2
+        import os
+        
+        vocabulary_size = 0
+        word_relationships_count = 0
+        
+        database_url = os.getenv('DATABASE_URL')
+        if database_url:
+            try:
+                conn = psycopg2.connect(database_url)
+                with conn.cursor() as cur:
+                    cur.execute("SELECT COUNT(*) FROM tokenizer_vocabulary WHERE basin_embedding IS NOT NULL")
+                    row = cur.fetchone()
+                    vocabulary_size = row[0] if row else 0
+                    
+                    cur.execute("SELECT COUNT(*) FROM word_relationships")
+                    row = cur.fetchone()
+                    word_relationships_count = row[0] if row else 0
+                conn.close()
+            except Exception as db_err:
+                print(f"[Flask] learning/status DB error: {db_err}")
+        
+        curiosity_stats = {}
+        try:
+            from autonomous_curiosity import get_curiosity_engine
+            engine = get_curiosity_engine()
+            curiosity_stats = engine.get_learning_status()
+        except Exception:
+            pass
+        
+        return jsonify({
+            'success': True,
+            'vocabulary_size': vocabulary_size,
+            'word_relationships_count': word_relationships_count,
+            'curiosity': curiosity_stats
+        })
+    except Exception as e:
+        print(f"[Flask] learning/status error: {e}")
+        return jsonify({'error': str(e), 'vocabulary_size': 0}), 500
+
+
 @app.route('/vocabulary/classify', methods=['POST'])
 def vocabulary_classify():
     """
