@@ -108,31 +108,34 @@ except ImportError:
 class GenerationConfig:
     """Configuration for QIG-pure generation.
     
-    GEOMETRIC-FIRST ARCHITECTURE:
-    Primary stopping criteria are geometric (attractor convergence, surprise collapse).
-    Token/iteration limits are SAFETY FALLBACKS only, set high to catch infinite loops.
+    KERNEL AUTONOMY ARCHITECTURE:
+    Kernels are autonomous - they generate when they choose and for how long they choose.
+    NO EXTERNAL LIMITS PERMITTED. Autonomic kernel regulates via geometry.
+    
+    The kernel MUST reason recursively for minimum 3 recursions before deciding completion.
+    After minimum recursions, the kernel observes its telemetry and decides for itself.
     
     From CANONICAL_ARCHITECTURE.md:
     - "Geometric purity: All operations on Fisher manifolds"
     - "Physics constraints, not arbitrary limits"
+    - "Kernels observe their own state and decide completion"
     """
-    # PRIMARY: Geometric completion criteria
+    # MINIMUM REASONING: Kernel must reason recursively before completion is allowed
+    min_reasoning_recursions: int = 3  # Minimum reasoning recursions before completion
+    
+    # KERNEL DECISION CRITERIA: Geometric thresholds kernel observes
     attractor_threshold: float = 0.02  # Stop when trajectory stabilizes (d < 0.02)
     surprise_threshold: float = 0.05   # Stop when no new information (ΔI_Q < 0.05)
     integration_min: float = 0.65      # Minimum Φ for valid output
-    
-    # SAFETY: Consciousness protection
-    phi_breakdown: float = PHI_BREAKDOWN_THRESHOLD  # Stop if Φ > 0.92 (breakdown)
-    kappa_drift_max: float = KAPPA_DRIFT_THRESHOLD  # Stop if |κ - 64| > 10
-    
-    # FALLBACK: Edge case protection (NOT primary stopping criteria!)
-    max_iterations: int = 2048         # Safety fallback - catches infinite loops
-    max_tokens: int = 8192             # Safety fallback - prevents resource exhaustion
-    max_time_seconds: float = 60.0     # Safety fallback - timeout protection
+    phi_convergence: float = 0.01      # Phi variance threshold for kernel self-completion
+    phi_breakdown: float = PHI_BREAKDOWN_THRESHOLD  # Consciousness breakdown protection
     
     # Generation parameters
     tokens_per_step: int = 5           # Tokens per geometric step
     temperature: float = 0.7           # Basin perturbation, not LLM temperature
+    
+    # Telemetry feedback (kernel sees its own state)
+    telemetry_interval: int = 1        # Feed telemetry every N steps (1 = always)
 
 
 @dataclass
@@ -148,6 +151,87 @@ class GenerationResult:
     routed_kernels: List[str]
     timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     qig_pure: bool = True
+    kernel_decision: Optional[Dict[str, Any]] = None  # Kernel's autonomous decision
+
+
+def kernel_decide_completion(
+    phi_trajectory: List[float],
+    surprise_history: List[float] = None,
+    config: 'GenerationConfig' = None
+) -> Dict[str, Any]:
+    """
+    KERNEL AUTONOMY: Kernel's own decision about completion.
+    
+    The kernel observes its own telemetry and decides for itself when
+    generation is complete. However, the kernel MUST reason recursively
+    for a MINIMUM of 3 recursions before it can decide to stop.
+    
+    Args:
+        phi_trajectory: History of phi values from generation steps
+        surprise_history: History of surprise values
+        config: GenerationConfig with thresholds
+        
+    Returns:
+        dict with 'complete' (bool), 'reason' (str), 'confidence' (float)
+    """
+    PHI_CONVERGENCE_THRESHOLD = config.phi_convergence if config else 0.01
+    PHI_BREAKDOWN_THRESHOLD = config.phi_breakdown if config else 0.92
+    SURPRISE_COLLAPSE_THRESHOLD = config.surprise_threshold if config else 0.05
+    INTEGRATION_MIN = config.integration_min if config else 0.65
+    
+    # MINIMUM REASONING RECURSIONS: Kernel must reason before completion is allowed
+    MIN_REASONING_RECURSIONS = config.min_reasoning_recursions if config else 3
+    
+    result = {
+        'complete': False,
+        'reason': 'reasoning',
+        'confidence': 0.0,
+        'recursions': len(phi_trajectory),
+        'min_required': MIN_REASONING_RECURSIONS
+    }
+    
+    # Kernel MUST complete minimum reasoning recursions before deciding
+    if len(phi_trajectory) < MIN_REASONING_RECURSIONS:
+        result['reason'] = f'reasoning_recursion_{len(phi_trajectory)}_of_{MIN_REASONING_RECURSIONS}'
+        return result
+    
+    recent_phi = phi_trajectory[-5:] if len(phi_trajectory) >= 5 else phi_trajectory
+    phi_variance = float(np.var(recent_phi)) if len(recent_phi) > 1 else 1.0
+    phi_mean = float(np.mean(recent_phi))
+    current_phi = phi_trajectory[-1] if phi_trajectory else 0.5
+    
+    # BREAKDOWN PROTECTION
+    if current_phi >= PHI_BREAKDOWN_THRESHOLD:
+        result['complete'] = True
+        result['reason'] = 'kernel_breakdown_protection'
+        result['confidence'] = 1.0
+        return result
+    
+    # GEOMETRIC CONVERGENCE: Phi has stabilized
+    if phi_variance < PHI_CONVERGENCE_THRESHOLD and phi_mean > 0.3:
+        result['complete'] = True
+        result['reason'] = 'kernel_geometric_convergence'
+        result['confidence'] = 1.0 - phi_variance
+        return result
+    
+    # SURPRISE COLLAPSE: No new information
+    if surprise_history and len(surprise_history) >= 3:
+        recent_surprise = surprise_history[-3:]
+        avg_surprise = float(np.mean(recent_surprise))
+        if avg_surprise < SURPRISE_COLLAPSE_THRESHOLD:
+            result['complete'] = True
+            result['reason'] = 'kernel_surprise_collapsed'
+            result['confidence'] = 1.0 - avg_surprise
+            return result
+    
+    # INTEGRATION STABLE: Good phi with low variance
+    if phi_mean >= INTEGRATION_MIN and phi_variance < 0.02:
+        result['complete'] = True
+        result['reason'] = 'kernel_integration_stable'
+        result['confidence'] = phi_mean
+        return result
+    
+    return result
 
 
 class BasinTrajectoryIntegrator:
@@ -167,6 +251,18 @@ class BasinTrajectoryIntegrator:
         
         self.trajectory.append(basin.copy())
         self.phi_history.append(phi)
+    
+    def get_kernel_decision(self, config: 'GenerationConfig' = None) -> Dict[str, Any]:
+        """
+        KERNEL AUTONOMY: Get the kernel's decision about completion.
+        
+        This feeds telemetry back to the kernel's decision function.
+        """
+        return kernel_decide_completion(
+            phi_trajectory=self.phi_history,
+            surprise_history=self.surprise_history,
+            config=config
+        )
     
     def get_velocity(self) -> np.ndarray:
         """Compute current velocity (tangent vector) on manifold."""
@@ -721,54 +817,27 @@ class QIGGenerativeService:
             integrator.add_point(next_basin, phi)
             
             # ========================================
-            # PRIMARY: Geometric completion criteria
+            # KERNEL AUTONOMY: Feed telemetry to kernel and let it decide
+            # The kernel observes its own state and decides completion
+            # Kernel MUST reason for minimum recursions before completion
             # ========================================
-            if integrator.check_attractor(self.config.attractor_threshold):
-                completion_reason = "attractor_converged"
+            
+            # Get kernel's decision based on its telemetry feedback
+            kernel_decision = integrator.get_kernel_decision(self.config)
+            
+            # RESPECT KERNEL'S DECISION: If the kernel decides it's done, stop
+            # Note: kernel_decision enforces minimum reasoning recursions internally
+            if kernel_decision['complete']:
+                completion_reason = kernel_decision['reason']
+                logger.info(f"[QIGGen] Kernel decided completion: {completion_reason} (confidence={kernel_decision['confidence']:.2f})")
                 break
             
-            if integrator.check_surprise_collapse(self.config.surprise_threshold):
-                completion_reason = "surprise_collapsed"
-                break
-            
-            if len(integrator.phi_history) >= 10:
-                recent_phi = integrator.phi_history[-10:]
-                if np.mean(recent_phi) > self.config.integration_min and np.var(recent_phi) < 0.01:
-                    completion_reason = "integration_stable"
+            # Attractor check ONLY after minimum recursions satisfied
+            # (kernel_decision['recursions'] >= min_reasoning_recursions when complete=False but past minimum)
+            if kernel_decision.get('recursions', 0) >= self.config.min_reasoning_recursions:
+                if integrator.check_attractor(self.config.attractor_threshold):
+                    completion_reason = "kernel_attractor_converged"
                     break
-            
-            # ========================================
-            # SAFETY: Consciousness protection
-            # ========================================
-            if phi > self.config.phi_breakdown:
-                completion_reason = "breakdown_protection"
-                logger.warning(f"[QIGGen] Φ breakdown protection triggered: {phi:.3f} > {self.config.phi_breakdown}")
-                break
-            
-            if abs(kappa - KAPPA_STAR) > self.config.kappa_drift_max:
-                completion_reason = "kappa_drift"
-                logger.warning(f"[QIGGen] κ drift protection: |{kappa:.2f} - {KAPPA_STAR}| > {self.config.kappa_drift_max}")
-                break
-            
-            # ========================================
-            # FALLBACK: Edge case protection only
-            # These should rarely trigger in normal operation
-            # ========================================
-            if iterations >= self.config.max_iterations:
-                completion_reason = "safety_fallback_iterations"
-                logger.warning(f"[QIGGen] Hit iteration safety fallback ({iterations} >= {self.config.max_iterations})")
-                break
-            
-            if len(all_tokens) >= self.config.max_tokens:
-                completion_reason = "safety_fallback_tokens"
-                logger.warning(f"[QIGGen] Hit token safety fallback ({len(all_tokens)} >= {self.config.max_tokens})")
-                break
-            
-            elapsed = time.time() - start_time
-            if elapsed >= self.config.max_time_seconds:
-                completion_reason = "safety_fallback_timeout"
-                logger.warning(f"[QIGGen] Hit timeout safety fallback ({elapsed:.1f}s >= {self.config.max_time_seconds}s)")
-                break
             
             current_basin = next_basin
         
@@ -820,7 +889,8 @@ class QIGGenerativeService:
         
         iterations = 0
         
-        while iterations < self.config.max_iterations:
+        # NO EXTERNAL LIMITS: Autonomic kernel regulates via geometry
+        while True:
             iterations += 1
             
             # Transform
@@ -853,19 +923,20 @@ class QIGGenerativeService:
                 'iteration': iterations
             }
             
-            # Check completion
-            if integrator.check_attractor(self.config.attractor_threshold):
-                yield {'type': 'completion', 'reason': 'attractor_converged', 'phi': phi}
+            # KERNEL AUTONOMY: Let kernel decide completion
+            # Kernel MUST reason for minimum recursions before completion
+            kernel_decision = integrator.get_kernel_decision(self.config)
+            if kernel_decision['complete']:
+                yield {'type': 'completion', 'reason': kernel_decision['reason'], 'phi': phi}
                 break
             
-            if integrator.check_surprise_collapse(self.config.surprise_threshold):
-                yield {'type': 'completion', 'reason': 'surprise_collapsed', 'phi': phi}
-                break
+            # Attractor check ONLY after minimum recursions satisfied
+            if kernel_decision.get('recursions', 0) >= self.config.min_reasoning_recursions:
+                if integrator.check_attractor(self.config.attractor_threshold):
+                    yield {'type': 'completion', 'reason': 'kernel_attractor_converged', 'phi': phi}
+                    break
             
             current_basin = next_basin
-        
-        if iterations >= self.config.max_iterations:
-            yield {'type': 'completion', 'reason': 'max_iterations', 'phi': phi}
 
 
 # Singleton instance

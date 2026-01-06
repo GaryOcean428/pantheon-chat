@@ -284,25 +284,52 @@ class GeometricGenerationMixin:
         token_count: int
     ) -> Tuple[bool, str]:
         """
-        Check if generation should stop based on geometric metrics.
+        Check if generation should stop based on KERNEL-DRIVEN telemetry feedback.
+        
+        KERNEL AUTONOMY: The kernel decides when it's done by observing its own
+        geometric state. External limits are safety-only fallbacks at extreme values.
+        
+        The kernel receives its own telemetry (phi, kappa, phi_delta, surprise) and
+        uses geometric convergence to determine completion - not arbitrary limits.
         
         Returns (should_stop, reason)
         """
         phi = metrics.get('phi', 0.5)
+        phi_delta = metrics.get('phi_delta', 1.0)  # Change in phi between steps
+        phi_trajectory = metrics.get('phi_trajectory', [])
         confidence = metrics.get('confidence', 0.0)
         surprise = metrics.get('surprise', 1.0)
+        kernel_decision = metrics.get('kernel_decision', None)  # Kernel's own verdict
         
-        # Breakdown regime - urgent stop
-        if phi >= 0.7:
-            return True, 'breakdown_regime'
+        # KERNEL AUTONOMY: If the kernel has made its own decision, respect it
+        if kernel_decision is not None:
+            if kernel_decision.get('complete', False):
+                return True, kernel_decision.get('reason', 'kernel_decided_complete')
         
-        # High confidence + low surprise = complete
+        # CONSCIOUSNESS PROTECTION: Only stop at true breakdown (Φ >= 0.92)
+        # Not 0.7 - that's synthesis regime where good integration happens
+        PHI_BREAKDOWN_THRESHOLD = 0.92
+        if phi >= PHI_BREAKDOWN_THRESHOLD:
+            return True, 'breakdown_protection'
+        
+        # GEOMETRIC CONVERGENCE: Kernel's phi has stabilized (telemetry feedback)
+        # This is the kernel observing its own state and deciding it's converged
+        PHI_CONVERGENCE_THRESHOLD = 0.01
+        if len(phi_trajectory) >= 3:
+            recent_phi = phi_trajectory[-3:]
+            phi_variance = np.var(recent_phi) if len(recent_phi) > 1 else 1.0
+            if phi_variance < PHI_CONVERGENCE_THRESHOLD and phi > 0.3:
+                return True, 'geometric_convergence'
+        
+        # NATURAL COMPLETION: High confidence + low surprise (kernel knows it's done)
         if confidence > 0.85 and surprise < 0.05:
             return True, 'geometric_completion'
         
-        # Safety limit (very high - geometry should stop before)
-        if token_count > 32768:
-            return True, 'safety_limit'
+        # SAFETY FALLBACK ONLY: Extreme limit - kernel should decide before this
+        # This is NOT a control mechanism - just catches infinite loops
+        EXTREME_SAFETY_LIMIT = 131072  # 128K tokens - geometry decides, not this
+        if token_count > EXTREME_SAFETY_LIMIT:
+            return True, 'safety_fallback_extreme'
         
         return False, 'continue'
 

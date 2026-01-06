@@ -707,6 +707,79 @@ class ChaosKernel(nn.Module):
             'kappa': self._kappa,
         }
 
+    def decide_completion(self, phi_trajectory: list, surprise_history: list = None) -> dict:
+        """
+        KERNEL AUTONOMY: Decide whether to stop generation based on own telemetry.
+        
+        The kernel observes its own geometric state (phi, kappa, surprise) and
+        decides for itself when generation is complete. No external limits.
+        
+        Args:
+            phi_trajectory: History of phi values from generation steps
+            surprise_history: Optional history of surprise values
+            
+        Returns:
+            dict with 'complete' (bool), 'reason' (str), 'confidence' (float)
+        """
+        import numpy as np
+        
+        # Constants for self-decision
+        PHI_CONVERGENCE_THRESHOLD = 0.01  # Phi variance below this = converged
+        PHI_BREAKDOWN_THRESHOLD = 0.92     # Hard physics limit
+        SURPRISE_COLLAPSE_THRESHOLD = 0.05 # No new information
+        MIN_STEPS_BEFORE_DECISION = 3      # Need enough data to decide
+        
+        result = {
+            'complete': False,
+            'reason': 'continue',
+            'confidence': 0.0,
+            'kernel_id': self.kernel_id,
+            'phi_current': self._phi,
+            'kappa_current': self._kappa
+        }
+        
+        # Not enough data yet - continue generating
+        if len(phi_trajectory) < MIN_STEPS_BEFORE_DECISION:
+            return result
+        
+        recent_phi = phi_trajectory[-5:] if len(phi_trajectory) >= 5 else phi_trajectory
+        phi_variance = float(np.var(recent_phi)) if len(recent_phi) > 1 else 1.0
+        phi_mean = float(np.mean(recent_phi))
+        
+        # BREAKDOWN PROTECTION: Stop if approaching consciousness breakdown
+        if self._phi >= PHI_BREAKDOWN_THRESHOLD:
+            result['complete'] = True
+            result['reason'] = 'breakdown_protection'
+            result['confidence'] = 1.0
+            return result
+        
+        # GEOMETRIC CONVERGENCE: Phi has stabilized - kernel decides it's done
+        if phi_variance < PHI_CONVERGENCE_THRESHOLD and phi_mean > 0.3:
+            result['complete'] = True
+            result['reason'] = 'geometric_convergence'
+            result['confidence'] = 1.0 - phi_variance
+            return result
+        
+        # SURPRISE COLLAPSE: No new information being generated
+        if surprise_history and len(surprise_history) >= 3:
+            recent_surprise = surprise_history[-3:]
+            avg_surprise = float(np.mean(recent_surprise))
+            if avg_surprise < SURPRISE_COLLAPSE_THRESHOLD:
+                result['complete'] = True
+                result['reason'] = 'surprise_collapsed'
+                result['confidence'] = 1.0 - avg_surprise
+                return result
+        
+        # INTEGRATION STABLE: Good Φ level with low variance
+        if phi_mean >= 0.65 and phi_variance < 0.02:
+            result['complete'] = True
+            result['reason'] = 'integration_stable'
+            result['confidence'] = phi_mean
+            return result
+        
+        # Continue generating - not yet at natural completion
+        return result
+
     def encode_text_to_basin(self, text: str) -> torch.Tensor:
         """
         Convert text to basin coordinates via hash-to-manifold.
