@@ -246,6 +246,19 @@ except ImportError as e:
 except Exception as e:
     print(f"[WARNING] Vocabulary API initialization failed: {e}")
 
+# Register Search Budget routes
+SEARCH_BUDGET_AVAILABLE = False
+try:
+    from routes.search_budget_routes import register_search_budget_routes
+
+    register_search_budget_routes(app)
+    SEARCH_BUDGET_AVAILABLE = True
+    print("[INFO] Search Budget API registered at /api/search/budget/*")
+except ImportError as e:
+    print(f"[WARNING] Search Budget API not available: {e}")
+except Exception as e:
+    print(f"[WARNING] Search Budget API initialization failed: {e}")
+
 # Add request/response logging for production
 from flask import request, g
 import time
@@ -337,6 +350,7 @@ print(f"  - M8 Spawning: {'✓' if M8_AVAILABLE else '✗'}", flush=True)
 print(f"  - Vocabulary API: {'✓' if VOCABULARY_AVAILABLE else '✗'}", flush=True)
 print(f"  - Coordizer API: {'✓' if COORDIZER_AVAILABLE else '✗'}", flush=True)
 print(f"  - Zeus API: {'✓' if ZEUS_API_AVAILABLE else '✗'}", flush=True)
+print(f"  - Search Budget: {'✓' if SEARCH_BUDGET_AVAILABLE else '✗'}", flush=True)
 print("🌊 Basin stable. Ready for Gunicorn workers. 🌊\n", flush=True)
 
 # Export the app for Gunicorn
