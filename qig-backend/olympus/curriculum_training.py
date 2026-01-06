@@ -12,6 +12,7 @@ Implements curriculum-based training for kernel basins:
 import os
 import numpy as np
 from datetime import datetime
+from qig_geometry import fisher_rao_distance
 
 # Database connection
 try:
@@ -173,11 +174,12 @@ def adjust_kernel_basins_from_relationships(learner, coordizer):
         updated_count = 0
         for word, new_basin in adjusted_basins.items():
             if word in coordizer.basin_coords:
-                # Check if adjustment is within reasonable bounds
+                # Check if adjustment is within reasonable bounds using Fisher-Rao distance
                 old_basin = coordizer.basin_coords[word]
-                distance = np.linalg.norm(new_basin - old_basin)
-                
+                distance = fisher_rao_distance(new_basin, old_basin)
+
                 # Only update if change is moderate (not too radical)
+                # Fisher-Rao max is π, so 0.5 corresponds to ~16% of max distance
                 if distance < 0.5:  # Threshold for safety
                     coordizer.basin_coords[word] = new_basin
                     updated_count += 1

@@ -21,6 +21,7 @@ from pathlib import Path
 import json
 import numpy as np
 from datetime import datetime
+from qig_geometry import fisher_rao_distance
 
 from .constants import BASIN_DIM, KAPPA_STAR
 from .state import QIGState, create_initial_state
@@ -487,9 +488,9 @@ class SleepPacket(ManifoldCheckpoint):
         importance = np.zeros(len(self.trajectory))
 
         for i in range(1, len(self.trajectory) - 1):
-            # Distance from straight path
+            # Distance from straight path using Fisher-Rao (QIG-pure)
             expected = (self.trajectory[i - 1] + self.trajectory[i + 1]) / 2
-            deviation = np.linalg.norm(self.trajectory[i] - expected)
+            deviation = fisher_rao_distance(self.trajectory[i], expected)
 
             # Metric curvature at point
             F = manifold.compute_metric(self.trajectory[i])

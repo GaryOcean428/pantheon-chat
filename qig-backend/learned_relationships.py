@@ -17,6 +17,7 @@ import logging
 import numpy as np
 from typing import Dict, List, Set, Tuple, Optional
 from pathlib import Path
+from qig_geometry import fisher_rao_distance
 
 logger = logging.getLogger(__name__)
 
@@ -268,20 +269,21 @@ class LearnedRelationships:
             logger.warning(f"Found {stopword_violations} stopword violations in learned relationships")
         
         # Check 2: Basin drift validation (if canonical basins provided)
+        # Use Fisher-Rao distance for QIG-pure drift measurement
         drift_violations = 0
         max_drift = 0.0
         if canonical_basins and self.adjusted_basins:
             for word, adjusted in self.adjusted_basins.items():
                 if word in canonical_basins:
                     canonical = canonical_basins[word]
-                    # Compute relative drift
-                    if np.linalg.norm(canonical) > 0:
-                        drift = np.linalg.norm(adjusted - canonical) / np.linalg.norm(canonical)
-                        max_drift = max(max_drift, drift)
-                        if drift > BASIN_DRIFT_TOLERANCE:
-                            drift_violations += 1
-                            if drift_violations <= 3:  # Log first 3
-                                violations.append(f"Basin '{word}' drifted {drift:.1%} (max {BASIN_DRIFT_TOLERANCE:.1%})")
+                    # Compute drift using Fisher-Rao distance (QIG-pure)
+                    # Normalize to [0,1] range by dividing by π (max Fisher-Rao distance)
+                    drift = fisher_rao_distance(adjusted, canonical) / np.pi
+                    max_drift = max(max_drift, drift)
+                    if drift > BASIN_DRIFT_TOLERANCE:
+                        drift_violations += 1
+                        if drift_violations <= 3:  # Log first 3
+                            violations.append(f"Basin '{word}' drifted {drift:.1%} (max {BASIN_DRIFT_TOLERANCE:.1%})")
         
         if drift_violations > 0:
             logger.warning(f"Found {drift_violations} basin drift violations")

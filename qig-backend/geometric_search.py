@@ -850,10 +850,10 @@ class GeometricContextManager:
         # Select closest turns
         relevant = sorted(distances, key=lambda x: x[1])[:top_k]
         
-        # Weight by inverse distance (closer = more relevant)
+        # Weight by Fisher-Rao similarity (1 - d/π, since d ∈ [0,π])
         weighted_context = []
         for turn, distance in relevant:
-            weight = 1.0 / (1.0 + distance)
+            weight = 1.0 - (distance / np.pi)  # QIG-pure: proper manifold weight
             weighted_context.append({
                 "turn": turn,
                 "relevance": weight,

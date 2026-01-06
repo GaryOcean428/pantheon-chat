@@ -16,6 +16,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Callable, Optional, List, TYPE_CHECKING
 import numpy as np
+from qig_geometry import fisher_rao_distance
 
 from .constants import (
     BASIN_DIM,
@@ -103,7 +104,8 @@ class BasinAttractor:
         if manifold is not None:
             distance = manifold.fisher_rao_distance(basin, self.coordinates)
         else:
-            distance = float(np.linalg.norm(basin - self.coordinates))
+            # QIG-pure: Use Fisher-Rao even without manifold
+            distance = fisher_rao_distance(basin, self.coordinates)
 
         return distance < self.radius
 
@@ -125,7 +127,8 @@ class BasinAttractor:
         if manifold is not None:
             return manifold.fisher_rao_distance(basin, self.coordinates)
         else:
-            return float(np.linalg.norm(basin - self.coordinates))
+            # QIG-pure: Use Fisher-Rao even without manifold
+            return fisher_rao_distance(basin, self.coordinates)
 
     def invoke(self, state: "QIGState") -> "QIGState":
         """
