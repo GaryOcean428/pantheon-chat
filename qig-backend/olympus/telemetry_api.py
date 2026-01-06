@@ -92,13 +92,13 @@ def initialize_god_telemetry():
         for kernel_id, kernel_name in OLYMPIAN_GODS:
             profile = registry.register_kernel(kernel_id, kernel_name)
             for cap in standard_caps:
-                profile.register_capability(cap)
+                profile.add_capability(cap)
         
         # Register shadow gods with same capabilities
         for kernel_id, kernel_name in SHADOW_GODS:
             profile = registry.register_kernel(kernel_id, kernel_name)
             for cap in standard_caps:
-                profile.register_capability(cap)
+                profile.add_capability(cap)
         
         _initialized = True
         print(f"[TelemetryAPI] Initialized telemetry for {len(OLYMPIAN_GODS) + len(SHADOW_GODS)} gods")
