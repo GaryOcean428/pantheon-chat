@@ -402,7 +402,10 @@ export class QuantumDiscoveryProtocol {
     
     this.measurements.push(measurement);
     
-    console.log(`[QuantumProtocol] Measurement: "${hypothesis.substring(0, 20)}..." → ${result.success ? 'SUCCESS!' : 'excluded'}`);
+    // In development, show full hypothesis for debugging; in production, truncate
+    const isVerbose = process.env.NODE_ENV !== 'production' || process.env.VERBOSE_LOGS === 'true';
+    const displayHypothesis = isVerbose ? hypothesis : `${hypothesis.substring(0, 20)}...`;
+    console.log(`[QuantumProtocol] Measurement: "${displayHypothesis}" → ${result.success ? 'SUCCESS!' : 'excluded'}`);
     console.log(`  Entropy: ${entropyBefore.toFixed(2)} → ${entropyAfter.toFixed(2)} (Δ = ${entropyReduction.toFixed(2)} bits)`);
     
     return measurement;

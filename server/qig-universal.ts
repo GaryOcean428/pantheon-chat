@@ -1809,13 +1809,15 @@ function mapPureQIGToUniversal(
     regimeFactor * 0.15 +
     patternFactor * 0.15;
 
+  // In development, store full hypothesis for debugging; in production, truncate for storage efficiency
+  const isVerbose = process.env.NODE_ENV !== 'production' || process.env.VERBOSE_LOGS === 'true';
   recordSearchState({
     timestamp: Date.now(),
     phi: phi_spatial,
     kappa,
     regime,
     basinCoordinates,
-    hypothesis: input.substring(0, 50),
+    hypothesis: isVerbose ? input : input.substring(0, 50),
   });
 
   return {
@@ -1944,13 +1946,15 @@ export function scoreUniversalQIGLocal(
     patternFactor * 0.15;
 
   // STEP 12: Record this state for future temporal analysis
+  // In development, store full hypothesis for debugging; in production, truncate for storage efficiency
+  const isVerbose = process.env.NODE_ENV !== 'production' || process.env.VERBOSE_LOGS === 'true';
   recordSearchState({
     timestamp: Date.now(),
     phi: phi_spatial,
     kappa,
     regime,
     basinCoordinates,
-    hypothesis: input.substring(0, 50), // Truncate for storage
+    hypothesis: isVerbose ? input : input.substring(0, 50),
   });
 
   return {

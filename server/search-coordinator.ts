@@ -498,9 +498,12 @@ class SearchCoordinator {
       }
 
       // Log a sample of what we're about to test (first item in batch) for live visibility
+      // In development, show full value for debugging; in production, truncate for privacy
+      const isVerbose = process.env.NODE_ENV !== 'production' || process.env.VERBOSE_LOGS === 'true';
       const sampleItem = batch[0];
-      const samplePreview =
-        sampleItem.type === "master-key"
+      const samplePreview = isVerbose
+        ? sampleItem.value
+        : sampleItem.type === "master-key"
           ? sampleItem.value.substring(0, 12) + "..."
           : sampleItem.value.substring(0, 40) +
             (sampleItem.value.length > 40 ? "..." : "");
