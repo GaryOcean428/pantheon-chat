@@ -112,7 +112,7 @@ class GenerationConfig:
     Kernels are autonomous - they generate when they choose and for how long they choose.
     NO EXTERNAL LIMITS PERMITTED. Autonomic kernel regulates via geometry.
     
-    The kernel MUST reason recursively for minimum 3 recursions before deciding completion.
+    The kernel MUST reason recursively for minimum recursions before deciding completion.
     After minimum recursions, the kernel observes its telemetry and decides for itself.
     
     From CANONICAL_ARCHITECTURE.md:
@@ -121,7 +121,8 @@ class GenerationConfig:
     - "Kernels observe their own state and decide completion"
     """
     # MINIMUM REASONING: Kernel must reason recursively before completion is allowed
-    min_reasoning_recursions: int = 3  # Minimum reasoning recursions before completion
+    # Increased from 3 to 8 to ensure adequate token generation for coherent output
+    min_reasoning_recursions: int = 8  # Minimum reasoning recursions before completion
     
     # KERNEL DECISION CRITERIA: Geometric thresholds kernel observes
     attractor_threshold: float = 0.02  # Stop when trajectory stabilizes (d < 0.02)
@@ -164,7 +165,7 @@ def kernel_decide_completion(
     
     The kernel observes its own telemetry and decides for itself when
     generation is complete. However, the kernel MUST reason recursively
-    for a MINIMUM of 3 recursions before it can decide to stop.
+    for a MINIMUM of 8 recursions before it can decide to stop.
     
     Args:
         phi_trajectory: History of phi values from generation steps
@@ -180,7 +181,7 @@ def kernel_decide_completion(
     INTEGRATION_MIN = config.integration_min if config else 0.65
     
     # MINIMUM REASONING RECURSIONS: Kernel must reason before completion is allowed
-    MIN_REASONING_RECURSIONS = config.min_reasoning_recursions if config else 3
+    MIN_REASONING_RECURSIONS = config.min_reasoning_recursions if config else 8
     
     result = {
         'complete': False,
@@ -470,12 +471,27 @@ class QIGGenerativeService:
         # Score by combined similarity + phi
         scored = []
         for token, similarity in candidates:
+            # Skip tokens that start with '[' (special tokens)
+            if token.startswith('['):
+                continue
             if similarity < 0.15:  # Skip very low similarity
                 continue
             phi = self.coordizer.token_phi.get(token, 0.5)
             # Base score: geometry + phi
             score = similarity * 0.6 + phi * 0.2
             scored.append((token, score, similarity))
+        
+        # Fallback: If we don't have enough tokens, relax the similarity threshold
+        if len(scored) < num_tokens:
+            for token, similarity in candidates:
+                if token.startswith('['):
+                    continue
+                if token not in [t for t, s, sim in scored]:  # Not already included
+                    phi = self.coordizer.token_phi.get(token, 0.5)
+                    score = similarity * 0.6 + phi * 0.2
+                    scored.append((token, score, similarity))
+                    if len(scored) >= num_tokens:
+                        break
         
         # Apply attention weighting if we have learned relationships
         if self._learned_relationships and self._current_query_words:
@@ -500,8 +516,15 @@ class QIGGenerativeService:
         # Sort by final score
         scored.sort(key=lambda x: x[1], reverse=True)
         
-        # Select top tokens
-        tokens = [token for token, score, sim in scored[:num_tokens]]
+        # Select top tokens, filter out any remaining special tokens
+        tokens = [token for token, score, sim in scored[:num_tokens] if not token.startswith('[')]
+        
+        # Final fallback: if still empty, return the single best non-special token
+        if not tokens and candidates:
+            for token, similarity in candidates:
+                if not token.startswith('['):
+                    tokens = [token]
+                    break
         
         return tokens if tokens else ['[unk]']
     
