@@ -409,6 +409,22 @@ class SourceDiscoveryService:
     - Mission relevance to knowledge discovery objective
     """
     
+    # Default sources to seed if database is empty (ensures production works on first deploy)
+    DEFAULT_SOURCES = [
+        ("https://en.wikipedia.org/wiki/Main_Page", "research", "default_seed"),
+        ("https://en.wikibooks.org/wiki/", "research", "default_seed"),
+        ("https://en.wikiversity.org/wiki/", "research", "default_seed"),
+        ("https://en.wiktionary.org/wiki/", "research", "default_seed"),
+        ("https://en.wikinews.org/wiki/", "research", "default_seed"),
+        ("https://species.wikimedia.org/wiki/", "research", "default_seed"),
+        ("https://github.com", "documentation", "default_seed"),
+        ("https://platform.claude.com/docs/en/home", "documentation", "default_seed"),
+        ("https://www.oracle.com/au/artificial-intelligence/machine-learning/what-is-machine-learning/", "research", "default_seed"),
+        ("https://www.geeksforgeeks.org/machine-learning/machine-learning/", "research", "default_seed"),
+        ("https://docs.langchain.com/oss/python/deepagents/overview#deep-agents-overview", "research", "default_seed"),
+        ("https://www.langchain.com/langgraph", "research", "default_seed"),
+    ]
+    
     def __init__(self):
         self.database_url = os.environ.get('DATABASE_URL')
         self.enabled = bool(self.database_url)
@@ -416,10 +432,19 @@ class SourceDiscoveryService:
         self.source_efficacy: Dict[str, Dict] = {}  # source_url -> {phi_avg, success_count, ...}
         
         if self.enabled:
-            self._bootstrap_from_telemetry()
-            print("[SourceDiscovery] ✓ PostgreSQL-backed source discovery (NO HARDCODED SOURCES)")
+            try:
+                self._bootstrap_from_telemetry()
+            except Exception as e:
+                print(f"[SourceDiscovery] Bootstrap failed: {e}")
+            finally:
+                # Auto-seed if no sources found (ensures production works on first deploy)
+                if len(self.discovered_sources) == 0:
+                    self._seed_default_sources()
+            print(f"[SourceDiscovery] ✓ PostgreSQL-backed source discovery ({len(self.discovered_sources)} sources)")
         else:
-            print("[SourceDiscovery] ⚠ Running without database - limited discovery")
+            # Seed defaults in memory when no database is available
+            self._seed_in_memory_fallback()
+            print(f"[SourceDiscovery] ⚠ Running without database - {len(self.discovered_sources)} fallback sources")
     
     def _bootstrap_from_telemetry(self):
         """Bootstrap sources from existing PostgreSQL tables."""
@@ -558,6 +583,82 @@ class SourceDiscoveryService:
             
         except Exception as e:
             print(f"[SourceDiscovery] Bootstrap error: {e}")
+    
+    def _seed_in_memory_fallback(self):
+        """Register default sources in memory when database is unavailable."""
+        for url, category, origin in self.DEFAULT_SOURCES:
+            self._register_source(
+                source_url=url,
+                category=category,
+                hit_count=0,
+                phi_avg=0.5,
+                origin=origin
+            )
+    
+    def _seed_default_sources(self):
+        """Seed default sources when database is empty (ensures production works on first deploy).
+        
+        - Relies on migrations for schema (no CREATE TABLE)
+        - Registers in memory both newly inserted and existing sources
+        - Falls back to in-memory only if DB is unavailable
+        """
+        print("[SourceDiscovery] No sources found - seeding default sources for production...")
+        seeded_count = 0
+        db_available = False
+        
+        try:
+            import psycopg2
+            with psycopg2.connect(self.database_url) as conn:
+                with conn.cursor() as cur:
+                    # Check if table exists using to_regclass (handles schema properly)
+                    cur.execute("SELECT to_regclass('public.discovered_sources')")
+                    table_ref = cur.fetchone()[0]
+                    
+                    if not table_ref:
+                        print("[SourceDiscovery] discovered_sources table not yet created by migrations")
+                        # Fall back to in-memory
+                        self._seed_in_memory_fallback()
+                        return
+                    
+                    db_available = True
+                    
+                    # Insert/upsert default sources
+                    for url, category, origin in self.DEFAULT_SOURCES:
+                        try:
+                            # Use INSERT with ON CONFLICT and rowcount
+                            cur.execute("""
+                                INSERT INTO discovered_sources (url, category, origin, phi_avg, is_active)
+                                VALUES (%s, %s, %s, 0.5, true)
+                                ON CONFLICT (url) DO NOTHING
+                            """, (url, category, origin))
+                            
+                            if cur.rowcount > 0:
+                                seeded_count += 1
+                            
+                            # Register in memory regardless (source exists in DB either way)
+                            self._register_source(
+                                source_url=url,
+                                category=category,
+                                hit_count=0,
+                                phi_avg=0.5,
+                                origin=origin
+                            )
+                        except Exception as insert_err:
+                            print(f"[SourceDiscovery] Could not seed {url}: {insert_err}")
+                    
+                    conn.commit()
+                    
+                    if seeded_count > 0:
+                        print(f"[SourceDiscovery] ✓ Seeded {seeded_count} new default sources to database")
+                    else:
+                        print(f"[SourceDiscovery] Registered {len(self.DEFAULT_SOURCES)} existing sources from database")
+                    
+        except Exception as e:
+            print(f"[SourceDiscovery] Seeding DB error: {e}")
+            if not db_available:
+                # Fall back to in-memory if DB was never available
+                self._seed_in_memory_fallback()
+                print(f"[SourceDiscovery] Registered {len(self.DEFAULT_SOURCES)} sources in memory (DB unavailable)")
     
     def _register_source(
         self,
