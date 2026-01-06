@@ -648,6 +648,14 @@ CORS(app)  # Allow CORS for Node.js server
 if OLYMPUS_AVAILABLE:
     app.register_blueprint(olympus_app, url_prefix='/olympus')
     print("[INFO] Olympus Pantheon registered at /olympus")
+    
+    # Register Olympus Telemetry API
+    try:
+        from olympus import register_telemetry_routes
+        register_telemetry_routes(app)
+        print("[INFO] Olympus Telemetry API registered at /api/telemetry")
+    except ImportError as e:
+        print(f"[WARN] Could not import telemetry routes: {e}")
 
 # Register DRY route blueprints (barrel imports)
 try:
