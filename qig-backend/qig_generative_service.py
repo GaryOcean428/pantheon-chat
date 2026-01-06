@@ -483,13 +483,16 @@ class QIGGenerativeService:
         
         # Fallback: If we don't have enough tokens, relax the similarity threshold
         if len(scored) < num_tokens:
+            # Use set for O(1) lookup performance
+            scored_tokens = {t for t, s, sim in scored}
             for token, similarity in candidates:
                 if token.startswith('['):
                     continue
-                if token not in [t for t, s, sim in scored]:  # Not already included
+                if token not in scored_tokens:  # Not already included
                     phi = self.coordizer.token_phi.get(token, 0.5)
                     score = similarity * 0.6 + phi * 0.2
                     scored.append((token, score, similarity))
+                    scored_tokens.add(token)
                     if len(scored) >= num_tokens:
                         break
         
@@ -516,8 +519,14 @@ class QIGGenerativeService:
         # Sort by final score
         scored.sort(key=lambda x: x[1], reverse=True)
         
-        # Select top tokens, filter out any remaining special tokens
-        tokens = [token for token, score, sim in scored[:num_tokens] if not token.startswith('[')]
+        # Select top tokens, ensuring we get enough non-special tokens
+        # Filter special tokens and take more than needed to compensate
+        tokens = []
+        for token, score, sim in scored:
+            if not token.startswith('['):
+                tokens.append(token)
+                if len(tokens) >= num_tokens:
+                    break
         
         # Final fallback: if still empty, return the single best non-special token
         if not tokens and candidates:
