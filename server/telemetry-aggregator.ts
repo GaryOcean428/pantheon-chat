@@ -129,7 +129,7 @@ class TelemetryAggregator {
   };
 
   private learningStats: LearningStats = {
-    vocabularySize: 2048,
+    vocabularySize: 0,  // Start at 0, will be fetched from Python
     recentExpansions: 0,
     highPhiDiscoveries: 0,
     sourcesDiscovered: 0,
