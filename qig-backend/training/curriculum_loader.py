@@ -292,3 +292,134 @@ def get_curriculum_stats() -> Dict[str, Any]:
         "total_files": len(md_files) + len(txt_files),
         "total_size_mb": round(total_size / (1024 * 1024), 2),
     }
+
+
+def expand_curriculum_via_search(
+    topic: str,
+    god_name: str,
+    max_results: int = 5,
+    coordizer=None
+) -> List[Dict[str, Any]]:
+    """
+    Expand curriculum by searching for additional content on a topic.
+
+    Uses budget-aware search to find relevant content, then converts
+    to training examples with basin coordinates.
+
+    Args:
+        topic: Topic to search for
+        god_name: God this curriculum is for (for domain context)
+        max_results: Maximum search results to use
+        coordizer: Optional coordizer for embeddings
+
+    Returns:
+        List of training examples from search results
+    """
+    examples = []
+
+    try:
+        from search.search_providers import get_search_manager
+        from vocabulary_coordinator import get_vocabulary_coordinator
+
+        search_manager = get_search_manager()
+        if not search_manager:
+            print(f"[CurriculumLoader] Search manager not available for expansion")
+            return []
+
+        # Get god's domain for better search context
+        god_domains = GOD_DOMAINS.get(god_name, [])
+        domain_context = god_domains[0] if god_domains else "general"
+
+        # Construct search query
+        query = f"{domain_context} {topic}"
+
+        # Execute search
+        result = search_manager.search(
+            query=query,
+            importance=2,  # MODERATE importance
+            max_results=max_results
+        )
+
+        if not result.get('success'):
+            return []
+
+        vocab_coord = get_vocabulary_coordinator()
+
+        for item in result.get('results', []):
+            content = item.get('snippet', '') or item.get('content', '')
+            if not content or len(content) < 50:
+                continue
+
+            # Convert to basin coordinates
+            basin_coords = content_to_basin_coords(content, coordizer=coordizer)
+
+            example = {
+                "basin_coords": basin_coords.tolist(),
+                "reward": 0.25,  # Slightly lower than file curriculum
+                "phi": 0.55,
+                "source": "search_expansion",
+                "source_url": item.get('url', ''),
+                "section": item.get('title', topic),
+                "content": content,
+            }
+            examples.append(example)
+
+            # Feed into vocabulary learning
+            if vocab_coord and len(content) > 100:
+                try:
+                    vocab_coord.train_from_text(
+                        text=content[:3000],
+                        source=f"curriculum_expansion:{god_name}",
+                        context_phi=0.55
+                    )
+                except Exception:
+                    pass
+
+        if examples:
+            print(f"[CurriculumLoader] Expanded curriculum with {len(examples)} search results for {god_name}/{topic}")
+
+    except ImportError as e:
+        print(f"[CurriculumLoader] Search expansion unavailable: {e}")
+    except Exception as e:
+        print(f"[CurriculumLoader] Search expansion failed: {e}")
+
+    return examples
+
+
+def load_curriculum_for_god_with_expansion(
+    god_name: str,
+    max_examples: int = 100,
+    coordizer=None,
+    expand_topics: Optional[List[str]] = None
+) -> List[Dict[str, Any]]:
+    """
+    Load curriculum with optional search expansion.
+
+    Args:
+        god_name: Name of the god-kernel
+        max_examples: Maximum examples from files
+        coordizer: Optional coordizer for embeddings
+        expand_topics: Optional topics to search and expand
+
+    Returns:
+        Combined list of file + search training examples
+    """
+    # Load file-based curriculum
+    examples = load_curriculum_for_god(
+        god_name=god_name,
+        max_examples=max_examples,
+        coordizer=coordizer
+    )
+
+    # Expand with search if topics provided
+    if expand_topics:
+        for topic in expand_topics[:3]:  # Limit expansion topics
+            expanded = expand_curriculum_via_search(
+                topic=topic,
+                god_name=god_name,
+                max_results=3,
+                coordizer=coordizer
+            )
+            examples.extend(expanded)
+
+    return examples

@@ -1,16 +1,17 @@
 """
 External Knowledge Base Connector
 
-Integrates external knowledge sources (Wikipedia, DuckDuckGo Instant Answers)
-with QIG-RAG for enhanced retrieval. All external data is converted to
-basin coordinates via geometric encoding before merging with local knowledge.
+Integrates external knowledge sources with QIG-RAG for enhanced retrieval.
+All external data is converted to basin coordinates via geometric encoding.
 
 ARCHITECTURE:
-- Wikipedia API for encyclopedic knowledge
-- DuckDuckGo Instant Answers for quick facts
+- Budget-aware SearchProviderManager (Tavily, Perplexity, Google, DuckDuckGo)
+- Wikipedia API fallback for encyclopedic knowledge
+- DuckDuckGo Instant Answers fallback for quick facts
 - Results encoded to 64D basin coordinates
 - Fisher-Rao distance used for relevance ranking
 - External knowledge weighted lower than local geometric memory
+- Results feed back to VocabularyCoordinator for learning
 """
 
 import os
@@ -23,6 +24,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 BASIN_DIMENSION = 64
 EXTERNAL_WEIGHT = 0.7  # Weight external results lower than local
+BUDGET_SEARCH_WEIGHT = 0.9  # Budget search results are higher quality
 CACHE_TTL = 3600  # 1 hour cache
 
 _external_kb: Optional['ExternalKnowledgeBase'] = None
@@ -32,27 +34,156 @@ class ExternalKnowledgeBase:
     """
     Connector for external knowledge sources.
     All results are encoded to basin coordinates for geometric integration.
+
+    Priority order:
+    1. Budget-aware search (Tavily, Perplexity, Google) - if budget available
+    2. Wikipedia API - free, always available
+    3. DuckDuckGo Instant Answers - free, always available
+
+    All results feed into VocabularyCoordinator for learning.
     """
-    
+
     def __init__(self, encoder=None):
         self.encoder = encoder
         self._cache: Dict[str, Dict] = {}
         self._cache_timestamps: Dict[str, float] = {}
-        
+
+        # Wikipedia and DuckDuckGo as fallback
         self.wikipedia_endpoint = "https://en.wikipedia.org/api/rest_v1/page/summary/"
         self.wikipedia_search_endpoint = "https://en.wikipedia.org/w/api.php"
         self.ddg_endpoint = "https://api.duckduckgo.com/"
-        
+
         self._session = requests.Session()
         self._session.headers.update({
             'User-Agent': 'PantheonChat/1.0 (QIG Knowledge System)'
         })
-        
-        print("[ExternalKnowledge] Initialized with Wikipedia + DuckDuckGo")
+
+        # Try to wire budget-aware search
+        self._search_manager = None
+        self._budget_orchestrator = None
+        self._vocab_coordinator = None
+        self._wire_budget_search()
+
+        sources = ["Wikipedia", "DuckDuckGo"]
+        if self._search_manager:
+            sources.extend(["Tavily", "Perplexity", "Google"])
+        print(f"[ExternalKnowledge] Initialized with: {', '.join(sources)}")
+
+    def _wire_budget_search(self):
+        """Wire budget-aware search providers for richer results."""
+        try:
+            from search.search_providers import get_search_manager
+            from search.search_budget_orchestrator import get_budget_orchestrator
+            self._search_manager = get_search_manager()
+            self._budget_orchestrator = get_budget_orchestrator()
+            print("[ExternalKnowledge] Budget-aware search wired (Tavily/Perplexity/Google)")
+        except ImportError as e:
+            print(f"[ExternalKnowledge] Budget search not available: {e}")
+        except Exception as e:
+            print(f"[ExternalKnowledge] Budget search wiring failed: {e}")
+
+        # Wire vocabulary coordinator for learning from search results
+        try:
+            from vocabulary_coordinator import get_vocabulary_coordinator
+            self._vocab_coordinator = get_vocabulary_coordinator()
+            print("[ExternalKnowledge] VocabularyCoordinator wired for search learning")
+        except ImportError:
+            pass
+        except Exception as e:
+            print(f"[ExternalKnowledge] VocabularyCoordinator wiring failed: {e}")
     
     def set_encoder(self, encoder):
         """Set the conversation encoder for basin coordinate generation."""
         self.encoder = encoder
+
+    def query_budget_search(self, query: str, importance: int = 2, max_results: int = 5) -> List[Dict]:
+        """
+        Query budget-aware search providers (Tavily, Perplexity, Google).
+
+        Uses SearchBudgetOrchestrator to select best provider within budget.
+        Results are encoded to basin coordinates and feed into vocabulary learning.
+
+        Args:
+            query: Search query
+            importance: 1=LOW, 2=MODERATE, 3=HIGH, 4=CRITICAL
+            max_results: Maximum results to return
+
+        Returns:
+            List of results with basin coordinates
+        """
+        if not self._search_manager or not self._budget_orchestrator:
+            return []
+
+        cache_key = f"budget:{query}:{importance}"
+        cached = self._get_cached(cache_key)
+        if cached:
+            return cached.get('results', [])
+
+        results = []
+
+        try:
+            # Use search manager with importance-based provider selection
+            search_result = self._search_manager.search(
+                query=query,
+                importance=importance,
+                max_results=max_results
+            )
+
+            if search_result.get('success'):
+                for item in search_result.get('results', []):
+                    content = item.get('snippet', '') or item.get('content', '')
+                    title = item.get('title', '')
+
+                    # Encode to basin coordinates
+                    basin_coords = None
+                    if self.encoder and content:
+                        try:
+                            basin_coords = self.encoder.encode(content[:500])
+                        except Exception:
+                            pass
+
+                    results.append({
+                        'source': f"budget_{search_result.get('provider', 'unknown')}",
+                        'title': title,
+                        'content': content[:1000] if content else '',
+                        'url': item.get('url', ''),
+                        'basin_coords': basin_coords,
+                        'weight': BUDGET_SEARCH_WEIGHT,
+                        'provider': search_result.get('provider'),
+                        'timestamp': time.time()
+                    })
+
+                # Feed results into vocabulary learning
+                self._learn_from_results(results, query)
+
+            self._set_cache(cache_key, {'results': results})
+
+        except Exception as e:
+            print(f"[ExternalKnowledge] Budget search error: {e}")
+
+        return results
+
+    def _learn_from_results(self, results: List[Dict], query: str):
+        """Feed search results into VocabularyCoordinator for learning."""
+        if not self._vocab_coordinator or not results:
+            return
+
+        try:
+            # Combine result content for vocabulary training
+            combined_text = ' '.join([
+                r.get('content', '') for r in results if r.get('content')
+            ])
+
+            if combined_text and len(combined_text) > 50:
+                metrics = self._vocab_coordinator.train_from_text(
+                    text=combined_text[:5000],
+                    source=f"search:{query[:50]}",
+                    context_phi=0.6
+                )
+                if metrics.get('words_learned', 0) > 0:
+                    print(f"[ExternalKnowledge] Learned {metrics['words_learned']} words from search")
+        except Exception as e:
+            print(f"[ExternalKnowledge] Vocabulary learning error: {e}")
     
     def _is_cache_valid(self, key: str) -> bool:
         """Check if cached result is still valid."""
@@ -223,25 +354,45 @@ class ExternalKnowledgeBase:
         return results
     
     def query_all_sources(
-        self, 
-        query: str, 
+        self,
+        query: str,
         max_wiki: int = 3,
-        include_ddg: bool = True
+        include_ddg: bool = True,
+        importance: int = 2
     ) -> List[Dict]:
         """
-        Query all external sources in parallel.
-        Returns combined results sorted by relevance.
+        Query all external sources with budget-aware priority.
+
+        Priority:
+        1. Budget search (Tavily/Perplexity/Google) if budget available
+        2. Wikipedia (always free)
+        3. DuckDuckGo Instant (always free)
+
+        Args:
+            query: Search query
+            max_wiki: Max Wikipedia results
+            include_ddg: Include DuckDuckGo results
+            importance: Search importance (1-4) for budget allocation
+
+        Returns:
+            Combined results sorted by weight
         """
         all_results = []
-        
+
+        # Try budget search first (better quality results)
+        if self._search_manager:
+            budget_results = self.query_budget_search(query, importance=importance, max_results=5)
+            all_results.extend(budget_results)
+
+        # Then query free sources in parallel
         with ThreadPoolExecutor(max_workers=2) as executor:
             futures = {
                 executor.submit(self.query_wikipedia, query, max_wiki): 'wikipedia'
             }
-            
+
             if include_ddg:
                 futures[executor.submit(self.query_duckduckgo_instant, query)] = 'duckduckgo'
-            
+
             for future in as_completed(futures, timeout=10):
                 source = futures[future]
                 try:
@@ -249,7 +400,10 @@ class ExternalKnowledgeBase:
                     all_results.extend(results)
                 except Exception as e:
                     print(f"[ExternalKnowledge] {source} query failed: {e}")
-        
+
+        # Sort by weight (budget results first)
+        all_results.sort(key=lambda x: x.get('weight', 0), reverse=True)
+
         return all_results
     
     def search_with_geometric_ranking(

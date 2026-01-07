@@ -851,6 +851,107 @@ class TemporalReasoning:
                     basins.append(np.array(centroid))
         return basins
 
+    # ========================================
+    # SEARCH VALIDATION FOR PREDICTIONS
+    # ========================================
+
+    def validate_prediction_via_search(
+        self,
+        prediction_topic: str,
+        vision: Optional['ForesightVision'] = None,
+        importance: int = 2
+    ) -> Dict[str, Any]:
+        """
+        Validate a foresight prediction by searching for supporting evidence.
+
+        Uses budget-aware search to find external validation for predictions.
+        Results feed into prediction self-improvement system.
+
+        Args:
+            prediction_topic: Topic/subject of the prediction to validate
+            vision: Optional ForesightVision to validate
+            importance: Search importance (1-4)
+
+        Returns:
+            Validation result with confidence adjustment
+        """
+        result = {
+            'validated': False,
+            'confidence_adjustment': 0.0,
+            'search_results': [],
+            'evidence_found': False
+        }
+
+        try:
+            from search.search_providers import get_search_manager
+            from vocabulary_coordinator import get_vocabulary_coordinator
+
+            search_manager = get_search_manager()
+            if not search_manager:
+                return result
+
+            # Construct validation query
+            query = f"{prediction_topic} evidence research"
+
+            search_result = search_manager.search(
+                query=query,
+                importance=importance,
+                max_results=5
+            )
+
+            if not search_result.get('success'):
+                return result
+
+            result['search_results'] = search_result.get('results', [])
+
+            # Analyze results for validation evidence
+            evidence_score = 0.0
+            evidence_texts = []
+
+            for item in search_result.get('results', []):
+                content = item.get('snippet', '') or item.get('content', '')
+                if content:
+                    evidence_texts.append(content)
+                    # Simple evidence scoring (presence of topic terms)
+                    topic_words = prediction_topic.lower().split()
+                    matches = sum(1 for w in topic_words if w in content.lower())
+                    evidence_score += matches / len(topic_words) if topic_words else 0
+
+            if evidence_texts and evidence_score > 0:
+                result['evidence_found'] = True
+                result['validated'] = evidence_score > 0.3
+                result['confidence_adjustment'] = min(0.2, evidence_score * 0.1)
+
+                # Feed evidence into vocabulary learning
+                vocab_coord = get_vocabulary_coordinator()
+                if vocab_coord:
+                    combined_text = ' '.join(evidence_texts)
+                    try:
+                        vocab_coord.train_from_text(
+                            text=combined_text[:5000],
+                            source=f"foresight_validation:{prediction_topic[:30]}",
+                            context_phi=0.65
+                        )
+                    except Exception:
+                        pass
+
+                # Record validation in improvement system
+                if self.improvement and result['validated']:
+                    self.improvement.record_external_validation(
+                        evidence_score=evidence_score,
+                        sources_checked=len(result['search_results'])
+                    )
+
+            print(f"[TemporalReasoning] Prediction validation: {prediction_topic[:40]} -> "
+                  f"evidence={result['evidence_found']}, confidence_adj={result['confidence_adjustment']:.2f}")
+
+        except ImportError as e:
+            print(f"[TemporalReasoning] Search validation unavailable: {e}")
+        except Exception as e:
+            print(f"[TemporalReasoning] Search validation failed: {e}")
+
+        return result
+
 
 _temporal_reasoning_instance: Optional[TemporalReasoning] = None
 

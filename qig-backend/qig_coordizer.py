@@ -13,7 +13,8 @@ Usage:
 
 from typing import Dict, List, Tuple
 
-from coordizers import PostgresCoordizer, get_coordizer as _get_coordizer
+from coordizers import PostgresCoordizer
+from coordizers import get_coordizer as _get_coordizer
 
 # Try Redis for state persistence
 REDIS_AVAILABLE = False

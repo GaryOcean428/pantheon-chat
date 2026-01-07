@@ -798,6 +798,134 @@ class SearchCapabilityMixin:
                 'reason': str(e)
             }
 
+    def curiosity_search(
+        self,
+        topic: str,
+        reason: str = "knowledge_gap",
+        importance: int = 2
+    ) -> Optional[Dict]:
+        """
+        Proactive curiosity-driven search when encountering knowledge gaps.
+
+        Called when:
+        - Reasoning generates low-confidence outputs
+        - Domain tokens have low coverage
+        - Foresight lacks validation data
+        - Curriculum needs expansion
+
+        Args:
+            topic: What to search for
+            reason: Why searching (knowledge_gap, foresight_validation, curriculum_expansion)
+            importance: 1=LOW, 2=MODERATE, 3=HIGH, 4=CRITICAL
+
+        Returns:
+            Search result dict with learning metrics
+        """
+        kernel_name = getattr(self, 'name', 'Unknown')
+
+        if self._search_orchestrator_ref is None:
+            logger.debug(f"[{kernel_name}] Curiosity search skipped: no orchestrator")
+            return None
+
+        try:
+            # Construct curiosity query with domain context
+            domain = getattr(self, 'domain', 'general')
+            query = f"{domain} {topic}"
+
+            result = self.request_search(
+                query=query,
+                context={
+                    'source': 'curiosity_search',
+                    'reason': reason,
+                    'kernel': kernel_name,
+                    'domain': domain
+                },
+                strategy='balanced' if importance < 3 else 'thorough',
+                max_results=5
+            )
+
+            if result and result.get('results'):
+                # Feed results into vocabulary learning
+                self._learn_from_curiosity_results(result, topic)
+                logger.info(
+                    f"[{kernel_name}] Curiosity search for '{topic}' found "
+                    f"{len(result.get('results', []))} results (reason: {reason})"
+                )
+
+            return result
+
+        except Exception as e:
+            logger.warning(f"[{kernel_name}] Curiosity search failed: {e}")
+            return None
+
+    def _learn_from_curiosity_results(self, result: Dict, topic: str):
+        """Learn vocabulary from curiosity search results."""
+        try:
+            from vocabulary_coordinator import get_vocabulary_coordinator
+            vocab_coord = get_vocabulary_coordinator()
+
+            if not vocab_coord:
+                return
+
+            # Combine result snippets
+            combined_text = ' '.join([
+                r.get('snippet', '') or r.get('content', '')
+                for r in result.get('results', [])
+                if r.get('snippet') or r.get('content')
+            ])
+
+            if combined_text and len(combined_text) > 50:
+                kernel_name = getattr(self, 'name', 'Unknown')
+                metrics = vocab_coord.train_from_text(
+                    text=combined_text[:5000],
+                    source=f"curiosity:{kernel_name}:{topic[:30]}",
+                    context_phi=0.6
+                )
+                if metrics.get('words_learned', 0) > 0:
+                    logger.info(
+                        f"[{kernel_name}] Learned {metrics['words_learned']} words from curiosity"
+                    )
+        except Exception as e:
+            logger.debug(f"Vocabulary learning from curiosity failed: {e}")
+
+    def detect_knowledge_gap(self, context_basin: np.ndarray, threshold: float = 0.3) -> Optional[str]:
+        """
+        Detect if there's a knowledge gap in the current reasoning context.
+
+        Checks:
+        - Vocabulary coverage (how many tokens near this basin?)
+        - Domain token affinity (learned tokens for this domain?)
+        - Basin distance from domain center
+
+        Returns:
+            Topic to search if gap detected, None otherwise
+        """
+        kernel_name = getattr(self, 'name', 'Unknown')
+
+        try:
+            # Check if coordizer has tokens near this basin
+            coordizer = getattr(self, 'coordizer', None)
+            if not coordizer:
+                return None
+
+            candidates = coordizer.decode(context_basin, top_k=10)
+            if not candidates:
+                return f"{getattr(self, 'domain', 'general')} concepts"
+
+            # Check average similarity of top candidates
+            avg_similarity = np.mean([sim for _, sim in candidates[:5]])
+
+            if avg_similarity < threshold:
+                # Knowledge gap detected
+                top_tokens = [tok for tok, _ in candidates[:3]]
+                return ' '.join(top_tokens)
+
+            return None
+
+        except Exception as e:
+            logger.debug(f"[{kernel_name}] Gap detection failed: {e}")
+            return None
+
 
 class SourceDiscoveryQueryMixin:
     """
@@ -2378,6 +2506,13 @@ class BaseGod(*_base_classes):
 
         tokens_generated = []
         current_basin = np.asarray(context_basin, dtype=np.float64).copy()
+
+        # Curiosity-driven search: detect and fill knowledge gaps before reasoning
+        if hasattr(self, 'detect_knowledge_gap') and hasattr(self, 'curiosity_search'):
+            gap_topic = self.detect_knowledge_gap(current_basin, threshold=0.25)
+            if gap_topic:
+                logger.debug(f"[{self.name}] Knowledge gap detected: {gap_topic}")
+                self.curiosity_search(gap_topic, reason="reasoning_gap", importance=2)
 
         for step in range(num_tokens):
             # Get candidates from coordizer (geometric proximity)
