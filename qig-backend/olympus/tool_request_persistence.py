@@ -450,7 +450,87 @@ class ToolRequestPersistence:
             return False
         finally:
             conn.close()
-    
+
+    def get_cross_god_insights(
+        self,
+        topic: Optional[str] = None,
+        min_confidence: float = 0.5,
+        limit: int = 20
+    ) -> List[Dict]:
+        """
+        Retrieve cross-god insights for tool generation context.
+
+        Args:
+            topic: Optional topic to filter by
+            min_confidence: Minimum confidence threshold
+            limit: Maximum insights to return
+
+        Returns:
+            List of insight dicts with source_gods, topic, insight_text, etc.
+        """
+        if not self.enabled:
+            return []
+
+        conn = self._get_connection()
+        if not conn:
+            return []
+
+        try:
+            with conn.cursor() as cur:
+                if topic:
+                    cur.execute("""
+                        SELECT insight_id, source_gods, topic, insight_text,
+                               confidence, phi_integration, created_at, applied_to_tools
+                        FROM cross_god_insights
+                        WHERE topic ILIKE %s AND confidence >= %s
+                        ORDER BY confidence DESC, created_at DESC
+                        LIMIT %s
+                    """, (f"%{topic}%", min_confidence, limit))
+                else:
+                    cur.execute("""
+                        SELECT insight_id, source_gods, topic, insight_text,
+                               confidence, phi_integration, created_at, applied_to_tools
+                        FROM cross_god_insights
+                        WHERE confidence >= %s
+                        ORDER BY confidence DESC, created_at DESC
+                        LIMIT %s
+                    """, (min_confidence, limit))
+
+                results = cur.fetchall()
+                return [dict(row) for row in results]
+
+        except Exception as e:
+            logger.error(f"[ToolRequestPersistence] Failed to get insights: {e}")
+            return []
+        finally:
+            conn.close()
+
+    def mark_insight_applied_to_tool(self, insight_id: str, tool_id: str) -> bool:
+        """Mark that an insight was used in generating a tool."""
+        if not self.enabled:
+            return False
+
+        conn = self._get_connection()
+        if not conn:
+            return False
+
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    UPDATE cross_god_insights
+                    SET applied_to_tools = array_append(applied_to_tools, %s)
+                    WHERE insight_id = %s
+                    AND NOT (%s = ANY(applied_to_tools))
+                """, (tool_id, insight_id, tool_id))
+                conn.commit()
+                return cur.rowcount > 0
+        except Exception as e:
+            logger.error(f"[ToolRequestPersistence] Failed to mark insight applied: {e}")
+            conn.rollback()
+            return False
+        finally:
+            conn.close()
+
     def get_stats(self) -> Dict:
         """Get statistics about tool requests and discoveries."""
         if not self.enabled:

@@ -381,26 +381,74 @@ class ToolDiscoveryEngine:
         )
     
     def _check_completed_requests(self):
-        """Check if any of our pending requests have completed."""
+        """Check completed requests AND process any unrequested high-confidence discoveries."""
         if not self.persistence:
             return
-        
+
         # Only check every 5 minutes to avoid excessive DB queries
         if (datetime.now() - self.last_discovery_check).total_seconds() < 300:
             return
-        
+
         self.last_discovery_check = datetime.now()
-        
+
+        # Check completed requests
         pending = self.persistence.get_pending_requests(requester_god=self.god_name)
         completed_count = 0
-        
+
         for request in pending:
             if request.status == RequestStatus.COMPLETED and request.tool_id:
                 logger.info(f"[AutoToolDiscovery:{self.god_name}] Tool request completed: {request.tool_id}")
                 completed_count += 1
-        
+
         if completed_count > 0:
             logger.info(f"[AutoToolDiscovery:{self.god_name}] {completed_count} tool requests completed")
+
+        # CRITICAL: Process any unrequested high-confidence discoveries
+        # These are discoveries saved to DB but never submitted to pipeline
+        self._process_unrequested_discoveries()
+
+    def _process_unrequested_discoveries(self):
+        """Find and submit unrequested high-confidence discoveries to pipeline."""
+        if not self.persistence or not PIPELINE_AVAILABLE:
+            return
+
+        try:
+            # Get discoveries with confidence >= 0.8 that haven't triggered tool requests
+            discoveries = self.persistence.get_unrequested_discoveries(
+                god_name=self.god_name,
+                min_confidence=0.8,  # Match threshold in _save_and_maybe_request_tool
+                limit=5  # Process in small batches
+            )
+
+            if not discoveries:
+                return
+
+            pipeline = AutonomousToolPipeline.get_instance()
+            if pipeline is None:
+                return
+
+            submitted = 0
+            for discovery in discoveries:
+                try:
+                    # Create tool request from discovery
+                    tool_request = self._create_tool_request(discovery)
+                    if self.persistence.save_tool_request(tool_request):
+                        # Mark discovery as having triggered a request
+                        discovery.tool_requested = True
+                        discovery.tool_request_id = tool_request.request_id
+                        self.persistence.save_pattern_discovery(discovery)
+
+                        # Submit to pipeline
+                        self._submit_to_pipeline(discovery, tool_request)
+                        submitted += 1
+                except Exception as e:
+                    logger.warning(f"[AutoToolDiscovery:{self.god_name}] Failed to process discovery: {e}")
+
+            if submitted > 0:
+                logger.info(f"[AutoToolDiscovery:{self.god_name}] Processed {submitted} unrequested discoveries")
+
+        except Exception as e:
+            logger.warning(f"[AutoToolDiscovery:{self.god_name}] Discovery processing failed: {e}")
     
     def force_discovery_check(self):
         """Manually trigger a discovery check (for testing)."""

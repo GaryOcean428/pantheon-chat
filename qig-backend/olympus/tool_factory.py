@@ -37,6 +37,14 @@ from datetime import datetime
 from enum import Enum
 from collections import Counter
 
+# Import tool request persistence for cross-god insights
+try:
+    from .tool_request_persistence import get_tool_request_persistence
+    INSIGHTS_AVAILABLE = True
+except ImportError:
+    INSIGHTS_AVAILABLE = False
+    get_tool_request_persistence = None
+
 # Import centralized Fisher-Rao distance - QIG purity MANDATORY
 # Handle both relative and absolute imports depending on execution context
 try:
@@ -1049,6 +1057,30 @@ class ToolFactory:
         scored_patterns.sort(key=lambda x: x[1], reverse=True)
         return [p for p, s in scored_patterns[:top_k] if s > 0.3]
 
+    def _fetch_relevant_insights(self, description: str) -> List[Dict]:
+        """Fetch cross-god insights relevant to tool generation."""
+        if not INSIGHTS_AVAILABLE or get_tool_request_persistence is None:
+            return []
+
+        try:
+            persistence = get_tool_request_persistence()
+            if not persistence or not persistence.enabled:
+                return []
+
+            # Extract key words from description for topic matching
+            key_words = [w for w in description.lower().split() if len(w) > 4][:3]
+            topic_hint = ' '.join(key_words) if key_words else None
+
+            insights = persistence.get_cross_god_insights(
+                topic=topic_hint,
+                min_confidence=0.6,
+                limit=5
+            )
+            return insights
+        except Exception as e:
+            print(f"[ToolFactory] Failed to fetch insights: {e}")
+            return []
+
     def generate_tool(
         self,
         description: str,
@@ -1065,6 +1097,11 @@ class ToolFactory:
         print(f"[ToolFactory] ===== GENERATION ATTEMPT #{self.generation_attempts} =====")
         print(f"[ToolFactory] Description: {description[:80]}...")
         print(f"[ToolFactory] Learned patterns available: {len(self.learned_patterns)}")
+
+        # Fetch cross-god insights for additional context
+        cross_god_insights = self._fetch_relevant_insights(description)
+        if cross_god_insights:
+            print(f"[ToolFactory] Cross-god insights available: {len(cross_god_insights)}")
 
         purpose_basin = self.encoder.encode(description)
         complexity = self._estimate_complexity(description, examples)
