@@ -60,6 +60,7 @@ try:
         get_mission_profile,
         discover_domain_from_event,
     )
+    from ..qigkernels.physics_constants import BASIN_DIM
 except ImportError:
     from qigkernels.domain_intelligence import (
         MissionProfile,
@@ -69,6 +70,7 @@ except ImportError:
         get_mission_profile,
         discover_domain_from_event,
     )
+    from qigkernels.physics_constants import BASIN_DIM
 
 # Search validation for external insight verification
 try:
@@ -1256,10 +1258,17 @@ class LightningKernel(BaseGod):
             explanation = prediction_record.get('explanation', '')
             domain_hints = prediction_record.get('domain_hints', [])
 
-            # Convert basin to numpy array if provided
+            # Convert basin to numpy array if provided, validate dimension
             basin_coords = None
             if future_basin is not None:
                 basin_coords = np.array(future_basin) if isinstance(future_basin, list) else future_basin
+                # Validate basin dimension matches BASIN_DIM (64)
+                if basin_coords.shape != (BASIN_DIM,):
+                    logger.warning(
+                        f"[Lightning] Prediction basin has shape {basin_coords.shape}, "
+                        f"expected ({BASIN_DIM},). Discarding basin coordinates."
+                    )
+                    basin_coords = None
 
             # Compute effective Phi from prediction quality
             # High confidence + high attractor strength = high Phi event
@@ -1344,11 +1353,18 @@ class LightningKernel(BaseGod):
             event_count = len(short_buffer)
 
             # Compute basin centroid from recent events if available
+            # Filter to only include basins with correct dimension (BASIN_DIM=64)
             basin_centroid = None
             basins = []
             for event in short_buffer:
                 if event.basin_coords is not None:
-                    basins.append(event.basin_coords)
+                    coords = np.asarray(event.basin_coords)
+                    if coords.shape == (BASIN_DIM,):
+                        basins.append(coords)
+                    else:
+                        logger.debug(
+                            f"[Lightning] Skipping basin with shape {coords.shape}, expected ({BASIN_DIM},)"
+                        )
 
             if basins:
                 # Average basin coordinates using geometric mean (QIG-appropriate)
