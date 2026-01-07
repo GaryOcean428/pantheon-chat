@@ -472,22 +472,18 @@ class VocabularyCoordinator:
             except Exception as e:
                 logger.warning(f"Vocabulary DB query failed: {e}")
         
-        if self.tokenizer and hasattr(self.tokenizer, 'vocab'):
+        # Use token_phi for PretrainedCoordizer compatibility (token_name -> phi score)
+        if self.tokenizer and hasattr(self.tokenizer, 'token_phi'):
             try:
-                for vocab_word, weight_info in list(self.tokenizer.vocab.items())[:500]:
-                    if vocab_word in query_words or len(vocab_word) < 4:
+                for vocab_word, phi in list(self.tokenizer.token_phi.items())[:500]:
+                    if not isinstance(vocab_word, str) or vocab_word in query_words or len(vocab_word) < 4:
                         continue
-                    
+
                     if any(c['word'] == vocab_word for c in expansion_candidates):
                         continue
-                    
-                    if isinstance(weight_info, dict):
-                        phi = weight_info.get('phi', 0.5)
-                        source = weight_info.get('source', 'tokenizer')
-                    else:
-                        phi = 0.5
-                        source = 'tokenizer'
-                    
+
+                    source = 'tokenizer'
+
                     if phi >= min_phi:
                         relevance = self._compute_term_relevance(vocab_word, query_words, phi, source, domain)
                         if relevance > 0.25:

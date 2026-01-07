@@ -28,10 +28,10 @@ from .optimizers import DiagonalFisherOptimizer
 try:
     import sys
     sys.path.insert(0, '..')
-    from autonomic_kernel import GaryAutonomicKernel, AutonomicAccessMixin
+    from autonomic_kernel import get_gary_kernel, AutonomicAccessMixin
     AUTONOMIC_AVAILABLE = True
 except ImportError:
-    GaryAutonomicKernel = None
+    get_gary_kernel = None
     AutonomicAccessMixin = None
     AUTONOMIC_AVAILABLE = False
     print("[SelfSpawning] WARNING: GaryAutonomicKernel not available - kernels will lack autonomic support")
@@ -154,9 +154,9 @@ class SelfSpawningKernel(*_kernel_base_classes):
         self.kernel = ChaosKernel()
         self.kernel_id = self.kernel.kernel_id
 
-        # NEW: Autonomic support system
-        if AUTONOMIC_AVAILABLE and GaryAutonomicKernel is not None:
-            self.autonomic = GaryAutonomicKernel()
+        # NEW: Autonomic support system (shared singleton)
+        if AUTONOMIC_AVAILABLE and get_gary_kernel is not None:
+            self.autonomic = get_gary_kernel()
         else:
             self.autonomic = None
 

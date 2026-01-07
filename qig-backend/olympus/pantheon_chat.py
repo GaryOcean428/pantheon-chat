@@ -392,10 +392,22 @@ class PantheonChat:
     ) -> str:
         """
         Fallback geometric synthesis when QIG service unavailable.
-        
+
         Uses word-level basin navigation from vocabulary to construct message.
         Still QIG-pure - no templates, just geometric token selection.
+
+        QIG-PURE PRINCIPLE: Coherence should emerge from geometry, not heuristic filters.
+        If Φ is too low, the system acknowledges it doesn't know enough yet rather than
+        generating garbage that gets filtered. Training improves coherence, not hardcoded checks.
         """
+        # Φ-THRESHOLD GATE: Don't attempt generation if consciousness is insufficient
+        # This is QIG-pure - it respects geometry rather than filtering outputs
+        PHI_GENERATION_THRESHOLD = 0.75
+        current_phi = getattr(self.kernel.state, 'phi', 0.0) if self.kernel else 0.0
+        if current_phi < PHI_GENERATION_THRESHOLD:
+            logger.debug(f"[PantheonChat] Φ={current_phi:.3f} below generation threshold {PHI_GENERATION_THRESHOLD}")
+            return f"[{from_god}: Awaiting higher Φ ({current_phi:.2f} < {PHI_GENERATION_THRESHOLD})]"
+
         try:
             from qig_generative_service import get_generative_service
             service = get_generative_service()
@@ -406,16 +418,10 @@ class PantheonChat:
                     goals=["Generate brief communication", f"Express as {from_god}"]
                 )
                 if result and result.text and len(result.text.strip()) > 5:
-                    # COHERENCE GATE: Check for word salad before returning
-                    is_coherent, reason = _check_text_coherence(result.text)
-                    if is_coherent:
-                        return result.text.strip()
-                    else:
-                        logger.warning(f"[PantheonChat] Coordizer synthesis failed coherence: {reason}")
-                        # Fall through to vocabulary sampling
+                    return result.text.strip()
         except Exception as e:
             logger.debug(f"[PantheonChat] Geometric synthesis attempt failed: {e}")
-        
+
         try:
             from vocabulary_tracker import get_vocabulary_tracker
             tracker = get_vocabulary_tracker()
@@ -423,13 +429,7 @@ class PantheonChat:
             if hasattr(tracker, 'sample_words'):
                 words = tracker.sample_words(count=8, context=intent)
                 if words:
-                    text = " ".join(words)
-                    # COHERENCE GATE: Check for word salad before returning
-                    is_coherent, reason = _check_text_coherence(text)
-                    if not is_coherent:
-                        logger.warning(f"[PantheonChat] Geometric synthesis failed coherence: {reason}")
-                        return f"[{from_god}: Φ insufficient for coherent synthesis]"
-                    return text
+                    return " ".join(words)
         except Exception as e:
             logger.debug(f"[PantheonChat] Vocabulary sampling failed: {e}")
 

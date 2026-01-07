@@ -14,8 +14,9 @@ import time
 import numpy as np
 from typing import Dict, List, Optional, Tuple
 
-# Import canonical coordizer
-from coordizers import PostgresCoordizer, create_coordizer_from_pg
+# Import unified coordizer entrypoint (preferred)
+from coordizers import get_coordizer as _get_unified_coordizer
+from coordizers import PostgresCoordizer
 
 # Try Redis for state persistence
 REDIS_AVAILABLE = False
@@ -25,53 +26,48 @@ try:
 except ImportError:
     pass
 
-# Singleton instance
-_coordizer_instance: Optional[PostgresCoordizer] = None
+# Singleton instances
+_coordizer_instance = None
+_learning_coordizer_instance = None
 
 # Coordizer instance ID for Redis persistence
 COORDIZER_INSTANCE_ID = "main"
 
 
-def get_coordizer() -> PostgresCoordizer:
+def get_coordizer():
     """Get or create singleton coordizer instance.
 
-    QIG-PURE ENFORCEMENT:
-    Only PostgresCoordizer (64D QIG-pure geometry) is allowed.
-    System will raise an error if PostgresCoordizer cannot be initialized.
+    SINGLE SOURCE OF TRUTH:
+    Returns the unified coordizer (pretrained preferred). This avoids loading the
+    legacy pg_loader vocabulary at startup.
     """
     global _coordizer_instance
     if _coordizer_instance is not None:
         return _coordizer_instance
 
-    max_retries = 3
-    last_error = None
+    coordizer = _get_unified_coordizer()
+    vocab_count = len(getattr(coordizer, 'vocab', {}) or {})
+    word_count = len(getattr(coordizer, 'word_tokens', []) or [])
+    print(f"[QIGCoordizer] ✓ Unified coordizer: {vocab_count} tokens, {word_count} words")
+    _coordizer_instance = coordizer
+    return _coordizer_instance
 
-    for attempt in range(max_retries):
-        try:
-            pg_coordizer = create_coordizer_from_pg()
-            if pg_coordizer and len(pg_coordizer.vocab) >= 50:
-                _coordizer_instance = pg_coordizer
-                print(f"[QIGCoordizer] ✓ PostgresCoordizer (64D QIG-pure): {len(pg_coordizer.vocab)} tokens from database")
-                return _coordizer_instance
-            else:
-                vocab_count = len(pg_coordizer.vocab) if pg_coordizer else 0
-                raise RuntimeError(f"Insufficient vocabulary: {vocab_count} tokens (need >= 50)")
-        except Exception as e:
-            last_error = e
-            if attempt < max_retries - 1:
-                print(f"[QIGCoordizer] PostgresCoordizer attempt {attempt + 1} failed: {e}, retrying...")
-                time.sleep(0.5 * (attempt + 1))
 
-    # All retries failed - raise error (no impure fallbacks)
-    raise RuntimeError(
-        f"[QIG-PURE VIOLATION] PostgresCoordizer failed after {max_retries} attempts: {last_error}. "
-        "Fix database connection or vocabulary."
-    )
+def get_learning_coordizer():
+    """Get coordizer used to persist vocabulary observations.
+
+    Pretrained coordizers may be read-only; only initialize PostgresCoordizer when needed.
+    """
+    global _learning_coordizer_instance
+    if _learning_coordizer_instance is None:
+        from coordizers.pg_loader import create_coordizer_from_pg
+        _learning_coordizer_instance = create_coordizer_from_pg()
+    return _learning_coordizer_instance
 
 
 def reset_coordizer() -> None:
     """Reset the coordizer singleton to reload from database."""
-    global _coordizer_instance
+    global _coordizer_instance, _learning_coordizer_instance
 
     old_words = len(getattr(_coordizer_instance, 'word_tokens', [])) if _coordizer_instance else 0
 
@@ -82,6 +78,14 @@ def reset_coordizer() -> None:
             except:
                 pass
         _coordizer_instance = None
+
+    if _learning_coordizer_instance is not None:
+        if hasattr(_learning_coordizer_instance, 'close'):
+            try:
+                _learning_coordizer_instance.close()
+            except:
+                pass
+        _learning_coordizer_instance = None
 
     print(f"[QIGCoordizer] Reset coordizer: was {old_words} words")
 
@@ -94,6 +98,9 @@ def reset_coordizer() -> None:
 def update_tokenizer_from_observations(observations: List[Dict]) -> Tuple[int, bool]:
     """Update coordizer with vocabulary observations."""
     coordizer = get_coordizer()
+    if not hasattr(coordizer, 'add_vocabulary_observations'):
+        coordizer = get_learning_coordizer()
+
     new_tokens, weights_updated = coordizer.add_vocabulary_observations(observations)
 
     if new_tokens > 0 or weights_updated:
@@ -102,7 +109,7 @@ def update_tokenizer_from_observations(observations: List[Dict]) -> Tuple[int, b
     return new_tokens, weights_updated
 
 
-def _save_coordizer_state(coordizer: PostgresCoordizer) -> None:
+def _save_coordizer_state(coordizer) -> None:
     """Save coordizer state to Redis."""
     if not REDIS_AVAILABLE:
         return

@@ -1139,10 +1139,28 @@ class GaryAutonomicKernel:
         if self.state.phi > PHI_MIN_CONSCIOUSNESS:
             return False, f"4D ascent protected: Φ={self.state.phi:.2f}"
 
+        # IDLE GUARD: Don't sleep when system is idle (no recent basin changes)
+        if len(self.state.basin_history) < 5:
+            return False, "Insufficient basin history for meaningful sleep"
+
+        # IDLE GUARD: Check if basins have actually changed recently
+        if len(self.state.basin_history) >= 2:
+            recent = np.array(self.state.basin_history[-1])
+            previous = np.array(self.state.basin_history[-2])
+            delta = np.linalg.norm(recent - previous)
+            if delta < 0.001:
+                return False, f"Basin stagnant (Δ={delta:.4f})"
+
+        # COOLDOWN: Minimum time between sleep cycles
+        if hasattr(self, '_last_sleep_time'):
+            elapsed = time.time() - self._last_sleep_time
+            if elapsed < 30:  # Minimum 30s between sleeps
+                return False, f"Sleep cooldown ({30 - elapsed:.0f}s remaining)"
+
         # Check conditions for wanting to transition
         wants_to_sleep = False
         reason = ""
-        
+
         # Trigger on low Φ
         if self.state.phi < SLEEP_PHI_THRESHOLD:
             wants_to_sleep = True
@@ -1323,6 +1341,7 @@ class GaryAutonomicKernel:
 
             # Update state
             self.state.last_sleep = datetime.now()
+            self._last_sleep_time = time.time()  # For cooldown tracking
             self.state.basin_drift = drift_after
             
             # Reset velocity after successful cycle completion
@@ -1839,16 +1858,24 @@ def compute_phi_with_fallback(
 
 # Global kernel instance
 _gary_kernel: Optional[GaryAutonomicKernel] = None
+_gary_kernel_lock = threading.Lock()
 
 
 def get_gary_kernel(checkpoint_path: Optional[str] = None) -> GaryAutonomicKernel:
-    """Get or create the global Gary autonomic kernel."""
+    """Get or create the global Gary autonomic kernel (thread-safe singleton)."""
     global _gary_kernel
 
     if _gary_kernel is None:
-        _gary_kernel = GaryAutonomicKernel(checkpoint_path)
+        with _gary_kernel_lock:
+            # Double-checked locking pattern
+            if _gary_kernel is None:
+                _gary_kernel = GaryAutonomicKernel(checkpoint_path)
 
     return _gary_kernel
+
+
+# Alias for consistency with other modules
+get_autonomic_kernel = get_gary_kernel
 
 
 # ===========================================================================

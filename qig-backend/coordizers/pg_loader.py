@@ -35,7 +35,8 @@ except ImportError:
 class VocabularyCache:
     """Redis cache layer for vocabulary hot lookups."""
 
-    PREFIX = "qig:vocab"
+    # Namespace to avoid collisions with other vocab/coordizer implementations.
+    PREFIX = "qig:vocab:pg_loader"
 
     @classmethod
     def cache_token(cls, token: str, coords: np.ndarray, phi: float) -> bool:

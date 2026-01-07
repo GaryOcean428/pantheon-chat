@@ -3278,6 +3278,44 @@ export type KernelTrainingHistoryRow = typeof kernelTrainingHistory.$inferSelect
 export type InsertKernelTrainingHistory = typeof kernelTrainingHistory.$inferInsert;
 
 /**
+ * TRAINING SCHEDULE LOG
+ *
+ * Tracks when scheduled training tasks were last executed.
+ * Used by startup catch-up system to detect and recover from missed training windows.
+ * Replaces Celery Beat scheduler (which is not deployed on Railway).
+ *
+ * WIRING:
+ * - startup_catchup.py reads/writes on system startup
+ * - cron_routes.py updates after each cron-triggered execution
+ */
+export const trainingScheduleLog = pgTable(
+  "training_schedule_log",
+  {
+    id: serial("id").primaryKey(),
+    taskType: varchar("task_type", { length: 32 }).notNull().unique(), // 'hourly_batch', 'nightly_consolidation', 'shadow_sync', 'checkpoint_cleanup'
+
+    // Execution tracking
+    lastSuccessAt: timestamp("last_success_at", { withTimezone: true }),
+    lastAttemptAt: timestamp("last_attempt_at", { withTimezone: true }),
+    lastStatus: varchar("last_status", { length: 16 }), // 'success', 'failed', 'in_progress', 'skipped'
+    lastError: text("last_error"),
+
+    // Statistics
+    runsCompleted: integer("runs_completed").default(0),
+    totalRunTimeMs: integer("total_run_time_ms").default(0),
+
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  },
+  (table) => [
+    index("idx_training_schedule_task").on(table.taskType),
+    index("idx_training_schedule_last_success").on(table.lastSuccessAt),
+  ]
+);
+
+export type TrainingScheduleLogRow = typeof trainingScheduleLog.$inferSelect;
+export type InsertTrainingScheduleLog = typeof trainingScheduleLog.$inferInsert;
+
+/**
  * KERNEL CHECKPOINTS
  *
  * Stores model state checkpoints for each god-kernel.

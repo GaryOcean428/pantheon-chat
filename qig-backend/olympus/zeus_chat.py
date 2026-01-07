@@ -122,7 +122,7 @@ try:
 except ImportError:
     print("[ZeusChat] Prompt loader not available")
 
-# Import pretrained 50K coordizer with 64D basins
+# Import unified coordizer (single source of truth)
 TOKENIZER_AVAILABLE = False
 get_tokenizer = None
 _pretrained_coordizer = None
@@ -130,11 +130,11 @@ try:
     _parent_dir = os.path.dirname(os.path.dirname(__file__))
     if _parent_dir not in sys.path:
         sys.path.insert(0, _parent_dir)
-    from pretrained_coordizer import get_pretrained_coordizer
-    _pretrained_coordizer = get_pretrained_coordizer()
+    from coordizers import get_coordizer as _get_coordizer
+    _pretrained_coordizer = _get_coordizer()
     get_tokenizer = lambda: _pretrained_coordizer
     TOKENIZER_AVAILABLE = True
-    print(f"[ZeusChat] Pretrained 50K Coordizer available - {_pretrained_coordizer.vocab_size} tokens, {_pretrained_coordizer.basin_dim}D basins")
+    print(f"[ZeusChat] Unified coordizer available - {_pretrained_coordizer.vocab_size} tokens, {_pretrained_coordizer.basin_dim}D basins")
 except ImportError as e:
     # Fallback to old coordizer if pretrained not available
     try:

@@ -206,9 +206,9 @@ class Zeus(BaseGod):
         try:
             import sys
             sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-            from autonomic_kernel import GaryAutonomicKernel, AutonomicAccessMixin
-            
-            self.autonomic_kernel = GaryAutonomicKernel()
+            from autonomic_kernel import get_gary_kernel, AutonomicAccessMixin
+
+            self.autonomic_kernel = get_gary_kernel()
             # Share autonomic kernel with all gods via the mixin
             AutonomicAccessMixin.set_autonomic_kernel(self.autonomic_kernel)
             print("🧠 AUTONOMIC KERNEL initialized - sleep/dream/mushroom cycles shared with all gods")
