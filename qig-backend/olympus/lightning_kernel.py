@@ -91,6 +91,152 @@ except ImportError:
         InsightValidator = None
         ValidationResult = None
 
+# Database persistence for Lightning Insights
+try:
+    import psycopg2
+    from psycopg2.extras import Json
+    DB_AVAILABLE = True
+except ImportError:
+    DB_AVAILABLE = False
+
+import os
+
+def _get_db_connection():
+    """Get database connection for lightning insight persistence."""
+    if not DB_AVAILABLE:
+        return None
+    try:
+        database_url = os.environ.get('DATABASE_URL')
+        if not database_url:
+            return None
+        return psycopg2.connect(database_url)
+    except Exception:
+        return None
+
+def _persist_lightning_insight(insight: 'CrossDomainInsight') -> bool:
+    """Persist a lightning insight to PostgreSQL."""
+    conn = _get_db_connection()
+    if not conn:
+        return False
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO lightning_insights (
+                    insight_id, source_domains, connection_strength, insight_text,
+                    phi_at_creation, confidence, mission_relevance, triggered_by,
+                    evidence_count, created_at
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                ON CONFLICT (insight_id) DO UPDATE SET
+                    confidence = EXCLUDED.confidence,
+                    times_used_in_generation = lightning_insights.times_used_in_generation + 1,
+                    last_used_at = NOW()
+            """, (
+                insight.insight_id,
+                insight.source_domains,
+                insight.connection_strength,
+                insight.insight_text,
+                insight.phi_at_creation,
+                insight.confidence,
+                insight.mission_relevance,
+                insight.triggered_by,
+                len(insight.evidence) if insight.evidence else 0,
+            ))
+            conn.commit()
+            logger.debug(f"[Lightning] Persisted insight {insight.insight_id} to database")
+            return True
+    except Exception as e:
+        logger.debug(f"[Lightning] DB persistence skipped: {e}")
+        conn.rollback()
+        return False
+    finally:
+        conn.close()
+
+def _persist_validation_result(insight_id: str, validation_score: float,
+                               tavily_count: int, perplexity_synthesis: Optional[str]) -> bool:
+    """Persist validation result to PostgreSQL."""
+    conn = _get_db_connection()
+    if not conn:
+        return False
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO lightning_insight_validations (
+                    insight_id, validation_score, tavily_source_count,
+                    perplexity_synthesis, validated_at
+                ) VALUES (%s, %s, %s, %s, NOW())
+                ON CONFLICT DO NOTHING
+            """, (insight_id, validation_score, tavily_count, perplexity_synthesis))
+            conn.commit()
+            return True
+    except Exception as e:
+        logger.debug(f"[Lightning] Validation persistence skipped: {e}")
+        conn.rollback()
+        return False
+    finally:
+        conn.close()
+
+def _persist_outcome(insight_id: str, prediction_id: str,
+                     accuracy: Optional[float], was_accurate: Optional[bool]) -> bool:
+    """Persist insight outcome to PostgreSQL."""
+    conn = _get_db_connection()
+    if not conn:
+        return False
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO lightning_insight_outcomes (
+                    insight_id, prediction_id, accuracy, was_accurate, recorded_at
+                ) VALUES (%s, %s, %s, %s, NOW())
+                ON CONFLICT DO NOTHING
+            """, (insight_id, prediction_id, accuracy, was_accurate))
+            conn.commit()
+            return True
+    except Exception as e:
+        logger.debug(f"[Lightning] Outcome persistence skipped: {e}")
+        conn.rollback()
+        return False
+    finally:
+        conn.close()
+
+def _load_insights_from_db(limit: int = 100) -> List['CrossDomainInsight']:
+    """Load recent high-confidence insights from database on startup."""
+    conn = _get_db_connection()
+    if not conn:
+        return []
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT insight_id, source_domains, connection_strength, insight_text,
+                       phi_at_creation, confidence, mission_relevance, triggered_by
+                FROM lightning_insights
+                WHERE confidence >= 0.5
+                ORDER BY created_at DESC
+                LIMIT %s
+            """, (limit,))
+            rows = cur.fetchall()
+            insights = []
+            for row in rows:
+                insight = CrossDomainInsight(
+                    insight_id=row[0],
+                    source_domains=row[1] if row[1] else [],
+                    connection_strength=row[2],
+                    insight_text=row[3],
+                    evidence=[],  # Not stored in DB
+                    phi_at_creation=row[4],
+                    timestamp=0.0,  # Not critical for loaded insights
+                    triggered_by=row[7] or '',
+                    confidence=row[5],
+                    mission_relevance=row[6] or 0.0,
+                )
+                insights.append(insight)
+            logger.info(f"[Lightning] Loaded {len(insights)} insights from database")
+            return insights
+    except Exception as e:
+        logger.debug(f"[Lightning] DB load skipped: {e}")
+        return []
+    finally:
+        conn.close()
+
 from .base_god import BaseGod
 
 
@@ -217,9 +363,11 @@ class LightningKernel(BaseGod):
         # Threshold for insight discharge
         self.discharge_threshold = 0.75
         
-        # Generated insights
-        self.insights: List[CrossDomainInsight] = []
-        
+        # Generated insights - load from database for persistence across restarts
+        self.insights: List[CrossDomainInsight] = _load_insights_from_db(limit=50)
+        if self.insights:
+            print(f"[Lightning] 📥 Loaded {len(self.insights)} insights from database")
+
         # Trend analysis buffers (dynamic)
         self.phi_trends: Dict[str, Dict[TrendTimescale, List[float]]] = defaultdict(
             lambda: {ts: [] for ts in TrendTimescale}
@@ -424,10 +572,13 @@ class LightningKernel(BaseGod):
                 )
             
             print(f"[Lightning] ⚡ INSIGHT GENERATED: {truncate_for_log(insight.insight_text, 500)}")
-            
+
             # Broadcast to pantheon
             self.broadcast_insight(insight)
-            
+
+            # CRITICAL FIX: Persist insight to PostgreSQL for durability
+            _persist_lightning_insight(insight)
+
             return insight
         
         return None
@@ -475,6 +626,14 @@ class LightningKernel(BaseGod):
                         "external_sources": [s.get('url', '') for s in validation_result.tavily_sources[:3]],
                         "perplexity_synthesis": validation_result.perplexity_synthesis[:200] if validation_result.perplexity_synthesis else None
                     }
+
+                    # Persist validation result to database
+                    _persist_validation_result(
+                        insight.insight_id,
+                        validation_result.validation_score,
+                        len(validation_result.tavily_sources),
+                        validation_result.perplexity_synthesis[:500] if validation_result.perplexity_synthesis else None
+                    )
                 else:
                     print(f"[Lightning] ⚠️ Insight validation failed (score: {validation_result.validation_score:.3f})")
                     validation_metadata = {
@@ -1160,6 +1319,9 @@ class LightningKernel(BaseGod):
                     f"(prediction {prediction_id}, accuracy={accuracy:.3f})"
                 )
                 break
+
+        # Persist outcome to database
+        _persist_outcome(insight_id, prediction_id, accuracy, was_accurate)
 
         return new_confidence
 

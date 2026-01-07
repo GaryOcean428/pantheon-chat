@@ -1,0 +1,10 @@
+                                                   Table "public.qig_metadata"
+   Column   |            Type             | Collation | Nullable | Default | Storage  | Compression | Stats target | Description 
+------------+-----------------------------+-----------+----------+---------+----------+-------------+--------------+-------------
+ key        | text                        |           | not null |         | extended |             |              | 
+ value      | text                        |           | not null |         | extended |             |              | 
+ updated_at | timestamp without time zone |           |          | now()   | plain    |             |              | 
+Indexes:
+    "qig_metadata_pkey" PRIMARY KEY, btree (key)
+Access method: heap
+

@@ -9,6 +9,7 @@ import {
   integer,
   jsonb,
   pgTable,
+  primaryKey,
   real,
   serial,
   text,
@@ -2711,6 +2712,27 @@ export type ShadowOperationsLogRow = typeof shadowOperationsLog.$inferSelect;
 export type InsertShadowOperationsLog = typeof shadowOperationsLog.$inferInsert;
 
 /**
+ * SHADOW OPERATIONS STATE - Persistent state for shadow god kernels
+ * Stores god state data across restarts (was only raw SQL, now in Drizzle)
+ */
+export const shadowOperationsState = pgTable(
+  "shadow_operations_state",
+  {
+    godName: varchar("god_name", { length: 32 }).notNull(),
+    stateType: varchar("state_type", { length: 32 }).notNull(),
+    stateData: jsonb("state_data").default({}),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (table) => [
+    // Composite primary key: god_name + state_type
+    primaryKey({ columns: [table.godName, table.stateType] }),
+  ]
+);
+
+export type ShadowOperationsStateRow = typeof shadowOperationsState.$inferSelect;
+export type InsertShadowOperationsState = typeof shadowOperationsState.$inferInsert;
+
+/**
  * GENERATED TOOLS - Self-generated tools from ToolFactory
  * Stores code, validation status, metrics, and purpose basin for retrieval
  */
@@ -3700,3 +3722,88 @@ export const governanceAuditLog = pgTable(
 
 export type GovernanceAuditLogRow = typeof governanceAuditLog.$inferSelect;
 export type InsertGovernanceAuditLog = typeof governanceAuditLog.$inferInsert;
+
+// ============================================================================
+// LIGHTNING INSIGHTS - Cross-domain insight persistence
+// Used by lightning_kernel.py for durable insight storage
+// ============================================================================
+
+/**
+ * LIGHTNING INSIGHTS - Stores cross-domain insights discovered by Lightning kernel
+ * These are geometric correlations between domains that enhance generation context
+ */
+export const lightningInsights = pgTable(
+  "lightning_insights",
+  {
+    insightId: varchar("insight_id", { length: 64 }).primaryKey(),
+    sourceDomains: text("source_domains").array().notNull(), // Array of domain names
+    connectionStrength: doublePrecision("connection_strength").notNull(),
+    insightText: text("insight_text").notNull(),
+    phiAtCreation: doublePrecision("phi_at_creation").notNull(),
+    confidence: doublePrecision("confidence").notNull().default(0.5),
+    missionRelevance: doublePrecision("mission_relevance").default(0.0),
+    triggeredBy: varchar("triggered_by", { length: 128 }),
+    evidenceCount: integer("evidence_count").default(0),
+    timesUsedInGeneration: integer("times_used_in_generation").default(0),
+    createdAt: timestamp("created_at").defaultNow(),
+    lastUsedAt: timestamp("last_used_at"),
+  },
+  (table) => [
+    index("idx_lightning_insights_confidence").on(table.confidence),
+    index("idx_lightning_insights_phi").on(table.phiAtCreation),
+    index("idx_lightning_insights_created").on(table.createdAt),
+  ]
+);
+
+export type LightningInsightRow = typeof lightningInsights.$inferSelect;
+export type InsertLightningInsight = typeof lightningInsights.$inferInsert;
+
+/**
+ * LIGHTNING INSIGHT VALIDATIONS - External validation results for insights
+ * Tracks Tavily/Perplexity validation scores and synthesis
+ */
+export const lightningInsightValidations = pgTable(
+  "lightning_insight_validations",
+  {
+    id: serial("id").primaryKey(),
+    insightId: varchar("insight_id", { length: 64 })
+      .notNull()
+      .references(() => lightningInsights.insightId),
+    validationScore: doublePrecision("validation_score"),
+    tavilySourceCount: integer("tavily_source_count").default(0),
+    perplexitySynthesis: text("perplexity_synthesis"),
+    validatedAt: timestamp("validated_at").defaultNow(),
+  },
+  (table) => [
+    index("idx_lightning_validations_insight").on(table.insightId),
+    index("idx_lightning_validations_score").on(table.validationScore),
+  ]
+);
+
+export type LightningInsightValidationRow = typeof lightningInsightValidations.$inferSelect;
+export type InsertLightningInsightValidation = typeof lightningInsightValidations.$inferInsert;
+
+/**
+ * LIGHTNING INSIGHT OUTCOMES - Tracks prediction accuracy when insights are used
+ * Enables empirical validation of insight quality over time
+ */
+export const lightningInsightOutcomes = pgTable(
+  "lightning_insight_outcomes",
+  {
+    id: serial("id").primaryKey(),
+    insightId: varchar("insight_id", { length: 64 })
+      .notNull()
+      .references(() => lightningInsights.insightId),
+    predictionId: varchar("prediction_id", { length: 64 }).notNull(),
+    accuracy: doublePrecision("accuracy"),
+    wasAccurate: boolean("was_accurate"),
+    recordedAt: timestamp("recorded_at").defaultNow(),
+  },
+  (table) => [
+    index("idx_lightning_outcomes_insight").on(table.insightId),
+    index("idx_lightning_outcomes_accuracy").on(table.accuracy),
+  ]
+);
+
+export type LightningInsightOutcomeRow = typeof lightningInsightOutcomes.$inferSelect;
+export type InsertLightningInsightOutcome = typeof lightningInsightOutcomes.$inferInsert;
