@@ -1122,9 +1122,18 @@ class ShadowLearningLoop:
             self._scrapy_orchestrator.set_insights_callback(self._handle_scrapy_insight)
             print("[ShadowLearningLoop] Scrapy research enabled")
         
-        # VocabularyCoordinator is initialized lazily to avoid blocking startup
+        # Initialize VocabularyCoordinator for continuous learning
         self.vocab_coordinator = None
-        self._vocab_coordinator_initialized = False
+        if HAS_VOCAB_COORDINATOR:
+            try:
+                self.vocab_coordinator = VocabularyCoordinator()
+                print("[ShadowLearningLoop] VocabularyCoordinator initialized for continuous learning")
+                
+                # Register vocabulary insight callback with KnowledgeBase
+                self.knowledge_base.set_insight_callback(self._on_vocabulary_insight)
+                print("[ShadowLearningLoop] Vocabulary insight callback registered")
+            except Exception as e:
+                print(f"[ShadowLearningLoop] Failed to initialize VocabularyCoordinator: {e}")
         
         # Initialize Curriculum Training
         self._curriculum_available = HAS_CURRICULUM_TRAINING
@@ -1151,23 +1160,6 @@ class ShadowLearningLoop:
     def is_running(self) -> bool:
         """Check if the learning loop is currently running."""
         return self._running
-
-    def _ensure_vocab_coordinator(self) -> None:
-        """Lazily initialize VocabularyCoordinator when first needed."""
-        if self._vocab_coordinator_initialized:
-            return
-        self._vocab_coordinator_initialized = True
-        
-        if HAS_VOCAB_COORDINATOR:
-            try:
-                self.vocab_coordinator = VocabularyCoordinator()
-                print("[ShadowLearningLoop] VocabularyCoordinator initialized (deferred)")
-                
-                # Register vocabulary insight callback with KnowledgeBase
-                self.knowledge_base.set_insight_callback(self._on_vocabulary_insight)
-                print("[ShadowLearningLoop] Vocabulary insight callback registered")
-            except Exception as e:
-                print(f"[ShadowLearningLoop] Failed to initialize VocabularyCoordinator: {e}")
 
     def budget_aware_search(
         self,
@@ -1201,7 +1193,6 @@ class ShadowLearningLoop:
 
         # Feed results into vocabulary learning
         vocab_metrics = {}
-        self._ensure_vocab_coordinator()
         if results.get('success') and self.vocab_coordinator:
             try:
                 # Extract text from results for vocabulary learning
@@ -1354,7 +1345,6 @@ class ShadowLearningLoop:
                             print(f"[ShadowLearningLoop] Curriculum training failed: {e}")
 
                 # Periodic vocabulary integration (hourly)
-                self._ensure_vocab_coordinator()
                 if self.vocab_coordinator:
                     current_time = time.time()
                     if not hasattr(self, '_last_vocab_integration'):
@@ -1406,7 +1396,6 @@ class ShadowLearningLoop:
         # (callback will be triggered automatically via KnowledgeBase.set_insight_callback)
         # But also do explicit training for immediate feedback
         vocab_metrics = {}
-        self._ensure_vocab_coordinator()
         if self.vocab_coordinator:
             try:
                 summary = content.get("summary", "")
@@ -1463,7 +1452,6 @@ class ShadowLearningLoop:
         """
         # Optional: Enhance query with learned vocabulary
         enhanced_topic = topic
-        self._ensure_vocab_coordinator()
         if self.vocab_coordinator:
             try:
                 enhancement = self.vocab_coordinator.enhance_search_query(
@@ -1547,10 +1535,10 @@ class ShadowLearningLoop:
         return spider_map.get(category, 'document')
     
     def _handle_scrapy_insight(
-        self,
-        insight: 'ScrapedInsight',
-        basin_coords: np.ndarray,
-        phi: float,
+        self, 
+        insight: 'ScrapedInsight', 
+        basin_coords: np.ndarray, 
+        phi: float, 
         confidence: float
     ) -> None:
         """
@@ -1559,11 +1547,7 @@ class ShadowLearningLoop:
         """
         if not HAS_SCRAPY:
             return
-
-        # Normalize basin to 64D to avoid dimension mismatch errors
-        if basin_coords is not None and basin_coords.shape[0] != BASIN_DIMENSION:
-            basin_coords = normalize_basin_dimension(basin_coords, BASIN_DIMENSION)
-
+        
         topic = insight.title or insight.source_url
         
         content = {
@@ -1622,7 +1606,6 @@ class ShadowLearningLoop:
         Args:
             knowledge: Knowledge dictionary with content, topic, phi
         """
-        self._ensure_vocab_coordinator()
         if not self.vocab_coordinator:
             return
         
@@ -3798,13 +3781,9 @@ class ResearchInsightBridge:
             from .lightning_kernel import DomainEvent
             
             basin_coords = knowledge_data.get('basin_coords')
-            if basin_coords is not None:
-                if not isinstance(basin_coords, np.ndarray):
-                    basin_coords = np.array(basin_coords)
-                # Normalize to 64D to avoid dimension mismatch errors
-                if basin_coords.shape[0] != BASIN_DIMENSION:
-                    basin_coords = normalize_basin_dimension(basin_coords, BASIN_DIMENSION)
-
+            if basin_coords is not None and not isinstance(basin_coords, np.ndarray):
+                basin_coords = np.array(basin_coords)
+            
             # Use dynamic string domain - no hardcoded enums
             event = DomainEvent(
                 domain="research",  # Dynamic string domain

@@ -21,20 +21,7 @@ import sys
 sys.path.insert(0, os.path.dirname(__file__))
 
 from internal_api import sync_war_to_database as sync_war_to_typescript
-
-# LAZY Zeus import - don't import at module level to avoid blocking Flask startup
-zeus = None
-
-def _get_zeus():
-    """Lazy getter for Zeus instance."""
-    global zeus
-    if zeus is None:
-        try:
-            from olympus.zeus import zeus as _zeus
-            zeus = _zeus
-        except ImportError:
-            pass
-    return zeus
+from olympus.zeus import zeus
 
 logging.basicConfig(
     level=logging.INFO,

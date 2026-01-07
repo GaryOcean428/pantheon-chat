@@ -131,10 +131,10 @@ class Zeus(BaseGod):
             self.chaos = ExperimentalKernelEvolution()
             # Auto-activate chaos mode on startup
             if len(self.chaos.kernel_population) == 0:
-                # Use 'zeus_initialization' domain for governance bypass on startup
-                self.chaos.spawn_random_kernel(domain='zeus_initialization')
-                self.chaos.spawn_random_kernel(domain='zeus_initialization')
-                self.chaos.spawn_random_kernel(domain='zeus_initialization')
+                # Use 'zeus_initialization' reason for governance bypass on startup
+                self.chaos.spawn_random_kernel(reason='zeus_initialization')
+                self.chaos.spawn_random_kernel(reason='zeus_initialization')
+                self.chaos.spawn_random_kernel(reason='zeus_initialization')
             self.chaos.start_evolution(interval_seconds=60)
             self.chaos_enabled = True
             print(f"🌪️ CHAOS MODE AUTO-ACTIVATED with {len(self.chaos.kernel_population)} kernels")
@@ -1034,9 +1034,9 @@ class Zeus(BaseGod):
             try:
                 # Spawn initial population if needed
                 if len(self.chaos.kernel_population) == 0:
-                    self.chaos.spawn_random_kernel(domain='initial_population')
-                    self.chaos.spawn_random_kernel(domain='initial_population')
-                    self.chaos.spawn_random_kernel(domain='initial_population')
+                    self.chaos.spawn_random_kernel(reason='initial_population')
+                    self.chaos.spawn_random_kernel(reason='initial_population')
+                    self.chaos.spawn_random_kernel(reason='initial_population')
                 
                 # Start evolution
                 self.chaos.start_evolution(interval_seconds=60)

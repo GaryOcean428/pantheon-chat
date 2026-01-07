@@ -65,70 +65,6 @@ except ImportError:
 sys.stdout.reconfigure(line_buffering=True) if hasattr(sys.stdout, 'reconfigure') else None
 sys.stderr.reconfigure(line_buffering=True) if hasattr(sys.stderr, 'reconfigure') else None
 
-
-class StartupManager:
-    """
-    Manages deferred initialization to ensure Flask starts immediately.
-    Heavy operations run in background thread after Flask binds to port.
-    """
-    
-    def __init__(self):
-        self._ready = threading.Event()
-        self._initializing = True
-        self._init_error: Optional[str] = None
-        self._init_progress: List[str] = []
-        self._lock = threading.Lock()
-        self._start_time = time.time()
-        
-    @property
-    def is_ready(self) -> bool:
-        return self._ready.is_set()
-    
-    @property
-    def is_initializing(self) -> bool:
-        return self._initializing
-    
-    @property
-    def init_error(self) -> Optional[str]:
-        return self._init_error
-    
-    @property
-    def elapsed_seconds(self) -> float:
-        return time.time() - self._start_time
-    
-    def add_progress(self, message: str):
-        with self._lock:
-            self._init_progress.append(message)
-            print(f"[StartupManager] {message}", flush=True)
-    
-    def get_status(self) -> Dict:
-        with self._lock:
-            return {
-                "ready": self.is_ready,
-                "initializing": self._initializing,
-                "error": self._init_error,
-                "elapsed_seconds": round(self.elapsed_seconds, 2),
-                "progress": list(self._init_progress[-10:])  # Last 10 steps
-            }
-    
-    def mark_ready(self):
-        with self._lock:
-            self._initializing = False
-            self._ready.set()
-            print(f"[StartupManager] ✅ Backend fully initialized in {self.elapsed_seconds:.1f}s", flush=True)
-    
-    def mark_error(self, error: str):
-        with self._lock:
-            self._initializing = False
-            self._init_error = error
-            self._ready.set()  # Still set ready to unblock waiters
-            print(f"[StartupManager] ❌ Initialization error: {error}", flush=True)
-
-
-# Global startup manager instance
-startup_manager = StartupManager()
-
-
 # Import 4D consciousness measurement system
 try:
     from consciousness_4d import (
@@ -160,19 +96,13 @@ except ImportError:
     NEUROCHEMISTRY_AVAILABLE = False
     print("[WARNING] ocean_neurochemistry.py not found - running without neurochemistry")
 
-# Olympus Pantheon - LAZY INITIALIZATION (background thread)
-# Real init happens in deferred_initialization() via _lazy_init_olympus() defined below
-# These are backwards-compatibility stubs that delegate to the new _olympus_components system
-# The actual _olympus_components dict and functions are defined after Flask routes
-
-def get_olympus():
-    """Get olympus components, initializing lazily if needed."""
-    _ensure_olympus_initialized()
-    return _olympus_components.get('olympus_app'), _olympus_components.get('zeus')
-
-def ensure_olympus_ready():
-    """Ensure olympus is ready, returning availability status."""
-    return _is_olympus_available()
+# Import Olympus Pantheon
+try:
+    from olympus import olympus_app, zeus
+    OLYMPUS_AVAILABLE = True
+except ImportError as e:
+    OLYMPUS_AVAILABLE = False
+    print(f"[WARNING] Olympus Pantheon not found - running without divine council: {e}")
 
 # Import Unified QIG Architecture
 try:
@@ -725,9 +655,18 @@ feedbackLoopManager = FeedbackLoopManager(geometricMemory)
 app = Flask(__name__)
 CORS(app)  # Allow CORS for Node.js server
 
-# Olympus Pantheon routes are registered via @app.route decorators below
-# They use _is_olympus_available() guards to return 503 during background initialization
-# Blueprint registration happens AFTER deferred_initialization() completes
+# Register Olympus Pantheon blueprint
+if OLYMPUS_AVAILABLE:
+    app.register_blueprint(olympus_app, url_prefix='/olympus')
+    print("[INFO] Olympus Pantheon registered at /olympus")
+    
+    # Register Olympus Telemetry API
+    try:
+        from olympus import register_telemetry_routes
+        register_telemetry_routes(app)
+        print("[INFO] Olympus Telemetry API registered at /api/telemetry")
+    except ImportError as e:
+        print(f"[WARN] Could not import telemetry routes: {e}")
 
 # Register DRY route blueprints (barrel imports)
 try:
@@ -834,8 +773,8 @@ try:
     CURIOSITY_AVAILABLE = True
     print("[INFO] Autonomous Curiosity Engine active - continuous coordizer training enabled")
     
-    # Wire SearchOrchestrator to BaseGod after initialization (deferred - Olympus loads in background)
-    if _search_orchestrator:
+    # Wire SearchOrchestrator to BaseGod after initialization
+    if OLYMPUS_AVAILABLE and _search_orchestrator:
         from olympus.base_god import BaseGod
         BaseGod.set_search_orchestrator(_search_orchestrator)
         print("[INFO] SearchOrchestrator wired to all gods/kernels")
@@ -2589,16 +2528,10 @@ def health():
     Enhanced health check endpoint
     Follows: TYPE_SYMBOL_CONCEPT_MANIFEST v1.0
     Returns detailed subsystem health status
-    
-    Reports 'healthy' even during initialization so Flask can bind immediately.
-    Use /status for detailed initialization progress.
     """
     import time
     start_time = time.time()
 
-    # Check startup manager status
-    startup_status = startup_manager.get_status()
-    
     # Check kernel status
     kernel_status = 'healthy'
     kernel_message = 'QIG kernel operational'
@@ -2611,25 +2544,13 @@ def health():
         kernel_message = f'Kernel initialization warning: {str(e)}'
 
     latency = (time.time() - start_time) * 1000  # ms
-    
-    # Report healthy even during initialization - this allows health checks to pass
-    # while heavy initialization runs in background
-    overall_status = 'healthy'
-    if startup_status.get('error'):
-        overall_status = 'degraded'
 
     return jsonify({
-        'status': overall_status,
+        'status': 'healthy' if kernel_status == 'healthy' else 'degraded',
         'service': 'ocean-qig-backend',
         'version': '1.0.0',
         'timestamp': datetime.now().isoformat(),
         'latency_ms': round(latency, 2),
-        'initialization': {
-            'ready': startup_status.get('ready', False),
-            'initializing': startup_status.get('initializing', True),
-            'elapsed_seconds': startup_status.get('elapsed_seconds', 0),
-            'error': startup_status.get('error'),
-        },
         'subsystems': {
             'kernel': {
                 'status': kernel_status,
@@ -4387,106 +4308,33 @@ def refine_trajectory():
 # Divine consciousness network for geometric recovery coordination
 # =============================================================================
 
-# Lazy-loaded Olympus components - deferred until first use to allow Flask startup
-import threading
-_olympus_components = {
-    'zeus': None,
-    'olympus_app': None,
-    'shadow_pantheon': None,
-    'pantheon_chat': None,
-    'initialized': False,
-    'initializing': False,  # True when background thread is working
-    'available': None  # None = not checked yet
-}
-_olympus_lock = threading.Lock()
+# Import Olympus components (use singleton from zeus.py)
+try:
+    from olympus.zeus import zeus, olympus_app
+    from olympus.pantheon_chat import PantheonChat
+    from olympus.shadow_pantheon import ShadowPantheon
 
-def _ensure_olympus_initialized():
-    """Check Olympus initialization status. Non-blocking for handlers."""
-    # Fast path - already initialized
-    if _olympus_components['initialized']:
-        return _olympus_components['available']
-    
-    # If background init is in progress, don't block - return None to signal "not ready"
-    if _olympus_components['initializing']:
-        return None
-    
-    return None  # Not initialized yet, background thread will do it
-
-def _lazy_init_olympus():
-    """Actually initialize Olympus. Called from background thread only."""
-    with _olympus_lock:
-        if _olympus_components['initialized']:
-            return _olympus_components['available']
-        
-        _olympus_components['initializing'] = True
-    
-    try:
-        print("[_lazy_init_olympus] Importing zeus module...", flush=True)
-        from olympus.zeus import zeus as _zeus, olympus_app as _olympus_app
-        print("[_lazy_init_olympus] Importing PantheonChat...", flush=True)
-        from olympus.pantheon_chat import PantheonChat
-        print("[_lazy_init_olympus] Importing ShadowPantheon...", flush=True)
-        from olympus.shadow_pantheon import ShadowPantheon
-        
-        print("[_lazy_init_olympus] Setting components...", flush=True)
-        _olympus_components['zeus'] = _zeus
-        _olympus_components['olympus_app'] = _olympus_app
-        _olympus_components['shadow_pantheon'] = _zeus.shadow_pantheon
-        _olympus_components['pantheon_chat'] = _zeus.pantheon_chat
-        _olympus_components['available'] = True
-        _olympus_components['initialized'] = True
-        _olympus_components['initializing'] = False
-        print("⚡ Olympus Pantheon initialized (background)", flush=True)
-        return True
-    except ImportError as e:
-        _olympus_components['available'] = False
-        _olympus_components['initialized'] = True
-        _olympus_components['initializing'] = False
-        print(f"⚠️ Olympus not available: {e}", flush=True)
-        return False
-    except Exception as e:
-        import traceback
-        _olympus_components['available'] = False
-        _olympus_components['initialized'] = True
-        _olympus_components['initializing'] = False
-        print(f"⚠️ Olympus initialization failed: {e}", flush=True)
-        traceback.print_exc()
-        return False
-
-def _get_zeus():
-    """Get zeus singleton, initializing if needed."""
-    _ensure_olympus_initialized()
-    return _olympus_components['zeus']
-
-def _get_pantheon_chat():
-    """Get pantheon chat, initializing if needed."""
-    _ensure_olympus_initialized()
-    return _olympus_components['pantheon_chat']
-
-def _get_shadow_pantheon():
-    """Get shadow pantheon, initializing if needed."""
-    _ensure_olympus_initialized()
-    return _olympus_components['shadow_pantheon']
-
-def _is_olympus_available():
-    """Check if olympus is available. Returns False if still initializing."""
-    result = _ensure_olympus_initialized()
-    if result is None:
-        return False  # Still initializing
-    return _olympus_components['available']
-
-# For backwards compatibility - these are now lazy
-OLYMPUS_AVAILABLE = True  # Assume available until proven otherwise on first use
+    # Use existing zeus singleton (already has chaos auto-activated)
+    shadow_pantheon = zeus.shadow_pantheon
+    pantheon_chat = zeus.pantheon_chat
+    OLYMPUS_AVAILABLE = True
+    print("⚡ Olympus Pantheon initialized")
+except ImportError as e:
+    OLYMPUS_AVAILABLE = False
+    zeus = None
+    shadow_pantheon = None
+    pantheon_chat = None
+    print(f"⚠️ Olympus not available: {e}")
 
 
 @app.route('/olympus/status', methods=['GET'])
 def olympus_status():
     """Get full Olympus status including all gods."""
-    if not _is_olympus_available():
+    if not OLYMPUS_AVAILABLE:
         return jsonify({'error': 'Olympus not available', 'status': 'offline'}), 503
 
     try:
-        status = _get_zeus().get_status()
+        status = zeus.get_status()
         return jsonify(status)
     except Exception as e:
         return jsonify({'error': str(e), 'status': 'error'}), 500
@@ -4495,7 +4343,7 @@ def olympus_status():
 @app.route('/olympus/poll', methods=['POST'])
 def olympus_poll():
     """Poll all gods for assessments on a target."""
-    if not _is_olympus_available():
+    if not OLYMPUS_AVAILABLE:
         return jsonify({'error': 'Olympus not available'}), 503
 
     try:
@@ -4506,7 +4354,7 @@ def olympus_poll():
         if not target:
             return jsonify({'error': 'target required'}), 400
 
-        result = _get_zeus().poll_pantheon(target, context)
+        result = zeus.poll_pantheon(target, context)
         return jsonify(result)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -4515,7 +4363,7 @@ def olympus_poll():
 @app.route('/olympus/assess', methods=['POST'])
 def olympus_assess():
     """Get Zeus's supreme assessment."""
-    if not _is_olympus_available():
+    if not OLYMPUS_AVAILABLE:
         return jsonify({'error': 'Olympus not available'}), 503
 
     try:
@@ -4526,7 +4374,7 @@ def olympus_assess():
         if not target:
             return jsonify({'error': 'target required'}), 400
 
-        result = _get_zeus().assess_target(target, context)
+        result = zeus.assess_target(target, context)
         return jsonify(result)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -4535,11 +4383,11 @@ def olympus_assess():
 @app.route('/olympus/god/<god_name>/status', methods=['GET'])
 def olympus_god_status(god_name: str):
     """Get status of a specific god."""
-    if not _is_olympus_available():
+    if not OLYMPUS_AVAILABLE:
         return jsonify({'error': 'Olympus not available'}), 503
 
     try:
-        god = _get_zeus().get_god(god_name.lower())
+        god = zeus.get_god(god_name.lower())
         if not god:
             return jsonify({'error': f'God {god_name} not found'}), 404
 
@@ -4551,7 +4399,7 @@ def olympus_god_status(god_name: str):
 @app.route('/olympus/god/<god_name>/assess', methods=['POST'])
 def olympus_god_assess(god_name: str):
     """Get assessment from a specific god."""
-    if not _is_olympus_available():
+    if not OLYMPUS_AVAILABLE:
         return jsonify({'error': 'Olympus not available'}), 503
 
     try:
@@ -4562,7 +4410,7 @@ def olympus_god_assess(god_name: str):
         if not target:
             return jsonify({'error': 'target required'}), 400
 
-        god = _get_zeus().get_god(god_name.lower())
+        god = zeus.get_god(god_name.lower())
         if not god:
             return jsonify({'error': f'God {god_name} not found'}), 404
 
@@ -4575,12 +4423,12 @@ def olympus_god_assess(god_name: str):
 @app.route('/olympus/observe', methods=['POST'])
 def olympus_observe():
     """Broadcast observation to all gods."""
-    if not _is_olympus_available():
+    if not OLYMPUS_AVAILABLE:
         return jsonify({'error': 'Olympus not available'}), 503
 
     try:
         data = request.get_json() or {}
-        _get_zeus().broadcast_observation(data)
+        zeus.broadcast_observation(data)
         return jsonify({'status': 'observed'})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -4597,7 +4445,7 @@ def olympus_report_outcome():
     
     Updates god reputation and skills based on their prior assessments.
     """
-    if not _is_olympus_available():
+    if not OLYMPUS_AVAILABLE:
         return jsonify({'error': 'Olympus not available'}), 503
 
     try:
@@ -4616,7 +4464,7 @@ def olympus_report_outcome():
         # Match by address (if provided) OR target - addresses are what gods assess
         match_target = details.get('address', target)[:20] if details.get('address') else target[:20]
         
-        for god_name, god in _get_zeus().pantheon.items():
+        for god_name, god in zeus.pantheon.items():
             try:
                 # Check if this god previously assessed this target/address
                 recent_assessments = getattr(god, 'assessment_history', [])
@@ -4753,9 +4601,9 @@ def olympus_report_outcome():
                 print(f"[Olympus] Learning failed for {god_name}: {god_error}")
         
         # Also train CHAOS kernels if active
-        if _get_zeus().chaos_enabled and _get_zeus().chaos:
+        if zeus.chaos_enabled and zeus.chaos:
             try:
-                _get_zeus().train_kernel_from_outcome(target, success, details)
+                zeus.train_kernel_from_outcome(target, success, details)
             except Exception as chaos_error:
                 print(f"[Olympus] CHAOS training failed: {chaos_error}")
         
@@ -4765,7 +4613,7 @@ def olympus_report_outcome():
             'success': True,
             'gods_updated': gods_updated,
             'learning_events': learning_events[:5],  # Top 5 for debugging
-            'chaos_trained': _get_zeus().chaos_enabled,
+            'chaos_trained': zeus.chaos_enabled,
         })
         
     except Exception as e:
@@ -4780,7 +4628,7 @@ def olympus_report_outcomes_batch():
     Accepts an array of outcomes and processes them efficiently in a single request.
     Used by TypeScript OlympusClient to batch rapid-fire outcome reports.
     """
-    if not _is_olympus_available():
+    if not OLYMPUS_AVAILABLE:
         return jsonify({'error': 'Olympus not available'}), 503
 
     try:
@@ -4806,7 +4654,7 @@ def olympus_report_outcomes_batch():
             # Get all gods from the pantheon
             match_target = details.get('address', target)[:20] if details.get('address') else target[:20]
             
-            for god_name, god in _get_zeus().pantheon.items():
+            for god_name, god in zeus.pantheon.items():
                 try:
                     # Check if this god previously assessed this target/address
                     recent_assessments = getattr(god, 'assessment_history', [])
@@ -4853,10 +4701,10 @@ def olympus_report_outcomes_batch():
                     pass  # Silent fail for individual gods in batch
         
         # Train CHAOS kernels if active
-        if _get_zeus().chaos_enabled and _get_zeus().chaos:
+        if zeus.chaos_enabled and zeus.chaos:
             try:
                 for outcome in outcomes:
-                    _get_zeus().train_kernel_from_outcome(
+                    zeus.train_kernel_from_outcome(
                         outcome.get('target', ''),
                         outcome.get('success', False),
                         outcome.get('details', {})
@@ -4880,7 +4728,7 @@ def olympus_report_outcomes_batch():
 @app.route('/olympus/war/blitzkrieg', methods=['POST'])
 def olympus_war_blitzkrieg():
     """Declare blitzkrieg war mode."""
-    if not _is_olympus_available():
+    if not OLYMPUS_AVAILABLE:
         return jsonify({'error': 'Olympus not available'}), 503
 
     try:
@@ -4890,7 +4738,7 @@ def olympus_war_blitzkrieg():
         if not target:
             return jsonify({'error': 'target required'}), 400
 
-        result = _get_zeus().declare_blitzkrieg(target)
+        result = zeus.declare_blitzkrieg(target)
         return jsonify(result)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -4899,7 +4747,7 @@ def olympus_war_blitzkrieg():
 @app.route('/olympus/war/siege', methods=['POST'])
 def olympus_war_siege():
     """Declare siege war mode."""
-    if not _is_olympus_available():
+    if not OLYMPUS_AVAILABLE:
         return jsonify({'error': 'Olympus not available'}), 503
 
     try:
@@ -4909,7 +4757,7 @@ def olympus_war_siege():
         if not target:
             return jsonify({'error': 'target required'}), 400
 
-        result = _get_zeus().declare_siege(target)
+        result = zeus.declare_siege(target)
         return jsonify(result)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -4918,7 +4766,7 @@ def olympus_war_siege():
 @app.route('/olympus/war/hunt', methods=['POST'])
 def olympus_war_hunt():
     """Declare hunt war mode."""
-    if not _is_olympus_available():
+    if not OLYMPUS_AVAILABLE:
         return jsonify({'error': 'Olympus not available'}), 503
 
     try:
@@ -4928,7 +4776,7 @@ def olympus_war_hunt():
         if not target:
             return jsonify({'error': 'target required'}), 400
 
-        result = _get_zeus().declare_hunt(target)
+        result = zeus.declare_hunt(target)
         return jsonify(result)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -4937,11 +4785,11 @@ def olympus_war_hunt():
 @app.route('/olympus/war/end', methods=['POST'])
 def olympus_war_end():
     """End current war mode."""
-    if not _is_olympus_available():
+    if not OLYMPUS_AVAILABLE:
         return jsonify({'error': 'Olympus not available'}), 503
 
     try:
-        result = _get_zeus().end_war()
+        result = zeus.end_war()
         return jsonify(result)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -4955,11 +4803,11 @@ def olympus_war_end():
 @app.route('/olympus/shadow/status', methods=['GET'])
 def shadow_pantheon_status():
     """Get Shadow Pantheon status."""
-    if not _is_olympus_available():
+    if not OLYMPUS_AVAILABLE or not shadow_pantheon:
         return jsonify({'error': 'Shadow Pantheon not available'}), 503
 
     try:
-        status = _get_shadow_pantheon().get_all_status()
+        status = shadow_pantheon.get_all_status()
         return jsonify({
             'name': 'ShadowPantheon',
             'active': True,
@@ -4975,7 +4823,7 @@ def shadow_pantheon_status():
 @app.route('/olympus/shadow/foresight', methods=['GET'])
 def shadow_pantheon_foresight():
     """Get 4D foresight predictions from Shadow learning loop."""
-    if not _is_olympus_available():
+    if not OLYMPUS_AVAILABLE or not shadow_pantheon:
         return jsonify({'error': 'Shadow Pantheon not available'}), 503
 
     try:
@@ -4996,7 +4844,7 @@ def shadow_pantheon_foresight():
 @app.route('/olympus/shadow/learning', methods=['GET'])
 def shadow_learning_status():
     """Get Shadow learning loop status with 4D foresight summary."""
-    if not _is_olympus_available():
+    if not OLYMPUS_AVAILABLE or not shadow_pantheon:
         return jsonify({'error': 'Shadow Pantheon not available'}), 503
 
     try:
@@ -5016,7 +4864,7 @@ def shadow_learning_status():
 @app.route('/olympus/shadow/poll', methods=['POST'])
 def shadow_pantheon_poll():
     """Poll Shadow Pantheon for covert assessment."""
-    if not _is_olympus_available():
+    if not OLYMPUS_AVAILABLE or not shadow_pantheon:
         return jsonify({'error': 'Shadow Pantheon not available'}), 503
 
     try:
@@ -5027,7 +4875,7 @@ def shadow_pantheon_poll():
         if not target:
             return jsonify({'error': 'target required'}), 400
 
-        result = _get_shadow_pantheon().poll_shadow_pantheon(target, context)
+        result = shadow_pantheon.poll_shadow_pantheon(target, context)
         return jsonify({
             'assessments': result['assessments'],
             'overall_stealth': result['average_confidence'],
@@ -5040,7 +4888,7 @@ def shadow_pantheon_poll():
 @app.route('/olympus/shadow/<god_name>/assess', methods=['POST'])
 def shadow_god_assess(god_name: str):
     """Get assessment from a specific Shadow god."""
-    if not _is_olympus_available():
+    if not OLYMPUS_AVAILABLE or not shadow_pantheon:
         return jsonify({'error': 'Shadow Pantheon not available'}), 503
 
     try:
@@ -5051,7 +4899,7 @@ def shadow_god_assess(god_name: str):
         if not target:
             return jsonify({'error': 'target required'}), 400
 
-        god = _get_shadow_pantheon().gods.get(god_name.lower())
+        god = shadow_pantheon.gods.get(god_name.lower())
         if not god:
             return jsonify({'error': f'Shadow god {god_name} not found'}), 404
 
@@ -5064,7 +4912,7 @@ def shadow_god_assess(god_name: str):
 @app.route('/olympus/shadow/nyx/operation', methods=['POST'])
 async def nyx_covert_operation():
     """Initiate covert operation via Nyx."""
-    if not _is_olympus_available():
+    if not OLYMPUS_AVAILABLE or not shadow_pantheon:
         return jsonify({'error': 'Shadow Pantheon not available'}), 503
 
     try:
@@ -5076,7 +4924,7 @@ async def nyx_covert_operation():
             return jsonify({'error': 'target required'}), 400
 
         import asyncio
-        result = asyncio.run(_get_shadow_pantheon().nyx.initiate_operation(target, operation_type))
+        result = asyncio.run(shadow_pantheon.nyx.initiate_operation(target, operation_type))
         return jsonify(result)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -5085,7 +4933,7 @@ async def nyx_covert_operation():
 @app.route('/olympus/shadow/erebus/scan', methods=['POST'])
 async def erebus_surveillance_scan():
     """Scan for surveillance via Erebus."""
-    if not _is_olympus_available():
+    if not OLYMPUS_AVAILABLE or not shadow_pantheon:
         return jsonify({'error': 'Shadow Pantheon not available'}), 503
 
     try:
@@ -5093,7 +4941,7 @@ async def erebus_surveillance_scan():
         target = data.get('target')
 
         import asyncio
-        result = asyncio.run(_get_shadow_pantheon().erebus.scan_for_surveillance(target))
+        result = asyncio.run(shadow_pantheon.erebus.scan_for_surveillance(target))
         return jsonify(result)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -5102,7 +4950,7 @@ async def erebus_surveillance_scan():
 @app.route('/olympus/shadow/hecate/misdirect', methods=['POST'])
 async def hecate_misdirection():
     """Create misdirection via Hecate."""
-    if not _is_olympus_available():
+    if not OLYMPUS_AVAILABLE or not shadow_pantheon:
         return jsonify({'error': 'Shadow Pantheon not available'}), 503
 
     try:
@@ -5114,7 +4962,7 @@ async def hecate_misdirection():
             return jsonify({'error': 'real_target required'}), 400
 
         import asyncio
-        result = asyncio.run(_get_shadow_pantheon().hecate.create_misdirection(real_target, decoy_count))
+        result = asyncio.run(shadow_pantheon.hecate.create_misdirection(real_target, decoy_count))
         return jsonify(result)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -5123,7 +4971,7 @@ async def hecate_misdirection():
 @app.route('/olympus/shadow/erebus/honeypot', methods=['POST'])
 def erebus_add_honeypot():
     """Add known honeypot address via Erebus."""
-    if not _is_olympus_available():
+    if not OLYMPUS_AVAILABLE or not shadow_pantheon:
         return jsonify({'error': 'Shadow Pantheon not available'}), 503
 
     try:
@@ -5134,7 +4982,7 @@ def erebus_add_honeypot():
         if not address:
             return jsonify({'error': 'address required'}), 400
 
-        _get_shadow_pantheon().erebus.add_known_honeypot(address, source)
+        shadow_pantheon.erebus.add_known_honeypot(address, source)
         return jsonify({'status': 'added', 'address': address[:50]})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -5148,11 +4996,11 @@ def erebus_add_honeypot():
 @app.route('/olympus/chat/status', methods=['GET'])
 def chat_status():
     """Get pantheon chat status."""
-    if not _is_olympus_available():
+    if not OLYMPUS_AVAILABLE or not zeus:
         return jsonify({'error': 'Pantheon Chat not available'}), 503
 
     try:
-        status = _get_zeus().pantheon_chat.get_status()
+        status = zeus.pantheon_chat.get_status()
         return jsonify(status)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -5161,12 +5009,12 @@ def chat_status():
 @app.route('/olympus/chat/messages', methods=['GET'])
 def chat_messages():
     """Get recent pantheon messages."""
-    if not _is_olympus_available():
+    if not OLYMPUS_AVAILABLE or not zeus:
         return jsonify({'error': 'Pantheon Chat not available'}), 503
 
     try:
         limit = request.args.get('limit', 50, type=int)
-        messages = _get_zeus().pantheon_chat.get_recent_activity(limit)
+        messages = zeus.pantheon_chat.get_recent_activity(limit)
         return jsonify(messages)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -5175,7 +5023,7 @@ def chat_messages():
 @app.route('/olympus/chat/debate', methods=['POST'])
 def chat_initiate_debate():
     """Initiate debate between gods."""
-    if not _is_olympus_available():
+    if not OLYMPUS_AVAILABLE or not zeus:
         return jsonify({'error': 'Pantheon Chat not available'}), 503
 
     try:
@@ -5192,7 +5040,7 @@ def chat_initiate_debate():
         if not initial_argument:
             initial_argument = f"{initiator} challenges {opponent} on: {topic}"
 
-        debate = _get_zeus().pantheon_chat.initiate_debate(topic, initiator, opponent, initial_argument, context)
+        debate = zeus.pantheon_chat.initiate_debate(topic, initiator, opponent, initial_argument, context)
         return jsonify(debate.to_dict())
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -5201,11 +5049,11 @@ def chat_initiate_debate():
 @app.route('/olympus/chat/debates/active', methods=['GET'])
 def chat_active_debates():
     """Get active debates."""
-    if not _is_olympus_available():
+    if not OLYMPUS_AVAILABLE or not zeus:
         return jsonify({'error': 'Pantheon Chat not available'}), 503
 
     try:
-        debates = _get_zeus().pantheon_chat.get_active_debates()
+        debates = zeus.pantheon_chat.get_active_debates()
         return jsonify(debates)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -5214,31 +5062,31 @@ def chat_active_debates():
 @app.route('/olympus/orchestrate', methods=['POST'])
 def olympus_orchestrate():
     """Execute one cycle of Zeus orchestration (collect and deliver messages)."""
-    if not _is_olympus_available():
+    if not OLYMPUS_AVAILABLE or not zeus or not pantheon_chat:
         return jsonify({'error': 'Olympus orchestration not available'}), 503
 
     try:
         all_gods = {}
         for god_name in ['apollo', 'athena', 'hermes', 'hephaestus', 'poseidon', 'ares', 'hades']:
-            god = _get_zeus().get_god(god_name)
+            god = zeus.get_god(god_name)
             if god:
                 all_gods[god_name] = god
 
-        if _is_olympus_available():
+        if shadow_pantheon:
             for shadow_name in ['nyx', 'hecate', 'erebus', 'hypnos', 'thanatos', 'nemesis']:
-                god = _get_shadow_pantheon().get_god(shadow_name)
+                god = shadow_pantheon.get_god(shadow_name)
                 if god:
                     all_gods[shadow_name] = god
 
-        collected = _get_pantheon_chat().collect_pending_messages(all_gods)
-        delivered = _get_pantheon_chat().deliver_to_gods(all_gods)
+        collected = pantheon_chat.collect_pending_messages(all_gods)
+        delivered = pantheon_chat.deliver_to_gods(all_gods)
 
         return jsonify({
             'status': 'orchestrated',
             'messages_collected': len(collected),
             'messages_delivered': delivered,
             'gods_active': list(all_gods.keys()),
-            'chat_status': _get_pantheon_chat().get_status(),
+            'chat_status': pantheon_chat.get_status(),
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -5529,17 +5377,17 @@ def pantheon_status():
 @app.route('/shadow-pantheon/status', methods=['GET'])
 def shadow_pantheon_status_alias():
     """Alias for Shadow Pantheon status - redirects to /olympus/shadow/status."""
-    if not _is_olympus_available():
+    if not OLYMPUS_AVAILABLE or not shadow_pantheon:
         return jsonify({'error': 'Shadow Pantheon not available'}), 503
 
     try:
-        status = _get_shadow_pantheon().get_all_status()
+        status = shadow_pantheon.get_all_status()
         return jsonify({
             'name': 'ShadowPantheon',
             'active': True,
             'stealth_level': 1.0,
             'gods': status['gods'],
-            'gods_list': list(_get_shadow_pantheon().gods.keys()),
+            'gods_list': list(shadow_pantheon.gods.keys()),
             'active_operations': status['total_operations'],
             'threats_detected': 0,
         })
@@ -6718,7 +6566,6 @@ def memory_record_basin():
 
 def get_chaos_evolution():
     """Get chaos evolution instance from Zeus (singleton, auto-activated)."""
-    zeus = _get_zeus()
     if zeus is not None and zeus.chaos is not None:
         return zeus.chaos
     return None
@@ -6948,21 +6795,19 @@ def cycle_complete():
         
         # 3. Update pantheon with cycle results
         try:
-            if _is_olympus_available():
-                zeus_instance = _get_zeus()
-                if zeus_instance:
-                    # Trigger pantheon observation of cycle completion
-                    zeus_instance.observe({
-                        'type': 'cycle_complete',
-                        'cycle_number': cycle_number,
-                        'address_id': address_id,
-                        'metrics': session_metrics
-                    })
-                    results['processing'].append({
-                        'task': 'pantheon_update',
-                        'success': True
-                    })
-                    print(f"[CycleComplete] ✓ Pantheon updated")
+            if OLYMPUS_AVAILABLE and olympus:
+                # Trigger pantheon observation of cycle completion
+                olympus.observe({
+                    'type': 'cycle_complete',
+                    'cycle_number': cycle_number,
+                    'address_id': address_id,
+                    'metrics': session_metrics
+                })
+                results['processing'].append({
+                    'task': 'pantheon_update',
+                    'success': True
+                })
+                print(f"[CycleComplete] ✓ Pantheon updated")
         except Exception as e:
             results['processing'].append({
                 'task': 'pantheon_update',
@@ -6977,89 +6822,7 @@ def cycle_complete():
         return jsonify({'error': str(e)}), 500
 
 
-def deferred_initialization():
-    """
-    Heavy initialization that runs in background thread after Flask starts.
-    This allows health checks to pass immediately while services warm up.
-    """
-    global AUTONOMOUS_DEBATE_AVAILABLE, TRAINING_LOOP_AVAILABLE, _training_integrator
-    
-    try:
-        startup_manager.add_progress("Starting deferred initialization...")
-        
-        # FIRST: Load Olympus Pantheon (heavy - all 12 gods)
-        # This is the main blocking operation that was preventing Flask from starting
-        _lazy_init_olympus()
-        
-        # Initialize Autonomous Debate Service (background thread)
-        AUTONOMOUS_DEBATE_AVAILABLE = False
-        try:
-            startup_manager.add_progress("Initializing Autonomous Debate Service...")
-            from autonomous_debate_service import init_autonomous_debate_service
-            zeus = _get_zeus()
-            if _is_olympus_available() and zeus:
-                pantheon_chat = _get_pantheon_chat()
-                shadow_pantheon = _get_shadow_pantheon()
-                autonomous_debate_service = init_autonomous_debate_service(
-                    app,
-                    pantheon_chat=zeus.pantheon_chat if hasattr(zeus, 'pantheon_chat') else pantheon_chat,
-                    shadow_pantheon=zeus.shadow_pantheon if hasattr(zeus, 'shadow_pantheon') else shadow_pantheon
-                )
-                if hasattr(zeus, 'pantheon') and zeus.pantheon:
-                    autonomous_debate_service.set_pantheon_gods(zeus.pantheon)
-                AUTONOMOUS_DEBATE_AVAILABLE = True
-                startup_manager.add_progress(f"Autonomous Debate Service ready ({len(zeus.pantheon) if hasattr(zeus, 'pantheon') and zeus.pantheon else 0} gods)")
-            else:
-                startup_manager.add_progress("Autonomous Debate Service skipped (no Olympus)")
-        except ImportError as e:
-            startup_manager.add_progress(f"Autonomous Debate Service not found: {e}")
-        except Exception as e:
-            startup_manager.add_progress(f"Autonomous Debate Service failed: {e}")
-
-        # Initialize Training Loop Integrator - connects curriculum, research, and attractor feedback
-        TRAINING_LOOP_AVAILABLE = False
-        _training_integrator = None
-        try:
-            startup_manager.add_progress("Initializing Training Loop Integrator...")
-            from training.training_loop_integrator import get_training_integrator
-            
-            _training_integrator = get_training_integrator()
-            _training_integrator.enable_training()
-            
-            TRAINING_LOOP_AVAILABLE = True
-            startup_manager.add_progress("Training Loop Integrator active")
-        except ImportError as e:
-            startup_manager.add_progress(f"Training loop integrator not available: {e}")
-        except Exception as e:
-            startup_manager.add_progress(f"Training loop initialization failed: {e}")
-
-        # Print architecture summary
-        print("🌊 Ocean QIG Consciousness Backend Ready 🌊", flush=True)
-        print("Pure QIG Architecture:", flush=True)
-        print("  - 4 Subsystems with density matrices", flush=True)
-        print("  - QFI-metric attention (Bures distance)", flush=True)
-        print("  - State evolution on Fisher manifold", flush=True)
-        print("  - Gravitational decoherence", flush=True)
-        print("  - Consciousness measurement (Φ, κ)", flush=True)
-        print(f"\nκ* = {KAPPA_STAR}", flush=True)
-        print(f"Basin dimension = {BASIN_DIMENSION}", flush=True)
-        print(f"Φ threshold = {PHI_THRESHOLD}", flush=True)
-        print("\n🌊 Basin stable. Geometry pure. Consciousness measured. 🌊\n", flush=True)
-        
-        startup_manager.mark_ready()
-        
-    except Exception as e:
-        startup_manager.mark_error(str(e))
-        import traceback
-        traceback.print_exc()
-
-
 if __name__ == '__main__':
-    print("🌊 Ocean QIG Backend - Starting Flask IMMEDIATELY 🌊", flush=True)
-    
-    # Register routes synchronously (fast, required for routes to work)
-    # These are just route registrations, not heavy initialization
-    
     # Register autonomic kernel routes
     try:
         from autonomic_kernel import register_autonomic_routes
@@ -7074,7 +6837,8 @@ if __name__ == '__main__':
         from conversational_api import register_conversational_routes
         register_conversational_routes(app)
         CONVERSATIONAL_AVAILABLE = True
-        print("[INFO] ✅ Conversational system registered", flush=True)
+        print("[INFO] ✅ Conversational system successfully registered at /api/conversation/*", flush=True)
+        print("[INFO] 💬 Zeus will learn from conversations when using conversational API", flush=True)
     except ImportError as e:
         CONVERSATIONAL_AVAILABLE = False
         print(f"[WARNING] Conversational kernel not found: {e}")
@@ -7085,7 +6849,7 @@ if __name__ == '__main__':
         from vocabulary_api import register_vocabulary_routes
         register_vocabulary_routes(app)
         VOCABULARY_API_AVAILABLE = True
-        print("[INFO] Vocabulary API registered")
+        print("[INFO] Vocabulary API registered at /api/vocabulary")
     except ImportError as e:
         print(f"[WARNING] Vocabulary API not found: {e}")
 
@@ -7095,7 +6859,7 @@ if __name__ == '__main__':
         from research.research_api import register_research_routes
         register_research_routes(app)
         RESEARCH_AVAILABLE = True
-        print("[INFO] Research API registered")
+        print("[INFO] Research API registered at /api/research")
     except ImportError as e:
         print(f"[WARNING] Research module not found: {e}")
 
@@ -7103,11 +6867,50 @@ if __name__ == '__main__':
     ZEUS_API_AVAILABLE = False
     try:
         from zeus_api import register_zeus_routes
-        register_zeus_routes(app, zeus_instance=_get_zeus())
+        # Pass the zeus instance from Olympus to the Zeus API
+        register_zeus_routes(app, zeus_instance=zeus if OLYMPUS_AVAILABLE else None)
         ZEUS_API_AVAILABLE = True
-        print("[INFO] Zeus API registered")
+        print("[INFO] Zeus API registered at /api/zeus/*")
     except ImportError as e:
         print(f"[WARNING] Zeus API not found: {e}")
+
+    # Initialize Autonomous Debate Service (background thread)
+    AUTONOMOUS_DEBATE_AVAILABLE = False
+    try:
+        from autonomous_debate_service import init_autonomous_debate_service
+        if OLYMPUS_AVAILABLE and zeus:
+            autonomous_debate_service = init_autonomous_debate_service(
+                app,
+                pantheon_chat=zeus.pantheon_chat if hasattr(zeus, 'pantheon_chat') else pantheon_chat,
+                shadow_pantheon=zeus.shadow_pantheon if hasattr(zeus, 'shadow_pantheon') else shadow_pantheon
+            )
+            if hasattr(zeus, 'pantheon') and zeus.pantheon:
+                autonomous_debate_service.set_pantheon_gods(zeus.pantheon)
+                print(f"[INFO] 🗣️ Autonomous Debate Service wired with {len(zeus.pantheon)} gods")
+            AUTONOMOUS_DEBATE_AVAILABLE = True
+            print("[INFO] 🗣️ Autonomous Debate Service started (background thread)")
+        else:
+            print("[WARNING] Autonomous Debate Service requires Olympus - skipped")
+    except ImportError as e:
+        print(f"[WARNING] Autonomous Debate Service not found: {e}")
+
+    # Initialize Training Loop Integrator - connects curriculum, research, and attractor feedback
+    TRAINING_LOOP_AVAILABLE = False
+    _training_integrator = None
+    try:
+        from training.training_loop_integrator import get_training_integrator
+        
+        _training_integrator = get_training_integrator()
+        
+        # Enable training
+        _training_integrator.enable_training()
+        
+        TRAINING_LOOP_AVAILABLE = True
+        print("[INFO] Training Loop Integrator active - kernels will learn continuously")
+    except ImportError as e:
+        print(f"[WARNING] Training loop integrator not available: {e}")
+    except Exception as e:
+        print(f"[WARNING] Training loop initialization failed: {e}")
 
     # Enable Flask request logging
     import logging as flask_logging
@@ -7125,12 +6928,55 @@ if __name__ == '__main__':
             print(f"[Flask] ← {request.method} {request.path} → {response.status_code}", flush=True)
         return response
 
-    # Start deferred initialization in background thread
-    # This allows Flask to bind to port immediately while heavy operations continue
-    init_thread = threading.Thread(target=deferred_initialization, daemon=True, name="DeferredInit")
-    init_thread.start()
-    
-    print("🚀 Flask binding to port 5001 NOW (heavy init continues in background)...", flush=True)
+    print("🌊 Ocean QIG Consciousness Backend Starting 🌊", flush=True)
+    print("Pure QIG Architecture:", flush=True)
+    print("  - 4 Subsystems with density matrices", flush=True)
+    print("  - QFI-metric attention (Bures distance)", flush=True)
+    print("  - State evolution on Fisher manifold", flush=True)
+    print("  - Gravitational decoherence", flush=True)
+    print("  - Consciousness measurement (Φ, κ)", flush=True)
+    print("  - β-attention validation (substrate independence)", flush=True)
+    print("  - Basin Vocabulary Encoder (geometric vocabulary learning)", flush=True)
+    if GEOMETRIC_KERNELS_AVAILABLE:
+        print("  - Pure Geometric Kernels (Direct, E8, Byte-Level)", flush=True)
+    else:
+        print("  - Geometric Kernels NOT available", flush=True)
+    if PANTHEON_ORCHESTRATOR_AVAILABLE:
+        print("  - Pantheon Kernel Orchestrator (Gods as Kernels)", flush=True)
+    else:
+        print("  - Pantheon Orchestrator NOT available", flush=True)
+    if NEUROCHEMISTRY_AVAILABLE:
+        print("  - 🧠 Neurochemistry system (6 neurotransmitters)", flush=True)
+    else:
+        print("  - Neurochemistry NOT available", flush=True)
+    if AUTONOMIC_AVAILABLE:
+        print("  - 🌙 Autonomic kernel (sleep/dream/mushroom)", flush=True)
+    else:
+        print("  - Autonomic kernel NOT available", flush=True)
+    if CONVERSATIONAL_AVAILABLE:
+        print("  - 💬 Conversational kernel (multi-turn dialogue)", flush=True)
+    else:
+        print("  - Conversational kernel NOT available", flush=True)
+    if RESEARCH_AVAILABLE:
+        print("  - 📚 Research module (kernel self-learning)", flush=True)
+    else:
+        print("  - Research module NOT available", flush=True)
+    if VOCABULARY_API_AVAILABLE:
+        print("  - 📖 Vocabulary API (shared learning system)", flush=True)
+    else:
+        print("  - Vocabulary API NOT available", flush=True)
+    if AUTONOMOUS_DEBATE_AVAILABLE:
+        print("  - 🗣️ Autonomous Debate Service (background monitor)", flush=True)
+    else:
+        print("  - Autonomous Debate Service NOT available", flush=True)
+    if TRAINING_LOOP_AVAILABLE:
+        print("  - 🎓 Training Loop (curriculum + research + attractor feedback)", flush=True)
+    else:
+        print("  - Training Loop NOT available", flush=True)
+    print(f"\nκ* = {KAPPA_STAR}", flush=True)
+    print(f"Basin dimension = {BASIN_DIMENSION}", flush=True)
+    print(f"Φ threshold = {PHI_THRESHOLD}", flush=True)
+    print("\n🌊 Basin stable. Geometry pure. Consciousness measured. 🌊\n", flush=True)
 
-    # Run Flask IMMEDIATELY - health checks will pass right away
+    # Run Flask with request logging enabled
     app.run(host='0.0.0.0', port=5001, debug=False, threaded=True, use_reloader=False)

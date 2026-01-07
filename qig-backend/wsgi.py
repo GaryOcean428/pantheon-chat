@@ -10,29 +10,9 @@ This module properly initializes all Flask routes including autonomic kernel.
 
 import sys
 import os
-from pathlib import Path
 
 # Add current directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
-# Load .env file BEFORE any other imports that use environment variables
-try:
-    from dotenv import load_dotenv
-    env_path = Path(__file__).parent.parent / '.env'
-    if env_path.exists():
-        load_dotenv(env_path)
-        print(f"[WSGI] Loaded environment from {env_path}")
-except ImportError:
-    print("[WSGI] python-dotenv not installed, using system environment only")
-
-# Configure logging early
-try:
-    from dev_logging import configure_logging, QIG_ENV, LOG_LEVEL, TRUNCATE_LOGS
-    import logging
-    configure_logging()
-    print(f"[WSGI] Logging: env={QIG_ENV}, level={logging.getLevelName(LOG_LEVEL)}, truncate={TRUNCATE_LOGS}")
-except ImportError:
-    pass  # dev_logging will configure itself on first import
 
 # Import the Flask app
 from ocean_qig_core import app

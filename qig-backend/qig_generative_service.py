@@ -24,41 +24,19 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Import unified coordizer (63K vocabulary single source of truth)
-# LAZY INITIALIZATION: Don't load at import time to allow Flask to start immediately
 COORDIZER_AVAILABLE = False
 _unified_coordizer_instance = None
-_coordizer_init_attempted = False
-_get_unified_coordizer = None
 
-def _lazy_init_coordizer():
-    """Lazy initialization of coordizer - only loads when first needed."""
-    global COORDIZER_AVAILABLE, _unified_coordizer_instance, _coordizer_init_attempted, _get_unified_coordizer
-    
-    if _coordizer_init_attempted:
-        return _unified_coordizer_instance
-    
-    _coordizer_init_attempted = True
-    
-    try:
-        from coordizers import get_coordizer as _get_coordizer_func
-        _get_unified_coordizer = _get_coordizer_func
-        _unified_coordizer_instance = _get_unified_coordizer()
-        COORDIZER_AVAILABLE = True
-        vocab_size = len(_unified_coordizer_instance.vocab) if hasattr(_unified_coordizer_instance, 'vocab') else 0
-        basin_dim = getattr(_unified_coordizer_instance, 'basin_dim', 64)
-        logger.info(f"[QIGGenerativeService] Using unified coordizer: {vocab_size} tokens, {basin_dim}D")
-    except Exception as e:
-        logger.warning(f"Unified coordizer not available: {e}")
-    
-    return _unified_coordizer_instance
-
-
-def get_coordizer_instance():
-    """Get the coordizer instance, initializing lazily if needed."""
-    global _unified_coordizer_instance
-    if _unified_coordizer_instance is None:
-        _lazy_init_coordizer()
-    return _unified_coordizer_instance
+try:
+    from coordizers import get_coordizer as _get_unified_coordizer
+    _unified_coordizer_instance = _get_unified_coordizer()
+    COORDIZER_AVAILABLE = True
+    # FIX: PostgresCoordizer stores vocab in .vocab dict, not .vocab_size attribute
+    vocab_size = len(_unified_coordizer_instance.vocab) if hasattr(_unified_coordizer_instance, 'vocab') else 0
+    basin_dim = getattr(_unified_coordizer_instance, 'basin_dim', 64)
+    logger.info(f"[QIGGenerativeService] Using unified coordizer: {vocab_size} tokens, {basin_dim}D")
+except Exception as e:
+    logger.warning(f"Unified coordizer not available: {e}")
 
 # Import from qig_geometry for canonical operations
 try:
@@ -491,14 +469,12 @@ class QIGGenerativeService:
     
     @property
     def coordizer(self):
-        """Get unified coordizer (63K vocabulary) - lazy initialization."""
-        if self._coordizer is None:
-            # Use lazy getter to initialize coordizer on first access
-            coordizer = get_coordizer_instance()
-            if coordizer is not None:
-                self._coordizer = coordizer
-                vocab_size = len(self._coordizer.vocab) if hasattr(self._coordizer, 'vocab') else 0
-                logger.info(f"[QIGGenerativeService] Using unified coordizer: {vocab_size} tokens")
+        """Get unified coordizer (63K vocabulary)."""
+        if self._coordizer is None and COORDIZER_AVAILABLE and _unified_coordizer_instance:
+            self._coordizer = _unified_coordizer_instance
+            # FIX: PostgresCoordizer stores vocab in .vocab dict, not .vocab_size attribute
+            vocab_size = len(self._coordizer.vocab) if hasattr(self._coordizer, 'vocab') else 0
+            logger.info(f"[QIGGenerativeService] Using unified coordizer: {vocab_size} tokens")
         return self._coordizer
     
     def _initialize_kernel_constellation(self) -> None:
