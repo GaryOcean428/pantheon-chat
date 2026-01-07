@@ -2,7 +2,7 @@
 Coordizer API Endpoints
 
 REST API for geometric coordization services.
-Simplified to use only the canonical PostgresCoordizer.
+Uses unified 63K PretrainedCoordizer vocabulary.
 
 Endpoints:
 - POST /api/coordize - Basic coordization
@@ -19,31 +19,28 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Import coordizers
+# Import unified coordizer access
 try:
-    from coordizers import PostgresCoordizer, create_coordizer_from_pg
+    from coordizers import get_coordizer as _get_coordizer
     COORDIZERS_AVAILABLE = True
 except ImportError as e:
     COORDIZERS_AVAILABLE = False
+    _get_coordizer = None
     logger.warning(f"Coordizers not available: {e}")
 
 # Create Blueprint
 coordizer_api = Blueprint('coordizer_api', __name__)
 
-# Global coordizer instance (singleton)
-_coordizer = None
-
 
 def get_coordizer():
-    """Get or create coordizer instance."""
-    global _coordizer
-    if _coordizer is None and COORDIZERS_AVAILABLE:
-        try:
-            _coordizer = create_coordizer_from_pg()
-        except Exception as e:
-            logger.error(f"Failed to create coordizer: {e}")
-            return None
-    return _coordizer
+    """Get unified coordizer instance (63K vocabulary)."""
+    if not COORDIZERS_AVAILABLE or _get_coordizer is None:
+        return None
+    try:
+        return _get_coordizer()
+    except Exception as e:
+        logger.error(f"Failed to get coordizer: {e}")
+        return None
 
 
 @coordizer_api.route('/api/coordize', methods=['POST'])

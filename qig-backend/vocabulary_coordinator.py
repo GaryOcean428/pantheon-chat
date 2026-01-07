@@ -26,11 +26,15 @@ except ImportError:
     print("[WARNING] qig_coordizer not available - running without tokenizer")
 
 try:
-    from coordizers.pg_loader import PostgresCoordizer
-    PG_COORDIZER_AVAILABLE = True
+    from coordizers import get_coordizer as get_unified_coordizer
+    UNIFIED_COORDIZER_AVAILABLE = True
 except ImportError:
-    PG_COORDIZER_AVAILABLE = False
-    PostgresCoordizer = None
+    UNIFIED_COORDIZER_AVAILABLE = False
+    get_unified_coordizer = None
+
+# Legacy import for type checking only (deprecated)
+PG_COORDIZER_AVAILABLE = False
+PostgresCoordizer = None
 
 try:
     from learned_manifold import LearnedManifold
@@ -65,22 +69,21 @@ class VocabularyCoordinator:
         self.tokens_persisted = 0
         self._basin_trajectory: List[np.ndarray] = []
         
-        # Track coordizer for direct vocabulary persistence (PostgresCoordizer only - 64D QIG-pure enforced)
-        self._pg_coordizer = None
+        # Track coordizer for direct vocabulary persistence (unified 63K vocabulary)
+        self._unified_coordizer = None
         self._using_pure_64d = False
-        if self.tokenizer and hasattr(self.tokenizer, 'save_learned_token'):
-            # Only PostgresCoordizer is allowed (64D QIG-pure enforcement)
-            if PG_COORDIZER_AVAILABLE and PostgresCoordizer and isinstance(self.tokenizer, PostgresCoordizer):
-                self._pg_coordizer = self.tokenizer
+        if UNIFIED_COORDIZER_AVAILABLE and get_unified_coordizer:
+            try:
+                self._unified_coordizer = get_unified_coordizer()
                 self._using_pure_64d = True
-            else:
-                # Reject impure coordizers
-                print(f"[VocabularyCoordinator] WARNING: Rejecting impure coordizer {type(self.tokenizer).__name__}")
+                print(f"[VocabularyCoordinator] Using unified coordizer: {type(self._unified_coordizer).__name__}")
+            except Exception as e:
+                print(f"[VocabularyCoordinator] WARNING: Failed to get unified coordizer: {e}")
         
         features = []
         if self.learned_manifold:
             features.append("attractor formation")
-        if self._pg_coordizer:
+        if self._unified_coordizer:
             features.append("64D QIG-pure vocabulary persistence")
         
         feature_str = f" with {', '.join(features)}" if features else ""
@@ -148,10 +151,10 @@ class VocabularyCoordinator:
         Returns:
             Number of tokens successfully persisted to database
         """
-        if not self._pg_coordizer:
+        if not self._unified_coordizer:
             return 0
         
-        if not hasattr(self._pg_coordizer, 'save_learned_token'):
+        if not hasattr(self._unified_coordizer, 'save_learned_token'):
             return 0
         
         persisted = 0
@@ -166,13 +169,13 @@ class VocabularyCoordinator:
             try:
                 # Get basin coords from tokenizer if available
                 basin_coords = None
-                if hasattr(self._pg_coordizer, 'basin_coords') and word in self._pg_coordizer.basin_coords:
-                    basin_coords = self._pg_coordizer.basin_coords[word]
-                elif hasattr(self._pg_coordizer, 'encode'):
-                    basin_coords = self._pg_coordizer.encode(word)
+                if hasattr(self._unified_coordizer, 'basin_coords') and word in self._unified_coordizer.basin_coords:
+                    basin_coords = self._unified_coordizer.basin_coords[word]
+                elif hasattr(self._unified_coordizer, 'encode'):
+                    basin_coords = self._unified_coordizer.encode(word)
                 
                 if basin_coords is not None:
-                    if self._pg_coordizer.save_learned_token(word, basin_coords, phi, freq):
+                    if self._unified_coordizer.save_learned_token(word, basin_coords, phi, freq):
                         persisted += 1
             except Exception as e:
                 print(f"[VocabularyCoordinator] Failed to persist '{word}': {e}")
@@ -364,7 +367,7 @@ class VocabularyCoordinator:
             'words_learned': self.words_learned, 
             'merge_rules_learned': self.merge_rules_learned,
             'tokens_persisted': self.tokens_persisted,
-            'continuous_learning_enabled': self._pg_coordizer is not None
+            'continuous_learning_enabled': self._unified_coordizer is not None
         }}
         if self.tokenizer:
             stats['tokenizer'] = self.tokenizer.get_stats()

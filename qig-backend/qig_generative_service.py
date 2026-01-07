@@ -23,29 +23,19 @@ import numpy as np
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Import coordizers - prefer pretrained 50K coordizer over PostgreSQL
+# Import unified coordizer (63K vocabulary single source of truth)
 COORDIZER_AVAILABLE = False
-PRETRAINED_COORDIZER_AVAILABLE = False
-PostgresCoordizer = None
-create_coordizer_from_pg = None
-_pretrained_coordizer_instance = None
+_unified_coordizer_instance = None
 
-# First try pretrained 50K coordizer (preferred)
 try:
-    from pretrained_coordizer import get_pretrained_coordizer
-    _pretrained_coordizer_instance = get_pretrained_coordizer()
-    PRETRAINED_COORDIZER_AVAILABLE = True
+    from coordizers import get_coordizer as _get_unified_coordizer
+    _unified_coordizer_instance = _get_unified_coordizer()
     COORDIZER_AVAILABLE = True
-    logger.info(f"[QIGGenerativeService] Using pretrained 50K coordizer: {_pretrained_coordizer_instance.vocab_size} tokens, {_pretrained_coordizer_instance.basin_dim}D")
+    vocab_size = getattr(_unified_coordizer_instance, 'vocab_size', 0)
+    basin_dim = getattr(_unified_coordizer_instance, 'basin_dim', 64)
+    logger.info(f"[QIGGenerativeService] Using unified coordizer: {vocab_size} tokens, {basin_dim}D")
 except Exception as e:
-    logger.warning(f"Pretrained coordizer not available: {e}")
-    # Fallback to PostgreSQL coordizer
-    try:
-        from coordizers.pg_loader import PostgresCoordizer, create_coordizer_from_pg
-        COORDIZER_AVAILABLE = True
-        logger.info("[QIGGenerativeService] Falling back to PostgreSQL coordizer")
-    except ImportError as e2:
-        logger.warning(f"PostgresCoordizer not available: {e2}")
+    logger.warning(f"Unified coordizer not available: {e}")
 
 # Import from qig_geometry for canonical operations
 try:
@@ -469,20 +459,11 @@ class QIGGenerativeService:
     
     @property
     def coordizer(self):
-        """Get coordizer - prefers pretrained 50K over PostgreSQL."""
-        if self._coordizer is None and COORDIZER_AVAILABLE:
-            # Use pretrained 50K coordizer if available (preferred)
-            if PRETRAINED_COORDIZER_AVAILABLE and _pretrained_coordizer_instance:
-                self._coordizer = _pretrained_coordizer_instance
-                logger.info(f"[QIGGenerativeService] Using pretrained 50K coordizer: {self._coordizer.vocab_size} tokens")
-            # Fallback to PostgreSQL coordizer
-            elif create_coordizer_from_pg:
-                try:
-                    self._coordizer = create_coordizer_from_pg()
-                    vocab_count = len(getattr(self._coordizer, 'vocab', {}))
-                    logger.info(f"[QIGGenerativeService] Loaded {vocab_count} tokens from PostgreSQL")
-                except Exception as e:
-                    logger.error(f"[QIGGenerativeService] Failed to load coordizer: {e}")
+        """Get unified coordizer (63K vocabulary)."""
+        if self._coordizer is None and COORDIZER_AVAILABLE and _unified_coordizer_instance:
+            self._coordizer = _unified_coordizer_instance
+            vocab_size = getattr(self._coordizer, 'vocab_size', 0)
+            logger.info(f"[QIGGenerativeService] Using unified coordizer: {vocab_size} tokens")
         return self._coordizer
     
     def _initialize_kernel_constellation(self) -> None:
