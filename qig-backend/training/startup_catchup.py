@@ -408,37 +408,118 @@ class StartupCatchupManager:
         """Sync vocabulary and knowledge with federation peer nodes."""
         import requests
 
-        # Get peer URLs from environment
-        peer_urls = os.getenv("FEDERATION_PEER_URLS", "").split(",")
-        peer_urls = [url.strip() for url in peer_urls if url.strip()]
+        # Get enabled peers from database
+        peers = self._get_federation_peers()
 
-        if not peer_urls:
-            return {"status": "no_peers", "message": "No FEDERATION_PEER_URLS configured"}
-
-        # Get our API key for the peer
-        api_key = os.getenv("FEDERATION_API_KEY", "")
-        if not api_key:
-            return {"status": "no_api_key", "message": "No FEDERATION_API_KEY configured"}
+        if not peers:
+            return {"status": "no_peers", "message": "No federation peers configured"}
 
         results = {"peers": {}, "vocabulary_sent": 0, "vocabulary_received": 0}
 
         # Gather local vocabulary to share
         local_vocabulary = self._gather_vocabulary_for_sync()
 
-        for peer_url in peer_urls:
+        for peer in peers:
+            peer_id = peer["peer_id"]
+            peer_url = peer["peer_url"]
+            api_key = peer.get("api_key", "")
+
+            if not api_key:
+                results["peers"][peer_id] = {"status": "skipped", "error": "No API key configured"}
+                continue
+
             try:
                 # Sync with this peer
                 peer_result = self._sync_with_peer(peer_url, api_key, local_vocabulary)
-                results["peers"][peer_url] = peer_result
+                results["peers"][peer_id] = peer_result
+
+                # Update peer status in database
+                self._update_peer_sync_status(peer_id, peer_result)
 
                 if peer_result.get("success"):
                     results["vocabulary_received"] += peer_result.get("received", {}).get("vocabulary", 0)
 
             except Exception as e:
-                results["peers"][peer_url] = {"status": "error", "error": str(e)}
+                results["peers"][peer_id] = {"status": "error", "error": str(e)}
+                self._update_peer_sync_status(peer_id, {"success": False, "error": str(e)})
 
         results["vocabulary_sent"] = len(local_vocabulary)
         return results
+
+    def _get_federation_peers(self) -> List[Dict]:
+        """Get enabled federation peers from database."""
+        conn = _get_db_connection()
+        if not conn:
+            return []
+
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT peer_id, peer_name, peer_url, api_key,
+                           sync_vocabulary, sync_knowledge, sync_research
+                    FROM federation_peers
+                    WHERE sync_enabled = true
+                    ORDER BY peer_name
+                """)
+                rows = cur.fetchall()
+
+            return [
+                {
+                    "peer_id": row[0],
+                    "peer_name": row[1],
+                    "peer_url": row[2],
+                    "api_key": row[3],
+                    "sync_vocabulary": row[4],
+                    "sync_knowledge": row[5],
+                    "sync_research": row[6],
+                }
+                for row in rows
+            ]
+        except Exception as e:
+            print(f"[FederationSync] Error fetching peers: {e}")
+            return []
+        finally:
+            conn.close()
+
+    def _update_peer_sync_status(self, peer_id: str, result: Dict) -> None:
+        """Update peer sync status in database."""
+        conn = _get_db_connection()
+        if not conn:
+            return
+
+        try:
+            with conn.cursor() as cur:
+                if result.get("success"):
+                    cur.execute("""
+                        UPDATE federation_peers
+                        SET last_sync_at = NOW(),
+                            last_sync_status = 'success',
+                            last_sync_error = NULL,
+                            sync_count = sync_count + 1,
+                            vocabulary_sent = vocabulary_sent + %s,
+                            vocabulary_received = vocabulary_received + %s,
+                            updated_at = NOW()
+                        WHERE peer_id = %s
+                    """, (
+                        result.get("sent", 0),
+                        result.get("received", {}).get("vocabulary", 0),
+                        peer_id
+                    ))
+                else:
+                    cur.execute("""
+                        UPDATE federation_peers
+                        SET last_sync_at = NOW(),
+                            last_sync_status = 'failed',
+                            last_sync_error = %s,
+                            updated_at = NOW()
+                        WHERE peer_id = %s
+                    """, (result.get("error", "Unknown error")[:500], peer_id))
+                conn.commit()
+        except Exception as e:
+            print(f"[FederationSync] Error updating peer status: {e}")
+            conn.rollback()
+        finally:
+            conn.close()
 
     def _gather_vocabulary_for_sync(self) -> List[Dict]:
         """Gather vocabulary entries to share with peers."""

@@ -267,7 +267,7 @@ def sync_knowledge():
                 }
                 received_counts['basins'] += 1
         
-        # Store received vocabulary
+        # Store received vocabulary (both in-memory and database)
         if 'vocabulary' in send_data:
             for vocab in send_data['vocabulary']:
                 word = vocab.get('word', '')
@@ -278,7 +278,10 @@ def sync_knowledge():
                     'timestamp': datetime.now(timezone.utc).isoformat()
                 }
                 received_counts['vocabulary'] += 1
-        
+
+            # Persist vocabulary to database
+            _persist_vocabulary_to_db(send_data['vocabulary'])
+
         # Store received research
         if 'research' in send_data:
             for research in send_data['research']:
@@ -709,6 +712,426 @@ def _is_within_hours(timestamp_str: str, hours: int) -> bool:
         return delta.total_seconds() < hours * 3600
     except:
         return False
+
+
+def _persist_vocabulary_to_db(vocabulary: List[Dict]) -> int:
+    """Persist vocabulary entries to the database."""
+    try:
+        import psycopg2
+        from urllib.parse import urlparse
+
+        db_url = os.getenv("DATABASE_URL")
+        if not db_url:
+            return 0
+
+        parsed = urlparse(db_url)
+        conn = psycopg2.connect(
+            host=parsed.hostname,
+            port=parsed.port,
+            database=parsed.path[1:],
+            user=parsed.username,
+            password=parsed.password,
+        )
+
+        imported = 0
+        try:
+            with conn.cursor() as cur:
+                for vocab in vocabulary:
+                    word = vocab.get("word", "")
+                    if not word or len(word) < 2:
+                        continue
+
+                    phi = vocab.get("phi", 0.5)
+                    frequency = vocab.get("frequency", 1)
+
+                    # Upsert - only update if new phi is higher
+                    cur.execute("""
+                        INSERT INTO tokenizer_vocabulary (token, phi_score, frequency, updated_at)
+                        VALUES (%s, %s, %s, NOW())
+                        ON CONFLICT (token) DO UPDATE
+                        SET phi_score = GREATEST(tokenizer_vocabulary.phi_score, EXCLUDED.phi_score),
+                            frequency = tokenizer_vocabulary.frequency + EXCLUDED.frequency,
+                            updated_at = NOW()
+                        WHERE tokenizer_vocabulary.phi_score < EXCLUDED.phi_score
+                    """, (word, phi, frequency))
+                    imported += 1
+
+                conn.commit()
+            return imported
+        except Exception as e:
+            print(f"[Federation] Error persisting vocabulary: {e}")
+            conn.rollback()
+            return 0
+        finally:
+            conn.close()
+
+    except Exception as e:
+        print(f"[Federation] Database connection failed: {e}")
+        return 0
+
+
+# ============================================================================
+# PEER MANAGEMENT ENDPOINTS
+# ============================================================================
+
+@federation_bp.route('/peers', methods=['GET'])
+def list_federation_peers():
+    """
+    List all configured federation peers.
+
+    Response:
+        {
+            "success": true,
+            "peers": [
+                {
+                    "peer_id": "...",
+                    "peer_name": "...",
+                    "peer_url": "...",
+                    "sync_enabled": true,
+                    "last_sync_at": "...",
+                    "last_sync_status": "success",
+                    "sync_count": 42,
+                    "vocabulary_sent": 1000,
+                    "vocabulary_received": 500
+                }
+            ]
+        }
+    """
+    try:
+        conn = _get_db_connection_for_peers()
+        if not conn:
+            return jsonify({'success': False, 'error': 'Database unavailable'}), 503
+
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT peer_id, peer_name, peer_url, sync_enabled,
+                       sync_interval_hours, sync_vocabulary, sync_knowledge, sync_research,
+                       last_sync_at, last_sync_status, last_sync_error,
+                       sync_count, vocabulary_sent, vocabulary_received,
+                       created_at, updated_at
+                FROM federation_peers
+                ORDER BY peer_name
+            """)
+            rows = cur.fetchall()
+
+        peers = [
+            {
+                'peer_id': row[0],
+                'peer_name': row[1],
+                'peer_url': row[2],
+                'sync_enabled': row[3],
+                'sync_interval_hours': row[4],
+                'sync_vocabulary': row[5],
+                'sync_knowledge': row[6],
+                'sync_research': row[7],
+                'last_sync_at': row[8].isoformat() if row[8] else None,
+                'last_sync_status': row[9],
+                'last_sync_error': row[10],
+                'sync_count': row[11],
+                'vocabulary_sent': row[12],
+                'vocabulary_received': row[13],
+                'created_at': row[14].isoformat() if row[14] else None,
+                'updated_at': row[15].isoformat() if row[15] else None,
+            }
+            for row in rows
+        ]
+
+        conn.close()
+        return jsonify({'success': True, 'peers': peers, 'total': len(peers)})
+
+    except Exception as e:
+        print(f"[Federation] Error listing peers: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@federation_bp.route('/peers', methods=['POST'])
+def add_federation_peer():
+    """
+    Add a new federation peer.
+
+    Request:
+        {
+            "peer_name": "Railway Production",
+            "peer_url": "https://pantheon-railway.example.com",
+            "api_key": "qig_xxx...",
+            "sync_vocabulary": true,
+            "sync_knowledge": true,
+            "sync_research": false
+        }
+    """
+    try:
+        data = request.get_json() or {}
+
+        peer_name = data.get('peer_name')
+        peer_url = data.get('peer_url')
+        api_key = data.get('api_key')
+
+        if not peer_name or not peer_url:
+            return jsonify({
+                'success': False,
+                'error': 'peer_name and peer_url are required'
+            }), 400
+
+        peer_id = f"peer_{secrets.token_hex(8)}"
+
+        conn = _get_db_connection_for_peers()
+        if not conn:
+            return jsonify({'success': False, 'error': 'Database unavailable'}), 503
+
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO federation_peers (
+                        peer_id, peer_name, peer_url, api_key,
+                        sync_vocabulary, sync_knowledge, sync_research
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """, (
+                    peer_id,
+                    peer_name,
+                    peer_url.rstrip('/'),
+                    api_key,
+                    data.get('sync_vocabulary', True),
+                    data.get('sync_knowledge', True),
+                    data.get('sync_research', False),
+                ))
+                conn.commit()
+
+            return jsonify({
+                'success': True,
+                'peer_id': peer_id,
+                'message': 'Peer added successfully'
+            })
+
+        finally:
+            conn.close()
+
+    except Exception as e:
+        print(f"[Federation] Error adding peer: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@federation_bp.route('/peers/<peer_id>', methods=['PUT'])
+def update_federation_peer(peer_id: str):
+    """Update a federation peer's configuration."""
+    try:
+        data = request.get_json() or {}
+
+        conn = _get_db_connection_for_peers()
+        if not conn:
+            return jsonify({'success': False, 'error': 'Database unavailable'}), 503
+
+        try:
+            updates = []
+            params = []
+
+            if 'peer_name' in data:
+                updates.append("peer_name = %s")
+                params.append(data['peer_name'])
+            if 'peer_url' in data:
+                updates.append("peer_url = %s")
+                params.append(data['peer_url'].rstrip('/'))
+            if 'api_key' in data:
+                updates.append("api_key = %s")
+                params.append(data['api_key'])
+            if 'sync_enabled' in data:
+                updates.append("sync_enabled = %s")
+                params.append(data['sync_enabled'])
+            if 'sync_interval_hours' in data:
+                updates.append("sync_interval_hours = %s")
+                params.append(data['sync_interval_hours'])
+            if 'sync_vocabulary' in data:
+                updates.append("sync_vocabulary = %s")
+                params.append(data['sync_vocabulary'])
+            if 'sync_knowledge' in data:
+                updates.append("sync_knowledge = %s")
+                params.append(data['sync_knowledge'])
+            if 'sync_research' in data:
+                updates.append("sync_research = %s")
+                params.append(data['sync_research'])
+
+            if not updates:
+                return jsonify({'success': False, 'error': 'No updates provided'}), 400
+
+            updates.append("updated_at = NOW()")
+            params.append(peer_id)
+
+            with conn.cursor() as cur:
+                cur.execute(f"""
+                    UPDATE federation_peers
+                    SET {', '.join(updates)}
+                    WHERE peer_id = %s
+                """, params)
+
+                if cur.rowcount == 0:
+                    return jsonify({'success': False, 'error': 'Peer not found'}), 404
+
+                conn.commit()
+
+            return jsonify({'success': True, 'message': 'Peer updated successfully'})
+
+        finally:
+            conn.close()
+
+    except Exception as e:
+        print(f"[Federation] Error updating peer: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@federation_bp.route('/peers/<peer_id>', methods=['DELETE'])
+def delete_federation_peer(peer_id: str):
+    """Delete a federation peer."""
+    try:
+        conn = _get_db_connection_for_peers()
+        if not conn:
+            return jsonify({'success': False, 'error': 'Database unavailable'}), 503
+
+        try:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM federation_peers WHERE peer_id = %s", (peer_id,))
+
+                if cur.rowcount == 0:
+                    return jsonify({'success': False, 'error': 'Peer not found'}), 404
+
+                conn.commit()
+
+            return jsonify({'success': True, 'message': 'Peer deleted successfully'})
+
+        finally:
+            conn.close()
+
+    except Exception as e:
+        print(f"[Federation] Error deleting peer: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@federation_bp.route('/peers/<peer_id>/test', methods=['POST'])
+def test_federation_peer(peer_id: str):
+    """Test connectivity to a federation peer."""
+    try:
+        import requests as http_requests
+        import time
+
+        conn = _get_db_connection_for_peers()
+        if not conn:
+            return jsonify({'success': False, 'error': 'Database unavailable'}), 503
+
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT peer_url, api_key FROM federation_peers WHERE peer_id = %s",
+                    (peer_id,)
+                )
+                row = cur.fetchone()
+
+            if not row:
+                return jsonify({'success': False, 'error': 'Peer not found'}), 404
+
+            peer_url, api_key = row
+
+            start_time = time.time()
+            try:
+                response = http_requests.get(
+                    f"{peer_url}/federation/mesh/status",
+                    headers={'Authorization': f'Bearer {api_key}'} if api_key else {},
+                    timeout=10
+                )
+                response_time_ms = int((time.time() - start_time) * 1000)
+
+                if response.status_code == 200:
+                    mesh_data = response.json()
+                    return jsonify({
+                        'success': True,
+                        'reachable': True,
+                        'response_time_ms': response_time_ms,
+                        'peer_mesh_stats': mesh_data.get('mesh', {})
+                    })
+                else:
+                    return jsonify({
+                        'success': True,
+                        'reachable': False,
+                        'response_time_ms': response_time_ms,
+                        'error': f'HTTP {response.status_code}'
+                    })
+
+            except http_requests.exceptions.Timeout:
+                return jsonify({'success': True, 'reachable': False, 'error': 'Connection timeout'})
+            except http_requests.exceptions.ConnectionError:
+                return jsonify({'success': True, 'reachable': False, 'error': 'Connection failed'})
+
+        finally:
+            conn.close()
+
+    except Exception as e:
+        print(f"[Federation] Error testing peer: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@federation_bp.route('/peers/<peer_id>/sync', methods=['POST'])
+def trigger_peer_sync(peer_id: str):
+    """Manually trigger a sync with a specific peer."""
+    try:
+        from training.startup_catchup import get_catchup_manager
+
+        manager = get_catchup_manager()
+
+        conn = _get_db_connection_for_peers()
+        if not conn:
+            return jsonify({'success': False, 'error': 'Database unavailable'}), 503
+
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT peer_url, api_key FROM federation_peers WHERE peer_id = %s",
+                    (peer_id,)
+                )
+                row = cur.fetchone()
+
+            if not row:
+                return jsonify({'success': False, 'error': 'Peer not found'}), 404
+
+            peer_url, api_key = row
+
+            if not api_key:
+                return jsonify({'success': False, 'error': 'No API key configured for this peer'}), 400
+
+            vocabulary = manager._gather_vocabulary_for_sync()
+            result = manager._sync_with_peer(peer_url, api_key, vocabulary)
+            manager._update_peer_sync_status(peer_id, result)
+
+            return jsonify({
+                'success': result.get('success', False),
+                'result': result
+            })
+
+        finally:
+            conn.close()
+
+    except Exception as e:
+        print(f"[Federation] Error triggering sync: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+def _get_db_connection_for_peers():
+    """Get PostgreSQL connection for peer management."""
+    try:
+        import psycopg2
+        from urllib.parse import urlparse
+
+        db_url = os.getenv("DATABASE_URL")
+        if not db_url:
+            return None
+
+        parsed = urlparse(db_url)
+        return psycopg2.connect(
+            host=parsed.hostname,
+            port=parsed.port,
+            database=parsed.path[1:],
+            user=parsed.username,
+            password=parsed.password,
+        )
+    except Exception as e:
+        print(f"[Federation] DB connection failed: {e}")
+        return None
 
 
 def register_federation_routes(app):
