@@ -1034,10 +1034,15 @@ class ToolFactory:
 
         for pattern in self.learned_patterns.values():
             if pattern.basin_coords is not None:
-                # Skip patterns with wrong basin dimension (legacy 32D data)
-                if len(pattern.basin_coords) != 64:
-                    continue
-                distance = self._fisher_rao_distance(desc_basin, pattern.basin_coords)
+                # Normalize patterns with non-standard basin dimension
+                pattern_basin = np.asarray(pattern.basin_coords)
+                if len(pattern_basin) != 64:
+                    if 16 <= len(pattern_basin) <= 128:
+                        from qig_geometry import normalize_basin_dimension
+                        pattern_basin = normalize_basin_dimension(pattern_basin, 64)
+                    else:
+                        continue  # Invalid dimension
+                distance = self._fisher_rao_distance(desc_basin, pattern_basin)
                 score = 1.0 / (1.0 + distance)
                 scored_patterns.append((pattern, score))
 
@@ -1634,10 +1639,15 @@ class ToolFactory:
 
         for tool in self.tool_registry.values():
             if tool.purpose_basin is not None:
-                # Skip tools with wrong basin dimension (legacy 32D data)
-                if len(tool.purpose_basin) != 64:
-                    continue
-                dist = self._fisher_rao_distance(basin, tool.purpose_basin)
+                # Normalize tools with non-standard basin dimension
+                tool_basin = np.asarray(tool.purpose_basin)
+                if len(tool_basin) != 64:
+                    if 16 <= len(tool_basin) <= 128:
+                        from qig_geometry import normalize_basin_dimension
+                        tool_basin = normalize_basin_dimension(tool_basin, 64)
+                    else:
+                        continue  # Invalid dimension
+                dist = self._fisher_rao_distance(basin, tool_basin)
                 if dist < best_distance and dist < 2.0:
                     best_distance = dist
                     best_tool = tool
@@ -1778,9 +1788,23 @@ class ToolFactory:
         
         for pattern in self.learned_patterns.values():
             p_dict = pattern.to_dict(include_qig_metrics=True)
-            
-            if reference_basin is not None and pattern.basin_coords is not None and len(pattern.basin_coords) == 64:
-                fisher_distance = self._fisher_rao_distance(reference_basin, pattern.basin_coords)
+
+            if reference_basin is not None and pattern.basin_coords is not None:
+                # Normalize basin if non-standard dimension
+                pattern_basin = np.asarray(pattern.basin_coords)
+                if len(pattern_basin) != 64 and 16 <= len(pattern_basin) <= 128:
+                    from qig_geometry import normalize_basin_dimension
+                    pattern_basin = normalize_basin_dimension(pattern_basin, 64)
+                elif len(pattern_basin) == 64:
+                    pass  # Already correct dimension
+                else:
+                    p_dict['fisher_rao_distance'] = None
+                    p_dict['fisher_similarity'] = None
+                    p_dict['geodesic_match'] = False
+                    patterns_data.append(p_dict)
+                    continue
+
+                fisher_distance = self._fisher_rao_distance(reference_basin, pattern_basin)
                 fisher_similarity = 1.0 - (fisher_distance / np.pi)
                 p_dict['fisher_rao_distance'] = float(fisher_distance)
                 p_dict['fisher_similarity'] = float(fisher_similarity)

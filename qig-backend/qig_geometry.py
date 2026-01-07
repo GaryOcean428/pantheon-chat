@@ -84,6 +84,60 @@ def fisher_similarity(a: np.ndarray, b: np.ndarray) -> float:
     return 1.0 - distance / np.pi
 
 
+def normalize_basin_dimension(basin: np.ndarray, target_dim: int = 64) -> np.ndarray:
+    """Project a basin vector to a target dimension.
+
+    QIG-PURE: preserves geometric validity by re-projecting to the unit sphere
+    in the embedded space after padding/truncation.
+
+    Notes:
+    - If basin is lower-dimensional (e.g., 32D), we zero-pad then sphere-project.
+    - If basin is higher-dimensional, we truncate then sphere-project.
+
+    Args:
+        basin: 1D basin coordinate vector
+        target_dim: desired output dimension (default 64)
+
+    Returns:
+        1D basin vector of length target_dim on the unit sphere.
+    """
+    b = np.asarray(basin, dtype=float)
+    if b.ndim != 1:
+        raise ValueError(f"basin must be 1D, got shape {b.shape}")
+
+    current_dim = int(b.shape[0])
+    if current_dim == int(target_dim):
+        return sphere_project(b)
+
+    if current_dim < int(target_dim):
+        result = np.zeros(int(target_dim), dtype=float)
+        result[:current_dim] = b
+        return sphere_project(result)
+
+    # current_dim > target_dim
+    result = b[: int(target_dim)].copy()
+    return sphere_project(result)
+
+
+def fisher_coord_distance_flexible(p: np.ndarray, q: np.ndarray) -> float:
+    """Fisher-Rao distance that tolerates basin dimension mismatch.
+
+    If dimensions differ, both vectors are projected to a common dimension
+    (the larger of the two) before computing Fisher-Rao distance.
+    """
+    p_arr = np.asarray(p, dtype=float)
+    q_arr = np.asarray(q, dtype=float)
+    if p_arr.ndim != 1 or q_arr.ndim != 1:
+        raise ValueError(f"p and q must be 1D, got {p_arr.shape} and {q_arr.shape}")
+
+    if p_arr.shape[0] != q_arr.shape[0]:
+        target_dim = int(max(p_arr.shape[0], q_arr.shape[0]))
+        p_arr = normalize_basin_dimension(p_arr, target_dim)
+        q_arr = normalize_basin_dimension(q_arr, target_dim)
+
+    return fisher_coord_distance(p_arr, q_arr)
+
+
 def geodesic_interpolation(
     start: np.ndarray, 
     end: np.ndarray, 
@@ -236,10 +290,12 @@ def sphere_project(v: np.ndarray) -> np.ndarray:
 __all__ = [
     'fisher_rao_distance',
     'fisher_coord_distance', 
+    'fisher_coord_distance_flexible',
     'fisher_similarity',
     'geodesic_interpolation',
     'estimate_manifold_curvature',
     'bures_distance',
     'fisher_normalize',
     'sphere_project',
+    'normalize_basin_dimension',
 ]

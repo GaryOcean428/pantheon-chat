@@ -51,6 +51,7 @@ except ImportError:
 
 try:
     from ..qig_geometry import fisher_rao_distance as centralized_fisher_rao
+    from ..qig_geometry import normalize_basin_dimension
 except ImportError:
     import sys
     import os
@@ -58,6 +59,7 @@ except ImportError:
     if parent_dir not in sys.path:
         sys.path.insert(0, parent_dir)
     from qig_geometry import fisher_rao_distance as centralized_fisher_rao
+    from qig_geometry import normalize_basin_dimension
 
 try:
     from ..qigkernels.domain_intelligence import (
@@ -1428,15 +1430,20 @@ class LightningKernel(BaseGod):
             explanation = prediction_record.get('explanation', '')
             domain_hints = prediction_record.get('domain_hints', [])
 
-            # Convert basin to numpy array if provided, validate dimension
+            # Convert basin to numpy array if provided, normalize dimension
             basin_coords = None
             if future_basin is not None:
                 basin_coords = np.array(future_basin) if isinstance(future_basin, list) else future_basin
-                # Validate basin dimension matches BASIN_DIM (64)
-                if basin_coords.shape != (BASIN_DIM,):
+                # Normalize basin dimension to BASIN_DIM (64) instead of discarding
+                if basin_coords.ndim == 1 and 16 <= basin_coords.shape[0] <= 128:
+                    if basin_coords.shape[0] != BASIN_DIM:
+                        logger.debug(
+                            f"[Lightning] Normalizing prediction basin from {basin_coords.shape[0]}D to {BASIN_DIM}D"
+                        )
+                        basin_coords = normalize_basin_dimension(basin_coords, BASIN_DIM)
+                else:
                     logger.warning(
-                        f"[Lightning] Prediction basin has shape {basin_coords.shape}, "
-                        f"expected ({BASIN_DIM},). Discarding basin coordinates."
+                        f"[Lightning] Invalid prediction basin shape {basin_coords.shape}, discarding"
                     )
                     basin_coords = None
 
@@ -1523,18 +1530,35 @@ class LightningKernel(BaseGod):
             event_count = len(short_buffer)
 
             # Compute basin centroid from recent events if available
-            # Filter to only include basins with correct dimension (BASIN_DIM=64)
+            # Accept variable basin dimensions (within reason) and normalize to 64D
+            # for cross-component compatibility.
             basin_centroid = None
             basins = []
+
+            MIN_BASIN_DIM = 16
+            MAX_BASIN_DIM = 128
             for event in short_buffer:
                 if event.basin_coords is not None:
                     coords = np.asarray(event.basin_coords)
-                    if coords.shape == (BASIN_DIM,):
-                        basins.append(coords)
-                    else:
+
+                    if coords.ndim != 1:
+                        logger.debug(f"[Lightning] Skipping non-1D basin: {coords.shape}")
+                        continue
+
+                    basin_dim = int(coords.shape[0])
+                    if basin_dim < MIN_BASIN_DIM or basin_dim > MAX_BASIN_DIM:
                         logger.debug(
-                            f"[Lightning] Skipping basin with shape {coords.shape}, expected ({BASIN_DIM},)"
+                            f"[Lightning] Skipping basin dim {basin_dim}, expected {MIN_BASIN_DIM}-{MAX_BASIN_DIM}"
                         )
+                        continue
+
+                    if basin_dim != BASIN_DIM:
+                        logger.debug(
+                            f"[Lightning] Normalizing basin from {basin_dim}D to {BASIN_DIM}D for centroid"
+                        )
+                        coords = normalize_basin_dimension(coords, BASIN_DIM)
+
+                    basins.append(coords)
 
             if basins:
                 # Average basin coordinates using geometric mean (QIG-appropriate)
