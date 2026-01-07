@@ -61,7 +61,7 @@ def cron_wake():
         task_type = data.get('task_type', 'hourly_batch')
 
         # Validate task type
-        valid_types = ['hourly_batch', 'nightly_consolidation', 'shadow_sync', 'checkpoint_cleanup']
+        valid_types = ['hourly_batch', 'nightly_consolidation', 'shadow_sync', 'checkpoint_cleanup', 'federation_sync']
         if task_type not in valid_types:
             return jsonify({
                 'error': 'Invalid task_type',

@@ -32,6 +32,7 @@ class TaskType(Enum):
     NIGHTLY_CONSOLIDATION = "nightly_consolidation"
     SHADOW_SYNC = "shadow_sync"
     CHECKPOINT_CLEANUP = "checkpoint_cleanup"
+    FEDERATION_SYNC = "federation_sync"  # Sync vocabulary/knowledge with peer nodes
 
 
 @dataclass
@@ -49,6 +50,7 @@ SCHEDULES: Dict[TaskType, ScheduleConfig] = {
     TaskType.NIGHTLY_CONSOLIDATION: ScheduleConfig(hour_utc=3, max_catchup=3),
     TaskType.SHADOW_SYNC: ScheduleConfig(interval_hours=4, minute=30, max_catchup=6),
     TaskType.CHECKPOINT_CLEANUP: ScheduleConfig(hour_utc=4, max_catchup=1),
+    TaskType.FEDERATION_SYNC: ScheduleConfig(interval_hours=1, max_catchup=6),  # Sync with peers every hour
 }
 
 
@@ -295,6 +297,8 @@ class StartupCatchupManager:
             return self._run_shadow_sync()
         elif task_type == TaskType.CHECKPOINT_CLEANUP.value:
             return self._run_checkpoint_cleanup()
+        elif task_type == TaskType.FEDERATION_SYNC.value:
+            return self._run_federation_sync()
         else:
             raise ValueError(f"Unknown task type: {task_type}")
 
@@ -399,6 +403,166 @@ class StartupCatchupManager:
                 results[god_name] = {"status": "error", "error": str(e)}
 
         return {"kernels": len(results), "results": results}
+
+    def _run_federation_sync(self) -> Dict[str, Any]:
+        """Sync vocabulary and knowledge with federation peer nodes."""
+        import requests
+
+        # Get peer URLs from environment
+        peer_urls = os.getenv("FEDERATION_PEER_URLS", "").split(",")
+        peer_urls = [url.strip() for url in peer_urls if url.strip()]
+
+        if not peer_urls:
+            return {"status": "no_peers", "message": "No FEDERATION_PEER_URLS configured"}
+
+        # Get our API key for the peer
+        api_key = os.getenv("FEDERATION_API_KEY", "")
+        if not api_key:
+            return {"status": "no_api_key", "message": "No FEDERATION_API_KEY configured"}
+
+        results = {"peers": {}, "vocabulary_sent": 0, "vocabulary_received": 0}
+
+        # Gather local vocabulary to share
+        local_vocabulary = self._gather_vocabulary_for_sync()
+
+        for peer_url in peer_urls:
+            try:
+                # Sync with this peer
+                peer_result = self._sync_with_peer(peer_url, api_key, local_vocabulary)
+                results["peers"][peer_url] = peer_result
+
+                if peer_result.get("success"):
+                    results["vocabulary_received"] += peer_result.get("received", {}).get("vocabulary", 0)
+
+            except Exception as e:
+                results["peers"][peer_url] = {"status": "error", "error": str(e)}
+
+        results["vocabulary_sent"] = len(local_vocabulary)
+        return results
+
+    def _gather_vocabulary_for_sync(self) -> List[Dict]:
+        """Gather vocabulary entries to share with peers."""
+        conn = _get_db_connection()
+        if not conn:
+            return []
+
+        try:
+            with conn.cursor() as cur:
+                # Get recent high-phi vocabulary
+                cur.execute("""
+                    SELECT token, phi_score, frequency, updated_at
+                    FROM tokenizer_vocabulary
+                    WHERE phi_score > 0.3
+                    ORDER BY updated_at DESC
+                    LIMIT 500
+                """)
+                rows = cur.fetchall()
+
+            return [
+                {
+                    "word": row[0],
+                    "phi": float(row[1]) if row[1] else 0.5,
+                    "frequency": row[2] or 1,
+                    "domain": "qig"
+                }
+                for row in rows
+            ]
+        except Exception as e:
+            print(f"[FederationSync] Error gathering vocabulary: {e}")
+            return []
+        finally:
+            conn.close()
+
+    def _sync_with_peer(self, peer_url: str, api_key: str, vocabulary: List[Dict]) -> Dict[str, Any]:
+        """Sync vocabulary with a single peer."""
+        import requests
+
+        sync_url = f"{peer_url.rstrip('/')}/federation/sync/knowledge"
+
+        try:
+            response = requests.post(
+                sync_url,
+                json={
+                    "send": {
+                        "vocabulary": vocabulary
+                    },
+                    "request": {
+                        "domains": ["qig"],
+                        "limit": 500
+                    }
+                },
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json"
+                },
+                timeout=30
+            )
+
+            if response.status_code == 200:
+                data = response.json()
+
+                # Import received vocabulary into our database
+                received_vocab = data.get("knowledge", {}).get("vocabulary", [])
+                if received_vocab:
+                    self._import_vocabulary(received_vocab)
+
+                return {
+                    "success": True,
+                    "sent": len(vocabulary),
+                    "received": data.get("received", {}),
+                    "mesh_stats": data.get("mesh_stats", {})
+                }
+            else:
+                return {
+                    "success": False,
+                    "status_code": response.status_code,
+                    "error": response.text[:200]
+                }
+
+        except requests.exceptions.Timeout:
+            return {"success": False, "error": "Timeout connecting to peer"}
+        except requests.exceptions.ConnectionError:
+            return {"success": False, "error": "Could not connect to peer"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def _import_vocabulary(self, vocabulary: List[Dict]) -> int:
+        """Import vocabulary received from a peer into local database."""
+        conn = _get_db_connection()
+        if not conn:
+            return 0
+
+        imported = 0
+        try:
+            with conn.cursor() as cur:
+                for vocab in vocabulary:
+                    word = vocab.get("word", "")
+                    if not word or len(word) < 2:
+                        continue
+
+                    phi = vocab.get("phi", 0.5)
+                    frequency = vocab.get("frequency", 1)
+
+                    # Upsert - only update if new phi is higher
+                    cur.execute("""
+                        INSERT INTO tokenizer_vocabulary (token, phi_score, frequency, updated_at)
+                        VALUES (%s, %s, %s, NOW())
+                        ON CONFLICT (token) DO UPDATE
+                        SET phi_score = GREATEST(tokenizer_vocabulary.phi_score, EXCLUDED.phi_score),
+                            frequency = tokenizer_vocabulary.frequency + EXCLUDED.frequency,
+                            updated_at = NOW()
+                        WHERE tokenizer_vocabulary.phi_score < EXCLUDED.phi_score
+                    """, (word, phi, frequency))
+                    imported += 1
+
+                conn.commit()
+            return imported
+        except Exception as e:
+            print(f"[FederationSync] Error importing vocabulary: {e}")
+            conn.rollback()
+            return 0
+        finally:
+            conn.close()
 
     def execute_catchup(self, background: bool = True) -> Dict[str, Any]:
         """
