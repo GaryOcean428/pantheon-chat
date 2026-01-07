@@ -146,7 +146,7 @@ class PostgresCoordizer(FisherCoordizer):
                 FROM tokenizer_vocabulary
                 WHERE basin_embedding IS NOT NULL
                   AND LENGTH(token) >= 2
-                  AND source_type NOT IN ('byte_level', 'checkpoint_byte', 'checkpoint_char', 'special')
+                  AND source_type NOT IN ('special')  -- Relaxed: only exclude special tokens
                 ORDER BY phi_score DESC
             """)
             rows = cur.fetchall()

@@ -81,6 +81,14 @@ except ImportError:
     lightning_ingest = None
     print("[ShadowResearch] Lightning kernel not available - insight generation disabled")
 
+# Import dimension normalizer for 32D→64D conversion
+try:
+    from qig_geometry import normalize_basin_dimension
+    HAS_NORMALIZER = True
+except ImportError:
+    HAS_NORMALIZER = False
+    normalize_basin_dimension = None
+
 # Topic normalization patterns (shared between ResearchQueue and KnowledgeBase)
 _SEMANTIC_PREFIXES = [
     'historical', 'comparative', 'advanced', 'practical',

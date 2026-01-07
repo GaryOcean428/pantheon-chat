@@ -31,7 +31,8 @@ try:
     from coordizers import get_coordizer as _get_unified_coordizer
     _unified_coordizer_instance = _get_unified_coordizer()
     COORDIZER_AVAILABLE = True
-    vocab_size = getattr(_unified_coordizer_instance, 'vocab_size', 0)
+    # FIX: PostgresCoordizer stores vocab in .vocab dict, not .vocab_size attribute
+    vocab_size = len(_unified_coordizer_instance.vocab) if hasattr(_unified_coordizer_instance, 'vocab') else 0
     basin_dim = getattr(_unified_coordizer_instance, 'basin_dim', 64)
     logger.info(f"[QIGGenerativeService] Using unified coordizer: {vocab_size} tokens, {basin_dim}D")
 except Exception as e:
@@ -471,7 +472,8 @@ class QIGGenerativeService:
         """Get unified coordizer (63K vocabulary)."""
         if self._coordizer is None and COORDIZER_AVAILABLE and _unified_coordizer_instance:
             self._coordizer = _unified_coordizer_instance
-            vocab_size = getattr(self._coordizer, 'vocab_size', 0)
+            # FIX: PostgresCoordizer stores vocab in .vocab dict, not .vocab_size attribute
+            vocab_size = len(self._coordizer.vocab) if hasattr(self._coordizer, 'vocab') else 0
             logger.info(f"[QIGGenerativeService] Using unified coordizer: {vocab_size} tokens")
         return self._coordizer
     
