@@ -2413,26 +2413,27 @@ export type InsertAutonomicCycleHistory =
 /**
  * PANTHEON MESSAGES - Inter-god communication history
  * Messages between gods in the Olympus system
+ * Schema matches Railway production database
  */
 export const pantheonMessages = pgTable(
   "pantheon_messages",
   {
     id: varchar("id", { length: 64 }).primaryKey(),
-    msgType: varchar("msg_type", { length: 32 }).notNull(),
-    fromGod: varchar("from_god", { length: 32 }).notNull(),
-    toGod: varchar("to_god", { length: 32 }).notNull(),
+    godName: varchar("god_name", { length: 32 }).notNull(),
+    role: varchar("role", { length: 32 }),
     content: text("content").notNull(),
+    phi: doublePrecision("phi"),
+    kappa: doublePrecision("kappa"),
+    regime: varchar("regime", { length: 32 }),
+    sessionId: varchar("session_id", { length: 64 }),
+    parentId: varchar("parent_id", { length: 64 }),
     metadata: jsonb("metadata"),
-    isRead: boolean("is_read").default(false),
-    isResponded: boolean("is_responded").default(false),
-    debateId: varchar("debate_id", { length: 64 }),
     createdAt: timestamp("created_at").defaultNow(),
   },
   (table) => [
-    index("idx_pantheon_messages_from").on(table.fromGod),
-    index("idx_pantheon_messages_to").on(table.toGod),
+    index("idx_pantheon_messages_god").on(table.godName),
     index("idx_pantheon_messages_created").on(table.createdAt),
-    index("idx_pantheon_messages_type").on(table.msgType),
+    index("idx_pantheon_messages_session").on(table.sessionId),
   ]
 );
 

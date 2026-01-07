@@ -17,17 +17,31 @@ class PantheonPersistence(BasePersistence):
     """Persistence layer for Olympus pantheon chat and debates."""
 
     def save_message(self, message: Dict) -> bool:
-        """Save a message to the database."""
+        """Save a message to the database (Railway schema: god_name, role, phi, kappa, regime).
+        
+        Extra fields (to, read, responded, debate_id) are stored in metadata for backward compatibility.
+        Uses JSON merge on conflict to preserve existing metadata fields.
+        """
         query = """
             INSERT INTO pantheon_messages 
-            (id, msg_type, from_god, to_god, content, metadata, is_read, is_responded, debate_id, created_at)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            (id, god_name, role, content, phi, kappa, regime, session_id, parent_id, metadata, created_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             ON CONFLICT (id) DO UPDATE SET
-                is_read = EXCLUDED.is_read,
-                is_responded = EXCLUDED.is_responded
+                content = EXCLUDED.content,
+                metadata = COALESCE(pantheon_messages.metadata, '{}'::jsonb) || COALESCE(EXCLUDED.metadata, '{}'::jsonb)
         """
         try:
-            metadata_json = json.dumps(message.get('metadata', {})) if message.get('metadata') else None
+            metadata = message.get('metadata', {}) or {}
+            if message.get('to'):
+                metadata['to'] = message.get('to')
+            if message.get('read'):
+                metadata['read'] = message.get('read')
+            if message.get('responded'):
+                metadata['responded'] = message.get('responded')
+            if message.get('debate_id'):
+                metadata['debate_id'] = message.get('debate_id')
+            metadata_json = json.dumps(metadata) if metadata else '{}'
+            
             timestamp = message.get('timestamp')
             if isinstance(timestamp, str):
                 created_at = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
@@ -36,14 +50,15 @@ class PantheonPersistence(BasePersistence):
             
             self.execute_query(query, (
                 message['id'],
-                message.get('type', 'insight'),
-                message.get('from', ''),
-                message.get('to', ''),
+                message.get('from', message.get('god_name', '')),
+                message.get('role', message.get('type', 'message')),
                 message.get('content', ''),
+                message.get('phi'),
+                message.get('kappa'),
+                message.get('regime'),
+                message.get('session_id'),
+                message.get('parent_id'),
                 metadata_json,
-                message.get('read', False),
-                message.get('responded', False),
-                message.get('debate_id'),
                 created_at,
             ), fetch=False)
             return True
@@ -54,8 +69,8 @@ class PantheonPersistence(BasePersistence):
     def load_recent_messages(self, limit: int = 100) -> List[Dict]:
         """Load recent messages from the database in chronological order (oldest first)."""
         query = """
-            SELECT id, msg_type, from_god, to_god, content, metadata,
-                   is_read, is_responded, debate_id, created_at
+            SELECT id, god_name, role, content, phi, kappa, regime,
+                   session_id, parent_id, metadata, created_at
             FROM pantheon_messages
             ORDER BY created_at ASC
             LIMIT %s
@@ -63,7 +78,6 @@ class PantheonPersistence(BasePersistence):
         results = self.execute_query(query, (limit,))
         messages = []
         for row in results or []:
-            # Parse metadata JSON if it's a string
             metadata = row['metadata']
             if isinstance(metadata, str):
                 try:
@@ -75,22 +89,33 @@ class PantheonPersistence(BasePersistence):
             
             msg = {
                 'id': row['id'],
-                'type': row['msg_type'],
-                'from': row['from_god'],
-                'to': row['to_god'],
+                'from': row['god_name'],
+                'god_name': row['god_name'],
+                'to': metadata.get('to', 'pantheon'),
+                'type': row['role'] or 'message',
+                'role': row['role'],
                 'content': row['content'],
+                'phi': row['phi'],
+                'kappa': row['kappa'],
+                'regime': row['regime'],
+                'session_id': row['session_id'],
+                'parent_id': row['parent_id'],
                 'metadata': metadata,
-                'read': row['is_read'],
-                'responded': row['is_responded'],
-                'debate_id': row['debate_id'],
+                'read': metadata.get('read', False),
+                'responded': metadata.get('responded', False),
+                'debate_id': metadata.get('debate_id'),
                 'timestamp': row['created_at'].isoformat() if row['created_at'] else None,
             }
             messages.append(msg)
         return messages
 
     def mark_message_read(self, message_id: str) -> bool:
-        """Mark a message as read."""
-        query = "UPDATE pantheon_messages SET is_read = TRUE WHERE id = %s"
+        """Mark a message as read (stores in metadata since Railway schema lacks is_read column)."""
+        query = """
+            UPDATE pantheon_messages 
+            SET metadata = COALESCE(metadata, '{}'::jsonb) || '{"read": true}'::jsonb 
+            WHERE id = %s
+        """
         try:
             self.execute_query(query, (message_id,), fetch=False)
             return True
