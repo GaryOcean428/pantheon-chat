@@ -286,6 +286,40 @@ export default function FederationDashboard() {
     refetchInterval: 5000,
   });
 
+  // Federation node settings (including public endpoint)
+  const { data: nodeSettings, refetch: refetchSettings } = useQuery<{ settings: { federation_endpoint: string | null; node_name: string | null; node_description: string | null } }>({
+    queryKey: QUERY_KEYS.federation.settings(),
+  });
+
+  // State for editing endpoint
+  const [editingEndpoint, setEditingEndpoint] = useState(false);
+  const [pendingEndpoint, setPendingEndpoint] = useState('');
+
+  const updateSettingsMutation = useMutation({
+    mutationFn: async (data: { federation_endpoint?: string }) => {
+      const response = await apiRequest("PUT", API_ROUTES.federation.settings, data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.federation.settings() });
+      setEditingEndpoint(false);
+      toast({
+        title: "Settings Updated",
+        description: "Your federation endpoint has been saved",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Failed to update settings",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Get the endpoint to display: from DB, or fallback to window.location.origin
+  const federationEndpoint = nodeSettings?.settings?.federation_endpoint || `${window.location.origin}/api/v1/external`;
+
   const createKeyMutation = useMutation({
     mutationFn: async (data: { name: string; instanceType: string }) => {
       const response = await apiRequest("POST", API_ROUTES.federation.keys, {
@@ -779,15 +813,68 @@ export default function FederationDashboard() {
               <Separator />
               
               <div className="p-4 bg-muted rounded-md">
-                <div className="text-sm font-medium mb-2">Your Federation Endpoint (share with other nodes):</div>
-                <div className="flex items-center gap-2">
-                  <code className="flex-1 text-xs break-all p-2 bg-background rounded" data-testid="text-endpoint-url">
-                    {window.location.origin}/api/v1/external
-                  </code>
-                  <Button size="icon" variant="outline" onClick={() => copyToClipboard(`${window.location.origin}/api/v1/external`)} data-testid="button-copy-endpoint">
-                    <Copy className="h-4 w-4" />
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-sm font-medium">Your Federation Endpoint (share with other nodes):</div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setEditingEndpoint(!editingEndpoint);
+                      setPendingEndpoint(nodeSettings?.settings?.federation_endpoint || '');
+                    }}
+                    data-testid="button-edit-endpoint"
+                  >
+                    {editingEndpoint ? 'Cancel' : 'Edit'}
                   </Button>
                 </div>
+                {editingEndpoint ? (
+                  <div className="space-y-2">
+                    <Input
+                      value={pendingEndpoint}
+                      onChange={(e) => setPendingEndpoint(e.target.value)}
+                      placeholder="https://your-public-url.com/api/v1/external"
+                      data-testid="input-federation-endpoint"
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => updateSettingsMutation.mutate({ federation_endpoint: pendingEndpoint })}
+                        disabled={updateSettingsMutation.isPending}
+                        data-testid="button-save-endpoint"
+                      >
+                        {updateSettingsMutation.isPending ? 'Saving...' : 'Save'}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setPendingEndpoint('');
+                          updateSettingsMutation.mutate({ federation_endpoint: '' });
+                        }}
+                        data-testid="button-use-auto-endpoint"
+                      >
+                        Use Auto-detected
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Leave empty to auto-detect from browser URL. Set manually if behind a proxy or load balancer.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 text-xs break-all p-2 bg-background rounded" data-testid="text-endpoint-url">
+                      {federationEndpoint}
+                    </code>
+                    <Button size="icon" variant="outline" onClick={() => copyToClipboard(federationEndpoint)} data-testid="button-copy-endpoint">
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+                {!nodeSettings?.settings?.federation_endpoint && !editingEndpoint && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Using auto-detected URL. Click Edit to set a custom public endpoint.
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -1448,7 +1535,7 @@ print(f"Φ (integration): {result.get('phi', 'N/A')}")`}</pre>
                 <div>
                   <div className="font-medium text-sm mb-2">Base URL</div>
                   <code className="p-2 bg-muted rounded text-sm block" data-testid="text-base-url">
-                    {window.location.origin}/api/v1/external
+                    {federationEndpoint}
                   </code>
                 </div>
                 <Separator />

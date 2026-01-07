@@ -161,6 +161,7 @@ export const API_ROUTES = {
     connect: '/api/federation/connect',
     testConnection: '/api/federation/test-connection',
     syncStatus: '/api/federation/sync/status',
+    settings: '/api/federation/settings',
   },
 
   // Consciousness & UCP
@@ -510,6 +511,7 @@ export const QUERY_KEYS = {
     instances: () => [API_ROUTES.federation.instances] as const,
     instance: (id: string) => [API_ROUTES.federation.instances, id] as const,
     syncStatus: () => [API_ROUTES.federation.syncStatus] as const,
+    settings: () => [API_ROUTES.federation.settings] as const,
   },
   
   consciousness: {

@@ -2520,6 +2520,23 @@ export type TokenizerMetadataRow = typeof tokenizerMetadata.$inferSelect;
 export type InsertTokenizerMetadata = typeof tokenizerMetadata.$inferInsert;
 
 /**
+ * SYSTEM SETTINGS - Key-value store for system-wide configuration
+ * Includes federation endpoint, node identity, and other settings
+ */
+export const systemSettings = pgTable(
+  "system_settings",
+  {
+    key: text("key").primaryKey(),
+    value: text("value").notNull(),
+    description: text("description"),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  }
+);
+
+export type SystemSettingsRow = typeof systemSettings.$inferSelect;
+export type InsertSystemSettings = typeof systemSettings.$inferInsert;
+
+/**
  * TOKENIZER VOCABULARY - Extended token vocabulary with geometric embeddings
  * Links tokens to 64D basin embeddings for Fisher-Rao operations
  */

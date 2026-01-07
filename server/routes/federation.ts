@@ -441,3 +441,90 @@ federationRouter.get('/sync/status', async (_req: Request, res: Response) => {
     res.status(500).json({ error: 'Failed to get sync status' });
   }
 });
+
+/**
+ * GET /api/federation/settings
+ * Get node configuration including public federation endpoint
+ */
+federationRouter.get('/settings', async (_req: Request, res: Response) => {
+  if (!db) {
+    return res.status(503).json({ error: 'Database unavailable' });
+  }
+
+  try {
+    const result = await db.execute(sql`
+      SELECT key, value, description, updated_at
+      FROM system_settings
+      WHERE key IN ('federation_endpoint', 'node_name', 'node_description')
+    `);
+
+    const settings: Record<string, string | null> = {
+      federation_endpoint: null,
+      node_name: null,
+      node_description: null,
+    };
+
+    for (const row of result.rows) {
+      const r = row as Record<string, unknown>;
+      settings[r.key as string] = r.value as string;
+    }
+
+    res.json({ settings });
+  } catch (error) {
+    console.error('[Federation] Failed to get settings:', error);
+    res.status(500).json({ error: 'Failed to get settings' });
+  }
+});
+
+/**
+ * PUT /api/federation/settings
+ * Update node configuration
+ */
+federationRouter.put('/settings', async (req: Request, res: Response) => {
+  if (!db) {
+    return res.status(503).json({ error: 'Database unavailable' });
+  }
+
+  const { federation_endpoint, node_name, node_description } = req.body;
+
+  try {
+    // Validate federation_endpoint if provided
+    if (federation_endpoint !== undefined) {
+      if (typeof federation_endpoint !== 'string' ||
+          (federation_endpoint && !federation_endpoint.startsWith('http'))) {
+        return res.status(400).json({
+          error: 'Invalid federation_endpoint',
+          details: 'Must be a valid HTTP/HTTPS URL or empty string to clear'
+        });
+      }
+
+      await db.execute(sql`
+        INSERT INTO system_settings (key, value, description, updated_at)
+        VALUES ('federation_endpoint', ${federation_endpoint}, 'Public endpoint URL for federation', NOW())
+        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
+      `);
+    }
+
+    if (node_name !== undefined) {
+      await db.execute(sql`
+        INSERT INTO system_settings (key, value, description, updated_at)
+        VALUES ('node_name', ${node_name}, 'Human-readable name for this node', NOW())
+        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
+      `);
+    }
+
+    if (node_description !== undefined) {
+      await db.execute(sql`
+        INSERT INTO system_settings (key, value, description, updated_at)
+        VALUES ('node_description', ${node_description}, 'Description of this node', NOW())
+        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
+      `);
+    }
+
+    logger.info('[Federation] Settings updated');
+    res.json({ success: true, message: 'Settings updated' });
+  } catch (error) {
+    console.error('[Federation] Failed to update settings:', error);
+    res.status(500).json({ error: 'Failed to update settings' });
+  }
+});

@@ -10,7 +10,7 @@ import { ConsciousnessStatusPanel } from './ConsciousnessStatusPanel';
 import { ResonanceChart } from './ResonanceChart';
 import { useConsciousnessStatus } from './hooks/useConsciousnessStatus';
 import { SEARCH_CONSTANTS } from './constants';
-import { post } from '@/api';
+import { post, API_ROUTES } from '@/api';
 import type { SearchFormState, SearchResult, ResonanceDataPoint, MemoryFragment } from './types';
 
 interface MemoryFragmentSearchProps {
@@ -18,7 +18,7 @@ interface MemoryFragmentSearchProps {
 }
 
 const searchFragments = async (params: SearchFormState): Promise<SearchResult> => {
-  return post<SearchResult>('/api/memory/search', params);
+  return post<SearchResult>(API_ROUTES.memorySearch.search, params);
 };
 
 export function MemoryFragmentSearch({ onFragmentSelect }: MemoryFragmentSearchProps) {
