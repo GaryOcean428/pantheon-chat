@@ -41,15 +41,25 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from scipy.linalg import sqrtm
 
-# Configure logging to ensure no truncation and immediate output
-logging.basicConfig(
-    level=logging.INFO,
-    format='[%(levelname)s] %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stdout)
-    ]
-)
-logger = logging.getLogger(__name__)
+# Configure logging with development-aware verbosity
+# Import dev_logging to get verbose, untruncated logs in development
+try:
+    from dev_logging import configure_logging, LOG_LEVEL, IS_DEVELOPMENT, TRUNCATE_LOGS
+    configure_logging()
+    logger = logging.getLogger(__name__)
+    logger.info(f"[OceanQIG] Logging: level={logging.getLevelName(LOG_LEVEL)}, "
+                f"truncate={TRUNCATE_LOGS}, dev={IS_DEVELOPMENT}")
+except ImportError:
+    # Fallback if dev_logging not available
+    logging.basicConfig(
+        level=logging.DEBUG,  # Default to DEBUG for development
+        format='%(asctime)s [%(levelname)s] %(name)s - %(message)s',
+        handlers=[
+            logging.StreamHandler(sys.stdout)
+        ]
+    )
+    logger = logging.getLogger(__name__)
+    logger.warning("[OceanQIG] dev_logging not available, using fallback DEBUG config")
 
 # Force unbuffered output for all print statements
 sys.stdout.reconfigure(line_buffering=True) if hasattr(sys.stdout, 'reconfigure') else None

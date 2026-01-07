@@ -47,6 +47,17 @@ from .response_guardrails import (
 )
 from .search_strategy_learner import get_strategy_learner_with_persistence
 
+# Import dev logging for verbose output in development
+try:
+    from dev_logging import truncate_for_log, TRUNCATE_LOGS, IS_DEVELOPMENT, log_kernel_activity
+except ImportError:
+    TRUNCATE_LOGS = False  # Default to no truncation in development
+    IS_DEVELOPMENT = True
+    def truncate_for_log(text, max_len=500, suffix='...'): return text
+    def log_kernel_activity(logger, name, activity, details=None, level=20):
+        import logging
+        logger.log(level, f"[{name}] {activity}: {details}")
+
 # Constants for prediction defaults
 # DEFAULT_PREDICTION_PHI: Neutral integration level (mid-range between fragmented and integrated)
 # DEFAULT_PREDICTION_KAPPA: Sub-resonance coupling constant (below κ* ≈ 64 resonance peak)

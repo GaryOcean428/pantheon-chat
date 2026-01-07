@@ -41,6 +41,14 @@ from enum import Enum
 
 logger = logging.getLogger(__name__)
 
+# Import dev logging for verbose output in development
+try:
+    from dev_logging import truncate_for_log, TRUNCATE_LOGS, IS_DEVELOPMENT
+except ImportError:
+    TRUNCATE_LOGS = False  # Default to no truncation
+    IS_DEVELOPMENT = True
+    def truncate_for_log(text, max_len=500, suffix='...'): return text
+
 try:
     from ..qig_geometry import fisher_rao_distance as centralized_fisher_rao
 except ImportError:
@@ -415,7 +423,7 @@ class LightningKernel(BaseGod):
                     kappa=0.0  # Would need kappa from telemetry
                 )
             
-            print(f"[Lightning] ⚡ INSIGHT GENERATED: {insight.insight_text[:80]}...")
+            print(f"[Lightning] ⚡ INSIGHT GENERATED: {truncate_for_log(insight.insight_text, 500)}")
             
             # Broadcast to pantheon
             self.broadcast_insight(insight)
