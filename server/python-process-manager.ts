@@ -192,7 +192,8 @@ export class PythonProcessManager extends EventEmitter {
     
     // Wait for initial readiness - ALL environments need time for heavy imports
     // (loading gods, vocabulary, databases, coordizers, etc.)
-    const maxRetries = 120;  // 120 seconds for full kernel initialization
+    const maxRetries = isProduction ? 240 : 120;  // 240s prod, 120s dev for full kernel initialization
+    console.log(`[PythonManager] Waiting up to ${maxRetries} seconds for backend health...`);
     const ready = await this.waitForHealthy(maxRetries, 1000);
     
     if (ready) {
@@ -200,7 +201,13 @@ export class PythonProcessManager extends EventEmitter {
       this.restartCount = 0; // Reset restart count on successful start
       this.startHealthMonitoring();
     } else {
-      console.warn('[PythonManager] ⚠️ Backend not responding after startup');
+      console.error('[PythonManager] ❌ Backend not responding after startup');
+      console.error(`[PythonManager] Health check URL: ${this.backendUrl}/health`);
+      console.error('[PythonManager] This usually means:');
+      console.error('  1. Python process crashed during startup');
+      console.error('  2. Import errors preventing Flask from starting');
+      console.error('  3. Port 5001 not accessible (firewall/binding issue)');
+      console.error('  4. Database connection failing');
     }
     
     return ready;
@@ -262,9 +269,20 @@ export class PythonProcessManager extends EventEmitter {
         return true;
       }
       
+      // Log non-OK responses
+      if (this.consecutiveFailures === 0) {
+        console.error(`[PythonManager] Health check failed with status ${response.status}`);
+        const text = await response.text().catch(() => 'Could not read response');
+        console.error(`[PythonManager] Response: ${text.substring(0, 500)}`);
+      }
+      
       this.consecutiveFailures++;
       return false;
     } catch (error) {
+      // Log first failure with details
+      if (this.consecutiveFailures === 0) {
+        console.error(`[PythonManager] Health check error: ${error instanceof Error ? error.message : String(error)}`);
+      }
       this.consecutiveFailures++;
       return false;
     }
