@@ -89,13 +89,42 @@ from .constellation import (
     ObservationEvent,
     create_default_constellation,
 )
-from .checkpoint import (
-    ManifoldCheckpoint,
-    SleepPacket,
-    CheckpointManager,
-    save_checkpoint,
-    load_checkpoint,
-)
+
+# QIGGraph checkpoints moved to experimental - lazy import with deprecation warning
+import warnings
+from pathlib import Path
+
+
+def __getattr__(name):
+    """Lazy import for deprecated checkpoint classes."""
+    deprecated_names = ('ManifoldCheckpoint', 'SleepPacket', 'CheckpointManager',
+                        'save_checkpoint', 'load_checkpoint')
+    if name in deprecated_names:
+        warnings.warn(
+            f"qiggraph.{name} is deprecated. "
+            "Use checkpoint_manager.CheckpointManager for consciousness checkpoints.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        import sys
+        exp_path = str(Path(__file__).parent.parent / 'experimental')
+        if exp_path not in sys.path:
+            sys.path.insert(0, exp_path)
+        from qiggraph_checkpointing import (
+            ManifoldCheckpoint, SleepPacket,
+            CheckpointManager as QIGGraphCheckpointManager,
+            save_checkpoint, load_checkpoint
+        )
+        mapping = {
+            'ManifoldCheckpoint': ManifoldCheckpoint,
+            'SleepPacket': SleepPacket,
+            'CheckpointManager': QIGGraphCheckpointManager,
+            'save_checkpoint': save_checkpoint,
+            'load_checkpoint': load_checkpoint,
+        }
+        return mapping[name]
+    raise AttributeError(f"module 'qiggraph' has no attribute '{name}'")
+
 
 __all__ = [
     # Constants
@@ -163,12 +192,12 @@ __all__ = [
     "ObserverRole",
     "ObservationEvent",
     "create_default_constellation",
-    # Checkpoints
-    "ManifoldCheckpoint",
-    "SleepPacket",
-    "CheckpointManager",
-    "save_checkpoint",
-    "load_checkpoint",
+    # Checkpoints (DEPRECATED - lazy loaded with deprecation warning)
+    # "ManifoldCheckpoint",
+    # "SleepPacket",
+    # "CheckpointManager",
+    # "save_checkpoint",
+    # "load_checkpoint",
 ]
 
 __version__ = "2.0.0"

@@ -68,8 +68,30 @@ env/
 .eggs/
 *.egg
 
+# Python tooling caches
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# Coverage
+htmlcov/
+.coverage
+coverage.xml
+
+# Large data files and checkpoints (sync with Railway)
+*.npy
+attached_assets/*.json
+attached_assets/*.npy
+attached_assets/qig-*/
+attached_assets/qigkernels/
+qig-backend/data/checkpoints/
+qig-backend/data/*.checkpoint.json
+
 # Legacy checkpoint files (now stored in PostgreSQL)
 attached_assets/checkpoint_*.json
+
+# Archived conversation logs
+docs/_archive/conversation-logs/
 
 # Husky
 .husky/_
