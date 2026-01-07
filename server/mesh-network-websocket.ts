@@ -113,51 +113,85 @@ export class MeshNetworkStreamer {
   }
   
   /**
-   * Fetch mesh network status from Python backend and broadcast to subscribers
+   * Fetch mesh network status from federation tables and broadcast to subscribers
    */
   private async fetchAndBroadcastStatus() {
     if (this.subscriptions.size === 0) return;
-    
+
     try {
-      const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
-      
-      // Fetch mesh status
-      const statusResponse = await fetch(`${backendUrl}/federation/mesh/status`, {
+      // Use Node.js server's own federation endpoint instead of Python backend
+      // This avoids issues with non-existent Python endpoints
+      const nodePort = process.env.PORT || 5000;
+      const nodeUrl = `http://localhost:${nodePort}`;
+
+      // Fetch sync status from our own TypeScript server
+      const statusResponse = await fetch(`${nodeUrl}/api/federation/sync/status`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
-        signal: AbortSignal.timeout(5000),
+        signal: AbortSignal.timeout(3000),
       });
-      
-      if (!statusResponse.ok) {
-        return;
+
+      let statusData: MeshNetworkStatus = {
+        totalPeers: 0,
+        connectedPeers: 0,
+        syncingPeers: 0,
+        totalSharedBasins: 0,
+        totalSharedVocabulary: 0,
+        totalSharedResearch: 0,
+        networkHealth: 'healthy',
+        lastSyncTime: null,
+      };
+
+      if (statusResponse.ok) {
+        const data = await statusResponse.json();
+        statusData = {
+          totalPeers: data.peerCount || 0,
+          connectedPeers: data.isConnected ? data.peerCount : 0,
+          syncingPeers: 0,
+          totalSharedBasins: 0,
+          totalSharedVocabulary: 0,
+          totalSharedResearch: 0,
+          networkHealth: data.isConnected ? 'healthy' : 'degraded',
+          lastSyncTime: data.lastSyncTime,
+        };
       }
-      
-      const statusData = await statusResponse.json();
-      
-      // Fetch peer list
-      const peersResponse = await fetch(`${backendUrl}/federation/peers`, {
+
+      // Fetch instances from our own server
+      const instancesResponse = await fetch(`${nodeUrl}/api/federation/instances`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
-        signal: AbortSignal.timeout(5000),
+        signal: AbortSignal.timeout(3000),
       });
-      
+
       let peers: MeshPeer[] = [];
-      if (peersResponse.ok) {
-        const peersData = await peersResponse.json();
-        peers = peersData.peers || [];
+      if (instancesResponse.ok) {
+        const instancesData = await instancesResponse.json();
+        peers = (instancesData.instances || []).map((inst: any) => ({
+          id: String(inst.id),
+          name: inst.name,
+          url: inst.endpoint,
+          status: inst.status === 'active' ? 'connected' : 'disconnected',
+          lastSeen: inst.lastSyncAt || new Date().toISOString(),
+          capabilities: inst.capabilities || [],
+          sharedKnowledge: {
+            basins: 0,
+            vocabulary: 0,
+            research: 0,
+          },
+        }));
       }
-      
+
       // Check for changes
       const statusChanged = JSON.stringify(this.cachedStatus) !== JSON.stringify(statusData);
       const peersChanged = JSON.stringify(this.cachedPeers) !== JSON.stringify(peers);
-      
+
       if (statusChanged || peersChanged) {
+        // Detect events based on changes BEFORE updating cache
+        this.detectAndEmitEvents(peers);
+
         this.cachedStatus = statusData;
         this.cachedPeers = peers;
-        
-        // Detect events based on changes
-        this.detectAndEmitEvents(peers);
-        
+
         // Broadcast update
         this.broadcastUpdate({
           peers,
@@ -166,7 +200,7 @@ export class MeshNetworkStreamer {
         });
       }
     } catch (err) {
-      // Silently ignore fetch errors - backend may be unavailable
+      // Silently ignore fetch errors - server may still be starting
     }
   }
   

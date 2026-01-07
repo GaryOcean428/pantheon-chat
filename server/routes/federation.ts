@@ -1,20 +1,20 @@
 /**
  * Federation Routes
- * 
+ *
  * Dashboard-friendly endpoints for managing API keys, connected instances,
  * and basin sync status. These are internal admin routes (require auth)
  * that wrap the external API functionality for the UI.
- * 
+ *
  * Note: Uses raw SQL because the Drizzle schema doesn't match the actual
  * database schema for external_api_keys table.
  */
 
-import { Router, Request, Response } from 'express';
-import { logger } from '../lib/logger';
-import { db } from '../db';
+import { createCipheriv, createDecipheriv, randomBytes } from 'crypto';
 import { sql } from 'drizzle-orm';
-import { randomBytes, createHash, createCipheriv, createDecipheriv } from 'crypto';
-import { isAuthenticated } from '../replitAuth';
+import { Request, Response, Router } from 'express';
+import { db } from '../db';
+import { logger } from '../lib/logger';
+import { isLocalAuthenticated } from './auth';
 
 const ENCRYPTION_KEY = process.env.FEDERATION_ENCRYPTION_KEY || randomBytes(32).toString('hex');
 const ALGORITHM = 'aes-256-gcm';
@@ -48,7 +48,72 @@ export function decryptApiKey(encryptedData: string): string | null {
 
 export const federationRouter = Router();
 
-federationRouter.use(isAuthenticated);
+// Public endpoints (no auth required) - for dashboard status polling and mesh network WebSocket
+federationRouter.get('/sync/status', async (_req: Request, res: Response) => {
+  if (!db) {
+    return res.status(503).json({ error: 'Database unavailable' });
+  }
+
+  try {
+    const result = await db.execute(sql`
+      SELECT COUNT(*) as count, MAX(last_sync_at) as latest_sync
+      FROM federated_instances
+      WHERE status = 'active'
+    `);
+
+    const row = result.rows[0] as Record<string, unknown> | undefined;
+    const peerCount = parseInt(String(row?.count || '0'), 10);
+    const latestSync = row?.latest_sync as Date | null | undefined;
+
+    res.json({
+      isConnected: peerCount > 0,
+      peerCount,
+      lastSyncTime: latestSync?.toISOString?.() ?? latestSync ?? null,
+      pendingPackets: 0,
+      syncMode: peerCount > 0 ? 'bidirectional' : 'standalone',
+    });
+  } catch (error) {
+    console.error('[Federation] Failed to get sync status:', error);
+    res.status(500).json({ error: 'Failed to get sync status' });
+  }
+});
+
+// Public: List connected federated instances (read-only, no sensitive data)
+federationRouter.get('/instances', async (_req: Request, res: Response) => {
+  if (!db) {
+    return res.status(503).json({ error: 'Database unavailable' });
+  }
+
+  try {
+    const result = await db.execute(sql`
+      SELECT id, name, endpoint, status, capabilities, sync_direction, last_sync_at, created_at
+      FROM federated_instances
+      ORDER BY last_sync_at DESC NULLS LAST
+    `);
+
+    const instances = result.rows.map(r => {
+      const row = r as Record<string, unknown>;
+      return {
+        id: row.id,
+        name: row.name as string,
+        endpoint: row.endpoint as string,
+        status: (row.status as string | null) || 'pending',
+        capabilities: (row.capabilities as string[] | null) || [],
+        syncDirection: (row.sync_direction as string | null) || 'bidirectional',
+        lastSyncAt: row.last_sync_at as Date | null,
+        createdAt: row.created_at as Date,
+      };
+    });
+
+    res.json({ instances });
+  } catch (error) {
+    console.error('[Federation] Failed to list instances:', error);
+    res.status(500).json({ error: 'Failed to list instances' });
+  }
+});
+
+// All other routes require authentication
+federationRouter.use(isLocalAuthenticated);
 
 interface ApiKeyRecord {
   id: string | number;
@@ -71,6 +136,21 @@ federationRouter.get('/keys', async (_req: Request, res: Response) => {
   }
 
   try {
+    // Check if table exists first
+    const tableCheck = await db.execute(sql`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables
+        WHERE table_name = 'external_api_keys'
+      ) as exists
+    `);
+
+    const tableExists = (tableCheck.rows[0] as { exists: boolean })?.exists;
+
+    if (!tableExists) {
+      logger.warn('[Federation] external_api_keys table does not exist');
+      return res.json({ keys: [], warning: 'Table not initialized' });
+    }
+
     const result = await db.execute(sql`
       SELECT id, name, instance_type, scopes, created_at, last_used_at, rate_limit, is_active
       FROM external_api_keys
@@ -93,8 +173,11 @@ federationRouter.get('/keys', async (_req: Request, res: Response) => {
 
     res.json({ keys: formattedKeys });
   } catch (error) {
-    console.error('[Federation] Failed to list keys:', error);
-    res.status(500).json({ error: 'Failed to list API keys' });
+    logger.error({ err: error, context: 'FederationListKeys' }, 'Failed to list keys');
+    res.status(500).json({
+      error: 'Failed to list API keys',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 
@@ -137,11 +220,12 @@ federationRouter.post('/keys', async (req: Request, res: Response) => {
 
   try {
     const rawKey = `qig_${randomBytes(32).toString('hex')}`;
-    const scopesJson = JSON.stringify(requestedScopes);
+    // Convert array to PostgreSQL array literal format
+    const scopesArrayLiteral = `{${requestedScopes.join(',')}}`;
 
     const result = await db.execute(sql`
       INSERT INTO external_api_keys (name, api_key, instance_type, scopes, rate_limit, is_active, created_at)
-      VALUES (${name}, ${rawKey}, ${instanceType}, ${scopesJson}::jsonb, ${finalRateLimit}, true, NOW())
+      VALUES (${name}, ${rawKey}, ${instanceType}, ${scopesArrayLiteral}::text[], ${finalRateLimit}, true, NOW())
       RETURNING id
     `);
 
@@ -206,7 +290,7 @@ federationRouter.post('/test-connection', async (req: Request, res: Response) =>
   try {
     const cleanEndpoint = endpoint.replace(/\/+$/, '');
     const healthUrl = `${cleanEndpoint}/health`;
-    
+
     const start = Date.now();
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000);
@@ -219,9 +303,9 @@ federationRouter.post('/test-connection', async (req: Request, res: Response) =>
       signal: controller.signal,
     });
     clearTimeout(timeout);
-    
+
     const latency = Date.now() - start;
-    
+
     if (!response.ok) {
       return res.json({
         success: false,
@@ -232,7 +316,7 @@ federationRouter.post('/test-connection', async (req: Request, res: Response) =>
     }
 
     const data = await response.json();
-    
+
     res.json({
       success: true,
       status: response.status,
@@ -282,10 +366,10 @@ federationRouter.post('/connect', async (req: Request, res: Response) => {
 
   try {
     const cleanEndpoint = endpoint.replace(/\/+$/, '');
-    
+
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000);
-    
+
     const healthResponse = await fetch(`${cleanEndpoint}/health`, {
       headers: {
         'X-API-Key': apiKey,
@@ -339,7 +423,7 @@ federationRouter.post('/connect', async (req: Request, res: Response) => {
     if (err.name === 'AbortError') {
       return res.status(400).json({ error: 'Connection timeout - remote node not responding' });
     }
-    
+
     res.status(500).json({ error: 'Failed to connect to remote node', details: err.message });
   }
 });
@@ -372,159 +456,4 @@ federationRouter.delete('/instances/:instanceId', async (req: Request, res: Resp
   }
 });
 
-/**
- * GET /api/federation/instances
- * List all connected federated instances
- */
-federationRouter.get('/instances', async (_req: Request, res: Response) => {
-  if (!db) {
-    return res.status(503).json({ error: 'Database unavailable' });
-  }
-
-  try {
-    const result = await db.execute(sql`
-      SELECT id, name, endpoint, status, capabilities, sync_direction, last_sync_at, created_at
-      FROM federated_instances
-      ORDER BY last_sync_at DESC NULLS LAST
-    `);
-
-    const instances = result.rows.map(r => {
-      const row = r as Record<string, unknown>;
-      return {
-        id: row.id,
-        name: row.name as string,
-        endpoint: row.endpoint as string,
-        status: (row.status as string | null) || 'pending',
-        capabilities: (row.capabilities as string[] | null) || [],
-        syncDirection: (row.sync_direction as string | null) || 'bidirectional',
-        lastSyncAt: row.last_sync_at as Date | null,
-        createdAt: row.created_at as Date,
-      };
-    });
-
-    res.json({ instances });
-  } catch (error) {
-    console.error('[Federation] Failed to list instances:', error);
-    res.status(500).json({ error: 'Failed to list instances' });
-  }
-});
-
-/**
- * GET /api/federation/sync/status
- * Get current basin sync status
- */
-federationRouter.get('/sync/status', async (_req: Request, res: Response) => {
-  if (!db) {
-    return res.status(503).json({ error: 'Database unavailable' });
-  }
-
-  try {
-    const result = await db.execute(sql`
-      SELECT COUNT(*) as count, MAX(last_sync_at) as latest_sync
-      FROM federated_instances
-      WHERE status = 'active'
-    `);
-
-    const row = result.rows[0] as Record<string, unknown> | undefined;
-    const peerCount = parseInt(String(row?.count || '0'), 10);
-    const latestSync = row?.latest_sync as Date | null | undefined;
-
-    res.json({
-      isConnected: peerCount > 0,
-      peerCount,
-      lastSyncTime: latestSync?.toISOString?.() ?? latestSync ?? null,
-      pendingPackets: 0,
-      syncMode: peerCount > 0 ? 'bidirectional' : 'standalone',
-    });
-  } catch (error) {
-    console.error('[Federation] Failed to get sync status:', error);
-    res.status(500).json({ error: 'Failed to get sync status' });
-  }
-});
-
-/**
- * GET /api/federation/settings
- * Get node configuration including public federation endpoint
- */
-federationRouter.get('/settings', async (_req: Request, res: Response) => {
-  if (!db) {
-    return res.status(503).json({ error: 'Database unavailable' });
-  }
-
-  try {
-    const result = await db.execute(sql`
-      SELECT key, value, description, updated_at
-      FROM system_settings
-      WHERE key IN ('federation_endpoint', 'node_name', 'node_description')
-    `);
-
-    const settings: Record<string, string | null> = {
-      federation_endpoint: null,
-      node_name: null,
-      node_description: null,
-    };
-
-    for (const row of result.rows) {
-      const r = row as Record<string, unknown>;
-      settings[r.key as string] = r.value as string;
-    }
-
-    res.json({ settings });
-  } catch (error) {
-    console.error('[Federation] Failed to get settings:', error);
-    res.status(500).json({ error: 'Failed to get settings' });
-  }
-});
-
-/**
- * PUT /api/federation/settings
- * Update node configuration
- */
-federationRouter.put('/settings', async (req: Request, res: Response) => {
-  if (!db) {
-    return res.status(503).json({ error: 'Database unavailable' });
-  }
-
-  const { federation_endpoint, node_name, node_description } = req.body;
-
-  try {
-    // Validate federation_endpoint if provided
-    if (federation_endpoint !== undefined) {
-      if (typeof federation_endpoint !== 'string' ||
-          (federation_endpoint && !federation_endpoint.startsWith('http'))) {
-        return res.status(400).json({
-          error: 'Invalid federation_endpoint',
-          details: 'Must be a valid HTTP/HTTPS URL or empty string to clear'
-        });
-      }
-
-      await db.execute(sql`
-        INSERT INTO system_settings (key, value, description, updated_at)
-        VALUES ('federation_endpoint', ${federation_endpoint}, 'Public endpoint URL for federation', NOW())
-        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
-      `);
-    }
-
-    if (node_name !== undefined) {
-      await db.execute(sql`
-        INSERT INTO system_settings (key, value, description, updated_at)
-        VALUES ('node_name', ${node_name}, 'Human-readable name for this node', NOW())
-        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
-      `);
-    }
-
-    if (node_description !== undefined) {
-      await db.execute(sql`
-        INSERT INTO system_settings (key, value, description, updated_at)
-        VALUES ('node_description', ${node_description}, 'Description of this node', NOW())
-        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
-      `);
-    }
-
-    logger.info('[Federation] Settings updated');
-    res.json({ success: true, message: 'Settings updated' });
-  } catch (error) {
-    console.error('[Federation] Failed to update settings:', error);
-    res.status(500).json({ error: 'Failed to update settings' });
-  }
-});
+// Note: /instances and /sync/status are defined above the auth middleware to allow public read access
