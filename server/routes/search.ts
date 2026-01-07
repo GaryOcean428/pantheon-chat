@@ -796,6 +796,103 @@ searchRouter.post("/memory-search", async (req: Request, res: Response) => {
   }
 });
 
+// ============================================================================
+// MEMORY FRAGMENTS CRUD - Persistent storage for memory fragments
+// ============================================================================
+
+import { db } from "../db";
+import { memoryFragments } from "@shared/schema";
+import { eq, desc } from "drizzle-orm";
+
+// List memory fragments
+searchRouter.get("/memory-fragments", async (req: Request, res: Response) => {
+  try {
+    if (!db) {
+      return res.status(503).json({ error: "Database not available" });
+    }
+    const limit = parseInt(req.query.limit as string) || 100;
+    const agentId = req.query.agentId as string;
+
+    const fragments = agentId
+      ? await db.select().from(memoryFragments).where(eq(memoryFragments.agentId, agentId)).orderBy(desc(memoryFragments.createdAt)).limit(limit)
+      : await db.select().from(memoryFragments).orderBy(desc(memoryFragments.createdAt)).limit(limit);
+
+    res.json({ fragments, count: fragments.length });
+  } catch (error: unknown) {
+    handleRouteError(res, error, 'ListMemoryFragments');
+  }
+});
+
+// Create memory fragment
+searchRouter.post("/memory-fragments", async (req: Request, res: Response) => {
+  try {
+    if (!db) {
+      return res.status(503).json({ error: "Database not available" });
+    }
+    const { id, content, basinCoords, importance, metadata, agentId, sessionId } = req.body;
+
+    if (!id || !content || !basinCoords || !Array.isArray(basinCoords)) {
+      return res.status(400).json({ error: "Missing required fields: id, content, basinCoords" });
+    }
+
+    if (basinCoords.length !== 64) {
+      return res.status(400).json({ error: "basinCoords must be 64-dimensional" });
+    }
+
+    const [fragment] = await db.insert(memoryFragments).values({
+      id,
+      content,
+      basinCoords,
+      importance: importance || 0.5,
+      metadata: metadata || {},
+      agentId,
+      sessionId,
+    }).returning();
+
+    res.json({ success: true, fragment });
+  } catch (error: unknown) {
+    handleRouteError(res, error, 'CreateMemoryFragment');
+  }
+});
+
+// Get single memory fragment
+searchRouter.get("/memory-fragments/:id", async (req: Request, res: Response) => {
+  try {
+    if (!db) {
+      return res.status(503).json({ error: "Database not available" });
+    }
+    const { id } = req.params;
+    const [fragment] = await db.select().from(memoryFragments).where(eq(memoryFragments.id, id));
+
+    if (!fragment) {
+      return res.status(404).json({ error: "Fragment not found" });
+    }
+
+    // Update access count
+    await db.update(memoryFragments)
+      .set({ accessCount: (fragment.accessCount || 0) + 1, lastAccessed: new Date() })
+      .where(eq(memoryFragments.id, id));
+
+    res.json({ fragment });
+  } catch (error: unknown) {
+    handleRouteError(res, error, 'GetMemoryFragment');
+  }
+});
+
+// Delete memory fragment
+searchRouter.delete("/memory-fragments/:id", async (req: Request, res: Response) => {
+  try {
+    if (!db) {
+      return res.status(503).json({ error: "Database not available" });
+    }
+    const { id } = req.params;
+    await db.delete(memoryFragments).where(eq(memoryFragments.id, id));
+    res.json({ success: true, deleted: id });
+  } catch (error: unknown) {
+    handleRouteError(res, error, 'DeleteMemoryFragment');
+  }
+});
+
 export const formatRouter = Router();
 
 formatRouter.get("/address/:address", async (req: Request, res: Response) => {

@@ -3397,14 +3397,17 @@ export type InsertTrainingBatchQueue = typeof trainingBatchQueue.$inferInsert;
 
 // ============================================================================
 // SHADOW LEARNING TABLES
-// ============================================================================
 // These tables support the shadow learning and research capabilities
+// NOTE: Python (shadow_research.py, tool_factory.py) uses raw SQL for these tables.
+// Schema.ts is the source of truth. Python raw SQL should match these definitions.
+// ============================================================================
 
 /**
  * SHADOW KNOWLEDGE
- * 
+ *
  * Knowledge discovered by the shadow learning system.
  * Contains topics, categories, and geometric coordinates for each piece of knowledge.
+ * Used by: shadow_research.py (raw SQL), tool_factory.py (raw SQL)
  */
 export const shadowKnowledge = pgTable(
   "shadow_knowledge",
@@ -3807,3 +3810,36 @@ export const lightningInsightOutcomes = pgTable(
 
 export type LightningInsightOutcomeRow = typeof lightningInsightOutcomes.$inferSelect;
 export type InsertLightningInsightOutcome = typeof lightningInsightOutcomes.$inferInsert;
+
+// ============================================================================
+// MEMORY FRAGMENTS - Geometric context storage for deep agents
+// Used by memory-fragment-search UI and qig_deep_agents module
+// ============================================================================
+
+/**
+ * MEMORY FRAGMENTS - Context stored in basin coordinate space
+ * Replaces file-based storage with Fisher-Rao proximity retrieval
+ */
+export const memoryFragments = pgTable(
+  "memory_fragments",
+  {
+    id: varchar("id", { length: 64 }).primaryKey(),
+    content: text("content").notNull(),
+    basinCoords: vector("basin_coords", { dimensions: 64 }).notNull(),
+    importance: doublePrecision("importance").default(0.5),
+    accessCount: integer("access_count").default(0),
+    createdAt: timestamp("created_at").defaultNow(),
+    lastAccessed: timestamp("last_accessed").defaultNow(),
+    metadata: jsonb("metadata").default({}),
+    agentId: varchar("agent_id", { length: 64 }), // Which agent created this
+    sessionId: varchar("session_id", { length: 64 }), // Optional session scope
+  },
+  (table) => [
+    index("idx_memory_fragments_importance").on(table.importance),
+    index("idx_memory_fragments_created").on(table.createdAt),
+    index("idx_memory_fragments_agent").on(table.agentId),
+  ]
+);
+
+export type MemoryFragmentRow = typeof memoryFragments.$inferSelect;
+export type InsertMemoryFragment = typeof memoryFragments.$inferInsert;

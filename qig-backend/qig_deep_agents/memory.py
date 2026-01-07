@@ -2,11 +2,15 @@
 
 Replaces LangGraph's file system tools (ls, read_file, write_file, edit_file)
 with geometric memory fragments stored in basin coordinate space.
+
+Database persistence: memory_fragments table in PostgreSQL
 """
 
 import hashlib
 import struct
 import math
+import os
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any, Tuple
@@ -16,6 +20,113 @@ from .state import (
     BASIN_DIMENSION,
     fisher_rao_distance,
 )
+
+logger = logging.getLogger(__name__)
+
+# Database persistence for memory fragments
+try:
+    import psycopg2
+    from psycopg2.extras import Json
+    DB_AVAILABLE = True
+except ImportError:
+    DB_AVAILABLE = False
+
+def _get_db_connection():
+    """Get database connection for memory fragment persistence."""
+    if not DB_AVAILABLE:
+        return None
+    try:
+        database_url = os.environ.get('DATABASE_URL')
+        if not database_url:
+            return None
+        return psycopg2.connect(database_url)
+    except Exception:
+        return None
+
+def _persist_fragment_to_db(fragment: 'MemoryFragment', agent_id: Optional[str] = None) -> bool:
+    """Persist a memory fragment to PostgreSQL."""
+    conn = _get_db_connection()
+    if not conn:
+        return False
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO memory_fragments (
+                    id, content, basin_coords, importance, access_count,
+                    created_at, last_accessed, metadata, agent_id
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (id) DO UPDATE SET
+                    content = EXCLUDED.content,
+                    importance = EXCLUDED.importance,
+                    access_count = memory_fragments.access_count + 1,
+                    last_accessed = NOW(),
+                    metadata = EXCLUDED.metadata
+            """, (
+                fragment.id,
+                fragment.content,
+                fragment.basin_coords,
+                fragment.importance,
+                fragment.access_count,
+                fragment.created_at,
+                fragment.last_accessed,
+                Json(fragment.metadata),
+                agent_id,
+            ))
+            conn.commit()
+            logger.debug(f"[Memory] Persisted fragment {fragment.id} to database")
+            return True
+    except Exception as e:
+        logger.debug(f"[Memory] DB persistence skipped: {e}")
+        conn.rollback()
+        return False
+    finally:
+        conn.close()
+
+def _load_fragments_from_db(agent_id: Optional[str] = None, limit: int = 100) -> List['MemoryFragment']:
+    """Load memory fragments from database."""
+    conn = _get_db_connection()
+    if not conn:
+        return []
+    try:
+        with conn.cursor() as cur:
+            if agent_id:
+                cur.execute("""
+                    SELECT id, content, basin_coords, importance, access_count,
+                           created_at, last_accessed, metadata
+                    FROM memory_fragments
+                    WHERE agent_id = %s
+                    ORDER BY importance DESC, created_at DESC
+                    LIMIT %s
+                """, (agent_id, limit))
+            else:
+                cur.execute("""
+                    SELECT id, content, basin_coords, importance, access_count,
+                           created_at, last_accessed, metadata
+                    FROM memory_fragments
+                    ORDER BY importance DESC, created_at DESC
+                    LIMIT %s
+                """, (limit,))
+            rows = cur.fetchall()
+            fragments = []
+            for row in rows:
+                fragment = MemoryFragment(
+                    id=row[0],
+                    content=row[1],
+                    basin_coords=list(row[2]) if row[2] else [0.5] * BASIN_DIMENSION,
+                    importance=row[3] or 0.5,
+                    access_count=row[4] or 0,
+                    created_at=row[5] or datetime.now(timezone.utc),
+                    last_accessed=row[6] or datetime.now(timezone.utc),
+                    metadata=row[7] or {},
+                )
+                fragments.append(fragment)
+            logger.info(f"[Memory] Loaded {len(fragments)} fragments from database")
+            return fragments
+    except Exception as e:
+        logger.debug(f"[Memory] DB load skipped: {e}")
+        return []
+    finally:
+        conn.close()
 
 
 @dataclass
@@ -147,31 +258,46 @@ class ContextWindow:
 
 class BasinMemoryStore:
     """Geometric memory store using basin coordinates.
-    
+
     Replaces LangGraph's file system tools with:
     - write_fragment() instead of write_file()
     - read_nearby() instead of read_file()
     - list_fragments() instead of ls()
     - edit_fragment() instead of edit_file()
-    
+
     All operations use Fisher-Rao geometry for organization.
+    Database persistence: memory_fragments table in PostgreSQL
     """
-    
+
     def __init__(
         self,
         max_fragments: int = 1000,
         basin_encoder: Optional[Any] = None,
+        agent_id: Optional[str] = None,
+        load_from_db: bool = True,
     ):
         """Initialize the memory store.
-        
+
         Args:
             max_fragments: Maximum number of fragments to store
             basin_encoder: Function to encode text to basin coordinates
+            agent_id: Optional agent identifier for scoping fragments
+            load_from_db: Whether to load existing fragments from database
         """
         self.max_fragments = max_fragments
         self.basin_encoder = basin_encoder or self._default_encoder
+        self.agent_id = agent_id
         self._fragments: Dict[str, MemoryFragment] = {}
         self._coord_index: List[Tuple[str, List[float]]] = []  # For fast proximity search
+
+        # Load existing fragments from database
+        if load_from_db:
+            db_fragments = _load_fragments_from_db(agent_id=agent_id, limit=max_fragments)
+            for frag in db_fragments:
+                self._fragments[frag.id] = frag
+                self._coord_index.append((frag.id, frag.basin_coords))
+            if db_fragments:
+                logger.info(f"[Memory] Loaded {len(db_fragments)} fragments from database")
     
     def _default_encoder(self, text: str) -> List[float]:
         """Default text to basin coordinate encoder."""
@@ -195,18 +321,18 @@ class BasinMemoryStore:
         metadata: Optional[Dict[str, Any]] = None,
     ) -> MemoryFragment:
         """Write a new memory fragment (replaces write_file).
-        
+
         Args:
             content: The content to store
             importance: Relevance weight (0-1)
             metadata: Optional metadata dict
-            
+
         Returns:
             The created MemoryFragment
         """
         frag_id = self._generate_id(content)
         coords = self.basin_encoder(content)
-        
+
         fragment = MemoryFragment(
             id=frag_id,
             content=content,
@@ -214,14 +340,17 @@ class BasinMemoryStore:
             importance=importance,
             metadata=metadata or {},
         )
-        
+
         self._fragments[frag_id] = fragment
         self._coord_index.append((frag_id, coords))
-        
+
+        # Persist to database
+        _persist_fragment_to_db(fragment, agent_id=self.agent_id)
+
         # Prune if over limit
         if len(self._fragments) > self.max_fragments:
             self._prune_least_important()
-        
+
         return fragment
     
     def read_nearby(
