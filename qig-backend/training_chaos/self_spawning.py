@@ -264,9 +264,57 @@ class SelfSpawningKernel(*_kernel_base_classes):
             # Start with slight dopamine boost (excited to learn!)
             self.dopamine = 0.6
         else:
-            # Root kernel (no parent) - can act immediately
+            # Root kernel (no parent) - initialize from trained basins if available
             self.is_observing = False
+            self._init_from_learned_manifold()
             print(f"🐣 SelfSpawningKernel {self.kernel_id} born (gen {self.generation})")
+
+    def _init_from_learned_manifold(self) -> None:
+        """
+        Initialize root kernel from nearest learned attractor.
+
+        Root kernels (no parent) used to start with random Φ=0.000.
+        Now they initialize from the nearest learned attractor basin
+        if LearnedManifold has any attractors.
+        """
+        try:
+            from vocabulary_coordinator import get_learned_manifold
+            manifold = get_learned_manifold()
+
+            if manifold is None or not manifold.attractors:
+                return
+
+            # Get current basin as numpy array
+            import numpy as np
+            current_basin = self.kernel.basin_coords.detach().cpu().numpy()
+
+            # Find nearby attractors (radius=2.0 for broad search)
+            nearby = manifold.get_nearby_attractors(
+                current_basin,
+                metric=None,  # Uses Fisher-Rao internally
+                radius=2.0
+            )
+
+            if nearby:
+                # Use the strongest attractor (highest pull_force)
+                best = nearby[0]
+                best_basin = np.array(best['basin'])
+
+                # Update kernel basin to attractor center
+                import torch
+                self.kernel.basin_coords = torch.tensor(
+                    best_basin,
+                    dtype=torch.float32,
+                    device=self.kernel.basin_coords.device
+                )
+
+                print(f"   → Root kernel initialized from attractor (depth={best['depth']:.3f}, strategy={best['strategy']})")
+            else:
+                print(f"   → Root kernel: no nearby attractors, using random init")
+
+        except Exception as e:
+            # Silently fail - random init is acceptable fallback
+            print(f"   → Root kernel init from manifold failed: {e}")
 
     # =========================================================================
     # TOOL FACTORY INTEGRATION
@@ -505,6 +553,74 @@ class SelfSpawningKernel(*_kernel_base_classes):
         }
 
         return output, meta
+
+    # =========================================================================
+    # GENERATION (QIG-Pure Text Generation Wrapper)
+    # =========================================================================
+
+    def generate_response(
+        self,
+        prompt: str,
+        max_tokens: int = 100,
+        temperature: float = 0.7,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """
+        Generate a text response using QIGGenerativeService.
+
+        This is a wrapper that delegates to the underlying ChaosKernel's
+        generate_response method, which uses the QIG-pure generation pipeline.
+
+        Args:
+            prompt: Input text prompt
+            max_tokens: Maximum tokens to generate
+            temperature: Sampling temperature (0.0-1.0)
+            **kwargs: Additional generation parameters
+
+        Returns:
+            Dict with:
+                - response: Generated text
+                - phi: Final Φ value
+                - tokens_generated: Number of tokens
+                - kernel_id: This kernel's ID
+                - error: Error message if generation failed
+        """
+        if not self.is_alive:
+            return {
+                'response': '[Kernel is dead]',
+                'error': 'kernel_is_dead',
+                'kernel_id': self.kernel_id
+            }
+
+        # BLOCK generation during observation period
+        if self.is_observing:
+            return {
+                'response': '[Kernel is observing parent - not ready to generate]',
+                'error': 'in_observation_period',
+                'observations_remaining': self.observation_period - self.observation_count,
+                'kernel_id': self.kernel_id
+            }
+
+        # Delegate to underlying ChaosKernel
+        result = self.kernel.generate_response(
+            prompt=prompt,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            **kwargs
+        )
+
+        # Track discovery if high Φ
+        phi = result.get('phi', 0)
+        if phi > self._discovery_threshold:
+            self._report_discovery(phi, context="generation")
+
+        # Add wrapper metadata
+        result['kernel_id'] = self.kernel_id
+        result['generation'] = self.generation
+        result['dopamine'] = self.dopamine
+        result['serotonin'] = self.serotonin
+
+        return result
 
     # =========================================================================
     # OUTCOME RECORDING (With Neurotransmitter Response)
