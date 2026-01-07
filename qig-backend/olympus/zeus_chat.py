@@ -589,11 +589,80 @@ class ZeusConversationHandler(GeometricGenerationMixin):
             print(f"[ZeusChat] Foresight prediction failed: {e}")
         
         return None
-    
+
+    # ========================================
+    # SHADOW PANTHEON DELEGATION
+    # Zeus chat access to covert operations via Hades
+    # ========================================
+
+    def poll_shadow_pantheon(
+        self,
+        target: str,
+        context: Optional[Dict] = None
+    ) -> Dict:
+        """
+        Poll the Shadow Pantheon for covert assessments.
+        Delegates to Zeus god-kernel's shadow_pantheon.
+        """
+        return self.zeus.poll_shadow_pantheon(target, context)
+
+    def get_shadow_god(self, name: str) -> Optional[Any]:
+        """
+        Get a specific shadow god by name.
+        Delegates to Zeus god-kernel's shadow_pantheon.
+        """
+        return self.zeus.get_shadow_god(name)
+
+    def request_shadow_research(
+        self,
+        topic: str,
+        priority: float = 0.5,
+        context: Optional[Dict] = None
+    ) -> Optional[Dict]:
+        """
+        Request research via Shadow Pantheon.
+        Delegates to Zeus god-kernel's shadow_pantheon research system.
+        """
+        return self.zeus.request_shadow_research(topic, priority, context)
+
+    def get_shadow_status(self) -> Dict:
+        """
+        Get current status of all shadow gods.
+        Returns stealth levels, active operations, war mode status.
+        """
+        if hasattr(self.zeus, 'shadow_pantheon'):
+            return self.zeus.shadow_pantheon.get_all_status()
+        return {'error': 'Shadow Pantheon not available'}
+
+    def poll_full_pantheon(
+        self,
+        target: str,
+        context: Optional[Dict] = None
+    ) -> Dict:
+        """
+        Poll BOTH Olympian and Shadow Pantheons for comprehensive assessment.
+        This synthesizes views from all 12 Olympians + 6 Shadow gods.
+        """
+        olympian_result = self.zeus.poll_pantheon(target, context)
+        shadow_result = self.zeus.poll_shadow_pantheon(target, context)
+
+        return {
+            'target': target,
+            'olympian_assessments': olympian_result.get('assessments', {}),
+            'shadow_assessments': shadow_result.get('assessments', {}),
+            'olympian_count': len(olympian_result.get('assessments', {})),
+            'shadow_count': len(shadow_result.get('assessments', {})),
+            'total_gods_consulted': (
+                len(olympian_result.get('assessments', {})) +
+                len(shadow_result.get('assessments', {}))
+            ),
+            'timestamp': datetime.now().isoformat()
+        }
+
     # ========================================
     # END CAPABILITY DELEGATION
     # ========================================
-    
+
     def _sanitize_external(self, response: Dict) -> Dict:
         """
         Sanitize response data for EXTERNAL output.

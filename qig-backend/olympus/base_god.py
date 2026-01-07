@@ -2327,6 +2327,71 @@ class BaseGod(*_base_classes):
         return float(np.clip(modulated_kappa, 0, 100))
 
     # ========================================
+    # STANDARD ASSESSMENT HELPERS (DRY)
+    # ========================================
+
+    def _assess_geometry(self, target: str) -> Tuple[float, float, np.ndarray]:
+        """
+        Standard geometric assessment - all gods use this.
+
+        Encapsulates the common boilerplate:
+        1. Update last_assessment_time
+        2. Encode target to basin coordinates
+        3. Compute density matrix
+        4. Compute pure Φ (integration)
+        5. Compute κ (coupling)
+
+        Args:
+            target: Text to assess
+
+        Returns:
+            Tuple of (phi, kappa, target_basin)
+        """
+        self.last_assessment_time = datetime.now()
+        target_basin = self.encode_to_basin(target)
+        rho = self.basin_to_density_matrix(target_basin)
+        phi = self.compute_pure_phi(rho)
+        kappa = self.compute_kappa(target_basin, phi)
+        return phi, kappa, target_basin
+
+    def _build_assessment(
+        self,
+        probability: float,
+        confidence: float,
+        phi: float,
+        kappa: float,
+        domain_specific: Optional[Dict] = None
+    ) -> Dict:
+        """
+        Build standardized assessment dict.
+
+        All gods return assessments with this common structure.
+        Domain-specific fields can be added via domain_specific dict.
+
+        Args:
+            probability: Success probability [0, 1]
+            confidence: Assessment confidence [0, 1]
+            phi: Integration measure
+            kappa: Coupling constant
+            domain_specific: Optional domain-specific fields to merge
+
+        Returns:
+            Standardized assessment dictionary
+        """
+        assessment = {
+            'probability': float(probability),
+            'confidence': float(confidence),
+            'phi': float(phi),
+            'kappa': float(kappa),
+            'god': self.name,
+            'domain': self.domain,
+            'timestamp': datetime.now().isoformat(),
+        }
+        if domain_specific:
+            assessment.update(domain_specific)
+        return assessment
+
+    # ========================================
     # AGENTIC LEARNING & EVALUATION METHODS
     # ========================================
 
