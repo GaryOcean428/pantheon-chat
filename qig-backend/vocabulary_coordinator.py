@@ -19,10 +19,11 @@ except ImportError:
     VOCAB_PERSISTENCE_AVAILABLE = False
 
 try:
-    from qig_coordizer import get_coordizer as get_tokenizer
+    from qig_coordizer import get_coordizer as get_tokenizer, update_tokenizer_from_observations
     TOKENIZER_AVAILABLE = True
 except ImportError:
     TOKENIZER_AVAILABLE = False
+    update_tokenizer_from_observations = None
     print("[WARNING] qig_coordizer not available - running without tokenizer")
 
 try:
@@ -110,8 +111,9 @@ class VocabularyCoordinator:
             self.observations_recorded += recorded
         new_tokens = 0
         weights_updated = False
-        if self.tokenizer:
-            new_tokens, weights_updated = self.tokenizer.add_vocabulary_observations(observations)
+        if TOKENIZER_AVAILABLE and update_tokenizer_from_observations:
+            # Use safe wrapper that handles PretrainedCoordizer fallback
+            new_tokens, weights_updated = update_tokenizer_from_observations(observations)
             self.words_learned += new_tokens
         merge_rules = 0
         if self.tokenizer:
@@ -357,8 +359,8 @@ class VocabularyCoordinator:
         if self.vocab_db and self.vocab_db.enabled:
             imported = self.vocab_db.record_vocabulary_batch(observations)
         new_tokens = 0
-        if self.tokenizer:
-            new_tokens, _updated = self.tokenizer.add_vocabulary_observations(observations)
+        if TOKENIZER_AVAILABLE and update_tokenizer_from_observations:
+            new_tokens, _updated = update_tokenizer_from_observations(observations)
         return {'imported': imported, 'new_tokens': new_tokens}
     
     def get_stats(self) -> Dict:
@@ -608,8 +610,8 @@ class VocabularyCoordinator:
                 recorded = self.vocab_db.record_vocabulary_batch(observations)
                 self.observations_recorded += recorded
             
-            if self.tokenizer:
-                new_tokens, _updated = self.tokenizer.add_vocabulary_observations(observations)
+            if TOKENIZER_AVAILABLE and update_tokenizer_from_observations:
+                new_tokens, _updated = update_tokenizer_from_observations(observations)
                 self.words_learned += new_tokens
         
         return {
