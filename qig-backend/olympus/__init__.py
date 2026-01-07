@@ -20,104 +20,164 @@ The gods speak in pure geometry:
 - Fisher manifold navigation
 - Bures distance for similarity
 - Von Neumann entropy for information
+
+LAZY LOADING: Gods are only initialized when actually accessed, not at import time.
+This allows Flask to start immediately while gods initialize in background.
 """
 
-from .aphrodite import Aphrodite
-from .apollo import Apollo
-from .ares import Ares
-from .artemis import Artemis
+import importlib
+from typing import Any
 
-# Olympian Gods
-from .athena import Athena
-from .base_god import BaseGod
-from .demeter import Demeter
-from .dionysus import Dionysus
-from .hades import Hades
-from .hephaestus import Hephaestus
-from .hera import Hera
-from .hermes import Hermes
+_LAZY_IMPORTS = {
+    'Aphrodite': '.aphrodite',
+    'Apollo': '.apollo',
+    'Ares': '.ares',
+    'Artemis': '.artemis',
+    'Athena': '.athena',
+    'BaseGod': '.base_god',
+    'Demeter': '.demeter',
+    'Dionysus': '.dionysus',
+    'Hades': '.hades',
+    'Hephaestus': '.hephaestus',
+    'Hera': '.hera',
+    'Hermes': '.hermes',
+    'Poseidon': '.poseidon',
+    'HermesCoordinator': '.hermes_coordinator',
+    'get_hermes_coordinator': '.hermes_coordinator',
+    'PantheonChat': '.pantheon_chat',
+    'PantheonMessage': '.pantheon_chat',
+    'Debate': '.pantheon_chat',
+    'ShadowPantheon': '.shadow_pantheon',
+    'ShadowGod': '.shadow_pantheon',
+    'Nyx': '.shadow_pantheon',
+    'Hecate': '.shadow_pantheon',
+    'Erebus': '.shadow_pantheon',
+    'Hypnos': '.shadow_pantheon',
+    'Thanatos': '.shadow_pantheon',
+    'Nemesis': '.shadow_pantheon',
+    'LightningKernel': '.lightning_kernel',
+    'get_lightning_kernel': '.lightning_kernel',
+    'CrossDomainInsight': '.lightning_kernel',
+    'DomainEvent': '.lightning_kernel',
+    'set_pantheon_chat': '.lightning_kernel',
+    'CapabilityEventBus': '.capability_mesh',
+    'CapabilityEvent': '.capability_mesh',
+    'CapabilityType': '.capability_mesh',
+    'EventType': '.capability_mesh',
+    'get_event_bus': '.capability_mesh',
+    'emit_event': '.capability_mesh',
+    'subscribe_to_events': '.capability_mesh',
+    'get_mesh_status': '.capability_mesh',
+    'SUBSCRIPTION_MATRIX': '.capability_mesh',
+    'DebateResearchBridge': '.capability_bridges',
+    'EmotionCapabilityBridge': '.capability_bridges',
+    'ForesightActionBridge': '.capability_bridges',
+    'EthicsCapabilityBridge': '.capability_bridges',
+    'SleepLearningBridge': '.capability_bridges',
+    'BasinCapabilityBridge': '.capability_bridges',
+    'WarResourceBridge': '.capability_bridges',
+    'KernelMeshBridge': '.capability_bridges',
+    'initialize_all_bridges': '.capability_bridges',
+    'get_bridge_stats': '.capability_bridges',
+    'ToolDiscoveryEngine': '.auto_tool_discovery',
+    'create_discovery_engine_for_god': '.auto_tool_discovery',
+    'ToolRequestPersistence': '.tool_request_persistence',
+    'ToolRequest': '.tool_request_persistence',
+    'RequestStatus': '.tool_request_persistence',
+    'RequestPriority': '.tool_request_persistence',
+    'PatternDiscovery': '.tool_request_persistence',
+    'get_tool_request_persistence': '.tool_request_persistence',
+    'Zeus': '.zeus',
+    'olympus_app': '.zeus',
+    'zeus': '.zeus',
+    'ZeusConversationHandler': '.zeus_chat',
+    'GeometricGenerationMixin': '.zeus_chat',
+    'Hestia': '.hestia',
+    'SafetyConfig': '.hestia',
+    'SafetyVitals': '.hestia',
+    'DemeterTutor': '.demeter_tutor',
+    'Lesson': '.demeter_tutor',
+    'StudentProgress': '.demeter_tutor',
+    'Chiron': '.chiron',
+    'DiagnosticIssue': '.chiron',
+    'PatientRecord': '.chiron',
+    'KnowledgeExchange': '.knowledge_exchange',
+}
 
-# Team #2 - Coordinator
-from .hermes_coordinator import HermesCoordinator, get_hermes_coordinator
+_cache: dict[str, Any] = {}
 
-# Communication
-from .pantheon_chat import Debate, PantheonChat, PantheonMessage
-from .poseidon import Poseidon
+def __getattr__(name: str) -> Any:
+    """Lazy load olympus modules on first access."""
+    if name in _cache:
+        return _cache[name]
+    
+    if name in _LAZY_IMPORTS:
+        module_name = _LAZY_IMPORTS[name]
+        try:
+            module = importlib.import_module(module_name, package='olympus')
+            attr = getattr(module, name)
+            _cache[name] = attr
+            return attr
+        except (ImportError, AttributeError) as e:
+            raise AttributeError(f"Cannot import {name} from olympus: {e}") from e
+    
+    if name == 'GUARDIANS_AVAILABLE':
+        try:
+            importlib.import_module('.hestia', package='olympus')
+            _cache['GUARDIANS_AVAILABLE'] = True
+        except ImportError:
+            _cache['GUARDIANS_AVAILABLE'] = False
+        return _cache['GUARDIANS_AVAILABLE']
+    
+    if name == 'CONVERSATION_AVAILABLE':
+        try:
+            importlib.import_module('conversational_kernel')
+            _cache['CONVERSATION_AVAILABLE'] = True
+        except ImportError:
+            _cache['CONVERSATION_AVAILABLE'] = False
+        return _cache['CONVERSATION_AVAILABLE']
+    
+    if name == 'ConversationalKernelMixin':
+        from conversational_kernel import ConversationalKernelMixin
+        _cache[name] = ConversationalKernelMixin
+        return ConversationalKernelMixin
+    
+    if name == 'ConversationState':
+        from conversational_kernel import ConversationState
+        _cache[name] = ConversationState
+        return ConversationState
+    
+    if name == 'patch_god_with_conversation':
+        from conversational_kernel import patch_god_with_conversation
+        _cache[name] = patch_god_with_conversation
+        return patch_god_with_conversation
+    
+    if name == 'patch_all_gods_with_conversation':
+        from conversational_kernel import patch_all_gods_with_conversation
+        _cache[name] = patch_all_gods_with_conversation
+        return patch_all_gods_with_conversation
+    
+    if name == 'RecursiveConversationOrchestrator':
+        from recursive_conversation_orchestrator import RecursiveConversationOrchestrator
+        _cache[name] = RecursiveConversationOrchestrator
+        return RecursiveConversationOrchestrator
+    
+    if name == 'get_conversation_orchestrator':
+        from recursive_conversation_orchestrator import get_conversation_orchestrator
+        _cache[name] = get_conversation_orchestrator
+        return get_conversation_orchestrator
+    
+    raise AttributeError(f"module 'olympus' has no attribute '{name}'")
 
-# Shadow Pantheon
-from .shadow_pantheon import Erebus, Hecate, Hypnos, Nemesis, Nyx, ShadowGod, ShadowPantheon, Thanatos
-
-# Lightning Bolt Insight Kernel (dynamic domains - no hardcoded enums)
-from .lightning_kernel import LightningKernel, get_lightning_kernel, CrossDomainInsight, DomainEvent, set_pantheon_chat
-
-# Universal Capability Mesh
-from .capability_mesh import (
-    CapabilityEventBus, CapabilityEvent, CapabilityType, EventType,
-    get_event_bus, emit_event, subscribe_to_events, get_mesh_status,
-    SUBSCRIPTION_MATRIX
-)
-from .capability_bridges import (
-    DebateResearchBridge, EmotionCapabilityBridge, ForesightActionBridge,
-    EthicsCapabilityBridge, SleepLearningBridge, BasinCapabilityBridge,
-    WarResourceBridge, KernelMeshBridge, initialize_all_bridges, get_bridge_stats
-)
-
-# Auto Tool Discovery & Persistence
-from .auto_tool_discovery import (
-    ToolDiscoveryEngine, create_discovery_engine_for_god
-)
-from .tool_request_persistence import (
-    ToolRequestPersistence, ToolRequest, RequestStatus,
-    RequestPriority, PatternDiscovery, get_tool_request_persistence
-)
-
-# Telemetry API
 from .telemetry_api import telemetry_bp, register_telemetry_routes, initialize_god_telemetry
 
-# Core hierarchy
-from .zeus import Zeus, olympus_app, zeus
-
-# Zeus Chat (voice integration)
-from .zeus_chat import ZeusConversationHandler, GeometricGenerationMixin
-
-# Guardian Gods for kernel development
-try:
-    from .hestia import Hestia, SafetyConfig, SafetyVitals
-    from .demeter_tutor import DemeterTutor, Lesson, StudentProgress
-    from .chiron import Chiron, DiagnosticIssue, PatientRecord
-    from .knowledge_exchange import KnowledgeExchange
-    GUARDIANS_AVAILABLE = True
-except ImportError:
-    GUARDIANS_AVAILABLE = False
-
-# Conversational Kernel System
-try:
-    from conversational_kernel import (
-        ConversationalKernelMixin,
-        ConversationState,
-        patch_god_with_conversation,
-        patch_all_gods_with_conversation,
-    )
-    from recursive_conversation_orchestrator import (
-        RecursiveConversationOrchestrator,
-        get_conversation_orchestrator,
-    )
-    CONVERSATION_AVAILABLE = True
-except ImportError:
-    CONVERSATION_AVAILABLE = False
-
 __all__ = [
-    # Hierarchy
     'Zeus',
     'olympus_app',
     'zeus',
     'BaseGod',
-
-    # Coordinator (#2)
     'HermesCoordinator',
     'get_hermes_coordinator',
-
-    # Olympians
     'Athena',
     'Ares',
     'Apollo',
@@ -130,14 +190,10 @@ __all__ = [
     'Hades',
     'Hera',
     'Aphrodite',
-
-    # Communication
     'PantheonChat',
     'PantheonMessage',
     'Debate',
     'ZeusConversationHandler',
-
-    # Shadow
     'ShadowPantheon',
     'ShadowGod',
     'Nyx',
@@ -146,8 +202,6 @@ __all__ = [
     'Hypnos',
     'Thanatos',
     'Nemesis',
-
-    # Conversational Kernel System
     'ConversationalKernelMixin',
     'ConversationState',
     'patch_god_with_conversation',
@@ -155,15 +209,11 @@ __all__ = [
     'RecursiveConversationOrchestrator',
     'get_conversation_orchestrator',
     'CONVERSATION_AVAILABLE',
-    
-    # Lightning Bolt Insight Kernel (dynamic domains - no hardcoded enums)
     'LightningKernel',
     'get_lightning_kernel',
     'CrossDomainInsight',
     'DomainEvent',
     'set_pantheon_chat',
-    
-    # Universal Capability Mesh
     'CapabilityEventBus',
     'CapabilityEvent',
     'CapabilityType',
@@ -183,8 +233,6 @@ __all__ = [
     'KernelMeshBridge',
     'initialize_all_bridges',
     'get_bridge_stats',
-    
-    # Auto Tool Discovery & Persistence
     'ToolDiscoveryEngine',
     'create_discovery_engine_for_god',
     'ToolRequestPersistence',
@@ -193,13 +241,9 @@ __all__ = [
     'RequestPriority',
     'PatternDiscovery',
     'get_tool_request_persistence',
-    
-    # Telemetry API
     'telemetry_bp',
     'register_telemetry_routes',
     'initialize_god_telemetry',
-    
-    # Guardian Gods
     'Hestia',
     'SafetyConfig',
     'SafetyVitals',

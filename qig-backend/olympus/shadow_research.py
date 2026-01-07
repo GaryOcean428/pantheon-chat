@@ -1122,18 +1122,9 @@ class ShadowLearningLoop:
             self._scrapy_orchestrator.set_insights_callback(self._handle_scrapy_insight)
             print("[ShadowLearningLoop] Scrapy research enabled")
         
-        # Initialize VocabularyCoordinator for continuous learning
+        # VocabularyCoordinator is initialized lazily to avoid blocking startup
         self.vocab_coordinator = None
-        if HAS_VOCAB_COORDINATOR:
-            try:
-                self.vocab_coordinator = VocabularyCoordinator()
-                print("[ShadowLearningLoop] VocabularyCoordinator initialized for continuous learning")
-                
-                # Register vocabulary insight callback with KnowledgeBase
-                self.knowledge_base.set_insight_callback(self._on_vocabulary_insight)
-                print("[ShadowLearningLoop] Vocabulary insight callback registered")
-            except Exception as e:
-                print(f"[ShadowLearningLoop] Failed to initialize VocabularyCoordinator: {e}")
+        self._vocab_coordinator_initialized = False
         
         # Initialize Curriculum Training
         self._curriculum_available = HAS_CURRICULUM_TRAINING
@@ -1160,6 +1151,23 @@ class ShadowLearningLoop:
     def is_running(self) -> bool:
         """Check if the learning loop is currently running."""
         return self._running
+
+    def _ensure_vocab_coordinator(self) -> None:
+        """Lazily initialize VocabularyCoordinator when first needed."""
+        if self._vocab_coordinator_initialized:
+            return
+        self._vocab_coordinator_initialized = True
+        
+        if HAS_VOCAB_COORDINATOR:
+            try:
+                self.vocab_coordinator = VocabularyCoordinator()
+                print("[ShadowLearningLoop] VocabularyCoordinator initialized (deferred)")
+                
+                # Register vocabulary insight callback with KnowledgeBase
+                self.knowledge_base.set_insight_callback(self._on_vocabulary_insight)
+                print("[ShadowLearningLoop] Vocabulary insight callback registered")
+            except Exception as e:
+                print(f"[ShadowLearningLoop] Failed to initialize VocabularyCoordinator: {e}")
 
     def budget_aware_search(
         self,
@@ -1193,6 +1201,7 @@ class ShadowLearningLoop:
 
         # Feed results into vocabulary learning
         vocab_metrics = {}
+        self._ensure_vocab_coordinator()
         if results.get('success') and self.vocab_coordinator:
             try:
                 # Extract text from results for vocabulary learning
@@ -1345,6 +1354,7 @@ class ShadowLearningLoop:
                             print(f"[ShadowLearningLoop] Curriculum training failed: {e}")
 
                 # Periodic vocabulary integration (hourly)
+                self._ensure_vocab_coordinator()
                 if self.vocab_coordinator:
                     current_time = time.time()
                     if not hasattr(self, '_last_vocab_integration'):
@@ -1396,6 +1406,7 @@ class ShadowLearningLoop:
         # (callback will be triggered automatically via KnowledgeBase.set_insight_callback)
         # But also do explicit training for immediate feedback
         vocab_metrics = {}
+        self._ensure_vocab_coordinator()
         if self.vocab_coordinator:
             try:
                 summary = content.get("summary", "")
@@ -1452,6 +1463,7 @@ class ShadowLearningLoop:
         """
         # Optional: Enhance query with learned vocabulary
         enhanced_topic = topic
+        self._ensure_vocab_coordinator()
         if self.vocab_coordinator:
             try:
                 enhancement = self.vocab_coordinator.enhance_search_query(
@@ -1610,6 +1622,7 @@ class ShadowLearningLoop:
         Args:
             knowledge: Knowledge dictionary with content, topic, phi
         """
+        self._ensure_vocab_coordinator()
         if not self.vocab_coordinator:
             return
         

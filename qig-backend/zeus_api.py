@@ -18,14 +18,28 @@ from typing import Dict, List, Optional, Any, Generator
 from functools import wraps
 from flask import Blueprint, jsonify, request, Response
 
-# Import Zeus chat handler
-try:
-    from olympus.zeus_chat import ZeusConversationHandler
-    from olympus.zeus import Zeus
-    ZEUS_AVAILABLE = True
-except ImportError:
-    ZEUS_AVAILABLE = False
-    print("[ZeusAPI] Zeus module not available")
+# LAZY Zeus imports - don't import at module level to avoid blocking Flask startup
+# The actual imports happen when the route handlers are called
+ZEUS_AVAILABLE = False  # Will be set true when lazy import succeeds
+ZeusConversationHandler = None
+Zeus = None
+
+def _ensure_zeus_available():
+    """Lazy import of Zeus modules - only loads when first needed."""
+    global ZEUS_AVAILABLE, ZeusConversationHandler, Zeus
+    if ZEUS_AVAILABLE:
+        return True
+    try:
+        from olympus.zeus_chat import ZeusConversationHandler as _Handler
+        from olympus.zeus import Zeus as _Zeus
+        ZeusConversationHandler = _Handler
+        Zeus = _Zeus
+        ZEUS_AVAILABLE = True
+        print("[ZeusAPI] Zeus modules loaded successfully")
+        return True
+    except ImportError as e:
+        print(f"[ZeusAPI] Zeus module not available: {e}")
+        return False
 
 # Import coordizer for vocabulary management
 try:
@@ -157,6 +171,9 @@ def get_conversation_handler() -> Optional[Any]:
     
     if _conversation_handler is not None:
         return _conversation_handler
+    
+    # Ensure Zeus modules are loaded (lazy import)
+    _ensure_zeus_available()
     
     if _zeus_instance is not None and ZEUS_AVAILABLE:
         try:
