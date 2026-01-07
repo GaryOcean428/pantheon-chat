@@ -1232,7 +1232,21 @@ class ShadowLearningLoop:
                             self._last_curriculum_load = current_time
                         except Exception as e:
                             print(f"[ShadowLearningLoop] Curriculum training failed: {e}")
-                
+
+                # Periodic vocabulary integration (hourly)
+                if self.vocab_coordinator:
+                    current_time = time.time()
+                    if not hasattr(self, '_last_vocab_integration'):
+                        self._last_vocab_integration = 0
+                    if current_time - self._last_vocab_integration > 3600:  # 1 hour
+                        try:
+                            result = self.vocab_coordinator.integrate_pending_vocabulary(min_phi=0.65, limit=50)
+                            if result.get('integrated_count', 0) > 0:
+                                print(f"[ShadowLearningLoop] Integrated {result['integrated_count']} vocabulary terms")
+                            self._last_vocab_integration = current_time
+                        except Exception as e:
+                            print(f"[ShadowLearningLoop] Vocabulary integration failed: {e}")
+
             except Exception as e:
                 print(f"[ShadowLearningLoop] Error: {e}")
                 time.sleep(1.0)
