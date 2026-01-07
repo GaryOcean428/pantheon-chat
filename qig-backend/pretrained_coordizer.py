@@ -349,6 +349,40 @@ class PretrainedCoordizer:
             'method': 'postgres_basin_trajectory'
         }
 
+    def add_vocabulary_observations(
+        self,
+        observations: List[Dict],
+    ) -> Tuple[int, bool]:
+        """
+        Add vocabulary observations (PostgresCoordizer compatibility).
+
+        For PretrainedCoordizer, this is a no-op since vocabulary is loaded
+        from PostgreSQL at initialization. New vocabulary should be added
+        to the tokenizer_vocabulary table and will be picked up on next restart.
+
+        Args:
+            observations: List of {word, frequency, avgPhi, maxPhi, type}
+
+        Returns:
+            Tuple of (new_tokens_count, weights_updated)
+        """
+        # PretrainedCoordizer loads from PostgreSQL at init.
+        # For continuous learning, vocabulary additions should go to the database
+        # and will be available on next startup/reload.
+        logger.debug(f"[PretrainedCoordizer] add_vocabulary_observations called with {len(observations)} observations (no-op for pretrained)")
+        return (0, False)
+
+    def get_stats(self) -> Dict:
+        """Get coordizer statistics (PostgresCoordizer compatibility)."""
+        return {
+            'vocabulary_size': self.vocab_size,
+            'word_tokens': len([t for t in self.id_to_token.values() if t and len(t) >= 3]),
+            'basin_dimension': BASIN_DIM,
+            'qig_pure': True,
+            'merge_rules_count': len(self.merge_rules),
+            'coordizer_type': 'PretrainedCoordizer'
+        }
+
 
 _pretrained_coordizer: Optional[PretrainedCoordizer] = None
 
