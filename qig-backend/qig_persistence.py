@@ -838,6 +838,57 @@ class QIGPersistence:
             print(f"[QIGPersistence] Failed to save god state for {god_name}: {e}")
             return False
 
+    # =========================================================================
+    # METADATA KEY-VALUE STORE
+    # =========================================================================
+    # Requires table: CREATE TABLE IF NOT EXISTS qig_metadata (
+    #     key TEXT PRIMARY KEY,
+    #     value TEXT NOT NULL,
+    #     updated_at TIMESTAMP DEFAULT NOW()
+    # );
+
+    def get_metadata(self, key: str) -> Optional[str]:
+        """Get a metadata value by key."""
+        if not self.enabled:
+            return None
+
+        try:
+            with self.get_connection() as conn:
+                if not conn:
+                    return None
+                with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                    cur.execute(
+                        "SELECT value FROM qig_metadata WHERE key = %s",
+                        (key,)
+                    )
+                    row = cur.fetchone()
+                    return row['value'] if row else None
+        except Exception as e:
+            print(f"[QIGPersistence] Failed to get metadata '{key}': {e}")
+            return None
+
+    def set_metadata(self, key: str, value: str) -> bool:
+        """Set a metadata value (upsert)."""
+        if not self.enabled:
+            return False
+
+        try:
+            with self.get_connection() as conn:
+                if not conn:
+                    return False
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        INSERT INTO qig_metadata (key, value, updated_at)
+                        VALUES (%s, %s, NOW())
+                        ON CONFLICT (key) DO UPDATE SET
+                            value = EXCLUDED.value,
+                            updated_at = NOW()
+                    """, (key, value))
+            return True
+        except Exception as e:
+            print(f"[QIGPersistence] Failed to set metadata '{key}': {e}")
+            return False
+
 
 # Global persistence instance
 _persistence: Optional[QIGPersistence] = None

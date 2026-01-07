@@ -435,7 +435,8 @@ class AutonomousCuriosityEngine:
             'word_learning_relevance': 0.0
         }
         
-        self._word_learning_interval = 3600
+        # CRITICAL FIX: Reduced from 3600 (1hr) to 300 (5min) for faster coordizer sync
+        self._word_learning_interval = 300
         self._last_word_learning_time = 0
         
         # Track recent queries to avoid repetition
@@ -887,25 +888,37 @@ class AutonomousCuriosityEngine:
         return query
     
     def _train_on_curriculum(self):
-        """Train on curriculum topics with diverse, non-repetitive queries."""
+        """
+        Train on curriculum topics with diverse, non-repetitive queries.
+
+        CRITICAL FIX: Processes MULTIPLE topics per cycle (up to 5) to ensure
+        new curriculum is trained continuously until complete, not just 1 per cycle.
+        """
         # Clear cooldown at start of cycle
         self._query_cooldown.clear()
-        
+
+        # CRITICAL FIX: Process multiple topics per cycle for continuous training
+        topics_this_cycle = 0
+        max_topics_per_cycle = 5  # Train on up to 5 topics per cycle
+
         for kernel_name in self.kernel_interests.keys():
+            if topics_this_cycle >= max_topics_per_cycle:
+                break  # Limit per cycle to avoid overwhelming
+
             skills = {
                 'domains': self.kernel_interests[kernel_name],
                 'depth': self._get_kernel_depth(kernel_name)
             }
-            
+
             topic = self.curriculum_loader.get_next_topic(skills)
-            
+
             if topic:
                 print(f"[AutonomousCuriosityEngine] Training {kernel_name} on: {topic['title']}")
-                
+
                 # Generate diverse queries from topic
                 keywords = topic.get('keywords', [])[:5]
                 title = topic['title']
-                
+
                 query_patterns = [
                     f"Mathematical foundations of {title}",
                     f"Key concepts in {title}",
@@ -913,12 +926,12 @@ class AutonomousCuriosityEngine:
                     f"{title} from information geometry perspective",
                     f"Latest advances in {title} 2024 2025",
                 ]
-                
+
                 # Add keyword-specific queries
                 for kw in keywords[:3]:
                     query_patterns.append(f"{kw} in context of {title}")
                     query_patterns.append(f"How {kw} relates to quantum information")
-                
+
                 # Submit non-duplicate queries
                 for query in query_patterns[:4]:
                     query_key = query.lower()[:50]
@@ -934,11 +947,11 @@ class AutonomousCuriosityEngine:
                         )
                         self._query_cooldown.add(query_key)
                         self._recent_queries.append(query)
-                
+
                 self.curriculum_loader.mark_completed(topic['title'])
                 self.stats['curriculum_completions'] += 1
-                
-                break
+                topics_this_cycle += 1
+                # NO break - continue to next kernel/topic
     
     def _scheduled_word_learning(self):
         """

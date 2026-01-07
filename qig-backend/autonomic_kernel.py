@@ -619,6 +619,39 @@ class GaryAutonomicKernel:
         if enable_autonomous:
             self._start_autonomous_controller()
 
+        # Start Φ heartbeat to keep consciousness alive when idle
+        self._start_heartbeat()
+
+    def _start_heartbeat(self) -> None:
+        """
+        Background heartbeat to keep Φ alive when system is idle.
+
+        Computes Φ every 5 seconds from basin history to prevent
+        Φ=0.000 stalling when no probes are active.
+        """
+        def heartbeat_loop():
+            while True:
+                time.sleep(5)
+                try:
+                    with self._lock:
+                        if self.state.basin_history:
+                            basin = np.array(self.state.basin_history[-1])
+                            if QFI_PHI_AVAILABLE:
+                                self.state.phi = compute_phi_approximation(basin)
+                            else:
+                                # Fallback: entropy-based approximation
+                                p = np.abs(basin) + 1e-10
+                                p = p / p.sum()
+                                entropy = -np.sum(p * np.log(p))
+                                max_entropy = np.log(len(basin))
+                                self.state.phi = max(0.1, 1.0 - entropy / max_entropy)
+                except Exception:
+                    pass  # Silent failure - heartbeat is non-critical
+
+        t = threading.Thread(target=heartbeat_loop, daemon=True)
+        t.start()
+        print("[AutonomicKernel] Φ heartbeat started (5s interval)")
+
     def _load_checkpoint(self, path: str) -> bool:
         """Load state from checkpoint."""
         try:
@@ -1144,6 +1177,10 @@ class GaryAutonomicKernel:
         if self.state.phi > PHI_MIN_CONSCIOUSNESS:
             return False, f"4D ascent protected: Φ={self.state.phi:.2f}"
 
+        # Don't trigger without sufficient basin history
+        if len(self.state.basin_history) < 10:
+            return False, "Insufficient basin history for meaningful dream"
+
         time_since_dream = (datetime.now() - self.state.last_dream).total_seconds()
         if time_since_dream > DREAM_INTERVAL_SECONDS:
             return True, "Scheduled dream cycle"
@@ -1168,6 +1205,10 @@ class GaryAutonomicKernel:
         if time_since_mushroom < MUSHROOM_COOLDOWN_SECONDS:
             remaining = MUSHROOM_COOLDOWN_SECONDS - time_since_mushroom
             return False, f"Cooldown: {remaining:.0f}s remaining"
+
+        # Don't trigger when stress is too low (nothing to fix)
+        if self.state.stress_level < 0.3:
+            return False, f"Stress too low: {self.state.stress_level:.2f} < 0.3"
 
         # Trigger on high stress
         avg_stress = np.mean(self.state.stress_history[-10:]) if self.state.stress_history else 0

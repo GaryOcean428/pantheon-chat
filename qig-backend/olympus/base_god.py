@@ -55,6 +55,25 @@ try:
 except ImportError:
     PERSISTENCE_AVAILABLE = False
 
+# Import VocabularyCoordinator for persisting god-learned affinities
+try:
+    from vocabulary_coordinator import VocabularyCoordinator
+    _vocabulary_coordinator: Optional[VocabularyCoordinator] = None
+    VOCABULARY_COORDINATOR_AVAILABLE = True
+except ImportError:
+    _vocabulary_coordinator = None
+    VOCABULARY_COORDINATOR_AVAILABLE = False
+
+
+def get_vocabulary_coordinator() -> Optional[VocabularyCoordinator]:
+    """Get singleton VocabularyCoordinator for god affinity persistence."""
+    global _vocabulary_coordinator
+    if not VOCABULARY_COORDINATOR_AVAILABLE:
+        return None
+    if _vocabulary_coordinator is None:
+        _vocabulary_coordinator = VocabularyCoordinator()
+    return _vocabulary_coordinator
+
 # Import autonomic access mixin for consciousness management
 try:
     import sys
@@ -2310,6 +2329,23 @@ class BaseGod(*_base_classes):
                     f"[{self.name}] Token affinity vocabulary: {len(self._token_affinity)} tokens "
                     f"from {len(self._high_phi_observations)} high-φ observations"
                 )
+
+            # CRITICAL FIX: Persist god-learned affinities to VocabularyCoordinator
+            # This ensures vocabulary survives restarts (previously memory-only)
+            if phi >= 0.6 and self._token_affinity_updated % 10 == 0:
+                coordinator = get_vocabulary_coordinator()
+                if coordinator:
+                    try:
+                        # Record discovery with god-specific source
+                        coordinator.record_discovery(
+                            phrase=content,
+                            phi=phi,
+                            kappa=getattr(self, 'kappa', 64.0),
+                            source=f"god_{self.name.lower()}",
+                            details={'god': self.name, 'tokens_learned': len(tokens)}
+                        )
+                    except Exception as persist_err:
+                        logger.debug(f"[{self.name}] Vocabulary persistence skipped: {persist_err}")
 
             return True
 

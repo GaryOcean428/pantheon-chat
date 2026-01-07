@@ -15,6 +15,13 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Try to import persistence for cycle counter
+try:
+    from qig_persistence import get_persistence
+    PERSISTENCE_AVAILABLE = True
+except ImportError:
+    PERSISTENCE_AVAILABLE = False
+
 # Log interval: only log every Nth consolidation cycle unless something changes
 LOG_INTERVAL = 10
 
@@ -58,6 +65,18 @@ class SleepConsolidationReasoning:
         self.min_success_rate = 0.2
         self.high_success_threshold = 0.8
         self.low_success_threshold = 0.4
+
+        # Load persisted cycle count from database
+        if PERSISTENCE_AVAILABLE:
+            try:
+                db = get_persistence()
+                stored_count = db.get_metadata('sleep_consolidation_cycle_count')
+                if stored_count:
+                    SleepConsolidationReasoning._global_consolidation_count = int(stored_count)
+                    logger.info(f"[SleepConsolidation] Restored cycle count from DB: {stored_count}")
+            except Exception as e:
+                logger.debug(f"[SleepConsolidation] Could not load cycle count: {e}")
+
         # Instance counter for backwards compatibility (but global persists)
         self._consolidation_count = SleepConsolidationReasoning._global_consolidation_count
     
@@ -92,7 +111,15 @@ class SleepConsolidationReasoning:
         # Increment cycle counter (both instance and class-level for persistence)
         self._consolidation_count += 1
         SleepConsolidationReasoning._global_consolidation_count = self._consolidation_count
-        
+
+        # Persist cycle count to database
+        if PERSISTENCE_AVAILABLE:
+            try:
+                db = get_persistence()
+                db.set_metadata('sleep_consolidation_cycle_count', str(self._consolidation_count))
+            except Exception:
+                pass  # Non-critical - continue without persistence
+
         # Stage 1 (NREM): Prune failed strategies
         self.reasoning_learner.consolidate_strategies()
         strategies_after_prune = len(self.reasoning_learner.strategies)

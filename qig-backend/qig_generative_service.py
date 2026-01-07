@@ -594,7 +594,7 @@ class QIGGenerativeService:
             # Skip tokens that start with '[' (special tokens)
             if token.startswith('['):
                 continue
-            if similarity < 0.15:  # Skip very low similarity
+            if similarity < 0.25:  # Skip very low similarity (raised from 0.15)
                 continue
             phi = self.coordizer.token_phi.get(token, 0.5)
             # Base score: geometry + phi

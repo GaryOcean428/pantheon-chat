@@ -15,7 +15,7 @@ Responsibilities:
 import os
 import json
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass, field
 import numpy as np
@@ -27,6 +27,27 @@ from .loss_functions import (
     PHI_THRESHOLD,
     KAPPA_STAR,
 )
+
+# Database persistence for training history
+try:
+    import psycopg2
+    from psycopg2.extras import Json
+    DB_AVAILABLE = True
+except ImportError:
+    DB_AVAILABLE = False
+
+def _get_db_connection():
+    """Get database connection for training history persistence."""
+    if not DB_AVAILABLE:
+        return None
+    try:
+        import os
+        database_url = os.environ.get('DATABASE_URL')
+        if not database_url:
+            return None
+        return psycopg2.connect(database_url)
+    except Exception:
+        return None
 
 
 @dataclass
@@ -195,6 +216,16 @@ class KernelTrainingOrchestrator:
         # Record in history
         self._record_metrics(god_name, metrics)
 
+        # CRITICAL: Persist training to database (kernel_training_history table)
+        # This ensures training survives restarts and enables analytics
+        self._persist_training_history(
+            god_name=god_name,
+            metrics=metrics,
+            training_type="outcome",
+            basin_coords=basin_coords,
+            trigger="chat_interaction"
+        )
+
         # Auto-save checkpoint if improved
         if phi > kernel.best_phi:
             kernel.best_phi = phi
@@ -257,6 +288,14 @@ class KernelTrainingOrchestrator:
             loss=total_loss / max(steps, 1),
             reward=total_reward / max(steps, 1),
             step_count=steps,
+        )
+
+        # Persist batch training to database
+        self._persist_training_history(
+            god_name=god_name,
+            metrics=avg_metrics,
+            training_type="hourly",
+            trigger="hourly_batch"
         )
 
         # Save checkpoint after batch
@@ -562,6 +601,89 @@ class KernelTrainingOrchestrator:
         # Trim to limit
         if len(self.history[god_name]) > self.history_limit:
             self.history[god_name] = self.history[god_name][-self.history_limit:]
+
+    def _persist_training_history(
+        self,
+        god_name: str,
+        metrics: TrainingMetrics,
+        training_type: str,
+        basin_coords: Optional[np.ndarray] = None,
+        trigger: Optional[str] = None,
+        session_id: Optional[str] = None,
+        conversation_id: Optional[str] = None,
+    ) -> bool:
+        """
+        Persist training record to kernel_training_history table.
+
+        CRITICAL: This enables training history to survive restarts.
+        Works for both main Pantheon and Shadow Pantheon gods.
+
+        Args:
+            god_name: Name of the god (e.g., "Apollo", "Nyx")
+            metrics: Training metrics from this step
+            training_type: "outcome", "hourly", or "nightly"
+            basin_coords: Optional 64D basin coordinates
+            trigger: What triggered this training
+            session_id: Optional session ID for tracking
+            conversation_id: Optional conversation ID
+
+        Returns:
+            True if persisted successfully
+        """
+        conn = _get_db_connection()
+        if conn is None:
+            return False
+
+        try:
+            cursor = conn.cursor()
+
+            # Convert basin coords to list for storage
+            basin_list = None
+            if basin_coords is not None:
+                basin_list = basin_coords.tolist() if hasattr(basin_coords, 'tolist') else list(basin_coords)
+
+            query = """
+                INSERT INTO kernel_training_history (
+                    god_name, loss, reward, gradient_norm,
+                    phi_before, phi_after, kappa_before, kappa_after,
+                    basin_coords, training_type, trigger, step_count,
+                    session_id, conversation_id, created_at
+                ) VALUES (
+                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                )
+            """
+
+            cursor.execute(query, (
+                god_name,
+                float(metrics.loss),
+                float(metrics.reward),
+                float(getattr(metrics, 'gradient_norm', 0.0)),
+                float(getattr(metrics, 'phi_before', 0.5)),
+                float(getattr(metrics, 'phi_after', 0.5)),
+                float(getattr(metrics, 'kappa_before', 64.0)),
+                float(getattr(metrics, 'kappa_after', 64.0)),
+                basin_list,
+                training_type,
+                trigger,
+                int(getattr(metrics, 'step_count', 0)),
+                session_id,
+                conversation_id,
+                datetime.now(timezone.utc)
+            ))
+
+            conn.commit()
+            cursor.close()
+            conn.close()
+
+            return True
+
+        except Exception as e:
+            print(f"[TrainingOrchestrator] Failed to persist training history for {god_name}: {e}")
+            try:
+                conn.close()
+            except:
+                pass
+            return False
 
     def get_training_stats(self, god_name: str) -> Dict[str, Any]:
         """Get training statistics for a god."""

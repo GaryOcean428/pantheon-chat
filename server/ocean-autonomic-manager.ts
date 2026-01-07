@@ -190,20 +190,23 @@ export class OceanAutonomicManager {
   private computeDiscoveryDrivenPhi(baselinePhi: number): number {
     const recentProbes = geometricMemory.getRecentProbes(50);
 
+    // ALWAYS prefer Python's Φ over local computation when cache is fresh
+    // This ensures TypeScript and Python report consistent values
+    if (this.cachedKernelPhi !== null) {
+      const kernelAge = Date.now() - this.lastKernelPhiFetch.getTime();
+      if (kernelAge < 30000) { // Only use if fetched < 30s ago
+        // Log when overriding local computation with significant difference
+        if (baselinePhi > 0 && Math.abs(baselinePhi - this.cachedKernelPhi) > 0.1) {
+          console.log(`[Autonomic] Kernel phi=${this.cachedKernelPhi.toFixed(3)} overrides local=${baselinePhi.toFixed(3)}`);
+        }
+        return this.cachedKernelPhi;
+      }
+    }
+
     // When no probes from Python backend, mark data as stale
     if (recentProbes.length === 0) {
       this.phiDataStale = true;
-      
-      // If baseline is explicitly 0 AND we have a cached kernel phi (from background fetch),
-      // use that as a fallback - but log it for telemetry
-      if (baselinePhi <= 0 && this.cachedKernelPhi !== null) {
-        const kernelAge = Date.now() - this.lastKernelPhiFetch.getTime();
-        if (kernelAge < 30000) { // Only use if fetched < 30s ago
-          console.log(`[Autonomic] Using cached kernel phi=${this.cachedKernelPhi.toFixed(3)} (stale=${kernelAge}ms)`);
-          return this.cachedKernelPhi;
-        }
-      }
-      
+
       // No valid cached value
       // CRITICAL FIX: Never return 0 phi unless genuinely in breakdown
       // phi=0 should only occur when kappa > 90 or < 10 (measured breakdown)

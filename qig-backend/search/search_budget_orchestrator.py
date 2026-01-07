@@ -14,12 +14,71 @@ Search outcomes feed into learning for kernel evolution.
 import os
 import json
 import logging
-from datetime import datetime, date
+import hashlib
+from datetime import datetime, date, timezone
 from typing import Dict, Any, Optional, List, Tuple
 from dataclasses import dataclass, field, asdict
 from enum import Enum
 
 logger = logging.getLogger(__name__)
+
+# Database persistence for search outcomes
+try:
+    import psycopg2
+    DB_AVAILABLE = True
+except ImportError:
+    DB_AVAILABLE = False
+
+
+def _persist_search_outcome(
+    query: str,
+    provider: str,
+    success: bool,
+    result_count: int,
+    relevance_score: float,
+    kernel_id: Optional[str] = None,
+    cost_cents: float = 0.0,
+) -> bool:
+    """Persist search outcome to search_outcomes table."""
+    if not DB_AVAILABLE:
+        return False
+
+    try:
+        database_url = os.environ.get('DATABASE_URL')
+        if not database_url:
+            return False
+
+        conn = psycopg2.connect(database_url)
+        cursor = conn.cursor()
+
+        # Hash the query for grouping/deduplication
+        query_hash = hashlib.sha256(query.encode()).hexdigest()[:32]
+
+        cursor.execute("""
+            INSERT INTO search_outcomes (
+                date, query_hash, provider, success, result_count,
+                relevance_score, cost_cents, kernel_id, created_at
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (
+            date.today(),
+            query_hash,
+            provider,
+            success,
+            result_count,
+            relevance_score,
+            cost_cents,
+            kernel_id,
+            datetime.now(timezone.utc)
+        ))
+
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return True
+
+    except Exception as e:
+        logger.debug(f"[SearchBudget] Failed to persist search outcome: {e}")
+        return False
 
 
 class SearchImportance(Enum):
@@ -350,7 +409,19 @@ class SearchBudgetOrchestrator:
             self.outcomes = self.outcomes[-500:]
         
         self._update_efficacy(provider, relevance_score)
-        
+
+        # Persist to PostgreSQL search_outcomes table (for analytics and learning)
+        cost_cents = self.budgets.get(provider, ProviderBudget(name=provider, daily_limit=0)).cost_per_query * 100
+        _persist_search_outcome(
+            query=query,
+            provider=provider,
+            success=success,
+            result_count=result_count,
+            relevance_score=relevance_score,
+            kernel_id=kernel_id,
+            cost_cents=cost_cents
+        )
+
         if self.redis:
             try:
                 key = f"search_outcomes:{date.today().isoformat()}"

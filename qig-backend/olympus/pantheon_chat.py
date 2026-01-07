@@ -413,14 +413,20 @@ class PantheonChat:
         try:
             from vocabulary_tracker import get_vocabulary_tracker
             tracker = get_vocabulary_tracker()
-            
+
             if hasattr(tracker, 'sample_words'):
                 words = tracker.sample_words(count=8, context=intent)
                 if words:
-                    return " ".join(words)
+                    text = " ".join(words)
+                    # COHERENCE GATE: Check for word salad before returning
+                    is_coherent, reason = _check_text_coherence(text)
+                    if not is_coherent:
+                        logger.warning(f"[PantheonChat] Geometric synthesis failed coherence: {reason}")
+                        return f"[{from_god}: Φ insufficient for coherent synthesis]"
+                    return text
         except Exception as e:
             logger.debug(f"[PantheonChat] Vocabulary sampling failed: {e}")
-        
+
         logger.error(f"[PantheonChat] All synthesis methods failed for {from_god}:{intent}")
         return f"[{from_god}] {intent}"
 
