@@ -1,19 +1,28 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ConsciousnessDashboard } from "@/components/ConsciousnessDashboard";
-import { BetaAttentionDisplay } from "@/components/BetaAttentionDisplay";
-import NeurochemistryDisplay from "@/components/NeurochemistryDisplay";
-import { InnateDrivesDisplay } from "@/components/InnateDrivesDisplay";
-import CapabilityTelemetryPanel from "@/components/CapabilityTelemetryPanel";
-import { ConsciousnessMonitoringDemo } from "@/components/ConsciousnessMonitoringDemo";
-import { EmotionalStatePanel } from "@/components/EmotionalStatePanel";
-import NeurochemistryAdminPanel from "@/components/NeurochemistryAdminPanel";
-import SearchBudgetPanel from "@/components/SearchBudgetPanel";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { Skeleton } from "@/components/ui/skeleton";
+import {
+  ConsciousnessDashboard,
+  BetaAttentionDisplay,
+  NeurochemistryDisplay,
+  InnateDrivesDisplay,
+  CapabilityTelemetryPanel,
+  ConsciousnessMonitoringDemo,
+  EmotionalStatePanel,
+  NeurochemistryAdminPanel,
+  SearchBudgetPanel,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+  Badge,
+  Progress,
+  Skeleton,
+} from "@/components";
 import { Activity, Brain, Shield, Zap, Server, TrendingUp, AlertCircle, CheckCircle2, Radio, Database, Cpu } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from "recharts";
 import { API_ROUTES, QUERY_KEYS } from "@/api/routes";

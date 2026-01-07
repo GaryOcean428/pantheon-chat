@@ -3,15 +3,16 @@
  */
 
 import React from 'react';
-import { Card, CardContent } from '@/components/ui';
 import {
+  Card,
+  CardContent,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
+} from '@/components/ui';
 import { Loader2, FileX, ArrowUpDown } from 'lucide-react';
 import { ToolCard } from './ToolCard';
 import { TOOL_CATEGORIES, TOOL_STATUSES, DASHBOARD_CONSTANTS } from '../constants';

@@ -37,3 +37,6 @@ export { PhiVisualization } from './PhiVisualization';
 export { SessionExpirationModal } from './SessionExpirationModal';
 export { WarStatusPanel } from './war-status-panel';
 export { default as ZeusChat } from './ZeusChat';
+export { AgentActivityFeed } from './agent-activity-feed';
+export { PythonStatusBanner, PythonStatusInline } from './python-status-banner';
+export { default as SearchBudgetPanel } from './SearchBudgetPanel';
