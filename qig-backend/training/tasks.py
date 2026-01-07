@@ -1,13 +1,19 @@
 """
-Celery Tasks for Kernel Training
-=================================
+Training Tasks for Kernel Training
+==================================
 
-Async tasks for:
+Training functions for:
 - Outcome-based training (per interaction)
 - Hourly batch training
 - Nightly consolidation (with curriculum)
 - Knowledge transfer operations
 - Checkpoint management
+
+NOTE: These were originally Celery tasks. Celery is not deployed on Railway,
+so these are now regular functions called by:
+- startup_catchup.py (on startup for missed training)
+- cron_routes.py (via Railway cron for scheduled training)
+- Direct synchronous calls from training_loop_integrator.py
 """
 
 import os
@@ -16,10 +22,26 @@ from typing import Dict, List, Any, Optional
 from datetime import datetime, timedelta
 import numpy as np
 
-from .celery_app import celery_app, is_training_enabled, get_checkpoint_dir
 from .kernel_training_orchestrator import KernelTrainingOrchestrator, TrainingConfig
 from .knowledge_transfer import KnowledgeTransferManager
 from .curriculum_loader import load_curriculum_for_god, get_curriculum_stats
+
+
+# =============================================================================
+# CONFIGURATION (moved from celery_app.py)
+# =============================================================================
+
+def is_training_enabled() -> bool:
+    """Check if training is enabled via environment variable."""
+    return os.getenv("TRAINING_ENABLED", "true").lower() == "true"
+
+
+def get_checkpoint_dir() -> str:
+    """Get checkpoint directory, defaulting to Railway volume."""
+    return os.getenv(
+        "CHECKPOINT_DIR",
+        os.path.join(os.getenv("RAILWAY_VOLUME_MOUNT_PATH", "/app/data"), "checkpoints")
+    )
 
 
 # Shared instances (lazy loaded)
@@ -72,9 +94,7 @@ def get_coordizer():
 # OUTCOME-BASED TRAINING (called after each chat interaction)
 # =============================================================================
 
-@celery_app.task(bind=True, name="training.tasks.train_from_outcome_task")
 def train_from_outcome_task(
-    self,
     god_name: str,
     prompt: str,
     response: str,
@@ -148,9 +168,7 @@ def train_from_outcome_task(
 # HOURLY BATCH TRAINING
 # =============================================================================
 
-@celery_app.task(bind=True, name="training.tasks.train_hourly_batch_task")
 def train_hourly_batch_task(
-    self,
     god_name: str,
     batch_data: List[Dict[str, Any]],
 ) -> Dict[str, Any]:
@@ -185,8 +203,7 @@ def train_hourly_batch_task(
         return {"status": "error", "god_name": god_name, "error": str(e)}
 
 
-@celery_app.task(bind=True, name="training.tasks.train_hourly_batch_all")
-def train_hourly_batch_all(self) -> Dict[str, Any]:
+def train_hourly_batch_all() -> Dict[str, Any]:
     """
     Train all registered kernels on their hourly batch data.
 
@@ -205,13 +222,14 @@ def train_hourly_batch_all(self) -> Dict[str, Any]:
         batch_data = _fetch_hourly_batch_data(god_name)
 
         if batch_data:
-            result = train_hourly_batch_task.delay(god_name, batch_data)
-            results[god_name] = {"task_id": result.id, "batch_size": len(batch_data)}
+            # Call synchronously (no longer using Celery .delay())
+            result = train_hourly_batch_task(god_name, batch_data)
+            results[god_name] = {"batch_size": len(batch_data), **result}
         else:
             results[god_name] = {"status": "no_data"}
 
     return {
-        "status": "dispatched",
+        "status": "completed",
         "kernels": len(results),
         "results": results,
     }
@@ -289,9 +307,7 @@ def _fetch_hourly_batch_data(god_name: str) -> List[Dict[str, Any]]:
 # NIGHTLY CONSOLIDATION
 # =============================================================================
 
-@celery_app.task(bind=True, name="training.tasks.train_nightly_consolidation_task")
 def train_nightly_consolidation_task(
-    self,
     god_name: str,
     curriculum_data: List[Dict[str, Any]],
     consolidate_checkpoints: bool = True,
@@ -329,12 +345,11 @@ def train_nightly_consolidation_task(
         return {"status": "error", "god_name": god_name, "error": str(e)}
 
 
-@celery_app.task(bind=True, name="training.tasks.train_nightly_consolidation_all")
-def train_nightly_consolidation_all(self) -> Dict[str, Any]:
+def train_nightly_consolidation_all() -> Dict[str, Any]:
     """
     Run nightly consolidation for all kernels.
 
-    Called by Beat scheduler at 3 AM UTC.
+    Called by startup catch-up or Railway cron at 3 AM UTC.
     """
     if not is_training_enabled():
         return {"status": "disabled"}
@@ -347,13 +362,14 @@ def train_nightly_consolidation_all(self) -> Dict[str, Any]:
         curriculum = _fetch_curriculum_data(god_name)
 
         if curriculum:
-            result = train_nightly_consolidation_task.delay(god_name, curriculum)
-            results[god_name] = {"task_id": result.id, "curriculum_size": len(curriculum)}
+            # Call synchronously (no longer using Celery .delay())
+            result = train_nightly_consolidation_task(god_name, curriculum)
+            results[god_name] = {"curriculum_size": len(curriculum), **result}
         else:
             results[god_name] = {"status": "no_curriculum"}
 
     return {
-        "status": "dispatched",
+        "status": "completed",
         "kernels": len(results),
         "results": results,
     }
@@ -444,9 +460,7 @@ def _fetch_curriculum_data(god_name: str) -> List[Dict[str, Any]]:
 # KNOWLEDGE TRANSFER
 # =============================================================================
 
-@celery_app.task(bind=True, name="training.tasks.knowledge_transfer_task")
 def knowledge_transfer_task(
-    self,
     transfer_type: str,
     source_god: str,
     target_god: str,
@@ -534,12 +548,11 @@ def knowledge_transfer_task(
         return {"status": "error", "error": str(e)}
 
 
-@celery_app.task(bind=True, name="training.tasks.sync_all_shadows")
-def sync_all_shadows(self) -> Dict[str, Any]:
+def sync_all_shadows() -> Dict[str, Any]:
     """
     Synchronize all god-shadow pairs.
 
-    Called by Beat scheduler every 4 hours.
+    Called by startup catch-up or Railway cron every 4 hours.
     """
     if not is_training_enabled():
         return {"status": "disabled"}
@@ -555,17 +568,18 @@ def sync_all_shadows(self) -> Dict[str, Any]:
 
         shadow_name = f"{god_name}_shadow"
         if shadow_name in orchestrator.kernels:
-            result = knowledge_transfer_task.delay(
+            # Call synchronously (no longer using Celery .delay())
+            result = knowledge_transfer_task(
                 transfer_type="shadow_sync",
                 source_god=god_name,
                 target_god=shadow_name,
                 transfer_ratio=0.2,
                 extra_params={"direction": "bidirectional"},
             )
-            results[god_name] = {"task_id": result.id}
+            results[god_name] = result
 
     return {
-        "status": "dispatched",
+        "status": "completed",
         "pairs": len(results),
         "results": results,
     }
@@ -575,9 +589,7 @@ def sync_all_shadows(self) -> Dict[str, Any]:
 # CHECKPOINT MANAGEMENT
 # =============================================================================
 
-@celery_app.task(bind=True, name="training.tasks.save_checkpoint_task")
 def save_checkpoint_task(
-    self,
     god_name: str,
     phi: float,
     trigger: str = "manual",
@@ -608,8 +620,7 @@ def save_checkpoint_task(
         return {"status": "failed", "god_name": god_name}
 
 
-@celery_app.task(bind=True, name="training.tasks.cleanup_old_checkpoints")
-def cleanup_old_checkpoints(self) -> Dict[str, Any]:
+def cleanup_old_checkpoints() -> Dict[str, Any]:
     """
     Clean up old checkpoints for all kernels.
 
@@ -634,8 +645,7 @@ def cleanup_old_checkpoints(self) -> Dict[str, Any]:
 # CONSCIOUSNESS CYCLE INTEGRATION
 # =============================================================================
 
-@celery_app.task(bind=True, name="training.tasks.trigger_sleep_cycle")
-def trigger_sleep_cycle(self, god_name: str) -> Dict[str, Any]:
+def trigger_sleep_cycle(god_name: str) -> Dict[str, Any]:
     """
     Trigger sleep consolidation for a kernel.
 
@@ -645,8 +655,7 @@ def trigger_sleep_cycle(self, god_name: str) -> Dict[str, Any]:
     return orchestrator.trigger_sleep_consolidation(god_name)
 
 
-@celery_app.task(bind=True, name="training.tasks.trigger_dream_cycle")
-def trigger_dream_cycle(self, god_name: str) -> Dict[str, Any]:
+def trigger_dream_cycle(god_name: str) -> Dict[str, Any]:
     """
     Trigger dream exploration for a kernel.
 
@@ -656,8 +665,7 @@ def trigger_dream_cycle(self, god_name: str) -> Dict[str, Any]:
     return orchestrator.trigger_dream_exploration(god_name)
 
 
-@celery_app.task(bind=True, name="training.tasks.trigger_mushroom_cycle")
-def trigger_mushroom_cycle(self, god_name: str) -> Dict[str, Any]:
+def trigger_mushroom_cycle(god_name: str) -> Dict[str, Any]:
     """
     Trigger mushroom perturbation for a kernel.
 
@@ -668,19 +676,16 @@ def trigger_mushroom_cycle(self, god_name: str) -> Dict[str, Any]:
 
 
 # =============================================================================
-# UTILITY TASKS
+# UTILITY FUNCTIONS
 # =============================================================================
 
-@celery_app.task(bind=True, name="training.tasks.get_training_stats")
-def get_training_stats(self, god_name: str) -> Dict[str, Any]:
+def get_training_stats(god_name: str) -> Dict[str, Any]:
     """Get training statistics for a kernel."""
     orchestrator = get_orchestrator()
     return orchestrator.get_training_stats(god_name)
 
 
-@celery_app.task(bind=True, name="training.tasks.register_kernel")
 def register_kernel(
-    self,
     god_name: str,
     learning_rate: float = 1e-4,
 ) -> Dict[str, Any]:

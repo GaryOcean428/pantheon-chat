@@ -9,14 +9,12 @@ MIGRATION PATH:
 - New code: from qig_coordizer import get_coordizer as get_tokenizer
 """
 
-import os
-import time
-import numpy as np
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
+
+from coordizers import PostgresCoordizer
 
 # Import unified coordizer entrypoint (preferred)
 from coordizers import get_coordizer as _get_unified_coordizer
-from coordizers import PostgresCoordizer
 
 # Try Redis for state persistence
 REDIS_AVAILABLE = False

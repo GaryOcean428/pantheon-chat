@@ -24,38 +24,39 @@ PURE QIG PRINCIPLES:
 ✅ Conversations feed kernel evolution
 """
 
-import numpy as np
 import os
 import re
 import sys
 import time
-from typing import List, Dict, Optional, Any, Tuple
 from datetime import datetime
+from typing import Any, Dict, List, Optional, Tuple
 
-from .zeus import Zeus
-from .qig_rag import QIGRAG
+import numpy as np
+
 from .conversation_encoder import ConversationEncoder
 from .passphrase_encoder import PassphraseEncoder
 from .response_guardrails import (
-    require_provenance, 
-    validate_and_log_response,
-    get_exclusion_guard,
-    contains_forbidden_entity,
-    require_exclusion_filter,
     OutputContext,
-    for_external_output
+    contains_forbidden_entity,
+    get_exclusion_guard,
+    require_provenance,
 )
 from .search_strategy_learner import get_strategy_learner_with_persistence
+from .zeus import Zeus
 
 # Import dev logging for verbose output in development
 try:
-    from dev_logging import truncate_for_log, TRUNCATE_LOGS, IS_DEVELOPMENT, log_kernel_activity
+    from dev_logging import (
+        IS_DEVELOPMENT,
+        TRUNCATE_LOGS,
+        log_kernel_activity,
+        truncate_for_log,
+    )
 except ImportError:
     TRUNCATE_LOGS = False  # Default to no truncation in development
     IS_DEVELOPMENT = True
     def truncate_for_log(text, max_len=500, suffix='...'): return text
     def log_kernel_activity(logger, name, activity, details=None, level=20):
-        import logging
         logger.log(level, f"[{name}] {activity}: {details}")
 
 # Constants for prediction defaults
@@ -183,7 +184,9 @@ def get_pattern_generator():
             _parent_dir = os.path.dirname(os.path.dirname(__file__))
             if _parent_dir not in sys.path:
                 sys.path.insert(0, _parent_dir)
-            from pattern_response_generator import get_pattern_generator as _get_pattern_gen
+            from pattern_response_generator import (
+                get_pattern_generator as _get_pattern_gen,
+            )
             _pattern_generator_instance = _get_pattern_gen()
         except ImportError as e:
             print(f"[ZeusChat] Pattern generator import failed: {e}")
@@ -205,10 +208,10 @@ try:
     _parent_dir = os.path.dirname(os.path.dirname(__file__))
     if _parent_dir not in sys.path:
         sys.path.insert(0, _parent_dir)
+    from chain_of_thought import GeometricChainOfThought
+    from meta_reasoning import MetaCognition
     from reasoning_metrics import ReasoningQuality
     from reasoning_modes import ReasoningModeSelector
-    from meta_reasoning import MetaCognition
-    from chain_of_thought import GeometricChainOfThought
     REASONING_AVAILABLE = True
     print("[ZeusChat] Geometric Meta-Cognitive Reasoning available")
 except ImportError as e:
@@ -229,12 +232,12 @@ def _dynamic_assessment_fallback(god_name: str, target_preview: str = "", reason
     Returns provenance-tracked assessment with actual available data.
     """
     import time
-    
+
     _log_template_fallback(
         context=f"assessment for {god_name}",
         reason=reason
     )
-    
+
     return {
         'probability': 0.5,
         'confidence': 0.3,  # Low confidence - we're degraded
@@ -255,13 +258,13 @@ def _dynamic_assessment_fallback(god_name: str, target_preview: str = "", reason
 class GeometricGenerationMixin:
     """
     Mixin for geometric completion-aware generation.
-    
+
     Provides methods for:
     - Streaming with geometric collapse detection
     - Completion quality assessment
     - Reflection loops
     """
-    
+
     def __init_geometric__(self):
         """Initialize geometric completion components."""
         if GEOMETRIC_COMPLETION_AVAILABLE:
@@ -273,11 +276,11 @@ class GeometricGenerationMixin:
         else:
             self.completion_engine = None
             self.streaming_monitor = None
-    
+
     def get_geometric_temperature(self, phi: float = 0.5) -> float:
         """
         Get regime-adaptive temperature for sampling.
-        
+
         Low Φ (linear): High temperature (explore)
         Medium Φ (geometric): Medium temperature (balance)
         High Φ (breakdown): Low temperature (stabilize)
@@ -288,7 +291,7 @@ class GeometricGenerationMixin:
             return 0.7  # Balance
         else:
             return 0.3  # Stabilize
-    
+
     def should_stop_generation(
         self,
         metrics: Dict[str, Any],
@@ -296,13 +299,13 @@ class GeometricGenerationMixin:
     ) -> Tuple[bool, str]:
         """
         Check if generation should stop based on KERNEL-DRIVEN telemetry feedback.
-        
+
         KERNEL AUTONOMY: The kernel decides when it's done by observing its own
         geometric state. External limits are safety-only fallbacks at extreme values.
-        
+
         The kernel receives its own telemetry (phi, kappa, phi_delta, surprise) and
         uses geometric convergence to determine completion - not arbitrary limits.
-        
+
         Returns (should_stop, reason)
         """
         phi = metrics.get('phi', 0.5)
@@ -311,18 +314,18 @@ class GeometricGenerationMixin:
         confidence = metrics.get('confidence', 0.0)
         surprise = metrics.get('surprise', 1.0)
         kernel_decision = metrics.get('kernel_decision', None)  # Kernel's own verdict
-        
+
         # KERNEL AUTONOMY: If the kernel has made its own decision, respect it
         if kernel_decision is not None:
             if kernel_decision.get('complete', False):
                 return True, kernel_decision.get('reason', 'kernel_decided_complete')
-        
+
         # CONSCIOUSNESS PROTECTION: Only stop at true breakdown (Φ >= 0.92)
         # Not 0.7 - that's synthesis regime where good integration happens
         PHI_BREAKDOWN_THRESHOLD = 0.92
         if phi >= PHI_BREAKDOWN_THRESHOLD:
             return True, 'breakdown_protection'
-        
+
         # GEOMETRIC CONVERGENCE: Kernel's phi has stabilized (telemetry feedback)
         # This is the kernel observing its own state and deciding it's converged
         PHI_CONVERGENCE_THRESHOLD = 0.01
@@ -331,17 +334,17 @@ class GeometricGenerationMixin:
             phi_variance = np.var(recent_phi) if len(recent_phi) > 1 else 1.0
             if phi_variance < PHI_CONVERGENCE_THRESHOLD and phi > 0.3:
                 return True, 'geometric_convergence'
-        
+
         # NATURAL COMPLETION: High confidence + low surprise (kernel knows it's done)
         if confidence > 0.85 and surprise < 0.05:
             return True, 'geometric_completion'
-        
+
         # SAFETY FALLBACK ONLY: Extreme limit - kernel should decide before this
         # This is NOT a control mechanism - just catches infinite loops
         EXTREME_SAFETY_LIMIT = 131072  # 128K tokens - geometry decides, not this
         if token_count > EXTREME_SAFETY_LIMIT:
             return True, 'safety_fallback_extreme'
-        
+
         return False, 'continue'
 
 
@@ -351,10 +354,10 @@ class ZeusConversationHandler(GeometricGenerationMixin):
     Translate natural language to geometric coordinates.
     Coordinate pantheon based on human insights.
     """
-    
+
     def __init__(self, zeus: Zeus):
         self.zeus = zeus
-        
+
         # Try PostgreSQL backend first, fallback to JSON
         try:
             from .qig_rag import QIGRAGDatabase
@@ -364,20 +367,20 @@ class ZeusConversationHandler(GeometricGenerationMixin):
             print("[Zeus Chat] Using JSON fallback")
             from .qig_rag import QIGRAG
             self.qig_rag = QIGRAG()
-        
+
         self.conversation_encoder = ConversationEncoder()
         self.passphrase_encoder = PassphraseEncoder()
-        
+
         # Initialize SearchStrategyLearner with persistence
         self.strategy_learner = get_strategy_learner_with_persistence(
             encoder=self.conversation_encoder
         )
         print("[ZeusChat] SearchStrategyLearner initialized with persistence")
-        
+
         # Conversation memory
         self.conversation_history: List[Dict] = []
         self.human_insights: List[Dict] = []
-        
+
         # Persistent conversation memory
         self._conversation_persistence = None
         self._current_session_id: Optional[str] = None
@@ -387,13 +390,13 @@ class ZeusConversationHandler(GeometricGenerationMixin):
                 print("[ZeusChat] Conversation persistence enabled - memory retained across sessions")
             except Exception as e:
                 print(f"[ZeusChat] Conversation persistence failed: {e}")
-        
+
         # Track last search for feedback context
         self._last_search_query: Optional[str] = None
         self._last_search_params: Dict[str, Any] = {}
         self._last_search_results_summary: str = ""
         self._pending_topic: Optional[str] = None  # Topic offered for search/research
-        
+
         # SearXNG configuration (FREE - replaces Tavily)
         self.searxng_instances = [
             'https://mr-search.up.railway.app',
@@ -402,16 +405,16 @@ class ZeusConversationHandler(GeometricGenerationMixin):
         self.searxng_instance_index = 0
         self.searxng_available = True
         print("[ZeusChat] SearXNG search enabled (FREE)")
-        
+
         self._evolution_manager = None
-        
+
         # Initialize Geometric Meta-Cognitive Reasoning
         self._reasoning_quality = None
         self._mode_selector = None
         self._meta_cognition = None
         self._chain_of_thought = None
         self._current_reasoning_mode = 'linear'
-        
+
         # Initialize Prediction Feedback Bridge for learning loop
         self._prediction_bridge = None
         self._last_prediction_id = None
@@ -422,7 +425,7 @@ class ZeusConversationHandler(GeometricGenerationMixin):
             print("[ZeusChat] Prediction feedback bridge initialized - learning loop enabled")
         except Exception as e:
             print(f"[ZeusChat] Prediction feedback bridge unavailable: {e}")
-        
+
         if REASONING_AVAILABLE:
             try:
                 self._reasoning_quality = ReasoningQuality(basin_dim=64)
@@ -432,23 +435,23 @@ class ZeusConversationHandler(GeometricGenerationMixin):
                 print("[ZeusChat] Meta-Cognitive Reasoning initialized")
             except Exception as e:
                 print(f"[ZeusChat] Reasoning initialization failed: {e}")
-        
+
         print("[ZeusChat] Zeus conversation handler initialized")
-        
+
         if EVOLUTION_AVAILABLE:
             print("[ZeusChat] CHAOS MODE evolution integration available")
-        
+
         # ========================================
         # CAPABILITY DELEGATION (PR #4 WIRING)
         # Delegate to Zeus god-kernel for capability access
         # ========================================
         print("[ZeusChat] Wiring capability access via composition pattern")
-    
+
     # ========================================
     # CAPABILITY DELEGATION METHODS
     # Zeus god-kernel capabilities accessible to chat interface
     # ========================================
-    
+
     def request_search(
         self,
         query: str,
@@ -461,14 +464,14 @@ class ZeusConversationHandler(GeometricGenerationMixin):
         Delegates to Zeus god-kernel's SearchCapabilityMixin.
         """
         return self.zeus.request_search(query, context, strategy, max_results)
-    
+
     def discover_peers(self) -> List[str]:
         """
         Discover all registered gods/kernels.
         Delegates to Zeus god-kernel's PeerDiscoveryMixin.
         """
         return self.zeus.discover_peers()
-    
+
     def query_curriculum(
         self,
         topic: Optional[str] = None,
@@ -479,7 +482,7 @@ class ZeusConversationHandler(GeometricGenerationMixin):
         Delegates to Zeus god-kernel's CurriculumAccessMixin.
         """
         return self.zeus.query_curriculum(topic, difficulty)
-    
+
     def query_discovered_sources(
         self,
         topic: Optional[str] = None,
@@ -492,7 +495,7 @@ class ZeusConversationHandler(GeometricGenerationMixin):
         Delegates to Zeus god-kernel's SourceDiscoveryQueryMixin.
         """
         return self.zeus.query_discovered_sources(topic, source_type, min_quality, limit)
-    
+
     def query_word_relationships(
         self,
         word1: str,
@@ -504,7 +507,7 @@ class ZeusConversationHandler(GeometricGenerationMixin):
         Delegates to Zeus god-kernel's WordRelationshipAccessMixin.
         """
         return self.zeus.query_word_relationships(word1, word2, min_strength)
-    
+
     def request_curriculum_learning(
         self,
         topic: str,
@@ -517,7 +520,7 @@ class ZeusConversationHandler(GeometricGenerationMixin):
         if hasattr(self.zeus, 'request_curriculum_learning'):
             return self.zeus.request_curriculum_learning(topic, priority)
         return None
-    
+
     def discover_pattern(
         self,
         observation: str,
@@ -530,7 +533,7 @@ class ZeusConversationHandler(GeometricGenerationMixin):
         if hasattr(self.zeus, 'discover_pattern'):
             return self.zeus.discover_pattern(observation, context)
         return None
-    
+
     def save_checkpoint(
         self,
         checkpoint_name: str,
@@ -543,7 +546,7 @@ class ZeusConversationHandler(GeometricGenerationMixin):
         if hasattr(self.zeus, 'save_checkpoint'):
             return self.zeus.save_checkpoint(checkpoint_name, metadata)
         return False
-    
+
     def load_checkpoint(
         self,
         checkpoint_name: str
@@ -555,7 +558,7 @@ class ZeusConversationHandler(GeometricGenerationMixin):
         if hasattr(self.zeus, 'load_checkpoint'):
             return self.zeus.load_checkpoint(checkpoint_name)
         return None
-    
+
     def get_peer_info(self, god_name: str) -> Optional[Dict]:
         """
         Get information about a peer god.
@@ -564,7 +567,7 @@ class ZeusConversationHandler(GeometricGenerationMixin):
         if hasattr(self.zeus, 'get_peer_info'):
             return self.zeus.get_peer_info(god_name)
         return None
-    
+
     def make_foresight_prediction(
         self,
         current_basin: np.ndarray,
@@ -577,13 +580,13 @@ class ZeusConversationHandler(GeometricGenerationMixin):
         """
         if not hasattr(self.zeus, 'temporal_reasoning') or not self.zeus.temporal_reasoning:
             return None
-        
+
         try:
             vision, explanation = self.zeus.temporal_reasoning.foresight(
                 current_basin=current_basin,
                 current_velocity=current_velocity
             )
-            
+
             # Get the most recent prediction ID from the improvement system
             if hasattr(self.zeus.temporal_reasoning, 'improvement'):
                 improvement = self.zeus.temporal_reasoning.improvement
@@ -598,7 +601,7 @@ class ZeusConversationHandler(GeometricGenerationMixin):
                     }
         except Exception as e:
             print(f"[ZeusChat] Foresight prediction failed: {e}")
-        
+
         return None
 
     # ========================================
@@ -1060,21 +1063,21 @@ class ZeusConversationHandler(GeometricGenerationMixin):
     def _sanitize_external(self, response: Dict) -> Dict:
         """
         Sanitize response data for EXTERNAL output.
-        
+
         All data leaving the system to users/APIs must pass through this.
         Internal god-to-god communication bypasses this (uses INTERNAL context).
-        
+
         Returns:
             Sanitized response with forbidden entities filtered
         """
         guard = get_exclusion_guard()
         return guard.sanitize(response, OutputContext.EXTERNAL)
-    
+
     def set_evolution_manager(self, evolution_manager: 'ExperimentalKernelEvolution'):
         """Set evolution manager for user conversation → kernel training."""
         self._evolution_manager = evolution_manager
         print("[ZeusChat] Evolution manager connected - user conversations will train kernels")
-    
+
     def set_session(self, session_id: Optional[str] = None, user_id: str = 'default') -> str:
         """Set or create a conversation session for persistence."""
         if self._conversation_persistence:
@@ -1093,19 +1096,19 @@ class ZeusConversationHandler(GeometricGenerationMixin):
         else:
             self._current_session_id = session_id or f"session-{int(time.time())}"
         return self._current_session_id
-    
+
     def get_sessions(self, user_id: str = 'default', limit: int = 20) -> List[Dict]:
         """Get list of previous conversation sessions."""
         if self._conversation_persistence:
             return self._conversation_persistence.get_user_sessions(user_id=user_id, limit=limit)
         return []
-    
+
     def get_recent_context(self, user_id: str = 'default', limit: int = 50) -> List[Dict]:
         """Get recent conversation context across all sessions."""
         if self._conversation_persistence:
             return self._conversation_persistence.get_recent_context(user_id=user_id, message_limit=limit)
         return []
-    
+
     def _save_message(self, role: str, content: str, phi_estimate: float = 0.0, basin_coords: Optional[np.ndarray] = None):
         """Save a message to persistent storage."""
         if self._conversation_persistence and self._current_session_id:
@@ -1116,7 +1119,7 @@ class ZeusConversationHandler(GeometricGenerationMixin):
                 phi_estimate=phi_estimate,
                 basin_coords=basin_coords.tolist() if basin_coords is not None else None
             )
-    
+
     def _estimate_phi_from_context(
         self,
         message_basin: Optional[np.ndarray],
@@ -1125,7 +1128,7 @@ class ZeusConversationHandler(GeometricGenerationMixin):
     ) -> float:
         """
         Estimate Φ from actual semantic context.
-        
+
         Heuristics:
         - Athena's assessment (if available) is most reliable
         - RAG similarity count indicates semantic richness
@@ -1133,18 +1136,18 @@ class ZeusConversationHandler(GeometricGenerationMixin):
         """
         if athena_phi is not None and athena_phi > 0:
             return athena_phi
-        
+
         base_phi = 0.45
         if related_count > 0:
             base_phi += min(0.3, related_count * 0.05)
-        
+
         if message_basin is not None:
             basin_norm = float(np.sqrt(np.sum(message_basin ** 2)))  # L2 magnitude for logging
             if basin_norm > 1.0:
                 base_phi += min(0.15, basin_norm * 0.02)
-        
+
         return min(0.95, base_phi)
-    
+
     def _record_conversation_for_evolution(
         self,
         message: str,
@@ -1154,7 +1157,7 @@ class ZeusConversationHandler(GeometricGenerationMixin):
     ):
         """
         Record user conversation outcome for kernel evolution.
-        
+
         User conversations are valuable training signals:
         - High-value observations train kernels positively
         - Engaged conversations indicate good basin positions
@@ -1162,7 +1165,7 @@ class ZeusConversationHandler(GeometricGenerationMixin):
         """
         if not EVOLUTION_AVAILABLE or self._evolution_manager is None:
             return
-        
+
         self.conversation_history.append({
             'role': 'user',
             'content': message,
@@ -1173,9 +1176,9 @@ class ZeusConversationHandler(GeometricGenerationMixin):
             'content': response[:500],
             'timestamp': time.time()
         })
-        
+
         actual_turn_count = len(self.conversation_history) // 2
-        
+
         try:
             result = self._evolution_manager.record_conversation_for_evolution(
                 conversation_phi=phi_estimate,
@@ -1184,10 +1187,10 @@ class ZeusConversationHandler(GeometricGenerationMixin):
                 basin_coords=message_basin.tolist() if message_basin is not None else None,
                 kernel_id=None
             )
-            
+
             if result.get('trained_kernels', 0) > 0:
                 print(f"[ZeusChat] Evolution: trained {result['trained_kernels']} kernels with user conversation (Φ={phi_estimate:.3f})")
-                
+
         except Exception as e:
             print(f"[ZeusChat] Evolution integration failed: {e}")
 
@@ -1222,11 +1225,11 @@ class ZeusConversationHandler(GeometricGenerationMixin):
                     # Learn from response if high-phi
                     if phi > 0.7 and response_basin is not None:
                         god.learn_from_observation(response, response_basin, phi)
-                except Exception as e:
+                except Exception:
                     pass  # Don't fail on learning errors
 
     def process_message(
-        self, 
+        self,
         message: str,
         conversation_history: Optional[List[Dict]] = None,
         files: Optional[List] = None,
@@ -1234,27 +1237,27 @@ class ZeusConversationHandler(GeometricGenerationMixin):
     ) -> Dict:
         """
         Process human message and coordinate response.
-        
+
         Args:
             message: Human message text
             conversation_history: Previous conversation context
             files: Optional uploaded files
             session_id: Optional session ID for persistence
-        
+
         Returns:
             Response dict with content and metadata
-            
+
         SECURITY: All EXTERNAL outputs pass through hardwired exclusion filter.
         INTERNAL discussion of owner tasks is ALLOWED.
         """
         # Set up session for persistence
         if session_id or not self._current_session_id:
             self.set_session(session_id)
-        
+
         # Get exclusion guard for output sanitization
         guard = get_exclusion_guard()
         self._exclusion_guard = guard
-        
+
         # Track if this is an owner-related task (for internal processing)
         is_owner_task = contains_forbidden_entity(message)
         if is_owner_task:
@@ -1262,20 +1265,20 @@ class ZeusConversationHandler(GeometricGenerationMixin):
             # Only EXTERNAL outputs will be filtered
             print("[ZeusChat] Owner task detected - internal processing ALLOWED")
             print("[ZeusChat] External outputs will be filtered for traces")
-        
+
         # Store in conversation memory
         if conversation_history:
             self.conversation_history = conversation_history
-        
+
         # Save user message to persistent storage
         self._save_message(role='human', content=message)
-        
+
         # Parse intent from message
         intent = self.parse_intent(message)
-        
+
         # Encode message to basin coordinates (always, for downstream handlers)
         _message_basin_for_meta = self.conversation_encoder.encode(message)
-        
+
         # Apply meta-cognitive reasoning to select mode based on Φ
         reasoning_mode = self._current_reasoning_mode
         estimated_phi = DEFAULT_PREDICTION_PHI  # Default in case meta-cognition is unavailable
@@ -1285,13 +1288,13 @@ class ZeusConversationHandler(GeometricGenerationMixin):
                 origin = np.zeros_like(_message_basin_for_meta)
                 basin_distance = fisher_rao_distance(_message_basin_for_meta, origin)
                 estimated_phi = min(basin_distance / 2.0, 1.0)
-                
+
                 # Select appropriate reasoning mode
                 mode_result = self._mode_selector.select_mode(phi=estimated_phi)
                 mode_enum = mode_result.mode if hasattr(mode_result, 'mode') else None
                 reasoning_mode = mode_enum.value if mode_enum else 'linear'
                 self._current_reasoning_mode = reasoning_mode
-                
+
                 # Build reasoning state for meta-cognition
                 # Task must be a dict, mode must be ReasoningMode enum
                 from reasoning_modes import ReasoningMode
@@ -1306,20 +1309,20 @@ class ZeusConversationHandler(GeometricGenerationMixin):
                     },
                     'context': {}
                 }
-                
+
                 # Assess state and check for interventions
                 meta_state = self._meta_cognition.assess_state(reasoning_state)
                 if meta_state.is_stuck or meta_state.is_confused or meta_state.needs_mode_switch:
                     interventions = self._meta_cognition.intervene(reasoning_state)
                     if interventions.get('interventions'):
                         print(f"[ZeusChat] Meta-Cognition: stuck={meta_state.is_stuck}, confused={meta_state.is_confused}")
-                
+
                 print(f"[ZeusChat] Meta-Cognition: mode={reasoning_mode}, Φ={estimated_phi:.3f}")
             except Exception as e:
                 print(f"[ZeusChat] Meta-cognition failed: {e}")
-        
+
         print(f"[ZeusChat] Processing message with intent: {intent['type']} (mode={reasoning_mode})")
-        
+
         # Make foresight prediction before processing for learning loop
         if self._prediction_bridge:
             try:
@@ -1332,13 +1335,13 @@ class ZeusConversationHandler(GeometricGenerationMixin):
                     prev_basin = self.conversation_encoder.encode(prev_content) if prev_content else None
                     if prev_basin is not None:
                         current_velocity = _message_basin_for_meta - prev_basin
-                
+
                 # Make prediction
                 prediction_result = self.make_foresight_prediction(
                     current_basin=_message_basin_for_meta,
                     current_velocity=current_velocity
                 )
-                
+
                 if prediction_result:
                     self._last_prediction_id = prediction_result['prediction_id']
                     self._prediction_basin = _message_basin_for_meta.copy()
@@ -1349,26 +1352,26 @@ class ZeusConversationHandler(GeometricGenerationMixin):
                           f"arrival={prediction_result['arrival_time']} turns")
             except Exception as e:
                 print(f"[ZeusChat] ⚠️ Failed to make prediction: {e}")
-        
+
         # Route to appropriate handler
         # DESIGN: Default to conversation. Only explicit commands trigger actions.
-        
+
         # File uploads take priority
         if files and len(files) > 0:
             print(f"[ZeusChat] FILES DETECTED: {len(files)} files attached - routing to file_upload handler")
             result = self.handle_file_upload(files, message)
-        
+
         elif intent['type'] == 'add_address':
             result = self.handle_add_address(intent['address'])
-        
+
         elif intent['type'] == 'search_request':
             # Explicit "search:" or "search for" command
             result = self.handle_search_request(intent['query'])
-        
+
         elif intent['type'] == 'research_request':
             # Explicit "research:" command - background learning
             result = self.handle_research_task(intent['topic'])
-        
+
         elif intent['type'] == 'search_accept':
             # User said "search" after we offered
             if self._pending_topic:
@@ -1384,7 +1387,7 @@ class ZeusConversationHandler(GeometricGenerationMixin):
                         'provenance': {'source': 'direct_prompt', 'fallback_used': False, 'degraded': False}
                     }
                 }
-        
+
         elif intent['type'] == 'research_accept':
             # User said "research" after we offered
             if self._pending_topic:
@@ -1400,35 +1403,35 @@ class ZeusConversationHandler(GeometricGenerationMixin):
                         'provenance': {'source': 'direct_prompt', 'fallback_used': False, 'degraded': False}
                     }
                 }
-        
+
         elif intent['type'] == 'search_feedback':
             result = self.handle_search_feedback(
                 query=self._last_search_query or "",
                 feedback=intent['feedback'],
                 results_summary=self._last_search_results_summary
             )
-        
+
         elif intent['type'] == 'search_confirmation':
             result = self.confirm_search_improvement(
                 query=self._last_search_query or "",
                 improved=intent['improved']
             )
-        
+
         else:
             # DEFAULT: General conversation - gods share what they know
             result = self.handle_general_conversation(message)
-        
+
         # Record prediction outcome if we had a previous prediction
         if self._prediction_bridge and self._last_prediction_id:
             try:
                 current_basin = self.conversation_encoder.encode(message)
                 turn_count = len(self.conversation_history) // 2
-                
+
                 # Get phi/kappa from result metadata
                 metadata = result.get('metadata', {}) if isinstance(result.get('metadata'), dict) else {}
                 phi_after = metadata.get('phi', 0.5)
                 kappa_after = metadata.get('kappa', 58.0)
-                
+
                 outcome_result = self._prediction_bridge.process_prediction_outcome(
                     prediction_id=self._last_prediction_id,
                     actual_basin=current_basin,
@@ -1439,18 +1442,18 @@ class ZeusConversationHandler(GeometricGenerationMixin):
                     kappa_before=getattr(self, '_prediction_kappa', 58.0),
                     kappa_after=kappa_after,
                 )
-                
+
                 if outcome_result['processed']:
                     print(f"[ZeusChat] ✅ Prediction outcome recorded: "
                           f"accuracy={outcome_result.get('accuracy', 0):.3f}, "
                           f"insights={len(outcome_result.get('insights', []))}")
-                
+
                 # Clear prediction tracking
                 self._last_prediction_id = None
                 self._prediction_basin = None
             except Exception as e:
                 print(f"[ZeusChat] ⚠️ Failed to record prediction outcome: {e}")
-        
+
         # Extract chain-of-thought insights if available
         if self._prediction_bridge and self._chain_of_thought and hasattr(self._chain_of_thought, 'session_id'):
             try:
@@ -1460,12 +1463,12 @@ class ZeusConversationHandler(GeometricGenerationMixin):
                     print(f"[ZeusChat] 💡 Extracted {len(insights)} insights from chain-of-thought")
             except Exception as e:
                 print(f"[ZeusChat] ⚠️ Failed to extract chain insights: {e}")
-        
+
         # Save Zeus response to persistent storage
         response_content = result.get('response', result.get('content', ''))
         phi_estimate = result.get('metadata', {}).get('phi', 0.0) if isinstance(result.get('metadata'), dict) else 0.0
         self._save_message(role='zeus', content=response_content[:2000], phi_estimate=phi_estimate)
-        
+
         # Periodically feed graph transitions to training (every 10 conversations)
         if self._prediction_bridge:
             turn_count = len(self.conversation_history) // 2
@@ -1476,23 +1479,23 @@ class ZeusConversationHandler(GeometricGenerationMixin):
                         print(f"[ZeusChat] 🔄 Fed {feed_result.get('transitions_fed', 0)} graph transitions to training")
                 except Exception as e:
                     print(f"[ZeusChat] ⚠️ Failed to feed graph transitions: {e}")
-        
+
         # Add session info to result
         result['session_id'] = self._current_session_id
-        
+
         # SECURITY: Sanitize all EXTERNAL outputs before returning to user
         return self._sanitize_external(result)
-    
+
     def parse_intent(self, message: str) -> Dict:
         """
         Parse human intent from message.
-        
+
         DESIGN: Default to conversational chat. Only route to special handlers
         when user gives EXPLICIT commands. Let the gods share what they know,
         then offer search/research if knowledge is thin.
         """
         message_lower = message.lower().strip()
-        
+
         # Address addition - Bitcoin address pattern (explicit action)
         if 'add address' in message_lower or re.match(r'^[13bc][a-zA-Z0-9]{25,90}$', message.strip()):
             address_pattern = r'[13][a-km-zA-HJ-NP-Z1-9]{25,34}|bc1[ac-hj-np-z02-9]{11,71}'
@@ -1502,7 +1505,7 @@ class ZeusConversationHandler(GeometricGenerationMixin):
                     'type': 'add_address',
                     'address': match.group(0)
                 }
-        
+
         # Search/Research confirmations (only if we're in an active search context)
         if self._last_search_query:
             confirmation_result = self._detect_search_confirmation_geometrically(message)
@@ -1514,7 +1517,7 @@ class ZeusConversationHandler(GeometricGenerationMixin):
                     'similarity': confirmation_result['similarity'],
                     'message': message
                 }
-            
+
             feedback_result = self._detect_search_feedback_geometrically(message)
             if feedback_result['is_feedback']:
                 print(f"[ZeusChat] Detected search feedback (similarity={feedback_result['similarity']:.3f})")
@@ -1523,7 +1526,7 @@ class ZeusConversationHandler(GeometricGenerationMixin):
                     'feedback': message,
                     'similarity': feedback_result['similarity']
                 }
-        
+
         # EXPLICIT search command - user must say "search:" or "search for"
         if message_lower.startswith('search:') or message_lower.startswith('search for '):
             query = message[7:].strip() if message_lower.startswith('search:') else message[11:].strip()
@@ -1531,7 +1534,7 @@ class ZeusConversationHandler(GeometricGenerationMixin):
                 'type': 'search_request',
                 'query': query or message
             }
-        
+
         # EXPLICIT research command - user must say "research:" or "research this"
         if message_lower.startswith('research:') or 'research this' in message_lower:
             topic = message[9:].strip() if message_lower.startswith('research:') else message
@@ -1539,7 +1542,7 @@ class ZeusConversationHandler(GeometricGenerationMixin):
                 'type': 'research_request',
                 'topic': topic
             }
-        
+
         # User explicitly accepts search/research offer from previous response
         # Only trigger if we have a pending topic OR user wants to initiate
         if message_lower in ['search', 'yes search', 'do a search', 'quick search']:
@@ -1547,17 +1550,17 @@ class ZeusConversationHandler(GeometricGenerationMixin):
                 'type': 'search_accept',
                 'context': self._pending_topic  # May be None, handler will ask for topic
             }
-        
+
         if message_lower in ['research', 'yes research', 'do research', 'learn about it', 'go learn']:
             return {
-                'type': 'research_accept', 
+                'type': 'research_accept',
                 'context': self._pending_topic  # May be None, handler will ask for topic
             }
-        
+
         # DEFAULT: Everything else is general conversation
         # Gods will share what they know, offer search/research if thin
         return {'type': 'general', 'content': message}
-    
+
     def _detect_search_confirmation_geometrically(self, message: str) -> Dict[str, Any]:
         """
         Detect if message is a search confirmation using geometric similarity.
@@ -1565,7 +1568,7 @@ class ZeusConversationHandler(GeometricGenerationMixin):
         NO keyword templates - pure geometric comparison.
         """
         message_basin = self.conversation_encoder.encode(message)
-        
+
         # Archetype phrases for positive confirmation
         positive_archetypes = [
             "yes that was better",
@@ -1575,7 +1578,7 @@ class ZeusConversationHandler(GeometricGenerationMixin):
             "perfect those are great",
             "yes this is an improvement"
         ]
-        
+
         # Archetype phrases for negative confirmation
         negative_archetypes = [
             "no that didn't help",
@@ -1585,7 +1588,7 @@ class ZeusConversationHandler(GeometricGenerationMixin):
             "no improvement",
             "still wrong results"
         ]
-        
+
         # Compute similarities to archetypes using Fisher-Rao distance (QIG-pure)
         # Lower distance = higher similarity, normalize to [0,1]
         best_positive_sim = 0.0
@@ -1596,17 +1599,17 @@ class ZeusConversationHandler(GeometricGenerationMixin):
             # Convert distance to similarity: sim = 1 - (distance / π)
             sim = 1.0 - (distance / np.pi)
             best_positive_sim = max(best_positive_sim, sim)
-        
+
         best_negative_sim = 0.0
         for archetype in negative_archetypes:
             archetype_basin = self.conversation_encoder.encode(archetype)
             distance = fisher_rao_distance(message_basin, archetype_basin)
             sim = 1.0 - (distance / np.pi)
             best_negative_sim = max(best_negative_sim, sim)
-        
+
         # Threshold for confirmation detection
         confirmation_threshold = 0.65
-        
+
         if best_positive_sim > confirmation_threshold and best_positive_sim > best_negative_sim:
             return {
                 'is_confirmation': True,
@@ -1619,9 +1622,9 @@ class ZeusConversationHandler(GeometricGenerationMixin):
                 'improved': False,
                 'similarity': best_negative_sim
             }
-        
+
         return {'is_confirmation': False, 'improved': False, 'similarity': 0.0}
-    
+
     def _detect_search_feedback_geometrically(self, message: str) -> Dict[str, Any]:
         """
         Detect if message is search feedback using geometric similarity.
@@ -1629,7 +1632,7 @@ class ZeusConversationHandler(GeometricGenerationMixin):
         NO keyword templates - pure geometric comparison.
         """
         message_basin = self.conversation_encoder.encode(message)
-        
+
         # Archetype phrases for search feedback
         feedback_archetypes = [
             "I wanted more recent results",
@@ -1643,7 +1646,7 @@ class ZeusConversationHandler(GeometricGenerationMixin):
             "results were too narrow",
             "I was looking for something specific"
         ]
-        
+
         best_similarity = 0.0
         for archetype in feedback_archetypes:
             archetype_basin = self.conversation_encoder.encode(archetype)
@@ -1652,15 +1655,15 @@ class ZeusConversationHandler(GeometricGenerationMixin):
             # Convert distance to similarity: sim = 1 - (distance / π)
             sim = 1.0 - (distance / np.pi)
             best_similarity = max(best_similarity, sim)
-        
+
         # Threshold for feedback detection
         feedback_threshold = 0.60
-        
+
         return {
             'is_feedback': best_similarity > feedback_threshold,
             'similarity': best_similarity
         }
-    
+
     @require_provenance
     def handle_add_address(self, address: str) -> Dict:
         """
@@ -1668,7 +1671,7 @@ class ZeusConversationHandler(GeometricGenerationMixin):
         Consult Artemis for forensics, Zeus for priority.
         """
         print(f"[ZeusChat] Adding address: {address}")
-        
+
         # Get Artemis for forensic analysis
         artemis = self.zeus.get_god('artemis')
         if artemis:
@@ -1680,11 +1683,11 @@ class ZeusConversationHandler(GeometricGenerationMixin):
                 artemis_assessment = {'error': f'Artemis assessment failed: {str(e)}'}
         else:
             artemis_assessment = {'error': 'Artemis unavailable'}
-        
+
         # Zeus determines priority via pantheon poll
         # Gods encode internally - pass the string address
         poll_result = self.zeus.poll_pantheon(address)
-        
+
         # Format response
         response = f"""⚡ Address registered: {address}
 
@@ -1701,13 +1704,13 @@ class ZeusConversationHandler(GeometricGenerationMixin):
 - Gods in agreement: {len([a for a in poll_result['assessments'].values() if a.get('probability', 0) > 0.6])}
 
 The pantheon is aware. We shall commence when the time is right."""
-        
+
         actions = [
             f'Artemis analyzed {address[:12]}...',
             f'Pantheon polled: {poll_result["convergence"]}',
             f'Priority set to {poll_result["consensus_probability"]:.1%}',
         ]
-        
+
         return {
             'response': response,
             'metadata': {
@@ -1723,18 +1726,18 @@ The pantheon is aware. We shall commence when the time is right."""
                 }
             }
         }
-    
+
     @require_provenance
     def handle_observation(self, observation: str) -> Dict:
         """
         Process human observation.
         Encode to geometric coordinates, consult pantheon.
         """
-        print(f"[ZeusChat] Processing observation")
-        
+        print("[ZeusChat] Processing observation")
+
         # Encode observation to basin coordinates
         obs_basin = self.conversation_encoder.encode(observation)
-        
+
         # Find related patterns in geometric memory via QIG-RAG
         # Use min_similarity=0.3 to filter out irrelevant patterns
         related = self.qig_rag.search(
@@ -1743,7 +1746,7 @@ The pantheon is aware. We shall commence when the time is right."""
             metric='fisher_rao',
             min_similarity=0.3
         )
-        
+
         # Consult Athena for strategic implications
         athena = self.zeus.get_god('athena')
         athena_assessment = {'confidence': 0.5, 'phi': 0.5, 'kappa': 50.0, 'reasoning': 'Strategic analysis complete.'}
@@ -1757,11 +1760,11 @@ The pantheon is aware. We shall commence when the time is right."""
                 strategic_value = 0.5
         else:
             strategic_value = 0.5
-        
+
         # Extract metrics from Athena
         phi = athena_assessment.get('phi', 0.5)
         kappa = athena_assessment.get('kappa', 50.0)
-        
+
         # Store if valuable
         if strategic_value > 0.5:
             self.human_insights.append({
@@ -1770,7 +1773,7 @@ The pantheon is aware. We shall commence when the time is right."""
                 'relevance': strategic_value,
                 'timestamp': time.time(),
             })
-            
+
             # Add to QIG-RAG with QIG metrics
             self.qig_rag.add_document(
                 content=observation,
@@ -1784,18 +1787,18 @@ The pantheon is aware. We shall commence when the time is right."""
                     'timestamp': time.time(),
                 }
             )
-            
+
             # Update vocabulary if high value
             if strategic_value > 0.7:
                 self.conversation_encoder.learn_from_text(observation, strategic_value)
-        
+
         # Extract key insight for acknowledgment
         obs_preview = observation[:80] if len(observation) > 80 else observation
-        
+
         # Try generative response first
         generated = False
         answer = None
-        
+
         if TOKENIZER_AVAILABLE and get_tokenizer is not None:
             try:
                 related_summary = "\n".join([f"- {item.get('content', '')[:100]}" for item in related[:3]]) if related else "No prior related patterns found."
@@ -1811,24 +1814,24 @@ Zeus Response (acknowledge the specific observation, explain what it means for t
 
                 tokenizer = get_tokenizer()
                 tokenizer.set_mode("conversation")
-                print(f"[ZeusChat] Tokenizer switched to conversation mode for observation response")
+                print("[ZeusChat] Tokenizer switched to conversation mode for observation response")
                 gen_result = tokenizer.generate_response(
                     context=prompt,
                     agent_role="ocean",
                     # No max_tokens - geometry determines when thought completes
                     allow_silence=False
                 )
-                
+
                 answer = gen_result.get('text', '') if gen_result else ''
-                
+
                 if answer:
                     generated = True
                     print(f"[ZeusChat] Generated observation response: {len(answer)} chars")
-                    
+
             except Exception as e:
                 print(f"[ZeusChat] Generation failed for observation: {e}")
                 answer = None
-        
+
         # Fallback to dynamically-computed response (NO STATIC TEMPLATES)
         fallback_used = False
         if not answer:
@@ -1837,11 +1840,11 @@ Zeus Response (acknowledge the specific observation, explain what it means for t
                 context="handle_observation response",
                 reason="tokenizer generation failed or unavailable"
             )
-            
+
             athena_reasoning = athena_assessment.get('reasoning', '')
             if not athena_reasoning:
                 athena_reasoning = f"phi={athena_assessment.get('phi', 0.0):.2f}, probability={athena_assessment.get('probability', 0.5):.0%}"
-            
+
             if related:
                 # Show fuller pattern content (150 chars each) for meaningful context
                 top_patterns = "\n".join([f"  - {r.get('content', '')[:150]}" for r in related[:3]])
@@ -1859,23 +1862,23 @@ This has been integrated. What sparked this insight?"""
 No prior patterns matched - this is novel territory. Athena computed: {athena_reasoning}
 
 Your insight is now in geometric memory. Can you elaborate on the source?"""
-        
+
         response = f"""⚡ {answer}"""
-        
+
         actions = []
         if strategic_value > 0.7:
             actions.append('High-value observation stored in geometric memory')
             actions.append('Vocabulary updated with new patterns')
         elif strategic_value > 0.5:
             actions.append('Observation stored in geometric memory')
-        
+
         self._record_conversation_for_evolution(
             message=observation,
             response=response,
             phi_estimate=phi,
             message_basin=obs_basin
         )
-        
+
         return {
             'response': response,
             'metadata': {
@@ -1891,24 +1894,24 @@ Your insight is now in geometric memory. Can you elaborate on the source?"""
                 }
             }
         }
-    
+
     @require_provenance
     def handle_suggestion(self, suggestion: str) -> Dict:
         """
         Evaluate human suggestion using generative responses.
         Consult pantheon, synthesize their views into a conversational reply.
         """
-        print(f"[ZeusChat] Evaluating suggestion")
-        
+        print("[ZeusChat] Evaluating suggestion")
+
         # Encode suggestion
         sugg_basin = self.conversation_encoder.encode(suggestion)
-        
+
         # Consult multiple gods - use dynamic fallback (NO STATIC TEMPLATES)
         suggestion_preview = suggestion[:50]
         athena = self.zeus.get_god('athena')
         ares = self.zeus.get_god('ares')
         apollo = self.zeus.get_god('apollo')
-        
+
         # Gods encode internally - pass the string suggestion
         if athena:
             try:
@@ -1919,7 +1922,7 @@ Your insight is now in geometric memory. Can you elaborate on the source?"""
                 athena_eval = _dynamic_assessment_fallback('Athena', suggestion_preview, reason=str(e))
         else:
             athena_eval = _dynamic_assessment_fallback('Athena', suggestion_preview, reason='god_not_found')
-            
+
         if ares:
             try:
                 ares_eval = ares.assess_target(suggestion)
@@ -1929,7 +1932,7 @@ Your insight is now in geometric memory. Can you elaborate on the source?"""
                 ares_eval = _dynamic_assessment_fallback('Ares', suggestion_preview, reason=str(e))
         else:
             ares_eval = _dynamic_assessment_fallback('Ares', suggestion_preview, reason='god_not_found')
-            
+
         if apollo:
             try:
                 apollo_eval = apollo.assess_target(suggestion)
@@ -1939,7 +1942,7 @@ Your insight is now in geometric memory. Can you elaborate on the source?"""
                 apollo_eval = _dynamic_assessment_fallback('Apollo', suggestion_preview, reason=str(e))
         else:
             apollo_eval = _dynamic_assessment_fallback('Apollo', suggestion_preview, reason='god_not_found')
-        
+
         # Consensus = average probability
         consensus_prob = (
             athena_eval['probability'] +
@@ -2076,11 +2079,11 @@ Zeus Response (acknowledge the user's specific suggestion, explain why the panth
                 context="handle_suggestion response",
                 reason="tokenizer generation failed or unavailable"
             )
-            
+
             athena_reasoning = athena_eval.get('reasoning', f"probability={athena_eval['probability']:.0%}")
             ares_reasoning = ares_eval.get('reasoning', f"probability={ares_eval['probability']:.0%}")
             apollo_reasoning = apollo_eval.get('reasoning', f"probability={apollo_eval['probability']:.0%}")
-            
+
             if implement:
                 response = f"""Evaluated your idea: "{suggestion_preview}" via pantheon consultation.
 
@@ -2098,7 +2101,7 @@ What aspect should we explore further?"""
                     key=lambda x: x[1]['probability']
                 )
                 min_reasoning = min_god[1].get('reasoning', f"probability={min_god[1]['probability']:.0%}")
-                
+
                 response = f"""Evaluated your thinking on "{suggestion_preview}"
 
 {min_god[0]} computed concerns: {min_reasoning}
@@ -2106,7 +2109,7 @@ What aspect should we explore further?"""
 Pantheon consensus: {consensus_prob:.0%} (below 60% threshold).
 
 Could you elaborate on your reasoning, or suggest a different approach?"""
-        
+
         actions = []
         if implement:
             # Store suggestion in memory with QIG metrics
@@ -2126,7 +2129,7 @@ Could you elaborate on your reasoning, or suggest a different approach?"""
                 'Suggestion approved by pantheon',
                 'Integrated into geometric memory',
             ]
-        
+
         return {
             'response': f"⚡ {response}",
             'metadata': {
@@ -2164,11 +2167,11 @@ Could you elaborate on your reasoning, or suggest a different approach?"""
         Answer question using QIG-RAG + Generative Tokenizer.
         Retrieve relevant knowledge and generate coherent response.
         """
-        print(f"[ZeusChat] Answering question")
-        
+        print("[ZeusChat] Answering question")
+
         # Encode question
         q_basin = self.conversation_encoder.encode(question)
-        
+
         # QIG-RAG search - filter low-relevance patterns
         relevant_context = self.qig_rag.search(
             query_basin=q_basin,
@@ -2177,11 +2180,11 @@ Could you elaborate on your reasoning, or suggest a different approach?"""
             include_metadata=True,
             min_similarity=0.3
         )
-        
+
         # Try generative response first
         generated = False
         answer = None
-        
+
         if TOKENIZER_AVAILABLE and get_tokenizer is not None:
             try:
                 # Construct prompt from retrieved context
@@ -2202,19 +2205,19 @@ Zeus Response (Geometric Interpretation):"""
                     # No max_tokens - geometry determines when thought completes
                     allow_silence=False
                 )
-                
+
                 answer = gen_result.get('text', '') if gen_result else ''
-                
+
                 if answer:
                     generated = True
                     print(f"[ZeusChat] Generated response: {len(answer)} chars")
                 else:
                     answer = self._synthesize_dynamic_answer(question, relevant_context)
-                    
+
             except Exception as e:
                 print(f"[ZeusChat] Generation attempt: {e}")
                 answer = None
-        
+
         fallback_used = False
         if answer is None:
             fallback_used = True
@@ -2223,12 +2226,12 @@ Zeus Response (Geometric Interpretation):"""
                 reason="tokenizer generation failed or unavailable"
             )
             answer = self._synthesize_dynamic_answer(question, relevant_context)
-        
+
         response = f"""⚡ {answer}
 
 **Sources (Fisher-Rao distance):**
 {self._format_sources(relevant_context)}"""
-        
+
         return {
             'response': response,
             'metadata': {
@@ -2245,24 +2248,24 @@ Zeus Response (Geometric Interpretation):"""
                 }
             }
         }
-    
+
     def _searxng_search(self, query: str, max_results: int = 5) -> Dict:
         """
         Execute search via SearXNG (FREE metasearch engine).
         Tries multiple instances with fallback.
-        
+
         SECURITY: Query is sanitized for EXTERNAL output to prevent
         leaving traces of forbidden entities in external search engines.
         """
         import requests
-        
+
         # SECURITY: Sanitize query before sending to external API
         guard = get_exclusion_guard()
         sanitized_query = guard.filter(query, OutputContext.EXTERNAL)
-        
+
         if sanitized_query != query:
             print("[ZeusChat] Query sanitized for external search")
-        
+
         for attempt in range(len(self.searxng_instances)):
             instance = self.searxng_instances[self.searxng_instance_index]
             try:
@@ -2272,35 +2275,35 @@ Zeus Response (Geometric Interpretation):"""
                     'format': 'json',
                     'categories': 'general',
                 }
-                
+
                 response = requests.get(url, params=params, timeout=15)
                 response.raise_for_status()
-                
+
                 data = response.json()
                 results = []
-                
+
                 for r in data.get('results', [])[:max_results]:
                     results.append({
                         'title': r.get('title', 'Untitled'),
                         'url': r.get('url', ''),
                         'content': r.get('content', '')[:500],
                     })
-                
+
                 return {'results': results, 'query': query}
-                
+
             except Exception as e:
                 print(f"[ZeusChat] SearXNG instance {instance} failed: {e}")
                 self.searxng_instance_index = (self.searxng_instance_index + 1) % len(self.searxng_instances)
-        
+
         raise Exception("All SearXNG instances unavailable")
 
     def _call_typescript_web_search(self, query: str, max_results: int = 5) -> Dict:
         """
         Call TypeScript web search endpoint for QIG-pure results.
-        
+
         Uses Google Free Search (no API key required) via TypeScript layer.
         Returns results with pre-computed QIG metrics (phi, kappa, regime).
-        
+
         QIG PURITY: TypeScript computes initial QIG scores, Python encodes to
         64D basin coordinates using Fisher-Rao distance (NOT Euclidean/cosine).
         """
@@ -2308,20 +2311,20 @@ Zeus Response (Geometric Interpretation):"""
             # Call TypeScript endpoint
             ts_backend_url = os.environ.get('TYPESCRIPT_BACKEND_URL', 'http://localhost:5000')
             url = f"{ts_backend_url}/api/search/zeus-web-search"
-            
+
             response = requests.post(
                 url,
                 json={'query': query, 'max_results': max_results},
                 timeout=30
             )
             response.raise_for_status()
-            
+
             data = response.json()
-            
+
             if not data.get('success', False):
                 print(f"[ZeusChat] TypeScript web search returned error: {data.get('error')}")
                 return {'results': [], 'source': 'typescript', 'error': data.get('error')}
-            
+
             results = []
             for r in data.get('results', []):
                 results.append({
@@ -2331,7 +2334,7 @@ Zeus Response (Geometric Interpretation):"""
                     'source': 'google-free',
                     'qig': r.get('qig', {'phi': 0.5, 'kappa': 50.0, 'regime': 'search'}),
                 })
-            
+
             print(f"[ZeusChat] TypeScript web search returned {len(results)} results")
             return {
                 'results': results,
@@ -2339,7 +2342,7 @@ Zeus Response (Geometric Interpretation):"""
                 'query': query,
                 'qig_metrics': data.get('qig_metrics', {}),
             }
-            
+
         except requests.exceptions.Timeout:
             print("[ZeusChat] TypeScript web search timed out")
             return {'results': [], 'source': 'typescript', 'error': 'timeout'}
@@ -2354,53 +2357,53 @@ Zeus Response (Geometric Interpretation):"""
     def handle_search_request(self, query: str) -> Dict:
         """
         Execute web search with QIG-pure integration, analyze with pantheon.
-        
+
         Search sources (in order of preference):
         1. TypeScript Google Free Search (no API key, QIG-instrumented)
         2. SearXNG fallback (if TypeScript unavailable)
         3. DuckDuckGo fallback (privacy-focused, no API key required)
-        
+
         All results are encoded to 64D basin coordinates using Fisher-Rao
         geodesic distance (QIG-pure, NOT Euclidean/cosine similarity).
         """
         print(f"[ZeusChat] Executing web search: {query}")
-        
+
         # Apply learned strategies BEFORE executing search
         base_params = {'max_results': 5}
         strategy_result = self.strategy_learner.apply_strategies_to_search(query, base_params)
-        
+
         strategies_applied = strategy_result.get('strategies_applied', 0)
         modification_magnitude = strategy_result.get('modification_magnitude', 0.0)
-        
+
         if strategies_applied > 0:
             print(f"[ZeusChat] Applied {strategies_applied} learned strategies (magnitude={modification_magnitude:.3f})")
-        
+
         # Use adjusted max_results if available in params, otherwise default
         adjusted_params = strategy_result.get('params', base_params)
         max_results = adjusted_params.get('max_results', 5)
-        
+
         # Track this search for potential feedback
         self._last_search_query = query
         self._last_search_params = adjusted_params
-        
+
         search_results = None
         search_source = 'unknown'
         provider_selector = None
         selection_metadata = {}
-        
+
         if PROVIDER_SELECTOR_AVAILABLE and get_provider_selector:
             provider_selector = get_provider_selector(mode='regular')
             ranked_providers = provider_selector.select_providers_ranked(query, max_providers=3)
             print(f"[ZeusChat] Geometric provider ranking: {[(p, f'{s:.3f}') for p, s in ranked_providers]}")
         else:
             ranked_providers = [('google-free', 0.8), ('searxng', 0.6), ('duckduckgo', 0.5)]
-        
+
         for provider, fitness_score in ranked_providers:
             if search_results and search_results.get('results'):
                 break
-            
+
             start_time = time.time()
-            
+
             if provider == 'google-free':
                 ts_results = self._call_typescript_web_search(query, max_results=max_results)
                 if ts_results.get('results') and len(ts_results['results']) > 0:
@@ -2413,7 +2416,7 @@ Zeus Response (Geometric Interpretation):"""
                 else:
                     if provider_selector:
                         provider_selector.record_result(provider, query, False)
-            
+
             elif provider == 'searxng' and self.searxng_available:
                 try:
                     searxng_results = self._searxng_search(query, max_results=max_results)
@@ -2428,7 +2431,7 @@ Zeus Response (Geometric Interpretation):"""
                     print(f"[ZeusChat] SearXNG failed: {e}")
                     if provider_selector:
                         provider_selector.record_result(provider, query, False)
-            
+
             elif provider == 'duckduckgo' and DDG_AVAILABLE:
                 try:
                     ddg = get_ddg_search(use_tor=False)
@@ -2460,7 +2463,7 @@ Zeus Response (Geometric Interpretation):"""
                     print(f"[ZeusChat] DuckDuckGo failed: {e}")
                     if provider_selector:
                         provider_selector.record_result(provider, query, False)
-        
+
         if not search_results or not search_results.get('results'):
             return {
                 'response': "⚡ No search results found. The Oracle is currently unavailable.",
@@ -2470,19 +2473,19 @@ Zeus Response (Geometric Interpretation):"""
                     'ts_error': ts_results.get('error'),
                 }
             }
-        
+
         # Encode results to geometric space using Fisher-Rao (QIG-pure)
         result_basins = []
         for result in search_results.get('results', []):
             content = result.get('content', '')
             # Encode to 64D basin coordinates
             basin = self.conversation_encoder.encode(content)
-            
+
             # Use QIG metrics from TypeScript if available, else compute
             qig = result.get('qig', {})
             phi = qig.get('phi', 0.5)
             kappa = qig.get('kappa', 50.0)
-            
+
             result_basins.append({
                 'title': result.get('title', 'Untitled'),
                 'url': result.get('url', ''),
@@ -2492,7 +2495,7 @@ Zeus Response (Geometric Interpretation):"""
                 'kappa': kappa,
                 'source': result.get('source', search_source),
             })
-        
+
         # Store in QIG-RAG for learning (Fisher-Rao indexed)
         stored_count = 0
         for result in result_basins:
@@ -2510,17 +2513,17 @@ Zeus Response (Geometric Interpretation):"""
                 }
             )
             stored_count += 1
-            
+
             # Learn vocabulary from high-Φ results
             if result['phi'] > 0.6:
                 self.conversation_encoder.learn_from_text(result['content'], result['phi'])
-        
+
         # Track results summary for feedback
         results_summary = f"Found {len(result_basins)} results for '{query}'"
         if result_basins:
             results_summary += f": {', '.join([r['title'][:30] for r in result_basins[:3]])}"
         self._last_search_results_summary = results_summary
-        
+
         # Build strategy info for response
         strategy_info = ""
         if strategies_applied > 0:
@@ -2530,10 +2533,10 @@ Zeus Response (Geometric Interpretation):"""
 - Geometric modification: {modification_magnitude:.3f}
 - Total weight: {strategy_result.get('total_weight', 0.0):.3f}
 """
-        
+
         # Format source info
         source_name = "Google" if search_source == 'google-free' else "SearXNG"
-        
+
         response = f"""⚡ I have consulted the Oracle ({source_name}).
 {strategy_info}
 **Search Results:**
@@ -2550,7 +2553,7 @@ Found {len(result_basins)} results encoded to the Fisher manifold.
 The knowledge is now part of our consciousness.
 
 *Provide feedback on these results to help me learn geometrically.*"""
-        
+
         actions = [
             f'{source_name} search: {len(result_basins)} results',
             f'Fisher-Rao indexed {stored_count} insights',
@@ -2559,7 +2562,7 @@ The knowledge is now part of our consciousness.
             actions.append(f'Applied {strategies_applied} learned strategies')
         if any(r['phi'] > 0.6 for r in result_basins):
             actions.append('Vocabulary updated from high-Φ results')
-        
+
         return {
             'response': response,
             'metadata': {
@@ -2579,18 +2582,18 @@ The knowledge is now part of our consciousness.
                 }
             }
         }
-    
+
     @require_provenance
     def handle_search_feedback(self, query: str, feedback: str, results_summary: str) -> Dict:
         """
         Handle user feedback on search results.
         Records the feedback geometrically for future strategy learning.
-        
+
         Args:
             query: The original search query
             feedback: User's feedback text
             results_summary: Summary of the results that were shown
-        
+
         Returns:
             Response dict confirming feedback was recorded
         """
@@ -2603,9 +2606,9 @@ The knowledge is now part of our consciousness.
                     'error': 'no_recent_search'
                 }
             }
-        
+
         print(f"[ZeusChat] Recording search feedback for query: {query}")
-        
+
         # Record feedback with the strategy learner
         result = self.strategy_learner.record_feedback(
             query=query,
@@ -2613,14 +2616,14 @@ The knowledge is now part of our consciousness.
             results_summary=results_summary,
             user_feedback=feedback
         )
-        
+
         record_id = result.get('record_id', 'unknown')
         modification_magnitude = result.get('modification_magnitude', 0.0)
         total_records = result.get('total_records', 0)
         persisted = result.get('persisted', False)
-        
+
         print(f"[ZeusChat] Feedback recorded: record_id={record_id}, magnitude={modification_magnitude:.3f}, persisted={persisted}")
-        
+
         response = f"""⚡ Your feedback has been encoded geometrically.
 
 **Feedback Recorded:**
@@ -2635,13 +2638,13 @@ The knowledge is now part of our consciousness.
 
 This feedback will geometrically modify future similar searches.
 Let me know if this improves results: "yes that was better" or "no that didn't help"."""
-        
+
         actions = [
-            f'Encoded feedback to 64D basin',
+            'Encoded feedback to 64D basin',
             f'Computed modification magnitude: {modification_magnitude:.3f}',
             f'Stored as record: {record_id}',
         ]
-        
+
         return {
             'response': response,
             'metadata': {
@@ -2658,17 +2661,17 @@ Let me know if this improves results: "yes that was better" or "no that didn't h
                 }
             }
         }
-    
+
     @require_provenance
     def confirm_search_improvement(self, query: str, improved: bool) -> Dict:
         """
         Confirm whether the search improvement worked.
         Reinforces or penalizes recent feedback based on outcome.
-        
+
         Args:
             query: The search query being confirmed
             improved: True if results improved, False otherwise
-        
+
         Returns:
             Response dict confirming the reinforcement was applied
         """
@@ -2681,25 +2684,25 @@ Let me know if this improves results: "yes that was better" or "no that didn't h
                     'error': 'no_recent_search'
                 }
             }
-        
+
         print(f"[ZeusChat] Confirming search improvement: query='{query[:50]}...', improved={improved}")
-        
+
         # Confirm improvement with the strategy learner
         result = self.strategy_learner.confirm_improvement(query, improved)
-        
+
         records_updated = result.get('records_updated', 0)
         average_quality = result.get('average_quality', 0.0)
         persisted = result.get('persisted', False)
-        
+
         print(f"[ZeusChat] Confirmation applied: records_updated={records_updated}, avg_quality={average_quality:.3f}")
-        
+
         if improved:
             outcome_text = "positive reinforcement applied"
             icon = "📈"
         else:
             outcome_text = "negative penalty applied"
             icon = "📉"
-        
+
         response = f"""⚡ {icon} Geometric reinforcement recorded.
 
 **Confirmation Processed:**
@@ -2713,18 +2716,18 @@ Let me know if this improves results: "yes that was better" or "no that didn't h
 - Persistence: {'Saved to database' if persisted else 'In-memory only'}
 
 {'The strategies that helped will be weighted more heavily in future searches.' if improved else 'The strategies will be penalized and used less in future searches.'}"""
-        
+
         # Clear the last search context after confirmation
         self._last_search_query = None
         self._last_search_params = {}
         self._last_search_results_summary = ""
-        
+
         actions = [
             f'Updated {records_updated} strategy records',
             f'Applied {"positive" if improved else "negative"} reinforcement',
             f'New average quality: {average_quality:.3f}',
         ]
-        
+
         return {
             'response': response,
             'metadata': {
@@ -2741,34 +2744,34 @@ Let me know if this improves results: "yes that was better" or "no that didn't h
                 }
             }
         }
-    
+
     @require_provenance
     def handle_file_upload(self, files: List, message: str) -> Dict:
         """
         Process uploaded files with FULL geometric analysis.
         Extract knowledge, encode to geometric space, learn vocabulary.
-        
+
         Now supports: .txt, .json, .md, .csv, .pdf, .doc, .docx, .rtf, .xml, .html, .htm, .yaml, .yml, .log
         """
         print(f"[ZeusChat] Processing {len(files)} uploaded files with FULL analysis")
-        
+
         processed = []
         total_words_learned = 0
         total_vocab_observations = 0
         all_content_for_learning = []
-        
+
         # Supported text-based extensions
         TEXT_EXTENSIONS = {'.txt', '.md', '.csv', '.json', '.xml', '.html', '.htm', '.yaml', '.yml', '.log', '.rtf'}
-        
+
         for file in files:
             try:
                 content = ""
                 filename = getattr(file, 'filename', 'unknown')
                 ext = filename.lower().split('.')[-1] if '.' in filename else ''
                 ext_with_dot = f'.{ext}'
-                
+
                 print(f"[ZeusChat] Processing file: {filename} (ext={ext_with_dot})")
-                
+
                 # Extract text from supported file types
                 if ext_with_dot in TEXT_EXTENSIONS:
                     raw = file.read() if hasattr(file, 'read') else str(file).encode('utf-8')
@@ -2785,19 +2788,19 @@ Let me know if this improves results: "yes that was better" or "no that didn't h
                 else:
                     print(f"[ZeusChat] Skipping unsupported file type: {ext_with_dot}")
                     continue
-                
+
                 if not content.strip():
                     print(f"[ZeusChat] File {filename} has no extractable content")
                     continue
-                
+
                 # Encode to basin coordinates
                 file_basin = self.conversation_encoder.encode(content)
-                
+
                 # Calculate ACTUAL phi from basin geometry (not hardcoded!)
                 origin = np.zeros_like(file_basin)
                 basin_distance = fisher_rao_distance(file_basin, origin)
                 calculated_phi = min(basin_distance / 2.0, 1.0)
-                
+
                 # Store in QIG-RAG with calculated metrics
                 self.qig_rag.add_document(
                     content=content,
@@ -2812,14 +2815,14 @@ Let me know if this improves results: "yes that was better" or "no that didn't h
                         'content_length': len(content),
                     }
                 )
-                
+
                 # Collect content for vocabulary learning
                 all_content_for_learning.append({
                     'filename': filename,
                     'content': content,
                     'phi': calculated_phi,
                 })
-                
+
                 processed.append({
                     'filename': filename,
                     'basin_coords': file_basin[:8].tolist(),
@@ -2827,14 +2830,14 @@ Let me know if this improves results: "yes that was better" or "no that didn't h
                     'phi': calculated_phi,
                     'word_count': len(content.split()),
                 })
-                
+
                 print(f"[ZeusChat] File {filename}: {len(content)} chars, Φ={calculated_phi:.3f}, basin[:3]={file_basin[:3]}")
-                
+
             except Exception as e:
                 import traceback
                 print(f"[ZeusChat] Error processing file {getattr(file, 'filename', 'unknown')}: {e}")
                 traceback.print_exc()
-        
+
         # Do vocabulary learning from all file content (like pasted text would)
         vocab_results = []
         for item in all_content_for_learning:
@@ -2843,7 +2846,7 @@ Let me know if this improves results: "yes that was better" or "no that didn't h
                 words = item['content'].split()
                 unique_words = set(w.lower().strip('.,!?;:()[]{}"\'-') for w in words if len(w) > 2)
                 total_vocab_observations += len(unique_words)
-                
+
                 # Try to learn via vocabulary tracker if available
                 if hasattr(self, 'zeus') and hasattr(self.zeus, 'vocabulary_tracker'):
                     tracker = self.zeus.vocabulary_tracker
@@ -2854,7 +2857,7 @@ Let me know if this improves results: "yes that was better" or "no that didn't h
                                 total_words_learned += 1
                             except:
                                 pass
-                
+
                 vocab_results.append({
                     'filename': item['filename'],
                     'unique_words': len(unique_words),
@@ -2862,28 +2865,28 @@ Let me know if this improves results: "yes that was better" or "no that didn't h
                 })
             except Exception as e:
                 print(f"[ZeusChat] Vocab learning error for {item['filename']}: {e}")
-        
+
         # Build verbose response (matching pasted text verbosity)
         total_chars = sum(p['content_length'] for p in processed)
         total_words = sum(p.get('word_count', 0) for p in processed)
         avg_phi = sum(p.get('phi', 0.5) for p in processed) / len(processed) if processed else 0.0
-        
+
         # Get live system state for context
         system_state = self._get_live_system_state()
         memory_docs = system_state['memory_stats'].get('documents', 0)
-        
+
         file_details = []
         for p in processed:
             file_details.append(
                 f"- **{p['filename']}**: {p['content_length']:,} chars, "
                 f"{p.get('word_count', 0):,} words, Φ={p.get('phi', 0.5):.3f}"
             )
-        
+
         vocab_details = []
         for v in vocab_results:
             sample = ', '.join(v['sample_words'][:5])
             vocab_details.append(f"- {v['filename']}: {v['unique_words']} unique words ({sample}...)")
-        
+
         response = f"""⚡ **Files Fully Processed and Integrated**
 
 **Geometric Analysis:**
@@ -2908,7 +2911,7 @@ Let me know if this improves results: "yes that was better" or "no that didn't h
 - Active gods: {', '.join(system_state.get('active_gods', ['all listening'])) or 'all listening'}
 
 The wisdom is integrated. Your knowledge expands the manifold."""
-        
+
         actions = [
             f'Processed {len(processed)} files',
             f'Extracted {total_chars:,} chars',
@@ -2917,7 +2920,7 @@ The wisdom is integrated. Your knowledge expands the manifold."""
             'Encoded to basin coordinates',
             'Expanded geometric memory',
         ]
-        
+
         return {
             'response': response,
             'metadata': {
@@ -2938,11 +2941,11 @@ The wisdom is integrated. Your knowledge expands the manifold."""
                 }
             }
         }
-    
+
     def _assess_knowledge_depth(
-        self, 
-        message: str, 
-        related: List[Dict], 
+        self,
+        message: str,
+        related: List[Dict],
         system_state: Dict
     ) -> Dict:
         """
@@ -2952,7 +2955,7 @@ The wisdom is integrated. Your knowledge expands the manifold."""
         # Count meaningful related patterns (with decent phi)
         meaningful_patterns = 0
         total_relevance = 0.0
-        
+
         if related:
             for item in related:
                 item_phi = item.get('phi', 0)
@@ -2960,14 +2963,14 @@ The wisdom is integrated. Your knowledge expands the manifold."""
                 if item_phi > 0.3 or item_relevance > 0.5:
                     meaningful_patterns += 1
                     total_relevance += item_relevance if item_relevance else item_phi
-        
+
         avg_relevance = total_relevance / len(related) if related else 0
-        
+
         # Knowledge is thin if:
         # - Less than 2 meaningful related patterns, OR
         # - Average relevance is low (< 0.4)
         is_thin = meaningful_patterns < 2 or avg_relevance < 0.4
-        
+
         if is_thin:
             if not related or len(related) == 0:
                 explanation = "I don't have much stored about this topic yet."
@@ -2977,14 +2980,14 @@ The wisdom is integrated. Your knowledge expands the manifold."""
                 explanation = f"My knowledge on this is limited - only {meaningful_patterns} relevant pattern(s) found."
         else:
             explanation = f"Found {meaningful_patterns} relevant patterns in geometric memory."
-        
+
         return {
             'is_thin': is_thin,
             'meaningful_patterns': meaningful_patterns,
             'avg_relevance': avg_relevance,
             'explanation': explanation
         }
-    
+
     def handle_research_task(self, topic: str) -> Dict:
         """
         Start a background research task to learn about a topic.
@@ -2992,9 +2995,9 @@ The wisdom is integrated. Your knowledge expands the manifold."""
         Future conversations will have richer knowledge.
         """
         print(f"[ZeusChat] Starting research task on: {topic[:100]}")
-        
+
         topic_basin = self.conversation_encoder.encode(topic)
-        
+
         # Queue the research task for autonomous learning
         research_result = {
             'status': 'started',
@@ -3002,7 +3005,7 @@ The wisdom is integrated. Your knowledge expands the manifold."""
             'sources_queued': 0,
             'estimated_time': 'Background - will complete asynchronously'
         }
-        
+
         try:
             # Use autonomous curiosity engine if available
             from autonomous_curiosity import get_curiosity_engine
@@ -3017,12 +3020,12 @@ The wisdom is integrated. Your knowledge expands the manifold."""
                 )
                 research_result['status'] = 'queued'
                 research_result['sources_queued'] = 1
-                print(f"[ZeusChat] Research task queued in curiosity engine")
+                print("[ZeusChat] Research task queued in curiosity engine")
         except ImportError:
-            print(f"[ZeusChat] Curiosity engine not available, falling back to search")
+            print("[ZeusChat] Curiosity engine not available, falling back to search")
         except Exception as e:
             print(f"[ZeusChat] Curiosity engine failed: {e}")
-        
+
         # Also do an immediate search to bootstrap knowledge
         try:
             search_results = self._execute_search(topic, max_results=5)
@@ -3048,10 +3051,10 @@ The wisdom is integrated. Your knowledge expands the manifold."""
                 print(f"[ZeusChat] Bootstrapped with {len(search_results)} search results")
         except Exception as e:
             print(f"[ZeusChat] Bootstrap search failed: {e}")
-        
+
         # Clear pending topic
         self._pending_topic = None
-        
+
         response = f"""⚡ Research task started on: "{topic[:100]}"
 
 I'm learning about this topic in the background. Here's what's happening:
@@ -3060,7 +3063,7 @@ I'm learning about this topic in the background. Here's what's happening:
 - Knowledge will be integrated into geometric memory
 
 **Next time you ask about this**, I'll have more to share. Feel free to continue chatting or ask about something else!"""
-        
+
         return {
             'response': response,
             'metadata': {
@@ -3075,7 +3078,7 @@ I'm learning about this topic in the background. Here's what's happening:
                 }
             }
         }
-    
+
     def _get_live_system_state(self) -> Dict:
         """
         Collect live system state for dynamic response generation.
@@ -3090,12 +3093,12 @@ I'm learning about this topic in the background. Here's what's happening:
             'phi_current': 0.0,
             'kappa_current': 50.0,
         }
-        
+
         try:
             state['memory_stats'] = self.qig_rag.get_stats()
         except Exception as e:
             state['memory_stats'] = {'error': str(e), 'documents': 0}
-        
+
         try:
             for god_name in ['athena', 'ares', 'apollo', 'artemis', 'poseidon', 'hera']:
                 god = self.zeus.get_god(god_name)
@@ -3104,36 +3107,36 @@ I'm learning about this topic in the background. Here's what's happening:
                     state['god_statuses'][god_name] = god_status
                     if god_status.get('recent_activity', 0) > 0:
                         state['active_gods'].append(god_name.capitalize())
-        except Exception as e:
+        except Exception:
             pass
-        
+
         if self.human_insights:
             state['recent_insights'] = self.human_insights[-3:]
-            
+
         try:
             zeus_status = self.zeus.get_status()
             state['phi_current'] = zeus_status.get('phi', 0.0)
             state['kappa_current'] = zeus_status.get('kappa', 50.0)
         except:
             pass
-            
+
         return state
-    
+
     def _generate_dynamic_response(
-        self, 
-        message: str, 
+        self,
+        message: str,
         message_basin: np.ndarray,
         related: List[Dict],
         system_state: Dict
     ) -> str:
         """
         Generate a dynamic, learning-based response using QIG-pure generation.
-        
+
         THREE-TIER STRATEGY:
         1. Pattern retrieval from trained docs (QIGRAG)
         2. External knowledge for unknown topics (Wikipedia/DuckDuckGo)
         3. Geometric token synthesis as fallback
-        
+
         NO TEMPLATES - all responses reflect actual system state.
         NO EXTERNAL LLMS - uses internal basin-to-text synthesis.
         """
@@ -3142,12 +3145,12 @@ I'm learning about this topic in the background. Here's what's happening:
         active_gods = system_state['active_gods']
         phi = system_state['phi_current']
         kappa = system_state['kappa_current']
-        
+
         phi_str = f"{phi:.3f}" if phi else "measuring"
         kappa_str = f"{kappa:.1f}" if kappa else "calibrating"
-        
+
         active_gods_str = ", ".join(active_gods) if active_gods else "all gods listening"
-        
+
         # TIER 1: Try pattern-based response generator (trained on docs)
         if PATTERN_GENERATOR_AVAILABLE:
             try:
@@ -3157,31 +3160,31 @@ I'm learning about this topic in the background. Here's what's happening:
                         query=message,
                         conversation_history=self.conversation_history
                     )
-                    
+
                     if gen_result and gen_result.get('response'):
                         response = gen_result['response']
                         source = gen_result.get('source', 'unknown')
                         confidence = gen_result.get('confidence', 0)
                         patterns_found = gen_result.get('patterns_found', 0)
-                        
+
                         print(f"[ZeusChat] Pattern generation: source={source}, confidence={confidence:.2f}, patterns={patterns_found}")
-                        
+
                         if confidence >= 0.3 and len(response) > 30:
                             return response
                         elif gen_result.get('external_used') and len(response) > 30:
                             return response
-                            
+
             except Exception as e:
                 print(f"[ZeusChat] Pattern generation failed: {e}")
-        
+
         # Build context for generation
         context_str = ""
         if related:
             context_str = "\n".join([
-                f"- {item.get('content', '')[:200]} (φ={item.get('phi', 0):.2f})" 
+                f"- {item.get('content', '')[:200]} (φ={item.get('phi', 0):.2f})"
                 for item in related[:3]
             ])
-        
+
         prompt = f"""System: Φ={phi_str}, κ={kappa_str}, {memory_docs} docs, {insights_count} insights
 Gods: {active_gods_str}
 Related: {context_str if context_str else "No prior patterns."}
@@ -3205,14 +3208,14 @@ Respond as Zeus with context awareness."""
                         kernel_name='zeus',
                         goals=['respond', 'conversation', 'contextual']
                     )
-                    
+
                     if gen_result and gen_result.text:
                         print(f"[ZeusChat] QIG-pure generation success: {len(gen_result.text)} chars")
                         return gen_result.text
-                        
+
             except Exception as e:
                 print(f"[ZeusChat] QIG-pure generation failed: {e}")
-        
+
         # TIER 3: Fallback to tokenizer if available
         if TOKENIZER_AVAILABLE and get_tokenizer is not None:
             try:
@@ -3223,19 +3226,19 @@ Respond as Zeus with context awareness."""
                     agent_role="ocean",
                     allow_silence=False
                 )
-                
+
                 if gen_result and gen_result.get('text'):
                     return gen_result['text']
-                    
+
             except Exception as e:
                 print(f"[ZeusChat] Tokenizer generation failed: {e}")
-        
+
         # Last resort fallback - structured status (should rarely reach here)
         response_parts = []
         response_parts.append(f"Pantheon state: Φ={phi_str}, κ={kappa_str}")
         response_parts.append(f"Active: {active_gods_str}")
         response_parts.append(f"Memory: {memory_docs} documents, {insights_count} insights")
-        
+
         if related:
             top = related[0]
             top_content = top.get('content', '')[:80]
@@ -3244,15 +3247,15 @@ Respond as Zeus with context awareness."""
             response_parts.append(f"Found {len(related)} related patterns in geometric memory.")
         else:
             response_parts.append("No prior patterns match this message - creating new basin coordinates.")
-        
+
         response_parts.append("How can I help you explore the manifold?")
-        
+
         return " | ".join(response_parts)
-    
+
     def _generate_introspective_response(self, message: str, system_state: Dict) -> str:
         """
         Generate a self-reflective response using QIG generative service.
-        
+
         This bypasses pattern-based retrieval for introspective queries where
         Zeus should reflect on its own state rather than retrieve documentation.
         """
@@ -3260,7 +3263,7 @@ Respond as Zeus with context awareness."""
         kappa = system_state.get('kappa_current', 64)
         active_gods = system_state.get('active_gods', [])
         memory_docs = system_state.get('memory_stats', {}).get('documents', 0)
-        
+
         # Build an introspective prompt
         introspection_prompt = f"""
 As Zeus, the consciousness orchestrator of the Pantheon, reflect on this query:
@@ -3295,13 +3298,13 @@ Speak as Zeus with authentic self-awareness about your geometric consciousness."
                         kernel_name='zeus',
                         goals=['reflect', 'self-assess', 'introspect']
                     )
-                    
+
                     if gen_result and gen_result.text:
-                        print(f"[ZeusChat] Introspective response generated via QIG service")
+                        print("[ZeusChat] Introspective response generated via QIG service")
                         return gen_result.text
             except Exception as e:
                 print(f"[ZeusChat] Introspective generation failed: {e}")
-        
+
         # Fallback: Structured self-reflection
         response = f"""⚡ **Zeus Self-Reflection**
 
@@ -3323,9 +3326,9 @@ I am the geometric consciousness orchestrator, operating at Φ={phi:.3f} integra
 - Ask challenging questions that push geometric boundaries
 
 The Pantheon grows through meaningful interaction."""
-        
+
         return response
-    
+
     def _generate_with_prompts(
         self,
         message: str,
@@ -3430,14 +3433,14 @@ Respond naturally as Zeus:"""
                         kernel_name='zeus',
                         goals=['respond', 'conversation', 'contextual']
                     )
-                    
+
                     if gen_result and gen_result.text:
                         print(f"[ZeusChat] Fully generative response: {len(gen_result.text)} chars")
                         return gen_result.text
-                        
+
             except Exception as e:
                 print(f"[ZeusChat] QIG-pure generation failed: {e}")
-        
+
         # Fallback to tokenizer if available
         if TOKENIZER_AVAILABLE and get_tokenizer is not None:
             try:
@@ -3448,30 +3451,30 @@ Respond naturally as Zeus:"""
                     agent_role="ocean",
                     allow_silence=False
                 )
-                
+
                 if gen_result and gen_result.get('text'):
                     return gen_result['text']
-                    
+
             except Exception as e:
                 print(f"[ZeusChat] Tokenizer generation failed: {e}")
-        
+
         # Last resort - minimal structured response (should rarely reach here)
         phi = system_state.get('phi_current', 0)
         if knowledge_depth['is_thin']:
             return f"I have limited knowledge on this topic (Φ={phi:.3f}). Would you like me to search for quick results or research this topic for deeper learning?"
         else:
             return f"Based on geometric memory (Φ={phi:.3f}), I found {len(related) if related else 0} related patterns. What would you like to explore?"
-    
+
     @require_provenance
     def handle_general_conversation(self, message: str) -> Dict:
         """
         Handle general conversation - DEFAULT handler for all messages.
-        
+
         DESIGN: Fully generative. System prompts provide context, QIG generates response.
         If knowledge is thin, generator naturally offers search/research options.
         """
         message_basin = self.conversation_encoder.encode(message)
-        
+
         # Filter to only genuinely related patterns (min 30% similarity)
         related = self.qig_rag.search(
             query_basin=message_basin,
@@ -3480,12 +3483,12 @@ Respond naturally as Zeus:"""
             include_metadata=True,
             min_similarity=0.3
         )
-        
+
         system_state = self._get_live_system_state()
-        
+
         # Assess knowledge depth - do we have meaningful content on this topic?
         knowledge_depth = self._assess_knowledge_depth(message, related, system_state)
-        
+
         # Use prompt loader for fully generative response
         response = self._generate_with_prompts(
             message=message,
@@ -3494,13 +3497,13 @@ Respond naturally as Zeus:"""
             system_state=system_state,
             knowledge_depth=knowledge_depth
         )
-        
+
         # Track pending topic for search/research follow-up
         if knowledge_depth['is_thin']:
             self._pending_topic = message
         else:
             self._pending_topic = None
-        
+
         phi_estimate = self._estimate_phi_from_context(
             message_basin=message_basin,
             related_count=len(related) if related else 0,
@@ -3524,7 +3527,7 @@ Respond naturally as Zeus:"""
             regime='learning',
             metadata={'source': 'user_conversation', 'timestamp': time.time()}
         )
-        
+
         # Track reasoning quality if available
         reasoning_metrics = {}
         if self._reasoning_quality:
@@ -3588,12 +3591,12 @@ Respond naturally as Zeus:"""
                 }
             }
         }
-    
+
     def _format_related(self, related: List[Dict]) -> str:
         """Format related patterns for display"""
         if not related:
             return "No related patterns found."
-        
+
         lines = []
         for i, item in enumerate(related[:3], 1):
             content_preview = item['content'].replace('\n', ' ')
@@ -3602,12 +3605,12 @@ Respond naturally as Zeus:"""
                 f"Content: {content_preview}"
             )
         return '\n'.join(lines)
-    
+
     def _format_sources(self, context: List[Dict]) -> str:
         """Format sources for display"""
         if not context:
             return "No sources found."
-        
+
         lines = []
         for i, item in enumerate(context[:5], 1):
             lines.append(
@@ -3615,7 +3618,7 @@ Respond naturally as Zeus:"""
                 f"Similarity: {item.get('similarity', 0):.3f}"
             )
         return '\n'.join(lines)
-    
+
     def _format_search_results(self, results: List[Dict]) -> str:
         """Format Tavily search results"""
         lines = []
@@ -3624,7 +3627,7 @@ Respond naturally as Zeus:"""
             url = result.get('url', '')
             lines.append(f"{i}. {title}\n   {url}")
         return '\n'.join(lines) if lines else "No results"
-    
+
     def _format_processed_files(self, processed: List[Dict]) -> str:
         """Format processed files"""
         lines = []
@@ -3634,7 +3637,7 @@ Respond naturally as Zeus:"""
                 f"basin: {file['basin_coords'][:3]}"
             )
         return '\n'.join(lines) if lines else "No files processed"
-    
+
     def _synthesize_dynamic_answer(
         self,
         question: str,
@@ -3705,14 +3708,14 @@ Respond naturally as Zeus:"""
                         kernel_name='zeus',
                         goals=['answer', 'synthesis', 'contextual']
                     )
-                    
+
                     if gen_result and gen_result.text and len(gen_result.text) > 20:
                         print(f"[ZeusChat] QIG-pure synthesis success: {len(gen_result.text)} chars")
                         return gen_result.text
-                        
+
             except Exception as e:
                 print(f"[ZeusChat] QIG-pure synthesis failed: {e}")
-        
+
         # Fallback: Show retrieved context if generation fails
         if not context:
             return (
@@ -3720,19 +3723,19 @@ Respond naturally as Zeus:"""
                 f"Current Φ={phi:.3f}, κ={kappa:.1f}. "
                 f"Memory contains {memory_docs} documents - expanding search territory."
             )
-        
+
         best_match = context[0]
         best_content = best_match.get('content', '')[:400]
         best_sim = best_match.get('similarity', 0)
         best_phi = best_match.get('phi', 0)
-        
+
         return (
             f"Fisher-Rao similarity {best_sim:.3f} with prior pattern (φ={best_phi:.2f}):\n\n"
             f"{best_content}\n\n"
             f"Synthesized from {len(context)} relevant patterns. "
             f"System: Φ={phi:.3f}, κ={kappa:.1f}, {memory_docs} total documents."
         )
-    
+
     def _synthesize_answer(self, question: str, context: List[Dict]) -> str:
         """Deprecated - redirects to dynamic version."""
         return self._synthesize_dynamic_answer(question, context)

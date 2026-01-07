@@ -325,6 +325,32 @@ except ImportError as e:
 except Exception as e:
     print(f"[WARNING] Search Budget API initialization failed: {e}")
 
+# Initialize Startup Catch-Up Training System
+# This replaces Celery Beat scheduler (not deployed on Railway)
+CATCHUP_AVAILABLE = False
+_catchup_manager = None
+try:
+    from training.startup_catchup import get_catchup_manager
+
+    _catchup_manager = get_catchup_manager()
+
+    # Calculate missed training since last shutdown
+    missed = _catchup_manager.calculate_missed_runs()
+    if any(missed.values()):
+        print(f"[INFO] Detected missed training runs: {missed}")
+        # Execute catch-up in background to not block startup
+        result = _catchup_manager.execute_catchup(background=True)
+        print(f"[INFO] Startup catch-up initiated: {result.get('status', 'unknown')}")
+    else:
+        print("[INFO] No missed training runs detected")
+
+    CATCHUP_AVAILABLE = True
+    print("[INFO] Startup Catch-Up Training System active")
+except ImportError as e:
+    print(f"[WARNING] Startup catch-up not available: {e}")
+except Exception as e:
+    print(f"[WARNING] Startup catch-up initialization failed: {e}")
+
 # Add request/response logging for production
 from flask import request, g
 import time
@@ -419,6 +445,7 @@ print(f"  - Vocabulary API: {'✓' if VOCABULARY_AVAILABLE else '✗'}", flush=T
 print(f"  - Coordizer API: {'✓' if COORDIZER_AVAILABLE else '✗'}", flush=True)
 print(f"  - Zeus API: {'✓' if ZEUS_API_AVAILABLE else '✗'}", flush=True)
 print(f"  - Search Budget: {'✓' if SEARCH_BUDGET_AVAILABLE else '✗'}", flush=True)
+print(f"  - Startup catch-up: {'✓' if CATCHUP_AVAILABLE else '✗'}", flush=True)
 print("🌊 Basin stable. Ready for Gunicorn workers. 🌊\n", flush=True)
 
 # Export the app for Gunicorn

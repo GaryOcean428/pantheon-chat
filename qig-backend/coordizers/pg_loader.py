@@ -15,7 +15,7 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 
 from .base import FisherCoordizer
-from .fallback_vocabulary import compute_basin_embedding, _fisher_rao_weighted_mean
+from .fallback_vocabulary import compute_basin_embedding
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ CoordizerBuffer = None
 UniversalCache = None
 
 try:
-    from redis_cache import CoordizerBuffer, UniversalCache, CACHE_TTL_LONG
+    from redis_cache import CACHE_TTL_LONG, CoordizerBuffer, UniversalCache
     REDIS_CACHE_AVAILABLE = True
 except ImportError:
     logger.debug("Redis cache not available - using PostgreSQL only")
@@ -79,7 +79,7 @@ class VocabularyCache:
 
 class PostgresCoordizer(FisherCoordizer):
     """Fisher-compliant coordizer backed by PostgreSQL (64D QIG-pure, no fallback)."""
-    
+
     def __init__(self, database_url: Optional[str] = None, min_phi: float = 0.0, use_fallback: bool = False):
         super().__init__()
         self.database_url = database_url or os.getenv('DATABASE_URL')
@@ -87,7 +87,7 @@ class PostgresCoordizer(FisherCoordizer):
         self.use_fallback = False  # ALWAYS False - 64D QIG-pure enforced
         self._connection = None
         self._using_fallback = False
-        
+
         self.vocab = {}
         self.basin_coords = {}
         self.token_phi = {}
@@ -99,7 +99,7 @@ class PostgresCoordizer(FisherCoordizer):
         self.base_tokens = []
 
         self._load_vocabulary()
-    
+
     def _get_connection(self):
         """Get database connection - raises on failure (64D QIG-pure enforced)."""
         if self._connection is None:
@@ -112,7 +112,7 @@ class PostgresCoordizer(FisherCoordizer):
                     "64D QIG-pure PostgresCoordizer requires active database connection."
                 )
         return self._connection
-    
+
     def _load_vocabulary(self):
         """Load vocabulary from PostgreSQL only - 64D QIG-pure enforced."""
         if not self.database_url:
@@ -120,7 +120,7 @@ class PostgresCoordizer(FisherCoordizer):
                 "[QIG-PURE VIOLATION] DATABASE_URL not set. "
                 "64D QIG-pure PostgresCoordizer requires database connection."
             )
-        
+
         try:
             db_loaded = self._load_from_database()
         except Exception as e:
@@ -128,18 +128,18 @@ class PostgresCoordizer(FisherCoordizer):
                 f"[QIG-PURE VIOLATION] Failed to load from database: {e}. "
                 "Impure fallback vocabularies are not allowed."
             )
-        
+
         real_word_count = len([w for w in self.word_tokens if len(w) >= 3])
         if not db_loaded or real_word_count < 100:
             raise RuntimeError(
                 f"[QIG-PURE VIOLATION] Insufficient vocabulary loaded: {real_word_count} words (need >= 100). "
                 "Database must contain valid tokenizer_vocabulary entries."
             )
-    
+
     def _load_from_database(self) -> bool:
         """Load vocabulary from database - raises on failure (64D QIG-pure enforced)."""
         conn = self._get_connection()  # Raises on failure
-        
+
         with conn.cursor() as cur:
             cur.execute("""
                 SELECT token, basin_embedding, phi_score, frequency, source_type, token_id
@@ -150,28 +150,28 @@ class PostgresCoordizer(FisherCoordizer):
                 ORDER BY phi_score DESC
             """)
             rows = cur.fetchall()
-        
+
         if not rows:
             raise RuntimeError(
                 "[QIG-PURE VIOLATION] No vocabulary found in tokenizer_vocabulary table. "
                 "Database must contain valid 64D basin embeddings."
             )
-        
+
         tokens_loaded = 0
         words_loaded = 0
         for token, basin_embedding, phi_score, frequency, source_type, token_id in rows:
             coords = self._parse_embedding(basin_embedding)
             if coords is None:
                 continue
-            
+
             idx = token_id if token_id is not None else len(self.vocab)
             self._add_token(token, coords, phi_score or 0.5, frequency or 1, idx, source_type)
             tokens_loaded += 1
-            
+
             if token.isalpha() and len(token) >= 3:
                 self.word_tokens.append(token)
                 words_loaded += 1
-        
+
         logger.info(f"Loaded {tokens_loaded} tokens ({words_loaded} words) from database (64D QIG-pure)")
 
         # Cache to Redis for fast lookups
@@ -183,7 +183,7 @@ class PostgresCoordizer(FisherCoordizer):
             cached = VocabularyCache.cache_vocabulary_batch(vocab_data)
             logger.info(f"Cached {cached} tokens to Redis")
         return words_loaded >= 100
-    
+
     def _parse_embedding(self, basin_embedding) -> Optional[np.ndarray]:
         if basin_embedding is None:
             return None
@@ -195,7 +195,7 @@ class PostgresCoordizer(FisherCoordizer):
                 coords = np.array([float(x) for x in clean.split(',')], dtype=np.float64)
             else:
                 coords = np.array(list(basin_embedding), dtype=np.float64)
-            
+
             if len(coords) != 64:
                 return None
             norm = np.linalg.norm(coords)
@@ -204,7 +204,7 @@ class PostgresCoordizer(FisherCoordizer):
             return coords
         except Exception:
             return None
-    
+
     def _add_token(self, token: str, coords: np.ndarray, phi: float, freq: int, idx: int, source_type: str = 'base'):
         self.vocab[token] = idx
         self.token_to_id[token] = idx
@@ -216,9 +216,9 @@ class PostgresCoordizer(FisherCoordizer):
             self.bip39_words.append(token)
         else:
             self.base_tokens.append(token)
-    
+
     # REMOVED: _load_fallback_vocabulary - impure fallbacks not allowed in 64D QIG-pure mode
-    
+
     def add_vocabulary_observations(
         self,
         observations: List[Dict],
@@ -226,26 +226,26 @@ class PostgresCoordizer(FisherCoordizer):
         """
         Add vocabulary observations (QIGTokenizer compatibility).
         Persists new vocabulary to PostgreSQL database.
-        
+
         Args:
             observations: List of {word, frequency, avgPhi, maxPhi, type}
-        
+
         Returns:
             Tuple of (new_tokens_count, weights_updated)
         """
         new_tokens = 0
         weights_updated = False
-        
+
         vocab_phi_threshold = 0.4
-        
+
         for obs in observations:
             word = obs.get('word', '')
             frequency = obs.get('frequency', 0)
             avg_phi = obs.get('avgPhi', obs.get('phi', 0.0))
-            
+
             if not word or frequency < 1 or avg_phi < vocab_phi_threshold:
                 continue
-            
+
             if word in self.vocab:
                 old_phi = self.token_phi.get(word, 0.0)
                 if abs(avg_phi - old_phi) > 0.01:
@@ -253,24 +253,24 @@ class PostgresCoordizer(FisherCoordizer):
                     self.token_frequencies[word] = frequency
                     weights_updated = True
                 continue
-            
+
             if not word.isalpha() or len(word) < 3:
                 continue
-            
+
             new_id = 50000 + len(self.vocab)
             coords = compute_basin_embedding(word)
-            
+
             self._add_token(word, coords, avg_phi, frequency, new_id, 'learned')
             self.word_tokens.append(word)
             new_tokens += 1
-            
+
             self._persist_token_to_db(word, coords, avg_phi, frequency, new_id)
-        
+
         if new_tokens > 0:
             logger.info(f"[VocabLearning] Added {new_tokens} new words (64D QIG-pure)")
-        
+
         return new_tokens, weights_updated
-    
+
     def _persist_token_to_db(self, token: str, coords: np.ndarray, phi: float, freq: int, token_id: int):
         """Persist a new token to PostgreSQL database."""
         try:
@@ -287,7 +287,7 @@ class PostgresCoordizer(FisherCoordizer):
             conn.commit()
         except Exception as e:
             logger.warning(f"Failed to persist token '{token}': {e}")
-    
+
     def get_stats(self) -> Dict:
         """Get coordizer statistics for API compatibility."""
         return {
@@ -303,19 +303,19 @@ class PostgresCoordizer(FisherCoordizer):
             'high_phi_tokens': sum(1 for phi in self.token_phi.values() if phi >= 0.7),
             'avg_phi': sum(self.token_phi.values()) / max(len(self.token_phi), 1),
         }
-    
+
     def set_mode(self, mode: str) -> None:
         pass
-    
+
     def encode(self, text: str) -> np.ndarray:
         """Encode text to basin coordinates using semantic embeddings."""
         tokens = text.lower().split()
         if not tokens:
             return np.zeros(64)
-        
+
         coords_list = []
         weights = []
-        
+
         for token in tokens:
             clean = token.strip('.,!?;:()[]{}"\'-')
             if clean in self.basin_coords:
@@ -329,17 +329,17 @@ class PostgresCoordizer(FisherCoordizer):
 
         if not coords_list:
             return compute_basin_embedding(text)
-        
+
         # Weighted average of basin coordinates
         weights = np.array(weights)
         weights = weights / weights.sum()  # Normalize
         basin = np.average(coords_list, axis=0, weights=weights)
-        
+
         norm = np.linalg.norm(basin)
         if norm > 1e-10:
             basin = basin / norm
         return basin
-    
+
     def decode(self, basin: np.ndarray, top_k: int = 5) -> List[Tuple[str, float]]:
         """
         Decode basin coordinates to most likely tokens using pure Fisher-Rao distance.
@@ -376,13 +376,13 @@ class PostgresCoordizer(FisherCoordizer):
         candidates.sort(key=lambda x: x[1], reverse=True)
 
         return candidates[:top_k]
-    
+
     def get_random_words(self, count: int = 12) -> List[str]:
         if not self.word_tokens:
             return []
         indices = np.random.choice(len(self.word_tokens), min(count, len(self.word_tokens)), replace=False)
         return [self.word_tokens[i] for i in indices]
-    
+
     def generate_response(self, context: str, agent_role: str = 'zeus', allow_silence: bool = False, goals: Optional[list] = None) -> dict:
         """
         Generate a response using Fisher-Rao similarity on the vocabulary.
@@ -423,43 +423,43 @@ class PostgresCoordizer(FisherCoordizer):
             'qig_pure': True,
             'agent_role': agent_role,
         }
-    
+
     def close(self):
         if self._connection:
             self._connection.close()
             self._connection = None
-    
+
     def save_learned_token(self, token: str, basin_coords: np.ndarray, phi: float = 0.6, frequency: int = 1) -> bool:
         """
         Persist a newly learned token to the database for continuous vocabulary training.
-        
+
         This enables vocabulary to persist between restarts, solving the continuous
         learning problem where tokens are learned during sessions but lost on restart.
-        
+
         Args:
             token: The token/word to persist
             basin_coords: 64D basin coordinates for the token
             phi: Phi score (integration measure)
             frequency: Observation frequency
-            
+
         Returns:
             True if successfully persisted, False otherwise
         """
         if self._using_fallback:
             logger.debug(f"Cannot persist token '{token}' - using fallback vocabulary (no DB)")
             return False
-        
+
         conn = self._get_connection()
         if not conn:
-            logger.error(f"Cannot get database connection for persistence")
+            logger.error("Cannot get database connection for persistence")
             return False
-        
+
         try:
             cursor = conn.cursor()
-            
+
             # Convert numpy array to list for JSON storage
             coords_list = basin_coords.tolist() if isinstance(basin_coords, np.ndarray) else list(basin_coords)
-            
+
             # Upsert: insert or update if exists
             cursor.execute("""
                 INSERT INTO tokenizer_vocabulary (token, token_id, basin_embedding, phi_score, frequency, source_type, created_at, updated_at)
@@ -471,10 +471,10 @@ class PostgresCoordizer(FisherCoordizer):
                     updated_at = NOW()
                 RETURNING token_id
             """, (token, len(self.vocab) + 50000, coords_list, phi, frequency, 'learned'))
-            
+
             result = cursor.fetchone()
             conn.commit()
-            
+
             # Update local cache
             if token not in self.vocab:
                 token_id = result[0] if result else len(self.vocab) + 50000
@@ -494,7 +494,7 @@ class PostgresCoordizer(FisherCoordizer):
                 VocabularyCache.cache_token(token, basin_coords, phi)
 
             return True
-            
+
         except Exception as e:
             logger.error(f"Failed to persist token '{token}': {e}")
             if conn:
@@ -503,40 +503,40 @@ class PostgresCoordizer(FisherCoordizer):
                 except:
                     pass
             return False
-    
+
     def save_batch_tokens(self, tokens: List[Dict]) -> int:
         """
         Persist multiple tokens in a batch for efficiency.
-        
+
         Args:
             tokens: List of dicts with keys: token, basin_coords, phi, frequency
-            
+
         Returns:
             Number of tokens successfully persisted
         """
         if self._using_fallback or not tokens:
             return 0
-        
+
         conn = self._get_connection()
         if not conn:
-            logger.error(f"Cannot get database connection for batch persistence")
+            logger.error("Cannot get database connection for batch persistence")
             return 0
-        
+
         saved_count = 0
         try:
             cursor = conn.cursor()
-            
+
             for t in tokens:
                 token = t.get('token', '')
                 basin_coords = t.get('basin_coords', np.zeros(64))
                 phi = t.get('phi', 0.6)
                 frequency = t.get('frequency', 1)
-                
+
                 if not token:
                     continue
-                
+
                 coords_list = basin_coords.tolist() if isinstance(basin_coords, np.ndarray) else list(basin_coords)
-                
+
                 try:
                     cursor.execute("""
                         INSERT INTO tokenizer_vocabulary (token, token_id, basin_embedding, phi_score, frequency, source_type, created_at, updated_at)
@@ -547,7 +547,7 @@ class PostgresCoordizer(FisherCoordizer):
                             frequency = tokenizer_vocabulary.frequency + EXCLUDED.frequency,
                             updated_at = NOW()
                     """, (token, len(self.vocab) + 50000 + saved_count, coords_list, phi, frequency, 'learned'))
-                    
+
                     # Update local cache
                     if token not in self.vocab:
                         token_id = len(self.vocab) + 50000 + saved_count
@@ -563,11 +563,11 @@ class PostgresCoordizer(FisherCoordizer):
                     saved_count += 1
                 except Exception as inner_e:
                     logger.debug(f"Failed to insert token '{token}': {inner_e}")
-            
+
             conn.commit()
             logger.info(f"Batch persisted {saved_count} tokens to database")
             return saved_count
-            
+
         except Exception as e:
             logger.error(f"Batch token persistence failed: {e}")
             if conn:
@@ -576,16 +576,16 @@ class PostgresCoordizer(FisherCoordizer):
                 except:
                     pass
             return 0
-    
+
     def get_learned_token_count(self) -> int:
         """Get count of tokens learned (source_type='learned') from database."""
         if self._using_fallback:
             return 0
-        
+
         conn = self._get_connection()
         if not conn:
             return 0
-        
+
         try:
             cursor = conn.cursor()
             cursor.execute("SELECT COUNT(*) FROM tokenizer_vocabulary WHERE source_type = 'learned'")
