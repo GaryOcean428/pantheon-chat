@@ -20,7 +20,7 @@ const getOidcConfig = memoize(
   { maxAge: 3600 * 1000 }
 );
 
-export function getSession() {
+export function getSession(): ReturnType<typeof session> | null {
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
   const isDeployment = process.env.REPLIT_DEPLOYMENT === '1';
   // In deployments, always treat as production even if NODE_ENV isn't set
@@ -30,10 +30,17 @@ export function getSession() {
   console.log(`[Session] DATABASE_URL exists: ${!!process.env.DATABASE_URL}`);
   console.log(`[Session] SESSION_SECRET exists: ${!!process.env.SESSION_SECRET}`);
   
-  // Ensure SESSION_SECRET exists
+  // Ensure SESSION_SECRET exists - use fallback in development, warn in production
   if (!process.env.SESSION_SECRET) {
-    console.error(`[Session] ERROR: SESSION_SECRET is not set!`);
-    throw new Error('SESSION_SECRET environment variable must be set for authentication');
+    if (isDeployment) {
+      console.error(`[Session] ERROR: SESSION_SECRET is not set in deployment!`);
+      console.error(`[Session] Authentication will be disabled. Set SESSION_SECRET in deployment secrets.`);
+      // Return null to signal auth should be disabled
+      return null;
+    } else {
+      console.warn(`[Session] WARNING: SESSION_SECRET not set, using insecure default for development`);
+      process.env.SESSION_SECRET = 'dev-session-secret-not-for-production';
+    }
   }
   
   // Use database session store if DATABASE_URL is available, otherwise use memory store
@@ -124,9 +131,16 @@ export function getCachedUser(user: any): any | null {
   return user.cachedProfile;
 }
 
-export async function setupAuth(app: Express) {
+export async function setupAuth(app: Express): Promise<boolean> {
   app.set("trust proxy", 1);
-  app.use(getSession());
+
+  const sessionMiddleware = getSession();
+  if (!sessionMiddleware) {
+    console.error("[Auth] Session setup failed - auth will be disabled");
+    return false;
+  }
+
+  app.use(sessionMiddleware);
   app.use(passport.initialize());
   app.use(passport.session());
 
@@ -239,6 +253,8 @@ export async function setupAuth(app: Express) {
       );
     });
   });
+
+  return true;
 }
 
 // Re-export AuthenticatedUser from shared types for consumers who import from replitAuth

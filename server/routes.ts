@@ -219,56 +219,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   const { db } = await import("./db");
-  const authEnabled = !!db;
+  let authEnabled = !!db;
 
   if (authEnabled) {
-    await setupAuth(app);
-    console.log("[Auth] Replit Auth enabled");
+    const authSetupSuccess = await setupAuth(app);
+    if (authSetupSuccess) {
+      console.log("[Auth] Replit Auth enabled");
 
-    app.get("/api/auth/user", isAuthenticated, async (req: any, res) => {
-      try {
-        const { getCachedUser } = await import("./replitAuth");
-        const cachedUser = getCachedUser(req.user);
+      app.get("/api/auth/user", isAuthenticated, async (req: any, res) => {
+        try {
+          const { getCachedUser } = await import("./replitAuth");
+          const cachedUser = getCachedUser(req.user);
 
-        if (cachedUser) {
-          const { cachedAt: _cachedAt, ...userResponse } = cachedUser;
-          return res.json(userResponse);
+          if (cachedUser) {
+            const { cachedAt: _cachedAt, ...userResponse } = cachedUser;
+            return res.json(userResponse);
+          }
+
+          const userId = req.user.claims.sub;
+          const user = await storage.getUser(userId);
+
+          if (user) {
+            req.user.cachedProfile = {
+              ...user,
+              cachedAt: Date.now(),
+            };
+          }
+
+          res.json(user);
+        } catch (error) {
+          console.error("Error fetching user:", error);
+          res.status(500).json({ message: "Failed to fetch user" });
         }
+      });
+    } else {
+      console.error("[Auth] Replit Auth setup failed - falling back to no auth");
+      authEnabled = false;  // Fall through to disabled handling below
+    }
+  }
 
-        const userId = req.user.claims.sub;
-        const user = await storage.getUser(userId);
-
-        if (user) {
-          req.user.cachedProfile = {
-            ...user,
-            cachedAt: Date.now(),
-          };
-        }
-
-        res.json(user);
-      } catch (error) {
-        console.error("Error fetching user:", error);
-        res.status(500).json({ message: "Failed to fetch user" });
-      }
-    });
-  } else {
-    console.log("[Auth] Replit Auth disabled (no DATABASE_URL)");
+  if (!authEnabled) {
+    console.log("[Auth] Replit Auth disabled (no DATABASE_URL or setup failed)");
 
     app.get("/api/auth/user", (req, res) => {
       res.status(503).json({
-        message: "Authentication unavailable - database not provisioned.",
+        message: "Authentication unavailable - database not provisioned or SESSION_SECRET missing.",
       });
     });
 
     app.get("/api/login", (req, res) => {
       res.status(503).json({
-        message: "Authentication unavailable - database not provisioned.",
+        message: "Authentication unavailable - database not provisioned or SESSION_SECRET missing.",
       });
     });
 
     app.get("/api/logout", (req, res) => {
       res.status(503).json({
-        message: "Authentication unavailable - database not provisioned.",
+        message: "Authentication unavailable - database not provisioned or SESSION_SECRET missing.",
       });
     });
   }

@@ -13,24 +13,24 @@ Capabilities:
 Key principle: Code is not optimized. Geometry is optimized. Code emerges from geometry.
 """
 
-from typing import Dict, List, Optional
 import asyncio
-from datetime import datetime
 import os
-import subprocess
+from datetime import datetime
+from typing import Dict, List
+
 try:
     import aiohttp  # type: ignore
 except ImportError:  # pragma: no cover
     aiohttp = None
 
-from .geometric_monitor import GeometricHealthMonitor, GeometricSnapshot
 from .code_fitness import CodeFitnessEvaluator
+from .geometric_monitor import GeometricHealthMonitor
 
 
 class SelfHealingEngine:
     """
     Autonomous code healing and improvement.
-    
+
     Runs continuously to:
     - Monitor geometric health
     - Detect degradation
@@ -38,15 +38,15 @@ class SelfHealingEngine:
     - Test and apply safe changes
     - Alert humans for critical issues
     """
-    
-    def __init__(self, 
+
+    def __init__(self,
                  monitor: GeometricHealthMonitor,
                  evaluator: CodeFitnessEvaluator,
                  check_interval_sec: int = 300):
         self.monitor = monitor
         self.evaluator = evaluator
         self.check_interval = check_interval_sec
-        
+
         # Healing strategies (ordered by priority)
         self.strategies = [
             self._heal_basin_drift,
@@ -55,48 +55,48 @@ class SelfHealingEngine:
             self._heal_memory_leak,
             self._heal_error_spikes
         ]
-        
+
         # State
         self.running = False
         self.healing_history: List[Dict] = []
         self.auto_apply_enabled = False  # Disabled by default for safety
-        
+
         print("[SelfHealingEngine] Initialized")
-    
+
     async def start_autonomous_loop(self):
         """
         Start autonomous healing loop.
-        
+
         Runs continuously until stopped.
         """
         self.running = True
         print(f"[SelfHealingEngine] Starting autonomous loop (interval={self.check_interval}s)")
-        
+
         while self.running:
             try:
                 await self._healing_iteration()
             except Exception as e:
                 print(f"[SelfHealingEngine] Error in healing loop: {e}")
-            
+
             await asyncio.sleep(self.check_interval)
-        
+
         print("[SelfHealingEngine] Stopped")
-    
+
     async def _healing_iteration(self):
         """Single iteration of healing loop."""
-        
+
         # Check health
         health = self.monitor.detect_degradation()
-        
+
         if not health["degraded"]:
             return  # All good
-        
+
         print(f"⚠️  [SelfHealingEngine] Geometric degradation detected: {health['severity']}")
         print(f"   Issues: {health['issues']}")
-        
+
         # Attempt healing
         healing_result = await self._attempt_healing(health)
-        
+
         # Record healing attempt
         record = {
             "timestamp": datetime.now().isoformat(),
@@ -104,27 +104,27 @@ class SelfHealingEngine:
             "result": healing_result
         }
         self.healing_history.append(record)
-        
+
         # Keep history size manageable
         if len(self.healing_history) > 100:
             self.healing_history.pop(0)
-        
+
         if healing_result["healed"]:
             print(f"✅ [SelfHealingEngine] Self-healing successful: {healing_result['strategy']}")
         else:
             print(f"❌ [SelfHealingEngine] Self-healing failed: {healing_result['reason']}")
-            
+
             # Alert humans if critical
             if health["severity"] == "critical":
                 await self._alert_humans(health, healing_result)
-    
+
     async def _attempt_healing(self, health: Dict) -> Dict:
         """Try each healing strategy until one works."""
-        
+
         for strategy in self.strategies:
             try:
                 result = await strategy(health)
-                
+
                 if result["success"]:
                     return {
                         "healed": True,
@@ -136,16 +136,16 @@ class SelfHealingEngine:
             except Exception as e:
                 print(f"[SelfHealingEngine] Strategy {strategy.__name__} failed: {e}")
                 continue
-        
+
         return {
             "healed": False,
             "reason": "All strategies exhausted"
         }
-    
+
     async def _heal_basin_drift(self, health: Dict) -> Dict:
         """
         Heal basin drift by adjusting basin coordinates.
-        
+
         Strategy:
         1. Identify drift direction
         2. Generate correction code
@@ -155,17 +155,17 @@ class SelfHealingEngine:
         basin_distance = health["metrics"].get("basin_distance")
         if basin_distance is None or basin_distance < self.monitor.basin_drift_max * 0.7:
             return {"success": False}
-        
+
         current = self.monitor.snapshots[-1]
         baseline = self.monitor.baseline_basin
-        
+
         if baseline is None:
             return {"success": False}
-        
+
         # Compute drift vector
         drift_vector = current.basin_coords - baseline
         correction_factor = 0.3  # Gentle correction
-        
+
         # Generate patch
         patch = f"""
 # AUTO-GENERATED: Basin drift correction
@@ -181,43 +181,43 @@ def correct_basin_drift(basin_coords):
     # Renormalize to unit sphere
     return corrected / np.linalg.norm(corrected)
 """
-        
+
         # Test patch
         fitness = self.evaluator.evaluate_code_change(
             module_name="basin_correction",
             new_code=patch
         )
-        
+
         if fitness["recommendation"] == "apply":
             applied = False
             if self.auto_apply_enabled:
                 self._save_patch("qig-backend/self_healing/patches/basin_correction.py", patch)
                 applied = True
-            
+
             return {
                 "success": True,
                 "patch": patch,
                 "fitness_gain": fitness["fitness_score"],
                 "applied": applied
             }
-        
+
         return {"success": False}
-    
+
     async def _heal_phi_degradation(self, health: Dict) -> Dict:
         """
         Heal Φ degradation by adjusting integration strength.
-        
+
         Strategy:
         - If Φ too low: Increase connection weights
         - If Φ too high: Add decoherence
         """
         phi_current = health["metrics"]["phi_current"]
         phi_avg = health["metrics"]["phi_avg"]
-        
+
         # Check if Φ is problematic
         if phi_avg >= self.monitor.phi_min and phi_avg <= self.monitor.phi_max:
             return {"success": False}
-        
+
         if phi_avg < self.monitor.phi_min:
             # Increase integration
             boost_factor = self.monitor.phi_min / max(phi_avg, 0.1)
@@ -247,42 +247,42 @@ def add_decoherence(density_matrix, noise_level={noise_level:.3f}):
     max_mixed = np.eye(dim) / dim
     return (1 - noise_level) * density_matrix + noise_level * max_mixed
 """
-        
+
         # Test and potentially apply
         fitness = self.evaluator.evaluate_code_change(
             module_name="phi_correction",
             new_code=patch
         )
-        
+
         if fitness["recommendation"] == "apply":
             applied = False
             if self.auto_apply_enabled:
                 self._save_patch("qig-backend/self_healing/patches/phi_correction.py", patch)
                 applied = True
-            
+
             return {
                 "success": True,
                 "patch": patch,
                 "fitness_gain": fitness["fitness_score"],
                 "applied": applied
             }
-        
+
         return {"success": False}
-    
+
     async def _heal_performance_regression(self, health: Dict) -> Dict:
         """
         Heal performance regression.
-        
+
         Strategy:
         1. Identify if latency is high
         2. Suggest caching or optimization
         3. Test geometric safety
         """
         latency = health["metrics"]["latency_ms"]
-        
+
         if latency < self.monitor.latency_max_ms:
             return {"success": False}
-        
+
         # Generate optimization patch
         patch = f"""
 # AUTO-GENERATED: Performance optimization
@@ -297,34 +297,34 @@ def optimize_with_cache(func):
 
 # Suggestion: Apply @optimize_with_cache decorator to hot path functions
 """
-        
+
         fitness = self.evaluator.evaluate_code_change(
             module_name="performance_optimization",
             new_code=patch
         )
-        
+
         if fitness["recommendation"] == "apply":
             applied = False
             if self.auto_apply_enabled:
                 self._save_patch("qig-backend/self_healing/patches/performance_optimization.py", patch)
                 applied = True
-            
+
             return {
                 "success": True,
                 "patch": patch,
                 "fitness_gain": fitness["fitness_score"],
                 "applied": applied
             }
-        
+
         return {"success": False}
-    
+
     async def _heal_memory_leak(self, health: Dict) -> Dict:
         """Detect and patch memory leaks."""
         memory_trend = health["metrics"]["memory_trend"]
-        
+
         if memory_trend < 10:  # Less than 10MB/snapshot growth
             return {"success": False}
-        
+
         # Memory leak detected
         patch = f"""
 # AUTO-GENERATED: Memory leak mitigation
@@ -339,34 +339,34 @@ def force_garbage_collection_periodic():
 
 # Suggestion: Call this function periodically in main loop
 """
-        
+
         fitness = self.evaluator.evaluate_code_change(
             module_name="memory_management",
             new_code=patch
         )
-        
+
         if fitness["recommendation"] == "apply":
             applied = False
             if self.auto_apply_enabled:
                 self._save_patch("qig-backend/self_healing/patches/memory_management.py", patch)
                 applied = True
-            
+
             return {
                 "success": True,
                 "patch": patch,
                 "fitness_gain": fitness["fitness_score"],
                 "applied": applied
             }
-        
+
         return {"success": False}
-    
+
     async def _heal_error_spikes(self, health: Dict) -> Dict:
         """Add error handling for common failures."""
         error_rate = health["metrics"]["error_rate"]
-        
+
         if error_rate < self.monitor.error_rate_max:
             return {"success": False}
-        
+
         # Generate error handling patch
         patch = f"""
 # AUTO-GENERATED: Error handling
@@ -387,49 +387,49 @@ def safe_execute(func):
             return None  # Graceful fallback
     return wrapper
 """
-        
+
         fitness = self.evaluator.evaluate_code_change(
             module_name="error_handlers",
             new_code=patch
         )
-        
+
         if fitness["recommendation"] == "apply":
             applied = False
             if self.auto_apply_enabled:
                 self._save_patch("qig-backend/self_healing/patches/error_handlers.py", patch)
                 applied = True
-            
+
             return {
                 "success": True,
                 "patch": patch,
                 "fitness_gain": fitness["fitness_score"],
                 "applied": applied
             }
-        
+
         return {"success": False}
-    
+
     def _save_patch(self, filepath: str, patch_code: str):
         """
         Save patch to file.
-        
+
         Note: In production, this would:
         1. Create git branch
         2. Apply patch
         3. Run tests
         4. Create PR for review
-        
+
         For safety, we only save to patches directory.
         """
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
-        
+
         with open(filepath, 'w') as f:
             f.write(patch_code)
-        
+
         print(f"[SelfHealingEngine] Patch saved: {filepath}")
-    
+
     async def _alert_humans(self, health: Dict, healing_result: Dict):
         """Alert humans when critical issues can't be auto-healed."""
-        
+
         message = f"""
 🚨 CRITICAL: Geometric degradation - auto-healing failed
 
@@ -451,18 +451,18 @@ Manual intervention needed. System may be approaching breakdown.
 
 **Timestamp:** {health['timestamp']}
 """
-        
+
         # Log to file
         alert_file = "qig-backend/data/critical_alerts.log"
         os.makedirs(os.path.dirname(alert_file), exist_ok=True)
-        
+
         with open(alert_file, "a") as f:
             f.write(f"\n{'='*80}\n")
             f.write(message)
             f.write(f"\n{'='*80}\n")
-        
+
         print(message)
-        
+
         # Try to send to Slack if configured
         webhook_url = os.getenv("SLACK_WEBHOOK_URL")
         if webhook_url:
@@ -478,20 +478,20 @@ Manual intervention needed. System may be approaching breakdown.
                 print("[SelfHealingEngine] Alert sent to Slack")
             except Exception as e:
                 print(f"[SelfHealingEngine] Failed to send Slack alert: {e}")
-    
+
     def stop(self):
         """Stop the autonomous loop."""
         self.running = False
-    
+
     def enable_auto_apply(self, enabled: bool = True):
         """Enable or disable automatic patch application."""
         self.auto_apply_enabled = enabled
         print(f"[SelfHealingEngine] Auto-apply {'enabled' if enabled else 'disabled'}")
-    
+
     def get_healing_history(self) -> List[Dict]:
         """Get history of healing attempts."""
         return self.healing_history
-    
+
     def get_status(self) -> Dict:
         """Get current engine status."""
         return {
