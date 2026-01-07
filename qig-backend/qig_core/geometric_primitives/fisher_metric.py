@@ -67,8 +67,8 @@ def fisher_rao_distance(p: np.ndarray, q: np.ndarray) -> float:
     bc = np.sum(np.sqrt(p * q))
     bc = np.clip(bc, 0, 1)  # Numerical stability
 
-    # Fisher-Rao distance
-    distance = 2 * np.arccos(bc)
+    # Fisher-Rao geodesic distance (no factor of 2)
+    distance = float(np.arccos(bc))
 
     return distance
 
@@ -300,8 +300,8 @@ def fisher_rao_distance_batch(
     bc = np.sum(sqrt_q * sqrt_c, axis=1)  # (N,)
     bc = np.clip(bc, 0, 1)  # Numerical stability
     
-    # Fisher-Rao distance
-    distances = 2 * np.arccos(bc)
+    # Fisher-Rao geodesic distance (no factor of 2)
+    distances = np.arccos(bc)
     
     return distances
 

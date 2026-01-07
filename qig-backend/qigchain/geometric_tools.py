@@ -92,7 +92,7 @@ class QIGToolComputations:
         inner = np.sum(np.sqrt(p1 * p2))
         inner = np.clip(inner, 0, 1)
         
-        return 2 * np.arccos(inner)
+        return float(np.arccos(inner))
     
     def bures_distance(self, rho1: np.ndarray, rho2: np.ndarray) -> float:
         """Compute Bures distance between density matrices."""

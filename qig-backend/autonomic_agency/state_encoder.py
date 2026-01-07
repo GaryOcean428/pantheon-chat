@@ -193,7 +193,7 @@ class StateEncoder:
         curr_norm = current / (np.linalg.norm(current) + 1e-10)
         ref_norm = sphere_project(self._identity_basin)
         dot = np.clip(np.dot(curr_norm, ref_norm), -1.0, 1.0)
-        drift = float(2.0 * np.arccos(dot))  # Fisher-Rao distance
+        drift = float(np.arccos(dot))  # Fisher-Rao geodesic distance
         # Normalize drift to [0,1] range using max Fisher distance (π)
         return max(0.0, 1.0 - drift / np.pi)
     

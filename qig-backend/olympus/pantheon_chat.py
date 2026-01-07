@@ -399,14 +399,20 @@ class PantheonChat:
         try:
             from qig_generative_service import get_generative_service
             service = get_generative_service()
-            
+
             if hasattr(service, 'coordizer') and service.coordizer:
                 result = service.generate(
                     prompt=system_prompt,
                     goals=["Generate brief communication", f"Express as {from_god}"]
                 )
                 if result and result.text and len(result.text.strip()) > 5:
-                    return result.text.strip()
+                    # COHERENCE GATE: Check for word salad before returning
+                    is_coherent, reason = _check_text_coherence(result.text)
+                    if is_coherent:
+                        return result.text.strip()
+                    else:
+                        logger.warning(f"[PantheonChat] Coordizer synthesis failed coherence: {reason}")
+                        # Fall through to vocabulary sampling
         except Exception as e:
             logger.debug(f"[PantheonChat] Geometric synthesis attempt failed: {e}")
         

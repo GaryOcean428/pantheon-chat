@@ -956,8 +956,8 @@ class GaryAutonomicKernel:
         bc = np.sum(np.sqrt(p * q))
         bc = np.clip(bc, 0, 1)  # Numerical stability
         
-        # Fisher-Rao distance
-        return float(2 * np.arccos(bc))
+        # Fisher-Rao distance (geodesic, no factor of 2)
+        return float(np.arccos(bc))
 
     def find_nearby_attractors(
         self,

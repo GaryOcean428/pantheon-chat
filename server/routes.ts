@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, RequestHandler } from "express";
 import rateLimit from "express-rate-limit";
 import multer from "multer";
 import { createServer, type Server } from "http";
@@ -360,6 +360,7 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
   });
 
   // Auto-cycle endpoints
+  // Status is public (read-only), but modification endpoints require authentication
   app.get("/api/auto-cycle/status", (req, res) => {
     try {
       const status = autoCycleManager.getStatus();
@@ -370,7 +371,12 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
     }
   });
 
-  app.post("/api/auto-cycle/enable", async (req, res) => {
+  // Conditional auth middleware - only enforce if auth is enabled
+  const requireAuthIfEnabled: RequestHandler = authEnabled
+    ? isAuthenticated
+    : ((_req, _res, next) => next());
+
+  app.post("/api/auto-cycle/enable", requireAuthIfEnabled, async (req, res) => {
     try {
       const result = await autoCycleManager.enable();
       res.json({ success: result.success, message: result.message, status: autoCycleManager.getStatus() });
@@ -379,7 +385,7 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
     }
   });
 
-  app.post("/api/auto-cycle/disable", (req, res) => {
+  app.post("/api/auto-cycle/disable", requireAuthIfEnabled, (req, res) => {
     try {
       const result = autoCycleManager.disable();
       res.json({ success: result.success, message: result.message, status: autoCycleManager.getStatus() });
@@ -388,7 +394,7 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
     }
   });
 
-  app.post("/api/auto-cycle/force-resume", async (req, res) => {
+  app.post("/api/auto-cycle/force-resume", requireAuthIfEnabled, async (req, res) => {
     try {
       const result = await autoCycleManager.forceResume();
       res.json({ success: result.success, message: result.message, status: autoCycleManager.getStatus() });
@@ -410,7 +416,7 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
     }
   });
 
-  app.post("/api/learning/upload", uploadMiddleware.single('file'), async (req: any, res) => {
+  app.post("/api/learning/upload", requireAuthIfEnabled, uploadMiddleware.single('file'), async (req: any, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ error: 'No file provided' });
@@ -496,7 +502,8 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
     }
   });
 
-  app.post("/api/search/budget/toggle", async (req, res) => {
+  // Search budget modification endpoints require authentication
+  app.post("/api/search/budget/toggle", requireAuthIfEnabled, async (req, res) => {
     try {
       const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
       const response = await fetch(`${backendUrl}/api/search/budget/toggle`, {
@@ -510,7 +517,7 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
     }
   });
 
-  app.post("/api/search/budget/limits", async (req, res) => {
+  app.post("/api/search/budget/limits", requireAuthIfEnabled, async (req, res) => {
     try {
       const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
       const response = await fetch(`${backendUrl}/api/search/budget/limits`, {
@@ -524,7 +531,7 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
     }
   });
 
-  app.post("/api/search/budget/overage", async (req, res) => {
+  app.post("/api/search/budget/overage", requireAuthIfEnabled, async (req, res) => {
     try {
       const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
       const response = await fetch(`${backendUrl}/api/search/budget/overage`, {

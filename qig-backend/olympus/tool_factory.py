@@ -106,6 +106,95 @@ def _ensure_tool_patterns_table():
 _ensure_tool_patterns_table()
 
 
+def _persist_observation_to_db(request: str, request_basin: list, context: dict, timestamp: float) -> bool:
+    """Persist a tool observation to PostgreSQL for pattern learning."""
+    conn = _get_db_connection()
+    if not conn:
+        return False
+    try:
+        from psycopg2.extras import Json
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO tool_observations (
+                    request, request_basin, context, timestamp, cluster_assigned, created_at
+                ) VALUES (%s, %s, %s, %s, false, NOW())
+            """, (
+                request,
+                request_basin if isinstance(request_basin, list) else list(request_basin),
+                Json(context) if context else Json({}),
+                timestamp,
+            ))
+            conn.commit()
+        return True
+    except Exception as e:
+        print(f"[ToolFactory] Observation persistence failed: {e}")
+        conn.rollback()
+        return False
+    finally:
+        conn.close()
+
+
+def _load_recent_observations(limit: int = 50) -> list:
+    """Load recent unclustered observations from database."""
+    conn = _get_db_connection()
+    if not conn:
+        return []
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT id, request, request_basin, context, timestamp
+                FROM tool_observations
+                WHERE cluster_assigned = false
+                ORDER BY timestamp DESC
+                LIMIT %s
+            """, (limit,))
+            rows = cur.fetchall()
+            return [
+                {
+                    'id': row[0],
+                    'request': row[1],
+                    'request_basin': list(row[2]) if row[2] else [0.5] * BASIN_DIMENSION,
+                    'context': row[3] or {},
+                    'timestamp': row[4],
+                }
+                for row in rows
+            ]
+    except Exception as e:
+        print(f"[ToolFactory] Failed to load observations: {e}")
+        return []
+    finally:
+        conn.close()
+
+
+def _mark_observations_clustered(observation_ids: list, tool_id: str = None) -> bool:
+    """Mark observations as clustered and optionally link to generated tool."""
+    conn = _get_db_connection()
+    if not conn or not observation_ids:
+        return False
+    try:
+        with conn.cursor() as cur:
+            if tool_id:
+                cur.execute("""
+                    UPDATE tool_observations
+                    SET cluster_assigned = true, tool_generated = %s
+                    WHERE id = ANY(%s)
+                """, (tool_id, observation_ids))
+            else:
+                cur.execute("""
+                    UPDATE tool_observations
+                    SET cluster_assigned = true
+                    WHERE id = ANY(%s)
+                """, (observation_ids,))
+            conn.commit()
+        return True
+    except Exception as e:
+        print(f"[ToolFactory] Failed to mark clustered: {e}")
+        conn.rollback()
+        return False
+    finally:
+        conn.close()
+
+
 class ToolComplexity(Enum):
     """Tool complexity levels for progressive learning."""
     TRIVIAL = 1
@@ -435,7 +524,12 @@ class ToolFactory:
         self.sandbox = ToolSandbox()
         self.tool_registry: Dict[str, GeneratedTool] = {}
         self.learned_patterns: Dict[str, LearnedPattern] = {}
-        self.pattern_observations: List[Dict] = []
+
+        # Load observations from database for pattern continuity across restarts
+        self.pattern_observations: List[Dict] = _load_recent_observations(limit=50)
+        if self.pattern_observations:
+            print(f"[ToolFactory] Loaded {len(self.pattern_observations)} observations from database")
+
         self.pending_searches: List[Dict] = []
         
         # Track failed generation attempts - prevent retries until COMPATIBLE patterns learned
@@ -1426,15 +1520,29 @@ class ToolFactory:
             print(f"[ToolFactory] Runtime learning failed: {e}")
 
     def observe_pattern(self, request: str, context: Dict) -> List[Dict]:
-        """Observe user request for pattern recognition."""
-        request_basin = self.encoder.encode(request)
+        """Observe user request for pattern recognition.
 
-        self.pattern_observations.append({
+        Observations are persisted to tool_observations table for:
+        - Pattern clustering across restarts
+        - Audit trail of tool generation triggers
+        - Long-term pattern analysis
+        """
+        request_basin = self.encoder.encode(request)
+        timestamp = datetime.now().timestamp()
+
+        observation = {
             'request': request,
             'request_basin': request_basin,
             'context': context,
-            'timestamp': datetime.now().timestamp()
-        })
+            'timestamp': timestamp
+        }
+
+        # In-memory cache for fast pattern analysis
+        self.pattern_observations.append(observation)
+
+        # Persist to database for durability
+        basin_list = request_basin.tolist() if hasattr(request_basin, 'tolist') else list(request_basin)
+        _persist_observation_to_db(request, basin_list, context, timestamp)
 
         if len(self.pattern_observations) >= 3:
             return self._analyze_patterns()

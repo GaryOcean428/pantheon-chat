@@ -150,7 +150,7 @@ class PatternResponseGenerator:
         bc = np.sum(np.sqrt(p * q))
         bc = np.clip(bc, 0, 1)
         
-        return float(2 * np.arccos(bc))
+        return float(np.arccos(bc))
     
     def retrieve_patterns(self, query: str, top_k: int = 5) -> List[Dict]:
         """

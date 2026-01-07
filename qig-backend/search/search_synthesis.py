@@ -96,7 +96,7 @@ class SearchSynthesizer:
         bhattacharyya = np.sum(np.sqrt(p * q))
         bhattacharyya = np.clip(bhattacharyya, -1.0, 1.0)
         
-        return 2.0 * np.arccos(bhattacharyya)
+        return float(np.arccos(bhattacharyya))
     
     def _compute_relevance_score(self, distance: float) -> float:
         """

@@ -581,11 +581,17 @@ const isReplitOrigin = isAllowedExternalOrigin;
 app.use((req, res, next) => {
   const origin = req.headers.origin;
 
-  // Allow requests with no origin (mobile apps, Postman, curl, etc)
-  // Also allow all configured domains dynamically
-  if (!origin || allowedOrigins.includes(origin) || isAllowedExternalOrigin(origin)) {
-    res.setHeader("Access-Control-Allow-Origin", origin || "*");
-    res.setHeader("Access-Control-Allow-Credentials", "true");
+  // Determine if this origin is allowed
+  const isAllowed = !origin || allowedOrigins.includes(origin) || isAllowedExternalOrigin(origin);
+
+  if (isAllowed) {
+    // Set CORS headers for allowed origins
+    // Note: When origin is missing, we don't set Access-Control-Allow-Origin
+    // to avoid the invalid "*" with credentials combination
+    if (origin) {
+      res.setHeader("Access-Control-Allow-Origin", origin);
+      res.setHeader("Access-Control-Allow-Credentials", "true");
+    }
     res.setHeader(
       "Access-Control-Allow-Methods",
       "GET, POST, PUT, DELETE, PATCH, OPTIONS"
@@ -606,11 +612,13 @@ app.use((req, res, next) => {
     if (req.method === "OPTIONS") {
       return res.sendStatus(204);
     }
-  } else {
-    logger.warn(`[CORS] Blocked request from origin: ${origin}`);
-  }
 
-  next();
+    next();
+  } else {
+    // Block requests from disallowed origins
+    logger.warn(`[CORS] Blocked request from origin: ${origin}`);
+    res.status(403).json({ error: "CORS policy violation", origin });
+  }
 });
 
 // Add trace ID middleware for distributed tracing

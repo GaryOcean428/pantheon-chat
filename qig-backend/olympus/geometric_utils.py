@@ -102,8 +102,8 @@ def fisher_coord_distance(
     bc = np.sum(np.sqrt(p * q))
     bc = np.clip(bc, 0, 1)
 
-    # Fisher-Rao distance
-    return float(2 * np.arccos(bc))
+    # Fisher-Rao geodesic distance (no factor of 2)
+    return float(np.arccos(bc))
 
 
 # Alias for compatibility

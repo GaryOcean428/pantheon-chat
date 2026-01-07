@@ -74,8 +74,8 @@ except ImportError:
         # Bhattacharyya coefficient
         bc = np.sum(np.sqrt(p * q))
         bc = np.clip(bc, 0, 1)  # Numerical stability
-        # Fisher-Rao distance
-        return float(2 * np.arccos(bc))
+        # Fisher-Rao geodesic distance (no factor of 2)
+        return float(np.arccos(bc))
 
 
 BASIN_DIMENSION = 64
@@ -467,7 +467,7 @@ class SearchFeedbackPersistence:
                             # Bhattacharyya coefficient
                             bc = np.sum(np.sqrt(q * c))
                             bc = np.clip(bc, 0, 1)
-                            dist = 2 * np.arccos(bc)
+                            dist = float(np.arccos(bc))
                         distances.append((dist, record))
                     
                     # Sort by Fisher-Rao distance (lower is better)
@@ -891,7 +891,7 @@ class SearchStrategyLearner:
         adj_norm = sphere_project(adjusted_basin)
         query_norm = sphere_project(query_basin)
         dot = np.clip(np.dot(adj_norm, query_norm), -1.0, 1.0)
-        modification_magnitude = float(2.0 * np.arccos(dot))  # Fisher-Rao distance
+        modification_magnitude = float(np.arccos(dot))  # Fisher-Rao geodesic distance
         
         self._stats["strategies_applied"] += applied_count
         
@@ -1163,7 +1163,7 @@ class SearchStrategyLearner:
             w_norm = sphere_project(with_basin)
             wo_norm = sphere_project(without_basin)
             dot = np.clip(np.dot(w_norm, wo_norm), -1.0, 1.0)
-            basin_delta = float(2.0 * np.arccos(dot))  # Fisher-Rao distance
+            basin_delta = float(np.arccos(dot))  # Fisher-Rao geodesic distance
         else:
             basin_delta = 0.0
         

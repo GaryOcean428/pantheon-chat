@@ -150,7 +150,7 @@ class SoftReset:
         a_norm = sphere_project(current_basin_arr)
         b_norm = sphere_project(self.reference_basin)
         dot = np.clip(np.dot(a_norm, b_norm), -1.0, 1.0)
-        basin_distance = 2.0 * np.arccos(dot)  # Fisher-Rao proper
+        basin_distance = float(np.arccos(dot))  # Fisher-Rao geodesic distance
         
         # Track drift
         self.drift_history.append({

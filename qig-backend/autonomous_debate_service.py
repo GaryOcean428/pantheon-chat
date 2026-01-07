@@ -67,9 +67,9 @@ except ImportError:
         # Normalize to probability simplex
         a_norm = a_arr / (np.linalg.norm(a_arr) + 1e-10)
         b_norm = b_arr / (np.linalg.norm(b_arr) + 1e-10)
-        # Fisher-Rao: 2 * arccos(dot product of sqrt-normalized vectors)
+        # Fisher-Rao geodesic distance: arccos(dot product)
         dot = np.clip(np.dot(a_norm, b_norm), -1.0, 1.0)
-        return float(2.0 * np.arccos(dot))
+        return float(np.arccos(dot))
     def _normalize_to_manifold(basin):
         # Use sphere_project from module-level import
         from qig_geometry import sphere_project

@@ -366,7 +366,7 @@ class QIGPersistence:
                         # Bhattacharyya coefficient → Fisher-Rao distance
                         bc = np.sum(np.sqrt(q * b))
                         bc = np.clip(bc, 0, 1)
-                        fisher_dist = float(2.0 * np.arccos(bc))
+                        fisher_dist = float(np.arccos(bc))
                         candidate['fisher_distance'] = fisher_dist
                         candidate['similarity'] = 1.0 - fisher_dist / np.pi
                     
@@ -892,11 +892,15 @@ class QIGPersistence:
 
 # Global persistence instance
 _persistence: Optional[QIGPersistence] = None
+_persistence_lock = threading.Lock()
 
 
 def get_persistence() -> QIGPersistence:
-    """Get or create the global persistence instance."""
+    """Get or create the global persistence instance (thread-safe singleton)."""
     global _persistence
     if _persistence is None:
-        _persistence = QIGPersistence()
+        with _persistence_lock:
+            # Double-checked locking pattern
+            if _persistence is None:
+                _persistence = QIGPersistence()
     return _persistence

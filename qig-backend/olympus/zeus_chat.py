@@ -84,7 +84,7 @@ except ImportError:
         q = q / q.sum()
         bc = np.sum(np.sqrt(p * q))
         bc = np.clip(bc, 0, 1)
-        return float(2 * np.arccos(bc))
+        return float(np.arccos(bc))
 
 EVOLUTION_AVAILABLE = False
 try:

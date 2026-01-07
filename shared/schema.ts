@@ -2770,6 +2770,8 @@ export type InsertGeneratedTool = typeof generatedTools.$inferInsert;
 /**
  * TOOL OBSERVATIONS - Pattern observations for ToolFactory learning
  * Records user requests and detected patterns for tool generation candidates
+ * Used by: tool_factory.py observe_pattern() - persisted on each observation
+ * Loaded on startup for pattern continuity across restarts
  */
 export const toolObservations = pgTable(
   "tool_observations",

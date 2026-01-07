@@ -47,7 +47,7 @@ except ImportError:
         q = q / q.sum()
         bc = np.sum(np.sqrt(p * q))
         bc = np.clip(bc, 0, 1)
-        return 2 * np.arccos(bc)
+        return float(np.arccos(bc))
     
     def compute_phi(trajectory, window_size=5):
         """Fallback Φ computation."""

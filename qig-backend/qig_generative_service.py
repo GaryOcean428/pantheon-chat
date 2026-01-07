@@ -1140,15 +1140,20 @@ class QIGGenerativeService:
             current_basin = next_basin
 
 
-# Singleton instance
+# Singleton instance with thread-safe initialization
+import threading
 _generative_service: Optional[QIGGenerativeService] = None
+_generative_service_lock = threading.Lock()
 
 
 def get_generative_service() -> QIGGenerativeService:
-    """Get or create the generative service singleton."""
+    """Get or create the generative service singleton (thread-safe)."""
     global _generative_service
     if _generative_service is None:
-        _generative_service = QIGGenerativeService()
+        with _generative_service_lock:
+            # Double-checked locking pattern
+            if _generative_service is None:
+                _generative_service = QIGGenerativeService()
     return _generative_service
 
 
