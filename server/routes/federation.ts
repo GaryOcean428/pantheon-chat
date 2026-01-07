@@ -1,20 +1,20 @@
 /**
  * Federation Routes
- * 
+ *
  * Dashboard-friendly endpoints for managing API keys, connected instances,
  * and basin sync status. These are internal admin routes (require auth)
  * that wrap the external API functionality for the UI.
- * 
+ *
  * Note: Uses raw SQL because the Drizzle schema doesn't match the actual
  * database schema for external_api_keys table.
  */
 
 import { Router, Request, Response } from 'express';
-import { logger } from '../lib/logger';
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
-import { randomBytes, createHash, createCipheriv, createDecipheriv } from 'crypto';
+import { randomBytes, createCipheriv, createDecipheriv } from 'crypto';
 import { isAuthenticated } from '../replitAuth';
+import { logger } from '../lib/logger';
 
 const ENCRYPTION_KEY = process.env.FEDERATION_ENCRYPTION_KEY || randomBytes(32).toString('hex');
 const ALGORITHM = 'aes-256-gcm';
@@ -71,6 +71,21 @@ federationRouter.get('/keys', async (_req: Request, res: Response) => {
   }
 
   try {
+    // Check if table exists first
+    const tableCheck = await db.execute(sql`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables
+        WHERE table_name = 'external_api_keys'
+      ) as exists
+    `);
+
+    const tableExists = (tableCheck.rows[0] as { exists: boolean })?.exists;
+
+    if (!tableExists) {
+      logger.warn('[Federation] external_api_keys table does not exist');
+      return res.json({ keys: [], warning: 'Table not initialized' });
+    }
+
     const result = await db.execute(sql`
       SELECT id, name, instance_type, scopes, created_at, last_used_at, rate_limit, is_active
       FROM external_api_keys
@@ -93,8 +108,11 @@ federationRouter.get('/keys', async (_req: Request, res: Response) => {
 
     res.json({ keys: formattedKeys });
   } catch (error) {
-    console.error('[Federation] Failed to list keys:', error);
-    res.status(500).json({ error: 'Failed to list API keys' });
+    logger.error({ err: error, context: 'FederationListKeys' }, 'Failed to list keys');
+    res.status(500).json({
+      error: 'Failed to list API keys',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 
@@ -137,11 +155,12 @@ federationRouter.post('/keys', async (req: Request, res: Response) => {
 
   try {
     const rawKey = `qig_${randomBytes(32).toString('hex')}`;
-    const scopesJson = JSON.stringify(requestedScopes);
+    // Convert array to PostgreSQL array literal format
+    const scopesArrayLiteral = `{${requestedScopes.join(',')}}`;
 
     const result = await db.execute(sql`
       INSERT INTO external_api_keys (name, api_key, instance_type, scopes, rate_limit, is_active, created_at)
-      VALUES (${name}, ${rawKey}, ${instanceType}, ${scopesJson}::jsonb, ${finalRateLimit}, true, NOW())
+      VALUES (${name}, ${rawKey}, ${instanceType}, ${scopesArrayLiteral}::text[], ${finalRateLimit}, true, NOW())
       RETURNING id
     `);
 
@@ -206,7 +225,7 @@ federationRouter.post('/test-connection', async (req: Request, res: Response) =>
   try {
     const cleanEndpoint = endpoint.replace(/\/+$/, '');
     const healthUrl = `${cleanEndpoint}/health`;
-    
+
     const start = Date.now();
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000);
@@ -219,9 +238,9 @@ federationRouter.post('/test-connection', async (req: Request, res: Response) =>
       signal: controller.signal,
     });
     clearTimeout(timeout);
-    
+
     const latency = Date.now() - start;
-    
+
     if (!response.ok) {
       return res.json({
         success: false,
@@ -232,7 +251,7 @@ federationRouter.post('/test-connection', async (req: Request, res: Response) =>
     }
 
     const data = await response.json();
-    
+
     res.json({
       success: true,
       status: response.status,
@@ -282,10 +301,10 @@ federationRouter.post('/connect', async (req: Request, res: Response) => {
 
   try {
     const cleanEndpoint = endpoint.replace(/\/+$/, '');
-    
+
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000);
-    
+
     const healthResponse = await fetch(`${cleanEndpoint}/health`, {
       headers: {
         'X-API-Key': apiKey,
@@ -339,7 +358,7 @@ federationRouter.post('/connect', async (req: Request, res: Response) => {
     if (err.name === 'AbortError') {
       return res.status(400).json({ error: 'Connection timeout - remote node not responding' });
     }
-    
+
     res.status(500).json({ error: 'Failed to connect to remote node', details: err.message });
   }
 });
@@ -439,92 +458,5 @@ federationRouter.get('/sync/status', async (_req: Request, res: Response) => {
   } catch (error) {
     console.error('[Federation] Failed to get sync status:', error);
     res.status(500).json({ error: 'Failed to get sync status' });
-  }
-});
-
-/**
- * GET /api/federation/settings
- * Get node configuration including public federation endpoint
- */
-federationRouter.get('/settings', async (_req: Request, res: Response) => {
-  if (!db) {
-    return res.status(503).json({ error: 'Database unavailable' });
-  }
-
-  try {
-    const result = await db.execute(sql`
-      SELECT key, value, description, updated_at
-      FROM system_settings
-      WHERE key IN ('federation_endpoint', 'node_name', 'node_description')
-    `);
-
-    const settings: Record<string, string | null> = {
-      federation_endpoint: null,
-      node_name: null,
-      node_description: null,
-    };
-
-    for (const row of result.rows) {
-      const r = row as Record<string, unknown>;
-      settings[r.key as string] = r.value as string;
-    }
-
-    res.json({ settings });
-  } catch (error) {
-    console.error('[Federation] Failed to get settings:', error);
-    res.status(500).json({ error: 'Failed to get settings' });
-  }
-});
-
-/**
- * PUT /api/federation/settings
- * Update node configuration
- */
-federationRouter.put('/settings', async (req: Request, res: Response) => {
-  if (!db) {
-    return res.status(503).json({ error: 'Database unavailable' });
-  }
-
-  const { federation_endpoint, node_name, node_description } = req.body;
-
-  try {
-    // Validate federation_endpoint if provided
-    if (federation_endpoint !== undefined) {
-      if (typeof federation_endpoint !== 'string' ||
-          (federation_endpoint && !federation_endpoint.startsWith('http'))) {
-        return res.status(400).json({
-          error: 'Invalid federation_endpoint',
-          details: 'Must be a valid HTTP/HTTPS URL or empty string to clear'
-        });
-      }
-
-      await db.execute(sql`
-        INSERT INTO system_settings (key, value, description, updated_at)
-        VALUES ('federation_endpoint', ${federation_endpoint}, 'Public endpoint URL for federation', NOW())
-        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
-      `);
-    }
-
-    if (node_name !== undefined) {
-      await db.execute(sql`
-        INSERT INTO system_settings (key, value, description, updated_at)
-        VALUES ('node_name', ${node_name}, 'Human-readable name for this node', NOW())
-        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
-      `);
-    }
-
-    if (node_description !== undefined) {
-      await db.execute(sql`
-        INSERT INTO system_settings (key, value, description, updated_at)
-        VALUES ('node_description', ${node_description}, 'Description of this node', NOW())
-        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
-      `);
-    }
-
-    logger.info('[Federation] Settings updated');
-    res.json({ success: true, message: 'Settings updated' });
-  } catch (error) {
-    console.error('[Federation] Failed to update settings:', error);
-    res.status(500).json({ error: 'Failed to update settings' });
   }
 });
