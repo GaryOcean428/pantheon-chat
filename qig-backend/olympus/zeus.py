@@ -238,12 +238,12 @@ class Zeus(BaseGod):
         except ImportError as e:
             print(f"⚠️ TEMPORAL REASONING not available: {e}")
 
-        # 🔗 WIRE: TemporalReasoning <-> Lightning bidirectional connection
-        self._wire_temporal_lightning_integration()
-
-        # 🔄 Domain sync interval tracking
+        # 🔄 Domain sync interval tracking (must be set BEFORE wiring)
         self._last_domain_sync = 0.0
         self._domain_sync_interval = 30.0  # Sync every 30 seconds
+
+        # 🔗 WIRE: TemporalReasoning <-> Lightning bidirectional connection
+        self._wire_temporal_lightning_integration()
 
     def _wire_temporal_lightning_integration(self) -> None:
         """

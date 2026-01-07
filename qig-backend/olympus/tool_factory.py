@@ -1345,6 +1345,13 @@ class ToolFactory:
                 lines.insert(1, f'{indent}"""{description}"""')
                 code = '\n'.join(lines)
 
+        # Validate adapted code is parseable Python before returning
+        try:
+            ast.parse(code)
+        except SyntaxError as e:
+            print(f"[ToolFactory] Pattern adaptation produced invalid code: {e}")
+            return None
+
         return code
 
     # NOTE: _synthesize_from_examples REMOVED - NO HARDCODED TEMPLATES ALLOWED
