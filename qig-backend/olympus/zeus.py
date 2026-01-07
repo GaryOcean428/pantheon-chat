@@ -131,10 +131,10 @@ class Zeus(BaseGod):
             self.chaos = ExperimentalKernelEvolution()
             # Auto-activate chaos mode on startup
             if len(self.chaos.kernel_population) == 0:
-                # Use 'initial_population' reason for governance bypass on startup
-                self.chaos.spawn_random_kernel(reason='initial_population')
-                self.chaos.spawn_random_kernel(reason='initial_population')
-                self.chaos.spawn_random_kernel(reason='initial_population')
+                # Use 'zeus_initialization' reason for governance bypass on startup
+                self.chaos.spawn_random_kernel(reason='zeus_initialization')
+                self.chaos.spawn_random_kernel(reason='zeus_initialization')
+                self.chaos.spawn_random_kernel(reason='zeus_initialization')
             self.chaos.start_evolution(interval_seconds=60)
             self.chaos_enabled = True
             print(f"🌪️ CHAOS MODE AUTO-ACTIVATED with {len(self.chaos.kernel_population)} kernels")

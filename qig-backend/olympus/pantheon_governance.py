@@ -74,6 +74,7 @@ class LifecycleProposal:
 ALLOWED_BYPASS_REASONS = {
     'minimum_population',  # Prevent extinction
     'initial_population',  # Bootstrap on empty startup
+    'zeus_initialization', # Zeus startup spawn
     'test_mode',          # Testing only
 }
 
