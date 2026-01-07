@@ -723,6 +723,98 @@ class VocabularyCoordinator:
             return []
         return self._transition_targets[:limit]
 
+    def integrate_pending_vocabulary(self, min_phi: float = 0.65, limit: int = 100) -> Dict:
+        """Integrate pending vocabulary from learned_words into active coordizer.
+
+        Queries learned_words where is_integrated = FALSE and avg_phi >= min_phi,
+        adds them to the coordizer, and marks them as integrated.
+
+        Returns:
+            Dict with integrated_count, skipped_count, errors
+        """
+        import os
+        import psycopg2
+
+        database_url = os.environ.get('DATABASE_URL')
+        if not database_url:
+            return {'integrated_count': 0, 'error': 'no_database_url'}
+
+        if not self._unified_coordizer:
+            return {'integrated_count': 0, 'error': 'no_coordizer'}
+
+        integrated_count = 0
+        skipped_count = 0
+        errors = []
+
+        try:
+            conn = psycopg2.connect(database_url)
+            with conn.cursor() as cur:
+                # Get unintegrated high-phi words
+                cur.execute("""
+                    SELECT word, avg_phi, max_phi, frequency, source
+                    FROM learned_words
+                    WHERE is_integrated = FALSE AND avg_phi >= %s
+                    ORDER BY avg_phi DESC, frequency DESC
+                    LIMIT %s
+                """, (min_phi, limit))
+                rows = cur.fetchall()
+
+                if not rows:
+                    conn.close()
+                    return {'integrated_count': 0, 'message': 'no_pending_words'}
+
+                words_to_integrate = []
+                for row in rows:
+                    word, avg_phi, max_phi, frequency, source = row
+                    words_to_integrate.append({
+                        'word': word,
+                        'phi': avg_phi,
+                        'max_phi': max_phi,
+                        'frequency': frequency,
+                        'source': source,
+                    })
+
+                # Add to coordizer via observations
+                observations = [
+                    {
+                        'word': w['word'],
+                        'frequency': w['frequency'],
+                        'avg_phi': w['phi'],
+                        'max_phi': w['max_phi'],
+                        'type': 'integrated',
+                    }
+                    for w in words_to_integrate
+                ]
+
+                try:
+                    new_tokens, _ = self._unified_coordizer.add_vocabulary_observations(observations)
+                    integrated_count = new_tokens if new_tokens else len(words_to_integrate)
+                except Exception as e:
+                    errors.append(f"coordizer_add: {e}")
+
+                # Mark as integrated in DB
+                word_list = [w['word'] for w in words_to_integrate]
+                cur.execute("""
+                    UPDATE learned_words
+                    SET is_integrated = TRUE
+                    WHERE word = ANY(%s)
+                """, (word_list,))
+                conn.commit()
+
+                print(f"[VocabularyCoordinator] Integrated {len(word_list)} vocabulary terms (min_phi={min_phi})")
+
+        except Exception as e:
+            errors.append(f"db_error: {e}")
+        finally:
+            if 'conn' in locals():
+                conn.close()
+
+        return {
+            'integrated_count': integrated_count,
+            'skipped_count': skipped_count,
+            'errors': errors if errors else None,
+        }
+
     def wire_discovery_gate(self) -> None:
         """Wire this coordinator to the chaos discovery gate.
 

@@ -366,6 +366,14 @@ try:
     # but we ensure it's initialized here to trigger the wiring
     _vocab_coord = get_vocabulary_coordinator()
 
+    # Integrate any pending high-phi vocabulary on startup
+    try:
+        result = _vocab_coord.integrate_pending_vocabulary(min_phi=0.65, limit=100)
+        if result.get('integrated_count', 0) > 0:
+            print(f"[INFO] Integrated {result['integrated_count']} pending vocabulary terms")
+    except Exception as e:
+        print(f"[WARNING] Vocabulary integration skipped: {e}")
+
     DISCOVERY_GATE_AVAILABLE = True
     print("[INFO] Chaos Discovery Gate active - kernels can report high-Φ discoveries")
 except ImportError as e:
