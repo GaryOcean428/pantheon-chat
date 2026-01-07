@@ -2235,7 +2235,18 @@ class ShadowResearchAPI:
         """Shutdown the research system."""
         if self.learning_loop:
             self.learning_loop.stop()
-    
+
+    @property
+    def is_initialized(self) -> bool:
+        """Check if the API has been properly initialized with a learning loop."""
+        return self.learning_loop is not None
+
+    def _ensure_initialized(self):
+        """Auto-initialize if not already initialized (safety net)."""
+        if not self.is_initialized:
+            print("[ShadowResearchAPI] WARNING: Auto-initializing (was not explicitly initialized)")
+            self.initialize()
+
     def request_research(
         self,
         topic: str,
@@ -2249,7 +2260,7 @@ class ShadowResearchAPI:
     ) -> str:
         """
         Request research on a topic with duplicate detection.
-        
+
         Args:
             topic: What to research
             requester: Who is requesting (e.g., "Ocean", "Athena", "ChaosKernel_1")
@@ -2259,13 +2270,16 @@ class ShadowResearchAPI:
             is_iteration: If True, allows re-researching for improvement
             iteration_reason: Why this is iteration research
             curiosity_triggered: If True, triggered by curiosity system
-            
+
         Returns:
             request_id for tracking, or "DUPLICATE:<topic>" if already researched
         """
+        # Ensure learning loop is running before accepting requests
+        self._ensure_initialized()
+
         if category is None:
             category = self._detect_category(topic)
-        
+
         return self.research_queue.submit(
             topic=topic,
             category=category,
