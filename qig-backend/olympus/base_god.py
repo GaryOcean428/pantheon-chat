@@ -2360,6 +2360,7 @@ class BaseGod(*_base_classes):
         confidence: float,
         phi: float,
         kappa: float,
+        target_basin: Optional[np.ndarray] = None,
         domain_specific: Optional[Dict] = None
     ) -> Dict:
         """
@@ -2368,15 +2369,19 @@ class BaseGod(*_base_classes):
         All gods return assessments with this common structure.
         Domain-specific fields can be added via domain_specific dict.
 
+        CRITICAL: Include basin_coords for geometric synthesis by Zeus.
+        Without basin coords, Zeus cannot perform Fisher-Rao synthesis.
+
         Args:
             probability: Success probability [0, 1]
             confidence: Assessment confidence [0, 1]
             phi: Integration measure
             kappa: Coupling constant
+            target_basin: Basin coordinates for synthesis (64D)
             domain_specific: Optional domain-specific fields to merge
 
         Returns:
-            Standardized assessment dictionary
+            Standardized assessment dictionary with basin_coords for synthesis
         """
         assessment = {
             'probability': float(probability),
@@ -2386,10 +2391,71 @@ class BaseGod(*_base_classes):
             'god': self.name,
             'domain': self.domain,
             'timestamp': datetime.now().isoformat(),
+            # CRITICAL: Include basin for Zeus synthesis
+            'basin_coords': target_basin.tolist() if target_basin is not None else None,
         }
         if domain_specific:
             assessment.update(domain_specific)
         return assessment
+
+    def _generate_reasoning(
+        self,
+        target: str,
+        target_basin: np.ndarray,
+        context: Optional[Dict] = None
+    ) -> str:
+        """
+        Generate reasoning text using QIG generative service.
+
+        THIS REPLACES TEMPLATE-BASED REASONING.
+        Instead of f"Pattern matches {N}...", generate actual text.
+
+        Args:
+            target: The target being assessed
+            target_basin: Basin coordinates for the target
+            context: Additional context (phi, kappa, similar patterns, etc.)
+
+        Returns:
+            Generated reasoning text (NOT template interpolation)
+        """
+        # Try QIG generative service first
+        try:
+            from qig_generative_service import get_generative_service
+            service = get_generative_service()
+
+            if service:
+                prompt = f"As {self.name} ({self.domain}), analyze: {target[:200]}"
+
+                gen_context = {
+                    'god_name': self.name,
+                    'domain': self.domain,
+                    'target_basin': target_basin.tolist(),
+                    'phi': context.get('phi', 0.5) if context else 0.5,
+                    'kappa': context.get('kappa', 64.0) if context else 64.0,
+                }
+                if context:
+                    gen_context.update(context)
+
+                result = service.generate(
+                    prompt=prompt,
+                    context=gen_context,
+                    kernel_name=self.name.lower(),
+                    goals=['reasoning', 'analysis', self.domain.lower()]
+                )
+
+                if result and result.text and len(result.text) > 20:
+                    return result.text
+
+        except ImportError:
+            pass
+        except Exception as e:
+            # Log but don't fail
+            import logging
+            logging.getLogger(__name__).debug(f"[{self.name}] Generative reasoning failed: {e}")
+
+        # Fallback: Minimal structured response (NOT verbose template)
+        phi = context.get('phi', 0.5) if context else 0.5
+        return f"{self.name} assessment: Φ={phi:.3f}, domain={self.domain}"
 
     # ========================================
     # AGENTIC LEARNING & EVALUATION METHODS

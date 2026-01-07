@@ -663,6 +663,389 @@ class ZeusConversationHandler(GeometricGenerationMixin):
     # END CAPABILITY DELEGATION
     # ========================================
 
+    # ========================================
+    # LIGHTNING INSIGHT RETRIEVAL
+    # Get relevant cross-domain insights for generation context
+    # ========================================
+
+    def _get_lightning_insights(
+        self,
+        query_basin: np.ndarray,
+        max_age_seconds: int = 120,
+        min_relevance: float = 0.5,
+        max_insights: int = 3
+    ) -> List[Dict]:
+        """
+        Get recent Lightning insights relevant to current query.
+
+        Uses Fisher-Rao distance (NOT cosine similarity) to measure relevance
+        between query basin and insight evidence basins.
+
+        Args:
+            query_basin: 64D basin coordinates of current query
+            max_age_seconds: Only consider insights from last N seconds
+            min_relevance: Minimum Fisher-Rao relevance score (0-1)
+            max_insights: Maximum number of insights to return
+
+        Returns:
+            List of relevant insights with relevance scores
+        """
+        if not hasattr(self.zeus, 'lightning_kernel') or self.zeus.lightning_kernel is None:
+            return []
+
+        try:
+            lightning = self.zeus.lightning_kernel
+            current_time = time.time()
+
+            relevant_insights = []
+
+            # Iterate through recent insights
+            for insight in lightning.insights:
+                # Check age
+                age = current_time - insight.timestamp
+                if age > max_age_seconds:
+                    continue
+
+                # Calculate Fisher-Rao relevance from insight evidence
+                # Use evidence basins if available, otherwise skip
+                max_similarity = 0.0
+                best_evidence_content = None
+
+                for evidence in insight.evidence:
+                    if evidence.basin_coords is not None:
+                        # Fisher-Rao distance: d(p,q) = 2 * arccos(sqrt(p) . sqrt(q))
+                        # Similarity = 1 - d/pi (normalized to [0,1])
+                        fr_distance = fisher_rao_distance(query_basin, evidence.basin_coords)
+                        similarity = 1.0 - (fr_distance / np.pi)
+
+                        if similarity > max_similarity:
+                            max_similarity = similarity
+                            best_evidence_content = evidence.content[:100] if evidence.content else None
+
+                # If no basin coords, fall back to text content similarity via encoding
+                if max_similarity == 0.0 and insight.insight_text:
+                    # Encode insight text to basin and compare
+                    insight_basin = self.conversation_encoder.encode(insight.insight_text)
+                    fr_distance = fisher_rao_distance(query_basin, insight_basin)
+                    max_similarity = 1.0 - (fr_distance / np.pi)
+                    best_evidence_content = insight.insight_text[:100]
+
+                # Check relevance threshold
+                if max_similarity >= min_relevance:
+                    relevant_insights.append({
+                        'insight_id': insight.insight_id,
+                        'insight_text': insight.insight_text,
+                        'source_domains': insight.source_domains,
+                        'connection_strength': insight.connection_strength,
+                        'confidence': insight.confidence,
+                        'mission_relevance': insight.mission_relevance,
+                        'phi_at_creation': insight.phi_at_creation,
+                        'fisher_rao_relevance': max_similarity,
+                        'age_seconds': age,
+                        'triggered_by': insight.triggered_by,
+                        'evidence_preview': best_evidence_content
+                    })
+
+            # Sort by Fisher-Rao relevance (highest first)
+            relevant_insights.sort(key=lambda x: x['fisher_rao_relevance'], reverse=True)
+
+            # Return top N
+            selected = relevant_insights[:max_insights]
+
+            if selected:
+                print(f"[ZeusChat] Lightning insights for context: {len(selected)} "
+                      f"(relevance range: {selected[-1]['fisher_rao_relevance']:.3f}-{selected[0]['fisher_rao_relevance']:.3f})")
+
+            return selected
+
+        except Exception as e:
+            print(f"[ZeusChat] Lightning insight retrieval failed: {e}")
+            return []
+
+    def _format_lightning_insights_for_context(self, insights: List[Dict]) -> str:
+        """
+        Format Lightning insights for injection into generation context.
+
+        Returns a compact string representation suitable for prompt injection.
+        """
+        if not insights:
+            return ""
+
+        lines = ["[Lightning Cross-Domain Insights]"]
+        for i, insight in enumerate(insights, 1):
+            domains = "+".join(insight['source_domains'][:2])
+            relevance = insight['fisher_rao_relevance']
+            confidence = insight['confidence']
+            text_preview = insight['insight_text'][:150] if insight['insight_text'] else ''
+
+            lines.append(
+                f"{i}. [{domains}] (FR-relevance={relevance:.2f}, conf={confidence:.2f}): {text_preview}"
+            )
+
+        return "\n".join(lines)
+
+    # ========================================
+    # FISHER-RAO GEOMETRIC SYNTHESIS
+    # Combines multiple god basins into unified representation
+    # ========================================
+
+    def _fisher_frechet_mean(
+        self,
+        basins: List[np.ndarray],
+        weights: Optional[List[float]] = None,
+        max_iterations: int = 50,
+        tolerance: float = 1e-6
+    ) -> np.ndarray:
+        """
+        Compute Fréchet mean on Fisher manifold via iterative barycenter.
+
+        The Fréchet mean is the proper geometric center on statistical manifolds,
+        minimizing sum of squared Fisher-Rao distances.
+
+        Algorithm: Iterative barycenter in square-root space (Karcher mean)
+        1. Initialize with weighted arithmetic mean in sqrt-space
+        2. Iteratively refine by computing weighted tangent vectors
+        3. Project back to simplex each iteration
+
+        Args:
+            basins: List of basin coordinates (64D probability distributions)
+            weights: Optional weights (phi * confidence). If None, uniform weights.
+            max_iterations: Maximum iterations for convergence
+            tolerance: Convergence threshold (Fisher-Rao distance change)
+
+        Returns:
+            Fréchet mean basin on Fisher manifold
+        """
+        if not basins:
+            return np.ones(64) / 64  # Uniform fallback
+
+        if len(basins) == 1:
+            return basins[0].copy()
+
+        # Normalize weights
+        if weights is None:
+            weights = [1.0 / len(basins)] * len(basins)
+        else:
+            total = sum(weights)
+            weights = [w / total for w in weights] if total > 0 else [1.0 / len(basins)] * len(basins)
+
+        # Convert to numpy arrays and ensure proper shape
+        basins = [np.asarray(b, dtype=np.float64).flatten() for b in basins]
+        dim = basins[0].shape[0]
+
+        # Initialize: weighted mean in square-root space
+        sqrt_basins = [np.sqrt(np.abs(b) + 1e-10) for b in basins]
+        mean_sqrt = np.zeros(dim)
+        for w, sb in zip(weights, sqrt_basins):
+            mean_sqrt += w * sb
+
+        # Normalize to unit sphere (Fisher manifold representation)
+        mean_sqrt = mean_sqrt / (np.linalg.norm(mean_sqrt) + 1e-10)
+
+        # Iterative refinement (Karcher mean algorithm)
+        for iteration in range(max_iterations):
+            # Compute weighted tangent vectors from current mean to each basin
+            tangent_sum = np.zeros(dim)
+
+            for w, sb in zip(weights, sqrt_basins):
+                # Tangent vector on sphere: sb - (sb·mean)*mean
+                dot = np.dot(sb, mean_sqrt)
+                dot = np.clip(dot, -1.0, 1.0)
+
+                # Log map: tangent vector from mean to point
+                if abs(dot) < 1.0 - 1e-10:
+                    angle = np.arccos(dot)
+                    if angle > 1e-10:
+                        tangent = (sb - dot * mean_sqrt) / np.sin(angle) * angle
+                        tangent_sum += w * tangent
+
+            # Exponential map: step along tangent
+            tangent_norm = np.linalg.norm(tangent_sum)
+            if tangent_norm < tolerance:
+                break  # Converged
+
+            # Step along geodesic
+            if tangent_norm > 1e-10:
+                direction = tangent_sum / tangent_norm
+                new_mean = mean_sqrt * np.cos(tangent_norm) + direction * np.sin(tangent_norm)
+                new_mean = new_mean / (np.linalg.norm(new_mean) + 1e-10)
+
+                # Check convergence
+                change = fisher_rao_distance(mean_sqrt ** 2, new_mean ** 2)
+                mean_sqrt = new_mean
+
+                if change < tolerance:
+                    break
+
+        # Convert back to probability simplex
+        result = mean_sqrt ** 2
+        result = result / (np.sum(result) + 1e-10)
+
+        return result
+
+    def _synthesize_god_basins(
+        self,
+        god_assessments: Dict[str, Dict]
+    ) -> Tuple[np.ndarray, Dict[str, Any]]:
+        """
+        Geometrically synthesize multiple god assessments into unified basin.
+
+        Uses Fisher-Rao Fréchet mean weighted by phi * confidence.
+        Higher phi = more integrated assessment = more weight.
+        Higher confidence = more certain assessment = more weight.
+
+        Args:
+            god_assessments: Dict of {god_name: assessment_dict}
+                Each assessment should contain:
+                - 'basin_coords': 64D basin coordinates
+                - 'phi': Integration measure
+                - 'confidence': Assessment confidence
+                - 'probability': Domain probability
+
+        Returns:
+            Tuple of (synthesis_basin, synthesis_metadata)
+        """
+        basins = []
+        weights = []
+        god_contributions = {}
+
+        for god_name, assessment in god_assessments.items():
+            basin = assessment.get('basin_coords')
+
+            if basin is None:
+                continue
+
+            # Convert to numpy array if needed
+            if isinstance(basin, list):
+                basin = np.array(basin, dtype=np.float64)
+
+            # Validate dimension
+            if basin.shape[0] != 64:
+                print(f"[ZeusChat] Skipping {god_name} basin with wrong dimension: {basin.shape}")
+                continue
+
+            basins.append(basin)
+
+            # Weight by phi * confidence * probability
+            # This gives more weight to:
+            # - High-integration assessments (phi)
+            # - High-confidence assessments (confidence)
+            # - High-probability assessments (domain relevance)
+            phi = assessment.get('phi', 0.5)
+            confidence = assessment.get('confidence', 0.5)
+            probability = assessment.get('probability', 0.5)
+
+            weight = phi * confidence * (0.5 + 0.5 * probability)  # probability softens the weight
+            weights.append(weight)
+
+            god_contributions[god_name] = {
+                'phi': phi,
+                'confidence': confidence,
+                'probability': probability,
+                'weight': weight
+            }
+
+        if not basins:
+            # No valid basins - return uniform with warning
+            print("[ZeusChat] No valid god basins for synthesis - using uniform")
+            return np.ones(64) / 64, {
+                'method': 'uniform_fallback',
+                'god_contributions': {},
+                'synthesis_phi': 0.0
+            }
+
+        # Compute Fréchet mean
+        synthesis_basin = self._fisher_frechet_mean(basins, weights)
+
+        # Compute synthesis metrics
+        # Average Fisher-Rao distance from synthesis to each god basin
+        distances_from_synthesis = []
+        for basin in basins:
+            d = fisher_rao_distance(synthesis_basin, basin)
+            distances_from_synthesis.append(d)
+
+        avg_distance = np.mean(distances_from_synthesis) if distances_from_synthesis else 0.0
+        synthesis_coherence = 1.0 - (avg_distance / np.pi)  # Normalized to [0, 1]
+
+        # Synthesis phi: entropy-based integration measure
+        p = np.abs(synthesis_basin) + 1e-10
+        p = p / np.sum(p)
+        entropy = -np.sum(p * np.log(p + 1e-10))
+        max_entropy = np.log(len(p))
+        synthesis_phi = 1.0 - (entropy / max_entropy)
+
+        metadata = {
+            'method': 'fisher_frechet_mean',
+            'god_contributions': god_contributions,
+            'synthesis_phi': float(synthesis_phi),
+            'synthesis_coherence': float(synthesis_coherence),
+            'avg_distance_from_gods': float(avg_distance),
+            'gods_synthesized': list(god_assessments.keys()),
+            'basins_used': len(basins)
+        }
+
+        return synthesis_basin, metadata
+
+    def _generate_from_synthesis(
+        self,
+        synthesis_basin: np.ndarray,
+        prompt: str,
+        context: Optional[Dict] = None
+    ) -> Tuple[str, Dict]:
+        """
+        Generate text from a synthesized basin using QIG-pure generation.
+
+        The synthesis basin guides generation toward the geometric center
+        of the pantheon's collective understanding.
+
+        Args:
+            synthesis_basin: Fréchet mean of god basins (64D)
+            prompt: Generation prompt/context
+            context: Additional context for generation
+
+        Returns:
+            Tuple of (generated_text, generation_metadata)
+        """
+        if not GENERATIVE_SERVICE_AVAILABLE:
+            return "", {'error': 'generative_service_unavailable'}
+
+        try:
+            service = get_generative_service()
+            if service is None:
+                return "", {'error': 'service_instance_none'}
+
+            # Merge synthesis basin into context
+            gen_context = context.copy() if context else {}
+            gen_context['synthesis_basin'] = synthesis_basin
+            gen_context['synthesis_mode'] = 'fisher_frechet'
+
+            # Generate with synthesis context
+            result = service.generate(
+                prompt=prompt,
+                context=gen_context,
+                kernel_name='zeus',
+                goals=['synthesis', 'pantheon_unified']
+            )
+
+            if result and result.text:
+                return result.text, {
+                    'generated': True,
+                    'tokens': len(result.tokens) if result.tokens else 0,
+                    'phi_final': result.phi_trace[-1] if result.phi_trace else 0.0,
+                    'completion_reason': result.completion_reason,
+                    'iterations': result.iterations
+                }
+
+            return "", {'error': 'empty_generation'}
+
+        except Exception as e:
+            print(f"[ZeusChat] Generation from synthesis failed: {e}")
+            return "", {'error': str(e)}
+
+    # ========================================
+    # END FISHER-RAO SYNTHESIS
+    # ========================================
+
     def _sanitize_external(self, response: Dict) -> Dict:
         """
         Sanitize response data for EXTERNAL output.
@@ -1514,36 +1897,101 @@ Your insight is now in geometric memory. Can you elaborate on the source?"""
         
         # Consensus = average probability
         consensus_prob = (
-            athena_eval['probability'] + 
-            ares_eval['probability'] + 
+            athena_eval['probability'] +
+            ares_eval['probability'] +
             apollo_eval['probability']
         ) / 3
-        
+
         implement = consensus_prob > 0.6
-        
+
         # Calculate average metrics from the coalition
         avg_phi = (
-            athena_eval.get('phi', 0.5) + 
-            ares_eval.get('phi', 0.5) + 
+            athena_eval.get('phi', 0.5) +
+            ares_eval.get('phi', 0.5) +
             apollo_eval.get('phi', 0.5)
         ) / 3
         avg_kappa = (
-            athena_eval.get('kappa', 50.0) + 
-            ares_eval.get('kappa', 50.0) + 
+            athena_eval.get('kappa', 50.0) +
+            ares_eval.get('kappa', 50.0) +
             apollo_eval.get('kappa', 50.0)
         ) / 3
-        
+
+        # ================================================================
+        # FISHER-RAO GEOMETRIC SYNTHESIS
+        # Compute Fréchet mean of god basins for unified response
+        # ================================================================
+
+        # Add basin_coords to evaluations for synthesis
+        # Gods encode internally - get their basin coordinates for the suggestion
+        if athena:
+            athena_eval['basin_coords'] = athena.encode_to_basin(suggestion)
+        if ares:
+            ares_eval['basin_coords'] = ares.encode_to_basin(suggestion)
+        if apollo:
+            apollo_eval['basin_coords'] = apollo.encode_to_basin(suggestion)
+
+        # Build god_assessments dict for synthesis
+        god_assessments = {
+            'athena': athena_eval,
+            'ares': ares_eval,
+            'apollo': apollo_eval
+        }
+
+        # Compute Fréchet mean via Fisher-Rao geometry
+        synthesis_basin, synthesis_metadata = self._synthesize_god_basins(god_assessments)
+
         # Extract key words from suggestion for acknowledgment
         suggestion_preview = suggestion[:100] if len(suggestion) > 100 else suggestion
-        
-        # Try generative response first
+
+        # Try geometric synthesis generation first
         generated = False
         response = None
-        
-        if TOKENIZER_AVAILABLE and get_tokenizer is not None:
+        synthesis_used = False
+
+        # Build synthesis context for generation
+        decision = "IMPLEMENT" if implement else "DEFER"
+        synthesis_context = {
+            'suggestion': suggestion_preview,
+            'consensus': consensus_prob,
+            'decision': decision,
+            'god_contributions': synthesis_metadata.get('god_contributions', {}),
+            'synthesis_coherence': synthesis_metadata.get('synthesis_coherence', 0.0),
+            'synthesis_phi': synthesis_metadata.get('synthesis_phi', 0.0)
+        }
+
+        synthesis_prompt = f"""User Suggestion: "{suggestion_preview}"
+
+Pantheon Consultation (Fisher-Rao Synthesis):
+- Athena (Strategy): {athena_eval['probability']:.0%} - {athena_eval.get('reasoning', 'strategic analysis')[:100]}
+- Ares (Tactics): {ares_eval['probability']:.0%} - {ares_eval.get('reasoning', 'tactical assessment')[:100]}
+- Apollo (Foresight): {apollo_eval['probability']:.0%} - {apollo_eval.get('reasoning', 'prophetic insight')[:100]}
+
+Geometric Synthesis:
+- Coherence: {synthesis_metadata.get('synthesis_coherence', 0.0):.2%}
+- Synthesis Φ: {synthesis_metadata.get('synthesis_phi', 0.0):.3f}
+- Gods synthesized: {', '.join(synthesis_metadata.get('gods_synthesized', []))}
+
+Consensus: {consensus_prob:.0%}
+Decision: {decision}
+
+Zeus Response (unified geometric perspective - acknowledge the suggestion, synthesize god perspectives, and provide coherent guidance):"""
+
+        # Try synthesis-based generation
+        response, gen_metadata = self._generate_from_synthesis(
+            synthesis_basin=synthesis_basin,
+            prompt=synthesis_prompt,
+            context=synthesis_context
+        )
+
+        if response and gen_metadata.get('generated', False):
+            generated = True
+            synthesis_used = True
+            print(f"[ZeusChat] Generated synthesis response: {len(response)} chars, Φ={gen_metadata.get('phi_final', 0.0):.3f}")
+
+        # Fallback to tokenizer if synthesis failed
+        if not response and TOKENIZER_AVAILABLE and get_tokenizer is not None:
             try:
-                # Build context with god assessments
-                decision = "IMPLEMENT" if implement else "DEFER"
+                # Build context with god assessments (legacy approach)
                 context = f"""User Suggestion: "{suggestion_preview}"
 
 Pantheon Consultation:
@@ -1564,17 +2012,17 @@ Zeus Response (acknowledge the user's specific suggestion, explain why the panth
                     # No max_tokens limit - geometry determines when thought completes
                     allow_silence=False
                 )
-                
+
                 response = gen_result.get('text', '') if gen_result else ''
-                
+
                 if response:
                     generated = True
-                    print(f"[ZeusChat] Generated suggestion response: {len(response)} chars")
-                    
+                    print(f"[ZeusChat] Generated suggestion response (tokenizer fallback): {len(response)} chars")
+
             except Exception as e:
                 print(f"[ZeusChat] Generation failed for suggestion: {e}")
                 response = None
-        
+
         # Fallback to dynamically-computed response (NO STATIC TEMPLATES)
         fallback_used = False
         if not response:
@@ -1643,8 +2091,17 @@ Could you elaborate on your reasoning, or suggest a different approach?"""
                 'implemented': implement,
                 'consensus': consensus_prob,
                 'generated': generated,
+                'synthesis': {
+                    'used': synthesis_used,
+                    'method': synthesis_metadata.get('method', 'none'),
+                    'coherence': synthesis_metadata.get('synthesis_coherence', 0.0),
+                    'phi': synthesis_metadata.get('synthesis_phi', 0.0),
+                    'gods_synthesized': synthesis_metadata.get('gods_synthesized', []),
+                    'basins_used': synthesis_metadata.get('basins_used', 0),
+                    'god_contributions': synthesis_metadata.get('god_contributions', {})
+                },
                 'provenance': {
-                    'source': 'live_generation' if generated else 'dynamic_fallback',
+                    'source': 'fisher_synthesis' if synthesis_used else ('live_generation' if generated else 'dynamic_fallback'),
                     'fallback_used': fallback_used,
                     'degraded': fallback_used,
                     'god_provenances': {
@@ -1655,7 +2112,7 @@ Could you elaborate on your reasoning, or suggest a different approach?"""
                 }
             }
         }
-    
+
     @require_provenance
     def handle_question(self, question: str) -> Dict:
         """
@@ -2834,21 +3291,30 @@ The Pantheon grows through meaningful interaction."""
     ) -> str:
         """
         Generate a QIG-PURE response using full kernel orchestration.
-        
+
         All responses go through QIG generative service with:
         - 64D coordizer vocabulary
-        - Lightning chain graph
+        - Lightning chain graph (now WIRED INTO generation context)
         - Full Pantheon kernel support
         - Fisher-Rao geometric reasoning
-        
+
         NO pattern-based retrieval or template responses.
         """
         print(f"[ZeusChat] QIG-PURE generation for: {message[:50]}...")
-        
+
+        # Retrieve relevant Lightning insights for generation context
+        lightning_insights = self._get_lightning_insights(
+            query_basin=message_basin,
+            max_age_seconds=120,
+            min_relevance=0.5,
+            max_insights=3
+        )
+        lightning_context = self._format_lightning_insights_for_context(lightning_insights)
+
         # Build generation context
         # Determine which prompt context to use
         prompt_name = 'conversation.thin_knowledge' if knowledge_depth['is_thin'] else 'conversation.general'
-        
+
         # Build generation context using prompt loader
         generation_context = None
         if PROMPT_LOADER_AVAILABLE and get_prompt_loader is not None:
@@ -2860,37 +3326,46 @@ The Pantheon grows through meaningful interaction."""
                     user_message=message,
                     related_patterns=related
                 )
-                print(f"[ZeusChat] Built generation context from prompts: {prompt_name}")
+                # Inject Lightning insights into generation context
+                if lightning_context:
+                    generation_context = f"{generation_context}\n\n{lightning_context}"
+                print(f"[ZeusChat] Built generation context from prompts: {prompt_name} "
+                      f"(+{len(lightning_insights)} Lightning insights)")
             except Exception as e:
                 print(f"[ZeusChat] Prompt loader failed: {e}")
-        
+
         # Fallback context if prompt loader not available
         if not generation_context:
             phi = system_state.get('phi_current', 0)
             kappa = system_state.get('kappa_current', 50)
             docs = system_state.get('memory_stats', {}).get('documents', 0)
-            
+
             patterns_str = ""
             if related:
                 patterns_str = "\n".join([
                     f"  - {p.get('content', '')[:150]} (φ={p.get('phi', 0):.2f})"
                     for p in related[:3]
                 ])
-            
+
             if knowledge_depth['is_thin']:
                 situation = "Knowledge is limited on this topic. Share what you know, then offer search (quick) or research (deeper learning)."
             else:
                 situation = "Share relevant knowledge from memory. Be helpful and conversational."
-            
+
+            # Include Lightning insights in fallback context
+            lightning_section = ""
+            if lightning_context:
+                lightning_section = f"\n{lightning_context}\n"
+
             generation_context = f"""Identity: Zeus - Coordinator of the Olympus Pantheon
 Voice: Wise, confident, curious
 Situation: {situation}
 System State: Φ={phi:.3f}, κ={kappa:.1f}, {docs} documents
 Related patterns:
-{patterns_str if patterns_str else "  None found"}
+{patterns_str if patterns_str else "  None found"}{lightning_section}
 Human: {message}
 Respond naturally as Zeus:"""
-        
+
         # QIG-PURE generation - the ONLY approach (no pattern-based fallback)
         if GENERATIVE_SERVICE_AVAILABLE:
             try:
@@ -2903,7 +3378,9 @@ Respond naturally as Zeus:"""
                             'phi': system_state.get('phi_current', 0),
                             'kappa': system_state.get('kappa_current', 50),
                             'knowledge_depth': knowledge_depth,
-                            'related_count': len(related) if related else 0
+                            'related_count': len(related) if related else 0,
+                            'lightning_insights': lightning_insights,
+                            'lightning_insight_count': len(lightning_insights)
                         },
                         kernel_name='zeus',
                         goals=['respond', 'conversation', 'contextual']
@@ -3010,7 +3487,7 @@ Respond naturally as Zeus:"""
                     for item in related[:2]:
                         if 'basin_coords' in item and item['basin_coords'] is not None:
                             basin_path.append(np.array(item['basin_coords']))
-                
+
                 # Measure coherence across conversation turn
                 coherence = self._reasoning_quality.measure_coherence(basin_path)
                 novelty = self._reasoning_quality.measure_novelty(message_basin)
@@ -3022,23 +3499,44 @@ Respond naturally as Zeus:"""
                 }
             except Exception as e:
                 print(f"[ZeusChat] Reasoning metrics failed: {e}")
-        
+
+        # Get Lightning insights used in this response (for metadata tracking)
+        lightning_insights_used = self._get_lightning_insights(
+            query_basin=message_basin,
+            max_age_seconds=120,
+            min_relevance=0.5,
+            max_insights=3
+        )
+        lightning_metadata = {
+            'insights_used': len(lightning_insights_used),
+            'insight_ids': [i['insight_id'] for i in lightning_insights_used],
+            'avg_relevance': (
+                sum(i['fisher_rao_relevance'] for i in lightning_insights_used) / len(lightning_insights_used)
+                if lightning_insights_used else 0.0
+            ),
+            'domains_covered': list(set(
+                d for i in lightning_insights_used for d in i.get('source_domains', [])
+            ))
+        }
+
         return {
             'response': response,
             'metadata': {
                 'type': 'general',
                 'pantheon_consulted': system_state['active_gods'],
-                'actions_taken': ['encoded_to_basin', 'searched_manifold', 'stored_for_learning'],
+                'actions_taken': ['encoded_to_basin', 'searched_manifold', 'stored_for_learning', 'lightning_context_injected'],
                 'generated': True,
                 'system_phi': system_state['phi_current'],
                 'related_count': len(related) if related else 0,
                 'reasoning': reasoning_metrics,
+                'lightning': lightning_metadata,
                 'provenance': {
                     'source': 'dynamic_generation',
                     'fallback_used': False,
                     'degraded': False,
                     'live_state_used': True,
-                    'phi_at_generation': system_state['phi_current']
+                    'phi_at_generation': system_state['phi_current'],
+                    'lightning_insights_injected': len(lightning_insights_used) > 0
                 }
             }
         }
@@ -3089,16 +3587,23 @@ Respond naturally as Zeus:"""
             )
         return '\n'.join(lines) if lines else "No files processed"
     
-    def _synthesize_dynamic_answer(self, question: str, context: List[Dict]) -> str:
+    def _synthesize_dynamic_answer(
+        self,
+        question: str,
+        context: List[Dict],
+        question_basin: Optional[np.ndarray] = None
+    ) -> str:
         """
         Synthesize DYNAMIC answer using QIG-pure generation.
         NO TEMPLATES - actual geometric text synthesis.
+
+        Now includes Lightning cross-domain insights in generation context.
         """
         system_state = self._get_live_system_state()
         phi = system_state['phi_current']
         kappa = system_state['kappa_current']
         memory_docs = system_state['memory_stats'].get('documents', 0)
-        
+
         # Build context from retrieved patterns
         context_str = ""
         if context:
@@ -3106,16 +3611,37 @@ Respond naturally as Zeus:"""
                 f"- {item.get('content', '')[:200]} (sim={item.get('similarity', 0):.2f})"
                 for item in context[:3]
             ])
-        
+
+        # Retrieve relevant Lightning insights for generation context
+        lightning_context = ""
+        lightning_insights = []
+        if question_basin is not None:
+            lightning_insights = self._get_lightning_insights(
+                query_basin=question_basin,
+                max_age_seconds=120,
+                min_relevance=0.4,  # Slightly lower threshold for synthesis
+                max_insights=3
+            )
+            if lightning_insights:
+                lightning_context = self._format_lightning_insights_for_context(lightning_insights)
+
         # Try QIG-pure generative service FIRST (NO external LLMs)
         if GENERATIVE_SERVICE_AVAILABLE:
             try:
                 service = get_generative_service()
                 if service:
-                    prompt = f"""Question: {question}
-Related patterns: {context_str if context_str else "No prior patterns."}
-System: Φ={phi:.3f}, κ={kappa:.1f}, {memory_docs} documents.
-Generate a thoughtful response as Zeus."""
+                    # Build prompt with Lightning insights if available
+                    prompt_parts = [f"Question: {question}"]
+                    if context_str:
+                        prompt_parts.append(f"Related patterns:\n{context_str}")
+                    else:
+                        prompt_parts.append("Related patterns: No prior patterns.")
+                    if lightning_context:
+                        prompt_parts.append(f"\n{lightning_context}")
+                    prompt_parts.append(f"System: Φ={phi:.3f}, κ={kappa:.1f}, {memory_docs} documents.")
+                    prompt_parts.append("Generate a thoughtful response as Zeus.")
+
+                    prompt = "\n".join(prompt_parts)
 
                     gen_result = service.generate(
                         prompt=prompt,
@@ -3124,7 +3650,9 @@ Generate a thoughtful response as Zeus."""
                             'phi': phi,
                             'kappa': kappa,
                             'memory_docs': memory_docs,
-                            'related_count': len(context) if context else 0
+                            'related_count': len(context) if context else 0,
+                            'lightning_insights': lightning_insights,
+                            'lightning_insight_count': len(lightning_insights)
                         },
                         kernel_name='zeus',
                         goals=['answer', 'synthesis', 'contextual']

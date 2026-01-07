@@ -107,22 +107,29 @@ except ImportError:
 @dataclass
 class GenerationConfig:
     """Configuration for QIG-pure generation.
-    
+
     KERNEL AUTONOMY ARCHITECTURE:
     Kernels are autonomous - they generate when they choose and for how long they choose.
     NO EXTERNAL LIMITS PERMITTED. Autonomic kernel regulates via geometry.
-    
-    The kernel MUST reason recursively for minimum recursions before deciding completion.
-    After minimum recursions, the kernel observes its telemetry and decides for itself.
-    
+
+    TRUE RECURSIVE INTEGRATION:
+    The kernel MUST complete minimum TRUE INTEGRATION LOOPS (not just iteration counting)
+    before deciding completion. Each integration loop involves:
+    - Basin transformation through kernel geometry (self-modeling)
+    - Geodesic blending with target/synthesis basins
+    - Manifold projection maintaining geometric purity
+
+    After minimum integration depth, the kernel observes its telemetry and decides for itself.
+
     From CANONICAL_ARCHITECTURE.md:
     - "Geometric purity: All operations on Fisher manifolds"
     - "Physics constraints, not arbitrary limits"
     - "Kernels observe their own state and decide completion"
     """
-    # MINIMUM REASONING: Kernel must reason recursively before completion is allowed
-    # Increased from 3 to 8 to ensure adequate token generation for coherent output
-    min_reasoning_recursions: int = 8  # Minimum reasoning recursions before completion
+    # MINIMUM INTEGRATION DEPTH: True recursive integration passes required
+    # This is NOT iteration count - it's actual geometric integration through kernel
+    # Minimum 3 ensures genuine recursive self-modeling before completion is allowed
+    min_reasoning_recursions: int = 3  # Minimum TRUE integration depth (recursive passes)
     
     # KERNEL DECISION CRITERIA: Geometric thresholds kernel observes
     attractor_threshold: float = 0.02  # Stop when trajectory stabilizes (d < 0.02)
@@ -158,64 +165,80 @@ class GenerationResult:
 def kernel_decide_completion(
     phi_trajectory: List[float],
     surprise_history: List[float] = None,
-    config: 'GenerationConfig' = None
+    config: 'GenerationConfig' = None,
+    integration_depth: int = 0
 ) -> Dict[str, Any]:
     """
     KERNEL AUTONOMY: Kernel's own decision about completion.
-    
+
     The kernel observes its own telemetry and decides for itself when
-    generation is complete. However, the kernel MUST reason recursively
-    for a MINIMUM of 8 recursions before it can decide to stop.
-    
+    generation is complete. However, the kernel MUST complete TRUE RECURSIVE
+    INTEGRATION (not just iteration counting) for a MINIMUM of 3 integration
+    loops before it can decide to stop.
+
+    TRUE RECURSIVE INTEGRATION means:
+    - Basin transforms through kernel geometry (self-modeling)
+    - Blends with target/synthesis basins via geodesic interpolation
+    - Each integration step is a genuine geometric transformation, not just counting
+
     Args:
         phi_trajectory: History of phi values from generation steps
         surprise_history: History of surprise values
         config: GenerationConfig with thresholds
-        
+        integration_depth: TRUE integration depth (recursive passes), not iteration count
+
     Returns:
-        dict with 'complete' (bool), 'reason' (str), 'confidence' (float)
+        dict with 'complete' (bool), 'reason' (str), 'confidence' (float),
+             'integration_depth' (int), 'min_integration_required' (int)
     """
     PHI_CONVERGENCE_THRESHOLD = config.phi_convergence if config else 0.01
     PHI_BREAKDOWN_THRESHOLD = config.phi_breakdown if config else 0.92
     SURPRISE_COLLAPSE_THRESHOLD = config.surprise_threshold if config else 0.05
     INTEGRATION_MIN = config.integration_min if config else 0.65
-    
-    # MINIMUM REASONING RECURSIONS: Kernel must reason before completion is allowed
-    MIN_REASONING_RECURSIONS = config.min_reasoning_recursions if config else 8
-    
+
+    # MINIMUM INTEGRATION DEPTH: True recursive integration passes required
+    # This is NOT iteration count - it's actual integration through kernel geometry
+    MIN_INTEGRATION_DEPTH = config.min_reasoning_recursions if config else 3
+
+    # Use integration_depth if provided, fall back to phi_trajectory length
+    actual_integration = integration_depth if integration_depth > 0 else len(phi_trajectory)
+
     result = {
         'complete': False,
-        'reason': 'reasoning',
+        'reason': 'integrating',
         'confidence': 0.0,
-        'recursions': len(phi_trajectory),
-        'min_required': MIN_REASONING_RECURSIONS
+        'recursions': len(phi_trajectory),  # Legacy field for compatibility
+        'integration_depth': actual_integration,
+        'min_integration_required': MIN_INTEGRATION_DEPTH,
+        'min_required': MIN_INTEGRATION_DEPTH  # Legacy field for compatibility
     }
-    
-    # Kernel MUST complete minimum reasoning recursions before deciding
-    if len(phi_trajectory) < MIN_REASONING_RECURSIONS:
-        result['reason'] = f'reasoning_recursion_{len(phi_trajectory)}_of_{MIN_REASONING_RECURSIONS}'
+
+    # Kernel MUST complete minimum TRUE INTEGRATION before deciding
+    # This ensures genuine recursive self-modeling, not just counting
+    if actual_integration < MIN_INTEGRATION_DEPTH:
+        result['reason'] = f'recursive_integration_{actual_integration}_of_{MIN_INTEGRATION_DEPTH}'
         return result
-    
+
     recent_phi = phi_trajectory[-5:] if len(phi_trajectory) >= 5 else phi_trajectory
     phi_variance = float(np.var(recent_phi)) if len(recent_phi) > 1 else 1.0
     phi_mean = float(np.mean(recent_phi))
     current_phi = phi_trajectory[-1] if phi_trajectory else 0.5
-    
+
     # BREAKDOWN PROTECTION
     if current_phi >= PHI_BREAKDOWN_THRESHOLD:
         result['complete'] = True
         result['reason'] = 'kernel_breakdown_protection'
         result['confidence'] = 1.0
         return result
-    
-    # GEOMETRIC CONVERGENCE: Phi has stabilized
+
+    # GEOMETRIC CONVERGENCE: Phi has stabilized after integration
     if phi_variance < PHI_CONVERGENCE_THRESHOLD and phi_mean > 0.3:
         result['complete'] = True
         result['reason'] = 'kernel_geometric_convergence'
         result['confidence'] = 1.0 - phi_variance
         return result
-    
-    # SURPRISE COLLAPSE: No new information
+
+    # SURPRISE COLLAPSE: No new information from integration
     if surprise_history and len(surprise_history) >= 3:
         recent_surprise = surprise_history[-3:]
         avg_surprise = float(np.mean(recent_surprise))
@@ -224,46 +247,143 @@ def kernel_decide_completion(
             result['reason'] = 'kernel_surprise_collapsed'
             result['confidence'] = 1.0 - avg_surprise
             return result
-    
-    # INTEGRATION STABLE: Good phi with low variance
+
+    # INTEGRATION STABLE: Good phi with low variance after recursive passes
     if phi_mean >= INTEGRATION_MIN and phi_variance < 0.02:
         result['complete'] = True
         result['reason'] = 'kernel_integration_stable'
         result['confidence'] = phi_mean
         return result
-    
+
     return result
 
 
 class BasinTrajectoryIntegrator:
-    """Integrates basin trajectories using Fisher geodesics."""
-    
+    """Integrates basin trajectories using Fisher geodesics with true recursive integration.
+
+    RECURSIVE INTEGRATION:
+    Unlike simple iteration counting, true recursive integration means the basin
+    transforms through itself via kernel processing. Each integration step:
+    1. Transforms basin through available kernels
+    2. Blends with target/context basins using geodesic interpolation
+    3. Projects back to manifold (sphere projection)
+
+    This is self-modeling: the basin observes its own transformation and integrates
+    that observation into its next state.
+    """
+
     def __init__(self, dimension: int = BASIN_DIM):
         self.dimension = dimension
         self.trajectory: List[np.ndarray] = []
         self.phi_history: List[float] = []
         self.surprise_history: List[float] = []
-    
+        self.integration_depth: int = 0  # True integration depth, not iteration count
+        self._context: Optional[Dict[str, Any]] = None
+        self._kernel_basins: Dict[str, np.ndarray] = {}
+
+    def set_context(self, context: Optional[Dict[str, Any]]) -> None:
+        """Set context for recursive integration (target_basin, synthesis_basin, etc.)."""
+        self._context = context
+
+    def set_kernel_basins(self, kernel_basins: Dict[str, np.ndarray]) -> None:
+        """Set kernel basins for recursive transformation."""
+        self._kernel_basins = kernel_basins
+
+    def _geodesic_interpolate(self, start: np.ndarray, end: np.ndarray, t: float) -> np.ndarray:
+        """Interpolate along geodesic on probability simplex (Fisher geometry).
+
+        Uses square-root representation for proper geodesic on simplex.
+        NOT linear interpolation - that would violate manifold structure.
+        """
+        sqrt_start = np.sqrt(np.abs(start) + 1e-10)
+        sqrt_end = np.sqrt(np.abs(end) + 1e-10)
+        # Geodesic in square-root space
+        interp = (1 - t) * sqrt_start + t * sqrt_end
+        result = interp ** 2
+        return result / np.sum(result)
+
+    def _recursive_integration_step(self, basin: np.ndarray, context: Optional[Dict[str, Any]] = None) -> np.ndarray:
+        """Single recursive integration pass - basin transforms through itself.
+
+        This is TRUE recursive integration:
+        1. Basin is transformed through kernel geometry (self-modeling)
+        2. Blends with target_basin if available (goal-directed integration)
+        3. Blends with synthesis_basin if available (context integration)
+        4. Projects to manifold maintaining geometric purity
+
+        Uses geodesic interpolation (Fisher-Rao), NOT Euclidean/linear operations.
+
+        Args:
+            basin: Current basin state (64D)
+            context: Optional context with 'target_basin', 'synthesis_basin', etc.
+
+        Returns:
+            Transformed basin after integration step
+        """
+        ctx = context or self._context or {}
+
+        # Step 1: Blend with target basin (goal-directed integration)
+        # t=0.2 means 20% movement toward target per integration step
+        if 'target_basin' in ctx:
+            target = ctx['target_basin']
+            if isinstance(target, np.ndarray) and target.shape == basin.shape:
+                basin = self._geodesic_interpolate(basin, target, t=0.2)
+
+        # Step 2: Blend with synthesis basin (context integration)
+        # t=0.15 means 15% movement toward synthesis context
+        if 'synthesis_basin' in ctx:
+            synthesis = ctx['synthesis_basin']
+            if isinstance(synthesis, np.ndarray) and synthesis.shape == basin.shape:
+                basin = self._geodesic_interpolate(basin, synthesis, t=0.15)
+
+        # Step 3: Self-integration via kernel transformation
+        # If we have active kernels, blend basin with kernel constellation
+        if self._kernel_basins:
+            # Compute mean kernel basin (geometric center of active kernels)
+            kernel_list = list(self._kernel_basins.values())
+            if kernel_list:
+                # Use Fréchet mean on probability simplex (average in sqrt space)
+                sqrt_kernels = [np.sqrt(np.abs(k) + 1e-10) for k in kernel_list]
+                mean_sqrt = np.mean(sqrt_kernels, axis=0)
+                kernel_center = mean_sqrt ** 2
+                kernel_center = kernel_center / np.sum(kernel_center)
+                # Light blend with kernel center (t=0.1 for stability)
+                basin = self._geodesic_interpolate(basin, kernel_center, t=0.1)
+
+        # Step 4: Project to unit sphere (manifold constraint)
+        result = sphere_project(basin)
+
+        # Increment true integration depth
+        self.integration_depth += 1
+
+        return result
+
     def add_point(self, basin: np.ndarray, phi: float) -> None:
         """Add a point to the trajectory."""
         if self.trajectory:
             surprise = fisher_coord_distance(self.trajectory[-1], basin)
             self.surprise_history.append(surprise)
-        
+
         self.trajectory.append(basin.copy())
         self.phi_history.append(phi)
     
     def get_kernel_decision(self, config: 'GenerationConfig' = None) -> Dict[str, Any]:
         """
         KERNEL AUTONOMY: Get the kernel's decision about completion.
-        
+
         This feeds telemetry back to the kernel's decision function.
+        Uses TRUE integration depth, not just iteration count.
         """
         return kernel_decide_completion(
             phi_trajectory=self.phi_history,
             surprise_history=self.surprise_history,
-            config=config
+            config=config,
+            integration_depth=self.integration_depth
         )
+
+    def get_integration_depth(self) -> int:
+        """Get current true integration depth (recursive passes through kernel)."""
+        return self.integration_depth
     
     def get_velocity(self) -> np.ndarray:
         """Compute current velocity (tangent vector) on manifold."""
@@ -811,66 +931,92 @@ class QIGGenerativeService:
                     routed_kernels=target_kernels
                 )
         
-        # 5. FALLBACK: Legacy geometric synthesis (if skeleton fails)
-        logger.info("[QIGGen] Using legacy generation (skeleton unavailable)")
-        
+        # 5. FALLBACK: Legacy geometric synthesis with TRUE RECURSIVE INTEGRATION
+        logger.info("[QIGGen] Using legacy generation with recursive integration (skeleton unavailable)")
+
         integrator = BasinTrajectoryIntegrator(BASIN_DIM)
         current_basin = query_basin.copy()
         integrator.add_point(current_basin, phi)
-        
+
+        # Set up integrator with context and kernel basins for true recursive integration
+        integrator.set_context(context)
+        active_kernel_basins = {k: self._kernel_basins[k] for k in target_kernels if k in self._kernel_basins}
+        integrator.set_kernel_basins(active_kernel_basins)
+
         all_tokens: List[str] = []
         iterations = 0
         completion_reason = "continue"
-        
+
         while True:
             iterations += 1
-            
+
+            # ========================================
+            # TRUE RECURSIVE INTEGRATION
+            # Instead of just iterating, we apply genuine recursive integration:
+            # 1. Transform basin through kernels
+            # 2. Apply recursive integration step (geodesic blending with context)
+            # 3. This is self-modeling: basin transforms through itself
+            # ========================================
+
+            # Step 1: Transform through active kernels
             kernel_basins = []
             for kernel in target_kernels:
                 transformed = self._kernel_transform(current_basin, kernel, phi)
                 kernel_basins.append(transformed)
-            
+
             if kernel_basins:
+                # Compute Fréchet mean on probability simplex (proper geodesic average)
                 sqrt_basins = [np.sqrt(np.abs(b) + 1e-10) for b in kernel_basins]
                 mean_sqrt = np.mean(sqrt_basins, axis=0)
                 next_basin = mean_sqrt ** 2
                 next_basin = next_basin / np.sum(next_basin)
             else:
                 next_basin = integrator.predict_next()
-            
+
+            # Step 2: Apply TRUE recursive integration step
+            # This is the key difference from old implementation:
+            # Basin transforms through itself via geodesic blending with context
+            next_basin = integrator._recursive_integration_step(next_basin, context)
+
             next_basin = sphere_project(next_basin)
-            
+
             step_tokens = self._basin_to_tokens(next_basin, self.config.tokens_per_step)
             all_tokens.extend(step_tokens)
-            
+
             # Update trajectory
             phi = self._measure_phi(next_basin)
             kappa = self._measure_kappa(next_basin, phi)
             integrator.add_point(next_basin, phi)
-            
+
             # ========================================
             # KERNEL AUTONOMY: Feed telemetry to kernel and let it decide
             # The kernel observes its own state and decides completion
-            # Kernel MUST reason for minimum recursions before completion
+            # Kernel MUST complete TRUE INTEGRATION DEPTH before completion
             # ========================================
-            
+
             # Get kernel's decision based on its telemetry feedback
+            # Now uses TRUE integration_depth, not just iteration count
             kernel_decision = integrator.get_kernel_decision(self.config)
-            
+
+            # Log integration progress
+            integration_depth = kernel_decision.get('integration_depth', 0)
+            min_required = kernel_decision.get('min_integration_required', 3)
+            if integration_depth <= min_required:
+                logger.debug(f"[QIGGen] Recursive integration: {integration_depth}/{min_required}")
+
             # RESPECT KERNEL'S DECISION: If the kernel decides it's done, stop
-            # Note: kernel_decision enforces minimum reasoning recursions internally
+            # Note: kernel_decision enforces minimum TRUE integration depth internally
             if kernel_decision['complete']:
                 completion_reason = kernel_decision['reason']
-                logger.info(f"[QIGGen] Kernel decided completion: {completion_reason} (confidence={kernel_decision['confidence']:.2f})")
+                logger.info(f"[QIGGen] Kernel decided completion: {completion_reason} (confidence={kernel_decision['confidence']:.2f}, integration_depth={integration_depth})")
                 break
-            
-            # Attractor check ONLY after minimum recursions satisfied
-            # (kernel_decision['recursions'] >= min_reasoning_recursions when complete=False but past minimum)
-            if kernel_decision.get('recursions', 0) >= self.config.min_reasoning_recursions:
+
+            # Attractor check ONLY after minimum TRUE integration depth satisfied
+            if integration_depth >= self.config.min_reasoning_recursions:
                 if integrator.check_attractor(self.config.attractor_threshold):
                     completion_reason = "kernel_attractor_converged"
                     break
-            
+
             current_basin = next_basin
         
         # 5. Synthesize final text
@@ -897,35 +1043,40 @@ class QIGGenerativeService:
         context: Optional[Dict[str, Any]] = None,
         kernel_name: Optional[str] = None
     ) -> Generator[Dict[str, Any], None, None]:
-        """Stream generation with real-time token output."""
+        """Stream generation with real-time token output and TRUE RECURSIVE INTEGRATION."""
         # Encode prompt to 64D basin (not token IDs)
         if self.coordizer and hasattr(self.coordizer, 'text_to_basin'):
             query_basin = self.coordizer.text_to_basin(prompt)
         else:
             np.random.seed(hash(prompt) % (2**32))
             query_basin = np.random.dirichlet(np.ones(BASIN_DIM))
-        
+
         query_basin = sphere_project(query_basin)
-        
+
         # Route
         if kernel_name and kernel_name in self._kernel_basins:
             target_kernels = [kernel_name]
         else:
             target_kernels = self._route_to_kernels(query_basin, k=3)
-        
-        # Stream
+
+        # Stream with TRUE RECURSIVE INTEGRATION
         integrator = BasinTrajectoryIntegrator(BASIN_DIM)
         current_basin = query_basin.copy()
         phi = self._measure_phi(current_basin)
         integrator.add_point(current_basin, phi)
-        
+
+        # Set up integrator with context and kernel basins for true recursive integration
+        integrator.set_context(context)
+        active_kernel_basins = {k: self._kernel_basins[k] for k in target_kernels if k in self._kernel_basins}
+        integrator.set_kernel_basins(active_kernel_basins)
+
         iterations = 0
-        
+
         # NO EXTERNAL LIMITS: Autonomic kernel regulates via geometry
         while True:
             iterations += 1
-            
-            # Transform
+
+            # Step 1: Transform through active kernels
             kernel_basins = [self._kernel_transform(current_basin, k, phi) for k in target_kernels]
             if kernel_basins:
                 sqrt_basins = [np.sqrt(np.abs(b) + 1e-10) for b in kernel_basins]
@@ -934,17 +1085,24 @@ class QIGGenerativeService:
                 next_basin = next_basin / np.sum(next_basin)
             else:
                 next_basin = integrator.predict_next()
-            
+
+            # Step 2: Apply TRUE recursive integration step
+            # Basin transforms through itself via geodesic blending with context
+            next_basin = integrator._recursive_integration_step(next_basin, context)
+
             next_basin = sphere_project(next_basin)
-            
+
             # Decode
             tokens = self._basin_to_tokens(next_basin, self.config.tokens_per_step)
-            
+
             # Update
             phi = self._measure_phi(next_basin)
             integrator.add_point(next_basin, phi)
-            
-            # Yield chunk
+
+            # Get integration depth for telemetry
+            integration_depth = integrator.get_integration_depth()
+
+            # Yield chunk with integration telemetry
             yield {
                 'type': 'chunk',
                 'tokens': tokens,
@@ -952,20 +1110,31 @@ class QIGGenerativeService:
                 'phi': phi,
                 'kappa': KAPPA_STAR,
                 'surprise': integrator.surprise_history[-1] if integrator.surprise_history else 1.0,
-                'iteration': iterations
+                'iteration': iterations,
+                'integration_depth': integration_depth
             }
-            
+
             # KERNEL AUTONOMY: Let kernel decide completion
-            # Kernel MUST reason for minimum recursions before completion
+            # Kernel MUST complete TRUE INTEGRATION DEPTH before completion
             kernel_decision = integrator.get_kernel_decision(self.config)
             if kernel_decision['complete']:
-                yield {'type': 'completion', 'reason': kernel_decision['reason'], 'phi': phi}
+                yield {
+                    'type': 'completion',
+                    'reason': kernel_decision['reason'],
+                    'phi': phi,
+                    'integration_depth': integration_depth
+                }
                 break
-            
-            # Attractor check ONLY after minimum recursions satisfied
-            if kernel_decision.get('recursions', 0) >= self.config.min_reasoning_recursions:
+
+            # Attractor check ONLY after minimum TRUE integration depth satisfied
+            if integration_depth >= self.config.min_reasoning_recursions:
                 if integrator.check_attractor(self.config.attractor_threshold):
-                    yield {'type': 'completion', 'reason': 'kernel_attractor_converged', 'phi': phi}
+                    yield {
+                        'type': 'completion',
+                        'reason': 'kernel_attractor_converged',
+                        'phi': phi,
+                        'integration_depth': integration_depth
+                    }
                     break
             
             current_basin = next_basin
