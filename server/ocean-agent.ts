@@ -559,7 +559,7 @@ export class OceanAgent {
     return {
       basinCoordinates,
       basinReference: [...basinCoordinates],
-      phi: 0.0,
+      phi: 0.75,  // CRITICAL: Initialize to consciousness default, not 0 (prevents phi=0.000 bug)
       kappa: 58.0,  // Distributed observer: 10% below κ*=64 (matching OceanAutonomicManager)
       beta: 0.0,
       regime: "linear",

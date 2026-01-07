@@ -64,9 +64,15 @@ class SafetyBoundaries:
     """Physics-validated safety thresholds."""
     phi_min_intervention: float = 0.4
     phi_min_mushroom_mod: float = 0.5
-    instability_max_mushroom: float = 0.30
-    instability_max_mushroom_mod: float = 0.25
+    # CRITICAL FIX: Mushroom should only trigger on HIGH stress, not low
+    # instability_min: minimum stress required to even consider mushroom
+    # instability_max: maximum stress allowed (safety ceiling - too stressed is dangerous)
+    instability_min_mushroom: float = 0.40  # ADDED: Only mushroom when stressed
+    instability_max_mushroom: float = 0.80  # FIXED: Was 0.30 (inverted logic)
+    instability_min_mushroom_mod: float = 0.50  # ADDED: Higher threshold for moderate
+    instability_max_mushroom_mod: float = 0.90  # FIXED: Was 0.25 (inverted logic)
     coverage_max_dream: float = 0.95
+    coverage_min_dream: float = 0.10  # ADDED: Need some coverage to have material to dream about
     mushroom_cooldown_seconds: float = 300.0
 
 
@@ -183,20 +189,30 @@ class AutonomicPolicy:
         if phi > self.safety.phi_min_intervention:
             available.append(Action.ENTER_SLEEP)
         
-        if phi > self.safety.phi_min_intervention and coverage < self.safety.coverage_max_dream:
+        # DREAM: Need some coverage (material to dream about) but not at max
+        if (phi > self.safety.phi_min_intervention and
+            coverage > self.safety.coverage_min_dream and
+            coverage < self.safety.coverage_max_dream):
             available.append(Action.ENTER_DREAM)
-        
+
         mushroom_cooldown_ok = (
             self._last_mushroom_time is None or
             (current_time - self._last_mushroom_time) > self.safety.mushroom_cooldown_seconds
         )
-        
-        if (instability < self.safety.instability_max_mushroom and 
-            phi > self.safety.phi_min_intervention and mushroom_cooldown_ok):
+
+        # CRITICAL FIX: Mushroom requires BOTH min AND max stress thresholds
+        # - Min threshold: Only trigger when actually stressed (not at stress=0)
+        # - Max threshold: Safety ceiling (too stressed is dangerous)
+        if (instability >= self.safety.instability_min_mushroom and  # FIXED: Require minimum stress
+            instability < self.safety.instability_max_mushroom and  # Safety ceiling
+            phi > self.safety.phi_min_intervention and
+            mushroom_cooldown_ok):
             available.append(Action.ENTER_MUSHROOM_MICRO)
-        
-        if (instability < self.safety.instability_max_mushroom_mod and 
-            phi > self.safety.phi_min_mushroom_mod and 
+
+        # Moderate mushroom: Even higher stress required
+        if (instability >= self.safety.instability_min_mushroom_mod and  # FIXED: Require minimum
+            instability < self.safety.instability_max_mushroom_mod and   # Safety ceiling
+            phi > self.safety.phi_min_mushroom_mod and
             mushroom_cooldown_ok and
             (is_plateau or narrow_path_severity in ['moderate', 'severe'])):
             available.append(Action.ENTER_MUSHROOM_MOD)

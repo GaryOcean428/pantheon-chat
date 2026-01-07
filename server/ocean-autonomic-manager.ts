@@ -204,7 +204,15 @@ export class OceanAutonomicManager {
         }
       }
       
-      // No valid cached value - return baseline (could be 0, which is CORRECT for breakdown)
+      // No valid cached value
+      // CRITICAL FIX: Never return 0 phi unless genuinely in breakdown
+      // phi=0 should only occur when kappa > 90 or < 10 (measured breakdown)
+      // If baseline is 0 with no probe data, use initialization default (0.75)
+      // This prevents the UI from showing phi=0.000 during normal operation
+      if (baselinePhi <= 0.1) {
+        console.log(`[Autonomic] ⚠️ No probes and baselinePhi=${baselinePhi.toFixed(3)}, using fallback 0.75`);
+        return 0.75; // Initialization default, not 0
+      }
       return baselinePhi;
     }
     

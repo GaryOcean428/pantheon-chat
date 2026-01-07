@@ -35,17 +35,21 @@ class ConsolidationResult:
 class SleepConsolidationReasoning:
     """
     Reasoning consolidation during sleep mode.
-    
+
     Sleep stages:
     1. NREM: Prune failed strategies (<20% success)
     2. REM: Strengthen successful patterns (replay episodes)
     3. Deep: Meta-learning (adjust exploration rate)
     """
-    
+
+    # Class-level counter that persists across instance recreation
+    # CRITICAL FIX: Instance-level counter reset to 0 when AutonomicKernel recreated
+    _global_consolidation_count: int = 0
+
     def __init__(self, reasoning_learner=None):
         """
         Initialize sleep consolidation for reasoning.
-        
+
         Args:
             reasoning_learner: AutonomousReasoningLearner instance
         """
@@ -54,7 +58,8 @@ class SleepConsolidationReasoning:
         self.min_success_rate = 0.2
         self.high_success_threshold = 0.8
         self.low_success_threshold = 0.4
-        self._consolidation_count = 0
+        # Instance counter for backwards compatibility (but global persists)
+        self._consolidation_count = SleepConsolidationReasoning._global_consolidation_count
     
     def set_learner(self, reasoning_learner):
         """Set the reasoning learner."""
@@ -84,8 +89,9 @@ class SleepConsolidationReasoning:
         exploration_before = self.reasoning_learner.exploration_rate
         total_episodes = len(self.reasoning_learner.reasoning_episodes)
         
-        # Increment cycle counter
+        # Increment cycle counter (both instance and class-level for persistence)
         self._consolidation_count += 1
+        SleepConsolidationReasoning._global_consolidation_count = self._consolidation_count
         
         # Stage 1 (NREM): Prune failed strategies
         self.reasoning_learner.consolidate_strategies()

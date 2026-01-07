@@ -37,6 +37,51 @@ except ImportError:
 
 MESSAGE_TYPES = ['insight', 'praise', 'challenge', 'question', 'warning', 'discovery', 'challenge_response', 'spawn_proposal', 'spawn_vote']
 
+
+def _check_text_coherence(text: str) -> tuple[bool, str]:
+    """
+    Check if generated text is coherent (not word salad).
+
+    Returns:
+        (is_coherent, reason)
+    """
+    if not text or len(text.strip()) < 10:
+        return False, "Text too short"
+
+    words = text.lower().split()
+    if len(words) < 3:
+        return False, "Too few words"
+
+    # Check 1: High word repetition (e.g., "significant significant")
+    unique_words = set(words)
+    uniqueness_ratio = len(unique_words) / len(words)
+    if uniqueness_ratio < 0.5:
+        return False, f"High repetition: {uniqueness_ratio:.2f} unique ratio"
+
+    # Check 2: Adjacent word repetition
+    for i in range(len(words) - 1):
+        if words[i] == words[i + 1]:
+            return False, f"Adjacent repetition: '{words[i]} {words[i+1]}'"
+
+    # Check 3: Common word salad patterns
+    salad_patterns = [
+        'downloaded his', 'uploaded her', 'complimenting below',
+        'remarkable rescue', 'card tissue', 'supply plate',
+        'maintained supply', 'my significant significant'
+    ]
+    text_lower = text.lower()
+    for pattern in salad_patterns:
+        if pattern in text_lower:
+            return False, f"Word salad pattern detected: '{pattern}'"
+
+    # Check 4: No sentence structure (no periods, question marks, or exclamation)
+    if not any(p in text for p in '.?!'):
+        # Allow if very short (less than 50 chars)
+        if len(text) > 50:
+            return False, "No sentence structure"
+
+    return True, "Coherent"
+
 SHADOW_ROSTER = [
     'Nyx', 'Hecate', 'Erebus', 'Hypnos', 'Thanatos', 'Nemesis'
 ]
@@ -247,8 +292,15 @@ class PantheonChat:
             )
             
             if result and result.text and len(result.text.strip()) > 10:
-                logger.info(f"[PantheonChat] QIG-pure message synthesized for {from_god}: {result.text}")
-                return result.text.strip()
+                # COHERENCE GATE: Check if generated text is coherent (not word salad)
+                is_coherent, coherence_reason = _check_text_coherence(result.text)
+                if is_coherent:
+                    logger.info(f"[PantheonChat] QIG-pure message synthesized for {from_god}: {result.text}")
+                    return result.text.strip()
+                else:
+                    logger.warning(f"[PantheonChat] QIG failed coherence check ({coherence_reason}): {result.text[:100]}")
+                    # Return a safe fallback instead of word salad
+                    return f"[{from_god}: Coherence threshold not met. Awaiting higher Φ.]"
             else:
                 logger.warning(f"[PantheonChat] QIG returned empty, using geometric synthesis")
                 return self._geometric_synthesis(from_god, intent, data, system_prompt)
