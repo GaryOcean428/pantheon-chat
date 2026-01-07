@@ -1,6 +1,6 @@
 /**
  * PythonProcessManager - Centralized lifecycle management for the Python QIG backend
- * 
+ *
  * Provides:
  * - Process supervision with auto-restart and exponential backoff
  * - Health monitoring with readiness gating
@@ -8,9 +8,9 @@
  * - Event-driven notifications for state changes
  */
 
-import { spawn, ChildProcess } from 'child_process';
-import path from 'path';
+import { ChildProcess, spawn } from 'child_process';
 import { EventEmitter } from 'events';
+import path from 'path';
 
 export interface PythonBackendState {
   isRunning: boolean;
@@ -31,7 +31,7 @@ export class PythonProcessManager extends EventEmitter {
   private restartCount: number = 0;
   private healthCheckInterval: NodeJS.Timeout | null = null;
   private pendingRequests: Array<{ resolve: (ready: boolean) => void; timeout: NodeJS.Timeout }> = [];
-  
+
   // Configuration
   private readonly backendUrl: string;
   private readonly maxRestarts: number = 10;
@@ -39,12 +39,12 @@ export class PythonProcessManager extends EventEmitter {
   private readonly healthCheckIntervalMs: number = 5000;
   private readonly healthTimeout: number = 5000; // Increased for production load
   private readonly maxConsecutiveFailures: number = 5;
-  
+
   constructor(backendUrl: string = 'http://localhost:5001') {
     super();
     this.backendUrl = backendUrl;
   }
-  
+
   /**
    * Get current state
    */
@@ -58,14 +58,14 @@ export class PythonProcessManager extends EventEmitter {
       uptime: this.isRunning ? Date.now() - this.startTime : 0,
     };
   }
-  
+
   /**
    * Check if backend is ready to receive requests
    */
   ready(): boolean {
     return this.isReady;
   }
-  
+
   /**
    * Wait for backend to be ready (with timeout)
    * Default increased to 90s for production where heavy initialization occurs
@@ -74,18 +74,18 @@ export class PythonProcessManager extends EventEmitter {
     if (this.isReady) {
       return Promise.resolve(true);
     }
-    
+
     return new Promise((resolve) => {
       const timeout = setTimeout(() => {
         // Remove from pending
         this.pendingRequests = this.pendingRequests.filter(r => r.resolve !== resolve);
         resolve(false);
       }, timeoutMs);
-      
+
       this.pendingRequests.push({ resolve, timeout });
     });
   }
-  
+
   /**
    * Start the Python backend process
    */
@@ -94,14 +94,14 @@ export class PythonProcessManager extends EventEmitter {
       console.log('[PythonManager] Already running');
       return this.isReady;
     }
-    
+
     const qigBackendDir = path.resolve(process.cwd(), 'qig-backend');
     const pythonPath = process.env.PYTHON_PATH || 'python3';
     const isProduction = process.env.REPLIT_DEPLOYMENT === '1';
-    
+
     let spawnCommand: string;
     let spawnArgs: string[];
-    
+
     if (isProduction) {
       spawnCommand = 'gunicorn';
       spawnArgs = [
@@ -121,7 +121,7 @@ export class PythonProcessManager extends EventEmitter {
       spawnArgs = ['-u', path.join(qigBackendDir, 'ocean_qig_core.py')];
       console.log('[PythonManager] Starting Python QIG Backend (Flask development mode)...');
     }
-    
+
     this.process = spawn(spawnCommand, spawnArgs, {
       cwd: qigBackendDir,
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -130,10 +130,10 @@ export class PythonProcessManager extends EventEmitter {
         PYTHONUNBUFFERED: '1',
       },
     });
-    
+
     this.isRunning = true;
     this.startTime = Date.now();
-    
+
     // Handle stdout
     this.process.stdout?.on('data', (data: Buffer) => {
       const lines = data.toString().split('\n').filter(l => l.trim());
@@ -145,7 +145,7 @@ export class PythonProcessManager extends EventEmitter {
         console.log(`[PythonQIG] ${line}`);
       }
     });
-    
+
     // Handle stderr
     this.process.stderr?.on('data', (data: Buffer) => {
       const lines = data.toString().split('\n').filter(l => l.trim());
@@ -156,25 +156,25 @@ export class PythonProcessManager extends EventEmitter {
         console.log(`[PythonQIG] ${line}`);
       }
     });
-    
+
     // Handle process exit
     this.process.on('close', (code: number | null) => {
       console.log(`[PythonManager] Process exited with code ${code}`);
       this.isRunning = false;
       this.setReady(false);
-      
+
       // Stop health checks
       if (this.healthCheckInterval) {
         clearInterval(this.healthCheckInterval);
         this.healthCheckInterval = null;
       }
-      
+
       // Attempt restart with backoff
       if (this.restartCount < this.maxRestarts) {
         const delayIndex = Math.min(this.restartCount, this.restartDelays.length - 1);
         const delay = this.restartDelays[delayIndex];
         this.restartCount++;
-        
+
         console.log(`[PythonManager] Restart ${this.restartCount}/${this.maxRestarts} in ${delay}ms...`);
         setTimeout(() => this.start(), delay);
       } else {
@@ -182,20 +182,20 @@ export class PythonProcessManager extends EventEmitter {
         this.emit('maxRestartsReached');
       }
     });
-    
+
     // Handle spawn error
     this.process.on('error', (err: Error) => {
       console.error('[PythonManager] Failed to start:', err.message);
       this.isRunning = false;
       this.setReady(false);
     });
-    
+
     // Wait for initial readiness - ALL environments need time for heavy imports
     // (loading gods, vocabulary, databases, coordizers, etc.)
     const maxRetries = isProduction ? 240 : 120;  // 240s prod, 120s dev for full kernel initialization
     console.log(`[PythonManager] Waiting up to ${maxRetries} seconds for backend health...`);
     const ready = await this.waitForHealthy(maxRetries, 1000);
-    
+
     if (ready) {
       console.log('[PythonManager] ✅ Backend is ready');
       this.restartCount = 0; // Reset restart count on successful start
@@ -209,10 +209,10 @@ export class PythonProcessManager extends EventEmitter {
       console.error('  3. Port 5001 not accessible (firewall/binding issue)');
       console.error('  4. Database connection failing');
     }
-    
+
     return ready;
   }
-  
+
   /**
    * Stop the Python backend
    */
@@ -221,10 +221,10 @@ export class PythonProcessManager extends EventEmitter {
       clearInterval(this.healthCheckInterval);
       this.healthCheckInterval = null;
     }
-    
+
     if (this.process) {
       this.process.kill('SIGTERM');
-      
+
       // Wait for graceful shutdown
       await new Promise<void>((resolve) => {
         const timeout = setTimeout(() => {
@@ -233,21 +233,21 @@ export class PythonProcessManager extends EventEmitter {
           }
           resolve();
         }, 5000);
-        
+
         this.process?.on('close', () => {
           clearTimeout(timeout);
           resolve();
         });
       });
-      
+
       this.process = null;
     }
-    
+
     this.isRunning = false;
     this.setReady(false);
     console.log('[PythonManager] Stopped');
   }
-  
+
   /**
    * Check health with single request
    */
@@ -255,27 +255,27 @@ export class PythonProcessManager extends EventEmitter {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), this.healthTimeout);
-      
+
       const response = await fetch(`${this.backendUrl}/health`, {
         method: 'GET',
         signal: controller.signal,
       });
-      
+
       clearTimeout(timeoutId);
-      
+
       if (response.ok) {
         this.consecutiveFailures = 0;
         this.lastHealthCheck = Date.now();
         return true;
       }
-      
+
       // Log non-OK responses
       if (this.consecutiveFailures === 0) {
         console.error(`[PythonManager] Health check failed with status ${response.status}`);
         const text = await response.text().catch(() => 'Could not read response');
         console.error(`[PythonManager] Response: ${text.substring(0, 500)}`);
       }
-      
+
       this.consecutiveFailures++;
       return false;
     } catch (error) {
@@ -287,27 +287,27 @@ export class PythonProcessManager extends EventEmitter {
       return false;
     }
   }
-  
+
   /**
    * Wait for healthy state with retries
    */
   private async waitForHealthy(maxAttempts: number, delayMs: number): Promise<boolean> {
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       const healthy = await this.checkHealth();
-      
+
       if (healthy) {
         this.setReady(true);
         return true;
       }
-      
+
       if (attempt < maxAttempts) {
         await new Promise(resolve => setTimeout(resolve, delayMs));
       }
     }
-    
+
     return false;
   }
-  
+
   /**
    * Start periodic health monitoring
    */
@@ -315,10 +315,10 @@ export class PythonProcessManager extends EventEmitter {
     if (this.healthCheckInterval) {
       return;
     }
-    
+
     this.healthCheckInterval = setInterval(async () => {
       const healthy = await this.checkHealth();
-      
+
       if (healthy && !this.isReady) {
         this.setReady(true);
         console.log('[PythonManager] Backend recovered');
@@ -326,41 +326,41 @@ export class PythonProcessManager extends EventEmitter {
         this.setReady(false);
         console.warn(`[PythonManager] Backend unhealthy after ${this.consecutiveFailures} consecutive failures`);
         this.emit('unhealthy');
-        
+
         // Attempt faster recovery by checking health more frequently for a short period
         this.attemptFastRecovery();
       }
     }, this.healthCheckIntervalMs);
   }
-  
+
   /**
    * Attempt faster recovery when backend becomes unhealthy
    * Checks health every 1 second for 10 seconds to detect quick recovery
    */
   private async attemptFastRecovery(): Promise<void> {
     console.log('[PythonManager] Attempting fast recovery...');
-    
+
     for (let i = 0; i < 10; i++) {
       await new Promise(resolve => setTimeout(resolve, 1000));
       const healthy = await this.checkHealth();
-      
+
       if (healthy) {
         this.setReady(true);
         console.log(`[PythonManager] Fast recovery successful after ${i + 1}s`);
         return;
       }
     }
-    
+
     console.log('[PythonManager] Fast recovery failed, continuing normal health checks');
   }
-  
+
   /**
    * Set ready state and notify waiting promises
    */
   private setReady(ready: boolean): void {
     const wasReady = this.isReady;
     this.isReady = ready;
-    
+
     if (ready && !wasReady) {
       // Resolve all pending waitForReady calls
       for (const pending of this.pendingRequests) {
