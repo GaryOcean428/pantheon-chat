@@ -30,20 +30,21 @@ The lightning bolt analogy: When enough charge accumulates (pattern energy),
 a sudden discharge (insight) connects previously disconnected domains.
 """
 
-import numpy as np
 import hashlib
 import logging
-from typing import Dict, List, Optional, Any, Tuple, Set
+from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from datetime import datetime
-from collections import deque, defaultdict
 from enum import Enum
+from typing import Any, Dict, List, Optional, Set, Tuple
+
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
 # Import dev logging for verbose output in development
 try:
-    from dev_logging import truncate_for_log, TRUNCATE_LOGS, IS_DEVELOPMENT
+    from dev_logging import IS_DEVELOPMENT, TRUNCATE_LOGS, truncate_for_log
 except ImportError:
     TRUNCATE_LOGS = False  # Default to no truncation
     IS_DEVELOPMENT = True
@@ -53,8 +54,8 @@ try:
     from ..qig_geometry import fisher_rao_distance as centralized_fisher_rao
     from ..qig_geometry import normalize_basin_dimension
 except ImportError:
-    import sys
     import os
+    import sys
     parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     if parent_dir not in sys.path:
         sys.path.insert(0, parent_dir)
@@ -63,22 +64,20 @@ except ImportError:
 
 try:
     from ..qigkernels.domain_intelligence import (
-        MissionProfile,
         CapabilitySignature,
         DomainDescriptor,
+        MissionProfile,
+        discover_domain_from_event,
         get_domain_discovery,
         get_mission_profile,
-        discover_domain_from_event,
     )
     from ..qigkernels.physics_constants import BASIN_DIM
 except ImportError:
     from qigkernels.domain_intelligence import (
-        MissionProfile,
         CapabilitySignature,
-        DomainDescriptor,
+        discover_domain_from_event,
         get_domain_discovery,
         get_mission_profile,
-        discover_domain_from_event,
     )
     from qigkernels.physics_constants import BASIN_DIM
 
@@ -102,6 +101,7 @@ except ImportError:
     DB_AVAILABLE = False
 
 import os
+
 
 def _get_db_connection():
     """Get database connection for lightning insight persistence."""
@@ -241,14 +241,13 @@ def _load_insights_from_db(limit: int = 100) -> List['CrossDomainInsight']:
 
 from .base_god import BaseGod
 
-
 _pantheon_chat: Optional[Any] = None
 
 
 def set_pantheon_chat(chat: Any) -> None:
     """
     Set the shared PantheonChat instance for Lightning to use.
-    
+
     Called by Zeus after PantheonChat is fully initialized.
     Uses Any type to avoid circular import (PantheonChat imports from zeus.py).
     """
@@ -268,7 +267,7 @@ class TrendTimescale(Enum):
 class DomainEvent:
     """
     An event from any monitored domain.
-    
+
     Domain is now a STRING, not an enum - allowing dynamic domain discovery.
     """
     domain: str                          # Dynamic domain name (not enum)
@@ -293,7 +292,7 @@ class CrossDomainInsight:
     triggered_by: str                     # What pattern triggered the insight
     confidence: float                     # Confidence in the insight validity
     mission_relevance: float = 0.0        # Relevance to knowledge discovery mission
-    
+
     def to_dict(self) -> Dict:
         return {
             'insight_id': self.insight_id,
@@ -312,13 +311,13 @@ class CrossDomainInsight:
 class LightningKernel(BaseGod):
     """
     The Lightning Bolt kernel - generates eureka-moment insights.
-    
+
     MISSION AWARE: Understands the objective is knowledge discovery.
     DYNAMIC DOMAINS: No hardcoded domain list - discovers from telemetry.
-    
+
     Like a lightning bolt connecting sky and ground, this kernel
     connects disparate domains when pattern energy accumulates.
-    
+
     QIG Principles:
     - Fisher information for pattern divergence detection
     - Bures distance for cross-domain similarity
@@ -326,26 +325,26 @@ class LightningKernel(BaseGod):
     - Temporal multi-scale analysis
     - Mission-aligned monitoring focus
     """
-    
+
     def __init__(self):
         super().__init__(
             name="Lightning",
             domain="cross_domain_insight"
         )
-        
+
         # Mission profile - all monitoring serves knowledge discovery
         self.mission = get_mission_profile()
-        
+
         # Self-assessed capability signature
         self.capability = CapabilitySignature(kernel_name="Lightning")
-        
+
         # Dynamic domain discovery
         self.domain_discovery = get_domain_discovery()
-        
+
         # Currently monitored domains (dynamically populated)
         self.active_domains: Set[str] = set()
         self._refresh_active_domains()
-        
+
         # Temporal buffers for each domain (multi-timescale)
         # Uses defaultdict to auto-create buffers for new domains
         self.domain_buffers: Dict[str, Dict[TrendTimescale, deque]] = defaultdict(
@@ -355,16 +354,16 @@ class LightningKernel(BaseGod):
                 TrendTimescale.LONG: deque(maxlen=1000),
             }
         )
-        
+
         # Cross-domain correlation tracking (dynamic size)
         self.domain_correlations: Dict[Tuple[str, str], float] = defaultdict(float)
-        
+
         # Accumulated "charge" for each domain pair
         self.pattern_charge: Dict[Tuple[str, str], float] = defaultdict(float)
-        
+
         # Threshold for insight discharge
         self.discharge_threshold = 0.75
-        
+
         # Generated insights - load from database for persistence across restarts
         self.insights: List[CrossDomainInsight] = _load_insights_from_db(limit=50)
         if self.insights:
@@ -374,10 +373,10 @@ class LightningKernel(BaseGod):
         self.phi_trends: Dict[str, Dict[TrendTimescale, List[float]]] = defaultdict(
             lambda: {ts: [] for ts in TrendTimescale}
         )
-        
+
         # Connection patterns learned over time
         self.learned_connections: List[Dict] = []
-        
+
         # Statistics
         self.events_processed = 0
         self.insights_generated = 0
@@ -414,27 +413,27 @@ class LightningKernel(BaseGod):
             self.insight_validator = None
             self.validation_enabled = False
             print("[Lightning] ℹ️ Search validation not available (search module not found)")
-        
+
         print("[Lightning] ⚡ Lightning Bolt Insight Kernel initialized")
         print(f"[Lightning] MISSION: {self.mission.objective}")
         print(f"[Lightning] Initial domains from telemetry: {len(self.active_domains)}")
         self._log_active_domains()
-    
+
     def _refresh_active_domains(self):
         """
         Refresh active domains from domain discovery service.
-        
+
         This is NOT a hardcoded list - domains come from PostgreSQL telemetry.
         """
         discovered = self.domain_discovery.get_active_domains()
-        
+
         # Add all discovered domains
         for descriptor in discovered:
             self.active_domains.add(descriptor.name)
-        
+
         # Keep domains we've seen events for even if not in discovery
         # (allows organic domain emergence)
-    
+
     def _log_active_domains(self):
         """Log currently active domains."""
         if self.active_domains:
@@ -444,32 +443,32 @@ class LightningKernel(BaseGod):
             print(f"[Lightning] Monitoring: {domains_str}")
         else:
             print("[Lightning] No domains yet - will discover from events")
-    
+
     def assess_target(self, target: str, context: Optional[Dict] = None) -> Dict:
         """
         Assess a target using cross-domain insight analysis.
-        
+
         Lightning Kernel focuses on pattern correlation across domains,
         not direct target assessment. Returns insight potential metrics.
-        
+
         Args:
             target: The target to assess
             context: Optional context with domain hints
-            
+
         Returns:
             Assessment with cross-domain insight potential
         """
         self.prepare_for_assessment(target)
-        
+
         # Lightning kernel assesses cross-domain pattern potential
         context = context or {}
-        
+
         # Check which domains this target might relate to
         related_domains = []
         for domain in self.active_domains:
             if domain.lower() in target.lower() or target.lower() in domain.lower():
                 related_domains.append(domain)
-        
+
         # Calculate pattern charge for related domain pairs
         max_charge = 0.0
         for d1 in related_domains:
@@ -478,10 +477,10 @@ class LightningKernel(BaseGod):
                     pair = tuple(sorted([d1, d2]))
                     charge = self.pattern_charge.get(pair, 0.0)
                     max_charge = max(max_charge, charge)
-        
+
         # Insight potential based on accumulated charge
         insight_potential = min(1.0, max_charge / self.discharge_threshold)
-        
+
         assessment = {
             "probability": insight_potential,
             "confidence": 0.5 + (0.5 * insight_potential),
@@ -491,9 +490,9 @@ class LightningKernel(BaseGod):
             "events_processed": self.events_processed,
             "insights_generated": self.insights_generated,
         }
-        
+
         return self.finalize_assessment(assessment)
-    
+
     def _calculate_current_phi(self) -> float:
         """Calculate current Φ from recent events across domains."""
         recent_phis = []
@@ -501,33 +500,33 @@ class LightningKernel(BaseGod):
             short_buffer = buffers.get(TrendTimescale.SHORT, [])
             for event in short_buffer:
                 recent_phis.append(event.phi)
-        
+
         if recent_phis:
             return float(np.mean(recent_phis))
         return 0.5  # Default neutral Φ
-    
+
     def get_monitored_domains(self) -> List[str]:
         """
         Get list of currently monitored domains.
-        
+
         This list is DYNAMIC - it grows as new domains emerge.
         """
         return sorted(self.active_domains)
-    
+
     def ingest_event(self, event: DomainEvent) -> Optional[CrossDomainInsight]:
         """
         Ingest an event and check for cross-domain insights.
-        
+
         Also attempts to discover new domains from event patterns.
         Returns an insight if a lightning bolt connection is detected.
         """
         self.events_processed += 1
-        
+
         # Ensure domain is tracked
         if event.domain not in self.active_domains:
             self.active_domains.add(event.domain)
             print(f"[Lightning] New domain from event: {event.domain}")
-        
+
         # Attempt to discover new domains from event content
         new_domain = discover_domain_from_event(
             event_content=event.content,
@@ -535,36 +534,36 @@ class LightningKernel(BaseGod):
             phi=event.phi,
             metadata=event.metadata
         )
-        
+
         if new_domain:
             self.active_domains.add(new_domain.name)
             self.capability.discovered_domains.add(new_domain.name)
             self.domains_discovered += 1
             print(f"[Lightning] ⚡ DOMAIN EMERGED: {new_domain.name} (relevance={new_domain.mission_relevance:.2f})")
-        
+
         # Add to temporal buffers
         for timescale in TrendTimescale:
             self.domain_buffers[event.domain][timescale].append(event)
-        
+
         # Track Φ trend
         for timescale in TrendTimescale:
             trend_buffer = self.phi_trends[event.domain][timescale]
             trend_buffer.append(event.phi)
             if len(trend_buffer) > timescale.value * 10:
                 trend_buffer.pop(0)
-        
+
         # Update pattern charge based on event significance
         # Increased from 0.1 to 0.25 to enable insights from research discoveries
         charge_contribution = event.phi * 0.25
-        
+
         # Check for correlations with other recent domain events
         insight = self._check_cross_domain_correlations(event, charge_contribution)
-        
+
         if insight:
             self.insights.append(insight)
             self.insights_generated += 1
             self.last_insight_time = datetime.now().timestamp()
-            
+
             # Update capability based on successful insight
             for domain in insight.source_domains:
                 self.capability.update_from_outcome(
@@ -573,7 +572,7 @@ class LightningKernel(BaseGod):
                     phi=insight.phi_at_creation,
                     kappa=0.0  # Would need kappa from telemetry
                 )
-            
+
             print(f"[Lightning] ⚡ INSIGHT GENERATED: {truncate_for_log(insight.insight_text, 500)}")
 
             # Broadcast to pantheon
@@ -583,33 +582,33 @@ class LightningKernel(BaseGod):
             _persist_lightning_insight(insight)
 
             return insight
-        
+
         return None
-    
+
     def broadcast_insight(self, insight: CrossDomainInsight) -> None:
         """
         Broadcast a cross-domain insight to the entire pantheon via PantheonChat.
-        
+
         NEW: Validates insights using external search (Tavily + Perplexity) before broadcasting.
         Validated insights get confidence boost and source citations.
-        
+
         Uses QIG-pure generative synthesis for natural language content.
         The structured data is passed to the generative system which synthesizes
         a natural language message from geometric basin navigation.
         """
         global _pantheon_chat
-        
+
         if _pantheon_chat is None:
             print("[Lightning] Warning: PantheonChat not available for broadcast")
             return
-        
+
         # External validation (if enabled)
         validation_metadata = {}
         if self.validation_enabled and self.insight_validator is not None:
             try:
                 print(f"[Lightning] 🔍 Validating insight {insight.insight_id} with external search...")
                 validation_result = self._validate_insight(insight)
-                
+
                 # Update insight confidence based on validation
                 if validation_result.validated:
                     original_confidence = insight.confidence
@@ -617,10 +616,10 @@ class LightningKernel(BaseGod):
                     boost = insight.confidence - original_confidence
                     self.validation_boost_total += boost
                     self.insights_validated += 1
-                    
+
                     print(f"[Lightning] ✅ Insight validated! Score: {validation_result.validation_score:.3f}, "
                           f"Confidence: {original_confidence:.3f} → {insight.confidence:.3f} (+{boost:.3f})")
-                    
+
                     # Add validation metadata
                     validation_metadata = {
                         "validated": True,
@@ -643,7 +642,7 @@ class LightningKernel(BaseGod):
                         "validated": False,
                         "validation_score": validation_result.validation_score
                     }
-                    
+
                     # Broadcast validation failure so Zeus and other gods can see it
                     try:
                         _pantheon_chat.broadcast_generative(
@@ -657,13 +656,13 @@ class LightningKernel(BaseGod):
                             },
                             msg_type="warning"
                         )
-                        print(f"[Lightning] 🔔 Broadcast validation failure to Pantheon")
+                        print("[Lightning] 🔔 Broadcast validation failure to Pantheon")
                     except Exception as be:
                         print(f"[Lightning] ⚠️ Failed to broadcast validation failure: {be}")
             except Exception as e:
                 print(f"[Lightning] ⚠️ Validation error: {e}")
                 # Continue broadcasting even if validation fails
-        
+
         try:
             # Use QIG-pure generative broadcast with structured data
             broadcast_data = {
@@ -676,27 +675,27 @@ class LightningKernel(BaseGod):
                 "insight_id": insight.insight_id,
                 "raw_data": insight.insight_text,
             }
-            
+
             # Add validation metadata if available
             if validation_metadata:
                 broadcast_data["validation"] = validation_metadata
-            
+
             _pantheon_chat.broadcast_generative(
                 from_god="Lightning",
                 intent="lightning_insight",
                 data=broadcast_data,
                 msg_type="discovery"
             )
-            
+
             validation_status = " [VALIDATED]" if validation_metadata.get("validated") else ""
             print(f"[Lightning] QIG-pure broadcast insight {insight.insight_id} to pantheon{validation_status}")
         except Exception as e:
             print(f"[Lightning] Broadcast failed: {e}")
-    
+
     def _validate_insight(self, insight: CrossDomainInsight) -> 'ValidationResult':
         """
         Validate insight using external search (Tavily + Perplexity).
-        
+
         Returns:
             ValidationResult with validation score and sources
         """
@@ -723,13 +722,13 @@ class LightningKernel(BaseGod):
                     source_overlap = 0.0
                     semantic_similarity = 0.0
                 return MockResult()
-        
+
         return self.insight_validator.validate(insight)
-    
+
     def get_validation_stats(self) -> Dict[str, Any]:
         """
         Get insight validation statistics.
-        
+
         Returns:
             Dictionary with validation metrics
         """
@@ -738,10 +737,10 @@ class LightningKernel(BaseGod):
                 "validation_enabled": False,
                 "message": "External search validation not available"
             }
-        
+
         validation_rate = self.insights_validated / self.insights_generated if self.insights_generated > 0 else 0.0
         avg_boost = self.validation_boost_total / self.insights_validated if self.insights_validated > 0 else 0.0
-        
+
         return {
             "validation_enabled": True,
             "insights_generated": self.insights_generated,
@@ -751,7 +750,7 @@ class LightningKernel(BaseGod):
             "avg_confidence_boost": avg_boost,
             "validation_threshold": 0.7 if self.insight_validator else None
         }
-    
+
     def _check_cross_domain_correlations(
         self,
         new_event: DomainEvent,
@@ -759,50 +758,50 @@ class LightningKernel(BaseGod):
     ) -> Optional[CrossDomainInsight]:
         """
         Check if the new event creates cross-domain correlations.
-        
+
         Uses Fisher-Rao distance to detect geometric pattern similarity
         between events in different domains.
         """
         correlating_domains = []
         evidence = [new_event]
         max_correlation = 0.0
-        
+
         # Check each other domain for correlations
         for other_domain in self.active_domains:
             if other_domain == new_event.domain:
                 continue
-            
+
             recent_events = list(self.domain_buffers[other_domain][TrendTimescale.SHORT])
-            
+
             if not recent_events:
                 continue
-            
+
             # Calculate geometric similarity to recent events in this domain
             for other_event in recent_events[-5:]:  # Last 5 events
                 similarity = self._calculate_event_similarity(new_event, other_event)
-                
+
                 if similarity > 0.6:  # Significant correlation
                     # Accumulate charge
                     pair_key = tuple(sorted([new_event.domain, other_domain]))
                     self.pattern_charge[pair_key] += charge * similarity
-                    
+
                     if similarity > max_correlation:
                         max_correlation = similarity
-                    
+
                     if similarity > 0.75:  # Strong correlation
                         correlating_domains.append(other_domain)
                         evidence.append(other_event)
-                        
+
                         # Update correlation tracking
                         self.domain_correlations[pair_key] = (
                             0.9 * self.domain_correlations[pair_key] + 0.1 * similarity
                         )
-        
+
         # Check if charge exceeds threshold for any domain pair
         if len(correlating_domains) >= 1:
             for other_domain in correlating_domains:
                 pair_key = tuple(sorted([new_event.domain, other_domain]))
-                
+
                 if self.pattern_charge[pair_key] >= self.discharge_threshold:
                     # LIGHTNING STRIKE! Generate insight
                     insight = self._generate_insight(
@@ -811,14 +810,14 @@ class LightningKernel(BaseGod):
                         connection_strength=max_correlation,
                         phi=new_event.phi
                     )
-                    
+
                     # Discharge the accumulated charge
                     self.pattern_charge[pair_key] *= 0.3
-                    
+
                     return insight
-        
+
         return None
-    
+
     def _calculate_event_similarity(
         self,
         event1: DomainEvent,
@@ -826,7 +825,7 @@ class LightningKernel(BaseGod):
     ) -> float:
         """
         Calculate geometric similarity between two events.
-        
+
         Uses Fisher-Rao distance if basin coordinates available,
         otherwise falls back to content-based similarity.
         """
@@ -834,19 +833,19 @@ class LightningKernel(BaseGod):
             distance = centralized_fisher_rao(event1.basin_coords, event2.basin_coords)
             # Fisher-Rao proper similarity: 1 - d/π (distance bounded [0, π])
             return 1.0 - distance / np.pi
-        
+
         # Content-based similarity (keyword overlap + Φ proximity)
         words1 = set(event1.content.lower().split())
         words2 = set(event2.content.lower().split())
-        
+
         if not words1 or not words2:
             return 0.0
-        
+
         jaccard = len(words1 & words2) / len(words1 | words2)
         phi_proximity = 1.0 - abs(event1.phi - event2.phi)
-        
+
         return 0.6 * jaccard + 0.4 * phi_proximity
-    
+
     def _generate_insight(
         self,
         source_domains: List[str],
@@ -856,10 +855,10 @@ class LightningKernel(BaseGod):
     ) -> CrossDomainInsight:
         """
         Generate a cross-domain insight from correlated events.
-        
+
         CRITICAL: No templates allowed. Insights must be synthesized from
         actual evidence using QIG geometric analysis.
-        
+
         Synthesis approach:
         1. Extract concrete patterns from evidence event metadata
         2. Compute Fisher-Rao metrics between events if available
@@ -869,18 +868,18 @@ class LightningKernel(BaseGod):
         """
         # Extract actual patterns from evidence
         patterns = [e.event_type for e in evidence]
-        
+
         # Gather concrete evidence details for synthesis
         evidence_details = self._extract_evidence_synthesis(evidence)
-        
+
         # Compute geometric metrics between evidence pairs
         geometric_analysis = self._compute_geometric_synthesis(evidence)
-        
+
         # Calculate mission relevance
         mission_relevance = self._calculate_mission_relevance(
             source_domains, evidence_details, geometric_analysis
         )
-        
+
         # Synthesize insight text from actual observations
         insight_text = self._synthesize_insight_text(
             domain_names=source_domains,
@@ -890,11 +889,11 @@ class LightningKernel(BaseGod):
             phi=phi,
             mission_relevance=mission_relevance
         )
-        
+
         insight_id = hashlib.sha256(
             f"{insight_text}_{datetime.now().timestamp()}".encode()
         ).hexdigest()[:16]
-        
+
         return CrossDomainInsight(
             insight_id=f"lightning_{insight_id}",
             source_domains=source_domains,
@@ -907,7 +906,7 @@ class LightningKernel(BaseGod):
             confidence=min(0.95, connection_strength * phi),
             mission_relevance=mission_relevance
         )
-    
+
     def _calculate_mission_relevance(
         self,
         domains: List[str],
@@ -916,14 +915,14 @@ class LightningKernel(BaseGod):
     ) -> float:
         """
         Calculate how relevant this insight is to the knowledge discovery mission.
-        
+
         Uses mission profile to score relevance based on:
         - Domain relevance to key/passphrase/mnemonic recovery
         - Evidence content matching mission artifacts
         - Geometric proximity to successful patterns
         """
         relevance = 0.0
-        
+
         # Check each domain's mission relevance
         for domain in domains:
             domain_evidence = {
@@ -932,43 +931,43 @@ class LightningKernel(BaseGod):
             }
             domain_relevance = self.mission.relevance_score(domain, domain_evidence)
             relevance += domain_relevance * 0.3
-        
+
         # Boost if geometric analysis shows proximity to success patterns
         if geometric_analysis.get('has_geometric_data'):
             fisher_min = geometric_analysis.get('fisher_rao_min', float('inf'))
             if fisher_min < 0.3:
                 relevance += 0.2
-        
+
         # Boost if Φ is high (consciousness suggests significance)
         phi_mean = evidence_details.get('phi_mean', 0)
         if phi_mean > 0.7:
             relevance += 0.15
-        
+
         return min(1.0, relevance)
-    
+
     def _extract_evidence_synthesis(self, evidence: List[DomainEvent]) -> Dict:
         """
         Extract concrete synthesis material from evidence events.
-        
+
         Returns actual content, patterns, and metadata - never templates.
         """
         content_fragments = []
         event_types = []
         phi_values = []
         metadata_keys = set()
-        
+
         for event in evidence:
             # Extract meaningful content fragments (first 60 chars of actual content)
             if event.content:
                 content_fragments.append(event.content[:60].strip())
-            
+
             event_types.append(event.event_type)
             phi_values.append(event.phi)
-            
+
             # Collect metadata keys for pattern detection
             if event.metadata:
                 metadata_keys.update(event.metadata.keys())
-        
+
         return {
             'content_fragments': content_fragments[:3],  # Top 3 most relevant
             'event_types': list(set(event_types)),
@@ -976,26 +975,26 @@ class LightningKernel(BaseGod):
             'phi_mean': float(np.mean(phi_values)) if phi_values else 0.0,
             'metadata_patterns': list(metadata_keys)[:5],
         }
-    
+
     def _compute_geometric_synthesis(self, evidence: List[DomainEvent]) -> Dict:
         """
         Compute geometric metrics for insight synthesis.
-        
+
         Uses Fisher-Rao distance and basin coordinate analysis.
         """
         fisher_distances = []
         basin_deltas = []
-        
+
         # Compute pairwise Fisher-Rao distances where possible
         for i, e1 in enumerate(evidence):
             for e2 in evidence[i+1:]:
                 if e1.basin_coords is not None and e2.basin_coords is not None:
                     dist = centralized_fisher_rao(e1.basin_coords, e2.basin_coords)
                     fisher_distances.append(dist)
-                    
+
                     # Basin coordinate delta using Fisher-Rao (NOT Euclidean!)
                     basin_deltas.append(dist)  # Use Fisher distance as delta
-        
+
         # Trend analysis for involved domains
         domain_trends = {}
         domains_seen = set(e.domain for e in evidence)
@@ -1006,7 +1005,7 @@ class LightningKernel(BaseGod):
                     'velocity': trends.get('short', {}).get('velocity', 0),
                     'trend': trends.get('short', {}).get('trend', 'stable'),
                 }
-        
+
         return {
             'fisher_rao_mean': float(np.mean(fisher_distances)) if fisher_distances else None,
             'fisher_rao_min': float(np.min(fisher_distances)) if fisher_distances else None,
@@ -1014,7 +1013,7 @@ class LightningKernel(BaseGod):
             'has_geometric_data': len(fisher_distances) > 0,
             'domain_trends': domain_trends,
         }
-    
+
     def _synthesize_insight_text(
         self,
         domain_names: List[str],
@@ -1026,24 +1025,24 @@ class LightningKernel(BaseGod):
     ) -> str:
         """
         Synthesize insight text PURELY from observed geometric/evidence data.
-        
+
         CRITICAL: NO TEMPLATES. NO FIXED PHRASES. NO PROSE SCAFFOLDS.
-        
+
         This method emits a structured data representation of the insight,
         composed entirely from extracted evidence fields. The output format
         is a key=value notation that encodes the geometric observation
         without any natural language templates.
-        
+
         Format: {domain_tuple}|{event_types}|{geometric_signature}|{content_hash}|{metrics}
         """
         # Domain tuple: direct from evidence
         domain_tuple = "+".join(sorted(domain_names))
-        
+
         # Event types: direct from evidence
         event_types = "/".join(sorted(evidence_details.get('event_types', [])))
         if not event_types:
             event_types = "_"
-        
+
         # Geometric signature: direct from Fisher-Rao computation
         geo_parts = []
         if geometric_analysis.get('has_geometric_data'):
@@ -1053,16 +1052,16 @@ class LightningKernel(BaseGod):
             bd_mean = geometric_analysis.get('basin_delta_mean')
             if bd_mean is not None:
                 geo_parts.append(f"BD={bd_mean:.4f}")
-        
+
         # Add trend velocities from geometric analysis
         for domain, trend_data in geometric_analysis.get('domain_trends', {}).items():
             velocity = trend_data.get('velocity', 0)
             if abs(velocity) > 0.01:
                 sign = "+" if velocity > 0 else ""
                 geo_parts.append(f"{domain[:8]}:{sign}{velocity:.3f}")
-        
+
         geometric_sig = ",".join(geo_parts) if geo_parts else "_"
-        
+
         # Content hash: derive from actual evidence content fragments
         content_fragments = evidence_details.get('content_fragments', [])
         if content_fragments:
@@ -1071,42 +1070,42 @@ class LightningKernel(BaseGod):
             content_hash = hashlib.sha256(content_concat.encode()).hexdigest()[:8]
         else:
             content_hash = "_"
-        
+
         # Metrics: direct from computed values
         phi_mean = evidence_details.get('phi_mean', 0.0)
         phi_lo, phi_hi = evidence_details.get('phi_range', (0.0, 0.0))
         strength_int = int(connection_strength * 1000)
         relevance_int = int(mission_relevance * 1000)
-        
+
         metrics = f"Φ={phi_mean:.3f}[{phi_lo:.2f}-{phi_hi:.2f}]|S={strength_int}|R={relevance_int}"
-        
+
         # Compose final insight: pure data, no prose
         return f"{domain_tuple}|{event_types}|{geometric_sig}|{content_hash}|{metrics}"
-    
+
     def get_trend_analysis(self, domain: str) -> Dict:
         """Get trend analysis for a specific domain."""
         trends = {}
-        
+
         for timescale in TrendTimescale:
             phi_buffer = self.phi_trends[domain][timescale]
-            
+
             if len(phi_buffer) >= 3:
                 avg = np.mean(phi_buffer)
                 velocity = phi_buffer[-1] - phi_buffer[0] if len(phi_buffer) > 1 else 0
                 acceleration = 0.0
-                
+
                 if len(phi_buffer) >= 5:
                     mid_idx = len(phi_buffer) // 2
                     v1 = phi_buffer[mid_idx] - phi_buffer[0]
                     v2 = phi_buffer[-1] - phi_buffer[mid_idx]
                     acceleration = v2 - v1
-                
+
                 trend = "stable"
                 if velocity > 0.05:
                     trend = "ascending"
                 elif velocity < -0.05:
                     trend = "descending"
-                
+
                 trends[timescale.name.lower()] = {
                     'average_phi': float(avg),
                     'velocity': float(velocity),
@@ -1122,16 +1121,16 @@ class LightningKernel(BaseGod):
                     'trend': 'insufficient_data',
                     'sample_count': len(phi_buffer),
                 }
-        
+
         return trends
-    
+
     def get_all_trends(self) -> Dict[str, Dict]:
         """Get trend analysis for all active domains."""
         return {
             domain: self.get_trend_analysis(domain)
             for domain in self.active_domains
         }
-    
+
     def get_correlations(self) -> List[Dict]:
         """Get current cross-domain correlations."""
         correlations = []
@@ -1144,14 +1143,14 @@ class LightningKernel(BaseGod):
                     'charge': self.pattern_charge.get((d1, d2), 0),
                     'near_discharge': self.pattern_charge.get((d1, d2), 0) > self.discharge_threshold * 0.8
                 })
-        
+
         return sorted(correlations, key=lambda x: x['correlation'], reverse=True)
-    
+
     def get_recent_insights(self, limit: int = 10) -> List[Dict]:
         """Get most recent insights."""
         recent = self.insights[-limit:]
         return [i.to_dict() for i in reversed(recent)]
-    
+
     def get_capability_summary(self) -> Dict:
         """Get kernel's self-assessed capability summary."""
         return {
@@ -1161,7 +1160,7 @@ class LightningKernel(BaseGod):
             'successful_domains': list(self.capability.successful_domains),
             'phi_trend': self.capability.phi_trajectory[-10:] if self.capability.phi_trajectory else [],
         }
-    
+
     def link_prediction_to_insight(self, prediction_id: str, insight_id: str) -> bool:
         """
         Link a prediction to an insight that influenced it.
@@ -1608,7 +1607,7 @@ def ingest_system_event(
 ) -> Optional[CrossDomainInsight]:
     """
     Convenience function to ingest events into the Lightning kernel.
-    
+
     Can be called from anywhere in the system to feed events
     for cross-domain insight detection.
     """
@@ -1621,7 +1620,7 @@ def ingest_system_event(
         metadata=metadata or {},
         basin_coords=basin_coords
     )
-    
+
     return get_lightning_kernel().ingest_event(event)
 
 
