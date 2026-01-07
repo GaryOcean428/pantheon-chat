@@ -1,0 +1,195 @@
+~/workspace$ npx drizzle-kit push
+No config path provided, using default 'drizzle.config.ts'
+Reading config file '/home/runner/workspace/drizzle.config.ts'
+Using 'pg' driver for database querying
+[✓] Pulling schema from database...
++ document_training_stats table will be created
++ kernel_checkpoints table will be created
++ kernel_knowledge_transfers table will be created
++ kernel_training_history table will be created
++ qig_rag_patterns table will be created
++ rag_uploads table will be created
++ system_settings table will be created
++ training_batch_queue table will be created
+--- all table conflicts resolved ---
+
+
++ input column will be created
+
++ ricci_scalar column will be created
+
++ fisher_trace column will be created
+
++ source column will be created
+--- all columns conflicts in manifold_probes table resolved ---
+
+
++ initiator column will be created
+
++ opponent column will be created
+
++ context column will be created
+
++ arguments column will be created
+
++ winner column will be created
+
++ arbiter column will be created
+
++ resolution column will be created
+
++ resolved_at column will be created
+--- all columns conflicts in pantheon_debates table resolved ---
+
+
++ frequency column will be created
+
++ updated_at column will be created
+--- all columns conflicts in tokenizer_merge_rules table resolved ---
+
+
++ knowledge_type column will be created
+
++ accepted column will be created
+--- all columns conflicts in pantheon_knowledge_transfers table resolved ---
+
+
++ current_index column will be created
+
++ address_ids column will be created
+
++ last_cycle_time column will be created
+
++ total_cycles column will be created
+
++ current_address_id column will be created
+
++ paused_until column will be created
+
++ last_session_metrics column will be created
+
++ consecutive_zero_pass_sessions column will be created
+
++ rate_limit_backoff_until column will be created
+--- all columns conflicts in auto_cycle_state table resolved ---
+
+· You're about to add curriculum_progress_topic_title_unique unique constraint to the table, which contains 53 items. If this statement fails, you will receive an error from the database. Do you want to truncate curriculum_progress table?
+
+· You're about to add tool_patterns_pattern_id_unique unique constraint to the table, which contains 2 items. If this statement fails, you will receive an error from the database. Do you want to truncate tool_patterns table?
+
+· You're about to add users_email_unique unique constraint to the table, which contains 1 items. If this statement fails, you will receive an error from the database. Do you want to truncate users table?
+
+· You're about to add tokenizer_vocabulary_token_unique unique constraint to the table, which contains 57943 items. If this statement fails, you will receive an error from the database. Do you want to truncate tokenizer_vocabulary table?
+
+· You're about to add tokenizer_vocabulary_token_id_unique unique constraint to the table, which contains 57943 items. If this statement fails, you will receive an error from the database. Do you want to truncate tokenizer_vocabulary table?
+
+· You're about to add external_api_keys_api_key_unique unique constraint to the table, which contains 12 items. If this statement fails, you will receive an error from the database. Do you want to truncate external_api_keys table?
+
+· You're about to add kernel_geometry_kernel_id_unique unique constraint to the table, which contains 480 items. If this statement fails, you will receive an error from the database. Do you want to truncate kernel_geometry table?
+
+ Warning  Found data-loss statements:
+· You're about to change tool_patterns primary key. This statements may fail and you table may left without primary key
+· You're about to add not-null id column without default value, which contains 2 items
+
+THIS ACTION WILL CAUSE DATA LOSS AND CANNOT BE REVERTED
+
+Do you still want to push changes?
+[x] All changes were aborted
+~/workspace$ npx drizzle-kit push
+No config path provided, using default 'drizzle.config.ts'
+Reading config file '/home/runner/workspace/drizzle.config.ts'
+Using 'pg' driver for database querying
+[✓] Pulling schema from database...
++ document_training_stats table will be created
++ kernel_checkpoints table will be created
++ kernel_knowledge_transfers table will be created
++ kernel_training_history table will be created
++ qig_rag_patterns table will be created
++ rag_uploads table will be created
++ system_settings table will be created
++ training_batch_queue table will be created
+--- all table conflicts resolved ---
+
+
++ input column will be created
+
++ ricci_scalar column will be created
+
++ fisher_trace column will be created
+
++ source column will be created
+--- all columns conflicts in manifold_probes table resolved ---
+
+
++ initiator column will be created
+
++ opponent column will be created
+
++ context column will be created
+
++ arguments column will be created
+
++ winner column will be created
+
++ arbiter column will be created
+
++ resolution column will be created
+
++ resolved_at column will be created
+--- all columns conflicts in pantheon_debates table resolved ---
+
+
++ frequency column will be created
+
++ updated_at column will be created
+--- all columns conflicts in tokenizer_merge_rules table resolved ---
+
+
++ knowledge_type column will be created
+
++ accepted column will be created
+--- all columns conflicts in pantheon_knowledge_transfers table resolved ---
+
+
++ current_index column will be created
+
++ address_ids column will be created
+
++ last_cycle_time column will be created
+
++ total_cycles column will be created
+
++ current_address_id column will be created
+
++ paused_until column will be created
+
++ last_session_metrics column will be created
+
++ consecutive_zero_pass_sessions column will be created
+
++ rate_limit_backoff_until column will be created
+--- all columns conflicts in auto_cycle_state table resolved ---
+
+· You're about to add curriculum_progress_topic_title_unique unique constraint to the table, which contains 53 items. If this statement fails, you will receive an error from the database. Do you want to truncate curriculum_progress table?
+
+· You're about to add tool_patterns_pattern_id_unique unique constraint to the table, which contains 2 items. If this statement fails, you will receive an error from the database. Do you want to truncate tool_patterns table?
+
+· You're about to add users_email_unique unique constraint to the table, which contains 1 items. If this statement fails, you will receive an error from the database. Do you want to truncate users table?
+
+· You're about to add tokenizer_vocabulary_token_unique unique constraint to the table, which contains 57943 items. If this statement fails, you will receive an error from the database. Do you want to truncate tokenizer_vocabulary table?
+
+· You're about to add tokenizer_vocabulary_token_id_unique unique constraint to the table, which contains 57943 items. If this statement fails, you will receive an error from the database. Do you want to truncate tokenizer_vocabulary table?
+
+· You're about to add external_api_keys_api_key_unique unique constraint to the table, which contains 12 items. If this statement fails, you will receive an error from the database. Do you want to truncate external_api_keys table?
+
+· You're about to add kernel_geometry_kernel_id_unique unique constraint to the table, which contains 480 items. If this statement fails, you will receive an error from the database. Do you want to truncate kernel_geometry table?
+
+ Warning  Found data-loss statements:
+· You're about to change tool_patterns primary key. This statements may fail and you table may left without primary key
+· You're about to add not-null id column without default value, which contains 2 items
+
+THIS ACTION WILL CAUSE DATA LOSS AND CANNOT BE REVERTED
+
+Do you still want to push changes?
+[x] All changes were aborted
+~/workspace$ 
