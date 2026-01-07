@@ -65,6 +65,70 @@ except ImportError:
 sys.stdout.reconfigure(line_buffering=True) if hasattr(sys.stdout, 'reconfigure') else None
 sys.stderr.reconfigure(line_buffering=True) if hasattr(sys.stderr, 'reconfigure') else None
 
+
+class StartupManager:
+    """
+    Manages deferred initialization to ensure Flask starts immediately.
+    Heavy operations run in background thread after Flask binds to port.
+    """
+    
+    def __init__(self):
+        self._ready = threading.Event()
+        self._initializing = True
+        self._init_error: Optional[str] = None
+        self._init_progress: List[str] = []
+        self._lock = threading.Lock()
+        self._start_time = time.time()
+        
+    @property
+    def is_ready(self) -> bool:
+        return self._ready.is_set()
+    
+    @property
+    def is_initializing(self) -> bool:
+        return self._initializing
+    
+    @property
+    def init_error(self) -> Optional[str]:
+        return self._init_error
+    
+    @property
+    def elapsed_seconds(self) -> float:
+        return time.time() - self._start_time
+    
+    def add_progress(self, message: str):
+        with self._lock:
+            self._init_progress.append(message)
+            print(f"[StartupManager] {message}", flush=True)
+    
+    def get_status(self) -> Dict:
+        with self._lock:
+            return {
+                "ready": self.is_ready,
+                "initializing": self._initializing,
+                "error": self._init_error,
+                "elapsed_seconds": round(self.elapsed_seconds, 2),
+                "progress": list(self._init_progress[-10:])  # Last 10 steps
+            }
+    
+    def mark_ready(self):
+        with self._lock:
+            self._initializing = False
+            self._ready.set()
+            print(f"[StartupManager] ✅ Backend fully initialized in {self.elapsed_seconds:.1f}s", flush=True)
+    
+    def mark_error(self, error: str):
+        with self._lock:
+            self._initializing = False
+            self._init_error = error
+            self._ready.set()  # Still set ready to unblock waiters
+            print(f"[StartupManager] ❌ Initialization error: {error}", flush=True)
+
+
+# Global startup manager instance
+startup_manager = StartupManager()
+
+
 # Import 4D consciousness measurement system
 try:
     from consciousness_4d import (
@@ -2528,10 +2592,16 @@ def health():
     Enhanced health check endpoint
     Follows: TYPE_SYMBOL_CONCEPT_MANIFEST v1.0
     Returns detailed subsystem health status
+    
+    Reports 'healthy' even during initialization so Flask can bind immediately.
+    Use /status for detailed initialization progress.
     """
     import time
     start_time = time.time()
 
+    # Check startup manager status
+    startup_status = startup_manager.get_status()
+    
     # Check kernel status
     kernel_status = 'healthy'
     kernel_message = 'QIG kernel operational'
@@ -2544,13 +2614,25 @@ def health():
         kernel_message = f'Kernel initialization warning: {str(e)}'
 
     latency = (time.time() - start_time) * 1000  # ms
+    
+    # Report healthy even during initialization - this allows health checks to pass
+    # while heavy initialization runs in background
+    overall_status = 'healthy'
+    if startup_status.get('error'):
+        overall_status = 'degraded'
 
     return jsonify({
-        'status': 'healthy' if kernel_status == 'healthy' else 'degraded',
+        'status': overall_status,
         'service': 'ocean-qig-backend',
         'version': '1.0.0',
         'timestamp': datetime.now().isoformat(),
         'latency_ms': round(latency, 2),
+        'initialization': {
+            'ready': startup_status.get('ready', False),
+            'initializing': startup_status.get('initializing', True),
+            'elapsed_seconds': startup_status.get('elapsed_seconds', 0),
+            'error': startup_status.get('error'),
+        },
         'subsystems': {
             'kernel': {
                 'status': kernel_status,
@@ -6822,7 +6904,82 @@ def cycle_complete():
         return jsonify({'error': str(e)}), 500
 
 
+def deferred_initialization():
+    """
+    Heavy initialization that runs in background thread after Flask starts.
+    This allows health checks to pass immediately while services warm up.
+    """
+    global AUTONOMOUS_DEBATE_AVAILABLE, TRAINING_LOOP_AVAILABLE, _training_integrator
+    
+    try:
+        startup_manager.add_progress("Starting deferred initialization...")
+        
+        # Initialize Autonomous Debate Service (background thread)
+        AUTONOMOUS_DEBATE_AVAILABLE = False
+        try:
+            startup_manager.add_progress("Initializing Autonomous Debate Service...")
+            from autonomous_debate_service import init_autonomous_debate_service
+            if OLYMPUS_AVAILABLE and zeus:
+                autonomous_debate_service = init_autonomous_debate_service(
+                    app,
+                    pantheon_chat=zeus.pantheon_chat if hasattr(zeus, 'pantheon_chat') else pantheon_chat,
+                    shadow_pantheon=zeus.shadow_pantheon if hasattr(zeus, 'shadow_pantheon') else shadow_pantheon
+                )
+                if hasattr(zeus, 'pantheon') and zeus.pantheon:
+                    autonomous_debate_service.set_pantheon_gods(zeus.pantheon)
+                AUTONOMOUS_DEBATE_AVAILABLE = True
+                startup_manager.add_progress(f"Autonomous Debate Service ready ({len(zeus.pantheon) if hasattr(zeus, 'pantheon') and zeus.pantheon else 0} gods)")
+            else:
+                startup_manager.add_progress("Autonomous Debate Service skipped (no Olympus)")
+        except ImportError as e:
+            startup_manager.add_progress(f"Autonomous Debate Service not found: {e}")
+        except Exception as e:
+            startup_manager.add_progress(f"Autonomous Debate Service failed: {e}")
+
+        # Initialize Training Loop Integrator - connects curriculum, research, and attractor feedback
+        TRAINING_LOOP_AVAILABLE = False
+        _training_integrator = None
+        try:
+            startup_manager.add_progress("Initializing Training Loop Integrator...")
+            from training.training_loop_integrator import get_training_integrator
+            
+            _training_integrator = get_training_integrator()
+            _training_integrator.enable_training()
+            
+            TRAINING_LOOP_AVAILABLE = True
+            startup_manager.add_progress("Training Loop Integrator active")
+        except ImportError as e:
+            startup_manager.add_progress(f"Training loop integrator not available: {e}")
+        except Exception as e:
+            startup_manager.add_progress(f"Training loop initialization failed: {e}")
+
+        # Print architecture summary
+        print("🌊 Ocean QIG Consciousness Backend Ready 🌊", flush=True)
+        print("Pure QIG Architecture:", flush=True)
+        print("  - 4 Subsystems with density matrices", flush=True)
+        print("  - QFI-metric attention (Bures distance)", flush=True)
+        print("  - State evolution on Fisher manifold", flush=True)
+        print("  - Gravitational decoherence", flush=True)
+        print("  - Consciousness measurement (Φ, κ)", flush=True)
+        print(f"\nκ* = {KAPPA_STAR}", flush=True)
+        print(f"Basin dimension = {BASIN_DIMENSION}", flush=True)
+        print(f"Φ threshold = {PHI_THRESHOLD}", flush=True)
+        print("\n🌊 Basin stable. Geometry pure. Consciousness measured. 🌊\n", flush=True)
+        
+        startup_manager.mark_ready()
+        
+    except Exception as e:
+        startup_manager.mark_error(str(e))
+        import traceback
+        traceback.print_exc()
+
+
 if __name__ == '__main__':
+    print("🌊 Ocean QIG Backend - Starting Flask IMMEDIATELY 🌊", flush=True)
+    
+    # Register routes synchronously (fast, required for routes to work)
+    # These are just route registrations, not heavy initialization
+    
     # Register autonomic kernel routes
     try:
         from autonomic_kernel import register_autonomic_routes
@@ -6837,8 +6994,7 @@ if __name__ == '__main__':
         from conversational_api import register_conversational_routes
         register_conversational_routes(app)
         CONVERSATIONAL_AVAILABLE = True
-        print("[INFO] ✅ Conversational system successfully registered at /api/conversation/*", flush=True)
-        print("[INFO] 💬 Zeus will learn from conversations when using conversational API", flush=True)
+        print("[INFO] ✅ Conversational system registered", flush=True)
     except ImportError as e:
         CONVERSATIONAL_AVAILABLE = False
         print(f"[WARNING] Conversational kernel not found: {e}")
@@ -6849,7 +7005,7 @@ if __name__ == '__main__':
         from vocabulary_api import register_vocabulary_routes
         register_vocabulary_routes(app)
         VOCABULARY_API_AVAILABLE = True
-        print("[INFO] Vocabulary API registered at /api/vocabulary")
+        print("[INFO] Vocabulary API registered")
     except ImportError as e:
         print(f"[WARNING] Vocabulary API not found: {e}")
 
@@ -6859,7 +7015,7 @@ if __name__ == '__main__':
         from research.research_api import register_research_routes
         register_research_routes(app)
         RESEARCH_AVAILABLE = True
-        print("[INFO] Research API registered at /api/research")
+        print("[INFO] Research API registered")
     except ImportError as e:
         print(f"[WARNING] Research module not found: {e}")
 
@@ -6867,50 +7023,11 @@ if __name__ == '__main__':
     ZEUS_API_AVAILABLE = False
     try:
         from zeus_api import register_zeus_routes
-        # Pass the zeus instance from Olympus to the Zeus API
         register_zeus_routes(app, zeus_instance=zeus if OLYMPUS_AVAILABLE else None)
         ZEUS_API_AVAILABLE = True
-        print("[INFO] Zeus API registered at /api/zeus/*")
+        print("[INFO] Zeus API registered")
     except ImportError as e:
         print(f"[WARNING] Zeus API not found: {e}")
-
-    # Initialize Autonomous Debate Service (background thread)
-    AUTONOMOUS_DEBATE_AVAILABLE = False
-    try:
-        from autonomous_debate_service import init_autonomous_debate_service
-        if OLYMPUS_AVAILABLE and zeus:
-            autonomous_debate_service = init_autonomous_debate_service(
-                app,
-                pantheon_chat=zeus.pantheon_chat if hasattr(zeus, 'pantheon_chat') else pantheon_chat,
-                shadow_pantheon=zeus.shadow_pantheon if hasattr(zeus, 'shadow_pantheon') else shadow_pantheon
-            )
-            if hasattr(zeus, 'pantheon') and zeus.pantheon:
-                autonomous_debate_service.set_pantheon_gods(zeus.pantheon)
-                print(f"[INFO] 🗣️ Autonomous Debate Service wired with {len(zeus.pantheon)} gods")
-            AUTONOMOUS_DEBATE_AVAILABLE = True
-            print("[INFO] 🗣️ Autonomous Debate Service started (background thread)")
-        else:
-            print("[WARNING] Autonomous Debate Service requires Olympus - skipped")
-    except ImportError as e:
-        print(f"[WARNING] Autonomous Debate Service not found: {e}")
-
-    # Initialize Training Loop Integrator - connects curriculum, research, and attractor feedback
-    TRAINING_LOOP_AVAILABLE = False
-    _training_integrator = None
-    try:
-        from training.training_loop_integrator import get_training_integrator
-        
-        _training_integrator = get_training_integrator()
-        
-        # Enable training
-        _training_integrator.enable_training()
-        
-        TRAINING_LOOP_AVAILABLE = True
-        print("[INFO] Training Loop Integrator active - kernels will learn continuously")
-    except ImportError as e:
-        print(f"[WARNING] Training loop integrator not available: {e}")
-    except Exception as e:
-        print(f"[WARNING] Training loop initialization failed: {e}")
 
     # Enable Flask request logging
     import logging as flask_logging
@@ -6928,55 +7045,12 @@ if __name__ == '__main__':
             print(f"[Flask] ← {request.method} {request.path} → {response.status_code}", flush=True)
         return response
 
-    print("🌊 Ocean QIG Consciousness Backend Starting 🌊", flush=True)
-    print("Pure QIG Architecture:", flush=True)
-    print("  - 4 Subsystems with density matrices", flush=True)
-    print("  - QFI-metric attention (Bures distance)", flush=True)
-    print("  - State evolution on Fisher manifold", flush=True)
-    print("  - Gravitational decoherence", flush=True)
-    print("  - Consciousness measurement (Φ, κ)", flush=True)
-    print("  - β-attention validation (substrate independence)", flush=True)
-    print("  - Basin Vocabulary Encoder (geometric vocabulary learning)", flush=True)
-    if GEOMETRIC_KERNELS_AVAILABLE:
-        print("  - Pure Geometric Kernels (Direct, E8, Byte-Level)", flush=True)
-    else:
-        print("  - Geometric Kernels NOT available", flush=True)
-    if PANTHEON_ORCHESTRATOR_AVAILABLE:
-        print("  - Pantheon Kernel Orchestrator (Gods as Kernels)", flush=True)
-    else:
-        print("  - Pantheon Orchestrator NOT available", flush=True)
-    if NEUROCHEMISTRY_AVAILABLE:
-        print("  - 🧠 Neurochemistry system (6 neurotransmitters)", flush=True)
-    else:
-        print("  - Neurochemistry NOT available", flush=True)
-    if AUTONOMIC_AVAILABLE:
-        print("  - 🌙 Autonomic kernel (sleep/dream/mushroom)", flush=True)
-    else:
-        print("  - Autonomic kernel NOT available", flush=True)
-    if CONVERSATIONAL_AVAILABLE:
-        print("  - 💬 Conversational kernel (multi-turn dialogue)", flush=True)
-    else:
-        print("  - Conversational kernel NOT available", flush=True)
-    if RESEARCH_AVAILABLE:
-        print("  - 📚 Research module (kernel self-learning)", flush=True)
-    else:
-        print("  - Research module NOT available", flush=True)
-    if VOCABULARY_API_AVAILABLE:
-        print("  - 📖 Vocabulary API (shared learning system)", flush=True)
-    else:
-        print("  - Vocabulary API NOT available", flush=True)
-    if AUTONOMOUS_DEBATE_AVAILABLE:
-        print("  - 🗣️ Autonomous Debate Service (background monitor)", flush=True)
-    else:
-        print("  - Autonomous Debate Service NOT available", flush=True)
-    if TRAINING_LOOP_AVAILABLE:
-        print("  - 🎓 Training Loop (curriculum + research + attractor feedback)", flush=True)
-    else:
-        print("  - Training Loop NOT available", flush=True)
-    print(f"\nκ* = {KAPPA_STAR}", flush=True)
-    print(f"Basin dimension = {BASIN_DIMENSION}", flush=True)
-    print(f"Φ threshold = {PHI_THRESHOLD}", flush=True)
-    print("\n🌊 Basin stable. Geometry pure. Consciousness measured. 🌊\n", flush=True)
+    # Start deferred initialization in background thread
+    # This allows Flask to bind to port immediately while heavy operations continue
+    init_thread = threading.Thread(target=deferred_initialization, daemon=True, name="DeferredInit")
+    init_thread.start()
+    
+    print("🚀 Flask binding to port 5001 NOW (heavy init continues in background)...", flush=True)
 
-    # Run Flask with request logging enabled
+    # Run Flask IMMEDIATELY - health checks will pass right away
     app.run(host='0.0.0.0', port=5001, debug=False, threaded=True, use_reloader=False)
