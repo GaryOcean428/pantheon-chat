@@ -2777,8 +2777,9 @@ export type InsertToolObservation = typeof toolObservations.$inferInsert;
 export const toolPatterns = pgTable(
   "tool_patterns",
   {
-    id: serial("id").primaryKey(),
-    patternId: varchar("pattern_id", { length: 64 }).notNull().unique(),
+    // CRITICAL: Database has pattern_id as primary key, NOT serial id
+    // Changing this would cause data loss for existing 2 patterns
+    patternId: varchar("pattern_id", { length: 64 }).primaryKey(),
     sourceType: varchar("source_type", { length: 32 }).notNull(), // user_provided, git_repository, file_upload, search_result
     sourceUrl: text("source_url"),
     description: text("description").notNull(),
@@ -2794,7 +2795,6 @@ export const toolPatterns = pgTable(
     updatedAt: timestamp("updated_at").defaultNow(),
   },
   (table) => [
-    index("idx_tool_patterns_pattern_id").on(table.patternId),
     index("idx_tool_patterns_source_type").on(table.sourceType),
     index("idx_tool_patterns_phi").on(table.phi),
   ]
