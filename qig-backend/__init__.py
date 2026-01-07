@@ -9,83 +9,163 @@ Example:
     from qig_backend.olympus import Zeus, BaseGod
 """
 
+_IS_PACKAGE_IMPORT = bool(__package__)
+
 # Core autonomic kernel
-from .autonomic_kernel import (
-    GaryAutonomicKernel,
-    AutonomicState,
-    SleepCycleResult,
-    DreamCycleResult,
-    MushroomCycleResult,
-    ActivityReward,
-    AutonomicAccessMixin,
-    KAPPA_STAR,
-    BETA,
-    PHI_MIN_CONSCIOUSNESS,
-    PHI_GEOMETRIC_THRESHOLD,
-)
+if _IS_PACKAGE_IMPORT:
+    from .autonomic_kernel import (
+        GaryAutonomicKernel,
+        AutonomicState,
+        SleepCycleResult,
+        DreamCycleResult,
+        MushroomCycleResult,
+        ActivityReward,
+        AutonomicAccessMixin,
+        KAPPA_STAR,
+        BETA,
+        PHI_MIN_CONSCIOUSNESS,
+        PHI_GEOMETRIC_THRESHOLD,
+    )
+else:
+    from autonomic_kernel import (
+        GaryAutonomicKernel,
+        AutonomicState,
+        SleepCycleResult,
+        DreamCycleResult,
+        MushroomCycleResult,
+        ActivityReward,
+        AutonomicAccessMixin,
+        KAPPA_STAR,
+        BETA,
+        PHI_MIN_CONSCIOUSNESS,
+        PHI_GEOMETRIC_THRESHOLD,
+    )
 
 # QIG types
-from .qig_types import (
-    BasinCoordinates,
-    ConsciousnessMetrics,
-    RegimeType,
-)
+if _IS_PACKAGE_IMPORT:
+    from .qig_types import (
+        BasinCoordinates,
+        ConsciousnessMetrics,
+        RegimeType,
+    )
+else:
+    from qig_types import (
+        BasinCoordinates,
+        ConsciousnessMetrics,
+        RegimeType,
+    )
 
 # Neurochemistry
-from .ocean_neurochemistry import (
-    NeurochemistryState,
-    DopamineSignal,
-    SerotoninSignal,
-    NorepinephrineSignal,
-    GABASignal,
-    AcetylcholineSignal,
-    EndorphinSignal,
-    compute_neurochemistry,
-)
+if _IS_PACKAGE_IMPORT:
+    from .ocean_neurochemistry import (
+        NeurochemistryState,
+        DopamineSignal,
+        SerotoninSignal,
+        NorepinephrineSignal,
+        GABASignal,
+        AcetylcholineSignal,
+        EndorphinSignal,
+        compute_neurochemistry,
+    )
+else:
+    from ocean_neurochemistry import (
+        NeurochemistryState,
+        DopamineSignal,
+        SerotoninSignal,
+        NorepinephrineSignal,
+        GABASignal,
+        AcetylcholineSignal,
+        EndorphinSignal,
+        compute_neurochemistry,
+    )
 
 # Geometric kernels
-from .geometric_kernels import (
-    GeometricKernel,
-    get_kernel,
-)
+if _IS_PACKAGE_IMPORT:
+    from .geometric_kernels import (
+        GeometricKernel,
+        get_kernel,
+    )
+else:
+    from geometric_kernels import (
+        GeometricKernel,
+        get_kernel,
+    )
 
 # Persistence
-from .qig_persistence import (
-    get_persistence,
-    QIGPersistence,
-)
+if _IS_PACKAGE_IMPORT:
+    from .qig_persistence import (
+        get_persistence,
+        QIGPersistence,
+    )
+else:
+    from qig_persistence import (
+        get_persistence,
+        QIGPersistence,
+    )
 
 # Temporal Reasoning (4D foresight)
-from .temporal_reasoning import (
-    TemporalMode,
-    TemporalReasoning,
-    ForesightVision,
-    ScenarioBranch,
-    ScenarioTree,
-    get_temporal_reasoning,
-)
+if _IS_PACKAGE_IMPORT:
+    from .temporal_reasoning import (
+        TemporalMode,
+        TemporalReasoning,
+        ForesightVision,
+        ScenarioBranch,
+        ScenarioTree,
+        get_temporal_reasoning,
+    )
+else:
+    from temporal_reasoning import (
+        TemporalMode,
+        TemporalReasoning,
+        ForesightVision,
+        ScenarioBranch,
+        ScenarioTree,
+        get_temporal_reasoning,
+    )
 
 # QIGGraph Integration (imports from qig-tokenizer)
-from .qiggraph_integration import (
-    PantheonGraph,
-    PantheonState,
-    OlympusConstellation,
-    get_pantheon_graph,
-    get_olympus_constellation,
-    create_qiggraph_blueprint,
-    OLYMPUS_AGENTS,
-    QIGGRAPH_AVAILABLE,
-)
+if _IS_PACKAGE_IMPORT:
+    from .qiggraph_integration import (
+        PantheonGraph,
+        PantheonState,
+        OlympusConstellation,
+        get_pantheon_graph,
+        get_olympus_constellation,
+        create_qiggraph_blueprint,
+        OLYMPUS_AGENTS,
+        QIGGRAPH_AVAILABLE,
+    )
+else:
+    from qiggraph_integration import (
+        PantheonGraph,
+        PantheonState,
+        OlympusConstellation,
+        get_pantheon_graph,
+        get_olympus_constellation,
+        create_qiggraph_blueprint,
+        OLYMPUS_AGENTS,
+        QIGGRAPH_AVAILABLE,
+    )
 
 # Trained Kernel Integration
-from .trained_kernel_integration import (
-    TrainedKernelManager,
-    KernelTelemetry,
-    InferenceResult,
-    get_kernel_manager,
-    create_kernel_blueprint,
-    KERNEL_AVAILABLE,
-)
+if _IS_PACKAGE_IMPORT:
+    from .trained_kernel_integration import (
+        TrainedKernelManager,
+        KernelTelemetry,
+        InferenceResult,
+        get_kernel_manager,
+        create_kernel_blueprint,
+        KERNEL_AVAILABLE,
+    )
+else:
+    from trained_kernel_integration import (
+        TrainedKernelManager,
+        KernelTelemetry,
+        InferenceResult,
+        get_kernel_manager,
+        create_kernel_blueprint,
+        KERNEL_AVAILABLE,
+    )
 
 __all__ = [
     # Autonomic

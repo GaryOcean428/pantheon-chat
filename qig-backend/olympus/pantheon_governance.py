@@ -73,6 +73,7 @@ class LifecycleProposal:
 # Allowed bypass reasons (no governance required)
 ALLOWED_BYPASS_REASONS = {
     'minimum_population',  # Prevent extinction
+    'initial_population',  # Bootstrap on empty startup
     'test_mode',          # Testing only
 }
 
@@ -117,7 +118,7 @@ class PantheonGovernance:
         """Create required tables if they don't exist."""
         if not self._conn:
             return
-        
+
         try:
             cur = self._conn.cursor()
             cur.execute("""
@@ -127,6 +128,22 @@ class PantheonGovernance:
                     action VARCHAR(255) NOT NULL,
                     status VARCHAR(50) NOT NULL,
                     details TEXT
+                )
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS governance_proposals (
+                    id SERIAL PRIMARY KEY,
+                    proposal_id VARCHAR(64) UNIQUE NOT NULL,
+                    proposal_type VARCHAR(32) NOT NULL,
+                    status VARCHAR(32) NOT NULL DEFAULT 'pending',
+                    reason TEXT,
+                    parent_id VARCHAR(64),
+                    parent_phi FLOAT,
+                    count INTEGER DEFAULT 1,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    votes_for JSONB DEFAULT '{}',
+                    votes_against JSONB DEFAULT '{}',
+                    audit_log JSONB DEFAULT '[]'
                 )
             """)
             cur.close()

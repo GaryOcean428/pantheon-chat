@@ -221,6 +221,7 @@ def load_curriculum_for_god(
                     "source": "curriculum",
                     "source_file": parsed["filename"],
                     "section": section["heading"],
+                    "content": section["content"],  # Text for word relationship learning
                 }
                 examples.append(example)
 

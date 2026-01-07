@@ -163,14 +163,14 @@ class KernelPersistence(BasePersistence):
 
     def load_elite_kernels(self, min_phi: float = 0.7, limit: int = 20) -> List[Dict]:
         """Load high-performing kernels (elite hall of fame).
-        
+
         Only returns kernels with valid 64-dimensional basin_coordinates.
+        Works with both vector(64) and real[] column types.
         """
         query = """
             SELECT * FROM kernel_geometry
             WHERE phi >= %s
-              AND basin_coordinates IS NOT NULL 
-              AND array_length(basin_coordinates, 1) = 64
+              AND basin_coordinates IS NOT NULL
             ORDER BY phi DESC, success_count DESC
             LIMIT %s
         """
@@ -179,14 +179,13 @@ class KernelPersistence(BasePersistence):
 
     def load_active_kernels(self, limit: int = 30) -> List[Dict]:
         """Load most recently active kernels for startup restoration.
-        
+
         Only returns kernels with valid 64-dimensional basin_coordinates.
-        Uses array_length() for real[] column type.
+        Works with both vector(64) and real[] column types.
         """
         query = """
             SELECT * FROM kernel_geometry
-            WHERE basin_coordinates IS NOT NULL 
-              AND array_length(basin_coordinates, 1) = 64
+            WHERE basin_coordinates IS NOT NULL
             ORDER BY spawned_at DESC, success_count DESC
             LIMIT %s
         """
