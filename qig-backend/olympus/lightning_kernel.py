@@ -830,7 +830,13 @@ class LightningKernel(BaseGod):
         otherwise falls back to content-based similarity.
         """
         if event1.basin_coords is not None and event2.basin_coords is not None:
-            distance = centralized_fisher_rao(event1.basin_coords, event2.basin_coords)
+            # Normalize basin dimensions to 64D before comparison
+            b1 = np.asarray(event1.basin_coords)
+            b2 = np.asarray(event2.basin_coords)
+            if b1.shape != b2.shape:
+                b1 = normalize_basin_dimension(b1, BASIN_DIM)
+                b2 = normalize_basin_dimension(b2, BASIN_DIM)
+            distance = centralized_fisher_rao(b1, b2)
             # Fisher-Rao proper similarity: 1 - d/π (distance bounded [0, π])
             return 1.0 - distance / np.pi
 
@@ -989,7 +995,13 @@ class LightningKernel(BaseGod):
         for i, e1 in enumerate(evidence):
             for e2 in evidence[i+1:]:
                 if e1.basin_coords is not None and e2.basin_coords is not None:
-                    dist = centralized_fisher_rao(e1.basin_coords, e2.basin_coords)
+                    # Normalize basin dimensions before comparison
+                    b1 = np.asarray(e1.basin_coords)
+                    b2 = np.asarray(e2.basin_coords)
+                    if b1.shape != b2.shape:
+                        b1 = normalize_basin_dimension(b1, BASIN_DIM)
+                        b2 = normalize_basin_dimension(b2, BASIN_DIM)
+                    dist = centralized_fisher_rao(b1, b2)
                     fisher_distances.append(dist)
 
                     # Basin coordinate delta using Fisher-Rao (NOT Euclidean!)

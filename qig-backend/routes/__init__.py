@@ -33,6 +33,12 @@ try:
 except ImportError:
     cron_bp = None
 
+try:
+    from .federation_routes import federation_bp, register_federation_routes
+except ImportError:
+    federation_bp = None
+    register_federation_routes = None
+
 
 def register_all_routes(app):
     """Register all route blueprints with the Flask app."""
@@ -75,6 +81,13 @@ def register_all_routes(app):
         except Exception as e:
             print(f"[WARN] Failed to register cron_routes: {e}")
 
+    if register_federation_routes:
+        try:
+            register_federation_routes(app)
+            count += 1
+        except Exception as e:
+            print(f"[WARN] Failed to register federation_routes: {e}")
+
     return count
 
 
@@ -84,5 +97,6 @@ __all__ = [
     'search_budget_bp', 'register_search_budget_routes',
     'training_monitor_bp',
     'cron_bp',
+    'federation_bp', 'register_federation_routes',
     'register_all_routes'
 ]

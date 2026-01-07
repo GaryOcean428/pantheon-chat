@@ -1535,10 +1535,10 @@ class ShadowLearningLoop:
         return spider_map.get(category, 'document')
     
     def _handle_scrapy_insight(
-        self, 
-        insight: 'ScrapedInsight', 
-        basin_coords: np.ndarray, 
-        phi: float, 
+        self,
+        insight: 'ScrapedInsight',
+        basin_coords: np.ndarray,
+        phi: float,
         confidence: float
     ) -> None:
         """
@@ -1547,7 +1547,11 @@ class ShadowLearningLoop:
         """
         if not HAS_SCRAPY:
             return
-        
+
+        # Normalize basin to 64D to avoid dimension mismatch errors
+        if basin_coords is not None and basin_coords.shape[0] != BASIN_DIMENSION:
+            basin_coords = normalize_basin_dimension(basin_coords, BASIN_DIMENSION)
+
         topic = insight.title or insight.source_url
         
         content = {
@@ -3781,9 +3785,13 @@ class ResearchInsightBridge:
             from .lightning_kernel import DomainEvent
             
             basin_coords = knowledge_data.get('basin_coords')
-            if basin_coords is not None and not isinstance(basin_coords, np.ndarray):
-                basin_coords = np.array(basin_coords)
-            
+            if basin_coords is not None:
+                if not isinstance(basin_coords, np.ndarray):
+                    basin_coords = np.array(basin_coords)
+                # Normalize to 64D to avoid dimension mismatch errors
+                if basin_coords.shape[0] != BASIN_DIMENSION:
+                    basin_coords = normalize_basin_dimension(basin_coords, BASIN_DIMENSION)
+
             # Use dynamic string domain - no hardcoded enums
             event = DomainEvent(
                 domain="research",  # Dynamic string domain
