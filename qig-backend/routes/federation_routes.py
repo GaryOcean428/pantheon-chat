@@ -8,6 +8,7 @@ Provides endpoints for:
 - /federation/mesh/status - Get mesh network status
 - /federation/mesh/peers - List connected peers
 - /federation/mesh/broadcast - Broadcast to all peers
+- /federation/service/* - FederationService management endpoints
 
 This enables federation nodes and external chat UIs to:
 1. Register and get API credentials
@@ -23,6 +24,14 @@ import traceback
 from typing import Dict, List, Optional, Any
 import json
 import os
+
+# Import FederationService for actual sync operations
+try:
+    from federation import get_federation_service
+    HAS_FEDERATION_SERVICE = True
+except ImportError:
+    HAS_FEDERATION_SERVICE = False
+    get_federation_service = None
 
 # Create blueprint
 federation_bp = Blueprint('federation', __name__)
@@ -1138,3 +1147,299 @@ def register_federation_routes(app):
     """Register federation routes with the Flask app."""
     app.register_blueprint(federation_bp, url_prefix='/federation')
     print("[INFO] Federation API registered at /federation/*")
+
+
+# ============================================================================
+# FEDERATION SERVICE ENDPOINTS - Actual cross-instance sync
+# ============================================================================
+
+@federation_bp.route('/service/status', methods=['GET'])
+def federation_service_status():
+    """
+    Get federation service status including all peers and sync state.
+
+    Response:
+        {
+            "success": true,
+            "service_available": true,
+            "status": {
+                "total_peers": 2,
+                "enabled_peers": 2,
+                "reachable_peers": 1,
+                "is_syncing": false,
+                "last_full_sync": "2025-01-07T12:00:00Z",
+                "peers": [...]
+            }
+        }
+    """
+    if not HAS_FEDERATION_SERVICE:
+        return jsonify({
+            'success': True,
+            'service_available': False,
+            'error': 'FederationService not available'
+        })
+
+    try:
+        service = get_federation_service()
+        status = service.get_sync_status()
+
+        return jsonify({
+            'success': True,
+            'service_available': True,
+            'status': status
+        })
+    except Exception as e:
+        print(f"[Federation] Error getting service status: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@federation_bp.route('/service/sync', methods=['POST'])
+def trigger_federation_sync():
+    """
+    Trigger federation sync with all enabled peers.
+
+    Request:
+        {
+            "background": true,  // Run in background (default: true)
+            "peer_id": "peer_xxx"  // Optional: sync with specific peer only
+        }
+
+    Response:
+        {
+            "success": true,
+            "status": "started",
+            "background": true,
+            "peer_count": 2
+        }
+    """
+    if not HAS_FEDERATION_SERVICE:
+        return jsonify({
+            'success': False,
+            'error': 'FederationService not available'
+        }), 503
+
+    try:
+        data = request.get_json() or {}
+        background = data.get('background', True)
+        peer_id = data.get('peer_id')
+
+        service = get_federation_service()
+
+        if peer_id:
+            # Sync with specific peer
+            peers = service.get_peers()
+            peer = next((p for p in peers if p.peer_id == peer_id), None)
+
+            if not peer:
+                return jsonify({
+                    'success': False,
+                    'error': f'Peer {peer_id} not found'
+                }), 404
+
+            results = service.sync_with_peer(peer)
+            return jsonify({
+                'success': True,
+                'peer_id': peer_id,
+                'results': {k: service._result_to_dict(v) for k, v in results.items()}
+            })
+        else:
+            # Sync with all peers
+            result = service.sync_all_peers(background=background)
+            return jsonify({
+                'success': True,
+                **result
+            })
+
+    except Exception as e:
+        print(f"[Federation] Error triggering sync: {e}")
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@federation_bp.route('/service/peers', methods=['GET'])
+def list_service_peers():
+    """
+    List all federation peers from the database.
+
+    Response:
+        {
+            "success": true,
+            "peers": [...],
+            "total": 2
+        }
+    """
+    if not HAS_FEDERATION_SERVICE:
+        return jsonify({
+            'success': False,
+            'error': 'FederationService not available'
+        }), 503
+
+    try:
+        service = get_federation_service()
+        peers = service.get_peers(force_refresh=True)
+
+        return jsonify({
+            'success': True,
+            'peers': [
+                {
+                    'peer_id': p.peer_id,
+                    'peer_name': p.peer_name,
+                    'peer_url': p.peer_url,
+                    'sync_enabled': p.sync_enabled,
+                    'sync_vocabulary': p.sync_vocabulary,
+                    'sync_basins': p.sync_basins,
+                    'sync_kernels': p.sync_kernels,
+                    'is_reachable': p.is_reachable,
+                    'last_sync_at': p.last_sync_at.isoformat() if p.last_sync_at else None,
+                    'consecutive_failures': p.consecutive_failures
+                }
+                for p in peers
+            ],
+            'total': len(peers)
+        })
+    except Exception as e:
+        print(f"[Federation] Error listing peers: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@federation_bp.route('/service/peers/<peer_id>/test', methods=['POST'])
+def test_service_peer(peer_id: str):
+    """
+    Test connection to a specific peer.
+
+    Response:
+        {
+            "success": true,
+            "reachable": true,
+            "response_time_ms": 150,
+            "error": null
+        }
+    """
+    if not HAS_FEDERATION_SERVICE:
+        return jsonify({
+            'success': False,
+            'error': 'FederationService not available'
+        }), 503
+
+    try:
+        service = get_federation_service()
+        peers = service.get_peers()
+        peer = next((p for p in peers if p.peer_id == peer_id), None)
+
+        if not peer:
+            return jsonify({
+                'success': False,
+                'error': f'Peer {peer_id} not found'
+            }), 404
+
+        reachable, response_time, error = service.test_peer_connection(peer)
+        service.update_peer_health(peer_id, reachable, response_time)
+
+        return jsonify({
+            'success': True,
+            'reachable': reachable,
+            'response_time_ms': response_time,
+            'error': error
+        })
+    except Exception as e:
+        print(f"[Federation] Error testing peer: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@federation_bp.route('/service/vocabulary/delta', methods=['GET'])
+def get_vocabulary_delta():
+    """
+    Get vocabulary delta for manual inspection or custom sync.
+
+    Query params:
+        since: ISO timestamp to get vocabulary updated after
+        limit: Max entries (default 100)
+
+    Response:
+        {
+            "success": true,
+            "vocabulary": [...],
+            "count": 100
+        }
+    """
+    if not HAS_FEDERATION_SERVICE:
+        return jsonify({
+            'success': False,
+            'error': 'FederationService not available'
+        }), 503
+
+    try:
+        service = get_federation_service()
+
+        since_str = request.args.get('since')
+        since = None
+        if since_str:
+            since = datetime.fromisoformat(since_str.replace('Z', '+00:00'))
+
+        limit = min(int(request.args.get('limit', 100)), 1000)
+
+        vocabulary = service.gather_vocabulary_delta(since=since, limit=limit)
+
+        return jsonify({
+            'success': True,
+            'vocabulary': vocabulary,
+            'count': len(vocabulary)
+        })
+    except Exception as e:
+        print(f"[Federation] Error getting vocabulary delta: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@federation_bp.route('/service/basins/delta', methods=['GET'])
+def get_basins_delta():
+    """
+    Get basin coordinates for manual inspection or custom sync.
+
+    Query params:
+        limit: Max entries (default 50)
+
+    Response:
+        {
+            "success": true,
+            "basins": [...],
+            "count": 50
+        }
+    """
+    if not HAS_FEDERATION_SERVICE:
+        return jsonify({
+            'success': False,
+            'error': 'FederationService not available'
+        }), 503
+
+    try:
+        service = get_federation_service()
+        limit = min(int(request.args.get('limit', 50)), 200)
+
+        basins = service.gather_basins_for_sync(limit=limit)
+
+        return jsonify({
+            'success': True,
+            'basins': basins,
+            'count': len(basins)
+        })
+    except Exception as e:
+        print(f"[Federation] Error getting basins delta: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
