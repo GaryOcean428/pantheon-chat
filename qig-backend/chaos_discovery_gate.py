@@ -86,10 +86,33 @@ class AdaptiveDiscoveryGate:
     def set_attractor_callback(self, callback: Callable[[np.ndarray, float], None]) -> None:
         """Set callback to record attractor in LearnedManifold."""
         self._attractor_callback = callback
+        # Process any pending discoveries that were waiting for callbacks
+        self._process_pending_discoveries()
 
     def set_vocabulary_callback(self, callback: Callable[[np.ndarray, float], None]) -> None:
         """Set callback to integrate into vocabulary system."""
         self._vocabulary_callback = callback
+        # Process any pending discoveries that were waiting for callbacks
+        self._process_pending_discoveries()
+
+    def _process_pending_discoveries(self) -> None:
+        """Process discoveries that arrived before callbacks were wired."""
+        if not self._attractor_callback and not self._vocabulary_callback:
+            return  # No callbacks yet
+
+        with self._lock:
+            unintegrated = [d for d in self._pending if not d.integrated]
+
+        if not unintegrated:
+            return
+
+        integrated_count = 0
+        for discovery in unintegrated:
+            if self._integrate_discovery(discovery):
+                integrated_count += 1
+
+        if integrated_count > 0:
+            print(f"[DiscoveryGate] Processed {integrated_count} pending discoveries after callback wiring")
 
     def receive_discovery(self, discovery_data: Dict) -> Dict:
         """

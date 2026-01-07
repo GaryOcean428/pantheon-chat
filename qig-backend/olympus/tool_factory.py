@@ -31,6 +31,7 @@ import time
 import threading
 import json
 import re
+import requests
 from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -114,11 +115,11 @@ def _ensure_tool_patterns_table():
 _ensure_tool_patterns_table()
 
 
-def _persist_observation_to_db(request: str, request_basin: list, context: dict, timestamp: float) -> bool:
-    """Persist a tool observation to PostgreSQL for pattern learning."""
+def _persist_observation_to_db(request: str, request_basin: list, context: dict, timestamp: float) -> int:
+    """Persist a tool observation to PostgreSQL for pattern learning. Returns observation ID."""
     conn = _get_db_connection()
     if not conn:
-        return False
+        return -1
     try:
         from psycopg2.extras import Json
         with conn.cursor() as cur:
@@ -126,18 +127,21 @@ def _persist_observation_to_db(request: str, request_basin: list, context: dict,
                 INSERT INTO tool_observations (
                     request, request_basin, context, timestamp, cluster_assigned, created_at
                 ) VALUES (%s, %s, %s, %s, false, NOW())
+                RETURNING id
             """, (
                 request,
                 request_basin if isinstance(request_basin, list) else list(request_basin),
                 Json(context) if context else Json({}),
                 timestamp,
             ))
+            result = cur.fetchone()
+            observation_id = result[0] if result else -1
             conn.commit()
-        return True
+        return observation_id
     except Exception as e:
         print(f"[ToolFactory] Observation persistence failed: {e}")
         conn.rollback()
-        return False
+        return -1
     finally:
         conn.close()
 
@@ -1582,7 +1586,12 @@ class ToolFactory:
         request_basin = self.encoder.encode(request)
         timestamp = datetime.now().timestamp()
 
+        # Persist to database for durability and get ID
+        basin_list = request_basin.tolist() if hasattr(request_basin, 'tolist') else list(request_basin)
+        observation_id = _persist_observation_to_db(request, basin_list, context, timestamp)
+
         observation = {
+            'id': observation_id,  # Track DB ID for clustering
             'request': request,
             'request_basin': request_basin,
             'context': context,
@@ -1591,10 +1600,6 @@ class ToolFactory:
 
         # In-memory cache for fast pattern analysis
         self.pattern_observations.append(observation)
-
-        # Persist to database for durability
-        basin_list = request_basin.tolist() if hasattr(request_basin, 'tolist') else list(request_basin)
-        _persist_observation_to_db(request, basin_list, context, timestamp)
 
         if len(self.pattern_observations) >= 3:
             return self._analyze_patterns()
@@ -1605,6 +1610,7 @@ class ToolFactory:
         recent = self.pattern_observations[-10:]
         clusters = self._cluster_by_basin(recent)
         candidates = []
+        clustered_observation_ids = []
 
         for cluster in clusters:
             if len(cluster) >= 2:
@@ -1619,6 +1625,16 @@ class ToolFactory:
                         'examples': [o['request'][:100] for o in cluster[:3]],
                         'basin': cluster_basin.tolist()
                     })
+
+                # Track observation IDs for marking as clustered
+                for obs in cluster:
+                    if 'id' in obs:
+                        clustered_observation_ids.append(obs['id'])
+
+        # Mark clustered observations in database to prevent reprocessing
+        if clustered_observation_ids:
+            _mark_observations_clustered(clustered_observation_ids)
+            print(f"[ToolFactory] Marked {len(clustered_observation_ids)} observations as clustered")
 
         return candidates
 
@@ -2056,11 +2072,15 @@ class AutonomousToolPipeline:
                     print(f"[AutonomousPipeline] Heartbeat: {len(self._requests)} total requests, {pending} pending, {self.tool_factory.get_learning_stats().get('patterns_learned', 0)} patterns learned")
                 
                 self._process_pending_requests()
+
+                # Process git queue every 12 iterations (~1 min at 5s interval)
+                if loop_count % 12 == 0:
+                    self._process_git_queue()
             except Exception as e:
                 print(f"[AutonomousPipeline] Process loop error: {e}")
-            
+
             time.sleep(self._process_interval)
-    
+
     def _log_pipeline_state_verbose(self):
         """Verbose logging of full pipeline state for debugging."""
         with self._lock:
@@ -2096,14 +2116,103 @@ class AutonomousToolPipeline:
         """Process all pending tool requests."""
         with self._lock:
             requests = list(self._requests.values())
-        
+
         for request in requests:
             try:
                 self._process_request(request)
             except Exception as e:
                 request.error_history.append(f"Process error: {str(e)}")
                 print(f"[AutonomousPipeline] Error processing {request.request_id}: {e}")
-    
+
+    def _process_git_queue(self):
+        """Process pending git links from ToolFactory.pending_searches queue."""
+        pending_git = [
+            item for item in self.tool_factory.pending_searches
+            if item.get('type') == 'git_link' and item.get('status') == 'pending'
+        ]
+
+        if not pending_git:
+            return
+
+        # Process one item at a time to avoid rate limits
+        item = pending_git[0]
+        url = item.get('url', '')
+        description = item.get('description', '')
+        secret_key_name = item.get('secret_key_name')
+
+        print(f"[AutonomousPipeline] Processing git link: {url}")
+        item['status'] = 'processing'
+
+        try:
+            # Parse GitHub URL to get owner/repo
+            # Supports: github.com/owner/repo, https://github.com/owner/repo
+            import re
+            match = re.search(r'github\.com[/:]([^/]+)/([^/\s\.]+)', url)
+            if not match:
+                raise ValueError(f"Invalid GitHub URL format: {url}")
+
+            owner, repo = match.groups()
+            repo = repo.rstrip('.git')
+
+            # Get auth token if specified
+            headers = {'Accept': 'application/vnd.github.v3+json'}
+            if secret_key_name:
+                token = os.environ.get(secret_key_name)
+                if token:
+                    headers['Authorization'] = f'token {token}'
+
+            # Fetch repository contents (main files)
+            api_url = f"https://api.github.com/repos/{owner}/{repo}/contents"
+            response = requests.get(api_url, headers=headers, timeout=10)
+
+            if response.status_code == 403:
+                raise ValueError("GitHub API rate limit exceeded or token invalid")
+            elif response.status_code != 200:
+                raise ValueError(f"GitHub API error: {response.status_code}")
+
+            contents = response.json()
+
+            # Find Python/JS/TS files to learn from
+            code_files = [
+                f for f in contents
+                if f.get('type') == 'file' and
+                f.get('name', '').endswith(('.py', '.js', '.ts', '.tsx'))
+            ][:5]  # Limit to 5 files
+
+            learned_count = 0
+            for file_info in code_files:
+                try:
+                    # Fetch file content
+                    file_response = requests.get(
+                        file_info['download_url'],
+                        headers=headers,
+                        timeout=10
+                    )
+                    if file_response.status_code != 200:
+                        continue
+
+                    content = file_response.text
+                    filename = file_info['name']
+
+                    # Learn patterns from file
+                    pattern = self.tool_factory.learn_from_file_upload(
+                        filename=f"{owner}/{repo}/{filename}",
+                        content=content,
+                        description=f"{description} - from {repo}"
+                    )
+                    if pattern:
+                        learned_count += 1
+                except Exception as e:
+                    print(f"[AutonomousPipeline] Failed to process {file_info.get('name')}: {e}")
+
+            item['status'] = 'completed'
+            print(f"[AutonomousPipeline] ✓ Git link processed: {learned_count} patterns from {url}")
+
+        except Exception as e:
+            item['status'] = 'failed'
+            item['error'] = str(e)
+            print(f"[AutonomousPipeline] ✗ Git link failed: {url} - {e}")
+
     def _process_request(self, request: AutonomousToolRequest):
         """Process a single tool request through its lifecycle."""
         if request.state == ToolLifecycleState.DEPLOYED:

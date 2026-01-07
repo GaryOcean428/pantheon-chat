@@ -293,6 +293,7 @@ class ObservationProtocol:
             return {
                 'currently_observing': len(self.observing),
                 'total_graduated': len(self.graduated),
+                'graduated_kernel_ids': list(self.graduated),
                 'min_observation_time': self.min_observation_time,
                 'monitor_running': self._running,
                 'kernels': [
@@ -305,6 +306,14 @@ class ObservationProtocol:
                     for kid, obs in self.observing.items()
                 ]
             }
+
+    def is_graduated(self, kernel_id: str) -> bool:
+        """Check if a kernel has graduated from observation."""
+        return kernel_id in self.graduated
+
+    def get_graduated_kernels(self) -> List[str]:
+        """Get list of all graduated kernel IDs."""
+        return list(self.graduated)
     
     def start_monitor(self) -> None:
         """Start background observation monitor thread."""

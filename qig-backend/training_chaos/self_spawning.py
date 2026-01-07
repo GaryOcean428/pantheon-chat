@@ -1164,6 +1164,10 @@ class SelfSpawningKernel(*_kernel_base_classes):
             # Pending governance proposals
             'has_spawn_proposal': hasattr(self, '_pending_spawn_proposal') and self._pending_spawn_proposal is not None,
             'has_death_proposal': hasattr(self, '_pending_death_proposal') and self._pending_death_proposal is not None,
+            # Guardian observation status
+            'observation_mode': getattr(self, 'observation_mode', False),
+            'developmental_stage': getattr(self, 'developmental_stage', 'unknown'),
+            'ready_for_production': getattr(self, 'ready_for_production', False),
         }
 
     def set_discovery_callback(self, callback: Callable[[Dict], None]) -> None:
