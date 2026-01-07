@@ -169,7 +169,7 @@ class SearchBudgetOrchestrator:
         'duckduckgo': -1,   # Unlimited (free)
         'google': 100,      # 100/day
         'perplexity': 100,  # 100/day
-        'tavily': 0,        # Toggle-only (expensive)
+        'tavily': 100,      # 100/day (auto-enabled if API key present)
     }
     
     COST_PER_QUERY = {
@@ -212,7 +212,7 @@ class SearchBudgetOrchestrator:
                 daily_limit=limit if has_api_key or provider == 'duckduckgo' else 0,
                 cost_per_query=self.COST_PER_QUERY.get(provider, 0.0),
                 enabled=bool(should_enable),
-                toggle_only=(provider == 'tavily'),
+                toggle_only=False,  # Auto-enable all providers with API keys
             )
             
             if has_api_key and provider != 'duckduckgo':

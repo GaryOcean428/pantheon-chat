@@ -49,7 +49,20 @@ try:
     HAS_VOCAB_COORDINATOR = True
 except ImportError:
     HAS_VOCAB_COORDINATOR = False
+    VocabularyCoordinator = None
     print("[ShadowResearch] VocabularyCoordinator not available - vocabulary learning disabled")
+
+# Import SearchBudgetOrchestrator for budget-aware search
+try:
+    from search.search_budget_orchestrator import get_budget_orchestrator, SearchImportance
+    from search.search_providers import get_search_manager
+    HAS_SEARCH_BUDGET = True
+except ImportError:
+    HAS_SEARCH_BUDGET = False
+    get_budget_orchestrator = None
+    get_search_manager = None
+    SearchImportance = None
+    print("[ShadowResearch] SearchBudgetOrchestrator not available - search disabled")
 
 # Import curriculum training module
 try:
@@ -1113,11 +1126,92 @@ class ShadowLearningLoop:
             print("[ShadowLearningLoop] Curriculum training available")
         else:
             print("[ShadowLearningLoop] Curriculum training not available")
+
+        # Initialize Search Budget for proactive research
+        self.search_manager = None
+        self.search_budget = None
+        if HAS_SEARCH_BUDGET and get_search_manager:
+            try:
+                self.search_manager = get_search_manager()
+                self.search_budget = get_budget_orchestrator()
+                budget_ctx = self.search_budget.get_budget_context()
+                print(f"[ShadowLearningLoop] Search budget initialized: {budget_ctx.total_budget_remaining} queries remaining")
+            except Exception as e:
+                print(f"[ShadowLearningLoop] Failed to initialize search budget: {e}")
     
     @property
     def is_running(self) -> bool:
         """Check if the learning loop is currently running."""
         return self._running
+
+    def budget_aware_search(
+        self,
+        query: str,
+        importance: int = 2,  # 1=routine, 2=moderate, 3=high, 4=critical
+        kernel_id: Optional[str] = None,
+        max_results: int = 5
+    ) -> Dict[str, Any]:
+        """
+        Execute a budget-aware search and feed results into vocabulary learning.
+
+        Args:
+            query: Search query
+            importance: 1=routine(free only), 2=moderate, 3=high, 4=critical
+            kernel_id: Kernel requesting search (for tracking)
+            max_results: Max results to return
+
+        Returns:
+            Search results with budget context and vocabulary learning metrics
+        """
+        if not self.search_manager:
+            return {'success': False, 'error': 'search_not_available', 'results': []}
+
+        # Execute search with budget awareness
+        results = self.search_manager.search(
+            query=query,
+            max_results=max_results,
+            importance=importance,
+            kernel_id=kernel_id
+        )
+
+        # Feed results into vocabulary learning
+        vocab_metrics = {}
+        if results.get('success') and self.vocab_coordinator:
+            try:
+                # Extract text from results for vocabulary learning
+                result_texts = []
+                for r in results.get('results', []):
+                    if isinstance(r, dict):
+                        title = r.get('title', '')
+                        snippet = r.get('snippet', r.get('content', ''))
+                        if title:
+                            result_texts.append(title)
+                        if snippet:
+                            result_texts.append(snippet)
+
+                if result_texts:
+                    combined_text = ' '.join(result_texts)
+                    vocab_metrics = self.vocab_coordinator.train_from_text(
+                        text=combined_text,
+                        domain=f"search:{query[:30]}"
+                    )
+                    results['vocab_learning'] = vocab_metrics
+            except Exception as e:
+                results['vocab_learning_error'] = str(e)
+
+        # Log search usage
+        if self.search_budget:
+            budget_ctx = self.search_budget.get_budget_context()
+            results['budget_remaining'] = budget_ctx.total_budget_remaining
+            results['budget_recommendation'] = budget_ctx.recommendation
+
+        return results
+
+    def get_search_budget_context(self) -> Optional[Dict]:
+        """Get current search budget context for kernel decision-making."""
+        if not self.search_budget:
+            return None
+        return self.search_budget.get_budget_context().to_dict()
     
     def _init_study_topics(self) -> Dict[str, List[str]]:
         """Initialize study topics for each god."""
