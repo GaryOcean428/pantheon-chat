@@ -190,8 +190,9 @@ export class PythonProcessManager extends EventEmitter {
       this.setReady(false);
     });
     
-    // Wait for initial readiness - production needs more time due to heavy imports
-    const maxRetries = isProduction ? 90 : 30;  // 90 seconds in production
+    // Wait for initial readiness - ALL environments need time for heavy imports
+    // (loading gods, vocabulary, databases, coordizers, etc.)
+    const maxRetries = 120;  // 120 seconds for full kernel initialization
     const ready = await this.waitForHealthy(maxRetries, 1000);
     
     if (ready) {

@@ -406,7 +406,8 @@ class AutonomousCuriosityEngine:
         
         self.running = False
         self._loop_thread: Optional[threading.Thread] = None
-        self._exploration_interval = 60
+        # Reduced interval for development visibility (was 60)
+        self._exploration_interval = 30  # 30 seconds between exploration cycles
         self._min_curiosity_threshold = 0.4
         
         self.kernel_interests: Dict[str, List[str]] = {
@@ -505,20 +506,37 @@ class AutonomousCuriosityEngine:
     
     def _run_loop(self):
         """Main loop for autonomous exploration."""
+        cycle_count = 0
         while self.running:
             try:
+                cycle_count += 1
+                print(f"[AutonomousCuriosityEngine] === Cycle {cycle_count} starting ===")
+
+                pending_count = len(self.pending_requests)
+                print(f"[AutonomousCuriosityEngine] Processing {pending_count} pending kernel requests")
                 self._process_kernel_requests()
-                
+
+                print(f"[AutonomousCuriosityEngine] Exploring curious topics...")
                 self._explore_curious_topics()
-                
+
+                print(f"[AutonomousCuriosityEngine] Training on curriculum...")
                 self._train_on_curriculum()
-                
+
+                print(f"[AutonomousCuriosityEngine] Checking word learning schedule...")
                 self._scheduled_word_learning()
-                
+
+                print(f"[AutonomousCuriosityEngine] Cycle {cycle_count} complete. Stats: "
+                      f"explorations={self.stats['total_explorations']}, "
+                      f"discoveries={self.stats['successful_discoveries']}, "
+                      f"curriculum={self.stats['curriculum_completions']}")
+                print(f"[AutonomousCuriosityEngine] Sleeping {self._exploration_interval}s until next cycle...")
+
                 time.sleep(self._exploration_interval)
-                
+
             except Exception as e:
                 print(f"[AutonomousCuriosityEngine] Loop error: {e}")
+                import traceback
+                traceback.print_exc()
                 time.sleep(10)
     
     def submit_kernel_request(self, request: KernelToolRequest):
