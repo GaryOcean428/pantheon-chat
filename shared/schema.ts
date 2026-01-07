@@ -248,6 +248,8 @@ export const vocabularyObservations = pgTable(
     basinCoords: vector("basin_coords", { dimensions: 64 }),
     sourceType: varchar("source_type", { length: 32 }), // hermes, manifold, learning_event, research
     cycleNumber: integer("cycle_number"),
+    // Legacy column - preserved for backwards compatibility
+    isBip39Word: boolean("is_bip39_word").default(false),
   },
   (table) => [
     index("idx_vocabulary_observations_phi").on(table.maxPhi),
@@ -1809,6 +1811,11 @@ export const kernelGeometry = pgTable(
     hasAutonomic: boolean("has_autonomic").default(false),
     hasShadowAffinity: boolean("has_shadow_affinity").default(false),
     shadowGodLink: varchar("shadow_god_link", { length: 32 }), // nyx, erebus, etc.
+    // Legacy columns - preserved for backwards compatibility with existing data
+    legacyId: integer("id"),
+    snapshotData: jsonb("snapshot_data"),
+    passes: integer("passes"),
+    legacyCreatedAt: timestamp("created_at"),
   },
   (table) => [
     index("idx_kernel_geometry_domain").on(table.domain),
@@ -1843,6 +1850,8 @@ export const chaosEvents = pgTable(
     outcome: jsonb("outcome"), // Additional event-specific data
     autopsy: jsonb("autopsy"), // Death autopsy details
     createdAt: timestamp("created_at").defaultNow().notNull(),
+    // Legacy column - preserved for backwards compatibility
+    eventData: jsonb("event_data"),
   },
   (table) => [
     index("idx_chaos_events_session").on(table.sessionId),
@@ -1870,6 +1879,8 @@ export const basinDocuments = pgTable(
     regime: varchar("regime", { length: 50 }),
     metadata: jsonb("metadata").default({}),
     createdAt: timestamp("created_at").defaultNow().notNull(),
+    // Legacy column - preserved for backwards compatibility with existing data
+    legacyId: integer("id"),
   },
   (table) => [
     index("idx_basin_documents_regime").on(table.regime),
@@ -2231,6 +2242,9 @@ export const learningEvents = pgTable(
     source: varchar("source", { length: 64 }),
     instanceId: varchar("instance_id", { length: 64 }),
     createdAt: timestamp("created_at").defaultNow(),
+    // Legacy columns - preserved for backwards compatibility with existing data
+    legacyId: integer("id"),
+    data: jsonb("data"),
   },
   (table) => [
     index("idx_learning_events_type").on(table.eventType),
@@ -2554,6 +2568,9 @@ export const tokenizerVocabulary = pgTable(
     sourceType: varchar("source_type", { length: 32 }).default("base"),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow(),
+    // Legacy columns - preserved for backwards compatibility with existing data
+    embedding: vector("embedding", { dimensions: 64 }),
+    metadata: jsonb("metadata"),
   },
   (table) => [
     index("idx_tokenizer_vocab_token_id").on(table.tokenId),
@@ -2838,6 +2855,8 @@ export const federatedInstances = pgTable(
     status: varchar("status", { length: 16 }).default("pending"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
+    // Legacy column - preserved for backwards compatibility
+    remoteApiKey: text("remote_api_key"),
   },
   (table) => [
     index("idx_federated_instances_api_key").on(table.apiKeyId),
@@ -3635,3 +3654,51 @@ export const curriculumUploadResultSchema = z.object({
 });
 
 export type CurriculumUploadResult = z.infer<typeof curriculumUploadResultSchema>;
+
+// ============================================================================
+// LEGACY COMPATIBILITY TABLES - Required for existing database data
+// ============================================================================
+
+/**
+ * CURRICULUM PROGRESS - Tracks autonomous learning progress through curriculum
+ * Used by autonomous_curiosity.py for persistent topic tracking
+ */
+export const curriculumProgress = pgTable(
+  "curriculum_progress",
+  {
+    id: serial("id").primaryKey(),
+    topicTitle: text("topic_title").unique().notNull(),
+    kernelName: text("kernel_name"),
+    explorationCount: integer("exploration_count").default(1),
+    completedAt: timestamp("completed_at").defaultNow(),
+  },
+  (table) => [
+    index("idx_curriculum_progress_topic").on(table.topicTitle),
+    index("idx_curriculum_progress_kernel").on(table.kernelName),
+  ]
+);
+
+export type CurriculumProgressRow = typeof curriculumProgress.$inferSelect;
+export type InsertCurriculumProgress = typeof curriculumProgress.$inferInsert;
+
+/**
+ * GOVERNANCE AUDIT LOG - Tracks all kernel lifecycle decisions
+ * Used by pantheon_governance.py for audit trail
+ */
+export const governanceAuditLog = pgTable(
+  "governance_audit_log",
+  {
+    id: serial("id").primaryKey(),
+    timestamp: timestamp("timestamp").defaultNow(),
+    action: varchar("action", { length: 255 }).notNull(),
+    status: varchar("status", { length: 50 }).notNull(),
+    details: text("details"),
+  },
+  (table) => [
+    index("idx_governance_audit_log_timestamp").on(table.timestamp),
+    index("idx_governance_audit_log_action").on(table.action),
+  ]
+);
+
+export type GovernanceAuditLogRow = typeof governanceAuditLog.$inferSelect;
+export type InsertGovernanceAuditLog = typeof governanceAuditLog.$inferInsert;
