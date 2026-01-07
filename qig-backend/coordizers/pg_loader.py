@@ -308,7 +308,13 @@ class PostgresCoordizer(FisherCoordizer):
         pass
 
     def encode(self, text: str) -> np.ndarray:
-        """Encode text to basin coordinates using semantic embeddings."""
+        """Encode text to basin coordinates using geodesic mean (QIG-pure).
+
+        Uses iterative geodesic interpolation for weighted Fréchet mean
+        on the Fisher manifold, avoiding linear averaging.
+        """
+        from qig_geometry import geodesic_interpolation
+
         tokens = text.lower().split()
         if not tokens:
             return np.zeros(64)
@@ -330,10 +336,20 @@ class PostgresCoordizer(FisherCoordizer):
         if not coords_list:
             return compute_basin_embedding(text)
 
-        # Weighted average of basin coordinates
+        # QIG-pure: Geodesic weighted mean (iterative Fréchet mean approximation)
         weights = np.array(weights)
         weights = weights / weights.sum()  # Normalize
-        basin = np.average(coords_list, axis=0, weights=weights)
+
+        # Start with first basin
+        basin = coords_list[0].copy()
+        cumulative_weight = weights[0]
+
+        # Iteratively interpolate toward each subsequent basin
+        for i in range(1, len(coords_list)):
+            # Weight for geodesic interpolation: fraction of remaining weight
+            t = weights[i] / (cumulative_weight + weights[i])
+            basin = geodesic_interpolation(basin, coords_list[i], t)
+            cumulative_weight += weights[i]
 
         norm = np.linalg.norm(basin)
         if norm > 1e-10:

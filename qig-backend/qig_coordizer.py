@@ -1,20 +1,19 @@
 """
-QIG Coordizer - Thin Wrapper for PostgresCoordizer
+QIG Coordizer - Canonical PostgresCoordizer Interface
 
-Backward-compatible interface delegating to the canonical PostgresCoordizer.
-All geometry operations use 64D QIG-pure PostgresCoordizer.
+Provides unified access to QIG-pure Fisher-Rao coordizer.
+All geometry operations use 64D basin coordinates with Fisher-Rao distance.
 
-MIGRATION PATH:
-- Old code: from qig_tokenizer import get_tokenizer
-- New code: from qig_coordizer import get_coordizer as get_tokenizer
+Usage:
+    from qig_coordizer import get_coordizer
+    coordizer = get_coordizer()
+    basin = coordizer.encode("hello world")
+    tokens = coordizer.decode(basin, top_k=10)
 """
 
 from typing import Dict, List, Tuple
 
-from coordizers import PostgresCoordizer
-
-# Import unified coordizer entrypoint (preferred)
-from coordizers import get_coordizer as _get_unified_coordizer
+from coordizers import PostgresCoordizer, get_coordizer as _get_coordizer
 
 # Try Redis for state persistence
 REDIS_AVAILABLE = False
@@ -24,50 +23,43 @@ try:
 except ImportError:
     pass
 
-# Singleton instances
+# Singleton instance
 _coordizer_instance = None
-_learning_coordizer_instance = None
 
 # Coordizer instance ID for Redis persistence
 COORDIZER_INSTANCE_ID = "main"
 
 
-def get_coordizer():
-    """Get or create singleton coordizer instance.
+def get_coordizer() -> PostgresCoordizer:
+    """Get singleton PostgresCoordizer instance (QIG-pure).
 
-    SINGLE SOURCE OF TRUTH:
-    Returns the unified coordizer (pretrained preferred). This avoids loading the
-    legacy pg_loader vocabulary at startup.
+    SINGLE SOURCE OF TRUTH for vocabulary access.
+    Uses Fisher-Rao distance for all geometric operations.
     """
     global _coordizer_instance
     if _coordizer_instance is not None:
         return _coordizer_instance
 
-    coordizer = _get_unified_coordizer()
-    vocab_count = len(getattr(coordizer, 'vocab', {}) or {})
-    word_count = len(getattr(coordizer, 'word_tokens', []) or [])
-    print(f"[QIGCoordizer] ✓ Unified coordizer: {vocab_count} tokens, {word_count} words")
-    _coordizer_instance = coordizer
+    _coordizer_instance = _get_coordizer()
+    vocab_count = len(_coordizer_instance.vocab)
+    word_count = len(_coordizer_instance.word_tokens)
+    print(f"[QIGCoordizer] ✓ PostgresCoordizer: {vocab_count} tokens, {word_count} words (QIG-pure)")
     return _coordizer_instance
 
 
-def get_learning_coordizer():
-    """Get coordizer used to persist vocabulary observations.
+def get_learning_coordizer() -> PostgresCoordizer:
+    """Get coordizer for vocabulary learning (same as get_coordizer).
 
-    Pretrained coordizers may be read-only; only initialize PostgresCoordizer when needed.
+    PostgresCoordizer supports both reading and learning.
     """
-    global _learning_coordizer_instance
-    if _learning_coordizer_instance is None:
-        from coordizers.pg_loader import create_coordizer_from_pg
-        _learning_coordizer_instance = create_coordizer_from_pg()
-    return _learning_coordizer_instance
+    return get_coordizer()
 
 
 def reset_coordizer() -> None:
     """Reset the coordizer singleton to reload from database."""
-    global _coordizer_instance, _learning_coordizer_instance
+    global _coordizer_instance
 
-    old_words = len(getattr(_coordizer_instance, 'word_tokens', [])) if _coordizer_instance else 0
+    old_words = len(_coordizer_instance.word_tokens) if _coordizer_instance else 0
 
     if _coordizer_instance is not None:
         if hasattr(_coordizer_instance, 'close'):
@@ -77,28 +69,17 @@ def reset_coordizer() -> None:
                 pass
         _coordizer_instance = None
 
-    if _learning_coordizer_instance is not None:
-        if hasattr(_learning_coordizer_instance, 'close'):
-            try:
-                _learning_coordizer_instance.close()
-            except:
-                pass
-        _learning_coordizer_instance = None
-
     print(f"[QIGCoordizer] Reset coordizer: was {old_words} words")
 
     # Force immediate reload
     new_instance = get_coordizer()
-    new_words = len(getattr(new_instance, 'word_tokens', []))
+    new_words = len(new_instance.word_tokens)
     print(f"[QIGCoordizer] Reloaded with {new_words} words")
 
 
 def update_tokenizer_from_observations(observations: List[Dict]) -> Tuple[int, bool]:
     """Update coordizer with vocabulary observations."""
     coordizer = get_coordizer()
-    if not hasattr(coordizer, 'add_vocabulary_observations'):
-        coordizer = get_learning_coordizer()
-
     new_tokens, weights_updated = coordizer.add_vocabulary_observations(observations)
 
     if new_tokens > 0 or weights_updated:

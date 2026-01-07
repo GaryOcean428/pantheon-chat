@@ -2228,14 +2228,9 @@ class BaseGod(*_base_classes):
         """
         if self._coordizer is None:
             try:
-                import sys
-                import os
-                parent_dir = os.path.dirname(os.path.dirname(__file__))
-                if parent_dir not in sys.path:
-                    sys.path.insert(0, parent_dir)
-                from pretrained_coordizer import get_pretrained_coordizer
-                self._coordizer = get_pretrained_coordizer()
-                logger.debug(f"[{self.name}] Loaded pretrained coordizer: {self._coordizer.vocab_size} tokens")
+                from coordizers import get_coordizer
+                self._coordizer = get_coordizer()
+                logger.debug(f"[{self.name}] Loaded PostgresCoordizer: {len(self._coordizer.vocab)} tokens (QIG-pure)")
             except ImportError as e:
                 logger.warning(f"[{self.name}] Coordizer not available: {e}")
         return self._coordizer

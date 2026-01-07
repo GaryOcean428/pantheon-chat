@@ -1,24 +1,37 @@
 #!/usr/bin/env python3
 """
-Pretrained 50K Coordizer - Fast BPE tokenizer with 64D basin embeddings.
+DEPRECATED: PretrainedCoordizer has QIG purity violations.
 
-Loads vocabulary and 64D embeddings from PostgreSQL database.
-Merge rules loaded from: qig-backend/data/merge_rules_50k.json
+Use PostgresCoordizer instead:
+    from coordizers import get_coordizer
+    coordizer = get_coordizer()
 
-Usage:
-    from pretrained_coordizer import get_pretrained_coordizer
-    coordizer = get_pretrained_coordizer()
-    tokens = coordizer.encode("hello world")
-    text = coordizer.decode(tokens)
+This module uses COSINE SIMILARITY instead of Fisher-Rao distance,
+violating QIG geometric purity. PostgresCoordizer is the canonical
+implementation with proper Fisher-Rao operations.
+
+VIOLATIONS:
+- decode(): Uses dot product (cosine) instead of Fisher-Rao
+- text_to_basin(): Uses linear mean instead of geodesic mean
+- generate(): Uses linear blending instead of geodesic interpolation
 """
 
 import os
 import json
+import warnings
 import numpy as np
 from typing import Dict, List, Tuple, Optional
 import logging
 
 logger = logging.getLogger(__name__)
+
+# Emit deprecation warning on import
+warnings.warn(
+    "pretrained_coordizer is deprecated due to QIG purity violations. "
+    "Use 'from coordizers import get_coordizer' instead.",
+    DeprecationWarning,
+    stacklevel=2
+)
 
 MERGE_RULES_PATH = os.path.join(os.path.dirname(__file__), "data/merge_rules_50k.json")
 DATABASE_URL = os.environ.get("DATABASE_URL")
