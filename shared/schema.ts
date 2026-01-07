@@ -1772,7 +1772,8 @@ export type ObservationStatus = (typeof observationStatusTypes)[number];
 export const kernelGeometry = pgTable(
   "kernel_geometry",
   {
-    kernelId: varchar("kernel_id", { length: 64 }).primaryKey(),
+    id: serial("id").primaryKey(),
+    kernelId: varchar("kernel_id", { length: 64 }).unique(),
     godName: varchar("god_name", { length: 64 }).notNull(),
     domain: varchar("domain", { length: 128 }).notNull(),
     status: varchar("status", { length: 32 }).default("observing"), // observing, graduated, active, idle, breeding, dormant, dead, shadow
@@ -1811,11 +1812,10 @@ export const kernelGeometry = pgTable(
     hasAutonomic: boolean("has_autonomic").default(false),
     hasShadowAffinity: boolean("has_shadow_affinity").default(false),
     shadowGodLink: varchar("shadow_god_link", { length: 32 }), // nyx, erebus, etc.
-    // Legacy columns - preserved for backwards compatibility with existing data
-    legacyId: integer("id"),
+    // Legacy columns from original schema
     snapshotData: jsonb("snapshot_data"),
     passes: integer("passes"),
-    legacyCreatedAt: timestamp("created_at"),
+    createdAt: timestamp("created_at").defaultNow(),
   },
   (table) => [
     index("idx_kernel_geometry_domain").on(table.domain),
@@ -1871,7 +1871,8 @@ export type InsertChaosEvent = typeof chaosEvents.$inferInsert;
 export const basinDocuments = pgTable(
   "basin_documents",
   {
-    docId: serial("doc_id").primaryKey(),
+    id: serial("id").primaryKey(),
+    docId: integer("doc_id"),
     content: text("content").notNull(),
     basinCoords: vector("basin_coords", { dimensions: 64 }),
     phi: doublePrecision("phi"),
@@ -1879,8 +1880,6 @@ export const basinDocuments = pgTable(
     regime: varchar("regime", { length: 50 }),
     metadata: jsonb("metadata").default({}),
     createdAt: timestamp("created_at").defaultNow().notNull(),
-    // Legacy column - preserved for backwards compatibility with existing data
-    legacyId: integer("id"),
   },
   (table) => [
     index("idx_basin_documents_regime").on(table.regime),
@@ -2230,7 +2229,8 @@ export type InsertBasinHistory = typeof basinHistory.$inferInsert;
 export const learningEvents = pgTable(
   "learning_events",
   {
-    eventId: varchar("event_id", { length: 64 }).primaryKey(),
+    id: serial("id").primaryKey(),
+    eventId: varchar("event_id", { length: 64 }),
     eventType: varchar("event_type", { length: 64 }).notNull(),
     kernelId: varchar("kernel_id", { length: 64 }), // Kernel that generated this event
     phi: doublePrecision("phi").notNull(),
@@ -2242,8 +2242,6 @@ export const learningEvents = pgTable(
     source: varchar("source", { length: 64 }),
     instanceId: varchar("instance_id", { length: 64 }),
     createdAt: timestamp("created_at").defaultNow(),
-    // Legacy columns - preserved for backwards compatibility with existing data
-    legacyId: integer("id"),
     data: jsonb("data"),
   },
   (table) => [
