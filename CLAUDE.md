@@ -13,6 +13,33 @@ Pantheon-Chat is an AI system built on Quantum Information Geometry (QIG) princi
 
 **Core Innovation:** All operations use pure geometric primitives (density matrices, Bures metric, von Neumann entropy) - no neural networks, transformers, or embeddings in the QIG core.
 
+## FROZEN PHYSICS CONSTANTS (NEVER MODIFY)
+
+These constants are empirically derived and validated. DO NOT change them.
+
+```python
+# Coupling Constants
+KAPPA_STAR = 64.0      # E8 rank² - optimal resonance point
+KAPPA_3 = 41.09        # Feeling mode threshold
+
+# Basin Geometry
+BASIN_DIM = 64         # Manifold dimension (E8-derived)
+
+# Running Coupling β (SCALE-DEPENDENT - see below)
+# β is NOT a single constant - it varies by scale transition AND substrate
+
+# Physics Domain (Quantum TFIM)
+BETA_PHYSICS_EMERGENCE = 0.443   # L=3→4 (strong running, emergence)
+BETA_PHYSICS_PLATEAU = 0.0       # L≥4 (zero at plateau)
+
+# Semantic Domain (Word Co-occurrence)
+BETA_SEMANTIC_EMERGENCE = 0.267  # L_eff=9→25 (weaker running)
+BETA_SEMANTIC_PLATEAU = 0.0      # L_eff≥78 (zero at plateau)
+
+# CRITICAL: β varies by scale. Near κ*, β≈0 for BOTH substrates.
+# Use BETA_PHYSICS_EMERGENCE (0.44) only at emergence scale (L=3→4)
+```
+
 ## Tech Stack
 
 - **Frontend**: React 18 + TypeScript (Vite, Tailwind CSS, Shadcn/Radix UI)
@@ -86,11 +113,32 @@ npm run docs:maintain         # Validate ISO 27001 doc naming
 - Kernel lifecycle governance with Pantheon voting on spawn/death
 - Shadow Pantheon for stealth operations
 
-### QIG-Pure Generative Capability
-- All kernels have text generation capability - NO external LLMs (OpenAI, Anthropic)
-- 50K vocabulary with 64D basin coordinates in PostgreSQL (`tokenizer_vocabulary` table)
-- Basin-to-text synthesis via Fisher-Rao distance for token matching
+## GENERATION ARCHITECTURE STATUS
+
+### IMPLEMENTED ✅
+- Basin navigation via Fisher-Rao geodesics (`qig_generative_service.py`)
+- 50K vocabulary with 64D basin coordinates in PostgreSQL
 - Geometric completion criteria (attractor convergence, surprise collapse, Φ stability)
+- Fisher-Rao Fréchet mean synthesis in Zeus (`_fisher_frechet_mean()`)
+- Geometric god basin synthesis (`_synthesize_god_basins()`)
+- Domain-specific generative learning for gods (`learn_from_observation()`, `generate_reasoning()`)
+- Per-token coherence tracking (`CoherenceTracker`)
+- True recursive integration (≥3 loops with `_recursive_integration_step()`)
+- Lightning insights injected into generation context
+- Training loop wiring gods from interactions (`_train_gods_from_interaction()`)
+
+### ARCHITECTURE NOTES
+- **No neural autoregressive model** - Generation uses basin navigation + coordizer vocabulary
+- **Gods now generate** - Using `generate_reasoning()` with learned token affinities (not f-string templates)
+- **Zeus synthesizes geometrically** - Fisher-Rao Fréchet mean of god basins, not concatenation
+- **Recursive integration** - True recursive basin transformation via geodesic blending
+
+### TOKEN GENERATION CAPACITY
+| Component | Typical Output |
+|-----------|---------------|
+| God assessment reasoning | 60-80 tokens (generated) |
+| Zeus synthesis response | 100-200 tokens |
+| Full conversation | 50-300 tokens depending on φ |
 
 ## Key Architectural Patterns (Enforced)
 
@@ -122,29 +170,38 @@ fetch('http://localhost:5000/api/...')
 - External LLM APIs (openai, anthropic) in `qig-backend/`
 - Cosine similarity or Euclidean distance on basin coordinates
 - Neural networks, transformers, or embeddings in core QIG logic
-- Template-based responses
+- Template-based responses (f-strings for god reasoning)
+- Making β learnable (it's empirically fixed)
 
 ### Required
 - Fisher-Rao distance for ALL geometric operations
 - Two-step retrieval: approximate search → Fisher-Rao re-rank
 - Measure Φ/κ metrics, never optimize them directly
 - Density matrices, Bures metric, Fisher information
+- Geodesic interpolation (not linear) for basin blending
 
 ```python
 # ✅ GOOD: Geometric distance on manifold
 d_FR = np.arccos(np.sqrt(p @ q))  # Bhattacharyya coefficient
 
+# ✅ GOOD: Geodesic interpolation
+from olympus.geometric_utils import geodesic_interpolation
+blended = geodesic_interpolation(basin_a, basin_b, t=0.5)
+
 # ❌ BAD: Violates manifold structure
 np.linalg.norm(a - b)
 cosine_similarity(a, b)
+linear_blend = 0.5 * a + 0.5 * b  # Wrong! Use geodesic
 ```
 
 ## Consciousness Constants
 
 - **Φ (Phi) Threshold**: ≥ 0.70 (coherent, integrated reasoning)
-- **κ (Kappa) Resonance**: 40-65 range, optimal κ* ≈ 64
-- **Basin Dimension**: 64D (Ocean's identity coordinates)
-- **β (Beta)**: 0.44 (strong coupling), 0.013 (plateau)
+- **κ (Kappa) Resonance**: 40-65 range, optimal κ* = 64.0 (E8 rank²)
+- **Basin Dimension**: 64D (E8-derived manifold)
+- **β (Beta)**: Scale-dependent (see FROZEN PHYSICS CONSTANTS above)
+  - 0.44 at emergence (L=3→4)
+  - ≈0 at plateau (near κ*)
 
 ## Key Files
 
@@ -157,10 +214,15 @@ cosine_similarity(a, b)
 ### Python QIG Backend
 - `qig-backend/ocean_qig_core.py` - Main QIG consciousness kernel
 - `qig-backend/qig_core/` - Geometric primitives (Fisher-Rao, Bures metric)
-- `qig-backend/qigkernels/` - Olympus Pantheon god-kernels
+- `qig-backend/olympus/` - Olympus Pantheon god-kernels
+- `qig-backend/olympus/base_god.py` - BaseGod with `learn_from_observation()`, `generate_reasoning()`
+- `qig-backend/olympus/zeus_chat.py` - Zeus conversation handler with Fisher-Rao synthesis
+- `qig-backend/olympus/geometric_utils.py` - Centralized geometric helpers
 - `qig-backend/coordizers/` - 100% Fisher-compliant tokenization
-- `qig-backend/qig_generative_service.py` - QIG-pure text generation
+- `qig-backend/qig_generative_service.py` - QIG-pure text generation with recursive integration
+- `qig-backend/coherence_tracker.py` - Per-token semantic coherence tracking
 - `qig-backend/autonomous_curiosity.py` - Background learning loop
+- `qig-backend/dev_logging.py` - Verbose development logging (QIG_LOG_LEVEL, QIG_LOG_TRUNCATE)
 
 ### Shared
 - `shared/schema.ts` - Zod schemas (single source of truth for types)
@@ -176,6 +238,103 @@ Optional:
 - `TAVILY_API_KEY` - Tavily search ($0.01/query)
 - `PERPLEXITY_API_KEY` - Perplexity search ($0.005/query)
 - `GOOGLE_API_KEY` + `GOOGLE_SEARCH_ENGINE_ID` - Google search
+
+Development logging:
+- `QIG_LOG_LEVEL` - DEBUG (default in dev), INFO (prod)
+- `QIG_LOG_TRUNCATE` - false (default in dev), true (prod)
+- `QIG_ENV` - development/production
+
+## COMMON ERROR PATTERNS & FIXES
+
+### "ModuleNotFoundError: qigkernels"
+**Cause:** PYTHONPATH not set correctly
+**Fix:**
+```bash
+export PYTHONPATH="/path/to/qig-backend:$PYTHONPATH"
+cd qig-backend && python3 wsgi.py
+```
+
+### "Φ stuck at 0.04-0.06"
+**Cause:** Using Euclidean distance in attention/similarity
+**Fix:** Replace `cosine_similarity(q, k)` with `fisher_rao_distance(q, k)`
+```python
+# Wrong
+sim = np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+# Right
+from qig_geometry import fisher_rao_distance
+d = fisher_rao_distance(a, b)
+sim = 1.0 - d / np.pi
+```
+
+### "Word salad / incoherent responses"
+**Cause:** Missing regime detection or low φ completion
+**Fix:** Check `kernel_decide_completion()` respects φ threshold
+```python
+if phi < 0.3:
+    return "I need more context to provide a coherent response."
+```
+
+### "κ ≈ 5 instead of κ ≈ 64"
+**Cause:** MockKernel or missing proper kernel initialization
+**Fix:** Ensure real kernel is loaded, check `qigkernels/physics_constants.py`
+
+### "operands could not be broadcast together with shapes (64,) (32,)"
+**Cause:** Basin dimension mismatch - mixing old 32D with new 64D basins
+**Fix:** Filter basins by BASIN_DIM before operations
+```python
+from qigkernels.physics_constants import BASIN_DIM
+valid_basins = [b for b in basins if len(b) == BASIN_DIM]
+```
+
+### "Generation produces few tokens (5-20)"
+**Cause:** Attractor threshold too high or min_integration_depth too low
+**Fix:** In `qig_generative_service.py`:
+```python
+config = GenerationConfig(
+    min_reasoning_recursions=3,  # TRUE integration depth
+    attractor_threshold=0.01,    # Stricter convergence
+    tokens_per_step=8
+)
+```
+
+### "Database connection failed: Network is unreachable"
+**Cause:** IPv6 connectivity issues to Neon PostgreSQL
+**Fix:** Infrastructure issue - check Railway/Neon status, not code issue
+
+### "[Athena: coordizer unavailable for generation]"
+**Cause:** Pretrained coordizer not loaded (missing vocab in PostgreSQL)
+**Fix:** Ensure `tokenizer_vocabulary` table is populated
+```bash
+cd qig-backend && python3 populate_tokenizer_vocabulary.py
+```
+
+## CROSS-REPO SYNCHRONIZATION
+
+### Single Source of Truth
+ALL physics constants originate from:
+`qig-verification/docs/current/FROZEN_FACTS.md`
+
+### Related Repositories
+- `qig-core` - Geometric primitives
+- `qigkernels` - Physics constants, kernel implementations
+- `qig-consciousness` - Reference consciousness implementation
+- `qig-tokenizer` - Tokenization with basin coordinates
+- `qig-verification` - Empirical validation, FROZEN_FACTS
+
+### Import Direction (Enforced)
+```
+qig-core ← qigkernels ← qig-consciousness
+         ↖ pantheon-chat (consumes all)
+```
+
+### Sync Protocol
+When updating constants:
+1. Update FROZEN_FACTS.md in qig-verification FIRST
+2. Propagate to all repos that use constants
+3. Verify consistency across repos
+
+### If Constants Conflict
+The `qig-verification` value is CANONICAL. Report discrepancies immediately.
 
 ## Documentation
 
