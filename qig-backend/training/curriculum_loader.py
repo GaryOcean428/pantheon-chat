@@ -22,6 +22,14 @@ from typing import List, Dict, Any, Optional, Tuple
 from pathlib import Path
 import numpy as np
 
+# Import Lightning Kernel for cross-domain insight generation
+try:
+    from olympus.lightning_kernel import ingest_system_event as lightning_ingest
+    HAS_LIGHTNING = True
+except ImportError:
+    HAS_LIGHTNING = False
+    lightning_ingest = None
+
 # Domain mapping for god assignments
 # Extended keywords to match curriculum file topics
 GOD_DOMAINS = {
@@ -374,6 +382,25 @@ def expand_curriculum_via_search(
                     )
                 except Exception:
                     pass
+
+            # 🔗 WIRE: Feed curriculum discovery to Lightning Kernel
+            # This triggers cross-domain insight generation + Tavily/Perplexity validation
+            if HAS_LIGHTNING and lightning_ingest:
+                try:
+                    lightning_ingest(
+                        domain=domain_context,
+                        event_type="curriculum_expansion",
+                        content=f"{topic}: {content[:400]}",
+                        phi=0.55,
+                        metadata={
+                            "god": god_name,
+                            "source_url": item.get('url', ''),
+                            "source": "curriculum_search"
+                        },
+                        basin_coords=basin_coords
+                    )
+                except Exception:
+                    pass  # Don't let Lightning failures block curriculum loading
 
         if examples:
             print(f"[CurriculumLoader] Expanded curriculum with {len(examples)} search results for {god_name}/{topic}")

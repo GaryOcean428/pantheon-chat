@@ -23,6 +23,13 @@ from typing import Dict, List
 import sys
 import os
 
+import pytest
+
+# This validation suite relies on optional heavy dependencies (e.g. scikit-learn).
+# If they are unavailable in the current environment, skip the module so that
+# unrelated unit tests can still run.
+pytest.importorskip("sklearn")
+
 # Add parent directory to path
 sys.path.append(os.path.dirname(__file__))
 

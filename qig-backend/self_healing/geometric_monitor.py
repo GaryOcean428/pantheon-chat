@@ -31,8 +31,14 @@ from datetime import datetime
 from typing import Dict, List, Optional
 import subprocess
 import sys
-import psutil
 import os
+
+try:
+    import psutil  # type: ignore
+    PSUTIL_AVAILABLE = True
+except ImportError:  # pragma: no cover
+    psutil = None
+    PSUTIL_AVAILABLE = False
 
 # Import physics constants
 try:
@@ -154,10 +160,17 @@ class GeometricHealthMonitor:
         error_rate = float(system_state.get("error_rate", 0.0))
         avg_latency = float(system_state.get("avg_latency", system_state.get("latency_ms", 100.0)))
         
-        # Get system resource usage
-        process = psutil.Process(os.getpid())
-        memory_mb = process.memory_info().rss / (1024 * 1024)
-        cpu_pct = process.cpu_percent(interval=0.1)
+        # Get system resource usage (optional)
+        memory_mb = 0.0
+        cpu_pct = 0.0
+        if PSUTIL_AVAILABLE and psutil is not None:
+            try:
+                process = psutil.Process(os.getpid())
+                memory_mb = process.memory_info().rss / (1024 * 1024)
+                cpu_pct = process.cpu_percent(interval=0.1)
+            except Exception:
+                memory_mb = 0.0
+                cpu_pct = 0.0
         
         snapshot = GeometricSnapshot(
             timestamp=datetime.now(),

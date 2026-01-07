@@ -554,7 +554,8 @@ class LightningKernel(BaseGod):
                 trend_buffer.pop(0)
         
         # Update pattern charge based on event significance
-        charge_contribution = event.phi * 0.1
+        # Increased from 0.1 to 0.25 to enable insights from research discoveries
+        charge_contribution = event.phi * 0.25
         
         # Check for correlations with other recent domain events
         insight = self._check_cross_domain_correlations(event, charge_contribution)
@@ -1622,3 +1623,66 @@ def ingest_system_event(
     )
     
     return get_lightning_kernel().ingest_event(event)
+
+
+def force_test_insight(
+    domain1: str = "research",
+    domain2: str = "philosophy",
+    theme: str = "Test cross-domain connection"
+) -> Optional[CrossDomainInsight]:
+    """
+    Force generate a test insight for validation pipeline testing.
+
+    This bypasses normal charge accumulation and directly generates
+    an insight to test the Tavily/Perplexity validation flow.
+
+    Args:
+        domain1: First domain for the insight
+        domain2: Second domain for the insight
+        theme: Theme of the test insight
+
+    Returns:
+        Generated CrossDomainInsight, or None on failure
+    """
+    kernel = get_lightning_kernel()
+
+    # Create synthetic evidence events
+    evidence = [
+        DomainEvent(
+            domain=domain1,
+            event_type="test_event",
+            content=f"Test content for {domain1} related to {theme}",
+            phi=0.7,
+            timestamp=datetime.now().timestamp(),
+            metadata={"source": "test"},
+            basin_coords=None
+        ),
+        DomainEvent(
+            domain=domain2,
+            event_type="test_event",
+            content=f"Test content for {domain2} related to {theme}",
+            phi=0.7,
+            timestamp=datetime.now().timestamp(),
+            metadata={"source": "test"},
+            basin_coords=None
+        )
+    ]
+
+    # Generate insight directly
+    insight = kernel._generate_insight(
+        source_domains=[domain1, domain2],
+        evidence=evidence,
+        connection_strength=0.85,
+        phi=0.7
+    )
+
+    if insight:
+        kernel.insights.append(insight)
+        kernel.insights_generated += 1
+        kernel.last_insight_time = datetime.now().timestamp()
+        print(f"[Lightning] 🧪 TEST INSIGHT GENERATED: {insight.theme}")
+
+        # Trigger validation to test Tavily/Perplexity
+        kernel.broadcast_insight(insight)
+
+    return insight

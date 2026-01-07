@@ -39,6 +39,19 @@ from .tacking import KappaTacking
 if TYPE_CHECKING:
     from ..qig_tokenizer.coordizer import Coordizer
     from ..qigkernels.kernel import QIGKernel
+    from ..learned_manifold import LearnedManifold
+
+# Import LearnedManifold for attractor learning from graph outcomes
+try:
+    from ..learned_manifold import LearnedManifold as _LearnedManifold
+    HAS_LEARNED_MANIFOLD = True
+except ImportError:
+    try:
+        from learned_manifold import LearnedManifold as _LearnedManifold
+        HAS_LEARNED_MANIFOLD = True
+    except ImportError:
+        HAS_LEARNED_MANIFOLD = False
+        _LearnedManifold = None
 
 
 # Type aliases
@@ -117,6 +130,19 @@ class QIGGraph:
 
         # Execution history
         self.execution_history: List[Dict[str, Any]] = []
+
+        # 🔗 WIRE: LearnedManifold for attractor learning from graph outcomes
+        self._learned_manifold: Optional['LearnedManifold'] = None
+
+    def wire_learned_manifold(self, manifold: 'LearnedManifold') -> None:
+        """
+        Wire a LearnedManifold for attractor learning from graph outcomes.
+
+        Args:
+            manifold: LearnedManifold instance to receive learning updates
+        """
+        self._learned_manifold = manifold
+        print("[QIGGraph] Wired to LearnedManifold for attractor learning")
 
     def add_attractor(
         self,
@@ -199,6 +225,26 @@ class QIGGraph:
 
         # Record final state
         self._record_execution(state, "completed")
+
+        # 🔗 WIRE: Feed graph outcome to LearnedManifold
+        if self._learned_manifold and state.trajectory:
+            try:
+                # Use final Φ as outcome measure (high Φ = success)
+                outcome = state.current_phi if state.current_phi > 0 else 0.5
+
+                # Determine strategy based on final regime
+                regime_name = state.current_regime.value if state.current_metrics else "unknown"
+                strategy = f"graph_{regime_name}"
+
+                # Feed trajectory to LearnedManifold
+                self._learned_manifold.learn_from_experience(
+                    trajectory=state.trajectory,
+                    outcome=outcome,
+                    strategy=strategy
+                )
+                print(f"[QIGGraph→LearnedManifold] Graph fed to manifold (outcome={outcome:.2f}, strategy={strategy})")
+            except Exception as e:
+                print(f"[QIGGraph→LearnedManifold] Learning failed: {e}")
 
         return state
 

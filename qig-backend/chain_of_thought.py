@@ -16,6 +16,14 @@ import json
 
 from qig_geometry import fisher_rao_distance, estimate_manifold_curvature
 
+# Import LearnedManifold for attractor learning from chain outcomes
+try:
+    from learned_manifold import LearnedManifold
+    HAS_LEARNED_MANIFOLD = True
+except ImportError:
+    HAS_LEARNED_MANIFOLD = False
+    LearnedManifold = None
+
 
 @dataclass
 class ThoughtStep:
@@ -410,14 +418,19 @@ class ChainOfThoughtManager:
     Manage multiple chain-of-thought sessions.
 
     Now includes prediction outcome tracking for chain-to-attractor feedback loop.
+
+    WIRE: Completed chains feed into LearnedManifold for attractor learning.
     """
 
-    def __init__(self, basin_dim: int = 64):
+    def __init__(self, basin_dim: int = 64, learned_manifold: Optional['LearnedManifold'] = None):
         self.basin_dim = basin_dim
         self.active_chains: Dict[str, GeometricChainOfThought] = {}
         self.completed_chains: List[GeometricChainOfThought] = []
         # Map prediction_id -> chain_id for outcome tracking
         self._prediction_to_chain: Dict[str, str] = {}
+
+        # 🔗 WIRE: LearnedManifold for attractor learning from chain outcomes
+        self._learned_manifold = learned_manifold
 
     def create_chain(self, session_id: str) -> GeometricChainOfThought:
         """Create a new chain for a session."""
@@ -490,11 +503,48 @@ class ChainOfThoughtManager:
         chain = self.active_chains.get(chain_id) or self._get_completed_chain(chain_id)
         return [chain] if chain else []
 
+    def wire_learned_manifold(self, manifold: 'LearnedManifold') -> None:
+        """
+        Wire a LearnedManifold for attractor learning from chain outcomes.
+
+        Args:
+            manifold: LearnedManifold instance to receive learning updates
+        """
+        self._learned_manifold = manifold
+        print("[ChainManager] Wired to LearnedManifold for attractor learning")
+
     def complete_chain(self, session_id: str):
-        """Mark chain as complete and archive."""
+        """
+        Mark chain as complete and archive.
+
+        🔗 WIRE: Feeds learning outcomes to LearnedManifold for attractor carving.
+        """
         if session_id in self.active_chains:
             chain = self.active_chains.pop(session_id)
             self.completed_chains.append(chain)
+
+            # 🔗 WIRE: Feed chain outcome to LearnedManifold
+            if self._learned_manifold and chain.thought_chain:
+                try:
+                    # Extract basin trajectory from chain
+                    trajectory = [step.basin for step in chain.thought_chain]
+
+                    # Use overall_accuracy as outcome (default 0.5 if not set)
+                    outcome = chain.overall_accuracy if chain.overall_accuracy > 0 else 0.5
+
+                    # Detect reasoning type for strategy
+                    pattern = chain.detect_pattern()
+                    strategy = f"chain_{pattern.get('reasoning_type', 'unknown')}"
+
+                    # Feed to LearnedManifold
+                    self._learned_manifold.learn_from_experience(
+                        trajectory=trajectory,
+                        outcome=outcome,
+                        strategy=strategy
+                    )
+                    print(f"[ChainManager→LearnedManifold] Chain '{session_id}' fed to manifold (outcome={outcome:.2f}, strategy={strategy})")
+                except Exception as e:
+                    print(f"[ChainManager→LearnedManifold] Learning failed: {e}")
 
             if len(self.completed_chains) > 100:
                 self.completed_chains = self.completed_chains[-100:]

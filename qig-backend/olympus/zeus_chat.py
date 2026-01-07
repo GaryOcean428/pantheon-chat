@@ -135,7 +135,22 @@ try:
     _pretrained_coordizer = _get_coordizer()
     get_tokenizer = lambda: _pretrained_coordizer
     TOKENIZER_AVAILABLE = True
-    print(f"[ZeusChat] Unified coordizer available - {_pretrained_coordizer.vocab_size} tokens, {_pretrained_coordizer.basin_dim}D basins")
+    _vocab_size = None
+    if hasattr(_pretrained_coordizer, "get_vocab_size"):
+        try:
+            _vocab_size = _pretrained_coordizer.get_vocab_size()
+        except Exception:
+            _vocab_size = None
+    if _vocab_size is None:
+        _vocab = getattr(_pretrained_coordizer, "vocab", None)
+        if isinstance(_vocab, dict):
+            _vocab_size = len(_vocab)
+
+    _basin_dim = getattr(_pretrained_coordizer, "basin_dim", None)
+    if _basin_dim is None:
+        _basin_dim = getattr(_pretrained_coordizer, "coordinate_dim", None)
+
+    print(f"[ZeusChat] Unified coordizer available - {_vocab_size} tokens, {_basin_dim}D basins")
 except ImportError as e:
     # Fallback to old coordizer if pretrained not available
     try:

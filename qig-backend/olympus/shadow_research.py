@@ -72,6 +72,15 @@ except ImportError:
     HAS_CURRICULUM_TRAINING = False
     print("[ShadowResearch] Curriculum training module not available")
 
+# Import Lightning Kernel for cross-domain insight generation
+try:
+    from .lightning_kernel import ingest_system_event as lightning_ingest
+    HAS_LIGHTNING = True
+except ImportError:
+    HAS_LIGHTNING = False
+    lightning_ingest = None
+    print("[ShadowResearch] Lightning kernel not available - insight generation disabled")
+
 # Topic normalization patterns (shared between ResearchQueue and KnowledgeBase)
 _SEMANTIC_PREFIXES = [
     'historical', 'comparative', 'advanced', 'practical',
@@ -1390,7 +1399,30 @@ class ShadowLearningLoop:
                     print(f"[VocabularyLearning] Explicit training metrics: {vocab_metrics}")
             except Exception as e:
                 print(f"[VocabularyLearning] Explicit training failed: {e}")
-        
+
+        # 🔗 WIRE: Feed discovery to Lightning Kernel for cross-domain insight generation
+        # This triggers Tavily/Perplexity validation when correlations are detected
+        lightning_insight = None
+        if HAS_LIGHTNING and lightning_ingest:
+            try:
+                lightning_insight = lightning_ingest(
+                    domain=category.value,
+                    event_type="research_discovery",
+                    content=f"{base_topic}: {content.get('summary', '')[:500]}",
+                    phi=phi,
+                    metadata={
+                        "god": assigned_god,
+                        "knowledge_id": knowledge_id,
+                        "confidence": confidence,
+                        "source": "shadow_research"
+                    },
+                    basin_coords=basin_coords
+                )
+                if lightning_insight:
+                    print(f"[ShadowResearch→Lightning] Cross-domain insight generated: {lightning_insight.theme[:50]}...")
+            except Exception as e:
+                print(f"[ShadowResearch→Lightning] Insight generation failed: {e}")
+
         return {
             "knowledge_id": knowledge_id,
             "topic": topic,
@@ -1401,7 +1433,8 @@ class ShadowLearningLoop:
             "confidence": confidence,
             "content_summary": content.get("summary", ""),
             "timestamp": datetime.now().isoformat(),
-            "vocab_metrics": vocab_metrics
+            "vocab_metrics": vocab_metrics,
+            "lightning_insight": lightning_insight.theme if lightning_insight else None
         }
     
     def _research_topic(self, topic: str, category: ResearchCategory, god: str) -> Dict:
@@ -1531,9 +1564,29 @@ class ShadowLearningLoop:
             confidence=confidence,
             variation=f"scrapy:{insight.spider_type}"
         )
-        
+
         if insight.pattern_hits:
             print(f"[ShadowLearningLoop] Scrapy found {len(insight.pattern_hits)} patterns: {insight.pattern_hits}")
+
+        # 🔗 WIRE: Feed scrapy discovery to Lightning Kernel
+        if HAS_LIGHTNING and lightning_ingest:
+            try:
+                category = ResearchCategory.RESEARCH if insight.pattern_hits else ResearchCategory.KNOWLEDGE
+                lightning_ingest(
+                    domain=category.value,
+                    event_type="scrapy_discovery",
+                    content=f"{topic}: {insight.raw_content[:400]}",
+                    phi=phi,
+                    metadata={
+                        "source_url": insight.source_url,
+                        "spider_type": insight.spider_type,
+                        "pattern_hits": insight.pattern_hits,
+                        "knowledge_id": knowledge_id
+                    },
+                    basin_coords=basin_coords
+                )
+            except Exception as e:
+                print(f"[Scrapy→Lightning] Insight generation failed: {e}")
     
     def _on_vocabulary_insight(self, knowledge: Dict[str, Any]) -> None:
         """

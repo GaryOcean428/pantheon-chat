@@ -1398,6 +1398,37 @@ export const geodesicPaths = pgTable(
 export type GeodesicPathRecord = typeof geodesicPaths.$inferSelect;
 
 /**
+ * LEARNED MANIFOLD ATTRACTORS - Attractor basins carved by learning
+ *
+ * These are the learned patterns from LearnedManifold:
+ * - Deep basins = strong attractors from repeated success (Hebbian)
+ * - Shallow basins from recent learning
+ * - Pruned basins had weak depth (anti-Hebbian)
+ *
+ * Wired to: learned_manifold.py persistence methods
+ */
+export const learnedManifoldAttractors = pgTable(
+  "learned_manifold_attractors",
+  {
+    id: varchar("id", { length: 128 }).primaryKey(), // Basin ID from _basin_to_id()
+    center: vector("center", { dimensions: 64 }).notNull(), // 64D basin coordinates
+    depth: doublePrecision("depth").notNull(), // Hebbian strength (deeper = stronger)
+    successCount: integer("success_count").notNull().default(0),
+    strategy: varchar("strategy", { length: 64 }).notNull(), // Navigation mode that created this
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    lastAccessed: timestamp("last_accessed").defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_learned_manifold_attractors_depth").on(table.depth),
+    index("idx_learned_manifold_attractors_strategy").on(table.strategy),
+    index("idx_learned_manifold_attractors_last_accessed").on(table.lastAccessed),
+  ]
+);
+
+export type LearnedManifoldAttractor = typeof learnedManifoldAttractors.$inferSelect;
+export type InsertLearnedManifoldAttractor = typeof learnedManifoldAttractors.$inferInsert;
+
+/**
  * TPS LANDMARKS - Fixed spacetime reference points for 68D navigation
  * These are Bitcoin historical events used for trilateration
  */
