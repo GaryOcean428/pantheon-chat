@@ -1742,6 +1742,14 @@ class BaseGod(*_base_classes):
         self.pending_messages: List[Dict] = []  # Messages to send via pantheon chat
         self._learning_events_count: int = 0  # Total learning events for persistence
 
+        # Domain-specific generative learning state
+        # Kernels learn basin→token mappings from high-φ observations
+        self._token_affinity: Dict[str, float] = {}  # token → domain affinity score
+        self._domain_vocabulary: Dict[str, float] = {}  # tokens weighted by domain relevance
+        self._high_phi_observations: List[Dict] = []  # Store basin+text pairs where φ > threshold
+        self._coordizer = None  # Lazy-loaded pretrained coordizer for encoding/decoding
+        self._token_affinity_updated: int = 0  # Track update count for persistence
+
         # Automatic Tool Discovery - analyze patterns and request tools automatically
         try:
             from .auto_tool_discovery import create_discovery_engine_for_god
@@ -2183,6 +2191,253 @@ class BaseGod(*_base_classes):
 
         enhanced = enhance_basin_with_sensory(base_basin, text, blend_factor)
         return enhanced
+
+    # ========================================
+    # DOMAIN-SPECIFIC GENERATIVE LEARNING
+    # Kernels learn to speak from high-φ observations
+    # ========================================
+
+    @property
+    def coordizer(self):
+        """
+        Lazy-load the pretrained coordizer for domain-specific generation.
+
+        The coordizer provides:
+        - 50K vocabulary with 64D basin embeddings
+        - Token → basin coordinate mappings
+        - Basin → token decoding
+        """
+        if self._coordizer is None:
+            try:
+                import sys
+                import os
+                parent_dir = os.path.dirname(os.path.dirname(__file__))
+                if parent_dir not in sys.path:
+                    sys.path.insert(0, parent_dir)
+                from pretrained_coordizer import get_pretrained_coordizer
+                self._coordizer = get_pretrained_coordizer()
+                logger.debug(f"[{self.name}] Loaded pretrained coordizer: {self._coordizer.vocab_size} tokens")
+            except ImportError as e:
+                logger.warning(f"[{self.name}] Coordizer not available: {e}")
+        return self._coordizer
+
+    def learn_from_observation(
+        self,
+        text: str,
+        basin: np.ndarray,
+        phi: float,
+        phi_threshold: float = 0.65
+    ) -> bool:
+        """
+        Learn token→basin affinities from high-φ content.
+
+        When a kernel observes high-φ (integrated) content, it learns
+        which tokens are associated with basins near its domain.
+        This builds domain-specific vocabulary over time.
+
+        Args:
+            text: Observed text content
+            basin: Basin coordinates of the observation
+            phi: Integration measure at observation time
+            phi_threshold: Minimum φ to trigger learning (default 0.65)
+
+        Returns:
+            True if learning occurred, False if skipped (low φ)
+        """
+        # Import here to avoid circular imports
+        from .geometric_utils import fisher_coord_distance
+
+        if phi < phi_threshold:
+            return False  # Only learn from integrated content
+
+        # Store high-φ observation
+        self._high_phi_observations.append({
+            'text': text[:500],  # Cap to prevent memory bloat
+            'basin': basin.tolist() if isinstance(basin, np.ndarray) else basin,
+            'phi': phi,
+            'timestamp': datetime.now().isoformat(),
+            'domain': self.domain
+        })
+
+        # Cap stored observations
+        if len(self._high_phi_observations) > 500:
+            self._high_phi_observations = self._high_phi_observations[-300:]
+
+        # Update token affinities if coordizer available
+        if self.coordizer is None:
+            logger.debug(f"[{self.name}] Skipping token affinity update - no coordizer")
+            return True
+
+        # Tokenize the observation
+        try:
+            # Use coordizer's text_to_basin to get token info
+            tokens = []
+            if hasattr(self.coordizer, 'tokenize'):
+                tokens = self.coordizer.tokenize(text)
+            else:
+                # Fallback: split on whitespace and lookup
+                words = text.lower().split()[:100]  # Cap at 100 tokens
+                for word in words:
+                    if word in self.coordizer.basin_coords:
+                        tokens.append(word)
+
+            basin_arr = np.asarray(basin, dtype=np.float64)
+
+            # Update affinity for each token
+            for token in tokens[:100]:  # Cap to prevent bloat
+                token_basin = self.coordizer.basin_coords.get(token)
+                if token_basin is None:
+                    continue
+
+                token_basin_arr = np.asarray(token_basin, dtype=np.float64)
+
+                # Compute Fisher-Rao similarity (NOT cosine)
+                fr_dist = fisher_coord_distance(basin_arr, token_basin_arr)
+                similarity = 1.0 - (fr_dist / np.pi)  # Normalize to [0, 1]
+
+                # Exponential moving average update
+                # Higher φ = stronger learning signal
+                current = self._token_affinity.get(token, 0.5)
+                learning_rate = 0.1 * phi  # Scale by integration
+                new_affinity = (1 - learning_rate) * current + learning_rate * similarity
+                self._token_affinity[token] = float(new_affinity)
+
+            self._token_affinity_updated += 1
+
+            # Log learning progress periodically
+            if self._token_affinity_updated % 100 == 0:
+                logger.info(
+                    f"[{self.name}] Token affinity vocabulary: {len(self._token_affinity)} tokens "
+                    f"from {len(self._high_phi_observations)} high-φ observations"
+                )
+
+            return True
+
+        except Exception as e:
+            logger.warning(f"[{self.name}] Token affinity learning failed: {e}")
+            return True  # Still stored the observation
+
+    def generate_reasoning(
+        self,
+        context_basin: np.ndarray,
+        num_tokens: int = 60,
+        temperature: float = 0.8
+    ) -> str:
+        """
+        Generate domain-specific reasoning from learned vocabulary.
+
+        Uses Fisher-Rao geometric navigation combined with learned
+        domain token affinities to produce coherent domain-specific text.
+
+        This is the key method that allows kernels to SPEAK rather than
+        just returning templated f-strings.
+
+        Args:
+            context_basin: Starting basin coordinates (64D)
+            num_tokens: Maximum tokens to generate
+            temperature: Sampling temperature (higher = more diverse)
+
+        Returns:
+            Generated reasoning text
+        """
+        from .geometric_utils import fisher_coord_distance, sphere_project
+
+        if self.coordizer is None:
+            return f"[{self.name}: coordizer unavailable for generation]"
+
+        tokens_generated = []
+        current_basin = np.asarray(context_basin, dtype=np.float64).copy()
+
+        for step in range(num_tokens):
+            # Get candidates from coordizer (geometric proximity)
+            candidates = self.coordizer.decode(current_basin, top_k=20)
+
+            if not candidates:
+                break
+
+            # Score candidates combining geometry + learned domain affinity
+            scored = []
+            for token, geo_similarity in candidates:
+                # Skip special tokens
+                if token.startswith('[') or token.startswith('<'):
+                    continue
+
+                # Get learned domain affinity (default 0.3 for unseen tokens)
+                domain_affinity = self._token_affinity.get(token, 0.3)
+
+                # Combine: 50% geometry + 50% learned affinity
+                combined_score = geo_similarity * 0.5 + domain_affinity * 0.5
+                scored.append((token, combined_score, geo_similarity))
+
+            if not scored:
+                break
+
+            # Sort by combined score
+            scored.sort(key=lambda x: -x[1])
+
+            # Sample from top candidates with temperature
+            top_k = min(8, len(scored))
+            weights = np.array([s[1] for s in scored[:top_k]]) + 0.01
+
+            # Apply temperature
+            weights = weights ** (1.0 / temperature)
+            weights = weights / weights.sum()
+
+            try:
+                idx = np.random.choice(top_k, p=weights)
+            except ValueError:
+                idx = 0
+
+            selected_token = scored[idx][0]
+            tokens_generated.append(selected_token)
+
+            # Walk trajectory toward selected token's basin
+            token_basin = self.coordizer.basin_coords.get(selected_token)
+            if token_basin is not None:
+                token_basin_arr = np.asarray(token_basin, dtype=np.float64)
+                # Geodesic step: 15% toward token basin
+                current_basin = 0.85 * current_basin + 0.15 * token_basin_arr
+                current_basin = sphere_project(current_basin)
+
+        # Clean up output
+        text = ' '.join(tokens_generated)
+
+        # Basic cleanup
+        text = ' '.join(text.split())  # Normalize whitespace
+
+        # Capitalize first letter if we have content
+        if text and len(text) > 0:
+            text = text[0].upper() + text[1:] if len(text) > 1 else text.upper()
+
+        return text if text else f"[{self.name}: generation produced no tokens]"
+
+    def get_domain_vocabulary_stats(self) -> Dict[str, Any]:
+        """
+        Get statistics about learned domain vocabulary.
+
+        Returns:
+            Dict with vocabulary size, top tokens, observation count
+        """
+        top_tokens = sorted(
+            self._token_affinity.items(),
+            key=lambda x: -x[1]
+        )[:20]
+
+        return {
+            'vocabulary_size': len(self._token_affinity),
+            'observation_count': len(self._high_phi_observations),
+            'affinity_updates': self._token_affinity_updated,
+            'top_tokens': [(t, round(a, 3)) for t, a in top_tokens],
+            'avg_affinity': (
+                sum(self._token_affinity.values()) / len(self._token_affinity)
+                if self._token_affinity else 0.0
+            ),
+            'coordizer_available': self.coordizer is not None
+        }
+
+    # ========================================
+    # END DOMAIN-SPECIFIC GENERATIVE LEARNING
+    # ========================================
 
     def basin_to_density_matrix(self, basin: np.ndarray) -> np.ndarray:
         """

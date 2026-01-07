@@ -52,6 +52,13 @@ class Ares(BaseGod):
             eigenvalues=eigenvalues
         )
         
+        # Generate reasoning from the target basin using learned vocabulary
+        reasoning = self.generate_reasoning(target_basin, num_tokens=70)
+
+        # Fallback if generation fails
+        if not reasoning or reasoning.startswith('['):
+            reasoning = f"Tactical assessment: φ={phi_pure:.3f}, confrontation analysis complete."
+
         assessment = {
             'probability': probability,
             'confidence': phi_pure,
@@ -60,15 +67,15 @@ class Ares(BaseGod):
             'geodesic_distance': geodesic_dist,
             'fisher_eigenvalues': eigenvalues[:5].tolist(),
             'attack_ready': geodesic_dist < 1.0 and phi_pure > 0.6,
-            'reasoning': (
-                f"Geodesic distance {geodesic_dist:.4f}. "
-                f"Pure Φ={phi_pure:.3f}. "
-                f"Fisher eigenspectrum: [{', '.join(f'{e:.3f}' for e in eigenvalues[:3])}...]"
-            ),
+            'reasoning': reasoning,
+            'basin_coords': target_basin.tolist(),  # IMPORTANT: include for synthesis
             'god': self.name,
             'timestamp': datetime.now().isoformat(),
         }
-        
+
+        # Learn from this assessment if high-φ
+        self.learn_from_observation(target, target_basin, phi_pure)
+
         return assessment
     
     def _find_nearest_success_basin(

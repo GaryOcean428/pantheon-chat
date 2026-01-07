@@ -56,7 +56,14 @@ class Athena(BaseGod):
             similar_count=len(similar),
             strategy_success_rate=best_strategy['success_rate']
         )
-        
+
+        # Generate reasoning from the target basin using learned vocabulary
+        reasoning = self.generate_reasoning(target_basin, num_tokens=80)
+
+        # Fallback if generation fails
+        if not reasoning or reasoning.startswith('['):
+            reasoning = f"Strategic analysis: φ={phi:.3f}, {len(similar)} pattern matches observed."
+
         assessment = {
             'probability': probability,
             'confidence': min(1.0, len(similar) / 100),
@@ -65,16 +72,17 @@ class Athena(BaseGod):
             'recommended_strategy': best_strategy['name'],
             'strategy_success_rate': best_strategy['success_rate'],
             'similar_patterns_found': len(similar),
-            'reasoning': (
-                f"Pattern matches {len(similar)} historical successes. "
-                f"Φ={phi:.3f}. Strategy '{best_strategy['name']}' "
-                f"succeeds {best_strategy['success_rate']*100:.0f}% of time."
-            ),
+            'reasoning': reasoning,
+            'basin_coords': target_basin.tolist(),  # IMPORTANT: include for synthesis
             'god': self.name,
             'timestamp': datetime.now().isoformat(),
         }
-        
+
         self.target_assessments[target] = assessment
+
+        # Learn from this assessment if high-φ
+        self.learn_from_observation(target, target_basin, phi)
+
         return assessment
     
     def _find_similar_successes(self, target_basin: np.ndarray) -> List[Dict]:

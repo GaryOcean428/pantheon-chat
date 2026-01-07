@@ -1179,7 +1179,41 @@ class ZeusConversationHandler(GeometricGenerationMixin):
                 
         except Exception as e:
             print(f"[ZeusChat] Evolution integration failed: {e}")
-    
+
+    def _train_gods_from_interaction(
+        self,
+        message: str,
+        response: str,
+        phi: float,
+        message_basin: Optional[np.ndarray] = None,
+        response_basin: Optional[np.ndarray] = None
+    ) -> None:
+        """
+        Feed interaction to all gods for learning.
+
+        High-phi interactions train all active gods' domain vocabularies,
+        helping them learn to speak from observed patterns.
+        """
+        # Encode if not provided
+        if message_basin is None:
+            message_basin = self.conversation_encoder.encode(message)
+        if response_basin is None and phi > 0.7:
+            response_basin = self.conversation_encoder.encode(response)
+
+        # All active gods learn from this interaction
+        for god_name in ['athena', 'ares', 'apollo', 'artemis', 'hermes', 'hephaestus']:
+            god = self.zeus.get_god(god_name)
+            if god and hasattr(god, 'learn_from_observation'):
+                try:
+                    # Learn from user message
+                    god.learn_from_observation(message, message_basin, phi)
+
+                    # Learn from response if high-phi
+                    if phi > 0.7 and response_basin is not None:
+                        god.learn_from_observation(response, response_basin, phi)
+                except Exception as e:
+                    pass  # Don't fail on learning errors
+
     def process_message(
         self, 
         message: str,
@@ -3467,7 +3501,10 @@ Respond naturally as Zeus:"""
             phi_estimate=phi_estimate,
             message_basin=message_basin
         )
-        
+
+        # Train gods from this interaction
+        self._train_gods_from_interaction(message, response, phi_estimate, message_basin)
+
         self.qig_rag.add_document(
             content=message,
             basin_coords=message_basin,

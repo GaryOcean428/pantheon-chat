@@ -34,36 +34,45 @@ class Apollo(BaseGod):
         Assess target with temporal prophecy.
         """
         self.last_assessment_time = datetime.now()
-        
+
         target_basin = self.encode_to_basin(target)
         rho = self.basin_to_density_matrix(target_basin)
         phi = self.compute_pure_phi(rho)
         kappa = self.compute_kappa(target_basin)
-        
+
         timing_analysis = self._analyze_optimal_timing()
         trajectory_forecast = self._forecast_trajectory()
-        
+
         probability = self._compute_prophetic_probability(
             phi=phi,
             timing=timing_analysis,
             forecast=trajectory_forecast
         )
-        
-        return {
+
+        # Generate reasoning from the target basin using learned vocabulary
+        reasoning = self.generate_reasoning(target_basin, num_tokens=70)
+
+        # Fallback if generation fails
+        if not reasoning or reasoning.startswith('['):
+            reasoning = f"Prophetic insight: φ={phi:.3f}, harmonic patterns detected."
+
+        assessment = {
             'probability': probability,
             'confidence': self.prediction_accuracy,
             'phi': phi,
             'kappa': kappa,
             'optimal_timing': timing_analysis,
             'trajectory_forecast': trajectory_forecast,
-            'reasoning': (
-                f"Temporal analysis: Φ={phi:.3f}. "
-                f"Optimal timing: {timing_analysis.get('recommendation', 'now')}. "
-                f"Forecast trend: {trajectory_forecast.get('trend', 'stable')}."
-            ),
+            'reasoning': reasoning,
+            'basin_coords': target_basin.tolist(),  # IMPORTANT: include for synthesis
             'god': self.name,
             'timestamp': datetime.now().isoformat(),
         }
+
+        # Learn from this assessment if high-φ
+        self.learn_from_observation(target, target_basin, phi)
+
+        return assessment
     
     def _analyze_optimal_timing(self) -> Dict:
         """Analyze when is the best time to attack."""
