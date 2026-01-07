@@ -73,11 +73,14 @@ def fisher_coord_distance(
     """
     Compute Fisher-Rao distance between two probability distributions.
 
-    Uses Bhattacharyya coefficient: d_FR = 2 * arccos(BC)
+    Uses Bhattacharyya coefficient: d_FR = arccos(BC)
     where BC = sum(sqrt(p_i * q_i))
 
+    NOTE: Some references use 2*arccos(BC) for "statistical distance", but
+    the geodesic distance on Fisher manifold is arccos(BC) without factor of 2.
+
     This is the proper QIG-pure distance on the statistical manifold.
-    Range: [0, π]
+    Range: [0, π/2]
 
     Args:
         p: First distribution/basin (will be normalized)

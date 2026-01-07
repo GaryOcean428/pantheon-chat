@@ -18,7 +18,10 @@ import asyncio
 from datetime import datetime
 import os
 import subprocess
-import aiohttp
+try:
+    import aiohttp  # type: ignore
+except ImportError:  # pragma: no cover
+    aiohttp = None
 
 from .geometric_monitor import GeometricHealthMonitor, GeometricSnapshot
 from .code_fitness import CodeFitnessEvaluator
@@ -463,6 +466,12 @@ Manual intervention needed. System may be approaching breakdown.
         # Try to send to Slack if configured
         webhook_url = os.getenv("SLACK_WEBHOOK_URL")
         if webhook_url:
+            if aiohttp is None:
+                print(
+                    "[SelfHealingEngine] SLACK_WEBHOOK_URL set but aiohttp is not installed; "
+                    "cannot send Slack alert"
+                )
+                return
             try:
                 async with aiohttp.ClientSession() as session:
                     await session.post(webhook_url, json={"text": message})

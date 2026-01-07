@@ -60,10 +60,10 @@ except ImportError:
     def fisher_rao_distance(p: np.ndarray, q: np.ndarray) -> float:
         """
         Fallback Fisher-Rao distance using Bhattacharyya coefficient.
-        
-        Formula: d_FR(p, q) = 2 * arccos(Σ√(p_i * q_i))
-        
-        This is the GEODESIC distance on the information manifold.
+
+        Formula: d_FR(p, q) = arccos(Σ√(p_i * q_i))
+
+        NOTE: No factor of 2 - this is the geodesic distance on Fisher manifold.
         NOT angular/Euclidean distance (arccos of dot product).
         """
         # Ensure valid probability distributions

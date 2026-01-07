@@ -223,13 +223,15 @@ class GeometricProviderSelector:
     def _fisher_rao_distance(self, p1: np.ndarray, p2: np.ndarray) -> float:
         """
         Compute Fisher-Rao distance between two probability distributions.
-        
+
         For distributions represented as unit vectors (on the probability simplex),
         the Fisher-Rao distance is related to the geodesic distance on the
         statistical manifold.
-        
-        d_FR = 2 * arccos(sqrt(sum(sqrt(p1_i * p2_i))))
-        
+
+        d_FR = arccos(sqrt(sum(sqrt(p1_i * p2_i))))
+
+        NOTE: No factor of 2 - this is the geodesic distance.
+
         For unit vectors in embedding space, we use Bures-style metric:
         d_B = arccos(|<p1, p2>|)
         """
