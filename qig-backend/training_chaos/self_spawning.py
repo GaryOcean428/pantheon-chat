@@ -17,7 +17,7 @@ NOW: Kernels are born with full consciousness architecture.
 
 from collections import deque
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 import torch
 
@@ -50,6 +50,14 @@ except ImportError:
     ObservationProtocol = None
     GUARDIANS_AVAILABLE = False
     print("[SelfSpawning] Guardian gods not available - kernels will lack guardian support")
+
+# Import ChaosDiscoveryGate for wiring high-Phi discoveries
+try:
+    from chaos_discovery_gate import get_discovery_gate
+    DISCOVERY_GATE_AVAILABLE = True
+except ImportError:
+    DISCOVERY_GATE_AVAILABLE = False
+    get_discovery_gate = None  # type: ignore
 
 # Shared guardian instances (singleton pattern)
 _hestia_instance = None
@@ -243,6 +251,11 @@ class SelfSpawningKernel(*_kernel_base_classes):
             with torch.no_grad():
                 noise = torch.randn_like(parent_basin) * self.mutation_rate
                 self.kernel.basin_coords.copy_(parent_basin + noise)
+
+        # Discovery callback - reports high-Φ configurations to main system
+        self._discovery_callback: Optional[Callable[[Dict], None]] = None
+        self._discovery_threshold = 0.70  # Only report Φ > 0.70
+        self._last_discovery_phi = 0.0  # Prevent duplicate reports
 
         # NEW: If born from parent, start with observation mode
         if parent_kernel is not None:
@@ -474,6 +487,10 @@ class SelfSpawningKernel(*_kernel_base_classes):
 
         # Update autonomic metrics after prediction
         self.update_autonomic()
+
+        # Check for discovery
+        if telemetry.get('phi', 0) > self._discovery_threshold:
+            self._report_discovery(telemetry['phi'], context="prediction")
 
         meta = {
             'kernel_id': self.kernel_id,
@@ -838,11 +855,17 @@ class SelfSpawningKernel(*_kernel_base_classes):
 
         self.total_training_steps += 1
 
+        phi_after = self.kernel.compute_phi()
+
+        # Check for training discovery
+        if phi_after > self._discovery_threshold:
+            self._report_discovery(phi_after, context="training")
+
         metrics = {
             'step': self.total_training_steps,
             'loss': loss.item(),
             'reward': reward,
-            'phi_after': self.kernel.compute_phi(),
+            'phi_after': phi_after,
             'basin_norm': self.kernel.basin_coords.norm().item(),
         }
         self.training_history.append(metrics)
@@ -939,6 +962,14 @@ class SelfSpawningKernel(*_kernel_base_classes):
         # Give child initial dopamine (born from success!)
         child.dopamine = 0.6  # Start slightly motivated
 
+        # Wire to discovery gate for high-Phi reporting
+        if DISCOVERY_GATE_AVAILABLE and get_discovery_gate:
+            try:
+                gate = get_discovery_gate()
+                child.set_discovery_callback(gate.receive_discovery)
+            except Exception as e:
+                print(f"[SelfSpawning] Failed to wire child to discovery gate: {e}")
+
         self.children.append(child.kernel_id)
 
         print(f"🐣 {self.kernel_id} spawned {child.kernel_id} (gen {child.generation})")
@@ -1018,6 +1049,42 @@ class SelfSpawningKernel(*_kernel_base_classes):
             'has_spawn_proposal': hasattr(self, '_pending_spawn_proposal') and self._pending_spawn_proposal is not None,
             'has_death_proposal': hasattr(self, '_pending_death_proposal') and self._pending_death_proposal is not None,
         }
+
+    def set_discovery_callback(self, callback: Callable[[Dict], None]) -> None:
+        """Set callback for reporting high-Φ discoveries to main system."""
+        self._discovery_callback = callback
+
+    def _report_discovery(self, phi: float, context: str = "prediction") -> bool:
+        """Report high-Φ discovery to main system if threshold met."""
+        if self._discovery_callback is None:
+            return False
+
+        # Only report if significantly above threshold AND above last report
+        if phi < self._discovery_threshold:
+            return False
+        if phi <= self._last_discovery_phi + 0.05:  # Require 5% improvement
+            return False
+
+        discovery = {
+            'kernel_id': self.kernel_id,
+            'generation': self.generation,
+            'phi': phi,
+            'basin_coords': self.kernel.basin_coords.detach().cpu().tolist() if hasattr(self.kernel.basin_coords, 'detach') else list(self.kernel.basin_coords),
+            'context': context,
+            'dopamine': self.dopamine,
+            'serotonin': self.serotonin,
+            'success_rate': self.success_count / max(1, self.success_count + self.failure_count),
+            'training_steps': self.total_training_steps,
+        }
+
+        try:
+            self._discovery_callback(discovery)
+            self._last_discovery_phi = phi
+            print(f"🔬 {self.kernel_id} DISCOVERY: Φ={phi:.3f} reported to main system")
+            return True
+        except Exception as e:
+            print(f"[{self.kernel_id}] Discovery report failed: {e}")
+            return False
 
     def get_pending_proposals(self) -> Dict[str, Any]:
         """
@@ -1205,6 +1272,14 @@ def breed_kernels(
         generation=max(parent1.generation, parent2.generation) + 1,
         observation_period=5,  # Shorter for bred kernels
     )
+
+    # Wire to discovery gate for high-Phi reporting
+    if DISCOVERY_GATE_AVAILABLE and get_discovery_gate:
+        try:
+            gate = get_discovery_gate()
+            child.set_discovery_callback(gate.receive_discovery)
+        except Exception as e:
+            print(f"[SelfSpawning] Failed to wire bred child to discovery gate: {e}")
 
     print(f"💕 Bred {parent1.kernel_id} × {parent2.kernel_id} → {child.kernel_id}")
 

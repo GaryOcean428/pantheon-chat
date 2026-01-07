@@ -25,6 +25,31 @@ from .chaos_logger import ChaosLogger
 from .self_spawning import SelfSpawningKernel, absorb_failing_kernel, breed_kernels
 from qigkernels.physics_constants import KAPPA_STAR, E8_ROOTS, E8_RANK
 
+# Try to import ChaosDiscoveryGate for wiring kernels to discovery system
+try:
+    from chaos_discovery_gate import get_discovery_gate
+    DISCOVERY_GATE_AVAILABLE = True
+except ImportError:
+    DISCOVERY_GATE_AVAILABLE = False
+    get_discovery_gate = None  # type: ignore
+
+
+def _wire_kernel_to_discovery_gate(kernel: SelfSpawningKernel) -> None:
+    """Wire a kernel's discovery callback to the ChaosDiscoveryGate.
+
+    When the kernel discovers a high-Phi configuration, it reports
+    to the gate which integrates it into LearnedManifold and vocabulary.
+    """
+    if not DISCOVERY_GATE_AVAILABLE or get_discovery_gate is None:
+        return
+
+    try:
+        gate = get_discovery_gate()
+        kernel.set_discovery_callback(gate.receive_discovery)
+    except Exception as e:
+        print(f"[Chaos] Failed to wire kernel {kernel.kernel_id} to discovery gate: {e}")
+
+
 # Try to import GodNameResolver for intelligent naming
 try:
     from research.god_name_resolver import get_god_name_resolver, GodNameResolver
@@ -256,12 +281,15 @@ class ExperimentalKernelEvolution:
                     kernel.generation = kernel_data.get('generation', 0)
                     kernel.success_count = kernel_data.get('success_count', 0)
                     kernel.failure_count = kernel_data.get('failure_count', 0)
-                    
+
                     # Track E8 root mapping if available
                     e8_root = kernel_data.get('primitive_root')
                     if e8_root is not None:
                         self.kernel_to_root_mapping[kernel.kernel_id] = e8_root
-                    
+
+                    # Wire to discovery gate for high-Phi reporting
+                    _wire_kernel_to_discovery_gate(kernel)
+
                     self.kernel_population.append(kernel)
                     loaded_count += 1
                     
@@ -509,8 +537,12 @@ class ExperimentalKernelEvolution:
 
         kernel.kernel_id = f"e8_{root_index}_{kernel.kernel_id.split('_')[1]}"
         self.kernel_to_root_mapping[kernel.kernel_id] = root_index
+
+        # Wire to discovery gate for high-Phi reporting
+        _wire_kernel_to_discovery_gate(kernel)
+
         self.kernel_population.append(kernel)
-        
+
         # Compute phi and assign god name
         phi = kernel.kernel.compute_phi()
         domain = f'e8_root_{root_index}'
@@ -819,8 +851,11 @@ class ExperimentalKernelEvolution:
         kernel.is_observing = True
         kernel.parent_kernel = None  # Ocean is their "parent"
 
+        # Wire to discovery gate for high-Phi reporting
+        _wire_kernel_to_discovery_gate(kernel)
+
         self.kernel_population.append(kernel)
-        
+
         # Compute phi for god name assignment
         phi = kernel.kernel.compute_phi()
         
@@ -1589,6 +1624,10 @@ class ExperimentalKernelEvolution:
                 )
 
         kernel.kernel_id = f"chaos_{god_name}_{kernel.kernel_id.split('_')[1]}"
+
+        # Wire to discovery gate for high-Phi reporting
+        _wire_kernel_to_discovery_gate(kernel)
+
         self.kernel_population.append(kernel)
         self.logger.log_spawn(f"god:{god_name}", kernel.kernel_id, 'god_spawn')
 

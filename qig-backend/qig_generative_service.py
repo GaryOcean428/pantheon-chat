@@ -425,16 +425,16 @@ class BasinTrajectoryIntegrator:
 class QIGGenerativeService:
     """
     Unified QIG-Pure Text Generation Service.
-    
+
     Provides generative capability to all kernels using:
     - Pretrained 50K vocabulary with 64D basin embeddings (preferred)
     - PostgreSQL vocabulary fallback
     - Fisher-Rao geometric navigation
     - Basin-to-text synthesis
-    
+
     NO EXTERNAL LLMs.
     """
-    
+
     def __init__(self, config: Optional[GenerationConfig] = None):
         """Initialize the generative service."""
         self.config = config or GenerationConfig()
@@ -442,10 +442,11 @@ class QIGGenerativeService:
         self._kernel_basins: Dict[str, np.ndarray] = {}
         self._learned_relationships = None
         self._current_query_words: List[str] = []  # Track query words for attention
-        
+        self._discovery_gate = None  # For discovery bias
+
         # Initialize kernel constellation
         self._initialize_kernel_constellation()
-        
+
         # Load learned relationships if available
         if LEARNED_RELATIONSHIPS_AVAILABLE and get_learned_relationships:
             try:
@@ -454,7 +455,15 @@ class QIGGenerativeService:
                     logger.info("[QIGGenerativeService] Loaded learned word relationships for attention")
             except Exception as e:
                 logger.warning(f"[QIGGenerativeService] Could not load relationships: {e}")
-        
+
+        # Initialize discovery gate for bias toward discovered attractors
+        try:
+            from chaos_discovery_gate import get_discovery_gate
+            self._discovery_gate = get_discovery_gate()
+            logger.info("[QIGGenerativeService] Discovery gate available for attractor bias")
+        except ImportError:
+            logger.warning("[QIGGenerativeService] Discovery gate not available")
+
         logger.info("[QIGGenerativeService] Initialized with QIG-pure generation")
     
     @property
@@ -505,7 +514,7 @@ class QIGGenerativeService:
     
     def _measure_kappa(self, basin: np.ndarray, phi: float) -> float:
         """Measure coupling constant (κ) from basin geometry.
-        
+
         κ relates to the effective dimensionality and coupling strength.
         Target: κ* ≈ 64.21 (from CANONICAL_ARCHITECTURE)
         """
@@ -513,13 +522,88 @@ class QIGGenerativeService:
         p = np.abs(basin) + 1e-10
         p = p / np.sum(p)
         participation = 1.0 / np.sum(p ** 2)  # Inverse participation ratio
-        
+
         # κ scales with effective dimension and integration
         # When Φ is high and participation is low (concentrated), κ is higher
         kappa = participation * (1.0 + phi)
-        
+
         return float(kappa)
-    
+
+    def _score_with_discovery_bias(
+        self,
+        current_basin: np.ndarray,
+        candidates: List[Tuple[str, float, float]],
+    ) -> List[Tuple[str, float, float]]:
+        """
+        Score token candidates with bias toward discovered high-Φ transition targets.
+
+        This makes generation "prefer" paths that chaos exploration found successful.
+        Uses Fisher-Rao distance to measure proximity to discovered attractors.
+
+        Args:
+            current_basin: Current position in basin space (64D)
+            candidates: List of (token, score, similarity) tuples
+
+        Returns:
+            Re-scored candidates with discovery bias applied
+        """
+        # Get integrated discoveries from chaos gate
+        if not self._discovery_gate:
+            return candidates
+
+        try:
+            # Get recent high-phi discoveries (targets)
+            # _integrated contains Discovery objects with basin_coords and phi
+            with self._discovery_gate._lock:
+                integrated = self._discovery_gate._integrated
+                if not integrated:
+                    return candidates
+
+                # Take top 10 most recent discoveries sorted by phi
+                targets = sorted(integrated[-20:], key=lambda d: d.phi, reverse=True)[:10]
+        except Exception as e:
+            logger.debug(f"[QIGGen] Discovery bias unavailable: {e}")
+            return candidates
+
+        if not targets:
+            return candidates
+
+        # Get coordizer for token-to-basin mapping
+        if not self.coordizer or not hasattr(self.coordizer, 'basin_coords'):
+            return candidates
+
+        # Score candidates by proximity to discovered high-Φ targets
+        scored_candidates = []
+        for token, base_score, similarity in candidates:
+            score = base_score
+
+            # Get token basin if available
+            token_basin = self.coordizer.basin_coords.get(token.lower())
+            if token_basin is None:
+                scored_candidates.append((token, score, similarity))
+                continue
+
+            # Check proximity to each discovered target
+            for discovery in targets:
+                target_basin = discovery.basin_coords
+                if len(target_basin) != BASIN_DIM:
+                    continue
+
+                # Fisher-Rao distance (proper geometry)
+                d = fisher_coord_distance(token_basin, target_basin)
+
+                # Bias tokens that are close to high-phi discoveries
+                if d < 0.3:  # Within discovery radius
+                    # Boost proportional to target phi and inverse distance
+                    # Max boost ~0.2 when d=0 and phi=1.0
+                    proximity_factor = (0.3 - d) / 0.3
+                    boost = discovery.phi * proximity_factor * 0.2
+                    score += boost
+
+            scored_candidates.append((token, score, similarity))
+
+        return scored_candidates
+
     def _route_to_kernels(self, query_basin: np.ndarray, k: int = 3) -> List[str]:
         """Route query to k nearest kernels using Fisher-Rao distance."""
         distances = []
@@ -605,7 +689,7 @@ class QIGGenerativeService:
                 candidate_words,
                 temperature=0.8
             )
-            
+
             # Re-score with attention
             attention_factor = 0.2  # 20% attention, 80% geometry
             rescored = []
@@ -616,7 +700,11 @@ class QIGGenerativeService:
                 final_score = (1 - attention_factor) * base_score + attention_factor * attn_normalized
                 rescored.append((token, final_score, similarity))
             scored = rescored
-        
+
+        # Apply discovery bias: boost tokens near discovered high-Φ attractors
+        # This makes generation prefer paths chaos exploration found successful
+        scored = self._score_with_discovery_bias(basin, scored)
+
         # Sort by final score
         scored.sort(key=lambda x: x[1], reverse=True)
         
@@ -807,7 +895,13 @@ class QIGGenerativeService:
                         # Sort by combined score
                         rescored.sort(key=lambda x: -x[1])
                         candidates = rescored[:8]  # Keep top 8
-                    
+
+                    # Apply discovery bias: boost words near discovered high-Φ attractors
+                    # Convert to (word, score, score) format for _score_with_discovery_bias
+                    candidates_for_bias = [(w, s, s) for w, s in candidates]
+                    biased = self._score_with_discovery_bias(blended, candidates_for_bias)
+                    candidates = [(w, s) for w, s, _ in biased]
+
                     # Sample from top candidates with some randomness
                     weights = [max(0.01, c[1]) for c in candidates]
                     weights = np.array(weights)

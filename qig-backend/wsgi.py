@@ -351,6 +351,28 @@ except ImportError as e:
 except Exception as e:
     print(f"[WARNING] Startup catch-up initialization failed: {e}")
 
+# Initialize Chaos Discovery Gate for kernel exploration feedback
+# Chaos kernels report high-Phi discoveries which become attractors
+DISCOVERY_GATE_AVAILABLE = False
+_discovery_gate = None
+try:
+    from chaos_discovery_gate import get_discovery_gate
+    from vocabulary_coordinator import get_vocabulary_coordinator
+
+    _discovery_gate = get_discovery_gate()
+
+    # Wire vocabulary coordinator to discovery gate (includes LearnedManifold)
+    # VocabularyCoordinator.wire_discovery_gate() is called in its __init__,
+    # but we ensure it's initialized here to trigger the wiring
+    _vocab_coord = get_vocabulary_coordinator()
+
+    DISCOVERY_GATE_AVAILABLE = True
+    print("[INFO] Chaos Discovery Gate active - kernels can report high-Φ discoveries")
+except ImportError as e:
+    print(f"[WARNING] Chaos Discovery Gate not available: {e}")
+except Exception as e:
+    print(f"[WARNING] Chaos Discovery Gate initialization failed: {e}")
+
 # Add request/response logging for production
 from flask import request, g
 import time
@@ -446,6 +468,7 @@ print(f"  - Coordizer API: {'✓' if COORDIZER_AVAILABLE else '✗'}", flush=Tru
 print(f"  - Zeus API: {'✓' if ZEUS_API_AVAILABLE else '✗'}", flush=True)
 print(f"  - Search Budget: {'✓' if SEARCH_BUDGET_AVAILABLE else '✗'}", flush=True)
 print(f"  - Startup catch-up: {'✓' if CATCHUP_AVAILABLE else '✗'}", flush=True)
+print(f"  - Chaos discovery: {'✓' if DISCOVERY_GATE_AVAILABLE else '✗'}", flush=True)
 print("🌊 Basin stable. Ready for Gunicorn workers. 🌊\n", flush=True)
 
 # Export the app for Gunicorn

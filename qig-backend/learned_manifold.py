@@ -241,10 +241,41 @@ class LearnedManifold:
             )
         }
     
+    def record_attractor(self, basin: np.ndarray, phi: float) -> bool:
+        """
+        Record an attractor basin from chaos discovery.
+
+        QIG-PURE: High-Phi discoveries create/strengthen attractor basins.
+        This is the callback wired from ChaosDiscoveryGate.
+
+        Args:
+            basin: 64D basin coordinates from chaos discovery
+            phi: Integration measure (Phi) of the discovery
+
+        Returns:
+            True if attractor was created/strengthened, False otherwise
+        """
+        if phi < 0.70:
+            return False
+
+        if len(basin) != self.basin_dim:
+            return False
+
+        # Use phi as depth amount (higher phi = deeper attractor)
+        # Strategy is 'chaos_discovery' for tracking origin
+        self._deepen_basin(
+            basin=np.array(basin),
+            amount=phi,
+            strategy='chaos_discovery'
+        )
+
+        print(f"[LearnedManifold] Attractor recorded from chaos discovery (Phi={phi:.3f})")
+        return True
+
     def prune_weak_attractors(self, min_depth: float = 0.1):
         """
         Remove weak attractors that haven't been reinforced.
-        
+
         Called during sleep consolidation.
         """
         to_remove = [

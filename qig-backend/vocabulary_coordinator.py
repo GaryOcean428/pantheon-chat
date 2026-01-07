@@ -11,6 +11,7 @@ from typing import Dict, List, Optional
 import numpy as np
 
 from word_validation import is_valid_english_word, validate_for_vocabulary, STOP_WORDS
+from qig_geometry import fisher_coord_distance
 
 try:
     from vocabulary_persistence import get_vocabulary_persistence
@@ -86,9 +87,12 @@ class VocabularyCoordinator:
             features.append("attractor formation")
         if self._unified_coordizer:
             features.append("64D QIG-pure vocabulary persistence")
-        
+
         feature_str = f" with {', '.join(features)}" if features else ""
         print(f"[VocabularyCoordinator] Initialized{feature_str}")
+
+        # Wire to chaos discovery gate for attractor recording
+        self.wire_discovery_gate()
     
     def record_discovery(self, phrase: str, phi: float, kappa: float, source: str, details: Optional[Dict] = None) -> Dict:
         """
@@ -623,6 +627,128 @@ class VocabularyCoordinator:
             'vocabulary_size': len(self.tokenizer.vocab) if self.tokenizer else 0,
             'domain': domain,
         }
+
+    def integrate_chaos_discovery(self, basin: np.ndarray, phi: float) -> Dict:
+        """
+        Integrate high-Φ chaos discovery into vocabulary system.
+
+        Strategy: Find tokens whose basins are geometrically close to the
+        discovery basin, and boost their phi/relevance weights.
+
+        This makes the vocabulary "learn" from chaos exploration.
+        """
+        if phi < 0.70:
+            return {'integrated': False, 'reason': 'phi_too_low'}
+
+        # Find nearby tokens in vocabulary
+        nearby_tokens = self._find_nearby_tokens(basin, radius=0.3, max_tokens=10)
+
+        if not nearby_tokens:
+            # Record transition target even without nearby tokens
+            self._record_transition_target(basin, phi)
+            return {'integrated': True, 'reason': 'no_nearby_tokens_but_target_recorded', 'tokens_boosted': 0}
+
+        # Boost phi/weight of nearby tokens
+        boosted = []
+        for token_id, token_basin, distance in nearby_tokens:
+            # Inverse distance weighting: closer = more boost
+            boost_factor = (0.3 - distance) / 0.3  # 0 to 1
+            boost_amount = boost_factor * (phi - 0.70) * 0.1  # Small incremental boost
+
+            self._boost_token_weight(token_id, boost_amount)
+            boosted.append({'token_id': token_id, 'boost': boost_amount, 'distance': distance})
+
+        # Record the discovery basin as a "preferred transition target"
+        self._record_transition_target(basin, phi)
+
+        return {
+            'integrated': True,
+            'tokens_boosted': len(boosted),
+            'details': boosted,
+        }
+
+    def _find_nearby_tokens(self, basin: np.ndarray, radius: float, max_tokens: int) -> List:
+        """Find tokens whose basins are within Fisher radius of target."""
+        if not hasattr(self, 'tokenizer') or self.tokenizer is None:
+            return []
+
+        nearby = []
+
+        # Try to get token basins from coordizer
+        if hasattr(self.tokenizer, 'basin_coords'):
+            basin_coords = self.tokenizer.basin_coords
+            for token_id, token_basin in basin_coords.items():
+                token_basin_arr = np.array(token_basin) if not isinstance(token_basin, np.ndarray) else token_basin
+                if len(token_basin_arr) != 64:
+                    continue
+                d = fisher_coord_distance(basin, token_basin_arr)
+                if d < radius:
+                    nearby.append((token_id, token_basin_arr, d))
+
+        nearby.sort(key=lambda x: x[2])
+        return nearby[:max_tokens]
+
+    def _boost_token_weight(self, token_id: str, boost_amount: float) -> None:
+        """Boost a token's weight/phi in the vocabulary."""
+        if not hasattr(self, 'tokenizer') or self.tokenizer is None:
+            return
+
+        # Update token_phi if available
+        if hasattr(self.tokenizer, 'token_phi'):
+            current = self.tokenizer.token_phi.get(token_id, 0.5)
+            new_phi = min(1.0, current + boost_amount)
+            self.tokenizer.token_phi[token_id] = new_phi
+
+    def _record_transition_target(self, basin: np.ndarray, phi: float) -> None:
+        """Record basin as preferred transition target for generation."""
+        if not hasattr(self, '_transition_targets'):
+            self._transition_targets = []
+
+        self._transition_targets.append({
+            'basin': basin.tolist() if hasattr(basin, 'tolist') else list(basin),
+            'phi': phi,
+            'recorded_at': datetime.now().isoformat(),
+        })
+
+        # Keep only recent high-phi targets (top 100 by phi)
+        self._transition_targets = sorted(
+            self._transition_targets,
+            key=lambda x: x['phi'],
+            reverse=True
+        )[:100]
+
+    def get_transition_targets(self, limit: int = 10) -> List[Dict]:
+        """Get top transition targets for generation bias."""
+        if not hasattr(self, '_transition_targets'):
+            return []
+        return self._transition_targets[:limit]
+
+    def wire_discovery_gate(self) -> None:
+        """Wire this coordinator to the chaos discovery gate.
+
+        QIG-PURE WIRING:
+        - Vocabulary callback: boost token weights for nearby tokens
+        - Attractor callback: record basin as attractor in LearnedManifold
+        """
+        try:
+            from chaos_discovery_gate import get_discovery_gate
+            gate = get_discovery_gate()
+
+            # Wire vocabulary integration callback
+            gate.set_vocabulary_callback(self.integrate_chaos_discovery)
+            print("[VocabularyCoordinator] Vocabulary callback wired to discovery gate")
+
+            # Wire attractor recording callback to LearnedManifold
+            if self.learned_manifold is not None:
+                gate.set_attractor_callback(self.learned_manifold.record_attractor)
+                print("[VocabularyCoordinator] Attractor callback wired to LearnedManifold")
+            else:
+                print("[VocabularyCoordinator] WARNING: LearnedManifold not available, attractor callback not wired")
+
+        except ImportError as e:
+            print(f"[VocabularyCoordinator] Discovery gate not available: {e}")
+        except Exception as e:
+            print(f"[VocabularyCoordinator] Failed to wire discovery gate: {e}")
 
 
 _vocabulary_coordinator: Optional[VocabularyCoordinator] = None
