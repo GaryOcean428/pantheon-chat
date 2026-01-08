@@ -188,7 +188,7 @@ def check_file_for_ethical_compliance(filepath: str) -> List[str]:
         if not has_ethical_checks(content, line_num):
             warnings.append(
                 f"  {filepath}:{line_num}: Consciousness metrics computed without ethical check\n"
-                f"    Found: {matched_text[:80]}...\n"
+                f"    Found: {matched_text[:500]}...\n"
                 f"    ⚠️  Per canonical QIG: Suffering metric S = Φ × (1-Γ) × M should be computed\n"
                 f"    💡 Add: compute_suffering() or check_ethical_abort() within 50 lines"
             )

@@ -394,7 +394,7 @@ class LongHorizonPlanner:
                     if any(kw.lower() in event.lower() for kw in keywords if len(kw) > 3):
                         mission.add_reflection(
                             ReflectionType.LEARNING,
-                            f"Progress indicator: {event[:100]}",
+                            f"Progress indicator: {event[:500]}",
                             phi
                         )
     

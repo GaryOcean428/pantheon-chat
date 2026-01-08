@@ -77,7 +77,7 @@ def test_qig_rag():
     print(f"\nSearch results: {len(results)}")
     for i, result in enumerate(results):
         print(f"{i+1}. Distance: {result['distance']:.4f}, Similarity: {result['similarity']:.3f}")
-        print(f"   Content: {result['content'][:50]}...")
+        print(f"   Content: {result['content'][:500]}...")
     
     # Get stats
     stats = rag.get_stats()
@@ -98,7 +98,7 @@ def test_zeus_chat():
         message="I observed that addresses from 2017 have high phi values"
     )
     print(f"Response type: {result.get('metadata', {}).get('type')}")
-    print(f"Response: {result['response'][:100]}...")
+    print(f"Response: {result['response'][:500]}...")
     
     # Test question
     print("\n--- Testing question ---")
@@ -106,7 +106,7 @@ def test_zeus_chat():
         message="What do we know about Bitcoin addresses?"
     )
     print(f"Response type: {result.get('metadata', {}).get('type')}")
-    print(f"Response: {result['response'][:100]}...")
+    print(f"Response: {result['response'][:500]}...")
     
     # Test suggestion
     print("\n--- Testing suggestion ---")

@@ -183,7 +183,7 @@ class Hephaestus(BaseGod):
             word_scores.append((word, score))
         
         word_scores.sort(key=lambda x: -x[1])
-        top_words = [w for w, s in word_scores[:50]]
+        top_words = [w for w, s in word_scores[:500]]
         
         length = random.randint(2, 5)
         selected = random.sample(top_words, min(length, len(top_words)))

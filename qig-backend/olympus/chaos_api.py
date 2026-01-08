@@ -571,7 +571,7 @@ def turbo_mode():
         'success': True,
         'message': '🚀 TURBO MODE ACTIVATED',
         'spawned_count': len(spawned),
-        'spawned_kernels': spawned[:20],  # First 20 for brevity
+        'spawned_kernels': spawned[:500],  # First 20 for brevity
         'total_population': len(_zeus.chaos.kernel_population)
     })
 

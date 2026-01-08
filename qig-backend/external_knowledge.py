@@ -177,7 +177,7 @@ class ExternalKnowledgeBase:
             if combined_text and len(combined_text) > 50:
                 metrics = self._vocab_coordinator.train_from_text(
                     text=combined_text[:5000],
-                    source=f"search:{query[:50]}",
+                    source=f"search:{query[:500]}",
                     context_phi=0.6
                 )
                 if metrics.get('words_learned', 0) > 0:

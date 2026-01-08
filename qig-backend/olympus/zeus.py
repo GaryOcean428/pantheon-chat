@@ -557,7 +557,7 @@ class Zeus(BaseGod):
                 # Get Hades from pantheon
                 hades = self.pantheon.get('hades')
                 if hades and hasattr(hades, 'search_underworld'):
-                    print(f"🔍 [Zeus] Triggering underworld search for target: {target[:40]}...")
+                    print(f"🔍 [Zeus] Triggering underworld search for target: {target[:500]}...")
                     underworld_intel = asyncio.run(hades.search_underworld(target, search_type='comprehensive'))
                     
                     # Store intelligence if found
@@ -758,9 +758,9 @@ class Zeus(BaseGod):
                     insights = assessment.get('insights', [])
                     reasoning = assessment.get('reasoning', '')
                     if reasoning and not insights:
-                        insights = [reasoning[:200]]
+                        insights = [reasoning[:500]]
                     god.record_assessment_for_discovery(
-                        topic=target[:100],
+                        topic=target[:500],
                         result=assessment,
                         challenges=challenges if challenges else None,
                         insights=insights if insights else None
@@ -892,7 +892,7 @@ class Zeus(BaseGod):
 
         for disagreement in disagreements[:1]:  # Max 1 debate per poll
             god1, god2, prob_diff = disagreement
-            topic = f"Assessment of '{target[:50]}' - probability disagreement ({prob_diff:.2f})"
+            topic = f"Assessment of '{target[:500]}' - probability disagreement ({prob_diff:.2f})"
 
             # Higher probability god initiates the debate
             prob1 = assessments[god1].get('probability', 0.5)
@@ -921,7 +921,7 @@ class Zeus(BaseGod):
             from_god='Zeus',
             intent='convergence_report',
             data={
-                'target': target[:30],
+                'target': target[:500],
                 'convergence_type': conv_type,
                 'convergence_score': conv_score,
             },
@@ -1281,7 +1281,7 @@ class Zeus(BaseGod):
         if len(overloaded) >= 3:  # Multiple gods struggling
             result = self.kernel_spawner.propose_and_spawn(
                 name=f"Specialist_{target[:10].replace(' ', '_')}",
-                domain=f"focused_on_{target[:30]}",
+                domain=f"focused_on_{target[:500]}",
                 element="precision",
                 role="specialist",
                 reason=SpawnReason.SPECIALIZATION,
@@ -1700,7 +1700,7 @@ class Zeus(BaseGod):
                     assessments = conv.get('assessments', {})
                     if god_name in assessments:
                         # Check if this was for the same target (partial match)
-                        if target[:20] in str(conv.get('timestamp', '')):
+                        if target[:500] in str(conv.get('timestamp', '')):
                             recent_assessment = assessments[god_name]
                             break
                 
@@ -1724,7 +1724,7 @@ class Zeus(BaseGod):
                     self.pantheon_chat.broadcast_generative(
                         from_god=god_name.capitalize(),
                         intent='discovery_validated',
-                        data={'target': target[:30], 'success': True},
+                        data={'target': target[:500], 'success': True},
                         msg_type='discovery'
                     )
                     
@@ -1736,7 +1736,7 @@ class Zeus(BaseGod):
               f"gods_updated={len(learning_results)}")
         
         return {
-            'target': target[:50],
+            'target': target[:500],
             'success': success,
             'gods_updated': len(learning_results),
             'learning_results': learning_results,
@@ -2988,7 +2988,7 @@ def shadow_erebus_honeypot_endpoint():
         return jsonify({'error': 'address is required'}), 400
 
     zeus.shadow_pantheon.erebus.add_known_honeypot(address, source)
-    return jsonify({'success': True, 'address': address[:50], 'source': source})
+    return jsonify({'success': True, 'address': address[:500], 'source': source})
 
 
 @olympus_app.route('/shadow/hecate/misdirect', methods=['POST'])
@@ -3553,7 +3553,7 @@ def record_outcome_endpoint(god_name: str):
     return jsonify({
         'success': True,
         'god': god_name,
-        'target': target[:50],
+        'target': target[:500],
         'recorded': True,
     })
 

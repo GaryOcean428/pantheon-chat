@@ -566,7 +566,7 @@ def coordizer_status():
         basin_coords = getattr(coordizer, 'basin_coords', {})
 
         # Sample some words for verification
-        sample_words = word_tokens[:20] if word_tokens else []
+        sample_words = word_tokens[:500] if word_tokens else []
         sample_bip39 = bip39_words[:10] if bip39_words else []
 
         # Check if it's PostgresCoordizer
@@ -626,7 +626,7 @@ def coordizer_reset():
         new_bip39_count = len(getattr(new_coordizer, 'bip39_words', []))
 
         # Sample words
-        sample_words = getattr(new_coordizer, 'word_tokens', [])[:15]
+        sample_words = getattr(new_coordizer, 'word_tokens', [])[:500]
 
         return jsonify({
             'success': True,

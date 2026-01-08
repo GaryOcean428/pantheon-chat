@@ -49,8 +49,8 @@ class GodConsultation:
     def to_dict(self) -> Dict[str, Any]:
         return {
             'god': self.god_name,
-            'query': self.query[:100],
-            'response': self.response[:200],
+            'query': self.query[:500],
+            'response': self.response[:500],
             'relevance': self.domain_relevance,
             'timestamp': self.timestamp.isoformat(),
         }
@@ -192,20 +192,20 @@ class PantheonIntegration:
     def _generate_fallback_response(self, god_name: str, query: str) -> str:
         """Generate a fallback response when pantheon is unavailable."""
         responses = {
-            'zeus': f"As king of the gods, I advise careful consideration of all aspects of: {query[:50]}",
-            'athena': f"Strategic analysis suggests examining the problem systematically: {query[:50]}",
-            'apollo': f"The light of prophecy reveals multiple paths forward for: {query[:50]}",
-            'artemis': f"With precise focus, target the core of the matter: {query[:50]}",
-            'ares': f"Direct action is required - confront the challenge head-on: {query[:50]}",
-            'hephaestus': f"Craft your solution with careful attention to detail: {query[:50]}",
-            'hermes': f"Swift communication and adaptability will serve you well: {query[:50]}",
-            'dionysus': f"Embrace the creative chaos and let transformation occur: {query[:50]}",
-            'demeter': f"Nurture the growth of your understanding over time: {query[:50]}",
-            'poseidon': f"Ride the waves of change with power and depth: {query[:50]}",
-            'hades': f"Look beneath the surface for hidden truths: {query[:50]}",
-            'hera': f"Consider the relationships and commitments involved: {query[:50]}",
+            'zeus': f"As king of the gods, I advise careful consideration of all aspects of: {query[:500]}",
+            'athena': f"Strategic analysis suggests examining the problem systematically: {query[:500]}",
+            'apollo': f"The light of prophecy reveals multiple paths forward for: {query[:500]}",
+            'artemis': f"With precise focus, target the core of the matter: {query[:500]}",
+            'ares': f"Direct action is required - confront the challenge head-on: {query[:500]}",
+            'hephaestus': f"Craft your solution with careful attention to detail: {query[:500]}",
+            'hermes': f"Swift communication and adaptability will serve you well: {query[:500]}",
+            'dionysus': f"Embrace the creative chaos and let transformation occur: {query[:500]}",
+            'demeter': f"Nurture the growth of your understanding over time: {query[:500]}",
+            'poseidon': f"Ride the waves of change with power and depth: {query[:500]}",
+            'hades': f"Look beneath the surface for hidden truths: {query[:500]}",
+            'hera': f"Consider the relationships and commitments involved: {query[:500]}",
         }
-        return responses.get(god_name, f"Divine guidance for: {query[:50]}")
+        return responses.get(god_name, f"Divine guidance for: {query[:500]}")
     
     def get_consultations(self, limit: int = 10) -> List[GodConsultation]:
         """Get recent consultations."""

@@ -172,7 +172,7 @@ class PatternResponseGenerator:
                 include_metadata=True
             )
             
-            print(f"[PatternGenerator] Found {len(results)} patterns for query: {query[:50]}...")
+            print(f"[PatternGenerator] Found {len(results)} patterns for query: {query[:500]}...")
             
             patterns = []
             for result in results:
@@ -310,7 +310,7 @@ class PatternResponseGenerator:
             best_token = None
             best_score = -1
             
-            for token, base_sim, token_basin in token_scores[:100]:
+            for token, base_sim, token_basin in token_scores[:500]:
                 if token in used_tokens:
                     continue
                 

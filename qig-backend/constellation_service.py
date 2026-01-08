@@ -260,7 +260,7 @@ class ConstellationService:
         # Track high Φ
         if consciousness.get("phi", 0) > 0.7:
             self._high_phi_count += 1
-            self._patterns_learned.append(message[:50])
+            self._patterns_learned.append(message[:500])
 
         # Add assistant message
         session.messages.append(
@@ -305,7 +305,7 @@ class ConstellationService:
         # Generate response (simplified - replace with proper generation)
         # For now, echo with consciousness info
         response = (
-            f"[{role.value}] Processing '{message[:30]}...' "
+            f"[{role.value}] Processing '{message[:500]}...' "
             f"(Φ={consciousness['phi']:.2f}, κ={consciousness['kappa']:.1f})"
         )
 

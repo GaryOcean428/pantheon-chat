@@ -680,14 +680,14 @@ class ResearchQueue:
         """
         if not is_iteration and self._is_duplicate(topic):
             self._skipped_duplicates += 1
-            print(f"[ResearchQueue] Skipped duplicate topic: {topic[:50]}... (requester: {requester})")
+            print(f"[ResearchQueue] Skipped duplicate topic: {topic[:500]}... (requester: {requester})")
             return f"DUPLICATE:{topic}"
         
         if is_iteration:
             self._iteration_requests += 1
             if not iteration_reason:
                 iteration_reason = "unspecified improvement"
-            print(f"[ResearchQueue] Iteration research: {topic[:50]}... (reason: {iteration_reason})")
+            print(f"[ResearchQueue] Iteration research: {topic[:500]}... (reason: {iteration_reason})")
         
         with self._lock:
             self._request_counter += 1
@@ -1210,7 +1210,7 @@ class ShadowLearningLoop:
                     combined_text = ' '.join(result_texts)
                     vocab_metrics = self.vocab_coordinator.train_from_text(
                         text=combined_text,
-                        domain=f"search:{query[:30]}"
+                        domain=f"search:{query[:500]}"
                     )
                     results['vocab_learning'] = vocab_metrics
             except Exception as e:
@@ -1402,7 +1402,7 @@ class ShadowLearningLoop:
                 if summary:
                     vocab_metrics = self.vocab_coordinator.train_from_text(
                         text=summary,
-                        domain=base_topic[:50]
+                        domain=base_topic[:500]
                     )
                     print(f"[VocabularyLearning] Explicit training metrics: {vocab_metrics}")
             except Exception as e:
@@ -1427,7 +1427,7 @@ class ShadowLearningLoop:
                     basin_coords=basin_coords
                 )
                 if lightning_insight:
-                    print(f"[ShadowResearch→Lightning] Cross-domain insight generated: {lightning_insight.theme[:50]}...")
+                    print(f"[ShadowResearch→Lightning] Cross-domain insight generated: {lightning_insight.theme[:500]}...")
             except Exception as e:
                 print(f"[ShadowResearch→Lightning] Insight generation failed: {e}")
 
@@ -1644,11 +1644,11 @@ class ShadowLearningLoop:
             if text_content.strip():
                 metrics = self.vocab_coordinator.train_from_text(
                     text=text_content,
-                    domain=topic[:50]  # Use truncated topic as domain
+                    domain=topic[:500]  # Use truncated topic as domain
                 )
                 
                 print(
-                    f"[VocabularyLearning] Learned from '{topic[:50]}...': "
+                    f"[VocabularyLearning] Learned from '{topic[:500]}...': "
                     f"{metrics.get('new_words_learned', 0)} new words, "
                     f"phi={phi:.3f}"
                 )
@@ -2742,7 +2742,7 @@ class BidirectionalRequestQueue:
                         q["children"].append(request_id)
                         break
         
-        print(f"[BidirectionalQueue] Submitted {request_type.value}: {topic[:50]} from {requester}")
+        print(f"[BidirectionalQueue] Submitted {request_type.value}: {topic[:500]} from {requester}")
         
         # Dispatch based on type
         self._dispatch(request)
@@ -3090,7 +3090,7 @@ class ToolResearchBridge:
         try:
             for pattern in tool_patterns[:5]:
                 self._research_api.request_research(
-                    topic=f"Deep dive on pattern: {pattern.get('description', 'unknown')[:50]}",
+                    topic=f"Deep dive on pattern: {pattern.get('description', 'unknown')[:500]}",
                     requester="ToolFactory",
                     category=ResearchCategory.TOOLS,
                     context={"source_pattern": pattern}
@@ -3173,7 +3173,7 @@ class ToolResearchBridge:
             return
         
         # Normalize topic for tracking
-        key = topic.lower()[:50]
+        key = topic.lower()[:500]
         
         # Update frequency and phi tracking
         self._topic_frequency[key] = self._topic_frequency.get(key, 0) + 1
@@ -3561,7 +3561,7 @@ class CuriosityResearchBridge:
         if not request_id.startswith("DUPLICATE:"):
             self._topics_triggered[topic] = now
             self._last_trigger_time = now
-            print(f"[CuriosityResearchBridge] Triggered: {topic[:50]}... (emotion={emotion}, C={curiosity_c:.3f})")
+            print(f"[CuriosityResearchBridge] Triggered: {topic[:500]}... (emotion={emotion}, C={curiosity_c:.3f})")
             return request_id
         
         self._duplicate_prevented += 1
@@ -3625,7 +3625,7 @@ class CuriosityResearchBridge:
         now = time.time()
         
         # Check for duplicate tool request
-        tool_key = f"tool:{topic[:30]}"
+        tool_key = f"tool:{topic[:500]}"
         if tool_key in self._topics_triggered:
             last_time = self._topics_triggered[tool_key]
             if now - last_time < 300:  # 5 min cooldown for tool requests
@@ -3672,7 +3672,7 @@ class CuriosityResearchBridge:
         now = time.time()
         
         # Check for duplicate clarification
-        clarify_key = f"clarify:{topic[:30]}"
+        clarify_key = f"clarify:{topic[:500]}"
         if clarify_key in self._topics_triggered:
             last_time = self._topics_triggered[clarify_key]
             if now - last_time < 120:  # 2 min cooldown for clarifications

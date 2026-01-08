@@ -263,7 +263,7 @@ class LearnedPattern:
             'source_type': self.source_type.value,
             'source_url': self.source_url,
             'description': self.description,
-            'code_snippet': self.code_snippet[:200] + '...' if len(self.code_snippet) > 200 else self.code_snippet,
+            'code_snippet': self.code_snippet[:500] + '...' if len(self.code_snippet) > 200 else self.code_snippet,
             'input_signature': self.input_signature,
             'output_type': self.output_type,
             'times_used': self.times_used,
@@ -1179,7 +1179,7 @@ class ToolFactory:
         """
         self.generation_attempts += 1
         print(f"[ToolFactory] ===== GENERATION ATTEMPT #{self.generation_attempts} =====")
-        print(f"[ToolFactory] Description: {description[:80]}...")
+        print(f"[ToolFactory] Description: {description[:500]}...")
         print(f"[ToolFactory] Learned patterns available: {len(self.learned_patterns)}")
 
         # Fetch cross-god insights for additional context
@@ -1423,7 +1423,7 @@ class ToolFactory:
         """
         # Check if this is a non-Python pattern (marked in description)
         if pattern.description.startswith('[TYPESCRIPT]') or pattern.description.startswith('[JAVASCRIPT]'):
-            print(f"[ToolFactory] Skipping non-Python pattern: {pattern.description[:50]}...")
+            print(f"[ToolFactory] Skipping non-Python pattern: {pattern.description[:500]}...")
             return None
 
         code = pattern.code_snippet
@@ -1637,8 +1637,8 @@ class ToolFactory:
 
             if bridge:
                 research_topic = (
-                    f"Fix runtime failure in tool '{tool.name}': {error[:200] if error else 'Unknown error'}. "
-                    f"Failed with args: {str(failed_args)[:100]}. "
+                    f"Fix runtime failure in tool '{tool.name}': {error[:500] if error else 'Unknown error'}. "
+                    f"Failed with args: {str(failed_args)[:500]}. "
                     f"Failure rate: {failure_rate:.1%} over {tool.times_used} uses."
                 )
 
@@ -1651,7 +1651,7 @@ class ToolFactory:
                         'learning_iteration': tool.learning_iterations,
                         'failure_rate': failure_rate,
                         'error': error,
-                        'failed_args_sample': str(failed_args)[:200]
+                        'failed_args_sample': str(failed_args)[:500]
                     },
                     requester=f"ToolFactory:RuntimeLearning:{tool.name}"
                 )
@@ -1716,7 +1716,7 @@ class ToolFactory:
                     candidates.append({
                         'description': pattern_description,
                         'observations': len(cluster),
-                        'examples': [o['request'][:100] for o in cluster[:3]],
+                        'examples': [o['request'][:500] for o in cluster[:3]],
                         'basin': cluster_basin.tolist()
                     })
 
@@ -2402,7 +2402,7 @@ class AutonomousToolPipeline:
             return
 
         improvement_topics = [
-            f"Fix Python code for: {request.description} - Issue: {failure_reason[:100]}",
+            f"Fix Python code for: {request.description} - Issue: {failure_reason[:500]}",
             f"Alternative implementation approach for: {request.description}"
         ]
 

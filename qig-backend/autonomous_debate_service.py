@@ -361,7 +361,7 @@ class AutonomousDebateService:
                         self._debates_continued += 1
                         winner = res.get('winner', 'unknown')
                         topic = debate_dict.get('topic', '')
-                        logger.info(f"Debate {debate_id[:20]}... progressed via god assessments. Winner: {winner}")
+                        logger.info(f"Debate {debate_id[:500]}... progressed via god assessments. Winner: {winner}")
 
                         self._trigger_spawn_proposal(topic, winner, debate_dict)
 
@@ -406,7 +406,7 @@ class AutonomousDebateService:
         3. One god has 2+ unanswered arguments
         """
         arguments = debate_dict.get('arguments', [])
-        debate_id = debate_dict.get('id', '')[:20]
+        debate_id = debate_dict.get('id', '')[:500]
 
         # DIAGNOSTIC: Log resolution criteria evaluation
         logger.debug(f"[DebateResolve] Evaluating debate {debate_id}: {len(arguments)} arguments")
@@ -516,7 +516,7 @@ class AutonomousDebateService:
 
             if success:
                 self._arguments_generated += 1
-                logger.info(f"Generated argument for {next_speaker} in debate {debate_id[:20]}...")
+                logger.info(f"Generated argument for {next_speaker} in debate {debate_id[:500]}...")
 
                 # Route activity to observing kernels (M8 kernel observation system)
                 self._route_activity_to_observing_kernels(
@@ -692,7 +692,7 @@ class AutonomousDebateService:
                         try:
                             train_result = self._vocabulary_coordinator.train_from_text(
                                 text=combined_text,
-                                domain=f"searxng_{topic[:20]}"
+                                domain=f"searxng_{topic[:500]}"
                             )
                             if train_result.get('new_words_learned', 0) > 0:
                                 learned_count += train_result['new_words_learned']
@@ -755,7 +755,7 @@ class AutonomousDebateService:
 
             if learned_count > 0:
                 self._vocabulary_learning_events += 1
-                logger.info(f"Trained {learned_count} words from research on '{topic[:30]}...'")
+                logger.info(f"Trained {learned_count} words from research on '{topic[:500]}...'")
 
                 self._cache_vocabulary_observations(training_results, topic)
 
@@ -805,7 +805,7 @@ class AutonomousDebateService:
                             'word': word,
                             'phi': phi,
                             'source': source,
-                            'topic': topic[:50],
+                            'topic': topic[:500],
                         })
                         existing_words.add(word)
 
@@ -822,7 +822,7 @@ class AutonomousDebateService:
                 response = requests.get(
                     f"{instance_url}/search",
                     params={
-                        'q': query[:200],
+                        'q': query[:500],
                         'format': 'json',
                         'categories': 'general',
                     },
@@ -956,7 +956,7 @@ class AutonomousDebateService:
             text = f"{r.get('title', '')} {r.get('content', '')}"
             if text.strip():
                 basin = self._text_to_basin(text)
-                basins.append((basin, text[:150]))
+                basins.append((basin, text[:500]))
 
         darknet = research.get('darknet_intel')
         if darknet:
@@ -967,7 +967,7 @@ class AutonomousDebateService:
                 shadow_phi = darknet.get('phi', 0.5)
                 basin = basin * (0.5 + shadow_phi)  # Scale by confidence
                 basin = _normalize_to_manifold(basin)  # Renormalize after scaling
-                basins.append((basin, f"[shadow:{shadow_phi:.2f}] {reasoning[:100]}"))
+                basins.append((basin, f"[shadow:{shadow_phi:.2f}] {reasoning[:500]}"))
 
         return basins
 
@@ -996,7 +996,7 @@ class AutonomousDebateService:
 
         if evidence_affinities:
             best_affinity, best_text, best_basin = evidence_affinities[0]
-            context_parts.append(f"evidence({best_affinity:.2f}): {best_text[:80]}")
+            context_parts.append(f"evidence({best_affinity:.2f}): {best_text[:500]}")
 
         # Add geometric state
         context_parts.append(f"phi={phi:.2f} kappa={kappa:.1f}")
@@ -1184,7 +1184,7 @@ class AutonomousDebateService:
             self._all_fragments = []
 
         results = []
-        for text, basin in self._all_fragments[:100]:
+        for text, basin in self._all_fragments[:500]:
             dist = _fisher_distance(target_basin, basin)
             results.append((dist, text))
 
@@ -1227,8 +1227,8 @@ class AutonomousDebateService:
 
         searxng = research.get('searxng_results', [])
         for result in searxng[:3]:
-            title = result.get('title', '')[:60]
-            content = result.get('content', '')[:100]
+            title = result.get('title', '')[:500]
+            content = result.get('content', '')[:500]
             if title:
                 parts.append(title)
             if content:
@@ -1236,7 +1236,7 @@ class AutonomousDebateService:
 
         darknet = research.get('darknet_intel')
         if darknet:
-            reasoning = darknet.get('reasoning', '')[:80]
+            reasoning = darknet.get('reasoning', '')[:500]
             if reasoning:
                 parts.append(reasoning)
 
@@ -1250,7 +1250,7 @@ class AutonomousDebateService:
         last_arg = arguments[-1]
         arg_text = last_arg.get('argument', '')
 
-        return arg_text[:200] if arg_text else ""
+        return arg_text[:500] if arg_text else ""
 
     def _compute_debate_geometry(self, debate_dict: Dict) -> Tuple[float, float]:
         """Compute Φ and κ for the debate state."""
@@ -1298,7 +1298,7 @@ class AutonomousDebateService:
 
         if resolution:
             self._debates_resolved += 1
-            logger.info(f"Resolved debate {debate_id[:20]}... Winner: {winner}")
+            logger.info(f"Resolved debate {debate_id[:500]}... Winner: {winner}")
 
             self._trigger_spawn_proposal(topic, winner, debate_dict)
 
@@ -1350,7 +1350,7 @@ class AutonomousDebateService:
         logger.info(f"[M8Spawn] Extracted domain '{domain}' from topic '{topic}'")
 
         spawn_name = f"{domain.capitalize()}Specialist"
-        element = f"debate_{topic[:20].replace(' ', '_')}"
+        element = f"debate_{topic[:500].replace(' ', '_')}"
         role = "domain_specialist"
         parent_gods = [winner, debate_dict.get('initiator', ''), debate_dict.get('opponent', '')]
         parent_gods = list(set([g for g in parent_gods if g]))[:2]

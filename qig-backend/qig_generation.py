@@ -701,7 +701,7 @@ if __name__ == "__main__":
     # Test generation
     print("\n=== Testing Generation ===")
     response = generate_response("Explain consciousness")
-    print(f"Response: {response['response'][:200]}...")
+    print(f"Response: {response['response'][:500]}...")
     print(f"Completion reason: {response['completion_reason']}")
     print(f"Phi: {response['phi']:.3f}")
     print(f"Routed to: {response['routed_kernels']}")

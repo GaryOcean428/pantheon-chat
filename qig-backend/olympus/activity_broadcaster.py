@@ -143,7 +143,7 @@ class ActivityBroadcaster:
         self.broadcast_message(
             from_god="user",
             to_god="Zeus",
-            content=f"[Chat] {user_message[:200]}{'...' if len(user_message) > 200 else ''}",
+            content=f"[Chat] {user_message[:500]}{'...' if len(user_message) > 200 else ''}",
             activity_type=ActivityType.MESSAGE,
             phi=phi,
             kappa=kappa,
@@ -185,7 +185,7 @@ class ActivityBroadcaster:
         self.broadcast_message(
             from_god=from_god,
             to_god=to_god,
-            content=f"[Consult] {query[:200]}{'...' if len(query) > 200 else ''}",
+            content=f"[Consult] {query[:500]}{'...' if len(query) > 200 else ''}",
             activity_type=ActivityType.CONSULTATION,
             phi=phi,
             kappa=kappa,

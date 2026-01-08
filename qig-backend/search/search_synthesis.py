@@ -69,7 +69,7 @@ class SearchSynthesizer:
         Compute basin coordinates for content.
         Average of known word basins in content.
         """
-        words = content.lower().split()[:100]  # First 100 words
+        words = content.lower().split()[:500]  # First 100 words
         basins = []
         
         for word in words:

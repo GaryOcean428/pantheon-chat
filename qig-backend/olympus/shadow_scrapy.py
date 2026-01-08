@@ -974,7 +974,7 @@ class SourceDiscoveryService:
             origin='event_discovery'
         )
         
-        print(f"[SourceDiscovery] ⚡ NEW SOURCE EMERGED: {source_url[:50]}... (Φ={phi:.3f})")
+        print(f"[SourceDiscovery] ⚡ NEW SOURCE EMERGED: {source_url[:500]}... (Φ={phi:.3f})")
         return True
 
 
@@ -1228,7 +1228,7 @@ class ScrapyOrchestrator:
             if discovered_sources:
                 content_parts.append(f"Discovered {len(discovered_sources)} sources from telemetry:")
                 for src in discovered_sources:
-                    content_parts.append(f"  - {src['url'][:50]}... (Φ={src['phi_avg']:.3f}, ΔΦ={src['delta_phi']:.3f})")
+                    content_parts.append(f"  - {src['url'][:500]}... (Φ={src['phi_avg']:.3f}, ΔΦ={src['delta_phi']:.3f})")
                     sources_used.append(src['url'])
                 content_parts.append("")
                 
@@ -1371,7 +1371,7 @@ class ScrapyOrchestrator:
             return None
             
         except Exception as e:
-            print(f"[ScrapyOrchestrator] Fetch error for {source_url[:30]}...: {e}")
+            print(f"[ScrapyOrchestrator] Fetch error for {source_url[:500]}...: {e}")
             return None
     
     def _exploratory_research(self, topic: str) -> Dict[str, Dict]:

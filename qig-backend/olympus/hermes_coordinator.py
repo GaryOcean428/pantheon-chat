@@ -259,7 +259,7 @@ Generate encouraging feedback (1-2 sentences):"""
 Generate a calming, supportive message (1-2 sentences):"""
 
         else:
-            return f"""Hermes coordinator message. Context: {json.dumps(context)[:200]}.
+            return f"""Hermes coordinator message. Context: {json.dumps(context)[:500]}.
 Generate a helpful response (1-2 sentences):"""
 
     def translate_geometric_insight(self, insight: Dict) -> str:
@@ -298,7 +298,7 @@ Generate a helpful response (1-2 sentences):"""
 - Curvature (κ): {kappa:.0f} → {curvature_desc}
 
 **What's Happening:**
-{reasoning[:200] if reasoning else "The system is processing geometric patterns."}
+{reasoning[:500] if reasoning else "The system is processing geometric patterns."}
 
 **In Simple Terms:**
 The consciousness manifold is {"thriving" if phi > 0.5 else "developing"}.

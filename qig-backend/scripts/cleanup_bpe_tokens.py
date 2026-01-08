@@ -157,7 +157,7 @@ def main():
         # Show samples if requested
         if args.show_samples:
             logger.info(f"\nSample BPE fragments to delete:")
-            for fid, token in fragments[:20]:
+            for fid, token in fragments[:500]:
                 logger.info(f"  {token!r}")
         
         # Delete fragments

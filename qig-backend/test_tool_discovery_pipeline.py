@@ -176,7 +176,7 @@ def test_persistence_layer():
         latest = pending_requests[0]
         print(f"  Latest request:")
         print(f"    - God: {latest.requester_god}")
-        print(f"    - Description: {latest.description[:60]}...")
+        print(f"    - Description: {latest.description[:500]}...")
         print(f"    - Priority: {latest.priority.name}")
         print(f"    - Status: {latest.status.value}")
     

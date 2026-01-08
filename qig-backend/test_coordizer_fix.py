@@ -80,7 +80,7 @@ def test_generation_service():
         
         # Test generation
         result = service.generate("What is consciousness?")
-        print(f"  Response: {result.text[:100]}...")
+        print(f"  Response: {result.text[:500]}...")
         print(f"  Tokens: {result.tokens[:8]}")
         print(f"  Completion: {result.completion_reason}")
         

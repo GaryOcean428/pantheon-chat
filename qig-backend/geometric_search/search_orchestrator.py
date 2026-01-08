@@ -126,8 +126,8 @@ class SearchOrchestrator:
             
             for result in (results.results or [])[:5]:
                 if isinstance(result, dict):
-                    title = result.get('title', '')[:50]
-                    content = result.get('content', result.get('snippet', ''))[:100]
+                    title = result.get('title', '')[:500]
+                    content = result.get('content', result.get('snippet', ''))[:500]
                     if title or content:
                         prompt_parts.append(f"Result: {title} - {content}")
             
@@ -338,7 +338,7 @@ class SearchOrchestrator:
         information_gain = self._compute_information_gain(all_results)
         
         return AggregatedResult(
-            results=all_results[:20],
+            results=all_results[:500],
             tools_used=tools_used,
             total_cost=total_cost,
             total_latency_ms=total_latency,

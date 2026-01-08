@@ -598,7 +598,7 @@ class VocabularyCoordinator:
                 phi = min(0.8, 0.5 + (count * 0.05))
                 observations.append({
                     'word': word,
-                    'phrase': text[:100] if len(text) > 100 else text,
+                    'phrase': text[:500] if len(text) > 100 else text,
                     'phi': phi,
                     'kappa': 50.0,
                     'source': domain or 'research',
@@ -715,7 +715,7 @@ class VocabularyCoordinator:
             self._transition_targets,
             key=lambda x: x['phi'],
             reverse=True
-        )[:100]
+        )[:500]
 
     def get_transition_targets(self, limit: int = 10) -> List[Dict]:
         """Get top transition targets for generation bias."""

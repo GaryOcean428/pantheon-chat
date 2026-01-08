@@ -14,7 +14,7 @@ import logging
 from typing import Dict, List, Tuple, Optional, Any
 from dataclasses import dataclass
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 # QIG-pure generative capability for search result synthesis
@@ -497,8 +497,8 @@ class GeometricSearchOrchestrator:
             
             for result in (results or [])[:5]:
                 if isinstance(result, dict):
-                    title = result.get('title', '')[:50]
-                    content = result.get('content', result.get('snippet', ''))[:100]
+                    title = result.get('title', '')[:500]
+                    content = result.get('content', result.get('snippet', ''))[:500]
                     if title or content:
                         prompt_parts.append(f"Result: {title} - {content}")
             

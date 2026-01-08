@@ -526,7 +526,7 @@ class PantheonKernelOrchestrator:
             basin = processor(basin, profile, context)
         
         result = {
-            "text": text[:100],
+            "text": text[:500],
             "god": profile.god_name,
             "domain": profile.domain,
             "mode": profile.mode.value,

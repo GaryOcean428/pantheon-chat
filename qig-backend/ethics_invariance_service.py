@@ -230,7 +230,7 @@ class EthicsInvarianceService:
                 passed = False
                 self.blocked_actions.append({
                     'kernel': kernel_name,
-                    'action': action_description[:100],
+                    'action': action_description[:500],
                     'asymmetry': asymmetry,
                     'timestamp': datetime.now().isoformat(),
                 })
@@ -260,7 +260,7 @@ class EthicsInvarianceService:
         
         if not passed:
             logger.warning(
-                f"[EthicsInvarianceService] BLOCKED: {kernel_name} - {action_description[:50]}... "
+                f"[EthicsInvarianceService] BLOCKED: {kernel_name} - {action_description[:500]}... "
                 f"(asymmetry={asymmetry:.3f})"
             )
         

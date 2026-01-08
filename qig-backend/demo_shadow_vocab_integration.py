@@ -47,7 +47,7 @@ def demo_integration():
     providing practical measures for quantum state similarity and distinguishability.
     """
     
-    print(f"Research content (excerpt): {research_text[:100]}...")
+    print(f"Research content (excerpt): {research_text[:500]}...")
     print()
     
     # Step 3: Train vocabulary from research

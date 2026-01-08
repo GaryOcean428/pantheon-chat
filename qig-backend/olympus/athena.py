@@ -102,7 +102,7 @@ class Athena(BaseGod):
                     })
         
         similar.sort(key=lambda x: x['distance'])
-        return similar[:20]
+        return similar[:500]
     
     def _select_optimal_strategy(
         self, 

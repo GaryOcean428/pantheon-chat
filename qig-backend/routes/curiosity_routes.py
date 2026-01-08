@@ -159,7 +159,7 @@ def curriculum_status():
         'total_topics': len(loader.curriculum_topics),
         'completed': len(loader.completed_topics),
         'remaining': len(loader.curriculum_topics) - len(loader.completed_topics),
-        'completed_list': list(loader.completed_topics)[:20]
+        'completed_list': list(loader.completed_topics)[:500]
     })
 
 

@@ -2125,7 +2125,7 @@ class M8KernelSpawner:
                 issues.append('m8_persistence not initialized')
                 diagnostics['m8_persistence'] = 'missing'
         except Exception as e:
-            issues.append(f'm8_persistence error: {str(e)[:100]}')
+            issues.append(f'm8_persistence error: {str(e)[:500]}')
             diagnostics['m8_persistence'] = 'error'
         
         # Check legacy kernel persistence
@@ -2136,7 +2136,7 @@ class M8KernelSpawner:
             else:
                 diagnostics['kernel_persistence'] = 'not configured'
         except Exception as e:
-            issues.append(f'kernel_persistence error: {str(e)[:100]}')
+            issues.append(f'kernel_persistence error: {str(e)[:500]}')
             diagnostics['kernel_persistence'] = 'error'
         
         # Check orchestrator
@@ -2148,7 +2148,7 @@ class M8KernelSpawner:
                 issues.append('orchestrator not initialized')
                 diagnostics['orchestrator'] = 'missing'
         except Exception as e:
-            issues.append(f'orchestrator error: {str(e)[:100]}')
+            issues.append(f'orchestrator error: {str(e)[:500]}')
             diagnostics['orchestrator'] = 'error'
         
         # Check consensus
@@ -2159,7 +2159,7 @@ class M8KernelSpawner:
                 issues.append('consensus not initialized')
                 diagnostics['consensus'] = 'missing'
         except Exception as e:
-            issues.append(f'consensus error: {str(e)[:100]}')
+            issues.append(f'consensus error: {str(e)[:500]}')
             diagnostics['consensus'] = 'error'
         
         # Cache stats

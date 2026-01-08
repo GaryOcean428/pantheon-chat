@@ -788,7 +788,7 @@ class TemporalReasoning:
                 'attractor_strength': vision.attractor_strength,
                 'geodesic_naturalness': vision.geodesic_naturalness,
                 'is_actionable': vision.is_actionable(),
-                'explanation': explanation[:200] if explanation else '',
+                'explanation': explanation[:500] if explanation else '',
                 # Include domain hints from discovered domains
                 'domain_hints': [d.get('name', '') for d in self._discovered_domains[:5]],
             }
@@ -829,7 +829,7 @@ class TemporalReasoning:
                 key=lambda d: d.get('mission_relevance', 0.0),
                 reverse=True
             )
-            self._discovered_domains = self._discovered_domains[:50]
+            self._discovered_domains = self._discovered_domains[:500]
 
         print(f"[TemporalReasoning] Registered {len(domains)} domains, "
               f"total: {len(self._discovered_domains)}")
@@ -929,7 +929,7 @@ class TemporalReasoning:
                     try:
                         vocab_coord.train_from_text(
                             text=combined_text[:5000],
-                            source=f"foresight_validation:{prediction_topic[:30]}",
+                            source=f"foresight_validation:{prediction_topic[:500]}",
                             context_phi=0.65
                         )
                     except Exception:
@@ -942,7 +942,7 @@ class TemporalReasoning:
                         sources_checked=len(result['search_results'])
                     )
 
-            print(f"[TemporalReasoning] Prediction validation: {prediction_topic[:40]} -> "
+            print(f"[TemporalReasoning] Prediction validation: {prediction_topic[:500]} -> "
                   f"evidence={result['evidence_found']}, confidence_adj={result['confidence_adjustment']:.2f}")
 
         except ImportError as e:

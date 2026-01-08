@@ -626,7 +626,7 @@ class LightningKernel(BaseGod):
                         "validation_score": validation_result.validation_score,
                         "source_count": len(validation_result.tavily_sources),
                         "external_sources": [s.get('url', '') for s in validation_result.tavily_sources[:3]],
-                        "perplexity_synthesis": validation_result.perplexity_synthesis[:200] if validation_result.perplexity_synthesis else None
+                        "perplexity_synthesis": validation_result.perplexity_synthesis[:500] if validation_result.perplexity_synthesis else None
                     }
 
                     # Persist validation result to database
@@ -652,7 +652,7 @@ class LightningKernel(BaseGod):
                                 "insight_id": insight.insight_id,
                                 "validation_score": validation_result.validation_score,
                                 "failure_reason": "External validation score below threshold",
-                                "insight_text_preview": insight.insight_text[:100] if len(insight.insight_text) > 100 else insight.insight_text,
+                                "insight_text_preview": insight.insight_text[:500] if len(insight.insight_text) > 100 else insight.insight_text,
                             },
                             msg_type="warning"
                         )
@@ -959,7 +959,7 @@ class LightningKernel(BaseGod):
         for event in evidence:
             # Extract meaningful content fragments (first 60 chars of actual content)
             if event.content:
-                content_fragments.append(event.content[:60].strip())
+                content_fragments.append(event.content[:500].strip())
 
             event_types.append(event.event_type)
             phi_values.append(event.phi)
@@ -1460,7 +1460,7 @@ class LightningKernel(BaseGod):
             if is_actionable:
                 content_parts.append("ACTIONABLE")
             if explanation:
-                content_parts.append(explanation[:100])
+                content_parts.append(explanation[:500])
 
             content = "|".join(content_parts)
 

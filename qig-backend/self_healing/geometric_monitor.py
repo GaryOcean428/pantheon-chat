@@ -375,7 +375,7 @@ class GeometricHealthMonitor:
 
     def _get_active_modules(self) -> List[str]:
         """Get list of active Python modules (top 50)."""
-        modules = list(sys.modules.keys())[:50]
+        modules = list(sys.modules.keys())[:500]
         return [m for m in modules if not m.startswith('_')]
 
     def _get_module_versions(self) -> Dict[str, str]:

@@ -64,7 +64,7 @@ async def record_autonomous_execution(
     """
     status = "SUCCESS" if success else "FAILED"
     op_type = operation.get('type', 'unknown')
-    target = operation.get('target', 'unknown')[:40]
+    target = operation.get('target', 'unknown')[:500]
     
     log_msg = f"[EXECUTION RECORD] {status} - Type: {op_type}, Target: {target}..."
     if error:
@@ -159,7 +159,7 @@ class AutonomousPantheon:
                         
                         # If Strategy (Athena) and War (Ares) disagree, trigger debate
                         if abs(athena_conf - ares_conf) > 0.4:
-                            topic = f"Strategic approach for {target[:15]}..."
+                            topic = f"Strategic approach for {target[:500]}..."
                             # Check pantheon_chat availability first
                             if hasattr(self.zeus, 'pantheon_chat'):
                                 # Check if debate already active (handle both dict and dataclass returns)
@@ -222,11 +222,11 @@ class AutonomousPantheon:
                         if convergence > 0.85:
                             await self.execute_operation(target, assessment)
                             self.operations_executed += 1
-                            print(f"  🎯 Executed: {target[:40]}... (Φ={assessment.get('phi', 0):.3f})")
+                            print(f"  🎯 Executed: {target[:500]}... (Φ={assessment.get('phi', 0):.3f})")
                         
                     except Exception as e:
-                        logger.error(f"Error assessing {target[:30]}: {e}")
-                        print(f"  ⚠️  Error assessing {target[:30]}: {e}")
+                        logger.error(f"Error assessing {target[:500]}: {e}")
+                        print(f"  ⚠️  Error assessing {target[:500]}: {e}")
                 
                 cycle_duration = (datetime.now() - cycle_start).total_seconds()
                 
@@ -311,7 +311,7 @@ class AutonomousPantheon:
         if convergence >= 0.85:
             try:
                 result = self.zeus.declare_blitzkrieg(target)
-                logger.info(f"⚔️ AUTONOMOUS BLITZKRIEG DECLARED on {target[:40]}...")
+                logger.info(f"⚔️ AUTONOMOUS BLITZKRIEG DECLARED on {target[:500]}...")
                 sync_war_to_typescript(
                     mode="BLITZKRIEG",
                     target=target,
@@ -319,7 +319,7 @@ class AutonomousPantheon:
                     gods_engaged=result.get('gods_engaged', ['ares', 'artemis', 'dionysus'])
                 )
                 await send_user_notification(
-                    f"⚔️ BLITZKRIEG declared on {target[:40]}... (convergence: {convergence:.2f})",
+                    f"⚔️ BLITZKRIEG declared on {target[:500]}... (convergence: {convergence:.2f})",
                     severity="warning"
                 )
                 print(f"  ⚔️ BLITZKRIEG declared - overwhelming convergence detected")
@@ -339,7 +339,7 @@ class AutonomousPantheon:
             if self.near_miss_targets[target] >= 10:
                 try:
                     result = self.zeus.declare_siege(target)
-                    logger.info(f"🏰 AUTONOMOUS SIEGE DECLARED on {target[:40]}...")
+                    logger.info(f"🏰 AUTONOMOUS SIEGE DECLARED on {target[:500]}...")
                     sync_war_to_typescript(
                         mode="SIEGE",
                         target=target,
@@ -347,7 +347,7 @@ class AutonomousPantheon:
                         gods_engaged=result.get('gods_engaged', ['athena', 'hephaestus', 'demeter'])
                     )
                     await send_user_notification(
-                        f"🏰 SIEGE declared on {target[:40]}... (near-misses: {self.near_miss_targets[target]})",
+                        f"🏰 SIEGE declared on {target[:500]}... (near-misses: {self.near_miss_targets[target]})",
                         severity="warning"
                     )
                     print(f"  🏰 SIEGE declared - multiple near-misses detected")
@@ -371,7 +371,7 @@ class AutonomousPantheon:
             if artemis_confidence > 0.7 or apollo_confidence > 0.7:
                 try:
                     result = self.zeus.declare_hunt(target)
-                    logger.info(f"🎯 AUTONOMOUS HUNT DECLARED on {target[:40]}...")
+                    logger.info(f"🎯 AUTONOMOUS HUNT DECLARED on {target[:500]}...")
                     sync_war_to_typescript(
                         mode="HUNT",
                         target=target,
@@ -379,7 +379,7 @@ class AutonomousPantheon:
                         gods_engaged=result.get('gods_engaged', ['artemis', 'apollo', 'poseidon'])
                     )
                     await send_user_notification(
-                        f"🎯 HUNT declared on {target[:40]}... (hunt pattern detected)",
+                        f"🎯 HUNT declared on {target[:500]}... (hunt pattern detected)",
                         severity="warning"
                     )
                     print(f"  🎯 HUNT declared - geometric narrowing pattern detected")
@@ -419,12 +419,12 @@ class AutonomousPantheon:
         
         if risk_level > 0.95:
             await send_user_notification(
-                f"High-risk operation detected for {target[:30]}... (risk: {risk_level:.2f})",
+                f"High-risk operation detected for {target[:500]}... (risk: {risk_level:.2f})",
                 severity="warning"
             )
         
         try:
-            logger.info(f"[Pantheon] EXECUTING: {target[:50]}... (type: {operation_type})")
+            logger.info(f"[Pantheon] EXECUTING: {target[:500]}... (type: {operation_type})")
             
             if operation_type in ('spawn_kernel', 'EXECUTE_IMMEDIATE'):
                 if hasattr(self.zeus, 'kernel_spawner') and self.zeus.kernel_spawner:
@@ -433,21 +433,21 @@ class AutonomousPantheon:
                         assessment.get('god_assessments', {})
                     )
                     if spawn_result and spawn_result.get('success'):
-                        logger.info(f"Kernel spawned for target: {target[:40]}...")
+                        logger.info(f"Kernel spawned for target: {target[:500]}...")
                         await send_user_notification(
-                            f"Specialist kernel spawned for {target[:30]}...",
+                            f"Specialist kernel spawned for {target[:500]}...",
                             severity="success"
                         )
                     else:
-                        logger.info(f"Kernel spawn not required for: {target[:40]}...")
+                        logger.info(f"Kernel spawn not required for: {target[:500]}...")
                 else:
                     logger.warning("Kernel spawner not available")
                 
             elif operation_type in ('adjust_strategy', 'PREPARE_ATTACK'):
-                new_strategy = f"focused_attack_on_{target[:20]}"
+                new_strategy = f"focused_attack_on_{target[:500]}"
                 logger.info(f"Strategy adjusted: {new_strategy}")
                 await send_user_notification(
-                    f"Strategy adjusted for target: {target[:30]}...",
+                    f"Strategy adjusted for target: {target[:500]}...",
                     severity="info"
                 )
                 
@@ -455,21 +455,21 @@ class AutonomousPantheon:
                 phi = assessment.get('phi', 0)
                 kappa = assessment.get('kappa', 0)
                 await send_user_notification(
-                    f"Target identified: {target[:30]}... (Φ={phi:.3f}, κ={kappa:.3f})",
+                    f"Target identified: {target[:500]}... (Φ={phi:.3f}, κ={kappa:.3f})",
                     severity="info"
                 )
                 
             elif operation_type == 'COORDINATED_APPROACH':
-                logger.info(f"Coordinating multi-god approach for: {target[:40]}...")
+                logger.info(f"Coordinating multi-god approach for: {target[:500]}...")
                 await send_user_notification(
-                    f"Coordinated analysis initiated for {target[:30]}...",
+                    f"Coordinated analysis initiated for {target[:500]}...",
                     severity="info"
                 )
                 
             else:
                 logger.info(f"Default handling for operation: {operation_type}")
                 await send_user_notification(
-                    f"Processing target: {target[:30]}... (action: {operation_type})",
+                    f"Processing target: {target[:500]}... (action: {operation_type})",
                     severity="info"
                 )
             
@@ -480,7 +480,7 @@ class AutonomousPantheon:
             logger.error(f"Operation failed: {error_msg}")
             await record_autonomous_execution(operation, False, error_msg)
             await send_user_notification(
-                f"Operation failed for {target[:30]}...: {error_msg}",
+                f"Operation failed for {target[:500]}...: {error_msg}",
                 severity="error"
             )
 

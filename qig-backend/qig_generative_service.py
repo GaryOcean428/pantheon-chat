@@ -20,7 +20,7 @@ from datetime import datetime, timezone
 import numpy as np
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 # Import unified coordizer (63K vocabulary single source of truth)
@@ -914,7 +914,7 @@ class QIGGenerativeService:
                 candidates = grammar.get_words_for_pos(pos, blended, embeddings, top_k=25)
                 
                 # Pre-filter stopwords before attention scoring
-                candidates = [(w, s) for w, s in candidates if w.lower() not in STOPWORDS][:15]
+                candidates = [(w, s) for w, s in candidates if w.lower() not in STOPWORDS][:500]
                 
                 if candidates:
                     # Apply attention weights if we have learned relationships

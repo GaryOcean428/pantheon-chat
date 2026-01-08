@@ -182,7 +182,7 @@ def record_search_started(query: str, provider: str, agent_name: Optional[str] =
     """Convenience function to record a search start."""
     return activity_recorder.record(
         ActivityType.SEARCH_STARTED,
-        f"Searching: {query[:50]}...",
+        f"Searching: {query[:500]}...",
         description=f"Initiated search via {provider}",
         search_query=query,
         provider=provider,
@@ -194,7 +194,7 @@ def record_search_completed(query: str, provider: str, result_count: int, agent_
     """Convenience function to record a search completion."""
     return activity_recorder.record(
         ActivityType.SEARCH_COMPLETED,
-        f"Found {result_count} results for: {query[:40]}...",
+        f"Found {result_count} results for: {query[:500]}...",
         description=f"Search completed via {provider}",
         search_query=query,
         provider=provider,
@@ -221,7 +221,7 @@ def record_content_learned(title: str, source: str, word_count: int = 0, agent_n
     """Convenience function to record content learning."""
     return activity_recorder.record(
         ActivityType.CONTENT_LEARNED,
-        f"Learned: {title[:50]}...",
+        f"Learned: {title[:500]}...",
         description=f"Processed {word_count} words from content",
         source_url=source,
         agent_name=agent_name,
