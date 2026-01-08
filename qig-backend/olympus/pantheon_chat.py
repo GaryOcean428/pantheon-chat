@@ -757,7 +757,13 @@ class PantheonChat:
         metadata: Optional[Dict] = None,
         intent: Optional[str] = None,
         data: Optional[Dict[str, Any]] = None,
-        _hydration: bool = False
+        _hydration: bool = False,
+        session_id: Optional[str] = None,
+        parent_id: Optional[str] = None,
+        debate_id: Optional[str] = None,
+        phi: Optional[float] = None,
+        kappa: Optional[float] = None,
+        regime: Optional[str] = None,
     ) -> PantheonMessage:
         """
         Broadcast a message to the entire pantheon.
@@ -773,7 +779,13 @@ class PantheonChat:
             metadata=metadata,
             intent=intent,
             data=data,
-            _hydration=_hydration
+            _hydration=_hydration,
+            session_id=session_id,
+            parent_id=parent_id,
+            debate_id=debate_id,
+            phi=phi,
+            kappa=kappa,
+            regime=regime
         )
 
     def broadcast_generative(

@@ -548,7 +548,7 @@ class ExperimentalKernelEvolution:
         domain = f'e8_root_{root_index}'
         god_name = assign_god_name(domain, phi)
         
-        self.logger.log_spawn(None, kernel.kernel_id, domain)
+        self.logger.log_spawn(None, kernel.kernel_id, domain, phi=phi)
 
         # Save to database with god name
         if self.kernel_persistence:
@@ -862,7 +862,7 @@ class ExperimentalKernelEvolution:
         # Assign god name based on domain and characteristics
         god_name = assign_god_name(domain, phi)
         
-        self.logger.log_spawn(None, kernel.kernel_id, domain)
+        self.logger.log_spawn(None, kernel.kernel_id, domain, phi=phi)
 
         # Save to database with god name
         if self.kernel_persistence:
@@ -917,7 +917,7 @@ class ExperimentalKernelEvolution:
         phi = child.kernel.compute_phi()
         god_name = assign_god_name('exploration', phi)
         
-        self.logger.log_spawn(parent_id, child.kernel_id, 'reproduction')
+        self.logger.log_spawn(parent_id, child.kernel_id, 'reproduction', phi=phi)
         
         # Persist to database
         if self.kernel_persistence:
@@ -1517,11 +1517,12 @@ class ExperimentalKernelEvolution:
             kernel.clear_spawn_proposal()
             
             # Log and persist
-            self.logger.log_spawn(kernel.kernel_id, child.kernel_id, 'pantheon_approved')
+            child_phi = child.kernel.compute_phi()
+            self.logger.log_spawn(kernel.kernel_id, child.kernel_id, 'pantheon_approved', phi=child_phi)
             
             result['action'] = 'spawned'
             result['child_kernel_id'] = child.kernel_id
-            result['child_phi'] = child.kernel.compute_phi()
+            result['child_phi'] = child_phi
             
         elif proposal_type == 'death':
             recommendation = proposal.get('recommendation', 'die')
@@ -1629,7 +1630,8 @@ class ExperimentalKernelEvolution:
         _wire_kernel_to_discovery_gate(kernel)
 
         self.kernel_population.append(kernel)
-        self.logger.log_spawn(f"god:{god_name}", kernel.kernel_id, 'god_spawn')
+        god_spawn_phi = kernel.kernel.compute_phi()
+        self.logger.log_spawn(f"god:{god_name}", kernel.kernel_id, 'god_spawn', phi=god_spawn_phi)
 
         print(f"⚡ God {god_name} spawned CHAOS kernel {kernel.kernel_id}")
 
@@ -1739,7 +1741,8 @@ class ExperimentalKernelEvolution:
             if spawned_child:
                 self.kernel_population.append(spawned_child)
                 result['spawned'].append(spawned_child.kernel_id)
-                self.logger.log_spawn(kernel.kernel_id, spawned_child.kernel_id, 'conversation_success')
+                child_phi = spawned_child.kernel.compute_phi()
+                self.logger.log_spawn(kernel.kernel_id, spawned_child.kernel_id, 'conversation_success', phi=child_phi)
             
             # Absorb basin if provided and Phi is high
             if basin_coords and conversation_phi >= 0.7:
