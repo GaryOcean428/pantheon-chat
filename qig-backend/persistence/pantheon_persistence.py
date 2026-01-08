@@ -17,48 +17,49 @@ class PantheonPersistence(BasePersistence):
     """Persistence layer for Olympus pantheon chat and debates."""
 
     def save_message(self, message: Dict) -> bool:
-        """Save a message to the database (Railway schema: god_name, role, phi, kappa, regime).
-        
-        Extra fields (to, read, responded, debate_id) are stored in metadata for backward compatibility.
-        Uses JSON merge on conflict to preserve existing metadata fields.
+        """Save a message to the database.
+
+        Uses the standard schema: id, msg_type, from_god, to_god, content, metadata, is_read, is_responded, debate_id, created_at.
         """
         query = """
-            INSERT INTO pantheon_messages 
-            (id, god_name, role, content, phi, kappa, regime, session_id, parent_id, metadata, created_at)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO pantheon_messages
+            (id, msg_type, from_god, to_god, content, metadata, is_read, is_responded, debate_id, created_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             ON CONFLICT (id) DO UPDATE SET
                 content = EXCLUDED.content,
-                metadata = COALESCE(pantheon_messages.metadata, '{}'::jsonb) || COALESCE(EXCLUDED.metadata, '{}'::jsonb)
+                metadata = COALESCE(pantheon_messages.metadata, '{}'::jsonb) || COALESCE(EXCLUDED.metadata, '{}'::jsonb),
+                is_read = EXCLUDED.is_read,
+                is_responded = EXCLUDED.is_responded
         """
         try:
             metadata = message.get('metadata', {}) or {}
-            if message.get('to'):
-                metadata['to'] = message.get('to')
-            if message.get('read'):
-                metadata['read'] = message.get('read')
-            if message.get('responded'):
-                metadata['responded'] = message.get('responded')
-            if message.get('debate_id'):
-                metadata['debate_id'] = message.get('debate_id')
             metadata_json = json.dumps(metadata) if metadata else '{}'
-            
+
             timestamp = message.get('timestamp')
             if isinstance(timestamp, str):
                 created_at = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
             else:
                 created_at = datetime.now()
-            
+
+            # Determine msg_type - ensure it's not null
+            msg_type = message.get('msg_type', message.get('type', 'message')) or 'message'
+
+            # Get from_god - check 'from' first, then 'god_name', then 'from_god'
+            from_god = message.get('from') or message.get('god_name') or message.get('from_god') or 'unknown'
+
+            # Get to_god - check 'to' first, then 'to_god'
+            to_god = message.get('to') or message.get('to_god') or 'pantheon'
+
             self.execute_query(query, (
                 message['id'],
-                message.get('from', message.get('god_name', '')),
-                message.get('role', message.get('type', 'message')),
+                msg_type,
+                from_god,
+                to_god,
                 message.get('content', ''),
-                message.get('phi'),
-                message.get('kappa'),
-                message.get('regime'),
-                message.get('session_id'),
-                message.get('parent_id'),
                 metadata_json,
+                message.get('read', False),
+                message.get('responded', False),
+                message.get('debate_id'),
                 created_at,
             ), fetch=False)
             return True
@@ -69,8 +70,7 @@ class PantheonPersistence(BasePersistence):
     def load_recent_messages(self, limit: int = 100) -> List[Dict]:
         """Load recent messages from the database in chronological order (oldest first)."""
         query = """
-            SELECT id, god_name, role, content, phi, kappa, regime,
-                   session_id, parent_id, metadata, created_at
+            SELECT id, msg_type, from_god, to_god, content, metadata, is_read, is_responded, debate_id, created_at
             FROM pantheon_messages
             ORDER BY created_at ASC
             LIMIT %s
@@ -86,34 +86,29 @@ class PantheonPersistence(BasePersistence):
                     metadata = {}
             elif metadata is None:
                 metadata = {}
-            
+
             msg = {
                 'id': row['id'],
-                'from': row['god_name'],
-                'god_name': row['god_name'],
-                'to': metadata.get('to', 'pantheon'),
-                'type': row['role'] or 'message',
-                'role': row['role'],
+                'from': row['from_god'],
+                'god_name': row['from_god'],
+                'to': row['to_god'],
+                'type': row['msg_type'] or 'message',
+                'msg_type': row['msg_type'] or 'message',
                 'content': row['content'],
-                'phi': row['phi'],
-                'kappa': row['kappa'],
-                'regime': row['regime'],
-                'session_id': row['session_id'],
-                'parent_id': row['parent_id'],
                 'metadata': metadata,
-                'read': metadata.get('read', False),
-                'responded': metadata.get('responded', False),
-                'debate_id': metadata.get('debate_id'),
+                'read': row['is_read'] or False,
+                'responded': row['is_responded'] or False,
+                'debate_id': row['debate_id'],
                 'timestamp': row['created_at'].isoformat() if row['created_at'] else None,
             }
             messages.append(msg)
         return messages
 
     def mark_message_read(self, message_id: str) -> bool:
-        """Mark a message as read (stores in metadata since Railway schema lacks is_read column)."""
+        """Mark a message as read."""
         query = """
-            UPDATE pantheon_messages 
-            SET metadata = COALESCE(metadata, '{}'::jsonb) || '{"read": true}'::jsonb 
+            UPDATE pantheon_messages
+            SET is_read = true
             WHERE id = %s
         """
         try:
@@ -143,11 +138,11 @@ class PantheonPersistence(BasePersistence):
                 started_at = datetime.fromisoformat(started_at.replace('Z', '+00:00'))
             elif started_at is None:
                 started_at = datetime.now()
-            
+
             resolved_at = debate.get('resolved_at')
             if isinstance(resolved_at, str):
                 resolved_at = datetime.fromisoformat(resolved_at.replace('Z', '+00:00'))
-            
+
             self.execute_query(query, (
                 debate['id'],
                 debate.get('topic', ''),
@@ -184,7 +179,7 @@ class PantheonPersistence(BasePersistence):
                 LIMIT %s
             """
             results = self.execute_query(query, (limit,))
-        
+
         debates = []
         for row in results or []:
             # Parse JSON fields if they're strings
@@ -196,7 +191,7 @@ class PantheonPersistence(BasePersistence):
                     context = {}
             elif context is None:
                 context = {}
-            
+
             arguments = row['arguments']
             if isinstance(arguments, str):
                 try:
@@ -205,7 +200,7 @@ class PantheonPersistence(BasePersistence):
                     arguments = []
             elif arguments is None:
                 arguments = []
-            
+
             resolution = row['resolution']
             if isinstance(resolution, str):
                 try:
@@ -214,7 +209,7 @@ class PantheonPersistence(BasePersistence):
                     resolution = {}
             elif resolution is None:
                 resolution = {}
-            
+
             debate = {
                 'id': row['id'],
                 'topic': row['topic'],
@@ -272,7 +267,7 @@ class PantheonPersistence(BasePersistence):
                     content = {}
             elif content is None:
                 content = {}
-            
+
             transfer = {
                 'id': row['id'],
                 'from': row['from_god'],
