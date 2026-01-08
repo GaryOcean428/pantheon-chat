@@ -186,14 +186,29 @@ class LearnedRelationships:
                         template="(%s, %s, %s, NOW())"
                     )
 
-                    # Recalculate strength globally: ln(count + 1) / ln(max_count + 1)
-                    # This ensures strength is always relative to the global max
+                    # Recalculate strength as conditional probability:
+                    # strength = P(neighbor | word) = cooccurrence(word, neighbor) / total_cooccurrence(word)
+                    # This gives the relative probability of seeing 'neighbor' after 'word'
+                    # Normalized by global max for 0-1 scaling
                     cur.execute("""
-                        WITH max_cooc AS (
-                            SELECT MAX(cooccurrence_count) as max_count FROM word_relationships
+                        WITH word_totals AS (
+                            -- Total co-occurrences for each word (sum of all its neighbors)
+                            SELECT word, SUM(cooccurrence_count) as total_cooc
+                            FROM word_relationships
+                            GROUP BY word
+                        ),
+                        max_prob AS (
+                            -- Max probability for normalization
+                            SELECT MAX(wr.cooccurrence_count / NULLIF(wt.total_cooc, 0)) as max_p
+                            FROM word_relationships wr
+                            JOIN word_totals wt ON wr.word = wt.word
                         )
-                        UPDATE word_relationships
-                        SET strength = ln(cooccurrence_count + 1) / ln((SELECT max_count FROM max_cooc) + 1)
+                        UPDATE word_relationships wr
+                        SET strength = (
+                            wr.cooccurrence_count / NULLIF(
+                                (SELECT total_cooc FROM word_totals WHERE word = wr.word), 0
+                            )
+                        ) / NULLIF((SELECT max_p FROM max_prob), 0)
                         WHERE strength IS NULL OR strength = 0
                            OR updated_at >= NOW() - INTERVAL '1 minute'
                     """)
