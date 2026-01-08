@@ -1647,13 +1647,11 @@ class ShadowLearningLoop:
                     domain=topic
                 )
                 
-                # Only log when new words were actually learned
-                new_words = metrics.get('new_words_learned', 0)
-                if new_words > 0:
-                    print(
-                        f"[VocabularyLearning] Learned from '{topic}': "
-                        f"{new_words} new words, phi={phi:.3f}"
-                    )
+                print(
+                    f"[VocabularyLearning] Learned from '{topic}': "
+                    f"{metrics.get('new_words_learned', 0)} new words, "
+                    f"phi={phi:.3f}"
+                )
         
         except Exception as e:
             print(f"[VocabularyLearning] Error in vocabulary insight callback: {e}")
