@@ -159,30 +159,44 @@ class LearnedRelationships:
         
         try:
             # Prepare relationship batch data
+            # Filter out self-referential entries (word = neighbor is invalid)
             records = []
             for word, neighbors in self.word_neighbors.items():
                 for neighbor, count in neighbors:
-                    records.append((word, neighbor, float(count)))
-            
+                    if word != neighbor:  # Prevent self-referential entries
+                        records.append((word, neighbor, float(count)))
+
             # Prepare word frequency batch data
             freq_records = [(word, freq) for word, freq in self.word_frequency.items()]
-            
+
             with conn.cursor() as cur:
-                # Save relationships
+                # Save relationships (strength will be recalculated globally after insert)
                 if records:
                     execute_values(
                         cur,
                         """
                         INSERT INTO word_relationships (word, neighbor, cooccurrence_count, updated_at)
                         VALUES %s
-                        ON CONFLICT (word, neighbor) 
-                        DO UPDATE SET 
+                        ON CONFLICT (word, neighbor)
+                        DO UPDATE SET
                             cooccurrence_count = GREATEST(word_relationships.cooccurrence_count, EXCLUDED.cooccurrence_count),
                             updated_at = NOW()
                         """,
                         records,
                         template="(%s, %s, %s, NOW())"
                     )
+
+                    # Recalculate strength globally: ln(count + 1) / ln(max_count + 1)
+                    # This ensures strength is always relative to the global max
+                    cur.execute("""
+                        WITH max_cooc AS (
+                            SELECT MAX(cooccurrence_count) as max_count FROM word_relationships
+                        )
+                        UPDATE word_relationships
+                        SET strength = ln(cooccurrence_count + 1) / ln((SELECT max_count FROM max_cooc) + 1)
+                        WHERE strength IS NULL OR strength = 0
+                           OR updated_at >= NOW() - INTERVAL '1 minute'
+                    """)
                 
                 # Save word frequencies to learned_words table
                 if freq_records:
