@@ -739,6 +739,7 @@ class AutonomousDebateService:
                     event_id = self._persistence.record_learning_event(
                         event_type="research_vocabulary_training",
                         phi=0.6,
+                        kappa=50.0,  # Default curvature for research context
                         details={
                             "topic": topic,
                             "debate_id": debate_id,
@@ -746,7 +747,13 @@ class AutonomousDebateService:
                             "sources_trained": len(training_results),
                             "training_results": training_results,
                         },
+                        context={
+                            "service": "autonomous_debate",
+                            "operation": "vocabulary_training",
+                            "research_sources": ["searxng", "darknet"] if research.get("darknet") else ["searxng"],
+                        },
                         source="autonomous_debate_service",
+                        instance_id=debate_id,
                     )
                     persisted_successfully = event_id is not None
                 except Exception as e:

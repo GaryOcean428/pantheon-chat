@@ -528,10 +528,15 @@ class FeedbackLoopManager:
 
         return result
 
-    def run_learning_feedback(self, discovery: Dict) -> Dict:
+    def run_learning_feedback(self, discovery: Dict, basin_coords: Optional[np.ndarray] = None, kappa: Optional[float] = None) -> Dict:
         """
         Run learning event feedback loop.
         Record discovery → Update memory → Influence retrieval
+
+        Args:
+            discovery: Discovery details including phi, type, etc.
+            basin_coords: Current basin coordinates for geometric context
+            kappa: Current curvature for manifold context
         """
         self.loop_counters['learning'] += 1
 
@@ -542,7 +547,14 @@ class FeedbackLoopManager:
             event_id = self.memory.record_learning_event(
                 event_type=discovery.get('type', 'general'),
                 phi=phi,
-                details=discovery
+                kappa=kappa,
+                basin_coords=basin_coords,
+                details=discovery,
+                context={
+                    'iteration': self.loop_counters['learning'],
+                    'source': discovery.get('source', 'ocean'),
+                },
+                source='ocean_qig_core',
             )
             recorded = True
         else:
@@ -590,7 +602,12 @@ class FeedbackLoopManager:
 
         # Learning feedback
         if 'discovery' in current_state:
-            results['learning'] = self.run_learning_feedback(current_state['discovery'])
+            basin_coords = np.array(current_state['basin']) if 'basin' in current_state else None
+            results['learning'] = self.run_learning_feedback(
+                current_state['discovery'],
+                basin_coords=basin_coords,
+                kappa=current_state.get('kappa'),
+            )
 
         self.last_feedback_time = datetime.now()
 
