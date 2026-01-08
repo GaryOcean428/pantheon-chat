@@ -19,15 +19,20 @@ class PantheonPersistence(BasePersistence):
     def save_message(self, message: Dict) -> bool:
         """Save a message to the database.
 
-        Uses the standard schema: id, msg_type, from_god, to_god, content, metadata, is_read, is_responded, debate_id, created_at.
+        Populates BOTH legacy columns (god_name, role, phi, kappa, regime, session_id, parent_id)
+        and new columns (msg_type, from_god, to_god, is_read, is_responded, debate_id).
         """
         query = """
             INSERT INTO pantheon_messages
-            (id, msg_type, from_god, to_god, content, metadata, is_read, is_responded, debate_id, created_at)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            (id, god_name, role, content, phi, kappa, regime, session_id, parent_id,
+             metadata, msg_type, from_god, to_god, is_read, is_responded, debate_id, created_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             ON CONFLICT (id) DO UPDATE SET
                 content = EXCLUDED.content,
                 metadata = COALESCE(pantheon_messages.metadata, '{}'::jsonb) || COALESCE(EXCLUDED.metadata, '{}'::jsonb),
+                phi = COALESCE(EXCLUDED.phi, pantheon_messages.phi),
+                kappa = COALESCE(EXCLUDED.kappa, pantheon_messages.kappa),
+                regime = COALESCE(EXCLUDED.regime, pantheon_messages.regime),
                 is_read = EXCLUDED.is_read,
                 is_responded = EXCLUDED.is_responded
         """
@@ -50,13 +55,34 @@ class PantheonPersistence(BasePersistence):
             # Get to_god - check 'to' first, then 'to_god'
             to_god = message.get('to') or message.get('to_god') or 'pantheon'
 
+            # Extract phi, kappa, regime from source_data in metadata if available
+            source_data = metadata.get('source_data', {}) or {}
+            phi = source_data.get('phi') or metadata.get('phi')
+            kappa = source_data.get('kappa') or metadata.get('kappa')
+            regime = source_data.get('regime') or metadata.get('regime')
+
+            # Get session_id and parent_id if available
+            session_id = message.get('session_id') or metadata.get('session_id')
+            parent_id = message.get('parent_id') or metadata.get('parent_id')
+
+            # god_name = from_god, role = msg_type (for legacy compatibility)
+            god_name = from_god
+            role = msg_type
+
             self.execute_query(query, (
                 message['id'],
+                god_name,
+                role,
+                message.get('content', ''),
+                phi,
+                kappa,
+                regime,
+                session_id,
+                parent_id,
+                metadata_json,
                 msg_type,
                 from_god,
                 to_god,
-                message.get('content', ''),
-                metadata_json,
                 message.get('read', False),
                 message.get('responded', False),
                 message.get('debate_id'),
@@ -70,7 +96,8 @@ class PantheonPersistence(BasePersistence):
     def load_recent_messages(self, limit: int = 100) -> List[Dict]:
         """Load recent messages from the database in chronological order (oldest first)."""
         query = """
-            SELECT id, msg_type, from_god, to_god, content, metadata, is_read, is_responded, debate_id, created_at
+            SELECT id, god_name, role, content, phi, kappa, regime, session_id, parent_id,
+                   metadata, msg_type, from_god, to_god, is_read, is_responded, debate_id, created_at
             FROM pantheon_messages
             ORDER BY created_at ASC
             LIMIT %s
@@ -89,12 +116,18 @@ class PantheonPersistence(BasePersistence):
 
             msg = {
                 'id': row['id'],
-                'from': row['from_god'],
-                'god_name': row['from_god'],
+                'from': row['from_god'] or row['god_name'],
+                'god_name': row['god_name'] or row['from_god'],
                 'to': row['to_god'],
-                'type': row['msg_type'] or 'message',
-                'msg_type': row['msg_type'] or 'message',
+                'type': row['msg_type'] or row['role'] or 'message',
+                'msg_type': row['msg_type'] or row['role'] or 'message',
+                'role': row['role'] or row['msg_type'],
                 'content': row['content'],
+                'phi': row['phi'],
+                'kappa': row['kappa'],
+                'regime': row['regime'],
+                'session_id': row['session_id'],
+                'parent_id': row['parent_id'],
                 'metadata': metadata,
                 'read': row['is_read'] or False,
                 'responded': row['is_responded'] or False,

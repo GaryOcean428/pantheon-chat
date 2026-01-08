@@ -242,6 +242,16 @@ class AutonomousDebateService:
         if self._persistence:
             logger.info("QIGPersistence connected for learning event recording")
         
+        # DIAGNOSTIC: Log spawner status
+        logger.info(f"[M8Spawn] Initialization: M8_AVAILABLE={M8_AVAILABLE}")
+        if M8_AVAILABLE:
+            if self._m8_spawner:
+                logger.info(f"[M8Spawn] ✓ M8KernelSpawner connected")
+            else:
+                logger.warning(f"[M8Spawn] ✗ M8_AVAILABLE but spawner is None")
+        else:
+            logger.warning(f"[M8Spawn] ✗ M8 kernel spawning not available (import failed)")
+        
         logger.info("Service initialized")
     
     def set_pantheon_chat(self, pantheon_chat: 'PantheonChat') -> None:
@@ -393,14 +403,22 @@ class AutonomousDebateService:
         3. One god has 2+ unanswered arguments
         """
         arguments = debate_dict.get('arguments', [])
+        debate_id = debate_dict.get('id', '')[:20]
+        
+        # DIAGNOSTIC: Log resolution criteria evaluation
+        logger.debug(f"[DebateResolve] Evaluating debate {debate_id}: {len(arguments)} arguments")
         
         if len(arguments) >= MIN_ARGUMENTS_FOR_RESOLUTION:
+            logger.info(f"[DebateResolve] {debate_id} meets MIN_ARGUMENTS threshold ({len(arguments)}>={MIN_ARGUMENTS_FOR_RESOLUTION})")
             return True
         
         if len(arguments) >= 2:
             fisher_dist = self._compute_position_distance(debate_dict)
             if fisher_dist < FISHER_CONVERGENCE_THRESHOLD:
+                logger.info(f"[DebateResolve] {debate_id} converged via Fisher distance ({fisher_dist:.3f} < {FISHER_CONVERGENCE_THRESHOLD})")
                 return True
+            else:
+                logger.debug(f"[DebateResolve] {debate_id} Fisher distance {fisher_dist:.3f} > threshold")
         
         initiator = debate_dict.get('initiator', '')
         opponent = debate_dict.get('opponent', '')
@@ -409,10 +427,13 @@ class AutonomousDebateService:
         opponent_args = [a for a in arguments if a.get('god', '').lower() == opponent.lower()]
         
         if len(initiator_args) - len(opponent_args) >= UNANSWERED_THRESHOLD:
+            logger.info(f"[DebateResolve] {debate_id} resolved: {initiator} has {UNANSWERED_THRESHOLD}+ unanswered arguments")
             return True
         if len(opponent_args) - len(initiator_args) >= UNANSWERED_THRESHOLD:
+            logger.info(f"[DebateResolve] {debate_id} resolved: {opponent} has {UNANSWERED_THRESHOLD}+ unanswered arguments")
             return True
         
+        logger.debug(f"[DebateResolve] {debate_id} not ready for resolution")
         return False
     
     def _compute_position_distance(self, debate_dict: Dict) -> float:
@@ -1314,16 +1335,24 @@ class AutonomousDebateService:
     
     def _trigger_spawn_proposal(self, topic: str, winner: str, debate_dict: Dict) -> None:
         """Trigger M8 kernel spawn proposal for debate domain specialist."""
+        # DIAGNOSTIC: Log spawn attempt
+        logger.info(f"[M8Spawn] Spawn evaluation triggered for topic: {topic}")
+        logger.info(f"[M8Spawn] M8_AVAILABLE={M8_AVAILABLE}, spawner_connected={self._m8_spawner is not None}")
+        
         if not self._m8_spawner or not M8_AVAILABLE:
+            logger.warning(f"[M8Spawn] Spawn blocked: spawner={self._m8_spawner is not None}, M8_AVAILABLE={M8_AVAILABLE}")
             return
         
         domain = self._extract_domain_from_topic(topic)
+        logger.info(f"[M8Spawn] Extracted domain '{domain}' from topic '{topic}'")
         
         spawn_name = f"{domain.capitalize()}Specialist"
         element = f"debate_{topic[:20].replace(' ', '_')}"
         role = "domain_specialist"
         parent_gods = [winner, debate_dict.get('initiator', ''), debate_dict.get('opponent', '')]
         parent_gods = list(set([g for g in parent_gods if g]))[:2]
+        
+        logger.info(f"[M8Spawn] Proposing spawn: name={spawn_name}, domain={domain}, parents={parent_gods}")
         
         try:
             result = self._m8_spawner.propose_and_spawn(
@@ -1338,9 +1367,10 @@ class AutonomousDebateService:
             
             if result.get('success'):
                 self._spawns_triggered += 1
-                logger.info(f"Spawned specialist: {spawn_name} for domain '{domain}'")
+                logger.info(f"[M8Spawn] ✓ Spawn successful: {spawn_name} for domain '{domain}'")
             else:
-                logger.info(f"Spawn proposal created (pending consensus): {spawn_name}")
+                logger.info(f"[M8Spawn] ⏳ Proposal created (pending consensus): {spawn_name}")
+                logger.debug(f"[M8Spawn] Result details: {result}")
                 
         except (AttributeError, KeyError, ValueError, TypeError) as e:
             logger.error(f"Spawn proposal data error: {e}")
@@ -1368,6 +1398,15 @@ class AutonomousDebateService:
             except Exception:
                 pass
         
+        # DIAGNOSTIC: Add spawn readiness indicators
+        spawn_readiness = {
+            'm8_available': M8_AVAILABLE,
+            'm8_spawner_initialized': self._m8_spawner is not None,
+            'spawn_threshold': MIN_ARGUMENTS_FOR_RESOLUTION,
+            'spawns_triggered': self._spawns_triggered,
+            'spawn_readiness': 'ready' if (M8_AVAILABLE and self._m8_spawner) else 'blocked'
+        }
+        
         return {
             'running': self._running,
             'last_poll': self._last_poll_time.isoformat() if self._last_poll_time else None,
@@ -1386,6 +1425,7 @@ class AutonomousDebateService:
             'pantheon_gods_connected': len(self._pantheon_gods) > 0,
             'gods_available': list(self._pantheon_gods.keys()) if self._pantheon_gods else [],
             'vocabulary_stats': vocab_stats,
+            'spawn_readiness': spawn_readiness,
             'config': {
                 'poll_interval_seconds': POLL_INTERVAL_SECONDS,
                 'stale_threshold_seconds': STALE_THRESHOLD_SECONDS,
