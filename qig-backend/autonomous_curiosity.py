@@ -394,7 +394,15 @@ class AutonomousCuriosityEngine:
     - Tool refinement requests
     """
     
+    _instance: Optional['AutonomousCuriosityEngine'] = None
+    
+    @classmethod
+    def get_instance(cls) -> Optional['AutonomousCuriosityEngine']:
+        """Get singleton instance if it exists."""
+        return cls._instance
+    
     def __init__(self, search_callback: Optional[Callable] = None):
+        AutonomousCuriosityEngine._instance = self
         self.curiosity_drive = CuriosityDrive()
         self.curriculum_loader = CurriculumLoader()
         
@@ -442,6 +450,105 @@ class AutonomousCuriosityEngine:
         # Track recent queries to avoid repetition
         self._recent_queries: deque = deque(maxlen=100)
         self._query_cooldown = set()  # Queries made in current cycle
+        
+        # Vocabulary stall tracking (fed by ShadowLearningLoop)
+        self._learning_stalls: deque = deque(maxlen=50)
+        self._stalled_topics: set = set()
+        self._stall_recovery_queries: set = set()
+    
+    def record_learning_stall(
+        self, 
+        topic: str, 
+        streak: int, 
+        total_stalls: int
+    ) -> None:
+        """
+        Record a vocabulary learning stall for curiosity adaptation.
+        
+        Called by ShadowLearningLoop when consecutive zero-word outcomes occur.
+        Curiosity engine uses this to:
+        1. Avoid topics that consistently yield no new vocabulary
+        2. Prioritize novel domains that haven't been explored
+        3. Trigger proactive search for fresh content
+        
+        Respects kernel autonomy: signals availability of information,
+        kernels freely decide whether to explore.
+        """
+        import time
+        
+        stall_record = {
+            'topic': topic,
+            'streak': streak,
+            'total_stalls': total_stalls,
+            'timestamp': time.time()
+        }
+        self._learning_stalls.append(stall_record)
+        self._stalled_topics.add(topic.lower())
+        
+        print(
+            f"[AutonomousCuriosityEngine] 📊 Learning stall recorded: "
+            f"'{topic}' (streak={streak}, total={total_stalls})"
+        )
+        
+        # Trigger proactive search for novel content if we have search capability
+        if self.search_callback and topic not in self._stall_recovery_queries:
+            try:
+                # Generate novel query avoiding stalled topics
+                novel_query = self._generate_novel_query(topic)
+                if novel_query:
+                    self._stall_recovery_queries.add(topic)
+                    # Create proper KernelToolRequest object (not raw dict)
+                    recovery_request = KernelToolRequest(
+                        kernel_name='curiosity_recovery',
+                        request_type='search',
+                        query=novel_query,
+                        priority=0.9,  # High priority for recovery
+                        context={
+                            'type': 'stall_recovery',
+                            'original_topic': topic,
+                            'streak': streak
+                        }
+                    )
+                    self.pending_requests.append(recovery_request)
+                    print(f"[AutonomousCuriosityEngine] 🔍 Queued recovery query: '{novel_query}'")
+            except Exception as e:
+                logger.warning(f"[AutonomousCuriosityEngine] Failed to queue recovery: {e}")
+    
+    def _generate_novel_query(self, stalled_topic: str) -> Optional[str]:
+        """
+        Generate a novel query that avoids recently stalled topics.
+        
+        Uses geometric exploration: finds topics far from stalled basins.
+        """
+        import random
+        
+        # Use kernel interests to find unexplored domains
+        all_interests = []
+        for kernel, interests in self.kernel_interests.items():
+            all_interests.extend(interests)
+        
+        # Filter out any that overlap with stalled topics
+        stalled_words = set(stalled_topic.lower().split())
+        novel_interests = [
+            interest for interest in all_interests
+            if interest.lower() not in stalled_words
+            and interest.lower() not in self._stalled_topics
+        ]
+        
+        if novel_interests:
+            selected = random.choice(novel_interests)
+            return f"novel concepts in {selected}"
+        
+        return None
+    
+    def get_stall_metrics(self) -> Dict[str, Any]:
+        """Get vocabulary learning stall metrics for telemetry."""
+        return {
+            'recent_stalls': len(self._learning_stalls),
+            'stalled_topics_count': len(self._stalled_topics),
+            'recovery_queries_queued': len(self._stall_recovery_queries),
+            'stalls_list': list(self._learning_stalls)[-10:]  # Last 10
+        }
     
     def start(self):
         """Start the autonomous curiosity loop."""
@@ -642,13 +749,15 @@ class AutonomousCuriosityEngine:
         """
         Learn word relationships from search result immediately.
         Updates word relationships and kernel basins in real-time.
+        Also persists rich content to shadow_knowledge for vocabulary learning.
         """
         try:
             from word_relationship_learner import WordRelationshipLearner
             from coordizers.pg_loader import PostgresCoordizer
             
-            # Extract text from result
+            # Extract text from result with full citation metadata
             text_content = []
+            citation_metadata = []
             if isinstance(result, dict):
                 content = result.get('content', '') or result.get('text', '') or result.get('summary', '')
                 if content:
@@ -660,11 +769,20 @@ class AutonomousCuriosityEngine:
                         text = snippet.get('text', '') or snippet.get('content', '') or snippet.get('description', '')
                         if text:
                             text_content.append(str(text))
+                            citation_metadata.append({
+                                'title': snippet.get('title', ''),
+                                'url': snippet.get('url', ''),
+                                'provider': snippet.get('provider', 'unknown'),
+                                'content_length': len(text)
+                            })
                     elif isinstance(snippet, str):
                         text_content.append(snippet)
             
             if not text_content:
                 return
+            
+            # Persist to shadow_knowledge for vocabulary learning (rich content persistence)
+            self._persist_search_to_shadow_knowledge(result, text_content, citation_metadata)
             
             # Initialize learner with current vocabulary
             coordizer = PostgresCoordizer()
@@ -689,6 +807,73 @@ class AutonomousCuriosityEngine:
                 
         except Exception as e:
             print(f"[AutonomousCuriosityEngine] Error learning from search: {e}")
+    
+    def _persist_search_to_shadow_knowledge(
+        self,
+        result: Dict,
+        text_content: List[str],
+        citation_metadata: List[Dict]
+    ) -> None:
+        """
+        Persist rich search content to shadow_knowledge for vocabulary learning.
+        
+        This ensures cited documents from Tavily/Perplexity are stored with full
+        provenance for kernel access and vocabulary extraction.
+        """
+        try:
+            # Import shadow research lazily
+            from olympus.shadow_research import (
+                ShadowKnowledgeBase,
+                ResearchCategory,
+                BASIN_DIMENSION
+            )
+            import numpy as np
+            
+            knowledge_base = ShadowKnowledgeBase.get_instance()
+            if not knowledge_base:
+                return
+            
+            # Extract query and provider info
+            query = result.get('query', result.get('topic', 'autonomous_search'))
+            provider = result.get('provider', 'unknown')
+            
+            # Build rich content dict with full text and citations
+            full_content = '\n\n---\n\n'.join(text_content)
+            
+            content_dict = {
+                'raw_content': full_content[:5000],  # Store up to 5K chars
+                'content_length': len(full_content),
+                'provider': provider,
+                'citations': citation_metadata,
+                'source_count': len(text_content),
+                'search_result': True,  # Flag for vocabulary learning
+                'timestamp': datetime.now().isoformat()
+            }
+            
+            # Generate basin coordinates from query
+            basin_coords = np.zeros(BASIN_DIMENSION)
+            for i, char in enumerate(query[:BASIN_DIMENSION]):
+                basin_coords[i] = ord(char) / 255.0
+            
+            # Add to knowledge base with citations
+            knowledge_id = knowledge_base.add_knowledge(
+                topic=query[:200],
+                category=ResearchCategory.KNOWLEDGE,
+                content=content_dict,
+                source_god=f"Search:{provider}",
+                basin_coords=basin_coords,
+                phi=0.6,  # Moderate phi for search results
+                confidence=0.7,
+                variation=f"search:{provider}:{query[:50]}"
+            )
+            
+            print(
+                f"[AutonomousCuriosityEngine] 📚 Persisted search content to shadow_knowledge "
+                f"(id={knowledge_id}, provider={provider}, chars={len(full_content)})"
+            )
+            
+        except Exception as e:
+            logger.warning(f"[AutonomousCuriosityEngine] Shadow knowledge persist failed: {e}")
     
     def _execute_tool_refinement(self, request: KernelToolRequest):
         """Execute a tool refinement request."""

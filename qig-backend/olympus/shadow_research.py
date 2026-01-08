@@ -1143,6 +1143,13 @@ class ShadowLearningLoop:
             print("[ShadowLearningLoop] Curriculum training available")
         else:
             print("[ShadowLearningLoop] Curriculum training not available")
+        
+        # Stall detection for vocabulary learning
+        self._vocab_zero_streak = 0
+        self._vocab_stall_threshold = 3  # Trigger escalation after 3 consecutive zeros
+        self._vocab_total_stalls = 0
+        self._vocab_last_escalation = 0
+        self._vocab_escalation_cooldown = 300  # 5 minutes between escalations
 
         # Initialize Search Budget for proactive research
         self.search_manager = None
@@ -1647,14 +1654,122 @@ class ShadowLearningLoop:
                     domain=topic
                 )
                 
+                new_words = metrics.get('new_words_learned', 0)
                 print(
                     f"[VocabularyLearning] Learned from '{topic}': "
-                    f"{metrics.get('new_words_learned', 0)} new words, "
+                    f"{new_words} new words, "
                     f"phi={phi:.3f}"
                 )
+                
+                # Stall detection: track consecutive zero-word outcomes
+                if new_words == 0:
+                    self._vocab_zero_streak += 1
+                    if self._vocab_zero_streak >= self._vocab_stall_threshold:
+                        self._trigger_learning_escalation(topic)
+                else:
+                    # Reset streak on successful learning
+                    self._vocab_zero_streak = 0
         
         except Exception as e:
             print(f"[VocabularyLearning] Error in vocabulary insight callback: {e}")
+    
+    def _trigger_learning_escalation(self, stalled_topic: str) -> None:
+        """
+        Escalate learning strategy when vocabulary acquisition stalls.
+        
+        Triggered after consecutive zero-word learning outcomes.
+        Actions taken:
+        1. Force curriculum file rotation (load fresh content)
+        2. Elevate search importance for premium providers
+        3. Notify curiosity engine to seek novel sources
+        
+        Respects kernel autonomy: provides access to new sources,
+        kernels decide what to learn from them.
+        """
+        import time
+        current_time = time.time()
+        
+        # Cooldown check to avoid escalation spam
+        if current_time - self._vocab_last_escalation < self._vocab_escalation_cooldown:
+            return
+        
+        self._vocab_last_escalation = current_time
+        self._vocab_total_stalls += 1
+        
+        print(
+            f"[VocabularyLearning] 🔄 STALL DETECTED: {self._vocab_zero_streak} consecutive zeros. "
+            f"Escalating to fresh sources (total stalls: {self._vocab_total_stalls})"
+        )
+        
+        # 1. Force curriculum rotation - load a different curriculum file
+        if self._curriculum_available:
+            try:
+                from pathlib import Path
+                
+                curriculum_paths = [
+                    Path('docs/09-curriculum'),
+                    Path('../docs/09-curriculum'),
+                    Path(__file__).parent.parent.parent / 'docs' / '09-curriculum',
+                ]
+                
+                curriculum_dir = None
+                for p in curriculum_paths:
+                    if p.exists():
+                        curriculum_dir = p
+                        break
+                
+                if curriculum_dir:
+                    curriculum_files = list(curriculum_dir.glob('*.md')) + list(curriculum_dir.glob('*.txt'))
+                    if curriculum_files:
+                        # Skip recently used files by advancing index
+                        self._learning_cycles += 3  # Jump ahead in rotation
+                        file_path = curriculum_files[self._learning_cycles % len(curriculum_files)]
+                        
+                        content = file_path.read_text(encoding='utf-8', errors='ignore')
+                        if content.strip() and self.vocab_coordinator:
+                            metrics = self.vocab_coordinator.train_from_text(
+                                text=content,
+                                domain=f"curriculum:{file_path.stem}"
+                            )
+                            new_words = metrics.get('new_words_learned', 0)
+                            print(f"[VocabularyLearning] 📚 Curriculum escalation: {file_path.name} → {new_words} new words")
+                            
+                            if new_words > 0:
+                                self._vocab_zero_streak = 0  # Reset on success
+            except Exception as e:
+                print(f"[VocabularyLearning] Curriculum escalation failed: {e}")
+        
+        # 2. Elevate search importance - trigger premium provider search
+        if self.search_manager and self.search_budget:
+            try:
+                # Request elevated search with high importance to unlock premium providers
+                elevated_query = f"advanced concepts {stalled_topic}"
+                result = self.budget_aware_search(
+                    query=elevated_query,
+                    importance=4,  # Critical importance unlocks all providers
+                    kernel_id="stall_recovery",
+                    max_results=10
+                )
+                
+                if result.get('success') and result.get('results'):
+                    providers_used = result.get('providers_used', [])
+                    print(f"[VocabularyLearning] 🔍 Elevated search: {len(result['results'])} results from {providers_used}")
+            except Exception as e:
+                print(f"[VocabularyLearning] Elevated search failed: {e}")
+        
+        # 3. Notify curiosity engine if available
+        try:
+            from autonomous_curiosity import AutonomousCuriosityEngine
+            engine = AutonomousCuriosityEngine.get_instance()
+            if engine:
+                # Signal stall so curiosity can adapt topic selection
+                engine.record_learning_stall(
+                    topic=stalled_topic,
+                    streak=self._vocab_zero_streak,
+                    total_stalls=self._vocab_total_stalls
+                )
+        except Exception:
+            pass  # Curiosity engine may not exist yet
     
     def _find_conceptual_connections(self, topic: str) -> List[Dict]:
         """Find connections to existing knowledge."""

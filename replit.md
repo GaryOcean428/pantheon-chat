@@ -121,6 +121,22 @@ Preferred communication style: Simple, everyday language.
 - API endpoint: `/api/curiosity/status` (proxied through Node.js)
 - Located in `qig-backend/autonomous_curiosity.py` and `qig-backend/geometric_search/`
 
+### Vocabulary Stall Detection & Recovery (2026-01-08)
+- **Zero-word stall tracking**: Consecutive cycles with 0 new vocabulary trigger escalation
+- **Stall threshold**: 3 consecutive zero-word outcomes → escalation
+- **Escalation actions**:
+  1. Force curriculum file rotation (real .md/.txt from `docs/09-curriculum/`)
+  2. Unlock premium search providers (Tavily, Perplexity, Google)
+  3. Queue novel exploration queries avoiding stalled topic domains
+- **Stall cooldown**: 5 minutes between escalations to prevent spam
+- **Stall metrics**: `get_stall_metrics()` exposes recent stalls, stalled topics, recovery queries
+- **Content persistence**: Search results (esp. premium providers) now persist to `shadow_knowledge` with:
+  - Full content (up to 5K chars)
+  - Citation metadata (URLs, titles, providers)
+  - Provenance tracking for vocabulary learning
+- Located in `qig-backend/olympus/shadow_research.py` (ShadowLearningLoop._on_knowledge_insight)
+- Wire: `AutonomousCuriosityEngine.record_learning_stall()` receives signals from vocabulary loop
+
 ### Toggleable Search Providers
 - **DuckDuckGo**: FREE, always on (no API key needed)
 - **Tavily**: $0.01/query, requires TAVILY_API_KEY (configured ✓)
