@@ -1318,7 +1318,6 @@ export class NearMissManager {
 
       const data = await cacheGet<RedisNearMissState>(CACHE_KEYS.NEAR_MISS);
       if (!data || !data.entries || data.entries.length === 0) {
-        console.log('[NearMiss] No data in Redis, will try other sources');
         return false;
       }
 
@@ -1389,7 +1388,6 @@ export class NearMissManager {
       ]);
 
       if (entries.length === 0 && clusters.length === 0 && !adaptiveState) {
-        console.log('[NearMiss] No data in PostgreSQL, will try JSON fallback');
         return false;
       }
 
