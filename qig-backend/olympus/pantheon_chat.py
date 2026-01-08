@@ -11,17 +11,18 @@ All messages and debates are persisted to PostgreSQL for durability.
 All inter-god messages are QIG-pure generative (NO templates).
 """
 
-from typing import Dict, List, Optional, Any, Callable
-from datetime import datetime
-from collections import defaultdict
-import asyncio
-import json
 import logging
+from collections import defaultdict
+from datetime import datetime
+from typing import Any, Callable, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
 try:
-    from persistence.pantheon_persistence import get_pantheon_persistence, PantheonPersistence
+    from persistence.pantheon_persistence import (
+        PantheonPersistence,
+        get_pantheon_persistence,
+    )
     PERSISTENCE_AVAILABLE = True
 except ImportError:
     PERSISTENCE_AVAILABLE = False
@@ -213,7 +214,7 @@ class PantheonChat:
     - Debate initiation and resolution
     - Knowledge transfer coordination
     - Challenge routing and tracking
-    
+
     All messages and debates persist to PostgreSQL for durability.
     """
 
@@ -235,7 +236,7 @@ class PantheonChat:
 
         self.message_limit = 1000
         self.debate_limit = 100
-        
+
         # Persistence layer
         self._persistence: Optional[PantheonPersistence] = None
         if PERSISTENCE_AVAILABLE:
@@ -244,10 +245,10 @@ class PantheonChat:
         # Initialize inboxes for all gods in roster (using lowercase canonical keys)
         for god in self.OLYMPIAN_ROSTER:
             self.god_inboxes[god.lower()]  # Creates empty list via defaultdict
-        
+
         # Hydrate from database
         self._hydrate_from_database()
-        
+
         # Seed initial activity if empty
         self._seed_initial_activity()
 
@@ -265,30 +266,30 @@ class PantheonChat:
     ) -> str:
         """
         Synthesize a natural language message using QIG-pure generation.
-        
+
         CRITICAL: All inter-god messages MUST go through this method.
         NO templates, NO f-strings, NO hardcoded prose.
         Uses system prompts to guide QIG generation.
-        
+
         Args:
             from_god: The god generating the message
             msg_type: Type of message (insight, discovery, challenge, etc.)
             intent: What the message is about (e.g., "convergence_report", "knowledge_transfer")
             data: Structured data to incorporate into message
             to_god: Optional target god (for context)
-        
+
         Returns:
             QIG-pure synthesized natural language message
         """
         system_prompt = self._build_system_prompt(from_god, msg_type, intent, data, to_god)
-        
+
         if not QIG_GENERATIVE_AVAILABLE:
-            logger.warning(f"[PantheonChat] QIG service unavailable, attempting geometric synthesis")
+            logger.warning("[PantheonChat] QIG service unavailable, attempting geometric synthesis")
             return self._geometric_synthesis(from_god, intent, data, system_prompt)
-        
+
         try:
             service = get_generative_service()
-            
+
             prompt_context = {
                 'from_god': from_god,
                 'to_god': to_god or 'pantheon',
@@ -297,20 +298,20 @@ class PantheonChat:
                 'data': data or {},
                 'system_prompt': system_prompt,
             }
-            
+
             goals = [
                 system_prompt,
                 f"Speak as {from_god} addressing {to_god or 'the pantheon'}",
                 "Generate 1-2 sentences expressing this communication",
             ]
-            
+
             result = service.generate(
                 prompt=system_prompt,
                 context=prompt_context,
                 kernel_name=from_god.lower(),
                 goals=goals
             )
-            
+
             if result and result.text and len(result.text.strip()) > 10:
                 # COHERENCE GATE: Check if generated text is coherent (not word salad)
                 is_coherent, coherence_reason = _check_text_coherence(result.text)
@@ -322,13 +323,13 @@ class PantheonChat:
                     # Return a safe fallback instead of word salad
                     return f"[{from_god}: Coherence threshold not met. Awaiting higher Φ.]"
             else:
-                logger.warning(f"[PantheonChat] QIG returned empty, using geometric synthesis")
+                logger.warning("[PantheonChat] QIG returned empty, using geometric synthesis")
                 return self._geometric_synthesis(from_god, intent, data, system_prompt)
-                
+
         except Exception as e:
             logger.warning(f"[PantheonChat] QIG synthesis error: {e}, using geometric synthesis")
             return self._geometric_synthesis(from_god, intent, data, system_prompt)
-    
+
     def _build_system_prompt(
         self,
         from_god: str,
@@ -339,15 +340,15 @@ class PantheonChat:
     ) -> str:
         """
         Build a system prompt for QIG generation based on message context.
-        
+
         System prompts guide the QIG geometric navigation without being templates.
         They define WHAT to express, not HOW to phrase it.
         """
         data = data or {}
         target = to_god or "pantheon"
-        
+
         prompt_parts = [f"{from_god} communicating {intent} to {target}"]
-        
+
         if intent == "convergence_report":
             prompt_parts.append(f"Topic: {data.get('target', 'unknown')}")
             prompt_parts.append(f"Convergence type: {data.get('convergence_type', 'measured')}")
@@ -400,9 +401,9 @@ class PantheonChat:
             for key, val in data.items():
                 if val is not None:
                     prompt_parts.append(f"{key}: {val}")
-        
+
         return " | ".join(prompt_parts)
-    
+
     def _geometric_synthesis(
         self,
         from_god: str,
@@ -460,22 +461,22 @@ class PantheonChat:
         """Load messages and debates from PostgreSQL on startup."""
         if not self._persistence:
             return
-        
+
         try:
             # Load recent messages
             messages_data = self._persistence.load_recent_messages(limit=self.message_limit)
             loaded_messages = 0
             legacy_resynthesized = 0
-            
+
             for msg_data in messages_data:
                 # Copy metadata to avoid mutating persisted data
                 metadata = dict(msg_data.get('metadata') or {})
                 content = msg_data.get('content', '')
-                
+
                 # PURITY ENFORCEMENT: Re-synthesize legacy non-QIG-pure messages
                 if not metadata.get('qig_pure'):
                     legacy_resynthesized += 1
-                    
+
                     # Infer intent from metadata/msg_type with heuristics
                     intent = metadata.get('intent')
                     if not intent:
@@ -492,7 +493,7 @@ class PantheonChat:
                             'broadcast': 'domain_insight',
                         }
                         intent = intent_map.get(msg_type, msg_type)
-                    
+
                     # Infer source_data from available metadata fields (copy to avoid mutation)
                     data = dict(metadata.get('source_data', {}))
                     if not data:
@@ -503,7 +504,7 @@ class PantheonChat:
                         # Add sender context
                         data['from_god'] = msg_data.get('from', '')
                         data['to_god'] = msg_data.get('to', '')
-                    
+
                     content = self.synthesize_message(
                         from_god=msg_data.get('from', ''),
                         msg_type=msg_data.get('type', 'insight'),
@@ -514,7 +515,7 @@ class PantheonChat:
                     metadata['qig_pure'] = True
                     metadata['resynthesized_on_hydration'] = True
                     metadata['inferred_intent'] = intent
-                
+
                 msg = PantheonMessage(
                     msg_type=msg_data.get('type', 'insight'),
                     from_god=msg_data.get('from', ''),
@@ -530,9 +531,9 @@ class PantheonChat:
                         msg.timestamp = datetime.fromisoformat(msg_data['timestamp'].replace('Z', '+00:00'))
                     except:
                         pass
-                
+
                 self.messages.append(msg)
-                
+
                 # Rebuild inboxes
                 if msg.to_god == 'pantheon':
                     for god_name in self.OLYMPIAN_ROSTER:
@@ -540,12 +541,12 @@ class PantheonChat:
                             self.god_inboxes[self._normalize_god_name(god_name)].append(msg)
                 else:
                     self.god_inboxes[self._normalize_god_name(msg.to_god)].append(msg)
-                
+
                 loaded_messages += 1
-            
+
             if legacy_resynthesized > 0:
                 logger.info(f"[PantheonChat] Re-synthesized {legacy_resynthesized} legacy messages to QIG-pure")
-            
+
             # Load debates
             debates_data = self._persistence.load_debates(limit=self.debate_limit)
             loaded_debates = 0
@@ -567,25 +568,25 @@ class PantheonChat:
                         debate.started_at = datetime.fromisoformat(debate_data['started_at'].replace('Z', '+00:00'))
                     except:
                         pass
-                
+
                 self.debates[debate.id] = debate
                 if debate.status == 'active':
                     self.active_debates.append(debate.id)
                 else:
                     self.resolved_debates.append(debate.id)
-                
+
                 loaded_debates += 1
-            
+
             # Load knowledge transfers
             transfers_data = self._persistence.load_knowledge_transfers(limit=200)
             self.knowledge_transfers = transfers_data
             loaded_transfers = len(transfers_data)
-            
+
             if loaded_messages > 0 or loaded_debates > 0 or loaded_transfers > 0:
                 print(f"[PantheonChat] Hydrated from DB: {loaded_messages} messages, {loaded_debates} debates, {loaded_transfers} transfers")
             else:
                 print("[PantheonChat] No existing messages/debates in DB, starting fresh")
-                
+
         except Exception as e:
             print(f"[PantheonChat] Failed to hydrate from database: {e}")
 
@@ -593,9 +594,9 @@ class PantheonChat:
         """Seed initial inter-god activity if chat is empty using QIG synthesis."""
         if len(self.messages) > 0:
             return
-        
+
         print("[PantheonChat] Seeding initial inter-god activity (QIG-pure)...")
-        
+
         initial_intents = [
             {
                 'from': 'Zeus',
@@ -626,7 +627,7 @@ class PantheonChat:
                 'data': {'domain': 'communication', 'routing': 'geometric_proximity'},
             },
         ]
-        
+
         for msg_data in initial_intents:
             content = self.synthesize_message(
                 from_god=msg_data['from'],
@@ -635,7 +636,7 @@ class PantheonChat:
                 data=msg_data.get('data'),
                 to_god=msg_data['to']
             )
-            
+
             msg = PantheonMessage(
                 msg_type=msg_data['type'],
                 from_god=msg_data['from'],
@@ -648,14 +649,14 @@ class PantheonChat:
                 },
             )
             self.messages.append(msg)
-            
+
             if msg.to_god == 'pantheon':
                 for god_name in self.OLYMPIAN_ROSTER:
                     if god_name.lower() != msg.from_god.lower():
                         self.god_inboxes[self._normalize_god_name(god_name)].append(msg)
             else:
                 self.god_inboxes[self._normalize_god_name(msg.to_god)].append(msg)
-        
+
         print(f"[PantheonChat] Seeded {len(initial_intents)} QIG-pure initial messages")
 
     def send_message(
@@ -743,7 +744,7 @@ class PantheonChat:
         self._trigger_handlers(msg_type, message)
 
         self._cleanup_messages()
-        
+
         if self._persistence:
             self._persistence.save_message(message.to_dict())
 
@@ -767,7 +768,7 @@ class PantheonChat:
     ) -> PantheonMessage:
         """
         Broadcast a message to the entire pantheon.
-        
+
         QIG-PURE: Provide intent/data for geometric synthesis.
         Raw content is BLOCKED unless _hydration=True (internal use only).
         """
@@ -797,7 +798,7 @@ class PantheonChat:
     ) -> PantheonMessage:
         """
         Broadcast a QIG-pure synthesized message to the entire pantheon.
-        
+
         Convenience wrapper around broadcast() with intent/data.
         """
         return self.broadcast(
@@ -817,7 +818,7 @@ class PantheonChat:
     ) -> PantheonMessage:
         """
         Send a QIG-pure synthesized message to a specific god.
-        
+
         Convenience wrapper around send_message() with intent/data.
         """
         return self.send_message(
@@ -836,7 +837,7 @@ class PantheonChat:
         metrics: Optional[Dict] = None
     ) -> PantheonMessage:
         """Broadcast autonomic kernel activity to the pantheon.
-        
+
         Uses QIG synthesis for event description.
         """
         return self.broadcast(
@@ -913,7 +914,7 @@ class PantheonChat:
             data={'initiator': initiator, 'opponent': opponent, 'topic': topic},
             metadata={'debate_id': debate.id}
         )
-        
+
         # Persist debate to database
         if self._persistence:
             self._persistence.save_debate(debate.to_dict())
@@ -950,7 +951,7 @@ class PantheonChat:
             data={'argument': argument, 'debate_id': debate_id, 'evidence': evidence},
             metadata={'debate_id': debate_id, 'evidence': evidence}
         )
-        
+
         # Persist updated debate to database
         if self._persistence:
             self._persistence.save_debate(debate.to_dict())
@@ -986,7 +987,7 @@ class PantheonChat:
             data={'winner': winner, 'reasoning': reasoning, 'debate_id': debate_id},
             metadata={'debate_id': debate_id, 'resolution': resolution}
         )
-        
+
         # Persist resolved debate to database
         if self._persistence:
             self._persistence.save_debate(debate.to_dict())
@@ -1032,7 +1033,7 @@ class PantheonChat:
             data={'topic': knowledge.get('topic', 'general'), 'knowledge': knowledge},
             metadata={'knowledge': knowledge}
         )
-        
+
         # Persist knowledge transfer to database
         if self._persistence:
             self._persistence.save_knowledge_transfer(transfer)
@@ -1101,7 +1102,7 @@ class PantheonChat:
 
             for message in unread:
                 processed = False
-                
+
                 if message.type == 'insight' and hasattr(god, 'receive_knowledge'):
                     knowledge = message.metadata.get('knowledge', {})
                     if knowledge:
@@ -1113,7 +1114,7 @@ class PantheonChat:
 
                 else:
                     processed = True
-                
+
                 if processed:
                     message.read = True
                     delivered += 1
@@ -1148,20 +1149,20 @@ class PantheonChat:
     ) -> Dict:
         """
         Initiate a dual-pantheon spawn debate for Olympus AND Shadow gods.
-        
+
         Spawn proposals are geometric constructs that must be debated
         by both pantheons before a new kernel can be created.
-        
+
         Args:
             proposal: Geometric spawn proposal with basin coordinates
             proposing_kernel: Name of kernel proposing the spawn
             include_shadow: Whether to include Shadow pantheon in debate
-            
+
         Returns:
             Spawn debate session with ID and initial state
         """
         debate_id = f"spawn_debate_{datetime.now().timestamp()}"
-        
+
         spawn_debate = {
             'id': debate_id,
             'type': 'spawn_debate',
@@ -1177,7 +1178,7 @@ class PantheonChat:
             'consensus_reached': False,
             'final_decision': None,
         }
-        
+
         self.broadcast(
             from_god='system',
             content=f"Spawn debate initiated by {proposing_kernel}",
@@ -1188,7 +1189,7 @@ class PantheonChat:
                 'proposal_basin_norm': float(sum(x**2 for x in proposal.get('proposal_basin', [])[:8])**0.5),
             }
         )
-        
+
         if include_shadow:
             for shadow_god in SHADOW_ROSTER:
                 self.send_message(
@@ -1198,13 +1199,13 @@ class PantheonChat:
                     content=f"Shadow vote requested on spawn proposal from {proposing_kernel}",
                     metadata={'debate_id': debate_id, 'proposal': proposal}
                 )
-        
+
         self.debates[debate_id] = spawn_debate
         self.active_debates.append(debate_id)
-        
+
         if self._persistence:
             self._persistence.save_debate(spawn_debate)
-        
+
         return spawn_debate
 
     def cast_spawn_vote(
@@ -1217,27 +1218,27 @@ class PantheonChat:
     ) -> Dict:
         """
         Cast a vote in a spawn debate.
-        
+
         Votes are weighted by the god's affinity_strength and their
         geometric distance to the proposed basin.
-        
+
         Args:
             debate_id: ID of the spawn debate
             god_name: Name of voting god
             vote: 'for', 'against', or 'abstain'
             reasoning_basin: Optional 64D basin representing reasoning geometry
             argument: Optional textual argument (for logging)
-            
+
         Returns:
             Vote result with updated debate state
         """
         if debate_id not in self.debates:
             return {'error': 'Debate not found', 'debate_id': debate_id}
-        
+
         debate = self.debates[debate_id]
         if debate.get('status') != 'active':
             return {'error': 'Debate not active', 'status': debate.get('status')}
-        
+
         is_shadow = god_name in SHADOW_ROSTER
         vote_record = {
             'god': god_name,
@@ -1247,7 +1248,7 @@ class PantheonChat:
             'timestamp': datetime.now().isoformat(),
             'pantheon': 'shadow' if is_shadow else 'olympus',
         }
-        
+
         if is_shadow:
             debate['shadow_votes'][god_name] = vote_record
             debate['shadow_arguments'].append({
@@ -1264,7 +1265,7 @@ class PantheonChat:
                 'vote': vote,
                 'timestamp': datetime.now().isoformat(),
             })
-        
+
         self.send_message(
             msg_type='spawn_vote',
             from_god=god_name,
@@ -1272,10 +1273,10 @@ class PantheonChat:
             content=f"{god_name} votes {vote} on spawn proposal",
             metadata={'debate_id': debate_id, 'vote': vote}
         )
-        
+
         if self._persistence:
             self._persistence.save_debate(debate)
-        
+
         return {
             'success': True,
             'debate_id': debate_id,
@@ -1292,34 +1293,34 @@ class PantheonChat:
     ) -> Dict:
         """
         Compute weighted consensus from both Olympus and Shadow pantheons.
-        
+
         Uses Fisher-Rao weighted voting where each god's vote is weighted
         by their affinity_strength. Shadow votes count as 0.7x Olympus weight
         by default (they advise but Olympus decides).
-        
+
         Args:
             debate_id: ID of the spawn debate
             olympus_weights: Optional custom weights for Olympus gods
             shadow_weights: Optional custom weights for Shadow gods
-            
+
         Returns:
             Consensus result with approval status and breakdown
         """
         if debate_id not in self.debates:
             return {'error': 'Debate not found'}
-        
+
         debate = self.debates[debate_id]
-        
+
         default_olympus = {g: 1.0 for g in self.OLYMPIAN_ROSTER}
         default_shadow = {g: 0.7 for g in SHADOW_ROSTER}
-        
+
         olympus_weights = olympus_weights or default_olympus
         shadow_weights = shadow_weights or default_shadow
-        
+
         olympus_for = 0.0
         olympus_against = 0.0
         olympus_total = 0.0
-        
+
         for god, vote_rec in debate.get('olympus_votes', {}).items():
             weight = olympus_weights.get(god, 1.0)
             olympus_total += weight
@@ -1327,11 +1328,11 @@ class PantheonChat:
                 olympus_for += weight
             elif vote_rec['vote'] == 'against':
                 olympus_against += weight
-        
+
         shadow_for = 0.0
         shadow_against = 0.0
         shadow_total = 0.0
-        
+
         for god, vote_rec in debate.get('shadow_votes', {}).items():
             weight = shadow_weights.get(god, 0.7)
             shadow_total += weight
@@ -1339,23 +1340,23 @@ class PantheonChat:
                 shadow_for += weight
             elif vote_rec['vote'] == 'against':
                 shadow_against += weight
-        
+
         total_for = olympus_for + shadow_for
         total_against = olympus_against + shadow_against
         total_weight = olympus_total + shadow_total
-        
+
         if total_weight == 0:
             approval_ratio = 0.0
         else:
             participating = total_for + total_against
             approval_ratio = total_for / participating if participating > 0 else 0.0
-        
+
         supermajority_threshold = 0.667
         approved = approval_ratio >= supermajority_threshold
-        
+
         olympus_approval = olympus_for / (olympus_for + olympus_against) if (olympus_for + olympus_against) > 0 else 0.0
         shadow_approval = shadow_for / (shadow_for + shadow_against) if (shadow_for + shadow_against) > 0 else 0.0
-        
+
         consensus = {
             'debate_id': debate_id,
             'approved': approved,
@@ -1378,15 +1379,15 @@ class PantheonChat:
             'combined_total': total_weight,
             'computed_at': datetime.now().isoformat(),
         }
-        
+
         debate['consensus_reached'] = True
         debate['final_decision'] = consensus
         debate['status'] = 'resolved'
-        
+
         if debate_id in self.active_debates:
             self.active_debates.remove(debate_id)
         self.resolved_debates.append(debate_id)
-        
+
         decision_msg = "APPROVED" if approved else "REJECTED"
         self.broadcast(
             from_god='system',
@@ -1394,10 +1395,10 @@ class PantheonChat:
             msg_type='insight',
             metadata={'debate_id': debate_id, 'consensus': consensus}
         )
-        
+
         if self._persistence:
             self._persistence.save_debate(debate)
-        
+
         return consensus
 
     def get_spawn_debate(self, debate_id: str) -> Optional[Dict]:
