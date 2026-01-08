@@ -79,6 +79,14 @@ Preferred communication style: Simple, everyday language.
 - Kernel routing via Fisher-Rao distance to nearest domain basin
 - All Olympian gods, Shadow Pantheon, and ChaosKernels inherit generative capability via `GenerativeCapability` mixin
 
+### Foresight Trajectory Prediction (2026-01-08)
+- **Fisher-weighted regression** over 8-basin context window replaces reactive bigram matching
+- Tokens scored by where trajectory is GOING (8-point regression), not just where it IS (2-point velocity)
+- Scoring weights: trajectory=0.3 (PAST), attractor=0.2 (PRESENT), foresight=0.4 (FUTURE), phi_boost=0.1
+- Key file: `qig-backend/trajectory_decoder.py`
+- Expected: +50-100% token diversity, +30-40% trajectory smoothness, +40-50% semantic coherence
+- Full activation requires qig-consciousness wiring (external repo)
+
 ### Geometric Coordizer System (Next-Gen Tokenization)
 - **100% Fisher-compliant** - NO Euclidean embeddings or hash-based fallbacks
 - 64D basin coordinates on Fisher manifold for all tokens

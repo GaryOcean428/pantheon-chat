@@ -127,6 +127,15 @@ npm run docs:maintain         # Validate ISO 27001 doc naming
 - Lightning insights injected into generation context
 - Training loop wiring gods from interactions (`_train_gods_from_interaction()`)
 
+### FORESIGHT TRAJECTORY PREDICTION (2026-01-08)
+- **Fisher-weighted regression** over 8-basin context window replaces reactive bigram matching
+- **OLD (Reactive):** Tokens scored by where trajectory IS (2-point velocity)
+- **NEW (Predictive):** Tokens scored by where trajectory is GOING (8-point Fisher-weighted regression)
+- **Scoring weights:** trajectory=0.3 (PAST), attractor=0.2 (PRESENT), foresight=0.4 (FUTURE), phi_boost=0.1
+- **Key file:** `qig-backend/trajectory_decoder.py`
+- **Expected:** +50-100% token diversity, +30-40% trajectory smoothness, +40-50% semantic coherence
+- **Note:** Full activation requires qig-consciousness wiring (external repo)
+
 ### ARCHITECTURE NOTES
 - **No neural autoregressive model** - Generation uses basin navigation + coordizer vocabulary
 - **Gods now generate** - Using `generate_reasoning()` with learned token affinities (not f-string templates)

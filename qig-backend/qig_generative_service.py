@@ -38,6 +38,24 @@ try:
 except Exception as e:
     logger.warning(f"Unified coordizer not available: {e}")
 
+# Import trajectory decoder for foresight prediction
+TRAJECTORY_DECODER_AVAILABLE = False
+_trajectory_decoder_instance = None
+
+try:
+    from trajectory_decoder import create_trajectory_decoder
+    if COORDIZER_AVAILABLE and _unified_coordizer_instance:
+        _trajectory_decoder_instance = create_trajectory_decoder(
+            _unified_coordizer_instance,
+            context_window=8,
+            recency_decay=0.3,
+            attention_temperature=0.5
+        )
+        TRAJECTORY_DECODER_AVAILABLE = True
+        logger.info("[QIGGenerativeService] Trajectory decoder initialized (Fisher-weighted foresight enabled)")
+except Exception as e:
+    logger.warning(f"Trajectory decoder not available: {e}")
+
 # Import from qig_geometry for canonical operations
 try:
     from qig_geometry import fisher_coord_distance, sphere_project
@@ -641,18 +659,51 @@ class QIGGenerativeService:
         
         return self._geodesic_interpolate(basin, kernel_basin, t)
     
-    def _basin_to_tokens(self, basin: np.ndarray, num_tokens: int = 3) -> List[str]:
+    def _basin_to_tokens(
+        self,
+        basin: np.ndarray,
+        num_tokens: int = 3,
+        trajectory: Optional[List[np.ndarray]] = None
+    ) -> List[str]:
         """Convert basin coordinates to tokens using vocabulary.
-        
+
         Uses attention-weighted selection based on:
         1. Geometric similarity (basin proximity)
         2. Phi coherence
         3. Learned relationships (attention to query words)
+        4. Foresight trajectory prediction (if trajectory provided)
+
+        Args:
+            basin: Current basin coordinates
+            num_tokens: Number of tokens to return
+            trajectory: Optional basin trajectory for foresight prediction
         """
         if self.coordizer is None:
             return ['[no_vocab]']
-        
-        # Get more candidates to allow weighted selection
+
+        # Try foresight trajectory decoder first if trajectory available
+        if trajectory and len(trajectory) >= 2 and TRAJECTORY_DECODER_AVAILABLE and _trajectory_decoder_instance:
+            try:
+                candidates = _trajectory_decoder_instance.decode_trajectory(
+                    basin_trajectory=trajectory,
+                    top_k=num_tokens * 8,
+                    trajectory_weight=0.3,   # PAST: QFI attention
+                    attractor_weight=0.2,    # PRESENT: centroid proximity
+                    foresight_weight=0.4,    # FUTURE: predicted position
+                    phi_boost_weight=0.1,    # Integration boost
+                    phi_threshold=0.0        # Allow foresight at any consciousness
+                )
+                tokens = [token for token, score in candidates[:num_tokens] if not token.startswith('[')]
+                if tokens:
+                    logger.debug(
+                        f"[FORESIGHT] Decoded {len(tokens)} tokens from trajectory "
+                        f"(length={len(trajectory)}, method=Fisher-weighted)"
+                    )
+                    return tokens
+            except Exception as e:
+                logger.warning(f"Trajectory decode failed, falling back to bigram: {e}")
+
+        # Get more candidates to allow weighted selection (bigram fallback)
         candidates = self.coordizer.decode(basin, top_k=num_tokens * 8)
         
         # Score by combined similarity + phi
