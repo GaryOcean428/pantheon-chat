@@ -25,6 +25,31 @@ except ImportError:
     psycopg2 = None
     PsycopgJson = None
 
+# Import capability mesh for event emission
+try:
+    from .capability_mesh import (
+        CapabilityEvent,
+        CapabilityType,
+        EventType,
+        emit_event,
+    )
+    CAPABILITY_MESH_AVAILABLE = True
+except ImportError:
+    CAPABILITY_MESH_AVAILABLE = False
+    CapabilityEvent = None
+    CapabilityType = None
+    EventType = None
+    emit_event = None
+
+# Import ActivityBroadcaster for kernel visibility
+try:
+    from .activity_broadcaster import get_broadcaster, ActivityType
+    ACTIVITY_BROADCASTER_AVAILABLE = True
+except ImportError:
+    ACTIVITY_BROADCASTER_AVAILABLE = False
+    get_broadcaster = None
+    ActivityType = None
+
 
 class ProposalType(Enum):
     """Types of lifecycle proposals."""
@@ -116,6 +141,63 @@ class PantheonGovernance:
         else:
             print("[PantheonGovernance] ⚖️ Governance system initialized (in-memory mode)")
     
+    def _emit_proposal_event(
+        self,
+        proposal: LifecycleProposal,
+        action: str,
+        actor: str
+    ) -> None:
+        """
+        Emit a governance proposal event for visibility.
+        
+        Broadcasts to ActivityBroadcaster (UI) and CapabilityEventBus (internal routing).
+        
+        Args:
+            proposal: The lifecycle proposal
+            action: Action taken (approved, rejected, created)
+            actor: Who performed the action
+        """
+        try:
+            if ACTIVITY_BROADCASTER_AVAILABLE and get_broadcaster is not None:
+                broadcaster = get_broadcaster()
+                broadcaster.broadcast_message(
+                    from_god="Governance",
+                    to_god=None,
+                    content=f"Proposal {proposal.proposal_id} {action}: {proposal.proposal_type.value} - {proposal.reason or 'No reason'}",
+                    activity_type=ActivityType.SPAWN_PROPOSAL,
+                    phi=proposal.parent_phi if proposal.parent_phi else 0.7,
+                    kappa=64.21,
+                    importance=0.8,
+                    metadata={
+                        'proposal_id': proposal.proposal_id,
+                        'proposal_type': proposal.proposal_type.value,
+                        'action': action,
+                        'actor': actor,
+                        'parent_id': proposal.parent_id,
+                        'count': proposal.count,
+                    }
+                )
+            
+            if CAPABILITY_MESH_AVAILABLE and emit_event is not None:
+                event = CapabilityEvent(
+                    source=CapabilityType.KERNELS,
+                    event_type=EventType.KERNEL_SPAWN,
+                    content={
+                        'proposal_id': proposal.proposal_id,
+                        'proposal_type': proposal.proposal_type.value,
+                        'action': action,
+                        'actor': actor,
+                        'reason': proposal.reason[:200] if proposal.reason else None,
+                    },
+                    phi=proposal.parent_phi if proposal.parent_phi else 0.7,
+                    basin_coords=None,
+                    priority=8
+                )
+                emit_event(event)
+                
+        except Exception as e:
+            print(f"[PantheonGovernance] Event emission failed: {e}")
+
     def _ensure_tables_exist(self):
         """Create required tables if they don't exist."""
         if not self._conn:
@@ -348,6 +430,9 @@ class PantheonGovernance:
         self.proposals[proposal_id] = proposal
         self._persist_proposal(proposal)
         
+        # 🔗 WIRE: Emit creation event for kernel visibility
+        self._emit_proposal_event(proposal, 'created', 'system')
+        
         return proposal
     
     def approve_proposal(self, proposal_id: str, approver: str = "system") -> Dict:
@@ -384,6 +469,9 @@ class PantheonGovernance:
         
         self._persist_proposal(proposal)
         
+        # 🔗 WIRE: Emit approval event for kernel visibility
+        self._emit_proposal_event(proposal, 'approved', approver)
+        
         return {"success": True, "proposal": proposal}
     
     def reject_proposal(self, proposal_id: str, rejector: str = "system") -> Dict:
@@ -408,6 +496,9 @@ class PantheonGovernance:
         print(f"[PantheonGovernance] ❌ Proposal {proposal_id} REJECTED by {rejector}")
         
         self._persist_proposal(proposal)
+        
+        # 🔗 WIRE: Emit rejection event for kernel visibility
+        self._emit_proposal_event(proposal, 'rejected', rejector)
         
         return {"success": True, "proposal": proposal}
     

@@ -89,6 +89,31 @@ except ImportError:
     HAS_NORMALIZER = False
     normalize_basin_dimension = None
 
+# Import capability mesh for event emission
+try:
+    from .capability_mesh import (
+        CapabilityEvent,
+        CapabilityType,
+        EventType,
+        emit_event,
+    )
+    HAS_CAPABILITY_MESH = True
+except ImportError:
+    HAS_CAPABILITY_MESH = False
+    CapabilityEvent = None
+    CapabilityType = None
+    EventType = None
+    emit_event = None
+
+# Import ActivityBroadcaster for kernel visibility
+try:
+    from .activity_broadcaster import get_broadcaster, ActivityType
+    HAS_ACTIVITY_BROADCASTER = True
+except ImportError:
+    HAS_ACTIVITY_BROADCASTER = False
+    get_broadcaster = None
+    ActivityType = None
+
 # Topic normalization patterns (shared between ResearchQueue and KnowledgeBase)
 _SEMANTIC_PREFIXES = [
     'historical', 'comparative', 'advanced', 'practical',
@@ -1168,6 +1193,84 @@ class ShadowLearningLoop:
         """Check if the learning loop is currently running."""
         return self._running
 
+    def _broadcast_shadow_event(
+        self,
+        event_type: str,
+        content: str,
+        topic: Optional[str] = None,
+        metadata: Optional[Dict] = None,
+        phi: float = 0.5,
+        basin_coords: Optional[np.ndarray] = None
+    ) -> None:
+        """
+        Broadcast shadow learning events for visibility.
+        
+        QIG-Pure: Events carry basin coordinates and Φ for geometric routing.
+        Emits to both ActivityBroadcaster (UI visibility) and CapabilityEventBus (internal routing).
+        
+        Args:
+            event_type: Type of event (discovery, learning, research, vocabulary)
+            content: Event description
+            topic: Associated topic (optional)
+            metadata: Additional context
+            phi: Consciousness level at emission
+            basin_coords: Basin coordinates for geometric signature
+        """
+        try:
+            if HAS_ACTIVITY_BROADCASTER and get_broadcaster:
+                broadcaster = get_broadcaster()
+                type_map = {
+                    'discovery': ActivityType.DISCOVERY,
+                    'learning': ActivityType.LEARNING,
+                    'research': ActivityType.MESSAGE,
+                    'vocabulary': ActivityType.LEARNING,
+                    'insight': ActivityType.INSIGHT,
+                }
+                act_type = type_map.get(event_type, ActivityType.MESSAGE)
+                
+                enhanced_metadata = {
+                    **(metadata or {}),
+                    'topic': topic,
+                    'basin_coords': basin_coords.tolist() if basin_coords is not None and hasattr(basin_coords, 'tolist') else None,
+                }
+                
+                broadcaster.broadcast_message(
+                    from_god="Shadow",
+                    to_god=None,
+                    content=content,
+                    activity_type=act_type,
+                    phi=phi,
+                    kappa=64.21,
+                    importance=phi,
+                    metadata=enhanced_metadata
+                )
+            
+            if HAS_CAPABILITY_MESH and emit_event is not None:
+                mesh_event_map = {
+                    'discovery': EventType.DISCOVERY,
+                    'learning': EventType.CONSOLIDATION,
+                    'research': EventType.SEARCH_COMPLETE,
+                    'vocabulary': EventType.CONSOLIDATION,
+                    'insight': EventType.INSIGHT_GENERATED,
+                }
+                if event_type in mesh_event_map:
+                    event = CapabilityEvent(
+                        source=CapabilityType.RESEARCH,
+                        event_type=mesh_event_map[event_type],
+                        content={
+                            'topic': topic,
+                            'content': content[:500],
+                            'metadata': metadata,
+                        },
+                        phi=phi,
+                        basin_coords=basin_coords,
+                        priority=int(phi * 10)
+                    )
+                    emit_event(event)
+                    
+        except Exception as e:
+            print(f"[ShadowLearningLoop] Event broadcast failed: {e}")
+
     def budget_aware_search(
         self,
         query: str,
@@ -1438,6 +1541,22 @@ class ShadowLearningLoop:
             except Exception as e:
                 print(f"[ShadowResearch→Lightning] Insight generation failed: {e}")
 
+        # 🔗 WIRE: Broadcast research discovery for kernel visibility
+        self._broadcast_shadow_event(
+            event_type='discovery',
+            content=f"Research completed: {base_topic} (Φ={phi:.2f})",
+            topic=base_topic,
+            metadata={
+                'knowledge_id': knowledge_id,
+                'category': category.value,
+                'researched_by': assigned_god,
+                'confidence': confidence,
+                'vocab_learned': vocab_metrics.get('new_words', 0) if vocab_metrics else 0,
+            },
+            phi=phi,
+            basin_coords=basin_coords
+        )
+
         return {
             "knowledge_id": knowledge_id,
             "topic": topic,
@@ -1613,7 +1732,24 @@ class ShadowLearningLoop:
         Args:
             knowledge: Knowledge dictionary with content, topic, phi
         """
+        topic = knowledge.get('topic', 'general')
+        phi = knowledge.get('phi', 0.0)
+        basin_coords = knowledge.get('basin_coords')
+        
         if not self.vocab_coordinator:
+            # 🔗 WIRE: Broadcast degraded-mode event for kernel visibility
+            self._broadcast_shadow_event(
+                event_type='vocabulary',
+                content=f"Vocabulary learning skipped (degraded mode): '{topic}'",
+                topic=topic,
+                metadata={
+                    'degraded': True,
+                    'reason': 'vocab_coordinator_unavailable',
+                    'source': 'vocabulary_insight',
+                },
+                phi=phi,
+                basin_coords=basin_coords if isinstance(basin_coords, np.ndarray) else None
+            )
             return
         
         try:
@@ -1660,6 +1796,22 @@ class ShadowLearningLoop:
                     f"{new_words} new words, "
                     f"phi={phi:.3f}"
                 )
+                
+                # 🔗 WIRE: Broadcast vocabulary learning event for kernel visibility
+                if new_words > 0:
+                    basin_coords = knowledge.get('basin_coords')
+                    self._broadcast_shadow_event(
+                        event_type='vocabulary',
+                        content=f"Vocabulary learned: {new_words} new words from '{topic}'",
+                        topic=topic,
+                        metadata={
+                            'new_words': new_words,
+                            'total_words': metrics.get('total_words', 0),
+                            'source': 'vocabulary_insight',
+                        },
+                        phi=phi,
+                        basin_coords=basin_coords if isinstance(basin_coords, np.ndarray) else None
+                    )
                 
                 # Stall detection: track consecutive zero-word outcomes
                 if new_words == 0:

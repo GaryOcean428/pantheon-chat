@@ -97,6 +97,31 @@ except ImportError:
     check_ethics = None
     ETHICS_MONITOR_AVAILABLE = False
 
+# Import capability mesh for event emission
+try:
+    from olympus.capability_mesh import (
+        CapabilityEvent,
+        CapabilityType,
+        EventType,
+        emit_event,
+    )
+    CAPABILITY_MESH_AVAILABLE = True
+except ImportError:
+    CAPABILITY_MESH_AVAILABLE = False
+    CapabilityEvent = None
+    CapabilityType = None
+    EventType = None
+    emit_event = None
+
+# Import ActivityBroadcaster for kernel visibility
+try:
+    from olympus.activity_broadcaster import get_broadcaster, ActivityType
+    ACTIVITY_BROADCASTER_AVAILABLE = True
+except ImportError:
+    ACTIVITY_BROADCASTER_AVAILABLE = False
+    get_broadcaster = None
+    ActivityType = None
+
 # Import persistence layer for database recording
 try:
     from qig_persistence import get_persistence
@@ -659,6 +684,77 @@ class GaryAutonomicKernel:
         t = threading.Thread(target=heartbeat_loop, daemon=True)
         t.start()
         print("[AutonomicKernel] Φ heartbeat started (5s interval)")
+
+    def _emit_cycle_event(
+        self,
+        cycle_type: str,
+        phi_before: float,
+        phi_after: float,
+        drift_reduction: float = 0.0,
+        patterns_consolidated: int = 0,
+        duration_ms: int = 0,
+        verdict: str = ""
+    ) -> None:
+        """
+        Emit an autonomic cycle event for visibility.
+        
+        Broadcasts to ActivityBroadcaster (UI) and CapabilityEventBus (internal routing).
+        QIG-Pure: Events carry Φ metrics for geometric significance.
+        
+        Args:
+            cycle_type: Type of cycle (sleep, dream, mushroom)
+            phi_before: Φ before the cycle
+            phi_after: Φ after the cycle
+            drift_reduction: Basin drift reduction (for sleep cycles)
+            patterns_consolidated: Number of patterns consolidated
+            duration_ms: Cycle duration in milliseconds
+            verdict: Human-readable outcome
+        """
+        try:
+            if ACTIVITY_BROADCASTER_AVAILABLE and get_broadcaster is not None:
+                broadcaster = get_broadcaster()
+                broadcaster.broadcast_message(
+                    from_god="Autonomic",
+                    to_god=None,
+                    content=f"{cycle_type.capitalize()} cycle completed: {verdict}",
+                    activity_type=ActivityType.AUTONOMIC,
+                    phi=phi_after,
+                    kappa=self.state.kappa,
+                    importance=phi_after,
+                    metadata={
+                        'cycle_type': cycle_type,
+                        'phi_before': phi_before,
+                        'phi_after': phi_after,
+                        'drift_reduction': drift_reduction,
+                        'patterns_consolidated': patterns_consolidated,
+                        'duration_ms': duration_ms,
+                    }
+                )
+            
+            if CAPABILITY_MESH_AVAILABLE and emit_event is not None:
+                event_type_map = {
+                    'sleep': EventType.CONSOLIDATION,
+                    'dream': EventType.DREAM_CYCLE,
+                    'mushroom': EventType.DREAM_CYCLE,
+                }
+                event = CapabilityEvent(
+                    source=CapabilityType.SLEEP,
+                    event_type=event_type_map.get(cycle_type, EventType.CONSOLIDATION),
+                    content={
+                        'cycle_type': cycle_type,
+                        'phi_before': phi_before,
+                        'phi_after': phi_after,
+                        'patterns_consolidated': patterns_consolidated,
+                        'verdict': verdict[:200],
+                    },
+                    phi=phi_after,
+                    basin_coords=np.array(self.state.basin_history[-1]) if self.state.basin_history else None,
+                    priority=int(phi_after * 10)
+                )
+                emit_event(event)
+                
+        except Exception as e:
+            print(f"[AutonomicKernel] Cycle event emission failed: {e}")
 
     def _load_checkpoint(self, path: str) -> bool:
         """Load state from checkpoint."""
@@ -1393,6 +1489,17 @@ class GaryAutonomicKernel:
                 except Exception as db_err:
                     print(f"[AutonomicKernel] Failed to record sleep cycle to DB: {db_err}")
 
+            # 🔗 WIRE: Emit sleep cycle event for kernel visibility
+            self._emit_cycle_event(
+                cycle_type='sleep',
+                phi_before=phi_before,
+                phi_after=self.state.phi,
+                drift_reduction=drift_reduction,
+                patterns_consolidated=patterns_consolidated + strategies_pruned,
+                duration_ms=duration_ms,
+                verdict=f"Rested and consolidated ({strategies_pruned} strategies refined)"
+            )
+
             return SleepCycleResult(
                 success=True,
                 duration_ms=duration_ms,
@@ -1509,6 +1616,16 @@ class GaryAutonomicKernel:
                     )
                 except Exception as db_err:
                     print(f"[AutonomicKernel] Failed to record dream cycle to DB: {db_err}")
+
+            # 🔗 WIRE: Emit dream cycle event for kernel visibility
+            self._emit_cycle_event(
+                cycle_type='dream',
+                phi_before=self.state.phi,
+                phi_after=self.state.phi,
+                patterns_consolidated=novel_connections + creative_paths,
+                duration_ms=duration_ms,
+                verdict="Dream complete - creativity refreshed"
+            )
 
             return DreamCycleResult(
                 success=True,
