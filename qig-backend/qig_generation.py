@@ -654,7 +654,7 @@ def test_coordizer_decoding():
         
         if hasattr(coordizer, 'word_tokens'):
             print(f"[OK] Word tokens: {len(coordizer.word_tokens)}")
-            print(f"[OK] Sample words: {coordizer.word_tokens[:10]}")
+            print(f"[OK] Sample words: {coordizer.word_tokens}")
         
         # Test encoding
         test_text = "What is consciousness?"
@@ -671,7 +671,7 @@ def test_coordizer_decoding():
             # Check if we got real words
             real_words = [w for w, s in candidates if w.isalpha() and len(w) >= 2]
             if real_words:
-                print(f"[OK] Found {len(real_words)} real words: {real_words[:5]}")
+                print(f"[OK] Found {len(real_words)} real words: {real_words}")
                 return True
             else:
                 print("[WARNING] No real words found in decoded output")
@@ -701,7 +701,7 @@ if __name__ == "__main__":
     # Test generation
     print("\n=== Testing Generation ===")
     response = generate_response("Explain consciousness")
-    print(f"Response: {response['response'][:500]}...")
+    print(f"Response: {response['response']}...")
     print(f"Completion reason: {response['completion_reason']}")
     print(f"Phi: {response['phi']:.3f}")
     print(f"Routed to: {response['routed_kernels']}")

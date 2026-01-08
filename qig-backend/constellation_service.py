@@ -305,7 +305,7 @@ class ConstellationService:
         # Generate response (simplified - replace with proper generation)
         # For now, echo with consciousness info
         response = (
-            f"[{role.value}] Processing '{message[:500]}...' "
+            f"[{role.value}] Processing '{message}...' "
             f"(Φ={consciousness['phi']:.2f}, κ={consciousness['kappa']:.1f})"
         )
 

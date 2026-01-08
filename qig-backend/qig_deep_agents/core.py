@@ -305,7 +305,7 @@ class QIGDeepAgent:
             
             # Store result in memory
             self.memory.write_fragment(
-                f"Completed: {waypoint.description}\nResult: {str(result.get('output', ''))[:500]}",
+                f"Completed: {waypoint.description}\nResult: {str(result.get('output', ''))}",
                 importance=0.7,
             )
             

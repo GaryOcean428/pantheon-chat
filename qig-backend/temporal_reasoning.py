@@ -929,7 +929,7 @@ class TemporalReasoning:
                     try:
                         vocab_coord.train_from_text(
                             text=combined_text[:5000],
-                            source=f"foresight_validation:{prediction_topic[:500]}",
+                            source=f"foresight_validation:{prediction_topic}",
                             context_phi=0.65
                         )
                     except Exception:
@@ -942,7 +942,7 @@ class TemporalReasoning:
                         sources_checked=len(result['search_results'])
                     )
 
-            print(f"[TemporalReasoning] Prediction validation: {prediction_topic[:500]} -> "
+            print(f"[TemporalReasoning] Prediction validation: {prediction_topic} -> "
                   f"evidence={result['evidence_found']}, confidence_adj={result['confidence_adjustment']:.2f}")
 
         except ImportError as e:

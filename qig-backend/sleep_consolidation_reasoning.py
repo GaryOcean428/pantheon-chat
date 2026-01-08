@@ -225,7 +225,7 @@ class SleepConsolidationReasoning:
             mix_ratio = np.random.uniform(0.3, 0.7)
             
             child = ReasoningStrategy(
-                name=f"dream_{parent_a.name[:8]}_{parent_b.name[:8]}",
+                name=f"dream_{parent_a.name}_{parent_b.name}",
                 description=f"Dream recombination of {parent_a.name} and {parent_b.name}",
                 preferred_phi_range=(
                     mix_ratio * parent_a.preferred_phi_range[0] + (1 - mix_ratio) * parent_b.preferred_phi_range[0],

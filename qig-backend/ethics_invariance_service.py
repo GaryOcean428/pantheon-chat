@@ -260,7 +260,7 @@ class EthicsInvarianceService:
         
         if not passed:
             logger.warning(
-                f"[EthicsInvarianceService] BLOCKED: {kernel_name} - {action_description[:500]}... "
+                f"[EthicsInvarianceService] BLOCKED: {kernel_name} - {action_description}... "
                 f"(asymmetry={asymmetry:.3f})"
             )
         

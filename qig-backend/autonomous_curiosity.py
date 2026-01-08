@@ -208,7 +208,7 @@ class CurriculumProgressPersistence:
                                   completed_at = NOW()
                 """, (topic_title, kernel_name))
                 conn.commit()
-                logger.debug(f"[CurriculumProgressPersistence] Saved: {topic_title[:500]}...")
+                logger.debug(f"[CurriculumProgressPersistence] Saved: {topic_title}...")
         except Exception as e:
             logger.warning(f"[CurriculumProgressPersistence] Save failed: {e}")
         finally:

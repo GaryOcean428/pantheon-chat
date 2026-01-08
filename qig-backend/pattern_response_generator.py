@@ -172,7 +172,7 @@ class PatternResponseGenerator:
                 include_metadata=True
             )
             
-            print(f"[PatternGenerator] Found {len(results)} patterns for query: {query[:500]}...")
+            print(f"[PatternGenerator] Found {len(results)} patterns for query: {query}...")
             
             patterns = []
             for result in results:

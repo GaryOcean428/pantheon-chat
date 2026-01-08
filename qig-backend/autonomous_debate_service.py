@@ -361,7 +361,7 @@ class AutonomousDebateService:
                         self._debates_continued += 1
                         winner = res.get('winner', 'unknown')
                         topic = debate_dict.get('topic', '')
-                        logger.info(f"Debate {debate_id[:500]}... progressed via god assessments. Winner: {winner}")
+                        logger.info(f"Debate {debate_id}... progressed via god assessments. Winner: {winner}")
 
                         self._trigger_spawn_proposal(topic, winner, debate_dict)
 
@@ -516,7 +516,7 @@ class AutonomousDebateService:
 
             if success:
                 self._arguments_generated += 1
-                logger.info(f"Generated argument for {next_speaker} in debate {debate_id[:500]}...")
+                logger.info(f"Generated argument for {next_speaker} in debate {debate_id}...")
 
                 # Route activity to observing kernels (M8 kernel observation system)
                 self._route_activity_to_observing_kernels(
@@ -692,7 +692,7 @@ class AutonomousDebateService:
                         try:
                             train_result = self._vocabulary_coordinator.train_from_text(
                                 text=combined_text,
-                                domain=f"searxng_{topic[:500]}"
+                                domain=f"searxng_{topic}"
                             )
                             if train_result.get('new_words_learned', 0) > 0:
                                 learned_count += train_result['new_words_learned']
@@ -755,7 +755,7 @@ class AutonomousDebateService:
 
             if learned_count > 0:
                 self._vocabulary_learning_events += 1
-                logger.info(f"Trained {learned_count} words from research on '{topic[:500]}...'")
+                logger.info(f"Trained {learned_count} words from research on '{topic}...'")
 
                 self._cache_vocabulary_observations(training_results, topic)
 
@@ -967,7 +967,7 @@ class AutonomousDebateService:
                 shadow_phi = darknet.get('phi', 0.5)
                 basin = basin * (0.5 + shadow_phi)  # Scale by confidence
                 basin = _normalize_to_manifold(basin)  # Renormalize after scaling
-                basins.append((basin, f"[shadow:{shadow_phi:.2f}] {reasoning[:500]}"))
+                basins.append((basin, f"[shadow:{shadow_phi:.2f}] {reasoning}"))
 
         return basins
 
@@ -996,7 +996,7 @@ class AutonomousDebateService:
 
         if evidence_affinities:
             best_affinity, best_text, best_basin = evidence_affinities[0]
-            context_parts.append(f"evidence({best_affinity:.2f}): {best_text[:500]}")
+            context_parts.append(f"evidence({best_affinity:.2f}): {best_text}")
 
         # Add geometric state
         context_parts.append(f"phi={phi:.2f} kappa={kappa:.1f}")
@@ -1298,7 +1298,7 @@ class AutonomousDebateService:
 
         if resolution:
             self._debates_resolved += 1
-            logger.info(f"Resolved debate {debate_id[:500]}... Winner: {winner}")
+            logger.info(f"Resolved debate {debate_id}... Winner: {winner}")
 
             self._trigger_spawn_proposal(topic, winner, debate_dict)
 

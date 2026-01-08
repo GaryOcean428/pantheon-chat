@@ -347,7 +347,7 @@ def dictionary_validate_vocabulary(batch_size: int = 100, dry_run: bool = True) 
             print(f"[OK] Removed {len(invalid_words)} invalid tokens")
         elif dry_run and invalid_words:
             print(f"[DRY RUN] Would remove {len(invalid_words)} invalid tokens")
-            print(f"[SAMPLE] First 20 invalid: {invalid_words[:500]}")
+            print(f"[SAMPLE] First 20 invalid: {invalid_words}")
         
         return len(all_tokens), len(valid_words), len(invalid_words) if not dry_run else 0
         

@@ -229,7 +229,7 @@ class CuriosityResearchBridge:
         if requests:
             print(f"[CuriosityBridge] Generated {len(requests)} research requests")
             for r in requests:
-                print(f"  - {r.research_type.value}: {r.topic[:500]}... (priority: {r.priority:.2f})")
+                print(f"  - {r.research_type.value}: {r.topic}... (priority: {r.priority:.2f})")
         
         return requests
     
@@ -342,7 +342,7 @@ class CuriosityResearchBridge:
                 req.result = result
                 self.completed_requests.append(req)
                 self.pending_requests.pop(i)
-                print(f"[CuriosityBridge] Completed request: {req.topic[:500]}...")
+                print(f"[CuriosityBridge] Completed request: {req.topic}...")
                 return
     
     def get_status(self) -> Dict:

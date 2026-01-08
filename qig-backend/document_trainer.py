@@ -294,7 +294,7 @@ class DocumentTrainer:
                     basin = self.encode_text_to_basin(chunk['text'])
                     
                     doc_id = hashlib.md5(
-                        f"{file_path}:{i}:{chunk['text'][:500]}".encode()
+                        f"{file_path}:{i}:{chunk['text']}".encode()
                     ).hexdigest()[:16]
                     
                     metadata = {

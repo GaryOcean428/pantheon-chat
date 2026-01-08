@@ -24,7 +24,7 @@ def test_direct_pg_loader():
         print(f"  Vocab size: {coordizer.vocab_size}")
         print(f"  Word tokens: {len(coordizer.word_tokens)}")
         print(f"  Using fallback: {coordizer.is_using_fallback()}")
-        print(f"  Sample words: {coordizer.word_tokens[:5]}")
+        print(f"  Sample words: {coordizer.word_tokens}")
         
         # Test encode/decode
         import numpy as np
@@ -80,8 +80,8 @@ def test_generation_service():
         
         # Test generation
         result = service.generate("What is consciousness?")
-        print(f"  Response: {result.text[:500]}...")
-        print(f"  Tokens: {result.tokens[:8]}")
+        print(f"  Response: {result.text}...")
+        print(f"  Tokens: {result.tokens}")
         print(f"  Completion: {result.completion_reason}")
         
         # Check for BPE garble

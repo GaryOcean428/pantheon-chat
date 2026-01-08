@@ -130,7 +130,7 @@ class LinearReasoner(BaseReasoner):
     
     def _identify_operation(self, problem: str) -> str:
         """Identify the operation needed."""
-        return f"Identified operation for: {problem[:500]}"
+        return f"Identified operation for: {problem}"
     
     def _apply_operation(self, operation: str, problem: str) -> str:
         """Apply the identified operation."""
@@ -215,9 +215,9 @@ class GeometricReasoner(BaseReasoner):
     def _generate_candidates(self, problem: str, n: int = 3) -> List[str]:
         """Generate multiple hypothesis candidates."""
         return [
-            f"Hypothesis A: Direct approach to {problem[:500]}",
-            f"Hypothesis B: Indirect approach to {problem[:500]}",
-            f"Hypothesis C: Hybrid approach to {problem[:500]}"
+            f"Hypothesis A: Direct approach to {problem}",
+            f"Hypothesis B: Indirect approach to {problem}",
+            f"Hypothesis C: Hybrid approach to {problem}"
         ]
     
     def _integrate_paths(self, paths: List[Dict]) -> str:
@@ -302,9 +302,9 @@ class HyperdimensionalReasoner(BaseReasoner):
     def _project_outcomes(self, problem: str, n: int = 3) -> List[str]:
         """Project possible future outcomes."""
         return [
-            f"Outcome 1: Optimistic for {problem[:500]}",
-            f"Outcome 2: Conservative for {problem[:500]}",
-            f"Outcome 3: Innovative for {problem[:500]}"
+            f"Outcome 1: Optimistic for {problem}",
+            f"Outcome 2: Conservative for {problem}",
+            f"Outcome 3: Innovative for {problem}"
         ]
     
     def _optimize_4d_path(

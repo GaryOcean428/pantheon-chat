@@ -47,7 +47,7 @@ def demo_integration():
     providing practical measures for quantum state similarity and distinguishability.
     """
     
-    print(f"Research content (excerpt): {research_text[:500]}...")
+    print(f"Research content (excerpt): {research_text}...")
     print()
     
     # Step 3: Train vocabulary from research
@@ -112,7 +112,7 @@ def demo_integration():
         print(f"  Original query: '{test_query}'")
         print(f"  Enhanced query: '{enhanced_query}'")
         if expansions:
-            print(f"  Added terms: {expansions[:3]}")
+            print(f"  Added terms: {expansions}")
         print()
         
     except Exception as e:

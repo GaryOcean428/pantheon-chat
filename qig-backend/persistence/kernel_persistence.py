@@ -72,7 +72,7 @@ class KernelPersistence(BasePersistence):
                 print(f"[KernelPersistence] E8 cap reached ({live_count}/{E8_KERNEL_CAP}), rejecting spawn of {kernel_id}")
                 return False
         
-        record_id = f"kg_{uuid.uuid4().hex[:16]}"
+        record_id = f"kg_{uuid.uuid4().hex}"
         
         query = """
             INSERT INTO kernel_geometry (
@@ -285,7 +285,7 @@ class KernelPersistence(BasePersistence):
     ) -> bool:
         """Record a breeding event for lineage tracking."""
         import uuid
-        event_id = f"breed_{uuid.uuid4().hex[:16]}"
+        event_id = f"breed_{uuid.uuid4().hex}"
         query = """
             INSERT INTO learning_events (
                 event_id, event_type, kernel_id, phi, metadata, created_at
@@ -321,7 +321,7 @@ class KernelPersistence(BasePersistence):
     ) -> bool:
         """Record a kernel death event."""
         import uuid
-        event_id = f"death_{uuid.uuid4().hex[:16]}"
+        event_id = f"death_{uuid.uuid4().hex}"
         query = """
             INSERT INTO learning_events (
                 event_id, event_type, kernel_id, phi, metadata, created_at
@@ -356,7 +356,7 @@ class KernelPersistence(BasePersistence):
     ) -> bool:
         """Record a kernel merge event."""
         import uuid
-        event_id = f"merge_{uuid.uuid4().hex[:16]}"
+        event_id = f"merge_{uuid.uuid4().hex}"
         query = """
             INSERT INTO learning_events (
                 event_id, event_type, kernel_id, phi, metadata, created_at
@@ -393,7 +393,7 @@ class KernelPersistence(BasePersistence):
     ) -> bool:
         """Record a kernel cannibalization event."""
         import uuid
-        event_id = f"cann_{uuid.uuid4().hex[:16]}"
+        event_id = f"cann_{uuid.uuid4().hex}"
         query = """
             INSERT INTO learning_events (
                 event_id, event_type, kernel_id, phi, metadata, created_at
@@ -431,7 +431,7 @@ class KernelPersistence(BasePersistence):
     ) -> bool:
         """Record a convergence snapshot for E8 hypothesis tracking."""
         import uuid
-        event_id = f"conv_{uuid.uuid4().hex[:16]}"
+        event_id = f"conv_{uuid.uuid4().hex}"
         query = """
             INSERT INTO learning_events (
                 event_id, event_type, kernel_id, phi, metadata, created_at
@@ -494,7 +494,7 @@ class KernelPersistence(BasePersistence):
         
         # Then record as learning event
         import uuid
-        event_id = f"spawn_{uuid.uuid4().hex[:16]}"
+        event_id = f"spawn_{uuid.uuid4().hex}"
         query = """
             INSERT INTO learning_events (
                 event_id, event_type, kernel_id, phi, metadata, created_at
@@ -534,7 +534,7 @@ class KernelPersistence(BasePersistence):
     ) -> bool:
         """Record an M8 kernel proposal event."""
         import uuid
-        event_id = f"prop_{uuid.uuid4().hex[:16]}"
+        event_id = f"prop_{uuid.uuid4().hex}"
         query = """
             INSERT INTO learning_events (
                 event_id, event_type, kernel_id, phi, metadata, created_at
@@ -586,7 +586,7 @@ class KernelPersistence(BasePersistence):
         and research opportunities so awareness survives restarts.
         """
         import uuid
-        event_id = f"awareness_{uuid.uuid4().hex[:16]}"
+        event_id = f"awareness_{uuid.uuid4().hex}"
         query = """
             INSERT INTO learning_events (
                 event_id, event_type, kernel_id, phi, metadata, created_at

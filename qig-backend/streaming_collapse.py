@@ -452,7 +452,7 @@ class ReflectionLoop:
         if depth == 1:
             return f"""I generated the following response:
 
-{response_text[:2000]}{'...' if len(response_text) > 2000 else ''}
+{response_text}{'...' if len(response_text) > 2000 else ''}
 
 Meta-cognition check:
 - Did I answer the user's question?

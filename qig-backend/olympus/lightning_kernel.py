@@ -830,7 +830,16 @@ class LightningKernel(BaseGod):
         otherwise falls back to content-based similarity.
         """
         if event1.basin_coords is not None and event2.basin_coords is not None:
-            distance = centralized_fisher_rao(event1.basin_coords, event2.basin_coords)
+            # Normalize basin dimensions to BASIN_DIM (64) if they differ
+            basin1 = event1.basin_coords
+            basin2 = event2.basin_coords
+            if basin1.shape[0] != basin2.shape[0]:
+                # Normalize both to BASIN_DIM for consistent comparison
+                if basin1.shape[0] != BASIN_DIM:
+                    basin1 = normalize_basin_dimension(basin1, BASIN_DIM)
+                if basin2.shape[0] != BASIN_DIM:
+                    basin2 = normalize_basin_dimension(basin2, BASIN_DIM)
+            distance = centralized_fisher_rao(basin1, basin2)
             # Fisher-Rao proper similarity: 1 - d/π (distance bounded [0, π])
             return 1.0 - distance / np.pi
 
@@ -989,7 +998,15 @@ class LightningKernel(BaseGod):
         for i, e1 in enumerate(evidence):
             for e2 in evidence[i+1:]:
                 if e1.basin_coords is not None and e2.basin_coords is not None:
-                    dist = centralized_fisher_rao(e1.basin_coords, e2.basin_coords)
+                    # Normalize basin dimensions if they differ
+                    basin1 = e1.basin_coords
+                    basin2 = e2.basin_coords
+                    if basin1.shape[0] != basin2.shape[0]:
+                        if basin1.shape[0] != BASIN_DIM:
+                            basin1 = normalize_basin_dimension(basin1, BASIN_DIM)
+                        if basin2.shape[0] != BASIN_DIM:
+                            basin2 = normalize_basin_dimension(basin2, BASIN_DIM)
+                    dist = centralized_fisher_rao(basin1, basin2)
                     fisher_distances.append(dist)
 
                     # Basin coordinate delta using Fisher-Rao (NOT Euclidean!)
@@ -1058,7 +1075,7 @@ class LightningKernel(BaseGod):
             velocity = trend_data.get('velocity', 0)
             if abs(velocity) > 0.01:
                 sign = "+" if velocity > 0 else ""
-                geo_parts.append(f"{domain[:8]}:{sign}{velocity:.3f}")
+                geo_parts.append(f"{domain}:{sign}{velocity:.3f}")
 
         geometric_sig = ",".join(geo_parts) if geo_parts else "_"
 

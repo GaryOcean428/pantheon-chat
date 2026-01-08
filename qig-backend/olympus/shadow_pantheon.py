@@ -689,7 +689,7 @@ class ShadowGod(BaseGod):
                 priority=research_priority,
                 context=context
             )
-            print(f"[{self.name}] Submitted research request: {topic[:500]} (id: {request_id})")
+            print(f"[{self.name}] Submitted research request: {topic} (id: {request_id})")
             return request_id
         except Exception as e:
             print(f"[{self.name}] Failed to submit research: {e}")
@@ -2424,7 +2424,7 @@ class Nemesis(ShadowGod):
         Initiate relentless pursuit of target.
         Never gives up until success or explicit abort.
         """
-        pursuit_id = f"pursuit_{hashlib.sha256(target.encode()).hexdigest()[:12]}"
+        pursuit_id = f"pursuit_{hashlib.sha256(target.encode()).hexdigest()}"
 
         pursuit = {
             'id': pursuit_id,
@@ -2689,7 +2689,7 @@ class ShadowPantheon:
         if self.research_api:
             self.research_api.declare_war()
         
-        print(f"[ShadowPantheon] ⚔️ SHADOW WAR DECLARED on {target[:500]}")
+        print(f"[ShadowPantheon] ⚔️ SHADOW WAR DECLARED on {target}")
         
         return {
             "war_mode": True,
@@ -3260,7 +3260,7 @@ class ShadowPantheon:
         warnings = []
         for name, assessment in assessments.items():
             if assessment.get('confidence', 0) > 0.8:
-                warnings.append(f"{name}: {assessment.get('reasoning', 'high confidence')[:500]}")
+                warnings.append(f"{name}: {assessment.get('reasoning', 'high confidence')}")
 
         sources_used = list(assessments.keys())
         
@@ -3271,7 +3271,7 @@ class ShadowPantheon:
             risk_level = 'medium'
 
         intelligence = {
-            'content': f"Shadow intel on {target[:500]}: {consensus} (conf={avg_conf:.2f})",
+            'content': f"Shadow intel on {target}: {consensus} (conf={avg_conf:.2f})",
             'consensus': consensus,
             'average_confidence': avg_conf,
             'god_assessments': {k: v.get('confidence', 0) for k, v in assessments.items()},

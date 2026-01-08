@@ -298,7 +298,7 @@ class PantheonChat:
                     logger.info(f"[PantheonChat] QIG-pure message synthesized for {from_god}: {result.text}")
                     return result.text.strip()
                 else:
-                    logger.warning(f"[PantheonChat] QIG failed coherence check ({coherence_reason}): {result.text[:500]}")
+                    logger.warning(f"[PantheonChat] QIG failed coherence check ({coherence_reason}): {result.text}")
                     # Return a safe fallback instead of word salad
                     return f"[{from_god}: Coherence threshold not met. Awaiting higher Φ.]"
             else:
@@ -365,7 +365,7 @@ class PantheonChat:
             prompt_parts.append(f"Opponent: {data.get('opponent', 'unknown')}")
             prompt_parts.append(f"Topic: {data.get('topic', 'unknown')}")
         elif intent == "debate_argument":
-            prompt_parts.append(f"Argument: {data.get('argument', '')[:500]}")
+            prompt_parts.append(f"Argument: {data.get('argument', '')}")
             if data.get('evidence'):
                 prompt_parts.append("With supporting evidence")
         elif intent == "geometric_observation":
@@ -1449,8 +1449,8 @@ class PantheonChat:
                 }
 
             # Generate counter-arguments
-            init_arg = f"Turn {turn+1}: My analysis shows {init_assessment.get('probability', 0.5):.2f} probability. {init_assessment.get('reasoning', '')[:500]}"
-            opp_arg = f"Turn {turn+1}: My analysis shows {opp_assessment.get('probability', 0.5):.2f} probability. {opp_assessment.get('reasoning', '')[:500]}"
+            init_arg = f"Turn {turn+1}: My analysis shows {init_assessment.get('probability', 0.5):.2f} probability. {init_assessment.get('reasoning', '')}"
+            opp_arg = f"Turn {turn+1}: My analysis shows {opp_assessment.get('probability', 0.5):.2f} probability. {opp_assessment.get('reasoning', '')}"
 
             # Add arguments to debate
             self.add_debate_argument(debate_id, debate.initiator, init_arg)

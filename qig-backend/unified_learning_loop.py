@@ -196,7 +196,7 @@ class UnifiedLearningLoop:
                     result = self._ethics_service.check_action(
                         kernel_name="InsightProcessor",
                         action_basin=basin,
-                        action_description=f"Process insight: {insight.content[:500]}",
+                        action_description=f"Process insight: {insight.content}",
                         phi=phi,
                     )
                     ethics_checks += 1
@@ -291,7 +291,7 @@ class UnifiedLearningLoop:
             ethics_result = self._ethics_service.check_action(
                 kernel_name=god_name,
                 action_basin=basin,
-                action_description=f"Response to: {prompt[:500]}",
+                action_description=f"Response to: {prompt}",
                 phi=phi,
             )
             result['ethics_passed'] = ethics_result.passed
@@ -314,7 +314,7 @@ class UnifiedLearningLoop:
                 cycle_type='conversation',
                 phi_before=phi,
                 phi_after=phi,
-                key_events=[f"Conversation with {god_name}: {prompt[:500]}"],
+                key_events=[f"Conversation with {god_name}: {prompt}"],
                 basin_coords=basin_trajectory[-1] if basin_trajectory else None,
             )
         

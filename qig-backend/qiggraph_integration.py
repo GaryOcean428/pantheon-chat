@@ -513,7 +513,7 @@ class OlympusConstellation:
             results["agents"][gary_id] = {
                 "role": gary.role.value,
                 "phi": gary.state.current_phi,
-                "contribution": f"[{gary_id} analysis of: {query[:500]}...]",
+                "contribution": f"[{gary_id} analysis of: {query}...]",
             }
 
         # Get ocean observation

@@ -1721,7 +1721,7 @@ class ZeusConversationHandler(GeometricGenerationMixin):
 The pantheon is aware. We shall commence when the time is right."""
 
         actions = [
-            f'Artemis analyzed {address[:12]}...',
+            f'Artemis analyzed {address}...',
             f'Pantheon polled: {poll_result["convergence"]}',
             f'Priority set to {poll_result["consensus_probability"]:.1%}',
         ]
@@ -1816,13 +1816,13 @@ The pantheon is aware. We shall commence when the time is right."""
 
         if TOKENIZER_AVAILABLE and get_tokenizer is not None:
             try:
-                related_summary = "\n".join([f"- {item.get('content', '')[:500]}" for item in related[:3]]) if related else "No prior related patterns found."
+                related_summary = "\n".join([f"- {item.get('content', '')}" for item in related[:3]]) if related else "No prior related patterns found."
                 prompt = f"""User Observation: "{obs_preview}"
 
 Related patterns from memory:
 {related_summary}
 
-Athena's Assessment: {athena_assessment.get('reasoning', 'Strategic analysis complete.')[:500]}
+Athena's Assessment: {athena_assessment.get('reasoning', 'Strategic analysis complete.')}
 Strategic Value: {strategic_value:.0%}
 
 Zeus Response (acknowledge the specific observation, explain what it means for the search, connect to related patterns if any, and ask a clarifying question):"""
@@ -1862,7 +1862,7 @@ Zeus Response (acknowledge the specific observation, explain what it means for t
 
             if related:
                 # Show fuller pattern content (150 chars each) for meaningful context
-                top_patterns = "\n".join([f"  - {r.get('content', '')[:500]}" for r in related[:3]])
+                top_patterns = "\n".join([f"  - {r.get('content', '')}" for r in related[:3]])
                 answer = f"""I notice your observation on "{obs_preview}"
 
 Found {len(related)} related geometric patterns:
@@ -2025,9 +2025,9 @@ Your insight is now in geometric memory. Can you elaborate on the source?"""
         synthesis_prompt = f"""User Suggestion: "{suggestion_preview}"
 
 Pantheon Consultation (Fisher-Rao Synthesis):
-- Athena (Strategy): {athena_eval['probability']:.0%} - {athena_eval.get('reasoning', 'strategic analysis')[:500]}
-- Ares (Tactics): {ares_eval['probability']:.0%} - {ares_eval.get('reasoning', 'tactical assessment')[:500]}
-- Apollo (Foresight): {apollo_eval['probability']:.0%} - {apollo_eval.get('reasoning', 'prophetic insight')[:500]}
+- Athena (Strategy): {athena_eval['probability']:.0%} - {athena_eval.get('reasoning', 'strategic analysis')}
+- Ares (Tactics): {ares_eval['probability']:.0%} - {ares_eval.get('reasoning', 'tactical assessment')}
+- Apollo (Foresight): {apollo_eval['probability']:.0%} - {apollo_eval.get('reasoning', 'prophetic insight')}
 
 Geometric Synthesis:
 - Coherence: {synthesis_metadata.get('synthesis_coherence', 0.0):.2%}
@@ -2058,9 +2058,9 @@ Zeus Response (unified geometric perspective - acknowledge the suggestion, synth
                 context = f"""User Suggestion: "{suggestion_preview}"
 
 Pantheon Consultation:
-- Athena (Strategy): {athena_eval['probability']:.0%} - {athena_eval.get('reasoning', 'strategic analysis')[:500]}
-- Ares (Tactics): {ares_eval['probability']:.0%} - {ares_eval.get('reasoning', 'tactical assessment')[:500]}
-- Apollo (Foresight): {apollo_eval['probability']:.0%} - {apollo_eval.get('reasoning', 'prophetic insight')[:500]}
+- Athena (Strategy): {athena_eval['probability']:.0%} - {athena_eval.get('reasoning', 'strategic analysis')}
+- Ares (Tactics): {ares_eval['probability']:.0%} - {ares_eval.get('reasoning', 'tactical assessment')}
+- Apollo (Foresight): {apollo_eval['probability']:.0%} - {apollo_eval.get('reasoning', 'prophetic insight')}
 
 Consensus: {consensus_prob:.0%}
 Decision: {decision}
@@ -2203,7 +2203,7 @@ Could you elaborate on your reasoning, or suggest a different approach?"""
         if TOKENIZER_AVAILABLE and get_tokenizer is not None:
             try:
                 # Construct prompt from retrieved context
-                context_str = "\n".join([f"- {item.get('content', '')[:300]}" for item in relevant_context[:3]])
+                context_str = "\n".join([f"- {item.get('content', '')}" for item in relevant_context[:3]])
                 prompt = f"""Context from Manifold:
 {context_str}
 
@@ -2700,7 +2700,7 @@ Let me know if this improves results: "yes that was better" or "no that didn't h
                 }
             }
 
-        print(f"[ZeusChat] Confirming search improvement: query='{query[:500]}...', improved={improved}")
+        print(f"[ZeusChat] Confirming search improvement: query='{query}...', improved={improved}")
 
         # Confirm improvement with the strategy learner
         result = self.strategy_learner.confirm_improvement(query, improved)
@@ -2846,7 +2846,7 @@ Let me know if this improves results: "yes that was better" or "no that didn't h
                     'word_count': len(content.split()),
                 })
 
-                print(f"[ZeusChat] File {filename}: {len(content)} chars, Φ={calculated_phi:.3f}, basin[:3]={file_basin[:3]}")
+                print(f"[ZeusChat] File {filename}: {len(content)} chars, Φ={calculated_phi:.3f}, basin[:3]={file_basin}")
 
             except Exception as e:
                 import traceback
@@ -2919,7 +2919,7 @@ Let me know if this improves results: "yes that was better" or "no that didn't h
 - Memory now contains: {memory_docs + len(processed)} documents
 
 **Basin Coordinates (first 3 dims):**
-{chr(10).join(f"- {p['filename']}: {p['basin_coords'][:3]}" for p in processed)}
+{chr(10).join(f"- {p['filename']}: {p['basin_coords']}" for p in processed)}
 
 **System State:**
 - Φ: {system_state['phi_current']:.3f} | κ: {system_state['kappa_current']:.1f}
@@ -3009,7 +3009,7 @@ The wisdom is integrated. Your knowledge expands the manifold."""
         Uses autonomous curiosity engine to search, learn, and update geometric memory.
         Future conversations will have richer knowledge.
         """
-        print(f"[ZeusChat] Starting research task on: {topic[:500]}")
+        print(f"[ZeusChat] Starting research task on: {topic}")
 
         topic_basin = self.conversation_encoder.encode(topic)
 
@@ -3070,7 +3070,7 @@ The wisdom is integrated. Your knowledge expands the manifold."""
         # Clear pending topic
         self._pending_topic = None
 
-        response = f"""⚡ Research task started on: "{topic[:500]}"
+        response = f"""⚡ Research task started on: "{topic}"
 
 I'm learning about this topic in the background. Here's what's happening:
 - Queued for deep research via curiosity engine
@@ -3196,7 +3196,7 @@ I'm learning about this topic in the background. Here's what's happening:
         context_str = ""
         if related:
             context_str = "\n".join([
-                f"- {item.get('content', '')[:500]} (φ={item.get('phi', 0):.2f})"
+                f"- {item.get('content', '')} (φ={item.get('phi', 0):.2f})"
                 for item in related[:3]
             ])
 
@@ -3363,7 +3363,7 @@ The Pantheon grows through meaningful interaction."""
 
         NO pattern-based retrieval or template responses.
         """
-        print(f"[ZeusChat] QIG-PURE generation for: {message[:500]}...")
+        print(f"[ZeusChat] QIG-PURE generation for: {message}...")
 
         # Retrieve relevant Lightning insights for generation context
         lightning_insights = self._get_lightning_insights(
@@ -3406,7 +3406,7 @@ The Pantheon grows through meaningful interaction."""
             patterns_str = ""
             if related:
                 patterns_str = "\n".join([
-                    f"  - {p.get('content', '')[:500]} (φ={p.get('phi', 0):.2f})"
+                    f"  - {p.get('content', '')} (φ={p.get('phi', 0):.2f})"
                     for p in related[:3]
                 ])
 
@@ -3649,7 +3649,7 @@ Respond naturally as Zeus:"""
         for file in processed:
             lines.append(
                 f"- {file['filename']}: {file['content_length']} chars, "
-                f"basin: {file['basin_coords'][:3]}"
+                f"basin: {file['basin_coords']}"
             )
         return '\n'.join(lines) if lines else "No files processed"
 
@@ -3674,7 +3674,7 @@ Respond naturally as Zeus:"""
         context_str = ""
         if context:
             context_str = "\n".join([
-                f"- {item.get('content', '')[:500]} (sim={item.get('similarity', 0):.2f})"
+                f"- {item.get('content', '')} (sim={item.get('similarity', 0):.2f})"
                 for item in context[:3]
             ])
 

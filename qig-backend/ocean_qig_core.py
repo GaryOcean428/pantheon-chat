@@ -4983,7 +4983,7 @@ def erebus_add_honeypot():
             return jsonify({'error': 'address required'}), 400
 
         shadow_pantheon.erebus.add_known_honeypot(address, source)
-        return jsonify({'status': 'added', 'address': address[:500]})
+        return jsonify({'status': 'added', 'address': address})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

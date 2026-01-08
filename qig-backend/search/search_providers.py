@@ -387,7 +387,7 @@ class SearchProviderManager:
         citations = data.get('citations', [])
         
         results = [{
-            'title': f'Perplexity Answer: {query[:500]}',
+            'title': f'Perplexity Answer: {query}',
             'url': citations[0] if citations else '',
             'content': content,
             'provider': 'perplexity'

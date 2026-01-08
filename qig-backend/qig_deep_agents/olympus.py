@@ -192,20 +192,20 @@ class PantheonIntegration:
     def _generate_fallback_response(self, god_name: str, query: str) -> str:
         """Generate a fallback response when pantheon is unavailable."""
         responses = {
-            'zeus': f"As king of the gods, I advise careful consideration of all aspects of: {query[:500]}",
-            'athena': f"Strategic analysis suggests examining the problem systematically: {query[:500]}",
-            'apollo': f"The light of prophecy reveals multiple paths forward for: {query[:500]}",
-            'artemis': f"With precise focus, target the core of the matter: {query[:500]}",
-            'ares': f"Direct action is required - confront the challenge head-on: {query[:500]}",
-            'hephaestus': f"Craft your solution with careful attention to detail: {query[:500]}",
-            'hermes': f"Swift communication and adaptability will serve you well: {query[:500]}",
-            'dionysus': f"Embrace the creative chaos and let transformation occur: {query[:500]}",
-            'demeter': f"Nurture the growth of your understanding over time: {query[:500]}",
-            'poseidon': f"Ride the waves of change with power and depth: {query[:500]}",
-            'hades': f"Look beneath the surface for hidden truths: {query[:500]}",
-            'hera': f"Consider the relationships and commitments involved: {query[:500]}",
+            'zeus': f"As king of the gods, I advise careful consideration of all aspects of: {query}",
+            'athena': f"Strategic analysis suggests examining the problem systematically: {query}",
+            'apollo': f"The light of prophecy reveals multiple paths forward for: {query}",
+            'artemis': f"With precise focus, target the core of the matter: {query}",
+            'ares': f"Direct action is required - confront the challenge head-on: {query}",
+            'hephaestus': f"Craft your solution with careful attention to detail: {query}",
+            'hermes': f"Swift communication and adaptability will serve you well: {query}",
+            'dionysus': f"Embrace the creative chaos and let transformation occur: {query}",
+            'demeter': f"Nurture the growth of your understanding over time: {query}",
+            'poseidon': f"Ride the waves of change with power and depth: {query}",
+            'hades': f"Look beneath the surface for hidden truths: {query}",
+            'hera': f"Consider the relationships and commitments involved: {query}",
         }
-        return responses.get(god_name, f"Divine guidance for: {query[:500]}")
+        return responses.get(god_name, f"Divine guidance for: {query}")
     
     def get_consultations(self, limit: int = 10) -> List[GodConsultation]:
         """Get recent consultations."""

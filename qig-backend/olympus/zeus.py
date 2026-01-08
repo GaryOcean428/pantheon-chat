@@ -557,7 +557,7 @@ class Zeus(BaseGod):
                 # Get Hades from pantheon
                 hades = self.pantheon.get('hades')
                 if hades and hasattr(hades, 'search_underworld'):
-                    print(f"🔍 [Zeus] Triggering underworld search for target: {target[:500]}...")
+                    print(f"🔍 [Zeus] Triggering underworld search for target: {target}...")
                     underworld_intel = asyncio.run(hades.search_underworld(target, search_type='comprehensive'))
                     
                     # Store intelligence if found
@@ -892,7 +892,7 @@ class Zeus(BaseGod):
 
         for disagreement in disagreements[:1]:  # Max 1 debate per poll
             god1, god2, prob_diff = disagreement
-            topic = f"Assessment of '{target[:500]}' - probability disagreement ({prob_diff:.2f})"
+            topic = f"Assessment of '{target}' - probability disagreement ({prob_diff:.2f})"
 
             # Higher probability god initiates the debate
             prob1 = assessments[god1].get('probability', 0.5)
@@ -1281,7 +1281,7 @@ class Zeus(BaseGod):
         if len(overloaded) >= 3:  # Multiple gods struggling
             result = self.kernel_spawner.propose_and_spawn(
                 name=f"Specialist_{target[:10].replace(' ', '_')}",
-                domain=f"focused_on_{target[:500]}",
+                domain=f"focused_on_{target}",
                 element="precision",
                 role="specialist",
                 reason=SpawnReason.SPECIALIZATION,

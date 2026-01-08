@@ -482,7 +482,7 @@ class ToolFactoryAccessMixin:
                     requester=f"{getattr(self, 'name', 'Unknown')}",
                     examples=examples or []
                 )
-                logger.info(f"[{getattr(self, 'name', 'Unknown')}] Requested tool: {description[:500]}...")
+                logger.info(f"[{getattr(self, 'name', 'Unknown')}] Requested tool: {description}...")
                 return request_id
             
             return None
@@ -609,7 +609,7 @@ class SearchCapabilityMixin:
             if result and result.get('success'):
                 logger.info(
                     f"[{getattr(self, 'name', 'Unknown')}] Search completed: "
-                    f"{len(result.get('results', []))} results for '{query[:500]}...'"
+                    f"{len(result.get('results', []))} results for '{query}...'"
                 )
                 
                 # Emit search complete event
@@ -878,7 +878,7 @@ class SearchCapabilityMixin:
                 kernel_name = getattr(self, 'name', 'Unknown')
                 metrics = vocab_coord.train_from_text(
                     text=combined_text[:5000],
-                    source=f"curiosity:{kernel_name}:{topic[:500]}",
+                    source=f"curiosity:{kernel_name}:{topic}",
                     context_phi=0.6
                 )
                 if metrics.get('words_learned', 0) > 0:
@@ -2277,7 +2277,7 @@ class BaseGod(*_base_classes):
         if norm > 0:
             coord = coord / norm
         else:
-            logger.warning(f"[{self.name}] Zero norm basin for text: {text[:500]}")
+            logger.warning(f"[{self.name}] Zero norm basin for text: {text}")
             coord[0] = 1.0
         
         return coord
@@ -2845,7 +2845,7 @@ class BaseGod(*_base_classes):
             service = get_generative_service()
 
             if service:
-                prompt = f"As {self.name} ({self.domain}), analyze: {target[:500]}"
+                prompt = f"As {self.name} ({self.domain}), analyze: {target}"
 
                 gen_context = {
                     'god_name': self.name,

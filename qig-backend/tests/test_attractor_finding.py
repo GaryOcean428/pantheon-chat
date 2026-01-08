@@ -158,7 +158,7 @@ def test_multiple_attractors():
         # Check they're sorted by potential (lowest first)
         potentials = [pot for _, pot in attractors]
         assert potentials == sorted(potentials), "Attractors should be sorted by potential"
-        print(f"✅ Attractors sorted by potential: {potentials[:3]}")
+        print(f"✅ Attractors sorted by potential: {potentials}")
         
         # All attractors should be distinct
         for i, (a1, _) in enumerate(attractors):

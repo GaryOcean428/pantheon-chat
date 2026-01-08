@@ -974,7 +974,7 @@ class SourceDiscoveryService:
             origin='event_discovery'
         )
         
-        print(f"[SourceDiscovery] ⚡ NEW SOURCE EMERGED: {source_url[:500]}... (Φ={phi:.3f})")
+        print(f"[SourceDiscovery] ⚡ NEW SOURCE EMERGED: {source_url}... (Φ={phi:.3f})")
         return True
 
 
@@ -1228,7 +1228,7 @@ class ScrapyOrchestrator:
             if discovered_sources:
                 content_parts.append(f"Discovered {len(discovered_sources)} sources from telemetry:")
                 for src in discovered_sources:
-                    content_parts.append(f"  - {src['url'][:500]}... (Φ={src['phi_avg']:.3f}, ΔΦ={src['delta_phi']:.3f})")
+                    content_parts.append(f"  - {src['url']}... (Φ={src['phi_avg']:.3f}, ΔΦ={src['delta_phi']:.3f})")
                     sources_used.append(src['url'])
                 content_parts.append("")
                 
@@ -1350,7 +1350,7 @@ class ScrapyOrchestrator:
                 query_url = f"http://export.arxiv.org/api/query?search_query=all:{topic.replace(' ', '+')}&max_results=3"
                 resp = session.get(query_url, timeout=10)
                 if resp.ok:
-                    return f"arXiv results for: {topic}\n{resp.text[:2000]}"
+                    return f"arXiv results for: {topic}\n{resp.text}"
             
             elif 'github' in source_url.lower():
                 query_url = f"https://api.github.com/search/repositories?q={topic.replace(' ', '+')}&per_page=3"
@@ -1371,7 +1371,7 @@ class ScrapyOrchestrator:
             return None
             
         except Exception as e:
-            print(f"[ScrapyOrchestrator] Fetch error for {source_url[:500]}...: {e}")
+            print(f"[ScrapyOrchestrator] Fetch error for {source_url}...: {e}")
             return None
     
     def _exploratory_research(self, topic: str) -> Dict[str, Dict]:

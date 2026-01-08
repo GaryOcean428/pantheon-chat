@@ -128,7 +128,7 @@ class PromptLoader:
         # Related patterns
         if related_patterns:
             patterns_str = "\n".join([
-                f"  - {p.get('content', '')[:500]} (φ={p.get('phi', 0):.2f})"
+                f"  - {p.get('content', '')} (φ={p.get('phi', 0):.2f})"
                 for p in related_patterns[:3]
             ])
             context_parts.append(f"\nRelated patterns in memory:\n{patterns_str}")

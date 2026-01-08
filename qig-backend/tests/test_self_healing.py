@@ -146,7 +146,7 @@ def test_healing_strategies():
     
     health = monitor.detect_degradation()
     print(f"✓ Created degraded state: severity={health['severity']}")
-    print(f"  Issues: {health['issues'][:2]}...")  # Show first 2 issues
+    print(f"  Issues: {health['issues']}...")  # Show first 2 issues
     
     # Get engine status
     status = engine.get_status()

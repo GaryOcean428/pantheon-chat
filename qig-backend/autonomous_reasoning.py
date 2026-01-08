@@ -307,7 +307,7 @@ class AutonomousReasoningLearner:
         phi_width = np.random.uniform(0.1, 0.3)
         
         strategy = ReasoningStrategy(
-            name=f"novel_{uuid.uuid4().hex[:8]}",
+            name=f"novel_{uuid.uuid4().hex}",
             description="Autonomously discovered strategy",
             preferred_phi_range=(
                 max(0, phi_center - phi_width),

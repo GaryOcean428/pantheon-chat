@@ -276,7 +276,7 @@ class BaseEncoder(ABC):
             with conn.cursor() as cur:
                 for tok in tokens:
                     try:
-                        obs_id = f"vo_{uuid.uuid4().hex[:12]}"
+                        obs_id = f"vo_{uuid.uuid4().hex}"
                         basin_list = tok['basin'].tolist() if hasattr(tok['basin'], 'tolist') else list(tok['basin'])
                         
                         cur.execute("""

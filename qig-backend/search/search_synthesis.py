@@ -181,7 +181,7 @@ class SearchSynthesizer:
         context_parts = []
         for r in top_results:
             if r.content:
-                context_parts.append(f"[{r.provider}] {r.content[:500]}")
+                context_parts.append(f"[{r.provider}] {r.content}")
         
         synthesized_context = "\n\n".join(context_parts)
         

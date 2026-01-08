@@ -791,13 +791,13 @@ class PredictionFeedbackBridge:
             
             if step.curvature > 0.5:
                 is_insight = True
-                content = f"High-curvature thought: {step.thought[:500]}"
+                content = f"High-curvature thought: {step.thought}"
             elif step.distance_from_prev > 1.0:
                 is_insight = True
-                content = f"Large reasoning leap: {step.thought[:500]}"
+                content = f"Large reasoning leap: {step.thought}"
             elif step.confidence > 0.8:
                 is_insight = True
-                content = f"High-confidence conclusion: {step.thought[:500]}"
+                content = f"High-confidence conclusion: {step.thought}"
             
             if is_insight:
                 insight = InsightRecord(

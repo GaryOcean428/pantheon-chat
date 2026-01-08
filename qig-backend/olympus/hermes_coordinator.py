@@ -259,7 +259,7 @@ Generate encouraging feedback (1-2 sentences):"""
 Generate a calming, supportive message (1-2 sentences):"""
 
         else:
-            return f"""Hermes coordinator message. Context: {json.dumps(context)[:500]}.
+            return f"""Hermes coordinator message. Context: {json.dumps(context)}.
 Generate a helpful response (1-2 sentences):"""
 
     def translate_geometric_insight(self, insight: Dict) -> str:

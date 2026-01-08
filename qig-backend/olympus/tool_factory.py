@@ -1179,7 +1179,7 @@ class ToolFactory:
         """
         self.generation_attempts += 1
         print(f"[ToolFactory] ===== GENERATION ATTEMPT #{self.generation_attempts} =====")
-        print(f"[ToolFactory] Description: {description[:500]}...")
+        print(f"[ToolFactory] Description: {description}...")
         print(f"[ToolFactory] Learned patterns available: {len(self.learned_patterns)}")
 
         # Fetch cross-god insights for additional context
@@ -1423,7 +1423,7 @@ class ToolFactory:
         """
         # Check if this is a non-Python pattern (marked in description)
         if pattern.description.startswith('[TYPESCRIPT]') or pattern.description.startswith('[JAVASCRIPT]'):
-            print(f"[ToolFactory] Skipping non-Python pattern: {pattern.description[:500]}...")
+            print(f"[ToolFactory] Skipping non-Python pattern: {pattern.description}...")
             return None
 
         code = pattern.code_snippet
@@ -1638,7 +1638,7 @@ class ToolFactory:
             if bridge:
                 research_topic = (
                     f"Fix runtime failure in tool '{tool.name}': {error[:500] if error else 'Unknown error'}. "
-                    f"Failed with args: {str(failed_args)[:500]}. "
+                    f"Failed with args: {str(failed_args)}. "
                     f"Failure rate: {failure_rate:.1%} over {tool.times_used} uses."
                 )
 
@@ -2383,7 +2383,7 @@ class AutonomousToolPipeline:
                         'errors': errors,
                         'timestamp': time.time()
                     })
-                    request.error_history.append(f"Iteration {request.iteration}: {errors[:2]}")
+                    request.error_history.append(f"Iteration {request.iteration}: {errors}")
                     request.state = ToolLifecycleState.IMPROVING
                     request.updated_at = time.time()
                     self._request_improvement_research(request, str(errors))
@@ -2402,7 +2402,7 @@ class AutonomousToolPipeline:
             return
 
         improvement_topics = [
-            f"Fix Python code for: {request.description} - Issue: {failure_reason[:500]}",
+            f"Fix Python code for: {request.description} - Issue: {failure_reason}",
             f"Alternative implementation approach for: {request.description}"
         ]
 

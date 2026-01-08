@@ -175,7 +175,7 @@ class DebateResearchBridge(BaseBridge):
                         context={'gods': gods_involved, 'disagreement': disagreement}
                     )
                     self._research_triggered += 1
-                    print(f"[{self.name}] Research triggered for unresolved debate: {topic[:500]}")
+                    print(f"[{self.name}] Research triggered for unresolved debate: {topic}")
                 except Exception as e:
                     print(f"[{self.name}] Research trigger failed: {e}")
         
@@ -195,7 +195,7 @@ class DebateResearchBridge(BaseBridge):
                         basin_coords=event.basin_coords
                     )
                     self._knowledge_created += 1
-                    print(f"[{self.name}] Knowledge created from debate resolution: {topic[:500]}")
+                    print(f"[{self.name}] Knowledge created from debate resolution: {topic}")
                 except Exception as e:
                     print(f"[{self.name}] Knowledge creation failed: {e}")
         

@@ -643,7 +643,7 @@ class GeometricCitationProcessor:
     
     def _encode_source(self, source: Dict) -> np.ndarray:
         """Encode source to basin coordinates."""
-        text = f"{source.get('title', '')} {source.get('content', '')[:500]}"
+        text = f"{source.get('title', '')} {source.get('content', '')}"
         
         np.random.seed(hash(text) % (2**32))
         basin = np.random.randn(self.manifold_dim)
