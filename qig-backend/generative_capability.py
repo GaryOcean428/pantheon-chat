@@ -193,10 +193,12 @@ class GenerativeCapability:
             return "[No basins to synthesize]"
         
         all_tokens = []
-        for basin in basins:
-            tokens = service._basin_to_tokens(basin, num_tokens=2)
+        for i, basin in enumerate(basins):
+            # Pass trajectory for foresight (all basins up to current)
+            trajectory = basins[:i + 1] if i > 0 else None
+            tokens = service._basin_to_tokens(basin, num_tokens=2, trajectory=trajectory)
             all_tokens.extend(tokens)
-        
+
         return service._synthesize_from_trajectory(basins, [], all_tokens)
     
     def encode_thought(self, thought: str) -> np.ndarray:
