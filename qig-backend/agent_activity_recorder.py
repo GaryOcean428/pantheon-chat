@@ -7,6 +7,7 @@ Records activities to PostgreSQL for frontend display.
 
 import os
 import json
+import time
 from datetime import datetime
 from typing import Optional, Dict, Any, List
 from enum import Enum
@@ -178,7 +179,21 @@ class AgentActivityRecorder:
 activity_recorder = AgentActivityRecorder()
 
 
-def record_search_started(query: str, provider: str, agent_name: Optional[str] = None):
+def _generate_agent_id(agent_name: Optional[str], prefix: str = "agent") -> str:
+    """Generate a consistent agent_id from agent_name or use prefix with timestamp."""
+    if agent_name:
+        # Normalize: lowercase, replace spaces with dashes
+        normalized = agent_name.lower().replace(' ', '-').replace('_', '-')
+        return f"{normalized}-{int(time.time()) % 100000}"
+    return f"{prefix}-{int(time.time()) % 100000}"
+
+
+def record_search_started(
+    query: str,
+    provider: str,
+    agent_name: Optional[str] = None,
+    agent_id: Optional[str] = None
+):
     """Convenience function to record a search start."""
     return activity_recorder.record(
         ActivityType.SEARCH_STARTED,
@@ -186,11 +201,19 @@ def record_search_started(query: str, provider: str, agent_name: Optional[str] =
         description=f"Initiated search via {provider}",
         search_query=query,
         provider=provider,
-        agent_name=agent_name
+        agent_name=agent_name,
+        agent_id=agent_id or _generate_agent_id(agent_name, "search")
     )
 
 
-def record_search_completed(query: str, provider: str, result_count: int, agent_name: Optional[str] = None):
+def record_search_completed(
+    query: str,
+    provider: str,
+    result_count: int,
+    agent_name: Optional[str] = None,
+    agent_id: Optional[str] = None,
+    phi: Optional[float] = None
+):
     """Convenience function to record a search completion."""
     return activity_recorder.record(
         ActivityType.SEARCH_COMPLETED,
@@ -199,11 +222,19 @@ def record_search_completed(query: str, provider: str, result_count: int, agent_
         search_query=query,
         provider=provider,
         result_count=result_count,
-        agent_name=agent_name
+        agent_name=agent_name,
+        agent_id=agent_id or _generate_agent_id(agent_name, "search"),
+        phi=phi
     )
 
 
-def record_source_discovered(url: str, category: str, agent_name: Optional[str] = None, phi: Optional[float] = None):
+def record_source_discovered(
+    url: str,
+    category: str,
+    agent_name: Optional[str] = None,
+    phi: Optional[float] = None,
+    agent_id: Optional[str] = None
+):
     """Convenience function to record a source discovery."""
     domain = url.split('/')[2] if '/' in url else url
     return activity_recorder.record(
@@ -212,12 +243,20 @@ def record_source_discovered(url: str, category: str, agent_name: Optional[str] 
         description=f"New {category} source added to registry",
         source_url=url,
         agent_name=agent_name,
+        agent_id=agent_id or _generate_agent_id(agent_name, "discovery"),
         phi=phi,
-        metadata={"category": category}
+        metadata={"category": category, "domain": domain}
     )
 
 
-def record_content_learned(title: str, source: str, word_count: int = 0, agent_name: Optional[str] = None):
+def record_content_learned(
+    title: str,
+    source: str,
+    word_count: int = 0,
+    agent_name: Optional[str] = None,
+    agent_id: Optional[str] = None,
+    phi: Optional[float] = None
+):
     """Convenience function to record content learning."""
     return activity_recorder.record(
         ActivityType.CONTENT_LEARNED,
@@ -225,7 +264,9 @@ def record_content_learned(title: str, source: str, word_count: int = 0, agent_n
         description=f"Processed {word_count} words from content",
         source_url=source,
         agent_name=agent_name,
-        result_count=word_count
+        agent_id=agent_id or _generate_agent_id(agent_name, "learner"),
+        result_count=word_count,
+        phi=phi
     )
 
 
@@ -236,5 +277,6 @@ def record_curriculum_loaded(kernel_name: str, example_count: int):
         f"{kernel_name} loaded curriculum",
         description=f"Loaded {example_count} training examples",
         agent_name=kernel_name,
+        agent_id=f"curriculum-{kernel_name.lower()}-{int(time.time()) % 100000}",
         result_count=example_count
     )

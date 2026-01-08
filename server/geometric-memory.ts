@@ -484,85 +484,54 @@ class GeometricMemory {
   
   async hasTested(phrase: string): Promise<boolean> {
     const normalized = this.normalizePhrase(phrase);
-    
-    // Check local cache first
-    if (this.testedPhrases.has(normalized)) {
-      return true;
-    }
-    
-    // Use synchronous check against pre-hydrated cache for performance
-    // Falls back to async check if needed
-    if (testedPhrasesUnified.has(normalized)) {
-      // Update local cache
-      this.testedPhrases.add(normalized);
-      return true;
-    }
-    
-    return false;
+
+    // Check local cache (in-memory only after testedPhrasesUnified removal)
+    return this.testedPhrases.has(normalized);
   }
   
   async recordTested(phrase: string, address?: string, balanceSats?: number, phi?: number, kappa?: number, regime?: string): Promise<void> {
     const normalized = this.normalizePhrase(phrase);
-    const prevSize = this.testedPhrases.size;
     this.testedPhrases.add(normalized);
-    
-    // Also record in unified backend (database or memory)
-    await testedPhrasesUnified.recordTested(
-      normalized,
-      address || '',
-      balanceSats || 0,
-      0, // txCount
-      phi,
-      kappa,
-      regime
-    );
-    
-    // PostgreSQL persistence handled by testedPhrasesUnified above
+    // In-memory only after testedPhrasesUnified removal
   }
-  
+
   /**
-   * Legacy method - no longer writes to JSON
-   * Tested phrases are persisted by testedPhrasesUnified (PostgreSQL)
+   * Legacy method - no-op after testedPhrasesUnified removal
    * @deprecated Kept for backwards compatibility
    */
   flushTestedPhrases(): void {
-    // No-op - PostgreSQL persistence handled by testedPhrasesUnified
+    // No-op - in-memory only
   }
-  
+
   getTestedCount(): number {
     return this.testedPhrases.size;
   }
-  
+
   /**
-   * Legacy method - no longer reads from JSON
-   * Tested phrases now checked via testedPhrasesUnified (PostgreSQL)
-   * Local Set is just a fast cache, populated on-demand
+   * Legacy method - no-op after testedPhrasesUnified removal
    * @deprecated
    */
   private loadTestedPhrases(): void {
-    // No-op - PostgreSQL is the source of truth via testedPhrasesUnified
-    // The in-memory Set (this.testedPhrases) acts as a fast cache only
-    console.log('[GeometricMemory] Tested phrases loaded from PostgreSQL via testedPhrasesUnified');
+    // No-op - in-memory only
+    console.log('[GeometricMemory] Tested phrases tracked in-memory only');
   }
-  
+
   /**
-   * Legacy method - no longer needed
-   * Tested phrases stored in PostgreSQL via testedPhrasesUnified
+   * Legacy method - no-op after testedPhrasesUnified removal
    * @deprecated
    */
   private backfillTestedPhrases(): void {
-    // No-op - PostgreSQL handles persistence
+    // No-op - in-memory only
     const probeCount = this.probeMap.size;
-    console.log(`[GeometricMemory] ${probeCount} probes in memory, tested phrases managed by PostgreSQL`);
+    console.log(`[GeometricMemory] ${probeCount} probes in memory`);
   }
-  
+
   /**
-   * Legacy method - no longer writes to JSON
-   * Tested phrases persisted by testedPhrasesUnified (PostgreSQL)
+   * Legacy method - no-op after testedPhrasesUnified removal
    * @deprecated Kept for backwards compatibility
    */
   private saveTestedPhrases(): void {
-    // No-op - PostgreSQL persistence handled by testedPhrasesUnified
+    // No-op - in-memory only
   }
   
   private createEmptyState(): GeometricMemoryState {
@@ -642,9 +611,7 @@ class GeometricMemory {
     // Write directly to PostgreSQL (fire-and-forget with error logging)
     // Note: Probe is already in memory, DB write is for persistence
     this.persistProbeToDb(probe);
-    
-    // Tested phrases persisted by testedPhrasesUnified in recordTested() call above
-    
+
     return probe;
   }
   

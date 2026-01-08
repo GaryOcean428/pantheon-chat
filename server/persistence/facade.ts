@@ -18,7 +18,6 @@ import type {
   ITargetAddressStorage,
   IUserStorage,
   IOceanProbeStorage,
-  ITestedPhraseStorage,
   ISearchJobStorage,
   StorageConfig,
 } from './interfaces';
@@ -76,7 +75,6 @@ class StorageFacade {
   private _targetAddresses: ITargetAddressStorage;
   private _users: IUserStorage;
   private _oceanProbes: IOceanProbeStorage | null = null;
-  private _testedPhrases: ITestedPhraseStorage | null = null;
   private _searchJobs: ISearchJobStorage;
   private _config: StorageConfig;
 
@@ -115,13 +113,6 @@ class StorageFacade {
         getHighPhiProbes: (minPhi, limit) => oceanPersistence.getHighPhiProbes(minPhi, limit),
         getProbeCount: () => oceanPersistence.getProbeCount(),
       };
-      
-      this._testedPhrases = {
-        markTested: (phrase) => oceanPersistence.markTested(phrase),
-        batchMarkTested: (phrases) => oceanPersistence.batchMarkTested(phrases),
-        hasBeenTested: (phrase) => oceanPersistence.hasBeenTested(phrase),
-        flushTestedPhrases: () => oceanPersistence.flushTestedPhrases(),
-      };
     }
 
     console.log(`[StorageFacade] Initialized with backend: ${this._config.backend}`);
@@ -145,10 +136,6 @@ class StorageFacade {
 
   get oceanProbes(): IOceanProbeStorage | null {
     return this._oceanProbes;
-  }
-
-  get testedPhrases(): ITestedPhraseStorage | null {
-    return this._testedPhrases;
   }
 
   get searchJobs(): ISearchJobStorage {

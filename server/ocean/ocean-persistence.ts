@@ -1062,15 +1062,18 @@ export class OceanPersistence {
 
   /**
    * Get all near-miss entries for loading into memory
+   * Note: near_miss_entries table may not exist in pantheon-chat/replit
    */
   async getAllNearMissEntries(): Promise<NearMissEntryRecord[]> {
     if (!db) return [];
-    
+
     try {
       return await db.select()
         .from(nearMissEntries)
         .orderBy(desc(nearMissEntries.phi));
-    } catch (error) {
+    } catch (error: unknown) {
+      const errorCode = (error as { code?: string })?.code;
+      if (errorCode === '42P01') return []; // Table doesn't exist - expected in pantheon-chat/replit
       console.error('[OceanPersistence] Failed to get all near-miss entries:', error);
       return [];
     }
@@ -1156,15 +1159,18 @@ export class OceanPersistence {
 
   /**
    * Get all near-miss clusters
+   * Note: near_miss_clusters table may not exist in pantheon-chat/replit
    */
   async getAllNearMissClusters(): Promise<NearMissClusterRecord[]> {
     if (!db) return [];
-    
+
     try {
       return await db.select()
         .from(nearMissClusters)
         .orderBy(desc(nearMissClusters.avgPhi));
-    } catch (error) {
+    } catch (error: unknown) {
+      const errorCode = (error as { code?: string })?.code;
+      if (errorCode === '42P01') return []; // Table doesn't exist - expected in pantheon-chat/replit
       console.error('[OceanPersistence] Failed to get near-miss clusters:', error);
       return [];
     }
@@ -1229,17 +1235,25 @@ export class OceanPersistence {
 
   /**
    * Load adaptive state
+   * Note: near_miss_adaptive_state table may not exist in pantheon-chat/replit
+   * (it's SearchSpaceCollapse-specific). Silently return null if table missing.
    */
   async loadNearMissAdaptiveState(): Promise<NearMissAdaptiveStateRecord | null> {
     if (!db) return null;
-    
+
     try {
       const results = await db.select()
         .from(nearMissAdaptiveState)
         .where(eq(nearMissAdaptiveState.id, 'singleton'))
         .limit(1);
       return results[0] ?? null;
-    } catch (error) {
+    } catch (error: unknown) {
+      // Silently handle "relation does not exist" - table may not exist in this project
+      const errorCode = (error as { code?: string })?.code;
+      if (errorCode === '42P01') {
+        // Table doesn't exist - this is expected in pantheon-chat/replit
+        return null;
+      }
       console.error('[OceanPersistence] Failed to load near-miss adaptive state:', error);
       return null;
     }

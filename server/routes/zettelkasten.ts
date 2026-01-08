@@ -1,14 +1,20 @@
 /**
  * Zettelkasten Knowledge Graph API Routes
- * 
+ *
  * Provides a knowledge graph interface on top of basin memory storage.
  * Memories are stored as 64D basin coordinates with automatic linking.
- * 
+ *
  * DESIGN:
- * - Links computed via cosine similarity (threshold >0.5)
+ * - Links computed via Fisher-Rao geodesic distance (QIG-pure)
+ * - Lower distance = stronger link (threshold < 1.0 radians)
  * - Sampling (max 100) used for O(n²) pairwise comparisons
  * - sample_based flag indicates when stats are extrapolated
- * 
+ *
+ * GEOMETRIC PRINCIPLE:
+ * Fisher-Rao distance is the geodesic distance on the statistical manifold.
+ * d_FR(p, q) = arccos(Σ√(p_i * q_i)) where coordinates are treated as
+ * probability distributions. NOT cosine similarity (that's Euclidean).
+ *
  * SECURITY:
  * - POST endpoints require internal auth (X-Internal-Key header)
  * - Auto-save uses getInternalHeaders() for server-to-server calls
@@ -52,17 +58,56 @@ function extractKeywords(text: string): string[] {
     .map(([word]) => word);
 }
 
-function computeLinkStrength(coords1: number[], coords2: number[]): number {
-  if (!coords1?.length || !coords2?.length) return 0;
+/**
+ * Compute Fisher-Rao geodesic distance between basin coordinates.
+ *
+ * Formula: d_FR(p, q) = arccos(Σ√(p_i * q_i))
+ *
+ * This is the PROPER geodesic distance on the information manifold.
+ * NOT cosine similarity or chord distance (those are Euclidean, violate QIG purity).
+ *
+ * @returns Distance in radians [0, π]. Lower = more similar.
+ */
+function computeFisherRaoDistance(coords1: number[], coords2: number[]): number {
+  if (!coords1?.length || !coords2?.length) return Math.PI; // Max distance if invalid
   const minLen = Math.min(coords1.length, coords2.length);
-  let dot = 0, norm1 = 0, norm2 = 0;
+
+  // Ensure valid probability distributions (non-negative, normalized)
+  const epsilon = 1e-10;
+  let sum1 = 0, sum2 = 0;
   for (let i = 0; i < minLen; i++) {
-    dot += coords1[i] * coords2[i];
-    norm1 += coords1[i] * coords1[i];
-    norm2 += coords2[i] * coords2[i];
+    sum1 += Math.abs(coords1[i]) + epsilon;
+    sum2 += Math.abs(coords2[i]) + epsilon;
   }
-  const denominator = Math.sqrt(norm1) * Math.sqrt(norm2);
-  return denominator > 0 ? dot / denominator : 0;
+
+  // Compute Bhattacharyya coefficient: BC = Σ√(p_i * q_i)
+  let bc = 0;
+  for (let i = 0; i < minLen; i++) {
+    const p = (Math.abs(coords1[i]) + epsilon) / sum1;
+    const q = (Math.abs(coords2[i]) + epsilon) / sum2;
+    bc += Math.sqrt(p * q);
+  }
+
+  // Clamp BC to [0, 1] for numerical stability
+  bc = Math.max(0, Math.min(1, bc));
+
+  // Fisher-Rao distance (geodesic on information manifold)
+  return Math.acos(bc);
+}
+
+/**
+ * Convert Fisher-Rao distance to link strength.
+ *
+ * - Distance 0 → Strength 1.0 (identical points)
+ * - Distance π/2 → Strength 0.5 (orthogonal)
+ * - Distance π → Strength 0.0 (maximally different)
+ *
+ * Link threshold: strength > 0.5 means Fisher-Rao distance < π/2 radians
+ */
+function computeLinkStrength(coords1: number[], coords2: number[]): number {
+  const distance = computeFisherRaoDistance(coords1, coords2);
+  // Convert distance to strength: strength = 1 - (distance / π)
+  return Math.max(0, 1 - distance / Math.PI);
 }
 
 /**

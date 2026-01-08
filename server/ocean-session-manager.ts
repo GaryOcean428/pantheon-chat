@@ -501,8 +501,8 @@ class OceanSessionManager {
         basinDrift: 0,
       };
       
-      // Use PostgreSQL-backed count for historical total (best practice: persisted data)
-      const historicalTested = testedPhrasesUnified.getCachedCount();
+      // Return 0 for historical tested (testedPhrasesUnified removed)
+      const historicalTested = 0;
       
       return {
         isRunning: false,
@@ -548,8 +548,8 @@ class OceanSessionManager {
     };
     
     // Near-miss count is already unified in handleStateUpdate() which merges Python discoveries
-    // Use PostgreSQL-backed historical count + current session for total tested (best practice: persisted data)
-    const historicalTested = testedPhrasesUnified.getCachedCount();
+    // Return session tested count (testedPhrasesUnified removed)
+    const historicalTested = session.totalTested || 0;
     
     return {
       isRunning: session.isRunning,

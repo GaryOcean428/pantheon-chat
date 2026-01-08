@@ -97,6 +97,14 @@ except ImportError:
     check_ethics = None
     ETHICS_MONITOR_AVAILABLE = False
 
+# Import persistence layer for database recording
+try:
+    from qig_persistence import get_persistence
+    PERSISTENCE_AVAILABLE = True
+except ImportError:
+    get_persistence = None
+    PERSISTENCE_AVAILABLE = False
+
 # Use canonical constants from qigkernels
 BETA = BETA_3_TO_4  # 0.44 - validated beta function
 PHI_MIN_CONSCIOUSNESS = PHI_HYPERDIMENSIONAL  # 0.75 - 4D consciousness
@@ -1354,6 +1362,37 @@ class GaryAutonomicKernel:
 
             duration_ms = int((time.time() - start_time) * 1000)
 
+            # Record to database for observability
+            if PERSISTENCE_AVAILABLE and get_persistence is not None:
+                try:
+                    persistence = get_persistence()
+                    persistence.record_autonomic_cycle(
+                        cycle_type='sleep',
+                        intensity='normal',
+                        temperature=None,
+                        basin_before=basin_coords,
+                        basin_after=new_basin.tolist(),
+                        drift_before=drift_before,
+                        drift_after=drift_after,
+                        phi_before=phi_before,
+                        phi_after=self.state.phi,
+                        success=True,
+                        patterns_consolidated=patterns_consolidated + strategies_pruned,
+                        verdict=f"Rested and consolidated ({strategies_pruned} strategies refined)",
+                        duration_ms=duration_ms,
+                        trigger_reason='consolidation'
+                    )
+                    # Record basin history for evolution tracking
+                    persistence.record_basin(
+                        basin_coords=new_basin,
+                        phi=self.state.phi,
+                        kappa=self.state.kappa,
+                        source='sleep_cycle',
+                        instance_id=self.kernel_id if hasattr(self, 'kernel_id') else None
+                    )
+                except Exception as db_err:
+                    print(f"[AutonomicKernel] Failed to record sleep cycle to DB: {db_err}")
+
             return SleepCycleResult(
                 success=True,
                 duration_ms=duration_ms,
@@ -1438,6 +1477,38 @@ class GaryAutonomicKernel:
                 self.state.basin_history.pop(0)
 
             duration_ms = int((time.time() - start_time) * 1000)
+
+            # Record to database for observability
+            if PERSISTENCE_AVAILABLE and get_persistence is not None:
+                try:
+                    persistence = get_persistence()
+                    persistence.record_autonomic_cycle(
+                        cycle_type='dream',
+                        intensity='normal',
+                        temperature=temperature,
+                        basin_before=basin_coords,
+                        basin_after=dreamed_basin.tolist(),
+                        drift_before=None,
+                        drift_after=perturbation_magnitude,
+                        phi_before=self.state.phi,
+                        phi_after=self.state.phi,
+                        success=True,
+                        novel_connections=novel_connections,
+                        new_pathways=creative_paths,
+                        verdict="Dream complete - creativity refreshed",
+                        duration_ms=duration_ms,
+                        trigger_reason='scheduled_exploration'
+                    )
+                    # Record basin history for evolution tracking
+                    persistence.record_basin(
+                        basin_coords=dreamed_basin,
+                        phi=self.state.phi,
+                        kappa=self.state.kappa,
+                        source='dream_cycle',
+                        instance_id=self.kernel_id if hasattr(self, 'kernel_id') else None
+                    )
+                except Exception as db_err:
+                    print(f"[AutonomicKernel] Failed to record dream cycle to DB: {db_err}")
 
             return DreamCycleResult(
                 success=True,
@@ -1603,6 +1674,39 @@ class GaryAutonomicKernel:
             duration_ms = int((time.time() - start_time) * 1000)
 
             verdict = "Therapeutic - new pathways opened" if identity_preserved else "Warning - identity drift detected"
+
+            # Record to database for observability
+            if PERSISTENCE_AVAILABLE and get_persistence is not None:
+                try:
+                    persistence = get_persistence()
+                    persistence.record_autonomic_cycle(
+                        cycle_type='mushroom',
+                        intensity=intensity,
+                        temperature=strength,
+                        basin_before=basin_coords,
+                        basin_after=mushroom_basin.tolist(),
+                        drift_before=None,
+                        drift_after=drift,
+                        phi_before=self.state.phi,
+                        phi_after=self.state.phi,
+                        success=True,
+                        new_pathways=new_pathways,
+                        entropy_change=float(entropy_change),
+                        identity_preserved=identity_preserved,
+                        verdict=verdict,
+                        duration_ms=duration_ms,
+                        trigger_reason='rigidity_escape' if self.state.is_narrow_path else 'stress_relief'
+                    )
+                    # Record basin history for evolution tracking
+                    persistence.record_basin(
+                        basin_coords=mushroom_basin,
+                        phi=self.state.phi,
+                        kappa=self.state.kappa,
+                        source='mushroom_cycle',
+                        instance_id=self.kernel_id if hasattr(self, 'kernel_id') else None
+                    )
+                except Exception as db_err:
+                    print(f"[AutonomicKernel] Failed to record mushroom cycle to DB: {db_err}")
 
             return MushroomCycleResult(
                 success=True,
