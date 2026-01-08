@@ -11,7 +11,7 @@
  */
 
 import { useState, useMemo } from 'react';
-import { useKernelActivityWebSocket, KernelActivityItem, ActivityType } from '@/hooks/use-kernel-activity';
+import { useKernelActivityWebSocket, KernelActivityItem, ActivityType, normalizeKernelName, getEffectiveActivityType } from '@/hooks/use-kernel-activity';
 import { Card, CardContent, CardHeader, CardTitle, Badge, Button, ScrollArea, Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui';
 import {
   MessageSquare,
@@ -26,6 +26,10 @@ import {
   Filter,
   Zap,
   Brain,
+  Moon,
+  BookOpen,
+  Gavel,
+  Users,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -50,31 +54,85 @@ const GOD_COLORS: Record<string, string> = {
   hypnos: 'bg-blue-900',
   thanatos: 'bg-zinc-800',
   nemesis: 'bg-red-900',
+  autonomic: 'bg-teal-600',
+  shadow: 'bg-violet-700',
+  gary: 'bg-teal-500',
+  ocean: 'bg-cyan-600',
+  governance: 'bg-amber-500',
+  curiosity: 'bg-fuchsia-500',
 };
 
-const ACTIVITY_ICONS: Record<ActivityType, React.ReactNode> = {
+// Extended activity icons supporting both top-level types and metadata.event_type values
+const ACTIVITY_ICONS: Record<string, React.ReactNode> = {
+  // Backend ActivityType values
+  message: <MessageSquare className="h-4 w-4" />,
+  debate: <Sword className="h-4 w-4" />,
+  discovery: <Sparkles className="h-4 w-4" />,
   insight: <Lightbulb className="h-4 w-4" />,
+  warning: <AlertTriangle className="h-4 w-4" />,
+  autonomic: <Moon className="h-4 w-4" />,
+  spawn_proposal: <Zap className="h-4 w-4" />,
+  tool_usage: <Gavel className="h-4 w-4" />,
+  consultation: <Users className="h-4 w-4" />,
+  reflection: <Brain className="h-4 w-4" />,
+  learning: <BookOpen className="h-4 w-4" />,
+  // Specific autonomic cycle types (from metadata.event_type)
+  sleep_cycle: <Moon className="h-4 w-4" />,
+  dream_cycle: <Brain className="h-4 w-4" />,
+  consolidation: <BookOpen className="h-4 w-4" />,
+  // Specific mesh event types
+  curiosity_spike: <Sparkles className="h-4 w-4" />,
+  search_requested: <Sparkles className="h-4 w-4" />,
+  search_complete: <Sparkles className="h-4 w-4" />,
+  research_complete: <Sparkles className="h-4 w-4" />,
+  vocabulary: <BookOpen className="h-4 w-4" />,
+  vocabulary_learning: <BookOpen className="h-4 w-4" />,
+  created: <Zap className="h-4 w-4" />,
+  approved: <Award className="h-4 w-4" />,
+  rejected: <AlertTriangle className="h-4 w-4" />,
+  // Legacy UI types
   praise: <Award className="h-4 w-4" />,
   challenge: <Sword className="h-4 w-4" />,
   question: <HelpCircle className="h-4 w-4" />,
-  warning: <AlertTriangle className="h-4 w-4" />,
-  discovery: <Sparkles className="h-4 w-4" />,
   challenge_response: <MessageSquare className="h-4 w-4" />,
-  spawn_proposal: <Zap className="h-4 w-4" />,
   spawn_vote: <Vote className="h-4 w-4" />,
   debate_start: <Sword className="h-4 w-4" />,
   debate_resolved: <Award className="h-4 w-4" />,
 };
 
-const ACTIVITY_LABELS: Record<ActivityType, string> = {
+// Extended activity labels supporting both top-level types and metadata.event_type values
+const ACTIVITY_LABELS: Record<string, string> = {
+  // Backend ActivityType values
+  message: 'Message',
+  debate: 'Debate',
+  discovery: 'Discovery',
   insight: 'Insight',
+  warning: 'Warning',
+  autonomic: 'Autonomic',
+  spawn_proposal: 'Spawn Proposal',
+  tool_usage: 'Tool Usage',
+  consultation: 'Consultation',
+  reflection: 'Reflection',
+  learning: 'Learning',
+  // Specific autonomic cycle types (from metadata.event_type)
+  sleep_cycle: 'Sleep Cycle',
+  dream_cycle: 'Dream Cycle',
+  consolidation: 'Consolidation',
+  // Specific mesh event types
+  curiosity_spike: 'Curiosity',
+  search_requested: 'Search Requested',
+  search_complete: 'Search Done',
+  research_complete: 'Research Done',
+  vocabulary: 'Vocabulary',
+  vocabulary_learning: 'Vocab Learning',
+  created: 'Proposal Created',
+  approved: 'Proposal Approved',
+  rejected: 'Proposal Rejected',
+  // Legacy UI types
   praise: 'Praise',
   challenge: 'Challenge',
   question: 'Question',
-  warning: 'Warning',
-  discovery: 'Discovery',
   challenge_response: 'Response',
-  spawn_proposal: 'Spawn Proposal',
   spawn_vote: 'Spawn Vote',
   debate_start: 'Debate Started',
   debate_resolved: 'Debate Resolved',
@@ -85,9 +143,13 @@ interface ActivityItemProps {
 }
 
 function ActivityItem({ item }: ActivityItemProps) {
-  const godColor = GOD_COLORS[item.from.toLowerCase()] || 'bg-gray-500';
-  const icon = ACTIVITY_ICONS[item.type] || <MessageSquare className="h-4 w-4" />;
-  const label = ACTIVITY_LABELS[item.type] || item.type;
+  const normalizedFrom = normalizeKernelName(item.from);
+  const godColor = GOD_COLORS[normalizedFrom] || GOD_COLORS[item.from.toLowerCase()] || 'bg-gray-500';
+  
+  // Use effective type (metadata.event_type if present) for icon/label
+  const effectiveType = getEffectiveActivityType(item);
+  const icon = ACTIVITY_ICONS[effectiveType] || ACTIVITY_ICONS[item.type] || <MessageSquare className="h-4 w-4" />;
+  const label = ACTIVITY_LABELS[effectiveType] || ACTIVITY_LABELS[item.type] || item.type;
   
   const timeAgo = useMemo(() => {
     try {
@@ -203,20 +265,44 @@ export function KernelActivityStream({
       items = items.filter(item => item.type === activeFilter);
     }
     
-    // Apply tab filter
+    // Apply tab filter (considering both item.type and metadata.event_type)
     if (activeTab === 'debates') {
-      items = items.filter(item => 
-        item.type === 'challenge' || 
-        item.type === 'challenge_response' ||
-        item.metadata?.debate_id
-      );
+      items = items.filter(item => {
+        const effectiveType = getEffectiveActivityType(item);
+        return item.type === 'debate' || 
+          item.type === 'challenge' || 
+          item.type === 'challenge_response' ||
+          effectiveType === 'debate_start' ||
+          effectiveType === 'debate_resolved' ||
+          item.metadata?.debate_id;
+      });
     } else if (activeTab === 'discoveries') {
       items = items.filter(item => 
         item.type === 'discovery' || 
-        item.type === 'insight'
+        item.type === 'insight' ||
+        item.type === 'reflection'
       );
     } else if (activeTab === 'autonomic') {
-      items = items.filter(item => item.metadata?.autonomic);
+      items = items.filter(item => {
+        const effectiveType = getEffectiveActivityType(item);
+        return item.type === 'autonomic' ||
+          item.metadata?.autonomic ||
+          item.metadata?.cycle_type ||
+          effectiveType === 'sleep_cycle' ||
+          effectiveType === 'dream_cycle' ||
+          effectiveType === 'consolidation';
+      });
+    } else if (activeTab === 'learning') {
+      items = items.filter(item => 
+        item.type === 'learning' ||
+        item.type === 'consultation' ||
+        item.type === 'tool_usage'
+      );
+    } else if (activeTab === 'governance') {
+      items = items.filter(item => 
+        item.type === 'spawn_proposal' ||
+        item.type === 'spawn_vote'
+      );
     }
     
     return items;
@@ -270,21 +356,29 @@ export function KernelActivityStream({
       
       <CardContent className="pt-0">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-4">
-            <TabsTrigger value="all" className="text-xs">
-              All Activity
+          <TabsList className="grid w-full grid-cols-6 mb-4">
+            <TabsTrigger value="all" className="text-xs" data-testid="tab-all">
+              All
             </TabsTrigger>
-            <TabsTrigger value="debates" className="text-xs">
+            <TabsTrigger value="debates" className="text-xs" data-testid="tab-debates">
               <Sword className="h-3 w-3 mr-1" />
               Debates
             </TabsTrigger>
-            <TabsTrigger value="discoveries" className="text-xs">
+            <TabsTrigger value="discoveries" className="text-xs" data-testid="tab-discoveries">
               <Sparkles className="h-3 w-3 mr-1" />
-              Discoveries
+              Research
             </TabsTrigger>
-            <TabsTrigger value="autonomic" className="text-xs">
-              <Brain className="h-3 w-3 mr-1" />
-              Autonomic
+            <TabsTrigger value="autonomic" className="text-xs" data-testid="tab-autonomic">
+              <Moon className="h-3 w-3 mr-1" />
+              Cycles
+            </TabsTrigger>
+            <TabsTrigger value="learning" className="text-xs" data-testid="tab-learning">
+              <BookOpen className="h-3 w-3 mr-1" />
+              Learning
+            </TabsTrigger>
+            <TabsTrigger value="governance" className="text-xs" data-testid="tab-governance">
+              <Gavel className="h-3 w-3 mr-1" />
+              Spawn
             </TabsTrigger>
           </TabsList>
           
@@ -299,7 +393,7 @@ export function KernelActivityStream({
                 <Filter className="h-3 w-3 mr-1" />
                 All
               </Button>
-              {(['insight', 'challenge', 'discovery', 'warning', 'question'] as ActivityType[]).map(type => (
+              {(['discovery', 'debate', 'autonomic', 'learning', 'spawn_proposal', 'warning', 'consultation'] as string[]).map(type => (
                 <Button
                   key={type}
                   variant={activeFilter === type ? 'default' : 'outline'}

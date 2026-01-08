@@ -15,17 +15,76 @@ import { QUERY_KEYS } from '@/api';
 export { useKernelActivityWebSocket } from './useKernelActivityWebSocket';
 
 export type ActivityType = 
+  // Backend ActivityType enum values (from activity_broadcaster.py)
+  | 'message'
+  | 'debate'
+  | 'discovery'
   | 'insight'
+  | 'warning'
+  | 'autonomic'
+  | 'spawn_proposal'
+  | 'tool_usage'
+  | 'consultation'
+  | 'reflection'
+  | 'learning'
+  // Legacy UI types (for backward compatibility)
   | 'praise'
   | 'challenge'
   | 'question'
-  | 'warning'
-  | 'discovery'
   | 'challenge_response'
-  | 'spawn_proposal'
   | 'spawn_vote'
   | 'debate_start'
   | 'debate_resolved';
+
+/**
+ * Normalize a kernel name for color matching.
+ * Handles names like "GaryAutonomicKernel" → "gary", "Shadow" → "shadow"
+ */
+export function normalizeKernelName(name: string): string {
+  if (!name) return 'system';
+  
+  // Lowercase first
+  const lower = name.toLowerCase();
+  
+  // Strip ALL common suffixes (order matters - remove longer ones first)
+  const stripped = lower
+    .replace(/autonomickernel$/i, '')
+    .replace(/kernel$/i, '')
+    .replace(/autonomic$/i, '')
+    .replace(/learning$/i, '')
+    .replace(/pantheon$/i, '')
+    .replace(/god$/i, '');
+  
+  // Map known kernel names to consistent identifiers
+  const mappings: Record<string, string> = {
+    'gary': 'gary',
+    'garyautonomic': 'gary',
+    'shadow': 'shadow',
+    'shadowlearning': 'shadow',
+    'shadowresearch': 'shadow',
+    'ocean': 'ocean',
+    'oceanqig': 'ocean',
+    'governance': 'governance',
+    'pantheon': 'governance',
+    'curiosity': 'curiosity',
+    'user': 'system',
+    '': 'system',
+  };
+  
+  return mappings[stripped] || stripped || 'system';
+}
+
+/**
+ * Get the effective activity type for filtering.
+ * Some events have the specific type in metadata.event_type
+ */
+export function getEffectiveActivityType(item: KernelActivityItem): string {
+  // Check metadata.event_type for more specific type
+  if (item.metadata?.event_type) {
+    return String(item.metadata.event_type);
+  }
+  return item.type;
+}
 
 export interface KernelActivityItem {
   id: string;
