@@ -30,6 +30,26 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
+# Activity Broadcasting for kernel visibility
+try:
+    from olympus.activity_broadcaster import (
+        ActivityType, get_broadcaster, ACTIVITY_BROADCASTER_AVAILABLE
+    )
+except ImportError:
+    ACTIVITY_BROADCASTER_AVAILABLE = False
+    
+# Capability mesh for event emission
+try:
+    from olympus.capability_mesh import (
+        CapabilityEvent, CapabilityEventBus, CapabilityType, EventType, emit_event
+    )
+    CAPABILITY_MESH_AVAILABLE = True
+except ImportError:
+    CAPABILITY_MESH_AVAILABLE = False
+
+# Constants
+KAPPA_STAR = 64.0
+
 
 class CuriosityDrive:
     """
@@ -514,6 +534,74 @@ class AutonomousCuriosityEngine:
             except Exception as e:
                 logger.warning(f"[AutonomousCuriosityEngine] Failed to queue recovery: {e}")
     
+    def _broadcast_curiosity_event(
+        self,
+        event_type: str,
+        kernel_name: str,
+        content: str,
+        metadata: Optional[Dict] = None
+    ) -> None:
+        """
+        Broadcast curiosity event for kernel visibility.
+        
+        QIG-Pure: Events carry basin coordinates, Φ-weighted priority.
+        """
+        if not ACTIVITY_BROADCASTER_AVAILABLE:
+            return
+        
+        try:
+            broadcaster = get_broadcaster()
+            
+            # Map event type to ActivityType
+            type_map = {
+                'search_requested': ActivityType.TOOL_USAGE,
+                'search_completed': ActivityType.DISCOVERY,
+                'curiosity_spike': ActivityType.INSIGHT,
+                'exploration': ActivityType.DISCOVERY,
+                'stall_recovery': ActivityType.LEARNING,
+            }
+            act_type = type_map.get(event_type, ActivityType.MESSAGE)
+            
+            broadcaster.broadcast_message(
+                from_god=kernel_name,
+                to_god=None,
+                content=content,
+                activity_type=act_type,
+                phi=0.6,
+                kappa=KAPPA_STAR,
+                importance=0.6,
+                metadata={
+                    **(metadata or {}),
+                    'event_subtype': event_type,
+                    'source': 'curiosity_engine',
+                }
+            )
+            
+            # Also emit to capability mesh
+            if CAPABILITY_MESH_AVAILABLE:
+                mesh_event_map = {
+                    'search_requested': EventType.SEARCH_REQUESTED,
+                    'search_completed': EventType.SEARCH_COMPLETE,
+                    'curiosity_spike': EventType.CURIOSITY_SPIKE,
+                    'exploration': EventType.DISCOVERY,
+                }
+                if event_type in mesh_event_map:
+                    event = CapabilityEvent(
+                        source=CapabilityType.SEARCH,
+                        event_type=mesh_event_map[event_type],
+                        content={
+                            'kernel': kernel_name,
+                            'content': content[:300],
+                            'metadata': metadata,
+                        },
+                        phi=0.6,
+                        priority=6
+                    )
+                    emit_event(event)
+                    
+        except Exception as e:
+            logger.warning(f"Curiosity event broadcast failed: {e}")
+
     def _generate_novel_query(self, stalled_topic: str) -> Optional[str]:
         """
         Generate a novel query that avoids recently stalled topics.
@@ -712,6 +800,14 @@ class AutonomousCuriosityEngine:
         """Execute a search request."""
         print(f"[AutonomousCuriosityEngine] Executing search for {request.kernel_name}: {request.query}")
         
+        # Broadcast search request for kernel visibility
+        self._broadcast_curiosity_event(
+            event_type='search_requested',
+            kernel_name=request.kernel_name,
+            content=f"Search initiated: {request.query[:100]}...",
+            metadata={'query': request.query, 'priority': request.priority}
+        )
+        
         if self.search_callback:
             try:
                 result = self.search_callback(request.query, request.context)
@@ -737,6 +833,18 @@ class AutonomousCuriosityEngine:
                     'result': result,
                     'timestamp': datetime.now().isoformat()
                 })
+                
+                # Broadcast search completion for kernel visibility
+                self._broadcast_curiosity_event(
+                    event_type='search_completed',
+                    kernel_name=request.kernel_name,
+                    content=f"Search completed: {request.query[:60]}... (info_gain={result.get('information_gain', 0.5):.2f})",
+                    metadata={
+                        'query': request.query,
+                        'information_gain': result.get('information_gain', 0.5),
+                        'success': True
+                    }
+                )
                 
             except Exception as e:
                 request.status = 'failed'

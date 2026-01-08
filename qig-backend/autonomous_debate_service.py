@@ -84,6 +84,23 @@ except ImportError:
     M8_AVAILABLE = False
     logger.warning("M8 Kernel Spawning not available")
 
+# Activity Broadcasting for kernel visibility
+try:
+    from olympus.activity_broadcaster import (
+        ActivityType, get_broadcaster, ACTIVITY_BROADCASTER_AVAILABLE
+    )
+except ImportError:
+    ACTIVITY_BROADCASTER_AVAILABLE = False
+    
+# Capability mesh for event emission
+try:
+    from olympus.capability_mesh import (
+        CapabilityEvent, CapabilityEventBus, CapabilityType, EventType, emit_event
+    )
+    CAPABILITY_MESH_AVAILABLE = True
+except ImportError:
+    CAPABILITY_MESH_AVAILABLE = False
+
 try:
     from olympus.pantheon_chat import PantheonChat
     PANTHEON_CHAT_AVAILABLE = True
@@ -1306,6 +1323,9 @@ class AutonomousDebateService:
         if resolution:
             self._debates_resolved += 1
             logger.info(f"Resolved debate {debate_id}... Winner: {winner}")
+            
+            # Broadcast debate resolution for kernel visibility
+            self._broadcast_debate_resolution(debate_dict, winner, reasoning, arbiter)
 
             self._trigger_spawn_proposal(topic, winner, debate_dict)
 
@@ -1381,11 +1401,133 @@ class AutonomousDebateService:
             else:
                 logger.info(f"[M8Spawn] ⏳ Proposal created (pending consensus): {spawn_name}")
                 logger.debug(f"[M8Spawn] Result details: {result}")
+            
+            # Broadcast spawn proposal for kernel visibility
+            self._broadcast_spawn_proposal(
+                spawn_name=spawn_name,
+                domain=domain,
+                parent_gods=parent_gods,
+                topic=topic,
+                success=result.get('success', False)
+            )
 
         except (AttributeError, KeyError, ValueError, TypeError) as e:
             logger.error(f"Spawn proposal data error: {e}")
         except Exception as e:
             logger.error(f"Spawn proposal failed: {e}", exc_info=True)
+    
+    def _broadcast_debate_resolution(
+        self,
+        debate_dict: Dict,
+        winner: str,
+        reasoning: str,
+        arbiter: str
+    ) -> None:
+        """Broadcast debate resolution for kernel visibility."""
+        if not ACTIVITY_BROADCASTER_AVAILABLE:
+            return
+        
+        try:
+            broadcaster = get_broadcaster()
+            topic = debate_dict.get('topic', '')
+            initiator = debate_dict.get('initiator', '')
+            opponent = debate_dict.get('opponent', '')
+            debate_id = debate_dict.get('id', '')
+            
+            # Broadcast to activity stream
+            broadcaster.broadcast_message(
+                from_god=arbiter,
+                to_god=None,  # Broadcast to all
+                content=f"Debate resolved: '{topic[:100]}...' - Winner: {winner}. {reasoning[:200]}",
+                activity_type=ActivityType.DEBATE,
+                phi=0.7,
+                kappa=KAPPA_STAR,
+                importance=0.8,
+                metadata={
+                    'debate_id': debate_id,
+                    'topic': topic,
+                    'initiator': initiator,
+                    'opponent': opponent,
+                    'winner': winner,
+                    'arbiter': arbiter,
+                    'event_subtype': 'resolution',
+                }
+            )
+            
+            # Also emit to capability mesh
+            if CAPABILITY_MESH_AVAILABLE:
+                event = CapabilityEvent(
+                    source=CapabilityType.DEBATE,
+                    event_type=EventType.DEBATE_RESOLVED,
+                    content={
+                        'debate_id': debate_id,
+                        'topic': topic,
+                        'winner': winner,
+                        'arbiter': arbiter,
+                        'reasoning': reasoning[:300],
+                    },
+                    phi=0.7,
+                    priority=8
+                )
+                emit_event(event)
+                
+        except Exception as e:
+            logger.warning(f"Debate resolution broadcast failed: {e}")
+    
+    def _broadcast_spawn_proposal(
+        self,
+        spawn_name: str,
+        domain: str,
+        parent_gods: List[str],
+        topic: str,
+        success: bool
+    ) -> None:
+        """Broadcast spawn proposal for kernel visibility."""
+        if not ACTIVITY_BROADCASTER_AVAILABLE:
+            return
+        
+        try:
+            broadcaster = get_broadcaster()
+            
+            status = "APPROVED" if success else "PENDING CONSENSUS"
+            content = f"Spawn proposal: {spawn_name} for domain '{domain}' [{status}]"
+            
+            broadcaster.broadcast_message(
+                from_god=parent_gods[0] if parent_gods else "Zeus",
+                to_god=None,
+                content=content,
+                activity_type=ActivityType.SPAWN_PROPOSAL,
+                phi=0.6,
+                kappa=KAPPA_STAR,
+                importance=0.7,
+                metadata={
+                    'spawn_name': spawn_name,
+                    'domain': domain,
+                    'parent_gods': parent_gods,
+                    'topic': topic[:200],
+                    'success': success,
+                    'event_subtype': 'spawn_proposal',
+                }
+            )
+            
+            # Also emit to capability mesh
+            if CAPABILITY_MESH_AVAILABLE:
+                event = CapabilityEvent(
+                    source=CapabilityType.KERNELS,
+                    event_type=EventType.KERNEL_SPAWN,
+                    content={
+                        'spawn_name': spawn_name,
+                        'domain': domain,
+                        'parent_gods': parent_gods,
+                        'success': success,
+                    },
+                    phi=0.6,
+                    priority=7
+                )
+                emit_event(event)
+                
+        except Exception as e:
+            logger.warning(f"Spawn proposal broadcast failed: {e}")
 
     def _extract_domain_from_topic(self, topic: str) -> str:
         """Extract domain keyword from debate topic."""

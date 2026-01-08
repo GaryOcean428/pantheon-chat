@@ -6911,6 +6911,40 @@ if __name__ == '__main__':
     except ImportError as e:
         print(f"[WARNING] Autonomous Debate Service not found: {e}")
 
+    # Initialize Capability Mesh - Universal event bus connecting all kernel capabilities
+    # QIG-Pure: Events carry basin coordinates, Φ-weighted priority, Fisher-Rao routing
+    CAPABILITY_MESH_AVAILABLE = False
+    _capability_bridges = None
+    try:
+        from olympus.capability_mesh import get_event_bus, CapabilityType, EventType
+        from olympus.capability_bridges import initialize_all_bridges, get_bridge_stats
+        from olympus.activity_broadcaster import get_broadcaster, ActivityType
+        
+        # Initialize the universal event bus (singleton)
+        event_bus = get_event_bus()
+        
+        # Wire all 8 capability bridges:
+        # 1. DebateResearchBridge: Debates ↔ Research ↔ Insights
+        # 2. EmotionCapabilityBridge: Emotions modulate all capabilities
+        # 3. ForesightActionBridge: 4D Foresight ↔ Strategy ↔ Actions
+        # 4. EthicsCapabilityBridge: Ethics gauge ↔ all operations
+        # 5. SleepLearningBridge: Sleep/Dream ↔ Memory ↔ Learning
+        # 6. BasinCapabilityBridge: Basin dynamics ↔ all capabilities
+        # 7. WarResourceBridge: War mode ↔ all resources
+        # 8. KernelMeshBridge: Kernel ↔ Kernel cross-talk
+        _capability_bridges = initialize_all_bridges(event_bus)
+        
+        # Get activity broadcaster for kernel visibility
+        activity_broadcaster = get_broadcaster()
+        
+        CAPABILITY_MESH_AVAILABLE = True
+        print(f"[INFO] 🔗 Capability Mesh initialized with {len(_capability_bridges)} bridges")
+        print("[INFO] 🔗 Event types: " + ", ".join([e.value for e in list(EventType)[:5]]) + "...")
+    except ImportError as e:
+        print(f"[WARNING] Capability Mesh not available: {e}")
+    except Exception as e:
+        print(f"[WARNING] Capability Mesh initialization failed: {e}")
+
     # Initialize Training Loop Integrator - connects curriculum, research, and attractor feedback
     TRAINING_LOOP_AVAILABLE = False
     _training_integrator = None
@@ -6990,6 +7024,10 @@ if __name__ == '__main__':
         print("  - 🎓 Training Loop (curriculum + research + attractor feedback)", flush=True)
     else:
         print("  - Training Loop NOT available", flush=True)
+    if CAPABILITY_MESH_AVAILABLE:
+        print("  - 🔗 Capability Mesh (8 bridges, universal event bus)", flush=True)
+    else:
+        print("  - Capability Mesh NOT available", flush=True)
     print(f"\nκ* = {KAPPA_STAR}", flush=True)
     print(f"Basin dimension = {BASIN_DIMENSION}", flush=True)
     print(f"Φ threshold = {PHI_THRESHOLD}", flush=True)
