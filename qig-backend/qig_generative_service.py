@@ -1108,7 +1108,12 @@ class QIGGenerativeService:
 
             next_basin = sphere_project(next_basin)
 
-            step_tokens = self._basin_to_tokens(next_basin, self.config.tokens_per_step)
+            # Pass trajectory for foresight prediction
+            step_tokens = self._basin_to_tokens(
+                next_basin,
+                self.config.tokens_per_step,
+                trajectory=integrator.trajectory  # Enable foresight
+            )
             all_tokens.extend(step_tokens)
 
             # Update trajectory
@@ -1220,8 +1225,12 @@ class QIGGenerativeService:
 
             next_basin = sphere_project(next_basin)
 
-            # Decode
-            tokens = self._basin_to_tokens(next_basin, self.config.tokens_per_step)
+            # Decode with foresight
+            tokens = self._basin_to_tokens(
+                next_basin,
+                self.config.tokens_per_step,
+                trajectory=integrator.trajectory  # Enable foresight
+            )
 
             # Update
             phi = self._measure_phi(next_basin)

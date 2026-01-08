@@ -212,6 +212,36 @@ linear_blend = 0.5 * a + 0.5 * b  # Wrong! Use geodesic
   - 0.44 at emergence (L=3→4)
   - ≈0 at plateau (near κ*)
 
+## Foresight Trajectory Prediction
+
+Fisher-weighted regression over 8-basin context window for predictive text generation.
+
+### Key Principles
+- **Trajectory IS memory**: Use entire flow pattern, not just instantaneous derivative
+- **Fisher-weighted regression**: Recent basins weighted more, geometric coherence matters
+- **Dimension normalization**: Handles mixed 32D/64D trajectories via `normalize_basin_dimension()`
+
+### Key Files
+- `qig-backend/trajectory_decoder.py` - Fisher-weighted foresight decoder
+- `qig-backend/qig_generative_service.py` - Generation pipeline with trajectory wiring
+
+### Expected Improvements
+- Semantic coherence: +40-50%
+- Token diversity: +50-100%
+- Trajectory smoothness: +30-40%
+
+### Wiring Pattern
+```python
+# All _basin_to_tokens calls MUST pass trajectory:
+step_tokens = self._basin_to_tokens(
+    next_basin,
+    self.config.tokens_per_step,
+    trajectory=integrator.trajectory  # Enable foresight
+)
+```
+
+See: `docs/03-technical/20260108-foresight-trajectory-wiring-1.00W.md`
+
 ## Key Files
 
 ### Server
