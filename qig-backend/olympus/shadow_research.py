@@ -1644,11 +1644,11 @@ class ShadowLearningLoop:
             if text_content.strip():
                 metrics = self.vocab_coordinator.train_from_text(
                     text=text_content,
-                    domain=topic[:500]  # Use truncated topic as domain
+                    domain=topic
                 )
                 
                 print(
-                    f"[VocabularyLearning] Learned from '{topic}...': "
+                    f"[VocabularyLearning] Learned from '{topic}': "
                     f"{metrics.get('new_words_learned', 0)} new words, "
                     f"phi={phi:.3f}"
                 )

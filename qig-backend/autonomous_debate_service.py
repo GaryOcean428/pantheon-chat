@@ -762,7 +762,7 @@ class AutonomousDebateService:
 
             if learned_count > 0:
                 self._vocabulary_learning_events += 1
-                logger.info(f"Trained {learned_count} words from research on '{topic}...'")
+                logger.info(f"Trained {learned_count} words from research on '{topic}'")
 
                 self._cache_vocabulary_observations(training_results, topic)
 
