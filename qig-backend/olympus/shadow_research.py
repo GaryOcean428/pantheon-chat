@@ -1647,11 +1647,13 @@ class ShadowLearningLoop:
                     domain=topic
                 )
                 
-                print(
-                    f"[VocabularyLearning] Learned from '{topic}': "
-                    f"{metrics.get('new_words_learned', 0)} new words, "
-                    f"phi={phi:.3f}"
-                )
+                # Only log when new words were actually learned
+                new_words = metrics.get('new_words_learned', 0)
+                if new_words > 0:
+                    print(
+                        f"[VocabularyLearning] Learned from '{topic}': "
+                        f"{new_words} new words, phi={phi:.3f}"
+                    )
         
         except Exception as e:
             print(f"[VocabularyLearning] Error in vocabulary insight callback: {e}")
@@ -3229,27 +3231,58 @@ class ToolResearchBridge:
     
     def _trigger_infrastructure_improvement(self) -> None:
         """
-        Periodically trigger research on infrastructure improvement topics.
+        Periodically trigger learning from actual curriculum files.
         
-        The system seeks to continuously improve itself.
+        Instead of generating synthetic topics, load real content from docs/09-curriculum/.
         """
         if not self._research_api:
             return
         
-        # Rotate through infrastructure topics
-        topic = self._infrastructure_topics[self._infrastructure_index % len(self._infrastructure_topics)]
-        self._infrastructure_index += 1
-        
         try:
-            self._research_api.request_research(
-                topic=f"Best practices: {topic}",
-                requester="ToolResearchBridge:InfrastructureImprovement",
-                category=ResearchCategory.TOOLS,
-                context={"purpose": "system_self_improvement"}
-            )
-            print(f"[ToolResearchBridge] 🔄 Infrastructure improvement research: {topic}")
+            from pathlib import Path
+            
+            # Find curriculum directory
+            curriculum_paths = [
+                Path('docs/09-curriculum'),
+                Path('../docs/09-curriculum'),
+                Path(__file__).parent.parent.parent / 'docs' / '09-curriculum',
+            ]
+            
+            curriculum_dir = None
+            for p in curriculum_paths:
+                if p.exists():
+                    curriculum_dir = p
+                    break
+            
+            if not curriculum_dir:
+                return
+            
+            # Get list of curriculum files
+            curriculum_files = list(curriculum_dir.glob('*.md')) + list(curriculum_dir.glob('*.txt'))
+            if not curriculum_files:
+                return
+            
+            # Rotate through curriculum files
+            file_path = curriculum_files[self._infrastructure_index % len(curriculum_files)]
+            self._infrastructure_index += 1
+            
+            # Read and learn from the file
+            content = file_path.read_text(encoding='utf-8', errors='ignore')
+            if content.strip():
+                self._research_api.request_research(
+                    topic=file_path.stem,  # Use filename as topic
+                    requester="ToolResearchBridge:CurriculumLearning",
+                    category=ResearchCategory.KNOWLEDGE,
+                    context={
+                        "purpose": "curriculum_learning",
+                        "source_file": str(file_path),
+                        "content_preview": content[:500]
+                    }
+                )
+                print(f"[ToolResearchBridge] 📚 Curriculum learning from: {file_path.name}")
+                
         except Exception as e:
-            print(f"[ToolResearchBridge] Infrastructure research failed: {e}")
+            print(f"[ToolResearchBridge] Curriculum learning failed: {e}")
     
     def _extract_patterns_from_insight(
         self,
