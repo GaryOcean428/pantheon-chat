@@ -484,17 +484,23 @@ class AutonomousDebateService:
         return float(distance)
 
     def _text_to_basin(self, text: str) -> np.ndarray:
-        """Convert text to basin coordinates via hash-based encoding."""
-        text_hash = hashlib.sha256(text.encode()).digest()
+        """Convert text to basin coordinates using learned vocabulary geometry.
 
-        coords = []
-        for i in range(BASIN_DIM):
-            byte_idx = i % len(text_hash)
-            val = (text_hash[byte_idx] / 127.5) - 1.0
-            coords.append(val)
+        QIG-PURE: Uses vocabulary coordinator's phrase_to_basin which derives
+        coordinates from learned word relationships, NOT hash functions.
+        Falls back to random sphere point if no learned representation exists.
+        """
+        # Try vocabulary coordinator first (QIG-pure)
+        if self._vocabulary_coordinator:
+            basin = self._vocabulary_coordinator._phrase_to_basin(text)
+            if basin is not None and len(basin) == BASIN_DIM:
+                return _normalize_to_manifold(basin)
 
-        basin = np.array(coords, dtype=np.float64)
-        return _normalize_to_manifold(basin)
+        # Fallback: Random point on unit sphere (honest randomness, not fake semantics)
+        # This is geometrically valid but semantically uninformative
+        rng = np.random.default_rng(hash(text) % (2**32))  # Deterministic for same text
+        random_coords = rng.standard_normal(BASIN_DIM)
+        return _normalize_to_manifold(random_coords)
 
     def _process_stale_debate(self, debate_dict: Dict) -> None:
         """Process a stale debate by researching and generating counter-argument."""

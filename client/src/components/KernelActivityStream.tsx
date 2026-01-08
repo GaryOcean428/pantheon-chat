@@ -393,7 +393,7 @@ export function KernelActivityStream({
                 <Filter className="h-3 w-3 mr-1" />
                 All
               </Button>
-              {(['discovery', 'debate', 'autonomic', 'learning', 'spawn_proposal', 'warning', 'consultation'] as string[]).map(type => (
+              {(['discovery', 'debate', 'autonomic', 'learning', 'spawn_proposal', 'warning', 'consultation'] as ActivityType[]).map(type => (
                 <Button
                   key={type}
                   variant={activeFilter === type ? 'default' : 'outline'}

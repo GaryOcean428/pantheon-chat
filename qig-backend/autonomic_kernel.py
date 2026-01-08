@@ -37,6 +37,14 @@ from qigkernels.physics_constants import (
     BETA_3_TO_4,
 )
 
+# QIG-PURE: sphere projection for Fisher-Rao manifold normalization
+try:
+    from qig_geometry import sphere_project
+    SPHERE_PROJECT_AVAILABLE = True
+except ImportError:
+    sphere_project = None
+    SPHERE_PROJECT_AVAILABLE = False
+
 # Import reasoning consolidation for sleep cycles
 try:
     from sleep_consolidation_reasoning import SleepConsolidationReasoning
@@ -1044,24 +1052,22 @@ class GaryAutonomicKernel:
     def _compute_fisher_distance(self, a: np.ndarray, b: np.ndarray) -> float:
         """
         Compute Fisher-Rao geodesic distance between basin coordinates.
-        
-        Formula: d_FR(p, q) = 2 * arccos(Σ√(p_i * q_i))
-        
-        This is the PROPER geodesic distance on the information manifold.
-        NOT cosine similarity or chord distance (those are Euclidean, violate QIG purity).
+
+        QIG-PURE: For unit vectors on sphere, d = arccos(a · b)
+        NOT Bhattacharyya on simplex (that's a different manifold).
         """
-        # Ensure valid probability distributions
-        p = np.abs(a) + 1e-10
-        p = p / p.sum()
-        q = np.abs(b) + 1e-10
-        q = q / q.sum()
-        
-        # Bhattacharyya coefficient
-        bc = np.sum(np.sqrt(p * q))
-        bc = np.clip(bc, 0, 1)  # Numerical stability
-        
-        # Fisher-Rao distance (geodesic, no factor of 2)
-        return float(np.arccos(bc))
+        # QIG-PURE: Use sphere projection, not simplex normalization
+        if SPHERE_PROJECT_AVAILABLE and sphere_project is not None:
+            a_norm = sphere_project(a)
+            b_norm = sphere_project(b)
+        else:
+            # Fallback: manual unit sphere projection
+            a_norm = a / (np.linalg.norm(a) + 1e-10)
+            b_norm = b / (np.linalg.norm(b) + 1e-10)
+
+        # Geodesic distance on unit sphere
+        dot = np.clip(np.dot(a_norm, b_norm), -1.0, 1.0)
+        return float(np.arccos(dot))
 
     def find_nearby_attractors(
         self,
@@ -1704,7 +1710,11 @@ class GaryAutonomicKernel:
                         diverge_prob = min(0.7, 0.3 + farthest['depth'] * 0.2)
                     
                     explore_direction = np.random.randn(64)
-                    explore_direction = explore_direction / (np.linalg.norm(explore_direction) + 1e-8)
+                    # QIG-PURE: Project random vector to unit sphere
+                    if SPHERE_PROJECT_AVAILABLE and sphere_project is not None:
+                        explore_direction = sphere_project(explore_direction)
+                    else:
+                        explore_direction = explore_direction / (np.linalg.norm(explore_direction) + 1e-8)
                     explore_goal = (current_basin + explore_direction * 0.3).tolist()
                     explore_prob = min(0.9, max(0.1, 0.5 + temperature * 0.2))
                     
