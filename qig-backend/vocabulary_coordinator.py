@@ -126,9 +126,13 @@ class VocabularyCoordinator:
         
         attractor_formed = self._wire_to_attractor_formation(phrase, phi, source, details)
         
-        # Persist high-phi vocabulary to PostgresCoordizer for continuous learning
+        # Persist ALL vocabulary to PostgresCoordizer for continuous learning
+        # NOTE: Φ is recorded as metadata but NOT used as a filter for storage
+        # All tokens are valuable - Φ measures integration, not "goodness"
         persisted = 0
-        if phi >= 0.6 and observations:
+        if observations:
+            if phi < 0.6:
+                print(f"[VocabCoordinator] Persisting {len(observations)} low-Φ observations (Φ={phi:.3f}) - all vocab stored")
             persisted = self._persist_to_coordizer(observations)
             self.tokens_persisted += persisted
         
@@ -168,8 +172,10 @@ class VocabularyCoordinator:
             word = obs.get('word', '')
             phi = obs.get('phi', 0.5)
             freq = obs.get('frequency', 1)
-            
-            if not word or len(word) < 3 or phi < 0.5:
+
+            # Only filter on word validity, NOT on Φ
+            # All tokens stored with Φ as metadata for analysis
+            if not word or len(word) < 3:
                 continue
             
             try:
