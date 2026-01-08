@@ -71,12 +71,13 @@ class LifecycleProposal:
 
 
 # Allowed bypass reasons (no governance required)
+# NOTE: Keep this minimal - Pantheon should approve most lifecycle events
 ALLOWED_BYPASS_REASONS = {
-    'minimum_population',  # Prevent extinction
-    'initial_population',  # Bootstrap on empty startup
-    'zeus_initialization', # Zeus startup spawn
+    'minimum_population',  # Prevent extinction (pop < 3)
+    'initial_population',  # Bootstrap on empty startup (pop == 0)
     'test_mode',          # Testing only
 }
+# REMOVED: 'zeus_initialization' - Zeus should use 'initial_population' like everyone else
 
 # Emergency bypass reasons (require manual confirmation)
 EMERGENCY_BYPASS_REASONS = {
