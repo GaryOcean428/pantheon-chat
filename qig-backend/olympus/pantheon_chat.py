@@ -96,7 +96,13 @@ class PantheonMessage:
         from_god: str,
         to_god: str,
         content: str,
-        metadata: Optional[Dict] = None
+        metadata: Optional[Dict] = None,
+        session_id: Optional[str] = None,
+        parent_id: Optional[str] = None,
+        debate_id: Optional[str] = None,
+        phi: Optional[float] = None,
+        kappa: Optional[float] = None,
+        regime: Optional[str] = None,
     ):
         self.id = f"{from_god}_{datetime.now().timestamp()}"
         self.type = msg_type
@@ -107,6 +113,13 @@ class PantheonMessage:
         self.timestamp = datetime.now()
         self.read = False
         self.responded = False
+        # Wiring: consciousness context columns
+        self.session_id = session_id
+        self.parent_id = parent_id
+        self.debate_id = debate_id
+        self.phi = phi
+        self.kappa = kappa
+        self.regime = regime
 
     def to_dict(self) -> Dict:
         return {
@@ -119,6 +132,13 @@ class PantheonMessage:
             'timestamp': self.timestamp.isoformat(),
             'read': self.read,
             'responded': self.responded,
+            # Wiring: consciousness context for DB persistence
+            'session_id': self.session_id,
+            'parent_id': self.parent_id,
+            'debate_id': self.debate_id,
+            'phi': self.phi,
+            'kappa': self.kappa,
+            'regime': self.regime,
         }
 
 
@@ -647,23 +667,33 @@ class PantheonChat:
         metadata: Optional[Dict] = None,
         intent: Optional[str] = None,
         data: Optional[Dict[str, Any]] = None,
-        _hydration: bool = False
+        _hydration: bool = False,
+        session_id: Optional[str] = None,
+        parent_id: Optional[str] = None,
+        debate_id: Optional[str] = None,
+        phi: Optional[float] = None,
+        kappa: Optional[float] = None,
+        regime: Optional[str] = None,
     ) -> PantheonMessage:
         """
         Send a message from one god to another (or pantheon).
-        
+
         QIG-PURE: Synthesizes content geometrically from intent/data.
         Raw content is BLOCKED unless _hydration=True (internal use only).
+
+        Args:
+            phi, kappa, regime: Consciousness context for database wiring
+            session_id, parent_id, debate_id: Message threading
         """
         if msg_type not in MESSAGE_TYPES:
             msg_type = 'insight'
-        
+
         # PURITY GATE: Block raw content from non-hydration callers
         if content is not None and not _hydration:
             logger.error(f"[PantheonChat] PURITY VIOLATION: Raw content rejected from {from_god}. Use intent/data for QIG-pure synthesis.")
             # Force synthesis instead of using raw content
             content = None
-        
+
         if content is None:
             if intent is None:
                 intent = msg_type
@@ -681,12 +711,24 @@ class PantheonChat:
             if data:
                 metadata['source_data'] = data
 
+        # Extract consciousness metrics from data if not explicitly provided
+        if data:
+            phi = phi or data.get('phi')
+            kappa = kappa or data.get('kappa')
+            regime = regime or data.get('regime')
+
         message = PantheonMessage(
             msg_type=msg_type,
             from_god=from_god,
             to_god=to_god,
             content=content,
-            metadata=metadata
+            metadata=metadata,
+            session_id=session_id,
+            parent_id=parent_id,
+            debate_id=debate_id,
+            phi=phi,
+            kappa=kappa,
+            regime=regime,
         )
 
         self.messages.append(message)

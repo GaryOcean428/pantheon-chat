@@ -90,13 +90,16 @@ class ChaosLogger:
         except Exception as e:
             print(f"[ChaosLogger] DB write failed: {e}")
 
-    def log_spawn(self, parent_id: Optional[str], child_id: str, reason: str):
+    def log_spawn(self, parent_id: Optional[str], child_id: str, reason: str, phi: Optional[float] = None):
         """Log kernel spawn event."""
         event = {
             'type': 'spawn',
+            'kernel': child_id,  # Primary kernel is the one being spawned
             'parent': parent_id,
             'child': child_id,
             'reason': reason,
+            'phi': phi,
+            'success': True,  # Spawn succeeded if we're logging it
             'timestamp': datetime.now().isoformat(),
         }
 
@@ -104,13 +107,15 @@ class ChaosLogger:
         self.experiments.append(event)
         self._write_event(event)
 
-    def log_death(self, kernel_id: str, cause: str, autopsy: Optional[dict] = None):
+    def log_death(self, kernel_id: str, cause: str, autopsy: Optional[dict] = None, phi_at_death: Optional[float] = None):
         """Log kernel death (learn from failures!)."""
         event = {
             'type': 'death',
             'kernel': kernel_id,
             'cause': cause,
             'autopsy': autopsy,
+            'phi': phi_at_death,
+            'success': False,  # Death is a failure
             'timestamp': datetime.now().isoformat(),
         }
 
@@ -129,10 +134,15 @@ class ChaosLogger:
         """Log breeding experiment."""
         event = {
             'type': 'breeding',
+            'kernel': child_id,  # Primary kernel is the offspring
             'parent': parent1_id,
             'parent2': parent2_id,
             'child': child_id,
             'outcome': outcome,
+            'phi': outcome.get('phi'),  # Child's initial phi
+            'phi_before': outcome.get('parent1_phi'),  # Parent 1's phi
+            'phi_after': outcome.get('child_phi', outcome.get('phi')),  # Child's phi
+            'success': outcome.get('success', True),
             'timestamp': datetime.now().isoformat(),
         }
 
