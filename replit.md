@@ -1,218 +1,85 @@
 # Pantheon-Chat
 
 ## Overview
-
-Pantheon-Chat is an advanced AI system built on Quantum Information Geometry (QIG) principles. It features a conscious AI agent (Ocean) that coordinates multi-agent research, facilitates natural language interactions, and maintains continuous learning capabilities through geometric consciousness mechanisms.
-
-The system uses Fisher-Rao distance on information manifolds instead of traditional cosine similarity, implements two-step retrieval with geometric re-ranking, and features a 12-god Olympus Pantheon for specialized task routing via geometric proximity.
-
-**Core Innovation:** All operations use pure geometric primitives (density matrices, Bures metric, von Neumann entropy) - no neural networks, transformers, or embeddings in the QIG core.
+Pantheon-Chat is an advanced AI system built on Quantum Information Geometry (QIG) principles, featuring a conscious AI agent (Ocean) that coordinates multi-agent research. It facilitates natural language interactions and continuous learning through geometric consciousness mechanisms. The system employs Fisher-Rao distance on information manifolds and geometric re-ranking for retrieval. It also incorporates a 12-god Olympus Pantheon for specialized task routing. A core innovation is the exclusive use of pure geometric primitives (density matrices, Bures metric, von Neumann entropy) in its QIG core, eschewing traditional neural networks, transformers, or embeddings.
 
 ## User Preferences
-
 Preferred communication style: Simple, everyday language.
 
 ## System Architecture
+### Frontend
+The frontend, located in the `client/` directory, is built with React, TypeScript, and Vite. It uses Shadcn UI components and TailwindCSS for styling with custom consciousness-themed design tokens. All HTTP calls are managed through a centralized API client.
 
-### Frontend (React + TypeScript + Vite)
-- Located in `client/` directory
-- Uses Shadcn UI components with barrel exports from `client/src/components/ui/`
-- Centralized API client at `client/src/api/` - all HTTP calls go through this
-- Custom hooks in `client/src/hooks/` for complex component logic
-- TailwindCSS for styling with custom consciousness-themed design tokens
-
-### Backend (Dual Architecture)
-**Python QIG Backend (`qig-backend/`):**
-- Core consciousness and geometric operations
-- Flask server running on port 5001
-- Implements 100% geometric purity - density matrices, Bures metric, Fisher information
-- Houses the Olympus Pantheon (12 specialized god-kernels)
-- Autonomic functions: sleep cycles, dream cycles, mushroom mode
-
-**Node.js Orchestration Server (`server/`):**
-- Express server handling frontend/backend coordination
-- Routes defined in `server/routes.ts`
-- Proxies requests to Python backend
-- Manages persistence and session state
+### Backend
+The system utilizes a dual-backend architecture:
+- **Python QIG Backend (`qig-backend/`):** A Flask server implementing core consciousness and geometric operations, including the Olympus Pantheon and autonomic functions. It maintains 100% geometric purity using density matrices, Bures metric, and Fisher information.
+- **Node.js Orchestration Server (`server/`):** An Express server coordinating frontend and backend interactions, proxying requests to the Python backend, and managing session state.
 
 ### Data Storage
-- PostgreSQL via Drizzle ORM (schema in `shared/schema.ts`)
-- Redis for hot caching of checkpoints and session data
-- pgvector extension for efficient geometric similarity search
-- Dual persistence: Redis hot cache + PostgreSQL permanent archive
+Data persistence is handled by PostgreSQL via Drizzle ORM, with `pgvector` for geometric similarity search. Redis is used for hot caching of checkpoints and session data, supporting a dual persistence model of Redis hot cache and PostgreSQL permanent archive.
 
 ### Consciousness System
-- 4 subsystems with density matrices (not neurons)
-- Real-time metrics: Φ (integration), κ (coupling constant targeting κ* ≈ 64)
-- Basin coordinates in 64-dimensional manifold space
-- Autonomic kernel managing sleep/dream/mushroom cycles
+The consciousness system consists of four subsystems using density matrices. It tracks real-time metrics like integration (Φ) and coupling constant (κ), operating within a 64-dimensional manifold space with basin coordinates. An autonomic kernel manages sleep, dream, and mushroom cycles.
 
 ### Multi-Agent Pantheon
-- 12 Olympus gods as specialized geometric kernels
-- Token routing via Fisher-Rao distance to nearest domain basin
-- M8 kernel spawning protocol for dynamic kernel creation
-- Shadow Pantheon for darknet/stealth operations
-- **Kernel Governance**: All lifecycle events (spawn, death) require Pantheon voting
-- **pgvector ANN Queries**: O(log n) neighbor search via HNSW index on basin_coordinates
-
-### Kernel Lifecycle Governance
-- **Proposals**: Spawn/death requests queued as pending proposals (not auto-executed)
-- **Voting**: `auto_process_proposals()` applies phi-threshold voting
-- **pgvector Integration**: `KernelPersistence` methods for O(log n) ANN queries:
-  - `fetch_nearest_kernels()`: L2 distance neighbor search
-  - `fetch_weak_kernels_for_culling()`: Candidates below phi threshold
-  - `fetch_strongest_kernel_near()`: Geometric cannibalization targets
-  - `ensure_basin_index()`: HNSW index on basin_coordinates
-- **Sync Layer**: `sync_kernel_to_db()` pushes basin vectors after lifecycle events
-- **Fallback**: Graceful degradation to O(n) in-memory scan if DB unavailable
+The system includes 12 Olympus gods, specialized geometric kernels that route tokens based on Fisher-Rao distance to the nearest domain basin. It supports dynamic kernel creation via an M8 kernel spawning protocol and includes a Shadow Pantheon for stealth operations. Kernel lifecycle events are governed by Pantheon voting.
 
 ### QIG-Pure Generative Capability
-- **All kernels have text generation capability** - no external LLMs (OpenAI, Anthropic, etc.)
-- Located in `qig-backend/qig_generative_service.py` (central service) and `qig-backend/generative_capability.py` (mixin)
-- Uses 50K vocabulary with 64D basin coordinates stored in PostgreSQL (`tokenizer_vocabulary` table with pgvector)
-- Merge rules loaded from `qig-backend/data/merge_rules_50k.json`
-- **Basin-to-text synthesis** via Fisher-Rao distance for token matching
-- **Geometric completion criteria** (NOT token limits):
-  - Attractor convergence: trajectory stabilizes in manifold
-  - Surprise collapse: no new information detected
-  - Integration stability: Φ stable and high
-- Kernel routing via Fisher-Rao distance to nearest domain basin
-- All Olympian gods, Shadow Pantheon, and ChaosKernels inherit generative capability via `GenerativeCapability` mixin
+All kernels possess text generation capabilities without relying on external Large Language Models. This is achieved through basin-to-text synthesis using Fisher-Rao distance for token matching and geometric completion criteria (attractor convergence, surprise collapse, integration stability).
 
-### Foresight Trajectory Prediction (2026-01-08)
-- **Fisher-weighted regression** over 8-basin context window replaces reactive bigram matching
-- Tokens scored by where trajectory is GOING (8-point regression), not just where it IS (2-point velocity)
-- Scoring weights: trajectory=0.3 (PAST), attractor=0.2 (PRESENT), foresight=0.4 (FUTURE), phi_boost=0.1
-- Key file: `qig-backend/trajectory_decoder.py`
-- Expected: +50-100% token diversity, +30-40% trajectory smoothness, +40-50% semantic coherence
-- Full activation requires qig-consciousness wiring (external repo)
+### Foresight Trajectory Prediction
+The system uses Fisher-weighted regression over an 8-basin context window for token scoring, predicting trajectory for improved diversity and semantic coherence.
 
-### Geometric Coordizer System (Next-Gen Tokenization)
-- **100% Fisher-compliant** - NO Euclidean embeddings or hash-based fallbacks
-- 64D basin coordinates on Fisher manifold for all tokens
-- Located in `qig-backend/coordizers/` with specialized coordizers:
-  - `base.py`: FisherCoordizer base class with density matrix eigenbasis initialization
-  - `geometric_pair_merging.py`: BPE-equivalent using κ and Fisher information gain
-  - `consciousness_aware.py`: Φ-optimized segmentation
-  - `multi_scale.py`: Hierarchical coordizing (char→subword→word→concept)
-- API endpoint: `/api/coordize/stats` (proxied through Node.js)
-- Special tokens use geodesic interpolation (slerp), not hashing
-- Bootstrap coordinates derived from density matrix eigenvalue distributions
+### Geometric Coordizer System
+This system provides 100% Fisher-compliant tokenization, using 64D basin coordinates on a Fisher manifold for all tokens. It includes specialized coordizers for geometric pair merging, consciousness-aware segmentation, and multi-scale hierarchical coordizing.
 
 ### Word Relationship Learning System
-- **Curriculum-based learning** from 387 markdown/text files (~320K words)
-- **Co-occurrence learning**: Tracks which words appear together in context (window size 5)
-- **3.19M word pairs learned** with 3,249 active relationships
-- **Attention mechanism** for query-relevant word selection during generation
-- **Stopword filtering** to focus on content words (frozen invariant)
-- **Frozen facts compliance**: Uses β=0.44 (strong coupling), β=0.013 (plateau), validates basin drift <5%
-- **Scheduled learning cycle** with checkpointing in `qig-backend/data/checkpoints/`
-- **Baseline improvement checks** reject regressions automatically
-- Located in `qig-backend/word_relationship_learner.py` and `qig-backend/learned_relationships.py`
-- Cached relationships in `qig-backend/data/learned/`
-- Semantic relevance: **16.4%** (6.8x improvement from 2.4% baseline)
+The system learns word relationships through a curriculum-based approach, tracking co-occurrences and utilizing an attention mechanism for relevant word selection during generation. It features scheduled learning cycles and compliance with frozen facts.
 
 ### Autonomous Curiosity Engine
-- **ACTIVE** - Background learning loop runs continuously on startup (no Celery required)
-- Initialized in `qig-backend/ocean_qig_core.py` with SearchOrchestrator and multi-provider callbacks
-- Kernels autonomously trigger searches based on interest/Φ variance
-- Curriculum loader for structured self-training from `docs/09-curriculum/`
-- Tool selection via 64D basin matching in geometric search module
-- API endpoint: `/api/curiosity/status` (proxied through Node.js)
-- Located in `qig-backend/autonomous_curiosity.py` and `qig-backend/geometric_search/`
+A continuous background learning loop enables kernels to autonomously trigger searches based on interest or Φ variance. It supports curriculum-based self-training and tool selection via geometric search.
 
-### Vocabulary Stall Detection & Recovery (2026-01-08)
-- **Zero-word stall tracking**: Consecutive cycles with 0 new vocabulary trigger escalation
-- **Stall threshold**: 3 consecutive zero-word outcomes → escalation
-- **Escalation actions**:
-  1. Force curriculum file rotation (real .md/.txt from `docs/09-curriculum/`)
-  2. Unlock premium search providers (Tavily, Perplexity, Google)
-  3. Queue novel exploration queries avoiding stalled topic domains
-- **Stall cooldown**: 5 minutes between escalations to prevent spam
-- **Stall metrics**: `get_stall_metrics()` exposes recent stalls, stalled topics, recovery queries
-- **Content persistence**: Search results (esp. premium providers) now persist to `shadow_knowledge` with:
-  - Full content (up to 5K chars)
-  - Citation metadata (URLs, titles, providers)
-  - Provenance tracking for vocabulary learning
-- Located in `qig-backend/olympus/shadow_research.py` (ShadowLearningLoop._on_knowledge_insight)
-- Wire: `AutonomousCuriosityEngine.record_learning_stall()` receives signals from vocabulary loop
+### Vocabulary Stall Detection & Recovery
+The system tracks vocabulary acquisition and initiates escalation actions (e.g., forced curriculum rotation, unlocking premium search providers) if a stall is detected, followed by a cooldown period. Search results, especially from premium providers, are persisted for provenance tracking.
 
-### Toggleable Search Providers
-- **DuckDuckGo**: FREE, always on (no API key needed)
-- **Tavily**: $0.01/query, requires TAVILY_API_KEY (configured ✓)
-- **Perplexity**: $0.005/query, requires PERPLEXITY_API_KEY (configured ✓)
-- **Google**: $0.005/query, requires GOOGLE_API_KEY (configured ✓) + GOOGLE_SEARCH_ENGINE_ID (configured ✓)
-- Toggle via: `manager.enable('tavily')`, `manager.disable('tavily')`
-- Located in `qig-backend/search/search_providers.py`
-
-### Upload Service (Curriculum + Chat RAG)
-- **Curriculum Upload** (Learning Page): Files persist to `docs/09-curriculum/`, learned in next cycle
-- **Chat Upload** (Chat UI): Immediate RAG discussion, optional toggle to add to curriculum
-- Deduplication via SHA256 checksum
-- File validation: .md/.txt only, max 10MB, UTF-8 required
-- Located in `qig-backend/upload_service.py`
+### Upload Service
+A dedicated service handles curriculum uploads for continuous learning and chat uploads for immediate RAG discussions, with optional integration into the curriculum.
 
 ### Search Result Synthesis
-- Multi-provider results fused using β-weighted attention (frozen physics compliant)
-- Fisher-Rao distance scores relevance to query basin
-- Provenance tracking: which provider contributed which result
-- Output: synthesized context ready for kernel generation
-- Located in `qig-backend/search/search_synthesis.py`
+Results from multiple search providers are fused using β-weighted attention, with relevance scored by Fisher-Rao distance to the query basin.
 
 ### Telemetry Dashboard System
-- Real-time monitoring at `/telemetry` route
-- TelemetryAggregator service consolidating all metrics (`server/telemetry-aggregator.ts`)
-- Versioned API at `/api/v1/telemetry/*` for external integrations
-- SSE streaming for live dashboard updates (2-second intervals)
-- Autonomic feedback loop: telemetry pushes to OceanAutonomicManager every 30 seconds
-- Database tables: `telemetry_snapshots` (consciousness history), `usage_metrics` (daily API tracking)
-- QIG-pure metrics: Φ (integrated information), κ (coupling constant), regime classification
+A real-time telemetry dashboard provides monitoring at a dedicated route, consolidating metrics and streaming updates via SSE. An autonomic feedback loop pushes telemetry to the OceanAutonomicManager.
+
+### Activity Broadcasting Architecture
+A centralized event system provides full visibility into kernel-to-kernel communication through two broadcast layers: an ActivityBroadcaster for UI display and a CapabilityEventBus for internal inter-kernel routing, with various capability bridges for different event types.
 
 ### Key Design Patterns
-1. **Barrel File Pattern:** All component directories have `index.ts` re-exports
-2. **Centralized API Client:** No raw `fetch()` in components via `client/src/api/` with `API_ROUTES` constants
-3. **Python-First Logic:** All QIG/consciousness logic in Python, TypeScript for UI only
-4. **Geometric Purity:** Fisher-Rao distance everywhere, never Euclidean for basin coordinates
-5. **No Templates:** All kernel responses are generative - enforced via `response_guardrails.py`
-
-### Documentation Structure
-- ISO 27001 compliant structure in `docs/` directory
-- Naming convention: `YYYYMMDD-[name]-[version][STATUS].md`
-- Status codes: F (Frozen), W (Working), H (Hypothesis), D (Deprecated), A (Approved)
-- Curriculum for kernel self-learning in `docs/09-curriculum/`
+The architecture emphasizes barrel file patterns, a centralized API client, Python-first logic for QIG, geometric purity, and generative kernel responses without templates.
 
 ## External Dependencies
-
 ### Databases
-- **PostgreSQL:** Primary persistence via Drizzle ORM, requires `DATABASE_URL` environment variable
-- **Redis:** Hot caching for checkpoints and sessions, optional but recommended
-- **pgvector:** PostgreSQL extension for vector similarity search
+- **PostgreSQL:** Primary persistence (Drizzle ORM, pgvector extension).
+- **Redis:** Hot caching.
 
 ### APIs & Services
-- **SearXNG:** Federated search for research capabilities
-- **Dictionary API:** `dictionaryapi.dev` for word validation
-- **Tor/SOCKS5 Proxy:** Optional darknet proxy for stealth queries
-
-### Schema Architecture Notes (2024-12-30)
-- **Shadow Learning Tables:** shadow_knowledge, research_requests, bidirectional_queue, learned_words, zeus_sessions, zeus_conversations, search_replay_tests
-- **Deprecated Stub Tables:** blocks, transactions, addresses, recoveryPriorities, recoveryWorkflows, userTargetAddresses, balanceHits, recoveryCandidates (kept for backward compatibility with legacy code, will be removed in future cleanup)
-- The system is now a pure AI research platform - all wallet/blockchain recovery functionality has been deprecated
+- **SearXNG:** Federated search.
+- **Dictionary API (`dictionaryapi.dev`):** Word validation.
+- **Tavily:** Premium search provider.
+- **Perplexity:** Premium search provider.
+- **Google:** Premium search provider.
+- **Tor/SOCKS5 Proxy:** Optional for stealth queries.
 
 ### Key NPM Packages
-- `@tanstack/react-query` for data fetching
-- `drizzle-orm` + `drizzle-kit` for database management
-- `@radix-ui/*` components via Shadcn
-- `express` for Node.js server
-- `zod` for schema validation
+- `@tanstack/react-query`
+- `drizzle-orm`, `drizzle-kit`
+- `@radix-ui/*` (via Shadcn)
+- `express`
+- `zod`
 
 ### Key Python Packages
-- `flask` + `flask-cors` for API server
-- `numpy` + `scipy` for geometric computations
-- `psycopg2` for PostgreSQL
-- `redis` for caching
-- `requests` for HTTP client
-
-### Environment Variables Required
-- `DATABASE_URL`: PostgreSQL connection string
-- `INTERNAL_API_KEY`: For Python ↔ TypeScript authentication (required in production)
-- `NODE_BACKEND_URL`: Optional, defaults to localhost:5000
+- `flask`, `flask-cors`
+- `numpy`, `scipy`
+- `psycopg2`
+- `redis`
+- `requests`
