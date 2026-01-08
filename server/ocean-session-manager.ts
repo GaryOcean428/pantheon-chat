@@ -7,7 +7,6 @@ import { repeatedAddressScheduler } from './repeated-address-scheduler';
 import { consoleLogBuffer } from './console-log-buffer';
 import { autoCycleManager } from './auto-cycle-manager';
 import { oceanQIGBackend } from './ocean-qig-backend-adapter';
-import { testedPhrasesUnified } from './tested-phrases-unified';
 import { SEARCH_CONFIG } from './ocean-config';
 
 export type FullConsciousnessSignature = ConsciousnessSignature;

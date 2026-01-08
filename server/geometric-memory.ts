@@ -24,7 +24,6 @@ import { logger } from './lib/logger';
 import { fisherGeodesicDistance, fisherCoordDistance } from './qig-universal';
 import { oceanPersistence, type ProbeInsertData } from './ocean/ocean-persistence';
 import { getKappaAtScale, BASIN_DIMENSION } from '@shared/constants';
-import { testedPhrasesUnified } from './tested-phrases-unified';
 
 // Extracted modules for modularity
 import {

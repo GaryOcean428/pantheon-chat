@@ -1614,18 +1614,6 @@ export const oceanExcludedRegions = pgTable(
 export type OceanExcludedRegionRecord =
   typeof oceanExcludedRegions.$inferSelect;
 
-/**
- * TESTED PHRASES INDEX - Fast lookup for already-tested phrases
- * Prevents duplicate work across sessions
- */
-export const testedPhrasesIndex = pgTable(
-  "tested_phrases_index",
-  {
-    phraseHash: varchar("phrase_hash", { length: 64 }).primaryKey(), // SHA-256 hash
-    testedAt: timestamp("tested_at").defaultNow().notNull(),
-  },
-  (table) => [index("idx_tested_phrases_date").on(table.testedAt)]
-);
 
 /**
  * NEAR-MISS ENTRIES - High-Φ candidates that didn't match but indicate promising areas
@@ -2020,34 +2008,6 @@ export const eraExclusions = pgTable(
 export type EraExclusion = typeof eraExclusions.$inferSelect;
 export type InsertEraExclusion = typeof eraExclusions.$inferInsert;
 
-/**
- * TESTED PHRASES - Track all tested phrases to avoid re-testing
- * Replaces 4.2MB JSON file with indexed database storage
- */
-export const testedPhrases = pgTable(
-  "tested_phrases",
-  {
-    id: varchar("id", { length: 64 }).primaryKey(),
-    phrase: text("phrase").notNull().unique(),
-    address: varchar("address", { length: 62 }),
-    balanceSats: bigint("balance_sats", { mode: "number" }).default(0),
-    txCount: integer("tx_count").default(0),
-    phi: doublePrecision("phi"),
-    kappa: doublePrecision("kappa"),
-    regime: varchar("regime", { length: 32 }),
-    testedAt: timestamp("tested_at").defaultNow().notNull(),
-    retestCount: integer("retest_count").default(0), // Track how many times we wastefully re-tested
-  },
-  (table) => [
-    index("idx_tested_phrases_phrase").on(table.phrase),
-    index("idx_tested_phrases_tested_at").on(table.testedAt),
-    index("idx_tested_phrases_balance").on(table.balanceSats),
-    index("idx_tested_phrases_retest_count").on(table.retestCount),
-  ]
-);
-
-export type TestedPhrase = typeof testedPhrases.$inferSelect;
-export type InsertTestedPhrase = typeof testedPhrases.$inferInsert;
 
 // ============================================================================
 // STRATEGY KNOWLEDGE BUS TABLES

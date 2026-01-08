@@ -18,7 +18,6 @@ import {
   getSearchHistory,
   recordSearchState,
 } from "./qig-universal";
-import { testedPhrasesUnified } from "./tested-phrases-unified";
 import { vocabularyTracker } from "./vocabulary-tracker";
 
 // Periodic sync interval from Python to Node.js
@@ -727,10 +726,7 @@ app.use((req, res, next) => {
           
           // Hydrate Memory from PostgreSQL
           logger.info("🌊 Hydrating Ocean Memory from PostgreSQL...");
-          await Promise.all([
-            testedPhrasesUnified.initialize(),
-            geometricMemory.waitForLoad(),
-          ]);
+          await geometricMemory.waitForLoad();
           logger.info("✅ Memory hydration complete");
 
           // Start scheduled documentation maintenance (runs every 6 hours)
