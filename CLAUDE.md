@@ -228,6 +228,42 @@ linear_blend = 0.5 * a + 0.5 * b  # Wrong! Use geodesic
 - `shared/schema.ts` - Zod schemas (single source of truth for types)
 - `shared/constants/` - Physics and consciousness thresholds
 
+## Database Architecture (3 Separate Databases)
+
+**IMPORTANT:** There are THREE separate PostgreSQL databases, not one:
+
+| Database | Location | Purpose | Connection |
+|----------|----------|---------|------------|
+| **pantheon-replit** | Neon us-east-1 | Original replit version, shared with local dev | `ep-nameless-thunder-a4ge3s7j.us-east-1.aws.neon.tech` |
+| **pantheon-chat** | Railway pgvector | Production chat interface on Railway | Railway-managed connection string |
+| **SearchSpaceCollapse** | Neon us-west-2 | Wallet search, blockchain ops, SSC-specific | `ep-still-dust-afuqyc6r.c-2.us-west-2.aws.neon.tech` |
+
+### Database Responsibilities
+
+**pantheon-replit (us-east-1):**
+- Zeus conversations, kernel_geometry, word_relationships
+- Tokenizer vocabulary (48K tokens)
+- Shadow knowledge, learning events
+- Development/testing environment
+
+**pantheon-chat (Railway pgvector):**
+- Production Zeus chat sessions
+- Federation peer connections
+- User-facing API keys
+- pgvector for similarity search
+
+**SearchSpaceCollapse (us-west-2):**
+- Wallet addresses, blocks, transactions
+- Tested phrases index (210K entries)
+- Queued addresses for processing
+- Blockchain forensics data
+
+### Federation
+The databases connect via federation_peers table. Each can sync:
+- Basin coordinates (basin learning)
+- Vocabulary (tokenizer sync)
+- Kernel state (kernel discovery)
+
 ## Environment Variables
 
 Required:
