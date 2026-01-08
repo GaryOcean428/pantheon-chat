@@ -32,12 +32,6 @@ export interface IOceanProbeStorage {
   getProbeCount(): Promise<number>;
 }
 
-export interface ITestedPhraseStorage {
-  markTested(phrase: string): Promise<boolean>;
-  batchMarkTested(phrases: string[]): Promise<number>;
-  hasBeenTested(phrase: string): Promise<boolean>;
-  flushTestedPhrases(): Promise<number>;
-}
 
 export interface ISearchJobStorage {
   getSearchJobs(): Promise<import('@shared/schema').SearchJob[]>;

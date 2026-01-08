@@ -619,21 +619,13 @@ externalApiRouter.get(
         LIMIT 1000
       `);
       
-      const phrasesResult = await db.execute(sql`
-        SELECT phrase, regime, phi, kappa, tested_at
-        FROM tested_phrases
-        WHERE phi > 0.5
-        ORDER BY phi DESC
-        LIMIT 500
-      `);
-      
       res.json({
         vocabulary: vocabResult.rows,
-        highPhiPhrases: phrasesResult.rows,
+        highPhiPhrases: [],
         exportedAt: new Date().toISOString(),
         count: {
           vocabulary: vocabResult.rows.length,
-          phrases: phrasesResult.rows.length,
+          phrases: 0,
         },
       });
     } catch (error) {
@@ -685,24 +677,7 @@ externalApiRouter.post(
         }
       }
       
-      if (highPhiPhrases && Array.isArray(highPhiPhrases)) {
-        for (const phrase of highPhiPhrases.slice(0, 200)) {
-          if (phrase.phrase && phrase.phi) {
-            const p = phrase.phrase;
-            const reg = phrase.regime || 'geometric';
-            const phi = phrase.phi;
-            const kap = phrase.kappa || 64.21;
-            const src = sourceNode || 'federation';
-            await db.execute(sql`
-              INSERT INTO tested_phrases (phrase, regime, phi, kappa, tested_at, source)
-              VALUES (${p}, ${reg}, ${phi}, ${kap}, NOW(), ${src})
-              ON CONFLICT (phrase) DO UPDATE SET
-                phi = GREATEST(tested_phrases.phi, EXCLUDED.phi)
-            `);
-            importedPhrases++;
-          }
-        }
-      }
+      // highPhiPhrases import removed (tested_phrases table deprecated)
       
       res.json({
         success: true,
