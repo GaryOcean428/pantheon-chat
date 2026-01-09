@@ -34,9 +34,7 @@ export {
 
 // Phase 3: Olympus Pantheon Coordination
 export {
-	OlympusCoordinator,
-	type OlympusWarMode,
-	type OlympusStats
+	OlympusCoordinator, type OlympusStats, type OlympusWarMode
 } from "./olympus-coordinator";
 // TODO: Phase 1 (Week 1)
 // export { GeodesicNavigator } from "./geodesic-navigator";

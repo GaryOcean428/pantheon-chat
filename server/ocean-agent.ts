@@ -35,8 +35,7 @@ import {
   type EthicsCheckResult,
   type OceanHypothesis as ModuleOceanHypothesis,
   type OlympusStats,
-  type OlympusWarMode,
-  type ResonanceProxy,
+  type ResonanceProxy
 } from "./modules";
 import { nearMissManager } from "./near-miss-manager";
 import { negativeKnowledgeUnified as negativeKnowledgeRegistry } from "./negative-knowledge-unified";
@@ -130,9 +129,7 @@ import {
 } from "./brain-state";
 import { getEmotionalGuidance } from "./emotional-search-shortcuts";
 import {
-  olympusClient,
-  type ObservationContext,
-  type ZeusAssessment,
+  olympusClient
 } from "./olympus-client";
 import { recordLearningEvent } from "./qig-db";
 import { executeShadowOperations } from "./shadow-war-orchestrator";
