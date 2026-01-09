@@ -15,8 +15,8 @@ CREATE TABLE IF NOT EXISTS bip39_words (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_bip39_word ON bip39_words(word);
-CREATE INDEX idx_bip39_phi ON bip39_words(avg_phi DESC);
+CREATE INDEX IF NOT EXISTS idx_bip39_word ON bip39_words(word);
+CREATE INDEX IF NOT EXISTS idx_bip39_phi ON bip39_words(avg_phi DESC);
 
 -- Learned Vocabulary (grows on the fly)
 CREATE TABLE IF NOT EXISTS learned_words (
@@ -91,8 +91,8 @@ CREATE TABLE IF NOT EXISTS bpe_merge_rules (
     UNIQUE(token_a, token_b)
 );
 
-CREATE INDEX idx_merge_phi ON bpe_merge_rules(phi_score DESC);
-CREATE INDEX idx_merge_tokens ON bpe_merge_rules(token_a, token_b);
+CREATE INDEX IF NOT EXISTS idx_merge_phi ON bpe_merge_rules(phi_score DESC);
+CREATE INDEX IF NOT EXISTS idx_merge_tokens ON bpe_merge_rules(token_a, token_b);
 
 -- God Vocabulary Profiles (each god's specialized vocabulary)
 CREATE TABLE IF NOT EXISTS god_vocabulary_profiles (
@@ -105,8 +105,8 @@ CREATE TABLE IF NOT EXISTS god_vocabulary_profiles (
     UNIQUE(god_name, word)
 );
 
-CREATE INDEX idx_god_vocab_name ON god_vocabulary_profiles(god_name);
-CREATE INDEX idx_god_vocab_relevance ON god_vocabulary_profiles(relevance_score DESC);
+CREATE INDEX IF NOT EXISTS idx_god_vocab_name ON god_vocabulary_profiles(god_name);
+CREATE INDEX IF NOT EXISTS idx_god_vocab_relevance ON god_vocabulary_profiles(relevance_score DESC);
 
 -- Vocabulary Stats (aggregate metrics)
 CREATE TABLE IF NOT EXISTS vocabulary_stats (
@@ -229,6 +229,9 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+
+-- Drop trigger if exists before recreating
+DROP TRIGGER IF EXISTS update_stats_on_learned_insert ON learned_words;
 
 CREATE TRIGGER update_stats_on_learned_insert
     AFTER INSERT ON learned_words
