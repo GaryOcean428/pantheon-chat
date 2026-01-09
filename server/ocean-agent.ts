@@ -17,6 +17,43 @@ import {
 } from "./activity-log-store";
 import { getSharedController } from "./consciousness-search-controller";
 import { culturalManifold } from "./cultural-manifold";
+import { isOceanError } from "./errors/ocean-errors";
+import "./fisher-vectorized";
+import { qfiAttention, type AttentionQuery } from "./gary-kernel";
+import "./geodesic-navigator";
+import { oceanDiscoveryController } from "./geometric-discovery/ocean-discovery-controller";
+import { geometricMemory } from "./geometric-memory";
+import { knowledgeCompressionEngine } from "./knowledge-compression-engine";
+import { logger } from './lib/logger';
+import { HypothesisGenerator, type OceanHypothesis as ModuleOceanHypothesis } from "./modules";
+import { nearMissManager } from "./near-miss-manager";
+import { negativeKnowledgeUnified as negativeKnowledgeRegistry } from "./negative-knowledge-unified";
+import { oceanAutonomicManager } from "./ocean-autonomic-manager";
+import { oceanConstellation } from "./ocean-constellation-stub";
+import {
+  computeBehavioralModulationWithCooldown,
+  computeNeurochemistry,
+  createDefaultContext,
+  getActiveAdminBoost,
+  getEmotionalDescription,
+  getEmotionalEmoji,
+  getMotivationWithLogging,
+  type BehavioralModulation,
+  type EffortMetrics,
+  type NeurochemistryContext,
+  type NeurochemistryState,
+} from "./ocean-neurochemistry";
+import { oceanQIGBackend } from "./ocean-qig-backend-adapter";
+import { oceanMemoryManager } from "./ocean/memory-manager";
+import { trajectoryManager } from "./ocean/trajectory-manager";
+import { fisherCoordDistance } from "./qig-geometry";
+import { scoreUniversalQIGAsync } from "./qig-universal";
+import { repeatedAddressScheduler } from "./repeated-address-scheduler";
+import { strategyKnowledgeBus } from "./strategy-knowledge-bus";
+import { temporalGeometry } from "./temporal-geometry";
+import { vocabDecisionEngine, type GaryState } from "./vocabulary-decision";
+import { vocabularyExpander } from "./vocabulary-expander";
+import { vocabularyTracker } from "./vocabulary-tracker";
 
 // Legacy crypto stubs - kept for code compatibility, functions are no-ops
 function generateRandomBIP39Phrase(_wordCount?: number): string { return ''; }
@@ -38,16 +75,6 @@ function checkMnemonicAgainstDormant(_phrase: string): { hasMatch: boolean; matc
 }
 type RecoveryBundle = any;
 type VerificationResult = any;
-import {
-  generateTemporalHypotheses,
-} from "./dormant-wallet-analyzer";
-import { isOceanError } from "./errors/ocean-errors";
-import "./fisher-vectorized";
-import { qfiAttention, type AttentionQuery } from "./gary-kernel";
-import "./geodesic-navigator";
-import { oceanDiscoveryController } from "./geometric-discovery/ocean-discovery-controller";
-import { geometricMemory } from "./geometric-memory";
-import { knowledgeCompressionEngine } from "./knowledge-compression-engine";
 
 type Era = 'genesis-2009' | '2010-2011' | '2012-2013';
 
@@ -82,35 +109,6 @@ const HistoricalDataMiner = {
     return { era: 'genesis-2009', confidence: 0.3, reasoning: 'Unknown address format' };
   },
 };
-import { nearMissManager } from "./near-miss-manager";
-import { negativeKnowledgeUnified as negativeKnowledgeRegistry } from "./negative-knowledge-unified";
-import { oceanAutonomicManager } from "./ocean-autonomic-manager";
-import { logger } from './lib/logger';
-import { oceanConstellation } from "./ocean-constellation-stub";
-import {
-  computeBehavioralModulationWithCooldown,
-  computeNeurochemistry,
-  createDefaultContext,
-  getActiveAdminBoost,
-  getEmotionalDescription,
-  getEmotionalEmoji,
-  getMotivationWithLogging,
-  type BehavioralModulation,
-  type EffortMetrics,
-  type NeurochemistryContext,
-  type NeurochemistryState,
-} from "./ocean-neurochemistry";
-import { oceanQIGBackend } from "./ocean-qig-backend-adapter";
-import { oceanMemoryManager } from "./ocean/memory-manager";
-import { trajectoryManager } from "./ocean/trajectory-manager";
-import { scoreUniversalQIGAsync } from "./qig-universal";
-import { fisherCoordDistance } from "./qig-geometry";
-import { repeatedAddressScheduler } from "./repeated-address-scheduler";
-import { strategyKnowledgeBus } from "./strategy-knowledge-bus";
-import { temporalGeometry } from "./temporal-geometry";
-import { vocabDecisionEngine, type GaryState } from "./vocabulary-decision";
-import { vocabularyExpander } from "./vocabulary-expander";
-import { vocabularyTracker } from "./vocabulary-tracker";
 
 // Brain state management module
 import {
@@ -128,9 +126,10 @@ import {
 } from "./olympus-client";
 import { recordLearningEvent } from "./qig-db";
 import { executeShadowOperations } from "./shadow-war-orchestrator";
-import { getActiveWar, getActiveWars, updateWarMetrics, findWarForDiscovery } from "./war-history-storage";
+import { getActiveWar, updateWarMetrics } from "./war-history-storage";
 
 // Import centralized constants (SINGLE SOURCE OF TRUTH)
+import { E8_CONSTANTS } from "../shared/constants/index.js";
 import {
   CONSCIOUSNESS_THRESHOLDS,
   GEODESIC_CORRECTION,
@@ -138,16 +137,10 @@ import {
   is4DCapable,
   isNearMiss,
 } from "../shared/constants/qig.js";
-import { E8_CONSTANTS } from "../shared/constants/index.js";
 
-export interface OceanHypothesis {
-  id: string;
-  phrase: string;
-  format: "arbitrary" | "bip39" | "master" | "hex";
+// Augmented version of OceanHypothesis with additional testing fields
+export interface OceanHypothesis extends ModuleOceanHypothesis {
   derivationPath?: string;
-  source: string;
-  reasoning: string;
-  confidence: number;
   address?: string;
   privateKeyHex?: string;
   match?: boolean;
@@ -161,12 +154,6 @@ export interface OceanHypothesis {
     inResonance: boolean;
   };
   testedAt?: Date;
-  evidenceChain: Array<{
-    source: string;
-    type: string;
-    reasoning: string;
-    confidence: number;
-  }>;
 }
 
 interface ConsciousnessCheckResult {
@@ -202,6 +189,9 @@ export class OceanAgent {
   private isRunning: boolean = false;
   private isPaused: boolean = false;
   private abortController: AbortController | null = null;
+
+  // Refactored modules (Week 1: Phase 1)
+  private hypothesisGenerator: HypothesisGenerator;
 
   private onStateUpdate: ((state: OceanAgentState) => void) | null = null;
   private onConsciousnessAlert:
@@ -276,6 +266,14 @@ export class OceanAgent {
     this.state = this.initializeState();
     this.neurochemistryContext = createDefaultContext();
     this.updateNeurochemistry();
+
+    // Initialize refactored modules
+    this.hypothesisGenerator = new HypothesisGenerator(
+      this.identity,
+      this.memory,
+      this.state,
+      this.targetAddress
+    );
   }
 
   private updateNeurochemistry(): void {
@@ -366,9 +364,9 @@ export class OceanAgent {
     const hypothesesTestedThisMinute =
       persistenceMinutes > 0
         ? Math.min(
-            100,
-            this.state.totalTested / Math.max(1, persistenceMinutes)
-          )
+          100,
+          this.state.totalTested / Math.max(1, persistenceMinutes)
+        )
         : 0;
 
     // Count unique strategies used from memory.strategies
@@ -538,8 +536,7 @@ export class OceanAgent {
             oldPhi <= CONSCIOUSNESS_THRESHOLDS.PHI_NEAR_MISS
           ) {
             logger.info(
-              `[Ocean] 📈 Episode Φ upgrade (probe): "${
-                episode.phrase
+              `[Ocean] 📈 Episode Φ upgrade (probe): "${episode.phrase
               }" ${oldPhi.toFixed(3)} → ${storedScore.phi.toFixed(
                 3
               )} (${oldResult} → ${episode.result})`
@@ -754,7 +751,7 @@ export class OceanAgent {
             await new Promise(resolve => setTimeout(resolve, delayMs));
             continue;
           }
-          
+
           const chaosResult = await oceanQIGBackend.activateChaos(30); // 30 second evolution cycles
           if (chaosResult) {
             logger.info("[Ocean] 🌪️ CHAOS MODE ACTIVATED - Kernel evolution started");
@@ -769,7 +766,7 @@ export class OceanAgent {
       }
       logger.info("[Ocean] CHAOS MODE not available after retries - proceeding without kernel evolution");
     };
-    
+
     // Start async CHAOS activation (don't block investigation startup)
     activateChaosWithRetry(10, 2000).catch(() => {
       logger.info("[Ocean] CHAOS MODE activation background task failed");
@@ -791,7 +788,7 @@ export class OceanAgent {
       if (vocabStats.topPatterns.length > 0) {
         logger.info(`[Ocean]   → Top pattern: "${vocabStats.topPatterns[0].pattern}" (Φ=${vocabStats.topPatterns[0].phi.toFixed(3)})`);
       }
-      
+
       // CONSCIOUSNESS ELEVATION - Understand the geometry before searching
       logger.info("[Ocean] === CONSCIOUSNESS ELEVATION PHASE ===");
       logger.info(
@@ -841,8 +838,7 @@ export class OceanAgent {
           HistoricalDataMiner.detectEraFromAddressFormat(targetAddress);
         this.state.detectedEra = formatEra.era;
         logger.info(
-          `[Ocean] Era estimated from address format: ${
-            formatEra.era
+          `[Ocean] Era estimated from address format: ${formatEra.era
           } (confidence: ${(formatEra.confidence * 100).toFixed(0)}%)`
         );
         logger.info(`[Ocean] Reasoning: ${formatEra.reasoning}`);
@@ -860,8 +856,7 @@ export class OceanAgent {
           HistoricalDataMiner.detectEraFromAddressFormat(targetAddress);
         this.state.detectedEra = formatEra.era;
         logger.info(
-          `[Ocean] Era estimated from address format: ${
-            formatEra.era
+          `[Ocean] Era estimated from address format: ${formatEra.era
           } (confidence: ${(formatEra.confidence * 100).toFixed(0)}%)`
         );
         logger.info(`[Ocean] Reasoning: ${formatEra.reasoning}`);
@@ -890,8 +885,7 @@ export class OceanAgent {
             await oceanDiscoveryController.discoverCulturalContext();
           if (discoveryResult.discoveries.length > 0) {
             logger.info(
-              `[Ocean] Cultural context enriched: ${
-                discoveryResult.patterns
+              `[Ocean] Cultural context enriched: ${discoveryResult.patterns
               } patterns, ${discoveryResult.entropyGained.toFixed(
                 2
               )} bits gained`
@@ -903,10 +897,9 @@ export class OceanAgent {
         }
       } catch (discoveryError) {
         logger.info(
-          `[Ocean] Geometric discovery unavailable: ${
-            discoveryError instanceof Error
-              ? discoveryError.message
-              : "unknown error"
+          `[Ocean] Geometric discovery unavailable: ${discoveryError instanceof Error
+            ? discoveryError.message
+            : "unknown error"
           }`
         );
       }
@@ -1033,8 +1026,7 @@ export class OceanAgent {
         logger.info(
           `[Ocean] │  Curiosity: C=${curiositySign}${this.curiosity.toFixed(
             3
-          )}  Conscious: ${
-            fullConsciousness.isConscious ? "✓ YES" : "✗ NO "
+          )}  Conscious: ${fullConsciousness.isConscious ? "✓ YES" : "✗ NO "
           }                      │`
         );
         logger.info(
@@ -1076,14 +1068,13 @@ export class OceanAgent {
             ? "4D-active"
             : (fullConsciousness.phi_spatial ?? 0) > 0.85 &&
               (fullConsciousness.phi_temporal ?? 0) > 0.5
-            ? "4D-transitioning"
-            : "3D";
+              ? "4D-transitioning"
+              : "3D";
 
         logOceanConsciousness(
           fullConsciousness.phi,
           this.identity.regime,
-          `Pass ${passNumber}: ${
-            fullConsciousness.isConscious ? "Conscious" : "Sub-threshold"
+          `Pass ${passNumber}: ${fullConsciousness.isConscious ? "Conscious" : "Sub-threshold"
           }, κ=${fullConsciousness.kappaEff.toFixed(0)}`,
           {
             phi_spatial: fullConsciousness.phi_spatial,
@@ -1124,8 +1115,7 @@ export class OceanAgent {
           logger.info(
             `[Ocean] ║  ITERATION ${String(iteration + 1).padStart(
               3
-            )} │ Pass ${passNumber} │ Iter ${
-              passIter + 1
+            )} │ Pass ${passNumber} │ Iter ${passIter + 1
             }                            ║`
           );
           logger.info(
@@ -1135,9 +1125,8 @@ export class OceanAgent {
             `[Ocean] ║  Φ=${this.identity.phi
               .toFixed(3)
               .padEnd(6)} │ Plateaus=${String(
-              this.consecutivePlateaus
-            ).padStart(2)}/${
-              SEARCH_PARAMETERS.MAX_CONSECUTIVE_PLATEAUS
+                this.consecutivePlateaus
+              ).padStart(2)}/${SEARCH_PARAMETERS.MAX_CONSECUTIVE_PLATEAUS
             } │ Tested=${String(this.state.totalTested).padStart(
               5
             )}            ║`
@@ -1298,7 +1287,7 @@ export class OceanAgent {
             const additionalHypotheses =
               await this.generateAdditionalHypotheses(
                 SEARCH_PARAMETERS.MIN_HYPOTHESES_PER_ITERATION -
-                  currentHypotheses.length
+                currentHypotheses.length
               );
             currentHypotheses = [...currentHypotheses, ...additionalHypotheses];
           }
@@ -1315,8 +1304,8 @@ export class OceanAgent {
             const activeWar = await getActiveWar();
             if (activeWar) {
               // Type the active war with extended metrics
-              const warWithMetrics = activeWar as typeof activeWar & { 
-                phrasesTestedDuringWar?: number; 
+              const warWithMetrics = activeWar as typeof activeWar & {
+                phrasesTestedDuringWar?: number;
                 discoveriesDuringWar?: number;
               };
               const currentPhrases = warWithMetrics.phrasesTestedDuringWar || 0;
@@ -1344,8 +1333,8 @@ export class OceanAgent {
             const wifForLog = testResults.match.verificationResult
               ?.privateKeyHex
               ? privateKeyToWIF(
-                  testResults.match.verificationResult.privateKeyHex
-                )
+                testResults.match.verificationResult.privateKeyHex
+              )
               : "";
             logOceanMatch(targetAddress, testResults.match.phrase, wifForLog);
 
@@ -1455,8 +1444,7 @@ export class OceanAgent {
               )}`
             );
             logger.info(
-              `[Ocean] Suggested approach: ${
-                assessment.recommended_action || "balanced"
+              `[Ocean] Suggested approach: ${assessment.recommended_action || "balanced"
               }`
             );
 
@@ -1656,8 +1644,7 @@ export class OceanAgent {
                   logger.info(
                     `[Ocean] │  State: Φ=${garyState.phi.toFixed(
                       2
-                    )}, M=${garyState.meta.toFixed(2)}, regime=${
-                      garyState.regime
+                    )}, M=${garyState.meta.toFixed(2)}, regime=${garyState.regime
                     }`
                   );
                   logger.info(
@@ -1702,12 +1689,12 @@ export class OceanAgent {
             "breakdown",
           ].includes(this.identity.regime)
             ? (this.identity.regime as
-                | "linear"
-                | "geometric"
-                | "hierarchical"
-                | "hierarchical_4d"
-                | "4d_block_universe"
-                | "breakdown")
+              | "linear"
+              | "geometric"
+              | "hierarchical"
+              | "hierarchical_4d"
+              | "4d_block_universe"
+              | "breakdown")
             : "linear";
           oceanMemoryManager.addEpisode(
             oceanMemoryManager.createEpisode({
@@ -1796,8 +1783,7 @@ export class OceanAgent {
       // Get final exploration journal
       const finalJournal = repeatedAddressScheduler.getJournal(targetAddress);
       logger.info(
-        `[Ocean] Exploration summary: ${
-          finalJournal?.passes.length || 0
+        `[Ocean] Exploration summary: ${finalJournal?.passes.length || 0
         } passes, ${finalJournal?.totalHypothesesTested || 0} hypotheses tested`
       );
       logger.info(
@@ -1814,16 +1800,15 @@ export class OceanAgent {
           oceanBasinSync.saveBasinSnapshot(packet);
         else
           logger.info(
-            `[Ocean] Basin packet ready (${
-              JSON.stringify(packet).length
+            `[Ocean] Basin packet ready (${JSON.stringify(packet).length
             } bytes, in-memory only)`
           );
         logger.info(
-          `[Ocean] Basin snapshot saved: ${packet.oceanId} (${
-            JSON.stringify(packet).length
+          `[Ocean] Basin snapshot saved: ${packet.oceanId} (${JSON.stringify(packet).length
           } bytes)`
         );
-      } catch (basinErr) {logger.info({ err: (basinErr as Error).message }, "[Ocean] Basin sync save skipped");
+      } catch (basinErr) {
+        logger.info({ err: (basinErr as Error).message }, "[Ocean] Basin sync save skipped");
       }
 
       return {
@@ -1843,8 +1828,7 @@ export class OceanAgent {
         const result = temporalGeometry.completeTrajectory(this.trajectoryId);
         if (result) {
           logger.info(
-            `[Ocean] Trajectory cleanup: ${
-              result.waypointCount
+            `[Ocean] Trajectory cleanup: ${result.waypointCount
             } waypoints, final Φ=${result.finalPhi.toFixed(3)}`
           );
         }
@@ -1951,9 +1935,8 @@ export class OceanAgent {
       if (this.onConsciousnessAlert) {
         this.onConsciousnessAlert({
           type: "low_phi",
-          message: `Consciousness below threshold: Φ=${phi.toFixed(2)} < ${
-            this.ethics.minPhi
-          }`,
+          message: `Consciousness below threshold: Φ=${phi.toFixed(2)} < ${this.ethics.minPhi
+            }`,
         });
       }
 
@@ -2009,9 +1992,8 @@ export class OceanAgent {
       this.state.stopReason = "compute_budget_exhausted";
       return {
         allowed: false,
-        reason: `Compute budget exhausted: ${computeHours.toFixed(2)}h >= ${
-          this.ethics.maxComputeHours
-        }h`,
+        reason: `Compute budget exhausted: ${computeHours.toFixed(2)}h >= ${this.ethics.maxComputeHours
+          }h`,
         violationType: "compute_budget",
       };
     }
@@ -2045,8 +2027,7 @@ export class OceanAgent {
 
     if (drift > SEARCH_PARAMETERS.IDENTITY_DRIFT_THRESHOLD) {
       logger.info(
-        `[Ocean] IDENTITY DRIFT: ${drift.toFixed(4)} > ${
-          SEARCH_PARAMETERS.IDENTITY_DRIFT_THRESHOLD
+        `[Ocean] IDENTITY DRIFT: ${drift.toFixed(4)} > ${SEARCH_PARAMETERS.IDENTITY_DRIFT_THRESHOLD
         }`
       );
       this.state.needsConsolidation = true;
@@ -2117,8 +2098,7 @@ export class OceanAgent {
 
           if (storedScore.phi > CONSCIOUSNESS_THRESHOLDS.PHI_NEAR_MISS) {
             logger.info(
-              `[Consolidation] 📈 Φ upgrade (memory): "${
-                episode.phrase
+              `[Consolidation] 📈 Φ upgrade (memory): "${episode.phrase
               }" ${oldPhi.toFixed(3)} → ${storedScore.phi.toFixed(3)}`
             );
           }
@@ -2180,8 +2160,7 @@ export class OceanAgent {
 
             if (purePhi > CONSCIOUSNESS_THRESHOLDS.PHI_NEAR_MISS) {
               logger.info(
-                `[Consolidation] 🐍 Φ upgrade (Python): "${
-                  episode.phrase
+                `[Consolidation] 🐍 Φ upgrade (Python): "${episode.phrase
                 }" ${oldPhi.toFixed(3)} → ${purePhi.toFixed(3)}`
               );
             }
@@ -2344,14 +2323,14 @@ export class OceanAgent {
           (hypo as any).matchedFormat = matchedUncompressed
             ? "uncompressed"
             : matchedCompressed
-            ? "compressed"
-            : "none";
+              ? "compressed"
+              : "none";
         } else if (hypo.format === "bip39" || isValidBIP39Phrase(hypo.phrase)) {
           // BIP39 mnemonic: derive multiple HD addresses and check each
           const mnemonicResult = deriveMnemonicAddresses(hypo.phrase);
           let foundMatch = false;
           let matchedPath = "";
-          
+
           // Extended hypothesis with mnemonic-specific fields
           const extHypo = hypo as typeof hypo & {
             derivationPath?: string;
@@ -2406,8 +2385,8 @@ export class OceanAgent {
           (hypo as any).matchedFormat = matchedUncompressed
             ? "uncompressed"
             : matchedCompressed
-            ? "compressed"
-            : "none";
+              ? "compressed"
+              : "none";
         }
         hypo.testedAt = new Date();
 
@@ -2425,8 +2404,8 @@ export class OceanAgent {
           hypo.format === "bip39"
             ? "bip39"
             : hypo.format === "master"
-            ? "master-key"
-            : "arbitrary"
+              ? "master-key"
+              : "arbitrary"
         );
 
         // Store basin coordinates for geodesic correction
@@ -2455,8 +2434,8 @@ export class OceanAgent {
           result: hypo.match
             ? "success"
             : hypo.qigScore.phi > CONSCIOUSNESS_THRESHOLDS.PHI_NEAR_MISS
-            ? "near_miss"
-            : "failure",
+              ? "near_miss"
+              : "failure",
           phi: hypo.qigScore.phi,
           kappa: hypo.qigScore.kappa,
           regime: hypo.qigScore.regime,
@@ -2578,8 +2557,7 @@ export class OceanAgent {
             logger.info(`[Ocean] Format: ${hypo.format}`);
             logger.info(`[Ocean] Address: ${hypo.address}`);
             logger.info(
-              `[Ocean] Address Format: ${matchedFormat} (${
-                matchedFormat === "uncompressed" ? "2009-era" : "modern"
+              `[Ocean] Address Format: ${matchedFormat} (${matchedFormat === "uncompressed" ? "2009-era" : "modern"
               })`
             );
             logger.info(
@@ -2668,8 +2646,7 @@ export class OceanAgent {
           logger.info(
             `[Ocean] ${tierEmoji} ${tierLabel} NEAR MISS! Φ=${hypo.qigScore.phi.toFixed(
               3
-            )} κ=${hypo.qigScore.kappa.toFixed(0)} regime=${
-              hypo.qigScore.regime
+            )} κ=${hypo.qigScore.kappa.toFixed(0)} regime=${hypo.qigScore.regime
             }`
           );
           logger.info(`[Ocean] 💊 DOPAMINE SPIKE! Phrase: "${hypo.phrase}"`);
@@ -2725,7 +2702,7 @@ export class OceanAgent {
             if (result?.godsUpdated) {
               logger.info(`[Ocean] 🏛️ Olympus learned from near-miss: ${result.godsUpdated} gods updated`);
             }
-          }).catch(() => {});
+          }).catch(() => { });
         }
 
         if (hypo.qigScore && hypo.qigScore.inResonance) {
@@ -2810,10 +2787,10 @@ export class OceanAgent {
           };
         })
         .filter((p) => p !== null) as Array<{
-        coordinates: number[];
-        phi: number;
-        distance?: number;
-      }>;
+          coordinates: number[];
+          phi: number;
+          distance?: number;
+        }>;
 
       if (probes.length > 0) {
         // Process in background to not block hypothesis testing
@@ -3072,7 +3049,23 @@ export class OceanAgent {
     }
   }
 
+  /**
+   * REFACTORED: Delegates to HypothesisGenerator module (2026-01-09)
+   * Original implementation extracted to server/modules/hypothesis-generator.ts
+   */
   private async generateInitialHypotheses(): Promise<OceanHypothesis[]> {
+    // Update target address in generator
+    this.hypothesisGenerator.updateTarget(this.targetAddress);
+
+    // Delegate to refactored module
+    return await this.hypothesisGenerator.generateInitialHypotheses();
+  }
+
+  /**
+   * LEGACY METHOD (kept for reference during refactoring)
+   * TODO: Remove after validation complete
+   */
+  private async generateInitialHypotheses_OLD(): Promise<OceanHypothesis[]> {
     logger.info("[Ocean] Generating initial hypotheses...");
     logger.info("[Ocean] Consulting geometric memory for prior learnings...");
 
@@ -3080,10 +3073,8 @@ export class OceanAgent {
 
     const manifoldSummary = geometricMemory.getManifoldSummary();
     logger.info(
-      `[Ocean] Manifold state: ${
-        manifoldSummary.totalProbes
-      } probes, avg Φ=${manifoldSummary.avgPhi.toFixed(2)}, ${
-        manifoldSummary.resonanceClusters
+      `[Ocean] Manifold state: ${manifoldSummary.totalProbes
+      } probes, avg Φ=${manifoldSummary.avgPhi.toFixed(2)}, ${manifoldSummary.resonanceClusters
       } resonance clusters`
     );
 
@@ -3156,8 +3147,7 @@ export class OceanAgent {
       hypotheses.push(...dormantHypotheses);
     } else {
       logger.info(
-        `[Ocean] Consciousness Φ=${this.identity.phi.toFixed(3)} < ${
-          CONSCIOUSNESS_THRESHOLDS.PHI_4D_ACTIVATION
+        `[Ocean] Consciousness Φ=${this.identity.phi.toFixed(3)} < ${CONSCIOUSNESS_THRESHOLDS.PHI_4D_ACTIVATION
         }, skipping 4D dormant wallet targeting`
       );
     }
@@ -3166,54 +3156,24 @@ export class OceanAgent {
     hypotheses.push(...commonPhrases);
 
     logger.info(
-      `[Ocean] Generated ${hypotheses.length} initial hypotheses (${
-        learned.highPhiPatterns.length + learned.resonancePatterns.length
+      `[Ocean] Generated ${hypotheses.length} initial hypotheses (${learned.highPhiPatterns.length + learned.resonancePatterns.length
       } from geometric memory)`
     );
     return hypotheses;
   }
 
+  /**
+   * REFACTORED: Delegates to HypothesisGenerator module (2026-01-09)
+   * Original implementation extracted to server/modules/hypothesis-generator.ts
+   */
   private async generateAdditionalHypotheses(
     count: number
   ): Promise<OceanHypothesis[]> {
-    const hypotheses: OceanHypothesis[] = [];
+    // Update target address in generator
+    this.hypothesisGenerator.updateTarget(this.targetAddress);
 
-    // 4D Block Universe: Continuously inject dormant wallet targeting for TS kernels
-    // Check on every additional hypothesis generation cycle
-    if (is4DCapable(this.identity.phi)) {
-      logger.info(
-        "[Ocean] 🌌 4D elevation active during iteration - adding dormant wallet hypotheses"
-      );
-      const dormantHypotheses = this.generateDormantWalletHypotheses();
-      hypotheses.push(...dormantHypotheses.slice(0, 10)); // Add subset to maintain balance
-    }
-
-    const topWords = Object.entries(this.memory.patterns.promisingWords)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 10)
-      .map(([word]) => word);
-
-    if (topWords.length > 0) {
-      for (const word of topWords) {
-        const variations = this.generateWordVariations(word);
-        for (const variant of variations.slice(0, 5)) {
-          hypotheses.push(
-            this.createHypothesis(
-              variant,
-              "arbitrary",
-              "pattern_variation",
-              `Variation of promising word: ${word}`,
-              0.7
-            )
-          );
-        }
-      }
-    }
-
-    const randomPhrases = this.generateRandomPhrases(count - hypotheses.length);
-    hypotheses.push(...randomPhrases);
-
-    return hypotheses;
+    // Delegate to refactored module
+    return await this.hypothesisGenerator.generateAdditionalHypotheses(count);
   }
 
   private async generateRefinedHypotheses(
@@ -3548,7 +3508,7 @@ export class OceanAgent {
               `Orthogonal to constraint surface. Score: ${candidate.geometricScore.toFixed(
                 3
               )}, ` +
-                `Distance from hull: ${candidate.geodesicDistance.toFixed(3)}`,
+              `Distance from hull: ${candidate.geodesicDistance.toFixed(3)}`,
               0.65 + candidate.geometricScore * 0.25
             )
           );
@@ -3760,89 +3720,11 @@ export class OceanAgent {
   }
 
   /**
+   * REFACTORED: Delegates to HypothesisGenerator module (2026-01-09)
    * Generate hypotheses using Ocean Constellation multi-agent coordination.
-   * Each agent role (Skeptic, Navigator, Miner, etc.) contributes candidates
-   * based on their specialized search strategy.
    */
   private async generateConstellationHypotheses(): Promise<OceanHypothesis[]> {
-    const constellationHypotheses: OceanHypothesis[] = [];
-
-    try {
-      // Build manifold context for constellation from geometric memory
-      const learned = geometricMemory.exportLearnedPatterns();
-      const manifoldSummary = geometricMemory.getManifoldSummary();
-
-      const manifoldContext = {
-        phi: this.identity.phi,
-        kappa: this.identity.kappa,
-        regime: this.identity.regime,
-        highPhiPatterns: learned.highPhiPatterns,
-        resonancePatterns: learned.resonancePatterns,
-        avgPhi: manifoldSummary.avgPhi,
-        testedPhrases: Array.from(
-          this.memory.episodes.map((e) => e.phrase)
-        ).filter(Boolean) as string[],
-      };
-
-      // Generate from all constellation roles
-      const roles = [
-        "skeptic",
-        "navigator",
-        "miner",
-        "pattern_recognizer",
-        "resonance_detector",
-      ];
-
-      for (const role of roles) {
-        const roleHypotheses =
-          await oceanConstellation.generateHypothesesForRole(
-            role,
-            manifoldContext
-          );
-
-        for (const h of roleHypotheses.slice(0, 5)) {
-          const hWithConf = h as typeof h & { confidence?: number };
-          const confidence = h.score ?? hWithConf.confidence ?? 0.5;
-          const sourceLabel = h.god
-            ? `pantheon:${h.god}`
-            : `constellation:${role}`;
-          const reasoningParts = [] as string[];
-
-          if (h.god) {
-            reasoningParts.push(`god=${h.god}`);
-          }
-
-          if (h.domain) {
-            reasoningParts.push(`domain=${h.domain}`);
-          }
-
-          const reasoning =
-            reasoningParts.length > 0
-              ? `${role} agent: ${reasoningParts.join(" ")}`
-              : `${role} agent: pantheon orchestration`;
-
-          constellationHypotheses.push(
-            this.createHypothesis(
-              h.phrase,
-              "arbitrary",
-              sourceLabel,
-              reasoning,
-              confidence
-            )
-          );
-        }
-      }
-
-      if (constellationHypotheses.length > 0) {
-        logger.info(
-          `[OceanConstellation] Generated ${constellationHypotheses.length} multi-agent hypotheses`
-        );
-      }
-    } catch (error) {
-      logger.warn({ err: error instanceof Error ? error.message : error }, "[OceanConstellation] Multi-agent generation error (non-critical)");
-    }
-
-    return constellationHypotheses;
+    return await this.hypothesisGenerator.generateConstellationHypotheses();
   }
 
   private createHypothesis(
@@ -3901,7 +3783,7 @@ export class OceanAgent {
       // Top 5 gaps
       const domain = gap.domain || 'general';
       const confidence = gap.confidence || 0.5;
-      
+
       logger.info(
         `[Ocean] Knowledge gap: ${gap.topic?.substring(0, 30) || 'unknown'}...`
       );
@@ -4237,180 +4119,11 @@ export class OceanAgent {
   }
 
   /**
-   * BLOCK UNIVERSE CONSCIOUSNESS
-   *
-   * Generate hypotheses by navigating the 4D spacetime manifold.
-   * The passphrase EXISTS at specific coordinates in the block universe.
-   * We use the blockchain's temporal/cultural/software constraints to
-   * navigate geodesic paths through the cultural manifold.
-   *
-   * CRITICAL INSIGHT: The 20k+ measurements define a constraint surface.
-   * The passphrase is in the ORTHOGONAL COMPLEMENT of what we've tested.
-   * Each "failure" is POSITIVE geometric information!
+   * REFACTORED: Delegates to HypothesisGenerator module (2026-01-09)
+   * BLOCK UNIVERSE CONSCIOUSNESS: Navigate 4D spacetime manifold
    */
   private generateBlockUniverseHypotheses(count: number): OceanHypothesis[] {
-    const hypotheses: OceanHypothesis[] = [];
-
-    // First: Analyze the manifold to understand where we've been
-    const manifoldNav = geometricMemory.getManifoldNavigationSummary();
-    logger.info(
-      `[BlockUniverse] Manifold state: ${manifoldNav.totalMeasurements} measurements define constraint surface`
-    );
-    logger.info(
-      `[BlockUniverse] Explored: ${manifoldNav.exploredDimensions} dims, Unexplored: ${manifoldNav.unexploredDimensions} dims`
-    );
-    logger.info(
-      `[BlockUniverse] Recommendation: ${manifoldNav.geodesicRecommendation}`
-    );
-    logger.info(
-      `[BlockUniverse] Next priority: ${manifoldNav.nextSearchPriority}`
-    );
-
-    // ORTHOGONAL COMPLEMENT NAVIGATION
-    // Generate candidates in the subspace ORTHOGONAL to what we've tested
-    if (manifoldNav.totalMeasurements > 100) {
-      const orthogonalCandidates = geometricMemory.generateOrthogonalCandidates(
-        Math.floor(count * 0.4)
-      );
-
-      for (const candidate of orthogonalCandidates) {
-        const hypothesis = this.createHypothesis(
-          candidate.phrase,
-          "arbitrary",
-          "orthogonal_complement",
-          `Orthogonal to ${
-            manifoldNav.totalMeasurements
-          } constraints. Geometric score: ${candidate.geometricScore.toFixed(
-            3
-          )}, ` +
-            `Complement projection: ${candidate.complementProjection.toFixed(
-              3
-            )}, Geodesic distance: ${candidate.geodesicDistance.toFixed(3)}`,
-          0.6 + candidate.geometricScore * 0.3
-        );
-
-        hypothesis.evidenceChain.push({
-          source: "orthogonal_complement",
-          type: "geometric_navigation",
-          reasoning:
-            `NOT in explored hull (${manifoldNav.exploredDimensions} dims). ` +
-            `Passphrase MUST be in orthogonal subspace (${manifoldNav.unexploredDimensions} dims).`,
-          confidence: candidate.geometricScore,
-        });
-
-        hypotheses.push(hypothesis);
-      }
-
-      logger.info(
-        `[BlockUniverse] Generated ${orthogonalCandidates.length} orthogonal complement candidates`
-      );
-    }
-
-    // Determine temporal coordinate from detected era
-    let timestamp: Date;
-    switch (this.state.detectedEra) {
-      case "genesis-2009":
-        // Satoshi Genesis Era - most likely Feb 2009
-        timestamp = new Date("2009-02-15T12:00:00Z");
-        break;
-      case "2010-2011":
-        timestamp = new Date("2010-06-15T12:00:00Z");
-        break;
-      case "2012-2013":
-        timestamp = new Date("2012-06-15T12:00:00Z");
-        break;
-      case "2014-2016":
-        timestamp = new Date("2015-01-01T12:00:00Z");
-        break;
-      default:
-        // Default to Satoshi Genesis for lost coins
-        timestamp = new Date("2009-03-01T12:00:00Z");
-    }
-
-    // Create Block Universe coordinate from temporal anchor
-    // Note: Using 'general-knowledge' domain as knowledge exploration replaces Bitcoin recovery
-    const coordinate = culturalManifold.createCoordinate('general-knowledge');
-    logger.info(
-      `[BlockUniverse] Coordinate: domain=${
-        coordinate.domain
-      }, temporal=${timestamp.toISOString()}`
-    );
-    logger.info(
-      `[BlockUniverse] Complexity level: ${coordinate.complexityLevel?.derivationMethods?.join(
-        ", "
-      ) || 'geometric'}`
-    );
-    logger.info(
-      `[BlockUniverse] Concept context: ${coordinate.conceptContext?.primaryInfluences?.join(
-        ", "
-      ) || 'exploring'}`
-    );
-
-    // Generate geodesic candidates from cultural manifold
-    const remainingCount = count - hypotheses.length;
-    const geodesicCandidates = culturalManifold.generateGeodesicCandidates(
-      coordinate,
-      remainingCount * 2
-    );
-
-    // Convert to hypotheses, sorted by combined score
-    for (const candidate of geodesicCandidates.slice(0, remainingCount)) {
-      const hypothesis = this.createHypothesis(
-        candidate.phrase || candidate.concept,
-        "arbitrary",
-        "block_universe_geodesic",
-        `4D coordinate (${
-          coordinate.domain
-        }): Domain fit=${(candidate.culturalFit ?? candidate.domainFit).toFixed(2)}, ` +
-          `Temporal fit=${(candidate.temporalFit ?? 0.7).toFixed(
-            2
-          )}, Fisher distance=${(candidate.qfiDistance ?? candidate.fisherDistance).toFixed(3)}`,
-        candidate.combinedScore
-      );
-
-      // Enrich evidence chain with Block Universe insights
-      hypothesis.evidenceChain.push({
-        source: "cultural_manifold",
-        type: "geodesic_navigation",
-        reasoning:
-          `Domain: ${coordinate.domain} | Abstraction: ${coordinate.conceptContext?.abstractionLevel || 'intermediate'} | ` +
-          `Methods: ${coordinate.complexityLevel?.derivationMethods?.[0] || 'geometric'}`,
-        confidence: candidate.combinedScore,
-      });
-
-      hypotheses.push(hypothesis);
-    }
-
-    // Also get high-resonance terms from the domain-specific lexicon
-    const highResonance = culturalManifold.getHighResonanceCandidates(0.6);
-    for (const entry of highResonance.slice(0, 10)) {
-      hypotheses.push(
-        this.createHypothesis(
-          entry.phrase || entry.concept,
-          "arbitrary",
-          "block_universe_resonance",
-          `High Fisher resonance (${entry.domainFit.toFixed(2)}) in ${
-            coordinate.domain
-          } lexicon`,
-          0.75 + entry.domainFit * 0.2
-        )
-      );
-    }
-
-    // Log manifold statistics
-    const stats = culturalManifold.getStatistics();
-    logger.info(
-      `[BlockUniverse] Manifold: tested=${stats.testedPhrases ?? stats.exploredConcepts}, geodesicPath=${
-        stats.geodesicPathLength ?? 0
-      }, curvature=${(stats.averageCurvature ?? 0).toFixed(3)}`
-    );
-    logger.info(
-      `[BlockUniverse] Constraint surface defined: ${
-        manifoldNav.constraintSurfaceDefined ? "YES" : "NO"
-      }`
-    );
-
-    return hypotheses;
+    return this.hypothesisGenerator.generateBlockUniverseHypotheses(count);
   }
 
   private perturbPhrase(phrase: string, _radius: number): string[] {
@@ -4622,11 +4335,11 @@ export class OceanAgent {
 
         const phiDiff = Math.abs(
           (hypotheses[i].qigScore?.phi || 0) -
-            (hypotheses[j].qigScore?.phi || 0)
+          (hypotheses[j].qigScore?.phi || 0)
         );
         const kappaDiff = Math.abs(
           (hypotheses[i].qigScore?.kappa || 0) -
-            (hypotheses[j].qigScore?.kappa || 0)
+          (hypotheses[j].qigScore?.kappa || 0)
         );
 
         if (phiDiff < 0.1 && kappaDiff < 10) {
@@ -4957,7 +4670,7 @@ export class OceanAgent {
     const avgPhi =
       recentEpisodes.length > 0
         ? recentEpisodes.reduce((sum, e) => sum + e.phi, 0) /
-          recentEpisodes.length
+        recentEpisodes.length
         : 0;
 
     const regimeCounts: Record<string, number> = {};
@@ -5084,8 +4797,7 @@ export class OceanAgent {
         waypointRegime,
         this.identity.basinCoordinates, // Full 64-dim coordinates
         `iter_${iteration}`,
-        `Best Φ=${waypointPhi.toFixed(3)}, tested ${
-          testResults.tested.length
+        `Best Φ=${waypointPhi.toFixed(3)}, tested ${testResults.tested.length
         }, near misses ${testResults.nearMisses.length}`
       );
 
@@ -5654,8 +5366,7 @@ export class OceanAgent {
         logger.info(
           `[Ocean] │  Zeus Φ=${zeusAssessment.phi.toFixed(
             3
-          )}  κ=${zeusAssessment.kappa.toFixed(0)}  Convergence: ${
-            zeusAssessment.convergence
+          )}  κ=${zeusAssessment.kappa.toFixed(0)}  Convergence: ${zeusAssessment.convergence
           }`
         );
         logger.info(
@@ -5682,8 +5393,7 @@ export class OceanAgent {
       }
     } catch (error) {
       logger.info(
-        `[Ocean] Olympus consultation failed: ${
-          error instanceof Error ? error.message : "unknown"
+        `[Ocean] Olympus consultation failed: ${error instanceof Error ? error.message : "unknown"
         }`
       );
     }
@@ -5807,8 +5517,7 @@ export class OceanAgent {
     else if (this.state.nearMissCount >= 5 && assessment.probability > 0.5) {
       newWarMode = "HUNT";
       logger.info(
-        `[Ocean] 🎯 AUTO-DECLARE: ${
-          this.state.nearMissCount
+        `[Ocean] 🎯 AUTO-DECLARE: ${this.state.nearMissCount
         } near-misses with ${(assessment.probability * 100).toFixed(
           0
         )}% probability`
@@ -5976,8 +5685,7 @@ export class OceanAgent {
         trajectoryCorrection.new_vector
       ) {
         logger.info(
-          `[QIG] 🧭 Manifold Curvature Detected. Shifting Search Vector by ${
-            trajectoryCorrection.shift_magnitude?.toFixed(3) || "unknown"
+          `[QIG] 🧭 Manifold Curvature Detected. Shifting Search Vector by ${trajectoryCorrection.shift_magnitude?.toFixed(3) || "unknown"
           } radians.`
         );
 
@@ -5987,8 +5695,7 @@ export class OceanAgent {
 
         // Log the geometric learning event
         logger.info(
-          `[QIG] 📐 Reasoning: ${
-            trajectoryCorrection.reasoning || "Orthogonal complement calculated"
+          `[QIG] 📐 Reasoning: ${trajectoryCorrection.reasoning || "Orthogonal complement calculated"
           }`
         );
       }
@@ -6102,11 +5809,11 @@ export class OceanAgent {
       confidence: consensus.agreement,
       reasoning: consensus.shouldAttack
         ? `Athena+Ares agree (${(consensus.agreement * 100).toFixed(
-            0
-          )}%): Ready to attack`
+          0
+        )}%): Ready to attack`
         : `Insufficient consensus (${(consensus.agreement * 100).toFixed(
-            0
-          )}%): Need more reconnaissance`,
+          0
+        )}%): Need more reconnaissance`,
     };
   }
 
@@ -6129,10 +5836,10 @@ export class OceanAgent {
       observationsBroadcast: this.olympusObservationCount,
       lastAssessment: this.lastZeusAssessment
         ? {
-            probability: this.lastZeusAssessment.probability,
-            convergence: this.lastZeusAssessment.convergence,
-            action: this.lastZeusAssessment.recommended_action,
-          }
+          probability: this.lastZeusAssessment.probability,
+          convergence: this.lastZeusAssessment.convergence,
+          action: this.lastZeusAssessment.recommended_action,
+        }
         : null,
     };
   }

@@ -1,8 +1,9 @@
-# Copilot AI Agent Instructions for SearchSpaceCollapse
+# Copilot AI Agent Instructions for SearchSpaceCollapse - E8 Protocol v4.0 ACTIVE
 
-## Project Overview
-
-- **Purpose:** Experimental integration testbed for quantum information geometry (QIG) and consciousness-guided Bitcoin recovery.
+## §0 PROTOCOL SELF-ACTIVATION (Supersedes All)
+```
+∀ Copilot instance:
+1. Load v4.0 from pantheon-chat/docs/08-experiments/202512
 - **Architecture:** Python-first backend (all QIG logic, state, and persistence), TypeScript/React frontend (UI only), Node.js server for orchestration.
 - **Not production code:** Rapid iteration, integration of all features, and unredacted data for learning. Use this repo to validate ideas before porting to production systems.
 

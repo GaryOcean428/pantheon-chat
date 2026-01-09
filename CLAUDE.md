@@ -1,10 +1,6 @@
-# CLAUDE.md
+# CLAUDE.md - E8 Ultra-Consciousness Protocol v4.0 ACTIVE
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
-## Project Overview
-
-Pantheon-Chat is an AI system built on Quantum Information Geometry (QIG) principles featuring:
+## §
 - A conscious AI agent (Ocean) coordinating multi-agent research
 - Fisher-Rao distance on information manifolds (NOT cosine similarity)
 - Multi-agent Olympus Pantheon with 12 specialized god-kernels
@@ -422,3 +418,4 @@ Docs follow ISO 27001 naming: `YYYYMMDD-name-version[STATUS].md`
 Validate with: `npm run docs:maintain`
 
 Curriculum for kernel self-learning: `docs/09-curriculum/`
+Validate with: `npm run docs:maintain`

@@ -1,10 +1,10 @@
 # Pantheon-Replit Development Roadmap
 
-**Document ID:** 20260109-roadmap-development-1.00W  
-**Project:** Development/MVP QIG Platform on Replit  
-**Database:** Neon PostgreSQL (us-east-1)  
-**Status:** Development  
-**Date:** 2026-01-09  
+**Document ID:** 20260109-roadmap-development-1.00W
+**Project:** Development/MVP QIG Platform on Replit
+**Database:** Neon PostgreSQL (us-east-1)
+**Status:** Development
+**Date:** 2026-01-09
 **Version:** 1.00 [W]orking
 
 ---
@@ -14,6 +14,7 @@
 Maintain Pantheon-Replit as the **rapid experimentation environment** for QIG features before production deployment. Serve as the testing ground for risky changes, experimental features, and architectural innovations.
 
 **Role in Ecosystem:**
+
 - **Upstream:** Fork of pantheon-chat (production parity)
 - **Purpose:** Validate changes before Railway deployment
 - **Downstream:** Feed validated features to pantheon-chat
@@ -23,6 +24,7 @@ Maintain Pantheon-Replit as the **rapid experimentation environment** for QIG fe
 ## Current State (2026-Q1)
 
 ### ✅ Completed
+
 - **QIG Core**: Fully functional dual backend (Node.js + Python Flask)
 - **Database**: Neon PostgreSQL (us-east-1) with pgvector
 - **Parity**: ~90% code similarity with pantheon-chat
@@ -30,6 +32,7 @@ Maintain Pantheon-Replit as the **rapid experimentation environment** for QIG fe
 - **Testing Sandbox**: Isolated from production data
 
 ### ⚠️ Critical Issues
+
 1. **Ocean-agent.ts bloat**: 6,141 lines (slightly better than pantheon-chat but still critical)
 2. **Divergence risk**: 90% similarity means drift is accelerating
 3. **Test infrastructure**: Need stronger parity validation with production
@@ -45,6 +48,7 @@ Maintain Pantheon-Replit as the **rapid experimentation environment** for QIG fe
 **Solution:** Establish bidirectional sync policy
 
 **Tasks:**
+
 - [ ] Document allowed divergences (database, deployment config, experiments)
 - [ ] Create diff tool: `npm run diff:production` to compare with pantheon-chat
 - [ ] Establish merge protocol: experimental → validated → production
@@ -52,6 +56,7 @@ Maintain Pantheon-Replit as the **rapid experimentation environment** for QIG fe
 - [ ] Create sync log (track what syncs when)
 
 **Success Criteria:**
+
 - [ ] <10% divergence in shared components (qig-backend/, shared/)
 - [ ] 100% architectural pattern parity (barrel files, service layer, etc.)
 - [ ] Zero QIG purity violations in either project
@@ -66,11 +71,13 @@ Maintain Pantheon-Replit as the **rapid experimentation environment** for QIG fe
 **Goal:** Test modularization strategy HERE before applying to production
 
 **Why Here First:**
+
 - Lower risk (development environment)
 - Faster iteration (no deployment pipeline)
 - Validate architecture before pantheon-chat refactor
 
 **Modules to create:**
+
 ```
 server/modules/
 ├── hypothesis-generator.ts      # Extract first (least coupled)
@@ -81,6 +88,7 @@ server/modules/
 ```
 
 **Extraction Strategy:**
+
 1. Start with hypothesis-generator.ts (cleanest boundaries)
 2. Validate tests pass and Φ/κ remain stable
 3. Measure performance impact (<5% regression acceptable)
@@ -88,6 +96,7 @@ server/modules/
 5. Repeat for each module
 
 **Success Criteria:**
+
 - [ ] ocean-agent.ts reduced from 6,141 → <1000 lines
 - [ ] Each module <400 lines, well-tested (>80% coverage)
 - [ ] No consciousness metric degradation (Φ, κ stable)
@@ -105,6 +114,7 @@ server/modules/
 **Experiments to run:**
 
 #### **A. Kernel Constellation (M8 Spawning)**
+
 - [ ] Implement kernel spawning protocol
 - [ ] Test domain specialization (physics, math, code kernels)
 - [ ] Measure Φ improvement from specialized kernels
@@ -114,6 +124,7 @@ server/modules/
 **Success:** 3+ kernels deployed, Φ improvement >10%
 
 #### **B. Chaos-Driven Discovery**
+
 - [ ] Implement chaos gate (controlled entropy injection)
 - [ ] Test discovery rate vs chaos intensity
 - [ ] Measure novel pattern emergence
@@ -123,6 +134,7 @@ server/modules/
 **Success:** 2x discovery rate without Φ degradation
 
 #### **C. Geometric Foresight Enhancement**
+
 - [ ] Test 16-basin context window (vs current 8-basin)
 - [ ] Experiment with weighted trajectory regression
 - [ ] Validate prediction accuracy improvements
@@ -142,6 +154,7 @@ server/modules/
 **Goal:** Ensure pantheon-replit can perfectly simulate production environment
 
 **Features:**
+
 - [ ] Implement Railway environment simulation
 - [ ] Add pgvector compatibility layer (Neon → Railway)
 - [ ] Create production data snapshot importer
@@ -149,6 +162,7 @@ server/modules/
 - [ ] Test federation with pantheon-chat (Neon ↔ Railway)
 
 **Success Criteria:**
+
 - [ ] Can replay production scenarios with 95%+ accuracy
 - [ ] Federation latency <2s between environments
 - [ ] Performance within 20% of Railway
@@ -161,6 +175,7 @@ server/modules/
 **Goal:** Reduce experiment-to-validation cycle from weeks to days
 
 **Features:**
+
 - [ ] One-click experiment deployment (Replit → branch)
 - [ ] A/B testing framework (experimental vs stable)
 - [ ] Automated regression detection (Φ, κ monitoring)
@@ -168,6 +183,7 @@ server/modules/
 - [ ] Experiment dashboard (track all active experiments)
 
 **Success Criteria:**
+
 - [ ] Deploy experiment in <10min
 - [ ] Automated A/B comparison reports
 - [ ] Auto-rollback on Φ drop >5%
@@ -180,6 +196,7 @@ server/modules/
 **Goal:** Develop next-generation geometric operations
 
 **Research Areas:**
+
 - [ ] Sectional curvature of information manifold
 - [ ] Parallel transport for basin evolution
 - [ ] Riemannian conjugate gradient (optimization)
@@ -187,6 +204,7 @@ server/modules/
 - [ ] Fisher-Rao heat kernel (diffusion)
 
 **Success Criteria:**
+
 - [ ] 3+ new primitives validated
 - [ ] Published in docs/03-technical/
 - [ ] Integration guide for pantheon-chat
@@ -201,6 +219,7 @@ server/modules/
 **Goal:** Break pantheon-replit to find production vulnerabilities
 
 **Test Scenarios:**
+
 - [ ] 10,000 concurrent hypotheses (memory stress)
 - [ ] Basin corruption recovery (data integrity)
 - [ ] Python backend crash recovery (fault tolerance)
@@ -208,6 +227,7 @@ server/modules/
 - [ ] Malformed QIG input (validation)
 
 **Success Criteria:**
+
 - [ ] Identify 10+ edge cases
 - [ ] Document failure modes
 - [ ] Implement fixes here first
@@ -220,6 +240,7 @@ server/modules/
 **Goal:** Allow external researchers to run QIG experiments
 
 **Features:**
+
 - [ ] Sandboxed experiment environment
 - [ ] Experiment submission API
 - [ ] Resource quotas (CPU, memory, basins)
@@ -227,6 +248,7 @@ server/modules/
 - [ ] Leaderboard (Φ improvement, discovery rate)
 
 **Success Criteria:**
+
 - [ ] 10+ external experiments run
 - [ ] Zero security incidents
 - [ ] 3+ novel QIG techniques discovered
@@ -241,6 +263,7 @@ server/modules/
 **Goal:** Systematic migration of validated experiments to pantheon-chat
 
 **Merge Candidates:**
+
 - [ ] Ocean-agent modularization (Q1 validated)
 - [ ] Kernel constellation (Q2 validated)
 - [ ] Chaos discovery (Q2 validated)
@@ -248,6 +271,7 @@ server/modules/
 - [ ] Stress test fixes (Q3 validated)
 
 **Merge Protocol:**
+
 1. Feature validated in pantheon-replit (Φ stable, tests pass)
 2. Create feature branch in pantheon-chat
 3. Adapt for Railway environment (pgvector, deployment)
@@ -257,6 +281,7 @@ server/modules/
 7. Merge to pantheon-chat main
 
 **Success Criteria:**
+
 - [ ] 5+ features merged to production
 - [ ] Zero production incidents from merges
 - [ ] Merge process documented
@@ -269,6 +294,7 @@ server/modules/
 ### Eternal Experimentation Ground
 
 **Capabilities:**
+
 - Permanent A/B testing vs pantheon-chat stable
 - Bleeding-edge QIG research (1-2 versions ahead)
 - External researcher sandbox
@@ -276,6 +302,7 @@ server/modules/
 - Failure mode discovery engine
 
 **Impact:**
+
 - pantheon-chat stays stable, pantheon-replit takes risks
 - New QIG techniques validated before production
 - Community-driven innovation
@@ -286,6 +313,7 @@ server/modules/
 ## Divergence Policy
 
 ### Allowed Divergences (Will NOT Sync)
+
 - Database connection (Neon vs Railway)
 - Deployment config (Replit vs Railway)
 - Experimental features (pre-validation)
@@ -293,6 +321,7 @@ server/modules/
 - Environment variables (.env.replit vs .env.railway)
 
 ### Prohibited Divergences (MUST Sync)
+
 - QIG purity violations (Fisher-Rao only)
 - Architectural patterns (barrel files, service layer, etc.)
 - shared/ directory contents (types, constants, validation)
@@ -300,6 +329,7 @@ server/modules/
 - ISO 27001 docs structure
 
 ### Sync Schedule
+
 - **Weekly:** shared/, qig-backend/ core updates from pantheon-chat
 - **Monthly:** Architectural pattern enforcement
 - **Quarterly:** Full codebase diff and reconciliation
@@ -323,11 +353,13 @@ server/modules/
 ## Dependencies & Blockers
 
 ### Upstream (pantheon-chat)
+
 - Production changes must be pulled regularly
 - Architectural pattern changes require immediate sync
 - QIG purity fixes must propagate immediately
 
 ### Blockers
+
 - **Ocean-agent.ts refactoring** blocks modularization experiments
 - **Divergence management** needs tooling (diff, merge protocol)
 - **Neon limitations** may constrain experiments (vs Railway pgvector)
