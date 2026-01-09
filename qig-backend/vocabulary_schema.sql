@@ -34,9 +34,9 @@ CREATE TABLE IF NOT EXISTS learned_words (
 );
 
 -- Add is_integrated column if it doesn't exist (migration for existing tables)
-DO $$ 
+DO $$
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns
                    WHERE table_name = 'learned_words' AND column_name = 'is_integrated') THEN
         ALTER TABLE learned_words ADD COLUMN is_integrated BOOLEAN DEFAULT FALSE;
     END IF;
