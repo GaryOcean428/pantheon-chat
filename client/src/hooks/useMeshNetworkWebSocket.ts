@@ -1,11 +1,17 @@
 /**
  * WebSocket Hook for Mesh Network Status
- * 
+ *
  * Provides real-time mesh network updates via WebSocket
  * including peer connections, knowledge syncs, and topology changes.
+ * Falls back to polling if WebSocket fails.
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useQuery } from '@tanstack/react-query';
+
+// Fallback constants
+const MAX_WS_RETRIES = 3;
+const POLLING_INTERVAL = 5000;
 
 export interface MeshPeer {
   id: string;
@@ -68,9 +74,30 @@ export function useMeshNetworkWebSocket(options: UseMeshNetworkWebSocketOptions 
     lastUpdate: null,
   });
 
+  // Fallback state for when WebSocket fails
+  const [useFallbackPolling, setUseFallbackPolling] = useState(false);
+  const wsRetryCountRef = useRef(0);
+
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isUnmountedRef = useRef(false);
+
+  // Polling fallback query
+  const pollingQuery = useQuery({
+    queryKey: ['mesh-network-fallback'],
+    queryFn: async () => {
+      const response = await fetch('/api/federation/mesh/status');
+      if (!response.ok) throw new Error('Failed to fetch mesh status');
+      return response.json() as Promise<{
+        peers: MeshPeer[];
+        status: MeshNetworkStatus;
+        events?: MeshEvent[];
+      }>;
+    },
+    enabled: useFallbackPolling,
+    refetchInterval: POLLING_INTERVAL,
+    staleTime: POLLING_INTERVAL,
+  });
 
   const connect = useCallback(() => {
     if (isUnmountedRef.current) return;
@@ -149,13 +176,25 @@ export function useMeshNetworkWebSocket(options: UseMeshNetworkWebSocketOptions 
 
       ws.onclose = (event) => {
         if (isUnmountedRef.current) return;
-        
+
         console.log('[MeshNetworkWS] Closed:', event.code, event.reason);
         setWsState(prev => ({ ...prev, connected: false }));
         wsRef.current = null;
 
-        // Auto-reconnect
-        if (autoReconnect && !isUnmountedRef.current) {
+        // Check for abnormal closure (code 1006) - likely WebSocket not supported
+        if (event.code === 1006 && !event.wasClean) {
+          wsRetryCountRef.current += 1;
+          console.log(`[MeshNetworkWS] Abnormal closure, retry count: ${wsRetryCountRef.current}/${MAX_WS_RETRIES}`);
+
+          if (wsRetryCountRef.current >= MAX_WS_RETRIES) {
+            console.log('[MeshNetworkWS] WebSocket failed, falling back to polling');
+            setUseFallbackPolling(true);
+            return; // Don't try to reconnect, use polling instead
+          }
+        }
+
+        // Auto-reconnect (only if not using polling fallback)
+        if (autoReconnect && !isUnmountedRef.current && !useFallbackPolling) {
           reconnectTimeoutRef.current = setTimeout(() => {
             console.log('[MeshNetworkWS] Attempting reconnect...');
             connect();
@@ -171,7 +210,7 @@ export function useMeshNetworkWebSocket(options: UseMeshNetworkWebSocketOptions 
         reconnectTimeoutRef.current = setTimeout(connect, reconnectInterval);
       }
     }
-  }, [autoReconnect, reconnectInterval, maxEvents]);
+  }, [autoReconnect, reconnectInterval, maxEvents, useFallbackPolling]);
 
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {
@@ -197,10 +236,12 @@ export function useMeshNetworkWebSocket(options: UseMeshNetworkWebSocketOptions 
     setEvents([]);
   }, []);
 
-  // Connect on mount
+  // Connect on mount (only if not using polling fallback)
   useEffect(() => {
     isUnmountedRef.current = false;
-    connect();
+    if (!useFallbackPolling) {
+      connect();
+    }
 
     return () => {
       isUnmountedRef.current = true;
@@ -211,38 +252,51 @@ export function useMeshNetworkWebSocket(options: UseMeshNetworkWebSocketOptions 
         wsRef.current.close();
       }
     };
-  }, [connect]);
+  }, [connect, useFallbackPolling]);
+
+  // Use polling data when in fallback mode
+  const effectivePeers = useFallbackPolling ? (pollingQuery.data?.peers ?? peers) : peers;
+  const effectiveStatus = useFallbackPolling ? (pollingQuery.data?.status ?? status) : status;
+  const effectiveEvents = useFallbackPolling ? (pollingQuery.data?.events ?? events) : events;
 
   // Computed values
-  const connectedPeers = peers.filter(p => p.status === 'connected');
-  const syncingPeers = peers.filter(p => p.status === 'syncing');
-  const disconnectedPeers = peers.filter(p => p.status === 'disconnected');
+  const connectedPeers = effectivePeers.filter(p => p.status === 'connected');
+  const syncingPeers = effectivePeers.filter(p => p.status === 'syncing');
+  const disconnectedPeers = effectivePeers.filter(p => p.status === 'disconnected');
 
   return {
     // Data
-    peers,
-    status,
-    events,
-    
+    peers: effectivePeers,
+    status: effectiveStatus,
+    events: effectiveEvents,
+
     // Computed
     connectedPeers,
     syncingPeers,
     disconnectedPeers,
-    
-    // WebSocket state
-    isConnected: wsState.connected,
-    error: wsState.error,
+
+    // WebSocket state (treat polling as "connected")
+    isConnected: useFallbackPolling ? !pollingQuery.isError : wsState.connected,
+    error: useFallbackPolling
+      ? (pollingQuery.error?.message ?? null)
+      : wsState.error,
     lastUpdate: wsState.lastUpdate,
-    
+
     // Loading states
-    isLoading: !wsState.connected && peers.length === 0,
-    
+    isLoading: useFallbackPolling
+      ? pollingQuery.isLoading
+      : (!wsState.connected && peers.length === 0),
+    isFetching: useFallbackPolling ? pollingQuery.isFetching : false,
+
+    // Fallback mode indicator
+    usingPollingFallback: useFallbackPolling,
+
     // Actions
     connect,
     disconnect,
     requestStatus,
     clearEvents,
-    refetch: requestStatus,
+    refetch: useFallbackPolling ? pollingQuery.refetch : requestStatus,
   };
 }
 
