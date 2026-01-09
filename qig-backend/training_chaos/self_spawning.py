@@ -1279,6 +1279,27 @@ class SelfSpawningKernel(*_kernel_base_classes):
         print(f"   → Parent Φ={parent_phi:.3f}, Reason: {reason if reason else 'approved'}")
         print(f"   → Child will observe parent for {child.observation_period} actions")
 
+        # Record spawn activity for UI visibility
+        try:
+            from agent_activity_recorder import activity_recorder, ActivityType
+            activity_recorder.record(
+                ActivityType.KERNEL_SPAWNED,
+                f"Kernel spawned: {child.kernel_id}",
+                description=f"Generation {child.generation} spawned from {self.kernel_id}. Reason: {reason if reason else 'approved'}",
+                agent_name=child.kernel_id,
+                agent_id=child.kernel_id,
+                phi=parent_phi,
+                metadata={
+                    "parent_id": self.kernel_id,
+                    "generation": child.generation,
+                    "reason": reason,
+                    "parent_phi": parent_phi,
+                    "pantheon_approved": pantheon_approved
+                }
+            )
+        except Exception as ae:
+            pass  # Don't fail spawn if activity recording fails
+
         return child
 
     # =========================================================================

@@ -694,6 +694,26 @@ class LightningKernel(BaseGod):
 
             validation_status = " [VALIDATED]" if validation_metadata.get("validated") else ""
             print(f"[Lightning] QIG-pure broadcast insight {insight.insight_id} to pantheon{validation_status}")
+
+            # Record activity for UI visibility
+            try:
+                from agent_activity_recorder import activity_recorder, ActivityType
+                activity_recorder.record(
+                    ActivityType.PATTERN_RECOGNIZED,
+                    f"Lightning insight: {insight.source_domains}",
+                    description=insight.insight_text[:200] if insight.insight_text else None,
+                    agent_name="Lightning",
+                    agent_id=f"lightning-{insight.insight_id}",
+                    phi=insight.phi_at_creation,
+                    metadata={
+                        "source_domains": insight.source_domains,
+                        "connection_strength": insight.connection_strength,
+                        "confidence": insight.confidence,
+                        "validated": validation_metadata.get("validated", False)
+                    }
+                )
+            except Exception as ae:
+                pass  # Don't fail broadcast if activity recording fails
         except Exception as e:
             print(f"[Lightning] Broadcast failed: {e}")
 

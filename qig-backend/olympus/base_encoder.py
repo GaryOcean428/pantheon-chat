@@ -42,6 +42,76 @@ STOP_WORDS = {
     'own', 'both', 'those', 'same', 'during', 'after', 'much', 'does', 'did',
 }
 
+# Code artifacts to filter - prevents training contamination
+CODE_ARTIFACTS = {
+    'def', 'return', 'import', 'class', 'self', 'none', 'true', 'false',
+    'if', 'else', 'elif', 'try', 'except', 'finally', 'raise', 'assert',
+    'lambda', 'yield', 'async', 'await', 'pass', 'break', 'continue',
+    'type', 'word', 'frequency', 'avgphi', 'maxphi', 'basin_coords',
+}
+
+# Real word validation using enchant (if available) or NLTK fallback
+_english_dict = None
+_nltk_words = None
+
+def _init_word_validator():
+    """Initialize word validation - try enchant first, then NLTK."""
+    global _english_dict, _nltk_words
+
+    # Try enchant first (faster)
+    try:
+        import enchant
+        _english_dict = enchant.Dict("en_US")
+        return
+    except (ImportError, enchant.errors.DictNotFoundError):
+        pass
+
+    # Fallback to NLTK
+    try:
+        from nltk.corpus import words
+        _nltk_words = set(w.lower() for w in words.words())
+    except (ImportError, LookupError):
+        pass
+
+# Initialize on module load
+_init_word_validator()
+
+def is_real_word(word: str) -> bool:
+    """
+    Check if word is a real English word.
+
+    Returns:
+        True if word is in dictionary
+        False if word is code artifact or not found
+        None if validation unavailable (will be stored as NULL in DB)
+    """
+    if not word or len(word) < 2:
+        return False
+
+    word_lower = word.lower()
+
+    # Filter code artifacts
+    if word_lower in CODE_ARTIFACTS:
+        return False
+
+    # Filter camelCase and snake_case
+    if '_' in word or (any(c.isupper() for c in word[1:])):
+        return False
+
+    # Filter words starting with numbers
+    if word[0].isdigit():
+        return False
+
+    # Check against dictionary
+    if _english_dict is not None:
+        return _english_dict.check(word_lower)
+
+    if _nltk_words is not None:
+        return word_lower in _nltk_words
+
+    # No validator available - return None (unknown)
+    return None
+
 
 class BaseEncoder(ABC):
     """
@@ -299,15 +369,19 @@ class BaseEncoder(ABC):
                         obs_id = f"vo_{uuid.uuid4().hex}"
                         basin_list = tok['basin'].tolist() if hasattr(tok['basin'], 'tolist') else list(tok['basin'])
                         
+                        # Validate if it's a real word
+                        real_word_status = is_real_word(tok['text'])
+
                         cur.execute("""
-                            INSERT INTO vocabulary_observations 
+                            INSERT INTO vocabulary_observations
                             (id, text, type, source_type, frequency, avg_phi, max_phi, is_real_word, basin_coords, first_seen, last_seen)
                             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
                             ON CONFLICT (text) DO UPDATE SET
                                 frequency = vocabulary_observations.frequency + 1,
-                                avg_phi = (vocabulary_observations.avg_phi + EXCLUDED.avg_phi) / 2,
+                                avg_phi = (vocabulary_observations.avg_phi * vocabulary_observations.frequency + EXCLUDED.avg_phi) / (vocabulary_observations.frequency + 1),
                                 max_phi = GREATEST(vocabulary_observations.max_phi, EXCLUDED.max_phi),
-                                last_seen = NOW()
+                                last_seen = NOW(),
+                                is_real_word = COALESCE(vocabulary_observations.is_real_word, EXCLUDED.is_real_word)
                         """, (
                             obs_id,
                             tok['text'],
@@ -316,7 +390,7 @@ class BaseEncoder(ABC):
                             tok['frequency'],
                             tok['phi'],
                             tok['phi'],
-                            True,
+                            real_word_status,
                             basin_list
                         ))
                         persisted += 1

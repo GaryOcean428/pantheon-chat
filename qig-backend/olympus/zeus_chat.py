@@ -1809,6 +1809,18 @@ Zeus Response (Geometric Interpretation):"""
         """
         print(f"[ZeusChat] Executing web search: {query}")
 
+        # Record search started
+        try:
+            from agent_activity_recorder import record_search_started
+            record_search_started(
+                query=query,
+                provider='auto',  # Will be updated when provider selected
+                agent_name='Zeus',
+                agent_id='zeus-chat'
+            )
+        except Exception as e:
+            logger.debug(f"Failed to record search start: {e}")
+
         # Apply learned strategies BEFORE executing search
         base_params = {'max_results': 5}
         strategy_result = self.strategy_learner.apply_strategies_to_search(query, base_params)
@@ -1906,6 +1918,20 @@ Zeus Response (Geometric Interpretation):"""
                         provider_selector.record_result(provider, query, False)
 
         if not search_results or not search_results.get('results'):
+            # Record failed search
+            try:
+                from agent_activity_recorder import record_search_completed
+                record_search_completed(
+                    query=query,
+                    provider='none',
+                    result_count=0,
+                    agent_name='Zeus',
+                    agent_id='zeus-chat',
+                    phi=0.0
+                )
+            except Exception as e:
+                logger.debug(f"Failed to record search completion: {e}")
+
             return {
                 'response': _generate_qig_pure(
                     context={'situation': 'Search failed - no results available', 'data': {'query': query}},
@@ -1918,6 +1944,22 @@ Zeus Response (Geometric Interpretation):"""
                     'ts_error': ts_results.get('error'),
                 }
             }
+
+        # Record successful search
+        try:
+            from agent_activity_recorder import record_search_completed
+            results_list = search_results.get('results', [])
+            avg_phi = sum(r.get('qig', {}).get('phi', 0.5) for r in results_list) / max(len(results_list), 1)
+            record_search_completed(
+                query=query,
+                provider=search_source,
+                result_count=len(results_list),
+                agent_name='Zeus',
+                agent_id='zeus-chat',
+                phi=avg_phi
+            )
+        except Exception as e:
+            logger.debug(f"Failed to record search completion: {e}")
 
         # Encode results to geometric space using Fisher-Rao (QIG-pure)
         result_basins = []
@@ -1962,6 +2004,23 @@ Zeus Response (Geometric Interpretation):"""
             # Learn vocabulary from high-Φ results
             if result['phi'] > 0.6:
                 self.conversation_encoder.learn_from_text(result['content'], result['phi'])
+
+                # Record content learned
+                try:
+                    from agent_activity_recorder import record_content_learned
+                    record_content_learned(
+                        agent_name='zeus',
+                        content_type='search_result',
+                        source_url=result['url'],
+                        phi=result['phi'],
+                        metadata={
+                            'title': result['title'],
+                            'kappa': result.get('kappa', 0.5),
+                            'query': query
+                        }
+                    )
+                except Exception as e:
+                    logger.debug(f"Failed to record content learned: {e}")
 
                 # Wire to central VocabularyCoordinator for persistent vocabulary learning
                 try:

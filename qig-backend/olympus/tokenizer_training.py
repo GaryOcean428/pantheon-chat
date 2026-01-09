@@ -23,6 +23,7 @@ import numpy as np
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from qig_coordizer import get_coordizer as get_tokenizer, update_tokenizer_from_observations
+from olympus.base_encoder import is_real_word
 
 
 def get_db_connection():
@@ -418,27 +419,39 @@ def persist_observations_to_db(
             
             basin_list = basin_coords.tolist() if basin_coords is not None else None
             
+            # Get phi values (handle both camelCase from input and snake_case)
+            avg_phi = obs.get("avgPhi") or obs.get("avg_phi") or 0.5
+            max_phi = obs.get("maxPhi") or obs.get("max_phi") or avg_phi
+
+            # Ensure phi is never 0 (causes max_phi to stay 0 forever)
+            avg_phi = max(float(avg_phi), 0.5) if avg_phi else 0.5
+            max_phi = max(float(max_phi), avg_phi) if max_phi else avg_phi
+
+            # Validate if it's a real word
+            real_word_status = is_real_word(word)
+
             cursor.execute("""
                 INSERT INTO vocabulary_observations (
-                    text, type, frequency, avg_phi, max_phi, 
+                    text, type, frequency, avg_phi, max_phi,
                     is_real_word, source_type, cycle_number, basin_coords
                 ) VALUES (
                     %s, %s, %s, %s, %s, %s, %s, %s, %s
                 )
                 ON CONFLICT (text) DO UPDATE SET
                     frequency = vocabulary_observations.frequency + EXCLUDED.frequency,
-                    avg_phi = (vocabulary_observations.avg_phi + EXCLUDED.avg_phi) / 2,
+                    avg_phi = (vocabulary_observations.avg_phi * vocabulary_observations.frequency + EXCLUDED.avg_phi) / (vocabulary_observations.frequency + 1),
                     max_phi = GREATEST(vocabulary_observations.max_phi, EXCLUDED.max_phi),
                     last_seen = NOW(),
                     basin_coords = COALESCE(EXCLUDED.basin_coords, vocabulary_observations.basin_coords),
-                    cycle_number = COALESCE(EXCLUDED.cycle_number, vocabulary_observations.cycle_number)
+                    cycle_number = COALESCE(EXCLUDED.cycle_number, vocabulary_observations.cycle_number),
+                    is_real_word = COALESCE(vocabulary_observations.is_real_word, EXCLUDED.is_real_word)
             """, (
                 word,
                 obs.get("type", "word"),
                 obs.get("frequency", 1),
-                obs.get("avgPhi", 0),
-                obs.get("maxPhi", 0),
-                obs.get("type") == "word",
+                avg_phi,
+                max_phi,
+                real_word_status,
                 obs.get("sources", ["unknown"])[0] if isinstance(obs.get("sources"), list) else obs.get("source_type", "unknown"),
                 cycle_number,
                 basin_list
