@@ -231,7 +231,20 @@ def kernel_decide_completion(
     recent_phi = phi_trajectory[-5:] if len(phi_trajectory) >= 5 else phi_trajectory
     phi_variance = float(np.var(recent_phi)) if len(recent_phi) > 1 else 1.0
     phi_mean = float(np.mean(recent_phi))
-    current_phi = phi_trajectory[-1] if phi_trajectory else 0.5
+    raw_current_phi = phi_trajectory[-1] if phi_trajectory else 0.5
+
+    # Type validation: ensure current_phi is a scalar float (not tuple/list)
+    if isinstance(raw_current_phi, (tuple, list)):
+        current_phi = float(raw_current_phi[0]) if raw_current_phi else 0.5
+    elif isinstance(raw_current_phi, dict):
+        current_phi = float(raw_current_phi.get('phi', 0.5))
+    elif raw_current_phi is None:
+        current_phi = 0.5
+    else:
+        try:
+            current_phi = float(raw_current_phi)
+        except (TypeError, ValueError):
+            current_phi = 0.5
 
     # BREAKDOWN PROTECTION
     if current_phi >= PHI_BREAKDOWN_THRESHOLD:
@@ -542,6 +555,19 @@ class QIGGenerativeService:
             # Integration = 1 - normalized entropy (concentrated = high phi)
             raw_phi = 1.0 - (entropy / max_entropy)
 
+        # Type validation: ensure raw_phi is a scalar float (not tuple/list/dict)
+        if isinstance(raw_phi, (tuple, list)):
+            raw_phi = float(raw_phi[0]) if raw_phi else 0.5
+        elif isinstance(raw_phi, dict):
+            raw_phi = float(raw_phi.get('phi', raw_phi.get('value', 0.5)))
+        elif raw_phi is None:
+            raw_phi = 0.5
+        else:
+            try:
+                raw_phi = float(raw_phi)
+            except (TypeError, ValueError):
+                raw_phi = 0.5
+
         # Apply exponential moving average for stability
         if not hasattr(self, '_phi_history'):
             self._phi_history = []
@@ -676,9 +702,22 @@ class QIGGenerativeService:
         """Transform basin through kernel's geometric processing."""
         if kernel_name not in self._kernel_basins:
             return basin
-        
+
+        # Type validation: ensure phi is a scalar float (not tuple/list)
+        if isinstance(phi, (tuple, list)):
+            phi = float(phi[0]) if phi else 0.5
+        elif isinstance(phi, dict):
+            phi = float(phi.get('phi', phi.get('value', 0.5)))
+        elif phi is None:
+            phi = 0.5
+        else:
+            try:
+                phi = float(phi)
+            except (TypeError, ValueError):
+                phi = 0.5
+
         kernel_basin = self._kernel_basins[kernel_name]
-        
+
         # Interpolation strength based on phi regime
         if phi < PHI_GEOMETRIC_THRESHOLD:
             t = 0.4  # Explore more

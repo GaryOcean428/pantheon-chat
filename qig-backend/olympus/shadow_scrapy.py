@@ -1060,7 +1060,26 @@ class ScrapyOrchestrator:
             
             self._reactor_running = False
             print("[ScrapyOrchestrator] Reactor stopped")
-    
+
+    def start_periodic_bootstrap(self, interval_seconds: int = 3600):
+        """Start periodic re-bootstrap from telemetry to discover new sources.
+
+        Args:
+            interval_seconds: How often to bootstrap (default 1 hour)
+        """
+        def run_bootstrap():
+            while self._reactor_running:
+                time.sleep(interval_seconds)
+                try:
+                    self.source_discovery._bootstrap_from_telemetry()
+                    print(f"[ScrapyOrchestrator] Periodic bootstrap: {len(self.source_discovery.discovered_sources)} sources")
+                except Exception as e:
+                    print(f"[ScrapyOrchestrator] Periodic bootstrap failed: {e}")
+
+        bootstrap_thread = threading.Thread(target=run_bootstrap, daemon=True, name="ScrapyPeriodicBootstrap")
+        bootstrap_thread.start()
+        print(f"[ScrapyOrchestrator] Periodic bootstrap started (every {interval_seconds}s)")
+
     def submit_crawl(
         self,
         spider_type: str,

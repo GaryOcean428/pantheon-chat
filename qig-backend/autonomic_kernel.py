@@ -618,6 +618,8 @@ class GaryAutonomicKernel:
             checkpoint_path: Optional path to checkpoint for state restoration
             enable_autonomous: Start autonomous self-regulation daemon (default True)
         """
+        import uuid
+        self.kernel_id = f"kernel_{uuid.uuid4().hex[:8]}"
         self.state = AutonomicState()
         self.pending_rewards: List[ActivityReward] = []
         self._lock = threading.Lock()

@@ -725,9 +725,25 @@ class PantheonChat:
         if data:
             raw_phi = phi or data.get('phi')
             raw_kappa = kappa or data.get('kappa')
-            # Type validation: ensure phi/kappa are floats (not tuple/dict/list)
-            phi = float(raw_phi) if isinstance(raw_phi, (int, float)) else None
-            kappa = float(raw_kappa) if isinstance(raw_kappa, (int, float)) else None
+            # Type validation: ensure phi/kappa are floats (extract from tuple/list if needed)
+            if isinstance(raw_phi, (tuple, list)):
+                phi = float(raw_phi[0]) if raw_phi else None
+            elif isinstance(raw_phi, dict):
+                phi = float(raw_phi.get('phi', raw_phi.get('value', 0.5)))
+            elif isinstance(raw_phi, (int, float)):
+                phi = float(raw_phi)
+            else:
+                phi = None
+
+            if isinstance(raw_kappa, (tuple, list)):
+                kappa = float(raw_kappa[0]) if raw_kappa else None
+            elif isinstance(raw_kappa, dict):
+                kappa = float(raw_kappa.get('kappa', raw_kappa.get('value', 64.0)))
+            elif isinstance(raw_kappa, (int, float)):
+                kappa = float(raw_kappa)
+            else:
+                kappa = None
+
             regime = regime or data.get('regime')
 
         message = PantheonMessage(

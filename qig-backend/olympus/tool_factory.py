@@ -1139,7 +1139,9 @@ class ToolFactory:
                 scored_patterns.append((pattern, score))
 
         scored_patterns.sort(key=lambda x: x[1], reverse=True)
-        return [p for p, s in scored_patterns[:top_k] if s > 0.3]
+        # Threshold lowered from 0.3 to 0.15 - Fisher-Rao distance in 64D
+        # space produces lower scores than expected (π/2 for orthogonal ≈ 0.39)
+        return [p for p, s in scored_patterns[:top_k] if s > 0.15]
 
     def _fetch_relevant_insights(self, description: str) -> List[Dict]:
         """Fetch cross-god insights relevant to tool generation."""
@@ -1285,6 +1287,25 @@ class ToolFactory:
             print(f"[ToolFactory] ✅ SUCCESS: Generated tool '{tool.name}' (ID: {tool.tool_id})")
             print(f"[ToolFactory] Total tools registered: {len(self.tool_registry)}")
             print(f"[ToolFactory] Success rate: {self.successful_generations}/{self.generation_attempts} ({100*self.successful_generations/max(1,self.generation_attempts):.1f}%)")
+
+            # Save cross-god insight if multiple gods contributed to this tool
+            try:
+                source_gods = list(set(p.source_type.value for p in matching_patterns[:3]))
+                if len(source_gods) >= 2 and INSIGHTS_AVAILABLE and get_tool_request_persistence is not None:
+                    import uuid
+                    persistence = get_tool_request_persistence()
+                    if persistence and persistence.enabled:
+                        persistence.save_cross_god_insight(
+                            insight_id=f"cgi_{uuid.uuid4().hex[:8]}",
+                            source_gods=source_gods,
+                            topic=description[:100],
+                            insight_text=f"Tool '{tool.name}' synthesized from {source_gods} patterns",
+                            confidence=test_results.get('success_rate', 0.8),
+                            phi_integration=0.7
+                        )
+                        print(f"[ToolFactory] Saved cross-god insight: {source_gods}")
+            except Exception as cgi_err:
+                print(f"[ToolFactory] Failed to save cross-god insight: {cgi_err}")
 
             if self.successful_generations % 3 == 0:
                 self._increase_complexity_ceiling()

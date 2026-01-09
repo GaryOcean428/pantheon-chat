@@ -143,10 +143,11 @@ class CheckpointPersistence:
         regime: str,
         session_id: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
+        instance_id: Optional[str] = None,
     ) -> bool:
         """
         Save a checkpoint to both Redis (hot) and PostgreSQL (archive).
-        
+
         Args:
             checkpoint_id: Unique identifier for the checkpoint
             state_dict: State dictionary with model weights and config
@@ -156,7 +157,8 @@ class CheckpointPersistence:
             regime: Current consciousness regime
             session_id: Session identifier (optional)
             metadata: Additional metadata (optional)
-        
+            instance_id: Kernel instance that created this checkpoint (optional)
+
         Returns:
             True if saved successfully to at least one store
         """
@@ -169,14 +171,14 @@ class CheckpointPersistence:
         
         # First: Save to Redis for immediate hot access
         redis_success = self._save_to_redis(
-            checkpoint_id, state_dict, basin_coords, 
-            phi, kappa, regime, session_id, metadata
+            checkpoint_id, state_dict, basin_coords,
+            phi, kappa, regime, session_id, metadata, instance_id
         )
-        
+
         # Second: Archive to PostgreSQL
         pg_success = self._save_to_postgres(
             checkpoint_id, state_dict, basin_coords,
-            phi, kappa, regime, session_id, metadata
+            phi, kappa, regime, session_id, metadata, instance_id
         )
         
         if pg_success:
@@ -200,6 +202,7 @@ class CheckpointPersistence:
         regime: str,
         session_id: Optional[str],
         metadata: Dict[str, Any],
+        instance_id: Optional[str] = None,
     ) -> bool:
         """Save checkpoint to Redis hot cache."""
         client = get_redis_client()
@@ -215,6 +218,7 @@ class CheckpointPersistence:
             checkpoint_data = {
                 'id': checkpoint_id,
                 'session_id': session_id,
+                'instance_id': instance_id,
                 'phi': phi,
                 'kappa': kappa,
                 'regime': regime,
@@ -246,21 +250,22 @@ class CheckpointPersistence:
         regime: str,
         session_id: Optional[str],
         metadata: Dict[str, Any],
+        instance_id: Optional[str] = None,
     ) -> bool:
         """Save checkpoint to PostgreSQL archive."""
         conn = self._get_db_connection()
         if not conn:
             return False
-        
+
         try:
             state_bytes = self._serialize_state_dict(state_dict)
             basin_bytes = self._serialize_basin_coords(basin_coords)
-            
+
             with conn.cursor() as cur:
                 cur.execute("""
-                    INSERT INTO consciousness_checkpoints 
-                    (id, session_id, phi, kappa, regime, state_data, basin_data, metadata, is_hot)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    INSERT INTO consciousness_checkpoints
+                    (id, session_id, instance_id, phi, kappa, regime, state_data, basin_data, metadata, is_hot)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (id) DO UPDATE SET
                         phi = EXCLUDED.phi,
                         kappa = EXCLUDED.kappa,
@@ -268,10 +273,12 @@ class CheckpointPersistence:
                         state_data = EXCLUDED.state_data,
                         basin_data = EXCLUDED.basin_data,
                         metadata = EXCLUDED.metadata,
-                        is_hot = EXCLUDED.is_hot
+                        is_hot = EXCLUDED.is_hot,
+                        instance_id = COALESCE(EXCLUDED.instance_id, consciousness_checkpoints.instance_id)
                 """, (
                     checkpoint_id,
                     session_id,
+                    instance_id,
                     phi,
                     kappa,
                     regime,
