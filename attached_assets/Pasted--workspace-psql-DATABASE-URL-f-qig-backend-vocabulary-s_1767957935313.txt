@@ -1,0 +1,47 @@
+~/workspace$ psql $DATABASE_URL -f qig-backend/vocabulary_schema.sql
+psql:qig-backend/vocabulary_schema.sql:16: NOTICE:  relation "bip39_words" already exists, skipping
+CREATE TABLE
+psql:qig-backend/vocabulary_schema.sql:18: ERROR:  relation "idx_bip39_word" already exists
+psql:qig-backend/vocabulary_schema.sql:19: ERROR:  relation "idx_bip39_phi" already exists
+psql:qig-backend/vocabulary_schema.sql:34: NOTICE:  relation "learned_words" already exists, skipping
+CREATE TABLE
+DO
+psql:qig-backend/vocabulary_schema.sql:45: NOTICE:  relation "idx_learned_word" already exists, skipping
+CREATE INDEX
+psql:qig-backend/vocabulary_schema.sql:46: NOTICE:  relation "idx_learned_phi" already exists, skipping
+CREATE INDEX
+psql:qig-backend/vocabulary_schema.sql:47: NOTICE:  relation "idx_learned_source" already exists, skipping
+CREATE INDEX
+CREATE INDEX
+psql:qig-backend/vocabulary_schema.sql:70: NOTICE:  relation "vocabulary_observations" already exists, skipping
+CREATE TABLE
+psql:qig-backend/vocabulary_schema.sql:73: NOTICE:  relation "idx_vocab_obs_text" already exists, skipping
+CREATE INDEX
+psql:qig-backend/vocabulary_schema.sql:74: NOTICE:  relation "idx_vocab_obs_avg_phi" already exists, skipping
+CREATE INDEX
+psql:qig-backend/vocabulary_schema.sql:75: NOTICE:  relation "idx_vocab_obs_max_phi" already exists, skipping
+CREATE INDEX
+psql:qig-backend/vocabulary_schema.sql:76: NOTICE:  relation "idx_vocab_obs_source" already exists, skipping
+CREATE INDEX
+psql:qig-backend/vocabulary_schema.sql:77: NOTICE:  relation "idx_vocab_obs_last_seen" already exists, skipping
+CREATE INDEX
+psql:qig-backend/vocabulary_schema.sql:78: NOTICE:  relation "idx_vocab_obs_is_real" already exists, skipping
+CREATE INDEX
+psql:qig-backend/vocabulary_schema.sql:79: NOTICE:  relation "idx_vocab_obs_integrated" already exists, skipping
+CREATE INDEX
+psql:qig-backend/vocabulary_schema.sql:92: NOTICE:  relation "bpe_merge_rules" already exists, skipping
+CREATE TABLE
+psql:qig-backend/vocabulary_schema.sql:94: ERROR:  relation "idx_merge_phi" already exists
+psql:qig-backend/vocabulary_schema.sql:95: ERROR:  relation "idx_merge_tokens" already exists
+psql:qig-backend/vocabulary_schema.sql:106: NOTICE:  relation "god_vocabulary_profiles" already exists, skipping
+CREATE TABLE
+psql:qig-backend/vocabulary_schema.sql:108: ERROR:  relation "idx_god_vocab_name" already exists
+psql:qig-backend/vocabulary_schema.sql:109: ERROR:  relation "idx_god_vocab_relevance" already exists
+psql:qig-backend/vocabulary_schema.sql:120: NOTICE:  relation "vocabulary_stats" already exists, skipping
+CREATE TABLE
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+psql:qig-backend/vocabulary_schema.sql:236: ERROR:  trigger "update_stats_on_learned_insert" for relation "learned_words" already exists
+~/workspace$ 
