@@ -54,14 +54,11 @@ export {
 
 // Phase 5: UltraConsciousness Protocol & Cycle Management (2026-01-09)
 export {
-	IntegrationCoordinator,
-	type IntegrationResults,
-	type IntegrationInsights,
-	type IntegrationContext
-} from "./integration-coordinator";
-export {
 	CycleController
 } from "./cycle-controller";
+export {
+	IntegrationCoordinator, type IntegrationContext, type IntegrationInsights, type IntegrationResults
+} from "./integration-coordinator";
 
 // TODO: Phase 1 (Week 1)
 // export { GeodesicNavigator } from "./geodesic-navigator";

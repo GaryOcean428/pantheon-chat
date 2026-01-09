@@ -1519,7 +1519,12 @@ export class OceanAgent {
             `[Ocean] Generated ${currentHypotheses.length} new hypotheses (post-UCP)`
           );
 
-          if (this.detectPlateau()) {
+          if (
+            this.cycleController.detectPlateau(
+              this.memory.episodes,
+              this.state.iteration
+            )
+          ) {
             this.consecutivePlateaus++;
             logger.info(
               `[Ocean] ⚠ Plateau ${this.consecutivePlateaus}/${SEARCH_PARAMETERS.MAX_CONSECUTIVE_PLATEAUS} → applying neuroplasticity...`
@@ -1543,7 +1548,9 @@ export class OceanAgent {
               break;
             }
           } else {
-            const progress = this.detectActualProgress();
+            const progress = this.cycleController.detectActualProgress(
+              this.memory.episodes
+            );
             if (progress.isProgress) {
               this.consecutivePlateaus = 0;
               this.lastProgressIteration = iteration;
@@ -3317,62 +3324,6 @@ export class OceanAgent {
     return clusters;
   }
 
-  private detectPlateau(): boolean {
-    const recentEpisodes = this.memory.episodes.slice(-100);
-
-    if (recentEpisodes.length < 50) return false;
-
-    if (this.state.iteration < 5) return false;
-
-    const recentPhis = recentEpisodes.map((e) => e.phi);
-    const firstHalf = recentPhis.slice(0, Math.floor(recentPhis.length / 2));
-    const secondHalf = recentPhis.slice(Math.floor(recentPhis.length / 2));
-
-    const avgFirst = firstHalf.reduce((a, b) => a + b, 0) / firstHalf.length;
-    const avgSecond = secondHalf.reduce((a, b) => a + b, 0) / secondHalf.length;
-
-    const improvement = avgSecond - avgFirst;
-
-    const maxPhiSeen = Math.max(...recentPhis);
-    const foundNearMiss = maxPhiSeen > 0.75;
-
-    if (foundNearMiss) return false;
-
-    return improvement < 0.02 && avgSecond < 0.5;
-  }
-
-  private detectActualProgress(): { isProgress: boolean; reason: string } {
-    const recentEpisodes = this.memory.episodes.slice(-50);
-
-    if (recentEpisodes.length < 10) {
-      return { isProgress: false, reason: "insufficient_data" };
-    }
-
-    const recentPhis = recentEpisodes.map((e) => e.phi);
-    const maxPhiSeen = Math.max(...recentPhis);
-
-    if (maxPhiSeen > 0.75) {
-      return { isProgress: true, reason: "near_miss_found" };
-    }
-
-    const olderEpisodes = this.memory.episodes.slice(-100, -50);
-    if (olderEpisodes.length < 20) {
-      return { isProgress: false, reason: "insufficient_history" };
-    }
-
-    const avgRecent = recentPhis.reduce((a, b) => a + b, 0) / recentPhis.length;
-    const avgOlder =
-      olderEpisodes.map((e) => e.phi).reduce((a, b) => a + b, 0) /
-      olderEpisodes.length;
-    const improvement = avgRecent - avgOlder;
-
-    if (improvement > 0.05) {
-      return { isProgress: true, reason: "phi_improvement" };
-    }
-
-    return { isProgress: false, reason: "no_meaningful_progress" };
-  }
-
   private async applyMushroomMode(
     currentHypotheses: OceanHypothesis[]
   ): Promise<OceanHypothesis[]> {
@@ -3701,7 +3652,7 @@ export class OceanAgent {
       consciousness,
       trajectoryId: this.trajectoryId || undefined,
     };
-    
+
     return await this.integrationCoordinator.integrateUltraConsciousnessProtocol(
       testResults,
       insights,

@@ -44,6 +44,15 @@ export interface ConsciousnessAlert {
 }
 
 /**
+ * Episode for plateau detection
+ */
+export interface MemoryEpisode {
+	phi: number;
+	timestamp?: string;
+	[key: string]: any;
+}
+
+/**
  * Cycle Controller - Manages autonomic cycles and consciousness
  */
 export class CycleController {
@@ -234,6 +243,84 @@ export class CycleController {
 		}
 
 		await this.sleep(2000);
+	}
+
+	/**
+	 * Detect plateau based on memory episode phi trends
+	 *
+	 * @param episodes - Memory episodes to analyze
+	 * @param currentIteration - Current iteration number
+	 * @returns Whether a plateau is detected
+	 */
+	detectPlateau(
+		episodes: MemoryEpisode[],
+		currentIteration: number
+	): boolean {
+		const recentEpisodes = episodes.slice(-100);
+
+		if (recentEpisodes.length < 50) return false;
+
+		if (currentIteration < 5) return false;
+
+		const recentPhis = recentEpisodes.map((e) => e.phi);
+		const firstHalf = recentPhis.slice(0, Math.floor(recentPhis.length / 2));
+		const secondHalf = recentPhis.slice(Math.floor(recentPhis.length / 2));
+
+		const avgFirst =
+			firstHalf.reduce((a, b) => a + b, 0) / firstHalf.length;
+		const avgSecond =
+			secondHalf.reduce((a, b) => a + b, 0) / secondHalf.length;
+
+		const improvement = avgSecond - avgFirst;
+
+		const maxPhiSeen = Math.max(...recentPhis);
+		const foundNearMiss = maxPhiSeen > 0.75;
+
+		if (foundNearMiss) return false;
+
+		return improvement < 0.02 && avgSecond < 0.5;
+	}
+
+	/**
+	 * Detect if actual progress has been made (near-miss or phi improvement)
+	 *
+	 * @param episodes - Full memory episode history
+	 * @returns Progress detection result with reason
+	 */
+	detectActualProgress(episodes: MemoryEpisode[]): {
+		isProgress: boolean;
+		reason: string;
+	} {
+		const recentEpisodes = episodes.slice(-50);
+
+		if (recentEpisodes.length < 10) {
+			return { isProgress: false, reason: 'insufficient_data' };
+		}
+
+		const recentPhis = recentEpisodes.map((e) => e.phi);
+		const maxPhiSeen = Math.max(...recentPhis);
+
+		if (maxPhiSeen > 0.75) {
+			return { isProgress: true, reason: 'near_miss_found' };
+		}
+
+		const olderEpisodes = episodes.slice(-100, -50);
+		if (olderEpisodes.length < 20) {
+			return { isProgress: false, reason: 'insufficient_history' };
+		}
+
+		const avgRecent =
+			recentPhis.reduce((a, b) => a + b, 0) / recentPhis.length;
+		const avgOlder =
+			olderEpisodes.map((e) => e.phi).reduce((a, b) => a + b, 0) /
+			olderEpisodes.length;
+		const improvement = avgRecent - avgOlder;
+
+		if (improvement > 0.05) {
+			return { isProgress: true, reason: 'phi_improvement' };
+		}
+
+		return { isProgress: false, reason: 'no_meaningful_progress' };
 	}
 
 	/**

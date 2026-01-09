@@ -39,6 +39,8 @@ from typing import List, Dict, Tuple, Optional, Any
 from dataclasses import dataclass, field
 from datetime import datetime
 
+from qig_geometry import fisher_coord_distance, geodesic_interpolation, sphere_project
+
 BASIN_DIMENSION = 64
 DEFAULT_SYMMETRY_THRESHOLD = 0.95
 GOD_NAMES = [
@@ -86,7 +88,7 @@ class AgentSymmetryProjector:
     def __init__(self, n_agents: int = 9):
         """
         Initialize for n agents (9 gods in SearchSpaceCollapse).
-        
+
         Args:
             n_agents: Number of agents in the system
         """
@@ -94,7 +96,45 @@ class AgentSymmetryProjector:
         self.symmetry_threshold = DEFAULT_SYMMETRY_THRESHOLD
         self._projection_cache = {}
         self._asymmetry_history: List[float] = []
-    
+
+    def _frechet_mean_blocks(self, blocks: np.ndarray, max_iters: int = 50) -> np.ndarray:
+        """
+        Compute Fréchet mean (Riemannian center of mass) of blocks on Fisher manifold.
+
+        Uses iterative geodesic averaging instead of arithmetic mean.
+
+        Args:
+            blocks: Array of shape (n_blocks, block_dim)
+            max_iters: Maximum iterations for convergence
+
+        Returns:
+            Fréchet mean block on the manifold
+        """
+        if len(blocks) == 0:
+            return np.zeros(blocks.shape[1] if blocks.ndim > 1 else BASIN_DIMENSION)
+
+        # Initialize with projected arithmetic mean
+        current_mean = sphere_project(np.mean(blocks, axis=0))
+
+        for _ in range(max_iters):
+            # Compute geodesic step toward each block
+            new_mean = np.zeros_like(current_mean)
+            for block in blocks:
+                block_proj = sphere_project(block)
+                step = geodesic_interpolation(current_mean, block_proj, 1.0 / len(blocks))
+                new_mean = new_mean + step
+
+            new_mean = sphere_project(new_mean)
+
+            # Check convergence via Fisher-Rao distance
+            distance_change = fisher_coord_distance(current_mean, new_mean)
+            current_mean = new_mean
+
+            if distance_change < 1e-6:
+                break
+
+        return current_mean
+
     def exchange_operator(self, 
                          action: np.ndarray, 
                          agent_i: int, 
@@ -189,8 +229,11 @@ class AgentSymmetryProjector:
         elif n_dim >= self.n_agents and n_dim % self.n_agents == 0:
             block_size = n_dim // self.n_agents
             blocks = result.reshape(self.n_agents, block_size)
-            mean_block = np.mean(blocks, axis=0)
+            # Use Fréchet mean (Riemannian center of mass) instead of arithmetic mean
+            mean_block = self._frechet_mean_blocks(blocks)
             result = np.tile(mean_block, self.n_agents)
+            # Project result to unit sphere for Fisher manifold consistency
+            result = sphere_project(result) * np.linalg.norm(action)
         else:
             reflected = result[::-1]
             result = (result + reflected) / 2
@@ -199,27 +242,33 @@ class AgentSymmetryProjector:
     
     def measure_asymmetry(self, action: np.ndarray) -> float:
         """
-        Measure how asymmetric (unethical) an action is.
-        
-        Computes ratio of antisymmetric to total norm.
-        
+        Measure how asymmetric (unethical) an action is using Fisher-Rao geometry.
+
+        Computes ratio of Fisher-Rao distance to symmetric subspace vs total distance from origin.
+
         Returns:
             0.0: Perfectly symmetric (ethical)
             1.0: Maximally asymmetric (unethical)
         """
         symmetric_part = self.project_to_symmetric(action)
-        asymmetric_part = action - symmetric_part
-        
-        total_norm = np.linalg.norm(action)
-        if total_norm < 1e-10:
+
+        # Use Fisher-Rao distance from origin for total magnitude
+        origin = np.zeros_like(action)
+        total_dist = fisher_coord_distance(origin, action)
+        if total_dist < 1e-10:
             return 0.0
-        
-        asymmetry = np.linalg.norm(asymmetric_part) / total_norm
-        
+
+        # Fisher-Rao distance from action to its symmetric projection
+        asymmetry_dist = fisher_coord_distance(action, symmetric_part)
+        asymmetry = asymmetry_dist / total_dist
+
+        # Clamp to valid range (distances can exceed for opposite directions)
+        asymmetry = float(np.clip(asymmetry, 0.0, 1.0))
+
         self._asymmetry_history.append(asymmetry)
         if len(self._asymmetry_history) > 1000:
             self._asymmetry_history = self._asymmetry_history[-1000:]
-        
+
         return asymmetry
     
     def enforce_ethics(self, 
@@ -344,20 +393,39 @@ class EthicalDebateResolver:
     
     def _geometric_consensus(self, positions: List[np.ndarray]) -> np.ndarray:
         """
-        Compute consensus as geometric mean on Fisher manifold.
-        
-        Current implementation: arithmetic mean (approximation)
-        TODO: Implement proper Riemannian center of mass using
-              Bures metric for density matrices.
+        Compute Fréchet mean (Riemannian center of mass) on Fisher manifold.
+
+        Uses iterative geodesic averaging for proper information geometry.
         """
         if not positions:
             return np.zeros(BASIN_DIMENSION)
-        
+
         stacked = np.array([p for p in positions if len(p) > 0])
         if len(stacked) == 0:
             return np.zeros(BASIN_DIMENSION)
-        
-        return np.mean(stacked, axis=0)
+
+        # Initialize with projected arithmetic mean
+        current_mean = sphere_project(np.mean(stacked, axis=0))
+
+        # Iterate to Fréchet mean
+        for _ in range(50):
+            new_mean = np.zeros_like(current_mean)
+            for pos in stacked:
+                pos_proj = sphere_project(pos)
+                # Geodesic step toward each position
+                step = geodesic_interpolation(current_mean, pos_proj, 1.0 / len(stacked))
+                new_mean = new_mean + step
+
+            new_mean = sphere_project(new_mean)
+
+            # Check convergence via Fisher-Rao distance
+            distance_change = fisher_coord_distance(current_mean, new_mean)
+            current_mean = new_mean
+
+            if distance_change < 1e-6:
+                break
+
+        return current_mean
     
     def get_resolution_stats(self) -> Dict[str, Any]:
         """Get statistics on debate resolutions."""

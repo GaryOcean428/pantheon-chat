@@ -15,7 +15,7 @@
  * @created 2026-01-09
  */
 
-import { SEARCH_PARAMETERS, QIG_CONSTANTS } from "@shared/constants/qig";
+import { QIG_CONSTANTS, SEARCH_PARAMETERS } from "@shared/constants/qig";
 import type {
 	OceanIdentity as IdentityCoordinates,
 	OceanEpisode,
