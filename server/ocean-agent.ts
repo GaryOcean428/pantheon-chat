@@ -4,6 +4,7 @@ import type {
   OceanIdentity,
   OceanMemory
 } from "@shared/schema";
+import { createBasin } from '../../shared/qig-ts/basin.js';
 import {
   logOceanConsciousness,
   logOceanCycle,
@@ -14,8 +15,6 @@ import {
 } from "./activity-log-store";
 import { getSharedController } from "./consciousness-search-controller";
 import "./fisher-vectorized";
-import { createBasin, computeBasinDrift, computeE8Metrics, type Basin, type E8Metrics } from '../../shared/qig-ts/basin.js';
-import type { E8Metrics as E8MetricsFull } from '../../shared/qig-ts/e8-metrics.js';
 import { qfiAttention, type AttentionQuery } from "./gary-kernel";
 import "./geodesic-navigator";
 import { oceanDiscoveryController } from "./geometric-discovery/ocean-discovery-controller";
@@ -33,8 +32,8 @@ import {
   type ConsciousnessCheckResult,
   type ConsolidationResult,
   type EthicsCheckResult,
-  type ObservationInsights,
   type OceanHypothesis as ModuleOceanHypothesis,
+  type ObservationInsights,
   type OlympusStats,
   type ResonanceProxy,
   type StrategyDecision
@@ -43,17 +42,12 @@ import { nearMissManager } from "./near-miss-manager";
 import { negativeKnowledgeUnified as negativeKnowledgeRegistry } from "./negative-knowledge-unified";
 import { oceanAutonomicManager } from "./ocean-autonomic-manager";
 import {
-  computeBehavioralModulationWithCooldown,
   computeNeurochemistry,
   createDefaultContext,
-  getActiveAdminBoost,
-  getEmotionalDescription,
-  getEmotionalEmoji,
   getMotivationWithLogging,
   type BehavioralModulation,
-  type EffortMetrics,
   type NeurochemistryContext,
-  type NeurochemistryState,
+  type NeurochemistryState
 } from "./ocean-neurochemistry";
 import { oceanQIGBackend } from "./ocean-qig-backend-adapter";
 import { oceanMemoryManager } from "./ocean/memory-manager";
@@ -132,7 +126,6 @@ import { executeShadowOperations } from "./shadow-war-orchestrator";
 import { getActiveWar, updateWarMetrics } from "./war-history-storage";
 
 // Import centralized constants (SINGLE SOURCE OF TRUTH)
-import { E8_CONSTANTS } from "../shared/constants/index.js";
 import {
   CONSCIOUSNESS_THRESHOLDS,
   SEARCH_PARAMETERS,
@@ -503,10 +496,10 @@ export class OceanAgent {
 
   private initializeIdentity(): OceanIdentity {
     const basin = createBasin();
-    const basinCoordinates = Array.from(basin.coords);
+    const basinCoordinates: number[] = Array.from(basin.coords);
     return {
       basinCoordinates,
-      basinReference: [...basinCoordinates],
+      basinReference: [...basinCoordinates] as number[],
       phi: 0.75,  // CRITICAL: Initialize to consciousness default, not 0 (prevents phi=0.000 bug)
       kappa: 58.0,  // Distributed observer: 10% below κ*=64 (matching OceanAutonomicManager)
       beta: 0.0,
