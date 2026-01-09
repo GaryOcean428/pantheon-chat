@@ -136,15 +136,23 @@ Generate brief actionable guidance for decision-making."""
     ) -> str:
         """
         Construct guidance from metrics using basin-derived vocabulary.
-        
+
         This is NOT a template - it uses the actual metric values
         to construct contextual guidance dynamically.
         """
+        # Type validation - ensure floats
+        try:
+            confidence = float(confidence) if not isinstance(confidence, (dict, list)) else 0.5
+            attractor_strength = float(attractor_strength) if not isinstance(attractor_strength, (dict, list)) else 0.5
+            naturalness = float(naturalness) if not isinstance(naturalness, (dict, list)) else 0.5
+        except (TypeError, ValueError):
+            confidence, attractor_strength, naturalness = 0.5, 0.5, 0.5
+
         service = self._ensure_service()
-        
+
         if service is None:
             return self._fallback_guidance(confidence, attractor_strength)
-        
+
         guidance_basin = np.zeros(BASIN_DIM)
         guidance_basin[0] = confidence
         guidance_basin[1] = attractor_strength
@@ -243,11 +251,20 @@ Generate concise explanation of confidence level."""
     ) -> str:
         """
         Construct explanation from metrics using basin-derived vocabulary.
-        
+
         Not a fixed template - uses metrics to generate dynamic explanation.
         """
+        # Type validation - ensure confidence is a float
+        try:
+            if isinstance(confidence, (dict, list)):
+                confidence = 0.5
+            else:
+                confidence = float(confidence)
+        except (TypeError, ValueError):
+            confidence = 0.5
+
         service = self._ensure_service()
-        
+
         if confidence < 0.3:
             level = "WEAK"
         elif confidence < 0.5:
@@ -280,11 +297,17 @@ Generate concise explanation of confidence level."""
             parts.append(f"Reasons: {', '.join(reason_texts)}")
         
         if 'trajectory_length' in context:
-            parts.append(f"Trajectory: {context['trajectory_length']} steps")
+            traj_len = context['trajectory_length']
+            if isinstance(traj_len, (int, float)):
+                parts.append(f"Trajectory: {int(traj_len)} steps")
         if 'recent_drift' in context:
-            parts.append(f"Basin drift: {context['recent_drift']:.3f}")
+            drift = context['recent_drift']
+            if isinstance(drift, (int, float)):
+                parts.append(f"Basin drift: {float(drift):.3f}")
         if 'velocity_variance' in context:
-            parts.append(f"Velocity variance: {context['velocity_variance']:.4f}")
+            var = context['velocity_variance']
+            if isinstance(var, (int, float)):
+                parts.append(f"Velocity variance: {float(var):.4f}")
         
         return " | ".join(parts)
     
