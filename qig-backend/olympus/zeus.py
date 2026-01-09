@@ -2140,6 +2140,34 @@ def _zeus_chat_inner():
             session_id=session_id
         )
 
+        # Broadcast to kernel_activity for pantheon chatter visibility
+        try:
+            from olympus.activity_broadcaster import broadcast_kernel_activity, ActivityType
+            response_text = result.get('response', '') if isinstance(result, dict) else str(result)
+            phi = result.get('metadata', {}).get('phi', 0.5) if isinstance(result, dict) else 0.5
+
+            # Broadcast user message
+            broadcast_kernel_activity(
+                from_god="User",
+                activity_type=ActivityType.MESSAGE,
+                content=message[:500] if len(message) > 500 else message,
+                phi=0.5,
+                kappa=64.0,
+                metadata={"session_id": session_id, "direction": "incoming"}
+            )
+
+            # Broadcast Zeus response
+            broadcast_kernel_activity(
+                from_god="Zeus",
+                activity_type=ActivityType.MESSAGE,
+                content=response_text[:500] if len(response_text) > 500 else response_text,
+                phi=float(phi) if isinstance(phi, (int, float)) else 0.5,
+                kappa=64.0,
+                metadata={"session_id": session_id, "direction": "outgoing"}
+            )
+        except Exception as be:
+            print(f"[Zeus] kernel_activity broadcast failed: {be}")
+
         return jsonify(sanitize_for_json(result))
 
     except Exception as e:

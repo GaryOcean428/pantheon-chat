@@ -697,9 +697,9 @@ class LightningKernel(BaseGod):
 
             # Record activity for UI visibility
             try:
-                from agent_activity_recorder import activity_recorder, ActivityType
+                from agent_activity_recorder import activity_recorder, ActivityType as AgentActivityType
                 activity_recorder.record(
-                    ActivityType.PATTERN_RECOGNIZED,
+                    AgentActivityType.PATTERN_RECOGNIZED,
                     f"Lightning insight: {insight.source_domains}",
                     description=insight.insight_text[:200] if insight.insight_text else None,
                     agent_name="Lightning",
@@ -714,6 +714,32 @@ class LightningKernel(BaseGod):
                 )
             except Exception as ae:
                 pass  # Don't fail broadcast if activity recording fails
+
+            # Also broadcast to kernel_activity for pantheon chatter visibility
+            try:
+                from olympus.activity_broadcaster import broadcast_kernel_activity, ActivityType as BroadcasterActivityType
+                phi_val = insight.phi_at_creation
+                if isinstance(phi_val, (tuple, list)):
+                    phi_val = float(phi_val[0]) if phi_val else 0.5
+                elif not isinstance(phi_val, (int, float)):
+                    phi_val = 0.5
+
+                broadcast_kernel_activity(
+                    from_god="Lightning",
+                    activity_type=BroadcasterActivityType.INSIGHT,
+                    content=f"Cross-domain insight: {insight.insight_text[:500]}" if insight.insight_text else f"Insight from {insight.source_domains}",
+                    phi=float(phi_val),
+                    kappa=64.0,
+                    metadata={
+                        "insight_id": insight.insight_id,
+                        "source_domains": insight.source_domains,
+                        "connection_strength": insight.connection_strength,
+                        "confidence": insight.confidence,
+                        "validated": validation_metadata.get("validated", False)
+                    }
+                )
+            except Exception as ke:
+                print(f"[Lightning] kernel_activity broadcast failed: {ke}")
         except Exception as e:
             print(f"[Lightning] Broadcast failed: {e}")
 

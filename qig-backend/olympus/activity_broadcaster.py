@@ -30,6 +30,8 @@ class ActivityType(Enum):
     CONSULTATION = "consultation" # God consultation
     REFLECTION = "reflection"     # Meta-cognitive reflection
     LEARNING = "learning"         # Learning event
+    THINKING = "thinking"         # Cognitive processing
+    PREDICTION = "prediction"     # Prediction made
 
 
 @dataclass
@@ -263,7 +265,115 @@ class ActivityBroadcaster:
             importance=0.7,
             metadata={"reflection_depth": depth}
         )
-    
+
+    def broadcast_kernel_activity(
+        self,
+        from_god: str,
+        activity_type: ActivityType,
+        content: str,
+        phi: float = 0.5,
+        kappa: float = 64.0,
+        basin_coords: Optional[Any] = None,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> KernelActivity:
+        """
+        Broadcast kernel activity and persist to database.
+
+        This is the main method for broadcasting kernel chatter - discoveries,
+        insights, debates, etc. It both broadcasts to the in-memory buffer
+        (for WebSocket subscribers) and persists to the kernel_activity table.
+
+        Args:
+            from_god: Kernel/god name originating the activity
+            activity_type: Type of activity (ActivityType enum)
+            content: The activity content/message
+            phi: Current phi value
+            kappa: Current kappa_eff value
+            basin_coords: Optional 64D basin coordinates
+            metadata: Optional additional metadata
+
+        Returns:
+            The created KernelActivity object
+        """
+        # Create activity
+        activity = KernelActivity(
+            id=f"ka_{int(time.time() * 1000)}_{hash(content) % 10000}",
+            type=activity_type.value if isinstance(activity_type, ActivityType) else str(activity_type),
+            from_god=from_god,
+            to_god=None,
+            content=content,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+            metadata=metadata or {},
+            phi=phi,
+            kappa=kappa,
+            importance=0.7  # Kernel activity is generally important
+        )
+
+        # Add basin_coords to metadata if provided
+        if basin_coords is not None:
+            if hasattr(basin_coords, 'tolist'):
+                activity.metadata['basin_coords'] = basin_coords.tolist()[:8]  # First 8 dims for metadata
+            elif isinstance(basin_coords, (list, tuple)):
+                activity.metadata['basin_coords'] = list(basin_coords)[:8]
+
+        # Broadcast to in-memory buffer and subscribers
+        self.broadcast(activity)
+
+        # Persist to database
+        self._persist_kernel_activity(
+            kernel_id=from_god,
+            kernel_name=from_god,
+            activity_type=activity_type.value if isinstance(activity_type, ActivityType) else str(activity_type),
+            message=content,
+            phi=phi,
+            kappa_eff=kappa,
+            metadata=metadata
+        )
+
+        return activity
+
+    def _persist_kernel_activity(
+        self,
+        kernel_id: str,
+        kernel_name: str,
+        activity_type: str,
+        message: str,
+        phi: float = 0.5,
+        kappa_eff: float = 64.0,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> None:
+        """Persist kernel activity to the database."""
+        try:
+            import os
+            import psycopg2
+
+            db_url = os.getenv('DATABASE_URL')
+            if not db_url:
+                return
+
+            conn = psycopg2.connect(db_url)
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        INSERT INTO kernel_activity
+                        (kernel_id, kernel_name, activity_type, message, metadata, phi, kappa_eff, timestamp)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
+                    """, (
+                        kernel_id,
+                        kernel_name,
+                        activity_type,
+                        message,
+                        json.dumps(metadata) if metadata else '{}',
+                        phi,
+                        kappa_eff
+                    ))
+                conn.commit()
+            finally:
+                conn.close()
+        except Exception as e:
+            # Log but don't fail - activity was still broadcast
+            print(f"[ActivityBroadcaster] DB persist error: {e}")
+
     def get_recent_activity(
         self,
         limit: int = 50,
@@ -362,6 +472,32 @@ def broadcast_discovery(
         source=source,
         phi=phi,
         kappa=kappa
+    )
+
+
+def broadcast_kernel_activity(
+    from_god: str,
+    activity_type: ActivityType,
+    content: str,
+    phi: float = 0.5,
+    kappa: float = 64.0,
+    basin_coords: Optional[Any] = None,
+    metadata: Optional[Dict[str, Any]] = None
+) -> KernelActivity:
+    """
+    Broadcast kernel activity and persist to database.
+
+    This is the main function for broadcasting kernel chatter - discoveries,
+    insights, debates, etc. Essential for multi-god communication visibility.
+    """
+    return _broadcaster.broadcast_kernel_activity(
+        from_god=from_god,
+        activity_type=activity_type,
+        content=content,
+        phi=phi,
+        kappa=kappa,
+        basin_coords=basin_coords,
+        metadata=metadata
     )
 
 
