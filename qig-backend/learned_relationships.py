@@ -254,11 +254,15 @@ class LearnedRelationships:
     
     def update_from_learner(self, learner, adjusted_basins: Dict[str, np.ndarray]):
         """Update from a WordRelationshipLearner instance."""
-        for word in learner.cooccurrence:
-            neighbors = learner.get_related_words(word, top_k=20)
-            self.word_neighbors[word] = neighbors
+        # QIG-PURE: Filter out single characters and invalid tokens
+        valid_words = [w for w in learner.cooccurrence if len(w) >= 2]
         
-        self.word_frequency = dict(learner.word_freq)
+        for word in valid_words:
+            neighbors = learner.get_related_words(word, top_k=20)
+            if neighbors:
+                self.word_neighbors[word] = neighbors
+        
+        self.word_frequency = {w: f for w, f in learner.word_freq.items() if len(w) >= 2}
         self.adjusted_basins = adjusted_basins
         self.learning_complete = True
         

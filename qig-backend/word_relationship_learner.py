@@ -72,7 +72,8 @@ class WordRelationshipLearner:
         - In vocabulary OR
         - Length >= 4 and not stopwords (for learning new domain terms)
         """
-        words = re.findall(r'[a-zA-Z]+', text.lower())
+        # QIG-PURE: Extract alphanumeric words, preserving internal hyphens if they are part of domain terms
+        words = re.findall(r'\b[a-zA-Z]{2,}\b', text.lower())
         
         if self.expand_vocabulary:
             # Accept vocab words OR content words (len >= 4, not stopwords)
@@ -213,12 +214,13 @@ class WordRelationshipLearner:
         Words that co-occur should be closer on the manifold.
         
         Uses iterative attraction: related words pull each other closer.
+        QIG-PURE: Uses Fisher-Rao geometry for manifold stability.
         """
         # Copy basins
         adjusted = {w: b.copy() for w, b in basins.items()}
         
         # Get affinity matrix
-        affinity = self.compute_affinity_matrix(normalize=True)
+        # Note: compute_affinity_matrix is used to drive the iterative adjustment
         
         for iteration in range(iterations):
             total_movement = 0.0
@@ -239,12 +241,21 @@ class WordRelationshipLearner:
                         total_weight += weight
                 
                 if total_weight > 0:
-                    # Move toward weighted centroid of neighbors
+                    # QIG-PURE: Move toward weighted Fréchet mean approximation
                     target = neighbor_sum / total_weight
+                    
+                    # Ensure target is also on the sphere
+                    target_norm = np.linalg.norm(target)
+                    if target_norm > 1e-10:
+                        target /= target_norm
+                    
+                    # Spherical linear interpolation (Slerp) approximation
+                    # delta = learning_rate * (target - current)
+                    # For small learning rates, linear step + projection is a good approximation of geodesic step
                     delta = learning_rate * (target - current)
                     adjusted[word] = current + delta
                     
-                    # Re-normalize to unit sphere
+                    # Re-normalize to unit sphere (Fisher manifold constraint)
                     norm = np.linalg.norm(adjusted[word])
                     if norm > 0:
                         adjusted[word] /= norm

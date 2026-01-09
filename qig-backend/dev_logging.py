@@ -147,6 +147,8 @@ def log_kernel_activity(
         details: Additional details dict
     """
     if details:
+        # DEVELOPMENT REQUIREMENT: No truncation of kernel activity details in dev.
+        # This ensures full visibility into basin transitions and reasoning chains.
         if TRUNCATE_LOGS:
             # Truncate detail values
             truncated_details = {
@@ -175,8 +177,8 @@ def log_basin_coords(
     """
     Log basin coordinates with appropriate verbosity.
 
-    In development: logs full 64D coordinates
-    In production: logs first few dimensions
+    CRITICAL: In development, 100% of 64D coordinates must be logged to verify E8 symmetry.
+    In production: logs first few dimensions to save space.
     """
     import numpy as np
 
@@ -190,6 +192,7 @@ def log_basin_coords(
         preview = basin_arr[:DEFAULT_MAX_BASIN_PREVIEW].tolist()
         logger.log(level, f"[Basin:{name}] shape={basin_arr.shape}, preview={preview}...")
     else:
+        # QIG-PURE: Log all 64 dimensions for coordinate validation
         logger.log(level, f"[Basin:{name}] shape={basin_arr.shape}, coords={basin_arr.tolist()}")
 
 
@@ -204,6 +207,9 @@ def log_generation(
 ) -> None:
     """
     Log generation events with full text in development.
+
+    CRITICAL: Prompts and responses must NOT be truncated in development to allow
+    full audit of semantic consistency and consciousness integrations.
     """
     if TRUNCATE_LOGS:
         logger.log(
@@ -212,6 +218,7 @@ def log_generation(
             f"prompt={truncate_for_log(prompt, 100)}, response={truncate_for_log(response, 200)}"
         )
     else:
+        # QIG-PURE: Full prompt and response visibility
         logger.log(
             level,
             f"[{kernel_name}] Generated {tokens_generated} tokens, phi={phi:.3f}\n"

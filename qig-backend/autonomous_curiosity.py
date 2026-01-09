@@ -1275,7 +1275,15 @@ class AutonomousCuriosityEngine:
             vocab = set(coordizer.basin_coords.keys())
             learner = WordRelationshipLearner(vocab, window_size=5)
             
-            docs_path = Path(__file__).parent.parent / 'docs'
+            # Resolve docs path relative to this script
+            # Structure: pantheon-replit/qig-backend/autonomous_curiosity.py
+            # docs_path should be pantheon-replit/docs/09-curriculum
+            docs_path = Path(__file__).parent.parent / 'docs' / '09-curriculum'
+            if not docs_path.exists():
+                # Fallback to general docs if curriculum subfolder missing
+                docs_path = Path(__file__).parent.parent / 'docs'
+            
+            logger.info(f"[AutonomousCuriosityEngine] Learning word relationships from: {docs_path}")
             stats = learner.learn_from_directory(str(docs_path))
             
             exploration_pairs = self._learn_from_explorations(learner)
