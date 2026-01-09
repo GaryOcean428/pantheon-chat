@@ -1,4 +1,4 @@
-import { createBasin } from "@shared/qig-ts/basin";
+import { createBasin } from "../shared/qig-ts/basin";
 import type {
   EthicalConstraints,
   OceanAgentState,
