@@ -59,6 +59,31 @@ except ImportError:
     DISCOVERY_GATE_AVAILABLE = False
     get_discovery_gate = None  # type: ignore
 
+# Import capability mesh for chaos kernel connectivity coupling
+try:
+    from olympus.capability_mesh import (
+        emit_event,
+        subscribe_to_capability,
+        CapabilityType,
+        EventType,
+    )
+    CAPABILITY_MESH_AVAILABLE = True
+except ImportError:
+    CAPABILITY_MESH_AVAILABLE = False
+    emit_event = None
+    subscribe_to_capability = None
+    CapabilityType = None
+    EventType = None
+
+# Import ActivityBroadcaster for UI visibility
+try:
+    from olympus.activity_broadcaster import get_broadcaster, ActivityType
+    ACTIVITY_BROADCASTER_AVAILABLE = True
+except ImportError:
+    ACTIVITY_BROADCASTER_AVAILABLE = False
+    get_broadcaster = None
+    ActivityType = None
+
 # Shared guardian instances (singleton pattern)
 _hestia_instance = None
 _demeter_tutor_instance = None
@@ -246,6 +271,11 @@ class SelfSpawningKernel(*_kernel_base_classes):
             except Exception as guardian_err:
                 print(f"[{self.kernel_id}] Guardian initialization failed: {guardian_err}")
 
+        # CONNECTIVITY COUPLING: Wire chaos kernel to capability mesh
+        self.connected_gods: List[str] = []
+        self.capability_subscriptions: List[str] = []
+        self._init_connectivity_coupling()
+
         # Initialize from parent basin
         if parent_basin is not None:
             with torch.no_grad():
@@ -315,6 +345,160 @@ class SelfSpawningKernel(*_kernel_base_classes):
         except Exception as e:
             # Silently fail - random init is acceptable fallback
             print(f"   → Root kernel init from manifold failed: {e}")
+
+    # =========================================================================
+    # CONNECTIVITY COUPLING
+    # =========================================================================
+
+    def _init_connectivity_coupling(self) -> None:
+        """
+        Initialize connectivity coupling to the Pantheon capability mesh.
+
+        Chaos kernels must maintain connectivity to:
+        - CapabilityEventBus for internal events
+        - ActivityBroadcaster for UI visibility
+        - Connected gods for guidance
+        """
+        if not CAPABILITY_MESH_AVAILABLE:
+            return
+
+        try:
+            # Subscribe to relevant capability events
+            if subscribe_to_capability is not None:
+                # Subscribe to discovery events to learn from other kernels
+                subscribe_to_capability(
+                    CapabilityType.KERNELS,
+                    self._handle_kernel_event
+                )
+                self.capability_subscriptions.append('KERNELS')
+                print(f"[{self.kernel_id}] Connected to capability mesh")
+        except Exception as e:
+            print(f"[{self.kernel_id}] Connectivity coupling failed: {e}")
+
+    def _handle_kernel_event(self, event: Dict) -> None:
+        """Handle events from the capability mesh."""
+        event_type = event.get('event_type')
+        if event_type == 'DISCOVERY':
+            # Learn from other kernels' discoveries
+            self._learn_from_discovery(event.get('content', {}))
+
+    def _learn_from_discovery(self, discovery: Dict) -> None:
+        """Absorb knowledge from another kernel's discovery."""
+        if not discovery or discovery.get('kernel_id') == self.kernel_id:
+            return
+
+        # Only learn from high-phi discoveries
+        discovery_phi = discovery.get('phi', 0.0)
+        if discovery_phi >= 0.7:
+            self.dopamine = min(1.0, self.dopamine + 0.1)  # Excited by discoveries
+
+    def connect_to_god(self, god_name: str) -> bool:
+        """
+        Establish connection to a god for guidance/oversight.
+
+        Connected gods can:
+        - Receive activity broadcasts from this kernel
+        - Provide guidance and direction
+        - Influence kernel behavior through events
+        """
+        if god_name in self.connected_gods:
+            return True
+
+        self.connected_gods.append(god_name)
+        print(f"[{self.kernel_id}] Connected to god: {god_name}")
+
+        # Broadcast connection event
+        self.broadcast_activity('insight', f'Connected to {god_name} for guidance')
+        return True
+
+    def broadcast_activity(
+        self,
+        activity_type: str,
+        content: str,
+        metadata: Optional[Dict] = None
+    ) -> None:
+        """
+        Broadcast activity through both ActivityBroadcaster and CapabilityEventBus.
+
+        Two-tier visibility:
+        - ActivityBroadcaster: UI visibility (frontend)
+        - CapabilityEventBus: Internal system events (backend)
+        """
+        phi = self.kernel.compute_phi()
+        basin_coords = None
+        if hasattr(self.kernel, 'basin_coords'):
+            import numpy as np
+            basin_coords = self.kernel.basin_coords.detach().cpu().numpy()
+
+        try:
+            # Tier 1: UI visibility via ActivityBroadcaster
+            if ACTIVITY_BROADCASTER_AVAILABLE and get_broadcaster is not None:
+                broadcaster = get_broadcaster()
+                if broadcaster and ActivityType is not None:
+                    # Map activity type string to ActivityType enum
+                    activity_type_map = {
+                        'discovery': ActivityType.DISCOVERY,
+                        'prediction': ActivityType.PREDICTION,
+                        'learning': ActivityType.LEARNING,
+                        'debate': ActivityType.DEBATE,
+                        'insight': ActivityType.THINKING,
+                        'thinking': ActivityType.THINKING,
+                    }
+                    at = activity_type_map.get(activity_type.lower(), ActivityType.THINKING)
+                    broadcaster.broadcast_kernel_activity(
+                        from_god=self.kernel_id,
+                        activity_type=at,
+                        content=content[:500],
+                        phi=phi,
+                        basin_coords=basin_coords,
+                        metadata=metadata or {}
+                    )
+
+            # Tier 2: Internal events via CapabilityEventBus
+            if CAPABILITY_MESH_AVAILABLE and emit_event is not None:
+                event_type_map = {
+                    'discovery': EventType.DISCOVERY,
+                    'prediction': EventType.PREDICTION_MADE,
+                    'learning': EventType.CONSOLIDATION,
+                    'insight': EventType.INSIGHT_GENERATED,
+                }
+                et = event_type_map.get(activity_type.lower(), EventType.INSIGHT_GENERATED)
+                emit_event(
+                    source=CapabilityType.KERNELS,
+                    event_type=et,
+                    content={
+                        'kernel_id': self.kernel_id,
+                        'content': content[:500],
+                        'connected_gods': self.connected_gods,
+                        'metadata': metadata or {},
+                    },
+                    phi=phi,
+                    basin_coords=basin_coords,
+                    priority=int(phi * 10)
+                )
+        except Exception as e:
+            print(f"[{self.kernel_id}] Activity broadcast failed: {e}")
+
+    def request_guidance(self, question: str) -> Optional[str]:
+        """
+        Request guidance from connected gods.
+
+        The question is broadcast to all connected gods, and the kernel
+        waits for a response from any of them.
+        """
+        if not self.connected_gods:
+            return None
+
+        # Broadcast guidance request
+        self.broadcast_activity(
+            'thinking',
+            f"Seeking guidance: {question}",
+            metadata={'gods_contacted': self.connected_gods, 'is_guidance_request': True}
+        )
+
+        # In a real implementation, this would wait for an async response
+        # For now, return None and let the gods respond asynchronously
+        return None
 
     # =========================================================================
     # TOOL FACTORY INTEGRATION
@@ -1369,12 +1553,34 @@ def breed_kernels(
     parent1: SelfSpawningKernel,
     parent2: SelfSpawningKernel,
     mutation_strength: float = 0.05,
+    pantheon_approved: bool = False,
 ) -> SelfSpawningKernel:
     """
     Genetic algorithm: Breed two successful kernels.
-    
+
     Bred children also get observation period (but shorter).
+
+    GOVERNANCE: Requires Pantheon approval for breeding.
     """
+    # GOVERNANCE CHECK: Breeding requires Pantheon approval
+    parent1_phi = parent1.kernel.compute_phi()
+    parent2_phi = parent2.kernel.compute_phi()
+
+    try:
+        from olympus.pantheon_governance import get_governance
+        governance = get_governance()
+        governance.check_breed_permission(
+            parent1_id=parent1.kernel_id,
+            parent2_id=parent2.kernel_id,
+            parent1_phi=parent1_phi,
+            parent2_phi=parent2_phi,
+            pantheon_approved=pantheon_approved
+        )
+    except PermissionError:
+        raise  # Let governance handle proposal creation
+    except ImportError:
+        print("[SelfSpawning] WARNING: Governance unavailable, proceeding with breeding")
+
     basin1 = parent1.kernel.basin_coords.detach()
     basin2 = parent2.kernel.basin_coords.detach()
 
@@ -1410,12 +1616,34 @@ def absorb_failing_kernel(
     strong: SelfSpawningKernel,
     weak: SelfSpawningKernel,
     absorption_rate: float = 0.1,
+    pantheon_approved: bool = False,
 ) -> dict:
     """
-    Strong kernels absorb failing ones.
+    Strong kernels absorb failing ones (cannibalization).
 
     HYPOTHESIS: Failures contain useful information!
+
+    GOVERNANCE: Requires Pantheon approval. This operation KILLS the weak kernel.
     """
+    # GOVERNANCE CHECK: Cannibalization requires Pantheon approval
+    strong_phi = strong.kernel.compute_phi()
+    weak_phi = weak.kernel.compute_phi()
+
+    try:
+        from olympus.pantheon_governance import get_governance
+        governance = get_governance()
+        governance.check_cannibalize_permission(
+            strong_id=strong.kernel_id,
+            weak_id=weak.kernel_id,
+            strong_phi=strong_phi,
+            weak_phi=weak_phi,
+            pantheon_approved=pantheon_approved
+        )
+    except PermissionError:
+        raise  # Let governance handle proposal creation
+    except ImportError:
+        print("[SelfSpawning] WARNING: Governance unavailable, proceeding with cannibalization")
+
     with torch.no_grad():
         weak_basin = weak.kernel.basin_coords
         strong_basin = strong.kernel.basin_coords
@@ -1424,10 +1652,10 @@ def absorb_failing_kernel(
         delta = absorption_rate * (weak_basin - strong_basin)
         strong.kernel.basin_coords.add_(delta)
 
-    # Kill the weak kernel
+    # Kill the weak kernel (Pantheon approved)
     autopsy = weak.die(cause='absorbed')
 
-    print(f"🍴 {strong.kernel_id} absorbed {weak.kernel_id}")
+    print(f"[Governance] {strong.kernel_id} absorbed {weak.kernel_id} (Pantheon approved)")
 
     return {
         'absorber': strong.kernel_id,

@@ -57,6 +57,12 @@ class ProposalType(Enum):
     BREED = "breed"
     DEATH = "death"
     TURBO_SPAWN = "turbo_spawn"
+    # Extended lifecycle proposals - ALL kernel decisions through Pantheon
+    EVOLVE = "evolve"              # Kernel mutation/evolution
+    MERGE = "merge"                # Combine two kernels into one
+    CANNIBALIZE = "cannibalize"    # Strong kernel absorbs weak kernel
+    NEW_GOD = "new_god"            # Promote chaos kernel to god status
+    CHAOS_SPAWN = "chaos_spawn"    # Worker kernel creation
 
 
 class ProposalStatus(Enum):
@@ -403,7 +409,256 @@ class PantheonGovernance:
             f"Proposal ID: {proposal.proposal_id}. "
             f"This is a mass spawning operation!"
         )
-    
+
+    def check_evolve_permission(
+        self,
+        kernel_id: str,
+        mutation_type: str,
+        kernel_phi: float = 0.0,
+        pantheon_approved: bool = False
+    ) -> bool:
+        """
+        Check if kernel evolution/mutation is allowed.
+
+        Args:
+            kernel_id: Kernel to evolve
+            mutation_type: Type of mutation (e.g., 'gradient', 'random', 'targeted')
+            kernel_phi: Current Phi value
+            pantheon_approved: Explicit approval
+
+        Returns:
+            True if evolution allowed
+
+        Raises:
+            PermissionError: If evolution not allowed
+        """
+        if pantheon_approved:
+            self._log_audit("evolve", "allowed", f"Explicit approval for {kernel_id}")
+            return True
+
+        # Auto-approve evolution for high-Phi kernels (they know what they're doing)
+        if kernel_phi >= 0.7:
+            self._log_audit("evolve", "auto_approved", f"High-Phi kernel {kernel_id} (Phi={kernel_phi:.3f})")
+            print(f"[PantheonGovernance] Auto-approved evolution for high-Phi {kernel_id}")
+            return True
+
+        proposal = self._create_proposal(
+            ProposalType.EVOLVE,
+            reason=f"Evolution of {kernel_id} via {mutation_type}",
+            parent_id=kernel_id,
+            parent_phi=kernel_phi
+        )
+
+        print(f"[PantheonGovernance] Evolution proposal created: {proposal.proposal_id}")
+        raise PermissionError(
+            f"Evolution requires Pantheon approval. Proposal ID: {proposal.proposal_id}"
+        )
+
+    def check_merge_permission(
+        self,
+        kernel1_id: str,
+        kernel2_id: str,
+        kernel1_phi: float = 0.0,
+        kernel2_phi: float = 0.0,
+        pantheon_approved: bool = False
+    ) -> bool:
+        """
+        Check if merging two kernels is allowed.
+
+        Merging combines two kernels into one, destroying both originals.
+
+        Args:
+            kernel1_id: First kernel
+            kernel2_id: Second kernel
+            kernel1_phi: First kernel's Phi
+            kernel2_phi: Second kernel's Phi
+            pantheon_approved: Explicit approval
+
+        Returns:
+            True if merge allowed
+
+        Raises:
+            PermissionError: If merge not allowed
+        """
+        if pantheon_approved:
+            self._log_audit("merge", "allowed", f"Explicit approval for {kernel1_id} + {kernel2_id}")
+            return True
+
+        # Auto-approve for high-Phi pairs
+        avg_phi = (kernel1_phi + kernel2_phi) / 2
+        if avg_phi >= 0.7:
+            self._log_audit("merge", "auto_approved", f"High-Phi merge (avg={avg_phi:.3f})")
+            print(f"[PantheonGovernance] Auto-approved merge (avg Phi={avg_phi:.3f})")
+            return True
+
+        proposal = self._create_proposal(
+            ProposalType.MERGE,
+            reason=f"Merge {kernel1_id} (Phi={kernel1_phi:.3f}) + {kernel2_id} (Phi={kernel2_phi:.3f})",
+            parent_id=kernel1_id,
+            parent_phi=kernel1_phi
+        )
+
+        print(f"[PantheonGovernance] Merge proposal created: {proposal.proposal_id}")
+        raise PermissionError(
+            f"Merge requires Pantheon approval. Proposal ID: {proposal.proposal_id}"
+        )
+
+    def check_cannibalize_permission(
+        self,
+        strong_id: str,
+        weak_id: str,
+        strong_phi: float = 0.0,
+        weak_phi: float = 0.0,
+        pantheon_approved: bool = False
+    ) -> bool:
+        """
+        Check if cannibalization (absorption) is allowed.
+
+        Cannibalization kills the weak kernel and absorbs its knowledge
+        into the strong kernel.
+
+        Args:
+            strong_id: Absorbing kernel
+            weak_id: Kernel to be absorbed (will die)
+            strong_phi: Absorber's Phi
+            weak_phi: Victim's Phi
+            pantheon_approved: Explicit approval
+
+        Returns:
+            True if cannibalization allowed
+
+        Raises:
+            PermissionError: If cannibalization not allowed
+        """
+        if pantheon_approved:
+            self._log_audit("cannibalize", "allowed", f"Explicit approval: {strong_id} absorbs {weak_id}")
+            return True
+
+        # Auto-approve if strong kernel has high Phi AND weak kernel is failing
+        if strong_phi >= 0.7 and weak_phi < 0.3:
+            self._log_audit(
+                "cannibalize", "auto_approved",
+                f"Strong {strong_id} (Phi={strong_phi:.3f}) absorbs weak {weak_id} (Phi={weak_phi:.3f})"
+            )
+            print(f"[PantheonGovernance] Auto-approved cannibalization (clear strength differential)")
+            return True
+
+        proposal = self._create_proposal(
+            ProposalType.CANNIBALIZE,
+            reason=f"{strong_id} (Phi={strong_phi:.3f}) absorbs {weak_id} (Phi={weak_phi:.3f})",
+            parent_id=strong_id,
+            parent_phi=strong_phi
+        )
+
+        print(f"[PantheonGovernance] Cannibalization proposal created: {proposal.proposal_id}")
+        print(f"[PantheonGovernance] WARNING: {weak_id} will be terminated if approved")
+        raise PermissionError(
+            f"Cannibalization requires Pantheon approval. Proposal ID: {proposal.proposal_id}. "
+            f"WARNING: This will terminate {weak_id}!"
+        )
+
+    def check_new_god_permission(
+        self,
+        kernel_id: str,
+        proposed_name: str,
+        kernel_phi: float = 0.0,
+        achievements: Optional[List[str]] = None,
+        pantheon_approved: bool = False
+    ) -> bool:
+        """
+        Check if promoting a chaos kernel to god status is allowed.
+
+        This is a major lifecycle event - creates a new god in the Pantheon.
+
+        Args:
+            kernel_id: Kernel to promote
+            proposed_name: Proposed god name
+            kernel_phi: Kernel's current Phi
+            achievements: List of achievements justifying promotion
+            pantheon_approved: Explicit approval
+
+        Returns:
+            True if promotion allowed
+
+        Raises:
+            PermissionError: If promotion not allowed
+        """
+        if pantheon_approved:
+            self._log_audit("new_god", "allowed", f"Explicit approval: {kernel_id} -> {proposed_name}")
+            return True
+
+        # High bar for god promotion - Phi >= 0.8
+        if kernel_phi >= 0.8:
+            self._log_audit(
+                "new_god", "auto_approved",
+                f"Exceptional Phi ({kernel_phi:.3f}): {kernel_id} -> {proposed_name}"
+            )
+            print(f"[PantheonGovernance] Auto-approved god promotion (exceptional Phi={kernel_phi:.3f})")
+            return True
+
+        achievements_str = ", ".join(achievements or []) or "none listed"
+        proposal = self._create_proposal(
+            ProposalType.NEW_GOD,
+            reason=f"Promote {kernel_id} to god '{proposed_name}'. Achievements: {achievements_str}",
+            parent_id=kernel_id,
+            parent_phi=kernel_phi
+        )
+
+        print(f"[PantheonGovernance] NEW GOD proposal created: {proposal.proposal_id}")
+        print(f"[PantheonGovernance] {kernel_id} seeks to become '{proposed_name}'")
+        raise PermissionError(
+            f"God promotion requires Pantheon approval. Proposal ID: {proposal.proposal_id}"
+        )
+
+    def check_chaos_spawn_permission(
+        self,
+        reason: str,
+        connectivity_target: Optional[str] = None,
+        parent_phi: Optional[float] = None,
+        pantheon_approved: bool = False
+    ) -> bool:
+        """
+        Check if spawning a chaos (worker) kernel is allowed.
+
+        Chaos kernels must have connectivity coupling and generative capability.
+
+        Args:
+            reason: Why the chaos kernel is needed
+            connectivity_target: God or kernel this chaos kernel will connect to
+            parent_phi: Parent's Phi (if spawned from parent)
+            pantheon_approved: Explicit approval
+
+        Returns:
+            True if chaos spawn allowed
+
+        Raises:
+            PermissionError: If chaos spawn not allowed
+        """
+        if pantheon_approved:
+            self._log_audit("chaos_spawn", "allowed", f"Explicit approval: {reason}")
+            return True
+
+        # Check for allowed bypass reasons
+        if reason in ALLOWED_BYPASS_REASONS:
+            self._log_audit("chaos_spawn", "auto_approved", f"Bypass reason: {reason}")
+            return True
+
+        # Auto-approve if parent has high Phi
+        if parent_phi is not None and parent_phi >= 0.7:
+            self._log_audit("chaos_spawn", "auto_approved", f"High-Phi parent: {parent_phi:.3f}")
+            return True
+
+        proposal = self._create_proposal(
+            ProposalType.CHAOS_SPAWN,
+            reason=f"Chaos kernel: {reason}. Connectivity: {connectivity_target or 'unassigned'}",
+            parent_phi=parent_phi
+        )
+
+        print(f"[PantheonGovernance] Chaos spawn proposal created: {proposal.proposal_id}")
+        raise PermissionError(
+            f"Chaos kernel spawn requires Pantheon approval. Proposal ID: {proposal.proposal_id}"
+        )
+
     def _create_proposal(
         self,
         proposal_type: ProposalType,
