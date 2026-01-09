@@ -33,10 +33,19 @@ CREATE TABLE IF NOT EXISTS learned_words (
     is_integrated BOOLEAN DEFAULT FALSE  -- Whether word is integrated into tokenizer
 );
 
-CREATE INDEX idx_learned_word ON learned_words(word);
-CREATE INDEX idx_learned_phi ON learned_words(avg_phi DESC);
-CREATE INDEX idx_learned_source ON learned_words(source);
-CREATE INDEX idx_learned_integrated ON learned_words(is_integrated);
+-- Add is_integrated column if it doesn't exist (migration for existing tables)
+DO $$ 
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'learned_words' AND column_name = 'is_integrated') THEN
+        ALTER TABLE learned_words ADD COLUMN is_integrated BOOLEAN DEFAULT FALSE;
+    END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_learned_word ON learned_words(word);
+CREATE INDEX IF NOT EXISTS idx_learned_phi ON learned_words(avg_phi DESC);
+CREATE INDEX IF NOT EXISTS idx_learned_source ON learned_words(source);
+CREATE INDEX IF NOT EXISTS idx_learned_integrated ON learned_words(is_integrated);
 
 -- Vocabulary Observations (raw observations before aggregation)
 -- NOTE: This is the canonical schema. Column names align with Python code and SQL functions.
