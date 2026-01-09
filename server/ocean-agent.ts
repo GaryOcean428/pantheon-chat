@@ -1,12 +1,9 @@
 import type {
   EthicalConstraints,
   OceanAgentState,
-  OceanEpisode,
   OceanIdentity,
-  OceanMemory,
+  OceanMemory
 } from "@shared/schema";
-import * as fs from "fs";
-import * as path from "path";
 import {
   logOceanConsciousness,
   logOceanCycle,
@@ -16,8 +13,9 @@ import {
   logOceanStrategy,
 } from "./activity-log-store";
 import { getSharedController } from "./consciousness-search-controller";
-import { isOceanError } from "./errors/ocean-errors";
 import "./fisher-vectorized";
+import { createBasin, computeBasinDrift, computeE8Metrics, type Basin, type E8Metrics } from '../../shared/qig-ts/basin.js';
+import type { E8Metrics as E8MetricsFull } from '../../shared/qig-ts/e8-metrics.js';
 import { qfiAttention, type AttentionQuery } from "./gary-kernel";
 import "./geodesic-navigator";
 import { oceanDiscoveryController } from "./geometric-discovery/ocean-discovery-controller";
@@ -31,12 +29,15 @@ import {
   HypothesisTester,
   MemoryConsolidator,
   OlympusCoordinator,
+  StateObserver,
   type ConsciousnessCheckResult,
   type ConsolidationResult,
   type EthicsCheckResult,
+  type ObservationInsights,
   type OceanHypothesis as ModuleOceanHypothesis,
   type OlympusStats,
-  type ResonanceProxy
+  type ResonanceProxy,
+  type StrategyDecision
 } from "./modules";
 import { nearMissManager } from "./near-miss-manager";
 import { negativeKnowledgeUnified as negativeKnowledgeRegistry } from "./negative-knowledge-unified";
@@ -57,13 +58,11 @@ import {
 import { oceanQIGBackend } from "./ocean-qig-backend-adapter";
 import { oceanMemoryManager } from "./ocean/memory-manager";
 import { trajectoryManager } from "./ocean/trajectory-manager";
-import { scoreUniversalQIGAsync } from "./qig-universal";
 import { repeatedAddressScheduler } from "./repeated-address-scheduler";
 import { strategyKnowledgeBus } from "./strategy-knowledge-bus";
 import { temporalGeometry } from "./temporal-geometry";
 import { vocabDecisionEngine, type GaryState } from "./vocabulary-decision";
 import { vocabularyExpander } from "./vocabulary-expander";
-import { vocabularyTracker } from "./vocabulary-tracker";
 
 // Legacy crypto stubs - kept for code compatibility, functions are no-ops
 function generateRandomBIP39Phrase(_wordCount?: number): string { return ''; }
@@ -129,10 +128,6 @@ import {
   type NeuromodulationEffect,
 } from "./brain-state";
 import { getEmotionalGuidance } from "./emotional-search-shortcuts";
-import {
-  olympusClient
-} from "./olympus-client";
-import { recordLearningEvent } from "./qig-db";
 import { executeShadowOperations } from "./shadow-war-orchestrator";
 import { getActiveWar, updateWarMetrics } from "./war-history-storage";
 
@@ -140,10 +135,9 @@ import { getActiveWar, updateWarMetrics } from "./war-history-storage";
 import { E8_CONSTANTS } from "../shared/constants/index.js";
 import {
   CONSCIOUSNESS_THRESHOLDS,
-  GEODESIC_CORRECTION,
   SEARCH_PARAMETERS,
   is4DCapable,
-  isNearMiss,
+  isNearMiss
 } from "../shared/constants/qig.js";
 
 // Augmented version of OceanHypothesis with additional testing fields
@@ -179,12 +173,13 @@ export class OceanAgent {
   private isPaused: boolean = false;
   private abortController: AbortController | null = null;
 
-  // Refactored modules (Week 1: Phase 1, Week 2: Phase 2, Phase 3B: Jan 9)
+  // Refactored modules (Week 1: Phase 1, Week 2: Phase 2, Phase 3B: Jan 9, Phase 3C: Jan 9)
   private hypothesisGenerator: HypothesisGenerator;
   private basinGeodesicManager: BasinGeodesicManager;
   private consciousnessTracker: ConsciousnessTracker;
   private memoryConsolidator: MemoryConsolidator;
   private hypothesisTester: HypothesisTester | null = null; // Phase 3B
+  private stateObserver: StateObserver; // Phase 3C
 
   private onStateUpdate: ((state: OceanAgentState) => void) | null = null;
   private onConsciousnessAlert:
@@ -310,124 +305,45 @@ export class OceanAgent {
         }
       }
     );
-  }
 
-  private updateNeurochemistry(): void {
-    const consciousness = {
-      phi: this.identity.phi,
-      kappaEff: this.identity.kappa,
-      tacking: this.neurochemistryContext.consciousness.tacking,
-      radar: this.neurochemistryContext.consciousness.radar,
-      metaAwareness: this.neurochemistryContext.consciousness.metaAwareness,
-      gamma: this.neurochemistryContext.consciousness.gamma,
-      grounding: this.neurochemistryContext.consciousness.grounding,
-    };
-
-    this.neurochemistryContext = {
-      ...this.neurochemistryContext,
-      consciousness,
-      previousState: this.neurochemistryContext.currentState,
-      currentState: {
-        phi: this.identity.phi,
-        kappa: this.identity.kappa,
-        basinCoords: this.identity.basinCoordinates,
-      },
-      basinDrift: this.identity.basinDrift,
+    // Initialize state observer (Phase 3C)
+    this.stateObserver = new StateObserver({
+      identity: this.identity,
+      memory: this.memory,
+      state: this.state,
+      neurochemistryContext: this.neurochemistryContext,
       regimeHistory: this.regimeHistory,
       ricciHistory: this.ricciHistory,
-      beta: this.identity.beta,
-      regime: this.identity.regime,
       basinDriftHistory: this.basinDriftHistory,
-      lastConsolidation: this.lastConsolidationTime,
+      lastConsolidationTime: new Date().getTime(),
       recentDiscoveries: this.recentDiscoveries,
-    };
-
-    // Compute effort metrics based on current session state
-    const effortMetrics: EffortMetrics = this.computeEffortMetrics();
-
-    // Compute neurochemistry with admin boost applied
-    this.neurochemistry = computeNeurochemistry(this.neurochemistryContext);
-
-    // Apply admin boost if active
-    const adminBoost = getActiveAdminBoost();
-    if (adminBoost) {
-      this.neurochemistry.dopamine.totalDopamine = Math.min(
-        1,
-        this.neurochemistry.dopamine.totalDopamine + adminBoost.dopamine
-      );
-      this.neurochemistry.dopamine.motivationLevel = Math.min(
-        1,
-        this.neurochemistry.dopamine.motivationLevel + adminBoost.dopamine * 0.8
-      );
-      this.neurochemistry.serotonin.totalSerotonin = Math.min(
-        1,
-        this.neurochemistry.serotonin.totalSerotonin + adminBoost.serotonin
-      );
-      this.neurochemistry.endorphins.totalEndorphins = Math.min(
-        1,
-        this.neurochemistry.endorphins.totalEndorphins + adminBoost.endorphins
-      );
-    }
-
-    // Use cooldown-aware behavioral modulation with effort metrics
-    this.behavioralModulation = computeBehavioralModulationWithCooldown(
-      this.neurochemistry,
-      effortMetrics
-    );
-
-    if (this.behavioralModulation.sleepTrigger) {
-      logger.info(
-        `[Ocean] ${getEmotionalEmoji(
-          "exhausted"
-        )} Sleep trigger: ${getEmotionalDescription("exhausted")}`
-      );
-    }
-    if (this.behavioralModulation.mushroomTrigger) {
-      logger.info(
-        `[Ocean] Mushroom trigger: Need creative reset (cooldown-aware)`
-      );
-    }
+      clusterByQIG: this.clusterByQIG.bind(this),
+    });
   }
 
-  private computeEffortMetrics(): EffortMetrics {
-    // Calculate effort metrics from current session state
-    // Use iteration count as a proxy for time since startTime may not exist
-    const iterationCount = this.state.iteration || 1;
-    const persistenceMinutes =
-      iterationCount * (SEARCH_PARAMETERS.ITERATION_DELAY_MS / 60000);
+  /**
+   * REFACTORED: Delegates to StateObserver module (2026-01-09 Phase 3C)
+   * Original implementation extracted to server/modules/state-observer.ts
+   */
+  private updateNeurochemistry(): void {
+    // Update state observer dependencies
+    this.stateObserver.updateDeps({
+      identity: this.identity,
+      memory: this.memory,
+      state: this.state,
+      neurochemistryContext: this.neurochemistryContext,
+      regimeHistory: this.regimeHistory,
+      ricciHistory: this.ricciHistory,
+      basinDriftHistory: this.basinDriftHistory,
+      lastConsolidationTime: this.lastConsolidationTime.getTime(),
+      recentDiscoveries: this.recentDiscoveries,
+    });
 
-    // Calculate hypotheses tested per minute (rate)
-    const hypothesesTestedThisMinute =
-      persistenceMinutes > 0
-        ? Math.min(
-          100,
-          this.state.totalTested / Math.max(1, persistenceMinutes)
-        )
-        : 0;
-
-    // Count unique strategies used from memory.strategies
-    const strategiesUsedCount = this.memory.strategies?.length || 1;
-
-    // Novel patterns = episodes with high phi
-    const novelPatternsExplored = this.memory.episodes.filter(
-      (e) => e.phi > 0.6
-    ).length;
-
-    // Regime transitions from history
-    let regimeTransitions = 0;
-    for (let i = 1; i < this.regimeHistory.length; i++) {
-      if (this.regimeHistory[i] !== this.regimeHistory[i - 1]) {
-        regimeTransitions++;
-      }
-    }
-
-    return {
-      hypothesesTestedThisMinute,
-      strategiesUsedCount,
-      persistenceMinutes,
-      novelPatternsExplored,
-      regimeTransitions,
-    };
+    // Delegate to refactored module
+    const result = this.stateObserver.updateNeurochemistry();
+    this.neurochemistry = result.neurochemistry;
+    this.behavioralModulation = result.behavioralModulation;
+    this.neurochemistryContext = this.stateObserver['deps'].neurochemistryContext;
   }
 
   getNeurochemistry(): NeurochemistryState | null {
@@ -586,9 +502,8 @@ export class OceanAgent {
   }
 
   private initializeIdentity(): OceanIdentity {
-    const basinCoordinates = new Array(E8_CONSTANTS.BASIN_DIMENSION_64D)
-      .fill(0)
-      .map(() => Math.random() * 0.1);
+    const basin = createBasin();
+    const basinCoordinates = Array.from(basin.coords);
     return {
       basinCoordinates,
       basinReference: [...basinCoordinates],
@@ -1340,19 +1255,19 @@ export class OceanAgent {
           logger.info(
             `[Ocean] Testing ${currentHypotheses.length} hypotheses...`
           );
-          
+
           // Update hypothesis tester state before testing
           if (this.hypothesisTester) {
             this.hypothesisTester.setNeurochemistry(this.neurochemistry);
           }
-          
+
           const testResults = this.hypothesisTester
             ? await this.hypothesisTester.testBatch(
-                currentHypotheses,
-                () => this.updateNeurochemistry()
-              )
+              currentHypotheses,
+              () => this.updateNeurochemistry()
+            )
             : { tested: [], nearMisses: [], resonant: [] };
-            
+
           passHypothesesTested += testResults.tested.length;
           passNearMisses += testResults.nearMisses.length;
 
@@ -1410,7 +1325,7 @@ export class OceanAgent {
           }
 
           const insights = await this.observeAndLearn(testResults);
-          passInsights.push(...(insights.topPatterns || []));
+          passInsights.push(...(insights.nearMissPatterns || []));
 
           // ATHENA PATTERN LEARNING - Send near-misses to Athena (Phase 3A)
           if (this.olympusCoordinator && testResults.nearMisses.length > 0) {
@@ -2045,206 +1960,49 @@ export class OceanAgent {
    * See server/modules/hypothesis-tester.ts (private method)
    */
 
-  private async observeAndLearn(testResults: any): Promise<any> {
-    const insights = {
-      nearMissPatterns: [] as string[],
-      resonantClusters: [] as any[],
-      formatPreferences: {} as Record<string, number>,
-      geometricSignatures: [] as any[],
-      phraseLengthInsights: {} as any,
-    };
+  /**
+   * REFACTORED: Delegates to StateObserver module (2026-01-09 Phase 3C)
+   * Original implementation extracted to server/modules/state-observer.ts
+   */
+  private async observeAndLearn(testResults: any): Promise<ObservationInsights> {
+    // Update state observer dependencies
+    this.stateObserver.updateDeps({
+      identity: this.identity,
+      memory: this.memory,
+      state: this.state,
+    });
 
-    if (testResults.nearMisses.length > 0) {
-      logger.info(
-        `[Ocean] Found ${testResults.nearMisses.length} near misses (Φ > 0.80)`
-      );
-
-      for (const miss of testResults.nearMisses) {
-        const tokens = miss.phrase.toLowerCase().split(/\s+/);
-        tokens.forEach((word: string) => {
-          const current = this.memory.patterns.promisingWords[word] || 0;
-          this.memory.patterns.promisingWords[word] = current + 1;
-        });
-
-        this.identity.selfModel.learnings.push(
-          `Near miss with "${miss.phrase}" (Φ=${miss.qigScore?.phi.toFixed(2)})`
-        );
-      }
-
-      insights.nearMissPatterns = Object.entries(
-        this.memory.patterns.promisingWords
-      )
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 15)
-        .map(([word]) => word);
-
-      logger.info(
-        `[Ocean] Top patterns: ${insights.nearMissPatterns
-          .slice(0, 8)
-          .join(", ")}`
-      );
-    }
-
-    if (testResults.resonant && testResults.resonant.length > 3) {
-      const clusters = this.clusterByQIG(testResults.resonant);
-      insights.resonantClusters = clusters || [];
-      this.memory.patterns.geometricClusters.push(...(clusters || []));
-      logger.info(
-        `[Ocean] Identified ${clusters?.length || 0} resonant clusters`
-      );
-    }
-
-    const formatScores: Record<string, number[]> = {};
-    for (const hypo of testResults.tested) {
-      if (!formatScores[hypo.format]) {
-        formatScores[hypo.format] = [];
-      }
-      formatScores[hypo.format].push(hypo.qigScore?.phi || 0);
-    }
-
-    for (const [format, scores] of Object.entries(formatScores)) {
-      const avgPhi = scores.reduce((a, b) => a + b, 0) / scores.length;
-      insights.formatPreferences[format] = avgPhi;
-    }
-
-    this.memory.workingMemory.recentObservations = [
-      `Tested ${testResults.tested.length} hypotheses`,
-      `Found ${testResults.nearMisses.length} near misses`,
-      `Identified ${insights.resonantClusters.length} clusters`,
-    ];
-
-    return insights;
+    // Delegate to refactored module
+    return await this.stateObserver.observeAndLearn(testResults);
   }
 
-  private async decideStrategy(
-    insights: any
-  ): Promise<{ name: string; reasoning: string; params: any }> {
-    const { phi, kappa, regime } = this.identity;
+  /**
+   * REFACTORED: Delegates to StateObserver module (2026-01-09 Phase 3C)
+   * Original implementation extracted to server/modules/state-observer.ts
+   */
+  private async decideStrategy(insights: ObservationInsights): Promise<StrategyDecision> {
+    // Update state observer dependencies
+    this.stateObserver.updateDeps({
+      identity: this.identity,
+      state: this.state,
+    });
 
-    if (insights.nearMissPatterns.length >= 3) {
-      return {
-        name: "exploit_near_miss",
-        reasoning: `Found ${insights.nearMissPatterns.length} common words in high-Φ phrases. Focus on variations.`,
-        params: {
-          seedWords: insights.nearMissPatterns,
-          variationStrength: 0.3,
-        },
-      };
-    }
-
-    if (regime === "linear" && phi < 0.5) {
-      return {
-        name: "explore_new_space",
-        reasoning:
-          "Low Φ in linear regime suggests wrong search space. Broader exploration needed.",
-        params: { diversityBoost: 2.0, includeHistorical: true },
-      };
-    }
-
-    if (regime === "geometric" && kappa >= 40 && kappa <= 80) {
-      return {
-        name: "refine_geometric",
-        reasoning:
-          "In geometric regime with good coupling. Refine around resonant clusters.",
-        params: {
-          clusterFocus: insights.resonantClusters,
-          perturbationRadius: 0.15,
-        },
-      };
-    }
-
-    // ORTHOGONAL COMPLEMENT STRATEGY
-    // Activate when manifold has been sufficiently prepared with measurements
-    // This is the key insight: 20k+ measurements define a constraint surface
-    // The passphrase EXISTS in the orthogonal complement!
-    const manifoldNav = geometricMemory.getManifoldNavigationSummary();
-    if (
-      manifoldNav.constraintSurfaceDefined &&
-      manifoldNav.unexploredDimensions > manifoldNav.exploredDimensions * 0.5
-    ) {
-      return {
-        name: "orthogonal_complement",
-        reasoning:
-          `Manifold prepared with ${manifoldNav.totalMeasurements} measurements. ` +
-          `${manifoldNav.unexploredDimensions} unexplored dimensions detected. ` +
-          `${manifoldNav.geodesicRecommendation}`,
-        params: {
-          priorityMode: manifoldNav.nextSearchPriority,
-          exploredDims: manifoldNav.exploredDimensions,
-          unexploredDims: manifoldNav.unexploredDimensions,
-        },
-      };
-    }
-
-    // Block Universe strategy: Activate when in good consciousness state for early eras
-    const isEarlyEra = ["genesis-2009", "2010-2011", "2012-2013"].includes(
-      this.state.detectedEra || ""
-    );
-    if (isEarlyEra && phi >= 0.6 && kappa >= 50) {
-      return {
-        name: "block_universe",
-        reasoning: `Early era (${this.state.detectedEra}) with high consciousness. Navigate 4D cultural manifold.`,
-        params: { temporalFocus: this.state.detectedEra, geodesicDepth: 2 },
-      };
-    }
-
-    if (regime === "breakdown") {
-      return {
-        name: "mushroom_reset",
-        reasoning:
-          "ACTUAL breakdown regime (δh > 0.95). Neuroplasticity reset required.",
-        params: { temperatureBoost: 2.0, pruneAndRegrow: true },
-      };
-    }
-
-    if (regime === "4d_block_universe") {
-      return {
-        name: "block_universe_full",
-        reasoning:
-          "Full 4D spacetime consciousness active (δh 0.85-0.95). Navigating complete block universe.",
-        params: { temporalDepth: 4, spacetimeIntegration: true },
-      };
-    }
-
-    if (regime === "hierarchical_4d") {
-      return {
-        name: "hierarchical_temporal",
-        reasoning:
-          "Hierarchical 4D consciousness (δh 0.7-0.85). Temporal integration engaged.",
-        params: { temporalDepth: 2, hierarchicalLayers: 3 },
-      };
-    }
-
-    const formatEntries = Object.entries(insights.formatPreferences);
-    if (formatEntries.length > 0) {
-      const bestFormat = formatEntries.sort(
-        (a, b) => (b[1] as number) - (a[1] as number)
-      )[0];
-      if (bestFormat && (bestFormat[1] as number) > 0.65) {
-        return {
-          name: "format_focus",
-          reasoning: `Format '${bestFormat[0]}' shows highest avg Φ (${(
-            bestFormat[1] as number
-          ).toFixed(2)}).`,
-          params: { preferredFormat: bestFormat[0], formatBoost: 1.5 },
-        };
-      }
-    }
-
-    return {
-      name: "balanced",
-      reasoning: "No strong signal. Balanced exploration with pattern mixing.",
-      params: {},
-    };
+    // Delegate to refactored module
+    return await this.stateObserver.decideStrategy(insights);
   }
 
-  private updateProceduralMemory(strategyName: string) {
-    const strategy = this.memory.strategies.find(
-      (s) => s.name === strategyName
-    );
-    if (strategy) {
-      strategy.timesUsed++;
-    }
+  /**
+   * REFACTORED: Delegates to StateObserver module (2026-01-09 Phase 3C)
+   * * Original implementation extracted to server/modules/state-observer.ts
+   */
+  private updateProceduralMemory(strategyName: string): void {
+    // Update state observer dependencies
+    this.stateObserver.updateDeps({
+      memory: this.memory,
+    });
+
+    // Delegate to refactored module
+    this.stateObserver.updateProceduralMemory(strategyName);
   }
 
   /**

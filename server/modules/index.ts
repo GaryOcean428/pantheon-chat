@@ -32,15 +32,20 @@ export {
 	type ConsolidationResult
 } from "./memory-consolidator";
 
-// Phase 3: Olympus Pantheon Coordination & Hypothesis Testing
+// Phase 3: Olympus Pantheon Coordination, Hypothesis Testing & State Observation
+export {
+	HypothesisTester, type ResonanceProxyCallback, type TestBatchResult
+} from "./hypothesis-tester";
 export {
 	OlympusCoordinator, type OlympusStats, type OlympusWarMode
 } from "./olympus-coordinator";
 export {
-	HypothesisTester,
-	type TestBatchResult,
-	type ResonanceProxyCallback
-} from "./hypothesis-tester";
+	StateObserver,
+	type EffortMetrics,
+	type ObservationInsights,
+	type StateObserverDependencies,
+	type StrategyDecision
+} from "./state-observer";
 // TODO: Phase 1 (Week 1)
 // export { GeodesicNavigator } from "./geodesic-navigator";
 
