@@ -41,6 +41,20 @@ except ImportError:
     DIMENSION_NORMALIZER_AVAILABLE = False
     normalize_basin_dimension = None
 
+# Import asymmetric QFI for directional attention
+try:
+    from asymmetric_qfi import (
+        directional_fisher_information,
+        regime_from_phi,
+        KAPPA_STAR,
+    )
+    ASYMMETRIC_QFI_AVAILABLE = True
+except ImportError:
+    ASYMMETRIC_QFI_AVAILABLE = False
+    directional_fisher_information = None
+    regime_from_phi = None
+    KAPPA_STAR = 64.21
+
 logger = logging.getLogger(__name__)
 
 # Standard basin dimension for QIG
@@ -303,75 +317,109 @@ class TrajectoryDecoder:
     def _compute_qfi_attention_weights(
         self,
         candidate_basin: np.ndarray,
-        trajectory: List[np.ndarray]
+        trajectory: List[np.ndarray],
+        asymmetric: bool = True,
+        phi_value: float = 0.5
     ) -> np.ndarray:
         """
         Compute QFI attention weights over trajectory positions.
-        
+
         w_i = recency_i * exp(-d_QFI(candidate, basin_i) / T)
-        
+
         Combines:
         - Recency bias (recent basins more important)
         - QFI proximity (geometric similarity)
-        
+        - **Asymmetric option**: d(candidate→basin_i) != d(basin_i→candidate)
+
         Args:
             candidate_basin: Token basin to score
             trajectory: Past basin positions
-        
+            asymmetric: If True, use directional Fisher information (d_ij != d_ji)
+            phi_value: Current phi for regime modulation (affects kappa_eff)
+
         Returns:
             Attention weights [trajectory_length]
         """
         N = len(trajectory)
         weights = np.zeros(N)
-        
+
+        # Regime-modulated temperature for asymmetric attention
+        if asymmetric and ASYMMETRIC_QFI_AVAILABLE:
+            regime = regime_from_phi(phi_value)
+            if regime == "linear":
+                kappa_eff = KAPPA_STAR * 0.3  # Weak coupling
+            elif regime == "breakdown":
+                kappa_eff = KAPPA_STAR * 0.5  # Unstable coupling
+            else:
+                kappa_eff = KAPPA_STAR  # Optimal geometric regime
+            temperature = kappa_eff / 100.0  # Scale to attention temperature
+        else:
+            temperature = self.attention_temperature
+
         for i, basin_i in enumerate(trajectory):
             # Recency factor: exp(-λ * (N - i - 1))
             recency = np.exp(-self.recency_decay * (N - i - 1))
-            
+
             # QFI attention: exp(-d_QFI / T)
-            dist = fisher_rao_distance(candidate_basin, basin_i)
-            qfi_weight = np.exp(-dist / self.attention_temperature)
-            
+            if asymmetric and ASYMMETRIC_QFI_AVAILABLE:
+                # ASYMMETRIC: distance from candidate TO trajectory basin
+                # This captures "how well candidate can see basin_i"
+                dist = directional_fisher_information(candidate_basin, basin_i)
+            else:
+                # SYMMETRIC: standard Fisher-Rao distance
+                dist = fisher_rao_distance(candidate_basin, basin_i)
+
+            qfi_weight = np.exp(-dist / temperature)
+
             weights[i] = recency * qfi_weight
-        
+
         # Normalize
         total = np.sum(weights)
         if total > 1e-10:
             weights = weights / total
-        
+
         return weights
     
     def _compute_trajectory_compatibility(
         self,
         candidate_basin: np.ndarray,
-        trajectory: List[np.ndarray]
+        trajectory: List[np.ndarray],
+        asymmetric: bool = True,
+        phi_value: float = 0.5
     ) -> float:
         """
         Compute how well candidate continues the trajectory.
-        
+
         Uses QFI-weighted average similarity over trajectory positions.
         This is memory - how aligned is candidate with trajectory history?
-        
+
         Args:
             candidate_basin: Token basin to score
             trajectory: Past basin positions
-        
+            asymmetric: If True, use directional Fisher information
+            phi_value: Current phi for regime modulation
+
         Returns:
             Compatibility score [0, 1]
         """
         if not trajectory:
             return 0.5
-        
-        # Get attention weights
-        weights = self._compute_qfi_attention_weights(candidate_basin, trajectory)
-        
+
+        # Get attention weights (with asymmetric option)
+        weights = self._compute_qfi_attention_weights(
+            candidate_basin, trajectory, asymmetric=asymmetric, phi_value=phi_value
+        )
+
         # Weighted average of inverse distances
         compatibility = 0.0
         for i, basin_i in enumerate(trajectory):
-            dist = fisher_rao_distance(candidate_basin, basin_i)
+            if asymmetric and ASYMMETRIC_QFI_AVAILABLE:
+                dist = directional_fisher_information(candidate_basin, basin_i)
+            else:
+                dist = fisher_rao_distance(candidate_basin, basin_i)
             similarity = 1.0 - (dist / np.pi)  # Normalize to [0, 1]
             compatibility += weights[i] * similarity
-        
+
         return compatibility
     
     def _compute_attractor_pull(

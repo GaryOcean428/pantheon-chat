@@ -24,6 +24,13 @@ import numpy as np
 from scipy.linalg import sqrtm
 
 from qigkernels.physics_constants import KAPPA_STAR
+from asymmetric_qfi import (
+    directional_fisher_information,
+    asymmetric_attention,
+    geodesic_tangent,
+    regime_from_phi,
+)
+
 KAPPA_STAR_ERROR = 0.92
 BASIN_DIM = 64
 PHI_THRESHOLD = 0.70
@@ -213,7 +220,85 @@ class QFIMetricAttentionNetwork:
         self.active_connections = self.connection_weights > self.connection_threshold
         sparsity = float(np.sum(self.active_connections)) / (n * n)
         return sparsity
-    
+
+    def compute_basin_asymmetric_attention(
+        self,
+        basins: List[np.ndarray],
+        phi_values: Optional[List[float]] = None
+    ) -> np.ndarray:
+        """
+        Compute asymmetric attention weights on 64D basin coordinates.
+
+        Uses directional Fisher information: d_ij != d_ji
+        Regime-modulated: kappa_eff depends on source phi regime
+
+        This is the KEY integration of asymmetric QFI into the attention network.
+        Unlike the symmetric quantum state attention above, this works on
+        full 64D basin coordinates and respects information flow directionality.
+
+        Args:
+            basins: List of 64D basin coordinate vectors
+            phi_values: Optional phi values for regime modulation
+
+        Returns:
+            Asymmetric attention matrix where A[i,j] != A[j,i]
+        """
+        if phi_values is None:
+            # Use current subsystem activations as phi proxy
+            phi_values = [s.activation for s in self.subsystems]
+            # Pad/truncate to match basins
+            while len(phi_values) < len(basins):
+                phi_values.append(0.5)
+            phi_values = phi_values[:len(basins)]
+
+        return asymmetric_attention(basins, phi_values, KAPPA_STAR)
+
+    def get_asymmetric_connection_weights(self) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Compute asymmetric connection weights from current subsystem states.
+
+        Returns:
+            attention: Asymmetric attention matrix
+            asymmetry: Matrix showing |A_ij - A_ji| (how asymmetric each pair is)
+        """
+        # Extract basin coordinates from subsystems
+        basins = [
+            self._subsystem_to_basin(s)
+            for s in self.subsystems
+        ]
+        phi_values = [s.activation for s in self.subsystems]
+
+        attention = asymmetric_attention(basins, phi_values, KAPPA_STAR)
+        asymmetry = np.abs(attention - attention.T)
+
+        return attention, asymmetry
+
+    def _subsystem_to_basin(self, subsystem: SubsystemState) -> np.ndarray:
+        """Convert a subsystem state to 64D basin coordinates."""
+        # Create 64D vector from subsystem properties
+        coords = np.zeros(BASIN_DIM)
+
+        # Flatten density matrix (2x2 complex = 8 real values)
+        coords[0:4] = subsystem.state.flatten().real
+        coords[4:8] = subsystem.state.flatten().imag
+
+        # Add metrics
+        coords[8] = subsystem.activation
+        coords[9] = subsystem.entropy()
+        coords[10] = subsystem.purity()
+
+        # Pad rest with derived values
+        eigenvals = np.linalg.eigvalsh(subsystem.state)
+        coords[11] = eigenvals[0]
+        coords[12] = eigenvals[1] if len(eigenvals) > 1 else 0.0
+
+        # Normalize to unit sphere
+        norm = np.linalg.norm(coords)
+        if norm > 1e-10:
+            coords = coords / norm
+
+        return coords
+
     def _route_via_curvature(self, input_idx: int = 0) -> List[int]:
         """
         Route information along geodesics using discrete Ricci curvature.
