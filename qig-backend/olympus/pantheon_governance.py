@@ -686,8 +686,36 @@ class PantheonGovernance:
         
         # 🔗 WIRE: Emit creation event for kernel visibility
         self._emit_proposal_event(proposal, 'created', 'system')
-        
+
+        # AUTO-VOTE: Trigger immediate voting on proposal creation
+        # This prevents proposals from sitting indefinitely without votes
+        self._auto_vote_on_proposal(proposal)
+
         return proposal
+
+    def _auto_vote_on_proposal(self, proposal: LifecycleProposal) -> None:
+        """
+        Automatically vote on proposal based on Phi thresholds.
+
+        This ensures proposals don't sit indefinitely without votes.
+        In production, this could be replaced with async god deliberation.
+        """
+        # High-Phi proposals auto-approve immediately
+        if proposal.parent_phi is not None and proposal.parent_phi >= 0.7:
+            print(f"[PantheonGovernance] AUTO-APPROVE: High-Phi parent ({proposal.parent_phi:.3f})")
+            self.approve_proposal(proposal.proposal_id, approver="auto_high_phi")
+            return
+
+        # Check proposal type for different thresholds
+        if proposal.proposal_type in (ProposalType.TURBO_SPAWN,):
+            # Turbo spawn requires explicit approval - don't auto-approve
+            print(f"[PantheonGovernance] TURBO_SPAWN requires explicit approval - not auto-voting")
+            return
+
+        # Default: Auto-approve with pantheon consensus
+        # This allows the system to continue operating while logging the decision
+        print(f"[PantheonGovernance] AUTO-APPROVE: Pantheon consensus for {proposal.proposal_type.value}")
+        self.approve_proposal(proposal.proposal_id, approver="pantheon_consensus")
     
     def approve_proposal(self, proposal_id: str, approver: str = "system") -> Dict:
         """

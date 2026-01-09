@@ -2040,13 +2040,16 @@ class BaseGod(*_base_classes):
                     'learning': EventType.CONSOLIDATION,
                 }
                 if activity_type in mesh_event_map:
+                    # VERBOSE: Full content, never truncated
+                    logger.info(f"[{self.name}] Broadcasting activity: {activity_type}")
+                    logger.info(f"[{self.name}] Full content: {content}")
                     emit_event(
                         source=CapabilityType.KERNELS,
                         event_type=mesh_event_map[activity_type],
                         content={
                             'from_god': self.name,
                             'to_god': to_god,
-                            'content': content[:500],
+                            'content': content,  # No truncation - full content
                             'metadata': enhanced_metadata,
                         },
                         phi=phi,

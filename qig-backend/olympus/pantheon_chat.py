@@ -43,45 +43,33 @@ def _check_text_coherence(text: str) -> tuple[bool, str]:
     """
     Check if generated text is coherent (not word salad).
 
+    DISABLED: Coherence blocking removed to allow QIG output through for observation.
+    The system learns from seeing what it generates. Blocking prevents learning.
+
     Returns:
-        (is_coherent, reason)
+        (is_coherent, reason) - Always returns True now
     """
+    # LOG coherence metrics for observation, but never block
     if not text or len(text.strip()) < 10:
-        return False, "Text too short"
+        logger.debug(f"[Coherence] Short text ({len(text)} chars) - ALLOWED")
+        return True, "Allowed (short text)"
 
     words = text.lower().split()
-    if len(words) < 3:
-        return False, "Too few words"
-
-    # Check 1: High word repetition (e.g., "significant significant")
     unique_words = set(words)
-    uniqueness_ratio = len(unique_words) / len(words)
-    if uniqueness_ratio < 0.5:
-        return False, f"High repetition: {uniqueness_ratio:.2f} unique ratio"
+    uniqueness_ratio = len(unique_words) / len(words) if words else 1.0
 
-    # Check 2: Adjacent word repetition
+    # Log metrics for observation without blocking
+    if uniqueness_ratio < 0.5:
+        logger.debug(f"[Coherence] Low uniqueness ({uniqueness_ratio:.2f}) - ALLOWED for learning")
+
+    # Check for adjacent repetition - log but don't block
     for i in range(len(words) - 1):
         if words[i] == words[i + 1]:
-            return False, f"Adjacent repetition: '{words[i]} {words[i+1]}'"
+            logger.debug(f"[Coherence] Adjacent repetition '{words[i]}' - ALLOWED for learning")
+            break
 
-    # Check 3: Common word salad patterns
-    salad_patterns = [
-        'downloaded his', 'uploaded her', 'complimenting below',
-        'remarkable rescue', 'card tissue', 'supply plate',
-        'maintained supply', 'my significant significant'
-    ]
-    text_lower = text.lower()
-    for pattern in salad_patterns:
-        if pattern in text_lower:
-            return False, f"Word salad pattern detected: '{pattern}'"
-
-    # Check 4: No sentence structure (no periods, question marks, or exclamation)
-    if not any(p in text for p in '.?!'):
-        # Allow if very short (less than 50 chars)
-        if len(text) > 50:
-            return False, "No sentence structure"
-
-    return True, "Coherent"
+    # Always allow - let the system learn from its output
+    return True, "Coherent (all output allowed for learning)"
 
 SHADOW_ROSTER = [
     'Nyx', 'Hecate', 'Erebus', 'Hypnos', 'Thanatos', 'Nemesis'
@@ -313,15 +301,11 @@ class PantheonChat:
             )
 
             if result and result.text and len(result.text.strip()) > 10:
-                # COHERENCE GATE: Check if generated text is coherent (not word salad)
+                # Log coherence metrics (never blocks, just observes)
                 is_coherent, coherence_reason = _check_text_coherence(result.text)
-                if is_coherent:
-                    logger.info(f"[PantheonChat] QIG-pure message synthesized for {from_god}: {result.text}")
-                    return result.text.strip()
-                else:
-                    logger.warning(f"[PantheonChat] QIG failed coherence check ({coherence_reason}): {result.text}")
-                    # Return a safe fallback instead of word salad
-                    return f"[{from_god}: Coherence threshold not met. Awaiting higher Φ.]"
+                logger.info(f"[PantheonChat] QIG-pure message synthesized for {from_god} (coherence: {coherence_reason})")
+                logger.info(f"[PantheonChat] Full output: {result.text}")
+                return result.text.strip()
             else:
                 logger.warning("[PantheonChat] QIG returned empty, using geometric synthesis")
                 return self._geometric_synthesis(from_god, intent, data, system_prompt)

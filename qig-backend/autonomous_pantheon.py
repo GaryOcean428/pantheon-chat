@@ -98,12 +98,15 @@ class AutonomousPantheon:
         self.operations_executed = 0
         self.db_connection = None
         self._init_database()
-        
+
         # War declaration tracking
         self.near_miss_count = 0
         self.near_miss_targets = {}  # target -> count mapping
         self.hunt_pattern_detected = False
         self.last_war_check = datetime.now()
+
+        # Subscribe to governance events for visibility
+        self._init_governance_subscription()
     
     def _init_database(self):
         """Initialize PostgreSQL connection from DATABASE_URL."""
@@ -121,7 +124,32 @@ class AutonomousPantheon:
             logger.warning("[Pantheon] psycopg2 not installed - database unavailable")
         except Exception as e:
             logger.error(f"[Pantheon] Failed to connect to database: {e}")
-    
+
+    def _init_governance_subscription(self):
+        """Subscribe to governance events via CapabilityMesh."""
+        try:
+            from olympus.capability_mesh import subscribe_to_capability, CapabilityType
+            subscribe_to_capability(CapabilityType.KERNELS, self._handle_governance_event)
+            logger.info("[Pantheon] Subscribed to governance events via CapabilityMesh")
+        except ImportError:
+            logger.warning("[Pantheon] CapabilityMesh not available - running without governance visibility")
+        except Exception as e:
+            logger.warning(f"[Pantheon] Failed to subscribe to governance events: {e}")
+
+    def _handle_governance_event(self, event: dict):
+        """Handle governance events from the CapabilityMesh."""
+        event_type = event.get('event_type', '')
+        content = event.get('content', {})
+
+        # Log all governance events for visibility
+        logger.info(f"[Pantheon] Governance event received: {event_type}")
+        logger.info(f"[Pantheon] Event content: {content}")
+
+        # Track proposal-related events
+        if 'proposal' in str(event_type).lower():
+            proposal_id = content.get('proposal_id', 'unknown')
+            logger.info(f"[Pantheon] Proposal event: {proposal_id} - {event_type}")
+
     async def run_forever(self):
         """Main autonomous loop."""
         self.running = True

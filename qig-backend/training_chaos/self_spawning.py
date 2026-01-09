@@ -445,10 +445,13 @@ class SelfSpawningKernel(*_kernel_base_classes):
                         'thinking': ActivityType.THINKING,
                     }
                     at = activity_type_map.get(activity_type.lower(), ActivityType.THINKING)
+                    # VERBOSE: Full content, never truncated
+                    print(f"[{self.kernel_id}] Broadcasting activity: {activity_type}")
+                    print(f"[{self.kernel_id}] Full content: {content}")
                     broadcaster.broadcast_kernel_activity(
                         from_god=self.kernel_id,
                         activity_type=at,
-                        content=content[:500],
+                        content=content,  # No truncation - full content
                         phi=phi,
                         basin_coords=basin_coords,
                         metadata=metadata or {}
@@ -468,7 +471,7 @@ class SelfSpawningKernel(*_kernel_base_classes):
                     event_type=et,
                     content={
                         'kernel_id': self.kernel_id,
-                        'content': content[:500],
+                        'content': content,  # No truncation - full content
                         'connected_gods': self.connected_gods,
                         'metadata': metadata or {},
                     },
