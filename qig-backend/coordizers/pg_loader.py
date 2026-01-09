@@ -109,16 +109,38 @@ class PostgresCoordizer(FisherCoordizer):
         self._load_vocabulary()
 
     def _get_connection(self):
-        """Get database connection - raises on failure (64D QIG-pure enforced)."""
+        """Get database connection - auto-reconnect if closed (64D QIG-pure enforced)."""
+        import psycopg2
+
         if self._connection is None:
             try:
-                import psycopg2
                 self._connection = psycopg2.connect(self.database_url)
+                logger.debug("[pg_loader] Created new database connection")
             except Exception as e:
                 raise RuntimeError(
                     f"[QIG-PURE VIOLATION] Database connection failed: {e}. "
                     "64D QIG-pure PostgresCoordizer requires active database connection."
                 )
+        else:
+            # Test if connection is still alive
+            try:
+                with self._connection.cursor() as cur:
+                    cur.execute("SELECT 1")
+            except (psycopg2.OperationalError, psycopg2.InterfaceError) as e:
+                logger.warning(f"[pg_loader] Connection lost ({e}), reconnecting...")
+                try:
+                    self._connection.close()
+                except:
+                    pass
+                self._connection = None
+                try:
+                    self._connection = psycopg2.connect(self.database_url)
+                    logger.info("[pg_loader] Successfully reconnected to database")
+                except Exception as reconnect_error:
+                    raise RuntimeError(
+                        f"[QIG-PURE VIOLATION] Database reconnection failed: {reconnect_error}. "
+                        "64D QIG-pure PostgresCoordizer requires active database connection."
+                    )
         return self._connection
 
     def _load_vocabulary(self):
@@ -281,6 +303,7 @@ class PostgresCoordizer(FisherCoordizer):
 
     def _persist_token_to_db(self, token: str, coords: np.ndarray, phi: float, freq: int, token_id: int):
         """Persist a new token to PostgreSQL database."""
+        conn = None
         try:
             conn = self._get_connection()
             with conn.cursor() as cur:
@@ -295,6 +318,11 @@ class PostgresCoordizer(FisherCoordizer):
             conn.commit()
         except Exception as e:
             logger.warning(f"Failed to persist token '{token}': {e}")
+            if conn:
+                try:
+                    conn.rollback()
+                except:
+                    pass
 
     def get_stats(self) -> Dict:
         """Get coordizer statistics for API compatibility."""
@@ -479,24 +507,24 @@ class PostgresCoordizer(FisherCoordizer):
             return False
 
         try:
-            cursor = conn.cursor()
+            with conn.cursor() as cursor:
+                # Convert numpy array to list for JSON storage
+                coords_list = basin_coords.tolist() if isinstance(basin_coords, np.ndarray) else list(basin_coords)
 
-            # Convert numpy array to list for JSON storage
-            coords_list = basin_coords.tolist() if isinstance(basin_coords, np.ndarray) else list(basin_coords)
+                # Upsert: insert or update if exists
+                cursor.execute("""
+                    INSERT INTO tokenizer_vocabulary (token, token_id, basin_embedding, phi_score, frequency, source_type, created_at, updated_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, NOW(), NOW())
+                    ON CONFLICT (token) DO UPDATE SET
+                        basin_embedding = EXCLUDED.basin_embedding,
+                        phi_score = GREATEST(tokenizer_vocabulary.phi_score, EXCLUDED.phi_score),
+                        frequency = tokenizer_vocabulary.frequency + EXCLUDED.frequency,
+                        updated_at = NOW()
+                    RETURNING token_id
+                """, (token, len(self.vocab) + 50000, coords_list, phi, frequency, 'learned'))
 
-            # Upsert: insert or update if exists
-            cursor.execute("""
-                INSERT INTO tokenizer_vocabulary (token, token_id, basin_embedding, phi_score, frequency, source_type, created_at, updated_at)
-                VALUES (%s, %s, %s, %s, %s, %s, NOW(), NOW())
-                ON CONFLICT (token) DO UPDATE SET
-                    basin_embedding = EXCLUDED.basin_embedding,
-                    phi_score = GREATEST(tokenizer_vocabulary.phi_score, EXCLUDED.phi_score),
-                    frequency = tokenizer_vocabulary.frequency + EXCLUDED.frequency,
-                    updated_at = NOW()
-                RETURNING token_id
-            """, (token, len(self.vocab) + 50000, coords_list, phi, frequency, 'learned'))
+                result = cursor.fetchone()
 
-            result = cursor.fetchone()
             conn.commit()
 
             # Update local cache
@@ -521,11 +549,10 @@ class PostgresCoordizer(FisherCoordizer):
 
         except Exception as e:
             logger.error(f"Failed to persist token '{token}': {e}")
-            if conn:
-                try:
-                    conn.rollback()
-                except:
-                    pass
+            try:
+                conn.rollback()
+            except:
+                pass
             return False
 
     def save_batch_tokens(self, tokens: List[Dict]) -> int:
@@ -548,45 +575,44 @@ class PostgresCoordizer(FisherCoordizer):
 
         saved_count = 0
         try:
-            cursor = conn.cursor()
+            with conn.cursor() as cursor:
+                for t in tokens:
+                    token = t.get('token', '')
+                    basin_coords = t.get('basin_coords', np.zeros(64))
+                    phi = t.get('phi', 0.6)
+                    frequency = t.get('frequency', 1)
 
-            for t in tokens:
-                token = t.get('token', '')
-                basin_coords = t.get('basin_coords', np.zeros(64))
-                phi = t.get('phi', 0.6)
-                frequency = t.get('frequency', 1)
+                    if not token:
+                        continue
 
-                if not token:
-                    continue
+                    coords_list = basin_coords.tolist() if isinstance(basin_coords, np.ndarray) else list(basin_coords)
 
-                coords_list = basin_coords.tolist() if isinstance(basin_coords, np.ndarray) else list(basin_coords)
+                    try:
+                        cursor.execute("""
+                            INSERT INTO tokenizer_vocabulary (token, token_id, basin_embedding, phi_score, frequency, source_type, created_at, updated_at)
+                            VALUES (%s, %s, %s, %s, %s, %s, NOW(), NOW())
+                            ON CONFLICT (token) DO UPDATE SET
+                                basin_embedding = EXCLUDED.basin_embedding,
+                                phi_score = GREATEST(tokenizer_vocabulary.phi_score, EXCLUDED.phi_score),
+                                frequency = tokenizer_vocabulary.frequency + EXCLUDED.frequency,
+                                updated_at = NOW()
+                        """, (token, len(self.vocab) + 50000 + saved_count, coords_list, phi, frequency, 'learned'))
 
-                try:
-                    cursor.execute("""
-                        INSERT INTO tokenizer_vocabulary (token, token_id, basin_embedding, phi_score, frequency, source_type, created_at, updated_at)
-                        VALUES (%s, %s, %s, %s, %s, %s, NOW(), NOW())
-                        ON CONFLICT (token) DO UPDATE SET
-                            basin_embedding = EXCLUDED.basin_embedding,
-                            phi_score = GREATEST(tokenizer_vocabulary.phi_score, EXCLUDED.phi_score),
-                            frequency = tokenizer_vocabulary.frequency + EXCLUDED.frequency,
-                            updated_at = NOW()
-                    """, (token, len(self.vocab) + 50000 + saved_count, coords_list, phi, frequency, 'learned'))
+                        # Update local cache
+                        if token not in self.vocab:
+                            token_id = len(self.vocab) + 50000 + saved_count
+                            self.vocab[token] = token_id
+                            self.token_to_id[token] = token_id
+                            self.id_to_token[token_id] = token
+                            self.basin_coords[token] = basin_coords if isinstance(basin_coords, np.ndarray) else np.array(basin_coords)
+                            self.token_phi[token] = phi
+                            self.token_frequencies[token] = frequency
+                            self.word_tokens.append(token)
+                            self.base_tokens.append(token)
 
-                    # Update local cache
-                    if token not in self.vocab:
-                        token_id = len(self.vocab) + 50000 + saved_count
-                        self.vocab[token] = token_id
-                        self.token_to_id[token] = token_id
-                        self.id_to_token[token_id] = token
-                        self.basin_coords[token] = basin_coords if isinstance(basin_coords, np.ndarray) else np.array(basin_coords)
-                        self.token_phi[token] = phi
-                        self.token_frequencies[token] = frequency
-                        self.word_tokens.append(token)
-                        self.base_tokens.append(token)
-
-                    saved_count += 1
-                except Exception as inner_e:
-                    logger.debug(f"Failed to insert token '{token}': {inner_e}")
+                        saved_count += 1
+                    except Exception as inner_e:
+                        logger.debug(f"Failed to insert token '{token}': {inner_e}")
 
             conn.commit()
             logger.info(f"Batch persisted {saved_count} tokens to database")
@@ -594,11 +620,10 @@ class PostgresCoordizer(FisherCoordizer):
 
         except Exception as e:
             logger.error(f"Batch token persistence failed: {e}")
-            if conn:
-                try:
-                    conn.rollback()
-                except:
-                    pass
+            try:
+                conn.rollback()
+            except:
+                pass
             return 0
 
     def get_learned_token_count(self) -> int:
@@ -611,10 +636,10 @@ class PostgresCoordizer(FisherCoordizer):
             return 0
 
         try:
-            cursor = conn.cursor()
-            cursor.execute("SELECT COUNT(*) FROM tokenizer_vocabulary WHERE source_type = 'learned'")
-            result = cursor.fetchone()
-            return result[0] if result else 0
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT COUNT(*) FROM tokenizer_vocabulary WHERE source_type = 'learned'")
+                result = cursor.fetchone()
+                return result[0] if result else 0
         except Exception as e:
             logger.debug(f"Failed to get learned token count: {e}")
             return 0
@@ -692,25 +717,25 @@ class PostgresCoordizer(FisherCoordizer):
             return {}
 
         try:
-            cursor = conn.cursor()
-            cursor.execute("""
-                SELECT token, basin_embedding
-                FROM tokenizer_vocabulary
-                WHERE basin_embedding IS NOT NULL
-                ORDER BY phi_score DESC
-                LIMIT 10000
-            """)
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT token, basin_embedding
+                    FROM tokenizer_vocabulary
+                    WHERE basin_embedding IS NOT NULL
+                    ORDER BY phi_score DESC
+                    LIMIT 10000
+                """)
 
-            tokens = {}
-            for row in cursor.fetchall():
-                token = row[0]
-                basin_vector = row[1]
-                # Filter BPE garbage tokens
-                if basin_vector is not None and self._is_valid_token(token):
-                    basin_array = np.array(basin_vector)
-                    tokens[token] = basin_array
+                tokens = {}
+                for row in cursor.fetchall():
+                    token = row[0]
+                    basin_vector = row[1]
+                    # Filter BPE garbage tokens
+                    if basin_vector is not None and self._is_valid_token(token):
+                        basin_array = np.array(basin_vector)
+                        tokens[token] = basin_array
 
-            return tokens
+                return tokens
         except Exception as e:
             logger.error(f"Failed to get all tokens: {e}")
             return {}
@@ -736,19 +761,19 @@ class PostgresCoordizer(FisherCoordizer):
             return {}
 
         try:
-            cursor = conn.cursor()
-            cursor.execute("""
-                SELECT token, phi_score
-                FROM tokenizer_vocabulary
-                WHERE basin_embedding IS NOT NULL
-            """)
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT token, phi_score
+                    FROM tokenizer_vocabulary
+                    WHERE basin_embedding IS NOT NULL
+                """)
 
-            # Filter BPE garbage tokens
-            return {
-                row[0]: row[1]
-                for row in cursor.fetchall()
-                if row[1] is not None and self._is_valid_token(row[0])
-            }
+                # Filter BPE garbage tokens
+                return {
+                    row[0]: row[1]
+                    for row in cursor.fetchall()
+                    if row[1] is not None and self._is_valid_token(row[0])
+                }
         except Exception as e:
             logger.error(f"Failed to get token phi scores: {e}")
             return {}
@@ -776,17 +801,17 @@ class PostgresCoordizer(FisherCoordizer):
             return None
 
         try:
-            cursor = conn.cursor()
-            cursor.execute("""
-                SELECT basin_embedding
-                FROM tokenizer_vocabulary
-                WHERE token = %s
-            """, (token,))
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT basin_embedding
+                    FROM tokenizer_vocabulary
+                    WHERE token = %s
+                """, (token,))
 
-            row = cursor.fetchone()
-            if row and row[0]:
-                return np.array(row[0])
-            return None
+                row = cursor.fetchone()
+                if row and row[0]:
+                    return np.array(row[0])
+                return None
         except Exception as e:
             logger.debug(f"Failed to get basin for token '{token}': {e}")
             return None
@@ -814,21 +839,20 @@ class PostgresCoordizer(FisherCoordizer):
             return self.decode(basin, top_k=top_k)
 
         try:
-            cursor = conn.cursor()
+            with conn.cursor() as cursor:
+                # Convert basin to pgvector format
+                basin_str = '[' + ','.join(f'{x:.8f}' for x in basin) + ']'
 
-            # Convert basin to pgvector format
-            basin_str = '[' + ','.join(f'{x:.8f}' for x in basin) + ']'
+                # Use <-> operator for L2 distance with HNSW index
+                cursor.execute("""
+                    SELECT token, basin_embedding <-> %s::vector AS distance
+                    FROM tokenizer_vocabulary
+                    WHERE basin_embedding IS NOT NULL
+                    ORDER BY basin_embedding <-> %s::vector
+                    LIMIT %s
+                """, (basin_str, basin_str, top_k))
 
-            # Use <-> operator for L2 distance with HNSW index
-            cursor.execute("""
-                SELECT token, basin_embedding <-> %s::vector AS distance
-                FROM tokenizer_vocabulary
-                WHERE basin_embedding IS NOT NULL
-                ORDER BY basin_embedding <-> %s::vector
-                LIMIT %s
-            """, (basin_str, basin_str, top_k))
-
-            return [(row[0], row[1]) for row in cursor.fetchall()]
+                return [(row[0], row[1]) for row in cursor.fetchall()]
         except Exception as e:
             logger.warning(f"pgvector search failed, falling back to in-memory: {e}")
             return self.decode(basin, top_k=top_k)

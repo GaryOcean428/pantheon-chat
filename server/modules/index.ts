@@ -15,21 +15,29 @@
  */
 
 // Phase 1: Hypothesis Generation & Geodesic Navigation
-export { HypothesisGenerator, type OceanHypothesis } from "./hypothesis-generator";
 export {
-  BasinGeodesicManager,
-  type ResonanceProxy,
-  type TrajectoryCorrection,
-  type GeodesicCorrectionOptions,
+	BasinGeodesicManager, type GeodesicCorrectionOptions, type ResonanceProxy,
+	type TrajectoryCorrection
 } from "./basin-geodesic-manager";
+export { HypothesisGenerator, type OceanHypothesis } from "./hypothesis-generator";
 
 // Phase 2: Consciousness Tracking & Basin Management
 export {
-  ConsciousnessTracker,
-  type ConsciousnessCheckResult,
-  type EthicsCheckResult,
+	ConsciousnessTracker,
+	type ConsciousnessCheckResult,
+	type EthicsCheckResult
 } from "./consciousness-tracker";
+export {
+	MemoryConsolidator,
+	type ConsolidationResult
+} from "./memory-consolidator";
 
+// Phase 3: Olympus Pantheon Coordination
+export {
+	OlympusCoordinator,
+	type OlympusWarMode,
+	type OlympusStats
+} from "./olympus-coordinator";
 // TODO: Phase 1 (Week 1)
 // export { GeodesicNavigator } from "./geodesic-navigator";
 

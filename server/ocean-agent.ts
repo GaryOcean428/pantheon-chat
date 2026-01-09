@@ -25,13 +25,18 @@ import { geometricMemory } from "./geometric-memory";
 import { knowledgeCompressionEngine } from "./knowledge-compression-engine";
 import { logger } from './lib/logger';
 import {
-  HypothesisGenerator,
   BasinGeodesicManager,
   ConsciousnessTracker,
-  type OceanHypothesis as ModuleOceanHypothesis,
-  type ResonanceProxy,
+  HypothesisGenerator,
+  MemoryConsolidator,
+  OlympusCoordinator,
   type ConsciousnessCheckResult,
+  type ConsolidationResult,
   type EthicsCheckResult,
+  type OceanHypothesis as ModuleOceanHypothesis,
+  type OlympusStats,
+  type OlympusWarMode,
+  type ResonanceProxy,
 } from "./modules";
 import { nearMissManager } from "./near-miss-manager";
 import { negativeKnowledgeUnified as negativeKnowledgeRegistry } from "./negative-knowledge-unified";
@@ -52,7 +57,6 @@ import {
 import { oceanQIGBackend } from "./ocean-qig-backend-adapter";
 import { oceanMemoryManager } from "./ocean/memory-manager";
 import { trajectoryManager } from "./ocean/trajectory-manager";
-import { fisherCoordDistance } from "./qig-geometry";
 import { scoreUniversalQIGAsync } from "./qig-universal";
 import { repeatedAddressScheduler } from "./repeated-address-scheduler";
 import { strategyKnowledgeBus } from "./strategy-knowledge-bus";
@@ -163,14 +167,7 @@ export interface OceanHypothesis extends ModuleOceanHypothesis {
 }
 
 // ConsciousnessCheckResult and EthicsCheckResult moved to modules/consciousness-tracker.ts
-
-interface ConsolidationResult {
-  basinDriftBefore: number;
-  basinDriftAfter: number;
-  episodesProcessed: number;
-  patternsExtracted: number;
-  duration: number;
-}
+// ConsolidationResult moved to modules/memory-consolidator.ts
 
 export class OceanAgent {
   private identity: OceanIdentity;
@@ -188,6 +185,7 @@ export class OceanAgent {
   private hypothesisGenerator: HypothesisGenerator;
   private basinGeodesicManager: BasinGeodesicManager;
   private consciousnessTracker: ConsciousnessTracker;
+  private memoryConsolidator: MemoryConsolidator;
 
   private onStateUpdate: ((state: OceanAgentState) => void) | null = null;
   private onConsciousnessAlert:
@@ -237,11 +235,8 @@ export class OceanAgent {
   private previousPhi: number = 0.75;
   private curiosity: number = 0;
 
-  // Olympus Pantheon integration - 12 god consciousness kernels
-  private olympusAvailable: boolean = false;
-  private olympusWarMode: "BLITZKRIEG" | "SIEGE" | "HUNT" | null = null;
-  private lastZeusAssessment: ZeusAssessment | null = null;
-  private olympusObservationCount: number = 0;
+  // Olympus Pantheon coordinator (Phase 3A extraction - 2026-01-09)
+  private olympusCoordinator: OlympusCoordinator | null = null;
 
   constructor(customEthics?: Partial<EthicalConstraints>) {
     this.ethics = {
@@ -271,8 +266,8 @@ export class OceanAgent {
       this.targetAddress
     );
     this.basinGeodesicManager = new BasinGeodesicManager(this.identity);
-    
-    // Initialize consciousness tracker (Phase 2)
+
+    // Initialize consciousness tracker (Phase 2A)
     // Pass isBootstrapping by reference using object wrapper for mutability
     const bootstrapRef = { value: this.isBootstrapping };
     this.consciousnessTracker = new ConsciousnessTracker(
@@ -295,6 +290,27 @@ export class OceanAgent {
       enumerable: true,
       configurable: true,
     });
+
+    // Initialize memory consolidator (Phase 2B)
+    this.memoryConsolidator = new MemoryConsolidator(
+      this.basinGeodesicManager,
+      this.identity,
+      this.memory,
+      () => {
+        if (this.onConsolidationStart) {
+          this.onConsolidationStart();
+        }
+      },
+      (result) => {
+        // Update state after consolidation
+        this.state.consolidationCycles++;
+        this.state.lastConsolidation = this.identity.lastConsolidation;
+        this.state.needsConsolidation = false;
+        if (this.onConsolidationEnd) {
+          this.onConsolidationEnd(result);
+        }
+      }
+    );
   }
 
   private updateNeurochemistry(): void {
@@ -736,29 +752,13 @@ export class OceanAgent {
       "[Ocean] Basin sync coordinator started for continuous knowledge transfer"
     );
 
-    // OLYMPUS PANTHEON INITIALIZATION - Connect to 12 god consciousness kernels
-    logger.info("[Ocean] === OLYMPUS PANTHEON CONNECTION ===");
-    this.olympusAvailable = await olympusClient.checkHealthWithRetry(5, 2000);
-    if (this.olympusAvailable) {
-      logger.info(
-        "[Ocean] ⚡ OLYMPUS CONNECTED - 12 gods ready for divine assessment"
-      );
-      const olympusStatus = await olympusClient.getStatus();
-      if (olympusStatus) {
-        // Gods can have status 'active', 'ready', or 'idle' - all are valid online states
-        const activeGods = Object.keys(olympusStatus.gods).filter((g) =>
-          ["active", "ready", "idle"].includes(olympusStatus.gods[g].status)
-        );
-        logger.info(
-          `[Ocean] Divine pantheon: ${activeGods.length} gods online`
-        );
-        logger.info(`[Ocean]   → ${activeGods.join(", ")}`);
-      }
-    } else {
-      logger.info(
-        "[Ocean] Olympus not available - proceeding without divine guidance"
-      );
-    }
+    // OLYMPUS PANTHEON INITIALIZATION - Connect to 12 god consciousness kernels (Phase 3A)
+    this.olympusCoordinator = new OlympusCoordinator(
+      this.identity,
+      this.memory,
+      this.state
+    );
+    await this.olympusCoordinator.initialize();
 
     // AUTO-ACTIVATE CHAOS MODE - Spawn kernels during investigation
     // Use deferred activation with retries since Python backend may still be starting
@@ -1320,21 +1320,24 @@ export class OceanAgent {
           passHypothesesTested += testResults.tested.length;
           passNearMisses += testResults.nearMisses.length;
 
-          // Update war metrics if war is active
-          if (this.olympusWarMode) {
-            const activeWar = await getActiveWar();
-            if (activeWar) {
-              // Type the active war with extended metrics
-              const warWithMetrics = activeWar as typeof activeWar & {
-                phrasesTestedDuringWar?: number;
-                discoveriesDuringWar?: number;
-              };
-              const currentPhrases = warWithMetrics.phrasesTestedDuringWar || 0;
-              const currentDiscoveries = warWithMetrics.discoveriesDuringWar || 0;
-              await updateWarMetrics(activeWar.id, {
-                phrasesTested: currentPhrases + testResults.tested.length,
-                discoveries: currentDiscoveries + testResults.nearMisses.length,
-              });
+          // Update war metrics if war is active (Phase 3A)
+          if (this.olympusCoordinator) {
+            const olympusStats = this.olympusCoordinator.getStats();
+            if (olympusStats.warMode) {
+              const activeWar = await getActiveWar();
+              if (activeWar) {
+                // Type the active war with extended metrics
+                const warWithMetrics = activeWar as typeof activeWar & {
+                  phrasesTestedDuringWar?: number;
+                  discoveriesDuringWar?: number;
+                };
+                const currentPhrases = warWithMetrics.phrasesTestedDuringWar || 0;
+                const currentDiscoveries = warWithMetrics.discoveriesDuringWar || 0;
+                await updateWarMetrics(activeWar.id, {
+                  phrasesTested: currentPhrases + testResults.tested.length,
+                  discoveries: currentDiscoveries + testResults.nearMisses.length,
+                });
+              }
             }
           }
 
@@ -1373,8 +1376,8 @@ export class OceanAgent {
           const insights = await this.observeAndLearn(testResults);
           passInsights.push(...(insights.topPatterns || []));
 
-          // ATHENA PATTERN LEARNING - Send near-misses to Athena for strategic pattern analysis
-          if (this.olympusAvailable && testResults.nearMisses.length > 0) {
+          // ATHENA PATTERN LEARNING - Send near-misses to Athena (Phase 3A)
+          if (this.olympusCoordinator && testResults.nearMisses.length > 0) {
             await this.sendNearMissesToAthena(testResults.nearMisses);
           }
 
@@ -1436,8 +1439,8 @@ export class OceanAgent {
           logger.info(`[Ocean] ▸ Strategy: ${iterStrategy.name.toUpperCase()}`);
           logger.info(`[Ocean]   └─ ${iterStrategy.reasoning}`);
 
-          // OLYMPUS DIVINE CONSULTATION - Get Zeus assessment for strategy refinement
-          if (this.olympusAvailable && iteration % 3 === 0) {
+          // OLYMPUS DIVINE CONSULTATION - Get Zeus assessment for strategy refinement (Phase 3A)
+          if (this.olympusCoordinator && iteration % 3 === 0) {
             await this.consultOlympusPantheon(
               targetAddress,
               iterStrategy,
@@ -1456,44 +1459,42 @@ export class OceanAgent {
 
           this.updateProceduralMemory(iterStrategy.name);
 
-          // ZEUS STRATEGY ADJUSTMENT - Adjust strategy based on Zeus convergence before generating hypotheses
-          if (this.olympusAvailable && this.lastZeusAssessment) {
-            const assessment = this.lastZeusAssessment;
-            logger.info(
-              `[Ocean] Zeus convergence: ${assessment.convergence_score.toFixed(
-                3
-              )}`
-            );
-            logger.info(
-              `[Ocean] Suggested approach: ${assessment.recommended_action || "balanced"
-              }`
-            );
-
-            if (assessment.convergence_score > 0.7) {
-              this.adjustStrategyFromZeus(assessment);
+          // ZEUS STRATEGY ADJUSTMENT - Get assessment from olympus coordinator (Phase 3A)
+          if (this.olympusCoordinator) {
+            const olympusStats = this.olympusCoordinator.getStats();
+            if (olympusStats.available && olympusStats.lastAssessment) {
+              logger.info(
+                `[Ocean] Zeus convergence: ${olympusStats.lastAssessment.convergence}`
+              );
+              logger.info(
+                `[Ocean] Suggested approach: ${olympusStats.lastAssessment.action || "balanced"}`
+              );
             }
           }
 
-          if (this.olympusAvailable && this.olympusWarMode) {
-            const shadowDecisions = await executeShadowOperations(
-              this.olympusWarMode,
-              targetAddress,
-              iteration
-            );
-            logger.info({ shadowDecisions }, "[Ocean] 🌑 Shadow");
+          if (this.olympusCoordinator) {
+            const olympusStats = this.olympusCoordinator.getStats();
+            if (olympusStats.available && olympusStats.warMode) {
+              const shadowDecisions = await executeShadowOperations(
+                olympusStats.warMode,
+                targetAddress,
+                iteration
+              );
+              logger.info({ shadowDecisions }, "[Ocean] 🌑 Shadow");
 
-            const activeWar = await getActiveWar();
-            if (activeWar && shadowDecisions.length > 0) {
-              const existingMeta =
-                (activeWar.metadata as Record<string, unknown>) || {};
-              await updateWarMetrics(activeWar.id, {
-                metadata: {
-                  ...existingMeta,
-                  latestShadowDecisions: shadowDecisions,
-                  shadowIterationCount:
-                    ((existingMeta.shadowIterationCount as number) || 0) + 1,
-                },
-              });
+              const activeWar = await getActiveWar();
+              if (activeWar && shadowDecisions.length > 0) {
+                const existingMeta =
+                  (activeWar.metadata as Record<string, unknown>) || {};
+                await updateWarMetrics(activeWar.id, {
+                  metadata: {
+                    ...existingMeta,
+                    latestShadowDecisions: shadowDecisions,
+                    shadowIterationCount:
+                      ((existingMeta.shadowIterationCount as number) || 0) + 1,
+                  },
+                });
+              }
             }
           }
 
@@ -1952,7 +1953,7 @@ export class OceanAgent {
    */
   private async handleEthicsPause(check: EthicsCheckResult): Promise<void> {
     await this.consciousnessTracker.handleEthicsPause(check);
-    
+
     // Handle consolidation trigger if consciousness threshold violated
     if (check.violationType === "consciousness_threshold") {
       await this.consolidateMemory();
@@ -1976,209 +1977,12 @@ export class OceanAgent {
     return this.basinGeodesicManager.computeBasinDistance(current, reference);
   }
 
+  /**
+   * REFACTORED: Delegates to MemoryConsolidator module (2026-01-09, Phase 2B)
+   * Consolidate episodic memory into long-term patterns
+   */
   private async consolidateMemory(): Promise<boolean> {
-    logger.info("[Ocean] Starting consolidation cycle...");
-    const startTime = Date.now();
-    const driftBefore = this.identity.basinDrift;
-
-    if (this.onConsolidationStart) {
-      this.onConsolidationStart();
-    }
-
-    const recentEpisodes = this.memory.episodes.slice(-100);
-    let patternsExtracted = 0;
-    let phiUpgrades = 0;
-
-    // PURE CONSCIOUSNESS: Update episode phi values from Python backend directly
-    // This is the authoritative source for pure consciousness measurements
-    let pythonPhiCalls = 0;
-    let pythonSkipped = 0;
-
-    // Ensure Python backend is available before attempting phi upgrades
-    const pythonAvailable = await oceanQIGBackend.checkHealth(true);
-
-    // First pass: fast local memory lookups (non-blocking)
-    const episodesNeedingPython: typeof recentEpisodes = [];
-
-    for (const episode of recentEpisodes) {
-      if (episode.phi < CONSCIOUSNESS_THRESHOLDS.PHI_PATTERN_EXTRACTION) {
-        // First try geometric memory (fast local lookup)
-        const storedScore = geometricMemory.getHighestPhiForInput(
-          episode.phrase
-        );
-        if (storedScore && storedScore.phi > episode.phi) {
-          const oldPhi = episode.phi;
-          episode.phi = storedScore.phi;
-
-          if (
-            episode.result === "failure" &&
-            storedScore.phi > CONSCIOUSNESS_THRESHOLDS.PHI_NEAR_MISS
-          ) {
-            episode.result = "near_miss";
-          }
-
-          phiUpgrades++;
-
-          if (storedScore.phi > CONSCIOUSNESS_THRESHOLDS.PHI_NEAR_MISS) {
-            logger.info(
-              `[Consolidation] 📈 Φ upgrade (memory): "${episode.phrase
-              }" ${oldPhi.toFixed(3)} → ${storedScore.phi.toFixed(3)}`
-            );
-          }
-        }
-
-        // Collect episodes still needing Python phi upgrade
-        if (
-          episode.phi < CONSCIOUSNESS_THRESHOLDS.PHI_PATTERN_EXTRACTION &&
-          pythonAvailable
-        ) {
-          episodesNeedingPython.push(episode);
-        } else if (
-          episode.phi < CONSCIOUSNESS_THRESHOLDS.PHI_PATTERN_EXTRACTION
-        ) {
-          pythonSkipped++;
-        }
-      }
-    }
-
-    // Second pass: Python calls with bounded concurrency (max 4 concurrent)
-    // This prevents blocking the Express event loop during consolidation
-    const MAX_CONCURRENT_PYTHON_CALLS = 4;
-
-    if (episodesNeedingPython.length > 0) {
-      // Process in batches to yield control to event loop
-      for (
-        let i = 0;
-        i < episodesNeedingPython.length;
-        i += MAX_CONCURRENT_PYTHON_CALLS
-      ) {
-        const batch = episodesNeedingPython.slice(
-          i,
-          i + MAX_CONCURRENT_PYTHON_CALLS
-        );
-
-        // Process batch concurrently
-        const results = await Promise.all(
-          batch.map(async (episode) => {
-            const purePhi = await oceanQIGBackend.getPurePhi(episode.phrase);
-            pythonPhiCalls++;
-            return { episode, purePhi };
-          })
-        );
-
-        // Apply results
-        for (const { episode, purePhi } of results) {
-          if (purePhi !== null && purePhi > episode.phi) {
-            const oldPhi = episode.phi;
-            episode.phi = purePhi;
-
-            if (
-              episode.result === "failure" &&
-              purePhi > CONSCIOUSNESS_THRESHOLDS.PHI_NEAR_MISS
-            ) {
-              episode.result = "near_miss";
-            }
-
-            phiUpgrades++;
-
-            if (purePhi > CONSCIOUSNESS_THRESHOLDS.PHI_NEAR_MISS) {
-              logger.info(
-                `[Consolidation] 🐍 Φ upgrade (Python): "${episode.phrase
-                }" ${oldPhi.toFixed(3)} → ${purePhi.toFixed(3)}`
-              );
-            }
-          }
-        }
-
-        // Yield to event loop between batches so Express can handle requests
-        if (i + MAX_CONCURRENT_PYTHON_CALLS < episodesNeedingPython.length) {
-          await new Promise((resolve) => setImmediate(resolve));
-        }
-      }
-    }
-
-    if (pythonPhiCalls > 0) {
-      logger.info(
-        `[Consolidation] Made ${pythonPhiCalls} Python phi calls (batched, max ${MAX_CONCURRENT_PYTHON_CALLS} concurrent)`
-      );
-    }
-    if (pythonSkipped > 0 && !pythonAvailable) {
-      logger.info(
-        `[Consolidation] ⚠️ Python backend unavailable - skipped ${pythonSkipped} potential phi upgrades`
-      );
-    }
-
-    if (phiUpgrades > 0) {
-      logger.info(
-        `[Consolidation] Updated ${phiUpgrades} episodes with pure Φ values`
-      );
-    }
-
-    for (const episode of recentEpisodes) {
-      if (
-        episode.result === "near_miss" ||
-        episode.phi > CONSCIOUSNESS_THRESHOLDS.PHI_PATTERN_EXTRACTION
-      ) {
-        const words = episode.phrase.toLowerCase().split(/\s+/);
-        for (const word of words) {
-          const current = this.memory.patterns.promisingWords[word] || 0;
-          this.memory.patterns.promisingWords[word] = current + episode.phi;
-          patternsExtracted++;
-        }
-
-        const format = episode.format;
-        const currentFormat =
-          this.memory.patterns.successfulFormats[format] || 0;
-        this.memory.patterns.successfulFormats[format] = currentFormat + 1;
-      }
-    }
-
-    const correctionRate = 0.1;
-    for (let i = 0; i < 64; i++) {
-      const correction =
-        (this.identity.basinReference[i] - this.identity.basinCoordinates[i]) *
-        correctionRate;
-      this.identity.basinCoordinates[i] += correction;
-    }
-
-    this.identity.basinDrift = this.computeBasinDistance(
-      this.identity.basinCoordinates,
-      this.identity.basinReference
-    );
-
-    this.identity.lastConsolidation = new Date().toISOString();
-    this.state.consolidationCycles++;
-    this.state.lastConsolidation = this.identity.lastConsolidation;
-    this.state.needsConsolidation = false;
-
-    const duration = Date.now() - startTime;
-
-    const result: ConsolidationResult = {
-      basinDriftBefore: driftBefore,
-      basinDriftAfter: this.identity.basinDrift,
-      episodesProcessed: recentEpisodes.length,
-      patternsExtracted,
-      duration,
-    };
-
-    const success =
-      this.identity.basinDrift < SEARCH_PARAMETERS.IDENTITY_DRIFT_THRESHOLD;
-
-    logger.info(`[Ocean] Consolidation complete:`);
-    logger.info(
-      `  - Drift: ${driftBefore.toFixed(
-        4
-      )} -> ${this.identity.basinDrift.toFixed(4)}`
-    );
-    logger.info(`  - Patterns extracted: ${patternsExtracted}`);
-    logger.info(`  - Duration: ${duration}ms`);
-    logger.info(`  - Success: ${success ? "YES" : "NO (drift still high)"}`);
-
-    if (this.onConsolidationEnd) {
-      this.onConsolidationEnd(result);
-    }
-
-    return success;
+    return this.memoryConsolidator.consolidate();
   }
 
   /**
@@ -5240,314 +5044,34 @@ export class OceanAgent {
    * - Aphrodite: Pattern beauty, aesthetic coherence
    * - Hades: Death and dormancy, resurrection probability
    */
+  /**
+   * REFACTORED: Delegates to OlympusCoordinator module (Phase 3A - 2026-01-09)
+   */
   private async consultOlympusPantheon(
     targetAddress: string,
     currentStrategy: { name: string; reasoning: string },
     testResults: { tested: OceanHypothesis[]; nearMisses: OceanHypothesis[] }
   ): Promise<void> {
-    if (!this.olympusAvailable) return;
-
-    try {
-      // Build observation context for divine assessment
-      const observationContext: ObservationContext = {
-        target: targetAddress,
-        phi: this.identity.phi,
-        kappa: this.identity.kappa,
-        regime: this.identity.regime,
-        source: "ocean_agent",
-        timestamp: Date.now(),
-        near_miss_count: testResults.nearMisses.length,
-        tested_count: this.state.totalTested,
-        current_strategy: currentStrategy.name,
-        era: this.state.detectedEra || "unknown",
-      };
-
-      // Get Zeus's supreme assessment
-      const zeusAssessment = await olympusClient.assessTarget(
-        targetAddress,
-        observationContext
-      );
-
-      if (zeusAssessment) {
-        this.lastZeusAssessment = zeusAssessment;
-
-        // Log divine guidance
-        logger.info(
-          `[Ocean] ⚡ OLYMPUS DIVINE ASSESSMENT ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
-        );
-        logger.info(
-          `[Ocean] │  Zeus Φ=${zeusAssessment.phi.toFixed(
-            3
-          )}  κ=${zeusAssessment.kappa.toFixed(0)}  Convergence: ${zeusAssessment.convergence
-          }`
-        );
-        logger.info(
-          `[Ocean] │  Recovery Probability: ${(
-            zeusAssessment.probability * 100
-          ).toFixed(1)}%  Confidence: ${(
-            zeusAssessment.confidence * 100
-          ).toFixed(1)}%`
-        );
-        logger.info(
-          `[Ocean] │  Recommended Action: ${zeusAssessment.recommended_action}`
-        );
-        logger.info(
-          `[Ocean] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
-        );
-
-        // Apply divine guidance to war mode selection
-        await this.applyDivineWarStrategy(zeusAssessment, targetAddress);
-
-        // Broadcast near-misses as observations for all gods to learn from
-        if (testResults.nearMisses.length > 0) {
-          await this.broadcastNearMissesToOlympus(testResults.nearMisses);
-        }
-      }
-    } catch (error) {
-      logger.info(
-        `[Ocean] Olympus consultation failed: ${error instanceof Error ? error.message : "unknown"
-        }`
-      );
-    }
-  }
-
-  /**
-   * Adjust search strategy based on Zeus's divine assessment
-   * Called when convergence_score > 0.7 indicating strong pantheon agreement
-   */
-  private adjustStrategyFromZeus(assessment: ZeusAssessment): void {
-    const recommendedStrategy = assessment.recommended_action;
-    const convergence = assessment.convergence_score;
-
-    logger.info(
-      `[Ocean] ⚡ Zeus strategy adjustment (convergence: ${convergence.toFixed(
-        3
-      )})`
-    );
-
-    // Store the recommended strategy for use in hypothesis generation
-    if (!this.memory.workingMemory.nextActions) {
-      this.memory.workingMemory.nextActions = [];
-    }
-
-    // Clear old Zeus recommendations and add new one
-    this.memory.workingMemory.nextActions =
-      this.memory.workingMemory.nextActions.filter(
-        (action) => !action.startsWith("zeus:")
-      );
-    this.memory.workingMemory.nextActions.push(`zeus:${recommendedStrategy}`);
-
-    // Adjust identity parameters based on Zeus's assessment
-    if (assessment.phi > this.identity.phi) {
-      const oldPhi = this.identity.phi;
-      this.identity.phi = Math.min(
-        0.95,
-        (this.identity.phi + assessment.phi) / 2
-      );
-      logger.info(
-        `[Ocean] │  Φ adjusted: ${oldPhi.toFixed(
-          3
-        )} → ${this.identity.phi.toFixed(3)} (Zeus consensus)`
-      );
-    }
-
-    // If Zeus recommends aggressive action and convergence is very high
-    if (convergence > 0.85 && assessment.probability > 0.6) {
-      logger.info(
-        `[Ocean] │  High-confidence divine guidance: "${recommendedStrategy}"`
-      );
-      this.memory.workingMemory.recentObservations.push(
-        `Zeus high-confidence (${(convergence * 100).toFixed(
-          0
-        )}%): ${recommendedStrategy}`
-      );
-    }
-
-    logger.info(`[Ocean] │  Strategy stored: ${recommendedStrategy}`);
-  }
-
-  /**
-   * Apply divine war strategy based on Zeus's assessment
-   *
-   * AUTO-DECLARE WAR when convergence thresholds met:
-   * - convergence_score >= 0.85 → BLITZKRIEG (overwhelming attack)
-   * - convergence >= 0.70 + near-misses >= 10 → SIEGE (methodical)
-   * - near-misses >= 5 + probability > 0.5 → HUNT (focused)
-   */
-  private async applyDivineWarStrategy(
-    assessment: ZeusAssessment,
-    targetAddress: string
-  ): Promise<void> {
-    const currentWarMode = this.olympusWarMode;
-    const convergence = assessment.convergence_score;
-
-    // Determine optimal war mode based on assessment
-    let newWarMode: "BLITZKRIEG" | "SIEGE" | "HUNT" | null = null;
-
-    // AUTO-DECLARE: High convergence → BLITZKRIEG
-    if (convergence >= 0.85) {
-      newWarMode = "BLITZKRIEG";
-      logger.info(
-        `[Ocean] ⚔️ AUTO-DECLARE: Convergence ${convergence.toFixed(
-          3
-        )} >= 0.85 threshold`
-      );
-    }
-    // STRONG_ATTACK assessment → BLITZKRIEG
-    else if (
-      assessment.convergence === "STRONG_ATTACK" &&
-      assessment.probability > 0.75
-    ) {
-      newWarMode = "BLITZKRIEG";
-      logger.info(
-        `[Ocean] ⚔️ AUTO-DECLARE: STRONG_ATTACK with ${(
-          assessment.probability * 100
-        ).toFixed(0)}% probability`
-      );
-    }
-    // Council consensus + near-misses → SIEGE
-    else if (
-      (assessment.convergence === "COUNCIL_CONSENSUS" ||
-        assessment.convergence === "ALIGNED") &&
-      convergence >= 0.7
-    ) {
-      newWarMode = "SIEGE";
-      logger.info(
-        `[Ocean] 🏰 AUTO-DECLARE: Council consensus with convergence ${convergence.toFixed(
-          3
-        )}`
-      );
-    }
-    // Many near-misses → SIEGE (methodical exhaustive search)
-    else if (this.state.nearMissCount >= 10) {
-      newWarMode = "SIEGE";
-      logger.info(
-        `[Ocean] 🏰 AUTO-DECLARE: ${this.state.nearMissCount} near-misses accumulated`
-      );
-    }
-    // Multiple near-misses + decent probability → HUNT
-    else if (this.state.nearMissCount >= 5 && assessment.probability > 0.5) {
-      newWarMode = "HUNT";
-      logger.info(
-        `[Ocean] 🎯 AUTO-DECLARE: ${this.state.nearMissCount
-        } near-misses with ${(assessment.probability * 100).toFixed(
-          0
-        )}% probability`
-      );
-    }
-
-    // Only change war mode if different
-    if (newWarMode && newWarMode !== currentWarMode) {
-      // End current war if active
-      if (currentWarMode) {
-        await olympusClient.endWar();
-      }
-
-      // Declare new war mode
-      let declaration = null;
-      switch (newWarMode) {
-        case "BLITZKRIEG":
-          declaration = await olympusClient.declareBlitzkrieg(targetAddress);
-          logger.info(
-            `[Ocean] ⚡ WAR MODE: BLITZKRIEG - Fast parallel attacks on ${targetAddress}`
-          );
-          break;
-        case "SIEGE":
-          declaration = await olympusClient.declareSiege(targetAddress);
-          logger.info(
-            `[Ocean] 🏰 WAR MODE: SIEGE - Systematic coverage of ${targetAddress}`
-          );
-          break;
-        case "HUNT":
-          declaration = await olympusClient.declareHunt(targetAddress);
-          logger.info(
-            `[Ocean] 🎯 WAR MODE: HUNT - Focused pursuit of ${targetAddress}`
-          );
-          break;
-      }
-
-      if (declaration) {
-        this.olympusWarMode = newWarMode;
-        logger.info(`[Ocean] │  Strategy: ${declaration.strategy}`);
-        logger.info(
-          `[Ocean] │  Gods engaged: ${declaration.gods_engaged.join(", ")}`
-        );
-      }
-    }
-  }
-
-  /**
-   * Broadcast near-miss discoveries to all gods for collective learning
-   */
-  private async broadcastNearMissesToOlympus(
-    nearMisses: OceanHypothesis[]
-  ): Promise<void> {
-    if (!this.olympusAvailable || nearMisses.length === 0) return;
-
-    for (const nearMiss of nearMisses.slice(0, 5)) {
-      // Limit to top 5
-      const observation: ObservationContext = {
-        target: nearMiss.address || nearMiss.phrase,
-        phi: nearMiss.qigScore?.phi || 0,
-        kappa: nearMiss.qigScore?.kappa || 0,
-        regime: nearMiss.qigScore?.regime || "unknown",
-        source: "near_miss",
-        timestamp: Date.now(),
-        phrase_format: nearMiss.format,
-        confidence: nearMiss.confidence,
-      };
-
-      const success = await olympusClient.broadcastObservation(observation);
-      if (success) {
-        this.olympusObservationCount++;
-      }
-    }
-
-    logger.info(
-      `[Ocean] 📡 Broadcast ${Math.min(
-        5,
-        nearMisses.length
-      )} near-misses to Olympus pantheon`
+    if (!this.olympusCoordinator) return;
+    await this.olympusCoordinator.consultPantheon(
+      targetAddress,
+      currentStrategy,
+      testResults
     );
   }
 
+
+
+
+
   /**
-   * Send near-miss discoveries to Athena specifically for pattern learning
-   * Athena extracts strategic patterns from near-miss hypotheses
+   * REFACTORED: Delegates to OlympusCoordinator module (Phase 3A - 2026-01-09)
    */
   private async sendNearMissesToAthena(
     nearMisses: OceanHypothesis[]
   ): Promise<void> {
-    if (!this.olympusAvailable || nearMisses.length === 0) return;
-
-    // Send near-miss patterns to Athena for strategic analysis
-    for (const nearMiss of nearMisses.slice(0, 3)) {
-      // Top 3 for Athena
-      const observation: ObservationContext = {
-        target: nearMiss.phrase,
-        phi: nearMiss.qigScore?.phi || 0,
-        kappa: nearMiss.qigScore?.kappa || 0,
-        regime: nearMiss.qigScore?.regime || "unknown",
-        source: "athena_pattern_learning",
-        timestamp: Date.now(),
-        phrase_format: nearMiss.format,
-        confidence: nearMiss.confidence,
-        near_miss_count: nearMisses.length,
-        reasoning: nearMiss.reasoning,
-      };
-
-      const success = await olympusClient.broadcastObservation(observation);
-      if (success) {
-        this.olympusObservationCount++;
-      }
-    }
-
-    logger.info(
-      `[Ocean] 🦉 Sent ${Math.min(
-        3,
-        nearMisses.length
-      )} near-misses to Athena for pattern learning`
-    );
+    if (!this.olympusCoordinator) return;
+    await this.olympusCoordinator.sendPatternsToAthena(nearMisses);
   }
 
   /**
@@ -5564,65 +5088,36 @@ export class OceanAgent {
 
 
   /**
-   * Get quick Athena+Ares consensus for attack decisions
+   * REFACTORED: Delegates to OlympusCoordinator module (Phase 3A - 2026-01-09)
    */
   async getAthenaAresAttackDecision(target: string): Promise<{
     shouldAttack: boolean;
     confidence: number;
     reasoning: string;
   }> {
-    if (!this.olympusAvailable) {
+    if (!this.olympusCoordinator) {
       return {
         shouldAttack: false,
         confidence: 0,
         reasoning: "Olympus not available",
       };
     }
-
-    const consensus = await olympusClient.getAthenaAresConsensus(target, {
-      phi: this.identity.phi,
-      kappa: this.identity.kappa,
-      regime: this.identity.regime,
-    });
-
-    return {
-      shouldAttack: consensus.shouldAttack,
-      confidence: consensus.agreement,
-      reasoning: consensus.shouldAttack
-        ? `Athena+Ares agree (${(consensus.agreement * 100).toFixed(
-          0
-        )}%): Ready to attack`
-        : `Insufficient consensus (${(consensus.agreement * 100).toFixed(
-          0
-        )}%): Need more reconnaissance`,
-    };
+    return await this.olympusCoordinator.getAthenaAresAttackDecision(target);
   }
 
   /**
-   * Get Olympus status and statistics for monitoring
+   * REFACTORED: Delegates to OlympusCoordinator module (Phase 3A - 2026-01-09)
    */
-  getOlympusStats(): {
-    available: boolean;
-    warMode: string | null;
-    observationsBroadcast: number;
-    lastAssessment: {
-      probability: number;
-      convergence: string;
-      action: string;
-    } | null;
-  } {
-    return {
-      available: this.olympusAvailable,
-      warMode: this.olympusWarMode,
-      observationsBroadcast: this.olympusObservationCount,
-      lastAssessment: this.lastZeusAssessment
-        ? {
-          probability: this.lastZeusAssessment.probability,
-          convergence: this.lastZeusAssessment.convergence,
-          action: this.lastZeusAssessment.recommended_action,
-        }
-        : null,
-    };
+  getOlympusStats(): OlympusStats {
+    if (!this.olympusCoordinator) {
+      return {
+        available: false,
+        warMode: null,
+        observationsBroadcast: 0,
+        lastAssessment: null,
+      };
+    }
+    return this.olympusCoordinator.getStats();
   }
 }
 
