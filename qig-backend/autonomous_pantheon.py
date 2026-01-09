@@ -23,6 +23,15 @@ sys.path.insert(0, os.path.dirname(__file__))
 from internal_api import sync_war_to_database as sync_war_to_typescript
 from olympus.zeus import zeus
 
+# Import activity broadcaster for UI visibility
+try:
+    from olympus.activity_broadcaster import get_broadcaster, ActivityType
+    ACTIVITY_BROADCASTER_AVAILABLE = True
+except ImportError:
+    ACTIVITY_BROADCASTER_AVAILABLE = False
+    get_broadcaster = None
+    ActivityType = None
+
 logging.basicConfig(
     level=logging.INFO,
     format='[%(asctime)s] %(levelname)s - %(message)s',
@@ -219,8 +228,11 @@ class AutonomousPantheon:
                         # 2. Random Chatter (Alive-ness)
                         # Occasional comment on high-phi findings
                         if phi > 0.75 and random.random() < 0.2:
+                            commenter = random.choice(['Hermes', 'Apollo', 'Hephaestus'])
+                            observation = f"High-Φ geometry detected at {target[:8]}... (Φ={phi:.3f})"
+
+                            # Broadcast via pantheon_chat if available
                             if hasattr(self.zeus, 'pantheon_chat'):
-                                commenter = random.choice(['Hermes', 'Apollo', 'Hephaestus'])
                                 self.zeus.pantheon_chat.broadcast(
                                     from_god=commenter,
                                     msg_type='insight',
@@ -231,7 +243,25 @@ class AutonomousPantheon:
                                         'observation': 'high_curvature'
                                     }
                                 )
-                                print(f"  💬 {commenter} observed high-Φ geometry")
+
+                            # Also broadcast directly to activity stream for UI visibility
+                            if ACTIVITY_BROADCASTER_AVAILABLE and get_broadcaster is not None:
+                                try:
+                                    broadcaster = get_broadcaster()
+                                    broadcaster.broadcast_message(
+                                        from_god=commenter,
+                                        to_god=None,
+                                        content=observation,
+                                        activity_type=ActivityType.INSIGHT,
+                                        phi=phi,
+                                        kappa=64.0,
+                                        importance=0.8,
+                                        metadata={'target': target[:8], 'observation_type': 'high_curvature'}
+                                    )
+                                except Exception as e:
+                                    logger.debug(f"Chatter broadcast failed: {e}")
+
+                            logger.info(f"💬 {commenter}: {observation}")
                         
                         # Check for autonomous war declaration conditions
                         await self.check_and_declare_war(target, convergence, phi, assessment)

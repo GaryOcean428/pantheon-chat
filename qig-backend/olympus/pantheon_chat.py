@@ -35,6 +35,15 @@ except ImportError:
     QIG_GENERATIVE_AVAILABLE = False
     print("[PantheonChat] QIG Generative Service not available - falling back to templates")
 
+try:
+    from .activity_broadcaster import get_broadcaster, ActivityType
+    ACTIVITY_BROADCASTER_AVAILABLE = True
+except ImportError:
+    ACTIVITY_BROADCASTER_AVAILABLE = False
+    get_broadcaster = None
+    ActivityType = None
+    print("[PantheonChat] Activity Broadcaster not available - UI activity stream will not update")
+
 
 MESSAGE_TYPES = ['insight', 'praise', 'challenge', 'question', 'warning', 'discovery', 'challenge_response', 'spawn_proposal', 'spawn_vote']
 
@@ -732,6 +741,36 @@ class PantheonChat:
         if self._persistence:
             self._persistence.save_message(message.to_dict())
 
+        # Push to activity broadcaster for UI visibility
+        if ACTIVITY_BROADCASTER_AVAILABLE and get_broadcaster is not None:
+            try:
+                broadcaster = get_broadcaster()
+                # Map message type to activity type
+                activity_type = ActivityType.MESSAGE
+                if msg_type == 'debate':
+                    activity_type = ActivityType.DEBATE
+                elif msg_type == 'discovery':
+                    activity_type = ActivityType.DISCOVERY
+                elif msg_type == 'insight':
+                    activity_type = ActivityType.INSIGHT
+                elif msg_type == 'warning':
+                    activity_type = ActivityType.WARNING
+                elif msg_type == 'spawn_proposal':
+                    activity_type = ActivityType.SPAWN_PROPOSAL
+
+                broadcaster.broadcast_message(
+                    from_god=from_god,
+                    to_god=to_god if to_god != 'pantheon' else None,
+                    content=content or f"[{msg_type}] {intent or ''}",
+                    activity_type=activity_type,
+                    phi=phi or 0.5,
+                    kappa=kappa or 64.0,
+                    importance=0.7 if to_god == 'pantheon' else 0.5,
+                    metadata=metadata
+                )
+            except Exception as e:
+                logger.debug(f"[PantheonChat] Activity broadcast failed: {e}")
+
         return message
 
     def broadcast(
@@ -903,6 +942,21 @@ class PantheonChat:
         if self._persistence:
             self._persistence.save_debate(debate.to_dict())
 
+        # Broadcast debate event specifically for UI activity stream
+        if ACTIVITY_BROADCASTER_AVAILABLE and get_broadcaster is not None:
+            try:
+                broadcaster = get_broadcaster()
+                broadcaster.broadcast_debate(
+                    initiator=initiator,
+                    opponent=opponent,
+                    topic=topic,
+                    status='active',
+                    arguments=[{'god': initiator, 'argument': initial_argument}]
+                )
+                logger.info(f"[PantheonChat] ⚔️ Debate broadcast: {initiator} vs {opponent} on '{topic}'")
+            except Exception as e:
+                logger.debug(f"[PantheonChat] Debate broadcast failed: {e}")
+
         return debate
 
     def add_debate_argument(
@@ -975,6 +1029,21 @@ class PantheonChat:
         # Persist resolved debate to database
         if self._persistence:
             self._persistence.save_debate(debate.to_dict())
+
+        # Broadcast resolution for UI activity stream
+        if ACTIVITY_BROADCASTER_AVAILABLE and get_broadcaster is not None:
+            try:
+                broadcaster = get_broadcaster()
+                broadcaster.broadcast_debate(
+                    initiator=debate.initiator,
+                    opponent=debate.opponent,
+                    topic=debate.topic,
+                    status='resolved',
+                    arguments=debate.arguments
+                )
+                logger.info(f"[PantheonChat] ✅ Debate resolved: {winner} won, arbiter: {arbiter}")
+            except Exception as e:
+                logger.debug(f"[PantheonChat] Debate resolution broadcast failed: {e}")
 
         return resolution
 
