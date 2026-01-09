@@ -61,10 +61,14 @@ def _init_word_validator():
     # Try enchant first (faster)
     try:
         import enchant
-        _english_dict = enchant.Dict("en_US")
-        return
-    except (ImportError, enchant.errors.DictNotFoundError):
-        pass
+    except ImportError:
+        pass  # Fall through to NLTK
+    else:
+        try:
+            _english_dict = enchant.Dict("en_US")
+            return
+        except enchant.errors.DictNotFoundError:
+            pass  # Fall through to NLTK
 
     # Fallback to NLTK
     try:
