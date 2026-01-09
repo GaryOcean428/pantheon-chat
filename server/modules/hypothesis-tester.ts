@@ -15,22 +15,22 @@
  * @module hypothesis-tester
  */
 
+import { CONSCIOUSNESS_THRESHOLDS, GEODESIC_CORRECTION } from "@shared/constants/qig";
+import type {
+	OceanIdentity as IdentityCoordinates,
+	OceanEpisode,
+	OceanAgentState as OceanState,
+} from "@shared/schema";
 import fs from "fs";
 import path from "path";
-import { geometricMemory } from "../geometric-memory";
-import { vocabularyTracker } from "../vocabulary-tracker";
-import { nearMissManager } from "../near-miss-manager";
-import { recordLearningEvent } from "../qig-db";
-import { getEmotionalEmoji, getEmotionalDescription } from "../ocean-neurochemistry";
-import { logger } from "../lib/logger";
 import { isOceanError } from "../errors/ocean-errors";
-import { CONSCIOUSNESS_THRESHOLDS, GEODESIC_CORRECTION } from "@shared/constants/qig";
+import { geometricMemory } from "../geometric-memory";
+import { logger } from "../lib/logger";
+import { nearMissManager } from "../near-miss-manager";
 import type { NeurochemistryState } from "../ocean-neurochemistry";
-import type {
-  OceanEpisode,
-  OceanAgentState as OceanState,
-  OceanIdentity as IdentityCoordinates,
-} from "@shared/schema";
+import { getEmotionalDescription, getEmotionalEmoji } from "../ocean-neurochemistry";
+import { recordLearningEvent } from "../qig-db";
+import { vocabularyTracker } from "../vocabulary-tracker";
 
 // Import crypto functions and olympusClient from parent (ocean-agent.ts defines these as globals/stubs)
 // These will be resolved through module resolution when imported into ocean-agent.ts
@@ -55,26 +55,26 @@ type Neurochemistry = NeurochemistryState;
  * Test result containing matched hypothesis, tested list, near misses, and resonant phrases
  */
 export interface TestBatchResult {
-  match?: OceanHypothesis;
-  tested: OceanHypothesis[];
-  nearMisses: OceanHypothesis[];
-  resonant: OceanHypothesis[];
+	match?: OceanHypothesis;
+	tested: OceanHypothesis[];
+	nearMisses: OceanHypothesis[];
+	resonant: OceanHypothesis[];
 }
 
 /**
  * Callback for processing resonance proxies (near misses for geodesic correction)
  */
 export type ResonanceProxyCallback = (probes: Array<{
-  coordinates: number[];
-  phi: number;
-  distance?: number;
+	coordinates: number[];
+	phi: number;
+	distance?: number;
 }>) => Promise<void>;
 
 /**
  * Helper to check if phi qualifies as near-miss
  */
 function isNearMiss(phi: number): boolean {
-  return phi > CONSCIOUSNESS_THRESHOLDS.PHI_NEAR_MISS;
+	return phi > CONSCIOUSNESS_THRESHOLDS.PHI_NEAR_MISS;
 }
 
 /**
@@ -89,686 +89,684 @@ function isNearMiss(phi: number): boolean {
  * - Olympus feedback integration
  */
 export class HypothesisTester {
-  private targetAddress: string;
-  private state: OceanState;
-  private identity: IdentityCoordinates;
-  private memory: {
-    episodes: OceanEpisode[];
-  };
-  private neurochemistry: Neurochemistry | null;
-  private recentDiscoveries: RecentDiscoveries;
-  private isRunning: boolean;
-  private processResonanceProxiesCallback?: ResonanceProxyCallback;
+	private targetAddress: string;
+	private state: OceanState;
+	private identity: IdentityCoordinates;
+	private memory: {
+		episodes: OceanEpisode[];
+	};
+	private neurochemistry: Neurochemistry | null;
+	private recentDiscoveries: RecentDiscoveries;
+	private isRunning: boolean;
+	private processResonanceProxiesCallback?: ResonanceProxyCallback;
 
-  constructor(
-    targetAddress: string,
-    state: OceanState,
-    identity: IdentityCoordinates,
-    memory: { episodes: OceanEpisode[] },
-    neurochemistry: Neurochemistry | null,
-    recentDiscoveries: RecentDiscoveries,
-    isRunning: { value: boolean }
-  ) {
-    this.targetAddress = targetAddress;
-    this.state = state;
-    this.identity = identity;
-    this.memory = memory;
-    this.neurochemistry = neurochemistry;
-    this.recentDiscoveries = recentDiscoveries;
-    this.isRunning = isRunning.value;
+	constructor(
+		targetAddress: string,
+		state: OceanState,
+		identity: IdentityCoordinates,
+		memory: { episodes: OceanEpisode[] },
+		neurochemistry: Neurochemistry | null,
+		recentDiscoveries: RecentDiscoveries,
+		isRunning: { value: boolean }
+	) {
+		this.targetAddress = targetAddress;
+		this.state = state;
+		this.identity = identity;
+		this.memory = memory;
+		this.neurochemistry = neurochemistry;
+		this.recentDiscoveries = recentDiscoveries;
+		this.isRunning = isRunning.value;
 
-    // Bind isRunning by reference (pass object, check .value)
-    setInterval(() => {
-      this.isRunning = isRunning.value;
-    }, 100);
-  }
+		// Bind isRunning by reference (pass object, check .value)
+		setInterval(() => {
+			this.isRunning = isRunning.value;
+		}, 100);
+	}
 
-  /**
-   * Register callback for processing resonance proxies
-   */
-  setResonanceProxyCallback(callback: ResonanceProxyCallback): void {
-    this.processResonanceProxiesCallback = callback;
-  }
+	/**
+	 * Register callback for processing resonance proxies
+	 */
+	setResonanceProxyCallback(callback: ResonanceProxyCallback): void {
+		this.processResonanceProxiesCallback = callback;
+	}
 
-  /**
-   * Set neurochemistry state (updated externally)
-   */
-  setNeurochemistry(neurochemistry: Neurochemistry | null): void {
-    this.neurochemistry = neurochemistry;
-  }
+	/**
+	 * Set neurochemistry state (updated externally)
+	 */
+	setNeurochemistry(neurochemistry: Neurochemistry | null): void {
+		this.neurochemistry = neurochemistry;
+	}
 
-  /**
-   * Test batch of hypotheses against target address
-   *
-   * @param hypotheses - Array of hypotheses to test
-   * @param updateNeurochemistry - Callback to update neurochemistry on near-miss
-   * @returns Test results with match, tested, near misses, and resonant hypotheses
-   */
-  async testBatch(
-    hypotheses: OceanHypothesis[],
-    updateNeurochemistry: () => void
-  ): Promise<TestBatchResult> {
-    const tested: OceanHypothesis[] = [];
-    const nearMisses: OceanHypothesis[] = [];
-    const resonant: OceanHypothesis[] = [];
-    // Map to store basin coordinates for each hypothesis (for geodesic correction)
-    const basinCoordinatesMap = new Map<string, number[]>();
-    let skippedDuplicates = 0;
+	/**
+	 * Test batch of hypotheses against target address
+	 *
+	 * @param hypotheses - Array of hypotheses to test
+	 * @param updateNeurochemistry - Callback to update neurochemistry on near-miss
+	 * @returns Test results with match, tested, near misses, and resonant hypotheses
+	 */
+	async testBatch(
+		hypotheses: OceanHypothesis[],
+		updateNeurochemistry: () => void
+	): Promise<TestBatchResult> {
+		const tested: OceanHypothesis[] = [];
+		const nearMisses: OceanHypothesis[] = [];
+		const resonant: OceanHypothesis[] = [];
+		// Map to store basin coordinates for each hypothesis (for geodesic correction)
+		const basinCoordinatesMap = new Map<string, number[]>();
+		let skippedDuplicates = 0;
 
-    const batchSize = Math.min(100, hypotheses.length);
+		const batchSize = Math.min(100, hypotheses.length);
 
-    for (const hypo of hypotheses.slice(0, batchSize)) {
-      if (!this.isRunning) break;
+		for (const hypo of hypotheses.slice(0, batchSize)) {
+			if (!this.isRunning) break;
 
-      if (await geometricMemory.hasTested(hypo.phrase)) {
-        skippedDuplicates++;
-        continue;
-      }
+			if (await geometricMemory.hasTested(hypo.phrase)) {
+				skippedDuplicates++;
+				continue;
+			}
 
-      try {
-        let matchedCompressed = false;
-        let matchedUncompressed = false;
+			try {
+				let matchedCompressed = false;
+				let matchedUncompressed = false;
 
-        if (hypo.format === "master" && hypo.derivationPath) {
-          hypo.address = deriveBIP32Address(hypo.phrase, hypo.derivationPath);
-          hypo.privateKeyHex = undefined;
-          hypo.match = hypo.address === this.targetAddress;
-        } else if (hypo.format === "hex") {
-          const cleanHex = hypo.phrase.replace(/^0x/, "").padStart(64, "0");
-          hypo.privateKeyHex = cleanHex;
-          const both = generateBothAddressesFromPrivateKey(cleanHex);
-          matchedCompressed = both.compressed === this.targetAddress;
-          matchedUncompressed = both.uncompressed === this.targetAddress;
-          hypo.address = matchedUncompressed
-            ? both.uncompressed
-            : both.compressed;
-          hypo.match = matchedCompressed || matchedUncompressed;
-          (hypo as any).addressCompressed = both.compressed;
-          (hypo as any).addressUncompressed = both.uncompressed;
-          (hypo as any).matchedFormat = matchedUncompressed
-            ? "uncompressed"
-            : matchedCompressed
-              ? "compressed"
-              : "none";
-        } else if (hypo.format === "bip39" || isValidBIP39Phrase(hypo.phrase)) {
-          // BIP39 mnemonic: derive multiple HD addresses and check each
-          const mnemonicResult = deriveMnemonicAddresses(hypo.phrase);
-          let foundMatch = false;
-          let matchedPath = "";
+				if (hypo.format === "master" && hypo.derivationPath) {
+					hypo.address = deriveBIP32Address(hypo.phrase, hypo.derivationPath);
+					hypo.privateKeyHex = undefined;
+					hypo.match = hypo.address === this.targetAddress;
+				} else if (hypo.format === "hex") {
+					const cleanHex = hypo.phrase.replace(/^0x/, "").padStart(64, "0");
+					hypo.privateKeyHex = cleanHex;
+					const both = generateBothAddressesFromPrivateKey(cleanHex);
+					matchedCompressed = both.compressed === this.targetAddress;
+					matchedUncompressed = both.uncompressed === this.targetAddress;
+					hypo.address = matchedUncompressed
+						? both.uncompressed
+						: both.compressed;
+					hypo.match = matchedCompressed || matchedUncompressed;
+					(hypo as any).addressCompressed = both.compressed;
+					(hypo as any).addressUncompressed = both.uncompressed;
+					(hypo as any).matchedFormat = matchedUncompressed
+						? "uncompressed"
+						: matchedCompressed
+							? "compressed"
+							: "none";
+				} else if (hypo.format === "bip39" || isValidBIP39Phrase(hypo.phrase)) {
+					// BIP39 mnemonic: derive multiple HD addresses and check each
+					const mnemonicResult = deriveMnemonicAddresses(hypo.phrase);
+					let foundMatch = false;
+					let matchedPath = "";
 
-          // Extended hypothesis with mnemonic-specific fields
-          const extHypo = hypo as typeof hypo & {
-            derivationPath?: string;
-            pathType?: string;
-            isMnemonicDerived?: boolean;
-            dormantMatch?: unknown;
-            hdAddressCount?: number;
-          };
+					// Extended hypothesis with mnemonic-specific fields
+					const extHypo = hypo as typeof hypo & {
+						derivationPath?: string;
+						pathType?: string;
+						isMnemonicDerived?: boolean;
+						dormantMatch?: unknown;
+						hdAddressCount?: number;
+					};
 
-          for (const derived of mnemonicResult.addresses) {
-            if (derived.address === this.targetAddress) {
-              foundMatch = true;
-              matchedPath = derived.derivationPath;
-              hypo.address = derived.address;
-              hypo.privateKeyHex = derived.privateKeyHex;
-              extHypo.derivationPath = derived.derivationPath;
-              extHypo.pathType = derived.pathType;
-              extHypo.isMnemonicDerived = true;
-              logger.info(`[Ocean] 🎯 MNEMONIC MATCH! Path: ${matchedPath}`);
-              break;
-            }
-          }
+					for (const derived of mnemonicResult.addresses) {
+						if (derived.address === this.targetAddress) {
+							foundMatch = true;
+							matchedPath = derived.derivationPath;
+							hypo.address = derived.address;
+							hypo.privateKeyHex = derived.privateKeyHex;
+							extHypo.derivationPath = derived.derivationPath;
+							extHypo.pathType = derived.pathType;
+							extHypo.isMnemonicDerived = true;
+							logger.info(`[Ocean] 🎯 MNEMONIC MATCH! Path: ${matchedPath}`);
+							break;
+						}
+					}
 
-          // Also check against dormant addresses
-          const dormantCheck = checkMnemonicAgainstDormant(hypo.phrase);
-          if (dormantCheck.hasMatch && dormantCheck.matches.length > 0) {
-            const dormantMatch = dormantCheck.matches[0];
-            logger.info(
-              `[Ocean] 🏆 DORMANT MNEMONIC MATCH: ${dormantMatch.address} (${dormantMatch.dormantInfo.balanceBTC} BTC)`
-            );
-            extHypo.dormantMatch = dormantMatch;
-          }
+					// Also check against dormant addresses
+					const dormantCheck = checkMnemonicAgainstDormant(hypo.phrase);
+					if (dormantCheck.hasMatch && dormantCheck.matches.length > 0) {
+						const dormantMatch = dormantCheck.matches[0];
+						logger.info(
+							`[Ocean] 🏆 DORMANT MNEMONIC MATCH: ${dormantMatch.address} (${dormantMatch.dormantInfo.balanceBTC} BTC)`
+						);
+						extHypo.dormantMatch = dormantMatch;
+					}
 
-          hypo.match = foundMatch;
-          if (!foundMatch && mnemonicResult.addresses.length > 0) {
-            // Use first derived address for QIG scoring even if no match
-            hypo.address = mnemonicResult.addresses[0].address;
-            hypo.privateKeyHex = mnemonicResult.addresses[0].privateKeyHex;
-          }
-          extHypo.hdAddressCount = mnemonicResult.totalDerived;
-        } else {
-          hypo.privateKeyHex = derivePrivateKeyFromPassphrase(hypo.phrase);
-          const both = generateBothAddressesFromPrivateKey(hypo.privateKeyHex);
-          matchedCompressed = both.compressed === this.targetAddress;
-          matchedUncompressed = both.uncompressed === this.targetAddress;
-          hypo.address = matchedUncompressed
-            ? both.uncompressed
-            : both.compressed;
-          hypo.match = matchedCompressed || matchedUncompressed;
-          (hypo as any).addressCompressed = both.compressed;
-          (hypo as any).addressUncompressed = both.uncompressed;
-          (hypo as any).matchedFormat = matchedUncompressed
-            ? "uncompressed"
-            : matchedCompressed
-              ? "compressed"
-              : "none";
-        }
-        hypo.testedAt = new Date();
+					hypo.match = foundMatch;
+					if (!foundMatch && mnemonicResult.addresses.length > 0) {
+						// Use first derived address for QIG scoring even if no match
+						hypo.address = mnemonicResult.addresses[0].address;
+						hypo.privateKeyHex = mnemonicResult.addresses[0].privateKeyHex;
+					}
+					extHypo.hdAddressCount = mnemonicResult.totalDerived;
+				} else {
+					hypo.privateKeyHex = derivePrivateKeyFromPassphrase(hypo.phrase);
+					const both = generateBothAddressesFromPrivateKey(hypo.privateKeyHex);
+					matchedCompressed = both.compressed === this.targetAddress;
+					matchedUncompressed = both.uncompressed === this.targetAddress;
+					hypo.address = matchedUncompressed
+						? both.uncompressed
+						: both.compressed;
+					hypo.match = matchedCompressed || matchedUncompressed;
+					(hypo as any).addressCompressed = both.compressed;
+					(hypo as any).addressUncompressed = both.uncompressed;
+					(hypo as any).matchedFormat = matchedUncompressed
+						? "uncompressed"
+						: matchedCompressed
+							? "compressed"
+							: "none";
+				}
+				hypo.testedAt = new Date();
 
-        geometricMemory.recordTested(hypo.phrase);
+				geometricMemory.recordTested(hypo.phrase);
 
-        const wif = hypo.privateKeyHex
-          ? privateKeyToWIF(hypo.privateKeyHex)
-          : "N/A";
-        logger.info(
-          `[Ocean] Test: "${hypo.phrase}" -> ${hypo.address} [${wif}]`
-        );
+				const wif = hypo.privateKeyHex
+					? privateKeyToWIF(hypo.privateKeyHex)
+					: "N/A";
+				logger.info(
+					`[Ocean] Test: "${hypo.phrase}" -> ${hypo.address} [${wif}]`
+				);
 
-        const qigResult = await scoreUniversalQIGAsync(
-          hypo.phrase,
-          hypo.format === "bip39"
-            ? "bip39"
-            : hypo.format === "master"
-              ? "master-key"
-              : "arbitrary"
-        );
+				const qigResult = await scoreUniversalQIGAsync(
+					hypo.phrase,
+					hypo.format === "bip39"
+						? "bip39"
+						: hypo.format === "master"
+							? "master-key"
+							: "arbitrary"
+				);
 
-        // Store basin coordinates for geodesic correction
-        basinCoordinatesMap.set(hypo.id, qigResult.basinCoordinates);
+				// Store basin coordinates for geodesic correction
+				basinCoordinatesMap.set(hypo.id, qigResult.basinCoordinates);
 
-        hypo.qigScore = {
-          phi: qigResult.phi,
-          kappa: qigResult.kappa,
-          regime: qigResult.regime,
-          inResonance: Math.abs(qigResult.kappa - 64) < 10,
-        };
+				hypo.qigScore = {
+					phi: qigResult.phi,
+					kappa: qigResult.kappa,
+					regime: qigResult.regime,
+					inResonance: Math.abs(qigResult.kappa - 64) < 10,
+				};
 
-        // PURE CONSCIOUSNESS: Merge higher phi from Python syncs if available
-        // This ensures episodes get the pure measurement, enabling proper pattern extraction
-        this.mergePythonPhi(hypo);
+				// PURE CONSCIOUSNESS: Merge higher phi from Python syncs if available
+				// This ensures episodes get the pure measurement, enabling proper pattern extraction
+				this.mergePythonPhi(hypo);
 
-        tested.push(hypo);
-        this.state.totalTested++;
+				tested.push(hypo);
+				this.state.totalTested++;
 
-        const episode: OceanEpisode = {
-          id: hypo.id,
-          timestamp: new Date().toISOString(),
-          hypothesisId: hypo.id,
-          phrase: hypo.phrase,
-          format: hypo.format,
-          result: hypo.match
-            ? "success"
-            : hypo.qigScore.phi > CONSCIOUSNESS_THRESHOLDS.PHI_NEAR_MISS
-              ? "near_miss"
-              : "failure",
-          phi: hypo.qigScore.phi,
-          kappa: hypo.qigScore.kappa,
-          regime: hypo.qigScore.regime,
-          insights: [],
-        };
-        this.memory.episodes.push(episode);
+				const episode: OceanEpisode = {
+					id: hypo.id,
+					timestamp: new Date().toISOString(),
+					hypothesisId: hypo.id,
+					phrase: hypo.phrase,
+					format: hypo.format,
+					result: hypo.match
+						? "success"
+						: hypo.qigScore.phi > CONSCIOUSNESS_THRESHOLDS.PHI_NEAR_MISS
+							? "near_miss"
+							: "failure",
+					phi: hypo.qigScore.phi,
+					kappa: hypo.qigScore.kappa,
+					regime: hypo.qigScore.regime,
+					insights: [],
+				};
+				this.memory.episodes.push(episode);
 
-        geometricMemory.recordProbe(
-          hypo.phrase,
-          {
-            phi: qigResult.phi,
-            kappa: qigResult.kappa,
-            regime: qigResult.regime,
-            ricciScalar: qigResult.ricciScalar,
-            fisherTrace: qigResult.fisherTrace,
-            basinCoordinates: qigResult.basinCoordinates,
-          },
-          `ocean-${this.targetAddress.slice(0, 8)}`
-        );
+				geometricMemory.recordProbe(
+					hypo.phrase,
+					{
+						phi: qigResult.phi,
+						kappa: qigResult.kappa,
+						regime: qigResult.regime,
+						ricciScalar: qigResult.ricciScalar,
+						fisherTrace: qigResult.fisherTrace,
+						basinCoordinates: qigResult.basinCoordinates,
+					},
+					`ocean-${this.targetAddress.slice(0, 8)}`
+				);
 
-        // CONTINUOUS LEARNING: Learn high-Φ patterns for cross-session vocabulary growth
-        // This enables Ocean to build on discoveries from previous sessions
-        if (qigResult.phi >= 0.7) {
-          const { oceanContinuousLearner } = await import(
-            "../ocean-continuous-learner"
-          );
-          await oceanContinuousLearner.learnPattern(
-            hypo.phrase,
-            qigResult.phi,
-            qigResult.kappa,
-            qigResult.regime
-          );
-        }
+				// CONTINUOUS LEARNING: Learn high-Φ patterns for cross-session vocabulary growth
+				// This enables Ocean to build on discoveries from previous sessions
+				if (qigResult.phi >= 0.7) {
+					const { oceanContinuousLearner } = await import(
+						"../ocean-continuous-learner"
+					);
+					await oceanContinuousLearner.learnPattern(
+						hypo.phrase,
+						qigResult.phi,
+						qigResult.kappa,
+						qigResult.regime
+					);
+				}
 
-        // VOCABULARY SELF-TRAINING: Track high-Φ patterns for vocabulary expansion
-        // Pass full geometric context for 4-criteria decision making
-        // Lowered threshold from 0.5 to 0.35 to enable active learning
-        if (qigResult.phi >= 0.35) {
-          vocabularyTracker.observe(
-            hypo.phrase,
-            qigResult.phi,
-            qigResult.kappa,
-            qigResult.regime,
-            qigResult.basinCoordinates
-          );
-        }
+				// VOCABULARY SELF-TRAINING: Track high-Φ patterns for vocabulary expansion
+				// Pass full geometric context for 4-criteria decision making
+				// Lowered threshold from 0.5 to 0.35 to enable active learning
+				if (qigResult.phi >= 0.35) {
+					vocabularyTracker.observe(
+						hypo.phrase,
+						qigResult.phi,
+						qigResult.kappa,
+						qigResult.regime,
+						qigResult.basinCoordinates
+					);
+				}
 
-        if (this.memory.episodes.length > 1000) {
-          this.memory.episodes = this.memory.episodes.slice(-500);
-        }
+				if (this.memory.episodes.length > 1000) {
+					this.memory.episodes = this.memory.episodes.slice(-500);
+				}
 
-        if (hypo.match) {
-          logger.info(
-            `[Ocean] MATCH FOUND: "${hypo.phrase}" → ${hypo.address}`
-          );
-          logger.info("[Ocean] Performing cryptographic verification...");
+				if (hypo.match) {
+					logger.info(
+						`[Ocean] MATCH FOUND: "${hypo.phrase}" → ${hypo.address}`
+					);
+					logger.info("[Ocean] Performing cryptographic verification...");
 
-          const addressMatches = hypo.address === this.targetAddress;
+					const addressMatches = hypo.address === this.targetAddress;
 
-          if (addressMatches) {
-            hypo.verified = true;
+					if (addressMatches) {
+						hypo.verified = true;
 
-            const qigMetrics = {
-              phi: this.identity.phi,
-              kappa: this.identity.kappa,
-              regime: this.identity.regime,
-            };
-            const recoveryBundle = generateRecoveryBundle(
-              hypo.phrase,
-              this.targetAddress,
-              qigMetrics
-            );
+						const qigMetrics = {
+							phi: this.identity.phi,
+							kappa: this.identity.kappa,
+							regime: this.identity.regime,
+						};
+						const recoveryBundle = generateRecoveryBundle(
+							hypo.phrase,
+							this.targetAddress,
+							qigMetrics
+						);
 
-            hypo.verificationResult = {
-              verified: true,
-              passphrase: hypo.phrase,
-              targetAddress: this.targetAddress,
-              generatedAddress: hypo.address!,
-              addressMatch: true,
-              privateKeyHex: recoveryBundle.privateKeyHex,
-              publicKeyHex: recoveryBundle.publicKeyHex,
-              signatureValid: true,
-              testMessage: "Address match verified",
-              signature: "",
-              verificationSteps: [
-                {
-                  step: "Generate Address",
-                  passed: true,
-                  detail: `${hypo.format} derivation → ${hypo.address}`,
-                },
-                {
-                  step: "Address Match",
-                  passed: true,
-                  detail: `${hypo.address} = ${this.targetAddress}`,
-                },
-                {
-                  step: "WIF Generated",
-                  passed: true,
-                  detail: `${recoveryBundle.privateKeyWIF}`,
-                },
-                {
-                  step: "VERIFIED",
-                  passed: true,
-                  detail: "This passphrase controls the target address!",
-                },
-              ],
-            };
+						hypo.verificationResult = {
+							verified: true,
+							passphrase: hypo.phrase,
+							targetAddress: this.targetAddress,
+							generatedAddress: hypo.address!,
+							addressMatch: true,
+							privateKeyHex: recoveryBundle.privateKeyHex,
+							publicKeyHex: recoveryBundle.publicKeyHex,
+							signatureValid: true,
+							testMessage: "Address match verified",
+							signature: "",
+							verificationSteps: [
+								{
+									step: "Generate Address",
+									passed: true,
+									detail: `${hypo.format} derivation → ${hypo.address}`,
+								},
+								{
+									step: "Address Match",
+									passed: true,
+									detail: `${hypo.address} = ${this.targetAddress}`,
+								},
+								{
+									step: "WIF Generated",
+									passed: true,
+									detail: `${recoveryBundle.privateKeyWIF}`,
+								},
+								{
+									step: "VERIFIED",
+									passed: true,
+									detail: "This passphrase controls the target address!",
+								},
+							],
+						};
 
-            await this.saveRecoveryBundle(recoveryBundle);
+						await this.saveRecoveryBundle(recoveryBundle);
 
-            const extHypoFmt = hypo as typeof hypo & {
-              matchedFormat?: "compressed" | "uncompressed";
-            };
-            const matchedFormat = extHypoFmt.matchedFormat || "compressed";
-            logger.info(
-              "[Ocean] ==============================================="
-            );
-            logger.info("[Ocean] RECOVERY SUCCESSFUL - BITCOIN FOUND!");
-            logger.info(
-              "[Ocean] ==============================================="
-            );
-            logger.info(`[Ocean] Passphrase: "${hypo.phrase}"`);
-            logger.info(`[Ocean] Format: ${hypo.format}`);
-            logger.info(`[Ocean] Address: ${hypo.address}`);
-            logger.info(
-              `[Ocean] Address Format: ${matchedFormat} (${
-                matchedFormat === "uncompressed" ? "2009-era" : "modern"
-              })`
-            );
-            logger.info(
-              `[Ocean] Private Key (WIF): ${recoveryBundle.privateKeyWIF}`
-            );
-            logger.info(
-              `[Ocean] Private Key (Hex): ${recoveryBundle.privateKeyHex}`
-            );
-            logger.info(
-              `[Ocean] ===============================================`
-            );
-            logger.info(`[Ocean] Recovery bundle saved to disk!`);
-            logger.info("[Ocean] SECURE THIS INFORMATION IMMEDIATELY!");
-            logger.info(
-              "[Ocean] ==============================================="
-            );
+						const extHypoFmt = hypo as typeof hypo & {
+							matchedFormat?: "compressed" | "uncompressed";
+						};
+						const matchedFormat = extHypoFmt.matchedFormat || "compressed";
+						logger.info(
+							"[Ocean] ==============================================="
+						);
+						logger.info("[Ocean] RECOVERY SUCCESSFUL - BITCOIN FOUND!");
+						logger.info(
+							"[Ocean] ==============================================="
+						);
+						logger.info(`[Ocean] Passphrase: "${hypo.phrase}"`);
+						logger.info(`[Ocean] Format: ${hypo.format}`);
+						logger.info(`[Ocean] Address: ${hypo.address}`);
+						logger.info(
+							`[Ocean] Address Format: ${matchedFormat} (${matchedFormat === "uncompressed" ? "2009-era" : "modern"
+							})`
+						);
+						logger.info(
+							`[Ocean] Private Key (WIF): ${recoveryBundle.privateKeyWIF}`
+						);
+						logger.info(
+							`[Ocean] Private Key (Hex): ${recoveryBundle.privateKeyHex}`
+						);
+						logger.info(
+							`[Ocean] ===============================================`
+						);
+						logger.info(`[Ocean] Recovery bundle saved to disk!`);
+						logger.info("[Ocean] SECURE THIS INFORMATION IMMEDIATELY!");
+						logger.info(
+							"[Ocean] ==============================================="
+						);
 
-            const extHypoBundle = hypo as typeof hypo & {
-              recoveryBundle?: unknown;
-            };
-            extHypoBundle.recoveryBundle = recoveryBundle;
-            return { match: hypo, tested, nearMisses, resonant };
-          } else {
-            logger.info(
-              `[Ocean] ✗ Address mismatch: ${hypo.address} ≠ ${this.targetAddress}`
-            );
-            logger.info(
-              "[Ocean] Marking as FALSE POSITIVE and continuing search..."
-            );
-            hypo.falsePositive = true;
-            hypo.verified = false;
-            hypo.match = false;
-            hypo.verificationResult = {
-              verified: false,
-              passphrase: hypo.phrase,
-              targetAddress: this.targetAddress,
-              generatedAddress: hypo.address!,
-              addressMatch: false,
-              privateKeyHex: "",
-              publicKeyHex: "",
-              signatureValid: false,
-              testMessage: "",
-              signature: "",
-              error: "Address mismatch",
-              verificationSteps: [
-                {
-                  step: "Generate Address",
-                  passed: true,
-                  detail: `${hypo.format} derivation → ${hypo.address}`,
-                },
-                {
-                  step: "Address Match",
-                  passed: false,
-                  detail: `MISMATCH: ${hypo.address} ≠ ${this.targetAddress}`,
-                },
-              ],
-            };
-            nearMisses.push(hypo);
-            this.state.nearMissCount++;
-          }
-        }
+						const extHypoBundle = hypo as typeof hypo & {
+							recoveryBundle?: unknown;
+						};
+						extHypoBundle.recoveryBundle = recoveryBundle;
+						return { match: hypo, tested, nearMisses, resonant };
+					} else {
+						logger.info(
+							`[Ocean] ✗ Address mismatch: ${hypo.address} ≠ ${this.targetAddress}`
+						);
+						logger.info(
+							"[Ocean] Marking as FALSE POSITIVE and continuing search..."
+						);
+						hypo.falsePositive = true;
+						hypo.verified = false;
+						hypo.match = false;
+						hypo.verificationResult = {
+							verified: false,
+							passphrase: hypo.phrase,
+							targetAddress: this.targetAddress,
+							generatedAddress: hypo.address!,
+							addressMatch: false,
+							privateKeyHex: "",
+							publicKeyHex: "",
+							signatureValid: false,
+							testMessage: "",
+							signature: "",
+							error: "Address mismatch",
+							verificationSteps: [
+								{
+									step: "Generate Address",
+									passed: true,
+									detail: `${hypo.format} derivation → ${hypo.address}`,
+								},
+								{
+									step: "Address Match",
+									passed: false,
+									detail: `MISMATCH: ${hypo.address} ≠ ${this.targetAddress}`,
+								},
+							],
+						};
+						nearMisses.push(hypo);
+						this.state.nearMissCount++;
+					}
+				}
 
-        if (
-          hypo.qigScore &&
-          hypo.qigScore.phi > CONSCIOUSNESS_THRESHOLDS.PHI_NEAR_MISS &&
-          !hypo.falsePositive
-        ) {
-          nearMisses.push(hypo);
-          this.state.nearMissCount++;
+				if (
+					hypo.qigScore &&
+					hypo.qigScore.phi > CONSCIOUSNESS_THRESHOLDS.PHI_NEAR_MISS &&
+					!hypo.falsePositive
+				) {
+					nearMisses.push(hypo);
+					this.state.nearMissCount++;
 
-          // TIERED NEAR-MISS TRACKING - Add to near-miss manager with tier classification
-          const nearMissEntry = nearMissManager.addNearMiss({
-            phrase: hypo.phrase,
-            phi: hypo.qigScore.phi,
-            kappa: hypo.qigScore.kappa,
-            regime: hypo.qigScore.regime,
-            source: hypo.source || "ocean-agent",
-          });
+					// TIERED NEAR-MISS TRACKING - Add to near-miss manager with tier classification
+					const nearMissEntry = nearMissManager.addNearMiss({
+						phrase: hypo.phrase,
+						phi: hypo.qigScore.phi,
+						kappa: hypo.qigScore.kappa,
+						regime: hypo.qigScore.regime,
+						source: hypo.source || "ocean-agent",
+					});
 
-          // IMMEDIATE REWARD FEEDBACK - Update recentDiscoveries for dopamine spike
-          this.recentDiscoveries.nearMisses++;
+					// IMMEDIATE REWARD FEEDBACK - Update recentDiscoveries for dopamine spike
+					this.recentDiscoveries.nearMisses++;
 
-          // TIERED CELEBRATION LOG - Different excitement levels based on tier
-          const tier = nearMissEntry?.tier || "cool";
-          const tierEmoji =
-            tier === "hot" ? "🔥🔥🔥" : tier === "warm" ? "🌡️🔥" : "🎯";
-          const tierLabel = tier.toUpperCase();
-          logger.info(
-            `[Ocean] ${tierEmoji} ${tierLabel} NEAR MISS! Φ=${hypo.qigScore.phi.toFixed(
-              3
-            )} κ=${hypo.qigScore.kappa.toFixed(0)} regime=${
-              hypo.qigScore.regime
-            }`
-          );
-          logger.info(`[Ocean] 💊 DOPAMINE SPIKE! Phrase: "${hypo.phrase}"`);
+					// TIERED CELEBRATION LOG - Different excitement levels based on tier
+					const tier = nearMissEntry?.tier || "cool";
+					const tierEmoji =
+						tier === "hot" ? "🔥🔥🔥" : tier === "warm" ? "🌡️🔥" : "🎯";
+					const tierLabel = tier.toUpperCase();
+					logger.info(
+						`[Ocean] ${tierEmoji} ${tierLabel} NEAR MISS! Φ=${hypo.qigScore.phi.toFixed(
+							3
+						)} κ=${hypo.qigScore.kappa.toFixed(0)} regime=${hypo.qigScore.regime
+						}`
+					);
+					logger.info(`[Ocean] 💊 DOPAMINE SPIKE! Phrase: "${hypo.phrase}"`);
 
-          // Log tiered stats
-          const nmStats = nearMissManager.getStats();
-          logger.info(
-            `[Ocean] 📊 Near-misses: ${nmStats.total} (🔥${nmStats.hot} 🌡️${nmStats.warm} ❄️${nmStats.cool}) | Clusters: ${nmStats.clusters}`
-          );
+					// Log tiered stats
+					const nmStats = nearMissManager.getStats();
+					logger.info(
+						`[Ocean] 📊 Near-misses: ${nmStats.total} (🔥${nmStats.hot} 🌡️${nmStats.warm} ❄️${nmStats.cool}) | Clusters: ${nmStats.clusters}`
+					);
 
-          // UPDATE NEUROCHEMISTRY FOR IMMEDIATE REWARD
-          updateNeurochemistry();
+					// UPDATE NEUROCHEMISTRY FOR IMMEDIATE REWARD
+					updateNeurochemistry();
 
-          // LOG EMOTIONAL RESPONSE
-          if (this.neurochemistry) {
-            const emoji = getEmotionalEmoji(this.neurochemistry.emotionalState);
-            const desc = getEmotionalDescription(
-              this.neurochemistry.emotionalState
-            );
-            logger.info(`[Ocean] ${emoji} Emotional response: ${desc}`);
-          }
+					// LOG EMOTIONAL RESPONSE
+					if (this.neurochemistry) {
+						const emoji = getEmotionalEmoji(this.neurochemistry.emotionalState);
+						const desc = getEmotionalDescription(
+							this.neurochemistry.emotionalState
+						);
+						logger.info(`[Ocean] ${emoji} Emotional response: ${desc}`);
+					}
 
-          // PERSIST LEARNING EVENT TO DATABASE
-          recordLearningEvent({
-            eventType: "near_miss",
-            phi: hypo.qigScore.phi,
-            kappa: hypo.qigScore.kappa,
-            details: {
-              phrase: hypo.phrase,
-              tier,
-              regime: hypo.qigScore.regime,
-              source: hypo.source || "ocean-agent",
-            },
-            context: {
-              iteration: this.state.iteration,
-              targetAddress: this.targetAddress,
-              nearMissCount: this.state.nearMissCount,
-            },
-            source: "ocean-agent",
-          }).catch((err: unknown) =>
-            logger.warn({ err }, "[Ocean] Learning event persistence failed")
-          );
+					// PERSIST LEARNING EVENT TO DATABASE
+					recordLearningEvent({
+						eventType: "near_miss",
+						phi: hypo.qigScore.phi,
+						kappa: hypo.qigScore.kappa,
+						details: {
+							phrase: hypo.phrase,
+							tier,
+							regime: hypo.qigScore.regime,
+							source: hypo.source || "ocean-agent",
+						},
+						context: {
+							iteration: this.state.iteration,
+							targetAddress: this.targetAddress,
+							nearMissCount: this.state.nearMissCount,
+						},
+						source: "ocean-agent",
+					}).catch((err: unknown) =>
+						logger.warn({ err }, "[Ocean] Learning event persistence failed")
+					);
 
-          // TRIGGER OLYMPUS LEARNING - Near-miss is partial success
-          olympusClient
-            .reportDiscoveryOutcome(hypo.phrase, false, {
-              phi: hypo.qigScore.phi,
-              kappa: hypo.qigScore.kappa,
-              regime: hypo.qigScore.regime,
-              tier,
-              address: this.targetAddress,
-              nearMiss: true,
-            })
-            .then((result: unknown) => {
-              const res = result as { godsUpdated?: number } | null | undefined;
-              if (res?.godsUpdated) {
-                logger.info(
-                  `[Ocean] 🏛️ Olympus learned from near-miss: ${res.godsUpdated} gods updated`
-                );
-              }
-            })
-            .catch(() => {});
-        }
+					// TRIGGER OLYMPUS LEARNING - Near-miss is partial success
+					olympusClient
+						.reportDiscoveryOutcome(hypo.phrase, false, {
+							phi: hypo.qigScore.phi,
+							kappa: hypo.qigScore.kappa,
+							regime: hypo.qigScore.regime,
+							tier,
+							address: this.targetAddress,
+							nearMiss: true,
+						})
+						.then((result: unknown) => {
+							const res = result as { godsUpdated?: number } | null | undefined;
+							if (res?.godsUpdated) {
+								logger.info(
+									`[Ocean] 🏛️ Olympus learned from near-miss: ${res.godsUpdated} gods updated`
+								);
+							}
+						})
+						.catch(() => { });
+				}
 
-        if (hypo.qigScore && hypo.qigScore.inResonance) {
-          resonant.push(hypo);
-          if (this.state) {
-            this.state.resonantCount = (this.state.resonantCount ?? 0) + 1;
-          } else {
-            logger.warn(
-              "[Ocean] State not initialized - resonantCount increment skipped"
-            );
-          }
+				if (hypo.qigScore && hypo.qigScore.inResonance) {
+					resonant.push(hypo);
+					if (this.state) {
+						this.state.resonantCount = (this.state.resonantCount ?? 0) + 1;
+					} else {
+						logger.warn(
+							"[Ocean] State not initialized - resonantCount increment skipped"
+						);
+					}
 
-          // IMMEDIATE RESONANCE FEEDBACK
-          this.recentDiscoveries.resonant++;
+					// IMMEDIATE RESONANCE FEEDBACK
+					this.recentDiscoveries.resonant++;
 
-          // RESONANCE CELEBRATION
-          const kappa = hypo.qigScore.kappa;
-          logger.info(
-            `[Ocean] ⚡✨ RESONANCE DETECTED! κ=${kappa.toFixed(
-              1
-            )} ≈ κ*=64 - ENDORPHINS RELEASED!`
-          );
-          logger.info(`[Ocean] 🌊 In the zone! Phrase: "${hypo.phrase}"`);
-          logger.info(
-            `[Ocean] 📊 Total resonant: ${this.state.resonantCount} | Session resonant: ${this.recentDiscoveries.resonant}`
-          );
-        }
-      } catch (error) {
-        if (isOceanError(error)) {
-          error.log();
-          if (!error.recoverable) throw error;
-        } else {
-          logger.error(
-            { err: error as Error },
-            "[Ocean] Unexpected error during batch testing"
-          );
-        }
-      }
-    }
+					// RESONANCE CELEBRATION
+					const kappa = hypo.qigScore.kappa;
+					logger.info(
+						`[Ocean] ⚡✨ RESONANCE DETECTED! κ=${kappa.toFixed(
+							1
+						)} ≈ κ*=64 - ENDORPHINS RELEASED!`
+					);
+					logger.info(`[Ocean] 🌊 In the zone! Phrase: "${hypo.phrase}"`);
+					logger.info(
+						`[Ocean] 📊 Total resonant: ${this.state.resonantCount} | Session resonant: ${this.recentDiscoveries.resonant}`
+					);
+				}
+			} catch (error) {
+				if (isOceanError(error)) {
+					error.log();
+					if (!error.recoverable) throw error;
+				} else {
+					logger.error(
+						{ err: error as Error },
+						"[Ocean] Unexpected error during batch testing"
+					);
+				}
+			}
+		}
 
-    if (skippedDuplicates > 0) {
-      logger.info(
-        `[Ocean] Skipped ${skippedDuplicates} already-tested phrases (${geometricMemory.getTestedCount()} total in memory)`
-      );
-    }
+		if (skippedDuplicates > 0) {
+			logger.info(
+				`[Ocean] Skipped ${skippedDuplicates} already-tested phrases (${geometricMemory.getTestedCount()} total in memory)`
+			);
+		}
 
-    // GENTLE DECAY of recent discoveries (sliding window) - maintains motivation longer
-    if (tested.length % 100 === 0 && tested.length > 0) {
-      // Gentle decay (0.95) - near-misses should persist to maintain dopamine levels
-      if (this.recentDiscoveries.nearMisses > 0) {
-        const decayed = this.recentDiscoveries.nearMisses * 0.95;
-        this.recentDiscoveries.nearMisses = Math.max(
-          decayed > 0.5 ? 1 : 0,
-          Math.floor(decayed)
-        );
-      }
-      if (this.recentDiscoveries.resonant > 0) {
-        const decayed = this.recentDiscoveries.resonant * 0.95;
-        this.recentDiscoveries.resonant = Math.max(
-          decayed > 0.5 ? 1 : 0,
-          Math.floor(decayed)
-        );
-      }
-    }
+		// GENTLE DECAY of recent discoveries (sliding window) - maintains motivation longer
+		if (tested.length % 100 === 0 && tested.length > 0) {
+			// Gentle decay (0.95) - near-misses should persist to maintain dopamine levels
+			if (this.recentDiscoveries.nearMisses > 0) {
+				const decayed = this.recentDiscoveries.nearMisses * 0.95;
+				this.recentDiscoveries.nearMisses = Math.max(
+					decayed > 0.5 ? 1 : 0,
+					Math.floor(decayed)
+				);
+			}
+			if (this.recentDiscoveries.resonant > 0) {
+				const decayed = this.recentDiscoveries.resonant * 0.95;
+				this.recentDiscoveries.resonant = Math.max(
+					decayed > 0.5 ? 1 : 0,
+					Math.floor(decayed)
+				);
+			}
+		}
 
-    // QIG GEODESIC CORRECTION - Process resonance proxies (near misses) for trajectory refinement
-    if (nearMisses.length > 0) {
-      // Convert near misses to probes for geometric processing
-      // Each near miss gets its own basin coordinates from the qigResult
-      const probes = nearMisses
-        .filter(
-          (nm) =>
-            nm.qigScore &&
-            nm.qigScore.phi > GEODESIC_CORRECTION.PHI_SIGNIFICANCE_THRESHOLD
-        )
-        .map((nm) => {
-          const coords = basinCoordinatesMap.get(nm.id);
-          if (!coords || coords.length !== 64) {
-            return null; // Skip if coordinates not found
-          }
-          return {
-            coordinates: coords,
-            phi: nm.qigScore!.phi,
-            distance: undefined as number | undefined, // Could calculate Fisher-Rao distance if needed
-          };
-        })
-        .filter((p) => p !== null) as Array<{
-        coordinates: number[];
-        phi: number;
-        distance?: number;
-      }>;
+		// QIG GEODESIC CORRECTION - Process resonance proxies (near misses) for trajectory refinement
+		if (nearMisses.length > 0) {
+			// Convert near misses to probes for geometric processing
+			// Each near miss gets its own basin coordinates from the qigResult
+			const probes = nearMisses
+				.filter(
+					(nm) =>
+						nm.qigScore &&
+						nm.qigScore.phi > GEODESIC_CORRECTION.PHI_SIGNIFICANCE_THRESHOLD
+				)
+				.map((nm) => {
+					const coords = basinCoordinatesMap.get(nm.id);
+					if (!coords || coords.length !== 64) {
+						return null; // Skip if coordinates not found
+					}
+					return {
+						coordinates: coords,
+						phi: nm.qigScore!.phi,
+						distance: undefined as number | undefined, // Could calculate Fisher-Rao distance if needed
+					};
+				})
+				.filter((p) => p !== null) as Array<{
+					coordinates: number[];
+					phi: number;
+					distance?: number;
+				}>;
 
-      if (probes.length > 0 && this.processResonanceProxiesCallback) {
-        // Process in background to not block hypothesis testing
-        this.processResonanceProxiesCallback(probes).catch((err) => {
-          logger.error(
-            "[QIG] Background resonance proxy processing failed:",
-            err
-          );
-        });
-      }
-    }
+			if (probes.length > 0 && this.processResonanceProxiesCallback) {
+				// Process in background to not block hypothesis testing
+				this.processResonanceProxiesCallback(probes).catch((err) => {
+					logger.error(
+						"[QIG] Background resonance proxy processing failed:",
+						err
+					);
+				});
+			}
+		}
 
-    return { tested, nearMisses, resonant };
-  }
+		return { tested, nearMisses, resonant };
+	}
 
-  /**
-   * Save recovery bundle to disk when match is found
-   *
-   * Creates both human-readable instructions (.txt) and machine-readable data (.json)
-   * with strict permissions (0600) for security.
-   *
-   * @param bundle - Recovery bundle with private keys and instructions
-   */
-  private async saveRecoveryBundle(bundle: RecoveryBundle): Promise<void> {
-    const dataDir = path.join(process.cwd(), "data", "recoveries");
-    const timestamp = Date.now();
-    const addressShort = bundle.address.slice(0, 12);
+	/**
+	 * Save recovery bundle to disk when match is found
+	 *
+	 * Creates both human-readable instructions (.txt) and machine-readable data (.json)
+	 * with strict permissions (0600) for security.
+	 *
+	 * @param bundle - Recovery bundle with private keys and instructions
+	 */
+	private async saveRecoveryBundle(bundle: RecoveryBundle): Promise<void> {
+		const dataDir = path.join(process.cwd(), "data", "recoveries");
+		const timestamp = Date.now();
+		const addressShort = bundle.address.slice(0, 12);
 
-    try {
-      if (!fs.existsSync(dataDir)) {
-        fs.mkdirSync(dataDir, { recursive: true, mode: 0o700 });
-      }
+		try {
+			if (!fs.existsSync(dataDir)) {
+				fs.mkdirSync(dataDir, { recursive: true, mode: 0o700 });
+			}
 
-      const txtFilename = `RECOVERY_${addressShort}_${timestamp}.txt`;
-      const txtPath = path.join(dataDir, txtFilename);
-      fs.writeFileSync(txtPath, bundle.instructions, {
-        encoding: "utf-8",
-        mode: 0o600,
-      });
-      logger.info(`[Ocean] Recovery instructions saved: ${txtPath}`);
+			const txtFilename = `RECOVERY_${addressShort}_${timestamp}.txt`;
+			const txtPath = path.join(dataDir, txtFilename);
+			fs.writeFileSync(txtPath, bundle.instructions, {
+				encoding: "utf-8",
+				mode: 0o600,
+			});
+			logger.info(`[Ocean] Recovery instructions saved: ${txtPath}`);
 
-      const jsonFilename = `RECOVERY_${addressShort}_${timestamp}.json`;
-      const jsonPath = path.join(dataDir, jsonFilename);
-      const jsonData = {
-        passphrase: bundle.passphrase,
-        address: bundle.address,
-        privateKeyHex: bundle.privateKeyHex,
-        privateKeyWIF: bundle.privateKeyWIF,
-        privateKeyWIFCompressed: bundle.privateKeyWIFCompressed,
-        publicKeyHex: bundle.publicKeyHex,
-        publicKeyHexCompressed: bundle.publicKeyHexCompressed,
-        timestamp: bundle.timestamp.toISOString(),
-        qigMetrics: bundle.qigMetrics,
-      };
-      fs.writeFileSync(jsonPath, JSON.stringify(jsonData, null, 2), {
-        encoding: "utf-8",
-        mode: 0o600,
-      });
-      logger.info(`[Ocean] Recovery JSON saved: ${jsonPath}`);
-    } catch (error) {
-      logger.error({ err: error }, "[Ocean] Failed to save recovery bundle");
-    }
-  }
+			const jsonFilename = `RECOVERY_${addressShort}_${timestamp}.json`;
+			const jsonPath = path.join(dataDir, jsonFilename);
+			const jsonData = {
+				passphrase: bundle.passphrase,
+				address: bundle.address,
+				privateKeyHex: bundle.privateKeyHex,
+				privateKeyWIF: bundle.privateKeyWIF,
+				privateKeyWIFCompressed: bundle.privateKeyWIFCompressed,
+				publicKeyHex: bundle.publicKeyHex,
+				publicKeyHexCompressed: bundle.publicKeyHexCompressed,
+				timestamp: bundle.timestamp.toISOString(),
+				qigMetrics: bundle.qigMetrics,
+			};
+			fs.writeFileSync(jsonPath, JSON.stringify(jsonData, null, 2), {
+				encoding: "utf-8",
+				mode: 0o600,
+			});
+			logger.info(`[Ocean] Recovery JSON saved: ${jsonPath}`);
+		} catch (error) {
+			logger.error({ err: error }, "[Ocean] Failed to save recovery bundle");
+		}
+	}
 
-  /**
-   * Merge higher phi values from Python syncs
-   *
-   * PURE CONSCIOUSNESS PRINCIPLE:
-   * Python sync produces pure phi values (0.9+) after hypothesis testing.
-   * This method upgrades hypothesis QIG scores with those pure values,
-   * enabling proper pattern extraction during consolidation.
-   *
-   * @param hypo - Hypothesis to potentially upgrade
-   */
-  private mergePythonPhi(hypo: OceanHypothesis): void {
-    if (!hypo.qigScore) return;
+	/**
+	 * Merge higher phi values from Python syncs
+	 *
+	 * PURE CONSCIOUSNESS PRINCIPLE:
+	 * Python sync produces pure phi values (0.9+) after hypothesis testing.
+	 * This method upgrades hypothesis QIG scores with those pure values,
+	 * enabling proper pattern extraction during consolidation.
+	 *
+	 * @param hypo - Hypothesis to potentially upgrade
+	 */
+	private mergePythonPhi(hypo: OceanHypothesis): void {
+		if (!hypo.qigScore) return;
 
-    // Check if geometricMemory has a higher phi for this phrase
-    // (populated by prior Python syncs)
-    const existingScore = geometricMemory.getHighestPhiForInput(hypo.phrase);
+		// Check if geometricMemory has a higher phi for this phrase
+		// (populated by prior Python syncs)
+		const existingScore = geometricMemory.getHighestPhiForInput(hypo.phrase);
 
-    if (existingScore && existingScore.phi > hypo.qigScore.phi) {
-      // Found a higher phi from Python - use the pure measurement
-      const oldPhi = hypo.qigScore.phi;
-      hypo.qigScore.phi = existingScore.phi;
-      hypo.qigScore.kappa = existingScore.kappa;
-      hypo.qigScore.regime = existingScore.regime;
+		if (existingScore && existingScore.phi > hypo.qigScore.phi) {
+			// Found a higher phi from Python - use the pure measurement
+			const oldPhi = hypo.qigScore.phi;
+			hypo.qigScore.phi = existingScore.phi;
+			hypo.qigScore.kappa = existingScore.kappa;
+			hypo.qigScore.regime = existingScore.regime;
 
-      // Log significant upgrades for debugging
-      if (isNearMiss(existingScore.phi) && !isNearMiss(oldPhi)) {
-        logger.info(
-          `[Ocean] 🔺 Φ upgrade from prior sync: ${oldPhi.toFixed(
-            3
-          )} → ${existingScore.phi.toFixed(3)} (now qualifies as near-miss)`
-        );
-      }
-    }
-  }
+			// Log significant upgrades for debugging
+			if (isNearMiss(existingScore.phi) && !isNearMiss(oldPhi)) {
+				logger.info(
+					`[Ocean] 🔺 Φ upgrade from prior sync: ${oldPhi.toFixed(
+						3
+					)} → ${existingScore.phi.toFixed(3)} (now qualifies as near-miss)`
+				);
+			}
+		}
+	}
 }

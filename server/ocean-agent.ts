@@ -4,7 +4,7 @@ import type {
   OceanIdentity,
   OceanMemory
 } from "@shared/schema";
-import { createBasin } from '../../shared/qig-ts/basin.js';
+import { createBasin } from '@shared/qig-ts/basin';
 import {
   logOceanConsciousness,
   logOceanCycle,
