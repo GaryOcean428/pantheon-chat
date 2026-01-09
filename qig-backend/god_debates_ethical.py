@@ -117,7 +117,7 @@ class EthicalDebateManager:
         if initial_positions is None:
             # Project random vectors to unit sphere for Fisher manifold consistency
             initial_positions = {
-                god: sphere_project(np.random.randn(BASIN_DIMENSION))
+                god: sphere_project(np.random.randn(BASIN_DIMENSION)) 
                 for god in gods
             }
         
@@ -241,6 +241,7 @@ class EthicalDebateManager:
                     positions[participant.name] = participant.basin_coordinates
                     
         if not positions:
+            from qig_geometry import sphere_project
             gods = debate.get('gods', ['Zeus', 'Athena', 'Ares'])
             for god in gods:
                 # Project to unit sphere for Fisher manifold consistency
