@@ -39,6 +39,18 @@ except ImportError:
     logger.debug("Redis cache not available - using PostgreSQL only")
     CACHE_TTL_LONG = 86400
 
+# Stop words to filter from vocabulary learning - prevents pronoun domination
+STOP_WORDS = {
+    'the', 'and', 'for', 'that', 'this', 'with', 'was', 'are', 'but', 'not',
+    'you', 'all', 'can', 'had', 'her', 'his', 'him', 'one', 'our', 'out',
+    'they', 'what', 'when', 'who', 'will', 'from', 'have', 'been', 'has',
+    'more', 'she', 'there', 'than', 'into', 'other', 'which', 'its', 'about',
+    'just', 'over', 'such', 'through', 'most', 'your', 'because', 'would',
+    'also', 'some', 'these', 'then', 'how', 'any', 'each', 'only', 'could',
+    'very', 'them', 'being', 'may', 'should', 'between', 'where', 'before',
+    'own', 'both', 'those', 'same', 'during', 'after', 'much', 'does', 'did',
+}
+
 
 class VocabularyCache:
     """Redis cache layer for vocabulary hot lookups."""
@@ -285,6 +297,10 @@ class PostgresCoordizer(FisherCoordizer):
                 continue
 
             if not word.isalpha() or len(word) < 3:
+                continue
+
+            # Filter stop words to prevent pronoun/common word domination
+            if word.lower() in STOP_WORDS:
                 continue
 
             new_id = 50000 + len(self.vocab)

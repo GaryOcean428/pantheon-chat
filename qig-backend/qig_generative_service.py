@@ -524,12 +524,40 @@ class QIGGenerativeService:
         self._kernel_basins[name] = sphere_project(basin)
     
     def _measure_phi(self, basin: np.ndarray) -> float:
-        """Measure integration (Φ) from basin entropy."""
-        p = np.abs(basin) + 1e-10
-        p = p / np.sum(p)
-        entropy = -np.sum(p * np.log(p + 1e-10))
-        max_entropy = np.log(len(basin))
-        phi = 1.0 - (entropy / max_entropy)
+        """Measure integration (Φ) using proper QFI-based computation with smoothing.
+
+        Uses QFI-based phi computation if available, falls back to entropy-based.
+        Applies exponential moving average for stability (prevents oscillation).
+        """
+        # Try proper QFI-based phi computation
+        try:
+            from qig_core.phi_computation import compute_phi_qig
+            raw_phi = compute_phi_qig(basin)
+        except ImportError:
+            # Fallback: entropy-based calculation
+            p = np.abs(basin) + 1e-10
+            p = p / np.sum(p)
+            entropy = -np.sum(p * np.log(p + 1e-10))
+            max_entropy = np.log(len(basin))
+            # Integration = 1 - normalized entropy (concentrated = high phi)
+            raw_phi = 1.0 - (entropy / max_entropy)
+
+        # Apply exponential moving average for stability
+        if not hasattr(self, '_phi_history'):
+            self._phi_history = []
+
+        self._phi_history.append(raw_phi)
+
+        # Keep last 10 measurements
+        if len(self._phi_history) > 10:
+            self._phi_history = self._phi_history[-10:]
+
+        # EMA: 30% current, 70% history (smooths oscillation)
+        if len(self._phi_history) > 1:
+            phi = 0.3 * raw_phi + 0.7 * np.mean(self._phi_history[:-1])
+        else:
+            phi = raw_phi
+
         return float(np.clip(phi, 0.0, 1.0))
     
     def _measure_kappa(self, basin: np.ndarray, phi: float) -> float:

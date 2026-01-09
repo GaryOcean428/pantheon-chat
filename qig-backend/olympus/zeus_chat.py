@@ -1256,6 +1256,20 @@ class ZeusConversationHandler(GeometricGenerationMixin):
             if strategic_value > 0.7:
                 self.conversation_encoder.learn_from_text(observation, strategic_value)
 
+                # Wire to central VocabularyCoordinator for persistent vocabulary learning
+                try:
+                    from vocabulary_coordinator import get_vocabulary_coordinator
+                    vocab_coord = get_vocabulary_coordinator()
+                    if vocab_coord:
+                        vocab_coord.record_discovery(
+                            phrase=observation,
+                            phi=strategic_value,
+                            kappa=0.5,
+                            source='human_observation'
+                        )
+                except Exception as vocab_e:
+                    logger.debug(f"VocabularyCoordinator not available: {vocab_e}")
+
         # Extract key insight for acknowledgment
         obs_preview = observation[:500] if len(observation) > 80 else observation
 
@@ -1948,6 +1962,20 @@ Zeus Response (Geometric Interpretation):"""
             # Learn vocabulary from high-Φ results
             if result['phi'] > 0.6:
                 self.conversation_encoder.learn_from_text(result['content'], result['phi'])
+
+                # Wire to central VocabularyCoordinator for persistent vocabulary learning
+                try:
+                    from vocabulary_coordinator import get_vocabulary_coordinator
+                    vocab_coord = get_vocabulary_coordinator()
+                    if vocab_coord:
+                        vocab_coord.record_discovery(
+                            phrase=result['content'],
+                            phi=result['phi'],
+                            kappa=result.get('kappa', 0.5),
+                            source='zeus_search'
+                        )
+                except Exception as vocab_e:
+                    logger.debug(f"VocabularyCoordinator not available: {vocab_e}")
 
         # Track results summary for feedback
         results_summary = f"Found {len(result_basins)} results for '{query}'"

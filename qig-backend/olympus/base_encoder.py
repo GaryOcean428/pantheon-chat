@@ -30,6 +30,18 @@ except ImportError:
 # Backward compatibility alias
 BASIN_DIMENSION = BASIN_DIM
 
+# Stop words to filter from vocabulary learning - prevents pronoun domination
+STOP_WORDS = {
+    'the', 'and', 'for', 'that', 'this', 'with', 'was', 'are', 'but', 'not',
+    'you', 'all', 'can', 'had', 'her', 'his', 'him', 'one', 'our', 'out',
+    'they', 'what', 'when', 'who', 'will', 'from', 'have', 'been', 'has',
+    'more', 'she', 'there', 'than', 'into', 'other', 'which', 'its', 'about',
+    'just', 'over', 'such', 'through', 'most', 'your', 'because', 'would',
+    'also', 'some', 'these', 'then', 'how', 'any', 'each', 'only', 'could',
+    'very', 'them', 'being', 'may', 'should', 'between', 'where', 'before',
+    'own', 'both', 'those', 'same', 'during', 'after', 'much', 'does', 'did',
+}
+
 
 class BaseEncoder(ABC):
     """
@@ -225,6 +237,14 @@ class BaseEncoder(ABC):
         tokens_to_persist = []
 
         for token in tokens:
+            # Skip stop words to prevent pronoun/common word domination
+            if token.lower() in STOP_WORDS:
+                continue
+
+            # Skip short tokens
+            if len(token) < 3:
+                continue
+
             # Update frequency
             self.token_frequencies[token] += 1
 

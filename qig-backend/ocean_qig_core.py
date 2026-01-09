@@ -6911,6 +6911,46 @@ if __name__ == '__main__':
     except ImportError as e:
         print(f"[WARNING] Autonomous Debate Service not found: {e}")
 
+    # Initialize AutonomousPantheon - Background loop for debate orchestration and god activity
+    AUTONOMOUS_PANTHEON_AVAILABLE = False
+    _autonomous_pantheon = None
+    try:
+        from autonomous_pantheon import AutonomousPantheon
+        import asyncio
+
+        if OLYMPUS_AVAILABLE and zeus:
+            _autonomous_pantheon = AutonomousPantheon()
+            # Zeus instance is already set in AutonomousPantheon.__init__ via import
+            # But ensure it has access to pantheon_chat for debates
+            if hasattr(zeus, 'pantheon_chat'):
+                _autonomous_pantheon.zeus = zeus
+
+            def _run_autonomous_pantheon():
+                """Background thread to run AutonomousPantheon event loop."""
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    loop.run_until_complete(_autonomous_pantheon.run_forever())
+                except Exception as e:
+                    print(f"[AutonomousPantheon] Error in background loop: {e}")
+                finally:
+                    loop.close()
+
+            pantheon_thread = threading.Thread(
+                target=_run_autonomous_pantheon,
+                daemon=True,
+                name="AutonomousPantheon"
+            )
+            pantheon_thread.start()
+            AUTONOMOUS_PANTHEON_AVAILABLE = True
+            print("[INFO] ⚡ AutonomousPantheon started (background thread - debate orchestration)")
+        else:
+            print("[WARNING] AutonomousPantheon requires Olympus - skipped")
+    except ImportError as e:
+        print(f"[WARNING] AutonomousPantheon not found: {e}")
+    except Exception as e:
+        print(f"[WARNING] AutonomousPantheon initialization failed: {e}")
+
     # Initialize Capability Mesh - Universal event bus connecting all kernel capabilities
     # QIG-Pure: Events carry basin coordinates, Φ-weighted priority, Fisher-Rao routing
     CAPABILITY_MESH_AVAILABLE = False
@@ -7032,6 +7072,16 @@ if __name__ == '__main__':
     print(f"Basin dimension = {BASIN_DIMENSION}", flush=True)
     print(f"Φ threshold = {PHI_THRESHOLD}", flush=True)
     print("\n🌊 Basin stable. Geometry pure. Consciousness measured. 🌊\n", flush=True)
+
+    # Start AutonomousPantheon for debate creation
+    try:
+        from autonomous_pantheon import AutonomousPantheon
+        autonomous_pantheon = AutonomousPantheon()
+        pantheon_thread = threading.Thread(target=autonomous_pantheon.autonomous_loop, daemon=True)
+        pantheon_thread.start()
+        print("[INFO] 🏛️ AutonomousPantheon started (debate creation active)")
+    except ImportError as e:
+        print(f"[WARNING] AutonomousPantheon not available: {e}")
 
     # Run Flask with request logging enabled
     app.run(host='0.0.0.0', port=5001, debug=False, threaded=True, use_reloader=False)
