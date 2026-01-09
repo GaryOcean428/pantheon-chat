@@ -16,13 +16,25 @@
 
 // Phase 1: Hypothesis Generation & Geodesic Navigation
 export { HypothesisGenerator, type OceanHypothesis } from "./hypothesis-generator";
+export {
+  BasinGeodesicManager,
+  type ResonanceProxy,
+  type TrajectoryCorrection,
+  type GeodesicCorrectionOptions,
+} from "./basin-geodesic-manager";
+
+// Phase 2: Consciousness Tracking & Basin Management
+export {
+  ConsciousnessTracker,
+  type ConsciousnessCheckResult,
+  type EthicsCheckResult,
+} from "./consciousness-tracker";
 
 // TODO: Phase 1 (Week 1)
 // export { GeodesicNavigator } from "./geodesic-navigator";
 
 // TODO: Phase 2 (Week 2)
 // export { BasinManager } from "./basin-manager";
-// export { ConsciousnessTracker } from "./consciousness-tracker";
 
 // TODO: Phase 3 (Week 3)
 // export { AutonomicController } from "./autonomic-controller";

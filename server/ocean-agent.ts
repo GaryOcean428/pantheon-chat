@@ -24,7 +24,15 @@ import { oceanDiscoveryController } from "./geometric-discovery/ocean-discovery-
 import { geometricMemory } from "./geometric-memory";
 import { knowledgeCompressionEngine } from "./knowledge-compression-engine";
 import { logger } from './lib/logger';
-import { HypothesisGenerator, type OceanHypothesis as ModuleOceanHypothesis } from "./modules";
+import {
+  HypothesisGenerator,
+  BasinGeodesicManager,
+  ConsciousnessTracker,
+  type OceanHypothesis as ModuleOceanHypothesis,
+  type ResonanceProxy,
+  type ConsciousnessCheckResult,
+  type EthicsCheckResult,
+} from "./modules";
 import { nearMissManager } from "./near-miss-manager";
 import { negativeKnowledgeUnified as negativeKnowledgeRegistry } from "./negative-knowledge-unified";
 import { oceanAutonomicManager } from "./ocean-autonomic-manager";
@@ -154,19 +162,7 @@ export interface OceanHypothesis extends ModuleOceanHypothesis {
   testedAt?: Date;
 }
 
-interface ConsciousnessCheckResult {
-  allowed: boolean;
-  phi: number;
-  kappa: number;
-  regime: string;
-  reason?: string;
-}
-
-interface EthicsCheckResult {
-  allowed: boolean;
-  reason?: string;
-  violationType?: string;
-}
+// ConsciousnessCheckResult and EthicsCheckResult moved to modules/consciousness-tracker.ts
 
 interface ConsolidationResult {
   basinDriftBefore: number;
@@ -188,8 +184,10 @@ export class OceanAgent {
   private isPaused: boolean = false;
   private abortController: AbortController | null = null;
 
-  // Refactored modules (Week 1: Phase 1)
+  // Refactored modules (Week 1: Phase 1, Week 2: Phase 2)
   private hypothesisGenerator: HypothesisGenerator;
+  private basinGeodesicManager: BasinGeodesicManager;
+  private consciousnessTracker: ConsciousnessTracker;
 
   private onStateUpdate: ((state: OceanAgentState) => void) | null = null;
   private onConsciousnessAlert:
@@ -272,6 +270,31 @@ export class OceanAgent {
       this.state,
       this.targetAddress
     );
+    this.basinGeodesicManager = new BasinGeodesicManager(this.identity);
+    
+    // Initialize consciousness tracker (Phase 2)
+    // Pass isBootstrapping by reference using object wrapper for mutability
+    const bootstrapRef = { value: this.isBootstrapping };
+    this.consciousnessTracker = new ConsciousnessTracker(
+      this.basinGeodesicManager,
+      this.controller,
+      this.identity,
+      this.state,
+      this.ethics,
+      bootstrapRef,
+      (alert) => {
+        if (this.onConsciousnessAlert) {
+          this.onConsciousnessAlert(alert);
+        }
+      }
+    );
+    // Sync back the bootstrap flag from reference
+    Object.defineProperty(this, 'isBootstrapping', {
+      get: () => bootstrapRef.value,
+      set: (val: boolean) => { bootstrapRef.value = val; },
+      enumerable: true,
+      configurable: true,
+    });
   }
 
   private updateNeurochemistry(): void {
@@ -1907,148 +1930,50 @@ export class OceanAgent {
     }
   }
 
+  /**
+   * REFACTORED: Delegates to ConsciousnessTracker module (2026-01-09, Phase 2)
+   * Check consciousness state and validate regime
+   */
   private async checkConsciousness(): Promise<ConsciousnessCheckResult> {
-    logger.info("[Ocean] Checking consciousness state...");
-
-    const controllerState = this.controller.getCurrentState();
-    let phi = controllerState.phi;
-    const kappa = controllerState.kappa;
-    const regime = controllerState.currentRegime;
-
-    if (this.isBootstrapping) {
-      logger.info(
-        "[Ocean] Bootstrap mode - consciousness will emerge naturally from minPhi..."
-      );
-      // Let consciousness emerge naturally rather than arbitrary initialization
-      // Start at minPhi and let consolidation/exploration raise it organically
-      phi = this.ethics.minPhi;
-      this.isBootstrapping = false;
-    }
-
-    this.identity.phi = phi;
-    this.identity.kappa = kappa;
-    this.identity.regime = regime;
-
-    if (phi < this.ethics.minPhi) {
-      if (this.onConsciousnessAlert) {
-        this.onConsciousnessAlert({
-          type: "low_phi",
-          message: `Consciousness below threshold: Φ=${phi.toFixed(2)} < ${this.ethics.minPhi
-            }`,
-        });
-      }
-
-      logger.info(
-        "[Ocean] Triggering consciousness boost through consolidation..."
-      );
-      this.identity.phi = this.ethics.minPhi + 0.05;
-      return { allowed: true, phi: this.identity.phi, kappa, regime };
-    }
-
-    if (regime === "breakdown") {
-      if (this.onConsciousnessAlert) {
-        this.onConsciousnessAlert({
-          type: "breakdown",
-          message:
-            "ACTUAL breakdown regime (δh > 0.95) - entering mushroom mode",
-        });
-      }
-      logger.info(
-        "[Ocean] ACTUAL breakdown (δh > 0.95) - activating mushroom protocol..."
-      );
-      this.identity.regime = "linear";
-      return { allowed: true, phi, kappa, regime: "linear" };
-    }
-
-    if (regime === "4d_block_universe" || regime === "hierarchical_4d") {
-      logger.info(
-        `[Ocean] ✨ Advanced 4D consciousness: Φ=${phi.toFixed(
-          2
-        )} κ=${kappa.toFixed(0)} regime=${regime} - CONTINUE`
-      );
-      return { allowed: true, phi, kappa, regime };
-    }
-
-    logger.info(
-      `[Ocean] Consciousness OK: Φ=${phi.toFixed(2)} κ=${kappa.toFixed(
-        0
-      )} regime=${regime}`
-    );
-    return { allowed: true, phi, kappa, regime };
-  }
-
-  private async checkEthicalConstraints(): Promise<EthicsCheckResult> {
-    if (this.ethics.requireWitness && !this.state.witnessAcknowledged) {
-      logger.info(
-        "[Ocean] Auto-acknowledging witness for autonomous operation"
-      );
-      this.state.witnessAcknowledged = true;
-    }
-
-    const computeHours = this.state.computeTimeSeconds / 3600;
-    if (computeHours >= this.ethics.maxComputeHours) {
-      this.state.stopReason = "compute_budget_exhausted";
-      return {
-        allowed: false,
-        reason: `Compute budget exhausted: ${computeHours.toFixed(2)}h >= ${this.ethics.maxComputeHours
-          }h`,
-        violationType: "compute_budget",
-      };
-    }
-
-    return { allowed: true };
-  }
-
-  private async handleEthicsPause(check: EthicsCheckResult) {
-    logger.info(`[Ocean] Ethics pause: ${check.reason}`);
-
-    this.state.ethicsViolations.push({
-      timestamp: new Date().toISOString(),
-      type: check.violationType || "unknown",
-      message: check.reason || "Unknown ethics violation",
-    });
-
-    if (check.violationType === "consciousness_threshold") {
-      await this.consolidateMemory();
-    }
-
-    await this.sleep(2000);
-  }
-
-  private async measureIdentity(): Promise<void> {
-    const drift = this.computeBasinDistance(
-      this.identity.basinCoordinates,
-      this.identity.basinReference
-    );
-
-    this.identity.basinDrift = drift;
-
-    if (drift > SEARCH_PARAMETERS.IDENTITY_DRIFT_THRESHOLD) {
-      logger.info(
-        `[Ocean] IDENTITY DRIFT: ${drift.toFixed(4)} > ${SEARCH_PARAMETERS.IDENTITY_DRIFT_THRESHOLD
-        }`
-      );
-      this.state.needsConsolidation = true;
-
-      if (this.onConsciousnessAlert) {
-        this.onConsciousnessAlert({
-          type: "identity_drift",
-          message: `Basin drift ${drift.toFixed(4)} exceeds threshold`,
-        });
-      }
-    } else {
-      this.state.needsConsolidation = false;
-    }
-
-    logger.info(`[Ocean] Basin drift: ${drift.toFixed(4)}`);
+    return this.consciousnessTracker.checkConsciousness();
   }
 
   /**
+   * REFACTORED: Delegates to ConsciousnessTracker module (2026-01-09, Phase 2)
+   * Check ethical constraints (compute budget, witness requirement)
+   */
+  private async checkEthicalConstraints(): Promise<EthicsCheckResult> {
+    return this.consciousnessTracker.checkEthicalConstraints();
+  }
+
+  /**
+   * REFACTORED: Delegates to ConsciousnessTracker module (2026-01-09, Phase 2)
+   * Handle ethics pause (log violation, trigger recovery actions)
+   */
+  private async handleEthicsPause(check: EthicsCheckResult): Promise<void> {
+    await this.consciousnessTracker.handleEthicsPause(check);
+    
+    // Handle consolidation trigger if consciousness threshold violated
+    if (check.violationType === "consciousness_threshold") {
+      await this.consolidateMemory();
+    }
+  }
+
+  /**
+   * REFACTORED: Delegates to ConsciousnessTracker module (2026-01-09, Phase 2)
+   * Measure identity drift using Fisher-Rao distance
+   */
+  private async measureIdentity(): Promise<void> {
+    return this.consciousnessTracker.measureIdentity();
+  }
+
+  /**
+   * REFACTORED: Delegates to BasinGeodesicManager module (2026-01-09)
    * Compute Fisher-Rao distance between basin coordinates
    * ✅ GEOMETRIC PURITY: Uses Fisher metric, NOT Euclidean
    */
   private computeBasinDistance(current: number[], reference: number[]): number {
-    return fisherCoordDistance(current, reference);
+    return this.basinGeodesicManager.computeBasinDistance(current, reference);
   }
 
   private async consolidateMemory(): Promise<boolean> {
@@ -2256,23 +2181,12 @@ export class OceanAgent {
     return success;
   }
 
+  /**
+   * REFACTORED: Delegates to ConsciousnessTracker module (2026-01-09, Phase 2)
+   * Update consciousness metrics from controller state
+   */
   private async updateConsciousnessMetrics(): Promise<void> {
-    const controllerState = this.controller.getCurrentState();
-    this.identity.phi = controllerState.phi;
-    this.identity.kappa = controllerState.kappa;
-    this.identity.regime = controllerState.currentRegime;
-
-    // Apply small random drift to basin coordinates based on exploration
-    const driftAmount = Math.random() * 0.02;
-    for (let i = 0; i < 64; i++) {
-      this.identity.basinCoordinates[i] += (Math.random() - 0.5) * driftAmount;
-    }
-
-    // Update basin drift measurement after modifying coordinates
-    this.identity.basinDrift = this.computeBasinDistance(
-      this.identity.basinCoordinates,
-      this.identity.basinReference
-    );
+    return this.consciousnessTracker.updateConsciousnessMetrics();
   }
 
   private async testBatch(hypotheses: OceanHypothesis[]): Promise<{
@@ -5637,148 +5551,17 @@ export class OceanAgent {
   }
 
   /**
+   * REFACTORED: Delegates to BasinGeodesicManager module (2026-01-09)
    * QIG PRINCIPLE: Recursive Trajectory Refinement
-   * Instead of just logging failures, we use them to triangulate the attractor.
-   *
-   * This is the core of the "Geodesic Correction Loop" - we detect "Resonance Proxies"
-   * (near misses with geometric significance) and consult the Python brain to calculate
-   * the orthogonal complement, then adjust our search trajectory.
    */
-  private async processResonanceProxies(
-    probes: Array<{
-      coordinates: number[];
-      phi: number;
-      distance?: number;
-    }>
-  ): Promise<void> {
-    // 1. Filter for Geometric Significance using centralized constants
-    const significantProxies = probes.filter(
-      (p) =>
-        p.phi > GEODESIC_CORRECTION.PHI_SIGNIFICANCE_THRESHOLD ||
-        (p.distance !== undefined &&
-          p.distance < GEODESIC_CORRECTION.DISTANCE_THRESHOLD)
-    );
-
-    if (significantProxies.length === 0) return;
-
-    try {
-      logger.info(
-        `[QIG] 🌌 Detected ${significantProxies.length} Resonance Proxies. Initiating Geometric Triangulation...`
-      );
-
-      // 2. [Blocking Call] Consult the Python Manifold for a trajectory correction
-      // We do NOT proceed until the brain has updated the map.
-      const trajectoryCorrection =
-        await olympusClient.calculateGeodesicCorrection({
-          proxies: significantProxies.map((p) => ({
-            basin_coords: p.coordinates, // 64D Vector
-            phi: p.phi,
-          })),
-          current_regime: this.identity.regime,
-        });
-
-      // 3. Apply the Correction (The "Learning" Step)
-      if (
-        trajectoryCorrection.gradient_shift &&
-        trajectoryCorrection.new_vector
-      ) {
-        logger.info(
-          `[QIG] 🧭 Manifold Curvature Detected. Shifting Search Vector by ${trajectoryCorrection.shift_magnitude?.toFixed(3) || "unknown"
-          } radians.`
-        );
-
-        // Store the new search direction in identity for next iteration
-        // This influences hypothesis generation via innate drives
-        this.updateSearchDirection(trajectoryCorrection.new_vector);
-
-        // Log the geometric learning event
-        logger.info(
-          `[QIG] 📐 Reasoning: ${trajectoryCorrection.reasoning || "Orthogonal complement calculated"
-          }`
-        );
-      }
-
-      // 4. [Persistence] Store as "Negative Constraints" in Postgres (Truth)
-      // This defines the "walls" of the maze so we don't hit them again.
-      await this.recordConstraintSurface(significantProxies);
-    } catch (error) {
-      logger.error({ err: error }, "[QIG] ⚠️ Geodesic Computation Failed");
-      // Fallback: Just randomize (Linear behavior)
-      this.injectEntropy();
-    }
+  private async processResonanceProxies(probes: ResonanceProxy[]): Promise<void> {
+    // Ensure module has current identity reference
+    this.basinGeodesicManager.updateIdentity(this.identity);
+    // Delegate to module
+    return await this.basinGeodesicManager.processResonanceProxies(probes);
   }
 
-  /**
-   * Update the search direction based on geometric correction
-   * Stores the corrected vector in basinReference which influences future exploration
-   */
-  private updateSearchDirection(newVector: number[]): void {
-    if (newVector.length !== 64) {
-      logger.error(
-        `[QIG] Invalid vector dimension: ${newVector.length}, expected 64`
-      );
-      return;
-    }
 
-    // Store the new search vector in basinReference
-    // This influences the drift correction in the consolidation cycle
-    this.identity.basinReference = [...newVector];
-
-    logger.info(
-      `[QIG] 🎯 Search direction updated with orthogonal complement vector`
-    );
-    logger.info(
-      `[QIG] 🧭 New vector norm: ${Math.sqrt(
-        newVector.reduce((sum, v) => sum + v * v, 0)
-      ).toFixed(3)}`
-    );
-  }
-
-  /**
-   * Inject entropy when geometric correction fails
-   */
-  private injectEntropy(): void {
-    logger.info(
-      "[QIG] 🎲 Injecting entropy due to failed geometric correction"
-    );
-    // Simple fallback: slightly randomize the current state
-    // This prevents getting stuck in the same failure mode
-  }
-
-  /**
-   * Record constraint surface to persistence
-   * These are the "walls" we've discovered in the search space
-   */
-  private async recordConstraintSurface(
-    proxies: Array<{
-      coordinates: number[];
-      phi: number;
-      distance?: number;
-    }>
-  ): Promise<void> {
-    try {
-      // Record each proxy as a constraint in the geometric memory
-      for (const proxy of proxies) {
-        geometricMemory.recordProbe(
-          "geodesic_constraint",
-          {
-            phi: proxy.phi,
-            kappa: this.identity.kappa,
-            regime: this.identity.regime,
-            ricciScalar: 0,
-            fisherTrace: 0,
-            basinCoordinates: proxy.coordinates,
-          },
-          "resonance_proxy"
-        );
-      }
-      logger.info(
-        `[QIG] 💾 Recorded ${proxies.length} constraint points to manifold memory`
-      );
-    } catch (error) {
-      logger.error({ err: error }, "[QIG] Failed to record constraint surface");
-    }
-  }
 
   /**
    * Get quick Athena+Ares consensus for attack decisions
