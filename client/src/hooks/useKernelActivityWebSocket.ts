@@ -1,12 +1,17 @@
 /**
  * WebSocket Hook for Kernel Activity Stream
- * 
+ *
  * Provides real-time kernel activity updates via WebSocket
  * instead of polling. Falls back to polling if WebSocket fails.
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { KernelActivityItem, KernelActivityResponse } from './use-kernel-activity';
+
+// Fallback constants
+const MAX_WS_RETRIES = 3;
+const POLLING_INTERVAL = 5000;
 
 interface ActivityFilters {
   activityTypes?: string[];
@@ -42,6 +47,10 @@ export function useKernelActivityWebSocket(options: UseKernelActivityWebSocketOp
     error: null,
     lastUpdate: null,
   });
+
+  // Fallback state for when WebSocket fails
+  const [useFallbackPolling, setUseFallbackPolling] = useState(false);
+  const wsRetryCountRef = useRef(0);
 
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -129,13 +138,25 @@ export function useKernelActivityWebSocket(options: UseKernelActivityWebSocketOp
 
       ws.onclose = (event) => {
         if (isUnmountedRef.current) return;
-        
+
         console.log('[KernelActivityWS] Closed:', event.code, event.reason);
         setWsState(prev => ({ ...prev, connected: false }));
         wsRef.current = null;
 
-        // Auto-reconnect
-        if (autoReconnect && !isUnmountedRef.current) {
+        // Check for abnormal closure (code 1006) - likely WebSocket not supported
+        if (event.code === 1006 && !event.wasClean) {
+          wsRetryCountRef.current += 1;
+          console.log(`[KernelActivityWS] Abnormal closure, retry count: ${wsRetryCountRef.current}/${MAX_WS_RETRIES}`);
+
+          if (wsRetryCountRef.current >= MAX_WS_RETRIES) {
+            console.log('[KernelActivityWS] WebSocket failed, falling back to polling');
+            setUseFallbackPolling(true);
+            return; // Don't try to reconnect, use polling instead
+          }
+        }
+
+        // Auto-reconnect (only if not using polling fallback)
+        if (autoReconnect && !isUnmountedRef.current && !useFallbackPolling) {
           reconnectTimeoutRef.current = setTimeout(() => {
             console.log('[KernelActivityWS] Attempting reconnect...');
             connect();
@@ -181,10 +202,25 @@ export function useKernelActivityWebSocket(options: UseKernelActivityWebSocketOp
     setActivities([]);
   }, []);
 
-  // Connect on mount
+  // Polling fallback query
+  const pollingQuery = useQuery({
+    queryKey: ['kernel-activity-fallback'],
+    queryFn: async () => {
+      const response = await fetch('/api/olympus/pantheon/activity?limit=50');
+      if (!response.ok) throw new Error('Failed to fetch activity');
+      return response.json() as Promise<KernelActivityResponse>;
+    },
+    enabled: useFallbackPolling,
+    refetchInterval: POLLING_INTERVAL,
+    staleTime: POLLING_INTERVAL,
+  });
+
+  // Connect on mount (only if not using polling fallback)
   useEffect(() => {
     isUnmountedRef.current = false;
-    connect();
+    if (!useFallbackPolling) {
+      connect();
+    }
 
     return () => {
       isUnmountedRef.current = true;
@@ -195,10 +231,11 @@ export function useKernelActivityWebSocket(options: UseKernelActivityWebSocketOp
         wsRef.current.close();
       }
     };
-  }, [connect]);
+  }, [connect, useFallbackPolling]);
 
   // Build response format compatible with useKernelActivity
-  const data: KernelActivityResponse = {
+  // Use polling data if fallback is active, otherwise use WebSocket data
+  const wsData: KernelActivityResponse = {
     activity: activities,
     debates: {
       active: [],
@@ -212,27 +249,36 @@ export function useKernelActivityWebSocket(options: UseKernelActivityWebSocketOp
     },
   };
 
+  const data = useFallbackPolling ? (pollingQuery.data ?? wsData) : wsData;
+
   return {
     // Data
     data,
-    activities,
-    status,
-    
-    // WebSocket state
-    isConnected: wsState.connected,
-    error: wsState.error,
+    activities: useFallbackPolling ? (data.activity ?? []) : activities,
+    status: useFallbackPolling ? data.status : status,
+
+    // Connection state (treat polling as "connected")
+    isConnected: useFallbackPolling ? !pollingQuery.isError : wsState.connected,
+    error: useFallbackPolling
+      ? (pollingQuery.error?.message ?? null)
+      : wsState.error,
     lastUpdate: wsState.lastUpdate,
-    
-    // Loading states (for compatibility)
-    isLoading: !wsState.connected && activities.length === 0,
-    isFetching: false,
-    
+
+    // Loading states
+    isLoading: useFallbackPolling
+      ? pollingQuery.isLoading
+      : (!wsState.connected && activities.length === 0),
+    isFetching: useFallbackPolling ? pollingQuery.isFetching : false,
+
+    // Fallback mode indicator
+    usingPollingFallback: useFallbackPolling,
+
     // Actions
     connect,
     disconnect,
     updateFilters,
     clearActivities,
-    refetch: connect, // For compatibility with polling version
+    refetch: useFallbackPolling ? pollingQuery.refetch : connect,
   };
 }
 

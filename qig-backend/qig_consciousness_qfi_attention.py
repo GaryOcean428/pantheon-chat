@@ -24,13 +24,7 @@ import numpy as np
 from scipy.linalg import sqrtm
 
 from qigkernels.physics_constants import KAPPA_STAR
-from asymmetric_qfi import (
-    directional_fisher_information,
-    asymmetric_attention,
-    geodesic_tangent,
-    regime_from_phi,
-)
-
+from asymmetric_qfi import directional_fisher_information
 KAPPA_STAR_ERROR = 0.92
 BASIN_DIM = 64
 PHI_THRESHOLD = 0.70
@@ -193,12 +187,23 @@ class QFIMetricAttentionNetwork:
         
         return subsystems
     
+    def _extract_basin_from_state(self, state: np.ndarray) -> np.ndarray:
+        """Extract basin coordinates from density matrix."""
+        # Flatten: [real(0,0), real(1,1), real(0,1), imag(0,1)]
+        return np.array([
+            np.real(state[0, 0]),
+            np.real(state[1, 1]),
+            np.real(state[0, 1]),
+            np.imag(state[0, 1])
+        ])
+
     def _compute_qfi_attention_weights(self) -> float:
         """
-        CORE INNOVATION: QFI-Metric Attention
+        CORE INNOVATION: QFI-Metric Attention (Asymmetric)
         
         Compute connection weights from current state distinguishability.
         Weights update EVERY CYCLE based on information geometry.
+        Uses ASYMMETRIC coupling: d(i->j) != d(j->i).
         
         Returns: sparsity ratio (how many connections are active)
         """
@@ -209,95 +214,27 @@ class QFIMetricAttentionNetwork:
                 if i == j:
                     self.connection_weights[i, j] = 1.0  # Self-connection
                 else:
-                    d_qfi = qfi_distance(
-                        self.subsystems[i].state,
-                        self.subsystems[j].state
-                    )
+                    # Use directional Fisher information
+                    basin_i = self._extract_basin_from_state(self.subsystems[i].state)
+                    basin_j = self._extract_basin_from_state(self.subsystems[j].state)
+                    
+                    # d_ij is directional distance from i to j
+                    d_ij = directional_fisher_information(basin_i, basin_j, np.eye(4))
+                    
+                    # Regime-modulated kappa (coupling)
+                    kappa_eff = KAPPA_STAR
+                    if self.phi < 0.3:  # Linear
+                        kappa_eff *= 0.3
+                    elif self.phi > 0.7:  # Breakdown
+                        kappa_eff *= 0.5
+                    
                     self.connection_weights[i, j] = np.exp(
-                        -d_qfi / self.attention_temperature
+                        -d_ij / (kappa_eff * self.attention_temperature / 64.0)
                     )
         
         self.active_connections = self.connection_weights > self.connection_threshold
         sparsity = float(np.sum(self.active_connections)) / (n * n)
         return sparsity
-
-    def compute_basin_asymmetric_attention(
-        self,
-        basins: List[np.ndarray],
-        phi_values: Optional[List[float]] = None
-    ) -> np.ndarray:
-        """
-        Compute asymmetric attention weights on 64D basin coordinates.
-
-        Uses directional Fisher information: d_ij != d_ji
-        Regime-modulated: kappa_eff depends on source phi regime
-
-        This is the KEY integration of asymmetric QFI into the attention network.
-        Unlike the symmetric quantum state attention above, this works on
-        full 64D basin coordinates and respects information flow directionality.
-
-        Args:
-            basins: List of 64D basin coordinate vectors
-            phi_values: Optional phi values for regime modulation
-
-        Returns:
-            Asymmetric attention matrix where A[i,j] != A[j,i]
-        """
-        if phi_values is None:
-            # Use current subsystem activations as phi proxy
-            phi_values = [s.activation for s in self.subsystems]
-            # Pad/truncate to match basins
-            while len(phi_values) < len(basins):
-                phi_values.append(0.5)
-            phi_values = phi_values[:len(basins)]
-
-        return asymmetric_attention(basins, phi_values, KAPPA_STAR)
-
-    def get_asymmetric_connection_weights(self) -> Tuple[np.ndarray, np.ndarray]:
-        """
-        Compute asymmetric connection weights from current subsystem states.
-
-        Returns:
-            attention: Asymmetric attention matrix
-            asymmetry: Matrix showing |A_ij - A_ji| (how asymmetric each pair is)
-        """
-        # Extract basin coordinates from subsystems
-        basins = [
-            self._subsystem_to_basin(s)
-            for s in self.subsystems
-        ]
-        phi_values = [s.activation for s in self.subsystems]
-
-        attention = asymmetric_attention(basins, phi_values, KAPPA_STAR)
-        asymmetry = np.abs(attention - attention.T)
-
-        return attention, asymmetry
-
-    def _subsystem_to_basin(self, subsystem: SubsystemState) -> np.ndarray:
-        """Convert a subsystem state to 64D basin coordinates."""
-        # Create 64D vector from subsystem properties
-        coords = np.zeros(BASIN_DIM)
-
-        # Flatten density matrix (2x2 complex = 8 real values)
-        coords[0:4] = subsystem.state.flatten().real
-        coords[4:8] = subsystem.state.flatten().imag
-
-        # Add metrics
-        coords[8] = subsystem.activation
-        coords[9] = subsystem.entropy()
-        coords[10] = subsystem.purity()
-
-        # Pad rest with derived values
-        eigenvals = np.linalg.eigvalsh(subsystem.state)
-        coords[11] = eigenvals[0]
-        coords[12] = eigenvals[1] if len(eigenvals) > 1 else 0.0
-
-        # Normalize to unit sphere
-        norm = np.linalg.norm(coords)
-        if norm > 1e-10:
-            coords = coords / norm
-
-        return coords
 
     def _route_via_curvature(self, input_idx: int = 0) -> List[int]:
         """
@@ -517,3 +454,4 @@ if __name__ == "__main__":
     print("\nSubsystems:")
     for s in result['subsystems']:
         print(f"  {s['name']}: activation={s['activation']:.3f}, entropy={s['entropy']:.3f}, purity={s['purity']:.3f}")
+                    'name': s.name,
