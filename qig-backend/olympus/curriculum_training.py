@@ -114,7 +114,8 @@ def update_word_relationships_cache(learner):
         records = []
         for word, neighbors in learner.cooccurrence.items():
             for neighbor, count in neighbors.items():
-                records.append((word, neighbor, float(count)))
+                if word != neighbor:  # Prevent self-referential entries (DB constraint)
+                    records.append((word, neighbor, float(count)))
         
         if not records:
             print("[CurriculumTraining] No relationships to update")

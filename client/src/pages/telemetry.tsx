@@ -320,13 +320,13 @@ function CoordizerStatsPanel() {
         <div className="grid grid-cols-2 gap-4">
           <div>
             <div className="text-2xl font-bold font-mono" data-testid="metric-vocab-size">
-              {data.vocab_size.toLocaleString()}
+              {(data.vocab_size ?? 0).toLocaleString()}
             </div>
             <div className="text-xs text-muted-foreground">Vocabulary Size</div>
           </div>
           <div>
             <div className="text-2xl font-bold font-mono" data-testid="metric-coord-dim">
-              {data.coordinate_dim}D
+              {data.coordinate_dim ?? 64}D
             </div>
             <div className="text-xs text-muted-foreground">Basin Dimension</div>
           </div>
@@ -611,13 +611,13 @@ function LearningCard({ learning }: { learning: TelemetryOverview['data']['learn
         <div className="grid grid-cols-2 gap-4">
           <div>
             <div className="text-2xl font-bold font-mono" data-testid="metric-vocabulary">
-              {learning.vocabularySize.toLocaleString()}
+              {(learning.vocabularySize ?? 0).toLocaleString()}
             </div>
             <div className="text-xs text-muted-foreground">Vocabulary Size</div>
           </div>
           <div>
             <div className="text-2xl font-bold font-mono" data-testid="metric-expansions">
-              +{learning.recentExpansions}
+              +{learning.recentExpansions ?? 0}
             </div>
             <div className="text-xs text-muted-foreground">Recent Expansions</div>
           </div>
@@ -626,15 +626,15 @@ function LearningCard({ learning }: { learning: TelemetryOverview['data']['learn
         <div className="pt-4 border-t space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-sm">High-Φ Discoveries</span>
-            <span className="font-mono font-bold">{learning.highPhiDiscoveries}</span>
+            <span className="font-mono font-bold">{learning.highPhiDiscoveries ?? 0}</span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-sm">Sources Discovered</span>
-            <span className="font-mono font-bold">{learning.sourcesDiscovered}</span>
+            <span className="font-mono font-bold">{learning.sourcesDiscovered ?? 0}</span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-sm">Active Sources</span>
-            <span className="font-mono font-bold">{learning.activeSources}</span>
+            <span className="font-mono font-bold">{learning.activeSources ?? 0}</span>
           </div>
         </div>
       </CardContent>
