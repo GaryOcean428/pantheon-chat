@@ -7083,5 +7083,14 @@ if __name__ == '__main__':
     except ImportError as e:
         print(f"[WARNING] AutonomousPantheon not available: {e}")
 
+    # Enable conversational capabilities for all gods (Olympus + Shadow)
+    try:
+        from conversational_kernel import patch_all_gods_with_conversation
+        if OLYMPUS_AVAILABLE and zeus:
+            patch_all_gods_with_conversation(zeus)
+            print("[INFO] 💬 All gods patched with QIG conversational capabilities")
+    except ImportError as e:
+        print(f"[WARNING] Could not patch gods with conversation: {e}")
+
     # Run Flask with request logging enabled
     app.run(host='0.0.0.0', port=5001, debug=False, threaded=True, use_reloader=False)

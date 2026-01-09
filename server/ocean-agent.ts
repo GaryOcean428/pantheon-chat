@@ -243,7 +243,6 @@ export class OceanAgent {
     this.memory = this.initializeMemory();
     this.state = this.initializeState();
     this.neurochemistryContext = createDefaultContext();
-    this.updateNeurochemistry();
 
     // Initialize refactored modules
     this.hypothesisGenerator = new HypothesisGenerator(
@@ -312,6 +311,9 @@ export class OceanAgent {
       recentDiscoveries: this.recentDiscoveries,
       clusterByQIG: this.clusterByQIG.bind(this),
     });
+
+    // Update neurochemistry after all modules initialized
+    this.updateNeurochemistry();
   }
 
   /**
