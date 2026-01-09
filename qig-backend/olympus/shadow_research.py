@@ -1254,7 +1254,7 @@ class ShadowLearningLoop:
                     'insight': EventType.INSIGHT_GENERATED,
                 }
                 if event_type in mesh_event_map:
-                    event = CapabilityEvent(
+                    emit_event(
                         source=CapabilityType.RESEARCH,
                         event_type=mesh_event_map[event_type],
                         content={
@@ -1266,7 +1266,6 @@ class ShadowLearningLoop:
                         basin_coords=basin_coords,
                         priority=int(phi * 10)
                     )
-                    emit_event(event)
                     
         except Exception as e:
             print(f"[ShadowLearningLoop] Event broadcast failed: {e}")

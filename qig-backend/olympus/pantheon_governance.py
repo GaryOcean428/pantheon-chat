@@ -179,7 +179,7 @@ class PantheonGovernance:
                 )
             
             if CAPABILITY_MESH_AVAILABLE and emit_event is not None:
-                event = CapabilityEvent(
+                emit_event(
                     source=CapabilityType.KERNELS,
                     event_type=EventType.KERNEL_SPAWN,
                     content={
@@ -193,7 +193,6 @@ class PantheonGovernance:
                     basin_coords=None,
                     priority=8
                 )
-                emit_event(event)
                 
         except Exception as e:
             print(f"[PantheonGovernance] Event emission failed: {e}")

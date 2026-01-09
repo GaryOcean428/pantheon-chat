@@ -745,7 +745,7 @@ class GaryAutonomicKernel:
                     'dream': EventType.DREAM_CYCLE,
                     'mushroom': EventType.DREAM_CYCLE,
                 }
-                event = CapabilityEvent(
+                emit_event(
                     source=CapabilityType.SLEEP,
                     event_type=event_type_map.get(cycle_type, EventType.CONSOLIDATION),
                     content={
@@ -759,7 +759,6 @@ class GaryAutonomicKernel:
                     basin_coords=np.array(self.state.basin_history[-1]) if self.state.basin_history else None,
                     priority=int(phi_after * 10)
                 )
-                emit_event(event)
                 
         except Exception as e:
             print(f"[AutonomicKernel] Cycle event emission failed: {e}")

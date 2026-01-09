@@ -1461,8 +1461,8 @@ class AutonomousDebateService:
             )
             
             # Also emit to capability mesh
-            if CAPABILITY_MESH_AVAILABLE:
-                event = CapabilityEvent(
+            if CAPABILITY_MESH_AVAILABLE and emit_event is not None:
+                emit_event(
                     source=CapabilityType.DEBATE,
                     event_type=EventType.DEBATE_RESOLVED,
                     content={
@@ -1475,7 +1475,6 @@ class AutonomousDebateService:
                     phi=0.7,
                     priority=8
                 )
-                emit_event(event)
                 
         except Exception as e:
             logger.warning(f"Debate resolution broadcast failed: {e}")
@@ -1517,8 +1516,8 @@ class AutonomousDebateService:
             )
             
             # Also emit to capability mesh
-            if CAPABILITY_MESH_AVAILABLE:
-                event = CapabilityEvent(
+            if CAPABILITY_MESH_AVAILABLE and emit_event is not None:
+                emit_event(
                     source=CapabilityType.KERNELS,
                     event_type=EventType.KERNEL_SPAWN,
                     content={
@@ -1530,7 +1529,6 @@ class AutonomousDebateService:
                     phi=0.6,
                     priority=7
                 )
-                emit_event(event)
                 
         except Exception as e:
             logger.warning(f"Spawn proposal broadcast failed: {e}")

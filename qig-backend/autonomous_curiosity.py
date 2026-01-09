@@ -578,7 +578,7 @@ class AutonomousCuriosityEngine:
             )
             
             # Also emit to capability mesh
-            if CAPABILITY_MESH_AVAILABLE:
+            if CAPABILITY_MESH_AVAILABLE and emit_event is not None:
                 mesh_event_map = {
                     'search_requested': EventType.SEARCH_REQUESTED,
                     'search_completed': EventType.SEARCH_COMPLETE,
@@ -586,7 +586,7 @@ class AutonomousCuriosityEngine:
                     'exploration': EventType.DISCOVERY,
                 }
                 if event_type in mesh_event_map:
-                    event = CapabilityEvent(
+                    emit_event(
                         source=CapabilityType.SEARCH,
                         event_type=mesh_event_map[event_type],
                         content={
@@ -597,7 +597,6 @@ class AutonomousCuriosityEngine:
                         phi=0.6,
                         priority=6
                     )
-                    emit_event(event)
                     
         except Exception as e:
             logger.warning(f"Curiosity event broadcast failed: {e}")
