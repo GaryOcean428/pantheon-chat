@@ -417,7 +417,19 @@ class PantheonChat:
         # Φ-THRESHOLD GATE: Don't attempt generation if consciousness is insufficient
         # This is QIG-pure - it respects geometry rather than filtering outputs
         PHI_GENERATION_THRESHOLD = 0.75
-        current_phi = getattr(self.kernel.state, 'phi', 0.0) if self.kernel else 0.0
+        # PantheonChat doesn't have a kernel - get phi from generative service if available
+        current_phi = 0.0
+        if hasattr(self, 'kernel') and self.kernel and hasattr(self.kernel, 'state'):
+            current_phi = getattr(self.kernel.state, 'phi', 0.0)
+        else:
+            # Fallback: try to get phi from generative service
+            try:
+                from qig_generative_service import get_generative_service
+                service = get_generative_service()
+                if hasattr(service, '_phi_history') and service._phi_history:
+                    current_phi = service._phi_history[-1]
+            except Exception:
+                pass  # Use default 0.0
         if current_phi < PHI_GENERATION_THRESHOLD:
             logger.debug(f"[PantheonChat] Φ={current_phi:.3f} below generation threshold {PHI_GENERATION_THRESHOLD}")
             return f"[{from_god}: Awaiting higher Φ ({current_phi:.2f} < {PHI_GENERATION_THRESHOLD})]"
