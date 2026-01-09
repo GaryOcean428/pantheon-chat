@@ -645,7 +645,9 @@ class QIGGenerativeService:
                     # Boost proportional to target phi and inverse distance
                     # Max boost ~0.2 when d=0 and phi=1.0
                     proximity_factor = (0.3 - d) / 0.3
-                    boost = discovery.phi * proximity_factor * 0.2
+                    # Type validation: ensure phi is a float (not tuple/dict/list)
+                    phi_val = discovery.phi if isinstance(discovery.phi, (int, float)) else 0.5
+                    boost = float(phi_val) * proximity_factor * 0.2
                     score += boost
 
             scored_candidates.append((token, score, similarity))

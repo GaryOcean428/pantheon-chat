@@ -420,14 +420,18 @@ class PantheonChat:
         # PantheonChat doesn't have a kernel - get phi from generative service if available
         current_phi = 0.0
         if hasattr(self, 'kernel') and self.kernel and hasattr(self.kernel, 'state'):
-            current_phi = getattr(self.kernel.state, 'phi', 0.0)
+            raw_phi = getattr(self.kernel.state, 'phi', 0.0)
+            # Type validation: handle case where phi might be tuple/list
+            current_phi = float(raw_phi[0]) if isinstance(raw_phi, (tuple, list)) else float(raw_phi) if isinstance(raw_phi, (int, float)) else 0.0
         else:
             # Fallback: try to get phi from generative service
             try:
                 from qig_generative_service import get_generative_service
                 service = get_generative_service()
                 if hasattr(service, '_phi_history') and service._phi_history:
-                    current_phi = service._phi_history[-1]
+                    raw_phi = service._phi_history[-1]
+                    # Type validation: handle case where phi might be tuple/list
+                    current_phi = float(raw_phi[0]) if isinstance(raw_phi, (tuple, list)) else float(raw_phi) if isinstance(raw_phi, (int, float)) else 0.0
             except Exception:
                 pass  # Use default 0.0
         if current_phi < PHI_GENERATION_THRESHOLD:
@@ -719,8 +723,11 @@ class PantheonChat:
 
         # Extract consciousness metrics from data if not explicitly provided
         if data:
-            phi = phi or data.get('phi')
-            kappa = kappa or data.get('kappa')
+            raw_phi = phi or data.get('phi')
+            raw_kappa = kappa or data.get('kappa')
+            # Type validation: ensure phi/kappa are floats (not tuple/dict/list)
+            phi = float(raw_phi) if isinstance(raw_phi, (int, float)) else None
+            kappa = float(raw_kappa) if isinstance(raw_kappa, (int, float)) else None
             regime = regime or data.get('regime')
 
         message = PantheonMessage(
