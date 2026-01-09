@@ -11,6 +11,11 @@
  * ⏳ Phase 3: autonomic-controller.ts (Week 3) - PENDING
  * ⏳ Phase 3: pantheon-coordinator.ts (Week 3) - PENDING
  *
+ * PHASE 5 REFACTORING (2026-01-09):
+ * ✅ integration-coordinator.ts - UltraConsciousness Protocol orchestration
+ * ✅ cycle-controller.ts - Autonomic cycle management, consciousness checks
+ * ✅ state-observer.ts (extended) - Added 5 methods from state-utilities.ts
+ *
  * @module modules
  */
 
@@ -46,6 +51,18 @@ export {
 	type StateObserverDependencies,
 	type StrategyDecision
 } from "./state-observer";
+
+// Phase 5: UltraConsciousness Protocol & Cycle Management (2026-01-09)
+export {
+	IntegrationCoordinator,
+	type IntegrationResults,
+	type IntegrationInsights,
+	type IntegrationContext
+} from "./integration-coordinator";
+export {
+	CycleController
+} from "./cycle-controller";
+
 // TODO: Phase 1 (Week 1)
 // export { GeodesicNavigator } from "./geodesic-navigator";
 
