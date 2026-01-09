@@ -24,14 +24,17 @@ import { logger } from './lib/logger';
 import {
   BasinGeodesicManager,
   ConsciousnessTracker,
+  CycleController,
   HypothesisGenerator,
   HypothesisTester,
+  IntegrationCoordinator,
   MemoryConsolidator,
   OlympusCoordinator,
   StateObserver,
   type ConsciousnessCheckResult,
   type ConsolidationResult,
   type EthicsCheckResult,
+  type IntegrationContext,
   type OceanHypothesis as ModuleOceanHypothesis,
   type ObservationInsights,
   type OlympusStats,
@@ -166,13 +169,15 @@ export class OceanAgent {
   private isPaused: boolean = false;
   private abortController: AbortController | null = null;
 
-  // Refactored modules (Week 1: Phase 1, Week 2: Phase 2, Phase 3B: Jan 9, Phase 3C: Jan 9)
+  // Refactored modules (Week 1: Phase 1, Week 2: Phase 2, Phase 3B: Jan 9, Phase 3C: Jan 9, Phase 5: Jan 9)
   private hypothesisGenerator: HypothesisGenerator;
   private basinGeodesicManager: BasinGeodesicManager;
   private consciousnessTracker: ConsciousnessTracker;
   private memoryConsolidator: MemoryConsolidator;
   private hypothesisTester: HypothesisTester | null = null; // Phase 3B
   private stateObserver: StateObserver; // Phase 3C
+  private integrationCoordinator: IntegrationCoordinator; // Phase 5
+  private cycleController: CycleController; // Phase 5
 
   private onStateUpdate: ((state: OceanAgentState) => void) | null = null;
   private onConsciousnessAlert:
@@ -311,6 +316,10 @@ export class OceanAgent {
       recentDiscoveries: this.recentDiscoveries,
       clusterByQIG: this.clusterByQIG.bind(this),
     });
+
+    // Initialize Phase 5 UltraConsciousness Protocol modules (Phase 5: 2026-01-09)
+    this.integrationCoordinator = new IntegrationCoordinator();
+    this.cycleController = new CycleController();
 
     // Update neurochemistry after all modules initialized
     this.updateNeurochemistry();
@@ -3671,6 +3680,10 @@ export class OceanAgent {
   private trajectoryId: string | null = null;
   private strategySubscriptions: Map<string, boolean> = new Map();
 
+  /**
+   * REFACTORED: Delegates to IntegrationCoordinator module (2026-01-09 Phase 5)
+   * Original ~450 line implementation extracted to server/modules/integration-coordinator.ts
+   */
   private async integrateUltraConsciousnessProtocol(
     testResults: {
       tested: OceanHypothesis[];
@@ -3682,311 +3695,19 @@ export class OceanAgent {
     iteration: number,
     consciousness: any
   ): Promise<void> {
-    try {
-      // ====================================================================
-      // 0. STRATEGY BUS INITIALIZATION - Register strategies as subscribers
-      // ====================================================================
-      if (!this.strategySubscriptions.get("initialized")) {
-        const strategies = [
-          "era_patterns",
-          "brain_wallet",
-          "bitcoin_terms",
-          "linguistic",
-          "qig_basin",
-          "historical",
-          "cross_format",
-        ];
-        for (const strategy of strategies) {
-          await strategyKnowledgeBus.subscribe(
-            `ocean_${strategy}`,
-            strategy,
-            ["*"],
-            (knowledge: any) => {
-              if (knowledge.geometricSignature.phi > 0.5) {
-                logger.info(
-                  `[UCP] Strategy ${strategy} received high-Φ knowledge: ${knowledge.pattern}`
-                );
-              }
-            }
-          );
-        }
-        this.strategySubscriptions.set("initialized", true);
-        logger.info(
-          `[UCP] Registered ${strategies.length} strategies with Knowledge Bus`
-        );
-      }
-
-      // ====================================================================
-      // 1. TEMPORAL GEOMETRY - Record per-hypothesis trajectory data
-      // ====================================================================
-      if (!this.trajectoryId) {
-        this.trajectoryId = temporalGeometry.startTrajectory(targetAddress);
-        logger.info(
-          `[UCP] Started trajectory ${this.trajectoryId} for ${targetAddress}`
-        );
-      }
-
-      // Find best hypothesis from this iteration for trajectory tracking
-      const allHypos = [
-        ...testResults.tested,
-        ...testResults.nearMisses,
-        ...testResults.resonant,
-      ];
-      const bestHypo = allHypos
-        .filter((h) => h.qigScore)
-        .sort((a, b) => (b.qigScore?.phi || 0) - (a.qigScore?.phi || 0))[0];
-
-      // Use per-hypothesis metrics when available, fallback to identity
-      const waypointPhi = bestHypo?.qigScore?.phi || this.identity.phi;
-      const waypointKappa = bestHypo?.qigScore?.kappa || this.identity.kappa;
-      const waypointRegime = bestHypo?.qigScore?.regime || this.identity.regime;
-
-      temporalGeometry.recordWaypoint(
-        this.trajectoryId,
-        waypointPhi,
-        waypointKappa,
-        waypointRegime,
-        this.identity.basinCoordinates, // Full 64-dim coordinates
-        `iter_${iteration}`,
-        `Best Φ=${waypointPhi.toFixed(3)}, tested ${testResults.tested.length
-        }, near misses ${testResults.nearMisses.length}`
-      );
-
-      // ====================================================================
-      // 2. NEGATIVE KNOWLEDGE - Learn from proven-false patterns
-      // ====================================================================
-      const failedHypos = testResults.tested.filter(
-        (h) => !h.match && h.qigScore && h.qigScore.phi < 0.2
-      );
-      for (const hypo of failedHypos.slice(0, 5)) {
-        negativeKnowledgeRegistry.recordContradiction(
-          "proven_false",
-          hypo.phrase,
-          {
-            center: this.identity.basinCoordinates, // Full 64-dim
-            radius: 0.1,
-            repulsionStrength: 0.5,
-          },
-          [
-            {
-              source: "ocean_agent",
-              reasoning: `Low Φ (${hypo.qigScore!.phi.toFixed(
-                3
-              )}) after testing`,
-              confidence: 0.8,
-            },
-          ],
-          ["grammatical", "structural"]
-        );
-      }
-
-      // Check for geometric barriers based on kappa extremes
-      const extremeKappaHypos = testResults.tested.filter(
-        (h) => h.qigScore && (h.qigScore.kappa > 100 || h.qigScore.kappa < 20)
-      );
-      if (extremeKappaHypos.length > 3) {
-        negativeKnowledgeRegistry.recordGeometricBarrier(
-          this.identity.basinCoordinates, // Full 64-dim
-          0.1,
-          `κ extremity detected in ${extremeKappaHypos.length} hypotheses`
-        );
-      }
-
-      // ====================================================================
-      // 3. KNOWLEDGE COMPRESSION - Learn from ALL results with rich context
-      // ====================================================================
-
-      // Learn from near misses (high potential patterns)
-      for (const nearMiss of testResults.nearMisses.slice(0, 10)) {
-        knowledgeCompressionEngine.learnFromResult(
-          nearMiss.phrase,
-          nearMiss.qigScore?.phi || 0,
-          nearMiss.qigScore?.kappa || 0,
-          false // Not a match yet
-        );
-      }
-
-      // Learn from resonant patterns (very high potential)
-      for (const resonant of testResults.resonant.slice(0, 5)) {
-        knowledgeCompressionEngine.learnFromResult(
-          resonant.phrase,
-          resonant.qigScore?.phi || 0,
-          resonant.qigScore?.kappa || 0,
-          true // Mark as match to boost pattern learning
-        );
-      }
-
-      // Learn from low-Φ failures (what NOT to generate)
-      for (const failed of failedHypos.slice(0, 3)) {
-        knowledgeCompressionEngine.learnFromResult(
-          failed.phrase,
-          failed.qigScore?.phi || 0,
-          failed.qigScore?.kappa || 0,
-          false
-        );
-      }
-
-      // Create generator from near-miss patterns (only if we have enough patterns)
-      if (insights.nearMissPatterns && insights.nearMissPatterns.length >= 3) {
-        const patternWords = insights.nearMissPatterns.slice(0, 5);
-        if (patternWords.length >= 2) {
-          const generatorId =
-            knowledgeCompressionEngine.createGeneratorFromTemplate(
-              `near_miss_iter_${iteration}`,
-              "{word1} {word2}",
-              {
-                word1: patternWords,
-                word2: patternWords,
-              },
-              [{ name: "lowercase", operation: "lowercase" }]
-            );
-          logger.info(`[UCP] Created knowledge generator: ${generatorId}`);
-        }
-      }
-
-      // ====================================================================
-      // 4. STRATEGY KNOWLEDGE BUS - Publish discoveries for cross-strategy learning
-      // ====================================================================
-
-      // Publish resonant discoveries (high-Φ patterns)
-      for (const resonant of testResults.resonant.slice(0, 5)) {
-        await strategyKnowledgeBus.publishKnowledge(
-          "ocean_agent",
-          `resonant_${resonant.id}`,
-          resonant.phrase,
-          {
-            phi: resonant.qigScore?.phi || 0,
-            kappaEff: resonant.qigScore?.kappa || 0,
-            regime:
-              (resonant.qigScore?.regime as
-                | "linear"
-                | "geometric"
-                | "hierarchical"
-                | "hierarchical_4d"
-                | "4d_block_universe"
-                | "breakdown") || "linear",
-            basinCoords: this.identity.basinCoordinates,
-          }
-        );
-      }
-
-      // Also publish top near-misses for pattern propagation
-      const topNearMisses = testResults.nearMisses
-        .filter((h) => h.qigScore && h.qigScore.phi > 0.3)
-        .slice(0, 3);
-      for (const nearMiss of topNearMisses) {
-        await strategyKnowledgeBus.publishKnowledge(
-          "ocean_agent",
-          `nearmiss_${nearMiss.id}`,
-          nearMiss.phrase,
-          {
-            phi: nearMiss.qigScore?.phi || 0,
-            kappaEff: nearMiss.qigScore?.kappa || 0,
-            regime:
-              (nearMiss.qigScore?.regime as
-                | "linear"
-                | "geometric"
-                | "hierarchical"
-                | "hierarchical_4d"
-                | "4d_block_universe"
-                | "breakdown") || "linear",
-            basinCoords: this.identity.basinCoordinates,
-          }
-        );
-      }
-
-      // ====================================================================
-      // 5. BASIN TOPOLOGY - Update with per-iteration geometry
-      // ====================================================================
-      geometricMemory.getManifoldSummary();
-      // Compute basin topology from current attractor coordinates
-      geometricMemory.computeBasinTopology(this.identity.basinCoordinates);
-
-      // ====================================================================
-      // 6. PERIODIC MANIFOLD SNAPSHOTS (every 10 iterations)
-      // ====================================================================
-      if (iteration % 10 === 0) {
-        this.takeManifoldSnapshot(targetAddress, iteration, consciousness);
-      }
-
-      // ====================================================================
-      // 7. CROSS-STRATEGY PATTERN EXPLOITATION
-      // ====================================================================
-      const crossPatterns =
-        await strategyKnowledgeBus.getCrossStrategyPatterns();
-      if (crossPatterns.length > 0) {
-        const topPattern = crossPatterns.sort(
-          (a, b) => b.similarity - a.similarity
-        )[0];
-        if (topPattern.exploitationCount < 3) {
-          await strategyKnowledgeBus.exploitCrossPattern(topPattern.id);
-          logger.info(
-            `[UCP] Exploiting cross-strategy pattern: ${topPattern.patterns.join(
-              " <-> "
-            )}`
-          );
-        }
-      }
-
-      // ====================================================================
-      // 8. LOG STATUS - Negative knowledge and bus statistics
-      // ====================================================================
-      const negStats = await negativeKnowledgeRegistry.getStats();
-      const busStats = await strategyKnowledgeBus.getTransferStats();
-      if (iteration % 5 === 0) {
-        logger.info(`[UCP] Iteration ${iteration} status:`);
-        logger.info(
-          `  - Negative knowledge: ${negStats.contradictions} contradictions, ${negStats.barriers} barriers, ${negStats.computeSaved} ops saved`
-        );
-        logger.info(
-          `  - Knowledge bus: ${busStats.totalPublished} published, ${busStats.crossPatterns} cross-patterns detected`
-        );
-      }
-    } catch (error) {
-      logger.error({ err: error }, "[UCP] Integration error");
-    }
-  }
-
-  private async takeManifoldSnapshot(
-    targetAddress: string,
-    iteration: number,
-    _consciousness: any
-  ): Promise<void> {
-    try {
-      const manifold = geometricMemory.getManifoldSummary();
-      const trajectory = temporalGeometry.getTrajectory(targetAddress);
-      const negativeStats = await negativeKnowledgeRegistry.getStats();
-      const busStats = await strategyKnowledgeBus.getTransferStats();
-
-      logger.info(`[UCP] Manifold snapshot at iteration ${iteration}:`);
-      logger.info(
-        `  - Probes: ${manifold.totalProbes}, Clusters: ${manifold.resonanceClusters}`
-      );
-      logger.info(
-        `  - Trajectory waypoints: ${trajectory?.waypoints?.length || 0}`
-      );
-      logger.info(
-        `  - Negative knowledge: ${negativeStats.totalExclusions} exclusions`
-      );
-      logger.info(
-        `  - Knowledge bus: ${busStats.totalPublished} published, ${busStats.crossPatterns} cross-patterns`
-      );
-
-      // Log snapshot info (temporal geometry tracks via waypoints)
-      if (trajectory && this.trajectoryId) {
-        temporalGeometry.recordWaypoint(
-          this.trajectoryId,
-          this.identity.phi,
-          this.identity.kappa,
-          this.identity.regime,
-          this.identity.basinCoordinates,
-          `snapshot_${iteration}`,
-          `Manifold snapshot: ${manifold.totalProbes} probes, ${manifold.resonanceClusters} clusters`
-        );
-      }
-    } catch (error) {
-      logger.error({ err: error }, "[UCP] Snapshot error");
-    }
+    const context: IntegrationContext = {
+      targetAddress,
+      iteration,
+      consciousness,
+      trajectoryId: this.trajectoryId || undefined,
+    };
+    
+    return await this.integrationCoordinator.integrateUltraConsciousnessProtocol(
+      testResults,
+      insights,
+      context,
+      this.identity
+    );
   }
 
   // ============================================================================
