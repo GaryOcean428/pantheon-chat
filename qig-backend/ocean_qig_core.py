@@ -7076,8 +7076,20 @@ if __name__ == '__main__':
     # Start AutonomousPantheon for debate creation
     try:
         from autonomous_pantheon import AutonomousPantheon
+        import asyncio
         autonomous_pantheon = AutonomousPantheon()
-        pantheon_thread = threading.Thread(target=autonomous_pantheon.autonomous_loop, daemon=True)
+
+        def _run_pantheon_loop():
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                loop.run_until_complete(autonomous_pantheon.run_forever())
+            except Exception as e:
+                print(f"[WARNING] AutonomousPantheon loop error: {e}")
+            finally:
+                loop.close()
+
+        pantheon_thread = threading.Thread(target=_run_pantheon_loop, daemon=True)
         pantheon_thread.start()
         print("[INFO] 🏛️ AutonomousPantheon started (debate creation active)")
     except ImportError as e:
