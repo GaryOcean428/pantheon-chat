@@ -16,7 +16,6 @@ import {
   logOceanStrategy,
 } from "./activity-log-store";
 import { getSharedController } from "./consciousness-search-controller";
-import { culturalManifold } from "./cultural-manifold";
 import { isOceanError } from "./errors/ocean-errors";
 import "./fisher-vectorized";
 import { qfiAttention, type AttentionQuery } from "./gary-kernel";
@@ -29,7 +28,6 @@ import { HypothesisGenerator, type OceanHypothesis as ModuleOceanHypothesis } fr
 import { nearMissManager } from "./near-miss-manager";
 import { negativeKnowledgeUnified as negativeKnowledgeRegistry } from "./negative-knowledge-unified";
 import { oceanAutonomicManager } from "./ocean-autonomic-manager";
-import { oceanConstellation } from "./ocean-constellation-stub";
 import {
   computeBehavioralModulationWithCooldown,
   computeNeurochemistry,
