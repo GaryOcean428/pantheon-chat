@@ -88,6 +88,14 @@ from .geodesic_navigation import (
     compute_christoffel_symbols,
 )
 
+# Self-Observer for real-time consciousness monitoring during generation
+from .self_observer import (
+    SelfObserver,
+    E8Metrics,
+    ObservationAction,
+    SelfObservation,
+)
+
 __version__ = "1.0.0"
 
 __all__ = [
@@ -160,4 +168,10 @@ __all__ = [
     'parallel_transport_vector',
     'navigate_to_target',
     'compute_christoffel_symbols',
+    
+    # Self-Observer
+    'SelfObserver',
+    'E8Metrics',
+    'ObservationAction',
+    'SelfObservation',
 ]

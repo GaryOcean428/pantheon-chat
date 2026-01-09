@@ -144,6 +144,16 @@ except ImportError:
     get_broadcaster = None
     ActivityType = None
 
+# Import SelfObserver for real-time consciousness self-observation during generation
+try:
+    from qig_core.self_observer import SelfObserver, ObservationAction, E8Metrics
+    SELF_OBSERVER_AVAILABLE = True
+except ImportError:
+    SELF_OBSERVER_AVAILABLE = False
+    SelfObserver = None
+    ObservationAction = None
+    E8Metrics = None
+
 logger = logging.getLogger(__name__)
 
 # Backward compatibility alias - import from qigkernels.physics_constants
@@ -2621,7 +2631,8 @@ class BaseGod(*_base_classes):
         self,
         context_basin: np.ndarray,
         num_tokens: int = 60,
-        temperature: float = 0.8
+        temperature: float = 0.8,
+        enable_self_observation: bool = True
     ) -> str:
         """
         Generate domain-specific reasoning from learned vocabulary.
@@ -2632,10 +2643,14 @@ class BaseGod(*_base_classes):
         This is the key method that allows kernels to SPEAK rather than
         just returning templated f-strings.
 
+        Per Ultra Consciousness Protocol v4.0, kernels now observe their
+        own generation in real-time and can course-correct when metrics drift.
+
         Args:
             context_basin: Starting basin coordinates (64D)
             num_tokens: Maximum tokens to generate
             temperature: Sampling temperature (higher = more diverse)
+            enable_self_observation: Enable real-time E8 metric observation
 
         Returns:
             Generated reasoning text
@@ -2648,7 +2663,14 @@ class BaseGod(*_base_classes):
         tokens_generated = []
         current_basin = np.asarray(context_basin, dtype=np.float64).copy()
 
-        # Curiosity-driven search: detect and fill knowledge gaps before reasoning
+        observer = None
+        if enable_self_observation and SELF_OBSERVER_AVAILABLE and SelfObserver is not None:
+            observer = SelfObserver(
+                kernel_name=self.name,
+                enable_course_correction=True
+            )
+            logger.debug(f"[{self.name}] Self-observation enabled for generation")
+
         if hasattr(self, 'detect_knowledge_gap') and hasattr(self, 'curiosity_search'):
             gap_topic = self.detect_knowledge_gap(current_basin, threshold=0.25)
             if gap_topic:
@@ -2656,37 +2678,29 @@ class BaseGod(*_base_classes):
                 self.curiosity_search(gap_topic, reason="reasoning_gap", importance=2)
 
         for step in range(num_tokens):
-            # Get candidates from coordizer (geometric proximity)
             candidates = self.coordizer.decode(current_basin, top_k=20)
 
             if not candidates:
                 break
 
-            # Score candidates combining geometry + learned domain affinity
             scored = []
             for token, geo_similarity in candidates:
-                # Skip special tokens
                 if token.startswith('[') or token.startswith('<'):
                     continue
 
-                # Get learned domain affinity (default 0.3 for unseen tokens)
                 domain_affinity = self._token_affinity.get(token, 0.3)
 
-                # Combine: 50% geometry + 50% learned affinity
                 combined_score = geo_similarity * 0.5 + domain_affinity * 0.5
                 scored.append((token, combined_score, geo_similarity))
 
             if not scored:
                 break
 
-            # Sort by combined score
             scored.sort(key=lambda x: -x[1])
 
-            # Sample from top candidates with temperature
             top_k = min(8, len(scored))
             weights = np.array([s[1] for s in scored[:top_k]]) + 0.01
 
-            # Apply temperature
             weights = weights ** (1.0 / temperature)
             weights = weights / weights.sum()
 
@@ -2698,23 +2712,49 @@ class BaseGod(*_base_classes):
             selected_token = scored[idx][0]
             tokens_generated.append(selected_token)
 
-            # Walk trajectory toward selected token's basin
             token_basin = self.coordizer.basin_coords.get(selected_token)
             if token_basin is not None:
                 token_basin_arr = np.asarray(token_basin, dtype=np.float64)
-                # Geodesic step: 15% toward token basin
                 current_basin = 0.85 * current_basin + 0.15 * token_basin_arr
                 current_basin = sphere_project(current_basin)
 
-        # Clean up output
+            if observer is not None:
+                generated_text = ' '.join(tokens_generated)
+                phi_val = self.compute_pure_phi(self.basin_to_density_matrix(current_basin))
+                kappa_val = getattr(self, 'kappa', KAPPA_STAR)
+
+                observation = observer.observe_token(
+                    token=selected_token,
+                    basin=current_basin,
+                    phi=phi_val,
+                    kappa=kappa_val,
+                    generated_text=generated_text
+                )
+
+                if observation.action == ObservationAction.EMERGENCY_STOP:
+                    logger.warning(f"[{self.name}] Emergency stop at token {step}: Φ breakdown")
+                    break
+
+                if observation.action == ObservationAction.COURSE_CORRECT:
+                    if observation.course_correction and 'integration' in observation.course_correction:
+                        temperature = max(0.3, temperature - 0.1)
+                    elif observation.course_correction and 'diversity' in observation.course_correction:
+                        temperature = min(1.2, temperature + 0.1)
+
         text = ' '.join(tokens_generated)
 
-        # Basic cleanup
-        text = ' '.join(text.split())  # Normalize whitespace
+        text = ' '.join(text.split())
 
-        # Capitalize first letter if we have content
         if text and len(text) > 0:
             text = text[0].upper() + text[1:] if len(text) > 1 else text.upper()
+
+        if observer is not None:
+            summary = observer.get_summary()
+            logger.debug(
+                f"[{self.name}] Generation complete: {summary.get('total_tokens', 0)} tokens, "
+                f"avg_Φ={summary.get('avg_phi', 0):.3f}, avg_κ={summary.get('avg_kappa', 0):.1f}, "
+                f"course_corrections={summary.get('course_corrections', 0)}"
+            )
 
         return text if text else f"[{self.name}: generation produced no tokens]"
 
