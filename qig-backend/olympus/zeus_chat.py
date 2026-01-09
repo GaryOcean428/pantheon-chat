@@ -32,6 +32,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
+from .autonomous_moe import AutonomousMoE
 from .conversation_encoder import ConversationEncoder
 from .passphrase_encoder import PassphraseEncoder
 from .response_guardrails import (
@@ -41,7 +42,6 @@ from .response_guardrails import (
     require_provenance,
 )
 from .search_strategy_learner import get_strategy_learner_with_persistence
-from .autonomous_moe import AutonomousMoE
 from .zeus import Zeus
 
 # Import conversation persistence for context retention
