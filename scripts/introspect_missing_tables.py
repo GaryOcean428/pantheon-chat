@@ -3,6 +3,7 @@
 Introspect missing tables from Neon database to reconstruct schema definitions
 """
 import os
+
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
@@ -12,10 +13,10 @@ if not DATABASE_URL:
 
 def introspect_table(cursor, table_name):
     print(f"\n=== {table_name} ===")
-    
+
     # Get column definitions
     cursor.execute("""
-        SELECT 
+        SELECT
             column_name,
             data_type,
             character_maximum_length,
@@ -25,32 +26,32 @@ def introspect_table(cursor, table_name):
         WHERE table_schema = 'public' AND table_name = %s
         ORDER BY ordinal_position;
     """, (table_name,))
-    
+
     columns = cursor.fetchall()
     if not columns:
         print(f"  Table {table_name} not found")
         return
-    
+
     print("Columns:")
     for col in columns:
         nullable = '' if col['is_nullable'] == 'YES' else 'NOT NULL'
         length = f"({col['character_maximum_length']})" if col['character_maximum_length'] else ''
         default = f"DEFAULT {col['column_default']}" if col['column_default'] else ''
         print(f"  {col['column_name']}: {col['data_type']}{length} {nullable} {default}".strip())
-    
+
     # Get indexes
     cursor.execute("""
         SELECT indexname, indexdef
         FROM pg_indexes
         WHERE schemaname = 'public' AND tablename = %s;
     """, (table_name,))
-    
+
     indexes = cursor.fetchall()
     if indexes:
         print("Indexes:")
         for idx in indexes:
             print(f"  {idx['indexname']}: {idx['indexdef']}")
-    
+
     # Get row count
     cursor.execute(f"SELECT COUNT(*) as count FROM {table_name}")
     count = cursor.fetchone()
@@ -66,10 +67,10 @@ def main():
         'federation_peers',
         'passphrase_vocabulary'
     ]
-    
+
     conn = psycopg2.connect(DATABASE_URL)
     cursor = conn.cursor(cursor_factory=RealDictCursor)
-    
+
     try:
         for table in missing_tables:
             try:

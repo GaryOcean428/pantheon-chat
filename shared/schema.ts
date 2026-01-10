@@ -1314,6 +1314,10 @@ export const manifoldProbes = pgTable(
     ricciScalar: doublePrecision("ricci_scalar").default(0),
     fisherTrace: doublePrecision("fisher_trace").default(0),
     source: varchar("source", { length: 128 }), // Investigation that produced this probe
+    // DEPRECATED: Old columns (exist in DB, kept for migration)
+    parentId: varchar("parent_id", { length: 64 }),
+    probeType: varchar("probe_type", { length: 32 }),
+    metadata: jsonb("metadata"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [
@@ -2386,6 +2390,13 @@ export const pantheonMessages = pgTable(
     regime: varchar("regime", { length: 32 }),
     sessionId: varchar("session_id", { length: 64 }),
     parentId: varchar("parent_id", { length: 64 }),
+    // DEPRECATED: Old columns (exist in DB with 2339 rows, kept for migration)
+    msgType: varchar("msg_type", { length: 32 }),
+    fromGod: varchar("from_god", { length: 32 }),
+    toGod: varchar("to_god", { length: 32 }),
+    isRead: boolean("is_read"),
+    isResponded: boolean("is_responded"),
+    debateId: varchar("debate_id", { length: 64 }),
     metadata: jsonb("metadata"),
     createdAt: timestamp("created_at").defaultNow(),
   },
@@ -3541,6 +3552,8 @@ export const learnedWords = pgTable(
     avgPhi: real("avg_phi").default(0.5),
     maxPhi: real("max_phi").default(0.5),
     source: text("source"),
+    // DEPRECATED: is_integrated column (exists in DB with 13824 rows)
+    isIntegrated: boolean("is_integrated"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
   },

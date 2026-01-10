@@ -22,6 +22,20 @@
       "when": 1768015118748,
       "tag": "0002_awesome_warstar",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1768015692799,
+      "tag": "0003_pale_rocket_racer",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1768016161807,
+      "tag": "0004_smiling_wasp",
+      "breakpoints": true
     }
   ]
 }

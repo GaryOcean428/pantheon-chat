@@ -25,6 +25,16 @@ except ImportError:
     psycopg2 = None
     PsycopgJson = None
 
+# Redis for hot voting state (canonical pattern)
+try:
+    import sys
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+    from redis_cache import get_redis_client
+    REDIS_AVAILABLE = True
+except ImportError:
+    REDIS_AVAILABLE = False
+    get_redis_client = None
+
 # Import capability mesh for event emission
 try:
     from .capability_mesh import (
@@ -219,6 +229,8 @@ class PantheonGovernance:
                     details TEXT
                 )
             """)
+            # Canonical pattern: TEXT[] for votes, separate table for audit
+            # Redis for hot voting state, PostgreSQL for cold storage
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS governance_proposals (
                     id SERIAL PRIMARY KEY,
@@ -230,9 +242,9 @@ class PantheonGovernance:
                     parent_phi FLOAT,
                     count INTEGER DEFAULT 1,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    votes_for JSONB DEFAULT '{}',
-                    votes_against JSONB DEFAULT '{}',
-                    audit_log JSONB DEFAULT '[]'
+                    resolved_at TIMESTAMP,
+                    votes_for TEXT[] DEFAULT '{}',
+                    votes_against TEXT[] DEFAULT '{}'
                 )
             """)
             cur.close()
