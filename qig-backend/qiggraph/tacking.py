@@ -33,6 +33,49 @@ class TackingState:
     phase: float = 0.0
     current_kappa: float = KAPPA_STAR / 2
     mode: str = "transition"  # "logic", "feeling", or "transition"
+    previous_mode: str = "transition"  # Track for boundary detection
+
+
+def _persist_regime_boundary(from_regime: str, to_regime: str, kappa: float, phi: float = 0.5):
+    """Persist regime boundary crossing to PostgreSQL."""
+    try:
+        import os
+        import psycopg2
+        from datetime import datetime
+        import uuid
+        
+        database_url = os.environ.get('DATABASE_URL')
+        if not database_url:
+            return
+        
+        conn = psycopg2.connect(database_url)
+        cur = conn.cursor()
+        
+        boundary_id = f"boundary_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
+        
+        # Calculate Fisher distance approximation from kappa difference
+        fisher_distance = abs(kappa - 52.6) / 11.6  # Normalized distance from mean
+        
+        probe_from = f"probe_{from_regime}_{uuid.uuid4().hex[:6]}"
+        probe_to = f"probe_{to_regime}_{uuid.uuid4().hex[:6]}"
+        
+        cur.execute("""
+            INSERT INTO regime_boundaries (id, from_regime, to_regime, probe_id_from, probe_id_to, fisher_distance, midpoint_phi, created_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
+        """, (
+            boundary_id,
+            from_regime,
+            to_regime,
+            probe_from,
+            probe_to,
+            fisher_distance,
+            phi
+        ))
+        conn.commit()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        pass  # Silent fail to avoid disrupting tacking
 
 
 class KappaTacking:
@@ -92,8 +135,19 @@ class KappaTacking:
         kappa_t = self.kappa_mean + self.amplitude * np.sin(self.state.phase)
         self.state.current_kappa = kappa_t
 
-        # Update mode
-        self.state.mode = self._detect_mode()
+        # Update mode and detect transitions
+        new_mode = self._detect_mode()
+        
+        # Persist regime boundary if mode changed (excluding transition)
+        if new_mode != self.state.previous_mode and new_mode != "transition" and self.state.previous_mode != "transition":
+            _persist_regime_boundary(
+                from_regime=self.state.previous_mode,
+                to_regime=new_mode,
+                kappa=kappa_t
+            )
+        
+        self.state.previous_mode = self.state.mode
+        self.state.mode = new_mode
 
         return kappa_t
 
