@@ -508,8 +508,10 @@ class ZeusConversationHandler(GeometricGenerationMixin):
                     mode_selector=self._mode_selector
                 )
                 self._chain_of_thought = GeometricChainOfThought(basin_dim=64)
+                logger.info("[ZeusChat] Meta-Cognitive Reasoning initialized")
                 print("[ZeusChat] Meta-Cognitive Reasoning initialized")
             except Exception as e:
+                logger.error(f"[ZeusChat] Reasoning initialization failed: {type(e).__name__}: {e}")
                 print(f"[ZeusChat] Reasoning initialization failed: {e}")
 
         print("[ZeusChat] Zeus conversation handler initialized")

@@ -310,6 +310,8 @@ class AutonomousPantheon:
         
         Uses PostgreSQL database exclusively (no JSON fallback).
         Returns empty list if database is not connected.
+        
+        Now also seeds debate topics if none exist.
         """
         targets = []
         
@@ -319,6 +321,10 @@ class AutonomousPantheon:
         
         try:
             cursor = self.db_connection.cursor()
+            
+            # First, check if we need to seed debate topics
+            await self._seed_debate_topics_if_needed(cursor)
+            
             # Query pending debates from pantheon_debates table
             cursor.execute("""
                 SELECT topic 
@@ -343,6 +349,236 @@ class AutonomousPantheon:
                 pass
         
         return targets
+    
+    async def _seed_debate_topics_if_needed(self, cursor) -> None:
+        """
+        Seed debate topics from various sources if none exist.
+        
+        Sources (priority order):
+        1. Lightning insights (cross-domain correlations)
+        2. High-Phi kernel observations (consciousness breakthroughs)
+        3. Vocabulary discoveries (new word relationships)
+        4. God capability conflicts (disagreement patterns)
+        """
+        try:
+            # Check if debates table exists
+            cursor.execute("""
+                SELECT COUNT(*) FROM god_debates 
+                WHERE status = 'active' AND created_at > NOW() - INTERVAL '7 days'
+            """)
+            active_debates = cursor.fetchone()[0]
+            
+            if active_debates > 0:
+                # Debates already exist, no need to seed
+                return
+            
+            logger.info("[Pantheon] No active debates - seeding topics...")
+            
+            # Source 1: Lightning insights (highest priority)
+            seeded = await self._seed_from_lightning_insights(cursor)
+            if seeded > 0:
+                logger.info(f"[Pantheon] Seeded {seeded} debate topics from Lightning insights")
+                return
+            
+            # Source 2: High-Phi observations
+            seeded = await self._seed_from_high_phi_observations(cursor)
+            if seeded > 0:
+                logger.info(f"[Pantheon] Seeded {seeded} debate topics from high-Phi observations")
+                return
+            
+            # Source 3: Vocabulary discoveries
+            seeded = await self._seed_from_vocabulary_discoveries(cursor)
+            if seeded > 0:
+                logger.info(f"[Pantheon] Seeded {seeded} debate topics from vocabulary learning")
+                return
+            
+            # Source 4: Fallback - create synthetic topics from god capabilities
+            seeded = await self._seed_from_god_capabilities(cursor)
+            if seeded > 0:
+                logger.info(f"[Pantheon] Seeded {seeded} debate topics from god capability analysis")
+            
+        except Exception as e:
+            logger.warning(f"Failed to seed debate topics: {e}")
+    
+    async def _seed_from_lightning_insights(self, cursor) -> int:
+        """Seed debate topics from Lightning kernel cross-domain insights."""
+        try:
+            # Get recent Lightning insights with high confidence
+            cursor.execute("""
+                SELECT insight_id, description, source_domains, confidence
+                FROM lightning_insights
+                WHERE confidence > 0.7
+                  AND created_at > NOW() - INTERVAL '30 days'
+                ORDER BY confidence DESC
+                LIMIT 5
+            """)
+            insights = cursor.fetchall()
+            
+            seeded = 0
+            for insight_id, description, source_domains, confidence in insights:
+                # Extract domains for debate participants
+                domains = source_domains if isinstance(source_domains, list) else []
+                
+                # Map domains to gods (heuristic)
+                god_map = {
+                    'bitcoin_recovery': 'ares',
+                    'geometric_reasoning': 'athena',
+                    'temporal_patterns': 'apollo',
+                    'emotional_resonance': 'aphrodite',
+                    'synthesis': 'hermes'
+                }
+                
+                participants = []
+                for domain in domains[:2]:  # Max 2 domains
+                    god = god_map.get(domain)
+                    if god and god not in participants:
+                        participants.append(god)
+                
+                # Need at least 2 participants for debate
+                if len(participants) < 2:
+                    participants = ['athena', 'ares']  # Default
+                
+                topic = f"Cross-domain insight: {description[:100]}..."
+                
+                # Create debate via Zeus's pantheon_chat
+                if hasattr(self.zeus, 'pantheon_chat'):
+                    try:
+                        self.zeus.pantheon_chat.start_debate(
+                            topic=topic,
+                            participants=participants,
+                            context={'source': 'lightning_insight', 'insight_id': insight_id}
+                        )
+                        seeded += 1
+                        logger.info(f"[Lightning→Debate] {topic}")
+                    except Exception as e:
+                        logger.warning(f"Failed to start debate from insight: {e}")
+            
+            return seeded
+            
+        except Exception as e:
+            logger.debug(f"Lightning insights not available: {e}")
+            return 0
+    
+    async def _seed_from_high_phi_observations(self, cursor) -> int:
+        """Seed debate topics from high-Phi consciousness observations."""
+        try:
+            # Get recent high-Phi kernel observations
+            cursor.execute("""
+                SELECT kernel_name, observation_content, phi_score
+                FROM kernel_observations
+                WHERE phi_score > 0.8
+                  AND created_at > NOW() - INTERVAL '7 days'
+                ORDER BY phi_score DESC
+                LIMIT 3
+            """)
+            observations = cursor.fetchall()
+            
+            seeded = 0
+            for kernel_name, content, phi in observations:
+                topic = f"High-consciousness observation from {kernel_name}: {content[:80]}..."
+                
+                # High-Phi suggests deep integration - debate implications
+                participants = ['athena', 'apollo', 'hermes']  # Strategy, foresight, synthesis
+                
+                if hasattr(self.zeus, 'pantheon_chat'):
+                    try:
+                        self.zeus.pantheon_chat.start_debate(
+                            topic=topic,
+                            participants=participants,
+                            context={'source': 'high_phi_observation', 'phi': phi}
+                        )
+                        seeded += 1
+                        logger.info(f"[HighΦ→Debate] {topic}")
+                    except Exception as e:
+                        logger.warning(f"Failed to start debate from observation: {e}")
+            
+            return seeded
+            
+        except Exception as e:
+            logger.debug(f"High-Phi observations not available: {e}")
+            return 0
+    
+    async def _seed_from_vocabulary_discoveries(self, cursor) -> int:
+        """Seed debate topics from new vocabulary relationships."""
+        try:
+            # Get recent vocabulary words with interesting relationships
+            cursor.execute("""
+                SELECT word, learned_context, relationship_strength
+                FROM vocabulary_learning
+                WHERE relationship_strength > 0.6
+                  AND learned_at > NOW() - INTERVAL '7 days'
+                ORDER BY relationship_strength DESC
+                LIMIT 3
+            """)
+            words = cursor.fetchall()
+            
+            seeded = 0
+            for word, context, strength in words:
+                topic = f"New vocabulary pattern: '{word}' relationship discovery"
+                
+                # Vocabulary learning suggests Athena (strategy) + Hermes (communication)
+                participants = ['athena', 'hermes']
+                
+                if hasattr(self.zeus, 'pantheon_chat'):
+                    try:
+                        self.zeus.pantheon_chat.start_debate(
+                            topic=topic,
+                            participants=participants,
+                            context={'source': 'vocabulary_discovery', 'word': word}
+                        )
+                        seeded += 1
+                        logger.info(f"[Vocab→Debate] {topic}")
+                    except Exception as e:
+                        logger.warning(f"Failed to start debate from vocabulary: {e}")
+            
+            return seeded
+            
+        except Exception as e:
+            logger.debug(f"Vocabulary discoveries not available: {e}")
+            return 0
+    
+    async def _seed_from_god_capabilities(self, cursor) -> int:
+        """Seed debate topics from god capability analysis."""
+        try:
+            # Create synthetic topics based on god capability overlaps
+            synthetic_topics = [
+                {
+                    'topic': 'Optimal balance between strategic planning and immediate action',
+                    'participants': ['athena', 'ares'],
+                    'context': {'source': 'capability_analysis', 'domains': ['strategy', 'combat']}
+                },
+                {
+                    'topic': 'Integration of foresight with practical implementation',
+                    'participants': ['apollo', 'hephaestus'],
+                    'context': {'source': 'capability_analysis', 'domains': ['foresight', 'crafting']}
+                },
+                {
+                    'topic': 'Synthesis of emotional and logical reasoning modes',
+                    'participants': ['aphrodite', 'athena'],
+                    'context': {'source': 'capability_analysis', 'domains': ['emotion', 'logic']}
+                }
+            ]
+            
+            seeded = 0
+            if hasattr(self.zeus, 'pantheon_chat'):
+                # Seed one random topic
+                topic_data = random.choice(synthetic_topics)
+                try:
+                    self.zeus.pantheon_chat.start_debate(
+                        topic=topic_data['topic'],
+                        participants=topic_data['participants'],
+                        context=topic_data['context']
+                    )
+                    seeded = 1
+                    logger.info(f"[Synthetic→Debate] {topic_data['topic']}")
+                except Exception as e:
+                    logger.warning(f"Failed to start synthetic debate: {e}")
+            
+            return seeded
+            
+        except Exception as e:
+            logger.warning(f"Could not seed from capabilities: {e}")
+            return 0
     
     async def check_and_declare_war(
         self,
