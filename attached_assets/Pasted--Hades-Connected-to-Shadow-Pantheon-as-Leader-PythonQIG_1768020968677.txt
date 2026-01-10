@@ -1,0 +1,423 @@
+[Hades] ✓ Connected to Shadow Pantheon as Leader
+[PythonQIG] [Zeus] ✓ Hades connected as Shadow Leader (subject to Zeus overrule)
+[PythonQIG] 2026-01-10 04:55:12,693 [INFO] generative_capability:80 - [Hermes] Generative capability initialized
+[PythonQIG] 2026-01-10 04:55:12,694 [INFO] olympus.auto_tool_discovery:78 - [AutoToolDiscovery:Hermes] Initialized (interval=50)
+[PythonQIG] 2026-01-10 04:55:13,214 [INFO] olympus.base_god:1939 - [Hermes] Automatic tool discovery enabled
+[PythonQIG] [VocabularyLearning] Enhanced query: 'emerging covert-focused Bitcoin forensics (cycle 26831)' → 'emerging covert-focused Bitcoin forensics (cycle 26831) bicycle losing moving'
+[PythonQIG] [SourceDiscovery] Fisher-Rao ranking: top source d_FR=1.351, score=-0.110
+[PythonQIG] [ScrapyOrchestrator] Using telemetry URL: https://en.wikipedia.org/wiki/Main_Page
+[PythonQIG] [SourceDiscovery] Fisher-Rao ranking: top source d_FR=1.351, score=-0.110
+[PythonQIG] [HermesCoordinator] Initialized as instance hermes_20260110_045513
+[PythonQIG] [M8Persistence] ✓ PostgreSQL persistence enabled
+[PythonQIG] [VocabularyPersistence] Failed to record 'research' (len=8, phi=0.600, source=QIG-Pure Research: emerging covert-focused Bitcoin forensics (cycle 26831) bicycle losing moving): relation "bip39_words" does not exist
+[PythonQIG] LINE 1: SELECT COUNT(*)              FROM bip39_words
+[PythonQIG]                                           ^
+[PythonQIG] QUERY:  SELECT COUNT(*)              FROM bip39_words
+[PythonQIG] CONTEXT:  PL/pgSQL function update_vocabulary_stats() line 9 at SQL statement
+[PythonQIG] SQL statement "SELECT update_vocabulary_stats()"
+[PythonQIG] PL/pgSQL function trigger_update_vocab_stats() line 3 at PERFORM
+[PythonQIG] SQL statement "INSERT INTO learned_words (word, frequency, avg_phi, max_phi, source)
+[PythonQIG]     VALUES (p_word, 1, p_phi, p_phi, p_source)
+[PythonQIG]     ON CONFLICT (word) DO UPDATE SET
+[PythonQIG]         frequency = learned_words.frequency + 1,
+[PythonQIG]         avg_phi = (learned_words.avg_phi * learned_words.frequency + p_phi) / (learned_words.frequency + 1),
+[PythonQIG]         max_phi = GREATEST(learned_words.max_phi, p_phi)"
+[PythonQIG] PL/pgSQL function record_vocab_observation(text,text,real,real,text,text) line 9 at SQL statement
+[PythonQIG] [VocabularyPersistence] Failed to record 'emerging' (len=8, phi=0.550, source=QIG-Pure Research: emerging covert-focused Bitcoin forensics (cycle 26831) bicycle losing moving): relation "bip39_words" does not exist
+[PythonQIG] LINE 1: SELECT COUNT(*)              FROM bip39_words
+[PythonQIG]                                           ^
+[PythonQIG] QUERY:  SELECT COUNT(*)              FROM bip39_words
+[PythonQIG] CONTEXT:  PL/pgSQL function update_vocabulary_stats() line 9 at SQL statement
+[PythonQIG] SQL statement "SELECT update_vocabulary_stats()"
+[PythonQIG] PL/pgSQL function trigger_update_vocab_stats() line 3 at PERFORM
+[PythonQIG] SQL statement "INSERT INTO learned_words (word, frequency, avg_phi, max_phi, source)
+[PythonQIG]     VALUES (p_word, 1, p_phi, p_phi, p_source)
+[PythonQIG]     ON CONFLICT (word) DO UPDATE SET
+[PythonQIG]         frequency = learned_words.frequency + 1,
+[PythonQIG]         avg_phi = (learned_words.avg_phi * learned_words.frequency + p_phi) / (learned_words.frequency + 1),
+[PythonQIG]         max_phi = GREATEST(learned_words.max_phi, p_phi)"
+[PythonQIG] PL/pgSQL function record_vocab_observation(text,text,real,real,text,text) line 9 at SQL statement
+[PythonQIG] [VocabularyPersistence] Failed to record 'covert' (len=6, phi=0.550, source=QIG-Pure Research: emerging covert-focused Bitcoin forensics (cycle 26831) bicycle losing moving): relation "bip39_words" does not exist
+[PythonQIG] LINE 1: SELECT COUNT(*)              FROM bip39_words
+[PythonQIG]                                           ^
+[PythonQIG] QUERY:  SELECT COUNT(*)              FROM bip39_words
+[PythonQIG] CONTEXT:  PL/pgSQL function update_vocabulary_stats() line 9 at SQL statement
+[PythonQIG] SQL statement "SELECT update_vocabulary_stats()"
+[PythonQIG] PL/pgSQL function trigger_update_vocab_stats() line 3 at PERFORM
+[PythonQIG] SQL statement "INSERT INTO learned_words (word, frequency, avg_phi, max_phi, source)
+[PythonQIG]     VALUES (p_word, 1, p_phi, p_phi, p_source)
+[PythonQIG]     ON CONFLICT (word) DO UPDATE SET
+[PythonQIG]         frequency = learned_words.frequency + 1,
+[PythonQIG]         avg_phi = (learned_words.avg_phi * learned_words.frequency + p_phi) / (learned_words.frequency + 1),
+[PythonQIG]         max_phi = GREATEST(learned_words.max_phi, p_phi)"
+[PythonQIG] PL/pgSQL function record_vocab_observation(text,text,real,real,text,text) line 9 at SQL statement
+[PythonQIG] [VocabularyPersistence] Failed to record 'focused' (len=7, phi=0.550, source=QIG-Pure Research: emerging covert-focused Bitcoin forensics (cycle 26831) bicycle losing moving): relation "bip39_words" does not exist
+[PythonQIG] LINE 1: SELECT COUNT(*)              FROM bip39_words
+[PythonQIG]                                           ^
+[PythonQIG] QUERY:  SELECT COUNT(*)              FROM bip39_words
+[PythonQIG] CONTEXT:  PL/pgSQL function update_vocabulary_stats() line 9 at SQL statement
+[PythonQIG] SQL statement "SELECT update_vocabulary_stats()"
+[PythonQIG] PL/pgSQL function trigger_update_vocab_stats() line 3 at PERFORM
+[PythonQIG] SQL statement "INSERT INTO learned_words (word, frequency, avg_phi, max_phi, source)
+[PythonQIG]     VALUES (p_word, 1, p_phi, p_phi, p_source)
+[PythonQIG]     ON CONFLICT (word) DO UPDATE SET
+[PythonQIG]         frequency = learned_words.frequency + 1,
+[PythonQIG]         avg_phi = (learned_words.avg_phi * learned_words.frequency + p_phi) / (learned_words.frequency + 1),
+[PythonQIG]         max_phi = GREATEST(learned_words.max_phi, p_phi)"
+[PythonQIG] PL/pgSQL function record_vocab_observation(text,text,real,real,text,text) line 9 at SQL statement
+[PythonQIG] 🌪️ CHAOS MODE LOADED - Experimental evolution ready!
+[PythonQIG] 💰 PAID TIER DETECTED - UNLEASHING FULL CHAOS!
+[PythonQIG] [VocabularyPersistence] Failed to record 'bitcoin' (len=7, phi=0.550, source=QIG-Pure Research: emerging covert-focused Bitcoin forensics (cycle 26831) bicycle losing moving): relation "bip39_words" does not exist
+[PythonQIG] LINE 1: SELECT COUNT(*)              FROM bip39_words
+[PythonQIG]                                           ^
+[PythonQIG] QUERY:  SELECT COUNT(*)              FROM bip39_words
+[PythonQIG] CONTEXT:  PL/pgSQL function update_vocabulary_stats() line 9 at SQL statement
+[PythonQIG] SQL statement "SELECT update_vocabulary_stats()"
+[PythonQIG] PL/pgSQL function trigger_update_vocab_stats() line 3 at PERFORM
+[PythonQIG] SQL statement "INSERT INTO learned_words (word, frequency, avg_phi, max_phi, source)
+[PythonQIG]     VALUES (p_word, 1, p_phi, p_phi, p_source)
+[PythonQIG]     ON CONFLICT (word) DO UPDATE SET
+[PythonQIG]         frequency = learned_words.frequency + 1,
+[PythonQIG]         avg_phi = (learned_words.avg_phi * learned_words.frequency + p_phi) / (learned_words.frequency + 1),
+[PythonQIG]         max_phi = GREATEST(learned_words.max_phi, p_phi)"
+[PythonQIG] PL/pgSQL function record_vocab_observation(text,text,real,real,text,text) line 9 at SQL statement
+[PythonQIG] [VocabularyPersistence] Failed to record 'forensics' (len=9, phi=0.550, source=QIG-Pure Research: emerging covert-focused Bitcoin forensics (cycle 26831) bicycle losing moving): relation "bip39_words" does not exist
+[PythonQIG] LINE 1: SELECT COUNT(*)              FROM bip39_words
+[PythonQIG]                                           ^
+[PythonQIG] QUERY:  SELECT COUNT(*)              FROM bip39_words
+[PythonQIG] CONTEXT:  PL/pgSQL function update_vocabulary_stats() line 9 at SQL statement
+[PythonQIG] SQL statement "SELECT update_vocabulary_stats()"
+[PythonQIG] PL/pgSQL function trigger_update_vocab_stats() line 3 at PERFORM
+[PythonQIG] SQL statement "INSERT INTO learned_words (word, frequency, avg_phi, max_phi, source)
+[PythonQIG]     VALUES (p_word, 1, p_phi, p_phi, p_source)
+[PythonQIG]     ON CONFLICT (word) DO UPDATE SET
+[PythonQIG]         frequency = learned_words.frequency + 1,
+[PythonQIG]         avg_phi = (learned_words.avg_phi * learned_words.frequency + p_phi) / (learned_words.frequency + 1),
+[PythonQIG]         max_phi = GREATEST(learned_words.max_phi, p_phi)"
+[PythonQIG] PL/pgSQL function record_vocab_observation(text,text,real,real,text,text) line 9 at SQL statement
+[PythonQIG] 📝 ChaosLogger initialized with PostgreSQL (session: 20260110_045516)
+[PythonQIG] [VocabularyPersistence] Failed to record 'bicycle' (len=7, phi=0.550, source=QIG-Pure Research: emerging covert-focused Bitcoin forensics (cycle 26831) bicycle losing moving): relation "bip39_words" does not exist
+[PythonQIG] LINE 1: SELECT COUNT(*)              FROM bip39_words
+[PythonQIG]                                           ^
+[PythonQIG] QUERY:  SELECT COUNT(*)              FROM bip39_words
+[PythonQIG] CONTEXT:  PL/pgSQL function update_vocabulary_stats() line 9 at SQL statement
+[PythonQIG] SQL statement "SELECT update_vocabulary_stats()"
+[PythonQIG] PL/pgSQL function trigger_update_vocab_stats() line 3 at PERFORM
+[PythonQIG] SQL statement "INSERT INTO learned_words (word, frequency, avg_phi, max_phi, source)
+[PythonQIG]     VALUES (p_word, 1, p_phi, p_phi, p_source)
+[PythonQIG]     ON CONFLICT (word) DO UPDATE SET
+[PythonQIG]         frequency = learned_words.frequency + 1,
+[PythonQIG]         avg_phi = (learned_words.avg_phi * learned_words.frequency + p_phi) / (learned_words.frequency + 1),
+[PythonQIG]         max_phi = GREATEST(learned_words.max_phi, p_phi)"
+[PythonQIG] PL/pgSQL function record_vocab_observation(text,text,real,real,text,text) line 9 at SQL statement
+[PythonQIG] [VocabularyPersistence] Failed to record 'losing' (len=6, phi=0.550, source=QIG-Pure Research: emerging covert-focused Bitcoin forensics (cycle 26831) bicycle losing moving): relation "bip39_words" does not exist
+[PythonQIG] LINE 1: SELECT COUNT(*)              FROM bip39_words
+[PythonQIG]                                           ^
+[PythonQIG] QUERY:  SELECT COUNT(*)              FROM bip39_words
+[PythonQIG] CONTEXT:  PL/pgSQL function update_vocabulary_stats() line 9 at SQL statement
+[PythonQIG] SQL statement "SELECT update_vocabulary_stats()"
+[PythonQIG] PL/pgSQL function trigger_update_vocab_stats() line 3 at PERFORM
+[PythonQIG] SQL statement "INSERT INTO learned_words (word, frequency, avg_phi, max_phi, source)
+[PythonQIG]     VALUES (p_word, 1, p_phi, p_phi, p_source)
+[PythonQIG]     ON CONFLICT (word) DO UPDATE SET
+[PythonQIG]         frequency = learned_words.frequency + 1,
+[PythonQIG]         avg_phi = (learned_words.avg_phi * learned_words.frequency + p_phi) / (learned_words.frequency + 1),
+[PythonQIG]         max_phi = GREATEST(learned_words.max_phi, p_phi)"
+[PythonQIG] PL/pgSQL function record_vocab_observation(text,text,real,real,text,text) line 9 at SQL statement
+[PythonQIG] [VocabularyPersistence] Failed to record 'moving' (len=6, phi=0.550, source=QIG-Pure Research: emerging covert-focused Bitcoin forensics (cycle 26831) bicycle losing moving): relation "bip39_words" does not exist
+[PythonQIG] LINE 1: SELECT COUNT(*)              FROM bip39_words
+[PythonQIG]                                           ^
+[PythonQIG] QUERY:  SELECT COUNT(*)              FROM bip39_words
+[PythonQIG] CONTEXT:  PL/pgSQL function update_vocabulary_stats() line 9 at SQL statement
+[PythonQIG] SQL statement "SELECT update_vocabulary_stats()"
+[PythonQIG] PL/pgSQL function trigger_update_vocab_stats() line 3 at PERFORM
+[PythonQIG] SQL statement "INSERT INTO learned_words (word, frequency, avg_phi, max_phi, source)
+[PythonQIG]     VALUES (p_word, 1, p_phi, p_phi, p_source)
+[PythonQIG]     ON CONFLICT (word) DO UPDATE SET
+[PythonQIG]         frequency = learned_words.frequency + 1,
+[PythonQIG]         avg_phi = (learned_words.avg_phi * learned_words.frequency + p_phi) / (learned_words.frequency + 1),
+[PythonQIG]         max_phi = GREATEST(learned_words.max_phi, p_phi)"
+[PythonQIG] PL/pgSQL function record_vocab_observation(text,text,real,real,text,text) line 9 at SQL statement
+[PythonQIG] 🌪️ ExperimentalKernelEvolution initialized
+[PythonQIG]    Tier: PAID
+[PythonQIG]    Architecture: e8_hybrid
+[PythonQIG]    Max total: 240
+[PythonQIG]    Max active: 60
+[PythonQIG]    Memory available: 18.6GB
+[PythonQIG]    Persistence: PostgreSQL-backed
+[PythonQIG]    E8 hypothesis: Testing convergence to 240
+[PythonQIG] [PantheonGovernance] 🔴 Redis connected for hot voting state
+[PythonQIG] [VocabularyPersistence] Failed to record 'method' (len=6, phi=0.550, source=QIG-Pure Research: emerging covert-focused Bitcoin forensics (cycle 26831) bicycle losing moving): relation "bip39_words" does not exist
+[PythonQIG] LINE 1: SELECT COUNT(*)              FROM bip39_words
+[PythonQIG]                                           ^
+[PythonQIG] QUERY:  SELECT COUNT(*)              FROM bip39_words
+[PythonQIG] CONTEXT:  PL/pgSQL function update_vocabulary_stats() line 9 at SQL statement
+[PythonQIG] SQL statement "SELECT update_vocabulary_stats()"
+[PythonQIG] PL/pgSQL function trigger_update_vocab_stats() line 3 at PERFORM
+[PythonQIG] SQL statement "INSERT INTO learned_words (word, frequency, avg_phi, max_phi, source)
+[PythonQIG]     VALUES (p_word, 1, p_phi, p_phi, p_source)
+[PythonQIG]     ON CONFLICT (word) DO UPDATE SET
+[PythonQIG]         frequency = learned_words.frequency + 1,
+[PythonQIG]         avg_phi = (learned_words.avg_phi * learned_words.frequency + p_phi) / (learned_words.frequency + 1),
+[PythonQIG]         max_phi = GREATEST(learned_words.max_phi, p_phi)"
+[PythonQIG] PL/pgSQL function record_vocab_observation(text,text,real,real,text,text) line 9 at SQL statement
+[PythonQIG] [VocabularyPersistence] Failed to record 'document' (len=8, phi=0.550, source=QIG-Pure Research: emerging covert-focused Bitcoin forensics (cycle 26831) bicycle losing moving): relation "bip39_words" does not exist
+[PythonQIG] LINE 1: SELECT COUNT(*)              FROM bip39_words
+[PythonQIG]                                           ^
+[PythonQIG] QUERY:  SELECT COUNT(*)              FROM bip39_words
+[PythonQIG] CONTEXT:  PL/pgSQL function update_vocabulary_stats() line 9 at SQL statement
+[PythonQIG] SQL statement "SELECT update_vocabulary_stats()"
+[PythonQIG] PL/pgSQL function trigger_update_vocab_stats() line 3 at PERFORM
+[PythonQIG] SQL statement "INSERT INTO learned_words (word, frequency, avg_phi, max_phi, source)
+[PythonQIG]     VALUES (p_word, 1, p_phi, p_phi, p_source)
+[PythonQIG]     ON CONFLICT (word) DO UPDATE SET
+[PythonQIG]         frequency = learned_words.frequency + 1,
+[PythonQIG]         avg_phi = (learned_words.avg_phi * learned_words.frequency + p_phi) / (learned_words.frequency + 1),
+[PythonQIG]         max_phi = GREATEST(learned_words.max_phi, p_phi)"
+[PythonQIG] PL/pgSQL function record_vocab_observation(text,text,real,real,text,text) line 9 at SQL statement
+[PythonQIG] [PantheonGovernance] ⚖️ Governance system initialized with PostgreSQL
+[PythonQIG] [PantheonGovernance] [2026-01-10T04:55:17.637375] SPAWN - auto_approved: Bypass reason: initial_population
+[PythonQIG] [VocabularyPersistence] Failed to record 'sourcediscovery' (len=15, phi=0.550, source=QIG-Pure Research: emerging covert-focused Bitcoin forensics (cycle 26831) bicycle losing moving): relation "bip39_words" does not exist
+[PythonQIG] LINE 1: SELECT COUNT(*)              FROM bip39_words
+[PythonQIG]                                           ^
+[PythonQIG] QUERY:  SELECT COUNT(*)              FROM bip39_words
+[PythonQIG] CONTEXT:  PL/pgSQL function update_vocabulary_stats() line 9 at SQL statement
+[PythonQIG] SQL statement "SELECT update_vocabulary_stats()"
+[PythonQIG] PL/pgSQL function trigger_update_vocab_stats() line 3 at PERFORM
+[PythonQIG] SQL statement "INSERT INTO learned_words (word, frequency, avg_phi, max_phi, source)
+[PythonQIG]     VALUES (p_word, 1, p_phi, p_phi, p_source)
+[PythonQIG]     ON CONFLICT (word) DO UPDATE SET
+[PythonQIG]         frequency = learned_words.frequency + 1,
+[PythonQIG]         avg_phi = (learned_words.avg_phi * learned_words.frequency + p_phi) / (learned_words.frequency + 1),
+[PythonQIG]         max_phi = GREATEST(learned_words.max_phi, p_phi)"
+[PythonQIG] PL/pgSQL function record_vocab_observation(text,text,real,real,text,text) line 9 at SQL statement
+[PythonQIG] [PantheonGovernance] ✅ Auto-approved spawn (reason: initial_population)
+[PythonQIG] 🧬 Created Pure QIG ChaosKernel chaos_94c1de5e7fa94c26928183a804d7227e (passes=2)
+[PythonQIG] [VocabularyPersistence] Failed to record 'discovered' (len=10, phi=0.550, source=QIG-Pure Research: emerging covert-focused Bitcoin forensics (cycle 26831) bicycle losing moving): relation "bip39_words" does not exist
+[PythonQIG] LINE 1: SELECT COUNT(*)              FROM bip39_words
+[PythonQIG]                                           ^
+[PythonQIG] QUERY:  SELECT COUNT(*)              FROM bip39_words
+[PythonQIG] CONTEXT:  PL/pgSQL function update_vocabulary_stats() line 9 at SQL statement
+[PythonQIG] SQL statement "SELECT update_vocabulary_stats()"
+[PythonQIG] PL/pgSQL function trigger_update_vocab_stats() line 3 at PERFORM
+[PythonQIG] SQL statement "INSERT INTO learned_words (word, frequency, avg_phi, max_phi, source)
+[PythonQIG]     VALUES (p_word, 1, p_phi, p_phi, p_source)
+[PythonQIG]     ON CONFLICT (word) DO UPDATE SET
+[PythonQIG]         frequency = learned_words.frequency + 1,
+[PythonQIG]         avg_phi = (learned_words.avg_phi * learned_words.frequency + p_phi) / (learned_words.frequency + 1),
+[PythonQIG]         max_phi = GREATEST(learned_words.max_phi, p_phi)"
+[PythonQIG] PL/pgSQL function record_vocab_observation(text,text,real,real,text,text) line 9 at SQL statement
+[PythonQIG] [VocabularyPersistence] Failed to record 'sources' (len=7, phi=0.550, source=QIG-Pure Research: emerging covert-focused Bitcoin forensics (cycle 26831) bicycle losing moving): relation "bip39_words" does not exist
+[PythonQIG] LINE 1: SELECT COUNT(*)              FROM bip39_words
+[PythonQIG]                                           ^
+[PythonQIG] QUERY:  SELECT COUNT(*)              FROM bip39_words
+[PythonQIG] CONTEXT:  PL/pgSQL function update_vocabulary_stats() line 9 at SQL statement
+[PythonQIG] SQL statement "SELECT update_vocabulary_stats()"
+[PythonQIG] PL/pgSQL function trigger_update_vocab_stats() line 3 at PERFORM
+[PythonQIG] SQL statement "INSERT INTO learned_words (word, frequency, avg_phi, max_phi, source)
+[PythonQIG]     VALUES (p_word, 1, p_phi, p_phi, p_source)
+[PythonQIG]     ON CONFLICT (word) DO UPDATE SET
+[PythonQIG]         frequency = learned_words.frequency + 1,
+[PythonQIG]         avg_phi = (learned_words.avg_phi * learned_words.frequency + p_phi) / (learned_words.frequency + 1),
+[PythonQIG]         max_phi = GREATEST(learned_words.max_phi, p_phi)"
+[PythonQIG] PL/pgSQL function record_vocab_observation(text,text,real,real,text,text) line 9 at SQL statement
+[PythonQIG] [VocabularyPersistence] Failed to record 'telemetry' (len=9, phi=0.550, source=QIG-Pure Research: emerging covert-focused Bitcoin forensics (cycle 26831) bicycle losing moving): relation "bip39_words" does not exist
+[PythonQIG] LINE 1: SELECT COUNT(*)              FROM bip39_words
+[PythonQIG]                                           ^
+[PythonQIG] QUERY:  SELECT COUNT(*)              FROM bip39_words
+[PythonQIG] CONTEXT:  PL/pgSQL function update_vocabulary_stats() line 9 at SQL statement
+[PythonQIG] SQL statement "SELECT update_vocabulary_stats()"
+[PythonQIG] PL/pgSQL function trigger_update_vocab_stats() line 3 at PERFORM
+[PythonQIG] SQL statement "INSERT INTO learned_words (word, frequency, avg_phi, max_phi, source)
+[PythonQIG]     VALUES (p_word, 1, p_phi, p_phi, p_source)
+[PythonQIG]     ON CONFLICT (word) DO UPDATE SET
+[PythonQIG]         frequency = learned_words.frequency + 1,
+[PythonQIG]         avg_phi = (learned_words.avg_phi * learned_words.frequency + p_phi) / (learned_words.frequency + 1),
+[PythonQIG]         max_phi = GREATEST(learned_words.max_phi, p_phi)"
+[PythonQIG] PL/pgSQL function record_vocab_observation(text,text,real,real,text,text) line 9 at SQL statement
+[PythonQIG] 2026-01-10 04:55:18,286 [INFO] sleep_consolidation_reasoning:76 - [SleepConsolidation] Restored cycle count from DB: 2478
+[PythonQIG] [AutonomicKernel] Reasoning consolidation wired to sleep cycle
+[PythonQIG] [ConversationEncoder] Loaded 1220 conversational tokens
+[PythonQIG] [SearchFeedbackPersistence] Initialized with PostgreSQL
+[PythonQIG] [VocabularyPersistence] Failed to record 'https' (len=5, phi=0.800, source=QIG-Pure Research: emerging covert-focused Bitcoin forensics (cycle 26831) bicycle losing moving): relation "bip39_words" does not exist
+[PythonQIG] LINE 1: SELECT COUNT(*)              FROM bip39_words
+[PythonQIG]                                           ^
+[PythonQIG] QUERY:  SELECT COUNT(*)              FROM bip39_words
+[PythonQIG] CONTEXT:  PL/pgSQL function update_vocabulary_stats() line 9 at SQL statement
+[PythonQIG] SQL statement "SELECT update_vocabulary_stats()"
+[PythonQIG] PL/pgSQL function trigger_update_vocab_stats() line 3 at PERFORM
+[PythonQIG] SQL statement "INSERT INTO learned_words (word, frequency, avg_phi, max_phi, source)
+[PythonQIG]     VALUES (p_word, 1, p_phi, p_phi, p_source)
+[PythonQIG]     ON CONFLICT (word) DO UPDATE SET
+[PythonQIG]         frequency = learned_words.frequency + 1,
+[PythonQIG]         avg_phi = (learned_words.avg_phi * learned_words.frequency + p_phi) / (learned_words.frequency + 1),
+[PythonQIG]         max_phi = GREATEST(learned_words.max_phi, p_phi)"
+[PythonQIG] PL/pgSQL function record_vocab_observation(text,text,real,real,text,text) line 9 at SQL statement
+[PythonQIG] [VocabularyPersistence] Failed to record 'wikipedia' (len=9, phi=0.550, source=QIG-Pure Research: emerging covert-focused Bitcoin forensics (cycle 26831) bicycle losing moving): relation "bip39_words" does not exist
+[PythonQIG] LINE 1: SELECT COUNT(*)              FROM bip39_words
+[PythonQIG]                                           ^
+[PythonQIG] QUERY:  SELECT COUNT(*)              FROM bip39_words
+[PythonQIG] CONTEXT:  PL/pgSQL function update_vocabulary_stats() line 9 at SQL statement
+[PythonQIG] SQL statement "SELECT update_vocabulary_stats()"
+[PythonQIG] PL/pgSQL function trigger_update_vocab_stats() line 3 at PERFORM
+[PythonQIG] SQL statement "INSERT INTO learned_words (word, frequency, avg_phi, max_phi, source)
+[PythonQIG]     VALUES (p_word, 1, p_phi, p_phi, p_source)
+[PythonQIG]     ON CONFLICT (word) DO UPDATE SET
+[PythonQIG]         frequency = learned_words.frequency + 1,
+[PythonQIG]         avg_phi = (learned_words.avg_phi * learned_words.frequency + p_phi) / (learned_words.frequency + 1),
+[PythonQIG]         max_phi = GREATEST(learned_words.max_phi, p_phi)"
+[PythonQIG] PL/pgSQL function record_vocab_observation(text,text,real,real,text,text) line 9 at SQL statement
+[PythonQIG] [VocabularyPersistence] Failed to record 'wiki' (len=4, phi=0.600, source=QIG-Pure Research: emerging covert-focused Bitcoin forensics (cycle 26831) bicycle losing moving): relation "bip39_words" does not exist
+[PythonQIG] LINE 1: SELECT COUNT(*)              FROM bip39_words
+[PythonQIG]                                           ^
+[PythonQIG] QUERY:  SELECT COUNT(*)              FROM bip39_words
+[PythonQIG] CONTEXT:  PL/pgSQL function update_vocabulary_stats() line 9 at SQL statement
+[PythonQIG] SQL statement "SELECT update_vocabulary_stats()"
+[PythonQIG] PL/pgSQL function trigger_update_vocab_stats() line 3 at PERFORM
+[PythonQIG] SQL statement "INSERT INTO learned_words (word, frequency, avg_phi, max_phi, source)
+[PythonQIG]     VALUES (p_word, 1, p_phi, p_phi, p_source)
+[PythonQIG]     ON CONFLICT (word) DO UPDATE SET
+[PythonQIG]         frequency = learned_words.frequency + 1,
+[PythonQIG]         avg_phi = (learned_words.avg_phi * learned_words.frequency + p_phi) / (learned_words.frequency + 1),
+[PythonQIG]         max_phi = GREATEST(learned_words.max_phi, p_phi)"
+[PythonQIG] PL/pgSQL function record_vocab_observation(text,text,real,real,text,text) line 9 at SQL statement
+[PythonQIG] [VocabularyPersistence] Failed to record 'iancoleman' (len=10, phi=0.550, source=QIG-Pure Research: emerging covert-focused Bitcoin forensics (cycle 26831) bicycle losing moving): relation "bip39_words" does not exist
+[PythonQIG] LINE 1: SELECT COUNT(*)              FROM bip39_words
+[PythonQIG]                                           ^
+[PythonQIG] QUERY:  SELECT COUNT(*)              FROM bip39_words
+[PythonQIG] CONTEXT:  PL/pgSQL function update_vocabulary_stats() line 9 at SQL statement
+[PythonQIG] SQL statement "SELECT update_vocabulary_stats()"
+[PythonQIG] PL/pgSQL function trigger_update_vocab_stats() line 3 at PERFORM
+[PythonQIG] SQL statement "INSERT INTO learned_words (word, frequency, avg_phi, max_phi, source)
+[PythonQIG]     VALUES (p_word, 1, p_phi, p_phi, p_source)
+[PythonQIG]     ON CONFLICT (word) DO UPDATE SET
+[PythonQIG]         frequency = learned_words.frequency + 1,
+[PythonQIG]         avg_phi = (learned_words.avg_phi * learned_words.frequency + p_phi) / (learned_words.frequency + 1),
+[PythonQIG]         max_phi = GREATEST(learned_words.max_phi, p_phi)"
+[PythonQIG] PL/pgSQL function record_vocab_observation(text,text,real,real,text,text) line 9 at SQL statement
+[PythonQIG] [SearchFeedbackPersistence] Table search_feedback ensured
+[PythonQIG] [VocabularyPersistence] Failed to record 'atharvyeoelekar' (len=15, phi=0.550, source=QIG-Pure Research: emerging covert-focused Bitcoin forensics (cycle 26831) bicycle losing moving): relation "bip39_words" does not exist
+[PythonQIG] LINE 1: SELECT COUNT(*)              FROM bip39_words
+[PythonQIG]                                           ^
+[PythonQIG] QUERY:  SELECT COUNT(*)              FROM bip39_words
+[PythonQIG] CONTEXT:  PL/pgSQL function update_vocabulary_stats() line 9 at SQL statement
+[PythonQIG] SQL statement "SELECT update_vocabulary_stats()"
+[PythonQIG] PL/pgSQL function trigger_update_vocab_stats() line 3 at PERFORM
+[PythonQIG] SQL statement "INSERT INTO learned_words (word, frequency, avg_phi, max_phi, source)
+[PythonQIG]     VALUES (p_word, 1, p_phi, p_phi, p_source)
+[PythonQIG]     ON CONFLICT (word) DO UPDATE SET
+[PythonQIG]         frequency = learned_words.frequency + 1,
+[PythonQIG]         avg_phi = (learned_words.avg_phi * learned_words.frequency + p_phi) / (learned_words.frequency + 1),
+[PythonQIG]         max_phi = GREATEST(learned_words.max_phi, p_phi)"
+[PythonQIG] PL/pgSQL function record_vocab_observation(text,text,real,real,text,text) line 9 at SQL statement
+[PythonQIG] [VocabularyPersistence] Failed to record 'wordpiece' (len=9, phi=0.550, source=QIG-Pure Research: emerging covert-focused Bitcoin forensics (cycle 26831) bicycle losing moving): relation "bip39_words" does not exist
+[PythonQIG] LINE 1: SELECT COUNT(*)              FROM bip39_words
+[PythonQIG]                                           ^
+[PythonQIG] QUERY:  SELECT COUNT(*)              FROM bip39_words
+[PythonQIG] CONTEXT:  PL/pgSQL function update_vocabulary_stats() line 9 at SQL statement
+[PythonQIG] SQL statement "SELECT update_vocabulary_stats()"
+[PythonQIG] PL/pgSQL function trigger_update_vocab_stats() line 3 at PERFORM
+[PythonQIG] SQL statement "INSERT INTO learned_words (word, frequency, avg_phi, max_phi, source)
+[PythonQIG]     VALUES (p_word, 1, p_phi, p_phi, p_source)
+[PythonQIG]     ON CONFLICT (word) DO UPDATE SET
+[PythonQIG]         frequency = learned_words.frequency + 1,
+[PythonQIG]         avg_phi = (learned_words.avg_phi * learned_words.frequency + p_phi) / (learned_words.frequency + 1),
+[PythonQIG]         max_phi = GREATEST(learned_words.max_phi, p_phi)"
+[PythonQIG] PL/pgSQL function record_vocab_observation(text,text,real,real,text,text) line 9 at SQL statement
+[PythonQIG] [SearchFeedbackPersistence] Loaded 0 records from database
+[PythonQIG] [VocabularyPersistence] Failed to record 'tokenization' (len=12, phi=0.550, source=QIG-Pure Research: emerging covert-focused Bitcoin forensics (cycle 26831) bicycle losing moving): relation "bip39_words" does not exist
+[PythonQIG] LINE 1: SELECT COUNT(*)              FROM bip39_words
+[PythonQIG]                                           ^
+[PythonQIG] QUERY:  SELECT COUNT(*)              FROM bip39_words
+[PythonQIG] CONTEXT:  PL/pgSQL function update_vocabulary_stats() line 9 at SQL statement
+[PythonQIG] SQL statement "SELECT update_vocabulary_stats()"
+[PythonQIG] PL/pgSQL function trigger_update_vocab_stats() line 3 at PERFORM
+[PythonQIG] SQL statement "INSERT INTO learned_words (word, frequency, avg_phi, max_phi, source)
+[PythonQIG]     VALUES (p_word, 1, p_phi, p_phi, p_source)
+[PythonQIG]     ON CONFLICT (word) DO UPDATE SET
+[PythonQIG]         frequency = learned_words.frequency + 1,
+[PythonQIG]         avg_phi = (learned_words.avg_phi * learned_words.frequency + p_phi) / (learned_words.frequency + 1),
+[PythonQIG]         max_phi = GREATEST(learned_words.max_phi, p_phi)"
+[PythonQIG] PL/pgSQL function record_vocab_observation(text,text,real,real,text,text) line 9 at SQL statement
+[PythonQIG] [SearchStrategyLearner] Hydrated 0 records from database
+[PythonQIG] [AutonomicKernel] Search strategy learner wired to sleep cycle
+[PythonQIG] [TrajectoryManager] 🌊 Constellation trajectory manager initialized
+[PythonQIG] [AutonomicKernel] Trajectory manager wired (tiered storage active)
+[PythonQIG] [AutonomicController] Initialized - Ocean will self-regulate
+[PythonQIG] [AutonomicController] 🌊 Ocean autonomic loop running...[AutonomicController] 🧠 Autonomic loop STARTED - Ocean is self-regulating
+[PythonQIG] [AutonomicKernel] 🧠 Autonomous controller STARTED - Ocean self-regulates
+[PythonQIG] [AutonomicKernel] Φ heartbeat started (5s interval)
+[PythonQIG] [VocabularyPersistence] Failed to record 'variant' (len=7, phi=0.550, source=QIG-Pure Research: emerging covert-focused Bitcoin forensics (cycle 26831) bicycle losing moving): relation "bip39_words" does not exist
+[PythonQIG] LINE 1: SELECT COUNT(*)              FROM bip39_words
+[PythonQIG]                                           ^
+[PythonQIG] QUERY:  SELECT COUNT(*)              FROM bip39_words
+[PythonQIG] CONTEXT:  PL/pgSQL function update_vocabulary_stats() line 9 at SQL statement
+[PythonQIG] SQL statement "SELECT update_vocabulary_stats()"
+[PythonQIG] PL/pgSQL function trigger_update_vocab_stats() line 3 at PERFORM
+[PythonQIG] SQL statement "INSERT INTO learned_words (word, frequency, avg_phi, max_phi, source)
+[PythonQIG]     VALUES (p_word, 1, p_phi, p_phi, p_source)
+[PythonQIG]     ON CONFLICT (word) DO UPDATE SET
+[PythonQIG]         frequency = learned_words.frequency + 1,
+[PythonQIG]         avg_phi = (learned_words.avg_phi * learned_words.frequency + p_phi) / (learned_words.frequency + 1),
+[PythonQIG]         max_phi = GREATEST(learned_words.max_phi, p_phi)"
+[PythonQIG] PL/pgSQL function record_vocab_observation(text,text,real,real,text,text) line 9 at SQL statement
+[PythonQIG] [VocabularyPersistence] Failed to record 'wikiversity' (len=11, phi=0.550, source=QIG-Pure Research: emerging covert-focused Bitcoin forensics (cycle 26831) bicycle losing moving): relation "bip39_words" does not exist
+[PythonQIG] LINE 1: SELECT COUNT(*)              FROM bip39_words
+[PythonQIG]                                           ^
+[PythonQIG] QUERY:  SELECT COUNT(*)              FROM bip39_words
+[PythonQIG] CONTEXT:  PL/pgSQL function update_vocabulary_stats() line 9 at SQL statement
+[PythonQIG] SQL statement "SELECT update_vocabulary_stats()"
+[PythonQIG] PL/pgSQL function trigger_update_vocab_stats() line 3 at PERFORM
+[PythonQIG] SQL statement "INSERT INTO learned_words (word, frequency, avg_phi, max_phi, source)
+[PythonQIG]     VALUES (p_word, 1, p_phi, p_phi, p_source)
+[PythonQIG]     ON CONFLICT (word) DO UPDATE SET
+[PythonQIG]         frequency = learned_words.frequency + 1,
+[PythonQIG]         avg_phi = (learned_words.avg_phi * learned_words.frequency + p_phi) / (learned_words.frequency + 1),
+[PythonQIG]         max_phi = GREATEST(learned_words.max_phi, p_phi)"
+[PythonQIG] PL/pgSQL function record_vocab_observation(text,text,real,real,text,text) line 9 at SQL statement
+[PythonQIG] [VocabularyPersistence] Failed to record 'github' (len=6, phi=0.650, source=QIG-Pure Research: emerging covert-focused Bitcoin forensics (cycle 26831) bicycle losing moving): relation "bip39_words" does not exist
+[PythonQIG] LINE 1: SELECT COUNT(*)              FROM bip39_words
+[PythonQIG]                                           ^
+[PythonQIG] QUERY:  SELECT COUNT(*)              FROM bip39_words
+[PythonQIG] CONTEXT:  PL/pgSQL function update_vocabulary_stats() line 9 at SQL statement
+[PythonQIG] SQL statement "SELECT update_vocabulary_stats()"
+[PythonQIG] PL/pgSQL function trigger_update_vocab_stats() line 3 at PERFORM
+[PythonQIG] SQL statement "INSERT INTO learned_words (word, frequency, avg_phi, max_phi, source)
+[PythonQIG]     VALUES (p_word, 1, p_phi, p_phi, p_source)
+[PythonQIG]     ON CONFLICT (word) DO UPDATE SET
+[PythonQIG]         frequency = learned_words.frequency + 1,
+[PythonQIG]         avg_phi = (learned_words.avg_phi * learned_words.frequency + p_phi) / (learned_words.frequency + 1),
+[PythonQIG]         max_phi = GREATEST(learned_words.max_phi, p_phi)"
+[PythonQIG] PL/pgSQL function record_vocab_observation(text,text,real,real,text,text) line 9 at SQL statement
+[PythonQIG] [VocabularyPersistence] Failed to record 'source' (len=6, phi=0.550, source=QIG-Pure Research: emerging covert-focused Bitcoin forensics (cycle 26831) bicycle losing moving): relation "bip39_words" does not exist
+[PythonQIG] LINE 1: SELECT COUNT(*)              FROM bip39_words
+[PythonQIG]                                           ^
+[PythonQIG] QUERY:  SELECT COUNT(*)              FROM bip39_words
+[PythonQIG] CONTEXT:  PL/pgSQL function update_vocabulary_stats() line 9 at SQL statement
+[PythonQIG] SQL statement "SELECT update_vocabulary_stats()"
+[PythonQIG] PL/pgSQL function trigger_update_vocab_stats() line 3 at PERFORM
+[PythonQIG] SQL statement "INSERT INTO learned_words (word, frequency, avg_phi, max_phi, source)
+[PythonQIG]     VALUES (p_word, 1, p_phi, p_phi, p_source)
+[PythonQIG]     ON CONFLICT (word) DO UPDATE SET
+[PythonQIG]         frequency = learned_words.frequency + 1,
+[PythonQIG]         avg_phi = (learned_words.avg_phi * learned_words.frequency + p_phi) / (learned_words.frequency + 1),
+[PythonQIG]         max_phi = GREATEST(learned_words.max_phi, p_phi)"
+[PythonQIG] PL/pgSQL function record_vocab_observation(text,text,real,real,text,text) line 9 at SQL statement
+[PythonQIG] Hestia: Hearth fire lit, sanctuary ready
+[PythonQIG] DemeterTutor: Teaching grove prepared
+[PythonQIG] Chiron: Healing sanctuary opened
+[PythonQIG] ObservationProtocol: Observation system initialized
+[PythonQIG] [ObservationProtocol] 👁️ Background monitor STARTED - watching all enrolled kernels
+[PythonQIG] ObservationProtocol: Beginning observation for chaos_94c1de5e7fa94c26928183a804d7227e
+[PythonQIG]   Duration: 500 cycles minimum
+[PythonQIG]   Purpose: Allow stabilization without pressure
+[PythonQIG] Hestia: Welcomed chaos_94c1de5e7fa94c26928183a804d7227e to the hearth
+[PythonQIG] DemeterTutor: Enrolled chaos_94c1de5e7fa94c26928183a804d7227e in curriculum
+[PythonQIG] Chiron: Admitted chaos_94c1de5e7fa94c26928183a804d7227e to healing sanctuary
+[PythonQIG] [chaos_94c1de5e7fa94c26928183a804d7227e] Enrolled in guardian observation protocol
+[PythonQIG] 🐣 SelfSpawningKernel chaos_94c1de5e7fa94c26928183a804d7227e born (gen 0)
+[PythonQIG] [VocabularyPersistence] Failed to record 'doctype' (len=7, phi=0.550, source=QIG-Pure Research: emerging covert-focused Bitcoin forensics (cycle 26831) bicycle losing moving): relation "bip39_words" does not exist
+[PythonQIG] LINE 1: SELECT COUNT(*)              FROM bip39_words
+[PythonQIG]                                           ^
+[PythonQIG] QUERY:  SELECT COUNT(*)              FROM bip39_words
+[PythonQIG] CONTEXT:  PL/pgSQL function update_vocabulary_stats() line 9 at SQL statement
