@@ -20,6 +20,11 @@ if str(_qig_backend) not in sys.path:
 BATCH_SIZE = 100
 
 
+def format_vector(basin) -> str:
+    """Format numpy array as pgvector string."""
+    return '[' + ','.join(f'{x:.8f}' for x in basin) + ']'
+
+
 def populate_vocab_basins(limit: int = 0, dry_run: bool = False):
     """Populate vocabulary_observations.basin_coords.
 
@@ -89,11 +94,12 @@ def populate_vocab_basins(limit: int = 0, dry_run: bool = False):
             try:
                 basin = coordizer.encode(word)
                 if basin is not None and len(basin) == 64:
+                    basin_str = format_vector(basin)
                     cur.execute(
                         """UPDATE vocabulary_observations
-                           SET basin_coords = %s
+                           SET basin_coords = %s::vector
                            WHERE text = %s""",
-                        (basin.tolist(), word)
+                        (basin_str, word)
                     )
                     success += 1
                 else:

@@ -92,6 +92,11 @@ def generate_god_basin(god_name: str) -> np.ndarray:
     return basin
 
 
+def format_vector(basin: np.ndarray) -> str:
+    """Format numpy array as pgvector string."""
+    return '[' + ','.join(f'{x:.8f}' for x in basin) + ']'
+
+
 def populate_god_basins(dry_run: bool = False):
     """Populate pantheon_god_state.basin_coords.
 
@@ -141,12 +146,13 @@ def populate_god_basins(dry_run: bool = False):
     success = 0
     for god_name in gods:
         basin = generate_god_basin(god_name)
+        basin_str = format_vector(basin)
         try:
             cur.execute(
                 """UPDATE pantheon_god_state
-                   SET basin_coords = %s
+                   SET basin_coords = %s::vector
                    WHERE god_name = %s""",
-                (basin.tolist(), god_name)
+                (basin_str, god_name)
             )
             success += 1
             print(f"Updated {god_name} basin coordinates")
