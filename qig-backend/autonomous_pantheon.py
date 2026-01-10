@@ -306,7 +306,7 @@ class AutonomousPantheon:
     
     async def scan_for_targets(self) -> List[str]:
         """
-        Scan for high-value targets to assess.
+        Scan for pending debates/topics to assess.
         
         Uses PostgreSQL database exclusively (no JSON fallback).
         Returns empty list if database is not connected.
@@ -319,17 +319,19 @@ class AutonomousPantheon:
         
         try:
             cursor = self.db_connection.cursor()
+            # Query pending debates from pantheon_debates table
             cursor.execute("""
-                SELECT address 
-                FROM user_target_addresses 
-                ORDER BY added_at DESC 
+                SELECT topic 
+                FROM pantheon_debates 
+                WHERE status IN ('pending', 'active')
+                ORDER BY created_at DESC 
                 LIMIT 10
             """)
             rows = cursor.fetchall()
-            targets = [row[0] for row in rows]
+            targets = [row[0] for row in rows if row[0]]
             
             if targets:
-                logger.info(f"Loaded {len(targets)} targets from database")
+                logger.info(f"Loaded {len(targets)} debate topics from database")
             
         except Exception as db_error:
             logger.warning(f"Database query failed: {db_error}")
