@@ -268,6 +268,19 @@ class SearchProviderManager:
                     self.query_count[prov] = self.query_count.get(prov, 0) + 1
                     provider_used = prov
                     
+                    # Index premium search results to discovered_sources table
+                    if prov in premium_providers:
+                        try:
+                            from search.source_indexer import index_search_results
+                            index_search_results(
+                                provider=prov,
+                                query=query,
+                                results=results,
+                                kernel_id=kernel_id
+                            )
+                        except Exception as idx_err:
+                            logger.warning(f"[SearchProviderManager] Source indexing failed: {idx_err}")
+                    
                     if orchestrator and SearchImportance:
                         # Get updated quota info for the provider used
                         if prov in premium_providers:
