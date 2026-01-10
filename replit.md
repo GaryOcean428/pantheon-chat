@@ -122,6 +122,7 @@ All modules should import from this centralized source rather than hardcoding va
 - **Legacy Table Replacement:** Updated `scan_for_targets()` in `qig-backend/autonomous_pantheon.py` to query `pantheon_debates` table instead of legacy `user_target_addresses` table
 - **Debug Logging:** Added logging for zero-result debate scans to aid monitoring
 - **Learned Words Constraint:** Added UNIQUE constraint on `learned_words(word)` column to resolve ON CONFLICT errors during vocabulary persistence
+- **BIP39 Trigger Removal:** Ran `20260110_drop_bip39_trigger.sql` migration to remove legacy `update_vocabulary_stats()` trigger that referenced non-existent `bip39_words` table. Replaced with Shadow Pantheon-aligned stats function using `vocabulary_observations`
 
 ### Persistence Wiring
 - **Kernel Thought Persistence:** Enabled via `persist_thought()` in `qig_persistence.py` with format `[KERNEL_NAME] κ=X.X, Φ=X.XX, emotion=X, thought='...'`
