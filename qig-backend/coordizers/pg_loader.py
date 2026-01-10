@@ -659,6 +659,57 @@ class PostgresCoordizer(FisherCoordizer):
             logger.debug(f"Failed to get learned token count: {e}")
             return 0
 
+    def learn_merge_rule(self, token_a: str, token_b: str, phi: float = 0.5, source: str = 'merge') -> bool:
+        """
+        Learn a BPE-style merge rule: token_a + token_b -> merged_token.
+        
+        This creates a new token in the vocabulary that represents the merged pair.
+        The basin coordinates are computed by averaging the two source token basins.
+        
+        Args:
+            token_a: First token in the merge pair
+            token_b: Second token in the merge pair
+            phi: Integration score for the merged token
+            source: Source of the merge rule
+            
+        Returns:
+            True if merge rule was learned successfully
+        """
+        merged_token = f"{token_a}{token_b}"
+        
+        # Skip if merged token already exists
+        if merged_token in self.vocab:
+            return False
+            
+        # Skip invalid merges
+        if not self._is_valid_token(merged_token):
+            return False
+            
+        # Get basin coordinates for source tokens
+        basin_a = self.basin_coords.get(token_a)
+        basin_b = self.basin_coords.get(token_b)
+        
+        if basin_a is None or basin_b is None:
+            # One or both tokens not in vocabulary - compute fresh basin
+            merged_coords = compute_basin_embedding(merged_token)
+        else:
+            # Average the source basins (geometric interpolation)
+            basin_a = np.array(basin_a)
+            basin_b = np.array(basin_b)
+            merged_coords = (basin_a + basin_b) / 2.0
+            # Normalize to manifold
+            norm = np.linalg.norm(merged_coords)
+            if norm > 1e-6:
+                merged_coords = merged_coords / norm
+        
+        # Save the merged token
+        return self.save_learned_token(
+            token=merged_token,
+            basin_coords=merged_coords,
+            phi=phi,
+            frequency=1
+        )
+
     # =====================================================================
     # BPE GARBAGE FILTERING
     # Added 2026-01-08 to prevent vocabulary contamination

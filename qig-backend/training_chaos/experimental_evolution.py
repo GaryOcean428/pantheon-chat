@@ -120,6 +120,15 @@ except ImportError:
     PERSISTENCE_AVAILABLE = False
     print("[Chaos] Persistence not available - running without database")
 
+# Import M8SpawnerPersistence for M8 table persistence
+try:
+    from m8_kernel_spawning import M8SpawnerPersistence
+    M8_PERSISTENCE_AVAILABLE = True
+except ImportError:
+    M8SpawnerPersistence = None
+    M8_PERSISTENCE_AVAILABLE = False
+    print("[Chaos] M8SpawnerPersistence not available - M8 tables will not be populated")
+
 
 class ExperimentalKernelEvolution:
     """
@@ -181,6 +190,15 @@ class ExperimentalKernelEvolution:
         self.kernel_persistence = None
         if PERSISTENCE_AVAILABLE and KernelPersistence is not None:
             self.kernel_persistence = KernelPersistence()
+
+        # M8 Persistence (m8_spawned_kernels, m8_spawn_history, m8_kernel_awareness tables)
+        self.m8_persistence = None
+        if M8_PERSISTENCE_AVAILABLE and M8SpawnerPersistence is not None:
+            try:
+                self.m8_persistence = M8SpawnerPersistence()
+                print("[Chaos] ✓ M8SpawnerPersistence enabled for M8 table population")
+            except Exception as e:
+                print(f"[Chaos] Failed to initialize M8SpawnerPersistence: {e}")
 
         # Evolution thread
         self._evolution_running = False
@@ -820,6 +838,17 @@ class ExperimentalKernelEvolution:
             except Exception as e:
                 print(f"[Chaos] Failed to persist kernel {god_name}: {e}")
 
+        # Persist to M8 tables (m8_spawned_kernels, m8_spawn_history)
+        self._persist_to_m8_tables(
+            kernel_id=kernel.kernel_id,
+            god_name=god_name,
+            domain=domain,
+            basin_coords=kernel.kernel.basin_coords.detach().cpu().tolist(),
+            phi=phi,
+            parent_gods=[],
+            spawn_reason='chaos_random'
+        )
+
         return kernel
 
     def spawn_from_parent(
@@ -867,6 +896,17 @@ class ExperimentalKernelEvolution:
                 print(f"[Chaos] 🏛️ Spawned {god_name} from parent {parent_id} (Φ={phi:.3f})")
             except Exception as e:
                 print(f"[Chaos] Failed to persist child {god_name}: {e}")
+
+        # Persist to M8 tables (m8_spawned_kernels, m8_spawn_history)
+        self._persist_to_m8_tables(
+            kernel_id=child.kernel_id,
+            god_name=god_name,
+            domain='reproduction',
+            basin_coords=child.kernel.basin_coords.detach().cpu().tolist(),
+            phi=phi,
+            parent_gods=[parent_id],
+            spawn_reason='reproduction'
+        )
 
         return child
 
@@ -1280,6 +1320,135 @@ class ExperimentalKernelEvolution:
             'kernels': [k.get_stats() for k in living],
         }
 
+    def _persist_to_m8_tables(
+        self,
+        kernel_id: str,
+        god_name: str,
+        domain: str,
+        basin_coords: list,
+        phi: float,
+        parent_gods: list,
+        spawn_reason: str
+    ) -> bool:
+        """
+        Persist kernel spawn to M8 tables (m8_spawned_kernels, m8_spawn_history).
+        
+        This populates the M8 schema tables that track spawned kernels separately
+        from the legacy kernel_persistence tables.
+        """
+        if not self.m8_persistence:
+            return False
+        
+        try:
+            import json
+            from datetime import datetime
+            import uuid as uuid_mod
+            
+            # Build M8-compatible kernel record for m8_spawn_history
+            spawn_record = {
+                'event_id': f"evt_{uuid_mod.uuid4().hex}",
+                'event': 'chaos_kernel_spawned',
+                'event_type': 'chaos_spawn',
+                'kernel_id': kernel_id,
+                'god_name': god_name,
+                'domain': domain,
+                'phi': phi,
+                'parent_gods': parent_gods,
+                'spawn_reason': spawn_reason,
+                'basin_coords': basin_coords[:10] if len(basin_coords) > 10 else basin_coords,  # Truncate for payload
+                'timestamp': datetime.now().isoformat(),
+            }
+            
+            # Persist to m8_spawn_history
+            self.m8_persistence.persist_history(spawn_record)
+            
+            # For m8_spawned_kernels, we need a SpawnedKernel-like object
+            # M8SpawnerPersistence.persist_kernel expects a SpawnedKernel object
+            # So we persist directly via SQL for chaos kernels
+            self._persist_chaos_kernel_to_m8(
+                kernel_id=kernel_id,
+                god_name=god_name,
+                domain=domain,
+                basin_coords=basin_coords,
+                phi=phi,
+                parent_gods=parent_gods,
+                spawn_reason=spawn_reason
+            )
+            
+            print(f"[Chaos] ✓ M8 tables updated for {god_name}")
+            return True
+            
+        except Exception as e:
+            print(f"[Chaos] Failed to persist to M8 tables: {e}")
+            return False
+    
+    def _persist_chaos_kernel_to_m8(
+        self,
+        kernel_id: str,
+        god_name: str,
+        domain: str,
+        basin_coords: list,
+        phi: float,
+        parent_gods: list,
+        spawn_reason: str
+    ) -> bool:
+        """
+        Directly persist chaos kernel to m8_spawned_kernels table.
+        """
+        if not self.m8_persistence or not self.m8_persistence.database_url:
+            return False
+        
+        try:
+            import json
+            import psycopg2
+            from datetime import datetime
+            
+            conn = psycopg2.connect(self.m8_persistence.database_url)
+            try:
+                with conn.cursor() as cur:
+                    # Convert basin_coords to PostgreSQL array format (uses {} not [])
+                    basin_str = '{' + ','.join(str(float(x)) for x in basin_coords) + '}'
+                    
+                    cur.execute("""
+                        INSERT INTO m8_spawned_kernels
+                        (kernel_id, god_name, domain, mode, affinity_strength,
+                         entropy_threshold, basin_coords, parent_gods, spawn_reason,
+                         proposal_id, genesis_votes, basin_lineage, m8_position,
+                         observation_state, autonomic_state, profile_metadata,
+                         status, spawned_at)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        ON CONFLICT (kernel_id) DO UPDATE SET
+                            god_name = EXCLUDED.god_name,
+                            domain = EXCLUDED.domain,
+                            status = EXCLUDED.status
+                    """, (
+                        kernel_id,
+                        god_name,
+                        domain,
+                        'chaos',  # mode
+                        1.0,  # affinity_strength
+                        0.5,  # entropy_threshold
+                        basin_str,
+                        json.dumps(parent_gods),
+                        spawn_reason,
+                        f"chaos_{kernel_id}",  # proposal_id
+                        json.dumps({}),  # genesis_votes
+                        json.dumps({g: 1.0/max(1,len(parent_gods)) for g in parent_gods}),  # basin_lineage
+                        json.dumps({'phi': phi}),  # m8_position
+                        json.dumps({'status': 'observing'}),  # observation_state
+                        json.dumps({'has_autonomic': True}),  # autonomic_state
+                        json.dumps({'spawn_type': 'chaos', 'phi': phi}),  # profile_metadata
+                        'observing',  # status
+                        datetime.now().isoformat(),
+                    ))
+                    conn.commit()
+                return True
+            finally:
+                conn.close()
+        except Exception as e:
+            print(f"[Chaos] Failed to persist chaos kernel to m8_spawned_kernels: {e}")
+            return False
+
     def _find_kernel(self, kernel_id: str) -> Optional[SelfSpawningKernel]:
         """Find kernel by ID."""
         for kernel in self.kernel_population:
@@ -1337,6 +1506,17 @@ class ExperimentalKernelEvolution:
         self.logger.log_spawn(f"god:{god_name}", kernel.kernel_id, 'god_spawn', phi=god_spawn_phi)
 
         print(f"⚡ God {god_name} spawned CHAOS kernel {kernel.kernel_id}")
+
+        # Persist to M8 tables (m8_spawned_kernels, m8_spawn_history)
+        self._persist_to_m8_tables(
+            kernel_id=kernel.kernel_id,
+            god_name=god_name,
+            domain='god_spawn',
+            basin_coords=kernel.kernel.basin_coords.detach().cpu().tolist(),
+            phi=god_spawn_phi,
+            parent_gods=[god_name],
+            spawn_reason='god_spawn'
+        )
 
         return kernel
 
