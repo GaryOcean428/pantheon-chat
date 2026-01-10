@@ -22,10 +22,16 @@ The gods speak in pure geometry:
 - Von Neumann entropy for information
 """
 
+print("[Olympus/__init__] Starting imports...", flush=True)
+print("[Olympus/__init__] Importing Aphrodite...", flush=True)
 from .aphrodite import Aphrodite
+print("[Olympus/__init__] Importing Apollo...", flush=True)
 from .apollo import Apollo
+print("[Olympus/__init__] Importing Ares...", flush=True)
 from .ares import Ares
+print("[Olympus/__init__] Importing Artemis...", flush=True)
 from .artemis import Artemis
+print("[Olympus/__init__] Imported Aphrodite-Artemis", flush=True)
 
 # Olympian Gods
 from .athena import Athena
@@ -36,19 +42,24 @@ from .hades import Hades
 from .hephaestus import Hephaestus
 from .hera import Hera
 from .hermes import Hermes
+print("[Olympus/__init__] Imported Athena-Hermes", flush=True)
 
 # Team #2 - Coordinator
 from .hermes_coordinator import HermesCoordinator, get_hermes_coordinator
+print("[Olympus/__init__] Imported HermesCoordinator", flush=True)
 
 # Communication
 from .pantheon_chat import Debate, PantheonChat, PantheonMessage
 from .poseidon import Poseidon
+print("[Olympus/__init__] Imported PantheonChat+Poseidon", flush=True)
 
 # Shadow Pantheon
 from .shadow_pantheon import Erebus, Hecate, Hypnos, Nemesis, Nyx, ShadowGod, ShadowPantheon, Thanatos
+print("[Olympus/__init__] Imported ShadowPantheon", flush=True)
 
 # Lightning Bolt Insight Kernel (dynamic domains - no hardcoded enums)
 from .lightning_kernel import LightningKernel, get_lightning_kernel, CrossDomainInsight, DomainEvent, set_pantheon_chat
+print("[Olympus/__init__] Imported LightningKernel", flush=True)
 
 # Universal Capability Mesh
 from .capability_mesh import (
@@ -56,11 +67,13 @@ from .capability_mesh import (
     get_event_bus, emit_event, subscribe_to_events, get_mesh_status,
     SUBSCRIPTION_MATRIX
 )
+print("[Olympus/__init__] Imported capability_mesh", flush=True)
 from .capability_bridges import (
     DebateResearchBridge, EmotionCapabilityBridge, ForesightActionBridge,
     EthicsCapabilityBridge, SleepLearningBridge, BasinCapabilityBridge,
     WarResourceBridge, KernelMeshBridge, initialize_all_bridges, get_bridge_stats
 )
+print("[Olympus/__init__] Imported capability_bridges", flush=True)
 
 # Auto Tool Discovery & Persistence
 from .auto_tool_discovery import (
@@ -70,12 +83,16 @@ from .tool_request_persistence import (
     ToolRequestPersistence, ToolRequest, RequestStatus,
     RequestPriority, PatternDiscovery, get_tool_request_persistence
 )
+print("[Olympus/__init__] Imported ToolDiscovery+Persistence", flush=True)
 
 # Telemetry API
 from .telemetry_api import telemetry_bp, register_telemetry_routes, initialize_god_telemetry
+print("[Olympus/__init__] Imported telemetry_api", flush=True)
 
 # Core hierarchy
+print("[Olympus/__init__] About to import zeus...", flush=True)
 from .zeus import Zeus, olympus_app, zeus
+print("[Olympus/__init__] Imported Zeus singleton", flush=True)
 
 # Zeus Chat (voice integration)
 from .zeus_chat import ZeusConversationHandler, GeometricGenerationMixin

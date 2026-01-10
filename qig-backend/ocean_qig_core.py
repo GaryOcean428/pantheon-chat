@@ -97,9 +97,11 @@ except ImportError:
     print("[WARNING] ocean_neurochemistry.py not found - running without neurochemistry")
 
 # Import Olympus Pantheon
+print("[ocean_qig_core] About to import olympus...", flush=True)
 try:
     from olympus import olympus_app, zeus
     OLYMPUS_AVAILABLE = True
+    print("[ocean_qig_core] Olympus imported successfully", flush=True)
 except ImportError as e:
     OLYMPUS_AVAILABLE = False
     print(f"[WARNING] Olympus Pantheon not found - running without divine council: {e}")

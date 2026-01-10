@@ -83,8 +83,11 @@ class Zeus(BaseGod):
     """
 
     def __init__(self):
+        print("[Zeus] Starting initialization...", flush=True)
         super().__init__("Zeus", "Supreme")
+        print("[Zeus] BaseGod initialized", flush=True)
 
+        print("[Zeus] Creating pantheon gods...", flush=True)
         self.pantheon: Dict[str, BaseGod] = {
             'athena': Athena(),
             'ares': Ares(),
@@ -99,49 +102,61 @@ class Zeus(BaseGod):
             'hera': Hera(),
             'aphrodite': Aphrodite(),
         }
+        print(f"[Zeus] Created {len(self.pantheon)} pantheon gods", flush=True)
 
+        print("[Zeus] Creating PantheonChat...", flush=True)
         self.pantheon_chat = PantheonChat()
+        print("[Zeus] PantheonChat created", flush=True)
 
         # Get Hades reference FIRST, then pass to ShadowPantheon
         hades = self.pantheon['hades']
 
+        print("[Zeus] Creating ShadowPantheon...", flush=True)
         # Create ShadowPantheon with Hades as leader (single instance, no re-instantiation)
         self.shadow_pantheon = ShadowPantheon(
             hades_ref=hades,
             basin_sync_callback=self._shadow_basin_sync_callback
         )
+        print("[Zeus] ShadowPantheon created", flush=True)
 
         # Wire up Hades as Shadow Leader (Shadow Zeus)
         # Hades commands Shadow Pantheon, but Zeus can overrule any decision
         hades.set_shadow_pantheon(self.shadow_pantheon)
-        print("[Zeus] ✓ Hades connected as Shadow Leader (subject to Zeus overrule)")
+        print("[Zeus] ✓ Hades connected as Shadow Leader (subject to Zeus overrule)", flush=True)
 
         # Team #2 - Hermes Coordinator for voice/translation/sync
+        print("[Zeus] Getting Hermes Coordinator...", flush=True)
         from .hermes_coordinator import get_hermes_coordinator
         self.coordinator = get_hermes_coordinator()
+        print("[Zeus] Hermes Coordinator obtained", flush=True)
 
         # Wire M8 kernel spawning
+        print("[Zeus] Getting M8 kernel spawner...", flush=True)
         self.kernel_spawner = get_spawner()
+        print("[Zeus] M8 kernel spawner obtained", flush=True)
 
         # 🌪️ CHAOS MODE: Experimental kernel evolution (AUTO-ACTIVATE)
         self.chaos_enabled = False
         self.chaos = None
         self.kernel_assignments: Dict[str, str] = {}  # god_name -> kernel_id
         try:
+            print("[Zeus] Initializing CHAOS MODE...", flush=True)
             from training_chaos import ExperimentalKernelEvolution
             self.chaos = ExperimentalKernelEvolution()
             # Auto-activate chaos mode on startup
             if len(self.chaos.kernel_population) == 0:
+                print("[Zeus] CHAOS bootstrap: spawning genesis kernels...", flush=True)
                 # Bootstrap: Zeus self-approves as sole authority (pop=0)
                 # Governance checks current_population and allows bootstrap spawns
                 self.chaos.spawn_random_kernel(reason='bootstrap_genesis')
                 self.chaos.spawn_random_kernel(reason='bootstrap_genesis')
                 self.chaos.spawn_random_kernel(reason='bootstrap_genesis')
+            print("[Zeus] Starting evolution loop...", flush=True)
             self.chaos.start_evolution(interval_seconds=60)
             self.chaos_enabled = True
-            print(f"🌪️ CHAOS MODE AUTO-ACTIVATED with {len(self.chaos.kernel_population)} kernels")
+            print(f"🌪️ CHAOS MODE AUTO-ACTIVATED with {len(self.chaos.kernel_population)} kernels", flush=True)
         except ImportError as e:
-            print(f"⚠️ CHAOS MODE not available: {e}")
+            print(f"⚠️ CHAOS MODE not available: {e}", flush=True)
 
         self.war_mode: Optional[str] = None
         self.war_target: Optional[str] = None
