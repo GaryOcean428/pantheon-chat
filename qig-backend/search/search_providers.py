@@ -171,13 +171,15 @@ class SearchProviderManager:
             kernel_id: Kernel requesting the search (for learning)
         
         Returns:
-            Combined results with provider info and budget context
+            Combined results with provider info, budget context, and quota_info
         """
         orchestrator = _get_budget_orchestrator()
         SearchImportance = _get_search_importance()
         
         selected_provider = None
         selection_reason = "legacy"
+        quota_info: Optional[Dict[str, Any]] = None
+        premium_providers = ('tavily', 'perplexity', 'google')
         
         if orchestrator and SearchImportance:
             imp_enum = SearchImportance(min(max(importance, 1), 4))
@@ -187,15 +189,50 @@ class SearchProviderManager:
             )
             
             if selected_provider:
+                # Check quota before using premium provider
+                if selected_provider in premium_providers:
+                    provider_quota = orchestrator.get_provider_quota(selected_provider, kernel_id)
+                    quota_info = provider_quota
+                    remaining = provider_quota.get('remaining', 0)
+                    override_active = provider_quota.get('override_active', False)
+                    
+                    # If remaining <= 0 and no override, skip to fallback
+                    if remaining is not None and remaining <= 0 and not override_active:
+                        logger.warning(
+                            f"[SearchProviderManager] Premium search BLOCKED: {selected_provider} "
+                            f"(remaining={remaining}, override={override_active}, kernel={kernel_id})"
+                        )
+                        # Fallback to duckduckgo
+                        selected_provider = 'duckduckgo'
+                        selection_reason = "quota_exhausted_fallback"
+                    else:
+                        # Log when premium providers are actually used
+                        logger.info(
+                            f"[SearchProviderManager] PREMIUM PROVIDER: {selected_provider} "
+                            f"(reason: {selection_reason}, remaining: {remaining}, query_len: {len(query)})"
+                        )
+                
                 providers_to_use = [selected_provider]
-                # Log when premium providers are actually used (truncate query for security)
-                if selected_provider in ('tavily', 'perplexity'):
-                    safe_query = query[:500] + '...' if len(query) > 30 else query
-                    logger.info(f"[SearchProviderManager] PREMIUM PROVIDER: {selected_provider} (reason: {selection_reason}, query_len: {len(query)})")
             else:
                 providers_to_use = ['duckduckgo'] if self.providers.get('duckduckgo', {}) else []
         elif provider and provider in self.providers:
-            providers_to_use = [provider] if self.providers[provider].enabled else []
+            # Direct provider request - still check quota
+            if orchestrator and provider in premium_providers:
+                provider_quota = orchestrator.get_provider_quota(provider, kernel_id)
+                quota_info = provider_quota
+                remaining = provider_quota.get('remaining', 0)
+                override_active = provider_quota.get('override_active', False)
+                
+                if remaining is not None and remaining <= 0 and not override_active:
+                    logger.warning(
+                        f"[SearchProviderManager] Premium search BLOCKED (direct request): {provider} "
+                        f"(remaining={remaining}, kernel={kernel_id})"
+                    )
+                    providers_to_use = ['duckduckgo'] if self.providers.get('duckduckgo', {}) else []
+                else:
+                    providers_to_use = [provider] if self.providers[provider].enabled else []
+            else:
+                providers_to_use = [provider] if self.providers[provider].enabled else []
         else:
             providers_to_use = sorted(
                 [p for p, c in self.providers.items() if c.enabled],
@@ -208,7 +245,8 @@ class SearchProviderManager:
                 'success': False,
                 'error': 'No providers available (check budget)',
                 'results': [],
-                'budget_context': orchestrator.get_budget_context().to_dict() if orchestrator else None
+                'budget_context': orchestrator.get_budget_context().to_dict() if orchestrator else None,
+                'quota_info': quota_info
             }
         
         all_results = []
@@ -216,6 +254,17 @@ class SearchProviderManager:
         provider_used = None
         
         for prov in providers_to_use:
+            # Check quota for each premium provider before executing
+            if orchestrator and prov in premium_providers:
+                prov_quota = orchestrator.get_provider_quota(prov, kernel_id)
+                remaining = prov_quota.get('remaining', 0)
+                override_active = prov_quota.get('override_active', False)
+                
+                if remaining is not None and remaining <= 0 and not override_active:
+                    logger.info(f"[SearchProviderManager] Skipping {prov} (quota exhausted)")
+                    errors.append(f"{prov}: quota exhausted")
+                    continue
+            
             try:
                 results = self._search_provider(prov, query, max_results)
                 if results:
@@ -224,7 +273,13 @@ class SearchProviderManager:
                     provider_used = prov
                     
                     if orchestrator and SearchImportance:
-                        orchestrator.record_usage(prov, success=True)
+                        # Pass kernel_id to record_usage
+                        orchestrator.record_usage(prov, success=True, kernel_id=kernel_id)
+                        
+                        # Get updated quota info for the provider used
+                        if prov in premium_providers:
+                            quota_info = orchestrator.get_provider_quota(prov, kernel_id)
+                        
                         relevance = min(1.0, len(results) / max_results)
                         orchestrator.record_outcome(
                             query=query,
@@ -258,7 +313,8 @@ class SearchProviderManager:
             'selection_reason': selection_reason,
             'results': all_results[:max_results],
             'errors': errors if errors else None,
-            'budget_context': orchestrator.get_budget_context().to_dict() if orchestrator else None
+            'budget_context': orchestrator.get_budget_context().to_dict() if orchestrator else None,
+            'quota_info': quota_info
         }
     
     def _search_provider(self, provider: str, query: str, max_results: int) -> List[Dict]:
