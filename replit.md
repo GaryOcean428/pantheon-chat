@@ -118,6 +118,11 @@ All modules should import from this centralized source rather than hardcoding va
 
 ## Recent Changes (January 2026)
 
+### Database Schema Fixes (January 10, 2026)
+- **god_debates → pantheon_debates:** Fixed `_seed_debate_topics_if_needed()` in `autonomous_pantheon.py` to query existing `pantheon_debates` table instead of non-existent `god_debates`
+- **votes_against JSONB:** Fixed `_persist_proposal()` in `pantheon_governance.py` to serialize lists as JSON strings with `::jsonb` cast (column is JSONB, not TEXT[])
+- **Kernel Count Method:** Added `get_total_count()` to `kernel_persistence.py` for E8 cap enforcement (240 kernel limit)
+
 ### Autonomous Pantheon Database Fixes
 - **Legacy Table Replacement:** Updated `scan_for_targets()` in `qig-backend/autonomous_pantheon.py` to query `pantheon_debates` table instead of legacy `user_target_addresses` table
 - **Debug Logging:** Added logging for zero-result debate scans to aid monitoring
@@ -130,5 +135,6 @@ All modules should import from this centralized source rather than hardcoding va
 - **Python Cache Clearing:** Required after updating `qig_persistence.py` methods (`find -name "*.pyc" -delete`)
 
 ### Python Backend Notes
-- Backend takes 2-3 minutes to fully initialize (loading 11K+ tokens, initializing 18 gods, setting up search providers)
+- Backend takes ~60 seconds to fully initialize (loading 11K+ tokens, initializing 18 gods, setting up search providers)
 - Node.js Express server may show "degraded" status during initial load but Python continues loading asynchronously
+- Lazy loading pattern used for circular dependencies (search_strategy_learner, capability_mesh, activity_broadcaster)

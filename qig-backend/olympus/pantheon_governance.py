@@ -1053,33 +1053,55 @@ class PantheonGovernance:
 
         try:
             cur = self._conn.cursor()
-            # Use TEXT[] native arrays, not JSONB
             resolved_at = datetime.now() if proposal.status != ProposalStatus.PENDING else None
-            cur.execute("""
-                INSERT INTO governance_proposals (
-                    proposal_id, proposal_type, status, reason,
-                    parent_id, parent_phi, count, created_at,
-                    resolved_at, votes_for, votes_against
-                )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT (proposal_id) DO UPDATE SET
-                    status = EXCLUDED.status,
-                    resolved_at = EXCLUDED.resolved_at,
-                    votes_for = EXCLUDED.votes_for,
-                    votes_against = EXCLUDED.votes_against
-            """, (
-                proposal.proposal_id,
-                proposal.proposal_type.value,
-                proposal.status.value,
-                proposal.reason,
-                proposal.parent_id,
-                proposal.parent_phi,
-                proposal.count,
-                proposal.created_at,
-                resolved_at,
-                proposal.votes_for,  # Native Python list → TEXT[]
-                proposal.votes_against,  # Native Python list → TEXT[]
-            ))
+            # Use PsycopgJson wrapper for jsonb columns
+            import json
+            votes_for_json = json.dumps(proposal.votes_for) if proposal.votes_for else '[]'
+            votes_against_json = json.dumps(proposal.votes_against) if proposal.votes_against else '[]'
+            
+            # Check if proposal exists first (no unique constraint on proposal_id)
+            cur.execute("SELECT id FROM governance_proposals WHERE proposal_id = %s", (proposal.proposal_id,))
+            existing = cur.fetchone()
+            
+            if existing:
+                # Update existing
+                cur.execute("""
+                    UPDATE governance_proposals SET
+                        status = %s,
+                        resolved_at = %s,
+                        votes_for = %s::jsonb,
+                        votes_against = %s::jsonb
+                    WHERE proposal_id = %s
+                """, (
+                    proposal.status.value,
+                    resolved_at,
+                    votes_for_json,
+                    votes_against_json,
+                    proposal.proposal_id,
+                ))
+            else:
+                # Insert new
+                cur.execute("""
+                    INSERT INTO governance_proposals (
+                        proposal_id, proposal_type, status, reason,
+                        parent_id, parent_phi, count, created_at,
+                        resolved_at, votes_for, votes_against
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb)
+                """, (
+                    proposal.proposal_id,
+                    proposal.proposal_type.value,
+                    proposal.status.value,
+                    proposal.reason,
+                    proposal.parent_id,
+                    proposal.parent_phi,
+                    proposal.count,
+                    proposal.created_at,
+                    resolved_at,
+                    votes_for_json,
+                    votes_against_json,
+                ))
+            self._conn.commit()
             cur.close()
         except Exception as e:
             print(f"[PantheonGovernance] Failed to persist proposal: {e}")
