@@ -113,36 +113,57 @@ except ImportError:
     get_mission_profile = None
     discover_domain_from_event = None
 
-# Import capability mesh for prediction event subscription
-try:
-    from olympus.capability_mesh import (
-        CapabilityType,
-        CapabilityEvent,
-        EventType,
-        PredictionEvent,
-        get_event_bus,
-        subscribe_to_events,
-        emit_event,
-    )
-    CAPABILITY_MESH_AVAILABLE = True
-except ImportError:
-    CAPABILITY_MESH_AVAILABLE = False
-    CapabilityType = None
-    CapabilityEvent = None
-    EventType = None
-    PredictionEvent = None
-    get_event_bus = None
-    subscribe_to_events = None
-    emit_event = None
+# Lazy import for capability mesh to avoid circular import
+# These will be loaded on first access via helper functions
+CAPABILITY_MESH_AVAILABLE = None  # Will be set on first access
+_capability_mesh_cache = {}
 
-# Import ActivityBroadcaster for kernel visibility
-try:
-    from olympus.activity_broadcaster import get_broadcaster, ActivityType
-    ACTIVITY_BROADCASTER_AVAILABLE = True
-except ImportError:
-    ACTIVITY_BROADCASTER_AVAILABLE = False
-    get_broadcaster = None
-    ActivityType = None
+def _get_capability_mesh_module():
+    """Lazy import of capability_mesh to avoid circular import during initialization."""
+    global CAPABILITY_MESH_AVAILABLE, _capability_mesh_cache
+    if CAPABILITY_MESH_AVAILABLE is None:
+        try:
+            from olympus.capability_mesh import (
+                CapabilityType,
+                CapabilityEvent,
+                EventType,
+                PredictionEvent,
+                get_event_bus,
+                subscribe_to_events,
+                emit_event,
+            )
+            _capability_mesh_cache = {
+                'CapabilityType': CapabilityType,
+                'CapabilityEvent': CapabilityEvent,
+                'EventType': EventType,
+                'PredictionEvent': PredictionEvent,
+                'get_event_bus': get_event_bus,
+                'subscribe_to_events': subscribe_to_events,
+                'emit_event': emit_event,
+            }
+            CAPABILITY_MESH_AVAILABLE = True
+        except ImportError:
+            CAPABILITY_MESH_AVAILABLE = False
+    return _capability_mesh_cache
+
+# Lazy import for ActivityBroadcaster to avoid circular import
+ACTIVITY_BROADCASTER_AVAILABLE = None  # Will be set on first access
+_activity_broadcaster_cache = {}
+
+def _get_activity_broadcaster_module():
+    """Lazy import of activity_broadcaster to avoid circular import during initialization."""
+    global ACTIVITY_BROADCASTER_AVAILABLE, _activity_broadcaster_cache
+    if ACTIVITY_BROADCASTER_AVAILABLE is None:
+        try:
+            from olympus.activity_broadcaster import get_broadcaster, ActivityType
+            _activity_broadcaster_cache = {
+                'get_broadcaster': get_broadcaster,
+                'ActivityType': ActivityType,
+            }
+            ACTIVITY_BROADCASTER_AVAILABLE = True
+        except ImportError:
+            ACTIVITY_BROADCASTER_AVAILABLE = False
+    return _activity_broadcaster_cache
 
 # Import SelfObserver for real-time consciousness self-observation during generation
 try:
@@ -548,13 +569,22 @@ class SearchCapabilityMixin:
     """
     
     _search_orchestrator_ref = None
+    _capability_imports_available = None  # Lazy check
     
-    # Import capability mesh types once at class level for DRY
-    try:
-        from .capability_mesh import CapabilityEvent, EventType, CapabilityType, CapabilityEventBus
-        _capability_imports_available = True
-    except ImportError:
-        _capability_imports_available = False
+    @classmethod
+    def _get_capability_imports(cls):
+        """Lazy import of capability_mesh to avoid circular import during initialization."""
+        if cls._capability_imports_available is None:
+            try:
+                from .capability_mesh import CapabilityEvent, EventType, CapabilityType, CapabilityEventBus
+                cls.CapabilityEvent = CapabilityEvent
+                cls.EventType = EventType
+                cls.CapabilityType = CapabilityType
+                cls.CapabilityEventBus = CapabilityEventBus
+                cls._capability_imports_available = True
+            except ImportError:
+                cls._capability_imports_available = False
+        return cls._capability_imports_available
     
     @classmethod
     def set_search_orchestrator(cls, orchestrator) -> None:
@@ -594,8 +624,8 @@ class SearchCapabilityMixin:
             return None
         
         try:
-            # Emit capability event for search request (use class-level imports)
-            if self._capability_imports_available:
+            # Emit capability event for search request (use lazy-loaded imports)
+            if self._get_capability_imports():
                 basin = self.encode_to_basin(query) if hasattr(self, 'encode_to_basin') else None
                 rho = self.basin_to_density_matrix(basin) if basin is not None and hasattr(self, 'basin_to_density_matrix') else None
                 phi = self.compute_pure_phi(rho) if rho is not None and hasattr(self, 'compute_pure_phi') else 0.5
@@ -736,8 +766,8 @@ class SearchCapabilityMixin:
                         }
                     )
                     
-                    # Emit source discovered event (use class-level imports)
-                    if self._capability_imports_available:
+                    # Emit source discovered event (use lazy-loaded imports)
+                    if self._get_capability_imports():
                         event = self.CapabilityEvent(
                             source=self.CapabilityType.SEARCH,
                             event_type=self.EventType.SOURCE_DISCOVERED,
@@ -1579,7 +1609,8 @@ class PredictionEventSubscriberMixin:
         Returns:
             True if subscription succeeded, False if capability mesh unavailable
         """
-        if not CAPABILITY_MESH_AVAILABLE:
+        mesh = _get_capability_mesh_module()
+        if not mesh or not CAPABILITY_MESH_AVAILABLE:
             logger.debug(f"[{getattr(self, 'name', 'Unknown')}] Capability mesh not available for prediction subscription")
             return False
 
@@ -1588,13 +1619,13 @@ class PredictionEventSubscriberMixin:
 
         try:
             # Map god name to a capability type (use KERNELS as the general type)
-            subscribe_to_events(
-                capability=CapabilityType.KERNELS,
+            mesh['subscribe_to_events'](
+                capability=mesh['CapabilityType'].KERNELS,
                 handler=self._on_prediction_event,
                 event_types=[
-                    EventType.PREDICTION_MADE,
-                    EventType.PREDICTION_VALIDATED,
-                    EventType.PREDICTION_FEEDBACK,
+                    mesh['EventType'].PREDICTION_MADE,
+                    mesh['EventType'].PREDICTION_VALIDATED,
+                    mesh['EventType'].PREDICTION_FEEDBACK,
                 ]
             )
             self._prediction_subscription_active = True
@@ -1619,7 +1650,12 @@ class PredictionEventSubscriberMixin:
         # Default implementation: log significant events
         name = getattr(self, 'name', 'Unknown')
 
-        if not CAPABILITY_MESH_AVAILABLE:
+        mesh = _get_capability_mesh_module()
+        if not mesh or not CAPABILITY_MESH_AVAILABLE:
+            return None
+
+        EventType = mesh.get('EventType')
+        if not EventType:
             return None
 
         try:
