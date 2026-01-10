@@ -129,10 +129,22 @@ except ImportError:
     PERSISTENCE_AVAILABLE = False
     logger.warning("QIGPersistence not available")
 
+# Insight Validator for background validation
+try:
+    from search.insight_validator import InsightValidator, ValidationResult
+    INSIGHT_VALIDATOR_AVAILABLE = True
+except ImportError:
+    INSIGHT_VALIDATOR_AVAILABLE = False
+    logger.warning("InsightValidator not available for background validation")
+
 from qigkernels.physics_constants import KAPPA_STAR
 
 STALE_THRESHOLD_SECONDS = 5 * 60
 POLL_INTERVAL_SECONDS = 30
+# Validation runs every 10 polls (5 minutes at 30s poll interval)
+VALIDATION_POLL_INTERVAL = 10
+# Max insights to validate per batch
+VALIDATION_BATCH_SIZE = 5
 MIN_ARGUMENTS_FOR_RESOLUTION = 4
 FISHER_CONVERGENCE_THRESHOLD = 0.1
 UNANSWERED_THRESHOLD = 2
@@ -257,10 +269,18 @@ class AutonomousDebateService:
         self._vocabulary_coordinator = get_vocabulary_coordinator() if VOCABULARY_AVAILABLE else None
         self._persistence = QIGPersistence() if PERSISTENCE_AVAILABLE else None
 
+        # Insight validation tracking
+        self._validation_poll_count = 0
+        self._insights_validated = 0
+        self._validation_enabled = INSIGHT_VALIDATOR_AVAILABLE and bool(os.environ.get('ENABLE_BACKGROUND_VALIDATION', 'true').lower() == 'true')
+        self._insight_validator = InsightValidator(use_mcp=False, validation_threshold=0.7) if INSIGHT_VALIDATOR_AVAILABLE else None
+
         if self._vocabulary_coordinator:
             logger.info("VocabularyCoordinator connected for research learning")
         if self._persistence:
             logger.info("QIGPersistence connected for learning event recording")
+        if self._validation_enabled:
+            logger.info("Background insight validation enabled")
 
         # DIAGNOSTIC: Log spawner status
         logger.info(f"[M8Spawn] Initialization: M8_AVAILABLE={M8_AVAILABLE}")
@@ -327,6 +347,15 @@ class AutonomousDebateService:
             except Exception as e:
                 logger.error(f"Poll unexpected error: {e}", exc_info=True)
 
+            # Run insight validation periodically (every VALIDATION_POLL_INTERVAL polls)
+            self._validation_poll_count += 1
+            if self._validation_enabled and self._validation_poll_count >= VALIDATION_POLL_INTERVAL:
+                self._validation_poll_count = 0
+                try:
+                    self._validate_unvalidated_insights()
+                except Exception as e:
+                    logger.error(f"Insight validation error: {e}")
+
             time.sleep(POLL_INTERVAL_SECONDS)
 
     def _poll_debates(self) -> None:
@@ -358,6 +387,90 @@ class AutonomousDebateService:
                 self._continue_debate_with_gods(debate_dict)
 
         self._debates_processed += 1
+
+    def _validate_unvalidated_insights(self) -> None:
+        """
+        Background job to validate unvalidated lightning insights.
+
+        Runs periodically to backfill validations for insights created
+        before validation was enabled or when API keys weren't available.
+        """
+        if not self._insight_validator:
+            return
+
+        try:
+            import psycopg2
+            database_url = os.environ.get('DATABASE_URL')
+            if not database_url:
+                return
+
+            conn = psycopg2.connect(database_url)
+
+            # Get unvalidated insights
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT li.insight_id, li.source_domains, li.connection_strength,
+                           li.insight_text, li.confidence, li.mission_relevance
+                    FROM lightning_insights li
+                    LEFT JOIN lightning_insight_validations liv ON li.insight_id = liv.insight_id
+                    WHERE liv.id IS NULL
+                    ORDER BY li.created_at DESC
+                    LIMIT %s
+                """, (VALIDATION_BATCH_SIZE,))
+
+                insights = cur.fetchall()
+
+            if not insights:
+                return
+
+            validated_count = 0
+            for row in insights:
+                insight_id, source_domains, conn_strength, insight_text, confidence, mission_rel = row
+
+                try:
+                    # Create mock insight for validator
+                    class MockInsight:
+                        def __init__(self):
+                            self.insight_id = insight_id
+                            self.source_domains = source_domains if source_domains else ['unknown', 'unknown']
+                            self.connection_strength = conn_strength or 0.5
+                            self.insight_text = insight_text or ''
+                            self.confidence = confidence or 0.5
+                            self.mission_relevance = mission_rel or 0.5
+
+                    mock_insight = MockInsight()
+                    validation_result = self._insight_validator.validate(mock_insight)
+
+                    # Persist validation result
+                    with conn.cursor() as cur:
+                        cur.execute("""
+                            INSERT INTO lightning_insight_validations (
+                                insight_id, validation_score, tavily_source_count,
+                                perplexity_synthesis, validated_at
+                            ) VALUES (%s, %s, %s, %s, NOW())
+                            ON CONFLICT DO NOTHING
+                        """, (
+                            insight_id,
+                            validation_result.validation_score,
+                            len(validation_result.tavily_sources),
+                            validation_result.perplexity_synthesis[:500] if validation_result.perplexity_synthesis else None
+                        ))
+                        conn.commit()
+
+                    validated_count += 1
+                    self._insights_validated += 1
+
+                except Exception as e:
+                    logger.debug(f"Validation failed for insight {insight_id}: {e}")
+                    continue
+
+            if validated_count > 0:
+                logger.info(f"[Validation] Validated {validated_count} insights in background")
+
+            conn.close()
+
+        except Exception as e:
+            logger.error(f"Background validation error: {e}")
 
     def _continue_debate_with_gods(self, debate_dict: Dict) -> None:
         """Continue debate using actual god assessments for geometric progression."""

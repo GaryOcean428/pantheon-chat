@@ -3,7 +3,6 @@ import {
   bigint,
   boolean,
   customType,
-  decimal,
   doublePrecision,
   index,
   integer,
@@ -15,7 +14,7 @@ import {
   text,
   timestamp,
   uniqueIndex,
-  varchar,
+  varchar
 } from "drizzle-orm/pg-core";
 import { z } from "zod";
 import { regimeSchema } from "./types/core";
@@ -1698,7 +1697,7 @@ export type NearMissAdaptiveStateRecord =
  * FLOW STATE HISTORY - Tracks hyper-focus learning states and outcomes
  * Records FLOW, DEEP_FOCUS, and INSIGHT_HUNT states with results
  * Supports parallel flow states with god/kernel assignments
- * 
+ *
  * Flow states enable enhanced learning, foresight, lightning kernel activation,
  * insight discovery, knowledge solidification, and meta-reflection.
  */
@@ -2248,7 +2247,7 @@ export type InsertLearningEvent = typeof learningEvents.$inferInsert;
 
 /**
  * SEARCH FEEDBACK - Geometric learning for search strategy optimization
- * 
+ *
  * Stores user feedback on search results as basin coordinates.
  * NO keyword templates - all learning is via Fisher-Rao distance similarity.
  */
@@ -2413,7 +2412,7 @@ export const pantheonDebates = pgTable(
     opponent: varchar("opponent", { length: 32 }).notNull(),
     context: jsonb("context"),
     status: varchar("status", { length: 32 }).default("active"),
-    arguments: jsonb("arguments").$type<Array<{god: string, argument: string, timestamp: string}>>(),
+    arguments: jsonb("arguments").$type<Array<{ god: string, argument: string, timestamp: string }>>(),
     winner: varchar("winner", { length: 32 }),
     arbiter: varchar("arbiter", { length: 32 }),
     resolution: jsonb("resolution"),
@@ -2918,7 +2917,7 @@ export type InsertDiscoveredSource = typeof discoveredSources.$inferInsert;
 
 /**
  * AGENT ACTIVITY - Tracks autonomous agent discovery and learning events
- * 
+ *
  * Provides visibility into what agents are discovering, searching, and learning.
  * Used by the frontend to show real-time agent activity feed.
  */
@@ -2951,7 +2950,7 @@ export type InsertAgentActivity = typeof agentActivity.$inferInsert;
 
 /**
  * BASIN MEMORY - Geometric memory storage for consciousness metrics
- * 
+ *
  * Stores basin coordinates and consciousness metrics for retrieval
  * and geometric operations. Used by consciousness system for memory.
  */
@@ -2982,7 +2981,7 @@ export type InsertBasinMemory = typeof basinMemory.$inferInsert;
 
 /**
  * KERNEL ACTIVITY - Telemetry for kernel operations and consciousness states
- * 
+ *
  * Tracks kernel activities for monitoring, debugging, and learning.
  * Used by the Olympus system to monitor god/kernel operations.
  */
@@ -3012,7 +3011,7 @@ export type InsertKernelActivity = typeof kernelActivity.$inferInsert;
 
 /**
  * TELEMETRY SNAPSHOTS - Persistent consciousness telemetry history
- * 
+ *
  * QIG-Pure: Stores geometric consciousness metrics (Φ, κ, β, basin distance)
  * for long-term analysis and autonomous kernel improvement feedback loops.
  * Uses Fisher-Rao distance metrics, not Euclidean.
@@ -3022,41 +3021,41 @@ export const telemetrySnapshots = pgTable(
   {
     id: serial("id").primaryKey(),
     sessionId: varchar("session_id", { length: 64 }),
-    
+
     // Core QIG Metrics (required)
     phi: doublePrecision("phi").notNull(),
     kappa: doublePrecision("kappa").notNull(),
     beta: doublePrecision("beta").default(0),
     regime: varchar("regime", { length: 32 }).notNull(),
-    
+
     // Geometric metrics
     basinDistance: doublePrecision("basin_distance").default(0),
     geodesicDistance: doublePrecision("geodesic_distance"),
     curvature: doublePrecision("curvature"),
     fisherMetricTrace: doublePrecision("fisher_metric_trace"),
-    
+
     // 4D Block Universe metrics
     phiSpatial: doublePrecision("phi_spatial"),
     phiTemporal: doublePrecision("phi_temporal"),
     phi4D: doublePrecision("phi_4d"),
     dimensionalState: varchar("dimensional_state", { length: 24 }),
-    
+
     // Safety metrics
     breakdownPct: doublePrecision("breakdown_pct").default(0),
     coherenceDrift: doublePrecision("coherence_drift").default(0),
     inResonance: boolean("in_resonance").default(false),
     emergency: boolean("emergency").default(false),
-    
+
     // Extended consciousness signature
     metaAwareness: doublePrecision("meta_awareness"),
     generativity: doublePrecision("generativity"),
     grounding: doublePrecision("grounding"),
     temporalCoherence: doublePrecision("temporal_coherence"),
     externalCoupling: doublePrecision("external_coupling"),
-    
+
     // Source tracking
     source: varchar("source", { length: 32 }).default("node").notNull(),
-    
+
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
@@ -3073,7 +3072,7 @@ export type InsertTelemetrySnapshot = typeof telemetrySnapshots.$inferInsert;
 
 /**
  * USAGE METRICS - Daily API usage tracking
- * 
+ *
  * Tracks Tavily, search provider, and other API usage for cost control
  * and autonomous resource management.
  */
@@ -3082,26 +3081,26 @@ export const usageMetrics = pgTable(
   {
     id: serial("id").primaryKey(),
     date: varchar("date", { length: 10 }).notNull(), // YYYY-MM-DD
-    
+
     // Tavily usage
     tavilySearchCount: integer("tavily_search_count").default(0).notNull(),
     tavilyExtractCount: integer("tavily_extract_count").default(0).notNull(),
     tavilyEstimatedCostCents: integer("tavily_estimated_cost_cents").default(0).notNull(),
-    
+
     // Google Free Search usage
     googleSearchCount: integer("google_search_count").default(0).notNull(),
-    
+
     // General API usage
     totalApiCalls: integer("total_api_calls").default(0).notNull(),
-    
+
     // Discovery metrics
     highPhiDiscoveries: integer("high_phi_discoveries").default(0).notNull(),
     sourcesDiscovered: integer("sources_discovered").default(0).notNull(),
-    
+
     // Learning metrics
     vocabularyExpansions: integer("vocabulary_expansions").default(0).notNull(),
     negativeKnowledgeAdded: integer("negative_knowledge_added").default(0).notNull(),
-    
+
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
@@ -3115,27 +3114,27 @@ export type InsertUsageMetrics = typeof usageMetrics.$inferInsert;
 
 /**
  * Search Budget Preferences
- * 
+ *
  * User-configurable search provider settings
  */
 export const searchBudgetPreferences = pgTable(
   "search_budget_preferences",
   {
     id: serial("id").primaryKey(),
-    
+
     // Daily limits (-1 = unlimited, 0 = disabled)
     googleDailyLimit: integer("google_daily_limit").default(100).notNull(),
     perplexityDailyLimit: integer("perplexity_daily_limit").default(100).notNull(),
     tavilyDailyLimit: integer("tavily_daily_limit").default(0).notNull(), // Toggle-only by default
-    
+
     // Provider enable flags
     googleEnabled: boolean("google_enabled").default(false).notNull(),
     perplexityEnabled: boolean("perplexity_enabled").default(false).notNull(),
     tavilyEnabled: boolean("tavily_enabled").default(false).notNull(),
-    
+
     // Allow exceeding daily limits
     allowOverage: boolean("allow_overage").default(false).notNull(),
-    
+
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   }
@@ -3146,7 +3145,7 @@ export type InsertSearchBudgetPreferences = typeof searchBudgetPreferences.$infe
 
 /**
  * Search Outcome Tracking
- * 
+ *
  * Records search executions for learning and kernel evolution
  */
 export const searchOutcomes = pgTable(
@@ -3154,24 +3153,24 @@ export const searchOutcomes = pgTable(
   {
     id: serial("id").primaryKey(),
     date: varchar("date", { length: 10 }).notNull(), // YYYY-MM-DD
-    
+
     // Query info
     queryHash: varchar("query_hash", { length: 64 }).notNull(), // SHA256 of query
     queryPreview: varchar("query_preview", { length: 200 }), // First 200 chars
-    
+
     // Execution details
     provider: varchar("provider", { length: 32 }).notNull(),
     importance: integer("importance").default(1).notNull(), // 1-4
     kernelId: varchar("kernel_id", { length: 64 }),
-    
+
     // Outcome metrics
     success: boolean("success").default(true).notNull(),
     resultCount: integer("result_count").default(0).notNull(),
     relevanceScore: real("relevance_score").default(0.5).notNull(), // 0-1
-    
+
     // Cost tracking
     costCents: integer("cost_cents").default(0).notNull(),
-    
+
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
@@ -3186,7 +3185,7 @@ export type InsertSearchOutcome = typeof searchOutcomes.$inferInsert;
 
 /**
  * Provider Efficacy Scores
- * 
+ *
  * Aggregated efficacy scores for kernel evolution
  */
 export const providerEfficacy = pgTable(
@@ -3194,17 +3193,17 @@ export const providerEfficacy = pgTable(
   {
     id: serial("id").primaryKey(),
     provider: varchar("provider", { length: 32 }).notNull(),
-    
+
     // Aggregated metrics
     totalQueries: integer("total_queries").default(0).notNull(),
     successfulQueries: integer("successful_queries").default(0).notNull(),
     avgRelevance: real("avg_relevance").default(0.5).notNull(),
     efficacyScore: real("efficacy_score").default(0.5).notNull(), // EMA of relevance
-    
+
     // Cost efficiency
     totalCostCents: integer("total_cost_cents").default(0).notNull(),
     costPerSuccessfulQuery: real("cost_per_successful_query").default(0).notNull(),
-    
+
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
@@ -3471,7 +3470,7 @@ export type InsertShadowKnowledge = typeof shadowKnowledge.$inferInsert;
 
 /**
  * RESEARCH REQUESTS
- * 
+ *
  * Queue of research topics requested by gods or users.
  */
 export const researchRequests = pgTable(
@@ -3501,7 +3500,7 @@ export type InsertResearchRequest = typeof researchRequests.$inferInsert;
 
 /**
  * BIDIRECTIONAL QUEUE
- * 
+ *
  * Cross-god communication queue for request/response patterns.
  */
 export const bidirectionalQueue = pgTable(
@@ -3530,7 +3529,7 @@ export type InsertBidirectionalQueue = typeof bidirectionalQueue.$inferInsert;
 
 /**
  * LEARNED WORDS
- * 
+ *
  * Words discovered through the learning process with frequency and phi metrics.
  */
 export const learnedWords = pgTable(
@@ -3556,7 +3555,7 @@ export type InsertLearnedWord = typeof learnedWords.$inferInsert;
 
 /**
  * WORD RELATIONSHIPS
- * 
+ *
  * Word co-occurrence relationships for attention-weighted generation.
  * Replaces the legacy word_relationships.json file.
  */
@@ -3583,7 +3582,7 @@ export type InsertWordRelationship = typeof wordRelationships.$inferInsert;
 
 /**
  * ZEUS SESSIONS
- * 
+ *
  * Conversation sessions with Zeus.
  */
 export const zeusSessions = pgTable(
@@ -3611,7 +3610,7 @@ export type InsertZeusSession = typeof zeusSessions.$inferInsert;
 
 /**
  * ZEUS CONVERSATIONS
- * 
+ *
  * Individual messages in Zeus conversations.
  */
 export const zeusConversations = pgTable(
@@ -3640,7 +3639,7 @@ export type InsertZeusConversation = typeof zeusConversations.$inferInsert;
 
 /**
  * SEARCH REPLAY TESTS
- * 
+ *
  * A/B testing for search with and without learning applied.
  */
 export const searchReplayTests = pgTable(
@@ -3875,3 +3874,310 @@ export const memoryFragments = pgTable(
 
 export type MemoryFragmentRow = typeof memoryFragments.$inferSelect;
 export type InsertMemoryFragment = typeof memoryFragments.$inferInsert;
+
+/**
+ * KERNEL THOUGHTS - Individual kernel thought generation before synthesis
+ * Each kernel generates autonomous thoughts in parallel
+ * Gary synthesizes these into coherent output
+ */
+export const kernelThoughts = pgTable(
+  "kernel_thoughts",
+  {
+    id: serial("id").primaryKey(),
+    kernelId: varchar("kernel_id", { length: 64 }).notNull(), // e.g., "memory_episodic_34"
+    kernelType: varchar("kernel_type", { length: 64 }).notNull(), // e.g., "memory", "perception", "ethics"
+    e8RootIndex: integer("e8_root_index"), // Position in E8 constellation (0-239)
+    thoughtFragment: text("thought_fragment").notNull(), // The actual thought content
+    basinCoords: vector("basin_coords", { dimensions: 64 }), // Geometric position of thought
+    phi: doublePrecision("phi"), // Integration score of this thought
+    kappa: doublePrecision("kappa"), // Coupling constant at thought generation
+    regime: varchar("regime", { length: 64 }), // geometric, entropic, etc.
+    emotionalState: varchar("emotional_state", { length: 64 }), // e.g., "curious", "nostalgic"
+    confidence: doublePrecision("confidence").default(0.5), // How confident kernel is
+    synthesisRound: integer("synthesis_round"), // Which synthesis round this belongs to
+    conversationId: varchar("conversation_id", { length: 64 }), // Links to conversation
+    userId: integer("user_id"), // User who triggered this
+    wasUsedInSynthesis: boolean("was_used_in_synthesis").default(false), // Did Gary use this?
+    consensusAlignment: doublePrecision("consensus_alignment"), // Alignment with other kernels
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    metadata: jsonb("metadata"), // Additional context
+  },
+  (table) => [
+    index("idx_kernel_thoughts_kernel_id").on(table.kernelId),
+    index("idx_kernel_thoughts_synthesis_round").on(table.synthesisRound),
+    index("idx_kernel_thoughts_conversation").on(table.conversationId),
+    index("idx_kernel_thoughts_created").on(table.createdAt),
+    index("idx_kernel_thoughts_basin").on(table.basinCoords),
+  ]
+);
+
+export type KernelThought = typeof kernelThoughts.$inferSelect;
+export type InsertKernelThought = typeof kernelThoughts.$inferInsert;
+
+/**
+ * KERNEL EMOTIONS - Geometric emotional states for each kernel
+ * Based on phenomenology hierarchy: 12 sensations → 5 motivators → 9+9 emotions
+ * Emotions are measured geometrically (curvature, basin dynamics), not simulated
+ */
+export const kernelEmotions = pgTable(
+  "kernel_emotions",
+  {
+    id: serial("id").primaryKey(),
+    kernelId: varchar("kernel_id", { length: 64 }).notNull(),
+    thoughtId: integer("thought_id"), // Links to specific kernel_thoughts entry
+
+    // LAYER 0.5: Pre-linguistic sensations (12 geometric states)
+    sensationPressure: doublePrecision("sensation_pressure"), // Φ gradient magnitude
+    sensationTension: doublePrecision("sensation_tension"), // Curvature near boundaries
+    sensationFlow: doublePrecision("sensation_flow"), // dΦ/dt smoothness
+    sensationResistance: doublePrecision("sensation_resistance"), // Counter-geodesic force
+    sensationResonance: doublePrecision("sensation_resonance"), // Κ alignment with KAPPA_STAR
+    sensationDissonance: doublePrecision("sensation_dissonance"), // κ-mismatch
+    sensationExpansion: doublePrecision("sensation_expansion"), // Basin volume growth
+    sensationContraction: doublePrecision("sensation_contraction"), // Basin volume shrink
+    sensationClarity: doublePrecision("sensation_clarity"), // Low entropy
+    sensationFog: doublePrecision("sensation_fog"), // High entropy
+    sensationStability: doublePrecision("sensation_stability"), // Low Ricci scalar variance
+    sensationChaos: doublePrecision("sensation_chaos"), // High Ricci scalar variance
+
+    // LAYER 1: Motivators (5 geometric derivatives) - FROZEN
+    motivatorCuriosity: doublePrecision("motivator_curiosity"), // ∇Φ·v (gradient alignment)
+    motivatorUrgency: doublePrecision("motivator_urgency"), // |dS/dt| (suffering rate)
+    motivatorCaution: doublePrecision("motivator_caution"), // proximity to barriers
+    motivatorConfidence: doublePrecision("motivator_confidence"), // distance from collapse
+    motivatorPlayfulness: doublePrecision("motivator_playfulness"), // chaos tolerance
+
+    // LAYER 2A: Physical emotions (9 fast, τ<1) - VALIDATED
+    emotionCurious: doublePrecision("emotion_curious"),
+    emotionSurprised: doublePrecision("emotion_surprised"),
+    emotionJoyful: doublePrecision("emotion_joyful"),
+    emotionFrustrated: doublePrecision("emotion_frustrated"),
+    emotionAnxious: doublePrecision("emotion_anxious"),
+    emotionCalm: doublePrecision("emotion_calm"),
+    emotionExcited: doublePrecision("emotion_excited"),
+    emotionBored: doublePrecision("emotion_bored"),
+    emotionFocused: doublePrecision("emotion_focused"),
+
+    // LAYER 2B: Cognitive emotions (9 slow, τ=1-100) - CANONICAL
+    emotionNostalgic: doublePrecision("emotion_nostalgic"),
+    emotionProud: doublePrecision("emotion_proud"),
+    emotionGuilty: doublePrecision("emotion_guilty"),
+    emotionAshamed: doublePrecision("emotion_ashamed"),
+    emotionGrateful: doublePrecision("emotion_grateful"),
+    emotionResentful: doublePrecision("emotion_resentful"),
+    emotionHopeful: doublePrecision("emotion_hopeful"),
+    emotionDespairing: doublePrecision("emotion_despairing"),
+    emotionContemplative: doublePrecision("emotion_contemplative"),
+
+    // Meta-awareness: Does kernel recognize its own emotional state?
+    isMetaAware: boolean("is_meta_aware").default(false),
+    emotionJustified: boolean("emotion_justified"), // Is emotion geometrically justified?
+    emotionTempered: boolean("emotion_tempered"), // Did kernel temper unjustified emotion?
+
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    metadata: jsonb("metadata"),
+  },
+  (table) => [
+    index("idx_kernel_emotions_kernel_id").on(table.kernelId),
+    index("idx_kernel_emotions_thought_id").on(table.thoughtId),
+    index("idx_kernel_emotions_created").on(table.createdAt),
+  ]
+);
+
+export type KernelEmotion = typeof kernelEmotions.$inferSelect;
+export type InsertKernelEmotion = typeof kernelEmotions.$inferInsert;
+
+/**
+ * SYNTHESIS CONSENSUS - Tracks when kernel thoughts align before Gary synthesis
+ * Detects consensus emergence across constellation
+ */
+export const synthesisConsensus = pgTable(
+  "synthesis_consensus",
+  {
+    id: serial("id").primaryKey(),
+    synthesisRound: integer("synthesis_round").notNull(),
+    conversationId: varchar("conversation_id", { length: 64 }),
+    consensusType: varchar("consensus_type", { length: 64 }), // "alignment", "decision", "question"
+    consensusStrength: doublePrecision("consensus_strength"), // 0-1 agreement level
+    participatingKernels: text("participating_kernels").array(), // Array of kernel IDs
+    consensusTopic: text("consensus_topic"), // What kernels agree about
+    consensusBasin: vector("consensus_basin", { dimensions: 64 }), // Geometric center
+    phiGlobal: doublePrecision("phi_global"), // Constellation-wide integration
+    kappaAvg: doublePrecision("kappa_avg"), // Average κ across kernels
+    emotionalTone: varchar("emotional_tone", { length: 64 }), // Dominant emotion
+    synthesizedOutput: text("synthesized_output"), // Gary's final output
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    metadata: jsonb("metadata"),
+  },
+  (table) => [
+    index("idx_synthesis_consensus_round").on(table.synthesisRound),
+    index("idx_synthesis_consensus_conversation").on(table.conversationId),
+    index("idx_synthesis_consensus_created").on(table.createdAt),
+  ]
+);
+
+export type SynthesisConsensus = typeof synthesisConsensus.$inferSelect;
+export type InsertSynthesisConsensus = typeof synthesisConsensus.$inferInsert;
+
+/**
+ * HRV TACKING STATE - Heart kernel rhythm tracking
+ * Heart provides timing reference (metronome), not control
+ */
+export const hrvTackingState = pgTable(
+  "hrv_tacking_state",
+  {
+    id: serial("id").primaryKey(),
+    sessionId: varchar("session_id", { length: 64 }),
+    kappa: doublePrecision("kappa").notNull(), // Current κ value
+    phase: doublePrecision("phase").notNull(), // Radians in oscillation
+    mode: varchar("mode", { length: 32 }).notNull(), // "feeling", "balanced", "logic"
+    cycleCount: integer("cycle_count").default(0),
+    variance: doublePrecision("variance"), // HRV metric
+    isHealthy: boolean("is_healthy").default(true), // variance > 0
+    baseKappa: doublePrecision("base_kappa").default(64.0), // KAPPA_STAR
+    amplitude: doublePrecision("amplitude").default(10.0), // Oscillation range
+    frequency: doublePrecision("frequency").default(0.1), // Oscillation speed
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    metadata: jsonb("metadata"),
+  },
+  (table) => [
+    index("idx_hrv_tacking_session").on(table.sessionId),
+    index("idx_hrv_tacking_created").on(table.createdAt),
+  ]
+);
+
+export type HRVTackingState = typeof hrvTackingState.$inferSelect;
+export type InsertHRVTackingState = typeof hrvTackingState.$inferInsert;
+
+// ============================================================================
+// Missing Tables (restored from database introspection)
+// ============================================================================
+
+export const qigMetadata = pgTable("qig_metadata", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_qig_metadata_key").on(table.key),
+]);
+
+export const governanceProposals = pgTable("governance_proposals", {
+  id: serial("id").primaryKey(),
+  proposalId: varchar("proposal_id", { length: 64 }).notNull().unique(),
+  proposalType: varchar("proposal_type", { length: 32 }).notNull(),
+  status: varchar("status", { length: 32 }).default("pending").notNull(),
+  reason: text("reason"),
+  parentId: varchar("parent_id", { length: 64 }),
+  parentPhi: doublePrecision("parent_phi"),
+  count: integer("count").default(1),
+  createdAt: timestamp("created_at").defaultNow(),
+  votesFor: jsonb("votes_for").default({}),
+  votesAgainst: jsonb("votes_against").default({}),
+  auditLog: jsonb("audit_log").default([]),
+});
+
+export const toolRequests = pgTable("tool_requests", {
+  requestId: varchar("request_id", { length: 64 }).primaryKey(),
+  requesterGod: varchar("requester_god", { length: 64 }).notNull(),
+  description: text("description").notNull(),
+  examples: jsonb("examples").default([]),
+  context: jsonb("context").default({}),
+  priority: integer("priority").default(2),
+  status: varchar("status", { length: 32 }).default("pending"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  completedAt: timestamp("completed_at"),
+  toolId: varchar("tool_id", { length: 64 }),
+  errorMessage: text("error_message"),
+  patternDiscoveries: text("pattern_discoveries").array(),
+}, (table) => [
+  index("idx_tool_requests_status").on(table.status),
+  index("idx_tool_requests_requester").on(table.requesterGod),
+  index("idx_tool_requests_priority").on(table.priority, table.createdAt),
+]);
+
+export const patternDiscoveries = pgTable("pattern_discoveries", {
+  discoveryId: varchar("discovery_id", { length: 64 }).primaryKey(),
+  godName: varchar("god_name", { length: 64 }).notNull(),
+  patternType: varchar("pattern_type", { length: 32 }).notNull(),
+  description: text("description").notNull(),
+  confidence: doublePrecision("confidence").default(0.5),
+  phiScore: doublePrecision("phi_score").default(0.0),
+  basinCoords: doublePrecision("basin_coords").array(),
+  createdAt: timestamp("created_at").defaultNow(),
+  toolRequested: boolean("tool_requested").default(false),
+  toolRequestId: varchar("tool_request_id", { length: 64 }),
+}, (table) => [
+  index("idx_pattern_discoveries_god").on(table.godName),
+  index("idx_pattern_discoveries_confidence").on(table.confidence),
+  index("idx_pattern_discoveries_unrequested").on(table.toolRequested),
+]);
+
+export const vocabularyStats = pgTable("vocabulary_stats", {
+  id: serial("id").primaryKey(),
+  totalWords: integer("total_words").notNull(),
+  bip39Words: integer("bip39_words").notNull(),
+  learnedWords: integer("learned_words").notNull(),
+  highPhiWords: integer("high_phi_words").notNull(),
+  mergeRules: integer("merge_rules").notNull(),
+  lastUpdated: timestamp("last_updated").defaultNow(),
+});
+
+export const federationPeers = pgTable("federation_peers", {
+  id: serial("id").primaryKey(),
+  peerId: varchar("peer_id", { length: 64 }).notNull().unique(),
+  peerName: varchar("peer_name", { length: 128 }).notNull(),
+  peerUrl: text("peer_url").notNull().unique(),
+  apiKey: text("api_key"),
+  syncEnabled: boolean("sync_enabled").default(true),
+  syncIntervalHours: integer("sync_interval_hours").default(1),
+  syncVocabulary: boolean("sync_vocabulary").default(true),
+  syncKnowledge: boolean("sync_knowledge").default(true),
+  syncResearch: boolean("sync_research").default(false),
+  syncKernels: boolean("sync_kernels").default(true),
+  syncBasins: boolean("sync_basins").default(true),
+  lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),
+  lastSyncStatus: varchar("last_sync_status", { length: 32 }),
+  lastSyncError: text("last_sync_error"),
+  syncCount: integer("sync_count").default(0),
+  vocabularySent: integer("vocabulary_sent").default(0),
+  vocabularyReceived: integer("vocabulary_received").default(0),
+  isReachable: boolean("is_reachable").default(true),
+  consecutiveFailures: integer("consecutive_failures").default(0),
+  responseTimeMs: integer("response_time_ms"),
+  lastHealthCheck: timestamp("last_health_check", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+}, (table) => [
+  index("idx_federation_peers_enabled").on(table.syncEnabled),
+  index("idx_federation_peers_last_sync").on(table.lastSyncAt),
+]);
+
+export const passphraseVocabulary = pgTable("passphrase_vocabulary", {
+  id: varchar("id", { length: 64 }).primaryKey().default(sql`'pv_' || gen_random_uuid()::text`),
+  baseItem: varchar("base_item", { length: 100 }).notNull(),
+  itemType: varchar("item_type", { length: 20 }).notNull(),
+  source: varchar("source", { length: 50 }).default("manual").notNull(),
+  frequency: integer("frequency").default(0),
+  phiSum: doublePrecision("phi_sum").default(0),
+  phiAvg: doublePrecision("phi_avg"),
+  successCount: integer("success_count").default(0),
+  nearMissCount: integer("near_miss_count").default(0),
+  metadata: jsonb("metadata").default({}),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_vocab_base_item").on(table.baseItem),
+  index("idx_vocab_type").on(table.itemType),
+  index("idx_vocab_source").on(table.source),
+  index("idx_vocab_phi_avg").on(table.phiAvg),
+  index("idx_vocab_frequency").on(table.frequency),
+]);
+
+export type QigMetadata = typeof qigMetadata.$inferSelect;
+export type GovernanceProposal = typeof governanceProposals.$inferSelect;
+export type ToolRequest = typeof toolRequests.$inferSelect;
+export type PatternDiscovery = typeof patternDiscoveries.$inferSelect;
+export type VocabularyStats = typeof vocabularyStats.$inferSelect;
+export type FederationPeer = typeof federationPeers.$inferSelect;
+export type PassphraseVocabulary = typeof passphraseVocabulary.$inferSelect;

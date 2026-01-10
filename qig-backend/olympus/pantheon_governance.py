@@ -439,7 +439,7 @@ class PantheonGovernance:
         # Auto-approve evolution for high-Phi kernels (they know what they're doing)
         if kernel_phi >= 0.7:
             self._log_audit("evolve", "auto_approved", f"High-Phi kernel {kernel_id} (Phi={kernel_phi:.3f})")
-            print(f"[PantheonGovernance] Auto-approved evolution for high-Phi {kernel_id}")
+            print(f"[PantheonGovernance] ✅ Auto-approved evolution for high-Phi {kernel_id}")
             return True
 
         proposal = self._create_proposal(
@@ -449,7 +449,12 @@ class PantheonGovernance:
             parent_phi=kernel_phi
         )
 
-        print(f"[PantheonGovernance] Evolution proposal created: {proposal.proposal_id}")
+        # Check if proposal was auto-approved
+        if proposal.status == ProposalStatus.APPROVED:
+            print(f"[PantheonGovernance] ✅ Proposal auto-approved: {proposal.proposal_id}")
+            return True
+
+        print(f"[PantheonGovernance] 📋 Evolution proposal created: {proposal.proposal_id}")
         raise PermissionError(
             f"Evolution requires Pantheon approval. Proposal ID: {proposal.proposal_id}"
         )
@@ -488,7 +493,7 @@ class PantheonGovernance:
         avg_phi = (kernel1_phi + kernel2_phi) / 2
         if avg_phi >= 0.7:
             self._log_audit("merge", "auto_approved", f"High-Phi merge (avg={avg_phi:.3f})")
-            print(f"[PantheonGovernance] Auto-approved merge (avg Phi={avg_phi:.3f})")
+            print(f"[PantheonGovernance] ✅ Auto-approved merge (avg Phi={avg_phi:.3f})")
             return True
 
         proposal = self._create_proposal(
@@ -498,7 +503,12 @@ class PantheonGovernance:
             parent_phi=kernel1_phi
         )
 
-        print(f"[PantheonGovernance] Merge proposal created: {proposal.proposal_id}")
+        # Check if proposal was auto-approved
+        if proposal.status == ProposalStatus.APPROVED:
+            print(f"[PantheonGovernance] ✅ Proposal auto-approved: {proposal.proposal_id}")
+            return True
+
+        print(f"[PantheonGovernance] 📋 Merge proposal created: {proposal.proposal_id}")
         raise PermissionError(
             f"Merge requires Pantheon approval. Proposal ID: {proposal.proposal_id}"
         )
@@ -540,7 +550,7 @@ class PantheonGovernance:
                 "cannibalize", "auto_approved",
                 f"Strong {strong_id} (Phi={strong_phi:.3f}) absorbs weak {weak_id} (Phi={weak_phi:.3f})"
             )
-            print(f"[PantheonGovernance] Auto-approved cannibalization (clear strength differential)")
+            print(f"[PantheonGovernance] ✅ Auto-approved cannibalization (clear strength differential)")
             return True
 
         proposal = self._create_proposal(
@@ -550,8 +560,13 @@ class PantheonGovernance:
             parent_phi=strong_phi
         )
 
-        print(f"[PantheonGovernance] Cannibalization proposal created: {proposal.proposal_id}")
-        print(f"[PantheonGovernance] WARNING: {weak_id} will be terminated if approved")
+        # Check if proposal was auto-approved
+        if proposal.status == ProposalStatus.APPROVED:
+            print(f"[PantheonGovernance] ✅ Proposal auto-approved: {proposal.proposal_id}")
+            return True
+
+        print(f"[PantheonGovernance] 📋 Cannibalization proposal created: {proposal.proposal_id}")
+        print(f"[PantheonGovernance] ⚠️ WARNING: {weak_id} will be terminated if approved")
         raise PermissionError(
             f"Cannibalization requires Pantheon approval. Proposal ID: {proposal.proposal_id}. "
             f"WARNING: This will terminate {weak_id}!"
@@ -593,7 +608,7 @@ class PantheonGovernance:
                 "new_god", "auto_approved",
                 f"Exceptional Phi ({kernel_phi:.3f}): {kernel_id} -> {proposed_name}"
             )
-            print(f"[PantheonGovernance] Auto-approved god promotion (exceptional Phi={kernel_phi:.3f})")
+            print(f"[PantheonGovernance] ✅ Auto-approved god promotion (exceptional Phi={kernel_phi:.3f})")
             return True
 
         achievements_str = ", ".join(achievements or []) or "none listed"
@@ -604,7 +619,12 @@ class PantheonGovernance:
             parent_phi=kernel_phi
         )
 
-        print(f"[PantheonGovernance] NEW GOD proposal created: {proposal.proposal_id}")
+        # Check if proposal was auto-approved
+        if proposal.status == ProposalStatus.APPROVED:
+            print(f"[PantheonGovernance] ✅ Proposal auto-approved: {proposal.proposal_id}")
+            return True
+
+        print(f"[PantheonGovernance] 📋 NEW GOD proposal created: {proposal.proposal_id}")
         print(f"[PantheonGovernance] {kernel_id} seeks to become '{proposed_name}'")
         raise PermissionError(
             f"God promotion requires Pantheon approval. Proposal ID: {proposal.proposal_id}"
@@ -641,11 +661,13 @@ class PantheonGovernance:
         # Check for allowed bypass reasons
         if reason in ALLOWED_BYPASS_REASONS:
             self._log_audit("chaos_spawn", "auto_approved", f"Bypass reason: {reason}")
+            print(f"[PantheonGovernance] ✅ Auto-approved chaos spawn (reason: {reason})")
             return True
 
         # Auto-approve if parent has high Phi
         if parent_phi is not None and parent_phi >= 0.7:
             self._log_audit("chaos_spawn", "auto_approved", f"High-Phi parent: {parent_phi:.3f}")
+            print(f"[PantheonGovernance] ✅ Auto-approved chaos spawn (high-Phi parent)")
             return True
 
         proposal = self._create_proposal(
@@ -654,7 +676,12 @@ class PantheonGovernance:
             parent_phi=parent_phi
         )
 
-        print(f"[PantheonGovernance] Chaos spawn proposal created: {proposal.proposal_id}")
+        # Check if proposal was auto-approved
+        if proposal.status == ProposalStatus.APPROVED:
+            print(f"[PantheonGovernance] ✅ Proposal auto-approved: {proposal.proposal_id}")
+            return True
+
+        print(f"[PantheonGovernance] 📋 Chaos spawn proposal created: {proposal.proposal_id}")
         raise PermissionError(
             f"Chaos kernel spawn requires Pantheon approval. Proposal ID: {proposal.proposal_id}"
         )
@@ -693,28 +720,167 @@ class PantheonGovernance:
 
         return proposal
 
+    def _assess_ecosystem_health(self) -> Dict[str, float]:
+        """
+        Assess current ecosystem health from database metrics.
+        
+        Returns:
+            Dictionary with ecosystem health metrics:
+            - population: Total active kernels
+            - avg_phi: Average Phi across all kernels
+            - high_phi_count: Number of kernels with Phi >= 0.7
+            - low_phi_count: Number of kernels with Phi < 0.3
+            - diversity_score: Standard deviation of Phi (higher = more diversity)
+        """
+        if not self._conn:
+            # In-memory mode: return safe defaults
+            return {
+                'population': 5,
+                'avg_phi': 0.65,
+                'high_phi_count': 2,
+                'low_phi_count': 1,
+                'diversity_score': 0.5,
+            }
+        
+        try:
+            cur = self._conn.cursor()
+            cur.execute("""
+                SELECT 
+                    COUNT(*) as population,
+                    COALESCE(AVG(phi), 0.5) as avg_phi,
+                    COUNT(*) FILTER (WHERE phi >= 0.7) as high_phi_count,
+                    COUNT(*) FILTER (WHERE phi < 0.3) as low_phi_count,
+                    COALESCE(STDDEV(phi), 0.2) as diversity_score
+                FROM kernels
+                WHERE active = true
+            """)
+            row = cur.fetchone()
+            cur.close()
+            
+            if row:
+                return {
+                    'population': int(row[0]),
+                    'avg_phi': float(row[1]),
+                    'high_phi_count': int(row[2]),
+                    'low_phi_count': int(row[3]),
+                    'diversity_score': float(row[4]),
+                }
+        except Exception as e:
+            print(f"[PantheonGovernance] Failed to assess ecosystem health: {e}")
+        
+        # Fallback to safe defaults
+        return {
+            'population': 5,
+            'avg_phi': 0.65,
+            'high_phi_count': 2,
+            'low_phi_count': 1,
+            'diversity_score': 0.5,
+        }
+
     def _auto_vote_on_proposal(self, proposal: LifecycleProposal) -> None:
         """
-        Automatically vote on proposal based on Phi thresholds.
+        Intelligently vote on proposal based on ecosystem state and proposal type.
 
-        This ensures proposals don't sit indefinitely without votes.
-        In production, this could be replaced with async god deliberation.
+        Makes autonomous decisions about which actions to approve based on:
+        - Current ecosystem health (population, diversity, average Phi)
+        - Proposal type and parameters
+        - Strategic goals (prevent extinction, encourage quality, maintain diversity)
+        
+        This ensures proposals don't sit indefinitely without votes while
+        making smart decisions about ecosystem evolution.
         """
-        # High-Phi proposals auto-approve immediately
+        # Get current ecosystem metrics
+        health = self._assess_ecosystem_health()
+        
+        print(f"[PantheonGovernance] Ecosystem: pop={health['population']}, "
+              f"avg_phi={health['avg_phi']:.3f}, high={health['high_phi_count']}, "
+              f"low={health['low_phi_count']}, diversity={health['diversity_score']:.3f}")
+        
+        # High-Phi proposals auto-approve immediately (trusted agents)
         if proposal.parent_phi is not None and proposal.parent_phi >= 0.7:
-            print(f"[PantheonGovernance] AUTO-APPROVE: High-Phi parent ({proposal.parent_phi:.3f})")
+            print(f"[PantheonGovernance] ✅ AUTO-APPROVE: High-Phi parent ({proposal.parent_phi:.3f})")
             self.approve_proposal(proposal.proposal_id, approver="auto_high_phi")
             return
 
-        # Check proposal type for different thresholds
-        if proposal.proposal_type in (ProposalType.TURBO_SPAWN,):
-            # Turbo spawn requires explicit approval - don't auto-approve
-            print(f"[PantheonGovernance] TURBO_SPAWN requires explicit approval - not auto-voting")
+        # Decision matrix based on proposal type and ecosystem state
+        if proposal.proposal_type == ProposalType.SPAWN:
+            # Approve spawn if population low OR parent has decent Phi
+            if health['population'] < 5:
+                print("[PantheonGovernance] ✅ AUTO-APPROVE: Low population, need more kernels")
+                self.approve_proposal(proposal.proposal_id, approver="pantheon_population_need")
+                return
+            elif proposal.parent_phi and proposal.parent_phi >= 0.6:
+                print(f"[PantheonGovernance] ✅ AUTO-APPROVE: Decent parent Phi ({proposal.parent_phi:.3f})")
+                self.approve_proposal(proposal.proposal_id, approver="pantheon_quality_spawn")
+                return
+            elif health['population'] >= 20:
+                print("[PantheonGovernance] ❌ REJECT: Population too high, prevent overpopulation")
+                self.reject_proposal(proposal.proposal_id, rejector="pantheon_overpopulation_control")
+                return
+                
+        elif proposal.proposal_type == ProposalType.EVOLVE:
+            # Encourage evolution when diversity is low or kernel is promising
+            if health['diversity_score'] < 0.5:
+                print("[PantheonGovernance] ✅ AUTO-APPROVE: Low diversity, encourage evolution")
+                self.approve_proposal(proposal.proposal_id, approver="pantheon_diversity_boost")
+                return
+            elif proposal.parent_phi and proposal.parent_phi >= 0.5:
+                print(f"[PantheonGovernance] ✅ AUTO-APPROVE: Promising kernel evolution ({proposal.parent_phi:.3f})")
+                self.approve_proposal(proposal.proposal_id, approver="pantheon_evolution")
+                return
+            elif proposal.parent_phi and proposal.parent_phi < 0.3:
+                print("[PantheonGovernance] ❌ REJECT: Very low Phi, let it die naturally")
+                self.reject_proposal(proposal.proposal_id, rejector="pantheon_natural_selection")
+                return
+                
+        elif proposal.proposal_type == ProposalType.MERGE:
+            # Approve merges when we have healthy population and good average quality
+            if health['population'] > 10 and health['avg_phi'] >= 0.6:
+                print("[PantheonGovernance] ✅ AUTO-APPROVE: Healthy population, merge approved")
+                self.approve_proposal(proposal.proposal_id, approver="pantheon_consolidation")
+                return
+            elif health['population'] < 5:
+                print("[PantheonGovernance] ❌ REJECT: Population too low, preserve diversity")
+                self.reject_proposal(proposal.proposal_id, rejector="pantheon_preserve_diversity")
+                return
+                
+        elif proposal.proposal_type == ProposalType.CANNIBALIZE:
+            # Approve cannibalization when too many weak kernels (ecosystem cleanup)
+            if health['low_phi_count'] > 5:
+                print("[PantheonGovernance] ✅ AUTO-APPROVE: Too many weak kernels, cleanup needed")
+                self.approve_proposal(proposal.proposal_id, approver="pantheon_ecosystem_cleanup")
+                return
+            elif health['low_phi_count'] < 3 and health['population'] < 8:
+                print("[PantheonGovernance] ❌ REJECT: Preserve weak kernels for diversity")
+                self.reject_proposal(proposal.proposal_id, rejector="pantheon_preserve_weak")
+                return
+                
+        elif proposal.proposal_type == ProposalType.NEW_GOD:
+            # God promotion requires exceptional quality
+            if proposal.parent_phi and proposal.parent_phi >= 0.75:
+                print(f"[PantheonGovernance] ✅ AUTO-APPROVE: Exceptional quality ({proposal.parent_phi:.3f})")
+                self.approve_proposal(proposal.proposal_id, approver="pantheon_ascension")
+                return
+            elif proposal.parent_phi and proposal.parent_phi < 0.65:
+                print(f"[PantheonGovernance] ❌ REJECT: Insufficient quality for godhood ({proposal.parent_phi:.3f})")
+                self.reject_proposal(proposal.proposal_id, rejector="pantheon_insufficient_quality")
+                return
+                
+        elif proposal.proposal_type == ProposalType.CHAOS_SPAWN:
+            # Chaos kernels help with connectivity and workload
+            if health['population'] < 10:
+                print("[PantheonGovernance] ✅ AUTO-APPROVE: Need more workers")
+                self.approve_proposal(proposal.proposal_id, approver="pantheon_worker_need")
+                return
+                
+        elif proposal.proposal_type == ProposalType.TURBO_SPAWN:
+            # NEVER auto-approve turbo spawn - too dangerous
+            print("[PantheonGovernance] ⚠️ TURBO_SPAWN requires explicit approval - not auto-voting")
             return
-
-        # Default: Auto-approve with pantheon consensus
+        
+        # Default: Auto-approve with pantheon consensus if no specific decision
         # This allows the system to continue operating while logging the decision
-        print(f"[PantheonGovernance] AUTO-APPROVE: Pantheon consensus for {proposal.proposal_type.value}")
+        print(f"[PantheonGovernance] ✅ AUTO-APPROVE: Pantheon consensus for {proposal.proposal_type.value}")
         self.approve_proposal(proposal.proposal_id, approver="pantheon_consensus")
     
     def approve_proposal(self, proposal_id: str, approver: str = "system") -> Dict:

@@ -6839,6 +6839,457 @@ def cycle_complete():
         return jsonify({'error': str(e)}), 500
 
 
+# ===========================================================================
+# DEBUG ENDPOINTS - For testing and diagnosing empty database tables
+# ===========================================================================
+
+@app.route('/api/debug/validation-status', methods=['GET'])
+def debug_validation_status():
+    """
+    Diagnostic endpoint for lightning insight validation.
+
+    Returns:
+        - validation_enabled status
+        - API key availability
+        - Count of validated vs unvalidated insights
+        - Last validation timestamp
+    """
+    import os
+
+    result = {
+        'validation_system': {},
+        'api_keys': {},
+        'database_counts': {},
+        'recommendations': []
+    }
+
+    # Check validation system status
+    try:
+        if OLYMPUS_AVAILABLE and zeus:
+            lightning = zeus.get_god('lightning')
+            if lightning and hasattr(lightning, 'validation_enabled'):
+                result['validation_system'] = {
+                    'validation_enabled': lightning.validation_enabled,
+                    'validator_available': lightning.insight_validator is not None,
+                    'use_mcp': lightning.insight_validator.use_mcp if lightning.insight_validator else None,
+                    'validation_threshold': lightning.insight_validator.validation_threshold if lightning.insight_validator else None,
+                    'insights_validated': getattr(lightning, 'insights_validated', 0),
+                    'insights_generated': getattr(lightning, 'insights_generated', 0),
+                }
+            else:
+                result['validation_system'] = {'error': 'Lightning kernel not found'}
+        else:
+            result['validation_system'] = {'error': 'Olympus not available'}
+    except Exception as e:
+        result['validation_system'] = {'error': str(e)}
+
+    # Check API keys
+    result['api_keys'] = {
+        'TAVILY_API_KEY': bool(os.environ.get('TAVILY_API_KEY')),
+        'PERPLEXITY_API_KEY': bool(os.environ.get('PERPLEXITY_API_KEY')),
+    }
+
+    # Check database counts
+    try:
+        import psycopg2
+        database_url = os.environ.get('DATABASE_URL')
+        if database_url:
+            conn = psycopg2.connect(database_url)
+            with conn.cursor() as cur:
+                # Count insights
+                cur.execute("SELECT COUNT(*) FROM lightning_insights")
+                total_insights = cur.fetchone()[0]
+
+                # Count validations
+                cur.execute("SELECT COUNT(*) FROM lightning_insight_validations")
+                total_validations = cur.fetchone()[0]
+
+                # Count unvalidated (insights without validations)
+                cur.execute("""
+                    SELECT COUNT(*) FROM lightning_insights li
+                    LEFT JOIN lightning_insight_validations liv ON li.insight_id = liv.insight_id
+                    WHERE liv.id IS NULL
+                """)
+                unvalidated = cur.fetchone()[0]
+
+                # Get last validation timestamp
+                cur.execute("SELECT MAX(validated_at) FROM lightning_insight_validations")
+                last_validation = cur.fetchone()[0]
+
+                result['database_counts'] = {
+                    'total_insights': total_insights,
+                    'total_validations': total_validations,
+                    'unvalidated_insights': unvalidated,
+                    'last_validation_at': str(last_validation) if last_validation else None
+                }
+            conn.close()
+        else:
+            result['database_counts'] = {'error': 'DATABASE_URL not set'}
+    except Exception as e:
+        result['database_counts'] = {'error': str(e)}
+
+    # Generate recommendations
+    if not result['api_keys'].get('TAVILY_API_KEY'):
+        result['recommendations'].append('Set TAVILY_API_KEY environment variable for external validation')
+    if not result['api_keys'].get('PERPLEXITY_API_KEY'):
+        result['recommendations'].append('Set PERPLEXITY_API_KEY environment variable for synthesis validation')
+
+    vs = result.get('validation_system', {})
+    if vs.get('use_mcp') is True:
+        result['recommendations'].append('MCP mode is enabled but may not be wired. Consider using use_mcp=False for direct API')
+
+    if result.get('database_counts', {}).get('unvalidated_insights', 0) > 0:
+        result['recommendations'].append(f"Found {result['database_counts']['unvalidated_insights']} unvalidated insights. Use POST /api/debug/validate-insights to backfill")
+
+    return jsonify(result)
+
+
+@app.route('/api/debug/validate-insights', methods=['POST'])
+def debug_validate_insights():
+    """
+    Manually trigger validation for unvalidated insights.
+
+    Query params:
+        limit: Number of insights to validate (default: 10)
+        insight_id: Specific insight ID to validate (optional)
+        use_mcp: Whether to use MCP (default: false for direct API)
+    """
+    import os
+
+    limit = request.args.get('limit', 10, type=int)
+    insight_id = request.args.get('insight_id')
+    use_mcp = request.args.get('use_mcp', 'false').lower() == 'true'
+
+    results = {
+        'processed': 0,
+        'validated': 0,
+        'failed': 0,
+        'details': []
+    }
+
+    try:
+        # Import validator
+        from search.insight_validator import InsightValidator, ValidationResult
+
+        # Create validator with explicit settings
+        validator = InsightValidator(use_mcp=use_mcp, validation_threshold=0.7)
+
+        # Get database connection
+        import psycopg2
+        database_url = os.environ.get('DATABASE_URL')
+        if not database_url:
+            return jsonify({'error': 'DATABASE_URL not set'}), 500
+
+        conn = psycopg2.connect(database_url)
+
+        # Get unvalidated insights
+        with conn.cursor() as cur:
+            if insight_id:
+                cur.execute("""
+                    SELECT insight_id, source_domains, connection_strength, insight_text,
+                           confidence, mission_relevance
+                    FROM lightning_insights
+                    WHERE insight_id = %s
+                """, (insight_id,))
+            else:
+                cur.execute("""
+                    SELECT li.insight_id, li.source_domains, li.connection_strength, li.insight_text,
+                           li.confidence, li.mission_relevance
+                    FROM lightning_insights li
+                    LEFT JOIN lightning_insight_validations liv ON li.insight_id = liv.insight_id
+                    WHERE liv.id IS NULL
+                    ORDER BY li.created_at DESC
+                    LIMIT %s
+                """, (limit,))
+
+            insights = cur.fetchall()
+
+        # Validate each insight
+        for row in insights:
+            insight_id_val, source_domains, conn_strength, insight_text, confidence, mission_rel = row
+            results['processed'] += 1
+
+            try:
+                # Create a mock insight object for the validator
+                class MockInsight:
+                    def __init__(self):
+                        self.insight_id = insight_id_val
+                        self.source_domains = source_domains if source_domains else ['unknown', 'unknown']
+                        self.connection_strength = conn_strength or 0.5
+                        self.insight_text = insight_text or ''
+                        self.confidence = confidence or 0.5
+                        self.mission_relevance = mission_rel or 0.5
+
+                mock_insight = MockInsight()
+                validation_result = validator.validate(mock_insight)
+
+                # Persist the validation result
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        INSERT INTO lightning_insight_validations (
+                            insight_id, validation_score, tavily_source_count,
+                            perplexity_synthesis, validated_at
+                        ) VALUES (%s, %s, %s, %s, NOW())
+                        ON CONFLICT DO NOTHING
+                    """, (
+                        insight_id_val,
+                        validation_result.validation_score,
+                        len(validation_result.tavily_sources),
+                        validation_result.perplexity_synthesis[:500] if validation_result.perplexity_synthesis else None
+                    ))
+                    conn.commit()
+
+                results['validated'] += 1
+                results['details'].append({
+                    'insight_id': insight_id_val,
+                    'validated': validation_result.validated,
+                    'validation_score': validation_result.validation_score,
+                    'confidence': validation_result.confidence,
+                    'tavily_sources': len(validation_result.tavily_sources),
+                    'has_perplexity': validation_result.perplexity_synthesis is not None
+                })
+
+            except Exception as e:
+                results['failed'] += 1
+                results['details'].append({
+                    'insight_id': insight_id_val,
+                    'error': str(e)
+                })
+
+        conn.close()
+        return jsonify(results)
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/debug/m8-spawn-test', methods=['POST'])
+def debug_m8_spawn_test():
+    """
+    Test M8 kernel spawning with optional vote bypass.
+
+    Request body:
+        kernel_type: Type of kernel to spawn (default: 'athena')
+        domain: Domain for the kernel (default: 'testing')
+        skip_vote: Bypass Pantheon voting (default: true)
+        reason: Spawn reason (default: 'debug_test')
+    """
+    if not M8_SPAWNER_AVAILABLE:
+        return jsonify({'error': 'M8 Spawner not available'}), 500
+
+    try:
+        data = request.get_json() or {}
+        kernel_type = data.get('kernel_type', 'athena')
+        domain = data.get('domain', 'testing')
+        skip_vote = data.get('skip_vote', True)
+        reason = data.get('reason', 'debug_test')
+
+        spawner = get_spawner()
+        if not spawner:
+            return jsonify({'error': 'Could not get M8 spawner'}), 500
+
+        result = {
+            'action': 'spawn_test',
+            'kernel_type': kernel_type,
+            'domain': domain,
+            'skip_vote': skip_vote
+        }
+
+        if skip_vote:
+            # Direct spawn without voting
+            try:
+                # Create a spawn proposal first
+                proposal = spawner.create_proposal(
+                    proposed_name=f"Test_{kernel_type}_{datetime.now().strftime('%H%M%S')}",
+                    proposed_domain=domain,
+                    proposed_element="curiosity",
+                    proposed_role="specialist",
+                    reason=SpawnReason.DOMAIN_GAP if hasattr(SpawnReason, 'DOMAIN_GAP') else reason
+                )
+
+                if proposal:
+                    result['proposal_id'] = proposal.proposal_id
+
+                    # Auto-approve
+                    spawner.approve_proposal(proposal.proposal_id)
+
+                    # Spawn the kernel
+                    kernel = spawner.spawn_kernel(proposal.proposal_id)
+
+                    if kernel:
+                        result['success'] = True
+                        result['kernel'] = {
+                            'kernel_id': kernel.kernel_id,
+                            'god_name': kernel.god_name,
+                            'domain': kernel.domain,
+                            'status': kernel.status
+                        }
+                    else:
+                        result['success'] = False
+                        result['error'] = 'Kernel spawn returned None'
+                else:
+                    result['success'] = False
+                    result['error'] = 'Failed to create proposal'
+
+            except Exception as e:
+                result['success'] = False
+                result['error'] = str(e)
+        else:
+            # Normal flow with voting
+            result['message'] = 'Use /m8/propose endpoint for normal voting flow'
+            result['success'] = False
+
+        return jsonify(result)
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/debug/force-debate', methods=['POST'])
+def debug_force_debate():
+    """
+    Force a Pantheon debate between two gods.
+
+    Request body:
+        topic: Debate topic (required)
+        initiator: Initiating god name (default: 'Zeus')
+        opponent: Opposing god name (default: 'Athena')
+        initial_argument: Opening argument (optional)
+        auto_resolve_after: Auto-resolve after N arguments (optional)
+    """
+    if not OLYMPUS_AVAILABLE:
+        return jsonify({'error': 'Olympus not available'}), 500
+
+    try:
+        data = request.get_json() or {}
+        topic = data.get('topic')
+
+        if not topic:
+            return jsonify({'error': 'topic is required'}), 400
+
+        initiator = data.get('initiator', 'Zeus')
+        opponent = data.get('opponent', 'Athena')
+        initial_argument = data.get('initial_argument', f'I propose we discuss: {topic}')
+        auto_resolve_after = data.get('auto_resolve_after')
+
+        result = {
+            'action': 'force_debate',
+            'topic': topic,
+            'initiator': initiator,
+            'opponent': opponent
+        }
+
+        # Get pantheon chat
+        if zeus and hasattr(zeus, 'pantheon_chat'):
+            pantheon_chat = zeus.pantheon_chat
+
+            # Initiate debate
+            debate = pantheon_chat.initiate_debate(
+                topic=topic,
+                initiator=initiator,
+                opponent=opponent,
+                initial_argument=initial_argument,
+                context={'source': 'debug_endpoint', 'forced': True}
+            )
+
+            if debate:
+                result['success'] = True
+                result['debate'] = {
+                    'id': debate.id if hasattr(debate, 'id') else str(debate),
+                    'status': debate.status if hasattr(debate, 'status') else 'active',
+                    'arguments_count': len(debate.arguments) if hasattr(debate, 'arguments') else 0
+                }
+
+                # If auto_resolve is set, add to resolution queue
+                if auto_resolve_after:
+                    result['auto_resolve_after'] = auto_resolve_after
+                    result['note'] = f'Debate will auto-resolve after {auto_resolve_after} arguments'
+            else:
+                result['success'] = False
+                result['error'] = 'Debate initiation returned None'
+        else:
+            result['success'] = False
+            result['error'] = 'Pantheon chat not available'
+
+        return jsonify(result)
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/debug/system-health', methods=['GET'])
+def debug_system_health():
+    """
+    Comprehensive system health check for all debug-related subsystems.
+    """
+    import os
+
+    health = {
+        'timestamp': datetime.now().isoformat(),
+        'subsystems': {}
+    }
+
+    # Lightning/Validation
+    try:
+        if OLYMPUS_AVAILABLE and zeus:
+            lightning = zeus.get_god('lightning')
+            health['subsystems']['lightning'] = {
+                'available': lightning is not None,
+                'validation_enabled': getattr(lightning, 'validation_enabled', False) if lightning else False,
+                'insights_generated': getattr(lightning, 'insights_generated', 0) if lightning else 0
+            }
+        else:
+            health['subsystems']['lightning'] = {'available': False}
+    except Exception as e:
+        health['subsystems']['lightning'] = {'error': str(e)}
+
+    # M8 Spawner
+    try:
+        health['subsystems']['m8_spawner'] = {
+            'available': M8_SPAWNER_AVAILABLE,
+        }
+        if M8_SPAWNER_AVAILABLE:
+            spawner = get_spawner()
+            if spawner:
+                status = spawner.get_status()
+                health['subsystems']['m8_spawner']['kernels'] = status.get('total_kernels', 0)
+                health['subsystems']['m8_spawner']['proposals'] = status.get('pending_proposals', 0)
+    except Exception as e:
+        health['subsystems']['m8_spawner'] = {'error': str(e)}
+
+    # Pantheon/Debates
+    try:
+        if OLYMPUS_AVAILABLE and zeus:
+            health['subsystems']['pantheon'] = {
+                'available': True,
+                'pantheon_chat': hasattr(zeus, 'pantheon_chat') and zeus.pantheon_chat is not None
+            }
+            if hasattr(zeus, 'pantheon_chat') and zeus.pantheon_chat:
+                active_debates = zeus.pantheon_chat.get_active_debates() if hasattr(zeus.pantheon_chat, 'get_active_debates') else []
+                health['subsystems']['pantheon']['active_debates'] = len(active_debates) if active_debates else 0
+        else:
+            health['subsystems']['pantheon'] = {'available': False}
+    except Exception as e:
+        health['subsystems']['pantheon'] = {'error': str(e)}
+
+    # Database
+    try:
+        import psycopg2
+        database_url = os.environ.get('DATABASE_URL')
+        if database_url:
+            conn = psycopg2.connect(database_url)
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1")
+            conn.close()
+            health['subsystems']['database'] = {'available': True, 'connected': True}
+        else:
+            health['subsystems']['database'] = {'available': False, 'reason': 'DATABASE_URL not set'}
+    except Exception as e:
+        health['subsystems']['database'] = {'available': False, 'error': str(e)}
+
+    return jsonify(health)
+
+
 if __name__ == '__main__':
     # Register autonomic kernel routes
     try:

@@ -2,7 +2,7 @@
 
 **ISO 27001 Compliant Documentation Structure**
 
-Last Updated: 2025-12-27
+Last Updated: 2026-01-10
 
 ## Status Legend
 
@@ -91,6 +91,11 @@ All documentation follows the pattern: `YYYYMMDD-[document-name]-[function]-[ver
 
 
 ## 🔧 Technical Documentation
+
+- 🔨 **Debug Endpoints API Reference** (v1.00)
+  - File: [`20260110-debug-endpoints-api-reference-1.00W.md`](03-technical/api/20260110-debug-endpoints-api-reference-1.00W.md)
+  - ID: `ISMS-TECH-API-DEBUG-001`
+  - Function: Debug and diagnostic API endpoints for testing empty database tables
 
 - 🔨 **20251223-canonical-additions-1.00W.md** (v1.00)
   - File: [`20251223-canonical-additions-1.00W.md`](03-technical/20251223-canonical-additions-1.00W.md)
@@ -538,11 +543,11 @@ All documentation follows the pattern: `YYYYMMDD-[document-name]-[function]-[ver
 
 ## Statistics
 
-- **Total Documents**: 173
+- **Total Documents**: 174
 - **Approved**: 2
 - **Frozen**: 72
 - **Hypothesis**: 6
-- **Working**: 87
+- **Working**: 88
 
 ---
 

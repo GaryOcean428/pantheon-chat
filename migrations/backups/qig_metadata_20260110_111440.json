@@ -1,0 +1,12 @@
+{
+  "table": "qig_metadata",
+  "timestamp": "20260110_111440",
+  "row_count": 1,
+  "data": [
+    {
+      "key": "sleep_consolidation_cycle_count",
+      "value": "2419",
+      "updated_at": "2026-01-10T03:13:52.846203"
+    }
+  ]
+}

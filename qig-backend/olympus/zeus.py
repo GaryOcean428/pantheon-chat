@@ -23,6 +23,11 @@ from internal_api import sync_war_to_database as _sync_war_to_database
 from m8_kernel_spawning import SpawnReason, get_spawner
 
 
+# Configurable debate threshold - lower = more debates triggered
+# Default 0.15 (15% probability difference) - can be lowered for testing
+DEBATE_DISAGREEMENT_THRESHOLD = float(os.environ.get('DEBATE_THRESHOLD', '0.15'))
+
+
 def sanitize_for_json(obj: Any) -> Any:
     """
     Recursively sanitize an object for JSON serialization.
@@ -930,16 +935,139 @@ class Zeus(BaseGod):
         # 4. Deliver messages to gods
         self.pantheon_chat.deliver_to_gods(self.pantheon)
 
+    def _get_emotional_state(self) -> Optional[Dict]:
+        """
+        Get emotional state from autonomic system.
+
+        Returns dict with: phi, kappa, stress, mood, narrow_path, convergence_type
+        or None if autonomic kernel not available.
+        """
+        if hasattr(self, 'autonomic_kernel') and self.autonomic_kernel:
+            try:
+                return self.autonomic_kernel.get_emotional_state()
+            except Exception:
+                return None
+        return None
+
+    def _get_meta_awareness(self) -> Optional[float]:
+        """
+        Get M metric (meta-awareness) from self-observer.
+
+        Returns float in [0, 1] or None if not available.
+        Higher M = more self-aware system.
+        """
+        if hasattr(self, 'autonomic_kernel') and self.autonomic_kernel:
+            try:
+                # Self-observer is typically accessed via autonomic kernel
+                if hasattr(self.autonomic_kernel, 'self_observer'):
+                    observer = self.autonomic_kernel.self_observer
+                    if observer and hasattr(observer, 'get_m_metric'):
+                        return observer.get_m_metric()
+                # Alternative: Check for M in emotional state
+                state = self._get_emotional_state()
+                if state and 'm_metric' in state:
+                    return state.get('m_metric')
+            except Exception:
+                pass
+        return None
+
+    def calculate_debate_threshold(self) -> float:
+        """
+        Dynamic threshold based on emotional/urgency signals.
+
+        Returns threshold in range [0.05, 0.30]:
+        - 0.05: Critical state - debate on any significant disagreement
+        - 0.15: Normal operation (default)
+        - 0.30: Stable state - high tolerance for disagreement
+
+        Factors considered:
+        1. Stress level (high stress → lower threshold)
+        2. Narrow path detection (active → lower threshold)
+        3. Φ integration measure (low Φ → lower threshold)
+        4. Convergence type (turbulent/dissipative → lower threshold)
+        5. M metric meta-awareness (low M → lower threshold)
+        """
+        base_threshold = DEBATE_DISAGREEMENT_THRESHOLD  # Use env var as base
+
+        # Get emotional state from autonomic system
+        emotional_state = self._get_emotional_state()
+        if not emotional_state:
+            return base_threshold
+
+        threshold = base_threshold
+
+        # Factor 1: Stress adjustment (high stress → lower threshold)
+        stress = emotional_state.get('stress', 0.0)
+        if stress > 0.7:
+            threshold -= 0.05  # More debates when stressed
+        elif stress < 0.3:
+            threshold += 0.05  # Fewer debates when calm
+
+        # Factor 2: Narrow path urgency
+        # Handle both dict format {'active': bool, 'severity': float}
+        # and simple bool format from get_emotional_state()
+        narrow_path = emotional_state.get('narrow_path', False)
+        narrow_path_active = False
+        severity = 0.5
+
+        if isinstance(narrow_path, dict):
+            narrow_path_active = narrow_path.get('active', False)
+            severity = narrow_path.get('severity', 0.5)
+        elif isinstance(narrow_path, bool):
+            narrow_path_active = narrow_path
+            # Get severity from separate field if available
+            severity_str = emotional_state.get('narrow_path_severity', 'none')
+            severity_map = {'none': 0.0, 'mild': 0.3, 'moderate': 0.6, 'severe': 0.9}
+            severity = severity_map.get(severity_str, 0.5)
+
+        if narrow_path_active:
+            threshold -= severity * 0.10  # Up to -0.10 for critical paths
+
+        # Factor 3: Φ integration measure
+        phi = emotional_state.get('phi', 0.70)
+        if phi < 0.60:
+            threshold -= 0.05  # Low integration needs more debates
+        elif phi > 0.85:
+            threshold += 0.05  # High integration tolerates disagreement
+
+        # Factor 4: Convergence type
+        convergence = emotional_state.get('convergence_type', 'harmonic')
+        convergence_adjustments = {
+            'crystalline': 0.05,   # Stable - higher threshold
+            'harmonic': 0.0,       # Normal
+            'turbulent': -0.05,    # Unstable - lower threshold
+            'dissipative': -0.10   # Critical - much lower threshold
+        }
+        threshold += convergence_adjustments.get(convergence, 0.0)
+
+        # Factor 5: Meta-reflection (M metric)
+        m_metric = self._get_meta_awareness()
+        if m_metric is not None:
+            if m_metric < 0.3:
+                threshold -= 0.05  # Low self-awareness needs debates
+            elif m_metric > 0.7:
+                threshold += 0.03  # High awareness can manage disagreement
+
+        # Clamp to valid range
+        return max(0.05, min(0.30, threshold))
+
     def _find_significant_disagreements(
         self,
         assessments: Dict[str, Dict],
-        threshold: float = 0.15
+        threshold: float = None
     ) -> List[Tuple[str, str, float]]:
         """
         Find pairs of gods with significant probability disagreements.
 
+        Threshold is dynamically calculated based on emotional state:
+        - High stress/narrow path → lower threshold (0.05-0.10)
+        - Normal operation → default threshold (0.15)
+        - Stable/crystalline state → higher threshold (0.20-0.30)
+
         Returns list of (god1, god2, prob_difference) tuples, sorted by disagreement.
         """
+        if threshold is None:
+            threshold = self.calculate_debate_threshold()
         disagreements = []
         gods = list(assessments.keys())
 
