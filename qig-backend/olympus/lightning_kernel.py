@@ -419,14 +419,17 @@ class LightningKernel(BaseGod):
                 self.validation_enabled = True
                 self.insights_validated = 0
                 self.validation_boost_total = 0.0
+                logger.info("[Lightning] ✅ External search validation enabled (Tavily + Perplexity)")
                 print("[Lightning] ✅ External search validation enabled (Tavily + Perplexity)")
             except Exception as e:
                 self.insight_validator = None
                 self.validation_enabled = False
-                print(f"[Lightning] ⚠️ Search validation disabled: {e}")
+                logger.warning(f"[Lightning] ⚠️ Search validation disabled: {type(e).__name__}: {e}")
+                print(f"[Lightning] ⚠️ Search validation disabled: {type(e).__name__}: {e}")
         else:
             self.insight_validator = None
             self.validation_enabled = False
+            logger.warning("[Lightning] ℹ️ Search validation not available (search module not found)")
             print("[Lightning] ℹ️ Search validation not available (search module not found)")
 
         print("[Lightning] ⚡ Lightning Bolt Insight Kernel initialized")
