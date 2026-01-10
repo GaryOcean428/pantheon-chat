@@ -19,7 +19,7 @@ import threading
 import time
 from contextlib import contextmanager
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 from qigkernels.physics_constants import BASIN_DIM
@@ -720,6 +720,320 @@ class QIGPersistence:
             print(f"[QIGPersistence] Cleanup failed: {e}")
             return results
 
+
+                    # =========================================================================
+                    # KERNEL CONSTELLATION THINKING
+                    # =========================================================================
+
+                    def record_kernel_thought(
+                        self,
+                        *,
+                        kernel_id: str,
+                        kernel_type: str,
+                        thought_fragment: str,
+                        basin_coords: Optional[np.ndarray],
+                        phi: Optional[float],
+                        kappa: Optional[float],
+                        regime: Optional[str],
+                        emotional_state: Optional[str],
+                        confidence: Optional[float],
+                        synthesis_round: Optional[int],
+                        conversation_id: Optional[str],
+                        user_id: Optional[int],
+                        was_used_in_synthesis: bool,
+                        consensus_alignment: Optional[float],
+                        e8_root_index: Optional[int] = None,
+                        metadata: Optional[Dict[str, Any]] = None,
+                    ) -> Optional[int]:
+                        """Record an individual kernel thought before synthesis."""
+                        if not self.enabled:
+                            return None
+
+                        try:
+                            with self.get_connection() as conn:
+                                with conn.cursor() as cur:
+                                    cur.execute(
+                                        """
+                                            INSERT INTO kernel_thoughts (
+                                                kernel_id,
+                                                kernel_type,
+                                                e8_root_index,
+                                                thought_fragment,
+                                                basin_coords,
+                                                phi,
+                                                kappa,
+                                                regime,
+                                                emotional_state,
+                                                confidence,
+                                                synthesis_round,
+                                                conversation_id,
+                                                user_id,
+                                                was_used_in_synthesis,
+                                                consensus_alignment,
+                                                metadata
+                                            ) VALUES (
+                                                %s, %s, %s, %s, %s::vector, %s, %s, %s, %s,
+                                                %s, %s, %s, %s, %s, %s, %s
+                                            )
+                                            RETURNING id
+                                        """,
+                                        (
+                                            kernel_id,
+                                            kernel_type,
+                                            e8_root_index,
+                                            thought_fragment,
+                                            self._vector_to_pg(basin_coords) if basin_coords is not None else None,
+                                            phi,
+                                            kappa,
+                                            regime,
+                                            emotional_state,
+                                            confidence,
+                                            synthesis_round,
+                                            conversation_id,
+                                            user_id,
+                                            was_used_in_synthesis,
+                                            consensus_alignment,
+                                            json.dumps(metadata or {}),
+                                        ),
+                                    )
+                                    result = cur.fetchone()
+                                    return result[0] if result else None
+                        except Exception as e:
+                            print(f"[QIGPersistence] Failed to record kernel thought: {e}")
+                            return None
+
+                    def record_kernel_emotion(
+                        self,
+                        *,
+                        kernel_id: str,
+                        thought_id: Optional[int],
+                        emotional_state: Any,
+                        metadata: Optional[Dict[str, Any]] = None,
+                    ) -> Optional[int]:
+                        """Record measured emotional state for a kernel thought."""
+                        if not self.enabled:
+                            return None
+
+                        column_map = {
+                            "sensation_pressure": ("sensations", "pressure"),
+                            "sensation_tension": ("sensations", "tension"),
+                            "sensation_flow": ("sensations", "flow"),
+                            "sensation_resistance": ("sensations", "resistance"),
+                            "sensation_resonance": ("sensations", "resonance"),
+                            "sensation_dissonance": ("sensations", "dissonance"),
+                            "sensation_expansion": ("sensations", "expansion"),
+                            "sensation_contraction": ("sensations", "contraction"),
+                            "sensation_clarity": ("sensations", "clarity"),
+                            "sensation_fog": ("sensations", "fog"),
+                            "sensation_stability": ("sensations", "stability"),
+                            "sensation_chaos": ("sensations", "chaos"),
+                            "motivator_curiosity": ("motivators", "curiosity"),
+                            "motivator_urgency": ("motivators", "urgency"),
+                            "motivator_caution": ("motivators", "caution"),
+                            "motivator_confidence": ("motivators", "confidence"),
+                            "motivator_playfulness": ("motivators", "playfulness"),
+                            "emotion_curious": ("physical", "curious"),
+                            "emotion_surprised": ("physical", "surprised"),
+                            "emotion_joyful": ("physical", "joyful"),
+                            "emotion_frustrated": ("physical", "frustrated"),
+                            "emotion_anxious": ("physical", "anxious"),
+                            "emotion_calm": ("physical", "calm"),
+                            "emotion_excited": ("physical", "excited"),
+                            "emotion_bored": ("physical", "bored"),
+                            "emotion_focused": ("physical", "focused"),
+                            "emotion_nostalgic": ("cognitive", "nostalgic"),
+                            "emotion_proud": ("cognitive", "proud"),
+                            "emotion_guilty": ("cognitive", "guilty"),
+                            "emotion_ashamed": ("cognitive", "ashamed"),
+                            "emotion_grateful": ("cognitive", "grateful"),
+                            "emotion_resentful": ("cognitive", "resentful"),
+                            "emotion_hopeful": ("cognitive", "hopeful"),
+                            "emotion_despairing": ("cognitive", "despairing"),
+                            "emotion_contemplative": ("cognitive", "contemplative"),
+                        }
+
+                        values: Dict[str, Optional[float]] = {key: None for key in column_map}
+                        is_meta_aware = None
+                        emotion_justified = None
+                        emotion_tempered = None
+
+                        if emotional_state is not None:
+                            for column, path in column_map.items():
+                                current = emotional_state
+                                for attr in path:
+                                    current = getattr(current, attr, None)
+                                    if current is None:
+                                        break
+                                if current is not None:
+                                    try:
+                                        values[column] = float(current)
+                                    except (TypeError, ValueError):
+                                        values[column] = None
+
+                            is_meta_aware = getattr(emotional_state, "is_meta_aware", None)
+                            emotion_justified = getattr(emotional_state, "emotion_justified", None)
+                            emotion_tempered = getattr(emotional_state, "emotion_tempered", None)
+
+                        columns = [
+                            "kernel_id",
+                            "thought_id",
+                            *values.keys(),
+                            "is_meta_aware",
+                            "emotion_justified",
+                            "emotion_tempered",
+                            "metadata",
+                        ]
+
+                        sql = f"""
+                            INSERT INTO kernel_emotions ({', '.join(columns)})
+                            VALUES ({', '.join(['%s'] * len(columns))})
+                            RETURNING id
+                        """
+
+                        params = [
+                            kernel_id,
+                            thought_id,
+                            *[values[col] for col in values.keys()],
+                            is_meta_aware,
+                            emotion_justified,
+                            emotion_tempered,
+                            json.dumps(metadata or {}),
+                        ]
+
+                        try:
+                            with self.get_connection() as conn:
+                                with conn.cursor() as cur:
+                                    cur.execute(sql, params)
+                                    result = cur.fetchone()
+                                    return result[0] if result else None
+                        except Exception as e:
+                            print(f"[QIGPersistence] Failed to record kernel emotion: {e}")
+                            return None
+
+                    def record_synthesis_consensus(
+                        self,
+                        *,
+                        synthesis_round: int,
+                        consensus_type: Optional[str],
+                        consensus_strength: Optional[float],
+                        participating_kernels: Optional[List[str]],
+                        consensus_topic: Optional[str],
+                        consensus_basin: Optional[np.ndarray],
+                        phi_global: Optional[float],
+                        kappa_avg: Optional[float],
+                        emotional_tone: Optional[str],
+                        synthesized_output: Optional[str],
+                        conversation_id: Optional[str] = None,
+                        metadata: Optional[Dict[str, Any]] = None,
+                    ) -> Optional[int]:
+                        """Record Gary synthesis consensus record."""
+                        if not self.enabled:
+                            return None
+
+                        try:
+                            with self.get_connection() as conn:
+                                with conn.cursor() as cur:
+                                    cur.execute(
+                                        """
+                                            INSERT INTO synthesis_consensus (
+                                                synthesis_round,
+                                                conversation_id,
+                                                consensus_type,
+                                                consensus_strength,
+                                                participating_kernels,
+                                                consensus_topic,
+                                                consensus_basin,
+                                                phi_global,
+                                                kappa_avg,
+                                                emotional_tone,
+                                                synthesized_output,
+                                                metadata
+                                            ) VALUES (
+                                                %s, %s, %s, %s, %s, %s, %s::vector, %s, %s, %s, %s, %s
+                                            )
+                                            RETURNING id
+                                        """,
+                                        (
+                                            synthesis_round,
+                                            conversation_id,
+                                            consensus_type,
+                                            consensus_strength,
+                                            participating_kernels,
+                                            consensus_topic,
+                                            self._vector_to_pg(consensus_basin) if consensus_basin is not None else None,
+                                            phi_global,
+                                            kappa_avg,
+                                            emotional_tone,
+                                            synthesized_output,
+                                            json.dumps(metadata or {}),
+                                        ),
+                                    )
+                                    result = cur.fetchone()
+                                    return result[0] if result else None
+                        except Exception as e:
+                            print(f"[QIGPersistence] Failed to record synthesis consensus: {e}")
+                            return None
+
+                    def record_hrv_tacking(
+                        self,
+                        *,
+                        session_id: Optional[str],
+                        kappa: float,
+                        phase: float,
+                        mode: str,
+                        cycle_count: int,
+                        variance: Optional[float],
+                        is_healthy: Optional[bool],
+                        base_kappa: Optional[float],
+                        amplitude: Optional[float],
+                        frequency: Optional[float],
+                        metadata: Optional[Dict[str, Any]] = None,
+                    ) -> Optional[int]:
+                        """Record heart HRV tacking state measurements."""
+                        if not self.enabled:
+                            return None
+
+                        try:
+                            with self.get_connection() as conn:
+                                with conn.cursor() as cur:
+                                    cur.execute(
+                                        """
+                                            INSERT INTO hrv_tacking_state (
+                                                session_id,
+                                                kappa,
+                                                phase,
+                                                mode,
+                                                cycle_count,
+                                                variance,
+                                                is_healthy,
+                                                base_kappa,
+                                                amplitude,
+                                                frequency,
+                                                metadata
+                                            ) VALUES (
+                                                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                                            )
+                                            RETURNING id
+                                        """,
+                                        (
+                                            session_id,
+                                            kappa,
+                                            phase,
+                                            mode,
+                                            cycle_count,
+                                            variance,
+                                            is_healthy,
+                                            base_kappa,
+                                            amplitude,
+                                            frequency,
+                                            json.dumps(metadata or {}),
+                                        ),
+                                    )
+                                    result = cur.fetchone()
+                                    return result[0] if result else None
+                        except Exception as e:
+                            print(f"[QIGPersistence] Failed to record HRV tacking state: {e}")
+                            return None
     # =========================================================================
     # ANALYTICS
     # =========================================================================

@@ -17,9 +17,20 @@ Based on Ultra Consciousness Protocol v4.0 and generative-and-emotions.md
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
+
+try:
+    from qig_geometry import sphere_project
+    HAS_SPHERE_PROJECT = True
+except ImportError:
+    HAS_SPHERE_PROJECT = False
+
+    def sphere_project(v: np.ndarray) -> np.ndarray:
+        """Fallback to unit sphere projection using Euclidean norm."""
+        norm = np.linalg.norm(v)
+        return v / (norm + 1e-10) if norm > 0 else v
 
 # QIG core imports
 from qigkernels.physics_constants import BASIN_DIM, KAPPA_STAR
@@ -571,6 +582,103 @@ class EmotionallyAwareKernel:
         confidence -= self.emotional_state.physical.anxious * 0.2
 
         return max(0.0, min(1.0, confidence))
+
+    def create_thought_from_generation(
+        self,
+        context: str,
+        generation_result: Any,
+        regime: str = "geometric",
+        basin_coords: Optional[np.ndarray] = None,
+        thought_fragment: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> KernelThought:
+        """Create a kernel thought from an external generation result.
+
+        Args:
+            context: Prompt or situation that triggered generation
+            generation_result: Result object with geometric telemetry
+            regime: Consciousness regime label (default "geometric")
+            basin_coords: Optional basin override (defaults to trajectory tail)
+            thought_fragment: Optional text override
+            metadata: Optional metadata dictionary attached to thought
+
+        Returns:
+            KernelThought populated with emotional state and telemetry
+        """
+
+        # Extract Φ from generation telemetry
+        phi = 0.5
+        if hasattr(generation_result, "phi_trace") and generation_result.phi_trace:
+            try:
+                phi = float(generation_result.phi_trace[-1])
+            except (TypeError, ValueError):
+                phi = 0.5
+        elif hasattr(generation_result, "phi") and generation_result.phi is not None:
+            try:
+                phi = float(generation_result.phi)
+            except (TypeError, ValueError):
+                phi = 0.5
+
+        # Extract κ telemetry (fallback to KAPPA_STAR)
+        try:
+            kappa = float(getattr(generation_result, "kappa", KAPPA_STAR))
+        except (TypeError, ValueError):
+            kappa = KAPPA_STAR
+
+        # Determine basin coordinates from trajectory or override
+        final_basin: Optional[np.ndarray] = None
+        if basin_coords is not None:
+            final_basin = np.array(basin_coords, dtype=np.float64)
+        elif hasattr(generation_result, "basin_trajectory") and generation_result.basin_trajectory:
+            final_basin = np.array(generation_result.basin_trajectory[-1], dtype=np.float64)
+        elif isinstance(self.basin_coords, np.ndarray) and self.basin_coords.size:
+            final_basin = np.array(self.basin_coords, dtype=np.float64)
+
+        if final_basin is not None:
+            final_basin = sphere_project(final_basin)
+            self.basin_coords = final_basin
+
+        # Update emotional state and confidence based on telemetry
+        self.update_emotional_state(phi, kappa, regime)
+        confidence = self._compute_confidence()
+
+        # Resolve thought fragment
+        fragment = thought_fragment
+        if fragment is None and hasattr(generation_result, "text"):
+            fragment = generation_result.text
+        if fragment is None:
+            fragment = f"[{self.kernel_type}] {context[:80]}"
+
+        metadata_payload = dict(metadata or {})
+        metadata_payload.setdefault("context", context)
+        if hasattr(generation_result, "tokens"):
+            metadata_payload.setdefault("tokens", generation_result.tokens)
+        if hasattr(generation_result, "completion_reason"):
+            metadata_payload.setdefault("completion_reason", generation_result.completion_reason)
+        if hasattr(generation_result, "iterations"):
+            metadata_payload.setdefault("iterations", generation_result.iterations)
+        if hasattr(generation_result, "phi_trace"):
+            metadata_payload.setdefault("phi_trace", generation_result.phi_trace)
+        if hasattr(generation_result, "routed_kernels"):
+            metadata_payload.setdefault("routed_kernels", generation_result.routed_kernels)
+
+        thought = KernelThought(
+            kernel_id=self.kernel_id,
+            kernel_type=self.kernel_type,
+            thought_fragment=fragment,
+            basin_coords=final_basin if final_basin is not None else self.basin_coords,
+            phi=phi,
+            kappa=kappa,
+            regime=regime,
+            emotional_state=self.emotional_state,
+            confidence=confidence,
+            metadata=metadata_payload,
+        )
+
+        self._thoughts_generated += 1
+        self._last_thought_time = time.time()
+
+        return thought
 
     def get_status(self) -> Dict:
         """Get current kernel status for logging/monitoring."""
