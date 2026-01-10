@@ -332,6 +332,8 @@ class AutonomousPantheon:
             
             if targets:
                 logger.info(f"Loaded {len(targets)} debate topics from database")
+            else:
+                logger.debug("No pending/active debates found in pantheon_debates")
             
         except Exception as db_error:
             logger.warning(f"Database query failed: {db_error}")
