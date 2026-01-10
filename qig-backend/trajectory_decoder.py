@@ -215,108 +215,163 @@ class TrajectoryDecoder:
         if not trajectory or len(trajectory) < 2:
             return None
 
-        # Use last N basins as context (robust regression window)
+        regression = self._prepare_regression_context(trajectory)
+        if regression is None:
+            return None
+
+        context_sqrt, velocity, last_sqrt = regression
+
+        predicted_sqrt = last_sqrt + step_size * velocity
+        predicted_sqrt = np.clip(predicted_sqrt, 1e-10, None)
+
+        predicted = predicted_sqrt ** 2
+        predicted_sum = np.sum(predicted)
+
+        if predicted_sum > 1e-9:
+            predicted = predicted / predicted_sum
+        else:
+            logger.warning("Predicted basin near-zero, returning uniform distribution")
+            return np.full_like(predicted, 1.0 / predicted.size)
+
+        return predicted
+
+    def _prepare_regression_context(
+        self,
+        trajectory: List[np.ndarray]
+    ) -> Optional[Tuple[List[np.ndarray], np.ndarray, np.ndarray]]:
+        """Prepare Fisher-weighted regression context for trajectory."""
+        if not trajectory:
+            return None
+
         N = min(len(trajectory), self.context_window)
         context = trajectory[-N:]
 
         if N < 2:
             return None
 
-        # CRITICAL: Normalize all basins to consistent dimension (64D)
-        # This handles mixed-dimension trajectories (e.g., 32D chaos kernels + 64D main)
         normalized_context = []
         for basin in context:
             if not isinstance(basin, np.ndarray):
                 basin = np.array(basin)
 
-            # Ensure all basins are BASIN_DIM (64D)
             if DIMENSION_NORMALIZER_AVAILABLE and len(basin) != BASIN_DIM:
                 basin = normalize_basin_dimension(basin, target_dim=BASIN_DIM)
             elif len(basin) != BASIN_DIM:
-                # Fallback: simple pad/truncate + normalize
                 if len(basin) < BASIN_DIM:
                     padded = np.zeros(BASIN_DIM)
                     padded[:len(basin)] = basin
                     basin = padded
                 else:
                     basin = basin[:BASIN_DIM].copy()
-                # Normalize to unit sphere
                 norm = np.linalg.norm(basin)
                 if norm > 1e-10:
                     basin = basin / norm
 
             normalized_context.append(basin)
 
-        # Convert to sqrt space (geodesic tangent space)
         context_sqrt = [np.sqrt(np.abs(b) + 1e-10) for b in normalized_context]
-        
-        # Compute trajectory centroid (Fréchet mean approximation)
         centroid_sqrt = np.mean(context_sqrt, axis=0)
-        
-        # Compute Fisher-weighted importance for each point
+
         weights = []
         for i, basin_sqrt in enumerate(context_sqrt):
-            # Recency weight: recent points more important
-            # w_recency = exp(-λ * (N - i - 1))
-            # Recent basins (i near N) get weight ≈ 1
-            # Older basins (i near 0) get weight ≈ exp(-λ * N)
             recency_weight = np.exp(-self.recency_decay * (N - i - 1))
-            
-            # Fisher coherence weight: points near trajectory centroid
-            # This downweights outliers/noise that deviate from trajectory flow
             dist_to_centroid = np.linalg.norm(basin_sqrt - centroid_sqrt)
             coherence_weight = np.exp(-dist_to_centroid / 0.5)
-            
-            # Combined weight (recency × coherence)
             weights.append(recency_weight * coherence_weight)
-        
+
         weights = np.array(weights)
-        weights = weights / (np.sum(weights) + 1e-10)  # Normalize
-        
-        # Weighted linear regression to find velocity
-        # Fit: position[i] = position[0] + velocity * i
-        
-        # Time indices (0, 1, 2, ..., N-1)
+        weights = weights / (np.sum(weights) + 1e-10)
+
         t = np.arange(N, dtype=np.float32)
-        
-        # Weighted mean of positions and times
         weighted_positions = np.array([w * p for w, p in zip(weights, context_sqrt)])
         mean_position = np.sum(weighted_positions, axis=0)
         mean_t = np.sum(weights * t)
-        
-        # Weighted covariance for velocity estimation
+
         numerator = np.zeros_like(context_sqrt[0])
         denominator = 0.0
-        
+
         for i in range(N):
             numerator += weights[i] * (t[i] - mean_t) * (context_sqrt[i] - mean_position)
             denominator += weights[i] * (t[i] - mean_t) ** 2
-        
-        # Velocity = slope of weighted regression
+
         if denominator > 1e-6:
             velocity = numerator / (denominator + 1e-10)
         else:
-            # Fallback: simple difference of last 2 points
             velocity = context_sqrt[-1] - context_sqrt[-2]
-        
-        # Extrapolate from last position
+
         last_sqrt = context_sqrt[-1]
-        predicted_sqrt = last_sqrt + step_size * velocity
-        predicted_sqrt = np.clip(predicted_sqrt, 1e-10, None)
-        
-        # Back to probability simplex (with robust normalization)
-        predicted = predicted_sqrt ** 2
-        predicted_sum = np.sum(predicted)
-        
-        if predicted_sum > 1e-9:
-            predicted = predicted / predicted_sum
-        else:
-            # If predicted is near-zero, return uniform distribution
-            # (Avoids division by zero, represents maximum uncertainty)
-            logger.warning("Predicted basin near-zero, returning uniform distribution")
-            return np.full_like(predicted, 1.0 / predicted.size)
-        
-        return predicted
+        return context_sqrt, velocity, last_sqrt
+
+    def compute_velocity_vector(
+        self,
+        trajectory_basins: List[np.ndarray]
+    ) -> np.ndarray:
+        """Compute Fisher-geodesic velocity from full trajectory."""
+        regression = self._prepare_regression_context(trajectory_basins)
+        if regression is None:
+            return np.zeros(BASIN_DIM)
+
+        context_sqrt, velocity_sqrt, last_sqrt = regression
+
+        # Map velocity from sqrt space back to probability simplex tangent
+        tangent = 2.0 * last_sqrt * velocity_sqrt
+        tangent = tangent - np.mean(tangent)
+        tangent_norm = np.linalg.norm(tangent)
+        if tangent_norm > 1e-10:
+            tangent = tangent / tangent_norm
+
+        return tangent
+
+    def estimate_foresight_confidence(
+        self,
+        trajectory_basins: List[np.ndarray]
+    ) -> float:
+        """Estimate foresight confidence based on trajectory smoothness."""
+        if trajectory_basins is None or len(trajectory_basins) < 3:
+            return 0.0
+
+        distances = []
+        for i in range(len(trajectory_basins) - 1):
+            try:
+                d = fisher_rao_distance(trajectory_basins[i], trajectory_basins[i + 1])
+            except Exception:
+                d = 0.0
+            distances.append(float(max(d, 0.0)))
+
+        if not distances:
+            return 0.0
+
+        variance = float(np.var(distances))
+        smoothness = 1.0 / (1.0 + variance)
+
+        if self._is_tacking_pattern(distances):
+            return 0.5
+
+        return float(np.clip(smoothness, 0.0, 1.0))
+
+    def _is_tacking_pattern(self, distances: List[float]) -> bool:
+        """Detect intentional HRV tacking oscillation in trajectory distances."""
+        if len(distances) < 6:
+            return False
+
+        recent = distances[-6:]
+        diffs = np.diff(recent)
+        if not np.any(diffs):
+            return False
+
+        signs = np.sign(diffs)
+        alternating = 0
+        for i in range(1, len(signs)):
+            if signs[i] == 0 or signs[i - 1] == 0:
+                continue
+            if signs[i] != signs[i - 1]:
+                alternating += 1
+
+        if alternating < 3:
+            return False
+
+        amplitude = max(recent) - min(recent)
+        return amplitude > 0.2
     
     def _compute_qfi_attention_weights(
         self,

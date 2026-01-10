@@ -105,6 +105,18 @@ except ImportError:
     check_ethics = None
     ETHICS_MONITOR_AVAILABLE = False
 
+# Import constellation trajectory manager for 240-kernel trajectory tracking
+try:
+    from constellation_trajectory_manager import (
+        get_trajectory_manager,
+        ConstellationTrajectoryManager,
+    )
+    TRAJECTORY_MANAGER_AVAILABLE = True
+except ImportError:
+    get_trajectory_manager = None
+    ConstellationTrajectoryManager = None
+    TRAJECTORY_MANAGER_AVAILABLE = False
+
 # Import capability mesh for event emission
 try:
     from olympus.capability_mesh import (
