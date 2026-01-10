@@ -41,7 +41,7 @@ WHERE key = 'vocabulary_size';
 --   - Fisher Information gain from merging
 --   - Φ score of high-consciousness contexts where pairs co-occur
 -- Merge criterion: score = κ * fisher_info_gain * Φ_context
--- 
+--
 -- The SQL below generates INITIAL merge rules for bootstrapping.
 -- True geometric merges are learned by qig_tokenizer.py via:
 --   - GeometricPairMerging class (coordizers/geometric_pair_merging.py)
