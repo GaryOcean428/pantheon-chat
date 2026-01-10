@@ -281,6 +281,7 @@ export const API_ROUTES = {
     overage: '/api/search/budget/overage',
     learning: '/api/search/budget/learning',
     reset: '/api/search/budget/reset',
+    override: '/api/search/budget/override',
   },
 
   // Learning (Zeus Search Learner)

@@ -332,12 +332,35 @@ class SearchBudgetOrchestrator:
             logger.error(f"[SearchBudget] Failed to save state: {e}")
     
     def _is_override_active(self) -> bool:
-        """Check if override is currently active (considering expiry)."""
+        """Check if override is currently active (considering expiry).
+        
+        IMPORTANT: Also resets allow_overage flag when override expires to keep
+        downstream logic consistent. Uses a flag to prevent repeated expiry events.
+        """
         if not self.allow_overage:
             return False
         if self.override_expires_at is None:
             return True
-        return datetime.now(timezone.utc) < self.override_expires_at.replace(tzinfo=timezone.utc) if self.override_expires_at.tzinfo is None else datetime.now(timezone.utc) < self.override_expires_at
+        
+        now = datetime.now(timezone.utc)
+        expires_at = self.override_expires_at.replace(tzinfo=timezone.utc) if self.override_expires_at.tzinfo is None else self.override_expires_at
+        
+        if now >= expires_at:
+            expired_at_iso = expires_at.isoformat()
+            self.allow_overage = False
+            self.override_expires_at = None
+            self.override_approved_by = None
+            self._save_state()
+            logger.info("[SearchBudget] Override expired - automatically disabled")
+            if not getattr(self, '_override_expiry_broadcast_done', False):
+                self._override_expiry_broadcast_done = True
+                self._broadcast_limit_change('override_expired', {
+                    'expired_at': expired_at_iso,
+                })
+            return False
+        
+        self._override_expiry_broadcast_done = False
+        return True
     
     def _broadcast_limit_change(self, event_type: str, details: Dict[str, Any]):
         """Broadcast limit change event via CapabilityEventBus if available."""
@@ -549,18 +572,40 @@ class SearchBudgetOrchestrator:
         """
         Select best provider based on importance and budget.
         
+        Now properly filters out exhausted premium providers (remaining=0) unless
+        override is active. This ensures callers never receive a provider that
+        cannot actually be used.
+        
         Returns: (provider_name, reason)
         """
         override_active = self._is_override_active()
+        premium_providers = {'tavily', 'perplexity', 'google'}
+        
+        def _can_use_provider(name: str, budget: ProviderBudget) -> bool:
+            """Check if a provider can actually be used (considering quota)."""
+            if not budget.enabled:
+                return False
+            if budget.daily_limit == 0:
+                return False
+            if budget.daily_limit == -1:
+                return True
+            if name in premium_providers:
+                if budget.remaining <= 0:
+                    return override_active
+            else:
+                return budget.can_use()
+            return budget.remaining > 0 or override_active
         
         if preferred_provider and preferred_provider in self.budgets:
             budget = self.budgets[preferred_provider]
-            if budget.can_use() or (override_active and budget.enabled):
+            if _can_use_provider(preferred_provider, budget):
                 return preferred_provider, "user_preferred"
+            elif preferred_provider in premium_providers and budget.remaining <= 0:
+                logger.info(f"[SearchBudget] Preferred provider {preferred_provider} exhausted, falling back")
         
         available = [
             (name, b) for name, b in self.budgets.items()
-            if b.can_use() or (override_active and b.enabled and b.daily_limit >= 0)
+            if _can_use_provider(name, b)
         ]
         
         if not available:
@@ -575,7 +620,7 @@ class SearchBudgetOrchestrator:
             return available[0][0], "routine_first_available"
         
         if importance == SearchImportance.CRITICAL:
-            paid = [(n, b) for n, b in available if b.cost_per_query > 0]
+            paid = [(n, b) for n, b in available if b.cost_per_query > 0 and n in premium_providers]
             if paid:
                 best = max(paid, key=lambda x: x[1].cost_per_query)
                 return best[0], "critical_best_quality"
@@ -584,7 +629,7 @@ class SearchBudgetOrchestrator:
             ctx = self.get_budget_context()
             
             if ctx.budget_percentage > 0.3 or importance == SearchImportance.HIGH:
-                paid = [(n, b) for n, b in available if b.cost_per_query > 0]
+                paid = [(n, b) for n, b in available if b.cost_per_query > 0 and n in premium_providers]
                 if paid:
                     efficacy_scores = [
                         (n, self._provider_efficacy.get(n, 0.5))
@@ -599,9 +644,59 @@ class SearchBudgetOrchestrator:
         
         return available[0][0], "default_first_available"
     
+    def consume_quota(self, provider: str, kernel_id: Optional[str] = None) -> bool:
+        """
+        Consume quota BEFORE executing a search.
+        
+        This ensures failed premium requests count against the limit.
+        Call this BEFORE dispatching the search, not after.
+        
+        Args:
+            provider: The provider to consume quota for
+            kernel_id: Optional kernel ID to track per-kernel usage
+            
+        Returns:
+            True if quota was consumed successfully, False if no quota available
+        """
+        if provider not in self.budgets:
+            return False
+        
+        budget = self.budgets[provider]
+        override_active = self._is_override_active()
+        
+        if budget.daily_limit == -1:
+            return True
+        
+        if budget.remaining <= 0 and not override_active:
+            logger.warning(f"[SearchBudget] Cannot consume quota: {provider} exhausted (remaining=0, override={override_active})")
+            return False
+        
+        budget.used_today += 1
+        
+        if kernel_id:
+            if kernel_id not in self._kernel_usage:
+                self._kernel_usage[kernel_id] = {}
+            current = self._kernel_usage[kernel_id].get(provider, 0)
+            self._kernel_usage[kernel_id][provider] = current + 1
+            
+            if self.redis:
+                try:
+                    kernel_key = self._get_redis_key(provider, kernel_id)
+                    self.redis.incr(kernel_key)
+                    self.redis.expire(kernel_key, 86400 * 2)
+                except Exception as e:
+                    logger.debug(f"[SearchBudget] Failed to update kernel usage in Redis: {e}")
+        
+        self._save_state()
+        logger.debug(f"[SearchBudget] Consumed quota: {provider}: {budget.used_today}/{budget.daily_limit}" + (f" (kernel: {kernel_id})" if kernel_id else ""))
+        return True
+    
     def record_usage(self, provider: str, success: bool = True, kernel_id: Optional[str] = None):
         """
-        Record that a search was executed.
+        Record that a search was executed (DEPRECATED - use consume_quota before search).
+        
+        This method is kept for backward compatibility but consume_quota should be
+        preferred for new code as it ensures quota is consumed BEFORE the search.
         
         Args:
             provider: The provider used

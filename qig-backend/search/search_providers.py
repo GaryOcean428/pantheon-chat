@@ -254,14 +254,10 @@ class SearchProviderManager:
         provider_used = None
         
         for prov in providers_to_use:
-            # Check quota for each premium provider before executing
+            # Consume quota BEFORE executing premium search (ensures failed requests count)
             if orchestrator and prov in premium_providers:
-                prov_quota = orchestrator.get_provider_quota(prov, kernel_id)
-                remaining = prov_quota.get('remaining', 0)
-                override_active = prov_quota.get('override_active', False)
-                
-                if remaining is not None and remaining <= 0 and not override_active:
-                    logger.info(f"[SearchProviderManager] Skipping {prov} (quota exhausted)")
+                if not orchestrator.consume_quota(prov, kernel_id):
+                    logger.info(f"[SearchProviderManager] Skipping {prov} (quota exhausted or consume failed)")
                     errors.append(f"{prov}: quota exhausted")
                     continue
             
@@ -273,9 +269,6 @@ class SearchProviderManager:
                     provider_used = prov
                     
                     if orchestrator and SearchImportance:
-                        # Pass kernel_id to record_usage
-                        orchestrator.record_usage(prov, success=True, kernel_id=kernel_id)
-                        
                         # Get updated quota info for the provider used
                         if prov in premium_providers:
                             quota_info = orchestrator.get_provider_quota(prov, kernel_id)

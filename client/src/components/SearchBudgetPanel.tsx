@@ -15,9 +15,17 @@ import {
   Progress,
   Skeleton,
 } from "@/components/ui";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
-import { Search, AlertTriangle, CheckCircle2, DollarSign, Zap, Globe, Brain, RefreshCw } from "lucide-react";
-import { useState } from "react";
+import { Search, AlertTriangle, CheckCircle2, DollarSign, Zap, Globe, Brain, RefreshCw, Clock, Shield, ChevronDown } from "lucide-react";
+import { useState, useEffect } from "react";
 
 interface ProviderStatus {
   enabled: boolean;
@@ -42,9 +50,39 @@ interface LearningMetrics {
   budget_efficiency: number;
 }
 
+interface OverrideStatus {
+  enabled: boolean;
+  active: boolean;
+  expires_at: string | null;
+  approved_by: string | null;
+  expires_in_seconds: number | null;
+}
+
+const EXPIRY_OPTIONS = [
+  { value: "15", label: "15 minutes" },
+  { value: "30", label: "30 minutes" },
+  { value: "60", label: "1 hour" },
+  { value: "120", label: "2 hours" },
+  { value: "240", label: "4 hours" },
+  { value: "none", label: "No expiry" },
+];
+
+function formatTimeRemaining(seconds: number): string {
+  if (seconds <= 0) return "Expired";
+  if (seconds < 60) return `${seconds}s`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+  const hours = Math.floor(seconds / 3600);
+  const mins = Math.floor((seconds % 3600) / 60);
+  return `${hours}h ${mins}m`;
+}
+
 export function SearchBudgetPanel() {
   const { toast } = useToast();
   const [editingLimits, setEditingLimits] = useState<Record<string, number>>({});
+  const [overrideOpen, setOverrideOpen] = useState(false);
+  const [selectedExpiry, setSelectedExpiry] = useState<string>("60");
+  const [approvedBy, setApprovedBy] = useState("admin");
+  const [remainingTime, setRemainingTime] = useState<number | null>(null);
 
   const { data: budgetStatus, isLoading: statusLoading, refetch: refetchStatus } = useQuery<BudgetStatus>({
     queryKey: [API_ROUTES.searchBudget.status],
@@ -55,6 +93,30 @@ export function SearchBudgetPanel() {
     queryKey: [API_ROUTES.searchBudget.learning],
     refetchInterval: 60000,
   });
+
+  const { data: overrideStatus, refetch: refetchOverride } = useQuery<OverrideStatus>({
+    queryKey: [API_ROUTES.searchBudget.override],
+    refetchInterval: 10000,
+  });
+
+  useEffect(() => {
+    if (overrideStatus?.expires_in_seconds !== null && overrideStatus?.expires_in_seconds !== undefined) {
+      setRemainingTime(overrideStatus.expires_in_seconds);
+      const interval = setInterval(() => {
+        setRemainingTime(prev => {
+          if (prev === null || prev <= 0) {
+            clearInterval(interval);
+            refetchOverride();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      return () => clearInterval(interval);
+    } else {
+      setRemainingTime(null);
+    }
+  }, [overrideStatus?.expires_in_seconds, refetchOverride]);
 
   const toggleMutation = useMutation({
     mutationFn: async ({ provider, enabled }: { provider: string; enabled: boolean }) => {
@@ -83,18 +145,40 @@ export function SearchBudgetPanel() {
     },
   });
 
-  const overageMutation = useMutation({
-    mutationFn: async (allow: boolean) => {
-      return apiRequest("POST", API_ROUTES.searchBudget.overage, { allow });
+  const overrideMutation = useMutation({
+    mutationFn: async ({ enabled, expires_in_minutes, approved_by }: { 
+      enabled: boolean; 
+      expires_in_minutes?: number; 
+      approved_by?: string 
+    }) => {
+      return apiRequest("POST", API_ROUTES.searchBudget.override, { 
+        enabled, 
+        expires_in_minutes, 
+        approved_by 
+      });
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [API_ROUTES.searchBudget.override] });
       queryClient.invalidateQueries({ queryKey: [API_ROUTES.searchBudget.status] });
-      toast({ title: "Overage Setting Updated" });
+      toast({ title: "Override Updated", description: "Budget override setting updated." });
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
+
+  const handleOverrideToggle = (enabled: boolean) => {
+    if (enabled) {
+      const expiryMinutes = selectedExpiry === "none" ? undefined : parseInt(selectedExpiry);
+      overrideMutation.mutate({ 
+        enabled: true, 
+        expires_in_minutes: expiryMinutes, 
+        approved_by: approvedBy || "admin" 
+      });
+    } else {
+      overrideMutation.mutate({ enabled: false });
+    }
+  };
 
   if (statusLoading) {
     return (
@@ -132,6 +216,8 @@ export function SearchBudgetPanel() {
     return Math.min(100, (used / limit) * 100);
   };
 
+  const isOverrideActive = overrideStatus?.active === true;
+
   return (
     <Card>
       <CardHeader>
@@ -143,7 +229,7 @@ export function SearchBudgetPanel() {
           <Button 
             variant="ghost" 
             size="icon" 
-            onClick={() => refetchStatus()}
+            onClick={() => { refetchStatus(); refetchOverride(); }}
             data-testid="button-refresh-budget"
           >
             <RefreshCw className="h-4 w-4" />
@@ -158,6 +244,20 @@ export function SearchBudgetPanel() {
           <div className="flex items-center gap-2 p-3 rounded-md bg-muted">
             <Brain className="h-4 w-4 text-primary" />
             <span className="text-sm">{budgetStatus.recommendation}</span>
+          </div>
+        )}
+
+        {isOverrideActive && (
+          <div className="flex items-center gap-2 p-3 rounded-md bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800">
+            <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+            <span className="text-sm text-yellow-700 dark:text-yellow-300">
+              Budget override is active. Paid providers can exceed daily limits.
+              {remainingTime !== null && remainingTime > 0 && (
+                <span className="ml-2 font-medium">
+                  Expires in: {formatTimeRemaining(remainingTime)}
+                </span>
+              )}
+            </span>
           </div>
         )}
 
@@ -257,19 +357,110 @@ export function SearchBudgetPanel() {
           })}
         </div>
 
-        <div className="flex items-center justify-between p-4 border rounded-lg">
-          <div>
-            <Label className="font-medium">Allow Budget Overage</Label>
-            <p className="text-sm text-muted-foreground">
-              Continue using paid providers after daily limit is reached
-            </p>
+        <Collapsible open={overrideOpen} onOpenChange={setOverrideOpen}>
+          <div className="border rounded-lg">
+            <CollapsibleTrigger asChild>
+              <div 
+                className="flex items-center justify-between p-4 cursor-pointer hover-elevate"
+                data-testid="collapsible-override-trigger"
+              >
+                <div className="flex items-center gap-3">
+                  <Shield className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <Label className="font-medium cursor-pointer">Budget Override</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Allow exceeding daily limits with time-bound approval
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  {isOverrideActive ? (
+                    <Badge variant="default" className="bg-yellow-500">
+                      <Clock className="h-3 w-3 mr-1" />
+                      Active
+                    </Badge>
+                  ) : overrideStatus?.enabled && !overrideStatus?.active ? (
+                    <Badge variant="outline" className="text-red-600">
+                      Expired
+                    </Badge>
+                  ) : null}
+                  <ChevronDown className={`h-4 w-4 transition-transform ${overrideOpen ? 'rotate-180' : ''}`} />
+                </div>
+              </div>
+            </CollapsibleTrigger>
+            
+            <CollapsibleContent>
+              <div className="px-4 pb-4 space-y-4 border-t pt-4">
+                <div className="flex items-center justify-between">
+                  <Label>Enable Override</Label>
+                  <Switch
+                    checked={overrideStatus?.enabled || false}
+                    onCheckedChange={handleOverrideToggle}
+                    disabled={overrideMutation.isPending}
+                    data-testid="toggle-override"
+                  />
+                </div>
+
+                {(!overrideStatus?.enabled || !isOverrideActive) && (
+                  <>
+                    <div className="space-y-2">
+                      <Label className="text-sm text-muted-foreground">Expiry Duration</Label>
+                      <Select value={selectedExpiry} onValueChange={setSelectedExpiry}>
+                        <SelectTrigger data-testid="select-expiry">
+                          <SelectValue placeholder="Select duration" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {EXPIRY_OPTIONS.map(opt => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm text-muted-foreground">Approved By</Label>
+                      <Input
+                        value={approvedBy}
+                        onChange={(e) => setApprovedBy(e.target.value)}
+                        placeholder="admin"
+                        data-testid="input-approved-by"
+                      />
+                    </div>
+                  </>
+                )}
+
+                {isOverrideActive && (
+                  <div className="space-y-3 p-3 bg-muted rounded-md">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Status:</span>
+                      <Badge variant="default" className="bg-green-500">Active</Badge>
+                    </div>
+                    {overrideStatus?.approved_by && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Approved by:</span>
+                        <span className="font-medium">{overrideStatus.approved_by}</span>
+                      </div>
+                    )}
+                    {remainingTime !== null && remainingTime > 0 && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Time remaining:</span>
+                        <span className="font-medium font-mono">{formatTimeRemaining(remainingTime)}</span>
+                      </div>
+                    )}
+                    {overrideStatus?.expires_at === null && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Expiry:</span>
+                        <span className="font-medium">No expiry set</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </CollapsibleContent>
           </div>
-          <Switch
-            checked={budgetStatus?.allow_overage || false}
-            onCheckedChange={(checked) => overageMutation.mutate(checked)}
-            data-testid="toggle-overage"
-          />
-        </div>
+        </Collapsible>
 
         {learningMetrics && (
           <div className="pt-4 border-t space-y-2">

@@ -1356,15 +1356,69 @@ class AutonomousCuriosityEngine:
             import traceback
             traceback.print_exc()
     
+    def _get_premium_quota_summary(self) -> Dict[str, Any]:
+        """
+        Get quota status summary for all premium providers.
+        
+        Returns dict with quota info for tavily, perplexity, google:
+        {
+            'tavily': {'remaining': N, 'limit': M, 'override_active': bool},
+            'perplexity': {...},
+            'google': {...},
+            'all_exhausted': bool,
+            'available_premium': list of providers with remaining quota
+        }
+        """
+        try:
+            from search.search_budget_orchestrator import get_budget_orchestrator
+            orchestrator = get_budget_orchestrator()
+        except ImportError:
+            logger.warning("[AutonomousCuriosityEngine] Budget orchestrator not available")
+            return {
+                'tavily': {'remaining': None, 'limit': None, 'override_active': False},
+                'perplexity': {'remaining': None, 'limit': None, 'override_active': False},
+                'google': {'remaining': None, 'limit': None, 'override_active': False},
+                'all_exhausted': False,
+                'available_premium': []
+            }
+        
+        premium_providers = ['tavily', 'perplexity', 'google']
+        summary = {}
+        available_premium = []
+        
+        for provider in premium_providers:
+            quota = orchestrator.get_provider_quota(provider)
+            remaining = quota.get('remaining', 0)
+            limit = quota.get('total_limit', 0)
+            override_active = quota.get('override_active', False)
+            enabled = quota.get('enabled', False)
+            
+            summary[provider] = {
+                'remaining': remaining,
+                'limit': limit,
+                'override_active': override_active,
+                'enabled': enabled
+            }
+            
+            if enabled and (remaining is None or remaining > 0 or override_active):
+                available_premium.append(provider)
+        
+        all_exhausted = len(available_premium) == 0
+        summary['all_exhausted'] = all_exhausted
+        summary['available_premium'] = available_premium
+        
+        return summary
+    
     def _trigger_search_fallback_learning(self, learner) -> int:
         """
         Search fallback when curriculum yields 0 new word relationships.
         
         Pipeline:
-        1. Search for curriculum/kernel topics via SearchProviderManager
-        2. Learn directly from premium provider (Tavily/Perplexity) quality text
-        3. Use ScrapyOrchestrator to crawl cited URLs for full text
-        4. Persist sources for future crawling
+        1. Check premium quota before searching
+        2. Search for curriculum/kernel topics via SearchProviderManager
+        3. Learn directly from premium provider (Tavily/Perplexity) quality text
+        4. Use ScrapyOrchestrator to crawl cited URLs for full text
+        5. Persist sources for future crawling
         
         Returns: Number of word pairs learned from search fallback
         """
@@ -1380,6 +1434,28 @@ class AutonomousCuriosityEngine:
         
         logger.info("[AutonomousCuriosityEngine] 🔍 Starting search fallback pipeline...")
         
+        # Check premium quota before triggering search
+        quota_summary = self._get_premium_quota_summary()
+        
+        # Log quota status for kernel visibility
+        tavily_quota = quota_summary.get('tavily', {})
+        perplexity_quota = quota_summary.get('perplexity', {})
+        google_quota = quota_summary.get('google', {})
+        
+        logger.info(
+            f"[AutonomousCuriosityEngine] Premium quota: "
+            f"tavily={tavily_quota.get('remaining', 'N/A')}/{tavily_quota.get('limit', 'N/A')}, "
+            f"perplexity={perplexity_quota.get('remaining', 'N/A')}/{perplexity_quota.get('limit', 'N/A')}, "
+            f"google={google_quota.get('remaining', 'N/A')}/{google_quota.get('limit', 'N/A')}"
+        )
+        
+        # If all premium providers are exhausted and no override, use only duckduckgo
+        use_premium = not quota_summary.get('all_exhausted', False)
+        if not use_premium:
+            logger.warning(
+                "[AutonomousCuriosityEngine] All premium providers exhausted, falling back to duckduckgo only"
+            )
+        
         # Step 1: Generate search queries from curriculum keywords and kernel interests
         search_queries = self._generate_fallback_search_queries()
         
@@ -1387,8 +1463,8 @@ class AutonomousCuriosityEngine:
             logger.warning("[AutonomousCuriosityEngine] No search queries generated for fallback")
             return 0
         
-        # Step 2: Execute searches via SearchProviderManager
-        search_results = self._execute_fallback_searches(search_queries[:5])  # Max 5 queries
+        # Step 2: Execute searches via SearchProviderManager (pass use_premium flag)
+        search_results = self._execute_fallback_searches(search_queries[:5], use_premium=use_premium)
         
         if not search_results:
             logger.warning("[AutonomousCuriosityEngine] No search results returned from fallback")
@@ -1448,9 +1524,16 @@ class AutonomousCuriosityEngine:
         logger.info(f"[AutonomousCuriosityEngine] Generated {len(filtered_queries)} fallback search queries")
         return filtered_queries
     
-    def _execute_fallback_searches(self, queries: List[str]) -> List[Dict]:
-        """Execute fallback searches via SearchProviderManager."""
+    def _execute_fallback_searches(self, queries: List[str], use_premium: bool = True) -> List[Dict]:
+        """
+        Execute fallback searches via SearchProviderManager.
+        
+        Args:
+            queries: List of search queries
+            use_premium: Whether to use premium providers (False = duckduckgo only)
+        """
         results = []
+        kernel_id = 'curiosity_engine'
         
         try:
             from search.search_providers import get_search_manager
@@ -1459,12 +1542,18 @@ class AutonomousCuriosityEngine:
             
             for query in queries:
                 try:
-                    # High priority (importance=3) for fallback searches
+                    # Determine importance: high if using premium, routine if duckduckgo only
+                    importance = 3 if use_premium else 1
+                    
+                    # Force duckduckgo if premium not available
+                    provider = None if use_premium else 'duckduckgo'
+                    
                     result = manager.search(
                         query=query,
                         max_results=5,
-                        importance=3,  # High importance for curriculum fallback
-                        kernel_id='curiosity_fallback'
+                        provider=provider,
+                        importance=importance,
+                        kernel_id=kernel_id
                     )
                     
                     if result and result.get('results'):
@@ -1474,15 +1563,26 @@ class AutonomousCuriosityEngine:
                         # Track query to avoid repetition
                         self._recent_queries.append(query)
                         
+                        # Log quota info from result
+                        quota_info = result.get('quota_info')
+                        if quota_info:
+                            logger.debug(
+                                f"[AutonomousCuriosityEngine] Search quota after query: "
+                                f"provider={result.get('provider_used')}, "
+                                f"remaining={quota_info.get('remaining')}"
+                            )
+                        
                         # Request high-priority search for kernel visibility
                         self.request_search(
-                            kernel_name='curiosity_fallback',
+                            kernel_name=kernel_id,
                             query=query,
                             priority=0.9,
                             context={
                                 'exploration_type': 'curriculum_fallback',
                                 'fallback_reason': 'curriculum_exhausted',
-                                'results_count': len(result.get('results', []))
+                                'results_count': len(result.get('results', [])),
+                                'provider_used': result.get('provider_used'),
+                                'used_premium': use_premium
                             }
                         )
                         

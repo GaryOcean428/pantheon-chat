@@ -563,6 +563,31 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
     }
   });
 
+  app.get("/api/search/budget/override", async (req, res) => {
+    try {
+      const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
+      const response = await fetch(`${backendUrl}/api/search/budget/override`, { signal: AbortSignal.timeout(10000) });
+      if (response.ok) return res.json(await response.json());
+      res.status(response.status).json({ error: 'Backend error' });
+    } catch {
+      res.status(503).json({ error: 'Search budget override service unavailable' });
+    }
+  });
+
+  app.post("/api/search/budget/override", requireAuthIfEnabled, async (req, res) => {
+    try {
+      const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
+      const response = await fetch(`${backendUrl}/api/search/budget/override`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(req.body), signal: AbortSignal.timeout(10000)
+      });
+      if (response.ok) return res.json(await response.json());
+      res.status(response.status).json({ error: 'Backend error' });
+    } catch {
+      res.status(503).json({ error: 'Search budget override service unavailable' });
+    }
+  });
+
   // Research proxy with SSE support
   app.get("/api/research/activity/stream", async (req: any, res) => {
     const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';

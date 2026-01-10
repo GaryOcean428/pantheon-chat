@@ -163,6 +163,50 @@ def reset_daily():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@search_budget_bp.route('/override', methods=['GET'])
+def get_override_status():
+    """Get current override status including expiry information."""
+    try:
+        orchestrator = get_orchestrator()
+        status = orchestrator.get_override_status()
+        return jsonify(status)
+    except Exception as e:
+        logger.error(f"[SearchBudget] Override status error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@search_budget_bp.route('/override', methods=['POST'])
+def set_override():
+    """Set or clear the budget override with optional expiry."""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'No JSON body'}), 400
+        
+        enabled = data.get('enabled')
+        if enabled is None:
+            return jsonify({'success': False, 'error': 'Missing enabled flag'}), 400
+        
+        expires_in_minutes = data.get('expires_in_minutes')
+        approved_by = data.get('approved_by')
+        
+        orchestrator = get_orchestrator()
+        result = orchestrator.set_override(
+            enabled=bool(enabled),
+            expires_in_minutes=expires_in_minutes,
+            approved_by=approved_by
+        )
+        
+        return jsonify({
+            'success': True,
+            **result
+        })
+    
+    except Exception as e:
+        logger.error(f"[SearchBudget] Override set error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 def register_search_budget_routes(app):
     """Register search budget routes with Flask app."""
     app.register_blueprint(search_budget_bp)
