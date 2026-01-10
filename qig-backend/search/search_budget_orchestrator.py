@@ -839,6 +839,7 @@ class SearchBudgetOrchestrator:
         
         self.budgets[provider].enabled = enabled
         self._save_state()
+        self._persist_budget_preferences()
         
         # Sync with GeometricProviderSelector for premium providers
         try:
@@ -865,6 +866,7 @@ class SearchBudgetOrchestrator:
         old_limit = self.budgets[provider].daily_limit
         self.budgets[provider].daily_limit = limit
         self._save_state()
+        self._persist_budget_preferences()
         
         self._broadcast_limit_change('daily_limit_changed', {
             'provider': provider,
@@ -878,7 +880,54 @@ class SearchBudgetOrchestrator:
         """Set whether to allow exceeding daily limits."""
         self.allow_overage = allow
         self._save_state()
+        self._persist_budget_preferences()
         logger.info(f"[SearchBudget] allow_overage={allow}")
+    
+    def _persist_budget_preferences(self):
+        """Persist current budget preferences to PostgreSQL."""
+        try:
+            database_url = os.environ.get('DATABASE_URL')
+            if not database_url or not DB_AVAILABLE:
+                return
+            
+            conn = psycopg2.connect(database_url)
+            cur = conn.cursor()
+            
+            # Get current limits and enabled status for each provider
+            google_limit = self.budgets.get('google', ProviderBudget(name='google', daily_limit=0)).daily_limit
+            perplexity_limit = self.budgets.get('perplexity', ProviderBudget(name='perplexity', daily_limit=0)).daily_limit
+            tavily_limit = self.budgets.get('tavily', ProviderBudget(name='tavily', daily_limit=0)).daily_limit
+            
+            google_enabled = self.budgets.get('google', ProviderBudget(name='google', daily_limit=0)).enabled
+            perplexity_enabled = self.budgets.get('perplexity', ProviderBudget(name='perplexity', daily_limit=0)).enabled
+            tavily_enabled = self.budgets.get('tavily', ProviderBudget(name='tavily', daily_limit=0)).enabled
+            
+            cur.execute("""
+                INSERT INTO search_budget_preferences (
+                    id, google_daily_limit, perplexity_daily_limit, tavily_daily_limit,
+                    google_enabled, perplexity_enabled, tavily_enabled, allow_overage,
+                    created_at, updated_at
+                )
+                VALUES (1, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
+                ON CONFLICT (id) DO UPDATE SET
+                    google_daily_limit = EXCLUDED.google_daily_limit,
+                    perplexity_daily_limit = EXCLUDED.perplexity_daily_limit,
+                    tavily_daily_limit = EXCLUDED.tavily_daily_limit,
+                    google_enabled = EXCLUDED.google_enabled,
+                    perplexity_enabled = EXCLUDED.perplexity_enabled,
+                    tavily_enabled = EXCLUDED.tavily_enabled,
+                    allow_overage = EXCLUDED.allow_overage,
+                    updated_at = NOW()
+            """, (
+                google_limit, perplexity_limit, tavily_limit,
+                google_enabled, perplexity_enabled, tavily_enabled,
+                self.allow_overage
+            ))
+            conn.commit()
+            cur.close()
+            conn.close()
+        except Exception as e:
+            logger.debug(f"[SearchBudget] Failed to persist preferences: {e}")
     
     def get_status(self) -> Dict[str, Any]:
         """Get full budget status."""
