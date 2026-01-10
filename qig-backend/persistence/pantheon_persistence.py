@@ -55,11 +55,11 @@ class PantheonPersistence(BasePersistence):
             # Get to_god - check 'to' first, then 'to_god'
             to_god = message.get('to') or message.get('to_god') or 'pantheon'
 
-            # Extract phi, kappa, regime from source_data in metadata if available
+            # Extract phi, kappa, regime - check message first, then metadata/source_data
             source_data = metadata.get('source_data', {}) or {}
-            phi = source_data.get('phi') or metadata.get('phi')
-            kappa = source_data.get('kappa') or metadata.get('kappa')
-            regime = source_data.get('regime') or metadata.get('regime')
+            phi = message.get('phi') or source_data.get('phi') or metadata.get('phi')
+            kappa = message.get('kappa') or source_data.get('kappa') or metadata.get('kappa')
+            regime = message.get('regime') or source_data.get('regime') or metadata.get('regime')
 
             # Get session_id and parent_id if available
             session_id = message.get('session_id') or metadata.get('session_id')

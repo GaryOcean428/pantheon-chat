@@ -260,41 +260,41 @@ class PantheonChat:
         """Get current consciousness state (phi, kappa, regime) for message persistence.
         
         Auto-injects consciousness metrics when callers don't provide them.
-        Queries tacking state or generative service for current values.
+        Queries tacking state from BaseGod._shared_tacking or generative service.
         """
         state = {'phi': None, 'kappa': None, 'regime': None}
         
+        # Try to get kappa from BaseGod tacking (TackingState has current_kappa, not current_phi)
         try:
-            from qiggraph.tacking import get_shared_tacking
-            tacking = get_shared_tacking()
+            from olympus.base_god import BaseGod
+            tacking = BaseGod._shared_tacking
             if tacking and hasattr(tacking, 'state'):
-                state['phi'] = float(tacking.state.current_phi) if hasattr(tacking.state, 'current_phi') else None
-                state['kappa'] = float(tacking.state.current_kappa) if hasattr(tacking.state, 'current_kappa') else None
-                if hasattr(tacking.state, 'regime'):
-                    state['regime'] = str(tacking.state.regime)
-                elif state['kappa'] is not None:
+                if hasattr(tacking.state, 'current_kappa'):
+                    state['kappa'] = float(tacking.state.current_kappa)
+                    # Derive regime from kappa
                     if state['kappa'] < 50:
                         state['regime'] = 'feeling'
                     elif state['kappa'] > 80:
                         state['regime'] = 'logic'
                     else:
                         state['regime'] = 'balanced'
-                return state
         except Exception as e:
-            logger.debug(f"[PantheonChat] Tacking unavailable for consciousness state: {e}")
+            logger.debug(f"[PantheonChat] BaseGod tacking unavailable: {e}")
         
+        # Try to get phi from generative service history
         try:
             from qig_generative_service import get_generative_service
             service = get_generative_service()
             if hasattr(service, '_phi_history') and service._phi_history:
                 raw_phi = service._phi_history[-1]
                 state['phi'] = float(raw_phi[0]) if isinstance(raw_phi, (tuple, list)) else float(raw_phi) if isinstance(raw_phi, (int, float)) else None
-            if hasattr(service, '_kappa_history') and service._kappa_history:
+            if state['kappa'] is None and hasattr(service, '_kappa_history') and service._kappa_history:
                 raw_kappa = service._kappa_history[-1]
                 state['kappa'] = float(raw_kappa[0]) if isinstance(raw_kappa, (tuple, list)) else float(raw_kappa) if isinstance(raw_kappa, (int, float)) else None
         except Exception as e:
             logger.debug(f"[PantheonChat] Generative service unavailable for consciousness state: {e}")
         
+        # Apply defaults for any missing values
         if state['phi'] is None:
             state['phi'] = 0.5
         if state['kappa'] is None:
