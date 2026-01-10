@@ -1062,8 +1062,8 @@ def record_hrv_tacking(
         try:
             with self.get_connection() as conn:
                 with conn.cursor(cursor_factory=RealDictCursor) as cur:
-cur.execute("SELECT * FROM narrow_path_summary")
-return [dict(r) for r in cur.fetchall()]
+                    cur.execute("SELECT * FROM narrow_path_summary")
+                    return [dict(r) for r in cur.fetchall()]
         except Exception as e:
             print(f"[QIGPersistence] Failed to get narrow path summary: {e}")
             return []
@@ -1080,16 +1080,16 @@ return [dict(r) for r in cur.fetchall()]
         try:
             with self.get_connection() as conn:
                 with conn.cursor(cursor_factory=RealDictCursor) as cur:
-cur.execute("""
-    SELECT god_name, reputation, skills, learning_events_count,
-           success_rate, last_learning_at
-    FROM pantheon_god_state
-    WHERE god_name = %s
-""", (god_name.lower(),))
-row = cur.fetchone()
-if row:
-    return dict(row)
-return None
+                    cur.execute("""
+                        SELECT god_name, reputation, skills, learning_events_count,
+                               success_rate, last_learning_at
+                        FROM pantheon_god_state
+                        WHERE god_name = %s
+                    """, (god_name.lower(),))
+                    row = cur.fetchone()
+                    if row:
+                        return dict(row)
+                    return None
         except Exception as e:
             print(f"[QIGPersistence] Failed to load god state for {god_name}: {e}")
             return None
@@ -1102,13 +1102,13 @@ return None
         try:
             with self.get_connection() as conn:
                 with conn.cursor(cursor_factory=RealDictCursor) as cur:
-cur.execute("""
-    SELECT god_name, reputation, skills, learning_events_count,
-           success_rate, last_learning_at
-    FROM pantheon_god_state
-""")
-rows = cur.fetchall()
-return {row['god_name']: dict(row) for row in rows}
+                    cur.execute("""
+                        SELECT god_name, reputation, skills, learning_events_count,
+                               success_rate, last_learning_at
+                        FROM pantheon_god_state
+                    """)
+                    rows = cur.fetchall()
+                    return {row['god_name']: dict(row) for row in rows}
         except Exception as e:
             print(f"[QIGPersistence] Failed to load all god states: {e}")
             return {}
@@ -1128,25 +1128,25 @@ return {row['god_name']: dict(row) for row in rows}
         try:
             with self.get_connection() as conn:
                 with conn.cursor() as cur:
-cur.execute("""
-    INSERT INTO pantheon_god_state 
-        (god_name, reputation, skills, learning_events_count, 
-         success_rate, last_learning_at, updated_at)
-    VALUES (%s, %s, %s, %s, %s, NOW(), NOW())
-    ON CONFLICT (god_name) DO UPDATE SET
-        reputation = EXCLUDED.reputation,
-        skills = EXCLUDED.skills,
-        learning_events_count = EXCLUDED.learning_events_count,
-        success_rate = EXCLUDED.success_rate,
-        last_learning_at = NOW(),
-        updated_at = NOW()
-""", (
-    god_name.lower(),
-    reputation,
-    json.dumps(skills) if skills else '{}',
-    learning_events_count,
-    success_rate
-))
+                    cur.execute("""
+                        INSERT INTO pantheon_god_state 
+                            (god_name, reputation, skills, learning_events_count, 
+                             success_rate, last_learning_at, updated_at)
+                        VALUES (%s, %s, %s, %s, %s, NOW(), NOW())
+                        ON CONFLICT (god_name) DO UPDATE SET
+                            reputation = EXCLUDED.reputation,
+                            skills = EXCLUDED.skills,
+                            learning_events_count = EXCLUDED.learning_events_count,
+                            success_rate = EXCLUDED.success_rate,
+                            last_learning_at = NOW(),
+                            updated_at = NOW()
+                    """, (
+                        god_name.lower(),
+                        reputation,
+                        json.dumps(skills) if skills else '{}',
+                        learning_events_count,
+                        success_rate
+                    ))
             return True
         except Exception as e:
             print(f"[QIGPersistence] Failed to save god state for {god_name}: {e}")
