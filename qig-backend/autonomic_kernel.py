@@ -38,6 +38,7 @@ from qigkernels.physics_constants import (
     PHI_THRESHOLD_D2_D3,
     BETA_3_TO_4,
 )
+print("[autonomic_kernel] physics_constants done", flush=True)
 
 # QIG-PURE: sphere projection for Fisher-Rao manifold normalization
 try:
@@ -46,6 +47,7 @@ try:
 except ImportError:
     sphere_project = None
     SPHERE_PROJECT_AVAILABLE = False
+print("[autonomic_kernel] qig_geometry done", flush=True)
 
 # Import reasoning consolidation for sleep cycles
 try:
@@ -54,6 +56,7 @@ try:
 except ImportError:
     SleepConsolidationReasoning = None
     REASONING_CONSOLIDATION_AVAILABLE = False
+print("[autonomic_kernel] sleep_consolidation done", flush=True)
 
 # Import autonomous reasoning for strategy tracking
 try:
@@ -62,6 +65,7 @@ try:
 except ImportError:
     AutonomousReasoningLearner = None
     REASONING_LEARNER_AVAILABLE = False
+print("[autonomic_kernel] autonomous_reasoning done", flush=True)
 
 # Lazy import for search strategy learner to avoid circular import
 # (olympus/__init__.py -> aphrodite -> base_god -> autonomic_kernel -> olympus.search_strategy_learner)
