@@ -9,18 +9,31 @@ Manages daily search quotas with strategic allocation:
 
 Kernels receive budget context to make strategic decisions.
 Search outcomes feed into learning for kernel evolution.
+
+Extended Features:
+- Per-kernel quota tracking
+- Time-bound override with expiry
+- UI override toggle support
+- Broadcast notifications for limit changes
 """
 
 import os
 import json
 import logging
 import hashlib
-from datetime import datetime, date, timezone
+from datetime import datetime, date, timezone, timedelta
 from typing import Dict, Any, Optional, List, Tuple
 from dataclasses import dataclass, field, asdict
 from enum import Enum
 
 logger = logging.getLogger(__name__)
+
+try:
+    from capability_telemetry import CapabilityEventBus
+    EVENT_BUS_AVAILABLE = True
+except ImportError:
+    EVENT_BUS_AVAILABLE = False
+    CapabilityEventBus = None
 
 # Database persistence for search outcomes
 try:
@@ -163,6 +176,9 @@ class SearchBudgetOrchestrator:
     - Strategic provider selection based on importance
     - Learning integration for outcome tracking
     - User overrides for budget limits
+    - Per-kernel quota tracking
+    - Time-bound override with expiry
+    - Broadcast notifications for limit changes
     """
     
     DEFAULT_LIMITS = {
@@ -185,6 +201,19 @@ class SearchBudgetOrchestrator:
         self.allow_overage = False
         self.outcomes: List[SearchOutcome] = []
         self._provider_efficacy: Dict[str, float] = {}
+        
+        self.kernel_allocations: Dict[str, Dict[str, int]] = {}
+        self._kernel_usage: Dict[str, Dict[str, int]] = {}
+        
+        self.override_expires_at: Optional[datetime] = None
+        self.override_approved_by: Optional[str] = None
+        
+        self._event_bus: Optional[Any] = None
+        if EVENT_BUS_AVAILABLE:
+            try:
+                self._event_bus = CapabilityEventBus()
+            except Exception:
+                pass
         
         self._init_budgets()
         self._load_state()
@@ -218,9 +247,11 @@ class SearchBudgetOrchestrator:
             if has_api_key and provider != 'duckduckgo':
                 logger.info(f"[SearchBudget] Auto-enabled {provider} (API key detected)")
     
-    def _get_redis_key(self, provider: str) -> str:
+    def _get_redis_key(self, provider: str, kernel_id: Optional[str] = None) -> str:
         """Get Redis key for daily counter."""
         today = date.today().isoformat()
+        if kernel_id:
+            return f"search_budget:{today}:{provider}:{kernel_id}"
         return f"search_budget:{today}:{provider}"
     
     def _load_state(self):
@@ -250,6 +281,20 @@ class SearchBudgetOrchestrator:
                 for provider, limit in prefs_data.get('limits', {}).items():
                     if provider in self.budgets:
                         self.budgets[provider].daily_limit = limit
+                
+                expires_at_str = prefs_data.get('override_expires_at')
+                if expires_at_str:
+                    self.override_expires_at = datetime.fromisoformat(expires_at_str)
+                else:
+                    self.override_expires_at = None
+                self.override_approved_by = prefs_data.get('override_approved_by')
+                
+                self.kernel_allocations = prefs_data.get('kernel_allocations', {})
+            
+            kernel_usage_key = f"search_budget:kernel_usage:{today}"
+            kernel_usage_data = self.redis.get(kernel_usage_key)
+            if kernel_usage_data:
+                self._kernel_usage = json.loads(kernel_usage_data)
             
             logger.info(f"[SearchBudget] Loaded state for {today}")
             
@@ -272,11 +317,188 @@ class SearchBudgetOrchestrator:
                 'allow_overage': self.allow_overage,
                 'enabled': {p: b.enabled for p, b in self.budgets.items()},
                 'limits': {p: b.daily_limit for p, b in self.budgets.items()},
+                'override_expires_at': self.override_expires_at.isoformat() if self.override_expires_at else None,
+                'override_approved_by': self.override_approved_by,
+                'kernel_allocations': self.kernel_allocations,
             }
             self.redis.set(prefs_key, json.dumps(prefs_data))
             
+            today = date.today().isoformat()
+            kernel_usage_key = f"search_budget:kernel_usage:{today}"
+            self.redis.set(kernel_usage_key, json.dumps(self._kernel_usage))
+            self.redis.expire(kernel_usage_key, 86400 * 2)
+            
         except Exception as e:
             logger.error(f"[SearchBudget] Failed to save state: {e}")
+    
+    def _is_override_active(self) -> bool:
+        """Check if override is currently active (considering expiry)."""
+        if not self.allow_overage:
+            return False
+        if self.override_expires_at is None:
+            return True
+        return datetime.now(timezone.utc) < self.override_expires_at.replace(tzinfo=timezone.utc) if self.override_expires_at.tzinfo is None else datetime.now(timezone.utc) < self.override_expires_at
+    
+    def _broadcast_limit_change(self, event_type: str, details: Dict[str, Any]):
+        """Broadcast limit change event via CapabilityEventBus if available."""
+        event_data = {
+            'event_type': event_type,
+            'timestamp': datetime.now(timezone.utc).isoformat(),
+            **details,
+        }
+        
+        logger.info(f"[SearchBudget] Limit change: {event_type} - {details}")
+        
+        if self._event_bus:
+            try:
+                self._event_bus.emit('search_budget_change', event_data)
+            except Exception as e:
+                logger.debug(f"[SearchBudget] Failed to broadcast event: {e}")
+    
+    def get_provider_quota(self, provider: str, kernel_id: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Get quota information for a provider.
+        
+        Args:
+            provider: The provider name (e.g., 'google', 'tavily')
+            kernel_id: Optional kernel ID to get kernel-specific quota
+            
+        Returns:
+            Dict with: total_limit, used, remaining, override_active, override_expires_at
+        """
+        if provider not in self.budgets:
+            return {
+                'error': f'Unknown provider: {provider}',
+                'total_limit': 0,
+                'used': 0,
+                'remaining': 0,
+                'override_active': False,
+                'override_expires_at': None,
+            }
+        
+        budget = self.budgets[provider]
+        override_active = self._is_override_active()
+        override_expires_at = self.override_expires_at.isoformat() if self.override_expires_at else None
+        
+        if kernel_id is None:
+            return {
+                'provider': provider,
+                'total_limit': budget.daily_limit,
+                'used': budget.used_today,
+                'remaining': budget.remaining,
+                'override_active': override_active,
+                'override_expires_at': override_expires_at,
+                'enabled': budget.enabled,
+            }
+        
+        kernel_allocation = self.kernel_allocations.get(kernel_id, {}).get(provider)
+        kernel_used = self._kernel_usage.get(kernel_id, {}).get(provider, 0)
+        
+        if kernel_allocation is None:
+            return {
+                'provider': provider,
+                'kernel_id': kernel_id,
+                'total_limit': None,
+                'used': kernel_used,
+                'remaining': None,
+                'override_active': override_active,
+                'override_expires_at': override_expires_at,
+                'enabled': budget.enabled,
+                'note': 'No specific allocation for this kernel',
+            }
+        
+        return {
+            'provider': provider,
+            'kernel_id': kernel_id,
+            'total_limit': kernel_allocation,
+            'used': kernel_used,
+            'remaining': max(0, kernel_allocation - kernel_used),
+            'override_active': override_active,
+            'override_expires_at': override_expires_at,
+            'enabled': budget.enabled,
+        }
+    
+    def set_kernel_allocation(self, kernel_id: str, provider: str, limit: int) -> bool:
+        """Set a soft allocation limit for a specific kernel."""
+        if provider not in self.budgets:
+            return False
+        
+        if kernel_id not in self.kernel_allocations:
+            self.kernel_allocations[kernel_id] = {}
+        
+        self.kernel_allocations[kernel_id][provider] = limit
+        self._save_state()
+        
+        self._broadcast_limit_change('kernel_allocation_set', {
+            'kernel_id': kernel_id,
+            'provider': provider,
+            'limit': limit,
+        })
+        
+        return True
+    
+    def set_override(
+        self,
+        enabled: bool,
+        expires_in_minutes: Optional[int] = None,
+        approved_by: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Set or clear the budget override.
+        
+        Args:
+            enabled: Whether to enable the override
+            expires_in_minutes: Optional expiry time in minutes (None = no expiry)
+            approved_by: Optional string indicating who approved the override
+            
+        Returns:
+            Dict with current override state
+        """
+        self.allow_overage = enabled
+        
+        if enabled:
+            if expires_in_minutes is not None:
+                self.override_expires_at = datetime.now(timezone.utc) + timedelta(minutes=expires_in_minutes)
+            else:
+                self.override_expires_at = None
+            self.override_approved_by = approved_by
+        else:
+            self.override_expires_at = None
+            self.override_approved_by = None
+        
+        self._save_state()
+        
+        self._broadcast_limit_change('override_changed', {
+            'enabled': enabled,
+            'expires_at': self.override_expires_at.isoformat() if self.override_expires_at else None,
+            'approved_by': approved_by,
+        })
+        
+        return self.get_override_status()
+    
+    def get_override_status(self) -> Dict[str, Any]:
+        """
+        Get current override status for UI display.
+        
+        Returns:
+            Dict with: enabled, active, expires_at, approved_by, expires_in_seconds
+        """
+        is_active = self._is_override_active()
+        expires_in_seconds = None
+        
+        if self.override_expires_at:
+            now = datetime.now(timezone.utc)
+            expires_at = self.override_expires_at.replace(tzinfo=timezone.utc) if self.override_expires_at.tzinfo is None else self.override_expires_at
+            diff = (expires_at - now).total_seconds()
+            expires_in_seconds = max(0, int(diff))
+        
+        return {
+            'enabled': self.allow_overage,
+            'active': is_active,
+            'expires_at': self.override_expires_at.isoformat() if self.override_expires_at else None,
+            'approved_by': self.override_approved_by,
+            'expires_in_seconds': expires_in_seconds,
+        }
     
     def get_budget_context(self) -> BudgetContext:
         """Get current budget context for kernel decisions."""
@@ -329,14 +551,16 @@ class SearchBudgetOrchestrator:
         
         Returns: (provider_name, reason)
         """
+        override_active = self._is_override_active()
+        
         if preferred_provider and preferred_provider in self.budgets:
             budget = self.budgets[preferred_provider]
-            if budget.can_use() or (self.allow_overage and budget.enabled):
+            if budget.can_use() or (override_active and budget.enabled):
                 return preferred_provider, "user_preferred"
         
         available = [
             (name, b) for name, b in self.budgets.items()
-            if b.can_use() or (self.allow_overage and b.enabled and b.daily_limit >= 0)
+            if b.can_use() or (override_active and b.enabled and b.daily_limit >= 0)
         ]
         
         if not available:
@@ -375,12 +599,34 @@ class SearchBudgetOrchestrator:
         
         return available[0][0], "default_first_available"
     
-    def record_usage(self, provider: str, success: bool = True):
-        """Record that a search was executed."""
+    def record_usage(self, provider: str, success: bool = True, kernel_id: Optional[str] = None):
+        """
+        Record that a search was executed.
+        
+        Args:
+            provider: The provider used
+            success: Whether the search was successful
+            kernel_id: Optional kernel ID to track per-kernel usage
+        """
         if provider in self.budgets:
             self.budgets[provider].used_today += 1
+            
+            if kernel_id:
+                if kernel_id not in self._kernel_usage:
+                    self._kernel_usage[kernel_id] = {}
+                current = self._kernel_usage[kernel_id].get(provider, 0)
+                self._kernel_usage[kernel_id][provider] = current + 1
+                
+                if self.redis:
+                    try:
+                        kernel_key = self._get_redis_key(provider, kernel_id)
+                        self.redis.incr(kernel_key)
+                        self.redis.expire(kernel_key, 86400 * 2)
+                    except Exception as e:
+                        logger.debug(f"[SearchBudget] Failed to update kernel usage in Redis: {e}")
+            
             self._save_state()
-            logger.debug(f"[SearchBudget] {provider}: {self.budgets[provider].used_today}/{self.budgets[provider].daily_limit}")
+            logger.debug(f"[SearchBudget] {provider}: {self.budgets[provider].used_today}/{self.budgets[provider].daily_limit}" + (f" (kernel: {kernel_id})" if kernel_id else ""))
     
     def record_outcome(
         self,
@@ -459,7 +705,11 @@ class SearchBudgetOrchestrator:
         except Exception as e:
             logger.warning(f"[SearchBudget] Failed to sync with provider selector: {e}")
         
-        logger.info(f"[SearchBudget] {provider} enabled={enabled}")
+        self._broadcast_limit_change('provider_enabled_changed', {
+            'provider': provider,
+            'enabled': enabled,
+        })
+        
         return True
     
     def set_daily_limit(self, provider: str, limit: int) -> bool:
@@ -467,9 +717,16 @@ class SearchBudgetOrchestrator:
         if provider not in self.budgets:
             return False
         
+        old_limit = self.budgets[provider].daily_limit
         self.budgets[provider].daily_limit = limit
         self._save_state()
-        logger.info(f"[SearchBudget] {provider} limit={limit}")
+        
+        self._broadcast_limit_change('daily_limit_changed', {
+            'provider': provider,
+            'old_limit': old_limit,
+            'new_limit': limit,
+        })
+        
         return True
     
     def set_allow_overage(self, allow: bool):
@@ -481,6 +738,7 @@ class SearchBudgetOrchestrator:
     def get_status(self) -> Dict[str, Any]:
         """Get full budget status."""
         ctx = self.get_budget_context()
+        override_status = self.get_override_status()
         
         return {
             'date': ctx.date,
@@ -490,6 +748,9 @@ class SearchBudgetOrchestrator:
             'budget_percentage': ctx.budget_percentage,
             'recommendation': ctx.recommendation,
             'allow_overage': ctx.allow_overage,
+            'override': override_status,
+            'kernel_allocations': self.kernel_allocations,
+            'kernel_usage': self._kernel_usage,
             'efficacy': self._provider_efficacy,
             'recent_outcomes': len(self.outcomes),
         }
