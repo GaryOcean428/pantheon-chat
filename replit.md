@@ -51,6 +51,19 @@ The system uses a priority-based learning pipeline with fallback chain:
 ### Vocabulary Stall Detection & Recovery
 The system tracks vocabulary acquisition and initiates escalation actions (e.g., forced curriculum rotation, unlocking premium search providers) if a stall is detected, followed by a cooldown period. Search results, especially from premium providers, are persisted for provenance tracking.
 
+### Premium Search Quota Enforcement
+The SearchBudgetOrchestrator (`qig-backend/search/search_budget_orchestrator.py`) enforces daily quotas on premium search providers:
+- **Default limits:** Google/Perplexity/Tavily: 100 queries/day, DuckDuckGo: unlimited
+- **consume_quota():** Called BEFORE search dispatch to ensure failed requests count against the limit
+- **select_provider():** Filters out exhausted premium providers (remaining=0) unless override is active
+- **Per-kernel tracking:** Via `_kernel_usage` dict for granular usage attribution
+- **UI Override:** Time-bound override (15min/30min/1hr/2hr/4hr/no expiry) with countdown timer in SearchBudgetPanel
+- **Auto-reset:** Override automatically expires and clears `allow_overage` flag
+
+**Known limitations (single-process design):**
+- No atomic reservation between select_provider and consume_quota (unlikely to cause issues in practice)
+- Override expiry is handled locally; multi-process deployments may see brief stale state
+
 ### Upload Service
 A dedicated service handles curriculum uploads for continuous learning and chat uploads for immediate RAG discussions, with optional integration into the curriculum.
 
