@@ -88,9 +88,18 @@ except ImportError:
     try:
         from search.insight_validator import InsightValidator, ValidationResult
     except ImportError:
-        # Graceful degradation if search module not available
-        InsightValidator = None
-        ValidationResult = None
+        try:
+            # Fallback: Add parent directory to path and try direct import
+            import sys
+            from pathlib import Path
+            _qig_backend = Path(__file__).parent.parent
+            if str(_qig_backend) not in sys.path:
+                sys.path.insert(0, str(_qig_backend))
+            from search.insight_validator import InsightValidator, ValidationResult
+        except ImportError:
+            # Graceful degradation if search module not available
+            InsightValidator = None
+            ValidationResult = None
 
 # Database persistence for Lightning Insights
 try:
