@@ -1240,7 +1240,8 @@ class SelfSpawningKernel(*_kernel_base_classes):
                 reason=reason,
                 parent_id=self.kernel_id,
                 parent_phi=parent_phi,
-                pantheon_approved=pantheon_approved
+                pantheon_approved=pantheon_approved,
+                current_population=-1  # Self-spawning: population > 0 (parent exists)
             )
         except ImportError:
             print(f"[SelfSpawningKernel] ⚠️ Governance not available, spawning without checks")

@@ -678,6 +678,17 @@ class GaryAutonomicKernel:
             self.search_strategy_learner = None
             self.trajectory_manager = None
 
+        # Initialize HRV tacking for κ oscillation (heart kernel metronome)
+        self.hrv_tacker = None
+        try:
+            from hrv_tacking import get_hrv_instance
+            self.hrv_tacker = get_hrv_instance()
+            print("[AutonomicKernel] HRV tacking wired (κ oscillation active)")
+        except ImportError:
+            print("[AutonomicKernel] HRV tacking not available")
+        except Exception as hrv_err:
+            print(f"[AutonomicKernel] HRV initialization failed: {hrv_err}")
+
         if checkpoint_path:
             self._load_checkpoint(checkpoint_path)
         
@@ -689,16 +700,26 @@ class GaryAutonomicKernel:
 
     def _start_heartbeat(self) -> None:
         """
-        Background heartbeat to keep Φ alive when system is idle.
+        Background heartbeat to keep Φ and κ alive when system is idle.
 
-        Computes Φ every 5 seconds from basin history to prevent
-        Φ=0.000 stalling when no probes are active.
+        Every 5 seconds:
+        - Computes Φ from basin history (prevents Φ=0.000 stalling)
+        - Oscillates κ via HRV tacking (heart kernel metronome)
         """
         def heartbeat_loop():
             while True:
                 time.sleep(5)
                 try:
                     with self._lock:
+                        # Update κ via HRV oscillation (heart kernel)
+                        if self.hrv_tacker:
+                            hrv_state = self.hrv_tacker.step()
+                            self.state.kappa = hrv_state.kappa
+                            # Track cognitive mode in state
+                            if hasattr(self.state, 'cognitive_mode'):
+                                self.state.cognitive_mode = hrv_state.mode.value
+
+                        # Update Φ from basin history
                         if self.state.basin_history:
                             basin = np.array(self.state.basin_history[-1])
                             if QFI_PHI_AVAILABLE:
@@ -710,12 +731,20 @@ class GaryAutonomicKernel:
                                 entropy = -np.sum(p * np.log(p))
                                 max_entropy = np.log(len(basin))
                                 self.state.phi = max(0.1, 1.0 - entropy / max_entropy)
+
+                            # Track trajectory with named ID for tier 1 storage
+                            if self.trajectory_manager:
+                                self.trajectory_manager.add_basin(
+                                    kernel_id='gary',  # Named ID for core kernel tier
+                                    basin=basin,
+                                    phi=self.state.phi
+                                )
                 except Exception:
                     pass  # Silent failure - heartbeat is non-critical
 
         t = threading.Thread(target=heartbeat_loop, daemon=True)
         t.start()
-        print("[AutonomicKernel] Φ heartbeat started (5s interval)")
+        print("[AutonomicKernel] Φ/κ heartbeat started (5s interval, HRV active)")
 
     def _emit_cycle_event(
         self,

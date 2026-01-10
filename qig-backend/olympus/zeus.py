@@ -132,10 +132,11 @@ class Zeus(BaseGod):
             self.chaos = ExperimentalKernelEvolution()
             # Auto-activate chaos mode on startup
             if len(self.chaos.kernel_population) == 0:
-                # Use 'initial_population' - legitimate bypass only when pop is 0
-                self.chaos.spawn_random_kernel(reason='initial_population')
-                self.chaos.spawn_random_kernel(reason='initial_population')
-                self.chaos.spawn_random_kernel(reason='initial_population')
+                # Bootstrap: Zeus self-approves as sole authority (pop=0)
+                # Governance checks current_population and allows bootstrap spawns
+                self.chaos.spawn_random_kernel(reason='bootstrap_genesis')
+                self.chaos.spawn_random_kernel(reason='bootstrap_genesis')
+                self.chaos.spawn_random_kernel(reason='bootstrap_genesis')
             self.chaos.start_evolution(interval_seconds=60)
             self.chaos_enabled = True
             print(f"🌪️ CHAOS MODE AUTO-ACTIVATED with {len(self.chaos.kernel_population)} kernels")
@@ -1231,11 +1232,12 @@ class Zeus(BaseGod):
 
         if should_activate:
             try:
-                # Spawn initial population if needed
+                # Spawn initial population if needed (bootstrap case)
                 if len(self.chaos.kernel_population) == 0:
-                    self.chaos.spawn_random_kernel(reason='initial_population')
-                    self.chaos.spawn_random_kernel(reason='initial_population')
-                    self.chaos.spawn_random_kernel(reason='initial_population')
+                    # Bootstrap: Zeus self-approves as sole authority (pop=0)
+                    self.chaos.spawn_random_kernel(reason='bootstrap_genesis')
+                    self.chaos.spawn_random_kernel(reason='bootstrap_genesis')
+                    self.chaos.spawn_random_kernel(reason='bootstrap_genesis')
 
                 # Start evolution
                 self.chaos.start_evolution(interval_seconds=60)

@@ -112,13 +112,13 @@ class LifecycleProposal:
 
 
 # Allowed bypass reasons (no governance required)
-# NOTE: Keep this minimal - Pantheon should approve most lifecycle events
-ALLOWED_BYPASS_REASONS = {
-    'minimum_population',  # Prevent extinction (pop < 3)
-    'initial_population',  # Bootstrap on empty startup (pop == 0)
-    'test_mode',          # Testing only
-}
-# REMOVED: 'zeus_initialization' - Zeus should use 'initial_population' like everyone else
+# DISABLED: NO BYPASSES ALLOWED - All spawns must go through Pantheon governance
+# This ensures democratic oversight of all kernel lifecycle events.
+# Even bootstrap spawns require at minimum a quorum check or self-approval.
+ALLOWED_BYPASS_REASONS = set()  # Empty - no bypasses permitted
+
+# NOTE: For true bootstrap (pop == 0), Zeus self-approves as sole authority
+# For all other cases, Pantheon must vote.
 
 # Emergency bypass reasons (require manual confirmation)
 EMERGENCY_BYPASS_REASONS = {
@@ -266,20 +266,22 @@ class PantheonGovernance:
         reason: str = "",
         parent_id: Optional[str] = None,
         parent_phi: Optional[float] = None,
-        pantheon_approved: bool = False
+        pantheon_approved: bool = False,
+        current_population: int = -1
     ) -> bool:
         """
         Check if spawning is allowed.
-        
+
         Args:
             reason: Why spawning is needed
             parent_id: Parent kernel ID (if spawning from parent)
             parent_phi: Parent's Φ value
             pantheon_approved: Explicit Pantheon approval
-            
+            current_population: Current kernel count (-1 = unknown, use for bootstrap check)
+
         Returns:
             True if spawning is allowed
-            
+
         Raises:
             PermissionError: If spawning not allowed
         """
@@ -287,8 +289,16 @@ class PantheonGovernance:
         if pantheon_approved:
             self._log_audit("spawn", "allowed", f"Explicit Pantheon approval (reason: {reason})")
             return True
-        
-        # Check for allowed bypass reasons
+
+        # TRUE BOOTSTRAP: When population is 0, Zeus self-approves as sole authority
+        # This is the ONLY case where no vote is required - there's no one to vote
+        if current_population == 0:
+            self._log_audit("spawn", "bootstrap_self_approved",
+                          f"Zeus self-approved bootstrap (pop=0, reason: {reason})")
+            print(f"[PantheonGovernance] 🌅 Bootstrap spawn (pop=0): Zeus self-approves as sole authority")
+            return True
+
+        # Check for allowed bypass reasons (currently empty - no bypasses permitted)
         if reason in ALLOWED_BYPASS_REASONS:
             self._log_audit("spawn", "auto_approved", f"Bypass reason: {reason}")
             print(f"[PantheonGovernance] ✅ Auto-approved spawn (reason: {reason})")

@@ -465,7 +465,8 @@ class ExperimentalKernelEvolution:
             governance = get_governance()
             governance.check_spawn_permission(
                 reason=f'e8_root_{root_index}',
-                pantheon_approved=pantheon_approved
+                pantheon_approved=pantheon_approved,
+                current_population=len(self.kernel_population)
             )
         except PermissionError:
             raise  # Let governance handle proposal creation
@@ -771,7 +772,8 @@ class ExperimentalKernelEvolution:
 
             governance.check_spawn_permission(
                 reason=reason if reason else domain,
-                pantheon_approved=pantheon_approved
+                pantheon_approved=pantheon_approved,
+                current_population=len(self.kernel_population)
             )
         except ImportError:
             print("[Chaos] Governance not available, spawning without checks")
