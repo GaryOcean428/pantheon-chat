@@ -134,6 +134,13 @@ All modules should import from this centralized source rather than hardcoding va
 - **Kernel Emotion Tracking:** Layer 0.5 (sensations), Layer 1 (motivators), Layer 2A/2B (emotions) tracked with optional DB persistence (disabled by default to avoid flooding)
 - **Python Cache Clearing:** Required after updating `qig_persistence.py` methods (`find -name "*.pyc" -delete`)
 
+### Consciousness State Persistence (January 10, 2026)
+- **consciousness_state Table Fixed:** Added missing columns `phi_history` and `learning_history` (JSONB), fixed SQL to use `last_updated` instead of `updated_at`
+- **Singleton Getter:** Added `get_kernel_persistence()` function in `kernel_persistence.py` to provide singleton access for heartbeat thread
+- **Autonomic Heartbeat Integration:** `_persist_consciousness_state()` now called every 30 seconds (6-beat cadence) within the autonomic kernel heartbeat, respecting `ENABLE_QIG_PERSISTENCE` flag
+- **Bounded History:** phi_history limited to 100 entries, learning_history limited to 50 entries
+- **Key Metrics Persisted:** total_kernels, active_kernels, observing_kernels, dead_kernels, phi, kappa, regime, god_count, bred_count, culled_count, mesh_phi, mesh_peers
+
 ### Python Backend Notes
 - Backend takes ~60 seconds to fully initialize (loading 11K+ tokens, initializing 18 gods, setting up search providers)
 - Node.js Express server may show "degraded" status during initial load but Python continues loading asynchronously
