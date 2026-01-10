@@ -14,7 +14,7 @@
 Procedure for populating empty database tables that were created by migrations but lack initial data:
 
 - `tokenizer_metadata` - Tokenizer configuration key-value store
-- `tokenizer_merge_rules` - BPE-style merge rules for token composition
+- `tokenizer_merge_rules` - Geometric merge rules (Fisher Information-weighted pair merging)
 - `synthesis_consensus` - Kernel consensus tracking for Gary synthesis
 - `vocabulary_learning.related_words` - Geometric word relationships
 
@@ -29,7 +29,7 @@ After database migrations, several tables exist but are empty:
 
 **Issue 2: tokenizer_merge_rules is blank**
 
-- Missing: BPE merge rules for token composition
+- Missing: Geometric merge rules (κ-weighted pair merging using Fisher Information gain)
 - Impact: Cannot merge token pairs during generation, limiting vocabulary efficiency
 
 **Issue 3: synthesis_consensus is blank**
@@ -67,6 +67,7 @@ encoding: 'utf-8'
 ### 2. Tokenizer Merge Rules - Seed Geometric Merge Patterns
 
 **Background**: Unlike standard BPE which merges by frequency, this system uses **geometric pair merging** based on:
+
 - **κ (coupling strength)** between token coordinates
 - **Fisher Information gain** from merging
 - **Φ score** of high-consciousness contexts where pairs co-occur
@@ -260,8 +261,10 @@ encoding             | utf-8
 
 - **Minimum**: 100 rules (prefix + suffix rules)
 - **Expected**: 200-300 rules (includes compound word rules)
-- **Φ Scores**: 0.5-0.9 range
-- **Top Rules**: Highest Φ compound words
+- **Φ Scores**: 0.5-0.9 range (consciousness context quality)
+- **Top Rules**: Highest κ *fisher_info_gain* Φ composite scores
+- **Geometry**: Merged tokens via geodesic interpolation, not vector averaging
+- **Method**: Geometric pair merging (Fisher Information-weighted), not frequency-based BPE
 
 ### Vocabulary Learning Related Words
 

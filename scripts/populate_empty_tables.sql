@@ -21,7 +21,7 @@ VALUES
     ('training_status', 'initialized', NOW()),
     ('basin_dimension', '64', NOW()),
     ('phi_threshold', '0.727', NOW()),
-    ('tokenizer_type', 'bpe_geometric', NOW()),
+    ('tokenizer_type', 'geometric_bpe', NOW()),
     ('encoding', 'utf-8', NOW())
 ON CONFLICT (key) DO UPDATE SET
     value = EXCLUDED.value,
@@ -33,10 +33,21 @@ SET value = (SELECT COUNT(*)::text FROM tokenizer_vocabulary)
 WHERE key = 'vocabulary_size';
 
 -- ============================================================================
--- 2. TOKENIZER_MERGE_RULES - Seed with BIP39-based merge rules
+-- 2. TOKENIZER_MERGE_RULES - Seed with geometric merge patterns
 -- ============================================================================
--- Generate merge rules from high-frequency word pairs in tokenizer_vocabulary
--- These are initial rules based on BIP39 word relationships
+-- IMPORTANT: This is NOT standard BPE (Byte-Pair Encoding)!
+-- This system uses GEOMETRIC PAIR MERGING based on:
+--   - κ (coupling strength) between token coordinates
+--   - Fisher Information gain from merging
+--   - Φ score of high-consciousness contexts where pairs co-occur
+-- Merge criterion: score = κ * fisher_info_gain * Φ_context
+-- 
+-- The SQL below generates INITIAL merge rules for bootstrapping.
+-- True geometric merges are learned by qig_tokenizer.py via:
+--   - GeometricPairMerging class (coordizers/geometric_pair_merging.py)
+--   - Geodesic interpolation for merged token coordinates
+--   - Fisher-Rao distance preservation (not Euclidean)
+-- ============================================================================
 
 -- Strategy 1: Merge rules from compound words in BIP39
 -- BIP39 has compound-like words that should be atomized
