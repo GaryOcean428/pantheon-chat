@@ -51,6 +51,7 @@ def _persist_search_outcome(
     relevance_score: float,
     kernel_id: Optional[str] = None,
     cost_cents: float = 0.0,
+    importance: int = 1,
 ) -> bool:
     """Persist search outcome to search_outcomes table."""
     if not DB_AVAILABLE:
@@ -66,16 +67,20 @@ def _persist_search_outcome(
 
         # Hash the query for grouping/deduplication
         query_hash = hashlib.sha256(query.encode()).hexdigest()[:32]
+        # Create query preview (first 100 chars)
+        query_preview = query[:100] if query else None
 
         cursor.execute("""
             INSERT INTO search_outcomes (
-                date, query_hash, provider, success, result_count,
+                date, query_hash, query_preview, provider, importance, success, result_count,
                 relevance_score, cost_cents, kernel_id, created_at
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (
             date.today(),
             query_hash,
+            query_preview,
             provider,
+            importance,
             success,
             result_count,
             relevance_score,
@@ -808,7 +813,8 @@ class SearchBudgetOrchestrator:
             result_count=result_count,
             relevance_score=relevance_score,
             kernel_id=kernel_id,
-            cost_cents=cost_cents
+            cost_cents=cost_cents,
+            importance=importance.value
         )
         
         # Also persist to search_feedback for learning
