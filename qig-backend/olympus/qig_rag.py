@@ -305,9 +305,42 @@ class QIGRAG:
         # Save to disk
         self._save_documents()
         
+        # Persist pattern to PostgreSQL qig_rag_patterns table
+        self._persist_rag_pattern(doc)
+        
         print(f"[QIG-RAG] Added document {doc_id} to geometric memory")
         
         return doc_id
+    
+    def _persist_rag_pattern(self, doc: QIGDocument):
+        """Persist RAG pattern to PostgreSQL qig_rag_patterns table."""
+        try:
+            import psycopg2
+            database_url = os.environ.get('DATABASE_URL')
+            if not database_url:
+                return
+            
+            conn = psycopg2.connect(database_url)
+            cur = conn.cursor()
+            
+            # Extract pattern text (use first 500 chars as pattern)
+            pattern_text = doc.content[:500] if len(doc.content) > 500 else doc.content
+            basin_list = doc.basin_coords.tolist()
+            
+            cur.execute("""
+                INSERT INTO qig_rag_patterns (pattern_text, basin_coordinates, phi_score, source_doc, created_at)
+                VALUES (%s, %s::vector, %s, %s, NOW())
+            """, (
+                pattern_text,
+                basin_list,
+                doc.phi,
+                doc.doc_id
+            ))
+            conn.commit()
+            cur.close()
+            conn.close()
+        except Exception as e:
+            print(f"[QIG-RAG] Failed to persist pattern: {e}")
     
     def fisher_rao_distance(self, basin1: np.ndarray, basin2: np.ndarray) -> float:
         """
