@@ -94,6 +94,54 @@ def _persist_search_outcome(
         return False
 
 
+def _persist_search_feedback(
+    query: str,
+    provider: str,
+    relevance_score: float,
+    outcome_quality: float,
+    kernel_id: Optional[str] = None,
+) -> bool:
+    """Persist search feedback to search_feedback table for learning."""
+    if not DB_AVAILABLE:
+        return False
+
+    try:
+        database_url = os.environ.get('DATABASE_URL')
+        if not database_url:
+            return False
+
+        conn = psycopg2.connect(database_url)
+        cursor = conn.cursor()
+
+        record_id = f"fb_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{hashlib.sha256(query.encode()).hexdigest()[:8]}"
+
+        cursor.execute("""
+            INSERT INTO search_feedback (
+                id, query, feedback_type, relevance_score, source, domain,
+                outcome_quality, record_id, created_at
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW())
+            ON CONFLICT DO NOTHING
+        """, (
+            record_id,
+            query[:500],  # Truncate long queries
+            'auto',
+            relevance_score,
+            provider,
+            kernel_id or 'unknown',
+            outcome_quality,
+            record_id
+        ))
+
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return True
+
+    except Exception as e:
+        logger.debug(f"[SearchBudget] Failed to persist search feedback: {e}")
+        return False
+
+
 class SearchImportance(Enum):
     """Query importance levels for budget allocation."""
     ROUTINE = 1      # Use free providers only
@@ -761,6 +809,15 @@ class SearchBudgetOrchestrator:
             relevance_score=relevance_score,
             kernel_id=kernel_id,
             cost_cents=cost_cents
+        )
+        
+        # Also persist to search_feedback for learning
+        _persist_search_feedback(
+            query=query,
+            provider=provider,
+            relevance_score=relevance_score,
+            outcome_quality=relevance_score if success else 0.0,
+            kernel_id=kernel_id
         )
 
         if self.redis:
