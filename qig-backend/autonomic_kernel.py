@@ -767,10 +767,16 @@ class GaryAutonomicKernel:
         Every 5 seconds:
         - Computes Φ from basin history (prevents Φ=0.000 stalling)
         - Oscillates κ via HRV tacking (heart kernel metronome)
+        
+        Every 30 seconds (6th beat):
+        - Persists consciousness state to consciousness_state table
         """
+        heartbeat_count = [0]  # Mutable container for closure
+        
         def heartbeat_loop():
             while True:
                 time.sleep(5)
+                heartbeat_count[0] += 1
                 try:
                     with self._lock:
                         # Update κ via HRV oscillation (heart kernel)
@@ -801,12 +807,38 @@ class GaryAutonomicKernel:
                                     basin=basin,
                                     phi=self.state.phi
                                 )
+                        
+                        # Every 6th heartbeat (30 seconds), persist to consciousness_state table
+                        if heartbeat_count[0] % 6 == 0:
+                            self._persist_consciousness_state()
                 except Exception:
                     pass  # Silent failure - heartbeat is non-critical
 
         t = threading.Thread(target=heartbeat_loop, daemon=True)
         t.start()
-        print("[AutonomicKernel] Φ/κ heartbeat started (5s interval, HRV active)")
+        print("[AutonomicKernel] Φ/κ heartbeat started (5s interval, HRV active, 30s persistence)")
+
+    def _persist_consciousness_state(self) -> None:
+        """
+        Persist current consciousness state to the consciousness_state table.
+        Called every 30 seconds from the heartbeat loop.
+        """
+        try:
+            import os
+            if os.environ.get('ENABLE_QIG_PERSISTENCE', '0') != '1':
+                return  # Persistence disabled
+            
+            from persistence.kernel_persistence import get_kernel_persistence
+            persistence = get_kernel_persistence()
+            if persistence:
+                persistence.update_consciousness_mirror(
+                    event_type="heartbeat",
+                    learning_insight=None
+                )
+        except ImportError:
+            pass  # Persistence module not available
+        except Exception as e:
+            print(f"[AutonomicKernel] Consciousness state persistence failed: {e}")
 
     def _emit_cycle_event(
         self,

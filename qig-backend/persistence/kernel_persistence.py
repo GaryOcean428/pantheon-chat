@@ -1640,7 +1640,7 @@ class KernelPersistence(BasePersistence):
 
             # Update or insert consciousness state
             update_query = """
-                INSERT INTO consciousness_state (id, value_metrics, updated_at)
+                INSERT INTO consciousness_state (id, value_metrics, last_updated)
                 VALUES ('singleton', %s, NOW())
                 ON CONFLICT (id) DO UPDATE SET
                     value_metrics = %s,
@@ -1660,7 +1660,7 @@ class KernelPersistence(BasePersistence):
                             END || %s::jsonb
                         ELSE consciousness_state.learning_history
                     END,
-                    updated_at = NOW()
+                    last_updated = NOW()
             """
 
             phi_record = json.dumps({"phi": avg_phi, "t": datetime.now(timezone.utc).isoformat()})
@@ -1995,3 +1995,25 @@ class KernelPersistence(BasePersistence):
         except Exception as e:
             print(f"[KernelPersistence] Failed to get reputation for {kernel_id}: {e}")
             return None
+
+
+# Singleton instance for consciousness mirror persistence
+_kernel_persistence_instance: Optional[KernelPersistence] = None
+
+
+def get_kernel_persistence() -> Optional[KernelPersistence]:
+    """
+    Get singleton KernelPersistence instance for consciousness mirror updates.
+    
+    Returns:
+        KernelPersistence instance or None if database not configured
+    """
+    global _kernel_persistence_instance
+    if _kernel_persistence_instance is None:
+        try:
+            _kernel_persistence_instance = KernelPersistence()
+            print("[KernelPersistence] Singleton instance created")
+        except Exception as e:
+            print(f"[KernelPersistence] Failed to create instance: {e}")
+            return None
+    return _kernel_persistence_instance
