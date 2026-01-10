@@ -1253,6 +1253,13 @@ class AutonomousCuriosityEngine:
         - Creates checkpoint before learning
         - Validates learned relationships against frozen physics
         - Compares against baseline to ensure improvement
+        
+        SEARCH FALLBACK PIPELINE:
+        When curriculum (docs/09-curriculum) is exhausted and yields 0 new relationships:
+        1. Trigger search via SearchProviderManager for curriculum/kernel topics
+        2. Learn directly from premium provider (Tavily/Perplexity) quality text
+        3. Use ScrapyOrchestrator to crawl cited URLs for full text extraction
+        4. Persist sources to knowledge_sources registry for future crawling
         """
         current_time = time.time()
         
@@ -1273,22 +1280,44 @@ class AutonomousCuriosityEngine:
             
             coordizer = PostgresCoordizer()
             vocab = set(coordizer.basin_coords.keys())
-            learner = WordRelationshipLearner(vocab, window_size=5)
+            learner = WordRelationshipLearner(vocab, window_size=5, expand_vocabulary=True)
             
-            # Resolve docs path relative to this script
-            # Structure: pantheon-replit/qig-backend/autonomous_curiosity.py
-            # docs_path should be pantheon-replit/docs/09-curriculum
+            # PRIMARY PATH: docs/09-curriculum is ALWAYS the first source checked
             docs_path = Path(__file__).parent.parent / 'docs' / '09-curriculum'
             if not docs_path.exists():
-                # Fallback to general docs if curriculum subfolder missing
-                docs_path = Path(__file__).parent.parent / 'docs'
+                # Try alternative paths
+                alt_paths = [
+                    Path('../docs/09-curriculum'),
+                    Path('docs/09-curriculum'),
+                ]
+                for alt_path in alt_paths:
+                    if alt_path.exists():
+                        docs_path = alt_path
+                        break
             
-            logger.info(f"[AutonomousCuriosityEngine] Learning word relationships from: {docs_path}")
-            stats = learner.learn_from_directory(str(docs_path))
+            curriculum_pairs = 0
+            if docs_path.exists():
+                logger.info(f"[AutonomousCuriosityEngine] Learning word relationships from curriculum: {docs_path}")
+                stats = learner.learn_from_directory(str(docs_path))
+                curriculum_pairs = stats.get('total_pairs', 0)
+                logger.info(f"[AutonomousCuriosityEngine] Curriculum yielded {curriculum_pairs} pairs from {stats.get('files_processed', 0)} files")
+            else:
+                logger.warning(f"[AutonomousCuriosityEngine] Curriculum directory not found, triggering search fallback")
             
+            # Learn from existing explorations
             exploration_pairs = self._learn_from_explorations(learner)
             
-            logger.info(f"[AutonomousCuriosityEngine] Learned from {stats['files_processed']} files, {stats['total_pairs']} pairs + {exploration_pairs} from explorations")
+            total_pairs_before_fallback = curriculum_pairs + exploration_pairs
+            logger.info(f"[AutonomousCuriosityEngine] Before fallback: {curriculum_pairs} curriculum + {exploration_pairs} exploration = {total_pairs_before_fallback} pairs")
+            
+            # SEARCH FALLBACK: Trigger when curriculum yields 0 new relationships
+            search_fallback_pairs = 0
+            if total_pairs_before_fallback == 0:
+                logger.warning("[AutonomousCuriosityEngine] 🔄 Curriculum exhausted (0 new relationships), triggering SEARCH FALLBACK")
+                search_fallback_pairs = self._trigger_search_fallback_learning(learner)
+            
+            total_pairs = curriculum_pairs + exploration_pairs + search_fallback_pairs
+            logger.info(f"[AutonomousCuriosityEngine] Total pairs: {total_pairs} (curriculum={curriculum_pairs}, exploration={exploration_pairs}, search_fallback={search_fallback_pairs})")
             
             fresh_lr = LearnedRelationships.__new__(LearnedRelationships)
             fresh_lr.word_neighbors = {}
@@ -1324,6 +1353,338 @@ class AutonomousCuriosityEngine:
             
         except Exception as e:
             logger.error(f"[AutonomousCuriosityEngine] Word learning failed: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    def _trigger_search_fallback_learning(self, learner) -> int:
+        """
+        Search fallback when curriculum yields 0 new word relationships.
+        
+        Pipeline:
+        1. Search for curriculum/kernel topics via SearchProviderManager
+        2. Learn directly from premium provider (Tavily/Perplexity) quality text
+        3. Use ScrapyOrchestrator to crawl cited URLs for full text
+        4. Persist sources for future crawling
+        
+        Returns: Number of word pairs learned from search fallback
+        """
+        pairs_before = learner.total_pairs
+        search_cooldown_key = '_last_search_fallback_time'
+        
+        # Cooldown: prevent excessive search triggering (15 min between fallbacks)
+        last_fallback_time = getattr(self, search_cooldown_key, 0)
+        if time.time() - last_fallback_time < 900:  # 15 min cooldown
+            logger.info("[AutonomousCuriosityEngine] Search fallback on cooldown, skipping")
+            return 0
+        setattr(self, search_cooldown_key, time.time())
+        
+        logger.info("[AutonomousCuriosityEngine] 🔍 Starting search fallback pipeline...")
+        
+        # Step 1: Generate search queries from curriculum keywords and kernel interests
+        search_queries = self._generate_fallback_search_queries()
+        
+        if not search_queries:
+            logger.warning("[AutonomousCuriosityEngine] No search queries generated for fallback")
+            return 0
+        
+        # Step 2: Execute searches via SearchProviderManager
+        search_results = self._execute_fallback_searches(search_queries[:5])  # Max 5 queries
+        
+        if not search_results:
+            logger.warning("[AutonomousCuriosityEngine] No search results returned from fallback")
+            return 0
+        
+        # Step 3: Learn from premium provider results directly
+        premium_pairs = self._learn_from_premium_results(learner, search_results)
+        logger.info(f"[AutonomousCuriosityEngine] Learned {premium_pairs} pairs from premium provider results")
+        
+        # Step 4: Extract and persist cited URLs for Scrapy crawling
+        cited_urls = self._extract_and_persist_cited_sources(search_results)
+        
+        # Step 5: Use ScrapyOrchestrator for full text extraction from URLs
+        scrapy_pairs = self._crawl_and_learn_from_urls(learner, cited_urls)
+        logger.info(f"[AutonomousCuriosityEngine] Learned {scrapy_pairs} pairs from Scrapy crawling")
+        
+        pairs_after = learner.total_pairs
+        total_fallback_pairs = pairs_after - pairs_before
+        
+        logger.info(f"[AutonomousCuriosityEngine] ✅ Search fallback complete: {total_fallback_pairs} new pairs "
+                   f"(premium={premium_pairs}, scrapy={scrapy_pairs})")
+        
+        return total_fallback_pairs
+    
+    def _generate_fallback_search_queries(self) -> List[str]:
+        """Generate search queries from curriculum keywords and kernel interests."""
+        queries = []
+        
+        # Pull keywords from curriculum topics
+        curriculum_keywords = []
+        for topic in self.curriculum_loader.curriculum_topics[:100]:
+            title = topic.get('title', '')
+            keywords = topic.get('keywords', [])
+            if title and title not in self.curriculum_loader.completed_topics:
+                curriculum_keywords.append(title)
+            curriculum_keywords.extend(keywords[:3])
+        
+        # Generate queries from curriculum
+        if curriculum_keywords:
+            unique_keywords = list(set(curriculum_keywords))[:20]
+            for kw in unique_keywords[:10]:
+                queries.append(f"research advances in {kw}")
+                queries.append(f"{kw} fundamental concepts")
+        
+        # Generate queries from kernel interests
+        for kernel_name, interests in list(self.kernel_interests.items())[:5]:
+            for interest in interests[:2]:
+                if interest.lower() not in self._stalled_topics:
+                    queries.append(f"latest {interest} research 2025")
+        
+        # Filter out recent queries to avoid repetition
+        filtered_queries = [
+            q for q in queries 
+            if q.lower()[:50] not in [r.lower()[:50] for r in list(self._recent_queries)[-50:]]
+        ]
+        
+        logger.info(f"[AutonomousCuriosityEngine] Generated {len(filtered_queries)} fallback search queries")
+        return filtered_queries
+    
+    def _execute_fallback_searches(self, queries: List[str]) -> List[Dict]:
+        """Execute fallback searches via SearchProviderManager."""
+        results = []
+        
+        try:
+            from search.search_providers import get_search_manager
+            
+            manager = get_search_manager()
+            
+            for query in queries:
+                try:
+                    # High priority (importance=3) for fallback searches
+                    result = manager.search(
+                        query=query,
+                        max_results=5,
+                        importance=3,  # High importance for curriculum fallback
+                        kernel_id='curiosity_fallback'
+                    )
+                    
+                    if result and result.get('results'):
+                        result['query'] = query
+                        results.append(result)
+                        
+                        # Track query to avoid repetition
+                        self._recent_queries.append(query)
+                        
+                        # Request high-priority search for kernel visibility
+                        self.request_search(
+                            kernel_name='curiosity_fallback',
+                            query=query,
+                            priority=0.9,
+                            context={
+                                'exploration_type': 'curriculum_fallback',
+                                'fallback_reason': 'curriculum_exhausted',
+                                'results_count': len(result.get('results', []))
+                            }
+                        )
+                        
+                except Exception as e:
+                    logger.warning(f"[AutonomousCuriosityEngine] Search failed for '{query}': {e}")
+                    continue
+        
+        except ImportError as e:
+            logger.warning(f"[AutonomousCuriosityEngine] SearchProviderManager not available: {e}")
+        
+        logger.info(f"[AutonomousCuriosityEngine] Executed {len(results)} successful fallback searches")
+        return results
+    
+    def _learn_from_premium_results(self, learner, search_results: List[Dict]) -> int:
+        """
+        Learn directly from premium provider (Tavily/Perplexity) quality text.
+        Premium providers return high-quality content that can be learned from immediately.
+        """
+        pairs_before = learner.total_pairs
+        
+        for result in search_results:
+            provider = result.get('provider', 'unknown')
+            
+            # Premium providers return quality text directly
+            if provider in ('tavily', 'perplexity'):
+                # Extract rich content from premium results
+                for item in result.get('results', []):
+                    content = item.get('content', '') or item.get('text', '') or item.get('snippet', '')
+                    if content and len(content) > 50:
+                        try:
+                            learner.learn_from_text(str(content))
+                        except Exception as e:
+                            logger.warning(f"[AutonomousCuriosityEngine] Learning from premium result failed: {e}")
+            
+            # Also learn from general result content
+            for item in result.get('results', []):
+                content = item.get('content', '') or item.get('text', '')
+                if content and len(content) > 100:
+                    try:
+                        learner.learn_from_text(str(content))
+                    except Exception as e:
+                        pass  # Non-fatal
+        
+        return learner.total_pairs - pairs_before
+    
+    def _extract_and_persist_cited_sources(self, search_results: List[Dict]) -> List[str]:
+        """
+        Extract and persist cited URLs from search results for future Scrapy crawling.
+        Uses KnowledgeSourceRegistry for source indexing.
+        """
+        cited_urls = []
+        
+        for result in search_results:
+            query = result.get('query', 'unknown')
+            provider = result.get('provider', 'unknown')
+            
+            for item in result.get('results', []):
+                url = item.get('url', '') or item.get('link', '')
+                if url and url.startswith('http'):
+                    cited_urls.append(url)
+                    
+                    # Persist to source index for future crawling
+                    self._persist_source_to_index(
+                        url=url,
+                        title=item.get('title', ''),
+                        content_snippet=item.get('content', '')[:500] if item.get('content') else '',
+                        provider=provider,
+                        query=query
+                    )
+        
+        logger.info(f"[AutonomousCuriosityEngine] Extracted {len(cited_urls)} cited URLs for Scrapy crawling")
+        return list(set(cited_urls))[:20]  # Dedupe and limit
+    
+    def _persist_source_to_index(
+        self,
+        url: str,
+        title: str,
+        content_snippet: str,
+        provider: str,
+        query: str
+    ) -> None:
+        """
+        Persist a cited source to the knowledge_sources registry and database.
+        Stores URLs, content hashes, and learning status for future Scrapy crawling.
+        """
+        try:
+            import hashlib
+            import os
+            import psycopg2
+            
+            db_url = os.environ.get('DATABASE_URL')
+            if not db_url:
+                return
+            
+            content_hash = hashlib.sha256((url + content_snippet).encode()).hexdigest()[:32]
+            
+            conn = psycopg2.connect(db_url)
+            try:
+                with conn.cursor() as cur:
+                    # Create table if not exists
+                    cur.execute("""
+                        CREATE TABLE IF NOT EXISTS crawl_source_index (
+                            id SERIAL PRIMARY KEY,
+                            url TEXT UNIQUE NOT NULL,
+                            title TEXT,
+                            content_hash TEXT,
+                            provider TEXT,
+                            query TEXT,
+                            learning_status TEXT DEFAULT 'pending',
+                            created_at TIMESTAMPTZ DEFAULT NOW(),
+                            last_crawled_at TIMESTAMPTZ
+                        )
+                    """)
+                    
+                    # Insert or update source
+                    cur.execute("""
+                        INSERT INTO crawl_source_index (url, title, content_hash, provider, query, learning_status)
+                        VALUES (%s, %s, %s, %s, %s, 'pending')
+                        ON CONFLICT (url) DO UPDATE SET
+                            title = COALESCE(EXCLUDED.title, crawl_source_index.title),
+                            content_hash = EXCLUDED.content_hash,
+                            provider = EXCLUDED.provider,
+                            query = EXCLUDED.query
+                    """, (url, title, content_hash, provider, query))
+                    
+                    conn.commit()
+                    
+            finally:
+                conn.close()
+                
+        except Exception as e:
+            logger.warning(f"[AutonomousCuriosityEngine] Source indexing failed: {e}")
+    
+    def _crawl_and_learn_from_urls(self, learner, urls: List[str]) -> int:
+        """
+        Use ScrapyOrchestrator to crawl URLs and extract full text for learning.
+        """
+        if not urls:
+            return 0
+        
+        pairs_before = learner.total_pairs
+        
+        try:
+            from olympus.shadow_scrapy import ScrapyOrchestrator, HAS_SCRAPY, HAS_TWISTED
+            
+            if not (HAS_SCRAPY and HAS_TWISTED):
+                logger.warning("[AutonomousCuriosityEngine] Scrapy/Twisted not available for URL crawling")
+                return 0
+            
+            orchestrator = ScrapyOrchestrator()
+            
+            # Crawl URLs and get insights
+            for url in urls[:10]:  # Limit to 10 URLs per cycle
+                try:
+                    insights = orchestrator.crawl_url(url)
+                    
+                    for insight in insights:
+                        raw_content = insight.raw_content if hasattr(insight, 'raw_content') else ''
+                        if raw_content and len(raw_content) > 100:
+                            learner.learn_from_text(raw_content)
+                            
+                            # Update source index with learning status
+                            self._update_source_learning_status(url, 'learned')
+                            
+                except Exception as e:
+                    logger.warning(f"[AutonomousCuriosityEngine] Failed to crawl {url}: {e}")
+                    self._update_source_learning_status(url, 'failed')
+                    continue
+        
+        except ImportError as e:
+            logger.warning(f"[AutonomousCuriosityEngine] ScrapyOrchestrator not available: {e}")
+            return 0
+        except Exception as e:
+            logger.error(f"[AutonomousCuriosityEngine] Scrapy crawling failed: {e}")
+            return 0
+        
+        return learner.total_pairs - pairs_before
+    
+    def _update_source_learning_status(self, url: str, status: str) -> None:
+        """Update the learning status of a source in the index."""
+        try:
+            import os
+            import psycopg2
+            
+            db_url = os.environ.get('DATABASE_URL')
+            if not db_url:
+                return
+            
+            conn = psycopg2.connect(db_url)
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        UPDATE crawl_source_index
+                        SET learning_status = %s, last_crawled_at = NOW()
+                        WHERE url = %s
+                    """, (status, url))
+                    conn.commit()
+            finally:
+                conn.close()
+                
+        except Exception as e:
+            pass  # Non-fatal
     
     def run_word_learning_now(self) -> Dict:
         """
