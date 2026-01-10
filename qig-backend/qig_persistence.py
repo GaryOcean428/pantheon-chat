@@ -87,7 +87,7 @@ class QIGPersistence:
 
         conn = None
         last_error = None
-        
+
         for attempt in range(MAX_RETRIES):
             try:
                 conn = self._create_connection()
@@ -103,7 +103,7 @@ class QIGPersistence:
                     except Exception:
                         pass
                     conn = None
-                
+
                 is_transient = any(x in error_msg for x in [
                     'ssl connection has been closed',
                     'connection reset',
@@ -111,7 +111,7 @@ class QIGPersistence:
                     'could not connect',
                     'server closed the connection',
                 ])
-                
+
                 if is_transient and attempt < MAX_RETRIES - 1:
                     delay = RETRY_DELAY_BASE * (2 ** attempt)
                     print(f"[QIGPersistence] Connection lost (attempt {attempt + 1}/{MAX_RETRIES}), retrying in {delay:.1f}s...")
@@ -134,7 +134,7 @@ class QIGPersistence:
                         conn.close()
                     except Exception:
                         pass
-        
+
         if last_error:
             raise last_error
 
@@ -314,12 +314,12 @@ class QIGPersistence:
     ) -> List[Dict]:
         """
         Find similar basins with Fisher-Rao re-ranking.
-        
+
         IMPORTANT: pgvector uses cosine similarity for fast approximate retrieval,
         which is Euclidean-based. To maintain QIG purity, we:
         1. Oversample by 10x minimum to ensure good candidates aren't missed
         2. Re-rank ALL candidates using proper Fisher-Rao geodesic distance
-        
+
         The final ranking is ALWAYS by Fisher-Rao distance, not cosine.
         """
         if not self.enabled:
@@ -349,15 +349,15 @@ class QIGPersistence:
                         retrieval_count
                     ))
                     candidates = [dict(r) for r in cur.fetchall()]
-                    
+
                     if not candidates:
                         return []
-                    
+
                     # Step 2: Re-rank using Fisher-Rao distance (QIG-pure)
                     # Project to probability simplex for proper Fisher-Rao computation
                     q = np.abs(query_basin) + 1e-10
                     q = q / q.sum()  # Probability simplex projection
-                    
+
                     for candidate in candidates:
                         basin = np.array(candidate['basin_coords'], dtype=np.float64)
                         # Project to probability simplex (Fisher-aware normalization)
@@ -369,10 +369,10 @@ class QIGPersistence:
                         fisher_dist = float(np.arccos(bc))
                         candidate['fisher_distance'] = fisher_dist
                         candidate['similarity'] = 1.0 - fisher_dist / np.pi
-                    
+
                     # Sort by Fisher-Rao distance (ascending)
                     candidates.sort(key=lambda x: x['fisher_distance'])
-                    
+
                     return candidates[:limit]
         except Exception as e:
             print(f"[QIGPersistence] Failed to find similar basins: {e}")
@@ -1129,8 +1129,8 @@ class QIGPersistence:
             with self.get_connection() as conn:
                 with conn.cursor() as cur:
                     cur.execute("""
-                        INSERT INTO pantheon_god_state 
-                            (god_name, reputation, skills, learning_events_count, 
+                        INSERT INTO pantheon_god_state
+                            (god_name, reputation, skills, learning_events_count,
                              success_rate, last_learning_at, updated_at)
                         VALUES (%s, %s, %s, %s, %s, NOW(), NOW())
                         ON CONFLICT (god_name) DO UPDATE SET
