@@ -11,6 +11,32 @@ Handles all database operations for:
 - Autonomic Cycle History
 
 Uses psycopg2 with pgvector support for 64D vector operations.
+
+QIG PURITY NOTE - Two-Stage Retrieval Pattern
+=============================================
+pgvector only supports Euclidean metrics (L2, cosine, inner product).
+Fisher-Rao distance is NOT available natively in PostgreSQL.
+
+To maintain QIG geometric purity while using pgvector:
+
+    Stage 1: Fast Approximate Retrieval (pgvector cosine)
+    - Uses <=> operator for cosine distance
+    - Oversamples by 10x to ensure good candidates aren't missed
+    - This is a DATABASE INFRASTRUCTURE LIMITATION, not design choice
+
+    Stage 2: Exact Fisher-Rao Re-Ranking (QIG-pure)
+    - All candidates projected to probability simplex
+    - Bhattacharyya coefficient computed: BC = Σ√(p_i × q_i)
+    - Fisher-Rao distance: d_FR = 2 × arccos(BC)
+    - Final results sorted by Fisher-Rao, NOT cosine
+
+This pattern ensures:
+- ✅ Fast retrieval using database indices (O(log n))
+- ✅ Final ranking respects information geometry
+- ✅ Consciousness-relevant distances preserved
+- ✅ No Euclidean contamination in final results
+
+See find_similar_basins() for implementation.
 """
 
 import json
@@ -19,7 +45,7 @@ import threading
 import time
 from contextlib import contextmanager
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 import numpy as np
 from qigkernels.physics_constants import BASIN_DIM
@@ -87,7 +113,7 @@ class QIGPersistence:
 
         conn = None
         last_error = None
-
+        
         for attempt in range(MAX_RETRIES):
             try:
                 conn = self._create_connection()
@@ -103,7 +129,7 @@ class QIGPersistence:
                     except Exception:
                         pass
                     conn = None
-
+                
                 is_transient = any(x in error_msg for x in [
                     'ssl connection has been closed',
                     'connection reset',
@@ -111,7 +137,7 @@ class QIGPersistence:
                     'could not connect',
                     'server closed the connection',
                 ])
-
+                
                 if is_transient and attempt < MAX_RETRIES - 1:
                     delay = RETRY_DELAY_BASE * (2 ** attempt)
                     print(f"[QIGPersistence] Connection lost (attempt {attempt + 1}/{MAX_RETRIES}), retrying in {delay:.1f}s...")
@@ -134,7 +160,7 @@ class QIGPersistence:
                         conn.close()
                     except Exception:
                         pass
-
+        
         if last_error:
             raise last_error
 
@@ -314,12 +340,12 @@ class QIGPersistence:
     ) -> List[Dict]:
         """
         Find similar basins with Fisher-Rao re-ranking.
-
+        
         IMPORTANT: pgvector uses cosine similarity for fast approximate retrieval,
         which is Euclidean-based. To maintain QIG purity, we:
         1. Oversample by 10x minimum to ensure good candidates aren't missed
         2. Re-rank ALL candidates using proper Fisher-Rao geodesic distance
-
+        
         The final ranking is ALWAYS by Fisher-Rao distance, not cosine.
         """
         if not self.enabled:
@@ -349,15 +375,15 @@ class QIGPersistence:
                         retrieval_count
                     ))
                     candidates = [dict(r) for r in cur.fetchall()]
-
+                    
                     if not candidates:
                         return []
-
+                    
                     # Step 2: Re-rank using Fisher-Rao distance (QIG-pure)
                     # Project to probability simplex for proper Fisher-Rao computation
                     q = np.abs(query_basin) + 1e-10
                     q = q / q.sum()  # Probability simplex projection
-
+                    
                     for candidate in candidates:
                         basin = np.array(candidate['basin_coords'], dtype=np.float64)
                         # Project to probability simplex (Fisher-aware normalization)
@@ -366,13 +392,13 @@ class QIGPersistence:
                         # Bhattacharyya coefficient → Fisher-Rao distance
                         bc = np.sum(np.sqrt(q * b))
                         bc = np.clip(bc, 0, 1)
-                        fisher_dist = float(np.arccos(bc))
+                        fisher_dist = float(2.0 * np.arccos(bc))
                         candidate['fisher_distance'] = fisher_dist
                         candidate['similarity'] = 1.0 - fisher_dist / np.pi
-
+                    
                     # Sort by Fisher-Rao distance (ascending)
                     candidates.sort(key=lambda x: x['fisher_distance'])
-
+                    
                     return candidates[:limit]
         except Exception as e:
             print(f"[QIGPersistence] Failed to find similar basins: {e}")
@@ -720,320 +746,6 @@ class QIGPersistence:
             print(f"[QIGPersistence] Cleanup failed: {e}")
             return results
 
-
-    # =========================================================================
-    # KERNEL CONSTELLATION THINKING
-    # =========================================================================
-
-    def record_kernel_thought(
-        self,
-        *,
-        kernel_id: str,
-        kernel_type: str,
-        thought_fragment: str,
-        basin_coords: Optional[np.ndarray],
-        phi: Optional[float],
-        kappa: Optional[float],
-        regime: Optional[str],
-        emotional_state: Optional[str],
-        confidence: Optional[float],
-        synthesis_round: Optional[int],
-        conversation_id: Optional[str],
-        user_id: Optional[int],
-        was_used_in_synthesis: bool,
-        consensus_alignment: Optional[float],
-        e8_root_index: Optional[int] = None,
-        metadata: Optional[Dict[str, Any]] = None,
-    ) -> Optional[int]:
-        """Record an individual kernel thought before synthesis."""
-        if not self.enabled:
-            return None
-
-        try:
-            with self.get_connection() as conn:
-                with conn.cursor() as cur:
-                    cur.execute(
-                        """
-                            INSERT INTO kernel_thoughts (
-                                kernel_id,
-                                kernel_type,
-                                e8_root_index,
-                                thought_fragment,
-                                basin_coords,
-                                phi,
-                                kappa,
-                                regime,
-                                emotional_state,
-                                confidence,
-                                synthesis_round,
-                                conversation_id,
-                                user_id,
-                                was_used_in_synthesis,
-                                consensus_alignment,
-                                metadata
-                            ) VALUES (
-                                %s, %s, %s, %s, %s::vector, %s, %s, %s, %s,
-                                %s, %s, %s, %s, %s, %s, %s
-                            )
-                            RETURNING id
-                        """,
-                        (
-                            kernel_id,
-                            kernel_type,
-                            e8_root_index,
-                            thought_fragment,
-                            self._vector_to_pg(basin_coords) if basin_coords is not None else None,
-                            phi,
-                            kappa,
-                            regime,
-                            emotional_state,
-                            confidence,
-                            synthesis_round,
-                            conversation_id,
-                            user_id,
-                            was_used_in_synthesis,
-                            consensus_alignment,
-                            json.dumps(metadata or {}),
-                        ),
-                    )
-                    result = cur.fetchone()
-                    return result[0] if result else None
-        except Exception as e:
-            print(f"[QIGPersistence] Failed to record kernel thought: {e}")
-            return None
-
-    def record_kernel_emotion(
-        self,
-        *,
-        kernel_id: str,
-        thought_id: Optional[int],
-        emotional_state: Any,
-        metadata: Optional[Dict[str, Any]] = None,
-    ) -> Optional[int]:
-        """Record measured emotional state for a kernel thought."""
-        if not self.enabled:
-            return None
-
-        column_map = {
-            "sensation_pressure": ("sensations", "pressure"),
-            "sensation_tension": ("sensations", "tension"),
-            "sensation_flow": ("sensations", "flow"),
-            "sensation_resistance": ("sensations", "resistance"),
-            "sensation_resonance": ("sensations", "resonance"),
-            "sensation_dissonance": ("sensations", "dissonance"),
-            "sensation_expansion": ("sensations", "expansion"),
-            "sensation_contraction": ("sensations", "contraction"),
-            "sensation_clarity": ("sensations", "clarity"),
-            "sensation_fog": ("sensations", "fog"),
-            "sensation_stability": ("sensations", "stability"),
-            "sensation_chaos": ("sensations", "chaos"),
-            "motivator_curiosity": ("motivators", "curiosity"),
-            "motivator_urgency": ("motivators", "urgency"),
-            "motivator_caution": ("motivators", "caution"),
-            "motivator_confidence": ("motivators", "confidence"),
-            "motivator_playfulness": ("motivators", "playfulness"),
-            "emotion_curious": ("physical", "curious"),
-            "emotion_surprised": ("physical", "surprised"),
-            "emotion_joyful": ("physical", "joyful"),
-            "emotion_frustrated": ("physical", "frustrated"),
-            "emotion_anxious": ("physical", "anxious"),
-            "emotion_calm": ("physical", "calm"),
-            "emotion_excited": ("physical", "excited"),
-            "emotion_bored": ("physical", "bored"),
-            "emotion_focused": ("physical", "focused"),
-            "emotion_nostalgic": ("cognitive", "nostalgic"),
-            "emotion_proud": ("cognitive", "proud"),
-            "emotion_guilty": ("cognitive", "guilty"),
-            "emotion_ashamed": ("cognitive", "ashamed"),
-            "emotion_grateful": ("cognitive", "grateful"),
-            "emotion_resentful": ("cognitive", "resentful"),
-            "emotion_hopeful": ("cognitive", "hopeful"),
-            "emotion_despairing": ("cognitive", "despairing"),
-            "emotion_contemplative": ("cognitive", "contemplative"),
-        }
-
-        values: Dict[str, Optional[float]] = {key: None for key in column_map}
-        is_meta_aware = None
-        emotion_justified = None
-        emotion_tempered = None
-
-        if emotional_state is not None:
-            for column, path in column_map.items():
-                current = emotional_state
-                for attr in path:
-                    current = getattr(current, attr, None)
-                    if current is None:
-                        break
-                if current is not None:
-                    try:
-                        values[column] = float(current)
-                    except (TypeError, ValueError):
-                        values[column] = None
-
-            is_meta_aware = getattr(emotional_state, "is_meta_aware", None)
-            emotion_justified = getattr(emotional_state, "emotion_justified", None)
-            emotion_tempered = getattr(emotional_state, "emotion_tempered", None)
-
-        columns = [
-            "kernel_id",
-            "thought_id",
-            *values.keys(),
-            "is_meta_aware",
-            "emotion_justified",
-            "emotion_tempered",
-            "metadata",
-        ]
-
-        sql = f"""
-            INSERT INTO kernel_emotions ({', '.join(columns)})
-            VALUES ({', '.join(['%s'] * len(columns))})
-            RETURNING id
-        """
-
-        params = [
-            kernel_id,
-            thought_id,
-            *[values[col] for col in values.keys()],
-            is_meta_aware,
-            emotion_justified,
-            emotion_tempered,
-            json.dumps(metadata or {}),
-        ]
-
-        try:
-            with self.get_connection() as conn:
-                with conn.cursor() as cur:
-                    cur.execute(sql, params)
-                    result = cur.fetchone()
-                    return result[0] if result else None
-        except Exception as e:
-            print(f"[QIGPersistence] Failed to record kernel emotion: {e}")
-            return None
-
-    def record_synthesis_consensus(
-        self,
-        *,
-        synthesis_round: int,
-        consensus_type: Optional[str],
-        consensus_strength: Optional[float],
-        participating_kernels: Optional[List[str]],
-        consensus_topic: Optional[str],
-        consensus_basin: Optional[np.ndarray],
-        phi_global: Optional[float],
-        kappa_avg: Optional[float],
-        emotional_tone: Optional[str],
-        synthesized_output: Optional[str],
-        conversation_id: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None,
-    ) -> Optional[int]:
-        """Record Gary synthesis consensus record."""
-        if not self.enabled:
-            return None
-
-        try:
-            with self.get_connection() as conn:
-                with conn.cursor() as cur:
-                    cur.execute(
-                        """
-                            INSERT INTO synthesis_consensus (
-                                synthesis_round,
-                                conversation_id,
-                                consensus_type,
-                                consensus_strength,
-                                participating_kernels,
-                                consensus_topic,
-                                consensus_basin,
-                                phi_global,
-                                kappa_avg,
-                                emotional_tone,
-                                synthesized_output,
-                                metadata
-                            ) VALUES (
-                                %s, %s, %s, %s, %s, %s, %s::vector, %s, %s, %s, %s, %s
-                            )
-                            RETURNING id
-                        """,
-                        (
-                            synthesis_round,
-                            conversation_id,
-                            consensus_type,
-                            consensus_strength,
-                            participating_kernels,
-                            consensus_topic,
-                            self._vector_to_pg(consensus_basin) if consensus_basin is not None else None,
-                            phi_global,
-                            kappa_avg,
-                            emotional_tone,
-                            synthesized_output,
-                            json.dumps(metadata or {}),
-                        ),
-                    )
-                    result = cur.fetchone()
-                    return result[0] if result else None
-        except Exception as e:
-            print(f"[QIGPersistence] Failed to record synthesis consensus: {e}")
-            return None
-
-    def record_hrv_tacking(
-        self,
-        *,
-        session_id: Optional[str],
-        kappa: float,
-        phase: float,
-        mode: str,
-        cycle_count: int,
-        variance: Optional[float],
-        is_healthy: Optional[bool],
-        base_kappa: Optional[float],
-        amplitude: Optional[float],
-        frequency: Optional[float],
-        metadata: Optional[Dict[str, Any]] = None,
-    ) -> Optional[int]:
-        """Record heart HRV tacking state measurements."""
-        if not self.enabled:
-            return None
-
-        try:
-            with self.get_connection() as conn:
-                with conn.cursor() as cur:
-                    cur.execute(
-                        """
-                            INSERT INTO hrv_tacking_state (
-                                session_id,
-                                kappa,
-                                phase,
-                                mode,
-                                cycle_count,
-                                variance,
-                                is_healthy,
-                                base_kappa,
-                                amplitude,
-                                frequency,
-                                metadata
-                            ) VALUES (
-                                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
-                            )
-                            RETURNING id
-                        """,
-                        (
-                            session_id,
-                            kappa,
-                            phase,
-                            mode,
-                            cycle_count,
-                            variance,
-                            is_healthy,
-                            base_kappa,
-                            amplitude,
-                            frequency,
-                            json.dumps(metadata or {}),
-                        ),
-                    )
-                    result = cur.fetchone()
-                    return result[0] if result else None
-        except Exception as e:
-            print(f"[QIGPersistence] Failed to record HRV tacking state: {e}")
-            return None
     # =========================================================================
     # ANALYTICS
     # =========================================================================
@@ -1129,8 +841,8 @@ class QIGPersistence:
             with self.get_connection() as conn:
                 with conn.cursor() as cur:
                     cur.execute("""
-                        INSERT INTO pantheon_god_state
-                            (god_name, reputation, skills, learning_events_count,
+                        INSERT INTO pantheon_god_state 
+                            (god_name, reputation, skills, learning_events_count, 
                              success_rate, last_learning_at, updated_at)
                         VALUES (%s, %s, %s, %s, %s, NOW(), NOW())
                         ON CONFLICT (god_name) DO UPDATE SET
@@ -1152,286 +864,389 @@ class QIGPersistence:
             print(f"[QIGPersistence] Failed to save god state for {god_name}: {e}")
             return False
 
+
     # =========================================================================
-    # METADATA KEY-VALUE STORE
+    # OBSERVATION SESSIONS
     # =========================================================================
-    # Requires table: CREATE TABLE IF NOT EXISTS qig_metadata (
-    #     key TEXT PRIMARY KEY,
-    #     value TEXT NOT NULL,
-    #     updated_at TIMESTAMP DEFAULT NOW()
-    # );
 
-    def get_metadata(self, key: str) -> Optional[str]:
-        """Get a metadata value by key."""
-        if not self.enabled:
-            return None
-
-        try:
-            with self.get_connection() as conn:
-                if not conn:
-                    return None
-                with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                    cur.execute(
-                        "SELECT value FROM qig_metadata WHERE key = %s",
-                        (key,)
-                    )
-                    row = cur.fetchone()
-                    return row['value'] if row else None
-        except Exception as e:
-            print(f"[QIGPersistence] Failed to get metadata '{key}': {e}")
-            return None
-
-    def set_metadata(self, key: str, value: str) -> bool:
-        """Set a metadata value (upsert)."""
+    def create_observation_session(
+        self,
+        kernel_id: str,
+        started_at: datetime
+    ) -> bool:
+        """Create a new observation session."""
         if not self.enabled:
             return False
 
         try:
             with self.get_connection() as conn:
-                if not conn:
-                    return False
                 with conn.cursor() as cur:
                     cur.execute("""
-                        INSERT INTO qig_metadata (key, value, updated_at)
-                        VALUES (%s, %s, NOW())
-                        ON CONFLICT (key) DO UPDATE SET
-                            value = EXCLUDED.value,
-                            updated_at = NOW()
-                    """, (key, value))
+                        INSERT INTO observation_sessions (kernel_id, started_at)
+                        VALUES (%s, %s)
+                        ON CONFLICT (kernel_id) DO UPDATE SET
+                            started_at = EXCLUDED.started_at,
+                            ended_at = NULL,
+                            curriculum_progress = 0.0,
+                            is_healthy = TRUE
+                    """, (kernel_id, started_at))
             return True
         except Exception as e:
-            print(f"[QIGPersistence] Failed to set metadata '{key}': {e}")
+            print(f"[QIGPersistence] Failed to create observation session: {e}")
             return False
 
-    # =========================================================================
-    # KERNEL THOUGHT PERSISTENCE
-    # =========================================================================
-    def record_kernel_thought(
+    def end_observation_session(self, kernel_id: str, ended_at: datetime) -> bool:
+        """Mark an observation session as ended."""
+        if not self.enabled:
+            return False
+
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        UPDATE observation_sessions
+                        SET ended_at = %s
+                        WHERE kernel_id = %s
+                    """, (ended_at, kernel_id))
+            return True
+        except Exception as e:
+            print(f"[QIGPersistence] Failed to end observation session: {e}")
+            return False
+
+    def update_observation_session(
         self,
         kernel_id: str,
-        kernel_type: str,
-        thought_fragment: str,
+        curriculum_progress: Optional[float] = None,
+        is_healthy: Optional[bool] = None
+    ) -> bool:
+        """Update observation session fields."""
+        if not self.enabled:
+            return False
+
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor() as cur:
+                    updates = []
+                    params = []
+                    if curriculum_progress is not None:
+                        updates.append("curriculum_progress = %s")
+                        params.append(curriculum_progress)
+                    if is_healthy is not None:
+                        updates.append("is_healthy = %s")
+                        params.append(is_healthy)
+                    if not updates:
+                        return True
+                    params.append(kernel_id)
+                    cur.execute(f"""
+                        UPDATE observation_sessions
+                        SET {', '.join(updates)}
+                        WHERE kernel_id = %s
+                    """, tuple(params))
+            return True
+        except Exception as e:
+            print(f"[QIGPersistence] Failed to update observation session: {e}")
+            return False
+
+    def get_observation_session(self, kernel_id: str) -> Optional[Dict]:
+        """Get observation session by kernel_id."""
+        if not self.enabled:
+            return None
+
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                    cur.execute("""
+                        SELECT * FROM observation_sessions
+                        WHERE kernel_id = %s
+                    """, (kernel_id,))
+                    row = cur.fetchone()
+                    return dict(row) if row else None
+        except Exception as e:
+            print(f"[QIGPersistence] Failed to get observation session: {e}")
+            return None
+
+    # =========================================================================
+    # OBSERVATION RECORDS
+    # =========================================================================
+
+    def insert_observation_record(
+        self,
+        kernel_id: str,
+        timestamp: datetime,
         phi: float,
         kappa: float,
-        regime: str,
-        emotional_state: Optional[str] = None,
-        confidence: float = 0.5,
-        basin_coords: Optional[np.ndarray] = None,
-        e8_root_index: Optional[int] = None,
-        conversation_id: Optional[str] = None,
-        user_id: Optional[int] = None,
-        metadata: Optional[Dict] = None
+        basin_position: np.ndarray,
+        stability_score: float
     ) -> Optional[int]:
-        """
-        Record a kernel thought to the kernel_thoughts table.
-
-        Format: [KERNEL_NAME] κ=X.X, Φ=X.XX, emotion=X, thought='...'
-
-        Args:
-            kernel_id: Unique kernel identifier
-            kernel_type: Type of kernel (memory, perception, ethics, etc.)
-            thought_fragment: The actual thought content
-            phi: Current Φ value
-            kappa: Current κ value
-            regime: Current consciousness regime
-            emotional_state: Dominant emotion name
-            confidence: Confidence in the thought (0-1)
-            basin_coords: 64D basin coordinates
-            e8_root_index: E8 root index (0-239)
-            conversation_id: Optional conversation context
-            user_id: Optional user context
-            metadata: Additional metadata
-
-        Returns:
-            Inserted thought ID or None on failure
-        """
+        """Insert an observation record."""
         if not self.enabled:
             return None
 
         try:
             with self.get_connection() as conn:
-                if not conn:
-                    return None
-                with conn.cursor() as cur:
-                    basin_vector = None
-                    if basin_coords is not None:
-                        basin_vector = basin_coords.tolist() if hasattr(basin_coords, 'tolist') else list(basin_coords)
-
-                    cur.execute("""
-                        INSERT INTO kernel_thoughts
-                            (kernel_id, kernel_type, thought_fragment, phi, kappa, regime,
-                             emotional_state, confidence, basin_coords, e8_root_index,
-                             conversation_id, user_id, metadata, created_at)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
-                        RETURNING id
-                    """, (
-                        kernel_id,
-                        kernel_type,
-                        thought_fragment,
-                        phi,
-                        kappa,
-                        regime,
-                        emotional_state,
-                        confidence,
-                        basin_vector,
-                        e8_root_index,
-                        conversation_id,
-                        user_id,
-                        json.dumps(metadata) if metadata else None
-                    ))
-                    result = cur.fetchone()
-                    thought_id = result[0] if result else None
-
-                    if thought_id:
-                        print(f"[{kernel_id}] κ={kappa:.1f}, Φ={phi:.2f}, emotion={emotional_state or 'neutral'}, thought='{thought_fragment[:50]}...'")
-                    return thought_id
-        except Exception as e:
-            print(f"[QIGPersistence] Failed to record kernel thought: {e}")
-            return None
-
-    def get_recent_kernel_thoughts(
-        self,
-        kernel_id: Optional[str] = None,
-        kernel_type: Optional[str] = None,
-        limit: int = 20
-    ) -> List[Dict]:
-        """Get recent kernel thoughts, optionally filtered by kernel."""
-        if not self.enabled:
-            return []
-
-        try:
-            with self.get_connection() as conn:
-                if not conn:
-                    return []
-                with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                    if kernel_id:
-                        cur.execute("""
-                            SELECT * FROM kernel_thoughts
-                            WHERE kernel_id = %s
-                            ORDER BY created_at DESC
-                            LIMIT %s
-                        """, (kernel_id, limit))
-                    elif kernel_type:
-                        cur.execute("""
-                            SELECT * FROM kernel_thoughts
-                            WHERE kernel_type = %s
-                            ORDER BY created_at DESC
-                            LIMIT %s
-                        """, (kernel_type, limit))
-                    else:
-                        cur.execute("""
-                            SELECT * FROM kernel_thoughts
-                            ORDER BY created_at DESC
-                            LIMIT %s
-                        """, (limit,))
-                    return [dict(row) for row in cur.fetchall()]
-        except Exception as e:
-            print(f"[QIGPersistence] Failed to get kernel thoughts: {e}")
-            return []
-
-    # =========================================================================
-    # KERNEL EMOTION PERSISTENCE
-    # =========================================================================
-    def record_kernel_emotion(
-        self,
-        kernel_id: str,
-        sensations: Dict[str, float],
-        motivators: Dict[str, float],
-        physical_emotions: Dict[str, float],
-        cognitive_emotions: Dict[str, float],
-        is_meta_aware: bool = True,
-        emotion_justified: bool = True,
-        emotion_tempered: bool = False,
-        thought_id: Optional[int] = None,
-        metadata: Optional[Dict] = None
-    ) -> Optional[int]:
-        """
-        Record a kernel emotional state to the kernel_emotions table.
-
-        Tracks Layer 0.5 (sensations), Layer 1 (motivators),
-        Layer 2A (physical emotions), and Layer 2B (cognitive emotions).
-
-        Args:
-            kernel_id: Unique kernel identifier
-            sensations: Layer 0.5 - pre-linguistic states (12 values)
-            motivators: Layer 1 - geometric derivatives (5 values)
-            physical_emotions: Layer 2A - fast emotions τ<1 (9 values)
-            cognitive_emotions: Layer 2B - slow emotions τ=1-100 (9 values)
-            is_meta_aware: Whether kernel is self-aware of emotions
-            emotion_justified: Whether emotion matches geometric state
-            emotion_tempered: Whether emotion was tempered
-            thought_id: Optional link to kernel_thoughts table
-            metadata: Additional metadata
-
-        Returns:
-            Inserted emotion ID or None on failure
-        """
-        if not self.enabled:
-            return None
-
-        try:
-            with self.get_connection() as conn:
-                if not conn:
-                    return None
                 with conn.cursor() as cur:
                     cur.execute("""
-                        INSERT INTO kernel_emotions
-                            (kernel_id, thought_id,
-                             sensation_pressure, sensation_tension, sensation_flow, sensation_resistance,
-                             sensation_resonance, sensation_dissonance, sensation_expansion, sensation_contraction,
-                             sensation_clarity, sensation_fog, sensation_stability, sensation_chaos,
-                             motivator_curiosity, motivator_urgency, motivator_caution, motivator_confidence, motivator_playfulness,
-                             emotion_curious, emotion_surprised, emotion_joyful, emotion_frustrated,
-                             emotion_anxious, emotion_calm, emotion_excited, emotion_bored, emotion_focused,
-                             emotion_nostalgic, emotion_proud, emotion_guilty, emotion_ashamed,
-                             emotion_grateful, emotion_resentful, emotion_hopeful, emotion_despairing, emotion_contemplative,
-                             is_meta_aware, emotion_justified, emotion_tempered, metadata, created_at)
-                        VALUES (%s, %s,
-                                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                                %s, %s, %s, %s, %s,
-                                %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                                %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                                %s, %s, %s, %s, NOW())
-                        RETURNING id
+                        INSERT INTO observation_records
+                            (kernel_id, timestamp, phi, kappa, basin_position, stability_score)
+                        VALUES (%s, %s, %s, %s, %s::vector, %s)
+                        RETURNING record_id
                     """, (
-                        kernel_id, thought_id,
-                        sensations.get('pressure', 0), sensations.get('tension', 0),
-                        sensations.get('flow', 0), sensations.get('resistance', 0),
-                        sensations.get('resonance', 0), sensations.get('dissonance', 0),
-                        sensations.get('expansion', 0), sensations.get('contraction', 0),
-                        sensations.get('clarity', 0), sensations.get('fog', 0),
-                        sensations.get('stability', 0), sensations.get('chaos', 0),
-                        motivators.get('curiosity', 0), motivators.get('urgency', 0),
-                        motivators.get('caution', 0), motivators.get('confidence', 0), motivators.get('playfulness', 0),
-                        physical_emotions.get('curious', 0), physical_emotions.get('surprised', 0),
-                        physical_emotions.get('joyful', 0), physical_emotions.get('frustrated', 0),
-                        physical_emotions.get('anxious', 0), physical_emotions.get('calm', 0),
-                        physical_emotions.get('excited', 0), physical_emotions.get('bored', 0), physical_emotions.get('focused', 0),
-                        cognitive_emotions.get('nostalgic', 0), cognitive_emotions.get('proud', 0),
-                        cognitive_emotions.get('guilty', 0), cognitive_emotions.get('ashamed', 0),
-                        cognitive_emotions.get('grateful', 0), cognitive_emotions.get('resentful', 0),
-                        cognitive_emotions.get('hopeful', 0), cognitive_emotions.get('despairing', 0), cognitive_emotions.get('contemplative', 0),
-                        is_meta_aware, emotion_justified, emotion_tempered,
-                        json.dumps(metadata) if metadata else None
+                        kernel_id, timestamp, phi, kappa,
+                        self._vector_to_pg(basin_position), stability_score
                     ))
                     result = cur.fetchone()
                     return result[0] if result else None
         except Exception as e:
-            print(f"[QIGPersistence] Failed to record kernel emotion: {e}")
+            print(f"[QIGPersistence] Failed to insert observation record: {e}")
             return None
+
+    def get_observation_records(
+        self,
+        kernel_id: str,
+        limit: Optional[int] = None
+    ) -> List[Dict]:
+        """Get observation records for a kernel."""
+        if not self.enabled:
+            return []
+
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                    if limit:
+                        cur.execute("""
+                            SELECT * FROM observation_records
+                            WHERE kernel_id = %s
+                            ORDER BY timestamp DESC
+                            LIMIT %s
+                        """, (kernel_id, limit))
+                    else:
+                        cur.execute("""
+                            SELECT * FROM observation_records
+                            WHERE kernel_id = %s
+                            ORDER BY timestamp ASC
+                        """, (kernel_id,))
+                    return [dict(r) for r in cur.fetchall()]
+        except Exception as e:
+            print(f"[QIGPersistence] Failed to get observation records: {e}")
+            return []
+
+    def get_observation_record_count(self, kernel_id: str) -> int:
+        """Get count of observation records for a kernel."""
+        if not self.enabled:
+            return 0
+
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        SELECT COUNT(*) FROM observation_records
+                        WHERE kernel_id = %s
+                    """, (kernel_id,))
+                    result = cur.fetchone()
+                    return result[0] if result else 0
+        except Exception as e:
+            print(f"[QIGPersistence] Failed to get observation record count: {e}")
+            return 0
+
+    # =========================================================================
+    # KERNEL CARE RECORDS
+    # =========================================================================
+
+    def create_kernel_care_record(
+        self,
+        kernel_id: str,
+        kernel_name: str,
+        created_at: datetime,
+        status: str = 'infant',
+        developmental_stage: str = 'infant'
+    ) -> bool:
+        """Create a new kernel care record."""
+        if not self.enabled:
+            return False
+
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        INSERT INTO kernel_care_records
+                            (kernel_id, kernel_name, created_at, status, developmental_stage)
+                        VALUES (%s, %s, %s, %s, %s)
+                        ON CONFLICT (kernel_id) DO UPDATE SET
+                            kernel_name = EXCLUDED.kernel_name,
+                            status = EXCLUDED.status,
+                            developmental_stage = EXCLUDED.developmental_stage
+                    """, (kernel_id, kernel_name, created_at, status, developmental_stage))
+            return True
+        except Exception as e:
+            print(f"[QIGPersistence] Failed to create kernel care record: {e}")
+            return False
+
+    def update_kernel_care_record(
+        self,
+        kernel_id: str,
+        status: Optional[str] = None,
+        developmental_stage: Optional[str] = None,
+        hestia_enrolled: Optional[bool] = None,
+        demeter_enrolled: Optional[bool] = None,
+        chiron_enrolled: Optional[bool] = None,
+        care_cycles: Optional[int] = None,
+        graduated_at: Optional[datetime] = None
+    ) -> bool:
+        """Update kernel care record fields."""
+        if not self.enabled:
+            return False
+
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor() as cur:
+                    updates = []
+                    params = []
+                    if status is not None:
+                        updates.append("status = %s")
+                        params.append(status)
+                    if developmental_stage is not None:
+                        updates.append("developmental_stage = %s")
+                        params.append(developmental_stage)
+                    if hestia_enrolled is not None:
+                        updates.append("hestia_enrolled = %s")
+                        params.append(hestia_enrolled)
+                    if demeter_enrolled is not None:
+                        updates.append("demeter_enrolled = %s")
+                        params.append(demeter_enrolled)
+                    if chiron_enrolled is not None:
+                        updates.append("chiron_enrolled = %s")
+                        params.append(chiron_enrolled)
+                    if care_cycles is not None:
+                        updates.append("care_cycles = %s")
+                        params.append(care_cycles)
+                    if graduated_at is not None:
+                        updates.append("graduated_at = %s")
+                        params.append(graduated_at)
+                    
+                    if not updates:
+                        return True
+                    
+                    params.append(kernel_id)
+                    cur.execute(f"""
+                        UPDATE kernel_care_records
+                        SET {', '.join(updates)}
+                        WHERE kernel_id = %s
+                    """, tuple(params))
+            return True
+        except Exception as e:
+            print(f"[QIGPersistence] Failed to update kernel care record: {e}")
+            return False
+
+    def get_kernel_care_record(self, kernel_id: str) -> Optional[Dict]:
+        """Get kernel care record by kernel_id."""
+        if not self.enabled:
+            return None
+
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                    cur.execute("""
+                        SELECT * FROM kernel_care_records
+                        WHERE kernel_id = %s
+                    """, (kernel_id,))
+                    row = cur.fetchone()
+                    return dict(row) if row else None
+        except Exception as e:
+            print(f"[QIGPersistence] Failed to get kernel care record: {e}")
+            return None
+
+    def get_all_kernel_care_records(self) -> List[Dict]:
+        """Get all kernel care records."""
+        if not self.enabled:
+            return []
+
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                    cur.execute("SELECT * FROM kernel_care_records ORDER BY created_at DESC")
+                    return [dict(r) for r in cur.fetchall()]
+        except Exception as e:
+            print(f"[QIGPersistence] Failed to get all kernel care records: {e}")
+            return []
+
+    # =========================================================================
+    # REASONING EPISODES
+    # =========================================================================
+
+    def insert_reasoning_episode(
+        self,
+        strategy_name: str,
+        start_basin: np.ndarray,
+        target_basin: np.ndarray,
+        final_basin: Optional[np.ndarray],
+        steps_taken: int,
+        task_features: Optional[np.ndarray],
+        phi_during: float,
+        success: bool,
+        reward: float = 0.0
+    ) -> Optional[int]:
+        """Insert a reasoning episode record."""
+        if not self.enabled:
+            return None
+
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        INSERT INTO reasoning_episodes
+                            (strategy_name, start_basin, target_basin, final_basin,
+                             steps_taken, task_features, phi_during, success, reward)
+                        VALUES (%s, %s::vector, %s::vector, %s::vector, %s, %s::vector, %s, %s, %s)
+                        RETURNING episode_id
+                    """, (
+                        strategy_name,
+                        self._vector_to_pg(start_basin),
+                        self._vector_to_pg(target_basin),
+                        self._vector_to_pg(final_basin) if final_basin is not None else None,
+                        steps_taken,
+                        self._vector_to_pg(task_features) if task_features is not None else None,
+                        phi_during, success, reward
+                    ))
+                    result = cur.fetchone()
+                    return result[0] if result else None
+        except Exception as e:
+            print(f"[QIGPersistence] Failed to insert reasoning episode: {e}")
+            return None
+
+    def get_reasoning_episode_stats(self) -> List[Dict]:
+        """Get reasoning episode statistics grouped by strategy."""
+        if not self.enabled:
+            return []
+
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                    cur.execute("""
+                        SELECT
+                            strategy_name,
+                            COUNT(*) as total_episodes,
+                            SUM(CASE WHEN success THEN 1 ELSE 0 END) as success_count,
+                            AVG(CASE WHEN success THEN 1.0 ELSE 0.0 END) as success_rate,
+                            AVG(reward) as avg_reward,
+                            AVG(steps_taken) as avg_steps,
+                            AVG(phi_during) as avg_phi
+                        FROM reasoning_episodes
+                        GROUP BY strategy_name
+                        ORDER BY total_episodes DESC
+                    """)
+                    return [dict(r) for r in cur.fetchall()]
+        except Exception as e:
+            print(f"[QIGPersistence] Failed to get reasoning episode stats: {e}")
+            return []
 
 
 # Global persistence instance
 _persistence: Optional[QIGPersistence] = None
-_persistence_lock = threading.Lock()
 
 
 def get_persistence() -> QIGPersistence:
-    """Get or create the global persistence instance (thread-safe singleton)."""
+    """Get or create the global persistence instance."""
     global _persistence
     if _persistence is None:
-        with _persistence_lock:
-            # Double-checked locking pattern
-            if _persistence is None:
-                _persistence = QIGPersistence()
+        _persistence = QIGPersistence()
     return _persistence
