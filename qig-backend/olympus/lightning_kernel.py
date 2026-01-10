@@ -707,7 +707,8 @@ class LightningKernel(BaseGod):
 
             # Record activity for UI visibility
             try:
-                from agent_activity_recorder import activity_recorder, ActivityType as AgentActivityType
+                from agent_activity_recorder import ActivityType as AgentActivityType
+                from agent_activity_recorder import activity_recorder
                 activity_recorder.record(
                     AgentActivityType.PATTERN_RECOGNIZED,
                     f"Lightning insight: {insight.source_domains}",
@@ -722,12 +723,15 @@ class LightningKernel(BaseGod):
                         "validated": validation_metadata.get("validated", False)
                     }
                 )
-            except Exception as ae:
+            except Exception:
                 pass  # Don't fail broadcast if activity recording fails
 
             # Also broadcast to kernel_activity for pantheon chatter visibility
             try:
-                from olympus.activity_broadcaster import broadcast_kernel_activity, ActivityType as BroadcasterActivityType
+                from olympus.activity_broadcaster import (
+                    ActivityType as BroadcasterActivityType,
+                )
+                from olympus.activity_broadcaster import broadcast_kernel_activity
                 phi_val = insight.phi_at_creation
                 if isinstance(phi_val, (tuple, list)):
                     phi_val = float(phi_val[0]) if phi_val else 0.5
