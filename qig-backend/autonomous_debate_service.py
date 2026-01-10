@@ -585,6 +585,8 @@ class AutonomousDebateService:
                         logger.info(f"Debate {debate_id}... progressed via god assessments. Winner: {winner}")
 
                         self._trigger_spawn_proposal(topic, winner, debate_dict)
+                        
+                        self._record_god_learning_event(winner, topic, debate_dict)
 
         except (KeyError, ValueError, TypeError) as e:
             logger.error(f"God-based debate continuation data error: {e}")
@@ -1538,6 +1540,8 @@ class AutonomousDebateService:
             self._broadcast_debate_resolution(debate_dict, winner, reasoning, arbiter)
 
             self._trigger_spawn_proposal(topic, winner, debate_dict)
+            
+            self._record_god_learning_event(winner, topic, debate_dict)
 
     def _determine_winner(self, debate_dict: Dict) -> Tuple[str, str]:
         """Determine debate winner based on geometric analysis."""
@@ -1572,6 +1576,33 @@ class AutonomousDebateService:
 
         winner = random.choice([initiator, opponent])
         return winner, f"Close debate resolved in favor of {winner} by geometric arbitration (distance: {distance:.3f})"
+
+    def _record_god_learning_event(self, winner: str, topic: str, debate_dict: Dict) -> None:
+        """Record a learning event for the winning god when a debate is resolved."""
+        if not self._pantheon_gods or not winner or winner == 'unknown':
+            return
+        
+        try:
+            winning_god = self._pantheon_gods.get(winner.lower())
+            if not winning_god:
+                for god_name, god in self._pantheon_gods.items():
+                    if god_name.lower() == winner.lower() or god.name.lower() == winner.lower():
+                        winning_god = god
+                        break
+            
+            if winning_god and hasattr(winning_god, 'learn_from_outcome'):
+                phi = debate_dict.get('phi', 0.7)
+                kappa = debate_dict.get('kappa', 58.0)
+                winning_god.learn_from_outcome(
+                    target=topic[:500],
+                    predicted_prob=0.7,
+                    actual_outcome={'success': True, 'domain': 'debate', 'topic': topic[:100]},
+                    phi=phi if isinstance(phi, (int, float)) else 0.7,
+                    kappa=kappa if isinstance(kappa, (int, float)) else 58.0
+                )
+                logger.info(f"[DebateLearning] {winner} learned from debate win: {topic[:50]}...")
+        except Exception as e:
+            logger.warning(f"[DebateLearning] Failed to record learning for {winner}: {e}")
 
     def _trigger_spawn_proposal(self, topic: str, winner: str, debate_dict: Dict) -> None:
         """Trigger M8 kernel spawn proposal for debate domain specialist."""

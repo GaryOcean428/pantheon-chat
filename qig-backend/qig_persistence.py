@@ -797,7 +797,7 @@ class QIGPersistence:
                                success_rate, last_learning_at
                         FROM pantheon_god_state
                         WHERE god_name = %s
-                    """, (god_name.lower(),))
+                    """, (god_name,))
                     row = cur.fetchone()
                     if row:
                         return dict(row)
@@ -853,7 +853,7 @@ class QIGPersistence:
                             last_learning_at = NOW(),
                             updated_at = NOW()
                     """, (
-                        god_name.lower(),
+                        god_name,
                         reputation,
                         json.dumps(skills) if skills else '{}',
                         learning_events_count,
