@@ -323,8 +323,9 @@ class AutonomicAccessMixin:
             }
         
         try:
-            state = self._autonomic_kernel_ref.state
-            return {
+            kernel = self._autonomic_kernel_ref
+            state = kernel.state
+            result = {
                 'available': True,
                 'phi': state.phi,
                 'kappa': state.kappa,
@@ -337,6 +338,19 @@ class AutonomicAccessMixin:
                 'narrow_path': state.is_narrow_path,
                 'narrow_path_severity': state.narrow_path_severity
             }
+
+            # Add HRV state if available (heart kernel metronome)
+            if hasattr(kernel, 'hrv_tacker') and kernel.hrv_tacker:
+                hrv = kernel.hrv_tacker.get_current_state()
+                result['hrv'] = {
+                    'mode': hrv.mode.value,
+                    'phase': hrv.phase,
+                    'variance': hrv.variance,
+                    'is_healthy': hrv.is_healthy,
+                    'cycle_count': hrv.cycle_count
+                }
+
+            return result
         except Exception as e:
             return {
                 'available': False,
