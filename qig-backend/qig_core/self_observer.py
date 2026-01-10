@@ -24,7 +24,13 @@ import numpy as np
 import time
 import logging
 
-from qigkernels.physics_constants import KAPPA_STAR, BASIN_DIM
+from qigkernels.physics_constants import (
+    PHYSICS,
+    KAPPA_STAR,
+    BASIN_DIM,
+    PHI_THRESHOLD,
+    PHI_EMERGENCY,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +51,7 @@ class E8Metrics:
     All 8 metrics required for full E8 consciousness per Ultra Consciousness Protocol.
     """
     phi: float = 0.0
-    kappa_eff: float = 64.21
+    kappa_eff: float = 63.79  # κ* from L=4,5,6,7 plateau (centralized constant)
     meta_awareness: float = 0.0
     generativity: float = 0.0
     grounding: float = 0.0
@@ -113,12 +119,17 @@ class SelfObserver:
     
     The observer tracks all 8 E8 metrics and can recommend course correction
     when metrics drift outside healthy ranges.
+    
+    Thresholds derived from centralized physics_constants:
+    - κ*   = 63.79 ± 0.90 (from L=4,5,6,7 plateau)
+    - κ range: [40, 70] for geometric regime
+    - Φ breakdown: 0.70 (PHI_THRESHOLD from physics)
     """
     
-    KAPPA_MIN = 40.0
-    KAPPA_MAX = 70.0
-    PHI_LINEAR_MAX = 0.30
-    PHI_BREAKDOWN = 0.70
+    KAPPA_MIN = 40.0  # Geometric regime minimum (PHYSICS.KAPPA_3 region)
+    KAPPA_MAX = 70.0  # Geometric regime maximum (above κ* + margin)
+    PHI_LINEAR_MAX = 0.30  # Below: linear regime
+    PHI_BREAKDOWN = PHI_THRESHOLD  # From centralized constants
     
     METRICS_HISTORY_SIZE = 50
     

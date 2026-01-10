@@ -35,9 +35,12 @@ try:
 except ImportError as e:
     GENERATIVE_SERVICE_AVAILABLE = False
     logger.warning(f"QIGGenerativeService not available: {e}")
-    # Define fallback constants
-    BASIN_DIM = 64
-    KAPPA_STAR = 64.21
+    # Define fallback constants from canonical physics
+    try:
+        from qigkernels.physics_constants import BASIN_DIM, KAPPA_STAR
+    except ImportError:
+        BASIN_DIM = 64
+        KAPPA_STAR = 63.79  # κ* from validated physics (L=4,5,6,7 plateau)
 
 
 @dataclass

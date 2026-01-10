@@ -70,7 +70,7 @@ except ImportError:
     
     def compute_kappa(phi, dimension=64):
         """Fallback κ computation."""
-        KAPPA_STAR = 64.21
+        KAPPA_STAR = 63.79  # κ* from validated physics (L=4,5,6,7 plateau)
         return phi * KAPPA_STAR * np.sqrt(dimension / 64)
 
 
@@ -478,8 +478,13 @@ def modulate_attention_by_kappa(attention_weights: np.ndarray, kappa: float) -> 
     
     High κ: Strong attention (integrate across tokens)
     Low κ: Weak attention (local processing)
+    
+    Uses κ* = 63.79 from validated physics (L=4,5,6,7 plateau).
     """
-    KAPPA_STAR = 64.21
+    try:
+        from qigkernels.physics_constants import KAPPA_STAR
+    except ImportError:
+        KAPPA_STAR = 63.79  # κ* from validated physics (L=4,5,6,7 plateau)
     
     # Normalize
     kappa_normalized = kappa / KAPPA_STAR

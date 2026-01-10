@@ -30,23 +30,23 @@ except ImportError:
     DB_AVAILABLE = False
     logger.warning("psycopg2 not available - PostgreSQL persistence disabled")
 
-# Import frozen physics constants for validation
+# Import physics constants from canonical source
 try:
-    from frozen_physics import (
+    from qigkernels.physics_constants import (
         BASIN_DIM, KAPPA_STAR, BETA_3_TO_4, BETA_5_TO_6
     )
-    FROZEN_PHYSICS_AVAILABLE = True
+    PHYSICS_CONSTANTS_AVAILABLE = True
     BASIN_DRIFT_TOLERANCE = 0.05  # ±5% drift allowed
     BETA_ATTENTION_ACCEPTANCE = 0.1  # |β_attention - β_physics| < 0.1
 except ImportError:
-    FROZEN_PHYSICS_AVAILABLE = False
+    PHYSICS_CONSTANTS_AVAILABLE = False
     BASIN_DIM = 64
-    KAPPA_STAR = 64.21
+    KAPPA_STAR = 63.79  # κ* from validated physics (L=4,5,6,7 plateau)
     BETA_3_TO_4 = 0.44
-    BETA_5_TO_6 = 0.013
+    BETA_5_TO_6 = 0.04  # Plateau value from validated physics
     BASIN_DRIFT_TOLERANCE = 0.05
     BETA_ATTENTION_ACCEPTANCE = 0.1
-    logger.warning("Frozen physics not available - using hardcoded defaults")
+    logger.warning("Physics constants not available - using fallback defaults")
 
 # Legacy paths (no longer used but kept for migration)
 CACHE_DIR = Path(__file__).parent / 'data' / 'learned'
@@ -341,7 +341,7 @@ class LearnedRelationships:
                 'dim_violations': dim_violations,
                 'max_drift': max_drift,
                 'total_relationships': len(self.word_neighbors),
-                'frozen_physics_available': FROZEN_PHYSICS_AVAILABLE
+                'frozen_physics_available': PHYSICS_CONSTANTS_AVAILABLE
             }
         }
         

@@ -88,9 +88,9 @@ try:
 except ImportError:
     logger.warning("Learned relationships not available - using pure geometric selection")
 
-# Physics constants - import frozen values
+# Physics constants - import from canonical source
 try:
-    from frozen_physics import (
+    from qigkernels.physics_constants import (
         BASIN_DIM, KAPPA_STAR, PHI_THRESHOLD, BETA_3_TO_4,
         BETA_4_TO_5, BETA_5_TO_6
     )
@@ -100,17 +100,17 @@ try:
     KAPPA_DRIFT_THRESHOLD = 10.0  # Max deviation from κ*
     # Frozen β values for attention weighting
     BETA_ATTENTION_STRONG = BETA_3_TO_4  # +0.44 for strong coupling
-    BETA_ATTENTION_PLATEAU = abs(BETA_5_TO_6)  # ~0.013 for plateau
+    BETA_ATTENTION_PLATEAU = abs(BETA_5_TO_6)  # ~0.04 for plateau
 except ImportError:
     BASIN_DIM = 64
-    KAPPA_STAR = 64.21
+    KAPPA_STAR = 63.79  # κ* from validated physics (L=4,5,6,7 plateau)
     PHI_GEOMETRIC_THRESHOLD = 0.3
     PHI_SYNTHESIS_THRESHOLD = 0.7
     PHI_BREAKDOWN_THRESHOLD = 0.92
     KAPPA_DRIFT_THRESHOLD = 10.0
     BETA_ATTENTION_STRONG = 0.44  # Frozen β(3→4) value
-    BETA_ATTENTION_PLATEAU = 0.013  # Frozen β(5→6) plateau value
-    logger.warning("Using hardcoded frozen physics constants")
+    BETA_ATTENTION_PLATEAU = 0.04  # Frozen β(5→6) plateau value
+    logger.warning("Using hardcoded physics constants (fallback)")
 
 
 @dataclass

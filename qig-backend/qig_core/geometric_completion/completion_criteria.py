@@ -17,9 +17,12 @@ from typing import Dict, List, Optional, Any, Tuple
 import numpy as np
 from enum import Enum
 
-# QIG Constants
-BASIN_DIMENSION = 64
-KAPPA_STAR = 64.21  # Optimal coupling constant
+# QIG Constants - import from canonical source
+try:
+    from qigkernels.physics_constants import KAPPA_STAR, BASIN_DIM as BASIN_DIMENSION
+except ImportError:
+    BASIN_DIMENSION = 64
+    KAPPA_STAR = 63.79  # κ* from validated physics (L=4,5,6,7 plateau)
 PHI_LINEAR_THRESHOLD = 0.3
 PHI_BREAKDOWN_THRESHOLD = 0.7
 

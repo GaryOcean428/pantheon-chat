@@ -40,13 +40,13 @@ except ImportError:  # pragma: no cover
     psutil = None
     PSUTIL_AVAILABLE = False
 
-# Import physics constants
+# Import physics constants from canonical source
 try:
     from qigkernels.physics_constants import KAPPA_STAR, PHI_THRESHOLD
 except ImportError:
     # Fallback values if qigkernels not available
     PHI_THRESHOLD = 0.70
-    KAPPA_STAR = 64.21
+    KAPPA_STAR = 63.79  # κ* from validated physics (L=4,5,6,7 plateau)
 
 
 @dataclass

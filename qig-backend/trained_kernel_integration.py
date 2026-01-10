@@ -63,8 +63,12 @@ try:
 except ImportError as e:
     KERNEL_AVAILABLE = False
     KERNEL_IMPORT_ERROR = str(e)
-    KAPPA_STAR = 64.21
-    BASIN_DIM = 64
+    # Use canonical physics values as fallback
+    try:
+        from qigkernels.physics_constants import KAPPA_STAR, BASIN_DIM
+    except ImportError:
+        KAPPA_STAR = 63.79  # κ* from validated physics (L=4,5,6,7 plateau)
+        BASIN_DIM = 64
 
 
 # Default paths relative to qig-tokenizer

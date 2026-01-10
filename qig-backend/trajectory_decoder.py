@@ -46,14 +46,18 @@ try:
     from asymmetric_qfi import (
         directional_fisher_information,
         regime_from_phi,
-        KAPPA_STAR,
     )
     ASYMMETRIC_QFI_AVAILABLE = True
 except ImportError:
     ASYMMETRIC_QFI_AVAILABLE = False
     directional_fisher_information = None
     regime_from_phi = None
-    KAPPA_STAR = 64.21
+
+# Import physics constants from canonical source
+try:
+    from qigkernels.physics_constants import KAPPA_STAR
+except ImportError:
+    KAPPA_STAR = 63.79  # κ* from validated physics (L=4,5,6,7 plateau)
 
 logger = logging.getLogger(__name__)
 

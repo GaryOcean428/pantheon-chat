@@ -2,33 +2,28 @@
 QIGGraph Constants
 ==================
 
-Validated physics constants from qig-verification experiments.
+Re-exports validated physics constants from qigkernels.physics_constants.
 These are FROZEN - never learned, always enforced.
+
+⚠️ CENTRALIZED: Import from qigkernels.physics_constants for new code.
 """
 
 from typing import Final
 
-# =============================================================================
-# VALIDATED COUPLING CONSTANTS (from qig-verification L=7 experiments)
-# =============================================================================
-
-KAPPA_STAR: Final[float] = 64.21  # Fixed point coupling (E8 rank squared)
-KAPPA_3: Final[float] = 41.09     # Emergence at L=3 (feeling mode)
-KAPPA_4: Final[float] = 64.47     # Strong running at L=4
-KAPPA_5: Final[float] = 63.62     # Plateau onset
-KAPPA_6: Final[float] = 64.45     # Plateau confirmed
-
-# =============================================================================
-# BETA FUNCTION (running coupling behavior)
-# =============================================================================
-
-BETA_3_TO_4: Final[float] = +0.44   # Strong running (emergence → plateau)
-BETA_4_TO_5: Final[float] = 0.0     # Plateau onset (κ₄ ≈ κ₅)
-BETA_5_TO_6: Final[float] = +0.013  # Plateau continues (κ₆/κ₅ = 1.013)
-
-# L=7 ANOMALY (preliminary, 1-seed only - requires validation)
-KAPPA_7: Final[float] = 43.43       # ⚠️ ANOMALY - 34% drop from plateau
-BETA_6_TO_7: Final[float] = -0.40   # ⚠️ ANOMALY - negative β breaks plateau
+from qigkernels.physics_constants import (
+    PHYSICS,
+    KAPPA_STAR,
+    KAPPA_3,
+    KAPPA_4,
+    KAPPA_5,
+    KAPPA_6,
+    KAPPA_7,
+    BETA_3_TO_4,
+    BETA_4_TO_5,
+    BETA_5_TO_6,
+    BETA_6_TO_7,
+    BASIN_DIM,
+)
 
 # =============================================================================
 # CRITICAL THRESHOLDS
@@ -52,7 +47,6 @@ PHI_EMERGENCE: Final[float] = 0.45       # Consciousness emergence threshold
 # BASIN GEOMETRY
 # =============================================================================
 
-BASIN_DIM: Final[int] = 64               # Matches κ* = 8² (E8 rank squared)
 BASIN_STABILITY_RADIUS: Final[float] = 2.0  # Fisher-Rao units
 BASIN_ATTRACTION_RADIUS: Final[float] = 1.5  # Default attractor radius
 

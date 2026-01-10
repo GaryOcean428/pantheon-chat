@@ -9,14 +9,14 @@ GFP:
   phase: CRYSTAL
   dim: 3
   scope: universal
-  version: 2025-12-17
+  version: 2025-12-31
   owner: SearchSpaceCollapse
 
 These constants are EXPERIMENTALLY VALIDATED and MUST NOT be modified
 without new validated measurements.
 
-Source: qig-verification/FROZEN_FACTS.md (2025-12-08)
-References: frozen_physics.py (master reference)
+Source: docs/08-experiments/20251228-Validated-Physics-Frozen-Facts-0.06F.md
+References: L=7 VALIDATED (2025-12-31), κ* universality confirmed
 """
 
 from dataclasses import dataclass
@@ -28,16 +28,18 @@ class PhysicsConstants:
     """
     Validated physics constants from qig-verification.
     
-    SOURCE: qig-verification/FROZEN_FACTS.md (2025-12-08)
+    SOURCE: docs/08-experiments/20251228-Validated-Physics-Frozen-Facts-0.06F.md
     
     All values are FROZEN and validated through DMRG simulations on quantum spin chains.
     DO NOT MODIFY without experimental validation.
+    
+    L=7 VALIDATED (2025-12-31): Plateau continues, κ* = 63.79 ± 0.90
     
     Usage:
         from qigkernels.physics_constants import PhysicsConstants
         
         PHYSICS = PhysicsConstants()
-        kappa = PHYSICS.KAPPA_STAR  # Always 64.21, never drifts
+        kappa = PHYSICS.KAPPA_STAR  # Always 63.79, never drifts
     """
     
     # E8 Geometry (Mathematical Facts)
@@ -46,34 +48,34 @@ class PhysicsConstants:
     E8_ROOTS: int = 240
     BASIN_DIM: int = 64  # E8_RANK² = 8² = 64 (validated experimentally)
     
-    # Lattice κ Values (Experimentally Validated)
-    KAPPA_3: float = 41.09  # ± 0.59 (L=3 emergence)
-    KAPPA_3_ERROR: float = 0.59
+    # Lattice κ Values (Experimentally Validated - L=3,4,5,6,7 complete)
+    KAPPA_3: float = 41.07  # ± 0.31 (L=3 emergence)
+    KAPPA_3_ERROR: float = 0.31
     
-    KAPPA_4: float = 64.47  # ± 1.89 (L=4 running coupling)
-    KAPPA_4_ERROR: float = 1.89
+    KAPPA_4: float = 63.32  # ± 1.61 (L=4 running coupling)
+    KAPPA_4_ERROR: float = 1.61
     
-    KAPPA_5: float = 63.62  # ± 1.68 (L=5 plateau)
-    KAPPA_5_ERROR: float = 1.68
+    KAPPA_5: float = 62.74  # ± 2.60 (L=5 plateau onset)
+    KAPPA_5_ERROR: float = 2.60
     
-    KAPPA_6: float = 64.45  # ± 1.34 (L=6 plateau confirmed)
-    KAPPA_6_ERROR: float = 1.34
+    KAPPA_6: float = 65.24  # ± 1.37 (L=6 plateau confirmed)
+    KAPPA_6_ERROR: float = 1.37
     
-    KAPPA_STAR: float = 64.21  # ± 0.92 (fixed point from L=4,5,6 weighted average)
-    KAPPA_STAR_ERROR: float = 0.92
+    KAPPA_7: float = 61.16  # ± 2.43 (L=7 VALIDATED - plateau continues)
+    KAPPA_7_ERROR: float = 2.43
+    
+    # Fixed point from L=4,5,6,7 weighted mean (χ² consistent p=0.465)
+    KAPPA_STAR: float = 63.79  # ± 0.90 (from L=4,5,6,7 plateau)
+    KAPPA_STAR_ERROR: float = 0.90
     
     # β Running Coupling (Not Learnable - Fixed Physics)
-    # Source: FROZEN_FACTS.md β(L→L+1) = (κ_{L+1} - κ_L) / κ_avg
-    BETA_3_TO_4: float = 0.44   # ± 0.04 (strong running, emergence)
+    # Source: Frozen Facts β(L→L+1) = (κ_{L+1} - κ_L) / κ_avg
+    BETA_3_TO_4: float = 0.44   # Strong running (emergence window)
     BETA_3_TO_4_ERROR: float = 0.04
     
     BETA_4_TO_5: float = 0.0    # ≈ 0 (plateau onset)
-    BETA_5_TO_6: float = 0.013  # ≈ 0 (plateau continues)
-    
-    # L=7 ANOMALY (preliminary, 1-seed only - needs full validation)
-    KAPPA_7: float = 43.43      # ⚠️ ANOMALY - 34% drop from plateau
-    KAPPA_7_ERROR: float = 2.69
-    BETA_6_TO_7: float = -0.40  # ⚠️ ANOMALY - breaks plateau (preliminary)
+    BETA_5_TO_6: float = 0.04   # ≈ 0 (plateau continues)
+    BETA_6_TO_7: float = -0.06  # ≈ 0 (plateau continues - VALIDATED)
     
     # Φ Consciousness Thresholds
     PHI_THRESHOLD: float = 0.70      # Consciousness emergence (3D spatial)
@@ -106,10 +108,11 @@ class PhysicsConstants:
     MIN_RECURSION_DEPTH: int = 3         # Consciousness requires ≥3 loops
     
     # Validation metadata
-    SOURCE: str = "qig-verification/FROZEN_FACTS.md"
-    DATE: str = "2025-12-08"
+    SOURCE: str = "docs/08-experiments/20251228-Validated-Physics-Frozen-Facts-0.06F.md"
+    DATE: str = "2025-12-31"
     METHOD: str = "DMRG"
     STATUS: str = "VALIDATED"
+    L7_STATUS: str = "VALIDATED"  # Plateau continues, not anomaly
     
     def validate_alignment(self) -> dict:
         """
@@ -126,6 +129,8 @@ class PhysicsConstants:
                 self.PHI_HYPERDIMENSIONAL < self.PHI_UNSTABLE
             ),
             "kappa_star_approx_e8": abs(self.KAPPA_STAR - 64) < 1,
+            "l7_plateau_validated": abs(self.KAPPA_7 - self.KAPPA_STAR) < 5,
+            "beta_6_7_plateau": abs(self.BETA_6_TO_7) < 0.1,
         }
         
         return {
@@ -138,7 +143,7 @@ class PhysicsConstants:
         Get κ value for a given scale, with fallback to κ*.
         
         Args:
-            scale: Lattice scale (3, 4, 5, or 6)
+            scale: Lattice scale (3, 4, 5, 6, or 7)
             
         Returns:
             κ value at scale, or KAPPA_STAR if scale not found
@@ -148,6 +153,7 @@ class PhysicsConstants:
             4: self.KAPPA_4,
             5: self.KAPPA_5,
             6: self.KAPPA_6,
+            7: self.KAPPA_7,
         }
         return kappa_by_scale.get(scale, self.KAPPA_STAR)
 
@@ -172,8 +178,8 @@ KAPPA_STAR_ERROR: Final[float] = PHYSICS.KAPPA_STAR_ERROR
 BETA_3_TO_4: Final[float] = PHYSICS.BETA_3_TO_4
 BETA_4_TO_5: Final[float] = PHYSICS.BETA_4_TO_5
 BETA_5_TO_6: Final[float] = PHYSICS.BETA_5_TO_6
-BETA_6_TO_7: Final[float] = PHYSICS.BETA_6_TO_7  # ⚠️ ANOMALY
-KAPPA_7: Final[float] = PHYSICS.KAPPA_7  # ⚠️ ANOMALY
+BETA_6_TO_7: Final[float] = PHYSICS.BETA_6_TO_7  # Plateau continues (validated)
+KAPPA_7: Final[float] = PHYSICS.KAPPA_7  # L=7 VALIDATED (plateau)
 
 PHI_THRESHOLD: Final[float] = PHYSICS.PHI_THRESHOLD
 PHI_SLEEP_THRESHOLD: Final[float] = PHYSICS.PHI_SLEEP_THRESHOLD
