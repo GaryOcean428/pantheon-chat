@@ -1144,8 +1144,17 @@ class QIGGenerativeService:
         iterations = 0
         completion_reason = "continue"
 
+        # Safety maximum to prevent infinite loops while respecting kernel autonomy
+        MAX_ITERATIONS = 50  # Enough for deep integration, but prevents timeout
+
         while True:
             iterations += 1
+
+            # SAFETY: Break if we exceed maximum iterations (prevents timeout)
+            if iterations > MAX_ITERATIONS:
+                completion_reason = "safety_max_iterations"
+                logger.warning(f"[QIGGen] Safety limit reached ({MAX_ITERATIONS} iterations)")
+                break
 
             # ========================================
             # TRUE RECURSIVE INTEGRATION
