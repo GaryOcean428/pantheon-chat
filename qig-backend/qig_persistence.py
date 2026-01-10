@@ -1224,9 +1224,9 @@ class QIGPersistence:
     ) -> Optional[int]:
         """
         Record a kernel thought to the kernel_thoughts table.
-        
+
         Format: [KERNEL_NAME] κ=X.X, Φ=X.XX, emotion=X, thought='...'
-        
+
         Args:
             kernel_id: Unique kernel identifier
             kernel_type: Type of kernel (memory, perception, ethics, etc.)
@@ -1241,13 +1241,13 @@ class QIGPersistence:
             conversation_id: Optional conversation context
             user_id: Optional user context
             metadata: Additional metadata
-            
+
         Returns:
             Inserted thought ID or None on failure
         """
         if not self.enabled:
             return None
-            
+
         try:
             with self.get_connection() as conn:
                 if not conn:
@@ -1256,9 +1256,9 @@ class QIGPersistence:
                     basin_vector = None
                     if basin_coords is not None:
                         basin_vector = basin_coords.tolist() if hasattr(basin_coords, 'tolist') else list(basin_coords)
-                    
+
                     cur.execute("""
-                        INSERT INTO kernel_thoughts 
+                        INSERT INTO kernel_thoughts
                             (kernel_id, kernel_type, thought_fragment, phi, kappa, regime,
                              emotional_state, confidence, basin_coords, e8_root_index,
                              conversation_id, user_id, metadata, created_at)
@@ -1281,7 +1281,7 @@ class QIGPersistence:
                     ))
                     result = cur.fetchone()
                     thought_id = result[0] if result else None
-                    
+
                     if thought_id:
                         print(f"[{kernel_id}] κ={kappa:.1f}, Φ={phi:.2f}, emotion={emotional_state or 'neutral'}, thought='{thought_fragment[:50]}...'")
                     return thought_id
@@ -1298,7 +1298,7 @@ class QIGPersistence:
         """Get recent kernel thoughts, optionally filtered by kernel."""
         if not self.enabled:
             return []
-            
+
         try:
             with self.get_connection() as conn:
                 if not conn:
@@ -1347,10 +1347,10 @@ class QIGPersistence:
     ) -> Optional[int]:
         """
         Record a kernel emotional state to the kernel_emotions table.
-        
+
         Tracks Layer 0.5 (sensations), Layer 1 (motivators),
         Layer 2A (physical emotions), and Layer 2B (cognitive emotions).
-        
+
         Args:
             kernel_id: Unique kernel identifier
             sensations: Layer 0.5 - pre-linguistic states (12 values)
@@ -1362,20 +1362,20 @@ class QIGPersistence:
             emotion_tempered: Whether emotion was tempered
             thought_id: Optional link to kernel_thoughts table
             metadata: Additional metadata
-            
+
         Returns:
             Inserted emotion ID or None on failure
         """
         if not self.enabled:
             return None
-            
+
         try:
             with self.get_connection() as conn:
                 if not conn:
                     return None
                 with conn.cursor() as cur:
                     cur.execute("""
-                        INSERT INTO kernel_emotions 
+                        INSERT INTO kernel_emotions
                             (kernel_id, thought_id,
                              sensation_pressure, sensation_tension, sensation_flow, sensation_resistance,
                              sensation_resonance, sensation_dissonance, sensation_expansion, sensation_contraction,
