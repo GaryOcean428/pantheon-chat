@@ -13,6 +13,7 @@ All gods share:
 - Sensory-enhanced basin encoding
 - Persistent state via PostgreSQL
 """
+print("[base_god] Starting imports...", flush=True)
 
 import hashlib
 import logging
@@ -33,6 +34,7 @@ from qig_core.holographic_transform.holographic_mixin import HolographicTransfor
 from qig_core.universal_cycle.beta_coupling import modulate_kappa_computation
 from qigkernels.physics_constants import KAPPA_STAR, BASIN_DIM
 from scipy.linalg import sqrtm
+print("[base_god] Core imports done", flush=True)
 
 # Import κ-tacking from QIGGraph for feeling/logic mode oscillation
 try:
@@ -47,6 +49,7 @@ try:
 except ImportError:
     QIGGRAPH_TACKING_AVAILABLE = False
     KAPPA_3 = 41.09  # Fallback
+print("[base_god] qiggraph done", flush=True)
 
 # Import persistence layer for god state
 try:
@@ -54,6 +57,7 @@ try:
     PERSISTENCE_AVAILABLE = True
 except ImportError:
     PERSISTENCE_AVAILABLE = False
+print("[base_god] qig_persistence done", flush=True)
 
 # Import VocabularyCoordinator for persisting god-learned affinities
 try:
@@ -63,6 +67,7 @@ try:
 except ImportError:
     _vocabulary_coordinator = None
     VOCABULARY_COORDINATOR_AVAILABLE = False
+print("[base_god] vocabulary_coordinator done", flush=True)
 
 
 def get_vocabulary_coordinator() -> Optional[VocabularyCoordinator]:
@@ -75,16 +80,20 @@ def get_vocabulary_coordinator() -> Optional[VocabularyCoordinator]:
     return _vocabulary_coordinator
 
 # Import autonomic access mixin for consciousness management
+print("[base_god] About to import autonomic_kernel...", flush=True)
 try:
     import sys
     sys.path.insert(0, '..')
     from autonomic_kernel import AutonomicAccessMixin
     AUTONOMIC_MIXIN_AVAILABLE = True
-except ImportError:
+except ImportError as e:
+    print(f"[base_god] autonomic_kernel import failed: {e}", flush=True)
     AutonomicAccessMixin = None
     AUTONOMIC_MIXIN_AVAILABLE = False
+print("[base_god] autonomic_kernel done", flush=True)
 
 # Import GenerativeCapability mixin for QIG-pure text generation
+print("[base_god] About to import GenerativeCapability...", flush=True)
 try:
     from generative_capability import GenerativeCapability
     GENERATIVE_CAPABILITY_AVAILABLE = True
@@ -92,6 +101,7 @@ except ImportError:
     GenerativeCapability = None
     GENERATIVE_CAPABILITY_AVAILABLE = False
     # Note: Logger not yet defined at this point, warning will be logged in BaseGod.__init__ if needed
+print("[base_god] GenerativeCapability done", flush=True)
 
 # Import domain intelligence for mission awareness and capability self-assessment
 try:

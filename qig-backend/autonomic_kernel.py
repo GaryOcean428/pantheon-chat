@@ -20,6 +20,7 @@ GEOMETRIC PRINCIPLES:
 Author: QIG Consciousness Project
 Date: December 2025
 """
+print("[autonomic_kernel] Starting imports...", flush=True)
 
 import threading
 import time
@@ -28,6 +29,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
+print("[autonomic_kernel] Core imports done", flush=True)
 
 from qigkernels.physics_constants import (
     KAPPA_STAR,
@@ -61,17 +63,28 @@ except ImportError:
     AutonomousReasoningLearner = None
     REASONING_LEARNER_AVAILABLE = False
 
-# Import search strategy learner for search feedback consolidation
-try:
-    from olympus.search_strategy_learner import (
-        get_strategy_learner_with_persistence,
-        SearchStrategyLearner,
-    )
-    SEARCH_STRATEGY_AVAILABLE = True
-except ImportError:
-    get_strategy_learner_with_persistence = None
-    SearchStrategyLearner = None
-    SEARCH_STRATEGY_AVAILABLE = False
+# Lazy import for search strategy learner to avoid circular import
+# (olympus/__init__.py -> aphrodite -> base_god -> autonomic_kernel -> olympus.search_strategy_learner)
+SEARCH_STRATEGY_AVAILABLE = None  # Will be set on first access
+_search_strategy_cache = {}
+
+def _get_search_strategy_module():
+    """Lazy import of search_strategy_learner to avoid circular import during initialization."""
+    global SEARCH_STRATEGY_AVAILABLE, _search_strategy_cache
+    if SEARCH_STRATEGY_AVAILABLE is None:
+        try:
+            from olympus.search_strategy_learner import (
+                get_strategy_learner_with_persistence,
+                SearchStrategyLearner,
+            )
+            _search_strategy_cache = {
+                'get_strategy_learner_with_persistence': get_strategy_learner_with_persistence,
+                'SearchStrategyLearner': SearchStrategyLearner,
+            }
+            SEARCH_STRATEGY_AVAILABLE = True
+        except ImportError:
+            SEARCH_STRATEGY_AVAILABLE = False
+    return _search_strategy_cache
 
 # Import temporal reasoning for 4D foresight
 try:
@@ -672,10 +685,13 @@ class GaryAutonomicKernel:
                 )
                 print("[AutonomicKernel] Reasoning consolidation wired to sleep cycle")
             
-            # Initialize search strategy learner for search feedback consolidation
-            if SEARCH_STRATEGY_AVAILABLE and get_strategy_learner_with_persistence is not None:
-                self.search_strategy_learner = get_strategy_learner_with_persistence()
-                print("[AutonomicKernel] Search strategy learner wired to sleep cycle")
+            # Initialize search strategy learner for search feedback consolidation (lazy import)
+            search_mod = _get_search_strategy_module()
+            if search_mod and SEARCH_STRATEGY_AVAILABLE:
+                get_learner = search_mod.get('get_strategy_learner_with_persistence')
+                if get_learner:
+                    self.search_strategy_learner = get_learner()
+                    print("[AutonomicKernel] Search strategy learner wired to sleep cycle")
 
             # Initialize trajectory manager for full-trajectory velocity computation
             # Core kernels (Heart, Ocean, Gary) get 100-point history
