@@ -503,7 +503,10 @@ class ZeusConversationHandler(GeometricGenerationMixin):
             try:
                 self._reasoning_quality = ReasoningQuality(basin_dim=64)
                 self._mode_selector = ReasoningModeSelector(basin_dim=64)
-                self._meta_cognition = MetaCognition(basin_dim=64)
+                self._meta_cognition = MetaCognition(
+                    reasoning_quality=self._reasoning_quality,
+                    mode_selector=self._mode_selector
+                )
                 self._chain_of_thought = GeometricChainOfThought(basin_dim=64)
                 print("[ZeusChat] Meta-Cognitive Reasoning initialized")
             except Exception as e:

@@ -358,12 +358,103 @@ class AutonomousDebateService:
 
             time.sleep(POLL_INTERVAL_SECONDS)
 
+    # =========================================================================
+    # AUTONOMOUS DEBATE INITIATION
+    # =========================================================================
+
+    def _generate_autonomous_debate(self) -> Optional[str]:
+        """Generate a new autonomous debate based on system state.
+
+        Returns:
+            Debate ID if created, None otherwise.
+        """
+        if not self._pantheon_chat or not self._pantheon_gods:
+            return None
+
+        # Check if we should generate a new debate
+        if not self._should_initiate_debate():
+            return None
+
+        # Select topic and opponents based on system state
+        topic, initiator, opponent = self._select_debate_parameters()
+        if not topic:
+            return None
+
+        try:
+            # Create the debate
+            debate = self._pantheon_chat.initiate_debate(
+                topic=topic,
+                initiator=initiator,
+                opponent=opponent,
+                initial_argument=f"{initiator} proposes we examine: {topic}"
+            )
+            logger.info(f"[AutonomousDebate] Initiated: {initiator} vs {opponent} on '{topic}'")
+            return debate.id if hasattr(debate, 'id') else str(debate)
+        except Exception as e:
+            logger.error(f"[AutonomousDebate] Failed to initiate debate: {e}")
+            return None
+
+    def _should_initiate_debate(self) -> bool:
+        """Determine if we should start a new debate.
+
+        Rate limits: at most 1 new debate per 10 polls, max 3 concurrent.
+        """
+        # Rate limit: at most 1 new debate per 10 polls
+        if self._debates_processed % 10 != 0:
+            return False
+
+        # Check if there are already active debates
+        try:
+            active = self._pantheon_chat.get_active_debates()
+            if len(active) >= 3:  # Max 3 concurrent debates
+                return False
+        except Exception:
+            return False
+
+        return True
+
+    def _select_debate_parameters(self) -> Tuple[Optional[str], str, str]:
+        """Select topic and opponents for a new debate.
+
+        Returns:
+            (topic, initiator, opponent) or (None, '', '') if selection fails.
+        """
+        # Get available gods
+        gods = list(self._pantheon_gods.keys()) if self._pantheon_gods else []
+        if len(gods) < 2:
+            return None, "", ""
+
+        # Topics based on current system concerns
+        topics = [
+            "Optimal spawning strategy for knowledge gaps",
+            "Resource allocation during narrow path scenarios",
+            "Breeding threshold adjustments for E8 crystallization",
+            "Integration vs exploration balance in current regime",
+            "Fisher-Rao distance threshold for vocabulary merging",
+            "Sleep cycle frequency for autonomic recovery",
+            "Pruning strategy for low-phi kernels",
+            "Cross-domain insight validation priority",
+        ]
+
+        topic = random.choice(topics)
+        initiator = random.choice(gods)
+        opponent = random.choice([g for g in gods if g != initiator])
+
+        return topic, initiator, opponent
+
+    # =========================================================================
+    # DEBATE MONITORING
+    # =========================================================================
+
     def _poll_debates(self) -> None:
         """Poll active debates and progress them toward resolution."""
         if not self._pantheon_chat:
             return
 
         self._last_poll_time = datetime.now()
+
+        # Try to initiate a new debate if conditions are met
+        self._generate_autonomous_debate()
 
         active_debates = self._pantheon_chat.get_active_debates()
 

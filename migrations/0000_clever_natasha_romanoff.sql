@@ -197,6 +197,14 @@ CREATE TABLE "consciousness_checkpoints" (
 	"is_hot" boolean DEFAULT true
 );
 --> statement-breakpoint
+CREATE TABLE "consciousness_state" (
+	"id" varchar(32) PRIMARY KEY DEFAULT 'singleton',
+	"value_metrics" jsonb NOT NULL DEFAULT '{}'::jsonb,
+	"phi_history" jsonb DEFAULT '[]'::jsonb,
+	"learning_history" jsonb DEFAULT '[]'::jsonb,
+	"updated_at" timestamp DEFAULT now()
+);
+--> statement-breakpoint
 CREATE TABLE "discovered_sources" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"url" text NOT NULL,
