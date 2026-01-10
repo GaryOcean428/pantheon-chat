@@ -1,22 +1,29 @@
 -- ============================================================================
 -- VOCABULARY SYSTEM SCHEMA
 -- Full implementation for shared vocabulary across all gods/agents
+--
+-- SHADOW PANTHEON MIGRATION (2026-01-10):
+-- - bip39_words table DEPRECATED - vocabulary_observations is canonical
+-- - Trigger on learned_words REMOVED to prevent bip39 dependency
 -- ============================================================================
 
--- BIP39 Base Vocabulary (2048 words)
-CREATE TABLE IF NOT EXISTS bip39_words (
-    id SERIAL PRIMARY KEY,
-    word TEXT UNIQUE NOT NULL,
-    word_index INT NOT NULL,  -- Position in BIP39 list (0-2047)
-    frequency INT DEFAULT 0,
-    avg_phi REAL DEFAULT 0.0,
-    max_phi REAL DEFAULT 0.0,
-    last_used TIMESTAMP DEFAULT NOW(),
-    created_at TIMESTAMP DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_bip39_word ON bip39_words(word);
-CREATE INDEX IF NOT EXISTS idx_bip39_phi ON bip39_words(avg_phi DESC);
+-- DEPRECATED: BIP39 Base Vocabulary (2048 words)
+-- This table is no longer used. Vocabulary comes from vocabulary_observations.
+-- Keeping schema for backward compatibility but not creating by default.
+-- If you need this table, run the CREATE statement manually.
+--
+-- CREATE TABLE IF NOT EXISTS bip39_words (
+--     id SERIAL PRIMARY KEY,
+--     word TEXT UNIQUE NOT NULL,
+--     word_index INT NOT NULL,  -- Position in BIP39 list (0-2047)
+--     frequency INT DEFAULT 0,
+--     avg_phi REAL DEFAULT 0.0,
+--     max_phi REAL DEFAULT 0.0,
+--     last_used TIMESTAMP DEFAULT NOW(),
+--     created_at TIMESTAMP DEFAULT NOW()
+-- );
+-- CREATE INDEX IF NOT EXISTS idx_bip39_word ON bip39_words(word);
+-- CREATE INDEX IF NOT EXISTS idx_bip39_phi ON bip39_words(avg_phi DESC);
 
 -- Learned Vocabulary (grows on the fly)
 CREATE TABLE IF NOT EXISTS learned_words (
@@ -202,38 +209,57 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Function to update vocabulary stats
+-- Handles missing tables gracefully (bip39_words may not exist yet)
 CREATE OR REPLACE FUNCTION update_vocabulary_stats() RETURNS VOID AS $$
 DECLARE
     v_total INT;
-    v_bip39 INT;
-    v_learned INT;
-    v_high_phi INT;
-    v_merges INT;
+    v_bip39 INT := 0;
+    v_learned INT := 0;
+    v_high_phi INT := 0;
+    v_merges INT := 0;
 BEGIN
-    SELECT COUNT(*) INTO v_bip39 FROM bip39_words;
-    SELECT COUNT(*) INTO v_learned FROM learned_words;
-    SELECT COUNT(*) INTO v_high_phi FROM learned_words WHERE avg_phi >= 0.7;
-    SELECT COUNT(*) INTO v_merges FROM bpe_merge_rules;
+    -- Check if bip39_words exists before querying
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'bip39_words') THEN
+        SELECT COUNT(*) INTO v_bip39 FROM bip39_words;
+    END IF;
+
+    -- Check if learned_words exists before querying
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'learned_words') THEN
+        SELECT COUNT(*) INTO v_learned FROM learned_words;
+        SELECT COUNT(*) INTO v_high_phi FROM learned_words WHERE avg_phi >= 0.7;
+    END IF;
+
+    -- Check if bpe_merge_rules exists before querying
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'bpe_merge_rules') THEN
+        SELECT COUNT(*) INTO v_merges FROM bpe_merge_rules;
+    END IF;
+
     v_total := v_bip39 + v_learned;
 
     INSERT INTO vocabulary_stats (total_words, bip39_words, learned_words, high_phi_words, merge_rules)
     VALUES (v_total, v_bip39, v_learned, v_high_phi, v_merges);
+EXCEPTION
+    WHEN undefined_table THEN
+        -- Stats table doesn't exist yet, skip
+        NULL;
 END;
 $$ LANGUAGE plpgsql;
 
--- Trigger to auto-update stats
-CREATE OR REPLACE FUNCTION trigger_update_vocab_stats()
-RETURNS TRIGGER AS $$
-BEGIN
-    PERFORM update_vocabulary_stats();
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
+-- DEPRECATED: Trigger to auto-update stats
+-- REMOVED: This trigger called update_vocabulary_stats() which referenced bip39_words.
+-- Stats should be computed on-demand via API calls, not on every insert.
+--
+-- CREATE OR REPLACE FUNCTION trigger_update_vocab_stats()
+-- RETURNS TRIGGER AS $$
+-- BEGIN
+--     PERFORM update_vocabulary_stats();
+--     RETURN NEW;
+-- END;
+-- $$ LANGUAGE plpgsql;
 
--- Drop trigger if exists before recreating
+-- Drop legacy trigger if exists (migration cleanup)
 DROP TRIGGER IF EXISTS update_stats_on_learned_insert ON learned_words;
+DROP FUNCTION IF EXISTS trigger_update_vocab_stats() CASCADE;
 
-CREATE TRIGGER update_stats_on_learned_insert
-    AFTER INSERT ON learned_words
-    FOR EACH STATEMENT
-    EXECUTE FUNCTION trigger_update_vocab_stats();
+-- NOTE: If you need vocabulary stats, call update_vocabulary_stats() manually
+-- or via the /api/debug/vocabulary-stats endpoint.
