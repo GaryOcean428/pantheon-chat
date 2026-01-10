@@ -84,10 +84,10 @@ except ImportError:
 # Search validation for external insight verification
 try:
     from ..search.insight_validator import InsightValidator, ValidationResult
-except ImportError:
+except ImportError as e1:
     try:
         from search.insight_validator import InsightValidator, ValidationResult
-    except ImportError:
+    except ImportError as e2:
         try:
             # Fallback: Add parent directory to path and try direct import
             import sys
@@ -96,8 +96,9 @@ except ImportError:
             if str(_qig_backend) not in sys.path:
                 sys.path.insert(0, str(_qig_backend))
             from search.insight_validator import InsightValidator, ValidationResult
-        except ImportError:
+        except ImportError as e3:
             # Graceful degradation if search module not available
+            logger.warning(f"[Lightning] Search module import failed: {e1} | {e2} | {e3}")
             InsightValidator = None
             ValidationResult = None
 
