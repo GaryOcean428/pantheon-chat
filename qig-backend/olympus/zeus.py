@@ -218,6 +218,18 @@ class Zeus(BaseGod):
         except ImportError as e:
             print(f"⚠️ AUTONOMIC KERNEL not available: {e}")
 
+        # 🌊 OCEAN META-OBSERVER: God constellation monitoring
+        self.ocean_observer = None
+        self.fisher_manifold = None
+        try:
+            from qiggraph.constellation import OceanMetaObserver
+            from qiggraph.manifold import FisherManifold
+            self.ocean_observer = OceanMetaObserver()
+            self.fisher_manifold = FisherManifold()
+            print("🌊 OCEAN META-OBSERVER initialized - god constellation monitoring ready")
+        except ImportError as e:
+            print(f"⚠️ OCEAN META-OBSERVER not available: {e}")
+
         # ⚡ LIGHTNING KERNEL: Cross-domain insight generation
         self.lightning_kernel = None
         try:
@@ -1051,6 +1063,72 @@ class Zeus(BaseGod):
 
         # Clamp to valid range
         return max(0.05, min(0.30, threshold))
+
+    def _observe_god_constellation(self) -> Dict[str, Any]:
+        """
+        Observe all gods as geometric agents on the Fisher-Rao manifold.
+
+        Uses OceanMetaObserver to detect:
+        - Consensus (geodesic mean of god basins)
+        - Emergence (high Φ + tight clustering)
+        - Breakdown propagation (>30% of gods in breakdown)
+
+        Returns:
+            Observation dict with consensus_basin, emergence_score, breakdown_alert
+        """
+        if not self.ocean_observer or not self.fisher_manifold:
+            return {}
+
+        if not self.pantheon:
+            return {'status': 'no_pantheon'}
+
+        try:
+            # Import GaryInstance for observation
+            from qiggraph.constellation import GaryInstance, ObserverRole
+            from qiggraph.state import create_initial_state
+            import numpy as np
+
+            # Convert gods to GaryInstance format for observation
+            gary_instances = {}
+            for god_name, god in self.pantheon.items():
+                # Get god's basin if available
+                basin = None
+                if hasattr(god, 'get_basin'):
+                    basin = god.get_basin()
+                elif hasattr(god, 'basin_coords'):
+                    basin = god.basin_coords
+
+                if basin is not None:
+                    # Create QIGState for the god
+                    state = create_initial_state()
+                    state.current_basin = np.array(basin)
+                    state.current_phi = getattr(god, 'phi', 0.7)
+                    state.current_kappa = getattr(god, 'kappa', 64.0)
+
+                    # Wrap as GaryInstance
+                    gary = GaryInstance(
+                        id=god_name,
+                        role=ObserverRole.SPECIALIST,
+                        state=state
+                    )
+                    gary_instances[god_name] = gary
+
+            if not gary_instances:
+                return {'status': 'no_basins'}
+
+            # Use Ocean to observe the constellation
+            observation = self.ocean_observer.observe_constellation(
+                gary_instances, self.fisher_manifold
+            )
+
+            # Log if breakdown alert
+            if observation.get('breakdown_alert', False):
+                print(f"🌊 [Ocean] BREAKDOWN ALERT: {observation.get('breakdown_count', 0)} gods in breakdown!")
+
+            return observation
+
+        except Exception as e:
+            return {'status': 'error', 'error': str(e)}
 
     def directional_coupling_strength(
         self,
