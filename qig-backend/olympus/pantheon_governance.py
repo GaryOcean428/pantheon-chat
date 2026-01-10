@@ -1102,7 +1102,39 @@ class PantheonGovernance:
                     votes_against_json,
                 ))
             self._conn.commit()
-            cur.close()
+            
+            # Also persist to pantheon_proposals table for unified monitoring
+            try:
+                cur = self._conn.cursor()
+                cur.execute("""
+                    INSERT INTO pantheon_proposals (
+                        id, proposal_type, target_kernel_id, reason, proposer,
+                        status, votes_for, votes_against, created_at, resolved_at, resolution_reason
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb, %s, %s, %s)
+                    ON CONFLICT (id) DO UPDATE SET
+                        status = EXCLUDED.status,
+                        votes_for = EXCLUDED.votes_for,
+                        votes_against = EXCLUDED.votes_against,
+                        resolved_at = EXCLUDED.resolved_at,
+                        resolution_reason = EXCLUDED.resolution_reason
+                """, (
+                    proposal.proposal_id,
+                    proposal.proposal_type.value,
+                    proposal.parent_id,  # Maps to target_kernel_id
+                    proposal.reason,
+                    'pantheon_governance',  # proposer
+                    proposal.status.value,
+                    votes_for_json,
+                    votes_against_json,
+                    proposal.created_at,
+                    resolved_at,
+                    proposal.reason if proposal.status != ProposalStatus.PENDING else None,
+                ))
+                self._conn.commit()
+                cur.close()
+            except Exception as e:
+                print(f"[PantheonGovernance] Failed to persist to pantheon_proposals: {e}")
         except Exception as e:
             print(f"[PantheonGovernance] Failed to persist proposal: {e}")
     
