@@ -838,13 +838,15 @@ class QIGPersistence:
             return False
 
         try:
+            import uuid
+            god_id = f"god_{god_name.lower()}_{uuid.uuid4().hex[:8]}"
             with self.get_connection() as conn:
                 with conn.cursor() as cur:
                     cur.execute("""
                         INSERT INTO pantheon_god_state 
-                            (god_name, reputation, skills, learning_events_count, 
+                            (id, god_name, reputation, skills, learning_events_count, 
                              success_rate, last_learning_at, updated_at)
-                        VALUES (%s, %s, %s, %s, %s, NOW(), NOW())
+                        VALUES (%s, %s, %s, %s, %s, %s, NOW(), NOW())
                         ON CONFLICT (god_name) DO UPDATE SET
                             reputation = EXCLUDED.reputation,
                             skills = EXCLUDED.skills,
@@ -853,6 +855,7 @@ class QIGPersistence:
                             last_learning_at = NOW(),
                             updated_at = NOW()
                     """, (
+                        god_id,
                         god_name,
                         reputation,
                         json.dumps(skills) if skills else '{}',

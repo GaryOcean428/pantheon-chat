@@ -278,18 +278,21 @@ class PantheonPersistence(BasePersistence):
 
     def save_knowledge_transfer(self, transfer: Dict) -> bool:
         """Save a knowledge transfer event."""
+        transfer_type = transfer.get('type', 'insight')
+        content = transfer.get('content') or transfer.get('knowledge', {})
         query = """
             INSERT INTO pantheon_knowledge_transfers
-            (from_god, to_god, knowledge_type, content, accepted, created_at)
-            VALUES (%s, %s, %s, %s, %s, %s)
+            (from_god, to_god, transfer_type, knowledge_type, content, accepted, created_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
         """
         try:
             self.execute_query(query, (
                 transfer.get('from', ''),
                 transfer.get('to', ''),
-                transfer.get('type', 'insight'),
-                json.dumps(transfer.get('content', {})) if transfer.get('content') else None,
-                transfer.get('accepted', False),
+                transfer_type,
+                transfer_type,
+                json.dumps(content) if content else None,
+                transfer.get('accepted', transfer.get('acknowledged', False)),
                 datetime.now(),
             ), fetch=False)
             return True

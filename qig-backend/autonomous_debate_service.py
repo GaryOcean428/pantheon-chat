@@ -587,6 +587,20 @@ class AutonomousDebateService:
                         self._trigger_spawn_proposal(topic, winner, debate_dict)
                         
                         self._record_god_learning_event(winner, topic, debate_dict)
+                        
+                        initiator = debate_dict.get('initiator', '')
+                        opponent = debate_dict.get('opponent', '')
+                        
+                        if not initiator or not opponent:
+                            arguments = debate_dict.get('arguments', [])
+                            participants = set(a.get('god', '').lower() for a in arguments if a.get('god'))
+                            participants.discard(winner.lower())
+                            loser = next(iter(participants), '')
+                        else:
+                            loser = opponent if winner.lower() == initiator.lower() else initiator
+                        
+                        reasoning = res.get('reasoning', f'{winner} prevailed in geometric debate')
+                        self._trigger_knowledge_transfer(winner, loser, topic, reasoning, debate_dict)
 
         except (KeyError, ValueError, TypeError) as e:
             logger.error(f"God-based debate continuation data error: {e}")
@@ -1542,6 +1556,8 @@ class AutonomousDebateService:
             self._trigger_spawn_proposal(topic, winner, debate_dict)
             
             self._record_god_learning_event(winner, topic, debate_dict)
+            
+            self._trigger_knowledge_transfer(winner, opponent, topic, reasoning, debate_dict)
 
     def _determine_winner(self, debate_dict: Dict) -> Tuple[str, str]:
         """Determine debate winner based on geometric analysis."""
@@ -1593,16 +1609,61 @@ class AutonomousDebateService:
             if winning_god and hasattr(winning_god, 'learn_from_outcome'):
                 phi = debate_dict.get('phi', 0.7)
                 kappa = debate_dict.get('kappa', 58.0)
+                assessment = {
+                    'phi': phi if isinstance(phi, (int, float)) else 0.7,
+                    'kappa': kappa if isinstance(kappa, (int, float)) else 58.0,
+                    'confidence': 0.8,
+                    'domain': 'debate'
+                }
+                actual_outcome = {'success': True, 'domain': 'debate', 'topic': topic[:100]}
                 winning_god.learn_from_outcome(
                     target=topic[:500],
-                    predicted_prob=0.7,
-                    actual_outcome={'success': True, 'domain': 'debate', 'topic': topic[:100]},
-                    phi=phi if isinstance(phi, (int, float)) else 0.7,
-                    kappa=kappa if isinstance(kappa, (int, float)) else 58.0
+                    assessment=assessment,
+                    actual_outcome=actual_outcome,
+                    success=True
                 )
                 logger.info(f"[DebateLearning] {winner} learned from debate win: {topic[:50]}...")
         except Exception as e:
             logger.warning(f"[DebateLearning] Failed to record learning for {winner}: {e}")
+
+    def _trigger_knowledge_transfer(self, winner: str, loser: str, topic: str, reasoning: str, debate_dict: Dict) -> None:
+        """Trigger knowledge transfer from debate winner to loser."""
+        if not self._pantheon_chat or not winner or not loser:
+            return
+        
+        if winner == loser or winner == 'unknown' or loser == 'unknown':
+            return
+        
+        try:
+            arguments = debate_dict.get('arguments', [])
+            winner_args = [a for a in arguments if a.get('god', '').lower() == winner.lower()]
+            
+            key_insights = []
+            for arg in winner_args[-3:]:
+                content = arg.get('content', '')[:200]
+                if content:
+                    key_insights.append(content)
+            
+            knowledge = {
+                'topic': topic[:200],
+                'domain': self._extract_domain_from_topic(topic),
+                'insights': key_insights,
+                'reasoning': reasoning[:300],
+                'debate_id': debate_dict.get('id', ''),
+                'phi': debate_dict.get('phi', 0.7),
+                'kappa': debate_dict.get('kappa', 58.0),
+            }
+            
+            transfer = self._pantheon_chat.transfer_knowledge(
+                from_god=winner,
+                to_god=loser,
+                knowledge=knowledge
+            )
+            
+            if transfer:
+                logger.info(f"[KnowledgeTransfer] {winner} → {loser}: {topic[:50]}...")
+        except Exception as e:
+            logger.warning(f"[KnowledgeTransfer] Failed: {e}")
 
     def _trigger_spawn_proposal(self, topic: str, winner: str, debate_dict: Dict) -> None:
         """Trigger M8 kernel spawn proposal for debate domain specialist."""

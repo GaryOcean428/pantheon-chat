@@ -152,6 +152,15 @@ All modules should import from this centralized source rather than hardcoding va
 - **Solution:** Added `_run_async_safely()` helper method that detects if already in an event loop and uses `run_coroutine_threadsafe()` instead
 - **Fallbacks:** Added graceful fallbacks for OPSEC, surveillance, and misdirection operations to prevent blocking on async failures
 
+### Knowledge Transfer Persistence Fix (January 10, 2026)
+- **Column Mismatch Fixed:** Database has both `transfer_type` (NOT NULL) and `knowledge_type` columns. Updated `save_knowledge_transfer()` in `pantheon_persistence.py` to write to both columns
+- **Content Field Fixed:** Transfer dict uses `knowledge` key but persistence looked for `content`. Now checks both keys: `transfer.get('content') or transfer.get('knowledge', {})`
+- **Accepted Field Fixed:** Also checks `acknowledged` key as fallback for `accepted`
+- **God-Based Resolution Path:** Added `_trigger_knowledge_transfer()` call to `_continue_debate_god_based()` flow (was only in `_auto_resolve_debate()`)
+
+### God State Persistence Fix (January 10, 2026)
+- **UUID Generation:** Added `id` column to INSERT in `save_god_state()` using format `god_{name.lower()}_{uuid.uuid4().hex[:8]}` to resolve null constraint violation
+
 ### Python Backend Notes
 - Backend takes ~60 seconds to fully initialize (loading 11K+ tokens, initializing 18 gods, setting up search providers)
 - Node.js Express server may show "degraded" status during initial load but Python continues loading asynchronously
