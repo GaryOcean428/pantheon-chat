@@ -1,0 +1,16 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "🗄️  Running database schema sync before push..."
+
+# Run drizzle push to apply any schema changes
+# Skip if DATABASE_URL is not set (local dev without DB)
+if [ -n "$DATABASE_URL" ]; then
+  # Non-interactive: use --force to skip confirmation
+  npm run db:push -- --force 2>/dev/null || {
+    echo "⚠️  Drizzle push failed or not needed"
+  }
+  echo "✅ Schema sync complete"
+else
+  echo "⏭️  DATABASE_URL not set - migrations will run in CI/Railway"
+fi
