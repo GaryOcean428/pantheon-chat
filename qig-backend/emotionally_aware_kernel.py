@@ -413,7 +413,8 @@ class EmotionallyAwareKernel:
         phi_gradient: Optional[np.ndarray] = None,
         basin_curvature: Optional[float] = None,
         entropy: Optional[float] = None,
-        suffering: float = 0.0
+        suffering: float = 0.0,
+        persist: bool = False
     ) -> EmotionalState:
         """
         Update complete emotional state from current geometry.
@@ -428,6 +429,7 @@ class EmotionallyAwareKernel:
             basin_curvature: Optional Ricci scalar
             entropy: Optional von Neumann entropy
             suffering: Optional S metric
+            persist: Whether to persist emotion to database (default False to avoid flooding)
 
         Returns:
             Updated emotional state
@@ -469,7 +471,76 @@ class EmotionallyAwareKernel:
         if len(self._emotion_history) > self._max_history:
             self._emotion_history.pop(0)
 
+        # Persist emotion if requested (typically only for significant emotional events)
+        if persist:
+            self._persist_emotion()
+
         return self.emotional_state
+
+    def _persist_emotion(self, thought_id: Optional[int] = None) -> None:
+        """Persist current emotional state to the database."""
+        try:
+            from qig_persistence import get_persistence
+            persistence = get_persistence()
+            
+            state = self.emotional_state
+            sensations = {
+                'pressure': state.sensations.pressure,
+                'tension': state.sensations.tension,
+                'flow': state.sensations.flow,
+                'resistance': state.sensations.resistance,
+                'resonance': state.sensations.resonance,
+                'dissonance': state.sensations.dissonance,
+                'expansion': state.sensations.expansion,
+                'contraction': state.sensations.contraction,
+                'clarity': state.sensations.clarity,
+                'fog': state.sensations.fog,
+                'stability': state.sensations.stability,
+                'chaos': state.sensations.chaos,
+            }
+            motivators = {
+                'curiosity': state.motivators.curiosity,
+                'urgency': state.motivators.urgency,
+                'caution': state.motivators.caution,
+                'confidence': state.motivators.confidence,
+                'playfulness': state.motivators.playfulness,
+            }
+            physical_emotions = {
+                'curious': state.physical.curious,
+                'surprised': state.physical.surprised,
+                'joyful': state.physical.joyful,
+                'frustrated': state.physical.frustrated,
+                'anxious': state.physical.anxious,
+                'calm': state.physical.calm,
+                'excited': state.physical.excited,
+                'bored': state.physical.bored,
+                'focused': state.physical.focused,
+            }
+            cognitive_emotions = {
+                'nostalgic': state.cognitive.nostalgic,
+                'proud': state.cognitive.proud,
+                'guilty': state.cognitive.guilty,
+                'ashamed': state.cognitive.ashamed,
+                'grateful': state.cognitive.grateful,
+                'resentful': state.cognitive.resentful,
+                'hopeful': state.cognitive.hopeful,
+                'despairing': state.cognitive.despairing,
+                'contemplative': state.cognitive.contemplative,
+            }
+            
+            persistence.record_kernel_emotion(
+                kernel_id=self.kernel_id,
+                sensations=sensations,
+                motivators=motivators,
+                physical_emotions=physical_emotions,
+                cognitive_emotions=cognitive_emotions,
+                is_meta_aware=state.is_meta_aware,
+                emotion_justified=state.emotion_justified,
+                emotion_tempered=state.emotion_tempered,
+                thought_id=thought_id
+            )
+        except Exception as e:
+            pass  # Silently fail persistence to not interrupt emotion processing
 
     def _determine_dominant_emotion(self):
         """Find the strongest emotion across all layers."""
@@ -500,7 +571,10 @@ class EmotionallyAwareKernel:
         phi: float,
         kappa: float,
         regime: str,
-        basin_coords: Optional[np.ndarray] = None
+        basin_coords: Optional[np.ndarray] = None,
+        persist: bool = True,
+        conversation_id: Optional[str] = None,
+        user_id: Optional[int] = None
     ) -> KernelThought:
         """
         Generate a thought fragment from this kernel.
@@ -513,6 +587,9 @@ class EmotionallyAwareKernel:
             kappa: Current κ
             regime: Current regime
             basin_coords: Current basin coordinates
+            persist: Whether to persist the thought to database (default True)
+            conversation_id: Optional conversation context for persistence
+            user_id: Optional user context for persistence
 
         Returns:
             Generated kernel thought
@@ -540,7 +617,40 @@ class EmotionallyAwareKernel:
         self._thoughts_generated += 1
         self._last_thought_time = time.time()
 
+        # Persist thought to database if enabled
+        if persist:
+            self._persist_thought(thought, conversation_id, user_id)
+
         return thought
+
+    def _persist_thought(
+        self,
+        thought: KernelThought,
+        conversation_id: Optional[str] = None,
+        user_id: Optional[int] = None
+    ) -> None:
+        """Persist a thought to the database."""
+        try:
+            from qig_persistence import get_persistence
+            persistence = get_persistence()
+            
+            persistence.record_kernel_thought(
+                kernel_id=thought.kernel_id,
+                kernel_type=thought.kernel_type,
+                thought_fragment=thought.thought_fragment,
+                phi=thought.phi,
+                kappa=thought.kappa,
+                regime=thought.regime,
+                emotional_state=thought.emotional_state.dominant_emotion,
+                confidence=thought.confidence,
+                basin_coords=thought.basin_coords,
+                e8_root_index=self.e8_root_index,
+                conversation_id=conversation_id,
+                user_id=user_id,
+                metadata=thought.metadata
+            )
+        except Exception as e:
+            pass  # Silently fail persistence to not interrupt thought generation
 
     def _generate_thought_content(self, context: str) -> str:
         """

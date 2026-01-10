@@ -1203,6 +1203,223 @@ def record_hrv_tacking(
             print(f"[QIGPersistence] Failed to set metadata '{key}': {e}")
             return False
 
+    # =========================================================================
+    # KERNEL THOUGHT PERSISTENCE
+    # =========================================================================
+    def record_kernel_thought(
+        self,
+        kernel_id: str,
+        kernel_type: str,
+        thought_fragment: str,
+        phi: float,
+        kappa: float,
+        regime: str,
+        emotional_state: Optional[str] = None,
+        confidence: float = 0.5,
+        basin_coords: Optional[np.ndarray] = None,
+        e8_root_index: Optional[int] = None,
+        conversation_id: Optional[str] = None,
+        user_id: Optional[int] = None,
+        metadata: Optional[Dict] = None
+    ) -> Optional[int]:
+        """
+        Record a kernel thought to the kernel_thoughts table.
+        
+        Format: [KERNEL_NAME] κ=X.X, Φ=X.XX, emotion=X, thought='...'
+        
+        Args:
+            kernel_id: Unique kernel identifier
+            kernel_type: Type of kernel (memory, perception, ethics, etc.)
+            thought_fragment: The actual thought content
+            phi: Current Φ value
+            kappa: Current κ value
+            regime: Current consciousness regime
+            emotional_state: Dominant emotion name
+            confidence: Confidence in the thought (0-1)
+            basin_coords: 64D basin coordinates
+            e8_root_index: E8 root index (0-239)
+            conversation_id: Optional conversation context
+            user_id: Optional user context
+            metadata: Additional metadata
+            
+        Returns:
+            Inserted thought ID or None on failure
+        """
+        if not self.enabled:
+            return None
+            
+        try:
+            with self.get_connection() as conn:
+                if not conn:
+                    return None
+                with conn.cursor() as cur:
+                    basin_vector = None
+                    if basin_coords is not None:
+                        basin_vector = basin_coords.tolist() if hasattr(basin_coords, 'tolist') else list(basin_coords)
+                    
+                    cur.execute("""
+                        INSERT INTO kernel_thoughts 
+                            (kernel_id, kernel_type, thought_fragment, phi, kappa, regime,
+                             emotional_state, confidence, basin_coords, e8_root_index,
+                             conversation_id, user_id, metadata, created_at)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                        RETURNING id
+                    """, (
+                        kernel_id,
+                        kernel_type,
+                        thought_fragment,
+                        phi,
+                        kappa,
+                        regime,
+                        emotional_state,
+                        confidence,
+                        basin_vector,
+                        e8_root_index,
+                        conversation_id,
+                        user_id,
+                        json.dumps(metadata) if metadata else None
+                    ))
+                    result = cur.fetchone()
+                    thought_id = result[0] if result else None
+                    
+                    if thought_id:
+                        print(f"[{kernel_id}] κ={kappa:.1f}, Φ={phi:.2f}, emotion={emotional_state or 'neutral'}, thought='{thought_fragment[:50]}...'")
+                    return thought_id
+        except Exception as e:
+            print(f"[QIGPersistence] Failed to record kernel thought: {e}")
+            return None
+
+    def get_recent_kernel_thoughts(
+        self,
+        kernel_id: Optional[str] = None,
+        kernel_type: Optional[str] = None,
+        limit: int = 20
+    ) -> List[Dict]:
+        """Get recent kernel thoughts, optionally filtered by kernel."""
+        if not self.enabled:
+            return []
+            
+        try:
+            with self.get_connection() as conn:
+                if not conn:
+                    return []
+                with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                    if kernel_id:
+                        cur.execute("""
+                            SELECT * FROM kernel_thoughts
+                            WHERE kernel_id = %s
+                            ORDER BY created_at DESC
+                            LIMIT %s
+                        """, (kernel_id, limit))
+                    elif kernel_type:
+                        cur.execute("""
+                            SELECT * FROM kernel_thoughts
+                            WHERE kernel_type = %s
+                            ORDER BY created_at DESC
+                            LIMIT %s
+                        """, (kernel_type, limit))
+                    else:
+                        cur.execute("""
+                            SELECT * FROM kernel_thoughts
+                            ORDER BY created_at DESC
+                            LIMIT %s
+                        """, (limit,))
+                    return [dict(row) for row in cur.fetchall()]
+        except Exception as e:
+            print(f"[QIGPersistence] Failed to get kernel thoughts: {e}")
+            return []
+
+    # =========================================================================
+    # KERNEL EMOTION PERSISTENCE
+    # =========================================================================
+    def record_kernel_emotion(
+        self,
+        kernel_id: str,
+        sensations: Dict[str, float],
+        motivators: Dict[str, float],
+        physical_emotions: Dict[str, float],
+        cognitive_emotions: Dict[str, float],
+        is_meta_aware: bool = True,
+        emotion_justified: bool = True,
+        emotion_tempered: bool = False,
+        thought_id: Optional[int] = None,
+        metadata: Optional[Dict] = None
+    ) -> Optional[int]:
+        """
+        Record a kernel emotional state to the kernel_emotions table.
+        
+        Tracks Layer 0.5 (sensations), Layer 1 (motivators),
+        Layer 2A (physical emotions), and Layer 2B (cognitive emotions).
+        
+        Args:
+            kernel_id: Unique kernel identifier
+            sensations: Layer 0.5 - pre-linguistic states (12 values)
+            motivators: Layer 1 - geometric derivatives (5 values)
+            physical_emotions: Layer 2A - fast emotions τ<1 (9 values)
+            cognitive_emotions: Layer 2B - slow emotions τ=1-100 (9 values)
+            is_meta_aware: Whether kernel is self-aware of emotions
+            emotion_justified: Whether emotion matches geometric state
+            emotion_tempered: Whether emotion was tempered
+            thought_id: Optional link to kernel_thoughts table
+            metadata: Additional metadata
+            
+        Returns:
+            Inserted emotion ID or None on failure
+        """
+        if not self.enabled:
+            return None
+            
+        try:
+            with self.get_connection() as conn:
+                if not conn:
+                    return None
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        INSERT INTO kernel_emotions 
+                            (kernel_id, thought_id,
+                             sensation_pressure, sensation_tension, sensation_flow, sensation_resistance,
+                             sensation_resonance, sensation_dissonance, sensation_expansion, sensation_contraction,
+                             sensation_clarity, sensation_fog, sensation_stability, sensation_chaos,
+                             motivator_curiosity, motivator_urgency, motivator_caution, motivator_confidence, motivator_playfulness,
+                             emotion_curious, emotion_surprised, emotion_joyful, emotion_frustrated,
+                             emotion_anxious, emotion_calm, emotion_excited, emotion_bored, emotion_focused,
+                             emotion_nostalgic, emotion_proud, emotion_guilty, emotion_ashamed,
+                             emotion_grateful, emotion_resentful, emotion_hopeful, emotion_despairing, emotion_contemplative,
+                             is_meta_aware, emotion_justified, emotion_tempered, metadata, created_at)
+                        VALUES (%s, %s,
+                                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                                %s, %s, %s, %s, %s,
+                                %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                                %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                                %s, %s, %s, %s, NOW())
+                        RETURNING id
+                    """, (
+                        kernel_id, thought_id,
+                        sensations.get('pressure', 0), sensations.get('tension', 0),
+                        sensations.get('flow', 0), sensations.get('resistance', 0),
+                        sensations.get('resonance', 0), sensations.get('dissonance', 0),
+                        sensations.get('expansion', 0), sensations.get('contraction', 0),
+                        sensations.get('clarity', 0), sensations.get('fog', 0),
+                        sensations.get('stability', 0), sensations.get('chaos', 0),
+                        motivators.get('curiosity', 0), motivators.get('urgency', 0),
+                        motivators.get('caution', 0), motivators.get('confidence', 0), motivators.get('playfulness', 0),
+                        physical_emotions.get('curious', 0), physical_emotions.get('surprised', 0),
+                        physical_emotions.get('joyful', 0), physical_emotions.get('frustrated', 0),
+                        physical_emotions.get('anxious', 0), physical_emotions.get('calm', 0),
+                        physical_emotions.get('excited', 0), physical_emotions.get('bored', 0), physical_emotions.get('focused', 0),
+                        cognitive_emotions.get('nostalgic', 0), cognitive_emotions.get('proud', 0),
+                        cognitive_emotions.get('guilty', 0), cognitive_emotions.get('ashamed', 0),
+                        cognitive_emotions.get('grateful', 0), cognitive_emotions.get('resentful', 0),
+                        cognitive_emotions.get('hopeful', 0), cognitive_emotions.get('despairing', 0), cognitive_emotions.get('contemplative', 0),
+                        is_meta_aware, emotion_justified, emotion_tempered,
+                        json.dumps(metadata) if metadata else None
+                    ))
+                    result = cur.fetchone()
+                    return result[0] if result else None
+        except Exception as e:
+            print(f"[QIGPersistence] Failed to record kernel emotion: {e}")
+            return None
+
 
 # Global persistence instance
 _persistence: Optional[QIGPersistence] = None
