@@ -2,10 +2,10 @@
 """Fix vocabulary_learning table data issues.
 
 Issues addressed:
-1. related_words array contains the word itself (should only have other words)
+1. related_words/related_word contains the word itself (should only have other words)
 2. metadata column is empty (should have learning context)
 
-Reference: User report - "word is same as related_word, metadata is empty"
+Auto-detects schema columns - works with any table structure.
 """
 
 import os
@@ -23,44 +23,52 @@ BATCH_SIZE = 100
 
 
 def generate_metadata(row: dict) -> dict:
-    """Generate metadata for a vocabulary_learning row.
-
-    Args:
-        row: Dict with learning_id, word, relationship_type, relationship_strength,
-             learned_from, source_kernel, learned_at, related_words, context_words
-    """
+    """Generate metadata for a vocabulary_learning row."""
     metadata = {
         'generated_at': datetime.now().isoformat(),
         'fix_applied': 'vocabulary_learning_null_fix',
-        'word_length': len(row.get('word', '')),
-        'relationship': {
-            'type': row.get('relationship_type', 'unknown'),
-            'strength': round(row.get('relationship_strength', 0.0), 4),
-        },
-        'source': {
-            'learned_from': row.get('learned_from', 'unknown'),
-            'kernel': row.get('source_kernel', 'unknown'),
-        },
-        'stats': {
-            'related_count': len(row.get('related_words', []) or []),
-            'context_count': len(row.get('context_words', []) or []),
-        }
+        'word_length': len(row.get('word', '') or ''),
     }
 
-    # Add temporal info if learned_at exists
+    # Add relationship info if available
+    if row.get('relationship_type') or row.get('relationship_strength'):
+        metadata['relationship'] = {
+            'type': row.get('relationship_type') or 'unknown',
+            'strength': round(float(row.get('relationship_strength') or 0.0), 4),
+        }
+
+    # Add source info if available
+    if row.get('learned_from') or row.get('source_kernel'):
+        metadata['source'] = {
+            'learned_from': row.get('learned_from') or 'unknown',
+            'kernel': row.get('source_kernel') or 'unknown',
+        }
+
+    # Handle related words (array or single value)
+    related = row.get('related_words') or row.get('related_word') or []
+    if isinstance(related, str):
+        related = [related] if related else []
+    context = row.get('context_words') or []
+    if isinstance(context, str):
+        context = [context] if context else []
+
+    metadata['stats'] = {
+        'related_count': len(related) if related else 0,
+        'context_count': len(context) if context else 0,
+    }
+
+    # Add temporal info if available
     if row.get('learned_at'):
-        metadata['learned_timestamp'] = row['learned_at'].isoformat() if hasattr(row['learned_at'], 'isoformat') else str(row['learned_at'])
+        try:
+            metadata['learned_timestamp'] = row['learned_at'].isoformat() if hasattr(row['learned_at'], 'isoformat') else str(row['learned_at'])
+        except:
+            pass
 
     return metadata
 
 
 def fix_vocabulary_learning(limit: int = 0, dry_run: bool = False):
-    """Fix vocabulary_learning table issues.
-
-    Args:
-        limit: Maximum rows to process (0 = all)
-        dry_run: If True, show what would be updated without making changes
-    """
+    """Fix vocabulary_learning table issues."""
     import psycopg2
     from psycopg2.extras import RealDictCursor
 
@@ -71,7 +79,6 @@ def fix_vocabulary_learning(limit: int = 0, dry_run: bool = False):
 
     conn = psycopg2.connect(database_url)
 
-    # Get rows needing fixes
     with conn.cursor(cursor_factory=RealDictCursor) as cur:
         # Check if table exists
         cur.execute("""
@@ -85,45 +92,103 @@ def fix_vocabulary_learning(limit: int = 0, dry_run: bool = False):
             conn.close()
             return
 
-        # Get rows where:
-        # 1. metadata is NULL or empty
-        # 2. OR word is in related_words array
-        query = """
-            SELECT learning_id, word, relationship_type, relationship_strength,
-                   learned_from, source_kernel, learned_at, related_words, context_words,
-                   metadata
+        # Get actual columns
+        cur.execute("""
+            SELECT column_name FROM information_schema.columns
+            WHERE table_name = 'vocabulary_learning'
+            ORDER BY ordinal_position
+        """)
+        columns = [r['column_name'] for r in cur.fetchall()]
+        print(f"Table columns: {columns}")
+
+        # Find primary key (id or learning_id)
+        pk_col = None
+        for candidate in ['id', 'learning_id']:
+            if candidate in columns:
+                pk_col = candidate
+                break
+        if not pk_col:
+            pk_col = columns[0]
+        print(f"Primary key: {pk_col}")
+
+        # Find related words column
+        related_col = None
+        for candidate in ['related_words', 'related_word']:
+            if candidate in columns:
+                related_col = candidate
+                break
+        print(f"Related words column: {related_col}")
+
+        has_metadata = 'metadata' in columns
+        print(f"Has metadata column: {has_metadata}")
+
+        if not related_col and not has_metadata:
+            print("No fixable columns found")
+            conn.close()
+            return
+
+        # Build SELECT
+        select_cols = [pk_col]
+        if 'word' in columns:
+            select_cols.append('word')
+        for col in ['relationship_type', 'relationship_strength', 'learned_from',
+                    'source_kernel', 'learned_at', 'context_words']:
+            if col in columns:
+                select_cols.append(col)
+        if related_col:
+            select_cols.append(related_col)
+        if has_metadata:
+            select_cols.append('metadata')
+
+        # Build WHERE - find rows that need fixing
+        where_parts = []
+        if has_metadata:
+            where_parts.append("(metadata IS NULL OR metadata = '{}'::jsonb)")
+        if related_col and 'word' in columns:
+            # Check if word equals related_word (for single value) or is in array
+            cur.execute(f"SELECT data_type FROM information_schema.columns WHERE table_name = 'vocabulary_learning' AND column_name = '{related_col}'")
+            dtype = cur.fetchone()
+            if dtype and 'ARRAY' in str(dtype['data_type']).upper():
+                where_parts.append(f"({related_col} IS NOT NULL AND word = ANY({related_col}))")
+            else:
+                where_parts.append(f"({related_col} IS NOT NULL AND word = {related_col})")
+
+        if not where_parts:
+            print("No conditions to filter on")
+            conn.close()
+            return
+
+        query = f"""
+            SELECT {', '.join(select_cols)}
             FROM vocabulary_learning
-            WHERE metadata IS NULL
-               OR metadata = '{}'::jsonb
-               OR (related_words IS NOT NULL AND word = ANY(related_words))
-            ORDER BY learning_id
+            WHERE {' OR '.join(where_parts)}
+            ORDER BY {pk_col}
         """
         if limit > 0:
             query += f" LIMIT {limit}"
 
+        print(f"\nQuery:\n{query}\n")
         cur.execute(query)
         rows = cur.fetchall()
 
     if not rows:
-        print("No vocabulary_learning rows found needing fixes")
+        print("No rows found needing fixes")
         conn.close()
         return
 
     print(f"Found {len(rows)} rows needing fixes")
 
-    # Count specific issues
-    self_reference_count = sum(1 for r in rows if r.get('related_words') and r['word'] in r['related_words'])
-    empty_metadata_count = sum(1 for r in rows if not r.get('metadata') or r.get('metadata') == {})
-    print(f"  - Self-reference in related_words: {self_reference_count}")
-    print(f"  - Empty/NULL metadata: {empty_metadata_count}")
-
     if dry_run:
         print("\nDRY RUN - showing first 10 rows:")
         for row in rows[:10]:
-            related = row.get('related_words') or []
-            has_self = row['word'] in related if related else False
-            print(f"  id={row['learning_id']}: word='{row['word']}', "
-                  f"self_ref={has_self}, related_count={len(related)}")
+            related = row.get(related_col) if related_col else None
+            word = row.get('word', '')
+            if isinstance(related, list):
+                has_self = word in related if related else False
+            else:
+                has_self = word == related if related else False
+            print(f"  {pk_col}={row[pk_col]}: word='{word}', related='{related}', self_ref={has_self}")
+        conn.close()
         return
 
     success = 0
@@ -135,51 +200,46 @@ def fix_vocabulary_learning(limit: int = 0, dry_run: bool = False):
 
             for row in batch:
                 try:
-                    # Fix related_words - remove self-reference
-                    related_words = row.get('related_words') or []
-                    if row['word'] in related_words:
-                        related_words = [w for w in related_words if w != row['word']]
-
-                    # Generate metadata
                     row_dict = dict(row)
-                    row_dict['related_words'] = related_words  # Use fixed list
-                    metadata = generate_metadata(row_dict)
-                    metadata_json = json.dumps(metadata)
+                    updates = []
+                    params = []
 
-                    # Update row
-                    cur.execute("""
-                        UPDATE vocabulary_learning
-                        SET related_words = %s,
-                            metadata = %s::jsonb
-                        WHERE learning_id = %s
-                    """, (related_words if related_words else None, metadata_json, row['learning_id']))
+                    # Fix related words - remove self-reference
+                    if related_col and row.get(related_col):
+                        related = row[related_col]
+                        word = row.get('word', '')
+                        if isinstance(related, list):
+                            fixed = [w for w in related if w != word]
+                            updates.append(f"{related_col} = %s")
+                            params.append(fixed if fixed else None)
+                            row_dict[related_col] = fixed
+                        elif related == word:
+                            updates.append(f"{related_col} = NULL")
+                            row_dict[related_col] = None
 
-                    success += 1
+                    # Generate and set metadata
+                    if has_metadata:
+                        metadata = generate_metadata(row_dict)
+                        updates.append("metadata = %s::jsonb")
+                        params.append(json.dumps(metadata))
+
+                    if updates:
+                        params.append(row[pk_col])
+                        cur.execute(f"""
+                            UPDATE vocabulary_learning
+                            SET {', '.join(updates)}
+                            WHERE {pk_col} = %s
+                        """, params)
+                        success += 1
+
                 except Exception as e:
-                    print(f"Error fixing learning_id={row['learning_id']}: {e}")
+                    print(f"Error fixing {pk_col}={row[pk_col]}: {e}")
                     errors += 1
 
             conn.commit()
-            processed = min(i + BATCH_SIZE, len(rows))
-            print(f"Progress: {processed}/{len(rows)} (success={success}, errors={errors})")
-
-    # Verify results
-    with conn.cursor() as cur:
-        cur.execute("""
-            SELECT
-                COUNT(*) as total,
-                COUNT(metadata) FILTER (WHERE metadata IS NOT NULL AND metadata != '{}') as has_metadata,
-                COUNT(*) FILTER (WHERE related_words IS NOT NULL AND word = ANY(related_words)) as has_self_ref
-            FROM vocabulary_learning
-        """)
-        stats = cur.fetchone()
-        print(f"\nFinal stats:")
-        print(f"  Total rows: {stats[0]}")
-        print(f"  With metadata: {stats[1]}")
-        print(f"  With self-reference (should be 0): {stats[2]}")
+            print(f"Progress: {min(i + BATCH_SIZE, len(rows))}/{len(rows)} (success={success}, errors={errors})")
 
     print(f"\nCompleted: {success} fixed, {errors} errors")
-
     conn.close()
 
 
