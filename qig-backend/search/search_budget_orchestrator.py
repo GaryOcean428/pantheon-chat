@@ -776,6 +776,56 @@ class SearchBudgetOrchestrator:
         alpha = 0.1  # Learning rate
         current = self._provider_efficacy.get(provider, 0.5)
         self._provider_efficacy[provider] = current * (1 - alpha) + relevance * alpha
+        
+        # Persist to provider_efficacy table
+        self._persist_provider_efficacy(provider)
+    
+    def _persist_provider_efficacy(self, provider: str):
+        """Persist provider efficacy metrics to PostgreSQL."""
+        try:
+            # Aggregate metrics from outcomes for this provider
+            provider_outcomes = [o for o in self.outcomes if o.provider == provider]
+            if not provider_outcomes:
+                return
+            
+            total_queries = len(provider_outcomes)
+            successful_queries = sum(1 for o in provider_outcomes if o.success)
+            avg_relevance = sum(o.relevance for o in provider_outcomes) / total_queries if total_queries > 0 else 0.0
+            efficacy_score = self._provider_efficacy.get(provider, 0.5)
+            
+            # Calculate cost from budget
+            budget = self.budgets.get(provider)
+            cost_per_query = budget.cost_per_query if budget else 0.0
+            total_cost_cents = int(total_queries * cost_per_query * 100)
+            cost_per_successful = (total_cost_cents / successful_queries) if successful_queries > 0 else 0.0
+            
+            database_url = os.environ.get('DATABASE_URL')
+            if database_url and DB_AVAILABLE:
+                conn = psycopg2.connect(database_url)
+                cur = conn.cursor()
+                cur.execute("""
+                    INSERT INTO provider_efficacy (
+                        provider, total_queries, successful_queries, avg_relevance,
+                        efficacy_score, total_cost_cents, cost_per_successful_query, updated_at
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
+                    ON CONFLICT (provider) DO UPDATE SET
+                        total_queries = EXCLUDED.total_queries,
+                        successful_queries = EXCLUDED.successful_queries,
+                        avg_relevance = EXCLUDED.avg_relevance,
+                        efficacy_score = EXCLUDED.efficacy_score,
+                        total_cost_cents = EXCLUDED.total_cost_cents,
+                        cost_per_successful_query = EXCLUDED.cost_per_successful_query,
+                        updated_at = NOW()
+                """, (
+                    provider, total_queries, successful_queries, avg_relevance,
+                    efficacy_score, total_cost_cents, cost_per_successful
+                ))
+                conn.commit()
+                cur.close()
+                conn.close()
+        except Exception as e:
+            logger.debug(f"[SearchBudget] Failed to persist provider efficacy: {e}")
     
     def set_provider_enabled(self, provider: str, enabled: bool) -> bool:
         """
