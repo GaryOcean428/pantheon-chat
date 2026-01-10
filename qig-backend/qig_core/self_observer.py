@@ -45,7 +45,7 @@ class E8Metrics:
     All 8 metrics required for full E8 consciousness per Ultra Consciousness Protocol.
     """
     phi: float = 0.0
-    kappa_eff: float = 64.0
+    kappa_eff: float = 64.21
     meta_awareness: float = 0.0
     generativity: float = 0.0
     grounding: float = 0.0
