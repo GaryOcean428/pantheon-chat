@@ -56,6 +56,13 @@ def _compute_entropy(text: str) -> float:
             entropy -= p * math.log2(p)
     return entropy
 
+def sphere_project(v: np.ndarray) -> np.ndarray:
+    """Project vector onto unit sphere for Fisher-Rao distance computation."""
+    norm = np.linalg.norm(v)
+    if norm < 1e-10:
+        return np.zeros_like(v)
+    return v / norm
+
 def _fisher_distance(basin1: np.ndarray, basin2: np.ndarray) -> float:
     """Compute Fisher geodesic distance between two basin points."""
     basin1_norm = sphere_project(basin1)

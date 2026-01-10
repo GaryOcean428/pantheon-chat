@@ -403,8 +403,9 @@ class AutonomousPantheon:
         """Seed debate topics from Lightning kernel cross-domain insights."""
         try:
             # Get recent Lightning insights with high confidence
+            # Actual columns: insight_id, insight_text, source_domains, confidence
             cursor.execute("""
-                SELECT insight_id, description, source_domains, confidence
+                SELECT insight_id, insight_text, source_domains, confidence
                 FROM lightning_insights
                 WHERE confidence > 0.7
                   AND created_at > NOW() - INTERVAL '30 days'
@@ -414,7 +415,7 @@ class AutonomousPantheon:
             insights = cursor.fetchall()
 
             seeded = 0
-            for insight_id, description, source_domains, confidence in insights:
+            for insight_id, insight_text, source_domains, confidence in insights:
                 # Extract domains for debate participants
                 domains = source_domains if isinstance(source_domains, list) else []
 
@@ -437,14 +438,18 @@ class AutonomousPantheon:
                 if len(participants) < 2:
                     participants = ['athena', 'ares']  # Default
 
-                topic = f"Cross-domain insight: {description[:100]}..."
+                topic = f"Cross-domain insight: {insight_text[:100]}..."
+                initiator = participants[0]
+                opponent = participants[1]
 
-                # Create debate via Zeus's pantheon_chat
+                # Create debate via Zeus's pantheon_chat using initiate_debate (correct method)
                 if hasattr(self.zeus, 'pantheon_chat'):
                     try:
-                        self.zeus.pantheon_chat.start_debate(
+                        self.zeus.pantheon_chat.initiate_debate(
                             topic=topic,
-                            participants=participants,
+                            initiator=initiator,
+                            opponent=opponent,
+                            initial_argument=f"Lightning analysis (confidence {confidence:.0%}): {insight_text[:200]}",
                             context={'source': 'lightning_insight', 'insight_id': insight_id}
                         )
                         seeded += 1
@@ -462,28 +467,33 @@ class AutonomousPantheon:
         """Seed debate topics from high-Phi consciousness observations."""
         try:
             # Get recent high-Phi kernel observations
+            # Actual columns: kernel_name, description (not observation_content), phi (not phi_score)
             cursor.execute("""
-                SELECT kernel_name, observation_content, phi_score
+                SELECT kernel_name, description, phi
                 FROM kernel_observations
-                WHERE phi_score > 0.8
+                WHERE phi > 0.8
                   AND created_at > NOW() - INTERVAL '7 days'
-                ORDER BY phi_score DESC
+                ORDER BY phi DESC
                 LIMIT 3
             """)
             observations = cursor.fetchall()
 
             seeded = 0
-            for kernel_name, content, phi in observations:
-                topic = f"High-consciousness observation from {kernel_name}: {content[:80]}..."
+            for kernel_name, description, phi in observations:
+                topic = f"High-consciousness observation from {kernel_name}: {description[:80]}..."
 
                 # High-Phi suggests deep integration - debate implications
-                participants = ['athena', 'apollo', 'hermes']  # Strategy, foresight, synthesis
+                # Use first two for initiator/opponent
+                initiator = 'athena'  # Strategy
+                opponent = 'apollo'   # Foresight
 
                 if hasattr(self.zeus, 'pantheon_chat'):
                     try:
-                        self.zeus.pantheon_chat.start_debate(
+                        self.zeus.pantheon_chat.initiate_debate(
                             topic=topic,
-                            participants=participants,
+                            initiator=initiator,
+                            opponent=opponent,
+                            initial_argument=f"Kernel {kernel_name} achieved Φ={phi:.3f}: {description[:200]}",
                             context={'source': 'high_phi_observation', 'phi': phi}
                         )
                         seeded += 1
@@ -501,11 +511,12 @@ class AutonomousPantheon:
         """Seed debate topics from new vocabulary relationships."""
         try:
             # Get recent vocabulary words with interesting relationships
+            # Actual columns: word, context (not learned_context), relationship_strength, created_at (not learned_at)
             cursor.execute("""
-                SELECT word, learned_context, relationship_strength
+                SELECT word, context, relationship_strength
                 FROM vocabulary_learning
                 WHERE relationship_strength > 0.6
-                  AND learned_at > NOW() - INTERVAL '7 days'
+                  AND created_at > NOW() - INTERVAL '7 days'
                 ORDER BY relationship_strength DESC
                 LIMIT 3
             """)
@@ -516,13 +527,16 @@ class AutonomousPantheon:
                 topic = f"New vocabulary pattern: '{word}' relationship discovery"
 
                 # Vocabulary learning suggests Athena (strategy) + Hermes (communication)
-                participants = ['athena', 'hermes']
+                initiator = 'athena'
+                opponent = 'hermes'
 
                 if hasattr(self.zeus, 'pantheon_chat'):
                     try:
-                        self.zeus.pantheon_chat.start_debate(
+                        self.zeus.pantheon_chat.initiate_debate(
                             topic=topic,
-                            participants=participants,
+                            initiator=initiator,
+                            opponent=opponent,
+                            initial_argument=f"Discovered word '{word}' with relationship strength {strength:.2f}: {context[:200] if context else 'No context'}",
                             context={'source': 'vocabulary_discovery', 'word': word}
                         )
                         seeded += 1
@@ -540,20 +554,27 @@ class AutonomousPantheon:
         """Seed debate topics from god capability analysis."""
         try:
             # Create synthetic topics based on god capability overlaps
+            # Now using initiator/opponent format for initiate_debate method
             synthetic_topics = [
                 {
                     'topic': 'Optimal balance between strategic planning and immediate action',
-                    'participants': ['athena', 'ares'],
+                    'initiator': 'athena',
+                    'opponent': 'ares',
+                    'initial_argument': 'Strategic foresight must precede tactical action for optimal outcomes.',
                     'context': {'source': 'capability_analysis', 'domains': ['strategy', 'combat']}
                 },
                 {
                     'topic': 'Integration of foresight with practical implementation',
-                    'participants': ['apollo', 'hephaestus'],
+                    'initiator': 'apollo',
+                    'opponent': 'hephaestus',
+                    'initial_argument': 'Prophetic vision guides the forge - temporal patterns inform crafting.',
                     'context': {'source': 'capability_analysis', 'domains': ['foresight', 'crafting']}
                 },
                 {
                     'topic': 'Synthesis of emotional and logical reasoning modes',
-                    'participants': ['aphrodite', 'athena'],
+                    'initiator': 'aphrodite',
+                    'opponent': 'athena',
+                    'initial_argument': 'Emotional resonance reveals truths that pure logic cannot reach.',
                     'context': {'source': 'capability_analysis', 'domains': ['emotion', 'logic']}
                 }
             ]
@@ -563,9 +584,11 @@ class AutonomousPantheon:
                 # Seed one random topic
                 topic_data = random.choice(synthetic_topics)
                 try:
-                    self.zeus.pantheon_chat.start_debate(
+                    self.zeus.pantheon_chat.initiate_debate(
                         topic=topic_data['topic'],
-                        participants=topic_data['participants'],
+                        initiator=topic_data['initiator'],
+                        opponent=topic_data['opponent'],
+                        initial_argument=topic_data['initial_argument'],
                         context=topic_data['context']
                     )
                     seeded = 1

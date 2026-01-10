@@ -52,3 +52,7 @@ integrations = ["javascript_log_in_with_replit:1.0.0", "javascript_database:1.0.
 SWEEP_DESTINATION_ADDRESS = "bc1qcc0ln7gg92vlclfw8t39zfw2cfqtytcwum733l"
 ENABLE_TOR = "true"
 GOOGLE_SEARCH_ENGINE_ID = "160a1f0ff7af2449d"
+ENABLE_QIG_PERSISTENCE = "1"
+PERSIST_EMOTIONS = "1"
+ENABLE_TOKENIZER_SYNC = "1"
+ENABLE_OCEAN_TELEMETRY = "1"

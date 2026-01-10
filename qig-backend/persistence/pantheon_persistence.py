@@ -155,15 +155,16 @@ class PantheonPersistence(BasePersistence):
         """Save or update a debate."""
         query = """
             INSERT INTO pantheon_debates
-            (id, topic, initiator, opponent, context, status, arguments, winner, arbiter, resolution, started_at, resolved_at)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            (id, topic, participants, initiator, opponent, context, status, arguments, winner, arbiter, resolution, started_at, resolved_at, created_at, updated_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             ON CONFLICT (id) DO UPDATE SET
                 status = EXCLUDED.status,
                 arguments = EXCLUDED.arguments,
                 winner = EXCLUDED.winner,
                 arbiter = EXCLUDED.arbiter,
                 resolution = EXCLUDED.resolution,
-                resolved_at = EXCLUDED.resolved_at
+                resolved_at = EXCLUDED.resolved_at,
+                updated_at = EXCLUDED.updated_at
         """
         try:
             started_at = debate.get('started_at')
@@ -176,11 +177,24 @@ class PantheonPersistence(BasePersistence):
             if isinstance(resolved_at, str):
                 resolved_at = datetime.fromisoformat(resolved_at.replace('Z', '+00:00'))
 
+            # Build participants array from initiator and opponent
+            initiator = debate.get('initiator', '')
+            opponent = debate.get('opponent', '')
+            participants = debate.get('participants', [])
+            if not participants:
+                # Derive participants from initiator and opponent
+                participants = [p for p in [initiator, opponent] if p]
+                if not participants:
+                    participants = ['system']  # Fallback to prevent NULL constraint violation
+
+            now = datetime.now()
+
             self.execute_query(query, (
                 debate['id'],
                 debate.get('topic', ''),
-                debate.get('initiator', ''),
-                debate.get('opponent', ''),
+                participants,  # TEXT[] array column
+                initiator,
+                opponent,
                 json.dumps(debate.get('context', {})) if debate.get('context') else None,
                 debate.get('status', 'active'),
                 json.dumps(debate.get('arguments', [])),
@@ -189,6 +203,8 @@ class PantheonPersistence(BasePersistence):
                 json.dumps(debate.get('resolution', {})) if debate.get('resolution') else None,
                 started_at,
                 resolved_at,
+                debate.get('created_at', now),
+                now,  # updated_at
             ), fetch=False)
             return True
         except Exception as e:
