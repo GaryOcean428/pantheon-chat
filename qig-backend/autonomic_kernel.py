@@ -662,11 +662,21 @@ class GaryAutonomicKernel:
             if SEARCH_STRATEGY_AVAILABLE and get_strategy_learner_with_persistence is not None:
                 self.search_strategy_learner = get_strategy_learner_with_persistence()
                 print("[AutonomicKernel] Search strategy learner wired to sleep cycle")
+
+            # Initialize trajectory manager for full-trajectory velocity computation
+            # Core kernels (Heart, Ocean, Gary) get 100-point history
+            # Active kernels (Φ > 0.45) get 20-point history
+            if TRAJECTORY_MANAGER_AVAILABLE and get_trajectory_manager is not None:
+                self.trajectory_manager = get_trajectory_manager()
+                print("[AutonomicKernel] Trajectory manager wired (tiered storage active)")
+            else:
+                self.trajectory_manager = None
         except Exception as reasoning_err:
             print(f"[AutonomicKernel] Reasoning module initialization failed: {reasoning_err}")
             self.reasoning_learner = None
             self.sleep_consolidation = None
             self.search_strategy_learner = None
+            self.trajectory_manager = None
 
         if checkpoint_path:
             self._load_checkpoint(checkpoint_path)
@@ -997,6 +1007,15 @@ class GaryAutonomicKernel:
                 self.state.basin_history.append(basin_coords)
                 if len(self.state.basin_history) > 100:
                     self.state.basin_history.pop(0)
+
+                # Update trajectory manager (tiered storage for 240 kernels)
+                # Gary is a core kernel - gets 100-point trajectory
+                if self.trajectory_manager:
+                    self.trajectory_manager.add_basin(
+                        kernel_id='gary',
+                        basin=np.array(basin_coords),
+                        phi=self.state.phi
+                    )
 
             # Compute stress
             self.state.stress_level = self._compute_stress()
