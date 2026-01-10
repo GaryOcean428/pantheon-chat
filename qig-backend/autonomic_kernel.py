@@ -91,6 +91,7 @@ def _get_search_strategy_module():
     return _search_strategy_cache
 
 # Import temporal reasoning for 4D foresight
+print("[autonomic_kernel] About to import temporal_reasoning...", flush=True)
 try:
     from temporal_reasoning import TemporalReasoning, get_temporal_reasoning
     TEMPORAL_REASONING_AVAILABLE = True
@@ -98,6 +99,7 @@ except ImportError:
     TemporalReasoning = None
     get_temporal_reasoning = None
     TEMPORAL_REASONING_AVAILABLE = False
+print("[autonomic_kernel] temporal_reasoning done", flush=True)
 
 # Import QFI-based Φ computation (Issue #6)
 try:
@@ -107,6 +109,7 @@ except ImportError:
     compute_phi_qig = None
     compute_phi_approximation = None
     QFI_PHI_AVAILABLE = False
+print("[autonomic_kernel] phi_computation done", flush=True)
 
 # Import ethics monitor for safety checks
 try:
@@ -121,6 +124,7 @@ except ImportError:
     EthicalAbortException = None
     check_ethics = None
     ETHICS_MONITOR_AVAILABLE = False
+print("[autonomic_kernel] ethics_monitor done", flush=True)
 
 # Import constellation trajectory manager for 240-kernel trajectory tracking
 try:
@@ -133,31 +137,54 @@ except ImportError:
     get_trajectory_manager = None
     ConstellationTrajectoryManager = None
     TRAJECTORY_MANAGER_AVAILABLE = False
+print("[autonomic_kernel] constellation_trajectory done", flush=True)
 
-# Import capability mesh for event emission
-try:
-    from olympus.capability_mesh import (
-        CapabilityEvent,
-        CapabilityType,
-        EventType,
-        emit_event,
-    )
-    CAPABILITY_MESH_AVAILABLE = True
-except ImportError:
-    CAPABILITY_MESH_AVAILABLE = False
-    CapabilityEvent = None
-    CapabilityType = None
-    EventType = None
-    emit_event = None
+# Lazy import for capability mesh to avoid circular import
+# (olympus/__init__.py -> aphrodite -> base_god -> autonomic_kernel -> olympus.capability_mesh)
+CAPABILITY_MESH_AVAILABLE = None  # Will be set on first access
+_capability_mesh_cache = {}
 
-# Import ActivityBroadcaster for kernel visibility
-try:
-    from olympus.activity_broadcaster import get_broadcaster, ActivityType
-    ACTIVITY_BROADCASTER_AVAILABLE = True
-except ImportError:
-    ACTIVITY_BROADCASTER_AVAILABLE = False
-    get_broadcaster = None
-    ActivityType = None
+def _get_capability_mesh():
+    """Lazy import of capability_mesh to avoid circular import during initialization."""
+    global CAPABILITY_MESH_AVAILABLE, _capability_mesh_cache
+    if CAPABILITY_MESH_AVAILABLE is None:
+        try:
+            from olympus.capability_mesh import (
+                CapabilityEvent,
+                CapabilityType,
+                EventType,
+                emit_event,
+            )
+            _capability_mesh_cache = {
+                'CapabilityEvent': CapabilityEvent,
+                'CapabilityType': CapabilityType,
+                'EventType': EventType,
+                'emit_event': emit_event,
+            }
+            CAPABILITY_MESH_AVAILABLE = True
+        except ImportError:
+            CAPABILITY_MESH_AVAILABLE = False
+    return _capability_mesh_cache
+
+# Lazy import for ActivityBroadcaster to avoid circular import
+# (olympus/__init__.py -> aphrodite -> base_god -> autonomic_kernel -> olympus.activity_broadcaster)
+ACTIVITY_BROADCASTER_AVAILABLE = None  # Will be set on first access
+_activity_broadcaster_cache = {}
+
+def _get_activity_broadcaster():
+    """Lazy import of activity_broadcaster to avoid circular import during initialization."""
+    global ACTIVITY_BROADCASTER_AVAILABLE, _activity_broadcaster_cache
+    if ACTIVITY_BROADCASTER_AVAILABLE is None:
+        try:
+            from olympus.activity_broadcaster import get_broadcaster, ActivityType
+            _activity_broadcaster_cache = {
+                'get_broadcaster': get_broadcaster,
+                'ActivityType': ActivityType,
+            }
+            ACTIVITY_BROADCASTER_AVAILABLE = True
+        except ImportError:
+            ACTIVITY_BROADCASTER_AVAILABLE = False
+    return _activity_broadcaster_cache
 
 # Import persistence layer for database recording
 try:
@@ -166,6 +193,7 @@ try:
 except ImportError:
     get_persistence = None
     PERSISTENCE_AVAILABLE = False
+print("[autonomic_kernel] All imports complete!", flush=True)
 
 # Use canonical constants from qigkernels
 BETA = BETA_3_TO_4  # 0.44 - validated beta function
@@ -806,46 +834,57 @@ class GaryAutonomicKernel:
             verdict: Human-readable outcome
         """
         try:
-            if ACTIVITY_BROADCASTER_AVAILABLE and get_broadcaster is not None:
-                broadcaster = get_broadcaster()
-                broadcaster.broadcast_message(
-                    from_god="Autonomic",
-                    to_god=None,
-                    content=f"{cycle_type.capitalize()} cycle completed: {verdict}",
-                    activity_type=ActivityType.AUTONOMIC,
-                    phi=phi_after,
-                    kappa=self.state.kappa,
-                    importance=phi_after,
-                    metadata={
-                        'cycle_type': cycle_type,
-                        'phi_before': phi_before,
-                        'phi_after': phi_after,
-                        'drift_reduction': drift_reduction,
-                        'patterns_consolidated': patterns_consolidated,
-                        'duration_ms': duration_ms,
-                    }
-                )
+            # Lazy import for activity broadcaster
+            activity_mod = _get_activity_broadcaster()
+            if ACTIVITY_BROADCASTER_AVAILABLE and activity_mod:
+                get_broadcaster_fn = activity_mod.get('get_broadcaster')
+                ActivityType_cls = activity_mod.get('ActivityType')
+                if get_broadcaster_fn and ActivityType_cls:
+                    broadcaster = get_broadcaster_fn()
+                    broadcaster.broadcast_message(
+                        from_god="Autonomic",
+                        to_god=None,
+                        content=f"{cycle_type.capitalize()} cycle completed: {verdict}",
+                        activity_type=ActivityType_cls.AUTONOMIC,
+                        phi=phi_after,
+                        kappa=self.state.kappa,
+                        importance=phi_after,
+                        metadata={
+                            'cycle_type': cycle_type,
+                            'phi_before': phi_before,
+                            'phi_after': phi_after,
+                            'drift_reduction': drift_reduction,
+                            'patterns_consolidated': patterns_consolidated,
+                            'duration_ms': duration_ms,
+                        }
+                    )
             
-            if CAPABILITY_MESH_AVAILABLE and emit_event is not None:
-                event_type_map = {
-                    'sleep': EventType.CONSOLIDATION,
-                    'dream': EventType.DREAM_CYCLE,
-                    'mushroom': EventType.DREAM_CYCLE,
-                }
-                emit_event(
-                    source=CapabilityType.SLEEP,
-                    event_type=event_type_map.get(cycle_type, EventType.CONSOLIDATION),
-                    content={
-                        'cycle_type': cycle_type,
-                        'phi_before': phi_before,
-                        'phi_after': phi_after,
-                        'patterns_consolidated': patterns_consolidated,
-                        'verdict': verdict[:200],
-                    },
-                    phi=phi_after,
-                    basin_coords=np.array(self.state.basin_history[-1]) if self.state.basin_history else None,
-                    priority=int(phi_after * 10)
-                )
+            # Lazy import for capability mesh
+            mesh_mod = _get_capability_mesh()
+            if CAPABILITY_MESH_AVAILABLE and mesh_mod:
+                emit_event_fn = mesh_mod.get('emit_event')
+                EventType_cls = mesh_mod.get('EventType')
+                CapabilityType_cls = mesh_mod.get('CapabilityType')
+                if emit_event_fn and EventType_cls and CapabilityType_cls:
+                    event_type_map = {
+                        'sleep': EventType_cls.CONSOLIDATION,
+                        'dream': EventType_cls.DREAM_CYCLE,
+                        'mushroom': EventType_cls.DREAM_CYCLE,
+                    }
+                    emit_event_fn(
+                        source=CapabilityType_cls.SLEEP,
+                        event_type=event_type_map.get(cycle_type, EventType_cls.CONSOLIDATION),
+                        content={
+                            'cycle_type': cycle_type,
+                            'phi_before': phi_before,
+                            'phi_after': phi_after,
+                            'patterns_consolidated': patterns_consolidated,
+                            'verdict': verdict[:200],
+                        },
+                        phi=phi_after,
+                        basin_coords=np.array(self.state.basin_history[-1]) if self.state.basin_history else None,
+                        priority=int(phi_after * 10)
+                    )
                 
         except Exception as e:
             print(f"[AutonomicKernel] Cycle event emission failed: {e}")

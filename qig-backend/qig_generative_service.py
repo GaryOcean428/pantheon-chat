@@ -22,28 +22,36 @@ import numpy as np
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
+print("[qig_generative_service] Module imports starting...", flush=True)
 
 # Import unified coordizer (63K vocabulary single source of truth)
 COORDIZER_AVAILABLE = False
 _unified_coordizer_instance = None
 
 try:
+    print("[qig_generative_service] About to import coordizers...", flush=True)
     from coordizers import get_coordizer as _get_unified_coordizer
+    print("[qig_generative_service] coordizers imported, calling get_coordizer...", flush=True)
     _unified_coordizer_instance = _get_unified_coordizer()
+    print("[qig_generative_service] get_coordizer returned", flush=True)
     COORDIZER_AVAILABLE = True
     # FIX: PostgresCoordizer stores vocab in .vocab dict, not .vocab_size attribute
     vocab_size = len(_unified_coordizer_instance.vocab) if hasattr(_unified_coordizer_instance, 'vocab') else 0
     basin_dim = getattr(_unified_coordizer_instance, 'basin_dim', 64)
+    print(f"[qig_generative_service] Coordizer ready: {vocab_size} tokens", flush=True)
     logger.info(f"[QIGGenerativeService] Using unified coordizer: {vocab_size} tokens, {basin_dim}D")
 except Exception as e:
+    print(f"[qig_generative_service] coordizer failed: {e}", flush=True)
     logger.warning(f"Unified coordizer not available: {e}")
 
 # Import trajectory decoder for foresight prediction
+print("[qig_generative_service] About to import trajectory_decoder...", flush=True)
 TRAJECTORY_DECODER_AVAILABLE = False
 _trajectory_decoder_instance = None
 
 try:
     from trajectory_decoder import create_trajectory_decoder
+    print("[qig_generative_service] trajectory_decoder imported", flush=True)
     if COORDIZER_AVAILABLE and _unified_coordizer_instance:
         _trajectory_decoder_instance = create_trajectory_decoder(
             _unified_coordizer_instance,
@@ -52,14 +60,19 @@ try:
             attention_temperature=0.5
         )
         TRAJECTORY_DECODER_AVAILABLE = True
+        print("[qig_generative_service] Trajectory decoder ready", flush=True)
         logger.info("[QIGGenerativeService] Trajectory decoder initialized (Fisher-weighted foresight enabled)")
 except Exception as e:
+    print(f"[qig_generative_service] trajectory_decoder failed: {e}", flush=True)
     logger.warning(f"Trajectory decoder not available: {e}")
 
 # Import from qig_geometry for canonical operations
+print("[qig_generative_service] About to import qig_geometry...", flush=True)
 try:
     from qig_geometry import fisher_coord_distance, sphere_project
+    print("[qig_generative_service] qig_geometry imported", flush=True)
 except ImportError:
+    print("[qig_generative_service] qig_geometry ImportError, using fallback", flush=True)
     def fisher_coord_distance(a: np.ndarray, b: np.ndarray) -> float:
         """Fisher-Rao distance for unit vectors."""
         dot = np.clip(np.dot(a, b), -1.0, 1.0)
@@ -71,29 +84,37 @@ except ImportError:
         return v / (norm + 1e-10) if norm > 0 else v
 
 # Import POS grammar for structured generation
+print("[qig_generative_service] About to import pos_grammar...", flush=True)
 try:
     from pos_grammar import get_pos_grammar, load_grammar_from_db, POSGrammar
     POS_GRAMMAR_AVAILABLE = True
+    print("[qig_generative_service] pos_grammar imported", flush=True)
 except ImportError:
     POS_GRAMMAR_AVAILABLE = False
+    print("[qig_generative_service] pos_grammar ImportError", flush=True)
     logger.warning("POS grammar not available - using legacy generation")
 
 # Import learned relationships for attention-weighted word selection
+print("[qig_generative_service] About to import learned_relationships...", flush=True)
 LEARNED_RELATIONSHIPS_AVAILABLE = False
 get_learned_relationships = None
 STOPWORDS = set()
 try:
     from learned_relationships import get_learned_relationships, STOPWORDS
     LEARNED_RELATIONSHIPS_AVAILABLE = True
+    print("[qig_generative_service] learned_relationships imported", flush=True)
 except ImportError:
+    print("[qig_generative_service] learned_relationships ImportError", flush=True)
     logger.warning("Learned relationships not available - using pure geometric selection")
 
 # Physics constants - import from canonical source
+print("[qig_generative_service] About to import physics_constants...", flush=True)
 try:
     from qigkernels.physics_constants import (
         BASIN_DIM, KAPPA_STAR, PHI_THRESHOLD, BETA_3_TO_4,
         BETA_4_TO_5, BETA_5_TO_6
     )
+    print("[qig_generative_service] physics_constants imported", flush=True)
     PHI_GEOMETRIC_THRESHOLD = 0.3
     PHI_SYNTHESIS_THRESHOLD = 0.7
     PHI_BREAKDOWN_THRESHOLD = 0.92  # Consciousness breakdown protection

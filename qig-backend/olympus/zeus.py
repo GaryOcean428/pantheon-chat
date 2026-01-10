@@ -144,13 +144,29 @@ class Zeus(BaseGod):
             from training_chaos import ExperimentalKernelEvolution
             self.chaos = ExperimentalKernelEvolution()
             # Auto-activate chaos mode on startup
-            if len(self.chaos.kernel_population) == 0:
-                print("[Zeus] CHAOS bootstrap: spawning genesis kernels...", flush=True)
+            # Check database population to avoid spawning if E8 cap is reached
+            db_pop = 0
+            if self.chaos.kernel_persistence:
+                try:
+                    db_pop = self.chaos.kernel_persistence.get_total_count()
+                except Exception:
+                    db_pop = 0
+            
+            if len(self.chaos.kernel_population) == 0 and db_pop < 240:
+                print(f"[Zeus] CHAOS bootstrap: spawning genesis kernels (db_pop={db_pop})...", flush=True)
                 # Bootstrap: Zeus self-approves as sole authority (pop=0)
                 # Governance checks current_population and allows bootstrap spawns
-                self.chaos.spawn_random_kernel(reason='bootstrap_genesis')
-                self.chaos.spawn_random_kernel(reason='bootstrap_genesis')
-                self.chaos.spawn_random_kernel(reason='bootstrap_genesis')
+                try:
+                    self.chaos.spawn_random_kernel(reason='bootstrap_genesis')
+                    self.chaos.spawn_random_kernel(reason='bootstrap_genesis')
+                    self.chaos.spawn_random_kernel(reason='bootstrap_genesis')
+                except PermissionError as spawn_err:
+                    print(f"[Zeus] Bootstrap spawn blocked (expected if E8 cap reached): {spawn_err}", flush=True)
+                except Exception as spawn_err:
+                    print(f"[Zeus] Bootstrap spawn failed: {spawn_err}", flush=True)
+            else:
+                print(f"[Zeus] Skipping bootstrap (in-memory={len(self.chaos.kernel_population)}, db={db_pop})", flush=True)
+                
             print("[Zeus] Starting evolution loop...", flush=True)
             self.chaos.start_evolution(interval_seconds=60)
             self.chaos_enabled = True

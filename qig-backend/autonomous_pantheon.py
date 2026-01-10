@@ -362,7 +362,7 @@ class AutonomousPantheon:
         try:
             # Check if debates table exists
             cursor.execute("""
-                SELECT COUNT(*) FROM god_debates
+                SELECT COUNT(*) FROM pantheon_debates
                 WHERE status = 'active' AND created_at > NOW() - INTERVAL '7 days'
             """)
             active_debates = cursor.fetchone()[0]

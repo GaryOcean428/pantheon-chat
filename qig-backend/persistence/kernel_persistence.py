@@ -214,6 +214,15 @@ class KernelPersistence(BasePersistence):
         results = self.execute_query(query, (ecological_niche, limit))
         return [dict(r) for r in results] if results else []
 
+    def get_total_count(self) -> int:
+        """Get total number of kernels in the database.
+
+        Used for E8 cap enforcement during Zeus bootstrap.
+        """
+        query = "SELECT COUNT(*) as cnt FROM kernel_geometry"
+        result = self.execute_one(query)
+        return result['cnt'] if result else 0
+
     def get_evolution_stats(self) -> Dict[str, Any]:
         """Get overall evolution statistics.
 

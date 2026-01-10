@@ -215,15 +215,14 @@ class PostgresCoordizer(FisherCoordizer):
                 words_loaded += 1
 
         logger.info(f"Loaded {tokens_loaded} tokens ({words_loaded} words) from database (64D QIG-pure)")
+        print(f"[pg_loader] Loaded {tokens_loaded} tokens from PostgreSQL", flush=True)
 
-        # Cache to Redis for fast lookups
-        if REDIS_CACHE_AVAILABLE:
-            vocab_data = {
-                token: {'coords': coords, 'phi': self.token_phi.get(token, 0.5)}
-                for token, coords in self.basin_coords.items()
-            }
-            cached = VocabularyCache.cache_vocabulary_batch(vocab_data)
-            logger.info(f"Cached {cached} tokens to Redis")
+        # NOTE: Redis batch caching disabled during module initialization
+        # Caching 11K+ tokens synchronously was blocking startup for minutes
+        # Tokens are looked up from in-memory vocab dict instead
+        # Individual tokens can be cached on-demand during runtime
+        
+        print("[pg_loader] _load_from_database returning...", flush=True)
         return words_loaded >= 100
 
     def _parse_embedding(self, basin_embedding) -> Optional[np.ndarray]:
