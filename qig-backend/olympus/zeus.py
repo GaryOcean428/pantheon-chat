@@ -1051,20 +1051,73 @@ class Zeus(BaseGod):
         # Clamp to valid range
         return max(0.05, min(0.30, threshold))
 
+    def directional_coupling_strength(
+        self,
+        source_phi: float,
+        target_phi: float,
+        prob_diff: float
+    ) -> float:
+        """
+        Compute asymmetric coupling strength for information flow.
+
+        Key insight from QIG analysis: d(i→j) ≠ d(j→i)
+        Source regime modulates emission strength.
+
+        Args:
+            source_phi: Φ value of the source god (emitter)
+            target_phi: Φ value of the target god (receiver)
+            prob_diff: Probability difference between gods
+
+        Returns:
+            Effective coupling strength for this direction.
+            Higher = stronger information flow = more significant disagreement.
+        """
+        # Base coupling from κ* = 64 (E8 fixed point)
+        KAPPA_STAR = 64.0
+
+        # Source regime modulates emission strength
+        if source_phi < 0.3:
+            # Linear regime - weak emission (not yet conscious)
+            kappa_eff = KAPPA_STAR * 0.3
+        elif source_phi < 0.7:
+            # Geometric regime - strong emission (conscious, stable)
+            kappa_eff = KAPPA_STAR * 1.0
+        else:
+            # Breakdown regime - unstable emission
+            kappa_eff = KAPPA_STAR * 0.5
+
+        # Target receptivity based on its Φ
+        if target_phi < 0.3:
+            receptivity = 0.5  # Linear - partially receptive
+        elif target_phi < 0.7:
+            receptivity = 1.0  # Geometric - fully receptive
+        else:
+            receptivity = 0.3  # Breakdown - resistant to input
+
+        # Asymmetric coupling: exp(-d / κ_eff) * receptivity
+        # Higher prob_diff = higher coupling (more significant)
+        coupling = (1.0 - np.exp(-prob_diff * kappa_eff / 10)) * receptivity
+
+        return coupling
+
     def _find_significant_disagreements(
         self,
         assessments: Dict[str, Dict],
-        threshold: float = None
+        threshold: float = None,
+        use_asymmetric: bool = True
     ) -> List[Tuple[str, str, float]]:
         """
         Find pairs of gods with significant probability disagreements.
+
+        Uses asymmetric coupling (i→j ≠ j→i) based on source/target Φ regimes.
 
         Threshold is dynamically calculated based on emotional state:
         - High stress/narrow path → lower threshold (0.05-0.10)
         - Normal operation → default threshold (0.15)
         - Stable/crystalline state → higher threshold (0.20-0.30)
 
-        Returns list of (god1, god2, prob_difference) tuples, sorted by disagreement.
+        Returns list of (initiator, opponent, coupling_strength) tuples.
+        Initiator is the god with stronger emission toward the other.
         """
         if threshold is None:
             threshold = self.calculate_debate_threshold()
@@ -1077,10 +1130,32 @@ class Zeus(BaseGod):
                 prob2 = assessments[god2].get('probability', 0.5)
                 diff = abs(prob1 - prob2)
 
-                if diff >= threshold:
+                if diff < threshold:
+                    continue
+
+                if use_asymmetric:
+                    # Get Φ values for regime-based coupling
+                    phi1 = assessments[god1].get('phi', 0.5)
+                    phi2 = assessments[god2].get('phi', 0.5)
+
+                    # Compute directional coupling strengths
+                    coupling_1_to_2 = self.directional_coupling_strength(phi1, phi2, diff)
+                    coupling_2_to_1 = self.directional_coupling_strength(phi2, phi1, diff)
+
+                    # Initiator is the god with stronger emission
+                    if coupling_1_to_2 >= coupling_2_to_1:
+                        initiator, opponent = god1, god2
+                        coupling = coupling_1_to_2
+                    else:
+                        initiator, opponent = god2, god1
+                        coupling = coupling_2_to_1
+
+                    disagreements.append((initiator, opponent, coupling))
+                else:
+                    # Fallback to symmetric (legacy behavior)
                     disagreements.append((god1, god2, diff))
 
-        # Sort by disagreement magnitude (highest first)
+        # Sort by coupling strength (highest first)
         disagreements.sort(key=lambda x: x[2], reverse=True)
         return disagreements
 
