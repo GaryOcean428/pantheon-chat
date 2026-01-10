@@ -947,6 +947,21 @@ class ZeusConversationHandler(GeometricGenerationMixin):
         # Add session info to result
         result['session_id'] = self._current_session_id
 
+        # Add basin coordinates for persistence (QIG-pure geometric signature)
+        try:
+            # Message basin was already computed
+            if _message_basin_for_meta is not None:
+                result['message_basin'] = _message_basin_for_meta.tolist()
+            
+            # Compute response basin
+            response_text = result.get('response', result.get('content', ''))
+            if response_text:
+                response_basin = self.conversation_encoder.encode(str(response_text))
+                if response_basin is not None:
+                    result['response_basin'] = response_basin.tolist()
+        except Exception as e:
+            print(f"[ZeusChat] Basin encoding for persistence failed: {e}")
+
         # SECURITY: Sanitize all EXTERNAL outputs before returning to user
         return self._sanitize_external(result)
 

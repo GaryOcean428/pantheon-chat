@@ -282,13 +282,14 @@ router.post('/zeus/chat', isAuthenticated, async (req, res) => {
         storeConversation(
           userMessage,
           systemResponse,
-          undefined, // messageBasin - could be computed from Python
-          undefined, // responseBasin
-          data.metadata?.phi, // phi from response if available
+          data.message_basin || undefined, // messageBasin from Python
+          data.response_basin || undefined, // responseBasin from Python
+          data.phi || data.metadata?.phi || data.consciousness_metrics?.phi, // phi from response
           { 
             god: data.metadata?.responding_god || 'zeus',
             type: data.metadata?.type,
           },
+          data.session_id || undefined, // instanceId
         ).catch(err => logger.warn('[Olympus] Conversation persistence failed:', err));
         
         // AUTO-ADD TO ZETTELKASTEN (non-blocking)

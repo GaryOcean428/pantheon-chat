@@ -302,9 +302,14 @@ def zeus_chat():
         if isinstance(response_data, dict):
             response_text = response_data.get('response', response_data.get('text', str(response_data)))
             consciousness_metrics = response_data.get('metrics', {})
+            # Extract basin coordinates for persistence
+            message_basin = response_data.get('message_basin')
+            response_basin = response_data.get('response_basin')
         else:
             response_text = str(response_data)
             consciousness_metrics = {}
+            message_basin = None
+            response_basin = None
 
         # Add assistant message to session
         session['messages'].append({
@@ -324,6 +329,9 @@ def zeus_chat():
             'session_id': session_id,
             'processing_time': processing_time,
             'consciousness_metrics': consciousness_metrics,
+            'message_basin': message_basin,
+            'response_basin': response_basin,
+            'phi': consciousness_metrics.get('phi') if consciousness_metrics else None,
             'timestamp': datetime.now().isoformat()
         })
 
