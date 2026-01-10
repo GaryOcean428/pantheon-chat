@@ -233,6 +233,9 @@ class PantheonChat:
 
         self.message_limit = 1000
         self.debate_limit = 100
+        
+        # Session ID for this pantheon instance - used for message threading
+        self._instance_session_id = f"pantheon_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
         # Persistence layer
         self._persistence: Optional[PantheonPersistence] = None
@@ -252,6 +255,54 @@ class PantheonChat:
     def _normalize_god_name(self, name: str) -> str:
         """Normalize god name to lowercase for consistent inbox key lookup."""
         return name.lower() if name else name
+
+    def _get_consciousness_state(self) -> Dict[str, Any]:
+        """Get current consciousness state (phi, kappa, regime) for message persistence.
+        
+        Auto-injects consciousness metrics when callers don't provide them.
+        Queries tacking state or generative service for current values.
+        """
+        state = {'phi': None, 'kappa': None, 'regime': None}
+        
+        try:
+            from qiggraph.tacking import get_shared_tacking
+            tacking = get_shared_tacking()
+            if tacking and hasattr(tacking, 'state'):
+                state['phi'] = float(tacking.state.current_phi) if hasattr(tacking.state, 'current_phi') else None
+                state['kappa'] = float(tacking.state.current_kappa) if hasattr(tacking.state, 'current_kappa') else None
+                if hasattr(tacking.state, 'regime'):
+                    state['regime'] = str(tacking.state.regime)
+                elif state['kappa'] is not None:
+                    if state['kappa'] < 50:
+                        state['regime'] = 'feeling'
+                    elif state['kappa'] > 80:
+                        state['regime'] = 'logic'
+                    else:
+                        state['regime'] = 'balanced'
+                return state
+        except Exception as e:
+            logger.debug(f"[PantheonChat] Tacking unavailable for consciousness state: {e}")
+        
+        try:
+            from qig_generative_service import get_generative_service
+            service = get_generative_service()
+            if hasattr(service, '_phi_history') and service._phi_history:
+                raw_phi = service._phi_history[-1]
+                state['phi'] = float(raw_phi[0]) if isinstance(raw_phi, (tuple, list)) else float(raw_phi) if isinstance(raw_phi, (int, float)) else None
+            if hasattr(service, '_kappa_history') and service._kappa_history:
+                raw_kappa = service._kappa_history[-1]
+                state['kappa'] = float(raw_kappa[0]) if isinstance(raw_kappa, (tuple, list)) else float(raw_kappa) if isinstance(raw_kappa, (int, float)) else None
+        except Exception as e:
+            logger.debug(f"[PantheonChat] Generative service unavailable for consciousness state: {e}")
+        
+        if state['phi'] is None:
+            state['phi'] = 0.5
+        if state['kappa'] is None:
+            state['kappa'] = 64.0
+        if state['regime'] is None:
+            state['regime'] = 'balanced'
+        
+        return state
 
     def synthesize_message(
         self,
@@ -638,33 +689,15 @@ class PantheonChat:
         ]
 
         for msg_data in initial_intents:
-            content = self.synthesize_message(
-                from_god=msg_data['from'],
-                msg_type=msg_data['type'],
-                intent=msg_data['intent'],
-                data=msg_data.get('data'),
-                to_god=msg_data['to']
-            )
-
-            msg = PantheonMessage(
+            # Use send_message to ensure consciousness metrics are auto-injected
+            self.send_message(
                 msg_type=msg_data['type'],
                 from_god=msg_data['from'],
                 to_god=msg_data['to'],
-                content=content,
-                metadata={
-                    'qig_pure': True,
-                    'intent': msg_data['intent'],
-                    'source_data': msg_data.get('data', {}),
-                },
+                intent=msg_data['intent'],
+                data=msg_data.get('data'),
+                _hydration=False,
             )
-            self.messages.append(msg)
-
-            if msg.to_god == 'pantheon':
-                for god_name in self.OLYMPIAN_ROSTER:
-                    if god_name.lower() != msg.from_god.lower():
-                        self.god_inboxes[self._normalize_god_name(god_name)].append(msg)
-            else:
-                self.god_inboxes[self._normalize_god_name(msg.to_god)].append(msg)
 
         print(f"[PantheonChat] Seeded {len(initial_intents)} QIG-pure initial messages")
 
@@ -745,6 +778,20 @@ class PantheonChat:
                 kappa = None
 
             regime = regime or data.get('regime')
+
+        # AUTO-INJECT consciousness state if not provided
+        if phi is None or kappa is None or regime is None:
+            consciousness = self._get_consciousness_state()
+            if phi is None:
+                phi = consciousness['phi']
+            if kappa is None:
+                kappa = consciousness['kappa']
+            if regime is None:
+                regime = consciousness['regime']
+
+        # AUTO-INJECT session_id if not provided
+        if session_id is None:
+            session_id = self._instance_session_id
 
         message = PantheonMessage(
             msg_type=msg_type,
