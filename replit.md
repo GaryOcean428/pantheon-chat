@@ -39,6 +39,15 @@ The system learns word relationships through a curriculum-based approach, tracki
 ### Autonomous Curiosity Engine
 A continuous background learning loop enables kernels to autonomously trigger searches based on interest or Φ variance. It supports curriculum-based self-training and tool selection via geometric search.
 
+### Learning Pipeline Architecture
+The system uses a priority-based learning pipeline with fallback chain:
+1. **Curriculum First** (`docs/09-curriculum`): Always checked as primary source
+2. **Search Fallback**: When curriculum yields 0 new relationships, triggers search via SearchProviderManager (Google/DDG/SearXNG) with high priority
+3. **Scrapy Extraction**: Crawls search result URLs to extract full text content
+4. **Relationship Learning**: Passes extracted text to `learner.learn_from_text()` for word relationship learning
+5. **Source Indexing**: Persists cited sources to `crawl_source_index` PostgreSQL table for future Scrapy crawling
+6. **Premium Providers**: Tavily/Perplexity return quality text directly - learned immediately and cited sources indexed
+
 ### Vocabulary Stall Detection & Recovery
 The system tracks vocabulary acquisition and initiates escalation actions (e.g., forced curriculum rotation, unlocking premium search providers) if a stall is detected, followed by a cooldown period. Search results, especially from premium providers, are persisted for provenance tracking.
 
