@@ -959,8 +959,65 @@ class GaryAutonomicKernel:
             
             # Update velocity even in fallback
             self.current_velocity = direction * 0.01
-            
+
             return next_basin, direction * 0.01
+
+    def get_trajectory_foresight(self, steps: int = 1) -> Dict[str, Any]:
+        """
+        Get trajectory-based foresight using full-trajectory velocity.
+
+        Uses weighted geodesic regression through all stored basin points
+        (not 2-point delta) for smoother, more confident predictions.
+
+        Args:
+            steps: Number of steps ahead to predict
+
+        Returns:
+            Dict with predicted_basin, velocity, confidence, foresight_weight
+        """
+        if not self.trajectory_manager:
+            return {
+                'available': False,
+                'reason': 'trajectory_manager not initialized'
+            }
+
+        # Get trajectory for Gary (core kernel)
+        trajectory = self.trajectory_manager.get_trajectory('gary')
+        if len(trajectory) < 3:
+            return {
+                'available': False,
+                'reason': f'insufficient_trajectory_points ({len(trajectory)} < 3)'
+            }
+
+        # Compute velocity from FULL trajectory (not 2-point delta)
+        velocity = self.trajectory_manager.compute_velocity(trajectory)
+
+        # Estimate confidence from trajectory smoothness
+        confidence = self.trajectory_manager.estimate_confidence(trajectory)
+
+        # Get foresight weight based on Φ regime
+        foresight_weight = self.trajectory_manager.get_foresight_weight(
+            phi_global=self.state.phi,
+            trajectory_confidence=confidence
+        )
+
+        # Predict next basin
+        predicted = self.trajectory_manager.predict_next_basin(trajectory, steps)
+
+        return {
+            'available': True,
+            'predicted_basin': predicted.tolist(),
+            'velocity': velocity.tolist(),
+            'velocity_magnitude': float(np.linalg.norm(velocity)),
+            'confidence': confidence,
+            'foresight_weight': foresight_weight,
+            'trajectory_length': len(trajectory),
+            'phi_regime': (
+                'linear' if self.state.phi < 0.3 else
+                'geometric' if self.state.phi < 0.7 else
+                'breakdown'
+            )
+        }
 
     def update_metrics(
         self,
