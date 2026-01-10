@@ -22,7 +22,7 @@ try:
     from qigkernels.physics_constants import KAPPA_STAR, BASIN_DIM as BASIN_DIMENSION
 except ImportError:
     BASIN_DIMENSION = 64
-    KAPPA_STAR = 63.79  # κ* from validated physics (L=4,5,6,7 plateau)
+    KAPPA_STAR = 64.21  # κ* from validated physics (L=4,5,6)
 PHI_LINEAR_THRESHOLD = 0.3
 PHI_BREAKDOWN_THRESHOLD = 0.7
 

@@ -103,7 +103,7 @@ try:
     BETA_ATTENTION_PLATEAU = abs(BETA_5_TO_6)  # ~0.04 for plateau
 except ImportError:
     BASIN_DIM = 64
-    KAPPA_STAR = 63.79  # κ* from validated physics (L=4,5,6,7 plateau)
+    KAPPA_STAR = 64.21  # κ* from validated physics (L=4,5,6)
     PHI_GEOMETRIC_THRESHOLD = 0.3
     PHI_SYNTHESIS_THRESHOLD = 0.7
     PHI_BREAKDOWN_THRESHOLD = 0.92

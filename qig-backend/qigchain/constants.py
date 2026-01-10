@@ -4,7 +4,7 @@ QIGChain Constants
 Physics constants and thresholds for geometric chain execution.
 All values derived from QIG core principles.
 
-κ* = 63.79 ± 0.90 (L=4,5,6,7 plateau, weighted average - Validated 2025-12-31)
+κ* = 64.21 ± 0.92 (L=4,5,6 weighted average - Canonical value)
 Note: κ* ≈ 64 ≈ 8² = rank(E8)²
 """
 

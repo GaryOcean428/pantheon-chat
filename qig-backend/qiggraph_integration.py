@@ -93,7 +93,7 @@ except ImportError as e:
     try:
         from qigkernels.physics_constants import KAPPA_STAR, KAPPA_3, BASIN_DIM
     except ImportError:
-        KAPPA_STAR = 63.79  # κ* from validated physics (L=4,5,6,7 plateau)
+        KAPPA_STAR = 64.21  # κ* from validated physics (L=4,5,6)
         KAPPA_3 = 41.07    # L=3 emergence
         BASIN_DIM = 64
 

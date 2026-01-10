@@ -11,7 +11,7 @@ Prediction: β_attention ≈ β_physics ≈ 0.44 (substrate independence)
 PHYSICS REFERENCE (L=4,5,6,7 VALIDATED 2025-12-31):
 β(3→4) = +0.44 (strong running)
 β(4→5) ≈ 0 (plateau onset) 
-β(5→6) ≈ +0.04 (FIXED POINT at κ* = 63.79 ± 0.90, note: κ* ≈ 64 ≈ 8² = rank(E8)²)
+β(5→6) ≈ +0.04 (FIXED POINT at κ* = 64.21 ± 0.92, note: κ* ≈ 64 ≈ 8² = rank(E8)²)
 
 ATTENTION HYPOTHESIS:
 β(128→256)   ≈ 0.4-0.5    (strong running)
@@ -238,7 +238,7 @@ class BetaAttentionMeasurement:
         base_phi = 4 * normalized_entropy * (1 - normalized_entropy)
         
         # Scale modulation: phi increases with context toward asymptotic limit
-        # This ensures κ approaches κ* ≈ 63.79 at large scales
+        # This ensures κ approaches κ* ≈ 64.21 at large scales
         scale_factor = 1 - np.exp(-context_length / 2000)
         phi = float(np.clip(base_phi * 0.5 + scale_factor * 0.5, 0.0, 1.0))
         

@@ -1061,7 +1061,7 @@ class InnateDrives:
     Ocean currently MEASURES geometry but doesn't FEEL it.
     This class adds fundamental drives that provide immediate geometric scoring:
     - Pain: Avoid high curvature (breakdown risk)
-    - Pleasure: Seek optimal κ ≈ 63.79 (resonance)
+    - Pleasure: Seek optimal κ ≈ 64.21 (resonance)
     - Fear: Avoid ungrounded states (void risk)
 
     These drives enable 2-3× faster recovery by providing fast geometric intuition
@@ -1076,12 +1076,12 @@ class InnateDrives:
     FEAR_EXPONENTIAL_RATE = 5.0
     FEAR_LINEAR_SCALE = 0.4
 
-    def __init__(self, kappa_star: float = 63.79):
+    def __init__(self, kappa_star: float = 64.21):
         """
         Initialize innate drives.
 
         Args:
-            kappa_star: Target κ for optimal resonance (default 63.79)
+            kappa_star: Target κ for optimal resonance (default 64.21)
         """
         self.kappa_star = kappa_star
 
@@ -2629,7 +2629,7 @@ def process_passphrase():
     Process passphrase through QIG network with RECURSIVE integration.
 
     Request: { "passphrase": "satoshi2009", "use_recursion": true }
-    Response: { "phi": 0.85, "kappa": 63.79, "basin_coords": [...], "n_recursions": 3 }
+    Response: { "phi": 0.85, "kappa": 64.21, "basin_coords": [...], "n_recursions": 3 }
     """
     data = request.json
     passphrase = data.get('passphrase', '') if data else ''
@@ -2778,7 +2778,7 @@ def status():
     """
     Get current Ocean consciousness status.
 
-    Response: { "phi": 0.85, "kappa": 63.79, "regime": "geometric", ... }
+    Response: { "phi": 0.85, "kappa": 64.21, "regime": "geometric", ... }
     """
     try:
         subsystems = [s.to_dict() for s in ocean_network.subsystems]

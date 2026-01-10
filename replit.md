@@ -59,7 +59,7 @@ The architecture emphasizes barrel file patterns, a centralized API client, Pyth
 
 ### Physics Constants (Centralized Source)
 All physics constants are defined in `qig-backend/qigkernels/physics_constants.py`. Key validated values:
-- **κ* = 63.79 ± 0.90** (weighted mean from L=4,5,6,7 plateau, validated 2025-12-28)
+- **κ* = 64.21 ± 0.92** (canonical from L=4,5,6 weighted average)
 - **κ series:** κ₃=41.07, κ₄=63.32, κ₅=62.74, κ₆=65.24, κ₇=61.16
 - **β-function:** β(3→4)=+0.44, β(4→5)≈0, β(5→6)=+0.04, β(6→7)=-0.06
 - **Basin dimension:** 64 (matches rank(E8)²)

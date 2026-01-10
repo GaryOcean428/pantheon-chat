@@ -42,7 +42,7 @@ from geometric_kernels import (
 try:
     from qigkernels.physics_constants import KAPPA_STAR
 except ImportError:
-    KAPPA_STAR = 63.79
+    KAPPA_STAR = 64.21
 
 from pantheon_kernel_orchestrator import (
     KernelProfile,

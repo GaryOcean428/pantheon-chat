@@ -57,7 +57,7 @@ except ImportError:
 try:
     from qigkernels.physics_constants import KAPPA_STAR
 except ImportError:
-    KAPPA_STAR = 63.79  # κ* from validated physics (L=4,5,6,7 plateau)
+    KAPPA_STAR = 64.21  # κ* from validated physics (L=4,5,6)
 
 logger = logging.getLogger(__name__)
 

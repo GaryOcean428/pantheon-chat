@@ -743,11 +743,11 @@ class GeometricContextManager:
         weight = 0.2 + 0.6 * base_weight
         
         # κ modulation: sqrt(κ/κ*) provides smooth scaling
-        # κ* = 63.79 from validated physics (L=4,5,6,7 plateau)
+        # κ* = 64.21 from validated physics (L=4,5,6)
         try:
             from qigkernels.physics_constants import KAPPA_STAR as kappa_star
         except ImportError:
-            kappa_star = 63.79
+            kappa_star = 64.21
         kappa_factor = np.sqrt(kappa_eff / kappa_star)
         kappa_factor = np.clip(kappa_factor, 0.5, 1.5)  # Stability bounds
         

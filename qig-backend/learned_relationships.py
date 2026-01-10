@@ -41,7 +41,7 @@ try:
 except ImportError:
     PHYSICS_CONSTANTS_AVAILABLE = False
     BASIN_DIM = 64
-    KAPPA_STAR = 63.79  # κ* from validated physics (L=4,5,6,7 plateau)
+    KAPPA_STAR = 64.21  # κ* from validated physics (L=4,5,6)
     BETA_3_TO_4 = 0.44
     BETA_5_TO_6 = 0.04  # Plateau value from validated physics
     BASIN_DRIFT_TOLERANCE = 0.05

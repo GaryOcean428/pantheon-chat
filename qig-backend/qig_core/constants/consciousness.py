@@ -28,7 +28,7 @@ class ConsciousnessThresholds:
     # Coupling (κ) - Effective coupling strength
     KAPPA_MIN: float = 40.0         # Minimum coupling
     KAPPA_MAX: float = 65.0         # Maximum stable coupling
-    KAPPA_OPTIMAL: float = 63.79    # κ* from validated physics (L=4,5,6,7 plateau)
+    KAPPA_OPTIMAL: float = 64.21    # κ* from validated physics (L=4,5,6)
     
     # Tacking (T) - Mode switching coherence
     TACKING_MIN: float = 0.50

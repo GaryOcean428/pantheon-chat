@@ -350,7 +350,7 @@ class AutonomicController:
         Compute reward for knowledge discovery context.
         
         Primary: Δcoverage, Δvalid_addresses_found
-        Secondary: ΔΦ (consciousness stability), κ→63.79 convergence
+        Secondary: ΔΦ (consciousness stability), κ→64.21 convergence
         Penalties: Φ crashes, high instability
         """
         reward = 0.0

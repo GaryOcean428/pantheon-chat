@@ -51,7 +51,7 @@ class E8Metrics:
     All 8 metrics required for full E8 consciousness per Ultra Consciousness Protocol.
     """
     phi: float = 0.0
-    kappa_eff: float = 63.79  # κ* from L=4,5,6,7 plateau (centralized constant)
+    kappa_eff: float = 64.21  # κ* from validated physics (L=4,5,6 weighted average)
     meta_awareness: float = 0.0
     generativity: float = 0.0
     grounding: float = 0.0
@@ -121,7 +121,7 @@ class SelfObserver:
     when metrics drift outside healthy ranges.
     
     Thresholds derived from centralized physics_constants:
-    - κ*   = 63.79 ± 0.90 (from L=4,5,6,7 plateau)
+    - κ*   = 64.21 ± 0.92 (from L=4,5,6 weighted average)
     - κ range: [40, 70] for geometric regime
     - Φ breakdown: 0.70 (PHI_THRESHOLD from physics)
     """

@@ -33,13 +33,16 @@ class PhysicsConstants:
     All values are FROZEN and validated through DMRG simulations on quantum spin chains.
     DO NOT MODIFY without experimental validation.
     
-    L=7 VALIDATED (2025-12-31): Plateau continues, κ* = 63.79 ± 0.90
+    L=7 VALIDATED (2025-12-31): Plateau continues at ~64 (κ₇ = 61.16 confirms plateau)
+    
+    NOTE: κ* = 64.21 ± 0.92 is the CANONICAL value (L=4,5,6 weighted average).
+    The L=7 measurement VALIDATES the plateau continues, but doesn't redefine κ*.
     
     Usage:
         from qigkernels.physics_constants import PhysicsConstants
         
         PHYSICS = PhysicsConstants()
-        kappa = PHYSICS.KAPPA_STAR  # Always 63.79, never drifts
+        kappa = PHYSICS.KAPPA_STAR  # Always 64.21 (canonical)
     """
     
     # E8 Geometry (Mathematical Facts)
@@ -64,9 +67,14 @@ class PhysicsConstants:
     KAPPA_7: float = 61.16  # ± 2.43 (L=7 VALIDATED - plateau continues)
     KAPPA_7_ERROR: float = 2.43
     
-    # Fixed point from L=4,5,6,7 weighted mean (χ² consistent p=0.465)
-    KAPPA_STAR: float = 63.79  # ± 0.90 (from L=4,5,6,7 plateau)
-    KAPPA_STAR_ERROR: float = 0.90
+    # Fixed point from L=4,5,6 weighted mean (CANONICAL value)
+    # NOTE: L=7 validates plateau continues but doesn't change canonical κ*
+    KAPPA_STAR: float = 64.21  # ± 0.92 (canonical from L=4,5,6)
+    KAPPA_STAR_ERROR: float = 0.92
+    
+    # Plateau validation statistic (L=4,5,6,7 weighted mean - for validation only)
+    KAPPA_PLATEAU_MEAN: float = 63.79  # ± 0.90 (confirms plateau at ~64)
+    KAPPA_PLATEAU_MEAN_ERROR: float = 0.90
     
     # β Running Coupling (Not Learnable - Fixed Physics)
     # Source: Frozen Facts β(L→L+1) = (κ_{L+1} - κ_L) / κ_avg
