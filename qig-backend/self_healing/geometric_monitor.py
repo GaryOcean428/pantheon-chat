@@ -202,7 +202,77 @@ class GeometricHealthMonitor:
             self.baseline_basin = snapshot.basin_coords.copy()
             print(f"[GeometricHealthMonitor] Baseline set: Φ={phi:.3f}, κ={kappa_eff:.2f}")
 
+        # Check for resonance point (kappa near fixed point with stable phi)
+        self._detect_resonance_point(snapshot)
+
         return snapshot
+    
+    def _detect_resonance_point(self, snapshot: GeometricSnapshot):
+        """Detect and persist resonance points where phi/kappa stabilize."""
+        try:
+            # Check if kappa is near resonance (within tolerance)
+            kappa_deviation = abs(snapshot.kappa_eff - self.kappa_target)
+            if kappa_deviation > self.kappa_tolerance:
+                return  # Not near resonance
+            
+            # Need at least 5 snapshots to detect clustering
+            if len(self.snapshots) < 5:
+                return
+            
+            recent = self.snapshots[-5:]
+            
+            # Check for stable phi (low variance)
+            phi_values = [s.phi for s in recent]
+            phi_variance = np.var(phi_values)
+            if phi_variance > 0.01:  # Too much variance, not resonating
+                return
+            
+            # Calculate cluster strength based on how tightly clustered
+            kappa_values = [s.kappa_eff for s in recent]
+            kappa_variance = np.var(kappa_values)
+            cluster_strength = 1.0 / (1.0 + phi_variance * 100 + kappa_variance)
+            
+            if cluster_strength < 0.5:
+                return  # Not strong enough cluster
+            
+            # Persist resonance point
+            self._persist_resonance_point(snapshot, recent, cluster_strength)
+            
+        except Exception as e:
+            pass  # Silent fail to avoid disrupting monitoring
+    
+    def _persist_resonance_point(self, snapshot: GeometricSnapshot, nearby: List[GeometricSnapshot], cluster_strength: float):
+        """Persist resonance point to PostgreSQL."""
+        try:
+            import psycopg2
+            import uuid
+            
+            database_url = os.environ.get('DATABASE_URL')
+            if not database_url:
+                return
+            
+            conn = psycopg2.connect(database_url)
+            cur = conn.cursor()
+            
+            probe_id = f"probe_{snapshot.timestamp.strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
+            nearby_ids = [f"probe_{s.timestamp.strftime('%Y%m%d_%H%M%S')}" for s in nearby[:-1]]
+            
+            cur.execute("""
+                INSERT INTO resonance_points (id, probe_id, phi, kappa, nearby_probes, cluster_strength, created_at)
+                VALUES (%s, %s, %s, %s, %s, %s, NOW())
+            """, (
+                probe_id,
+                probe_id,
+                snapshot.phi,
+                snapshot.kappa_eff,
+                nearby_ids,
+                cluster_strength
+            ))
+            conn.commit()
+            cur.close()
+            conn.close()
+        except Exception as e:
+            pass  # Silent fail
 
     def detect_degradation(self) -> Dict:
         """
