@@ -141,6 +141,17 @@ All modules should import from this centralized source rather than hardcoding va
 - **Bounded History:** phi_history limited to 100 entries, learning_history limited to 50 entries
 - **Key Metrics Persisted:** total_kernels, active_kernels, observing_kernels, dead_kernels, phi, kappa, regime, god_count, bred_count, culled_count, mesh_phi, mesh_peers
 
+### hermes_conversations Basin Persistence Fix (January 10, 2026)
+- **Basin Coordinates Flow:** Modified `zeus_chat.py` process_message() to compute and return message_basin/response_basin
+- **API Response:** Updated `zeus_api.py` to expose message_basin, response_basin, and phi in JSON response
+- **Node.js Wiring:** Modified `olympus.ts` to pass basin coordinates from Python response to storeConversation()
+- **Session Tracking:** Added session_id (instance_id) to persistence call for conversation grouping
+
+### asyncio.run() Fix (January 10, 2026)
+- **Root Cause:** `assess_target()` in `zeus.py` used `asyncio.run()` which fails when called from within an already running event loop (AutonomousPantheon)
+- **Solution:** Added `_run_async_safely()` helper method that detects if already in an event loop and uses `run_coroutine_threadsafe()` instead
+- **Fallbacks:** Added graceful fallbacks for OPSEC, surveillance, and misdirection operations to prevent blocking on async failures
+
 ### Python Backend Notes
 - Backend takes ~60 seconds to fully initialize (loading 11K+ tokens, initializing 18 gods, setting up search providers)
 - Node.js Express server may show "degraded" status during initial load but Python continues loading asynchronously

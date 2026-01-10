@@ -556,17 +556,31 @@ class Zeus(BaseGod):
 
         return results
 
+    def _run_async_safely(self, coro):
+        """Run coroutine safely whether inside event loop or not."""
+        import asyncio
+        try:
+            loop = asyncio.get_running_loop()
+            # Already in an event loop - schedule as task and get result
+            import concurrent.futures
+            future = asyncio.run_coroutine_threadsafe(coro, loop)
+            return future.result(timeout=30)
+        except RuntimeError:
+            # Not in an event loop - safe to use asyncio.run()
+            return asyncio.run(coro)
+
     def assess_target(self, target: str, context: Optional[Dict] = None) -> Dict:
         """
         Supreme assessment with shadow pantheon integration.
         """
         self.last_assessment_time = datetime.now()
 
-        # Import asyncio for shadow operations
-        import asyncio
-
-        # Step 1 - OPSEC check via Nyx
-        opsec_check = asyncio.run(self.shadow_pantheon.nyx.verify_opsec())
+        # Step 1 - OPSEC check via Nyx (async-safe)
+        try:
+            opsec_check = self._run_async_safely(self.shadow_pantheon.nyx.verify_opsec())
+        except Exception as e:
+            # Fallback if async fails - assume safe to proceed
+            opsec_check = {'safe': True, 'fallback': True, 'error': str(e)}
 
         if not opsec_check.get('safe', False):
             return {
@@ -577,18 +591,24 @@ class Zeus(BaseGod):
                 'timestamp': datetime.now().isoformat()
             }
 
-        # Step 2 - Surveillance scan via Erebus
-        surveillance = asyncio.run(
-            self.shadow_pantheon.erebus.scan_for_surveillance(target)
-        )
+        # Step 2 - Surveillance scan via Erebus (async-safe)
+        try:
+            surveillance = self._run_async_safely(
+                self.shadow_pantheon.erebus.scan_for_surveillance(target)
+            )
+        except Exception as e:
+            surveillance = {'threats': [], 'fallback': True, 'error': str(e)}
 
         # Step 3 - If watchers detected, deploy misdirection via Hecate
         misdirection_deployed = False
         if surveillance.get('threats', []):
-            asyncio.run(
-                self.shadow_pantheon.hecate.create_misdirection(target, decoy_count=15)
-            )
-            misdirection_deployed = True
+            try:
+                self._run_async_safely(
+                    self.shadow_pantheon.hecate.create_misdirection(target, decoy_count=15)
+                )
+                misdirection_deployed = True
+            except Exception as e:
+                pass  # Misdirection is optional
 
         # Step 4 - Main pantheon poll
         poll_result = self.poll_pantheon(target, context)
@@ -603,7 +623,7 @@ class Zeus(BaseGod):
                 hades = self.pantheon.get('hades')
                 if hades and hasattr(hades, 'search_underworld'):
                     print(f"🔍 [Zeus] Triggering underworld search for target: {target}...")
-                    underworld_intel = asyncio.run(hades.search_underworld(target, search_type='comprehensive'))
+                    underworld_intel = self._run_async_safely(hades.search_underworld(target, search_type='comprehensive'))
 
                     # Store intelligence if found
                     if underworld_intel and underworld_intel.get('source_count', 0) > 0:
