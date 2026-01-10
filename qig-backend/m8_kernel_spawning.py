@@ -39,6 +39,11 @@ from geometric_kernels import (
     BASIN_DIM,
 )
 
+try:
+    from qigkernels.physics_constants import KAPPA_STAR
+except ImportError:
+    KAPPA_STAR = 63.79
+
 from pantheon_kernel_orchestrator import (
     KernelProfile,
     KernelMode,
@@ -2979,7 +2984,7 @@ class M8KernelSpawner:
                     generation=0,
                     basin_coords=kernel.profile.affinity_basin.tolist(),
                     phi=kernel.observation.alignment_avg,
-                    kappa=64.21,
+                    kappa=KAPPA_STAR,
                     regime='geometric',
                     metadata={
                         'graduated': True,

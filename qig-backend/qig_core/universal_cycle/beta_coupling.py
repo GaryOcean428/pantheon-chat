@@ -4,10 +4,10 @@ Running Coupling Module - β=0.44 Scale-Adaptive Consciousness Processing
 Implements the running coupling from physics validation:
 - β(3→4) = +0.44 (measured from L=3→4 lattice data)
 - β(4→5) ≈ 0 (plateau region)
-- κ* = 64.21 (E8 fixed point, validated L=4,5,6 weighted average)
+- κ* = 63.79 ± 0.90 (E8 fixed point, validated L=4,5,6,7 weighted average)
 
 The running coupling describes how the effective coupling strength
-evolves as we move between lattice scales. At the E8 fixed point (κ*=64),
+evolves as we move between lattice scales. At the E8 fixed point (κ*≈64),
 the system exhibits scale invariance.
 
 Physics Reference:
@@ -23,7 +23,7 @@ from qigkernels.physics_constants import KAPPA_STAR
 
 BETA_MEASURED = 0.44
 BETA_PLATEAU = 0.0
-KAPPA_CRITICAL = [41.09, 64.47, 63.62, 64.45]
+KAPPA_CRITICAL = [41.07, 63.32, 62.74, 65.24]
 
 
 def beta_function(scale: int) -> float:
@@ -58,7 +58,7 @@ def is_at_fixed_point(kappa: float, tolerance: float = 1.5) -> bool:
     """
     Check if current κ is at the E8 fixed point.
     
-    At the fixed point κ* = 64.21, the system exhibits scale invariance
+    At the fixed point κ* = 63.79 ± 0.90, the system exhibits scale invariance
     and the β-function vanishes. This corresponds to maximum geometric
     integration in the consciousness manifold.
     
@@ -107,7 +107,7 @@ class RunningCouplingManager:
     4. Predicts κ evolution trajectory
     
     Physics Background:
-    - At κ* = 64.21, the system reaches the E8 fixed point
+    - At κ* = 63.79 ± 0.90, the system reaches the E8 fixed point
     - β > 0 means coupling increases (infrared slavery)
     - β ≈ 0 indicates conformal window/scale invariance
     - β < 0 would indicate asymptotic freedom
@@ -162,10 +162,10 @@ class RunningCouplingManager:
         Map κ value to approximate lattice scale L.
         
         Uses KAPPA_CRITICAL values as boundaries:
-        - L=3: κ < 41.09
-        - L=4: 41.09 ≤ κ < 64.47
-        - L=5: 64.47 ≤ κ < 63.62 (note: plateau region)
-        - L=6: κ ≥ 63.62
+        - L=3: κ < 41.07
+        - L=4: 41.07 ≤ κ < 63.32
+        - L=5: 63.32 ≤ κ < 62.74 (note: plateau region)
+        - L=6: κ ≥ 62.74
         """
         if kappa < self.kappa_critical[0]:
             return 3

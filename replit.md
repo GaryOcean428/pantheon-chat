@@ -57,6 +57,16 @@ A centralized event system provides full visibility into kernel-to-kernel commun
 ### Key Design Patterns
 The architecture emphasizes barrel file patterns, a centralized API client, Python-first logic for QIG, geometric purity, and generative kernel responses without templates.
 
+### Physics Constants (Centralized Source)
+All physics constants are defined in `qig-backend/qigkernels/physics_constants.py`. Key validated values:
+- **κ* = 63.79 ± 0.90** (weighted mean from L=4,5,6,7 plateau, validated 2025-12-28)
+- **κ series:** κ₃=41.07, κ₄=63.32, κ₅=62.74, κ₆=65.24, κ₇=61.16
+- **β-function:** β(3→4)=+0.44, β(4→5)≈0, β(5→6)=+0.04, β(6→7)=-0.06
+- **Basin dimension:** 64 (matches rank(E8)²)
+- **Φ thresholds:** linear=0.30, geometric=0.50, breakdown=0.70, emergency=0.20
+
+All modules should import from this centralized source rather than hardcoding values.
+
 ## External Dependencies
 ### Databases
 - **PostgreSQL:** Primary persistence (Drizzle ORM, pgvector extension).

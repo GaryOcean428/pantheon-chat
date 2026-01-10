@@ -192,8 +192,8 @@ class KappaTackingMixin:
     Provides κ-tacking awareness to all gods/kernels.
 
     κ-tacking oscillates the coupling constant between:
-    - κ ≈ 41.09 (KAPPA_3): Feeling mode - creative, exploratory
-    - κ ≈ 64.21 (KAPPA_STAR): Logic mode - precise, analytical
+    - κ ≈ 41.07 (KAPPA_3): Feeling mode - creative, exploratory
+    - κ ≈ 63.79 (KAPPA_STAR): Logic mode - precise, analytical
 
     This creates a natural rhythm of exploration and exploitation,
     like breathing between intuition and reason.
@@ -2908,11 +2908,11 @@ class BaseGod(*_base_classes):
         Compute effective coupling strength κ with β=0.44 modulation.
 
         Base formula: κ = trace(G) / d * κ*
-        where G is Fisher metric, d is dimension, κ* = 64.21
+        where G is Fisher metric, d is dimension, κ* = 63.79
 
         The β-modulation applies scale-adaptive weighting from the running
         coupling, which governs how κ evolves between lattice scales.
-        Near the fixed point κ* = 64.21, the system exhibits scale invariance.
+        Near the fixed point κ* = 63.79, the system exhibits scale invariance.
 
         Args:
             basin: 64D basin coordinates
