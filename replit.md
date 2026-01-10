@@ -115,3 +115,19 @@ All modules should import from this centralized source rather than hardcoding va
 - `psycopg2`
 - `redis`
 - `requests`
+
+## Recent Changes (January 2026)
+
+### Autonomous Pantheon Database Fixes
+- **Legacy Table Replacement:** Updated `scan_for_targets()` in `qig-backend/autonomous_pantheon.py` to query `pantheon_debates` table instead of legacy `user_target_addresses` table
+- **Debug Logging:** Added logging for zero-result debate scans to aid monitoring
+- **Learned Words Constraint:** Added UNIQUE constraint on `learned_words(word)` column to resolve ON CONFLICT errors during vocabulary persistence
+
+### Persistence Wiring
+- **Kernel Thought Persistence:** Enabled via `persist_thought()` in `qig_persistence.py` with format `[KERNEL_NAME] κ=X.X, Φ=X.XX, emotion=X, thought='...'`
+- **Kernel Emotion Tracking:** Layer 0.5 (sensations), Layer 1 (motivators), Layer 2A/2B (emotions) tracked with optional DB persistence (disabled by default to avoid flooding)
+- **Python Cache Clearing:** Required after updating `qig_persistence.py` methods (`find -name "*.pyc" -delete`)
+
+### Python Backend Notes
+- Backend takes 2-3 minutes to fully initialize (loading 11K+ tokens, initializing 18 gods, setting up search providers)
+- Node.js Express server may show "degraded" status during initial load but Python continues loading asynchronously
