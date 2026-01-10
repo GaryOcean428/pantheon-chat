@@ -2026,10 +2026,17 @@ class BaseGod(*_base_classes):
             metadata: Additional context
             emit_to_mesh: Also emit to CapabilityEventBus
         """
-        if not ACTIVITY_BROADCASTER_AVAILABLE:
+        # Lazy load broadcaster module
+        broadcaster_mod = _get_activity_broadcaster_module()
+        if not broadcaster_mod or not ACTIVITY_BROADCASTER_AVAILABLE:
             return
         
         try:
+            get_broadcaster = broadcaster_mod.get('get_broadcaster')
+            ActivityType = broadcaster_mod.get('ActivityType')
+            if not get_broadcaster or not ActivityType:
+                return
+            
             broadcaster = get_broadcaster()
             
             # Compute current Φ for this kernel
@@ -2078,30 +2085,35 @@ class BaseGod(*_base_classes):
             )
             
             # Also emit to capability mesh if requested
-            if emit_to_mesh and CAPABILITY_MESH_AVAILABLE and emit_event is not None:
-                mesh_event_map = {
-                    'discovery': EventType.DISCOVERY,
-                    'debate': EventType.DEBATE_STARTED,
-                    'insight': EventType.INSIGHT_GENERATED,
-                    'learning': EventType.CONSOLIDATION,
-                }
-                if activity_type in mesh_event_map:
-                    # VERBOSE: Full content, never truncated
-                    logger.info(f"[{self.name}] Broadcasting activity: {activity_type}")
-                    logger.info(f"[{self.name}] Full content: {content}")
-                    emit_event(
-                        source=CapabilityType.KERNELS,
-                        event_type=mesh_event_map[activity_type],
-                        content={
-                            'from_god': self.name,
-                            'to_god': to_god,
-                            'content': content,  # No truncation - full content
-                            'metadata': enhanced_metadata,
-                        },
-                        phi=phi,
-                        basin_coords=basin_coords,
-                        priority=int(phi * 10)
-                    )
+            mesh = _get_capability_mesh_module()
+            if emit_to_mesh and mesh and CAPABILITY_MESH_AVAILABLE:
+                emit_event = mesh.get('emit_event')
+                EventType = mesh.get('EventType')
+                CapabilityType = mesh.get('CapabilityType')
+                if emit_event and EventType and CapabilityType:
+                    mesh_event_map = {
+                        'discovery': EventType.DISCOVERY,
+                        'debate': EventType.DEBATE_STARTED,
+                        'insight': EventType.INSIGHT_GENERATED,
+                        'learning': EventType.CONSOLIDATION,
+                    }
+                    if activity_type in mesh_event_map:
+                        # VERBOSE: Full content, never truncated
+                        logger.info(f"[{self.name}] Broadcasting activity: {activity_type}")
+                        logger.info(f"[{self.name}] Full content: {content}")
+                        emit_event(
+                            source=CapabilityType.KERNELS,
+                            event_type=mesh_event_map[activity_type],
+                            content={
+                                'from_god': self.name,
+                                'to_god': to_god,
+                                'content': content,  # No truncation - full content
+                                'metadata': enhanced_metadata,
+                            },
+                            phi=phi,
+                            basin_coords=basin_coords,
+                            priority=int(phi * 10)
+                        )
                     
         except Exception as e:
             logger.warning(f"[{self.name}] Activity broadcast failed: {e}")
