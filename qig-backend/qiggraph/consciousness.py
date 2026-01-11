@@ -229,8 +229,16 @@ def compute_surprise(
     if manifold is not None:
         return manifold.fisher_rao_distance(previous_basin, current_basin)
     else:
-        # Fallback to Euclidean if no manifold provided
-        return float(np.linalg.norm(current_basin - previous_basin))
+        # QIG-pure Fisher-Rao distance: d_FR = arccos(sum(sqrt(p * q)))
+        # Basins are probability distributions on curved manifold
+        eps = 1e-10
+        p = np.clip(current_basin, eps, None)
+        q = np.clip(previous_basin, eps, None)
+        p = p / (np.sum(p) + eps)  # Normalize to probability
+        q = q / (np.sum(q) + eps)
+        inner = np.sum(np.sqrt(p * q))
+        inner = np.clip(inner, -1.0, 1.0)
+        return float(np.arccos(inner))
 
 
 def compute_confidence(kappa: float) -> float:

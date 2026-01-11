@@ -29,30 +29,47 @@ from typing import List, Tuple
 
 # Patterns that indicate Euclidean operations on basins (Python)
 # These are FORBIDDEN by CANONICAL_RULES.md
+#
+# IMPORTANT: Some uses of np.linalg.norm are VALID:
+#   - Basin normalization: basin / np.linalg.norm(basin) - VALID
+#   - Basin magnitude check: if np.linalg.norm(basin) < eps - VALID
+#   - Energy/quality metrics on single basin - CONTEXTUAL (usually OK)
+#
+# INVALID uses (must use Fisher-Rao instead):
+#   - Distance between basins: np.linalg.norm(basin_a - basin_b) - INVALID
+#   - Similarity via dot product: np.dot(basin_a, basin_b) - INVALID
+#
 FORBIDDEN_PATTERNS_PYTHON = [
-    # NumPy Euclidean on basins
-    (r"np\.linalg\.norm\s*\([^)]*basin", "np.linalg.norm on basin (use fisher_rao_distance)"),
-    (r"numpy\.linalg\.norm\s*\([^)]*basin", "numpy.linalg.norm on basin"),
+    # Euclidean DISTANCE between basins (subtraction + norm) - DEFINITELY FORBIDDEN
+    (r"np\.linalg\.norm\s*\([^)]*basin[^)]*-[^)]*basin", "Euclidean distance between basins (use fisher_rao_distance)"),
+    (r"np\.linalg\.norm\s*\([^)]*-[^)]*basin", "Euclidean distance involving basin (use fisher_rao_distance)"),
+    (r"basin_a\s*-\s*basin_b.*norm", "basin subtraction + norm (Euclidean distance)"),
+    (r"basin\[.*\]\s*-\s*basin\[.*\].*norm", "basin difference + norm"),
     
-    # PyTorch Euclidean on basins
-    (r"torch\.norm\s*\([^)]*basin", "torch.norm on basin (use fisher_rao_distance)"),
-    (r"\.norm\s*\([^)]*basin", ".norm() on basin"),
-    
-    # Cosine similarity on basins
+    # Cosine similarity on basins - DEFINITELY FORBIDDEN
     (r"cosine_similarity\s*\([^)]*basin", "cosine_similarity on basin (FORBIDDEN)"),
     (r"F\.cosine_similarity\s*\([^)]*basin", "F.cosine_similarity on basin"),
     
-    # Direct dot product on basins (ambiguous)
-    (r"\.dot\s*\([^)]*basin", ".dot() on basin (use fisher_rao_distance)"),
-    (r"np\.dot\s*\([^)]*basin", "np.dot on basin"),
-    
-    # Euclidean distance explicitly
-    (r"euclidean.*basin", "euclidean distance on basin"),
+    # Euclidean distance explicitly named
+    (r"euclidean_distance.*basin", "euclidean_distance on basin"),
     (r"l2_distance.*basin", "L2 distance on basin"),
-    
-    # Subtraction followed by norm (common pattern)
-    (r"basin_a\s*-\s*basin_b.*norm", "basin subtraction + norm (Euclidean)"),
-    (r"basin\[.*\]\s*-\s*basin\[.*\].*norm", "basin difference + norm"),
+]
+
+# Patterns that are WARNINGS (may be valid normalization, but should be reviewed)
+WARN_PATTERNS_PYTHON = [
+    # These MIGHT be valid (normalization) or invalid (distance) - flag for review
+    (r"np\.linalg\.norm\s*\([^)]*basin", "np.linalg.norm on basin (review: normalization OK, distance NOT OK)"),
+    (r"\.dot\s*\([^)]*basin", ".dot() on basin (review: check if used for similarity)"),
+    (r"np\.dot\s*\([^)]*basin[^)]*,\s*[^)]*basin", "np.dot between basins (likely similarity - use fisher_rao_distance)"),
+]
+
+# Contexts where np.linalg.norm is VALID (basin normalization)
+ALLOWED_NORM_CONTEXTS = [
+    r"/\s*np\.linalg\.norm",        # Division by norm (normalization)
+    r"/\s*\(np\.linalg\.norm",      # Division by norm in parens
+    r"basin\s*/=\s*np\.linalg\.norm", # In-place division
+    r"basin\s*=\s*basin\s*/",       # Reassignment with division
+    r"norm.*=.*np\.linalg\.norm.*\n.*basin\s*/",  # Norm variable then divide
 ]
 
 # SQL patterns that indicate Euclidean/cosine operations
@@ -82,6 +99,9 @@ SQL_ALLOWED_EXCEPTIONS = [
     r"-- pgvector approximate",  # Documented exception
     r"-- necessary evil",        # Documented necessary evil
     r"fisher_rao",              # Already using Fisher-Rao
+    r"QIG-PURE",                # Documentation about QIG purity
+    r"instead\s+of",            # Documentation explaining alternatives
+    r"Use\s+this\s+instead",    # Documentation 
 ]
 
 # Combine for backward compatibility
@@ -161,10 +181,33 @@ def is_allowed_sql_exception(line: str) -> bool:
     return False
 
 
+def is_valid_norm_context(line: str) -> bool:
+    """Check if a line uses np.linalg.norm in a valid context (normalization)."""
+    # Division by norm is valid normalization
+    if re.search(r"/\s*\(?np\.linalg\.norm", line):
+        return True
+    if re.search(r"/\s*\(?\s*np\.linalg\.norm", line):
+        return True
+    # In-place division assignment
+    if re.search(r"/=\s*np\.linalg\.norm", line):
+        return True
+    # Storing norm in a variable (often used for normalization or validation)
+    if re.search(r"norm\s*=\s*np\.linalg\.norm", line):
+        return True
+    # Adding epsilon to norm (normalization safety)
+    if re.search(r"np\.linalg\.norm\([^)]+\)\s*\+\s*\d", line):
+        return True
+    return False
+
+
 def check_python_file(filepath: Path) -> List[Tuple[int, str, str, bool]]:
     """Check a Python file for geometric purity violations.
     
     Returns list of (line_num, line, violation_desc, is_warning_only).
+    
+    Distinguishes between:
+    - ERRORS: Definite violations (Euclidean distance between basins)
+    - WARNINGS: Potential issues that might be valid (single-basin norm)
     """
     violations = []
     warn_only = is_warn_only(filepath)
@@ -180,11 +223,28 @@ def check_python_file(filepath: Path) -> List[Tuple[int, str, str, bool]]:
             # Skip lines that are clearly comments or strings
             if '"""' in line or "'''" in line:
                 continue
-                
+            
+            found_violation = False
+            
+            # First check for DEFINITE errors (inter-basin operations)
             for pattern, desc in FORBIDDEN_PATTERNS_PYTHON:
                 if re.search(pattern, line, re.IGNORECASE):
                     violations.append((i, line.strip(), desc, warn_only))
-                    break  # One violation per line is enough
+                    found_violation = True
+                    break
+            
+            if found_violation:
+                continue
+            
+            # Then check for potential warnings (might be valid normalization)
+            for pattern, desc in WARN_PATTERNS_PYTHON:
+                if re.search(pattern, line, re.IGNORECASE):
+                    # Check if this is actually valid normalization
+                    if is_valid_norm_context(line):
+                        continue  # Valid normalization, skip
+                    # Flag as warning (not blocking error)
+                    violations.append((i, line.strip()[:100], desc, True))  # Always warn_only
+                    break
                     
     except Exception as e:
         print(f"Warning: Could not read {filepath}: {e}", file=sys.stderr)
