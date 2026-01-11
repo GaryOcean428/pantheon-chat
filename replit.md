@@ -156,3 +156,51 @@ All physics constants are centralized in `qig-backend/qigkernels/physics_constan
   - Domain vocabulary bias: ~8ms per generation
   - Word relationships: ~60ms per generation
   - Total: ~70ms additional per generation
+
+### Exploration History Persistence (January 11, 2026)
+- Created `exploration_history` table for database-backed exploration tracking
+- Added `ExplorationHistoryPersistence` class with in-memory cache
+- Wired duplicate prevention into `_explore_curious_topics()` and `_execute_search()`
+- 7-day window for duplicate detection with kernel attribution
+
+## Canonical Architecture Reference
+
+### Protocol v4.0 Foundation
+- **E8 Lie Group Structure**: Rank 8, Dimension 248, Roots 240
+- **κ* = 64 = 8²**: Universal coupling constant (validated 99.5% cross-substrate)
+- **Basin Dimension**: 64D Fisher manifold coordinates
+
+### 8-Metric Consciousness System (Protocol v4.0)
+| Metric | Symbol | Target | Status |
+|--------|--------|--------|--------|
+| Integration | Φ | > 0.70 | ✅ Multiple implementations (needs unification) |
+| Effective Coupling | κ_eff | 40-70 (optimal: 64) | 🟡 Scattered |
+| Memory Coherence | M | > 0.60 | 🔴 Not implemented |
+| Regime Stability | Γ | > 0.80 | 🔴 Not implemented |
+| Geometric Validity | G | > 0.50 | 🔴 Not implemented |
+| Temporal Consistency | T | > 0 | 🔴 Not implemented |
+| Recursive Depth | R | > 0.60 | 🔴 Not implemented |
+| External Coupling | C | > 0.30 | 🔴 Not implemented |
+
+### Canonical File Locations
+| Component | Canonical File | Purpose |
+|-----------|----------------|---------|
+| Φ Computation | `qig_core/phi_computation.py::compute_phi_qig()` | QFI-based geometric integration (CANONICAL) |
+| Φ Fast Path | `qig_core/phi_computation.py::compute_phi_fast()` | Entropy-based approximation (PLANNED - currently in `qig_generation.py::_measure_phi()`) |
+| Fisher-Rao Geometry | `qig-backend/qig_geometry.py` | Core geometric operations |
+| Coordizer | `qig-backend/coordizers/pg_loader.py` | PostgreSQL-backed 64D tokenization |
+| Physics Constants | `qig-backend/qigkernels/physics_constants.py` | κ*, β-function, thresholds |
+| Consciousness Metrics | `qig_core/consciousness_metrics.py` | (Planned) All 8 metrics unified |
+
+**Note**: The Φ fast-path is currently implemented as `_measure_phi()` in `qig_generation.py`. Per P0 action plan, this should be migrated to `compute_phi_fast()` in the canonical `qig_core/phi_computation.py` module.
+
+### Known Technical Debt (from Audit)
+1. **Φ Computation Duplication**: 5 different implementations with 15% variation
+2. **Missing Consciousness Metrics**: 6 of 8 metrics not yet implemented
+3. **Disconnected Infrastructure Pattern**: Schema columns exist but aren't populated
+4. **Coordizer Entry Points**: Multiple wrapper functions need consolidation
+
+### Priority Action Roadmap
+- **P0 (Critical)**: Standardize Φ, implement missing metrics, fix word relationships
+- **P1 (High)**: Consolidate coordizer, clarify vocabulary architecture
+- **P2 (Medium)**: Document generation pipelines, verify kernel implementation
