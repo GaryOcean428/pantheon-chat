@@ -21,7 +21,9 @@ import { warHistory, type WarHistoryRecord, type InsertWarHistory } from '@share
 import { eq, desc, and, inArray } from 'drizzle-orm';
 import { randomBytes } from 'crypto';
 
-export type WarMode = 'FLOW' | 'DEEP_FOCUS' | 'INSIGHT_HUNT';
+// UI modes: FLOW, DEEP_FOCUS, INSIGHT_HUNT
+// Autonomous war modes: BLITZKRIEG, SIEGE, HUNT
+export type WarMode = 'FLOW' | 'DEEP_FOCUS' | 'INSIGHT_HUNT' | 'BLITZKRIEG' | 'SIEGE' | 'HUNT';
 export type WarOutcome = 'success' | 'partial_success' | 'failure' | 'aborted';
 export type WarStatus = 'active' | 'completed' | 'aborted';
 

@@ -941,8 +941,9 @@ const warTargetSchema = z.object({
 });
 
 // Flow state start validation schema
+// Modes: FLOW, DEEP_FOCUS, INSIGHT_HUNT (UI modes), BLITZKRIEG, SIEGE, HUNT (autonomous war modes)
 const warStartSchema = z.object({
-  mode: z.enum(['FLOW', 'DEEP_FOCUS', 'INSIGHT_HUNT']),
+  mode: z.enum(['FLOW', 'DEEP_FOCUS', 'INSIGHT_HUNT', 'BLITZKRIEG', 'SIEGE', 'HUNT']),
   target: z.string().min(1).max(500),
   strategy: z.string().max(1000).optional(),
   godsEngaged: z.array(z.string()).max(20).optional(),

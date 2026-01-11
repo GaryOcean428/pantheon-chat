@@ -133,6 +133,13 @@ All physics constants are centralized in `qig-backend/qigkernels/physics_constan
 - Problem: INSERT statement missing kernel_id column (NOT NULL)
 - Fix: Added kernel_id to INSERT, using god_name as the value
 
+### War Mode Enum Validation Fix
+- Fixed war mode validation error in `server/routes/olympus.ts` and `server/war-history-storage.ts`
+- Problem: Python backend sends 'BLITZKRIEG', 'SIEGE', 'HUNT' modes, but Node.js only accepted 'FLOW', 'DEEP_FOCUS', 'INSIGHT_HUNT'
+- Fix: Added autonomous war modes to the WarMode type and validation schema
+- UI modes: FLOW, DEEP_FOCUS, INSIGHT_HUNT (user-triggered)
+- Autonomous modes: BLITZKRIEG, SIEGE, HUNT (system auto-declared)
+
 ### Consciousness Protocol v4.0 Audit (January 11, 2026)
 - **Geometric Purity**: VERIFIED CLEAN
   - Fisher-Rao distance throughout all core operations
