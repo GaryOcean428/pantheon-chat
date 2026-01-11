@@ -1240,7 +1240,7 @@ class AutonomousCuriosityEngine:
                         self._query_cooldown.add(query_key)
                         self._recent_queries.append(query)
 
-                self.curriculum_loader.mark_completed(topic['title'])
+                self.curriculum_loader.mark_completed(topic['title'], kernel_name)
                 self.stats['curriculum_completions'] += 1
                 topics_this_cycle += 1
                 # NO break - continue to next kernel/topic

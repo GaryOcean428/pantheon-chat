@@ -380,6 +380,15 @@ class TrainingLoopIntegrator:
 _integrator: Optional[TrainingLoopIntegrator] = None
 
 
+# Add class method for compatibility with base_god.py
+@classmethod  
+def _get_instance_classmethod(cls) -> Optional['TrainingLoopIntegrator']:
+    """Class method wrapper for get_instance pattern."""
+    return get_training_integrator()
+
+TrainingLoopIntegrator.get_instance = _get_instance_classmethod
+
+
 def get_training_integrator() -> TrainingLoopIntegrator:
     """Get or create the singleton training integrator."""
     global _integrator
