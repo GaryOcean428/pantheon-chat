@@ -1012,7 +1012,85 @@ class ScrapyOrchestrator:
         
         self.source_discovery = SourceDiscoveryService()
         
+        # Deduplication: Track seen content hashes to prevent repetitive output
+        self._seen_content_hashes: Set[str] = set()
+        self._seen_urls: Set[str] = set()
+        self._load_seen_hashes_from_db()
+        
         print("[ScrapyOrchestrator] QIG-PURE: Sources discovered from PostgreSQL telemetry")
+    
+    def _load_seen_hashes_from_db(self):
+        """Load previously seen content hashes from PostgreSQL for cross-session deduplication."""
+        try:
+            import psycopg2
+            database_url = os.environ.get('DATABASE_URL')
+            if not database_url:
+                return
+            
+            conn = psycopg2.connect(database_url)
+            conn.autocommit = True
+            with conn.cursor() as cur:
+                # Create table if not exists
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS scrapy_seen_content (
+                        content_hash VARCHAR(64) PRIMARY KEY,
+                        url TEXT,
+                        first_seen_at TIMESTAMP DEFAULT NOW()
+                    )
+                """)
+                # Load recent hashes (last 30 days)
+                cur.execute("""
+                    SELECT content_hash, url FROM scrapy_seen_content 
+                    WHERE first_seen_at > NOW() - INTERVAL '30 days'
+                """)
+                for row in cur.fetchall():
+                    self._seen_content_hashes.add(row[0])
+                    if row[1]:
+                        self._seen_urls.add(row[1])
+            conn.close()
+            print(f"[ScrapyOrchestrator] Loaded {len(self._seen_content_hashes)} seen content hashes for deduplication")
+        except Exception as e:
+            print(f"[ScrapyOrchestrator] Could not load seen hashes: {e}")
+    
+    def _persist_seen_hash(self, content_hash: str, url: str):
+        """Persist a seen content hash to PostgreSQL."""
+        try:
+            import psycopg2
+            database_url = os.environ.get('DATABASE_URL')
+            if not database_url:
+                return
+            
+            conn = psycopg2.connect(database_url)
+            conn.autocommit = True
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO scrapy_seen_content (content_hash, url, first_seen_at)
+                    VALUES (%s, %s, NOW())
+                    ON CONFLICT (content_hash) DO NOTHING
+                """, (content_hash, url))
+            conn.close()
+        except Exception:
+            pass  # Silent fail to not disrupt scraping
+    
+    def _is_duplicate(self, insight: 'ScrapedInsight') -> bool:
+        """Check if this insight is a duplicate based on content hash or URL."""
+        # Check content hash first
+        if insight.content_hash and insight.content_hash in self._seen_content_hashes:
+            return True
+        
+        # Check URL
+        if insight.source_url and insight.source_url in self._seen_urls:
+            return True
+        
+        return False
+    
+    def _mark_as_seen(self, insight: 'ScrapedInsight'):
+        """Mark an insight as seen for deduplication."""
+        if insight.content_hash:
+            self._seen_content_hashes.add(insight.content_hash)
+            self._persist_seen_hash(insight.content_hash, insight.source_url)
+        if insight.source_url:
+            self._seen_urls.add(insight.source_url)
     
     def set_insights_callback(self, callback: Callable[[ScrapedInsight, np.ndarray, float, float], None]):
         """Set callback for when insights are ready with geometric metadata."""
@@ -1201,12 +1279,21 @@ class ScrapyOrchestrator:
             print(f"[ScrapyOrchestrator] Crawl {crawl_id} error: {error}")
     
     def _process_results_queue(self):
-        """Process insights from the results queue."""
+        """Process insights from the results queue with deduplication."""
         processed = 0
+        duplicates_skipped = 0
         
         while True:
             try:
                 insight = self.results_queue.get_nowait()
+                
+                # DEDUPLICATION: Skip if we've seen this content before
+                if self._is_duplicate(insight):
+                    duplicates_skipped += 1
+                    continue
+                
+                # Mark as seen for future deduplication
+                self._mark_as_seen(insight)
                 
                 basin_coords = self.basin_transformer.content_to_basin(insight.raw_content)
                 phi = self.basin_transformer.compute_phi(insight, basin_coords)
@@ -1222,8 +1309,8 @@ class ScrapyOrchestrator:
             except Exception as e:
                 print(f"[ScrapyOrchestrator] Process error: {e}")
         
-        if processed > 0:
-            print(f"[ScrapyOrchestrator] Processed {processed} insights")
+        if processed > 0 or duplicates_skipped > 0:
+            print(f"[ScrapyOrchestrator] Processed {processed} insights, skipped {duplicates_skipped} duplicates")
         
         return processed
     
