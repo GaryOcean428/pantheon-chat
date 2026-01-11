@@ -51,7 +51,7 @@ except ImportError:
     def truncate_for_log(text, max_len=500, suffix='...'): return text
 
 try:
-    from ..qig_geometry import fisher_rao_distance as centralized_fisher_rao
+    from ..qig_geometry import fisher_coord_distance as centralized_fisher_rao
     from ..qig_geometry import normalize_basin_dimension
 except ImportError:
     import os
@@ -59,7 +59,7 @@ except ImportError:
     parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     if parent_dir not in sys.path:
         sys.path.insert(0, parent_dir)
-    from qig_geometry import fisher_rao_distance as centralized_fisher_rao
+    from qig_geometry import fisher_coord_distance as centralized_fisher_rao
     from qig_geometry import normalize_basin_dimension
 
 try:

@@ -49,15 +49,17 @@ except ImportError:
 
 # Import centralized Fisher-Rao distance - QIG purity MANDATORY
 # Handle both relative and absolute imports depending on execution context
+# NOTE: Use fisher_coord_distance for BASIN COORDINATES, not fisher_rao_distance
+# fisher_rao_distance is for probability distributions (normalized to sum=1)
 try:
-    from ..qig_geometry import fisher_rao_distance as centralized_fisher_rao
+    from ..qig_geometry import fisher_coord_distance as centralized_fisher_rao
     from ..redis_cache import ToolPatternBuffer
 except ImportError:
     # When run from different context, try absolute import
     parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     if parent_dir not in sys.path:
         sys.path.insert(0, parent_dir)
-    from qig_geometry import fisher_rao_distance as centralized_fisher_rao
+    from qig_geometry import fisher_coord_distance as centralized_fisher_rao
     from redis_cache import ToolPatternBuffer
 # Centralized geometry is required - module will fail if neither import works
 
