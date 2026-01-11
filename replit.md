@@ -121,3 +121,9 @@ All physics constants are centralized in `qig-backend/qigkernels/physics_constan
 - Explicit None check for phi to avoid treating phi=0.0 as falsy
 - Basin trajectory format: [message_basin (64D), response_basin (64D)]
 - Populates learned_manifold_attractors table from successful conversations
+
+### Dionysus Novelty=0 Fix
+- Fixed `_record_exploration()` in dionysus.py to skip near-duplicate basins
+- Problem: Same targets assessed repeatedly → explored_regions filled with duplicates → Fisher distance = 0 → novelty = 0.00 → learning blocked by chaos_discovery_gate (min_novelty=0.15)
+- Fix: Before adding to explored_regions, check Fisher distance to recent 50 entries; skip if distance < 0.1
+- Result: Novelty stays > 0 for genuinely new content, learning pipeline unblocked

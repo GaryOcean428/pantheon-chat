@@ -161,7 +161,14 @@ class Dionysus(BaseGod):
         return mutations
     
     def _record_exploration(self, basin: np.ndarray) -> None:
-        """Record explored basin region."""
+        """Record explored basin region, avoiding near-duplicates."""
+        MIN_NOVELTY_TO_RECORD = 0.1
+        
+        for explored in self.explored_regions[-50:]:
+            distance = self.fisher_geodesic_distance(basin, explored)
+            if distance < MIN_NOVELTY_TO_RECORD:
+                return
+        
         self.explored_regions.append(basin.copy())
         
         if len(self.explored_regions) > 500:
