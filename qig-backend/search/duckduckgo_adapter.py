@@ -26,19 +26,30 @@ from datetime import datetime
 import hashlib
 
 try:
-    from duckduckgo_search import DDGS
-    from duckduckgo_search.exceptions import (
+    # Use the renamed ddgs package
+    from ddgs import DDGS
+    from ddgs.exceptions import (
         DuckDuckGoSearchException,
         RatelimitException,
         TimeoutException,
     )
     HAS_DDG = True
 except ImportError:
-    HAS_DDG = False
-    DDGS = None
-    DuckDuckGoSearchException = Exception
-    RatelimitException = Exception
-    TimeoutException = Exception
+    try:
+        # Fallback to old package name
+        from duckduckgo_search import DDGS
+        from duckduckgo_search.exceptions import (
+            DuckDuckGoSearchException,
+            RatelimitException,
+            TimeoutException,
+        )
+        HAS_DDG = True
+    except ImportError:
+        HAS_DDG = False
+        DDGS = None
+        DuckDuckGoSearchException = Exception
+        RatelimitException = Exception
+        TimeoutException = Exception
 
 
 class DuckDuckGoSearch:
