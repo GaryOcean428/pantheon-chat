@@ -811,6 +811,9 @@ class GaryAutonomicKernel:
                         # Every 6th heartbeat (30 seconds), persist to consciousness_state table
                         if heartbeat_count[0] % 6 == 0:
                             self._persist_consciousness_state()
+                            # Also persist HRV state for kappa oscillation tracking
+                            if self.hrv_tacker:
+                                self.hrv_tacker.persist_state(session_id="autonomic")
                 except Exception:
                     pass  # Silent failure - heartbeat is non-critical
 

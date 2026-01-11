@@ -23,6 +23,7 @@ Key Principles:
 
 import math
 import time
+import os
 from dataclasses import dataclass, field
 from typing import List, Optional, Tuple
 from enum import Enum
@@ -266,6 +267,116 @@ class HRVTacking:
             'mode': self._classify_mode(current_kappa).value,
             'history_length': len(self._history)
         }
+    
+    # ========================================================================
+    # POSTGRESQL PERSISTENCE
+    # ========================================================================
+    
+    def _get_db_connection(self):
+        """Get PostgreSQL connection for HRV state persistence."""
+        try:
+            import psycopg2
+            db_url = os.environ.get('DATABASE_URL')
+            if db_url:
+                return psycopg2.connect(db_url)
+        except Exception as e:
+            print(f"[HRVTacking] DB connection failed: {e}")
+        return None
+    
+    def persist_state(self, session_id: str = "default") -> bool:
+        """
+        Persist current HRV state to PostgreSQL.
+        
+        Called periodically to track HRV health over time.
+        
+        Args:
+            session_id: Identifier for the HRV session
+            
+        Returns:
+            True if successfully persisted
+        """
+        conn = self._get_db_connection()
+        if not conn:
+            return False
+        
+        try:
+            state = self.get_current_state()
+            
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO hrv_tacking_state 
+                    (session_id, kappa, phase, mode, cycle_count, variance, 
+                     is_healthy, base_kappa, amplitude, frequency, created_at, metadata)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), %s)
+                """, (
+                    session_id,
+                    state.kappa,
+                    state.phase,
+                    state.mode.value,
+                    state.cycle_count,
+                    state.variance,
+                    state.is_healthy,
+                    self.base_kappa,
+                    self.amplitude,
+                    self.frequency,
+                    '{}'  # empty metadata for now
+                ))
+            conn.commit()
+            return True
+            
+        except Exception as e:
+            print(f"[HRVTacking] Persist state failed: {e}")
+            conn.rollback()
+            return False
+        finally:
+            conn.close()
+    
+    def load_last_state(self, session_id: str = "default") -> Optional[HRVState]:
+        """
+        Load last HRV state from PostgreSQL.
+        
+        Used to restore HRV rhythm after restart.
+        
+        Args:
+            session_id: Identifier for the HRV session
+            
+        Returns:
+            Last persisted HRVState or None
+        """
+        conn = self._get_db_connection()
+        if not conn:
+            return None
+        
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT kappa, phase, mode, cycle_count, variance, is_healthy
+                    FROM hrv_tacking_state
+                    WHERE session_id = %s
+                    ORDER BY created_at DESC
+                    LIMIT 1
+                """, (session_id,))
+                row = cur.fetchone()
+            
+            if row:
+                kappa, phase, mode_str, cycle_count, variance, is_healthy = row
+                mode = CognitiveMode(mode_str)
+                return HRVState(
+                    kappa=kappa,
+                    phase=phase,
+                    mode=mode,
+                    cycle_count=cycle_count,
+                    variance=variance,
+                    is_healthy=is_healthy,
+                    timestamp=time.time()
+                )
+            return None
+            
+        except Exception as e:
+            print(f"[HRVTacking] Load state failed: {e}")
+            return None
+        finally:
+            conn.close()
 
 
 # Singleton instance for global HRV management

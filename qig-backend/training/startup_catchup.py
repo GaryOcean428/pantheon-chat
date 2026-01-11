@@ -608,17 +608,28 @@ class StartupCatchupManager:
             return {"success": False, "error": str(e)}
 
     def _import_vocabulary(self, vocabulary: List[Dict]) -> int:
-        """Import vocabulary received from a peer into local database."""
+        """Import vocabulary received from a peer into local database.
+        
+        CRITICAL: Validates words before insertion to prevent vocabulary contamination.
+        """
+        from word_validation import is_valid_english_word
+        
         conn = _get_db_connection()
         if not conn:
             return 0
 
         imported = 0
+        skipped = 0
         try:
             with conn.cursor() as cur:
                 for vocab in vocabulary:
                     word = vocab.get("word", "")
                     if not word or len(word) < 2:
+                        continue
+                    
+                    # CRITICAL: Validate word before insertion to prevent garbage
+                    if not is_valid_english_word(word, include_stop_words=True, strict=True):
+                        skipped += 1
                         continue
 
                     phi = vocab.get("phi", 0.5)
@@ -637,6 +648,9 @@ class StartupCatchupManager:
                     imported += 1
 
                 conn.commit()
+            
+            if skipped > 0:
+                print(f"[FederationSync] Skipped {skipped} invalid words during import")
             return imported
         except Exception as e:
             print(f"[FederationSync] Error importing vocabulary: {e}")

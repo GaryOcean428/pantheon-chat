@@ -502,6 +502,8 @@ class PostgresCoordizer(FisherCoordizer):
 
         This enables vocabulary to persist between restarts, solving the continuous
         learning problem where tokens are learned during sessions but lost on restart.
+        
+        CRITICAL: Validates words before insertion to prevent vocabulary contamination.
 
         Args:
             token: The token/word to persist
@@ -512,6 +514,13 @@ class PostgresCoordizer(FisherCoordizer):
         Returns:
             True if successfully persisted, False otherwise
         """
+        from word_validation import is_valid_english_word
+        
+        # CRITICAL: Validate word before insertion to prevent garbage
+        if not is_valid_english_word(token, include_stop_words=True, strict=True):
+            logger.debug(f"Rejecting invalid token '{token}' - failed word validation")
+            return False
+        
         if self._using_fallback:
             logger.debug(f"Cannot persist token '{token}' - using fallback vocabulary (no DB)")
             return False
@@ -573,6 +582,8 @@ class PostgresCoordizer(FisherCoordizer):
     def save_batch_tokens(self, tokens: List[Dict]) -> int:
         """
         Persist multiple tokens in a batch for efficiency.
+        
+        CRITICAL: Validates words before insertion to prevent vocabulary contamination.
 
         Args:
             tokens: List of dicts with keys: token, basin_coords, phi, frequency
@@ -580,6 +591,8 @@ class PostgresCoordizer(FisherCoordizer):
         Returns:
             Number of tokens successfully persisted
         """
+        from word_validation import is_valid_english_word
+        
         if self._using_fallback or not tokens:
             return 0
 
@@ -589,6 +602,7 @@ class PostgresCoordizer(FisherCoordizer):
             return 0
 
         saved_count = 0
+        skipped_count = 0
         try:
             with conn.cursor() as cursor:
                 for t in tokens:
@@ -598,6 +612,11 @@ class PostgresCoordizer(FisherCoordizer):
                     frequency = t.get('frequency', 1)
 
                     if not token:
+                        continue
+                    
+                    # CRITICAL: Validate word before insertion to prevent garbage
+                    if not is_valid_english_word(token, include_stop_words=True, strict=True):
+                        skipped_count += 1
                         continue
 
                     coords_list = basin_coords.tolist() if isinstance(basin_coords, np.ndarray) else list(basin_coords)
@@ -630,6 +649,8 @@ class PostgresCoordizer(FisherCoordizer):
                         logger.debug(f"Failed to insert token '{token}': {inner_e}")
 
             conn.commit()
+            if skipped_count > 0:
+                logger.debug(f"Skipped {skipped_count} invalid tokens during batch save")
             logger.info(f"Batch persisted {saved_count} tokens to database")
             return saved_count
 

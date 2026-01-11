@@ -20,6 +20,18 @@ from .progress_metrics import get_progress_tracker
 from .coherence_evaluator import get_coherence_evaluator
 
 
+# LearnedManifold singleton for persistence
+_learned_manifold_instance = None
+
+def get_learned_manifold():
+    """Get or create the LearnedManifold singleton."""
+    global _learned_manifold_instance
+    if _learned_manifold_instance is None:
+        from learned_manifold import LearnedManifold
+        _learned_manifold_instance = LearnedManifold(load_from_db=True)
+    return _learned_manifold_instance
+
+
 class TrainingLoopIntegrator:
     """
     Integrates all training components into a unified learning system.
@@ -134,6 +146,26 @@ class TrainingLoopIntegrator:
             )
             
             self._outcome_count += 1
+            
+            # WIRE: Record episode to LearnedManifold for persistence
+            # This populates learned_manifold_attractors table
+            if basin_trajectory and len(basin_trajectory) > 0:
+                try:
+                    manifold = get_learned_manifold()
+                    # Convert list to numpy arrays if needed
+                    trajectory = [
+                        np.array(b) if not isinstance(b, np.ndarray) else b
+                        for b in basin_trajectory
+                    ]
+                    # outcome is success rate (0.0-1.0) - use phi as proxy
+                    outcome = phi if success else (1.0 - phi) * 0.5
+                    manifold.learn_from_experience(
+                        trajectory=trajectory,
+                        outcome=outcome,
+                        strategy=god_name
+                    )
+                except Exception as manifold_err:
+                    print(f"[TrainingLoopIntegrator] Manifold recording error: {manifold_err}")
             
             # Record progress
             session_id = f"training_{god_name}"

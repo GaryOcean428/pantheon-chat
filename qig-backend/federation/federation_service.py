@@ -314,9 +314,12 @@ class FederationService:
         Import vocabulary received from a peer.
 
         Uses upsert with GREATEST to only update if incoming phi is higher.
+        CRITICAL: Validates words before insertion to prevent vocabulary contamination.
 
         Returns: Number of items imported/updated
         """
+        from word_validation import is_valid_english_word
+        
         if not vocabulary:
             return 0
 
@@ -325,11 +328,17 @@ class FederationService:
             return 0
 
         imported = 0
+        skipped = 0
         try:
             with conn.cursor() as cur:
                 for vocab in vocabulary:
                     word = vocab.get("word", "")
                     if not word or len(word) < 2 or len(word) > 128:
+                        continue
+                    
+                    # CRITICAL: Validate word before insertion to prevent garbage
+                    if not is_valid_english_word(word, include_stop_words=True, strict=True):
+                        skipped += 1
                         continue
 
                     phi = min(max(float(vocab.get("phi", 0.5)), 0.0), 1.0)
@@ -348,6 +357,9 @@ class FederationService:
                     imported += 1
 
                 conn.commit()
+            
+            if skipped > 0:
+                print(f"[Federation] Skipped {skipped} invalid words during import")
 
             print(f"[Federation] Imported {imported} vocabulary items from {source_peer}")
             return imported

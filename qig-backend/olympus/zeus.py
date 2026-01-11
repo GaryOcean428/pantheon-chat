@@ -1763,8 +1763,8 @@ class Zeus(BaseGod):
             try:
                 coordizer = getattr(self, '_coordizer', None)
                 if coordizer is None:
-                    from coordizers.pg_loader import get_pg_coordizer
-                    coordizer = get_pg_coordizer()
+                    from coordizers import get_coordizer
+                    coordizer = get_coordizer()
                     self._coordizer = coordizer
                 
                 if coordizer and content:
