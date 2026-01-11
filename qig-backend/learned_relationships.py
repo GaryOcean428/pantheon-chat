@@ -358,6 +358,16 @@ class LearnedRelationships:
             
             logger.info(f"[LearnedRelationships] Saved {len(records)} relationships to PostgreSQL")
             conn.close()
+            
+            # Populate vocabulary_learning asynchronously (small batch to avoid timeout)
+            # This wires the closed vocabulary learning loop
+            try:
+                populated = self.populate_vocabulary_learning(limit=20)
+                if populated > 0:
+                    logger.info(f"[LearnedRelationships] Also populated {populated} vocabulary_learning entries")
+            except Exception as e:
+                logger.debug(f"vocabulary_learning population skipped: {e}")
+            
             return True
         except Exception as e:
             logger.error(f"Failed to save to PostgreSQL: {e}")
@@ -367,6 +377,92 @@ class LearnedRelationships:
     def save_to_cache(self) -> bool:
         """Alias for save_to_db for backward compatibility."""
         return self.save_to_db()
+    
+    def populate_vocabulary_learning(self, limit: int = 100) -> int:
+        """
+        Populate vocabulary_learning table from word_relationships.
+        
+        Uses semantic classifier to determine relationship types and
+        creates entries tracking when relationships were discovered.
+        
+        Args:
+            limit: Maximum new entries to create per call
+            
+        Returns:
+            Number of new entries created
+        """
+        conn = get_db_connection()
+        if not conn:
+            return 0
+        
+        try:
+            from semantic_classifier import get_semantic_classifier
+            classifier = get_semantic_classifier()
+            
+            # Find word_relationships that don't have vocabulary_learning entries
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT wr.word, wr.neighbor, wr.cooccurrence_count, wr.fisher_distance
+                    FROM word_relationships wr
+                    LEFT JOIN vocabulary_learning vl 
+                        ON wr.word = vl.word AND wr.neighbor = vl.related_word
+                    WHERE vl.id IS NULL 
+                      AND wr.fisher_distance IS NOT NULL 
+                      AND wr.fisher_distance > 0
+                    ORDER BY wr.cooccurrence_count DESC
+                    LIMIT %s
+                """, (limit,))
+                candidates = cur.fetchall()
+            
+            if not candidates:
+                logger.info("[LearnedRelationships] No new relationships to populate")
+                conn.close()
+                return 0
+            
+            # Classify and insert each relationship
+            inserted = 0
+            with conn.cursor() as cur:
+                for word, neighbor, cooc_count, fisher_dist in candidates:
+                    try:
+                        # Use semantic classifier to determine relationship type
+                        context = f"co-occurrence count: {cooc_count}"
+                        rel_type, strength = classifier.classify_relationship(word, neighbor, context)
+                        
+                        import uuid
+                        entry_id = str(uuid.uuid4())
+                        
+                        cur.execute("""
+                            INSERT INTO vocabulary_learning (
+                                id, word, relationship_type, related_word,
+                                relationship_strength, context, discovered_by, created_at
+                            )
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
+                            ON CONFLICT (id) DO NOTHING
+                        """, (
+                            entry_id,
+                            word,
+                            rel_type.value,
+                            neighbor,
+                            float(strength),  # Use classifier's normalized strength (0-1)
+                            f"Fisher-Rao distance: {fisher_dist:.4f}, co-occurrence: {cooc_count}",
+                            'learning_pipeline'
+                        ))
+                        inserted += 1
+                    except Exception as e:
+                        logger.debug(f"Failed to insert {word}->{neighbor}: {e}")
+            
+            conn.commit()
+            conn.close()
+            
+            if inserted > 0:
+                logger.info(f"[LearnedRelationships] Populated {inserted} vocabulary_learning entries")
+            
+            return inserted
+            
+        except Exception as e:
+            logger.error(f"Failed to populate vocabulary_learning: {e}")
+            conn.close()
+            return 0
     
     def update_from_learner(self, learner, adjusted_basins: Dict[str, np.ndarray]):
         """Update from a WordRelationshipLearner instance."""
