@@ -672,6 +672,9 @@ class SourceDiscoveryService:
         """Register a discovered source with efficacy metrics."""
         import random
         
+        if not source_url or not source_url.startswith(('http://', 'https://')):
+            return
+        
         self.discovered_sources[source_url] = {
             'url': source_url,
             'category': category,

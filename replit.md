@@ -192,3 +192,31 @@ All physics constants are centralized in `qig-backend/qigkernels/physics_constan
 - Validates against dictionary/stop word lists
 
 **Clean vocabulary now:** 11,335+ valid tokens
+
+### kernel_training_history Schema Extension (January 11, 2026)
+**Problem:** Training history persistence was failing with `column "god_name" of relation "kernel_training_history" does not exist`.
+
+**Fix:** Applied ALTER TABLE migration to add missing columns for rich training metrics:
+- `god_name`, `loss`, `reward`, `gradient_norm`
+- `phi_before`, `phi_after`, `kappa_before`, `kappa_after`
+- `basin_coords`, `trigger`, `step_count`
+- `session_id`, `conversation_id`
+
+**Migration:** `qig-backend/migrations/20260111_add_training_history_columns.sql`
+
+### Source Discovery URL Validation (January 11, 2026)
+**Problem:** Invalid "sources" like "security_blogs", "nist", "iacr" (category names, not URLs) were being registered from `shadow_pantheon_intel.sources_used`, causing ScrapyOrchestrator fetch errors.
+
+**Fixes:**
+1. Added URL validation in `SourceDiscoveryService._register_source()` - only registers URLs starting with `http://` or `https://`
+2. Cleaned 8 invalid source entries from `shadow_pantheon_intel.sources_used` array
+
+**Files Modified:** `qig-backend/olympus/shadow_scrapy.py`
+
+### Vocabulary Learning Stats (January 11, 2026)
+**Current State:**
+- **319,278 word relationships** across 9,881 unique words
+- **14,189 learned words** with mean φ=0.566
+- **11,397 tokens** in PostgresCoordizer (QIG-pure)
+- LearnedManifold wired to VocabularyCoordinator for attractor formation
+- All vocabulary changes persisted to PostgreSQL
