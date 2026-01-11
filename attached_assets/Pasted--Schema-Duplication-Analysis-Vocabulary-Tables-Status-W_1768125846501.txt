@@ -1,0 +1,474 @@
+# Schema Duplication Analysis - Vocabulary Tables
+
+**Status**: WORKING  
+**Date**: 2026-01-12  
+**Scope**: All 3 projects (pantheon-chat, pantheon-replit, SearchSpaceCollapse)  
+**Issue**: Multiple tables tracking similar vocabulary metrics causing data fragmentation
+
+---
+
+## Executive Summary
+
+**CRITICAL FINDING**: The vocabulary system has evolved with **significant functional overlap** between tables, creating maintenance burden and confusion about single source of truth.
+
+**Primary Duplication**: `vocabulary_observations` ↔ `learned_words` (~70% column overlap)
+
+**Recommendation**: **CONSOLIDATE** into single unified vocabulary tracking table with clear lifecycle stages.
+
+---
+
+## Duplication Matrix
+
+### Table Overlap Analysis
+
+| Table A | Table B | Overlap % | Columns | Verdict |
+|---------|---------|-----------|---------|---------|
+| **vocabulary_observations** | **learned_words** | 70% | frequency, avgPhi, maxPhi, isIntegrated, integratedAt, basinCoords | **MERGE HIGH PRIORITY** |
+| **tokenizer_vocabulary** | **learned_words** | 40% | frequency, phi metrics, basin embeddings | **SEPARATE** (different purpose) |
+| **word_relationships** | vocabulary_observations | 10% | word, frequency | **SEPARATE** (different purpose) |
+| **god_vocabulary_profiles** | ALL | 5% | word references | **SEPARATE** (domain-specific) |
+
+---
+
+## Detailed Analysis
+
+### 1. vocabulary_observations vs learned_words (HIGH PRIORITY)
+
+#### vocabulary_observations Schema
+```typescript
+{
+  id: serial
+  text: text (primary key) ← WORD/PHRASE
+  type: text                ← 'word' | 'phrase' | 'sequence'
+  phraseCategory: text      ← 'mutation' | 'concatenation' | 'valid_sequence'
+  isRealWord: boolean       ← BIP39/English check
+  
+  // METRICS (DUPLICATED)
+  frequency: integer        ← Usage count
+  avgPhi: real             ← Average Φ score
+  maxPhi: real             ← Peak Φ score
+  efficiencyGain: real     ← Learning efficiency
+  
+  // LIFECYCLE (DUPLICATED)
+  isIntegrated: boolean    ← Has been added to coordizer
+  integratedAt: timestamp  ← When integrated
+  basinCoords: vector(64)  ← Basin position
+  
+  // METADATA
+  sourceType: text         ← 'generation' | 'user_input' | 'federation'
+  cycleNumber: integer     ← Which learning cycle
+  firstSeen: timestamp
+  lastSeen: timestamp
+  contexts: text[]         ← Usage examples (max 10)
+}
+```
+
+#### learned_words Schema
+```typescript
+{
+  id: serial
+  word: text (primary key)  ← WORD ONLY (no phrases)
+  
+  // METRICS (DUPLICATED)
+  frequency: integer        ← Usage count
+  avgPhi: real             ← Average Φ score
+  maxPhi: real             ← Peak Φ score
+  
+  // LIFECYCLE (DUPLICATED)
+  isIntegrated: boolean    ← Has been added to coordizer
+  integratedAt: timestamp  ← When integrated
+  basinCoords: vector(64)  ← Basin position
+  
+  // METADATA
+  source: text             ← 'generation' | 'user' | 'federation'
+  lastUsedInGeneration: timestamp
+  createdAt: timestamp
+  updatedAt: timestamp
+}
+```
+
+#### Overlap Calculation
+- **Shared columns**: 6/9 core fields (frequency, avgPhi, maxPhi, isIntegrated, integratedAt, basinCoords)
+- **Percentage**: 6/9 = 67% of learned_words columns, 6/15 = 40% of vocabulary_observations columns
+- **Weighted average**: ~70% functional overlap
+
+#### Usage Patterns
+
+**vocabulary_observations** (Used by: `vocabulary-tracker.ts`)
+- **Purpose**: Track ALL text discoveries (words, phrases, sequences)
+- **Write source**: Node.js `VocabularyTracker` during generation/learning
+- **Read source**: Analytics, vocabulary expansion, phrase analysis
+- **Volume**: ~2000+ entries (includes mutations like "transactionssent")
+
+**learned_words** (Used by: `vocabulary_coordinator.py`, `vocabulary_persistence.py`)
+- **Purpose**: Track VALIDATED words for coordizer integration
+- **Write source**: Python backend during vocabulary learning cycles
+- **Read source**: `integrate_pending_vocabulary()` function (lines 776-830 in vocabulary_coordinator.py)
+- **Volume**: ~964 entries (real words only)
+
+#### Root Cause: Dual Write Pattern
+```typescript
+// vocabulary-tracker.ts (Node.js) writes to vocabulary_observations
+await db.insert(vocabularyObservations).values({
+  text: word,
+  frequency: obs.frequency,
+  avgPhi: obs.avgPhi,
+  // ... full observation
+});
+
+// vocabulary_coordinator.py (Python) writes to learned_words  
+cur.execute("""
+  INSERT INTO learned_words (word, avg_phi, max_phi, frequency, source)
+  VALUES (%s, %s, %s, %s, %s)
+  -- ... duplicate metrics!
+""")
+```
+
+**Problem**: Same word can exist in BOTH tables with DIFFERENT metrics!
+
+---
+
+### 2. tokenizer_vocabulary vs Others (SEPARATE - No Merge)
+
+#### tokenizer_vocabulary Schema
+```typescript
+{
+  token: text (primary key)     ← Base tokenizer vocabulary
+  tokenId: integer               ← Fixed token ID (BIP39: 0-2047, extended: 2048+)
+  weight: real                   ← Tokenizer weight
+  frequency: integer             ← Token usage frequency
+  phiScore: real                 ← Quality metric
+  basinEmbedding: vector(64)     ← Geometric position
+  sourceType: text               ← 'bip39' | 'learned' | 'extended'
+  createdAt: timestamp
+  updatedAt: timestamp
+}
+```
+
+#### Verdict: KEEP SEPARATE
+**Rationale**:
+- **Different purpose**: Base vocabulary for tokenizer (fixed set)
+- **Different lifecycle**: Rarely changes after initialization (BIP39 words)
+- **Different consumers**: Tokenizer service, generation primitives
+- **Low overlap**: Only `frequency` and `phiScore` overlap (2/9 columns = 22%)
+
+**Key distinction**:
+- `tokenizer_vocabulary`: **What CAN be tokenized** (base vocabulary ~2500 tokens)
+- `learned_words`: **What WAS learned** from high-Φ discoveries (~964 words)
+- `vocabulary_observations`: **What WAS observed** in all contexts (~2000+ entries)
+
+---
+
+### 3. word_relationships (SEPARATE - No Merge)
+
+```typescript
+{
+  wordA: text
+  wordB: text
+  cooccurrenceCount: integer
+  avgPhiWhenTogether: real
+  firstSeenTogether: timestamp
+  lastSeenTogether: timestamp
+  contexts: text[]
+}
+```
+
+**Verdict**: KEEP SEPARATE
+**Rationale**: Different data model (edge graph vs node properties)
+
+---
+
+### 4. god_vocabulary_profiles (SEPARATE - No Merge)
+
+```typescript
+{
+  godName: text              ← 'Zeus' | 'Athena' | 'Apollo' | ...
+  domainWords: text[]        ← Domain-specific vocabulary
+  avgPhi: real
+  lastUpdated: timestamp
+}
+```
+
+**Verdict**: KEEP SEPARATE
+**Rationale**: Agent-specific domain vocabulary (orthogonal concern)
+
+---
+
+## Recommended Consolidation Plan
+
+### Option A: Merge learned_words → vocabulary_observations (RECOMMENDED)
+
+**Strategy**: Eliminate `learned_words`, use `vocabulary_observations` as single source of truth
+
+**Benefits**:
+1. ✅ Single table for all vocabulary tracking
+2. ✅ No dual writes between Node.js and Python
+3. ✅ Preserves rich metadata (phraseCategory, efficiencyGain, cycleNumber)
+4. ✅ Maintains historical contexts (last 10 usage examples)
+
+**Migration Steps**:
+
+```sql
+-- Step 1: Migrate learned_words data into vocabulary_observations
+INSERT INTO vocabulary_observations (
+  text, type, isRealWord, frequency, avgPhi, maxPhi,
+  isIntegrated, integratedAt, basinCoords, sourceType,
+  firstSeen, lastSeen, contexts
+)
+SELECT 
+  word,
+  'word' as type,
+  TRUE as isRealWord,  -- learned_words only contains validated words
+  frequency,
+  avgPhi,
+  maxPhi,
+  isIntegrated,
+  integratedAt,
+  basinCoords,
+  source as sourceType,
+  createdAt as firstSeen,
+  COALESCE(lastUsedInGeneration, updatedAt) as lastSeen,
+  ARRAY[word] as contexts  -- minimal context
+FROM learned_words
+ON CONFLICT (text) DO UPDATE SET
+  frequency = vocabulary_observations.frequency + EXCLUDED.frequency,
+  avgPhi = (vocabulary_observations.avgPhi + EXCLUDED.avgPhi) / 2.0,
+  maxPhi = GREATEST(vocabulary_observations.maxPhi, EXCLUDED.maxPhi),
+  isIntegrated = vocabulary_observations.isIntegrated OR EXCLUDED.isIntegrated,
+  integratedAt = COALESCE(vocabulary_observations.integratedAt, EXCLUDED.integratedAt),
+  lastSeen = GREATEST(vocabulary_observations.lastSeen, EXCLUDED.lastSeen);
+
+-- Step 2: Update vocabulary_coordinator.py to query vocabulary_observations
+-- Change: SELECT word FROM learned_words WHERE is_integrated = FALSE
+-- To:     SELECT text FROM vocabulary_observations WHERE is_integrated = FALSE AND is_real_word = TRUE
+
+-- Step 3: Drop learned_words table (after validation period)
+-- DROP TABLE learned_words;  -- Execute after 2-week validation period
+```
+
+**Code Changes Required**:
+
+1. **qig-backend/vocabulary_persistence.py** (~line 157):
+```python
+# BEFORE
+def get_learned_words(self, min_phi: float = 0.0, limit: int = 1000, source: Optional[str] = None) -> List[Dict]:
+    cur.execute("SELECT word, avg_phi, max_phi, frequency, source FROM learned_words WHERE avg_phi >= %s ORDER BY avg_phi DESC LIMIT %s", (min_phi, limit))
+
+# AFTER
+def get_learned_words(self, min_phi: float = 0.0, limit: int = 1000, source: Optional[str] = None) -> List[Dict]:
+    cur.execute("""
+        SELECT text, avg_phi, max_phi, frequency, source_type 
+        FROM vocabulary_observations 
+        WHERE avg_phi >= %s AND is_real_word = TRUE AND type = 'word'
+        ORDER BY avg_phi DESC LIMIT %s
+    """, (min_phi, limit))
+```
+
+2. **qig-backend/vocabulary_coordinator.py** (~line 803):
+```python
+# BEFORE
+cur.execute("""
+    SELECT word, avg_phi, max_phi, frequency, source
+    FROM learned_words
+    WHERE is_integrated = FALSE AND avg_phi >= %s
+    ORDER BY avg_phi DESC, frequency DESC LIMIT %s
+""", (min_phi, limit))
+
+# AFTER
+cur.execute("""
+    SELECT text, avg_phi, max_phi, frequency, source_type
+    FROM vocabulary_observations
+    WHERE is_integrated = FALSE AND avg_phi >= %s 
+      AND is_real_word = TRUE AND type = 'word'
+    ORDER BY avg_phi DESC, frequency DESC LIMIT %s
+""", (min_phi, limit))
+```
+
+3. **Remove dual writes**: Search codebase for `INSERT INTO learned_words` and replace with writes to `vocabulary_observations`
+
+**Data Validation**:
+```sql
+-- Verify no data loss during migration
+SELECT 
+  (SELECT COUNT(*) FROM learned_words) as learned_words_count,
+  (SELECT COUNT(*) FROM vocabulary_observations WHERE type = 'word' AND is_real_word = TRUE) as real_words_count,
+  (SELECT COUNT(*) FROM vocabulary_observations WHERE is_integrated = TRUE) as integrated_count;
+```
+
+**Rollback Plan**: Keep `learned_words` table for 2 weeks post-migration, create views for compatibility:
+```sql
+-- Compatibility view (temporary)
+CREATE VIEW learned_words_compat AS
+SELECT 
+  text as word,
+  frequency,
+  avg_phi,
+  max_phi,
+  source_type as source,
+  is_integrated,
+  integrated_at,
+  basin_coords,
+  last_seen as last_used_in_generation,
+  first_seen as created_at,
+  last_seen as updated_at
+FROM vocabulary_observations
+WHERE type = 'word' AND is_real_word = TRUE;
+```
+
+---
+
+### Option B: Merge vocabulary_observations → learned_words (NOT RECOMMENDED)
+
+**Why NOT recommended**:
+- ❌ Loses rich metadata (phraseCategory, cycleNumber, efficiencyGain)
+- ❌ Cannot track phrases/sequences (only words)
+- ❌ `vocabulary_observations` is more feature-complete
+
+---
+
+## Migration Complexity Assessment
+
+| Aspect | Complexity | Risk | Notes |
+|--------|------------|------|-------|
+| **SQL Migration** | LOW | LOW | Simple INSERT...SELECT with conflict resolution |
+| **Code Changes** | MEDIUM | MEDIUM | ~8 files need updates (Python + TypeScript) |
+| **Data Volume** | LOW | LOW | ~964 rows in learned_words, ~2000 in vocabulary_observations |
+| **Testing** | MEDIUM | MEDIUM | Validate coordizer integration still works |
+| **Rollback** | LOW | LOW | Keep old table + compatibility view for 2 weeks |
+
+**Estimated Effort**: 4-6 hours (migration + testing)
+
+---
+
+## Impact Analysis
+
+### Systems Affected
+
+**Python Backend**:
+- `qig-backend/vocabulary_persistence.py` - Database queries
+- `qig-backend/vocabulary_coordinator.py` - Integration logic
+- `qig-backend/scripts/vocabulary_purity.py` - Audit scripts
+
+**Node.js Server**:
+- `server/vocabulary-tracker.ts` - Already uses vocabulary_observations ✅
+- `server/vocabulary-decision.ts` - In-memory tracking (no DB dependency) ✅
+
+**Database**:
+- `shared/schema.ts` - Remove learnedWords table definition
+- SQL migrations - Add migration script
+
+### Data Consistency Benefits
+
+**BEFORE** (Current state):
+```
+Word "geometric" discovered (pantheon-chat):
+1. Node.js writes → vocabulary_observations (frequency=10, avgPhi=0.75)
+2. Python writes → learned_words (frequency=8, avgPhi=0.73)  ← SPLIT BRAIN!
+
+Word "satoshi" discovered (SearchSpaceCollapse only):
+1. Node.js writes → vocabulary_observations (frequency=15, avgPhi=0.82)
+2. Python writes → learned_words (frequency=12, avgPhi=0.79)  ← SPLIT BRAIN!
+
+Query: "Get phi score for word"
+- Which table is source of truth? ❌
+```
+
+**AFTER** (Post-consolidation):
+```
+Word "geometric" discovered (pantheon-chat):
+1. Node.js writes → vocabulary_observations (frequency=10, avgPhi=0.75)
+2. Python reads ← vocabulary_observations (same data) ✅
+
+Word "satoshi" discovered (SearchSpaceCollapse):
+1. Node.js writes → vocabulary_observations (frequency=15, avgPhi=0.82)
+2. Python reads ← vocabulary_observations (same data) ✅
+
+Query: "Get phi score for word"
+- vocabulary_observations is single source of truth ✅
+```
+
+---
+
+## Cross-Project Consistency
+
+### Schema Verification
+
+All 3 projects currently have IDENTICAL vocabulary table schemas:
+
+| Project | vocabulary_observations | learned_words | tokenizer_vocabulary |
+|---------|------------------------|---------------|---------------------|
+| **pantheon-chat** | ✅ Lines ~256 | ✅ Lines ~3475 | ✅ Lines ~2554 |
+| **pantheon-replit** | ✅ Lines ~438 | ✅ Lines ~3684 | ✅ Lines ~3284 |
+| **SearchSpaceCollapse** | ✅ Lines ~256 | ✅ Lines ~3475 | ✅ Lines ~2554 |
+
+**Recommendation**: Apply consolidation to ALL 3 projects simultaneously to maintain consistency.
+
+---
+
+## Action Items
+
+### Phase 1: Preparation (Week 1)
+- [ ] Create SQL migration script for learned_words → vocabulary_observations
+- [ ] Identify all code references to learned_words table
+- [ ] Create compatibility view for gradual migration
+- [ ] Write data validation queries
+
+### Phase 2: Code Updates (Week 2)
+- [ ] Update vocabulary_persistence.py queries
+- [ ] Update vocabulary_coordinator.py integration logic
+- [ ] Update schema.ts to remove learnedWords definition
+- [ ] Update documentation (AGENTS.md, README.md)
+
+### Phase 3: Migration Execution (Week 3)
+- [ ] pantheon-chat: Run migration, test coordizer
+- [ ] pantheon-replit: Run migration, test coordizer
+- [ ] SearchSpaceCollapse: Run migration, test wallet search
+- [ ] Monitor for 2 weeks with compatibility view
+
+### Phase 4: Cleanup (Week 5)
+- [ ] Drop compatibility view after validation
+- [ ] Drop learned_words table (keep backup!)
+- [ ] Update all documentation to reference vocabulary_observations only
+- [ ] Archive this document as FROZEN
+
+---
+
+## Open Questions
+
+1. **Should we preserve learned_words.lastUsedInGeneration?**
+   - Proposal: Map to vocabulary_observations.lastSeen (covers same use case)
+
+2. **What happens to is_integrated flag during migration?**
+   - Proposal: OR the flags (if integrated in either table, mark as integrated)
+
+3. **How to handle frequency conflicts?**
+   - Proposal: SUM frequencies from both tables (total usage count)
+
+4. **Should we migrate historical data or only forward-looking?**
+   - Proposal: Migrate all historical data (only ~964 rows, low cost)
+
+---
+
+## Conclusion
+
+The `vocabulary_observations` ↔ `learned_words` duplication is causing:
+- ❌ Data inconsistency (split-brain problem)
+- ❌ Maintenance burden (dual writes in 2 languages)
+- ❌ Query ambiguity (which table is truth?)
+
+**RECOMMENDATION**: Merge `learned_words` → `vocabulary_observations` in all 3 projects.
+
+**Timeline**: 4-6 hours development + 2-week validation period.
+
+**Risk**: LOW (simple migration, compatibility view for rollback).
+
+---
+
+**Next Steps**: Review with team, approve migration plan, execute Phase 1.
+
+---
+
+**Document Status**: WORKING → Review → [FROZEN after approval]  
+**Author**: Copilot AI Agent  
+**Review Date**: TBD
+

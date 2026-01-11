@@ -154,3 +154,41 @@ All physics constants are centralized in `qig-backend/qigkernels/physics_constan
 - `qig-backend/olympus/hera.py`
 - `qig-backend/olympus/aphrodite.py`
 - `qig-backend/olympus/base_god.py` (broadcast_activity now uses broadcast_kernel_activity)
+
+### HRV State Persistence (January 11, 2026)
+**Change:** Added PostgreSQL persistence for HRV (Heart Rate Variability) tracking to maintain kappa oscillation state across restarts.
+
+**Implementation:**
+1. **hrv_tacking.py**: Added `persist_state()` and `load_last_state()` methods that connect to PostgreSQL via `DATABASE_URL` environment variable.
+2. **autonomic_kernel.py**: Wired `hrv_tacker.persist_state(session_id="autonomic")` to the heartbeat loop, firing every 30 seconds (every 6th heartbeat).
+
+**Schema:** `hrv_tacking_state` table stores: session_id, kappa, phase, mode, cycle_count, variance, is_healthy, base_kappa, amplitude, frequency, created_at, metadata.
+
+**Future Considerations:**
+- Monitor persistence logs for long-running stability
+- Consider connection pooling if persistence frequency scales
+- Add telemetry alerting if HRV persistence fails silently
+
+### Zeus Coordizer Import Fix (January 11, 2026)
+**Problem:** Basin coordinate computation failed in Zeus `_route_to_lightning()` with error: `cannot import name 'get_pg_coordizer' from 'coordizers.pg_loader'`
+
+**Fix:** Changed import from `from coordizers.pg_loader import get_pg_coordizer` to `from coordizers import get_coordizer` - the correct barrel export.
+
+**Files Modified:** `qig-backend/olympus/zeus.py`
+
+### Vocabulary Contamination Prevention (January 11, 2026)
+**Problem:** Garbage tokens like "workflowscreating", "xmlrpc", "webtrendscontentcollection" were polluting the tokenizer vocabulary.
+
+**Fixes:**
+1. Added `is_valid_english_word()` validation to three insertion points:
+   - `federation_service.py` - Federation sync
+   - `startup_catchup.py` - Startup vocabulary loading
+   - `pg_loader.py` - New vocabulary additions
+2. Cleaned 96 garbage tokens from the database.
+
+**Validation Rules:**
+- Rejects BPE garbage (random character sequences)
+- Rejects concatenated words (words > 15 chars without valid morphology)
+- Validates against dictionary/stop word lists
+
+**Clean vocabulary now:** 11,335+ valid tokens
