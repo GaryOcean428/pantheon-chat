@@ -270,7 +270,12 @@ def record_content_learned(
     )
 
 
-def record_curriculum_loaded(kernel_name: str, example_count: int):
+def record_curriculum_loaded(
+    kernel_name: str, 
+    example_count: int,
+    phi: Optional[float] = 0.6,
+    metadata: Optional[Dict[str, Any]] = None
+):
     """Convenience function to record curriculum loading."""
     return activity_recorder.record(
         ActivityType.CURRICULUM_LOADED,
@@ -278,5 +283,7 @@ def record_curriculum_loaded(kernel_name: str, example_count: int):
         description=f"Loaded {example_count} training examples",
         agent_name=kernel_name,
         agent_id=f"curriculum-{kernel_name.lower()}-{int(time.time()) % 100000}",
-        result_count=example_count
+        result_count=example_count,
+        phi=phi,
+        metadata=metadata or {"source": "curriculum", "type": "training"}
     )
