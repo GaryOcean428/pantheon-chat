@@ -24,6 +24,14 @@ try:
 except ImportError:
     VOCAB_COORDINATOR_AVAILABLE = False
 
+# Export TrainingLoopIntegrator for base_god.py imports
+try:
+    from training.training_loop_integrator import TrainingLoopIntegrator
+    TRAINING_LOOP_AVAILABLE = True
+except ImportError:
+    TrainingLoopIntegrator = None
+    TRAINING_LOOP_AVAILABLE = False
+
 
 class GodTrainingMixin:
     def train_kernel_from_outcome(self, target: str, success: bool, details: Optional[Dict] = None) -> Dict:
