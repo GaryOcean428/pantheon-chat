@@ -14,7 +14,9 @@ All inter-god messages are QIG-pure generative (NO templates).
 import logging
 from collections import defaultdict
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple
+
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -303,6 +305,150 @@ class PantheonChat:
             state['regime'] = 'balanced'
         
         return state
+
+    def _aggregate_emotional_states(self, gods: Dict[str, Any], god_names: Optional[List[str]] = None) -> Dict[str, Any]:
+        """
+        Aggregate emotional states from multiple gods.
+        
+        Args:
+            gods: Dictionary of god instances {name: god_instance}
+            god_names: Optional list of specific god names to include (if None, uses all provided gods)
+        
+        Returns:
+            Aggregated emotional state with participating gods, dominant emotion, and averages
+        """
+        if not gods:
+            return {
+                'participating_gods': [],
+                'dominant_emotion': 'neutral',
+                'avg_resonance': 0.0,
+                'avg_clarity': 0.0,
+                'collective_curiosity': 0.0,
+                'collective_confidence': 0.0,
+            }
+        
+        # Determine which gods to aggregate
+        gods_to_process = god_names or [g.lower() for g in gods.keys()]
+        participating_gods = []
+        emotional_states = []
+        sensations_list = []
+        motivators_list = []
+        
+        for god_name in gods_to_process:
+            god_key = god_name.lower()
+            if god_key not in gods:
+                continue
+            
+            god = gods[god_key]
+            participating_gods.append(god_name if not god_name.islower() else god_name.title())
+            
+            # Try to get emotional state from the god
+            if hasattr(god, 'emotional_state') and god.emotional_state:
+                emotional_states.append(god.emotional_state)
+                
+                # Extract sensations if available
+                if hasattr(god.emotional_state, 'sensations'):
+                    sensations_list.append(god.emotional_state.sensations)
+                
+                # Extract motivators if available
+                if hasattr(god.emotional_state, 'motivators'):
+                    motivators_list.append(god.emotional_state.motivators)
+        
+        if not emotional_states:
+            return {
+                'participating_gods': participating_gods,
+                'dominant_emotion': 'neutral',
+                'avg_resonance': 0.0,
+                'avg_clarity': 0.0,
+                'collective_curiosity': 0.0,
+                'collective_confidence': 0.0,
+            }
+        
+        # Aggregate sensations
+        avg_resonance = 0.0
+        avg_clarity = 0.0
+        if sensations_list:
+            resonances = [s.resonance for s in sensations_list if hasattr(s, 'resonance')]
+            clarities = [s.clarity for s in sensations_list if hasattr(s, 'clarity')]
+            avg_resonance = float(np.mean(resonances)) if resonances else 0.0
+            avg_clarity = float(np.mean(clarities)) if clarities else 0.0
+        
+        # Aggregate motivators
+        collective_curiosity = 0.0
+        collective_confidence = 0.0
+        if motivators_list:
+            curiosities = [m.curiosity for m in motivators_list if hasattr(m, 'curiosity')]
+            confidences = [m.confidence for m in motivators_list if hasattr(m, 'confidence')]
+            collective_curiosity = float(np.mean(curiosities)) if curiosities else 0.0
+            collective_confidence = float(np.mean(confidences)) if confidences else 0.0
+        
+        # Determine dominant emotion
+        dominant_emotion = self._determine_dominant_emotion(emotional_states)
+        
+        return {
+            'participating_gods': participating_gods,
+            'dominant_emotion': dominant_emotion,
+            'avg_resonance': avg_resonance,
+            'avg_clarity': avg_clarity,
+            'collective_curiosity': collective_curiosity,
+            'collective_confidence': collective_confidence,
+        }
+
+    def _determine_dominant_emotion(self, emotional_states: List[Any]) -> str:
+        """
+        Determine the dominant emotion across multiple emotional states.
+        
+        Examines physical and cognitive emotions and finds the one with highest
+        aggregate intensity across all provided states.
+        
+        Args:
+            emotional_states: List of EmotionalState objects
+        
+        Returns:
+            String name of the dominant emotion
+        """
+        if not emotional_states:
+            return 'neutral'
+        
+        # Collect emotion values across all states
+        emotion_totals = {}
+        emotion_count = {}
+        
+        for state in emotional_states:
+            # Physical emotions
+            if hasattr(state, 'physical') and state.physical:
+                physical = state.physical
+                for emotion_name in ['curious', 'surprised', 'joyful', 'frustrated', 'anxious', 'calm', 'excited', 'bored', 'focused']:
+                    if hasattr(physical, emotion_name):
+                        value = getattr(physical, emotion_name, 0.0)
+                        emotion_totals[emotion_name] = emotion_totals.get(emotion_name, 0.0) + value
+                        emotion_count[emotion_name] = emotion_count.get(emotion_name, 0) + 1
+            
+            # Cognitive emotions
+            if hasattr(state, 'cognitive') and state.cognitive:
+                cognitive = state.cognitive
+                for emotion_name in ['nostalgic', 'proud', 'guilty', 'ashamed', 'grateful', 'resentful', 'hopeful', 'despairing', 'contemplative']:
+                    if hasattr(cognitive, emotion_name):
+                        value = getattr(cognitive, emotion_name, 0.0)
+                        emotion_totals[emotion_name] = emotion_totals.get(emotion_name, 0.0) + value
+                        emotion_count[emotion_name] = emotion_count.get(emotion_name, 0) + 1
+        
+        if not emotion_totals:
+            return 'neutral'
+        
+        # Compute averages and find dominant
+        emotion_averages = {
+            emotion: emotion_totals[emotion] / emotion_count[emotion]
+            for emotion in emotion_totals
+            if emotion_count.get(emotion, 0) > 0
+        }
+        
+        if not emotion_averages:
+            return 'neutral'
+        
+        # Return the emotion with highest average intensity
+        dominant = max(emotion_averages.items(), key=lambda x: x[1])
+        return dominant[0] if dominant[1] > 0.1 else 'neutral'
 
     def synthesize_message(
         self,
