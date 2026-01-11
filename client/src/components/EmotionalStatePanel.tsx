@@ -1,4 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle, Badge, TooltipProvider } from "@/components/ui";
+import { useQuery } from "@tanstack/react-query";
 
 interface NeurochemistryState {
   dopamine?: { motivationLevel: number; totalDopamine: number };
@@ -82,7 +83,29 @@ function getUrgencyStyle(urgency: string): string {
   }
 }
 
-export function EmotionalStatePanel({ neuro, motivation, className }: Props) {
+export function EmotionalStatePanel({ neuro: propNeuro, motivation: propMotivation, className }: Props) {
+  const { data, isLoading } = useQuery<{
+    neurochemistry: NeurochemistryState;
+    motivation: MotivationMessage;
+  }>({
+    queryKey: ['/api/ocean/neurochemistry'],
+    refetchInterval: 5000,
+    enabled: !propNeuro,
+  });
+
+  const neuro = propNeuro || data?.neurochemistry;
+  const motivation = propMotivation || data?.motivation;
+
+  if (isLoading && !propNeuro) {
+    return (
+      <Card className={className}>
+        <CardContent className="pt-6">
+          <p className="text-xs text-muted-foreground">Loading emotional state...</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (!neuro) {
     return (
       <Card className={className}>
