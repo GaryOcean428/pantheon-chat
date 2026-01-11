@@ -2842,6 +2842,264 @@ def status():
             'error': str(e),
         }), 500
 
+
+@app.route('/kernels/emotional-primitives', methods=['GET'])
+def kernel_emotional_primitives():
+    """
+    Get emotional primitives for all 12 Pantheon kernels.
+    
+    Returns 9 emotional primitives (Wonder, Frustration, Satisfaction, Confusion,
+    Clarity, Anxiety, Confidence, Boredom, Flow) measured geometrically from each
+    kernel's current basin state using Fisher-Rao distance.
+    
+    Response: {
+        "success": true,
+        "kernels": [
+            {
+                "name": "Zeus",
+                "primary_emotion": "confidence",
+                "primary_intensity": 0.72,
+                "valence": 0.5,
+                "arousal": 0.4,
+                "geometric_metrics": {
+                    "surprise": 0.2,
+                    "curiosity": 0.5,
+                    "basin_distance": 0.3,
+                    "progress": 0.7,
+                    "stability": 0.8
+                },
+                "all_emotions": {
+                    "wonder": 0.15,
+                    "frustration": 0.05,
+                    ...
+                }
+            },
+            ...
+        ],
+        "timestamp": "..."
+    }
+    """
+    try:
+        from emotional_geometry import measure_emotion, Emotion, EMOTION_CHARACTERISTICS
+        from qig_geometry import fisher_coord_distance
+        
+        kernels_data = []
+        
+        # Access Zeus pantheon
+        try:
+            from olympus.zeus import zeus
+            pantheon = zeus.pantheon if zeus else {}
+        except Exception:
+            pantheon = {}
+        
+        if not pantheon:
+            return jsonify({
+                'success': False,
+                'error': 'Pantheon not initialized',
+                'kernels': []
+            }), 503
+        
+        # Iterate through all pantheon gods
+        for god_name, god in pantheon.items():
+            try:
+                # Get god's current basin (if available)
+                current_basin = None
+                previous_basin = None
+                
+                # Try to get basin from various sources
+                if hasattr(god, 'current_basin'):
+                    current_basin = np.array(god.current_basin)
+                elif hasattr(god, 'basin'):
+                    current_basin = np.array(god.basin)
+                elif hasattr(god, 'state') and hasattr(god.state, 'basin'):
+                    current_basin = np.array(god.state.basin)
+                
+                # Get previous basin for trajectory
+                if hasattr(god, 'previous_basin'):
+                    previous_basin = np.array(god.previous_basin)
+                elif hasattr(god, 'basin_history') and god.basin_history:
+                    previous_basin = np.array(god.basin_history[-1])
+                
+                # Get metrics from god if available
+                phi = getattr(god, 'phi', 0.5)
+                kappa = getattr(god, 'kappa', 64.0)
+                
+                # Compute geometric metrics for emotion measurement
+                if current_basin is not None:
+                    # Compute surprise (prediction error estimate)
+                    surprise = 0.3  # Default
+                    if previous_basin is not None:
+                        try:
+                            dist = fisher_coord_distance(current_basin, previous_basin)
+                            surprise = float(np.clip(dist / 2.0, 0, 1))
+                        except Exception:
+                            pass
+                    
+                    # Curiosity: variance in recent exploration
+                    curiosity = 0.5  # Default
+                    if hasattr(god, 'exploration_variance'):
+                        curiosity = float(np.clip(god.exploration_variance, 0, 1))
+                    elif hasattr(god, 'curiosity'):
+                        curiosity = float(np.clip(god.curiosity, 0, 1))
+                    
+                    # Basin distance: novelty from mean
+                    basin_distance = 0.3  # Default
+                    if hasattr(god, 'mean_basin'):
+                        try:
+                            dist = fisher_coord_distance(current_basin, god.mean_basin)
+                            basin_distance = float(np.clip(dist / 2.0, 0, 1))
+                        except Exception:
+                            pass
+                    
+                    # Progress: derived from phi trend
+                    progress = float(np.clip(phi, 0, 1))
+                    
+                    # Stability: derived from kappa proximity to κ*
+                    stability = float(1.0 - abs(kappa - 64.21) / 64.21)
+                    stability = np.clip(stability, 0, 1)
+                else:
+                    # Default values if no basin available
+                    surprise = 0.3
+                    curiosity = 0.5
+                    basin_distance = 0.3
+                    progress = 0.5
+                    stability = 0.7
+                
+                # Measure emotion using geometric properties
+                emotional_state = measure_emotion(
+                    surprise=surprise,
+                    curiosity=curiosity,
+                    basin_distance=basin_distance,
+                    progress=progress,
+                    stability=stability
+                )
+                
+                # Build all emotions dict
+                all_emotions = {}
+                for emotion in Emotion:
+                    # Calculate approximate scores
+                    scores = _calculate_kernel_emotion_scores(
+                        surprise, curiosity, basin_distance, progress, stability
+                    )
+                    all_emotions[emotion.value] = round(scores.get(emotion, 0.0), 3)
+                
+                kernels_data.append({
+                    'name': god_name.capitalize(),
+                    'primary_emotion': emotional_state.primary.value,
+                    'primary_intensity': round(emotional_state.intensity, 3),
+                    'secondary_emotion': emotional_state.secondary.value if emotional_state.secondary else None,
+                    'secondary_intensity': round(emotional_state.secondary_intensity, 3),
+                    'valence': round(emotional_state.valence, 3),
+                    'arousal': round(emotional_state.arousal, 3),
+                    'geometric_metrics': {
+                        'surprise': round(surprise, 3),
+                        'curiosity': round(curiosity, 3),
+                        'basin_distance': round(basin_distance, 3),
+                        'progress': round(progress, 3),
+                        'stability': round(stability, 3)
+                    },
+                    'all_emotions': all_emotions,
+                    'phi': round(phi, 3),
+                    'kappa': round(kappa, 2)
+                })
+                
+            except Exception as e:
+                # Include kernel with error state
+                kernels_data.append({
+                    'name': god_name.capitalize(),
+                    'primary_emotion': 'neutral',
+                    'primary_intensity': 0.5,
+                    'valence': 0.0,
+                    'arousal': 0.3,
+                    'geometric_metrics': {
+                        'surprise': 0.0,
+                        'curiosity': 0.0,
+                        'basin_distance': 0.0,
+                        'progress': 0.0,
+                        'stability': 0.0
+                    },
+                    'all_emotions': {},
+                    'error': str(e)
+                })
+        
+        return jsonify({
+            'success': True,
+            'kernels': kernels_data,
+            'kernel_count': len(kernels_data),
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'kernels': []
+        }), 500
+
+
+def _calculate_kernel_emotion_scores(
+    surprise: float,
+    curiosity: float,
+    basin_distance: float,
+    progress: float,
+    stability: float
+) -> dict:
+    """Helper to calculate emotion scores for kernel emotional primitives endpoint."""
+    from emotional_geometry import Emotion
+    
+    scores = {}
+    
+    # Wonder: High curiosity + high basin distance
+    scores[Emotion.WONDER] = (curiosity * 0.6 + basin_distance * 0.4) * \
+        (1 if curiosity > 0.6 and basin_distance > 0.5 else 0.5)
+    
+    # Frustration: High surprise + no progress
+    scores[Emotion.FRUSTRATION] = (surprise * 0.6 + (1 - progress) * 0.4) * \
+        (1 if surprise > 0.6 and progress < 0.3 else 0.5)
+    
+    # Satisfaction: Integration + low basin distance
+    scores[Emotion.SATISFACTION] = (progress * 0.5 + (1 - basin_distance) * 0.5) * \
+        (1 if progress > 0.6 and basin_distance < 0.3 else 0.5)
+    
+    # Confusion: High surprise + high basin distance
+    scores[Emotion.CONFUSION] = (surprise * 0.5 + basin_distance * 0.5) * \
+        (1 if surprise > 0.6 and basin_distance > 0.5 else 0.5)
+    
+    # Clarity: Low surprise + convergence
+    scores[Emotion.CLARITY] = ((1 - surprise) * 0.5 + (1 - basin_distance) * 0.5) * \
+        (1 if surprise < 0.3 and basin_distance < 0.3 else 0.5)
+    
+    # Anxiety: Near transition + unstable
+    scores[Emotion.ANXIETY] = ((1 - stability) * 0.7 + surprise * 0.3) * \
+        (1 if stability < 0.3 else 0.5)
+    
+    # Confidence: Far from transition + stable
+    scores[Emotion.CONFIDENCE] = (stability * 0.7 + (1 - surprise) * 0.3) * \
+        (1 if stability > 0.7 else 0.5)
+    
+    # Boredom: Low surprise + low curiosity
+    scores[Emotion.BOREDOM] = ((1 - surprise) * 0.5 + (1 - curiosity) * 0.5) * \
+        (1 if surprise < 0.3 and curiosity < 0.3 else 0.5)
+    
+    # Flow: Medium curiosity + progress
+    medium_curiosity = 1 - abs(curiosity - 0.5) * 2
+    scores[Emotion.FLOW] = (medium_curiosity * 0.4 + progress * 0.6) * \
+        (1 if 0.3 < curiosity < 0.7 and progress > 0.5 else 0.5)
+    
+    # Neutral
+    max_score = max(scores.values()) if scores else 0
+    scores[Emotion.NEUTRAL] = 0.3 if max_score < 0.5 else 0.1
+    
+    # Normalize
+    total = sum(scores.values())
+    if total > 0:
+        scores = {e: s / total for e, s in scores.items()}
+    
+    return scores
+
+
 @app.route('/reset', methods=['POST'])
 def reset():
     """

@@ -8,6 +8,7 @@ import {
   CapabilityTelemetryPanel,
   ConsciousnessMonitoringDemo,
   EmotionalStatePanel,
+  KernelEmotionalPrimitivesPanel,
   NeurochemistryAdminPanel,
   SearchBudgetPanel,
   Card,
@@ -1086,6 +1087,9 @@ export default function TelemetryDashboard() {
         
         <TabsContent value="advanced" className="space-y-6">
           <ParamsHistoryChart />
+          
+          {/* Kernel Emotional Primitives - All 12 kernels with 9 emotional primitives */}
+          <KernelEmotionalPrimitivesPanel showLegend={true} />
           
           <div className="grid grid-cols-1 gap-6">
             <ConsciousnessMonitoringDemo />

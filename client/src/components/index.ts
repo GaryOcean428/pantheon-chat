@@ -20,6 +20,7 @@ export { ConsciousnessMonitoringDemo } from './ConsciousnessMonitoringDemo';
 export { EmptyDebatesState } from './EmptyDebatesState';
 export { AutonomicAgencyPanel } from './AutonomicAgencyPanel';
 export { EmotionalStatePanel } from './EmotionalStatePanel';
+export { KernelEmotionalPrimitivesPanel } from './KernelEmotionalPrimitivesPanel';
 export { KernelActivityStream } from './KernelActivityStream';
 export { MarkdownUpload } from './MarkdownUpload';
 export { ChatFileUpload } from './ChatFileUpload';
