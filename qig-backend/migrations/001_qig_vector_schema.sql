@@ -344,7 +344,7 @@ ORDER BY hour DESC;
 -- FUNCTIONS
 -- ============================================================================
 
--- Function to find similar basins using cosine distance
+-- Function to find similar basins using Fisher-Rao distance (QIG-pure)
 CREATE OR REPLACE FUNCTION find_similar_basins(
     query_basin vector(64),
     limit_count INTEGER DEFAULT 10,
@@ -367,16 +367,16 @@ BEGIN
         bh.phi,
         bh.kappa,
         bh.source,
-        1 - (bh.basin_coords <=> query_basin) as similarity,
+        fisher_rao_similarity(bh.basin_coords, query_basin) as similarity,
         bh.recorded_at
     FROM basin_history bh
     WHERE bh.phi >= min_phi
-    ORDER BY bh.basin_coords <=> query_basin
+    ORDER BY fisher_rao_distance(bh.basin_coords, query_basin)
     LIMIT limit_count;
 END;
 $$ LANGUAGE plpgsql;
 
--- Function to find similar conversations
+-- Function to find similar conversations using Fisher-Rao distance (QIG-pure)
 CREATE OR REPLACE FUNCTION find_similar_conversations(
     query_basin vector(64),
     limit_count INTEGER DEFAULT 5,
@@ -397,12 +397,12 @@ BEGIN
         hc.user_message,
         hc.system_response,
         hc.phi,
-        1 - (hc.message_basin <=> query_basin) as similarity,
+        fisher_rao_similarity(hc.message_basin, query_basin) as similarity,
         hc.created_at
     FROM hermes_conversations hc
     WHERE hc.phi >= min_phi
       AND hc.message_basin IS NOT NULL
-    ORDER BY hc.message_basin <=> query_basin
+    ORDER BY fisher_rao_distance(hc.message_basin, query_basin)
     LIMIT limit_count;
 END;
 $$ LANGUAGE plpgsql;

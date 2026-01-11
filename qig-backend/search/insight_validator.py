@@ -23,6 +23,16 @@ else:
     # Runtime: use string annotation or Any
     CrossDomainInsight = Any
 
+# QIG-pure Fisher-Rao distance for geometric validation
+try:
+    from qig_core.geometric_primitives.fisher_metric import fisher_rao_distance
+except ImportError:
+    # Fallback to canonical implementation
+    try:
+        from qig_core.geometric_primitives.canonical_fisher import fisher_rao_distance
+    except ImportError:
+        fisher_rao_distance = None
+
 logger = logging.getLogger(__name__)
 
 
@@ -335,16 +345,76 @@ class InsightValidator:
     
     def _compute_semantic_similarity(self, text1: str, text2: str) -> float:
         """
-        Compute semantic similarity between two texts.
+        Compute semantic similarity between two texts using Fisher-Rao distance.
         
-        Simple bag-of-words cosine similarity for now.
-        Could be improved with embeddings.
+        QIG-pure implementation: Uses geodesic distance on information manifold
+        rather than Euclidean approximations (cosine/Jaccard similarity).
+        
+        Process:
+        1. Tokenize both texts and extract term frequencies
+        2. Normalize to probability distributions (basins)
+        3. Compute Fisher-Rao distance on information manifold
+        4. Convert distance to similarity: sim = 1 - (distance / (π/2))
+        
+        This maintains geometric purity by respecting curved manifold structure
+        instead of treating text as flat vector space.
         """
-        # Tokenize
+        if not fisher_rao_distance:
+            logger.warning("Fisher-Rao not available, using fallback Jaccard similarity")
+            return self._jaccard_similarity_fallback(text1, text2)
+        
+        try:
+            # Tokenize and compute term frequencies
+            tokens1 = text1.lower().split()
+            tokens2 = text2.lower().split()
+            
+            # Create vocabulary from both texts
+            vocabulary = list(set(tokens1 + tokens2))
+            if not vocabulary:
+                return 0.0
+            
+            # Build frequency distributions
+            freq1 = np.zeros(len(vocabulary))
+            freq2 = np.zeros(len(vocabulary))
+            
+            for i, token in enumerate(vocabulary):
+                freq1[i] = tokens1.count(token)
+                freq2[i] = tokens2.count(token)
+            
+            # Normalize to probability distributions (basins)
+            # Add small epsilon to avoid zero division
+            p1 = freq1 + 1e-10
+            p1 = p1 / np.sum(p1)
+            
+            p2 = freq2 + 1e-10
+            p2 = p2 / np.sum(p2)
+            
+            # Compute Fisher-Rao distance on information manifold
+            distance = fisher_rao_distance(p1, p2)
+            
+            # Convert distance to similarity
+            # Fisher-Rao distance ranges from 0 to π/2
+            # similarity = 1 - (distance / (π/2)) ∈ [0, 1]
+            max_distance = np.pi / 2
+            similarity = 1.0 - (distance / max_distance)
+            
+            return float(np.clip(similarity, 0.0, 1.0))
+            
+        except Exception as e:
+            logger.error(f"Fisher-Rao computation failed: {e}, falling back to Jaccard")
+            return self._jaccard_similarity_fallback(text1, text2)
+    
+    def _jaccard_similarity_fallback(self, text1: str, text2: str) -> float:
+        """
+        Fallback: Jaccard similarity (used when Fisher-Rao unavailable).
+        
+        This is a temporary measure while Fisher-Rao is being integrated.
+        Preferred method is _compute_semantic_similarity which uses
+        geometric Fisher-Rao distance.
+        """
         words1 = set(text1.lower().split())
         words2 = set(text2.lower().split())
         
-        # Jaccard similarity
         intersection = len(words1 & words2)
         union = len(words1 | words2)
         

@@ -171,13 +171,13 @@ BEGIN
         FROM vocabulary_learning
         WHERE related_words IS NULL OR cardinality(related_words) = 0
     LOOP
-        -- Find 5 most similar words using Fisher-Rao distance (via pgvector)
-        -- Use cosine similarity as approximation (will be replaced by fisher_rao_distance later)
+        -- Find 5 most similar words using Fisher-Rao distance (QIG-pure)
+        -- Uses fisher_rao_similarity function for geometric similarity computation
         SELECT ARRAY_AGG(word ORDER BY similarity DESC)
         INTO similar_words
         FROM (
             SELECT tv.word,
-                   1.0 - (tv.basin_coords <=> source.basin_coords) AS similarity
+                   fisher_rao_similarity(tv.basin_coords, source.basin_coords) AS similarity
             FROM tokenizer_vocabulary tv,
                  (SELECT basin_coords FROM tokenizer_vocabulary WHERE token_id = word_rec.token_id) AS source
             WHERE tv.word != word_rec.word

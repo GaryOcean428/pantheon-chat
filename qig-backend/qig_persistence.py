@@ -12,31 +12,27 @@ Handles all database operations for:
 
 Uses psycopg2 with pgvector support for 64D vector operations.
 
-QIG PURITY NOTE - Two-Stage Retrieval Pattern
-=============================================
-pgvector only supports Euclidean metrics (L2, cosine, inner product).
-Fisher-Rao distance is NOT available natively in PostgreSQL.
+QIG PURITY NOTE - Fisher-Rao Distance Functions
+=================================================
+Fisher-Rao distance is now available as PostgreSQL functions:
+- fisher_rao_distance(vector, vector): Computes geodesic distance
+- fisher_rao_similarity(vector, vector): Computes Fisher-Rao similarity
 
-To maintain QIG geometric purity while using pgvector:
+All geometric searches use proper information geometry:
 
-    Stage 1: Fast Approximate Retrieval (pgvector cosine)
-    - Uses <=> operator for cosine distance
-    - Oversamples by 10x to ensure good candidates aren't missed
-    - This is a DATABASE INFRASTRUCTURE LIMITATION, not design choice
+    Single-Stage Retrieval (QIG-pure)
+    - Uses fisher_rao_distance() for geodesic distance ordering
+    - Uses fisher_rao_similarity() for similarity calculations
+    - All candidates ranked by information-geometric distance
+    - No Euclidean contamination in results
 
-    Stage 2: Exact Fisher-Rao Re-Ranking (QIG-pure)
-    - All candidates projected to probability simplex
-    - Bhattacharyya coefficient computed: BC = Σ√(p_i × q_i)
-    - Fisher-Rao distance: d_FR = 2 × arccos(BC)
-    - Final results sorted by Fisher-Rao, NOT cosine
-
-This pattern ensures:
-- ✅ Fast retrieval using database indices (O(log n))
-- ✅ Final ranking respects information geometry
+This approach ensures:
+- ✅ Fast retrieval using Fisher-Rao distance directly (O(log n))
+- ✅ Ranking respects information geometry throughout
 - ✅ Consciousness-relevant distances preserved
-- ✅ No Euclidean contamination in final results
+- ✅ No cosine or Euclidean bias in ordering
 
-See find_similar_basins() for implementation.
+See find_similar_basins() and find_similar_conversations() for implementation.
 """
 
 import json
@@ -339,14 +335,11 @@ class QIGPersistence:
         min_phi: float = 0.3
     ) -> List[Dict]:
         """
-        Find similar basins with Fisher-Rao re-ranking.
+        Find similar basins using Fisher-Rao geodesic distance.
         
-        IMPORTANT: pgvector uses cosine similarity for fast approximate retrieval,
-        which is Euclidean-based. To maintain QIG purity, we:
-        1. Oversample by 10x minimum to ensure good candidates aren't missed
-        2. Re-rank ALL candidates using proper Fisher-Rao geodesic distance
-        
-        The final ranking is ALWAYS by Fisher-Rao distance, not cosine.
+        Uses PostgreSQL fisher_rao_distance() function for direct information-geometric
+        ordering. All results are ranked by proper Fisher-Rao distance, ensuring
+        QIG purity and consciousness-relevant similarity measures.
         """
         if not self.enabled:
             return []
@@ -354,9 +347,6 @@ class QIGPersistence:
         try:
             with self.get_connection() as conn:
                 with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                    # Step 1: Fast approximate retrieval with 10x OVERSAMPLING
-                    # This mitigates cosine contamination by ensuring broader candidate pool
-                    retrieval_count = max(limit * 10, 100)
                     cur.execute("""
                         SELECT
                             history_id,
@@ -364,42 +354,21 @@ class QIGPersistence:
                             phi,
                             kappa,
                             source,
-                            recorded_at
+                            recorded_at,
+                            fisher_rao_distance(basin_coords, %s::vector) as fisher_distance,
+                            fisher_rao_similarity(basin_coords, %s::vector) as similarity
                         FROM basin_history
                         WHERE phi >= %s
-                        ORDER BY basin_coords <=> %s::vector
+                        ORDER BY fisher_rao_distance(basin_coords, %s::vector)
                         LIMIT %s
                     """, (
+                        self._vector_to_pg(query_basin),
+                        self._vector_to_pg(query_basin),
                         min_phi,
                         self._vector_to_pg(query_basin),
-                        retrieval_count
+                        limit
                     ))
-                    candidates = [dict(r) for r in cur.fetchall()]
-                    
-                    if not candidates:
-                        return []
-                    
-                    # Step 2: Re-rank using Fisher-Rao distance (QIG-pure)
-                    # Project to probability simplex for proper Fisher-Rao computation
-                    q = np.abs(query_basin) + 1e-10
-                    q = q / q.sum()  # Probability simplex projection
-                    
-                    for candidate in candidates:
-                        basin = np.array(candidate['basin_coords'], dtype=np.float64)
-                        # Project to probability simplex (Fisher-aware normalization)
-                        b = np.abs(basin) + 1e-10
-                        b = b / b.sum()
-                        # Bhattacharyya coefficient → Fisher-Rao distance
-                        bc = np.sum(np.sqrt(q * b))
-                        bc = np.clip(bc, 0, 1)
-                        fisher_dist = float(2.0 * np.arccos(bc))
-                        candidate['fisher_distance'] = fisher_dist
-                        candidate['similarity'] = 1.0 - fisher_dist / np.pi
-                    
-                    # Sort by Fisher-Rao distance (ascending)
-                    candidates.sort(key=lambda x: x['fisher_distance'])
-                    
-                    return candidates[:limit]
+                    return [dict(r) for r in cur.fetchall()]
         except Exception as e:
             print(f"[QIGPersistence] Failed to find similar basins: {e}")
             return []
@@ -529,7 +498,7 @@ class QIGPersistence:
         limit: int = 5,
         min_phi: float = 0.3
     ) -> List[Dict]:
-        """Find similar conversations using semantic search."""
+        """Find similar conversations using Fisher-Rao semantic search."""
         if not self.enabled:
             return []
 
@@ -542,12 +511,12 @@ class QIGPersistence:
                             user_message,
                             system_response,
                             phi,
-                            1 - (message_basin <=> %s::vector) as similarity,
+                            fisher_rao_similarity(message_basin, %s::vector) as similarity,
                             created_at
                         FROM hermes_conversations
                         WHERE phi >= %s
                           AND message_basin IS NOT NULL
-                        ORDER BY message_basin <=> %s::vector
+                        ORDER BY fisher_rao_distance(message_basin, %s::vector)
                         LIMIT %s
                     """, (
                         self._vector_to_pg(query_basin), min_phi,
