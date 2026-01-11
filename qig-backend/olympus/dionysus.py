@@ -83,6 +83,19 @@ class Dionysus(BaseGod):
         }
         
         self._record_exploration(target_basin)
+
+        # Broadcast activity for kernel visibility
+        self.broadcast_activity(
+            activity_type='insight',
+            content=f"Chaos analysis: {target[:50]}... | novelty={novelty:.2f} | φ={phi:.3f}",
+            metadata={
+                'probability': probability,
+                'phi': phi,
+                'novelty': novelty,
+                'chaos_potential': chaos_potential,
+            }
+        )
+
         return assessment
     
     def _compute_novelty(self, basin: np.ndarray) -> float:

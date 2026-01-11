@@ -45,7 +45,7 @@ class Artemis(BaseGod):
         
         probability = self._compute_hunt_probability(phi, hunt_score)
         
-        return {
+        assessment = {
             'probability': probability,
             'confidence': hunt_score,
             'phi': phi,
@@ -60,6 +60,20 @@ class Artemis(BaseGod):
             'god': self.name,
             'timestamp': datetime.now().isoformat(),
         }
+
+        # Broadcast activity for kernel visibility
+        self.broadcast_activity(
+            activity_type='insight',
+            content=f"Hunt assessment: {target[:50]}... | approach={pursuit_strategy['approach']} | φ={phi:.3f}",
+            metadata={
+                'probability': probability,
+                'phi': phi,
+                'hunt_score': hunt_score,
+                'pursuit_strategy': pursuit_strategy['approach'],
+            }
+        )
+
+        return assessment
     
     def _compute_hunt_score(self, target: str, phi: float, kappa: float) -> float:
         """Compute overall hunt score for target."""

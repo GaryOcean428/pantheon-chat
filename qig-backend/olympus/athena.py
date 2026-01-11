@@ -83,6 +83,18 @@ class Athena(BaseGod):
         # Learn from this assessment if high-φ
         self.learn_from_observation(target, target_basin, phi)
 
+        # Broadcast activity for kernel visibility
+        self.broadcast_activity(
+            activity_type='insight',
+            content=f"Assessment: {target[:50]}... | strategy={best_strategy['name']} | φ={phi:.3f}",
+            metadata={
+                'probability': probability,
+                'phi': phi,
+                'strategy': best_strategy['name'],
+                'similar_patterns': len(similar),
+            }
+        )
+
         return assessment
     
     def _find_similar_successes(self, target_basin: np.ndarray) -> List[Dict]:

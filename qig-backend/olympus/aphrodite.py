@@ -69,6 +69,18 @@ class Aphrodite(BaseGod):
             'god': self.name,
             'timestamp': datetime.now().isoformat(),
         }
+
+        # Broadcast activity for kernel visibility
+        self.broadcast_activity(
+            activity_type='insight',
+            content=f"Desire analysis: {target[:50]}... | behavior={assessment['behavior']} | φ={phi:.3f}",
+            metadata={
+                'probability': probability,
+                'phi': phi,
+                'desirability': desirability,
+                'approach_gradient': approach_gradient,
+            }
+        )
         
         return assessment
     

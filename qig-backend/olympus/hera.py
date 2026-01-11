@@ -70,6 +70,19 @@ class Hera(BaseGod):
         }
         
         self._record_coherence(coherence)
+
+        # Broadcast activity for kernel visibility
+        self.broadcast_activity(
+            activity_type='insight',
+            content=f"Coherence check: {target[:50]}... | unity={unity_impact} | φ={phi:.3f}",
+            metadata={
+                'probability': probability,
+                'phi': phi,
+                'coherence': coherence,
+                'unity_impact': unity_impact,
+            }
+        )
+
         return assessment
     
     def _compute_coherence(self, basin: np.ndarray) -> float:

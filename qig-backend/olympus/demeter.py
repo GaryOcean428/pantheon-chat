@@ -81,6 +81,18 @@ class Demeter(BaseGod):
             'god': self.name,
             'timestamp': datetime.now().isoformat(),
         }
+
+        # Broadcast activity for kernel visibility
+        self.broadcast_activity(
+            activity_type='insight',
+            content=f"Cycle analysis: {target[:50]}... | cycle={'detected' if cycle_info['detected'] else 'none'} | φ={phi:.3f}",
+            metadata={
+                'probability': probability,
+                'phi': phi,
+                'cycle_detected': cycle_info['detected'],
+                'seasonal_alignment': seasonal_alignment,
+            }
+        )
         
         return assessment
     

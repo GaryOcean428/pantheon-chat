@@ -71,6 +71,18 @@ class Poseidon(BaseGod):
             'god': self.name,
             'timestamp': datetime.now().isoformat(),
         }
+
+        # Broadcast activity for kernel visibility
+        self.broadcast_activity(
+            activity_type='insight',
+            content=f"Deep dive: {target[:50]}... | depth={depth_result['depth']} | φ={phi:.3f}",
+            metadata={
+                'probability': probability,
+                'phi': phi,
+                'depth': depth_result['depth'],
+                'treasures': depth_result['treasures'],
+            }
+        )
         
         return assessment
     

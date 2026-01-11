@@ -114,7 +114,7 @@ class ActivityBroadcaster:
         importance: float = 0.5,
         metadata: Optional[Dict[str, Any]] = None
     ) -> KernelActivity:
-        """Convenience method to broadcast a message-type activity."""
+        """Convenience method to broadcast a message-type activity (in-memory only)."""
         activity = KernelActivity(
             id=f"act_{int(time.time() * 1000)}_{hash(content) % 10000}",
             type=activity_type.value,

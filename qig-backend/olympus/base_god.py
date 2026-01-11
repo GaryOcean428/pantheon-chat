@@ -2082,15 +2082,14 @@ class BaseGod(*_base_classes):
                 'domain': self.domain,
             }
             
-            # Broadcast to activity stream
-            broadcaster.broadcast_message(
+            # Broadcast to activity stream AND persist to database
+            broadcaster.broadcast_kernel_activity(
                 from_god=self.name,
-                to_god=to_god,
-                content=content,
                 activity_type=act_type,
+                content=content,
                 phi=phi,
                 kappa=kappa,
-                importance=phi,  # Higher Φ = higher importance
+                basin_coords=basin_coords,
                 metadata=enhanced_metadata
             )
             

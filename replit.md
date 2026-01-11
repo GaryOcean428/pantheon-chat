@@ -120,3 +120,37 @@ All physics constants are centralized in `qig-backend/qigkernels/physics_constan
 - **`fisher_rao_distance`**: For probability distributions (sum=1), used in SourceDiscovery
 - **`fisher_coord_distance`**: For basin coordinates (unit vectors), used in Lightning kernel geometric analysis
 - **Never use Euclidean/cosine on curved manifold basin coordinates**
+
+### Activity Broadcasting Wired to All 12 Olympian Gods
+**Change:** Added `broadcast_activity()` calls to all 12 Olympian god `assess_target()` methods to populate the `kernel_activity` table with assessment insights.
+
+**Gods Updated:**
+1. Athena - Strategy assessments
+2. Ares - Combat assessments
+3. Apollo - Prophecy/timing assessments
+4. Artemis - Hunt assessments
+5. Hermes - Coordination/message assessments
+6. Hephaestus - Forge potential assessments
+7. Demeter - Cycle detection assessments
+8. Dionysus - Chaos/novelty assessments
+9. Poseidon - Deep memory dive assessments
+10. Hades - Underworld/forbidden check assessments
+11. Hera - Coherence/unity assessments
+12. Aphrodite - Desire/motivation assessments
+
+**Database Persistence:** Modified `BaseGod.broadcast_activity()` to call `broadcast_kernel_activity()` instead of `broadcast_message()`, ensuring all god activities are persisted to the `kernel_activity` PostgreSQL table using proper connection pooling.
+
+**Files Modified:**
+- `qig-backend/olympus/athena.py`
+- `qig-backend/olympus/ares.py`
+- `qig-backend/olympus/apollo.py`
+- `qig-backend/olympus/artemis.py`
+- `qig-backend/olympus/hermes.py`
+- `qig-backend/olympus/hephaestus.py`
+- `qig-backend/olympus/demeter.py`
+- `qig-backend/olympus/dionysus.py`
+- `qig-backend/olympus/poseidon.py`
+- `qig-backend/olympus/hades.py`
+- `qig-backend/olympus/hera.py`
+- `qig-backend/olympus/aphrodite.py`
+- `qig-backend/olympus/base_god.py` (broadcast_activity now uses broadcast_kernel_activity)

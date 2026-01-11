@@ -72,6 +72,18 @@ class Apollo(BaseGod):
         # Learn from this assessment if high-φ
         self.learn_from_observation(target, target_basin, phi)
 
+        # Broadcast activity for kernel visibility
+        self.broadcast_activity(
+            activity_type='insight',
+            content=f"Prophecy: {target[:50]}... | timing={timing_analysis.get('recommendation')} | φ={phi:.3f}",
+            metadata={
+                'probability': probability,
+                'phi': phi,
+                'timing': timing_analysis,
+                'trajectory': trajectory_forecast.get('trend'),
+            }
+        )
+
         return assessment
     
     def _analyze_optimal_timing(self) -> Dict:

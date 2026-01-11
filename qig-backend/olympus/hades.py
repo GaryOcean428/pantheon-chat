@@ -513,6 +513,18 @@ class Hades(BaseGod):
             'god': self.name,
             'timestamp': datetime.now().isoformat(),
         }
+
+        # Broadcast activity for kernel visibility
+        self.broadcast_activity(
+            activity_type='insight',
+            content=f"Underworld check: {target[:50]}... | forbidden={is_forbidden} | φ={phi:.3f}",
+            metadata={
+                'probability': min(1.0, viability + intel_boost),
+                'phi': phi,
+                'is_forbidden': is_forbidden,
+                'death_proximity': death_proximity,
+            }
+        )
         
         return assessment
     

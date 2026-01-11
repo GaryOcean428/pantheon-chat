@@ -47,7 +47,7 @@ class Hephaestus(BaseGod):
         
         probability = phi * 0.4 + forge_potential * 0.4 + vocabulary_coverage * 0.2
         
-        return {
+        assessment = {
             'probability': float(np.clip(probability, 0, 1)),
             'confidence': vocabulary_coverage,
             'phi': phi,
@@ -63,6 +63,20 @@ class Hephaestus(BaseGod):
             'god': self.name,
             'timestamp': datetime.now().isoformat(),
         }
+
+        # Broadcast activity for kernel visibility
+        self.broadcast_activity(
+            activity_type='insight',
+            content=f"Forge assessment: {target[:50]}... | ready={forge_potential > 0.5} | φ={phi:.3f}",
+            metadata={
+                'probability': float(np.clip(probability, 0, 1)),
+                'phi': phi,
+                'forge_potential': forge_potential,
+                'generated_count': self.generated_count,
+            }
+        )
+
+        return assessment
     
     def _compute_forge_potential(self, target: str) -> float:
         """Compute potential for generating good hypotheses."""

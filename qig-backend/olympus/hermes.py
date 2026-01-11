@@ -45,7 +45,7 @@ class Hermes(BaseGod):
         
         probability = phi * 0.3 + coordination_health * 0.7
         
-        return {
+        assessment = {
             'probability': float(np.clip(probability, 0, 1)),
             'confidence': coordination_health,
             'phi': phi,
@@ -59,6 +59,20 @@ class Hermes(BaseGod):
             'god': self.name,
             'timestamp': datetime.now().isoformat(),
         }
+
+        # Broadcast activity for kernel visibility
+        self.broadcast_activity(
+            activity_type='message',
+            content=f"Coordination: {target[:50]}... | queue={len(self.message_queue)} | φ={phi:.3f}",
+            metadata={
+                'probability': float(np.clip(probability, 0, 1)),
+                'phi': phi,
+                'queue_depth': len(self.message_queue),
+                'coordination_health': coordination_health,
+            }
+        )
+
+        return assessment
     
     def _analyze_queue_status(self) -> Dict:
         """Analyze current message queue status."""

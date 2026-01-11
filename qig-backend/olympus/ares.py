@@ -76,6 +76,18 @@ class Ares(BaseGod):
         # Learn from this assessment if high-φ
         self.learn_from_observation(target, target_basin, phi_pure)
 
+        # Broadcast activity for kernel visibility
+        self.broadcast_activity(
+            activity_type='insight',
+            content=f"Combat assessment: {target[:50]}... | attack_ready={assessment.get('attack_ready')} | φ={phi_pure:.3f}",
+            metadata={
+                'probability': probability,
+                'phi': phi_pure,
+                'attack_ready': assessment.get('attack_ready'),
+                'geodesic_distance': geodesic_dist,
+            }
+        )
+
         return assessment
     
     def _find_nearest_success_basin(

@@ -217,6 +217,15 @@ except ImportError as e:
     PERSISTENCE_AVAILABLE = False
     print(f"[WARNING] QIG Persistence not available: {e}")
 
+# Import DB-backed memory fragment store
+try:
+    from qig_deep_agents.memory import BasinMemoryStore as DBMemoryStore
+    DB_MEMORY_AVAILABLE = True
+    print("[INFO] DB-backed memory fragment store loaded")
+except ImportError as e:
+    DB_MEMORY_AVAILABLE = False
+    print(f"[WARNING] DB memory store not available: {e}")
+
 # Import emergency monitoring and checkpointing
 try:
     from emergency_telemetry import IntegratedMonitor, create_monitor
@@ -282,6 +291,19 @@ class GeometricMemory:
         # Metrics accumulator
         self.phi_history: List[float] = []
         self.kappa_history: List[float] = []
+
+        # DB-backed memory fragment store for persistent memory
+        self.fragment_store = None
+        if DB_MEMORY_AVAILABLE:
+            try:
+                self.fragment_store = DBMemoryStore(
+                    max_fragments=1000,
+                    agent_id="ocean_main",
+                    load_from_db=True
+                )
+                print("[GeometricMemory] DB memory fragment store initialized")
+            except Exception as e:
+                print(f"[GeometricMemory] DB memory store failed: {e}")
 
         print("[GeometricMemory] Initialized shared memory system")
 
@@ -350,7 +372,7 @@ class GeometricMemory:
 
     def record_learning_event(self, event_type: str, phi: float,
                                details: Dict) -> str:
-        """Record a significant learning event."""
+        """Record a significant learning event. Persists to memory_fragments table."""
         event_id = f"learn_{datetime.now().timestamp():.0f}"
 
         self.learning_events.append({
@@ -363,6 +385,23 @@ class GeometricMemory:
 
         if len(self.learning_events) > 500:
             self.learning_events = self.learning_events[-250:]
+
+        # Persist high-Φ learning events to memory_fragments DB
+        if self.fragment_store and phi >= 0.6:
+            try:
+                content = f"[{event_type}] phi={phi:.3f} | {details.get('summary', str(details)[:200])}"
+                self.fragment_store.write_fragment(
+                    content=content,
+                    importance=min(1.0, phi),
+                    metadata={
+                        'event_id': event_id,
+                        'event_type': event_type,
+                        'phi': phi,
+                        'details': details,
+                    }
+                )
+            except Exception as e:
+                print(f"[GeometricMemory] Fragment persistence error: {e}")
 
         return event_id
 
