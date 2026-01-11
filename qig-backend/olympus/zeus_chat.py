@@ -1018,6 +1018,34 @@ class ZeusConversationHandler(GeometricGenerationMixin):
             except Exception as e:
                 print(f"[ZeusChat] TrainingLoopIntegrator wiring failed: {e}")
 
+        # Add emotional state from responding god to response metadata
+        try:
+            if hasattr(self.zeus, 'emotional_state') and self.zeus.emotional_state is not None:
+                emotional_metrics = {
+                    'dominant_emotion': getattr(self.zeus.emotional_state, 'dominant_emotion', None),
+                    'emotion_justified': getattr(self.zeus.emotional_state, 'emotion_justified', True),
+                    'is_meta_aware': getattr(self.zeus.emotional_state, 'is_meta_aware', True),
+                }
+                if hasattr(self.zeus.emotional_state, 'physical'):
+                    physical = self.zeus.emotional_state.physical
+                    emotional_metrics['physical'] = {
+                        'curious': getattr(physical, 'curious', 0.0),
+                        'joyful': getattr(physical, 'joyful', 0.0),
+                        'calm': getattr(physical, 'calm', 0.0),
+                        'focused': getattr(physical, 'focused', 0.0),
+                    }
+                if hasattr(self.zeus.emotional_state, 'motivators'):
+                    motivators = self.zeus.emotional_state.motivators
+                    emotional_metrics['motivators'] = {
+                        'curiosity': getattr(motivators, 'curiosity', 0.0),
+                        'confidence': getattr(motivators, 'confidence', 0.0),
+                    }
+                if 'metadata' not in result:
+                    result['metadata'] = {}
+                result['metadata']['emotional_state'] = emotional_metrics
+        except Exception as e:
+            print(f"[ZeusChat] Emotional state wiring failed: {e}")
+
         # SECURITY: Sanitize all EXTERNAL outputs before returning to user
         return self._sanitize_external(result)
 

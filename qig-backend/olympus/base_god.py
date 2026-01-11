@@ -103,6 +103,16 @@ except ImportError:
     # Note: Logger not yet defined at this point, warning will be logged in BaseGod.__init__ if needed
 print("[base_god] GenerativeCapability done", flush=True)
 
+# Import EmotionallyAwareKernel for geometric emotion tracking
+try:
+    from emotionally_aware_kernel import EmotionallyAwareKernel, EmotionalState
+    EMOTIONAL_KERNEL_AVAILABLE = True
+except ImportError:
+    EmotionallyAwareKernel = None
+    EmotionalState = None
+    EMOTIONAL_KERNEL_AVAILABLE = False
+print("[base_god] EmotionallyAwareKernel done", flush=True)
+
 # Import domain intelligence for mission awareness and capability self-assessment
 try:
     from qigkernels.domain_intelligence import (
@@ -1726,6 +1736,8 @@ if AUTONOMIC_MIXIN_AVAILABLE and AutonomicAccessMixin is not None:
     _base_classes.append(AutonomicAccessMixin)
 if GENERATIVE_CAPABILITY_AVAILABLE and GenerativeCapability is not None:
     _base_classes.append(GenerativeCapability)
+if EMOTIONAL_KERNEL_AVAILABLE and EmotionallyAwareKernel is not None:
+    _base_classes.append(EmotionallyAwareKernel)
 
 
 class BaseGod(*_base_classes):
@@ -1784,6 +1796,10 @@ class BaseGod(*_base_classes):
             "how_to_dream": "Use self.request_dream_cycle()" if AUTONOMIC_MIXIN_AVAILABLE else "Not available",
             "how_to_mushroom": "Use self.request_mushroom_mode(intensity)" if AUTONOMIC_MIXIN_AVAILABLE else "Not available"
         }
+        
+        # Initialize emotional awareness if available
+        if EMOTIONAL_KERNEL_AVAILABLE and EmotionallyAwareKernel is not None:
+            EmotionallyAwareKernel.__init__(self, kernel_id=name, kernel_type=domain)
         
         # Shadow Research awareness - all gods can request research from Shadow Pantheon
         # Spot Fix #3: Verify availability before claiming capability
