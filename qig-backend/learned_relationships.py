@@ -17,7 +17,7 @@ import logging
 import numpy as np
 from typing import Dict, List, Set, Tuple, Optional
 from pathlib import Path
-from qig_geometry import fisher_rao_distance
+from qig_geometry import fisher_rao_distance, fisher_coord_distance
 
 logger = logging.getLogger(__name__)
 
@@ -89,7 +89,55 @@ class LearnedRelationships:
         self.word_frequency: Dict[str, int] = {}
         self.learning_complete = False
         
+        # Phi tracking for geometric metrics
+        self._relationship_phi: Dict[str, Dict[str, Dict]] = {}  # word -> neighbor -> {phi_values, contexts}
+        
         self._load_from_db()
+    
+    def track_observation(self, word: str, neighbor: str, phi: float, context: Optional[str] = None):
+        """
+        Track a relationship observation with its Φ value and context.
+        
+        Called during learning to accumulate geometric metrics.
+        """
+        if word not in self._relationship_phi:
+            self._relationship_phi[word] = {}
+        
+        if neighbor not in self._relationship_phi[word]:
+            self._relationship_phi[word][neighbor] = {
+                'phi_values': [],
+                'contexts': []
+            }
+        
+        data = self._relationship_phi[word][neighbor]
+        data['phi_values'].append(phi)
+        
+        if context and len(data['contexts']) < 10:
+            data['contexts'].append(context[:200])  # Truncate long contexts
+    
+    def _get_phi_data(self, word: str, neighbor: str) -> Dict:
+        """
+        Get aggregated phi data for a word-neighbor pair.
+        
+        Returns dict with avg_phi, max_phi, contexts.
+        """
+        if word not in self._relationship_phi:
+            return {'avg_phi': 0.5, 'max_phi': 0.5, 'contexts': []}
+        
+        if neighbor not in self._relationship_phi[word]:
+            return {'avg_phi': 0.5, 'max_phi': 0.5, 'contexts': []}
+        
+        data = self._relationship_phi[word][neighbor]
+        phi_values = data.get('phi_values', [])
+        
+        if not phi_values:
+            return {'avg_phi': 0.5, 'max_phi': 0.5, 'contexts': data.get('contexts', [])}
+        
+        return {
+            'avg_phi': float(np.mean(phi_values)),
+            'max_phi': float(np.max(phi_values)),
+            'contexts': data.get('contexts', [])
+        }
     
     def _load_from_db(self) -> bool:
         """Load relationships from PostgreSQL."""
@@ -151,26 +199,94 @@ class LearnedRelationships:
             return False
     
     def save_to_db(self) -> bool:
-        """Save relationships to PostgreSQL."""
+        """
+        Save relationships to PostgreSQL with Fisher-Rao distances.
+        
+        Computes geometric metrics for each word pair:
+        - fisher_distance: Fisher-Rao distance between word/neighbor basins
+        - avg_phi, max_phi: Φ values from observation contexts
+        - contexts: Example sentences where relationship was observed
+        """
         conn = get_db_connection()
         if not conn:
             logger.error("No database connection - cannot save relationships")
             return False
         
         try:
-            # Prepare relationship batch data
+            # Get basin coordinates for Fisher-Rao computation
+            basin_coords = {}
+            try:
+                from coordizers import get_coordizer
+                coordizer = get_coordizer()
+                basin_coords = getattr(coordizer, 'basin_coords', {})
+            except Exception as e:
+                logger.warning(f"Could not load coordizer for Fisher distances: {e}")
+            
+            # Prepare relationship batch data with Fisher-Rao distances
             # Filter out self-referential entries (word = neighbor is invalid)
             records = []
+            records_with_fisher = []
+            
             for word, neighbors in self.word_neighbors.items():
+                word_basin = basin_coords.get(word)
+                
                 for neighbor, count in neighbors:
-                    if word != neighbor:  # Prevent self-referential entries
+                    if word == neighbor:  # Prevent self-referential entries
+                        continue
+                    
+                    # Compute Fisher-Rao distance if basins available
+                    # Use fisher_coord_distance for basin coordinate vectors (unit sphere geodesic)
+                    fisher_dist = None
+                    if word_basin is not None:
+                        neighbor_basin = basin_coords.get(neighbor)
+                        if neighbor_basin is not None:
+                            fisher_dist = float(fisher_coord_distance(word_basin, neighbor_basin))
+                    
+                    # Get phi values if tracked (from learning)
+                    phi_data = self._get_phi_data(word, neighbor)
+                    avg_phi = phi_data.get('avg_phi', 0.5)
+                    max_phi = phi_data.get('max_phi', 0.5)
+                    contexts = phi_data.get('contexts', [])[:10]  # Limit to 10
+                    
+                    if fisher_dist is not None:
+                        records_with_fisher.append((
+                            word, neighbor, float(count), 
+                            fisher_dist, avg_phi, max_phi, contexts
+                        ))
+                    else:
                         records.append((word, neighbor, float(count)))
 
             # Prepare word frequency batch data
             freq_records = [(word, freq) for word, freq in self.word_frequency.items()]
 
             with conn.cursor() as cur:
-                # Save relationships (strength will be recalculated globally after insert)
+                # Save relationships WITH Fisher-Rao distance
+                if records_with_fisher:
+                    execute_values(
+                        cur,
+                        """
+                        INSERT INTO word_relationships 
+                            (word, neighbor, cooccurrence_count, fisher_distance, avg_phi, max_phi, contexts, updated_at)
+                        VALUES %s
+                        ON CONFLICT (word, neighbor)
+                        DO UPDATE SET
+                            cooccurrence_count = GREATEST(word_relationships.cooccurrence_count, EXCLUDED.cooccurrence_count),
+                            fisher_distance = COALESCE(EXCLUDED.fisher_distance, word_relationships.fisher_distance),
+                            avg_phi = (COALESCE(word_relationships.avg_phi, 0.5) + EXCLUDED.avg_phi) / 2.0,
+                            max_phi = GREATEST(COALESCE(word_relationships.max_phi, 0.5), EXCLUDED.max_phi),
+                            contexts = CASE 
+                                WHEN COALESCE(array_length(word_relationships.contexts, 1), 0) < 10 
+                                THEN COALESCE(word_relationships.contexts, ARRAY[]::text[]) || EXCLUDED.contexts
+                                ELSE word_relationships.contexts
+                            END,
+                            updated_at = NOW()
+                        """,
+                        records_with_fisher,
+                        template="(%s, %s, %s, %s, %s, %s, %s, NOW())"
+                    )
+                    logger.info(f"[LearnedRelationships] Saved {len(records_with_fisher)} relationships with Fisher-Rao distances")
+                
+                # Save relationships WITHOUT Fisher distance (fallback for words not in vocabulary)
                 if records:
                     execute_values(
                         cur,
@@ -186,32 +302,32 @@ class LearnedRelationships:
                         template="(%s, %s, %s, NOW())"
                     )
 
-                    # Recalculate strength as conditional probability:
-                    # strength = P(neighbor | word) = cooccurrence(word, neighbor) / total_cooccurrence(word)
-                    # This gives the relative probability of seeing 'neighbor' after 'word'
-                    # Normalized by global max for 0-1 scaling
-                    cur.execute("""
-                        WITH word_totals AS (
-                            -- Total co-occurrences for each word (sum of all its neighbors)
-                            SELECT word, SUM(cooccurrence_count) as total_cooc
-                            FROM word_relationships
-                            GROUP BY word
-                        ),
-                        max_prob AS (
-                            -- Max probability for normalization
-                            SELECT MAX(wr.cooccurrence_count / NULLIF(wt.total_cooc, 0)) as max_p
-                            FROM word_relationships wr
-                            JOIN word_totals wt ON wr.word = wt.word
+                # Recalculate strength as conditional probability:
+                # strength = P(neighbor | word) = cooccurrence(word, neighbor) / total_cooccurrence(word)
+                # This gives the relative probability of seeing 'neighbor' after 'word'
+                # Normalized by global max for 0-1 scaling
+                cur.execute("""
+                    WITH word_totals AS (
+                        -- Total co-occurrences for each word (sum of all its neighbors)
+                        SELECT word, SUM(cooccurrence_count) as total_cooc
+                        FROM word_relationships
+                        GROUP BY word
+                    ),
+                    max_prob AS (
+                        -- Max probability for normalization
+                        SELECT MAX(wr.cooccurrence_count / NULLIF(wt.total_cooc, 0)) as max_p
+                        FROM word_relationships wr
+                        JOIN word_totals wt ON wr.word = wt.word
+                    )
+                    UPDATE word_relationships wr
+                    SET strength = (
+                        wr.cooccurrence_count / NULLIF(
+                            (SELECT total_cooc FROM word_totals WHERE word = wr.word), 0
                         )
-                        UPDATE word_relationships wr
-                        SET strength = (
-                            wr.cooccurrence_count / NULLIF(
-                                (SELECT total_cooc FROM word_totals WHERE word = wr.word), 0
-                            )
-                        ) / NULLIF((SELECT max_p FROM max_prob), 0)
-                        WHERE strength IS NULL OR strength = 0
-                           OR updated_at >= NOW() - INTERVAL '1 minute'
-                    """)
+                    ) / NULLIF((SELECT max_p FROM max_prob), 0)
+                    WHERE strength IS NULL OR strength = 0
+                       OR updated_at >= NOW() - INTERVAL '1 minute'
+                """)
                 
                 # Save word frequencies to learned_words table
                 if freq_records:
