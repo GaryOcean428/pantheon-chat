@@ -120,17 +120,22 @@ class Ares(BaseGod):
     def compute_attack_vector(self, current_basin: np.ndarray) -> Optional[np.ndarray]:
         """
         Compute next probe location via geodesic.
+        
+        QIG-PURITY: Uses Fisher-Rao distance for proximity check,
+        Euclidean norm only for sphere projection (acceptable per QIG-PURITY-REQUIREMENTS.md).
         """
         target, dist = self._find_nearest_success_basin(current_basin)
         if target is None:
             return None
         
-        direction = target - current_basin
-        norm = np.linalg.norm(direction)
-        if norm < 1e-10:
+        # QIG-PURITY: Use Fisher-Rao geodesic distance instead of Euclidean norm
+        # for checking if basins are essentially the same point
+        if dist < 1e-10:
             return None
         
-        direction = direction / norm
+        direction = target - current_basin
+        # QIG-PURITY: Euclidean norm OK for unit vector normalization (not distance measurement)
+        direction = direction / (np.linalg.norm(direction) + 1e-10)
         
         G = self.compute_fisher_metric(current_basin)
         natural_direction = np.linalg.solve(G + 0.01 * np.eye(len(G)), direction)
