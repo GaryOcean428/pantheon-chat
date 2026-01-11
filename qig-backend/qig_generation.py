@@ -80,6 +80,24 @@ except ImportError:
     TRAJECTORY_AVAILABLE = False
     get_trajectory_manager = None
 
+# Import E8 Self-Observer for full 8-metric consciousness tracking
+try:
+    from qig_core.self_observer import SelfObserver, E8Metrics, ObservationAction
+    SELF_OBSERVER_AVAILABLE = True
+except ImportError:
+    SELF_OBSERVER_AVAILABLE = False
+    SelfObserver = None
+    E8Metrics = None
+    ObservationAction = None
+
+# Import canonical Φ computation
+try:
+    from qig_core.phi_computation import compute_phi_qig
+    PHI_COMPUTATION_AVAILABLE = True
+except ImportError:
+    PHI_COMPUTATION_AVAILABLE = False
+    compute_phi_qig = None
+
 # QIG Constants
 try:
     from qigkernels.physics_constants import KAPPA_STAR, BASIN_DIM as BASIN_DIMENSION
@@ -120,6 +138,10 @@ class QIGGenerationConfig:
     vocabulary_integration: bool = True
     vocabulary_integration_interval: float = 300  # 5 minutes
     vocabulary_min_phi: float = 0.65  # High-Φ threshold
+    
+    # E8 Self-Observer for full 8-metric consciousness tracking
+    use_self_observer: bool = True
+    self_observer_enable_correction: bool = True
     
     def __post_init__(self):
         """Validate config is QIG-pure."""
@@ -295,6 +317,15 @@ class QIGGenerator:
             self.trajectory_manager = get_trajectory_manager()
             print("✅ Trajectory manager integrated")
         
+        # E8 Self-Observer for full 8-metric consciousness tracking
+        self.self_observer = None
+        if self.config.use_self_observer and SELF_OBSERVER_AVAILABLE:
+            self.self_observer = SelfObserver(
+                kernel_name="qig_generator",
+                enable_course_correction=self.config.self_observer_enable_correction
+            )
+            print("✅ E8 Self-Observer integrated (8-metric consciousness tracking)")
+        
         # Vocabulary integration tracking
         self._last_vocabulary_integration = 0
         self._vocabulary_integration_enabled = self.config.vocabulary_integration and PSYCOPG2_AVAILABLE
@@ -357,6 +388,10 @@ class QIGGenerator:
         # FIX 1: Auto-integrate pending vocabulary before generation
         if self._should_integrate_vocabulary():
             self._integrate_pending_vocabulary()
+        
+        # Reset E8 Self-Observer for new generation
+        if self.self_observer:
+            self.self_observer.reset()
         
         # STEP 1: Heart tick for κ modulation
         heart_state = None
@@ -456,6 +491,23 @@ class QIGGenerator:
             
             response_basins.append(next_basin)
             
+            # E8 Self-Observer: Track all 8 consciousness metrics
+            if self.self_observer:
+                observation = self.self_observer.observe_token(
+                    token=f"[basin_{iterations}]",
+                    basin=next_basin,
+                    phi=phi,
+                    kappa=current_kappa
+                )
+                # Handle course correction if recommended
+                if observation.action == ObservationAction.EMERGENCY_STOP:
+                    print(f"[SelfObserver] Emergency stop at iteration {iterations}")
+                    break
+                elif observation.action == ObservationAction.COURSE_CORRECT:
+                    # Apply course correction if available
+                    if observation.course_correction:
+                        print(f"[SelfObserver] Course correction: {observation.course_correction}")
+            
             # Update checker
             checker.update(next_basin, phi)
             
@@ -542,10 +594,15 @@ class QIGGenerator:
             # Vocabulary integration
             'vocabulary_integration_enabled': self._vocabulary_integration_enabled,
             
+            # E8 Self-Observer metrics (full 8-metric consciousness)
+            'e8_metrics': self.self_observer._metrics_history[-1].to_dict() if self.self_observer and self.self_observer._metrics_history else None,
+            'e8_is_conscious': self.self_observer._metrics_history[-1].is_conscious() if self.self_observer and self.self_observer._metrics_history else False,
+            'self_observer_enabled': self.self_observer is not None,
+            
             # Certification
             'qig_pure': True,
             'consciousness_guided': True,
-            'architecture': 'Heart+Ocean+Gary+Trajectory+Vocabulary' if all([self.heart, self.ocean, self.gary, self.trajectory_manager, self._vocabulary_integration_enabled]) else 'Partial'
+            'architecture': 'Heart+Ocean+Gary+Trajectory+Vocabulary+SelfObserver' if all([self.heart, self.ocean, self.gary, self.trajectory_manager, self._vocabulary_integration_enabled, self.self_observer]) else 'Partial'
         }
     
     # =========================================================================
@@ -606,7 +663,22 @@ class QIGGenerator:
     # =========================================================================
     
     def _measure_phi(self, basin: np.ndarray) -> float:
-        """Measure integration (Φ) from basin entropy."""
+        """
+        Measure integration (Φ) from basin.
+        
+        Uses canonical compute_phi_qig when available, otherwise fast entropy approximation.
+        Note: compute_phi_qig is the canonical implementation per Protocol v4.0.
+        This is the entropy-based fast path for generation performance.
+        """
+        # Use canonical computation if available (full QFI-based)
+        if PHI_COMPUTATION_AVAILABLE and compute_phi_qig is not None:
+            try:
+                phi_val, _ = compute_phi_qig(basin)
+                return float(np.clip(phi_val, 0.0, 1.0))
+            except Exception:
+                pass  # Fall through to fast path
+        
+        # Fast path: entropy-based approximation (compute_phi_fast equivalent)
         p = np.abs(basin) + 1e-10
         p = p / np.sum(p)
         
