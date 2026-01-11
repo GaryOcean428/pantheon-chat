@@ -701,20 +701,27 @@ class Zeus(BaseGod):
         kappa = self.compute_kappa(target_basin)
 
         # Step 6 - If high convergence, deploy Nemesis pursuit
+        # Use _run_async_safely to avoid asyncio.run() inside running event loop
         nemesis_pursuit = None
         if poll_result.get('convergence_score', 0) > 0.85:
-            nemesis_pursuit = asyncio.run(
-                self.shadow_pantheon.nemesis.initiate_pursuit(target, max_iterations=5000)
-            )
+            try:
+                nemesis_pursuit = self._run_async_safely(
+                    self.shadow_pantheon.nemesis.initiate_pursuit(target, max_iterations=5000)
+                )
+            except Exception as e:
+                nemesis_pursuit = {'error': str(e), 'fallback': True}
 
         # Step 7 - Cleanup traces via Thanatos
-        # Create simple cleanup operation
-        cleanup_result = asyncio.run(
-            self.shadow_pantheon.thanatos.destroy_evidence(
-                f"assess_{datetime.now().timestamp()}",
-                ['logs', 'cache']
+        # Use _run_async_safely to avoid asyncio.run() inside running event loop
+        try:
+            cleanup_result = self._run_async_safely(
+                self.shadow_pantheon.thanatos.destroy_evidence(
+                    f"assess_{datetime.now().timestamp()}",
+                    ['logs', 'cache']
+                )
             )
-        )
+        except Exception as e:
+            cleanup_result = {'complete': False, 'error': str(e)}
 
         # Enhanced assessment with shadow metrics
         assessment = {

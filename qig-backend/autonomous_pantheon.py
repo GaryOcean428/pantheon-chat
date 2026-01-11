@@ -291,6 +291,9 @@ class AutonomousPantheon:
                     print(f"  ✓ Cycle complete ({cycle_duration:.1f}s)")
                     print(f"    Processed: {self.targets_processed} | Spawned: {self.kernels_spawned} | Executed: {self.operations_executed}")
 
+                # Population-aware optimization: propose MERGE/CANNIBALIZE/EVOLVE when population is high
+                await self._propose_ecosystem_optimizations()
+
                 await asyncio.sleep(self.scan_interval)
 
             except KeyboardInterrupt:
@@ -707,6 +710,176 @@ class AutonomousPantheon:
                 except Exception as e:
                     logger.error(f"Failed to declare HUNT: {e}")
                     return
+
+    async def _propose_ecosystem_optimizations(self) -> None:
+        """
+        Population-aware ecosystem optimization.
+        
+        When population is high (>= 20), propose MERGE/CANNIBALIZE/EVOLVE 
+        operations to optimize existing kernels rather than spawning more.
+        
+        Uses QIG metrics to find:
+        - Low-Phi kernels for CANNIBALIZE (absorb into high-Phi kernels)
+        - Similar kernels for MERGE (combine redundant kernels)
+        - Stagnant kernels for EVOLVE (mutation to escape local minima)
+        """
+        if self.db_connection is None:
+            return
+        
+        try:
+            cursor = self.db_connection.cursor()
+            
+            # Get ecosystem health metrics
+            cursor.execute("""
+                SELECT 
+                    COUNT(*) as population,
+                    COALESCE(AVG(phi), 0.5) as avg_phi,
+                    COUNT(*) FILTER (WHERE phi >= 0.7) as high_phi_count,
+                    COUNT(*) FILTER (WHERE phi < 0.3) as low_phi_count
+                FROM kernels
+                WHERE is_alive = true
+            """)
+            result = cursor.fetchone()
+            population, avg_phi, high_phi_count, low_phi_count = result or (0, 0.5, 0, 0)
+            
+            # Only run optimization proposals when population is high
+            POPULATION_THRESHOLD = 20
+            if population < POPULATION_THRESHOLD:
+                return
+            
+            optimizations_proposed = 0
+            
+            # === CANNIBALIZE: High-Phi kernels absorb low-Phi kernels ===
+            if high_phi_count > 0 and low_phi_count > 0:
+                cursor.execute("""
+                    SELECT id, kernel_name, phi 
+                    FROM kernels 
+                    WHERE is_alive = true AND phi >= 0.7
+                    ORDER BY phi DESC
+                    LIMIT 3
+                """)
+                strong_kernels = cursor.fetchall()
+                
+                cursor.execute("""
+                    SELECT id, kernel_name, phi 
+                    FROM kernels 
+                    WHERE is_alive = true AND phi < 0.3
+                    ORDER BY phi ASC
+                    LIMIT 3
+                """)
+                weak_kernels = cursor.fetchall()
+                
+                # Propose cannibalization pairs
+                if strong_kernels and weak_kernels:
+                    strong = strong_kernels[0]
+                    weak = weak_kernels[0]
+                    
+                    try:
+                        from olympus.pantheon_governance import get_governance
+                        governance = get_governance()
+                        governance.check_cannibalize_permission(
+                            strong_id=str(strong[0]),
+                            weak_id=str(weak[0]),
+                            strong_phi=float(strong[2]),
+                            weak_phi=float(weak[2])
+                        )
+                        optimizations_proposed += 1
+                        print(f"  🔪 CANNIBALIZE proposed: {strong[1]} (Φ={strong[2]:.3f}) absorbs {weak[1]} (Φ={weak[2]:.3f})")
+                    except PermissionError as pe:
+                        # Proposal created, waiting for approval
+                        optimizations_proposed += 1
+                        print(f"  🔪 CANNIBALIZE proposal created: {strong[1]} → {weak[1]}")
+                    except Exception as e:
+                        logger.debug(f"Cannibalize proposal failed: {e}")
+            
+            # === MERGE: Find similar kernels (same domain/capability overlap) ===
+            if population >= 30:  # Merge when population is especially high
+                cursor.execute("""
+                    SELECT k1.id, k1.kernel_name, k1.phi, k2.id, k2.kernel_name, k2.phi
+                    FROM kernels k1
+                    JOIN kernels k2 ON k1.id < k2.id
+                    WHERE k1.is_alive = true AND k2.is_alive = true
+                      AND k1.god_name = k2.god_name
+                      AND ABS(k1.phi - k2.phi) < 0.2
+                    ORDER BY (k1.phi + k2.phi) DESC
+                    LIMIT 1
+                """)
+                merge_candidates = cursor.fetchone()
+                
+                if merge_candidates:
+                    k1_id, k1_name, k1_phi, k2_id, k2_name, k2_phi = merge_candidates
+                    
+                    try:
+                        from olympus.pantheon_governance import get_governance
+                        governance = get_governance()
+                        governance.check_merge_permission(
+                            kernel1_id=str(k1_id),
+                            kernel2_id=str(k2_id),
+                            kernel1_phi=float(k1_phi),
+                            kernel2_phi=float(k2_phi)
+                        )
+                        optimizations_proposed += 1
+                        print(f"  🔗 MERGE proposed: {k1_name} + {k2_name}")
+                    except PermissionError as pe:
+                        optimizations_proposed += 1
+                        print(f"  🔗 MERGE proposal created: {k1_name} + {k2_name}")
+                    except Exception as e:
+                        logger.debug(f"Merge proposal failed: {e}")
+            
+            # === EVOLVE: Stagnant mid-Phi kernels need mutation ===
+            cursor.execute("""
+                SELECT id, kernel_name, phi
+                FROM kernels
+                WHERE is_alive = true 
+                  AND phi BETWEEN 0.4 AND 0.6
+                  AND updated_at < NOW() - INTERVAL '1 hour'
+                ORDER BY updated_at ASC
+                LIMIT 2
+            """)
+            stagnant_kernels = cursor.fetchall()
+            
+            for kernel in stagnant_kernels:
+                k_id, k_name, k_phi = kernel
+                
+                try:
+                    from olympus.pantheon_governance import get_governance
+                    governance = get_governance()
+                    governance.check_evolve_permission(
+                        kernel_id=str(k_id),
+                        mutation_type='gradient',
+                        kernel_phi=float(k_phi)
+                    )
+                    optimizations_proposed += 1
+                    print(f"  🧬 EVOLVE proposed: {k_name} (Φ={k_phi:.3f}, stagnant)")
+                except PermissionError as pe:
+                    optimizations_proposed += 1
+                    print(f"  🧬 EVOLVE proposal created: {k_name}")
+                except Exception as e:
+                    logger.debug(f"Evolve proposal failed: {e}")
+            
+            if optimizations_proposed > 0:
+                print(f"  📊 Ecosystem: pop={population}, avg_Φ={avg_phi:.3f} → {optimizations_proposed} optimization(s) proposed")
+                logger.info(f"[Ecosystem] Proposed {optimizations_proposed} optimizations (pop={population})")
+                
+                # Persist optimization activity
+                self._persist_optimization_activity(population, avg_phi, optimizations_proposed)
+        
+        except Exception as e:
+            logger.debug(f"Ecosystem optimization check failed: {e}")
+    
+    def _persist_optimization_activity(self, population: int, avg_phi: float, proposals: int) -> None:
+        """Persist ecosystem optimization activity to database."""
+        if self.db_connection is None:
+            return
+        
+        try:
+            cursor = self.db_connection.cursor()
+            cursor.execute("""
+                INSERT INTO agent_activity (agent_name, activity_type, details, created_at)
+                VALUES ('autonomous_pantheon', 'ecosystem_optimization', %s, NOW())
+            """, (f'{{"population": {population}, "avg_phi": {avg_phi:.3f}, "proposals": {proposals}}}',))
+        except Exception:
+            pass
 
     async def execute_operation(self, target: str, assessment: Dict) -> None:
         """
