@@ -155,12 +155,18 @@ class VocabularyCoordinator:
         This solves the critical issue where vocabulary was learned during sessions
         but lost on restart because it was never written back to the tokenizer_vocabulary table.
         
+        Also updates learned_words.basin_coords so integrate_pending_vocabulary can
+        push vectors into tokenizer_vocabulary and generation can use them.
+        
         Args:
             observations: List of vocabulary observation dicts with word, phi, etc.
             
         Returns:
             Number of tokens successfully persisted to database
         """
+        import os
+        import psycopg2
+        
         if not self._unified_coordizer:
             return 0
         
@@ -168,6 +174,8 @@ class VocabularyCoordinator:
             return 0
         
         persisted = 0
+        words_with_basins = []  # (word, basin_coords) tuples for learned_words update
+        
         for obs in observations:
             word = obs.get('word', '')
             phi = obs.get('phi', 0.5)
@@ -189,8 +197,31 @@ class VocabularyCoordinator:
                 if basin_coords is not None:
                     if self._unified_coordizer.save_learned_token(word, basin_coords, phi, freq):
                         persisted += 1
+                        # Track for learned_words update
+                        words_with_basins.append((word, basin_coords))
             except Exception as e:
                 print(f"[VocabularyCoordinator] Failed to persist '{word}': {e}")
+        
+        # Also update learned_words.basin_coords for vocabulary integration
+        # NOTE: Only set basin_coords here, NOT is_integrated - that flag is controlled
+        # by integrate_pending_vocabulary which enforces high-Φ gating
+        if words_with_basins:
+            database_url = os.environ.get('DATABASE_URL')
+            if database_url:
+                try:
+                    conn = psycopg2.connect(database_url)
+                    with conn.cursor() as cur:
+                        for word, basin in words_with_basins:
+                            basin_list = basin.tolist() if hasattr(basin, 'tolist') else list(basin)
+                            cur.execute("""
+                                UPDATE learned_words
+                                SET basin_coords = %s::vector
+                                WHERE word = %s AND basin_coords IS NULL
+                            """, (str(basin_list), word))
+                    conn.commit()
+                    conn.close()
+                except Exception as e:
+                    print(f"[VocabularyCoordinator] Failed to update learned_words basin_coords: {e}")
         
         if persisted > 0:
             print(f"[VocabularyCoordinator] Persisted {persisted} tokens to coordizer DB")
@@ -733,7 +764,8 @@ class VocabularyCoordinator:
         """Integrate pending vocabulary from learned_words into active coordizer.
 
         Queries learned_words where is_integrated = FALSE and avg_phi >= min_phi,
-        adds them to the coordizer, and marks them as integrated.
+        computes basin_coords for each word, adds them to the coordizer,
+        and marks them as integrated with their basin_coords stored.
 
         Returns:
             Dict with integrated_count, skipped_count, errors
@@ -770,44 +802,65 @@ class VocabularyCoordinator:
                     return {'integrated_count': 0, 'message': 'no_pending_words'}
 
                 words_to_integrate = []
+                words_with_basins = []  # (word, basin_coords) for updating learned_words
+                
                 for row in rows:
                     word, avg_phi, max_phi, frequency, source = row
+                    
+                    # Compute basin coords for the word
+                    basin_coords = None
+                    try:
+                        if hasattr(self._unified_coordizer, 'basin_coords') and word in self._unified_coordizer.basin_coords:
+                            basin_coords = self._unified_coordizer.basin_coords[word]
+                        elif hasattr(self._unified_coordizer, 'encode'):
+                            basin_coords = self._unified_coordizer.encode(word)
+                    except Exception as e:
+                        print(f"[VocabularyCoordinator] Failed to encode '{word}': {e}")
+                    
+                    if basin_coords is None:
+                        skipped_count += 1
+                        continue
+                    
                     words_to_integrate.append({
                         'word': word,
                         'phi': avg_phi,
                         'max_phi': max_phi,
                         'frequency': frequency,
                         'source': source,
+                        'basin_coords': basin_coords,
                     })
+                    words_with_basins.append((word, basin_coords))
 
-                # Add to coordizer via observations
-                observations = [
-                    {
-                        'word': w['word'],
-                        'frequency': w['frequency'],
-                        'avg_phi': w['phi'],
-                        'max_phi': w['max_phi'],
-                        'type': 'integrated',
-                    }
-                    for w in words_to_integrate
-                ]
+                if not words_to_integrate:
+                    conn.close()
+                    return {'integrated_count': 0, 'skipped_count': skipped_count, 'message': 'no_encodable_words'}
 
-                try:
-                    new_tokens, _ = self._unified_coordizer.add_vocabulary_observations(observations)
-                    integrated_count = new_tokens if new_tokens else len(words_to_integrate)
-                except Exception as e:
-                    errors.append(f"coordizer_add: {e}")
+                # Add to coordizer via save_learned_token for each word
+                for w in words_to_integrate:
+                    try:
+                        if self._unified_coordizer.save_learned_token(
+                            w['word'], w['basin_coords'], w['phi'], w['frequency']
+                        ):
+                            integrated_count += 1
+                    except Exception as e:
+                        errors.append(f"save_token_{w['word']}: {e}")
 
-                # Mark as integrated in DB
-                word_list = [w['word'] for w in words_to_integrate]
-                cur.execute("""
-                    UPDATE learned_words
-                    SET is_integrated = TRUE
-                    WHERE word = ANY(%s)
-                """, (word_list,))
+                # Update learned_words with basin_coords and mark as integrated
+                for word, basin in words_with_basins:
+                    try:
+                        basin_list = basin.tolist() if hasattr(basin, 'tolist') else list(basin)
+                        cur.execute("""
+                            UPDATE learned_words
+                            SET basin_coords = %s::vector,
+                                is_integrated = TRUE,
+                                integrated_at = NOW()
+                            WHERE word = %s
+                        """, (str(basin_list), word))
+                    except Exception as e:
+                        errors.append(f"update_basin_{word}: {e}")
+                
                 conn.commit()
-
-                print(f"[VocabularyCoordinator] Integrated {len(word_list)} vocabulary terms (min_phi={min_phi})")
+                print(f"[VocabularyCoordinator] Integrated {integrated_count} vocabulary terms with basin_coords (min_phi={min_phi})")
 
         except Exception as e:
             errors.append(f"db_error: {e}")

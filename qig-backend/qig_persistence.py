@@ -386,24 +386,28 @@ class QIGPersistence:
         details: Optional[Dict] = None,
         context: Optional[Dict] = None,
         source: Optional[str] = None,
-        instance_id: Optional[str] = None
+        instance_id: Optional[str] = None,
+        kernel_id: Optional[str] = None
     ) -> Optional[str]:
         """Record a learning event."""
         if not self.enabled:
             return None
+
+        effective_kernel_id = kernel_id or source or "system"
 
         try:
             with self.get_connection() as conn:
                 with conn.cursor() as cur:
                     cur.execute("""
                         INSERT INTO learning_events (
-                            event_type, phi, kappa, basin_coords,
+                            kernel_id, event_type, phi, kappa, basin_coords,
                             details, context, source, instance_id
                         ) VALUES (
-                            %s, %s, %s, %s::vector, %s, %s, %s, %s
+                            %s, %s, %s, %s, %s::vector, %s, %s, %s, %s
                         )
                         RETURNING event_id
                     """, (
+                        effective_kernel_id,
                         event_type, phi, kappa,
                         self._vector_to_pg(basin_coords) if basin_coords is not None else None,
                         json.dumps(details or {}),
@@ -1210,6 +1214,48 @@ class QIGPersistence:
         except Exception as e:
             print(f"[QIGPersistence] Failed to get reasoning episode stats: {e}")
             return []
+
+
+    # =========================================================================
+    # METADATA KEY-VALUE STORE
+    # =========================================================================
+
+    def get_metadata(self, key: str) -> Optional[str]:
+        """Get a metadata value by key from qig_metadata table."""
+        if not self.enabled:
+            return None
+
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        SELECT value FROM qig_metadata WHERE key = %s
+                    """, (key,))
+                    result = cur.fetchone()
+                    return result[0] if result else None
+        except Exception as e:
+            print(f"[QIGPersistence] Failed to get metadata '{key}': {e}")
+            return None
+
+    def set_metadata(self, key: str, value: str) -> bool:
+        """Set a metadata value by key in qig_metadata table."""
+        if not self.enabled:
+            return False
+
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        INSERT INTO qig_metadata (key, value, updated_at)
+                        VALUES (%s, %s, NOW())
+                        ON CONFLICT (key) DO UPDATE SET
+                            value = EXCLUDED.value,
+                            updated_at = NOW()
+                    """, (key, value))
+                    return True
+        except Exception as e:
+            print(f"[QIGPersistence] Failed to set metadata '{key}': {e}")
+            return False
 
 
 # Global persistence instance
