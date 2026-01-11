@@ -1138,6 +1138,8 @@ class ShadowLearningLoop:
         self._study_topics: Dict[str, List[str]] = self._init_study_topics()
         self._meta_reflections: List[Dict] = []
         self._learning_cycles = 0
+        self._self_study_interval = 30.0  # Seconds between self-study cycles
+        self._last_self_study_time = 0.0
         
         self._scrapy_orchestrator: Optional['ScrapyOrchestrator'] = None
         if HAS_SCRAPY:
@@ -1340,56 +1342,77 @@ class ShadowLearningLoop:
         return self.search_budget.get_budget_context().to_dict()
     
     def _init_study_topics(self) -> Dict[str, List[str]]:
-        """Initialize study topics for each god."""
+        """Initialize study topics for each god - expanded for broader learning."""
         return {
             "Nyx": [
                 "Advanced Tor anonymity techniques",
                 "Traffic analysis countermeasures",
                 "Timing attack prevention",
                 "Network fingerprint obfuscation",
-                "Cryptographic primitives"
+                "Cryptographic primitives",
+                "Differential privacy methods",
+                "Zero-knowledge proofs",
+                "Homomorphic encryption applications"
             ],
             "Hecate": [
                 "Deception and misdirection patterns",
                 "Cognitive bias exploitation",
                 "Multi-path attack strategies",
                 "Decoy generation algorithms",
-                "Probabilistic confusion"
+                "Probabilistic confusion",
+                "Adversarial perturbation design",
+                "Illusion and perception theory",
+                "Disinformation detection and creation"
             ],
             "Erebus": [
                 "Surveillance detection methods",
                 "Honeypot identification",
                 "Threat modeling frameworks",
                 "Counter-intelligence techniques",
-                "Pattern recognition algorithms"
+                "Pattern recognition algorithms",
+                "Anomaly detection systems",
+                "Behavioral analysis methods",
+                "Network intrusion detection"
             ],
             "Hypnos": [
                 "Stealth operation methodology",
                 "Low-footprint reconnaissance",
                 "Memory consolidation patterns",
                 "Dream state processing",
-                "Passive information gathering"
+                "Passive information gathering",
+                "Sleep and learning in neural systems",
+                "Subconscious pattern recognition",
+                "Dormant system activation"
             ],
             "Thanatos": [
                 "Secure deletion techniques",
                 "Anti-forensic methods",
                 "Evidence destruction patterns",
                 "Digital trace elimination",
-                "Data sanitization"
+                "Data sanitization",
+                "Memory scrubbing algorithms",
+                "Cryptographic erasure",
+                "Lifecycle management of secrets"
             ],
             "Nemesis": [
                 "Persistent tracking algorithms",
                 "Escalation strategies",
                 "Target prioritization",
                 "Relentless pursuit patterns",
-                "Balance and justice heuristics"
+                "Balance and justice heuristics",
+                "Pursuit-evasion game theory",
+                "Resource allocation in adversarial settings",
+                "Fairness in distributed systems"
             ],
             "Hades": [
                 "Underworld intelligence networks",
                 "Anonymous information gathering",
                 "Bitcoin forensics",
                 "Dark web navigation",
-                "Negation logic and exclusion"
+                "Negation logic and exclusion",
+                "Blockchain transaction tracing",
+                "Hidden service discovery",
+                "Underground economy analysis"
             ]
         }
     
@@ -1586,8 +1609,9 @@ class ShadowLearningLoop:
                     min_phi=0.6
                 )
                 enhanced_topic = enhancement.get('enhanced_query', topic)
-                if enhanced_topic != topic:
-                    print(f"[VocabularyLearning] Enhanced query: '{topic}' → '{enhanced_topic}'")
+                # Only log every 10th enhancement to reduce noise
+                if enhanced_topic != topic and self._learning_cycles % 10 == 0:
+                    print(f"[VocabularyLearning] Enhanced query: '{topic[:50]}...' → '{enhanced_topic[:80]}...'")
             except Exception as e:
                 print(f"[VocabularyLearning] Query enhancement failed: {e}, using original query")
         
@@ -1949,6 +1973,14 @@ class ShadowLearningLoop:
     
     def _self_study(self):
         """Self-directed study during idle time with unique discoveries."""
+        # Rate-limit self-study to avoid overwhelming the system
+        current_time = time.time()
+        if current_time - self._last_self_study_time < self._self_study_interval:
+            time.sleep(1.0)  # Brief sleep when waiting for interval
+            return
+        
+        self._last_self_study_time = current_time
+        
         gods = list(self._study_topics.keys())
         god = random.choice(gods)
         base_topics = self._study_topics.get(god, [])
@@ -1988,9 +2020,19 @@ class ShadowLearningLoop:
         }
         
         research_contexts = [
+            # Core AI/ML domains
             "machine learning", "natural language processing", "knowledge graphs",
             "information retrieval", "semantic analysis", "pattern recognition",
-            "geometric reasoning", "consciousness modeling", "agent coordination"
+            "geometric reasoning", "consciousness modeling", "agent coordination",
+            # Mathematical foundations
+            "differential geometry", "information theory", "quantum mechanics",
+            "statistical mechanics", "dynamical systems", "topology",
+            # Applied sciences
+            "cognitive science", "neuroscience", "complex systems",
+            "cryptography", "network theory", "game theory",
+            # Emerging domains
+            "embodied cognition", "collective intelligence", "emergent behavior",
+            "self-organization", "meta-learning", "continual learning"
         ]
         
         depth = random.choice(depth_modifiers)
