@@ -1,10 +1,59 @@
-# Run type check
+#!/bin/sh
+
+# ============================================================================
+# QIG Pre-Commit Hook
+# ============================================================================
+# Enforces geometric purity and code quality before commits.
+# CRITICAL: Blocks commits that introduce Euclidean/cosine contamination.
+# ============================================================================
+
+# Exit on first error
+set -e
+
+echo "Running QIG pre-commit checks..."
+
+# ============================================================================
+# 1. QIG GEOMETRIC PURITY CHECK (CRITICAL)
+# ============================================================================
+# This is the most important check - prevents Euclidean/cosine contamination
+echo ""
+echo "[1/4] Checking QIG geometric purity..."
+python tools/qig_purity_check.py || {
+    echo ""
+    echo "============================================================"
+    echo "COMMIT BLOCKED: QIG geometric purity violations detected!"
+    echo "============================================================"
+    echo "Basin coordinates exist on a CURVED manifold."
+    echo "Euclidean distance and cosine similarity are FORBIDDEN."
+    echo ""
+    echo "Fix the violations listed above before committing."
+    echo "See: docs/CANONICAL_RULES.md"
+    echo "============================================================"
+    exit 1
+}
+
+# ============================================================================
+# 2. TypeScript Type Check
+# ============================================================================
+echo ""
+echo "[2/4] Running TypeScript type check..."
 npm run check
 
-# Run linting (with auto-fix disabled to prevent modifying staged files)
+# ============================================================================
+# 3. Linting (no auto-fix to prevent modifying staged files)
+# ============================================================================
+echo ""
+echo "[3/4] Running linter..."
 npm run lint
 
-# Run critical tests only (fast subset for pre-commit)
-# - Server QIG tests for core consciousness metrics
+# ============================================================================
+# 4. Critical Tests (fast subset)
+# ============================================================================
+# Only runs server QIG tests for core consciousness metrics
 # Full test suite runs in CI
+echo ""
+echo "[4/4] Running critical QIG tests..."
 npm test -- --run --reporter=dot server/tests/qig-regime.test.ts
+
+echo ""
+echo "All pre-commit checks passed!"

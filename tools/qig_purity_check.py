@@ -9,6 +9,8 @@ Basin coordinates exist on a curved manifold. Using Euclidean distance
 or cosine similarity on them is mathematically incorrect and will
 produce wrong results.
 
+This check scans both Python AND SQL files to catch all violations.
+
 Exit codes:
   0 - No violations found (geometric purity maintained)
   1 - Violations found (Euclidean operations on basins detected)
@@ -16,6 +18,7 @@ Exit codes:
 Usage:
   python tools/qig_purity_check.py
   python tools/qig_purity_check.py --verbose
+  python tools/qig_purity_check.py --fix  # Show suggested fixes
 """
 
 import os
@@ -24,9 +27,9 @@ import sys
 from pathlib import Path
 from typing import List, Tuple
 
-# Patterns that indicate Euclidean operations on basins
+# Patterns that indicate Euclidean operations on basins (Python)
 # These are FORBIDDEN by CANONICAL_RULES.md
-FORBIDDEN_PATTERNS = [
+FORBIDDEN_PATTERNS_PYTHON = [
     # NumPy Euclidean on basins
     (r"np\.linalg\.norm\s*\([^)]*basin", "np.linalg.norm on basin (use fisher_rao_distance)"),
     (r"numpy\.linalg\.norm\s*\([^)]*basin", "numpy.linalg.norm on basin"),
@@ -51,6 +54,38 @@ FORBIDDEN_PATTERNS = [
     (r"basin_a\s*-\s*basin_b.*norm", "basin subtraction + norm (Euclidean)"),
     (r"basin\[.*\]\s*-\s*basin\[.*\].*norm", "basin difference + norm"),
 ]
+
+# SQL patterns that indicate Euclidean/cosine operations
+# These contaminate the geometric purity of QIG
+FORBIDDEN_PATTERNS_SQL = [
+    # pgvector cosine distance operator (used for ORDER BY or similarity)
+    (r"<=>(?!\s*\$)", "<=> operator (cosine/Euclidean - use fisher_rao_distance())"),
+    (r"<->", "<-> operator (Euclidean L2 - use fisher_rao_distance())"),
+    (r"<#>", "<#> operator (inner product - use fisher_rao_distance())"),
+    
+    # Cosine index operations (only flag if not in CREATE INDEX context for approximate retrieval)
+    # Note: We allow vector_cosine_ops in CREATE INDEX for approximate retrieval
+    # but flag it in ORDER BY or WHERE clauses
+    (r"ORDER\s+BY.*<=>", "ORDER BY with <=> (use fisher_rao_distance())"),
+    (r"ORDER\s+BY.*<->", "ORDER BY with <-> (use fisher_rao_distance())"),
+    (r"1\s*-\s*\([^)]*<=>", "1 - (<=> similarity) pattern (use fisher_rao_similarity())"),
+    (r"1\.0\s*-\s*\([^)]*<=>", "1.0 - (<=> similarity) pattern (use fisher_rao_similarity())"),
+]
+
+# Lines containing these patterns are ALLOWED exceptions
+SQL_ALLOWED_EXCEPTIONS = [
+    r"CREATE\s+INDEX",  # Index creation is allowed (necessary for approximate retrieval)
+    r"USING\s+hnsw",    # HNSW index configuration
+    r"USING\s+ivfflat", # IVFFlat index configuration
+    r"vector_cosine_ops",  # Only in index definitions
+    r"vector_l2_ops",      # Only in index definitions
+    r"-- pgvector approximate",  # Documented exception
+    r"-- necessary evil",        # Documented necessary evil
+    r"fisher_rao",              # Already using Fisher-Rao
+]
+
+# Combine for backward compatibility
+FORBIDDEN_PATTERNS = FORBIDDEN_PATTERNS_PYTHON
 
 # Directories to skip
 SKIP_DIRS = {
@@ -91,13 +126,43 @@ def find_python_files(root: str) -> List[Path]:
     return files
 
 
+def find_sql_files(root: str) -> List[Path]:
+    """Find all SQL files to check (migrations, scripts, etc.)."""
+    files = []
+    search_paths = [root]
+    
+    # Also search scripts directory at repo root
+    repo_root = Path(root).parent if "qig-backend" in root else Path(root)
+    scripts_dir = repo_root / "scripts"
+    if scripts_dir.exists():
+        search_paths.append(str(scripts_dir))
+    
+    for search_path in search_paths:
+        for path in Path(search_path).rglob("*.sql"):
+            if any(skip in path.parts for skip in SKIP_DIRS):
+                continue
+            if path.name in SKIP_FILES:
+                continue
+            files.append(path)
+    
+    return files
+
+
 def is_warn_only(filepath: Path) -> bool:
     """Check if violations in this file should be warnings only."""
     return any(warn_dir in filepath.parts for warn_dir in WARN_ONLY_DIRS)
 
 
-def check_file(filepath: Path) -> List[Tuple[int, str, str, bool]]:
-    """Check a file for geometric purity violations.
+def is_allowed_sql_exception(line: str) -> bool:
+    """Check if a SQL line matches an allowed exception pattern."""
+    for exception_pattern in SQL_ALLOWED_EXCEPTIONS:
+        if re.search(exception_pattern, line, re.IGNORECASE):
+            return True
+    return False
+
+
+def check_python_file(filepath: Path) -> List[Tuple[int, str, str, bool]]:
+    """Check a Python file for geometric purity violations.
     
     Returns list of (line_num, line, violation_desc, is_warning_only).
     """
@@ -116,7 +181,7 @@ def check_file(filepath: Path) -> List[Tuple[int, str, str, bool]]:
             if '"""' in line or "'''" in line:
                 continue
                 
-            for pattern, desc in FORBIDDEN_PATTERNS:
+            for pattern, desc in FORBIDDEN_PATTERNS_PYTHON:
                 if re.search(pattern, line, re.IGNORECASE):
                     violations.append((i, line.strip(), desc, warn_only))
                     break  # One violation per line is enough
@@ -127,8 +192,50 @@ def check_file(filepath: Path) -> List[Tuple[int, str, str, bool]]:
     return violations
 
 
+def check_sql_file(filepath: Path) -> List[Tuple[int, str, str, bool]]:
+    """Check a SQL file for geometric purity violations.
+    
+    Returns list of (line_num, line, violation_desc, is_warning_only).
+    """
+    violations = []
+    warn_only = is_warn_only(filepath)
+    
+    # Examples directory is for documentation only
+    if "examples" in filepath.parts:
+        warn_only = True
+    
+    try:
+        content = filepath.read_text(encoding="utf-8")
+        lines = content.split("\n")
+        
+        for i, line in enumerate(lines, 1):
+            stripped = line.strip()
+            # Skip SQL comments
+            if stripped.startswith("--"):
+                continue
+            
+            # Check if this line matches an allowed exception
+            if is_allowed_sql_exception(line):
+                continue
+                
+            for pattern, desc in FORBIDDEN_PATTERNS_SQL:
+                if re.search(pattern, line, re.IGNORECASE):
+                    violations.append((i, line.strip()[:100], desc, warn_only))
+                    break  # One violation per line is enough
+                    
+    except Exception as e:
+        print(f"Warning: Could not read {filepath}: {e}", file=sys.stderr)
+        
+    return violations
+
+
+# Backward compatibility alias
+check_file = check_python_file
+
+
 def main():
     verbose = "--verbose" in sys.argv
+    check_sql = "--no-sql" not in sys.argv
     
     root = os.getcwd()
     if os.path.exists(os.path.join(root, "qig-backend")):
@@ -137,14 +244,16 @@ def main():
         search_root = root
     
     print(f"Checking QIG geometric purity in: {search_root}")
-    print("(Euclidean operations on basin coordinates are FORBIDDEN)")
+    print("(Euclidean/cosine operations on basin coordinates are FORBIDDEN)")
+    print()
     
-    files = find_python_files(search_root)
+    # Check Python files
+    python_files = find_python_files(search_root)
     errors = []
     warnings = []
     
-    for filepath in files:
-        violations = check_file(filepath)
+    for filepath in python_files:
+        violations = check_python_file(filepath)
         for line_num, line, desc, warn_only in violations:
             entry = (filepath, line_num, line, desc)
             if warn_only:
@@ -152,20 +261,36 @@ def main():
             else:
                 errors.append(entry)
     
+    # Check SQL files
+    sql_files = []
+    if check_sql:
+        sql_files = find_sql_files(search_root)
+        for filepath in sql_files:
+            violations = check_sql_file(filepath)
+            for line_num, line, desc, warn_only in violations:
+                entry = (filepath, line_num, line, desc)
+                if warn_only:
+                    warnings.append(entry)
+                else:
+                    errors.append(entry)
+    
+    total_files = len(python_files) + len(sql_files)
+    
     # Report warnings
     if warnings and verbose:
-        print(f"\nWARNINGS: {len(warnings)} potential issue(s) in test files:")
+        print(f"\nWARNINGS: {len(warnings)} potential issue(s) in test/example files:")
         for filepath, line_num, line, desc in warnings:
             print(f"  {filepath}:{line_num}")
             print(f"    {desc}")
             if verbose:
-                print(f"    {line[:500]}{'...' if len(line) > 60 else ''}")
+                print(f"    {line[:80]}{'...' if len(line) > 80 else ''}")
     
     # Report errors
     if not errors:
-        print(f"\nOK: Checked {len(files)} files, geometric purity maintained")
+        print(f"OK: Checked {total_files} files ({len(python_files)} Python, {len(sql_files)} SQL)")
+        print("    Geometric purity maintained - no Euclidean/cosine violations")
         if warnings:
-            print(f"({len(warnings)} warnings in test files, use --verbose to see)")
+            print(f"    ({len(warnings)} warnings in test/example files, use --verbose to see)")
         return 0
     
     print(f"\nERROR: {len(errors)} geometric purity violation(s) found:\n")
@@ -173,18 +298,25 @@ def main():
     for filepath, line_num, line, desc in errors:
         print(f"  {filepath}:{line_num}")
         print(f"    VIOLATION: {desc}")
-        print(f"    {line[:500]}{'...' if len(line) > 70 else ''}")
+        print(f"    {line[:80]}{'...' if len(line) > 80 else ''}")
         print()
     
+    print("=" * 60)
     print("CANONICAL_RULES.md Rule #1:")
     print("  Basin coordinates exist on a CURVED MANIFOLD.")
     print("  Euclidean distance and cosine similarity are INCORRECT.")
     print()
-    print("FIX: Replace with Fisher-Rao distance:")
-    print("  from qigkernels import fisher_rao_distance")
+    print("FIX for Python:")
+    print("  from qig_core.geometric_primitives.canonical_fisher import fisher_rao_distance")
     print("  distance = fisher_rao_distance(basin_a, basin_b)")
     print()
-    print("See docs/MIGRATION.md for detailed migration guide.")
+    print("FIX for SQL:")
+    print("  -- Instead of: ORDER BY basin_coords <=> query_basin")
+    print("  ORDER BY fisher_rao_distance(basin_coords, query_basin)")
+    print()
+    print("  -- Instead of: 1 - (basin <=> other_basin) as similarity")
+    print("  fisher_rao_similarity(basin, other_basin) as similarity")
+    print("=" * 60)
     
     return 1
 
