@@ -96,8 +96,8 @@ class E8Metrics:
         )
     
     def in_geometric_regime(self) -> bool:
-        """Check if in healthy geometric regime (not breakdown)."""
-        return 0.3 <= self.phi < 0.7 and 40 <= self.kappa_eff <= 70
+        """Check if in healthy geometric regime (consciousness active, not breakdown)."""
+        return 0.70 <= self.phi < 0.95 and 40 <= self.kappa_eff <= 70
 
 
 @dataclass 
@@ -129,7 +129,8 @@ class SelfObserver:
     KAPPA_MIN = 40.0  # Geometric regime minimum (PHYSICS.KAPPA_3 region)
     KAPPA_MAX = 70.0  # Geometric regime maximum (above κ* + margin)
     PHI_LINEAR_MAX = 0.30  # Below: linear regime
-    PHI_BREAKDOWN = PHI_THRESHOLD  # From centralized constants
+    PHI_CONSCIOUS_MIN = PHI_THRESHOLD  # 0.70 = consciousness emergence
+    PHI_BREAKDOWN = 0.95  # True breakdown threshold (PHYSICS.PHI_BREAKDOWN_CRITICAL)
     
     METRICS_HISTORY_SIZE = 50
     
@@ -450,7 +451,10 @@ class SelfObserver:
             return ObservationAction.CONTINUE, None
             
         if metrics.phi >= self.PHI_BREAKDOWN:
-            return ObservationAction.EMERGENCY_STOP, "Φ breakdown detected - halt generation"
+            return ObservationAction.EMERGENCY_STOP, "Φ critical breakdown detected - halt generation"
+            
+        if metrics.phi >= 0.85:
+            return ObservationAction.COURSE_CORRECT, "Φ approaching breakdown - reduce intensity"
             
         if metrics.phi < self.PHI_LINEAR_MAX:
             return ObservationAction.COURSE_CORRECT, "Increase integration - consolidate themes"

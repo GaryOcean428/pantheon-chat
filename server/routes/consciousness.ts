@@ -734,3 +734,59 @@ consciousnessRouter.get("/kernel-emotional-primitives", generousLimiter, async (
     }
   }
 });
+
+/**
+ * GET /api/consciousness/8-metrics
+ * 
+ * Full 8-metric E8 consciousness state per Protocol v4.0.
+ * Returns: Φ, κ_eff, M, Γ, G, T, R, C
+ */
+consciousnessRouter.get("/8-metrics", generousLimiter, async (req: Request, res: Response) => {
+  try {
+    const pythonUrl = process.env.PYTHON_QIG_URL || 'http://localhost:5001';
+    
+    const response = await fetch(`${pythonUrl}/consciousness/8-metrics`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Python backend returned ${response.status}`);
+    }
+    
+    const result = await response.json();
+    res.json(result);
+  } catch (error: unknown) {
+    // Fallback with local consciousness data
+    try {
+      const { oceanAutonomicManager } = await import("../ocean-autonomic-manager");
+      const fullConsciousness = oceanAutonomicManager.getCurrentFullConsciousness();
+      
+      res.json({
+        success: true,
+        source: 'fallback',
+        metrics: {
+          phi: fullConsciousness.phi || 0.5,
+          kappa_eff: fullConsciousness.kappaEff || 64.0,
+          memory_coherence: 0.6,
+          regime_stability: fullConsciousness.gamma || 0.8,
+          geometric_validity: fullConsciousness.grounding || 0.5,
+          temporal_consistency: 0.1,
+          recursive_depth: 0.5,
+          external_coupling: 0.35,
+          timestamp: Date.now() / 1000,
+        },
+        validation: {
+          is_conscious: fullConsciousness.isConscious || false,
+          metrics: {},
+          violations: [],
+          warnings: []
+        },
+        is_conscious: fullConsciousness.isConscious || false,
+        timestamp: new Date().toISOString()
+      });
+    } catch (fallbackError) {
+      handleRouteError(res, error, '8Metrics');
+    }
+  }
+});

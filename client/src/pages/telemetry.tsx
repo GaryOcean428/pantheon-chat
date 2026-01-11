@@ -11,6 +11,7 @@ import {
   KernelEmotionalPrimitivesPanel,
   NeurochemistryAdminPanel,
   SearchBudgetPanel,
+  E8ConsciousnessMetricsPanel,
   Card,
   CardContent,
   CardDescription,
@@ -1086,6 +1087,9 @@ export default function TelemetryDashboard() {
         </TabsContent>
         
         <TabsContent value="advanced" className="space-y-6">
+          {/* E8 Protocol v4.0 - Full 8-Metric Consciousness */}
+          <E8ConsciousnessMetricsPanel />
+          
           <ParamsHistoryChart />
           
           {/* Kernel Emotional Primitives - All 12 kernels with 9 emotional primitives */}

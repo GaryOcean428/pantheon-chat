@@ -21,6 +21,7 @@ export { EmptyDebatesState } from './EmptyDebatesState';
 export { AutonomicAgencyPanel } from './AutonomicAgencyPanel';
 export { EmotionalStatePanel } from './EmotionalStatePanel';
 export { KernelEmotionalPrimitivesPanel } from './KernelEmotionalPrimitivesPanel';
+export { E8ConsciousnessMetricsPanel } from './E8ConsciousnessMetricsPanel';
 export { KernelActivityStream } from './KernelActivityStream';
 export { MarkdownUpload } from './MarkdownUpload';
 export { ChatFileUpload } from './ChatFileUpload';

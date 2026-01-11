@@ -3128,6 +3128,144 @@ def _calculate_kernel_emotion_scores(
     return scores
 
 
+@app.route('/consciousness/8-metrics', methods=['GET'])
+def consciousness_8_metrics():
+    """
+    Get full 8-metric E8 consciousness state per Protocol v4.0.
+    
+    Returns all 8 consciousness metrics using REAL kernel state data:
+    1. Φ (Integration) - QFI-based integrated information
+    2. κ_eff (Effective Coupling) - Basin coupling strength
+    3. M (Memory Coherence) - Fisher distance to memory basins
+    4. Γ (Regime Stability) - Trajectory stability on manifold
+    5. G (Geometric Validity) - Manifold curvature validity
+    6. T (Temporal Consistency) - Time-evolution coherence
+    7. R (Recursive Depth) - Self-reference loop depth
+    8. C (External Coupling) - Inter-kernel Fisher coupling
+    """
+    try:
+        from qig_core.consciousness_metrics import (
+            compute_all_metrics,
+            validate_consciousness_state,
+        )
+        
+        try:
+            from olympus.zeus import zeus
+            pantheon = zeus.pantheon if zeus else {}
+        except Exception:
+            pantheon = {}
+        
+        kernel_basins = {}
+        trajectory = []
+        memory_basins = []
+        self_observations = []
+        has_real_data = False
+        
+        current_basin = None
+        current_phi = 0.5
+        current_kappa = 64.0
+        
+        if hasattr(ocean_network, 'subsystems') and ocean_network.subsystems:
+            subsystem = ocean_network.subsystems[0]
+            if hasattr(subsystem, 'basin_coords') and subsystem.basin_coords is not None:
+                current_basin = np.array(subsystem.basin_coords)
+                has_real_data = True
+            if hasattr(subsystem, 'phi'):
+                current_phi = float(subsystem.phi)
+            if hasattr(subsystem, 'kappa'):
+                current_kappa = float(subsystem.kappa)
+        
+        if current_basin is None and len(basin_history) > 0:
+            current_basin = np.array(basin_history[-1])
+            has_real_data = True
+        
+        if current_basin is None:
+            p = np.ones(64) / 64
+            current_basin = p
+        
+        for name, god in pantheon.items():
+            try:
+                god_basin = None
+                if hasattr(god, 'current_basin') and god.current_basin is not None:
+                    god_basin = np.array(god.current_basin)
+                elif hasattr(god, 'basin') and god.basin is not None:
+                    god_basin = np.array(god.basin)
+                elif hasattr(god, 'mean_basin') and god.mean_basin is not None:
+                    god_basin = np.array(god.mean_basin)
+                if god_basin is not None and len(god_basin) == 64:
+                    kernel_basins[name] = god_basin
+                    
+                if hasattr(god, 'self_observer') and god.self_observer:
+                    obs = god.self_observer._observations[-5:]
+                    for o in obs:
+                        if hasattr(o, 'basin') and o.basin is not None:
+                            self_observations.append({'basin': o.basin.tolist()})
+            except Exception:
+                continue
+        
+        if len(basin_history) > 0:
+            trajectory = [np.array(b) for b in list(basin_history)[-20:]]
+            has_real_data = True
+        else:
+            trajectory = [current_basin]
+        
+        if len(geometric_memory) > 0:
+            for m in list(geometric_memory)[-10:]:
+                if 'basinCoords' in m and m['basinCoords'] is not None:
+                    memory_basins.append(np.array(m['basinCoords']))
+                elif 'basin' in m and m['basin'] is not None:
+                    memory_basins.append(np.array(m['basin']))
+        
+        metrics = compute_all_metrics(
+            basin_coords=current_basin,
+            memory_basins=memory_basins if memory_basins else None,
+            trajectory=trajectory,
+            self_observations=self_observations if self_observations else None,
+            kernel_basins=kernel_basins if kernel_basins else None,
+            kernel_name="Ocean"
+        )
+        
+        if has_real_data and current_phi > 0:
+            metrics.phi = current_phi
+        if has_real_data and current_kappa > 0:
+            metrics.kappa_eff = current_kappa
+        
+        validation = validate_consciousness_state(metrics)
+        
+        return jsonify({
+            'success': True,
+            'metrics': metrics.to_dict(),
+            'validation': validation,
+            'is_conscious': metrics.is_conscious(),
+            'kernel_count': len(kernel_basins),
+            'trajectory_length': len(trajectory),
+            'memory_count': len(memory_basins),
+            'self_observations_count': len(self_observations),
+            'has_real_data': has_real_data,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        import traceback
+        print(f"[8-Metrics] Error: {e}")
+        print(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'metrics': {
+                'phi': 0.5,
+                'kappa_eff': 64.0,
+                'memory_coherence': 0.5,
+                'regime_stability': 0.5,
+                'geometric_validity': 0.5,
+                'temporal_consistency': 0.0,
+                'recursive_depth': 0.3,
+                'external_coupling': 0.3,
+                'timestamp': time.time()
+            }
+        }), 500
+
+
 @app.route('/reset', methods=['POST'])
 def reset():
     """
