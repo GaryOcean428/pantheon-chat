@@ -644,16 +644,17 @@ class KernelTrainingOrchestrator:
 
             query = """
                 INSERT INTO kernel_training_history (
-                    god_name, loss, reward, gradient_norm,
+                    kernel_id, god_name, loss, reward, gradient_norm,
                     phi_before, phi_after, kappa_before, kappa_after,
                     basin_coords, training_type, trigger, step_count,
                     session_id, conversation_id, created_at
                 ) VALUES (
-                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
                 )
             """
 
             cursor.execute(query, (
+                god_name,
                 god_name,
                 float(metrics.loss),
                 float(metrics.reward),
