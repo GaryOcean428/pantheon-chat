@@ -896,11 +896,12 @@ class QIGGenerator:
             conn = psycopg2.connect(self._db_url)
             with conn.cursor() as cur:
                 # Query word_relationships for context
+                # Uses existing column names: word, neighbor, cooccurrence_count
                 cur.execute("""
-                    SELECT word_b, co_occurrence, fisher_distance, avg_phi
+                    SELECT neighbor, cooccurrence_count, fisher_distance, COALESCE(avg_phi, 0.5)
                     FROM word_relationships
-                    WHERE word_a = ANY(%s)
-                    ORDER BY avg_phi DESC, co_occurrence DESC
+                    WHERE word = ANY(%s)
+                    ORDER BY avg_phi DESC NULLS LAST, cooccurrence_count DESC NULLS LAST
                     LIMIT %s
                 """, (recent_words, max_relationships))
                 
@@ -910,11 +911,12 @@ class QIGGenerator:
             
             # Build relationship scores
             relationship_scores = {}
-            for word_b, co_occ, fisher_dist, avg_phi in relationships:
+            for neighbor, co_occ, fisher_dist, avg_phi in relationships:
                 # Score = Φ (geometric coherence) + frequency
-                score = avg_phi * 0.7 + min(co_occ / 10.0, 1.0) * 0.3
-                relationship_scores[word_b] = max(
-                    relationship_scores.get(word_b, 0.0),
+                co_occ_val = float(co_occ) if co_occ else 1.0
+                score = avg_phi * 0.7 + min(co_occ_val / 10.0, 1.0) * 0.3
+                relationship_scores[neighbor] = max(
+                    relationship_scores.get(neighbor, 0.0),
                     score
                 )
             
