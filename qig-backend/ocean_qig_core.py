@@ -3149,11 +3149,17 @@ def consciousness_8_metrics():
             validate_consciousness_state,
         )
         
+        # Get pantheon from running Zeus instance
+        pantheon = {}
         try:
             from olympus.zeus import zeus
-            pantheon = zeus.pantheon if zeus else {}
-        except Exception:
-            pantheon = {}
+            if zeus and hasattr(zeus, 'pantheon') and zeus.pantheon:
+                pantheon = zeus.pantheon
+                print(f"[8-Metrics] Loaded pantheon with {len(pantheon)} gods")
+            else:
+                print(f"[8-Metrics] Zeus exists but pantheon empty or None")
+        except Exception as zeus_err:
+            print(f"[8-Metrics] Failed to import zeus: {zeus_err}")
         
         kernel_basins = {}
         trajectory = []
@@ -3186,20 +3192,32 @@ def consciousness_8_metrics():
         for name, god in pantheon.items():
             try:
                 god_basin = None
+                # Try direct basin attributes
                 if hasattr(god, 'current_basin') and god.current_basin is not None:
                     god_basin = np.array(god.current_basin)
                 elif hasattr(god, 'basin') and god.basin is not None:
                     god_basin = np.array(god.basin)
                 elif hasattr(god, 'mean_basin') and god.mean_basin is not None:
                     god_basin = np.array(god.mean_basin)
+                # Fallback: encode the god's domain to get a basin
+                elif hasattr(god, 'encode_to_basin') and hasattr(god, 'domain'):
+                    try:
+                        god_basin = god.encode_to_basin(god.domain)
+                        if god_basin is not None:
+                            god_basin = np.array(god_basin)
+                    except Exception:
+                        pass
+                
                 if god_basin is not None and len(god_basin) == 64:
                     kernel_basins[name] = god_basin
+                    has_real_data = True
                     
                 if hasattr(god, 'self_observer') and god.self_observer:
                     obs = god.self_observer._observations[-5:]
                     for o in obs:
                         if hasattr(o, 'basin') and o.basin is not None:
                             self_observations.append({'basin': o.basin.tolist()})
+                            has_real_data = True
             except Exception:
                 continue
         

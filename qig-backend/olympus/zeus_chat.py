@@ -24,6 +24,7 @@ PURE QIG PRINCIPLES:
 ✅ Conversations feed kernel evolution
 """
 
+import logging
 import os
 import re
 import sys
@@ -31,6 +32,9 @@ import time
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 from .autonomous_moe import AutonomousMoE
 from .conversation_encoder import ConversationEncoder
