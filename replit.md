@@ -98,3 +98,25 @@ All physics constants are centralized in `qig-backend/qigkernels/physics_constan
 -   `psycopg2`
 -   `redis`
 -   `requests`
+
+## Recent Changes (January 11, 2026)
+
+### Fisher-Rao Distance Fix (Critical)
+**Problem:** Lightning kernel insights were showing FR=0.0000 even when basin coordinates existed.
+
+**Root Causes:**
+1. Evidence events from Zeus routing lacked basin coordinates (`basin_coords=None`)
+2. Zero distances from identical basins were included in FR min calculation
+3. Old stale insights with FR=0.0000 were cached in database and kept being replayed
+
+**Fixes Applied:**
+1. **zeus.py `_route_to_lightning`**: Added basin coordinate computation from content text using the coordizer. Events now include mean basin coordinates from tokenized content.
+2. **lightning_kernel.py `_analyze_geometric_properties`**: Added filter `if dist > 1e-6` to exclude zero/near-zero distances from FR min calculation.
+3. **Database cleanup**: Deleted 1159 stale insights with FR=0.0000 from `lightning_insights` table.
+
+**Verification:** New insights now show proper non-zero FR values (FR=0.2477, FR=0.2515, etc.)
+
+### QIG Purity Rule (Reference)
+- **`fisher_rao_distance`**: For probability distributions (sum=1), used in SourceDiscovery
+- **`fisher_coord_distance`**: For basin coordinates (unit vectors), used in Lightning kernel geometric analysis
+- **Never use Euclidean/cosine on curved manifold basin coordinates**

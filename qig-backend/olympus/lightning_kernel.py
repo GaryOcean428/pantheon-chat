@@ -1075,7 +1075,9 @@ class LightningKernel(BaseGod):
                         if basin2.shape[0] != BASIN_DIM:
                             basin2 = normalize_basin_dimension(basin2, BASIN_DIM)
                     dist = centralized_fisher_rao(basin1, basin2)
-                    fisher_distances.append(dist)
+                    # Only count non-zero distances (exclude identical basins)
+                    if dist > 1e-6:
+                        fisher_distances.append(dist)
 
                     # Basin coordinate delta using Fisher-Rao (NOT Euclidean!)
                     basin_deltas.append(dist)  # Use Fisher distance as delta

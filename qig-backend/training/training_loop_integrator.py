@@ -309,6 +309,54 @@ class TrainingLoopIntegrator:
         except Exception as e:
             print(f"[TrainingLoopIntegrator] Prediction recording error: {e}")
     
+    def queue_training_sample(
+        self,
+        god_name: str,
+        target: str,
+        outcome: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Queue a training sample for later processing.
+        
+        Called after skill completion attempts to capture learning opportunities.
+        
+        Args:
+            god_name: Name of the god that produced the outcome
+            target: The target/skill that was attempted
+            outcome: Dict with success, phi, error, domain keys
+        
+        Returns:
+            Status of queuing operation
+        """
+        if not self._training_active:
+            return {"status": "training_disabled", "queued": False}
+        
+        try:
+            success = outcome.get('success', False)
+            phi = outcome.get('phi', 0.7)
+            domain = outcome.get('domain', 'general')
+            
+            # If orchestrator is available, train immediately
+            if self.orchestrator:
+                metrics = self.train_from_outcome(
+                    god_name=god_name,
+                    prompt=target,
+                    response=str(outcome),
+                    success=success,
+                    phi=phi,
+                    kappa=64.21,
+                    coherence_score=phi
+                )
+                return {"status": "trained", "queued": True, "metrics": metrics}
+            
+            # Otherwise just log it
+            print(f"[TrainingLoopIntegrator] Queued sample for {god_name}: {domain}, phi={phi:.3f}")
+            return {"status": "queued", "queued": True, "god": god_name, "domain": domain}
+            
+        except Exception as e:
+            print(f"[TrainingLoopIntegrator] Queue error: {e}")
+            return {"status": "error", "queued": False, "error": str(e)}
+    
     def get_training_status(self) -> Dict[str, Any]:
         """Get status of all training components."""
         status = {

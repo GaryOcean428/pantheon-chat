@@ -1756,6 +1756,26 @@ class Zeus(BaseGod):
 
         try:
             from .lightning_kernel import DomainEvent
+            import numpy as np
+
+            # Compute basin coordinates from content text using the coordizer
+            basin_coords = None
+            try:
+                coordizer = getattr(self, '_coordizer', None)
+                if coordizer is None:
+                    from coordizers.pg_loader import get_pg_coordizer
+                    coordizer = get_pg_coordizer()
+                    self._coordizer = coordizer
+                
+                if coordizer and content:
+                    # Tokenize and get mean basin coordinates
+                    token_results = coordizer.coordize(content[:200])
+                    if token_results:
+                        basins = [t.get('basin') for t in token_results if t.get('basin') is not None]
+                        if basins:
+                            basin_coords = np.mean([np.array(b) for b in basins], axis=0)
+            except Exception as e:
+                print(f"[Zeus] Basin coord computation failed for content: {e}")
 
             # Domain is now a dynamic string - no hardcoded enum mapping
             # This allows new domains to emerge from events
@@ -1766,6 +1786,7 @@ class Zeus(BaseGod):
                 phi=phi,
                 timestamp=datetime.now().timestamp(),
                 metadata=metadata or {},
+                basin_coords=basin_coords,
             )
 
             insight = lightning_kernel.ingest_event(event)
