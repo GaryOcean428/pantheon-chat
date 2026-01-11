@@ -2039,7 +2039,10 @@ class BaseGod(*_base_classes):
         # Lazy load broadcaster module
         broadcaster_mod = _get_activity_broadcaster_module()
         if not broadcaster_mod or not ACTIVITY_BROADCASTER_AVAILABLE:
+            logger.debug(f"[{self.name}] broadcast_activity skipped: mod={bool(broadcaster_mod)}, available={ACTIVITY_BROADCASTER_AVAILABLE}")
             return
+        
+        logger.debug(f"[{self.name}] broadcast_activity: type={activity_type}, content={content[:50]}...")
         
         try:
             get_broadcaster = broadcaster_mod.get('get_broadcaster')

@@ -1767,15 +1767,21 @@ class Zeus(BaseGod):
                     coordizer = get_coordizer()
                     self._coordizer = coordizer
                 
-                if coordizer and content:
+                if coordizer and content and content.strip():
                     # Tokenize and get mean basin coordinates
                     token_results = coordizer.coordize(content[:200])
                     if token_results:
-                        basins = [t.get('basin') for t in token_results if t.get('basin') is not None]
+                        # Filter out <UNK> tokens and None basins
+                        basins = [
+                            t.get('basin') for t in token_results 
+                            if t.get('basin') is not None and t.get('token') != '<UNK>'
+                        ]
                         if basins:
                             basin_coords = np.mean([np.array(b) for b in basins], axis=0)
             except Exception as e:
-                print(f"[Zeus] Basin coord computation failed for content: {e}")
+                # Only log actual errors, not expected <UNK> cases
+                if '<UNK>' not in str(e):
+                    print(f"[Zeus] Basin coord computation failed: {e}")
 
             # Domain is now a dynamic string - no hardcoded enum mapping
             # This allows new domains to emerge from events

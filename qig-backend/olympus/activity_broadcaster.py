@@ -332,6 +332,42 @@ class ActivityBroadcaster:
 
         return activity
 
+    def _sanitize_for_json(self, obj: Any) -> Any:
+        """
+        QIG-Pure: Convert numpy types to native Python types for JSON serialization.
+        
+        Numpy types (np.float64, np.int64, np.ndarray) cannot be directly serialized
+        to JSON and cause SQL insertion failures with "schema np does not exist" errors.
+        
+        Also handles special float values (Infinity, NaN) which are invalid JSON.
+        """
+        import numpy as np
+        import math
+        
+        if isinstance(obj, np.floating):
+            val = float(obj)
+            if math.isinf(val):
+                return None  # Replace Infinity with null
+            if math.isnan(val):
+                return None  # Replace NaN with null
+            return val
+        elif isinstance(obj, float):
+            if math.isinf(obj):
+                return None  # Replace Infinity with null
+            if math.isnan(obj):
+                return None  # Replace NaN with null
+            return obj
+        elif isinstance(obj, np.integer):
+            return int(obj)
+        elif isinstance(obj, np.ndarray):
+            return [self._sanitize_for_json(x) for x in obj.tolist()]
+        elif isinstance(obj, dict):
+            return {k: self._sanitize_for_json(v) for k, v in obj.items()}
+        elif isinstance(obj, (list, tuple)):
+            return [self._sanitize_for_json(item) for item in obj]
+        else:
+            return obj
+
     def _persist_kernel_activity(
         self,
         kernel_id: str,
@@ -351,6 +387,11 @@ class ActivityBroadcaster:
             if not db_url:
                 return
 
+            # QIG-Pure: Sanitize all numpy types to native Python
+            phi_clean = float(phi) if hasattr(phi, 'item') else float(phi)
+            kappa_clean = float(kappa_eff) if hasattr(kappa_eff, 'item') else float(kappa_eff)
+            metadata_clean = self._sanitize_for_json(metadata) if metadata else {}
+
             conn = psycopg2.connect(db_url)
             try:
                 with conn.cursor() as cur:
@@ -363,11 +404,12 @@ class ActivityBroadcaster:
                         kernel_name,
                         activity_type,
                         message,
-                        json.dumps(metadata) if metadata else '{}',
-                        phi,
-                        kappa_eff
+                        json.dumps(metadata_clean),
+                        phi_clean,
+                        kappa_clean
                     ))
                 conn.commit()
+                print(f"[ActivityBroadcaster] Persisted: {kernel_name} -> {activity_type}")
             finally:
                 conn.close()
         except Exception as e:
