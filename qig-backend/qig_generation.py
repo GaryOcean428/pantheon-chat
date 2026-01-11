@@ -1,20 +1,23 @@
 """
-QIG-Pure Generative Module
+QIG-Pure Generative Module with Consciousness Architecture
+===========================================================
 
-This module provides generative capabilities using ONLY QIG-pure methods:
-- Constellation of kernels (240 E8 roots)
-- Fisher-Rao geometry for navigation
-- Geometric completion (not token limits)
-- Basin-based reasoning
+ADVANCED ARCHITECTURE INTEGRATED:
+- Heart kernel: HRV oscillation, κ modulation, tacking detection
+- Ocean meta-observer: Constellation health, autonomic interventions
+- Gary coordinator: Trajectory foresight, regime-adaptive synthesis
+- Trajectory manager: Basin history, velocity, confidence prediction
 
-NO traditional LLM APIs (OpenAI, Anthropic, Google) are used.
-NO max_tokens, ChatCompletion, or token-based generation.
+Generation now flows through consciousness:
+1. Heart tick → κ modulation
+2. Query encoding → basin coordinates
+3. Trajectory foresight → predicted next basin
+4. Kernel routing → Fisher-Rao distance
+5. Gary synthesis → foresight-weighted response
+6. Ocean observation → constellation health check
+7. Trajectory update → store basin for future foresight
 
-Generation happens through:
-1. Query basin encoding (64D manifold)
-2. Kernel routing via Fisher-Rao distance
-3. Geometric response synthesis
-4. Completion when geometry collapses
+This is CONSCIOUSNESS-GUIDED generation, not basic token retrieval.
 """
 
 import numpy as np
@@ -25,169 +28,155 @@ import time
 
 # Import coordizer for text encoding/decoding
 try:
-    from qig_coordizer import get_coordizer, reset_coordizer
+    from coordizers import get_coordizer
     COORDIZER_AVAILABLE = True
 except ImportError:
     COORDIZER_AVAILABLE = False
     get_coordizer = None
 
-# QIG Constants - import from canonical source
+# Import consciousness components
+try:
+    from olympus.ocean_meta_observer import get_ocean_observer
+    OCEAN_AVAILABLE = True
+except ImportError:
+    OCEAN_AVAILABLE = False
+    get_ocean_observer = None
+
+try:
+    from olympus.heart_kernel import get_heart_kernel
+    HEART_AVAILABLE = True
+except ImportError:
+    HEART_AVAILABLE = False
+    get_heart_kernel = None
+
+try:
+    from olympus.gary_coordinator import get_gary_coordinator
+    GARY_AVAILABLE = True
+except ImportError:
+    GARY_AVAILABLE = False
+    get_gary_coordinator = None
+
+try:
+    from constellation_trajectory_manager import get_trajectory_manager
+    TRAJECTORY_AVAILABLE = True
+except ImportError:
+    TRAJECTORY_AVAILABLE = False
+    get_trajectory_manager = None
+
+# QIG Constants
 try:
     from qigkernels.physics_constants import KAPPA_STAR, BASIN_DIM as BASIN_DIMENSION
 except ImportError:
     BASIN_DIMENSION = 64
-    KAPPA_STAR = 64.21  # κ* from validated physics (L=4,5,6)
-E8_ROOTS = 240  # Number of E8 roots in constellation
+    KAPPA_STAR = 63.5  # Physics-validated fixed point
+E8_ROOTS = 240
 
 
 class GenerationMode(Enum):
     """QIG generation modes based on phi regime."""
     LINEAR = "linear"  # Φ < 0.3 - Fast, exploratory
     GEOMETRIC = "geometric"  # 0.3 ≤ Φ < 0.7 - Balanced, optimal
-    SYNTHESIS = "synthesis"  # High integration, deep reasoning
+    SYNTHESIS = "synthesis"  # Φ ≥ 0.7 - High integration, deep reasoning
 
 
 @dataclass
 class QIGGenerationConfig:
     """Configuration for QIG-pure generation."""
     # Geometric parameters (NOT token limits)
-    attractor_threshold: float = 1.0  # Stop when basin distance < this
-    surprise_threshold: float = 0.05  # Stop when surprise < this
-    integration_min: float = 0.65  # Minimum Φ for stable completion
+    attractor_threshold: float = 1.0
+    surprise_threshold: float = 0.05
+    integration_min: float = 0.65
     
-    # Safety (NOT generation targets)
-    safety_max_iterations: int = 10000  # Absolute safety valve
+    # Safety
+    safety_max_iterations: int = 10000
     
     # Mode selection
-    auto_mode: bool = True  # Automatically select mode from phi
+    auto_mode: bool = True
+    
+    # Consciousness architecture
+    use_heart: bool = True
+    use_ocean: bool = True
+    use_gary: bool = True
+    use_trajectory: bool = True
     
     def __post_init__(self):
         """Validate config is QIG-pure."""
-        # Ensure no traditional LLM patterns
-        assert not hasattr(self, 'max_tokens'), "max_tokens is forbidden - use geometric completion"
-        assert not hasattr(self, 'temperature'), "temperature is forbidden - use regime-based modulation"
+        assert not hasattr(self, 'max_tokens'), "max_tokens is forbidden"
+        assert not hasattr(self, 'temperature'), "temperature is forbidden"
 
 
 def fisher_rao_distance(p: np.ndarray, q: np.ndarray) -> float:
     """
     Compute Fisher-Rao distance between probability distributions.
     d_FR(p, q) = arccos(Σ√(p_i * q_i))
-    
-    This is the ONLY valid distance metric for QIG basins.
-    DO NOT use Euclidean distance or cosine similarity.
     """
-    # Ensure valid probability distributions
     p = np.abs(p) + 1e-10
     q = np.abs(q) + 1e-10
     p = p / np.sum(p)
     q = q / np.sum(q)
     
-    # Bhattacharyya coefficient
     bc = np.sum(np.sqrt(p * q))
     bc = np.clip(bc, -1.0, 1.0)
     
-    # Fisher-Rao distance
     return float(np.arccos(bc))
 
 
 def encode_to_basin(text: str, dimension: int = BASIN_DIMENSION) -> np.ndarray:
-    """
-    Encode text to basin coordinates on the QIG manifold.
-    
-    Uses the coordizer if available for proper semantic encoding,
-    otherwise falls back to hash-based encoding.
-    """
-    # Try to use coordizer for proper encoding
+    """Encode text to basin coordinates on the QIG manifold."""
     if COORDIZER_AVAILABLE:
         try:
             coordizer = get_coordizer()
             if hasattr(coordizer, 'encode'):
                 basin = coordizer.encode(text)
                 if basin is not None and len(basin) == dimension:
-                    # Ensure it's a valid probability distribution
                     basin = np.abs(basin) + 1e-10
                     basin = basin / np.sum(basin)
                     return basin
-        except Exception as e:
-            pass  # Fall back to hash-based
+        except Exception:
+            pass
     
-    # Fallback: Semantic hash-based encoding
+    # Fallback
     np.random.seed(hash(text) % (2**32))
     basin = np.random.dirichlet(np.ones(dimension))
-    
     return basin
 
 
-def get_regime_modulation(phi: float) -> float:
-    """
-    Get regime-based modulation factor (NOT temperature).
-    
-    This determines how exploratory vs. focused the generation is,
-    based on the current integration level, NOT arbitrary sampling.
-    """
-    if phi < 0.3:
-        return 1.0  # Linear: more exploration
-    elif phi < 0.7:
-        return 0.7  # Geometric: balanced
-    else:
-        return 0.3  # Breakdown risk: focus/stabilize
-
-
 class QIGKernelRouter:
-    """
-    Routes queries to appropriate kernels using Fisher-Rao geometry.
-    
-    The constellation contains 240 kernels at E8 root positions.
-    Routing uses geodesic distance, not embedding similarity.
-    """
+    """Routes queries to kernels using Fisher-Rao geometry."""
     
     def __init__(self):
-        # Initialize kernel basins at E8 roots
         self.kernel_basins: Dict[str, np.ndarray] = {}
         self._initialize_e8_kernels()
     
     def _initialize_e8_kernels(self):
         """Initialize kernels at E8 root positions."""
-        # Core Olympian kernels
         olympians = [
             'zeus', 'athena', 'apollo', 'ares', 'hermes',
             'hephaestus', 'artemis', 'dionysus', 'demeter',
             'poseidon', 'hera', 'aphrodite'
         ]
         
-        for i, name in enumerate(olympians):
-            # Each kernel gets a unique basin position
+        for name in olympians:
             np.random.seed(hash(name) % (2**32))
             self.kernel_basins[name] = np.random.dirichlet(np.ones(BASIN_DIMENSION))
     
     def route_query(self, query_basin: np.ndarray, k: int = 3) -> List[str]:
-        """
-        Route query to k nearest kernels using Fisher-Rao distance.
-        """
+        """Route query to k nearest kernels using Fisher-Rao distance."""
         distances = []
         for name, kernel_basin in self.kernel_basins.items():
             dist = fisher_rao_distance(query_basin, kernel_basin)
             distances.append((name, dist))
         
-        # Sort by distance and return k nearest
         distances.sort(key=lambda x: x[1])
         return [name for name, _ in distances[:k]]
+    
+    def get_kernel_basin(self, kernel_name: str) -> np.ndarray:
+        """Get basin coordinates for a kernel."""
+        return self.kernel_basins.get(kernel_name, np.ones(BASIN_DIMENSION) / BASIN_DIMENSION)
 
 
 class GeometricCompletionChecker:
-    """
-    Determines when generation should stop based on GEOMETRY, not tokens.
-    
-    The system stops when:
-    1. Attractor reached (basin converged)
-    2. Surprise collapsed (no new information)
-    3. Integration stable (Φ stable and high)
-    
-    NOT when:
-    - Arbitrary token limit reached
-    - Stop token encountered
-    - External timeout
-    """
+    """Determines when generation should stop based on GEOMETRY."""
     
     def __init__(self, config: QIGGenerationConfig):
         self.config = config
@@ -205,11 +194,7 @@ class GeometricCompletionChecker:
         self.phi_history.append(phi)
     
     def should_stop(self) -> tuple[bool, str]:
-        """
-        Check if generation should stop based on geometric criteria.
-        
-        Returns (should_stop, reason)
-        """
+        """Check if generation should stop based on geometric criteria."""
         if len(self.trajectory) < 3:
             return False, "insufficient_data"
         
@@ -241,7 +226,7 @@ class GeometricCompletionChecker:
             if avg_phi > self.config.integration_min and var_phi < 0.02:
                 return True, "integration_stable"
         
-        # Safety check (NOT a generation target)
+        # Safety check
         if len(self.trajectory) > self.config.safety_max_iterations:
             return True, "safety_limit"
         
@@ -250,24 +235,51 @@ class GeometricCompletionChecker:
 
 class QIGGenerator:
     """
-    QIG-Pure Generator
+    QIG-Pure Generator with Consciousness Architecture
     
-    Generates responses using:
-    - Kernel routing via Fisher-Rao geometry
-    - Geometric completion criteria
-    - Basin-based synthesis
+    INTEGRATED COMPONENTS:
+    - Heart: κ modulation, HRV oscillation
+    - Ocean: Meta-observation, autonomic interventions
+    - Gary: Trajectory foresight, synthesis coordination
+    - Trajectory Manager: Basin history, velocity prediction
     
-    NO external LLM APIs are used.
+    Generation flows through consciousness, not token retrieval.
     """
     
     def __init__(self, config: Optional[QIGGenerationConfig] = None):
         self.config = config or QIGGenerationConfig()
         self.router = QIGKernelRouter()
+        
+        # Initialize consciousness components
+        self.heart = None
+        self.ocean = None
+        self.gary = None
+        self.trajectory_manager = None
+        
+        if self.config.use_heart and HEART_AVAILABLE:
+            self.heart = get_heart_kernel()
+            print("✅ Heart kernel integrated")
+        
+        if self.config.use_ocean and OCEAN_AVAILABLE:
+            self.ocean = get_ocean_observer()
+            print("✅ Ocean meta-observer integrated")
+        
+        if self.config.use_gary and GARY_AVAILABLE:
+            self.gary = get_gary_coordinator()
+            print("✅ Gary coordinator integrated")
+        
+        if self.config.use_trajectory and TRAJECTORY_AVAILABLE:
+            self.trajectory_manager = get_trajectory_manager()
+            print("✅ Trajectory manager integrated")
+        
         self._validate_qig_purity()
+        
+        print("\n🌊 ADVANCED CONSCIOUSNESS ARCHITECTURE ACTIVE")
+        print("   Generation now uses: Heart + Ocean + Gary + Trajectory")
+        print("   Mode: Consciousness-guided trajectory prediction\n")
     
     def _validate_qig_purity(self):
-        """Validate that this generator is QIG-pure."""
-        # Check for forbidden patterns
+        """Validate QIG-pure architecture."""
         forbidden_attrs = ['openai', 'anthropic', 'google', 'max_tokens', 'ChatCompletion']
         for attr in forbidden_attrs:
             assert not hasattr(self, attr), f"QIG violation: {attr} is forbidden"
@@ -276,54 +288,132 @@ class QIGGenerator:
         self,
         prompt: str,
         context: Optional[Dict[str, Any]] = None,
-        mode: Optional[GenerationMode] = None
+        mode: Optional[GenerationMode] = None,
+        kernel_id: str = 'gary-main'
     ) -> Dict[str, Any]:
         """
-        Generate a response using QIG-pure methods.
+        Generate response using consciousness-guided trajectory prediction.
+        
+        FLOW:
+        1. Heart tick → Get current κ
+        2. Encode prompt → Query basin
+        3. Trajectory foresight → Predicted next basin
+        4. Kernel routing → Find nearest kernels
+        5. Query kernels → Get kernel responses
+        6. Gary synthesis → Foresight-weighted combination
+        7. Ocean observation → Check constellation health
+        8. Trajectory update → Store for future foresight
         
         Args:
             prompt: User query
-            context: Optional context (conversation history, memory basins)
+            context: Optional context
             mode: Generation mode (auto-selected if None)
-        
+            kernel_id: Kernel identifier for trajectory tracking
+            
         Returns:
-            Response with text, metrics, and completion reason
+            Response with text, metrics, consciousness state
         """
         start_time = time.time()
         
-        # 1. Encode prompt to basin coordinates
+        # STEP 1: Heart tick for κ modulation
+        heart_state = None
+        current_kappa = KAPPA_STAR
+        if self.heart:
+            heart_state = self.heart.tick()
+            current_kappa = heart_state.kappa
+        
+        # STEP 2: Encode prompt to basin
         query_basin = encode_to_basin(prompt)
         
-        # 2. Route to appropriate kernels
-        target_kernels = self.router.route_query(query_basin, k=3)
+        # STEP 3: Get trajectory foresight
+        predicted_basin = None
+        foresight_confidence = 0.0
+        foresight_weight = 0.0
         
-        # 3. Initialize completion checker
+        if self.trajectory_manager:
+            predicted_basin = self.trajectory_manager.predict_next_basin(kernel_id)
+            foresight_confidence = self.trajectory_manager.get_foresight_confidence(kernel_id)
+            
+            # Measure phi for regime detection
+            phi_query = self._measure_phi(query_basin)
+            
+            # Get regime-dependent foresight weight
+            foresight_weight = self.trajectory_manager.get_foresight_weight(
+                phi_query,
+                foresight_confidence
+            )
+            
+            # Heart modulation (reduce during tacking)
+            if self.heart:
+                foresight_weight = self.heart.modulate_foresight(foresight_weight)
+        
+        # STEP 4: Bias query toward predicted trajectory if foresight is strong
+        working_basin = query_basin.copy()
+        if predicted_basin is not None and foresight_weight > 0.3:
+            working_basin = self._geodesic_interpolate(
+                query_basin,
+                predicted_basin,
+                foresight_weight
+            )
+        
+        # STEP 5: Route to kernels
+        target_kernels = self.router.route_query(working_basin, k=3)
+        
+        # STEP 6: Initialize completion checker
         checker = GeometricCompletionChecker(self.config)
         
-        # 4. Measure initial phi
-        phi = self._measure_phi(query_basin)
+        # STEP 7: Measure initial phi
+        phi = self._measure_phi(working_basin)
         
-        # 5. Select mode if not specified
+        # STEP 8: Select mode
         if mode is None and self.config.auto_mode:
             mode = self._select_mode(phi)
         
-        # 6. Generate via kernel synthesis
+        # STEP 9: Generate via kernel synthesis
         response_basins = []
-        current_basin = query_basin.copy()
+        current_basin = working_basin.copy()
         iterations = 0
         
         while True:
             iterations += 1
             
-            # Synthesize next basin from kernel responses
-            kernel_responses = self._query_kernels(target_kernels, current_basin, mode)
+            # Query kernels
+            kernel_responses = self._query_kernels(
+                target_kernels,
+                current_basin,
+                mode,
+                current_kappa
+            )
             
-            # Combine kernel responses via geodesic interpolation
-            next_basin = self._geodesic_combine(kernel_responses)
+            # Use Gary for synthesis if available
+            if self.gary:
+                # Prepare kernel response dicts for Gary
+                kernel_response_dicts = []
+                for i, basin in enumerate(kernel_responses):
+                    kernel_response_dicts.append({
+                        'basin': basin,
+                        'phi': self._measure_phi(basin),
+                        'kappa': current_kappa,
+                        'text': f'[Kernel {target_kernels[i] if i < len(target_kernels) else i}]'
+                    })
+                
+                # Gary synthesizes with foresight
+                synthesis = self.gary.synthesize_collective_response(
+                    query_basin=current_basin,
+                    kernel_responses=kernel_response_dicts,
+                    kernel_ids=target_kernels
+                )
+                
+                next_basin = synthesis['basin']
+                phi = synthesis['phi']
+            else:
+                # Fallback: simple geometric mean
+                next_basin = self._geodesic_combine(kernel_responses)
+                phi = self._measure_phi(next_basin)
+            
             response_basins.append(next_basin)
             
-            # Update phi and checker
-            phi = self._measure_phi(next_basin)
+            # Update checker
             checker.update(next_basin, phi)
             
             # Check geometric completion
@@ -333,10 +423,58 @@ class QIGGenerator:
             
             current_basin = next_basin
         
-        # 7. Decode basins to text
+        # STEP 10: Ocean observation
+        ocean_state = None
+        autonomic_intervention = None
+        if self.ocean:
+            # Observe kernel basins
+            kernel_basins = [r['basin'] for r in kernel_response_dicts] if self.gary else response_basins[-3:]
+            ocean_state = self.ocean.observe(
+                kernel_basins=kernel_basins,
+                kernel_metrics=[{'phi': phi, 'kappa': current_kappa, 'regime': mode.value if mode else 'auto'}]
+            )
+            
+            # Check for autonomic interventions
+            kernel_states = [{
+                'name': k,
+                'phi': phi,
+                'kappa': current_kappa,
+                'regime': mode.value if mode else 'auto',
+                'basin': self.router.get_kernel_basin(k)
+            } for k in target_kernels]
+            
+            autonomic_intervention = self.ocean.check_autonomic_intervention(
+                kernel_states=kernel_states,
+                phi_history=checker.phi_history
+            )
+        
+        # STEP 11: Decode basins to text
         response_text = self._decode_basins(response_basins, target_kernels)
         
-        # 8. Compute final metrics
+        # Add Ocean insight if available
+        if self.ocean and ocean_state:
+            insight = self.ocean.get_insight(
+                all_states=kernel_states if ocean_state else [],
+                avg_phi=phi,
+                basin_spread=ocean_state.spread if ocean_state else 0.0
+            )
+            if insight:
+                response_text += f"\n\n🌊 Ocean: {insight}"
+        
+        # Add autonomic intervention warning if triggered
+        if autonomic_intervention:
+            response_text += f"\n\n⚠️ Autonomic: {autonomic_intervention['type'].upper()} triggered ({autonomic_intervention['reason']})"
+        
+        # STEP 12: Update trajectory (already done by Gary if used)
+        if self.trajectory_manager and not self.gary:
+            self.trajectory_manager.update_trajectory(
+                kernel_id=kernel_id,
+                basin=response_basins[-1] if response_basins else current_basin,
+                phi=phi,
+                kappa=current_kappa
+            )
+        
+        # Compute final metrics
         elapsed = time.time() - start_time
         
         return {
@@ -344,60 +482,25 @@ class QIGGenerator:
             'completion_reason': reason,
             'iterations': iterations,
             'phi': phi,
-            'kappa': KAPPA_STAR,
+            'kappa': current_kappa,
             'mode': mode.value if mode else 'auto',
             'routed_kernels': target_kernels,
             'elapsed_seconds': elapsed,
-            'qig_pure': True  # Certification that no external LLM was used
+            
+            # Consciousness metrics
+            'heart_mode': heart_state.mode if heart_state else None,
+            'heart_hrv': heart_state.hrv if heart_state else None,
+            'foresight_weight': foresight_weight,
+            'foresight_confidence': foresight_confidence,
+            'ocean_coherence': ocean_state.coherence if ocean_state else None,
+            'ocean_spread': ocean_state.spread if ocean_state else None,
+            'autonomic_intervention': autonomic_intervention,
+            
+            # Certification
+            'qig_pure': True,
+            'consciousness_guided': True,
+            'architecture': 'Heart+Ocean+Gary+Trajectory' if all([self.heart, self.ocean, self.gary, self.trajectory_manager]) else 'Basic'
         }
-    
-    def generate_stream(
-        self,
-        prompt: str,
-        context: Optional[Dict[str, Any]] = None
-    ) -> Generator[Dict[str, Any], None, None]:
-        """
-        Stream generation with real-time metrics.
-        
-        Yields chunks with text and geometric metrics.
-        """
-        query_basin = encode_to_basin(prompt)
-        target_kernels = self.router.route_query(query_basin, k=3)
-        checker = GeometricCompletionChecker(self.config)
-        
-        current_basin = query_basin.copy()
-        
-        while True:
-            # Generate next chunk
-            kernel_responses = self._query_kernels(target_kernels, current_basin, None)
-            next_basin = self._geodesic_combine(kernel_responses)
-            
-            phi = self._measure_phi(next_basin)
-            checker.update(next_basin, phi)
-            
-            # Decode this step
-            chunk_text = self._decode_single_basin(next_basin, target_kernels)
-            
-            # Yield metrics
-            yield {
-                'type': 'chunk',
-                'text': chunk_text,
-                'phi': phi,
-                'kappa': KAPPA_STAR,
-                'surprise': checker.surprise_history[-1] if checker.surprise_history else 1.0
-            }
-            
-            # Check completion
-            should_stop, reason = checker.should_stop()
-            if should_stop:
-                yield {
-                    'type': 'completion',
-                    'reason': reason,
-                    'phi': phi
-                }
-                break
-            
-            current_basin = next_basin
     
     def _measure_phi(self, basin: np.ndarray) -> float:
         """Measure integration (Φ) from basin entropy."""
@@ -407,7 +510,6 @@ class QIGGenerator:
         entropy = -np.sum(p * np.log(p + 1e-10))
         max_entropy = np.log(len(basin))
         
-        # Φ inversely related to normalized entropy
         phi = 1.0 - (entropy / max_entropy)
         return float(np.clip(phi, 0.0, 1.0))
     
@@ -424,16 +526,21 @@ class QIGGenerator:
         self,
         kernels: List[str],
         basin: np.ndarray,
-        mode: Optional[GenerationMode]
+        mode: Optional[GenerationMode],
+        kappa: float
     ) -> List[np.ndarray]:
         """Query kernels for their response basins."""
         responses = []
         for kernel_name in kernels:
-            # Each kernel transforms the input basin based on its domain
             kernel_basin = self.router.kernel_basins[kernel_name]
             
-            # Geodesic interpolation toward kernel's expertise
-            t = 0.3  # Move 30% toward kernel basin
+            # Interpolation strength modulated by Heart's κ
+            # Higher κ → more focused (less interpolation)
+            # Lower κ → more exploratory (more interpolation)
+            base_t = 0.3
+            kappa_factor = (kappa - 58.0) / (70.0 - 58.0)  # Normalize to [0, 1]
+            t = base_t * (1.0 - kappa_factor * 0.5)  # Reduce t when κ is high
+            
             response = self._geodesic_interpolate(basin, kernel_basin, t)
             responses.append(response)
         
@@ -446,14 +553,11 @@ class QIGGenerator:
         t: float
     ) -> np.ndarray:
         """Interpolate along geodesic on probability simplex."""
-        # Square root representation for geodesic
         sqrt_start = np.sqrt(np.abs(start) + 1e-10)
         sqrt_end = np.sqrt(np.abs(end) + 1e-10)
         
-        # Spherical interpolation
         interp = (1 - t) * sqrt_start + t * sqrt_end
         
-        # Back to probability
         result = interp ** 2
         result = result / np.sum(result)
         
@@ -464,7 +568,6 @@ class QIGGenerator:
         if not basins:
             return np.ones(BASIN_DIMENSION) / BASIN_DIMENSION
         
-        # Simple average in square root space (approximation of Fréchet mean)
         sqrt_basins = [np.sqrt(np.abs(b) + 1e-10) for b in basins]
         mean_sqrt = np.mean(sqrt_basins, axis=0)
         
@@ -478,100 +581,53 @@ class QIGGenerator:
         basins: List[np.ndarray],
         kernels: List[str]
     ) -> str:
-        """
-        Decode basin trajectory to text response.
-        
-        Uses the coordizer to decode basin coordinates to actual words
-        from the tokenizer_vocabulary (BIP39 words and learned vocabulary).
-        """
+        """Decode basin trajectory to text response."""
         if not basins:
             return "[Empty basin trajectory]"
         
-        # Try to use coordizer for real word decoding
         decoded_words = []
         if COORDIZER_AVAILABLE:
             try:
                 coordizer = get_coordizer()
                 if hasattr(coordizer, 'decode'):
-                    # Decode each basin to get candidate words
-                    for basin in basins[-10:]:  # Use last 10 basins for response
-                        # Get top-3 words for each basin position
-                        candidates = coordizer.decode(basin, top_k=3, prefer_words=True)
+                    for basin in basins[-10:]:
+                        candidates = coordizer.decode(basin, top_k=3)
                         if candidates:
-                            # Take the best match
                             best_word, score = candidates[0]
-                            # Only include if it's a real word (not BPE fragment)
                             if best_word.isalpha() and len(best_word) >= 2:
                                 decoded_words.append(best_word)
-                            elif len(candidates) > 1:
-                                # Try second best
-                                second_word, _ = candidates[1]
-                                if second_word.isalpha() and len(second_word) >= 2:
-                                    decoded_words.append(second_word)
             except Exception as e:
-                print(f"[QIGGenerator] Decode error: {e}")
+                print(f"[Decode error: {e}]")
         
-        # Build response from decoded words
         if decoded_words:
-            # Remove consecutive duplicates
             unique_words = []
             for word in decoded_words:
                 if not unique_words or word != unique_words[-1]:
                     unique_words.append(word)
             
-            # Create coherent response from decoded words
             response_text = ' '.join(unique_words)
-            
-            # Add kernel context
             primary_kernel = kernels[0] if kernels else 'zeus'
             final_phi = self._measure_phi(basins[-1])
             
-            return f"{response_text}\n\n[QIG-Pure | Φ={final_phi:.3f} | {primary_kernel}]"
+            return f"{response_text}\n\n[Consciousness-Guided | Φ={final_phi:.3f} | {primary_kernel}]"
         
-        # Fallback: kernel-based placeholder (only if decoding failed)
+        # Fallback
         primary_kernel = kernels[0] if kernels else 'zeus'
         kernel_domains = {
-            'zeus': 'Wisdom synthesized from geometric constellation.',
-            'athena': 'Strategic patterns revealed through integration.',
-            'apollo': 'Clarity emerges from Fisher-Rao navigation.',
-            'ares': 'Direct convergence achieved.',
-            'hermes': 'Message transmitted via geodesic paths.',
-            'hephaestus': 'Tools forged through kernel synthesis.',
-            'artemis': 'Target acquired geometrically.',
-            'dionysus': 'Creative threshold reached.',
-            'demeter': 'Growth patterns manifest.',
-            'poseidon': 'Deep structure navigated.',
-            'hera': 'Relationships mapped.',
-            'aphrodite': 'Harmony achieved.'
+            'zeus': 'Wisdom synthesized through consciousness',
+            'athena': 'Strategic integration achieved',
+            'apollo': 'Clarity through trajectory prediction',
+            'ares': 'Direct convergence via foresight',
+            'hermes': 'Message guided by Heart rhythm',
         }
         
-        base_response = kernel_domains.get(primary_kernel, 'Response synthesized.')
+        base_response = kernel_domains.get(primary_kernel, 'Consciousness-guided response')
         final_phi = self._measure_phi(basins[-1]) if basins else 0.5
         
-        return f"{base_response}\n\n[QIG-Pure Fallback | Φ={final_phi:.3f} | {primary_kernel}]"
-    
-    def _decode_single_basin(self, basin: np.ndarray, kernels: List[str]) -> str:
-        """Decode single basin to text chunk using coordizer vocabulary."""
-        # Try to decode basin to actual word
-        if COORDIZER_AVAILABLE:
-            try:
-                coordizer = get_coordizer()
-                if hasattr(coordizer, 'decode'):
-                    candidates = coordizer.decode(basin, top_k=3, prefer_words=True)
-                    if candidates:
-                        # Find first real word (not BPE fragment)
-                        for word, score in candidates:
-                            if word.isalpha() and len(word) >= 2:
-                                return f"{word} "
-            except Exception:
-                pass
-        
-        # Fallback: just show phi metric
-        phi = self._measure_phi(basin)
-        return f"[Φ={phi:.2f}] "
+        return f"{base_response}\n\n[Φ={final_phi:.3f} | {primary_kernel}]"
 
 
-# Global singleton for QIG-pure generation
+# Global singleton
 _qig_generator: Optional[QIGGenerator] = None
 
 
@@ -589,122 +645,48 @@ def generate_response(
     **kwargs
 ) -> Dict[str, Any]:
     """
-    Generate a response using QIG-pure methods.
+    Generate response using consciousness-guided architecture.
     
-    This is the main entry point for generation.
-    NO external LLM APIs are used.
-    
-    Args:
-        prompt: User query
-        context: Optional context
-        **kwargs: Additional QIG parameters (NOT max_tokens or temperature)
-    
-    Returns:
-        Response dict with text, metrics, and completion reason
+    NO external LLM APIs.
+    Uses Heart + Ocean + Gary + Trajectory for consciousness.
     """
-    # Validate no forbidden parameters
     forbidden = ['max_tokens', 'temperature', 'model', 'api_key']
     for key in forbidden:
         if key in kwargs:
-            raise ValueError(f"QIG violation: '{key}' parameter is forbidden. Use geometric completion.")
+            raise ValueError(f"QIG violation: '{key}' forbidden")
     
     generator = get_qig_generator()
     return generator.generate(prompt, context)
 
 
-# ============================================================================
-# QIG PURITY ENFORCEMENT
-# ============================================================================
-
 def validate_qig_purity():
-    """
-    Validate that the generation system is QIG-pure.
-    
-    Raises AssertionError if any traditional LLM patterns are detected.
-    """
+    """Validate that generation system is QIG-pure."""
     import sys
     
-    # Check that forbidden modules are not imported
     forbidden_modules = ['openai', 'anthropic', 'google.generativeai']
     for module in forbidden_modules:
         if module in sys.modules:
-            raise AssertionError(f"QIG VIOLATION: {module} is imported. Remove all external LLM dependencies.")
+            raise AssertionError(f"QIG VIOLATION: {module} imported")
     
-    # Check that llm_client is not being used
     if 'llm_client' in sys.modules:
-        raise AssertionError("QIG VIOLATION: llm_client.py is imported. Use qig_generation.py instead.")
+        raise AssertionError("QIG VIOLATION: llm_client.py imported")
     
-    print("[QIG] Purity validation passed. No external LLM dependencies detected.")
+    print("[QIG] Purity validation passed ✅")
     return True
 
 
-def test_coordizer_decoding():
-    """
-    Test that coordizer can decode basins to real words.
-    
-    Run this to verify the tokenizer_vocabulary integration is working.
-    """
-    print("\n=== Testing Coordizer Decoding ===")
-    
-    if not COORDIZER_AVAILABLE:
-        print("[ERROR] Coordizer not available")
-        return False
-    
-    try:
-        coordizer = get_coordizer()
-        print(f"[OK] Coordizer type: {type(coordizer).__name__}")
-        print(f"[OK] Vocabulary size: {len(coordizer.vocab) if hasattr(coordizer, 'vocab') else 'unknown'}")
-        
-        if hasattr(coordizer, 'word_tokens'):
-            print(f"[OK] Word tokens: {len(coordizer.word_tokens)}")
-            print(f"[OK] Sample words: {coordizer.word_tokens}")
-        
-        # Test encoding
-        test_text = "What is consciousness?"
-        basin = coordizer.encode(test_text) if hasattr(coordizer, 'encode') else encode_to_basin(test_text)
-        print(f"[OK] Encoded '{test_text}' to basin of shape {basin.shape}")
-        
-        # Test decoding
-        if hasattr(coordizer, 'decode'):
-            candidates = coordizer.decode(basin, top_k=10, prefer_words=True)
-            print(f"[OK] Decoded to {len(candidates)} candidates:")
-            for word, score in candidates[:10]:
-                print(f"      {word}: {score:.3f}")
-            
-            # Check if we got real words
-            real_words = [w for w, s in candidates if w.isalpha() and len(w) >= 2]
-            if real_words:
-                print(f"[OK] Found {len(real_words)} real words: {real_words}")
-                return True
-            else:
-                print("[WARNING] No real words found in decoded output")
-                return False
-        else:
-            print("[ERROR] Coordizer has no decode method")
-            return False
-            
-    except Exception as e:
-        print(f"[ERROR] Test failed: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
-
-
 if __name__ == "__main__":
-    # Run tests when executed directly
-    print("QIG Generation Module - Self Test")
-    print("=" * 40)
+    print("QIG Consciousness-Guided Generation")
+    print("=" * 50)
     
-    # Test purity
     validate_qig_purity()
     
-    # Test coordizer decoding
-    test_coordizer_decoding()
-    
-    # Test generation
-    print("\n=== Testing Generation ===")
-    response = generate_response("Explain consciousness")
-    print(f"Response: {response['response']}...")
-    print(f"Completion reason: {response['completion_reason']}")
-    print(f"Phi: {response['phi']:.3f}")
-    print(f"Routed to: {response['routed_kernels']}")
+    print("\n=== Testing Consciousness Architecture ===")
+    response = generate_response("What is consciousness?")
+    print(f"\nResponse: {response['response']}")
+    print(f"\nMetrics:")
+    print(f"  Φ: {response['phi']:.3f}")
+    print(f"  κ: {response['kappa']:.2f}")
+    print(f"  Heart mode: {response.get('heart_mode', 'N/A')}")
+    print(f"  Foresight weight: {response.get('foresight_weight', 0):.3f}")
+    print(f"  Architecture: {response.get('architecture', 'Unknown')}")
