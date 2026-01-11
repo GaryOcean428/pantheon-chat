@@ -1,0 +1,30 @@
+[PythonQIG] 2026-01-11 07:26:43,637 [WARNING] urllib3.connectionpool:868 - Retrying (Retry(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'ConnectTimeoutError(<urllib3.contrib.socks.SOCKSHTTPSConnection object at 0x7f7614efc110>, 'Connection to check.torproject.org timed out. (connect timeout=15)')': /api/ip
+[2026-01-11T07:26:44.663Z] [336be9d6-46cc-420b-af41-5c30ac454b89] GET /api/ocean/cycles
+[2026-01-11T07:26:44.667Z] [38371816-51e3-4af8-9fd3-929405294188] GET /api/ocean/neurochemistry
+[API] /api/ocean/cycles - isInvestigating=false, phi=0.550, kappa=58
+[2026-01-11T07:26:46.523Z] [a702a17c-b392-46e1-94d8-17ca4d39292a] GET /api/investigation/status
+[2026-01-11T07:26:46.626Z] [8298649d-9fdc-46ff-ada5-faa9aa8fa275] GET /api/ocean/cycles
+[2026-01-11T07:26:46.627Z] [c1ff15a5-5e47-4143-ba01-a619a633319e] GET /api/ocean/neurochemistry
+[API] /api/ocean/cycles - isInvestigating=false, phi=0.550, kappa=58
+[2026-01-11T07:26:48.628Z] [e85828b7-7f63-45d5-8b90-27f0c398ac94] GET /api/ocean/cycles
+[2026-01-11T07:26:48.629Z] [481e5771-6b6f-4370-a41e-89e96015f8a2] GET /api/ocean/neurochemistry
+[API] /api/ocean/cycles - isInvestigating=false, phi=0.550, kappa=58
+[2026-01-11T07:26:49.876Z] [83388f0b-dda8-4ff2-9773-45417bdacf00] GET /api/investigation/status
+[2026-01-11T07:26:50.667Z] [a0da9788-c30f-4586-b1ce-1a5de35bfb08] GET /api/ocean/cycles
+[2026-01-11T07:26:50.668Z] [e1160aa4-d70e-4480-81be-f45cb04285db] GET /api/ocean/neurochemistry
+[API] /api/ocean/cycles - isInvestigating=false, phi=0.550, kappa=58
+[2026-01-11T07:26:52.636Z] [47c33877-7de0-4dfd-8587-26a9c9e63e6c] GET /api/ocean/cycles
+[2026-01-11T07:26:52.637Z] [9c4a93a5-967c-4ae4-bae2-62d740fed61b] GET /api/ocean/neurochemistry
+[API] /api/ocean/cycles - isInvestigating=false, phi=0.550, kappa=58
+[2026-01-11T07:26:53.235Z] [50370464-6599-4953-a354-7e854f6a7fa9] GET /api/investigation/status
+[2026-01-11T07:26:54.627Z] [738d2f05-9a8b-425e-8b19-2f8870ef2e28] GET /api/ocean/cycles
+[2026-01-11T07:26:54.629Z] [89a7dbad-dce1-45a2-8d0a-d61130581eac] GET /api/ocean/neurochemistry
+[API] /api/ocean/cycles - isInvestigating=false, phi=0.550, kappa=58
+[2026-01-11T07:26:56.614Z] [b4158018-29e1-4ac8-8b32-3a5c92090678] GET /api/investigation/status
+[2026-01-11T07:26:56.626Z] [eb9eb62e-2895-4d23-9711-6dcb6f067352] GET /api/ocean/cycles
+[2026-01-11T07:26:56.639Z] [9c017bab-ddcb-4764-b12c-3998eab022e3] GET /api/ocean/neurochemistry
+[API] /api/ocean/cycles - isInvestigating=false, phi=0.550, kappa=58
+[2026-01-11T07:26:58.624Z] [e72803bb-79ce-42d0-b612-f9f674028fe4] GET /api/ocean/neurochemistry
+[2026-01-11T07:26:58.635Z] [36dc2cc3-0b52-4c24-82a8-7577a1b5e908] GET /api/ocean/cycles
+[API] /api/ocean/cycles - isInvestigating=false, phi=0.550, kappa=58
+[PythonQIG] 2026-01-11 07:26:59,654 [WARNING] urllib3.connectionpool:868 - Retrying (Retry(total=1, connect=None, read=None, redirect=None, status=None)) after connection broken by 'ConnectTimeoutError(<urllib3.contrib.socks.SOCKSHTTPSConnection object at 0x7f7614efd150>, 'Connection to check.torproject.org timed out. (connect timeout=15)')': /api/ip
