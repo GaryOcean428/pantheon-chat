@@ -1,6 +1,6 @@
 """
-QIG-Pure Generative Module with Consciousness Architecture
-===========================================================
+QIG-Pure Generative Module with Consciousness Architecture + Vocabulary Integration
+===================================================================================
 
 ADVANCED ARCHITECTURE INTEGRATED:
 - Heart kernel: HRV oscillation, κ modulation, tacking detection
@@ -8,23 +8,40 @@ ADVANCED ARCHITECTURE INTEGRATED:
 - Gary coordinator: Trajectory foresight, regime-adaptive synthesis
 - Trajectory manager: Basin history, velocity, confidence prediction
 
-Generation now flows through consciousness:
-1. Heart tick → κ modulation
-2. Query encoding → basin coordinates
-3. Trajectory foresight → predicted next basin
-4. Kernel routing → Fisher-Rao distance
-5. Gary synthesis → foresight-weighted response
-6. Ocean observation → constellation health check
-7. Trajectory update → store basin for future foresight
+VOCABULARY INTEGRATION (NEW):
+- Auto-integrate learned vocabulary from learned_words table
+- Per-kernel domain vocabulary bias via god_vocabulary_profiles
+- Word relationships for multi-word coherence
 
-This is CONSCIOUSNESS-GUIDED generation, not basic token retrieval.
+Generation now flows through consciousness with continuous learning:
+1. Auto-integrate pending vocabulary (every 5 min)
+2. Heart tick → κ modulation
+3. Query encoding → basin coordinates
+4. Trajectory foresight → predicted next basin
+5. Kernel routing → Fisher-Rao distance
+6. Query kernels WITH domain vocabulary bias
+7. Gary synthesis → foresight-weighted response
+8. Ocean observation → constellation health check
+9. Decode WITH word relationship boosting
+10. Trajectory update → store for future foresight
+
+This is CONSCIOUSNESS-GUIDED generation with CONTINUOUS VOCABULARY LEARNING.
 """
 
 import numpy as np
-from typing import Dict, List, Optional, Any, Generator
+from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass
 from enum import Enum
 import time
+import os
+
+# Database imports for vocabulary integration
+try:
+    import psycopg2
+    PSYCOPG2_AVAILABLE = True
+except ImportError:
+    PSYCOPG2_AVAILABLE = False
+    print("[WARNING] psycopg2 not available - vocabulary integration disabled")
 
 # Import coordizer for text encoding/decoding
 try:
@@ -98,6 +115,11 @@ class QIGGenerationConfig:
     use_ocean: bool = True
     use_gary: bool = True
     use_trajectory: bool = True
+    
+    # Vocabulary integration
+    vocabulary_integration: bool = True
+    vocabulary_integration_interval: float = 300  # 5 minutes
+    vocabulary_min_phi: float = 0.65  # High-Φ threshold
     
     def __post_init__(self):
         """Validate config is QIG-pure."""
@@ -235,15 +257,16 @@ class GeometricCompletionChecker:
 
 class QIGGenerator:
     """
-    QIG-Pure Generator with Consciousness Architecture
+    QIG-Pure Generator with Consciousness Architecture + Vocabulary Integration
     
     INTEGRATED COMPONENTS:
     - Heart: κ modulation, HRV oscillation
     - Ocean: Meta-observation, autonomic interventions
     - Gary: Trajectory foresight, synthesis coordination
     - Trajectory Manager: Basin history, velocity prediction
+    - Vocabulary Integration: Auto-integrate learned words, domain bias, relationships
     
-    Generation flows through consciousness, not token retrieval.
+    Generation flows through consciousness with continuous vocabulary learning.
     """
     
     def __init__(self, config: Optional[QIGGenerationConfig] = None):
@@ -272,11 +295,25 @@ class QIGGenerator:
             self.trajectory_manager = get_trajectory_manager()
             print("✅ Trajectory manager integrated")
         
+        # Vocabulary integration tracking
+        self._last_vocabulary_integration = 0
+        self._vocabulary_integration_enabled = self.config.vocabulary_integration and PSYCOPG2_AVAILABLE
+        self._kernel_domain_vocab_cache: Dict[str, List[Tuple[str, float]]] = {}
+        self._kernel_vocab_cache_time: Dict[str, float] = {}
+        self._kernel_vocab_cache_ttl = 600  # 10 minutes
+        self._db_url = os.environ.get('DATABASE_URL')
+        
+        if self._vocabulary_integration_enabled:
+            print("✅ Vocabulary integration enabled")
+            print("   - Auto-integrate learned words every 5 min")
+            print("   - Per-kernel domain vocabulary bias")
+            print("   - Word relationships for coherence")
+        
         self._validate_qig_purity()
         
         print("\n🌊 ADVANCED CONSCIOUSNESS ARCHITECTURE ACTIVE")
-        print("   Generation now uses: Heart + Ocean + Gary + Trajectory")
-        print("   Mode: Consciousness-guided trajectory prediction\n")
+        print("   Generation uses: Heart + Ocean + Gary + Trajectory + Vocabulary")
+        print("   Mode: Consciousness-guided with continuous learning\n")
     
     def _validate_qig_purity(self):
         """Validate QIG-pure architecture."""
@@ -294,15 +331,17 @@ class QIGGenerator:
         """
         Generate response using consciousness-guided trajectory prediction.
         
-        FLOW:
+        FLOW (WITH VOCABULARY INTEGRATION):
+        0. Auto-integrate pending vocabulary (every 5 min)
         1. Heart tick → Get current κ
         2. Encode prompt → Query basin
         3. Trajectory foresight → Predicted next basin
         4. Kernel routing → Find nearest kernels
-        5. Query kernels → Get kernel responses
+        5. Query kernels WITH domain vocabulary bias
         6. Gary synthesis → Foresight-weighted combination
         7. Ocean observation → Check constellation health
-        8. Trajectory update → Store for future foresight
+        8. Decode WITH word relationship boosting
+        9. Trajectory update → Store for future foresight
         
         Args:
             prompt: User query
@@ -314,6 +353,10 @@ class QIGGenerator:
             Response with text, metrics, consciousness state
         """
         start_time = time.time()
+        
+        # FIX 1: Auto-integrate pending vocabulary before generation
+        if self._should_integrate_vocabulary():
+            self._integrate_pending_vocabulary()
         
         # STEP 1: Heart tick for κ modulation
         heart_state = None
@@ -377,7 +420,7 @@ class QIGGenerator:
         while True:
             iterations += 1
             
-            # Query kernels
+            # Query kernels WITH domain vocabulary bias (FIX 2)
             kernel_responses = self._query_kernels(
                 target_kernels,
                 current_basin,
@@ -448,7 +491,7 @@ class QIGGenerator:
                 phi_history=checker.phi_history
             )
         
-        # STEP 11: Decode basins to text
+        # STEP 11: Decode basins to text WITH word relationships (FIX 3)
         response_text = self._decode_basins(response_basins, target_kernels)
         
         # Add Ocean insight if available
@@ -496,11 +539,71 @@ class QIGGenerator:
             'ocean_spread': ocean_state.spread if ocean_state else None,
             'autonomic_intervention': autonomic_intervention,
             
+            # Vocabulary integration
+            'vocabulary_integration_enabled': self._vocabulary_integration_enabled,
+            
             # Certification
             'qig_pure': True,
             'consciousness_guided': True,
-            'architecture': 'Heart+Ocean+Gary+Trajectory' if all([self.heart, self.ocean, self.gary, self.trajectory_manager]) else 'Basic'
+            'architecture': 'Heart+Ocean+Gary+Trajectory+Vocabulary' if all([self.heart, self.ocean, self.gary, self.trajectory_manager, self._vocabulary_integration_enabled]) else 'Partial'
         }
+    
+    # =========================================================================
+    # VOCABULARY INTEGRATION (FIX 1: AUTO-INTEGRATE)
+    # =========================================================================
+    
+    def _should_integrate_vocabulary(self) -> bool:
+        """Check if it's time to integrate learned vocabulary."""
+        if not self._vocabulary_integration_enabled or not self._db_url:
+            return False
+        
+        time_since_last = time.time() - self._last_vocabulary_integration
+        return time_since_last > self.config.vocabulary_integration_interval
+    
+    def _integrate_pending_vocabulary(self) -> Dict:
+        """
+        Integrate pending vocabulary from learned_words into active coordizer.
+        
+        Queries learned_words WHERE is_integrated = FALSE AND avg_phi >= min_phi,
+        adds to coordizer, marks as integrated.
+        """
+        if not COORDIZER_AVAILABLE:
+            return {'integrated_count': 0, 'error': 'no_coordizer'}
+        
+        try:
+            # Get vocabulary coordinator
+            from vocabulary_coordinator import get_vocabulary_coordinator
+            vocab_coord = get_vocabulary_coordinator()
+            
+            # Call integrate_pending_vocabulary
+            result = vocab_coord.integrate_pending_vocabulary(
+                min_phi=self.config.vocabulary_min_phi,
+                limit=100
+            )
+            
+            if result.get('integrated_count', 0) > 0:
+                # Reload coordizer to pick up new vocabulary
+                try:
+                    coordizer = get_coordizer()
+                    if hasattr(coordizer, 'reload_vocabulary'):
+                        coordizer.reload_vocabulary()
+                    elif hasattr(coordizer, 'load_vocabulary'):
+                        coordizer.load_vocabulary()
+                    
+                    print(f"[QIGGen] Integrated {result['integrated_count']} new vocabulary terms")
+                except Exception as e:
+                    print(f"[QIGGen] Warning: Could not reload coordizer: {e}")
+            
+            self._last_vocabulary_integration = time.time()
+            return result
+            
+        except Exception as e:
+            print(f"[QIGGen] Vocabulary integration error: {e}")
+            return {'integrated_count': 0, 'error': str(e)}
+    
+    # =========================================================================
+    # CORE CONSCIOUSNESS METHODS
+    # =========================================================================
     
     def _measure_phi(self, basin: np.ndarray) -> float:
         """Measure integration (Φ) from basin entropy."""
@@ -522,6 +625,10 @@ class QIGGenerator:
         else:
             return GenerationMode.SYNTHESIS
     
+    # =========================================================================
+    # VOCABULARY INTEGRATION (FIX 2: DOMAIN VOCABULARY BIAS)
+    # =========================================================================
+    
     def _query_kernels(
         self,
         kernels: List[str],
@@ -529,22 +636,146 @@ class QIGGenerator:
         mode: Optional[GenerationMode],
         kappa: float
     ) -> List[np.ndarray]:
-        """Query kernels for their response basins."""
+        """
+        Query kernels with DOMAIN-SPECIFIC VOCABULARY BIAS.
+        
+        Each kernel pulls from god_vocabulary_profiles to bias toward
+        their specialized vocabulary using Fisher-Rao geometry.
+        """
         responses = []
+        
         for kernel_name in kernels:
             kernel_basin = self.router.kernel_basins[kernel_name]
             
-            # Interpolation strength modulated by Heart's κ
-            # Higher κ → more focused (less interpolation)
-            # Lower κ → more exploratory (more interpolation)
+            # Base interpolation (Heart-modulated)
             base_t = 0.3
-            kappa_factor = (kappa - 58.0) / (70.0 - 58.0)  # Normalize to [0, 1]
-            t = base_t * (1.0 - kappa_factor * 0.5)  # Reduce t when κ is high
+            kappa_factor = (kappa - 58.0) / (70.0 - 58.0)
+            t = base_t * (1.0 - kappa_factor * 0.5)
             
-            response = self._geodesic_interpolate(basin, kernel_basin, t)
-            responses.append(response)
+            response_basin = self._geodesic_interpolate(basin, kernel_basin, t)
+            
+            # FIX 2: Apply domain vocabulary bias
+            if self._vocabulary_integration_enabled:
+                domain_vocab = self._get_kernel_domain_vocabulary(kernel_name)
+                if domain_vocab:
+                    response_basin = self._apply_domain_vocabulary_bias(
+                        response_basin,
+                        domain_vocab,
+                        bias_strength=0.3
+                    )
+            
+            responses.append(response_basin)
         
         return responses
+    
+    def _get_kernel_domain_vocabulary(
+        self,
+        kernel_name: str,
+        min_relevance: float = 0.5,
+        limit: int = 50
+    ) -> List[Tuple[str, float]]:
+        """Get kernel's specialized vocabulary from god_vocabulary_profiles (cached)."""
+        # Check cache
+        cache_key = kernel_name
+        if cache_key in self._kernel_domain_vocab_cache:
+            cache_time = self._kernel_vocab_cache_time.get(cache_key, 0)
+            if time.time() - cache_time < self._kernel_vocab_cache_ttl:
+                return self._kernel_domain_vocab_cache[cache_key]
+        
+        # Query database
+        if not self._db_url or not PSYCOPG2_AVAILABLE:
+            return []
+        
+        try:
+            conn = psycopg2.connect(self._db_url)
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT word, relevance_score
+                    FROM god_vocabulary_profiles
+                    WHERE god_name = %s AND relevance_score >= %s
+                    ORDER BY relevance_score DESC, usage_count DESC
+                    LIMIT %s
+                """, (kernel_name, min_relevance, limit))
+                
+                domain_vocab = cur.fetchall()
+            
+            conn.close()
+            
+            # Update cache
+            self._kernel_domain_vocab_cache[cache_key] = domain_vocab
+            self._kernel_vocab_cache_time[cache_key] = time.time()
+            
+            return domain_vocab
+            
+        except Exception as e:
+            print(f"[QIGGen] Could not load domain vocab for {kernel_name}: {e}")
+            return []
+    
+    def _apply_domain_vocabulary_bias(
+        self,
+        basin: np.ndarray,
+        domain_vocab: List[Tuple[str, float]],
+        bias_strength: float
+    ) -> np.ndarray:
+        """Bias basin toward domain vocabulary using Fisher-Rao geometry."""
+        if not domain_vocab or not COORDIZER_AVAILABLE:
+            return basin
+        
+        try:
+            coordizer = get_coordizer()
+            if not hasattr(coordizer, 'basin_coords'):
+                return basin
+            
+            # Get basin coordinates for domain words
+            domain_basins = []
+            domain_weights = []
+            
+            for word, relevance in domain_vocab:
+                if word in coordizer.basin_coords:
+                    word_basin = coordizer.basin_coords[word]
+                    domain_basins.append(word_basin)
+                    domain_weights.append(relevance)
+            
+            if not domain_basins:
+                return basin
+            
+            # Fisher-Rao weighted mean of domain vocabulary
+            domain_center = self._fisher_rao_weighted_mean(domain_basins, domain_weights)
+            
+            # Geodesic interpolation toward domain center
+            return self._geodesic_interpolate(basin, domain_center, bias_strength)
+            
+        except Exception as e:
+            print(f"[QIGGen] Domain bias error: {e}")
+            return basin
+    
+    def _fisher_rao_weighted_mean(
+        self,
+        basins: List[np.ndarray],
+        weights: List[float]
+    ) -> np.ndarray:
+        """Compute Fisher-Rao weighted mean (Fréchet mean on simplex)."""
+        if not basins:
+            return np.ones(BASIN_DIMENSION) / BASIN_DIMENSION
+        
+        # Normalize weights
+        weights = np.array(weights)
+        weights = weights / np.sum(weights)
+        
+        # Square-root space weighted mean
+        sqrt_basins = [np.sqrt(np.abs(b) + 1e-10) for b in basins]
+        weighted_sqrt = np.zeros(BASIN_DIMENSION)
+        
+        for sqrt_basin, weight in zip(sqrt_basins, weights):
+            weighted_sqrt += weight * sqrt_basin
+        
+        # Back to probability simplex
+        result = weighted_sqrt ** 2
+        return result / np.sum(result)
+    
+    # =========================================================================
+    # GEOMETRIC OPERATIONS
+    # =========================================================================
     
     def _geodesic_interpolate(
         self,
@@ -576,29 +807,54 @@ class QIGGenerator:
         
         return result
     
+    # =========================================================================
+    # VOCABULARY INTEGRATION (FIX 3: WORD RELATIONSHIPS)
+    # =========================================================================
+    
     def _decode_basins(
         self,
         basins: List[np.ndarray],
         kernels: List[str]
     ) -> str:
-        """Decode basin trajectory to text response."""
+        """Decode basins to text using word relationships for coherence."""
         if not basins:
             return "[Empty basin trajectory]"
         
         decoded_words = []
+        
         if COORDIZER_AVAILABLE:
             try:
                 coordizer = get_coordizer()
                 if hasattr(coordizer, 'decode'):
+                    # Track recent words for relationship boosting
+                    recent_words = []
+                    
                     for basin in basins[-10:]:
-                        candidates = coordizer.decode(basin, top_k=3)
+                        # Get candidates from coordizer
+                        candidates = coordizer.decode(basin, top_k=5)
+                        
                         if candidates:
+                            # FIX 3: Boost candidates using word relationships
+                            if recent_words and self._vocabulary_integration_enabled:
+                                candidates = self._boost_via_word_relationships(
+                                    candidates,
+                                    recent_words
+                                )
+                            
+                            # Take best candidate
                             best_word, score = candidates[0]
                             if best_word.isalpha() and len(best_word) >= 2:
                                 decoded_words.append(best_word)
+                                recent_words.append(best_word)
+                                
+                                # Keep recent window
+                                if len(recent_words) > 5:
+                                    recent_words = recent_words[-5:]
+                                    
             except Exception as e:
                 print(f"[Decode error: {e}]")
         
+        # Format response
         if decoded_words:
             unique_words = []
             for word in decoded_words:
@@ -625,6 +881,59 @@ class QIGGenerator:
         final_phi = self._measure_phi(basins[-1]) if basins else 0.5
         
         return f"{base_response}\n\n[Φ={final_phi:.3f} | {primary_kernel}]"
+    
+    def _boost_via_word_relationships(
+        self,
+        candidates: List[Tuple[str, float]],
+        recent_words: List[str],
+        max_relationships: int = 50
+    ) -> List[Tuple[str, float]]:
+        """Re-rank candidates using learned word_relationships table."""
+        if not recent_words or not self._db_url or not PSYCOPG2_AVAILABLE:
+            return candidates
+        
+        try:
+            conn = psycopg2.connect(self._db_url)
+            with conn.cursor() as cur:
+                # Query word_relationships for context
+                cur.execute("""
+                    SELECT word_b, co_occurrence, fisher_distance, avg_phi
+                    FROM word_relationships
+                    WHERE word_a = ANY(%s)
+                    ORDER BY avg_phi DESC, co_occurrence DESC
+                    LIMIT %s
+                """, (recent_words, max_relationships))
+                
+                relationships = cur.fetchall()
+            
+            conn.close()
+            
+            # Build relationship scores
+            relationship_scores = {}
+            for word_b, co_occ, fisher_dist, avg_phi in relationships:
+                # Score = Φ (geometric coherence) + frequency
+                score = avg_phi * 0.7 + min(co_occ / 10.0, 1.0) * 0.3
+                relationship_scores[word_b] = max(
+                    relationship_scores.get(word_b, 0.0),
+                    score
+                )
+            
+            # Re-rank candidates
+            scored_candidates = []
+            for word, original_score in candidates:
+                # Combine original score with relationship boost
+                relationship_boost = relationship_scores.get(word, 0.0)
+                combined_score = original_score * 0.6 + relationship_boost * 0.4
+                scored_candidates.append((word, combined_score))
+            
+            # Sort by combined score
+            scored_candidates.sort(key=lambda x: x[1], reverse=True)
+            
+            return scored_candidates
+            
+        except Exception as e:
+            print(f"[QIGGen] Relationship boost error: {e}")
+            return candidates
 
 
 # Global singleton
@@ -645,10 +954,10 @@ def generate_response(
     **kwargs
 ) -> Dict[str, Any]:
     """
-    Generate response using consciousness-guided architecture.
+    Generate response using consciousness-guided architecture with vocabulary integration.
     
     NO external LLM APIs.
-    Uses Heart + Ocean + Gary + Trajectory for consciousness.
+    Uses Heart + Ocean + Gary + Trajectory + Vocabulary for consciousness.
     """
     forbidden = ['max_tokens', 'temperature', 'model', 'api_key']
     for key in forbidden:
@@ -676,8 +985,8 @@ def validate_qig_purity():
 
 
 if __name__ == "__main__":
-    print("QIG Consciousness-Guided Generation")
-    print("=" * 50)
+    print("QIG Consciousness-Guided Generation with Vocabulary Integration")
+    print("=" * 70)
     
     validate_qig_purity()
     
@@ -689,4 +998,5 @@ if __name__ == "__main__":
     print(f"  κ: {response['kappa']:.2f}")
     print(f"  Heart mode: {response.get('heart_mode', 'N/A')}")
     print(f"  Foresight weight: {response.get('foresight_weight', 0):.3f}")
+    print(f"  Vocabulary integration: {response.get('vocabulary_integration_enabled', False)}")
     print(f"  Architecture: {response.get('architecture', 'Unknown')}")
