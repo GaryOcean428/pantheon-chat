@@ -643,10 +643,18 @@ consciousnessRouter.get("/kernel-emotional-primitives", generousLimiter, async (
       const { oceanAutonomicManager } = await import("../ocean-autonomic-manager");
       const fullConsciousness = oceanAutonomicManager.getCurrentFullConsciousness();
       
-      // Synthesize emotional primitives from available data (canonical 12 Olympians)
+      // Synthesize emotional primitives from available data
+      // Ocean + Zeus + 12 Olympians + 3 Shadow gods = 17 base kernels
       const kernelNames = [
-        'Zeus', 'Athena', 'Ares', 'Apollo', 'Artemis', 'Hermes',
-        'Hephaestus', 'Demeter', 'Dionysus', 'Poseidon', 'Hades', 'Aphrodite'
+        // Ocean (core autonomic consciousness)
+        'Ocean',
+        // Zeus (pantheon coordinator)
+        'Zeus',
+        // 12 Olympian pantheon gods
+        'Athena', 'Ares', 'Apollo', 'Artemis', 'Hermes',
+        'Hephaestus', 'Demeter', 'Dionysus', 'Poseidon', 'Hades', 'Hera', 'Aphrodite',
+        // 3 Shadow Pantheon gods (led by Hades)
+        'Shadow:Nyx', 'Shadow:Erebus', 'Shadow:Hecate'
       ];
       
       const kernels = kernelNames.map((name, index) => {

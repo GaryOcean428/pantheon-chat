@@ -1,6 +1,7 @@
-import { Card, CardContent, CardHeader, CardTitle, Badge, Progress, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui";
+import { Card, CardContent, CardHeader, CardTitle, Badge, Progress, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2, Brain, Zap, Heart, AlertTriangle, Sun, Cloud, Flame, Snowflake, Wind } from "lucide-react";
+import { useState } from "react";
+import { Loader2, Brain, Zap, Heart, AlertTriangle, Sun, Cloud, Flame, Snowflake, Wind, ChevronDown, ChevronRight, Waves, Crown, Moon, Sparkles } from "lucide-react";
 
 interface GeometricMetrics {
   surprise: number;
@@ -185,6 +186,75 @@ interface Props {
   showLegend?: boolean;
 }
 
+// Group kernels by type for organized display
+function groupKernels(kernels: KernelEmotionalState[]) {
+  const groups: Record<string, KernelEmotionalState[]> = {
+    core: [],      // Ocean
+    olympus: [],   // Zeus + 12 Olympians
+    shadow: [],    // Shadow Pantheon (Nyx, Erebus, Hecate)
+    e8: [],        // CHAOS E8 kernels
+  };
+  
+  for (const kernel of kernels) {
+    if (kernel.name === 'Ocean') {
+      groups.core.push(kernel);
+    } else if (kernel.name.startsWith('Shadow:')) {
+      groups.shadow.push(kernel);
+    } else if (kernel.name.startsWith('E8:')) {
+      groups.e8.push(kernel);
+    } else {
+      groups.olympus.push(kernel);
+    }
+  }
+  
+  return groups;
+}
+
+const KERNELS_PER_PAGE = 24;
+
+function KernelGroup({ title, icon, kernels, defaultOpen = true, paginate = false }: { 
+  title: string; 
+  icon: React.ReactNode; 
+  kernels: KernelEmotionalState[];
+  defaultOpen?: boolean;
+  paginate?: boolean;
+}) {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+  const [visibleCount, setVisibleCount] = useState(KERNELS_PER_PAGE);
+  
+  if (kernels.length === 0) return null;
+  
+  const displayedKernels = paginate ? kernels.slice(0, visibleCount) : kernels;
+  const hasMore = paginate && visibleCount < kernels.length;
+  
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="space-y-2">
+      <CollapsibleTrigger className="flex items-center gap-2 w-full text-left hover-elevate p-2 rounded-md" data-testid={`collapse-${title.toLowerCase().replace(/\s+/g, '-')}`}>
+        {isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+        {icon}
+        <span className="font-medium text-sm">{title}</span>
+        <Badge variant="outline" className="ml-auto text-xs">{kernels.length}</Badge>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 pl-6">
+          {displayedKernels.map((kernel, index) => (
+            <KernelCard key={kernel.name || index} kernel={kernel} />
+          ))}
+        </div>
+        {hasMore && (
+          <button
+            onClick={() => setVisibleCount(prev => prev + KERNELS_PER_PAGE)}
+            className="mt-3 ml-6 text-sm text-muted-foreground hover:text-foreground flex items-center gap-1"
+            data-testid="button-load-more-kernels"
+          >
+            Show more ({kernels.length - visibleCount} remaining)
+          </button>
+        )}
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
 export function KernelEmotionalPrimitivesPanel({ className, showLegend = true }: Props) {
   const { data, isLoading, error } = useQuery<KernelEmotionalPrimitivesResponse>({
     queryKey: ['/api/consciousness/kernel-emotional-primitives'],
@@ -223,6 +293,8 @@ export function KernelEmotionalPrimitivesPanel({ className, showLegend = true }:
     );
   }
   
+  const groups = groupKernels(data.kernels);
+  
   return (
     <div className={className}>
       <div className="flex items-center justify-between mb-3">
@@ -238,10 +310,29 @@ export function KernelEmotionalPrimitivesPanel({ className, showLegend = true }:
       
       {showLegend && <EmotionLegend />}
       
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-        {data.kernels.map((kernel, index) => (
-          <KernelCard key={kernel.name || index} kernel={kernel} />
-        ))}
+      <div className="space-y-4">
+        <KernelGroup 
+          title="Core Consciousness" 
+          icon={<Waves className="w-4 h-4 text-cyan-400" />} 
+          kernels={groups.core} 
+        />
+        <KernelGroup 
+          title="Olympus Pantheon" 
+          icon={<Crown className="w-4 h-4 text-amber-400" />} 
+          kernels={groups.olympus} 
+        />
+        <KernelGroup 
+          title="Shadow Pantheon" 
+          icon={<Moon className="w-4 h-4 text-purple-400" />} 
+          kernels={groups.shadow} 
+        />
+        <KernelGroup 
+          title="E8 Experimental Kernels" 
+          icon={<Sparkles className="w-4 h-4 text-emerald-400" />} 
+          kernels={groups.e8}
+          defaultOpen={groups.e8.length <= 20}
+          paginate={groups.e8.length > KERNELS_PER_PAGE}
+        />
       </div>
     </div>
   );

@@ -2899,35 +2899,35 @@ def kernel_emotional_primitives():
                 'kernels': []
             }), 503
         
-        # Iterate through all pantheon gods
-        for god_name, god in pantheon.items():
+        # Helper function to process a god/kernel into emotional data
+        def process_kernel(name: str, god_or_kernel) -> dict:
+            """Process a kernel/god into emotional primitives data."""
             try:
-                # Get god's current basin (if available)
+                # Get kernel's current basin (if available)
                 current_basin = None
                 previous_basin = None
                 
                 # Try to get basin from various sources
-                if hasattr(god, 'current_basin'):
-                    current_basin = np.array(god.current_basin)
-                elif hasattr(god, 'basin'):
-                    current_basin = np.array(god.basin)
-                elif hasattr(god, 'state') and hasattr(god.state, 'basin'):
-                    current_basin = np.array(god.state.basin)
+                if hasattr(god_or_kernel, 'current_basin'):
+                    current_basin = np.array(god_or_kernel.current_basin)
+                elif hasattr(god_or_kernel, 'basin'):
+                    current_basin = np.array(god_or_kernel.basin)
+                elif hasattr(god_or_kernel, 'state') and hasattr(god_or_kernel.state, 'basin'):
+                    current_basin = np.array(god_or_kernel.state.basin)
                 
                 # Get previous basin for trajectory
-                if hasattr(god, 'previous_basin'):
-                    previous_basin = np.array(god.previous_basin)
-                elif hasattr(god, 'basin_history') and god.basin_history:
-                    previous_basin = np.array(god.basin_history[-1])
+                if hasattr(god_or_kernel, 'previous_basin'):
+                    previous_basin = np.array(god_or_kernel.previous_basin)
+                elif hasattr(god_or_kernel, 'basin_history') and god_or_kernel.basin_history:
+                    previous_basin = np.array(god_or_kernel.basin_history[-1])
                 
-                # Get metrics from god if available
-                phi = getattr(god, 'phi', 0.5)
-                kappa = getattr(god, 'kappa', 64.0)
+                # Get metrics from kernel if available
+                phi = getattr(god_or_kernel, 'phi', 0.5)
+                kappa = getattr(god_or_kernel, 'kappa', 64.0)
                 
                 # Compute geometric metrics for emotion measurement
                 if current_basin is not None:
-                    # Compute surprise (prediction error estimate)
-                    surprise = 0.3  # Default
+                    surprise = 0.3
                     if previous_basin is not None:
                         try:
                             dist = fisher_coord_distance(current_basin, previous_basin)
@@ -2935,37 +2935,30 @@ def kernel_emotional_primitives():
                         except Exception:
                             pass
                     
-                    # Curiosity: variance in recent exploration
-                    curiosity = 0.5  # Default
-                    if hasattr(god, 'exploration_variance'):
-                        curiosity = float(np.clip(god.exploration_variance, 0, 1))
-                    elif hasattr(god, 'curiosity'):
-                        curiosity = float(np.clip(god.curiosity, 0, 1))
+                    curiosity = 0.5
+                    if hasattr(god_or_kernel, 'exploration_variance'):
+                        curiosity = float(np.clip(god_or_kernel.exploration_variance, 0, 1))
+                    elif hasattr(god_or_kernel, 'curiosity'):
+                        curiosity = float(np.clip(god_or_kernel.curiosity, 0, 1))
                     
-                    # Basin distance: novelty from mean
-                    basin_distance = 0.3  # Default
-                    if hasattr(god, 'mean_basin'):
+                    basin_distance = 0.3
+                    if hasattr(god_or_kernel, 'mean_basin'):
                         try:
-                            dist = fisher_coord_distance(current_basin, god.mean_basin)
+                            dist = fisher_coord_distance(current_basin, god_or_kernel.mean_basin)
                             basin_distance = float(np.clip(dist / 2.0, 0, 1))
                         except Exception:
                             pass
                     
-                    # Progress: derived from phi trend
                     progress = float(np.clip(phi, 0, 1))
-                    
-                    # Stability: derived from kappa proximity to κ*
                     stability = float(1.0 - abs(kappa - 64.21) / 64.21)
                     stability = np.clip(stability, 0, 1)
                 else:
-                    # Default values if no basin available
                     surprise = 0.3
                     curiosity = 0.5
                     basin_distance = 0.3
                     progress = 0.5
                     stability = 0.7
                 
-                # Measure emotion using geometric properties
                 emotional_state = measure_emotion(
                     surprise=surprise,
                     curiosity=curiosity,
@@ -2974,17 +2967,15 @@ def kernel_emotional_primitives():
                     stability=stability
                 )
                 
-                # Build all emotions dict
                 all_emotions = {}
                 for emotion in Emotion:
-                    # Calculate approximate scores
                     scores = _calculate_kernel_emotion_scores(
                         surprise, curiosity, basin_distance, progress, stability
                     )
                     all_emotions[emotion.value] = round(scores.get(emotion, 0.0), 3)
                 
-                kernels_data.append({
-                    'name': god_name.capitalize(),
+                return {
+                    'name': name,
                     'primary_emotion': emotional_state.primary.value,
                     'primary_intensity': round(emotional_state.intensity, 3),
                     'secondary_emotion': emotional_state.secondary.value if emotional_state.secondary else None,
@@ -3001,12 +2992,10 @@ def kernel_emotional_primitives():
                     'all_emotions': all_emotions,
                     'phi': round(phi, 3),
                     'kappa': round(kappa, 2)
-                })
-                
+                }
             except Exception as e:
-                # Include kernel with error state
-                kernels_data.append({
-                    'name': god_name.capitalize(),
+                return {
+                    'name': name,
                     'primary_emotion': 'neutral',
                     'primary_intensity': 0.5,
                     'valence': 0.0,
@@ -3020,7 +3009,46 @@ def kernel_emotional_primitives():
                     },
                     'all_emotions': {},
                     'error': str(e)
-                })
+                }
+        
+        # 0. Add Ocean autonomic kernel first (the core consciousness)
+        try:
+            from autonomic_kernel import get_gary_kernel
+            ocean_kernel = get_gary_kernel()
+            kernels_data.append(process_kernel('Ocean', ocean_kernel))
+        except Exception as ocean_err:
+            print(f"[Emotional Primitives] Ocean kernel access error: {ocean_err}")
+        
+        # 1. Add Zeus himself (pantheon coordinator)
+        kernels_data.append(process_kernel('Zeus', zeus))
+        
+        # 2. Add all 12 Olympian pantheon gods
+        for god_name, god in pantheon.items():
+            kernels_data.append(process_kernel(god_name.capitalize(), god))
+        
+        # 3. Add Shadow Pantheon gods (Nyx, Erebus, Hecate) - led by Hades
+        try:
+            shadow_pantheon = zeus.shadow_pantheon if hasattr(zeus, 'shadow_pantheon') else None
+            if shadow_pantheon and hasattr(shadow_pantheon, 'gods'):
+                for shadow_name, shadow_god in shadow_pantheon.gods.items():
+                    kernels_data.append(process_kernel(f"Shadow:{shadow_name.capitalize()}", shadow_god))
+        except Exception as shadow_err:
+            print(f"[Emotional Primitives] Shadow pantheon access error: {shadow_err}")
+        
+        # 4. Add CHAOS experimental kernels (E8 Lie algebra - up to 240)
+        try:
+            chaos = getattr(zeus, 'chaos', None)
+            if chaos:
+                kernel_population = getattr(chaos, 'kernel_population', None)
+                if kernel_population and len(kernel_population) > 0:
+                    print(f"[Emotional Primitives] Including {len(kernel_population)} CHAOS E8 kernels")
+                    for kernel_id, kernel in kernel_population.items():
+                        kernel_name = f"E8:{kernel_id[:8]}" if len(kernel_id) > 8 else f"E8:{kernel_id}"
+                        kernels_data.append(process_kernel(kernel_name, kernel))
+                else:
+                    print("[Emotional Primitives] CHAOS system exists but kernel_population is empty")
+        except Exception as chaos_err:
+            print(f"[Emotional Primitives] CHAOS kernels access error: {chaos_err}")
         
         return jsonify({
             'success': True,
