@@ -78,6 +78,10 @@ export class StrategyKnowledgeBus {
     await this.load();
     this.registerDefaultStrategies();
     this.initialized = true;
+    
+    setTimeout(async () => {
+      await this.bootstrapFromLearnedWords();
+    }, 15000);
   }
 
   private async ensureInitialized(): Promise<void> {
@@ -696,6 +700,68 @@ export class StrategyKnowledgeBus {
     }
 
     return compatible;
+  }
+
+  async bootstrapFromLearnedWords(): Promise<number> {
+    await this.ensureInitialized();
+    
+    if (!db) {
+      console.log("[KnowledgeBus] No database - skipping bootstrap");
+      return 0;
+    }
+    
+    try {
+      const dbCount = await db.execute<{ count: number }>(
+        `SELECT COUNT(*)::int as count FROM knowledge_shared_entries`
+      );
+      const existingCount = dbCount.rows?.[0]?.count || 0;
+      if (existingCount > 10) {
+        console.log(`[KnowledgeBus] Already has ${existingCount} entries - skipping bootstrap`);
+        return 0;
+      }
+      
+      const existingPatterns = await db.execute<{ pattern: string }>(
+        `SELECT pattern FROM knowledge_shared_entries WHERE source_strategy = 'vocabulary_learning'`
+      );
+      const existingSet = new Set((existingPatterns.rows || []).map(r => r.pattern));
+      
+      const learnedWords = await db.execute<{ word: string; avg_phi: number; frequency: number }>(
+        `SELECT word, avg_phi, frequency FROM learned_words 
+         WHERE avg_phi > 0.4 AND frequency > 5
+         ORDER BY avg_phi DESC 
+         LIMIT 100`
+      );
+      
+      let seeded = 0;
+      for (const row of learnedWords.rows || []) {
+        if (row.word && row.avg_phi && !existingSet.has(row.word)) {
+          try {
+            await this.publishKnowledge(
+              "vocabulary_learning",
+              `bootstrap_vocab_${row.word}`,
+              row.word,
+              {
+                phi: row.avg_phi,
+                kappaEff: Math.min(100, (row.frequency || 1) * 2),
+                regime: row.avg_phi > 0.7 ? "geometric" : "linear",
+              }
+            );
+            existingSet.add(row.word);
+            seeded++;
+            if (seeded % 10 === 0) {
+              await new Promise(resolve => setTimeout(resolve, 100));
+            }
+          } catch {
+          }
+        }
+      }
+      
+      console.log(`[KnowledgeBus] Bootstrapped ${seeded} entries from learned words`);
+      return seeded;
+    } catch (err) {
+      console.error("[KnowledgeBus] Bootstrap from learned words failed:", err);
+      return 0;
+    }
   }
 
   async integrateExternalSystems(): Promise<void> {

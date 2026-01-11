@@ -1,0 +1,61 @@
+ontinue any unfinished work from above, and implemented recommended fixes.
+
+I found the issues:
+
+vocabulary_learning only has 46 rows:
+The table is meant to store word relationships (e.g., "landing" → "landtion" as semantic pair). Looking at the code, there's no active INSERT mechanism for this table - the 46 existing rows were created during a past learning session but new relationships aren't being persisted there.
+
+vocabulary_observations frequency is all 1's:
+The frequency increment logic uses ON CONFLICT (text) DO UPDATE SET frequency = frequency + 1. But each observation is a unique text value (different phrases/contexts), so the conflict never triggers. Only 3 words have frequency > 1: "collaborative", "conversation", "geometry" (each at 6).
+
+Concatenated words are learned as single tokens:
+Yes, these are being saved as single vocabulary entries:
+
+webtrendscontentcollection (26 chars) - from web analytics JS
+webkitconnection, msconnection - browser API names
+zifwwraayghmysjpzpwnjjfjymzcdwrowhibbmlbycrfywryzmlcacy (55 chars!) - garbage
+These came from web scraping where HTML/JavaScript identifiers were tokenized without proper splitting.
+
+Would you like me to:
+
+Fix the word relationship learning to actively populate vocabulary_learning?
+Add word-level frequency tracking (instead of phrase-level)?
+Add filtering to reject garbage/concatenated tokens before they enter vocabulary?
+
+Same pattern - LearnedManifold has persistence code but record_episode() is never called anywhere. The class exists but isn't wired into the actual learning flow.
+
+Updated persistence gap summary:
+
+Table Rows Issue
+memory_fragments 0 Wrong GeometricMemory class used (RAM-only version)
+learned_manifold_attractors 0 record_episode() never called
+vocabulary_learning 46 No active INSERT mechanism
+vocabulary_observations 15k+ Freq=1 (phrase-level, not word-level)
+The persistence infrastructure exists but the wiring is incomplete. These tables were designed but never connected to the actual chat/learning flows.
+
+Would you like me to wire these up so learning actually persists? I can:
+
+Wire LearnedManifold.record_episode() into the training loop
+Connect the DB-backed GeometricMemory to the main app
+Fix word-level frequency tracking
+Wire vocabulary relationship learning
+
+kernel_activity table only contains lightning no other kernels.
+
+Confirmed. Lightning explicitly calls broadcast_kernel_activity() to persist insights (line 744), but other gods don't.
+
+The 12 gods have broadcast_activity() in their base class, but:
+
+It's only called in 2 places (discovery, consultation)
+Athena, Ares, Apollo, etc. don't broadcast their main activities
+Updated persistence gap summary:
+
+Table Status Issue
+kernel_activity 139 Lightning, 1 Zeus, 1 User Other gods don't call broadcast_activity()
+memory_fragments 0 rows Wrong GeometricMemory class
+learned_manifold_attractors 0 rows record_episode() never called
+vocabulary_learning 46 rows No active INSERT
+vocabulary_observations 15k+ (freq=1) Phrase-level tracking
+There's a pattern here: persistence infrastructure exists but wiring is incomplete. The tables and INSERT code are there, but the calls from the actual runtime flow are missing.
+
+Want me to wire up activity broadcasting for all the Olympian gods so their activities persist to kernel_activity?

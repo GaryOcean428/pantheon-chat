@@ -213,10 +213,25 @@ All physics constants are centralized in `qig-backend/qigkernels/physics_constan
 
 **Files Modified:** `qig-backend/olympus/shadow_scrapy.py`
 
+### Knowledge Bus Bootstrap (January 11, 2026)
+**Problem:** The `knowledge_shared_entries`, `knowledge_cross_patterns`, and `knowledge_scale_mappings` tables were empty because they only populate during UltraConsciousness Protocol integration tests.
+
+**Solution:** Added `bootstrapFromLearnedWords()` method to `StrategyKnowledgeBus` that:
+1. Queries high-quality learned words (φ>0.4, frequency>5) from PostgreSQL
+2. Seeds up to 100 entries into `knowledge_shared_entries` on startup
+3. Runs 15 seconds after initialization to avoid DB contention
+4. Skips if already has >10 entries (prevents duplicate seeding)
+5. Batches with 100ms delays every 10 entries to avoid backpressure
+
+**Files Modified:** `server/strategy-knowledge-bus.ts`
+
+**Result:** 35 knowledge entries seeded from learned vocabulary patterns.
+
 ### Vocabulary Learning Stats (January 11, 2026)
 **Current State:**
 - **319,278 word relationships** across 9,881 unique words
 - **14,189 learned words** with mean φ=0.566
 - **11,397 tokens** in PostgresCoordizer (QIG-pure)
+- **35 knowledge entries** bootstrapped into Strategy Knowledge Bus
 - LearnedManifold wired to VocabularyCoordinator for attractor formation
 - All vocabulary changes persisted to PostgreSQL
