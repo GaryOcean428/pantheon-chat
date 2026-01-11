@@ -278,6 +278,144 @@ class CurriculumProgressPersistence:
             conn.close()
 
 
+class ExplorationHistoryPersistence:
+    """
+    Database persistence for exploration history to prevent duplicate explorations.
+    
+    Tracks queries/topics that have been explored to avoid repeating same searches.
+    Uses exploration_history table with topic+query uniqueness constraint.
+    """
+    
+    _instance = None
+    
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
+    
+    def __init__(self):
+        if self._initialized:
+            return
+        import os
+        self._db_url = os.environ.get('DATABASE_URL')
+        self._initialized = True
+        self._recent_cache: Set[str] = set()
+        self._load_recent_into_cache()
+    
+    def _get_connection(self):
+        """Get database connection."""
+        if not self._db_url:
+            return None
+        try:
+            import psycopg2
+            return psycopg2.connect(self._db_url)
+        except Exception as e:
+            logger.warning(f"[ExplorationHistoryPersistence] DB connection failed: {e}")
+            return None
+    
+    def _load_recent_into_cache(self):
+        """Load recent explorations into memory cache for fast lookup."""
+        conn = self._get_connection()
+        if not conn:
+            return
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT topic, query FROM exploration_history
+                    WHERE created_at > NOW() - INTERVAL '7 days'
+                    ORDER BY created_at DESC LIMIT 500
+                """)
+                for row in cur.fetchall():
+                    key = f"{row[0]}:{row[1]}"
+                    self._recent_cache.add(key)
+            logger.info(f"[ExplorationHistoryPersistence] Loaded {len(self._recent_cache)} recent explorations")
+        except Exception as e:
+            logger.warning(f"[ExplorationHistoryPersistence] Cache load failed: {e}")
+        finally:
+            conn.close()
+    
+    def is_duplicate(self, topic: str, query: str) -> bool:
+        """Check if this exploration is a duplicate (already done recently)."""
+        key = f"{topic}:{query}"
+        if key in self._recent_cache:
+            return True
+        
+        conn = self._get_connection()
+        if not conn:
+            return False
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT 1 FROM exploration_history
+                    WHERE topic = %s AND query = %s
+                    AND created_at > NOW() - INTERVAL '24 hours'
+                    LIMIT 1
+                """, (topic, query))
+                return cur.fetchone() is not None
+        except Exception as e:
+            return False
+        finally:
+            conn.close()
+    
+    def record_exploration(
+        self, 
+        topic: str, 
+        query: str, 
+        kernel_name: str = None,
+        exploration_type: str = 'curiosity_driven',
+        source_type: str = None,
+        information_gain: float = 0.0
+    ) -> bool:
+        """Record an exploration to prevent future duplicates."""
+        key = f"{topic}:{query}"
+        self._recent_cache.add(key)
+        
+        conn = self._get_connection()
+        if not conn:
+            return False
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO exploration_history 
+                    (topic, query, kernel_name, exploration_type, source_type, information_gain)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (topic, query) DO UPDATE SET
+                        created_at = NOW(),
+                        information_gain = GREATEST(exploration_history.information_gain, EXCLUDED.information_gain)
+                """, (topic, query, kernel_name, exploration_type, source_type, information_gain))
+                conn.commit()
+                return True
+        except Exception as e:
+            logger.warning(f"[ExplorationHistoryPersistence] Record failed: {e}")
+            return False
+        finally:
+            conn.close()
+    
+    def get_unexplored_topics(self, candidate_topics: List[str], limit: int = 10) -> List[str]:
+        """Filter candidate topics to only return unexplored ones."""
+        if not candidate_topics:
+            return []
+        
+        conn = self._get_connection()
+        if not conn:
+            return candidate_topics[:limit]
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT topic FROM exploration_history
+                    WHERE topic = ANY(%s)
+                    AND created_at > NOW() - INTERVAL '7 days'
+                """, (candidate_topics,))
+                explored = {row[0] for row in cur.fetchall()}
+            unexplored = [t for t in candidate_topics if t not in explored]
+            return unexplored[:limit]
+        except Exception as e:
+            return candidate_topics[:limit]
+        finally:
+            conn.close()
+
+
 class CurriculumLoader:
     """
     Load and manage training curriculum for kernel self-learning.
@@ -425,6 +563,7 @@ class AutonomousCuriosityEngine:
         AutonomousCuriosityEngine._instance = self
         self.curiosity_drive = CuriosityDrive()
         self.curriculum_loader = CurriculumLoader()
+        self.exploration_history = ExplorationHistoryPersistence()
         
         self.pending_requests: deque = deque(maxlen=100)
         self.active_explorations: Dict[str, Dict] = {}
@@ -797,6 +936,16 @@ class AutonomousCuriosityEngine:
     
     def _execute_search(self, request: KernelToolRequest):
         """Execute a search request."""
+        # Extract topic from context or use query as topic
+        topic = request.context.get('topic', request.query[:50]) if request.context else request.query[:50]
+        
+        # DUPLICATE PREVENTION: Skip if recently searched
+        if self.exploration_history.is_duplicate(topic, request.query):
+            logger.debug(f"[AutonomousCuriosityEngine] Skipping duplicate search: {request.query[:60]}")
+            request.status = 'skipped_duplicate'
+            request.result = {'message': 'Duplicate search skipped'}
+            return
+        
         print(f"[AutonomousCuriosityEngine] Executing search for {request.kernel_name}: {request.query}")
         
         # Broadcast search request for kernel visibility
@@ -832,6 +981,16 @@ class AutonomousCuriosityEngine:
                     'result': result,
                     'timestamp': datetime.now().isoformat()
                 })
+                
+                # Record exploration to prevent future duplicates
+                self.exploration_history.record_exploration(
+                    topic=topic,
+                    query=request.query,
+                    kernel_name=request.kernel_name,
+                    exploration_type='kernel_search',
+                    source_type=result.get('provider', 'unknown'),
+                    information_gain=result.get('information_gain', 0.5)
+                )
                 
                 # Broadcast search completion for kernel visibility
                 self._broadcast_curiosity_event(
@@ -1004,6 +1163,11 @@ class AutonomousCuriosityEngine:
             if curiosity > self._min_curiosity_threshold:
                 query = self._generate_exploration_query(kernel_name, topic, knowledge)
                 
+                # DUPLICATE PREVENTION: Skip if recently explored
+                if self.exploration_history.is_duplicate(topic, query):
+                    logger.debug(f"[AutonomousCuriosityEngine] Skipping duplicate exploration: {topic}/{query}")
+                    continue
+                
                 # Use Wikipedia and GitHub directly for enriched learning
                 self._explore_with_direct_sources(kernel_name, query, topic)
                 
@@ -1017,6 +1181,15 @@ class AutonomousCuriosityEngine:
                         'topic': topic,
                         'curiosity_score': curiosity
                     }
+                )
+                
+                # Record exploration to prevent future duplicates
+                self.exploration_history.record_exploration(
+                    topic=topic,
+                    query=query,
+                    kernel_name=kernel_name,
+                    exploration_type='curiosity_driven',
+                    information_gain=curiosity
                 )
                 
                 self.stats['total_explorations'] += 1
