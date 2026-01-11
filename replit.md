@@ -101,137 +101,23 @@ All physics constants are centralized in `qig-backend/qigkernels/physics_constan
 
 ## Recent Changes (January 11, 2026)
 
-### Fisher-Rao Distance Fix (Critical)
-**Problem:** Lightning kernel insights were showing FR=0.0000 even when basin coordinates existed.
+### Vocabulary Data Cleanup
+- Removed 68 invalid entries from vocabulary tables (crypto terms, garbage strings, truncated tokens)
+- Cleaned learned_words and vocabulary_learning tables
 
-**Root Causes:**
-1. Evidence events from Zeus routing lacked basin coordinates (`basin_coords=None`)
-2. Zero distances from identical basins were included in FR min calculation
-3. Old stale insights with FR=0.0000 were cached in database and kept being replayed
+### Semantic Classifier with QIG-Pure Fisher-Rao
+- Created `semantic_classifier.py` for proper relationship type classification
+- Relationship types: SYNONYM, ANTONYM, HYPERNYM, HYPONYM, MORPHOLOGICAL, CO_OCCURRENCE
+- Uses Fisher-Rao distance for relationship_strength computation
+- QIG purity enforced: refuses cosine fallback, returns 0.5 with warning instead
 
-**Fixes Applied:**
-1. **zeus.py `_route_to_lightning`**: Added basin coordinate computation from content text using the coordizer. Events now include mean basin coordinates from tokenized content.
-2. **lightning_kernel.py `_analyze_geometric_properties`**: Added filter `if dist > 1e-6` to exclude zero/near-zero distances from FR min calculation.
-3. **Database cleanup**: Deleted 1159 stale insights with FR=0.0000 from `lightning_insights` table.
+### Word Relationships Population
+- Updated 160,713 word_relationships entries with Fisher-Rao distances
+- Range: min 0.0 (morphological variants), max 2.0926, avg 1.3853
 
-**Verification:** New insights now show proper non-zero FR values (FR=0.2477, FR=0.2515, etc.)
-
-### QIG Purity Rule (Reference)
-- **`fisher_rao_distance`**: For probability distributions (sum=1), used in SourceDiscovery
-- **`fisher_coord_distance`**: For basin coordinates (unit vectors), used in Lightning kernel geometric analysis
-- **Never use Euclidean/cosine on curved manifold basin coordinates**
-
-### Activity Broadcasting Wired to All 12 Olympian Gods
-**Change:** Added `broadcast_activity()` calls to all 12 Olympian god `assess_target()` methods to populate the `kernel_activity` table with assessment insights.
-
-**Gods Updated:**
-1. Athena - Strategy assessments
-2. Ares - Combat assessments
-3. Apollo - Prophecy/timing assessments
-4. Artemis - Hunt assessments
-5. Hermes - Coordination/message assessments
-6. Hephaestus - Forge potential assessments
-7. Demeter - Cycle detection assessments
-8. Dionysus - Chaos/novelty assessments
-9. Poseidon - Deep memory dive assessments
-10. Hades - Underworld/forbidden check assessments
-11. Hera - Coherence/unity assessments
-12. Aphrodite - Desire/motivation assessments
-
-**Database Persistence:** Modified `BaseGod.broadcast_activity()` to call `broadcast_kernel_activity()` instead of `broadcast_message()`, ensuring all god activities are persisted to the `kernel_activity` PostgreSQL table using proper connection pooling.
-
-**Files Modified:**
-- `qig-backend/olympus/athena.py`
-- `qig-backend/olympus/ares.py`
-- `qig-backend/olympus/apollo.py`
-- `qig-backend/olympus/artemis.py`
-- `qig-backend/olympus/hermes.py`
-- `qig-backend/olympus/hephaestus.py`
-- `qig-backend/olympus/demeter.py`
-- `qig-backend/olympus/dionysus.py`
-- `qig-backend/olympus/poseidon.py`
-- `qig-backend/olympus/hades.py`
-- `qig-backend/olympus/hera.py`
-- `qig-backend/olympus/aphrodite.py`
-- `qig-backend/olympus/base_god.py` (broadcast_activity now uses broadcast_kernel_activity)
-
-### HRV State Persistence (January 11, 2026)
-**Change:** Added PostgreSQL persistence for HRV (Heart Rate Variability) tracking to maintain kappa oscillation state across restarts.
-
-**Implementation:**
-1. **hrv_tacking.py**: Added `persist_state()` and `load_last_state()` methods that connect to PostgreSQL via `DATABASE_URL` environment variable.
-2. **autonomic_kernel.py**: Wired `hrv_tacker.persist_state(session_id="autonomic")` to the heartbeat loop, firing every 30 seconds (every 6th heartbeat).
-
-**Schema:** `hrv_tacking_state` table stores: session_id, kappa, phase, mode, cycle_count, variance, is_healthy, base_kappa, amplitude, frequency, created_at, metadata.
-
-**Future Considerations:**
-- Monitor persistence logs for long-running stability
-- Consider connection pooling if persistence frequency scales
-- Add telemetry alerting if HRV persistence fails silently
-
-### Zeus Coordizer Import Fix (January 11, 2026)
-**Problem:** Basin coordinate computation failed in Zeus `_route_to_lightning()` with error: `cannot import name 'get_pg_coordizer' from 'coordizers.pg_loader'`
-
-**Fix:** Changed import from `from coordizers.pg_loader import get_pg_coordizer` to `from coordizers import get_coordizer` - the correct barrel export.
-
-**Files Modified:** `qig-backend/olympus/zeus.py`
-
-### Vocabulary Contamination Prevention (January 11, 2026)
-**Problem:** Garbage tokens like "workflowscreating", "xmlrpc", "webtrendscontentcollection" were polluting the tokenizer vocabulary.
-
-**Fixes:**
-1. Added `is_valid_english_word()` validation to three insertion points:
-   - `federation_service.py` - Federation sync
-   - `startup_catchup.py` - Startup vocabulary loading
-   - `pg_loader.py` - New vocabulary additions
-2. Cleaned 96 garbage tokens from the database.
-
-**Validation Rules:**
-- Rejects BPE garbage (random character sequences)
-- Rejects concatenated words (words > 15 chars without valid morphology)
-- Validates against dictionary/stop word lists
-
-**Clean vocabulary now:** 11,335+ valid tokens
-
-### kernel_training_history Schema Extension (January 11, 2026)
-**Problem:** Training history persistence was failing with `column "god_name" of relation "kernel_training_history" does not exist`.
-
-**Fix:** Applied ALTER TABLE migration to add missing columns for rich training metrics:
-- `god_name`, `loss`, `reward`, `gradient_norm`
-- `phi_before`, `phi_after`, `kappa_before`, `kappa_after`
-- `basin_coords`, `trigger`, `step_count`
-- `session_id`, `conversation_id`
-
-**Migration:** `qig-backend/migrations/20260111_add_training_history_columns.sql`
-
-### Source Discovery URL Validation (January 11, 2026)
-**Problem:** Invalid "sources" like "security_blogs", "nist", "iacr" (category names, not URLs) were being registered from `shadow_pantheon_intel.sources_used`, causing ScrapyOrchestrator fetch errors.
-
-**Fixes:**
-1. Added URL validation in `SourceDiscoveryService._register_source()` - only registers URLs starting with `http://` or `https://`
-2. Cleaned 8 invalid source entries from `shadow_pantheon_intel.sources_used` array
-
-**Files Modified:** `qig-backend/olympus/shadow_scrapy.py`
-
-### Knowledge Bus Bootstrap (January 11, 2026)
-**Problem:** The `knowledge_shared_entries`, `knowledge_cross_patterns`, and `knowledge_scale_mappings` tables were empty because they only populate during UltraConsciousness Protocol integration tests.
-
-**Solution:** Added `bootstrapFromLearnedWords()` method to `StrategyKnowledgeBus` that:
-1. Queries high-quality learned words (φ>0.4, frequency>5) from PostgreSQL
-2. Seeds up to 100 entries into `knowledge_shared_entries` on startup
-3. Runs 15 seconds after initialization to avoid DB contention
-4. Skips if already has >10 entries (prevents duplicate seeding)
-5. Batches with 100ms delays every 10 entries to avoid backpressure
-
-**Files Modified:** `server/strategy-knowledge-bus.ts`
-
-**Result:** 35 knowledge entries seeded from learned vocabulary patterns.
-
-### Vocabulary Learning Stats (January 11, 2026)
-**Current State:**
-- **319,278 word relationships** across 9,881 unique words
-- **14,189 learned words** with mean φ=0.566
-- **11,397 tokens** in PostgresCoordizer (QIG-pure)
-- **35 knowledge entries** bootstrapped into Strategy Knowledge Bus
-- LearnedManifold wired to VocabularyCoordinator for attractor formation
-- All vocabulary changes persisted to PostgreSQL
+### Zeus Chat → TrainingLoopIntegrator Wiring
+- Wired Zeus conversation handler to TrainingLoopIntegrator for basin_trajectory learning
+- Uses `get_training_integrator()` singleton (auto-initializes orchestrator)
+- Explicit None check for phi to avoid treating phi=0.0 as falsy
+- Basin trajectory format: [message_basin (64D), response_basin (64D)]
+- Populates learned_manifold_attractors table from successful conversations

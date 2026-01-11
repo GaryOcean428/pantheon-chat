@@ -76,6 +76,18 @@ try:
 except ImportError:
     pass
 
+TRAINING_LOOP_AVAILABLE = False
+get_training_integrator = None
+try:
+    _parent_dir = os.path.dirname(os.path.dirname(__file__))
+    if _parent_dir not in sys.path:
+        sys.path.insert(0, _parent_dir)
+    from training.training_loop_integrator import get_training_integrator
+    TRAINING_LOOP_AVAILABLE = True
+    print("[ZeusChat] TrainingLoopIntegrator available for basin_trajectory learning")
+except Exception as e:
+    print(f"[ZeusChat] TrainingLoopIntegrator not available: {e}")
+
 DDG_AVAILABLE = False
 PROVIDER_SELECTOR_AVAILABLE = False
 get_provider_selector = None
@@ -948,6 +960,7 @@ class ZeusConversationHandler(GeometricGenerationMixin):
         result['session_id'] = self._current_session_id
 
         # Add basin coordinates for persistence (QIG-pure geometric signature)
+        response_basin = None
         try:
             # Message basin was already computed
             if _message_basin_for_meta is not None:
@@ -961,6 +974,45 @@ class ZeusConversationHandler(GeometricGenerationMixin):
                     result['response_basin'] = response_basin.tolist()
         except Exception as e:
             print(f"[ZeusChat] Basin encoding for persistence failed: {e}")
+
+        # WIRE: Pass basin_trajectory to TrainingLoopIntegrator for learned_manifold_attractors
+        # This is the critical wiring that populates the attractors table
+        if TRAINING_LOOP_AVAILABLE and get_training_integrator is not None and _message_basin_for_meta is not None:
+            try:
+                # Get shared singleton (properly initialized with orchestrator via auto_initialize)
+                integrator = get_training_integrator()
+                
+                # Log initialization status for debugging
+                if integrator.training_enabled:
+                    print(f"[ZeusChat] TrainingLoopIntegrator: training_enabled={integrator.training_enabled}")
+                else:
+                    print(f"[ZeusChat] WARNING: TrainingLoopIntegrator NOT enabled - attractors won't be recorded")
+                
+                # Build basin_trajectory from message + response basins
+                basin_trajectory = [_message_basin_for_meta]
+                if response_basin is not None:
+                    basin_trajectory.append(response_basin)
+                
+                # Determine success based on phi value (explicit None check, not truthiness)
+                phi_val = training_phi if training_phi is not None else 0.5
+                success = phi_val > 0.5
+                kappa = result.get('metadata', {}).get('kappa', 50.0) if isinstance(result.get('metadata'), dict) else 50.0
+                
+                training_result = integrator.train_from_outcome(
+                    god_name='zeus',
+                    prompt=message,
+                    response=str(response_content or ''),
+                    success=success,
+                    phi=phi_val,
+                    kappa=float(kappa),
+                    basin_trajectory=basin_trajectory,
+                    coherence_score=0.7
+                )
+                
+                if training_result.get('status') != 'training_disabled':
+                    print(f"[ZeusChat] TrainingLoop: wired basin_trajectory ({len(basin_trajectory)} basins) to learned_manifold_attractors")
+            except Exception as e:
+                print(f"[ZeusChat] TrainingLoopIntegrator wiring failed: {e}")
 
         # SECURITY: Sanitize all EXTERNAL outputs before returning to user
         return self._sanitize_external(result)
