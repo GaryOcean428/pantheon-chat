@@ -1,0 +1,34 @@
+API] /api/ocean/cycles - isInvestigating=false, phi=0.689, kappa=58
+[PythonQIG] ⚠️ [Zeus] Underworld search failed: 
+[PythonQIG] ⚠️ [Zeus] Underworld search failed: 
+[PythonQIG] 2026-01-11 06:19:48,639 [ERROR] autonomous_pantheon:285 - Error assessing Cross-domain insight: knowledge+research|discovery/research_discovery|FR=0.0000,BD=0.3119,research:+0.498|cede929a|Φ=1.000...: asyncio.run() cannot be called from a running event loop
+[PythonQIG]   ⚠️  Error assessing Cross-domain insight: knowledge+research|discovery/research_discovery|FR=0.0000,BD=0.3119,research:+0.498|cede929a|Φ=1.000...: asyncio.run() cannot be called from a running event loop
+[PythonQIG]   ✓ Cycle complete (102.7s)
+[PythonQIG]     Processed: 0 | Spawned: 0 | Executed: 0
+[PythonQIG] /home/runner/workspace/qig-backend/autonomous_pantheon.py:286: RuntimeWarning: coroutine 'Nemesis.initiate_pursuit' was never awaited
+[PythonQIG]   print(f"  ⚠️  Error assessing {target}: {e}")
+[PythonQIG] RuntimeWarning: Enable tracemalloc to get the object allocation traceback
+[PythonQIG] /home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/numpy/linalg/_linalg.py:2792: RuntimeWarning: overflow encountered in dot
+[PythonQIG]   sqnorm = x.dot(x)
+[PythonQIG] [Hades] Geometric shadow provider ranking: [('duckduckgo-tor', '0.767'), ('wayback', '0.467'), ('pastebin', '0.427'), ('rss', '0.427'), ('breach', '0.427')]
+[PythonQIG] 2026-01-11 06:19:48,697 [ERROR] autonomous_pantheon:285 - Error assessing Cross-domain insight: knowledge+research|discovery/research_discovery|FR=0.0000,BD=0.3433,research:+0.498|696280dd|Φ=1.000...: asyncio.run() cannot be called from a running event loop
+[PythonQIG]   ⚠️  Error assessing Cross-domain insight: knowledge+research|discovery/research_discovery|FR=0.0000,BD=0.3433,research:+0.498|696280dd|Φ=1.000...: asyncio.run() cannot be called from a running event loop
+[PythonQIG] /home/runner/workspace/qig-backend/autonomous_pantheon.py:286: RuntimeWarning: coroutine 'Nemesis.initiate_pursuit' was never awaited
+[PythonQIG]   print(f"  ⚠️  Error assessing {target}: {e}")
+[PythonQIG] RuntimeWarning: Enable tracemalloc to get the object allocation traceback
+[2026-01-11T06:19:48.700Z] [776c0e89-9b3a-4d55-b06c-8170ae7d712a] GET /api/investigation/status
+[PythonQIG] [KernelPersistence] Updated consciousness mirror: φ=0.745, regime=breakdown, alive=240/480, breeding_success=133.33%
+[2026-01-11T06:19:50.002Z] [71d2cdf3-16ee-457f-b3b3-57724626a489] GET /api/ocean/neurochemistry
+[2026-01-11T06:19:50.005Z] [89ab46fe-7e15-409b-b609-5b635758148d] GET /api/ocean/cycles
+[API] /api/ocean/cycles - isInvestigating=false, phi=0.689, kappa=58
+[PythonQIG] 2026-01-11 06:19:50,610 [INFO] werkzeug:97 - 127.0.0.1 - - [11/Jan/2026 06:19:50] "GET /health HTTP/1.1" 200 -
+[PythonQIG] [PantheonGovernance] Ecosystem: pop=480, avg_phi=0.745, high=289, low=0, diversity=0.117
+[PythonQIG] [PantheonGovernance] ❌ REJECT: Population too high, prevent overpopulation
+[PythonQIG] [PantheonGovernance] [2026-01-11T06:19:50.760761] PROPOSAL:PROP_20260111_061950_19 - rejected: Type: spawn, By: pantheon_overpopulation_control, Reason: random_exploration
+[PythonQIG] 2026-01-11 06:19:50,814 [INFO] werkzeug:97 - 127.0.0.1 - - [11/Jan/2026 06:19:50] "GET /health HTTP/1.1" 200 -
+[PythonQIG] [PantheonGovernance] ❌ Proposal prop_20260111_061950_19 REJECTED by pantheon_overpopulation_control
+[PythonQIG] [PantheonGovernance] 📋 Spawn proposal created: prop_20260111_061950_19
+[PythonQIG] [PantheonGovernance] Reason: random_exploration
+[PythonQIG] [PantheonGovernance] ⚠️ Waiting for Pantheon approval...
+[PythonQIG] [Chaos] Spawn blocked: Spawning requires Pantheon approval. Proposal ID: prop_20260111_061950_19. Use approve_proposal() to vote.
+[PythonQIG] ❌ Evolution error: Spawning requires Pantheon approval. Proposal ID: prop_20260111_061950_19. Use approve_proposal() to vote.

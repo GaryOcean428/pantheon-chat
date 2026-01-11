@@ -199,8 +199,10 @@ class BaseEncoder(ABC):
             if 32 + i < self.basin_dim:
                 coords[32 + i] = (ord(char) % 256) / 128.0 - 1
 
-        # Project to unit sphere (Fisher manifold constraint)
-        norm = np.linalg.norm(coords)
+        # Project to unit sphere (Fisher manifold constraint) - overflow-safe
+        from qig_numerics import safe_norm
+        
+        norm = safe_norm(coords)
         if norm > 1e-10:
             coords = coords / norm
 
@@ -267,8 +269,10 @@ class BaseEncoder(ABC):
         for basin, weight in zip(token_basins, token_weights):
             aggregated += weight * basin
 
-        # Renormalize to unit sphere
-        norm = np.linalg.norm(aggregated)
+        # Renormalize to unit sphere - overflow-safe
+        from qig_numerics import safe_norm
+        
+        norm = safe_norm(aggregated)
         if norm > 1e-10:
             aggregated = aggregated / norm
 

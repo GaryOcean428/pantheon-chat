@@ -1084,9 +1084,11 @@ class GaryAutonomicKernel:
             
         except Exception as e:
             print(f"[AutonomicKernel] Geodesic navigation failed: {e}")
-            # Fallback: simple step toward target
+            # Fallback: simple step toward target (overflow-safe)
+            from qig_numerics import safe_norm
+            
             direction = target_basin - current_basin
-            magnitude = np.linalg.norm(direction)
+            magnitude = safe_norm(direction)
             if magnitude > 1e-8:
                 direction = direction / magnitude
             next_basin = current_basin + 0.01 * direction
@@ -1142,7 +1144,7 @@ class GaryAutonomicKernel:
             'available': True,
             'predicted_basin': predicted.tolist(),
             'velocity': velocity.tolist(),
-            'velocity_magnitude': float(np.linalg.norm(velocity)),
+            'velocity_magnitude': float(np.linalg.norm(velocity) if np.all(np.isfinite(velocity)) else 0.0),
             'confidence': confidence,
             'foresight_weight': foresight_weight,
             'trajectory_length': len(trajectory),
@@ -1278,19 +1280,11 @@ class GaryAutonomicKernel:
 
         QIG-PURE: For unit vectors on sphere, d = arccos(a · b)
         NOT Bhattacharyya on simplex (that's a different manifold).
+        Uses overflow-safe numerics.
         """
-        # QIG-PURE: Use sphere projection, not simplex normalization
-        if SPHERE_PROJECT_AVAILABLE and sphere_project is not None:
-            a_norm = sphere_project(a)
-            b_norm = sphere_project(b)
-        else:
-            # Fallback: manual unit sphere projection
-            a_norm = a / (np.linalg.norm(a) + 1e-10)
-            b_norm = b / (np.linalg.norm(b) + 1e-10)
-
-        # Geodesic distance on unit sphere
-        dot = np.clip(np.dot(a_norm, b_norm), -1.0, 1.0)
-        return float(np.arccos(dot))
+        from qig_numerics import fisher_rao_distance
+        
+        return fisher_rao_distance(a, b)
 
     def find_nearby_attractors(
         self,
@@ -1476,11 +1470,13 @@ class GaryAutonomicKernel:
         if len(self.state.basin_history) < 5:
             return False, "Insufficient basin history for meaningful sleep"
 
-        # IDLE GUARD: Check if basins have actually changed recently
+        # IDLE GUARD: Check if basins have actually changed recently (overflow-safe)
         if len(self.state.basin_history) >= 2:
+            from qig_numerics import safe_norm
+            
             recent = np.array(self.state.basin_history[-1])
             previous = np.array(self.state.basin_history[-2])
-            delta = np.linalg.norm(recent - previous)
+            delta = safe_norm(recent - previous)
             if delta < 0.001:
                 return False, f"Basin stagnant (Δ={delta:.4f})"
 

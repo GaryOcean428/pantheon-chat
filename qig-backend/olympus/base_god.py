@@ -2403,7 +2403,9 @@ class BaseGod(*_base_classes):
             if not np.isfinite(target).all():
                 raise ValueError("Basin array contains NaN or Inf values")
             
-            norm = np.linalg.norm(target)
+            from qig_numerics import safe_norm
+            
+            norm = safe_norm(target)
             if not (0.99 < norm < 1.01):
                 logger.debug(f"[{self.name}] Normalizing basin (norm={norm:.4f})")
                 if norm > 0:
@@ -2428,7 +2430,9 @@ class BaseGod(*_base_classes):
             if not np.isfinite(arr).all():
                 raise ValueError("Basin list contains NaN or Inf values")
             
-            norm = np.linalg.norm(arr)
+            from qig_numerics import safe_norm
+            
+            norm = safe_norm(arr)
             if norm > 0:
                 arr = arr / norm
             else:
@@ -2482,7 +2486,9 @@ class BaseGod(*_base_classes):
             if 32 + i < BASIN_DIMENSION:
                 coord[32 + i] = (ord(char) % 256) / 128.0 - 1
         
-        norm = np.linalg.norm(coord)
+        from qig_numerics import safe_norm
+        
+        norm = safe_norm(coord)
         if norm > 0:
             coord = coord / norm
         else:

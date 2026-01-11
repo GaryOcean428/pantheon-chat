@@ -34,10 +34,12 @@ def _hash_to_bytes(data: str, length: int = 256) -> bytes:
 
 def _normalize_to_manifold(coords: np.ndarray, radius: Optional[float] = None) -> np.ndarray:
     """Project coordinates onto information manifold (unit sphere scaled)."""
-    norm = np.linalg.norm(coords)
+    from qig_numerics import safe_norm
+    
+    norm = safe_norm(coords)
     if norm < 1e-10:
         coords = np.random.randn(len(coords))
-        norm = np.linalg.norm(coords)
+        norm = safe_norm(coords)
     coords = coords / norm
     if radius is None:
         radius = math.sqrt(len(coords))
@@ -58,17 +60,18 @@ def _compute_entropy(text: str) -> float:
 
 def sphere_project(v: np.ndarray) -> np.ndarray:
     """Project vector onto unit sphere for Fisher-Rao distance computation."""
-    norm = np.linalg.norm(v)
+    from qig_numerics import safe_norm
+    
+    norm = safe_norm(v)
     if norm < 1e-10:
         return np.zeros_like(v)
     return v / norm
 
 def _fisher_distance(basin1: np.ndarray, basin2: np.ndarray) -> float:
     """Compute Fisher geodesic distance between two basin points."""
-    basin1_norm = sphere_project(basin1)
-    basin2_norm = sphere_project(basin2)
-    dot = np.clip(np.dot(basin1_norm, basin2_norm), -1, 1)
-    return math.acos(dot)
+    from qig_numerics import fisher_rao_distance
+    
+    return fisher_rao_distance(basin1, basin2)
 
 
 class DirectGeometricEncoder:
