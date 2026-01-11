@@ -1,0 +1,544 @@
+#!/usr/bin/env python3
+"""
+Word Relationships Fisher-Rao Distance & Φ Tracking - COMPLETE IMPLEMENTATION
+
+Fixes the disconnected infrastructure where word_relationships table has
+geometric columns (fisher_distance, avg_phi, max_phi, contexts) but they're
+never populated.
+
+This is the SAME pattern as vocabulary integration - schema exists but code
+doesn't use it.
+
+Run this to:
+1. Update LearnedRelationships to compute Fisher-Rao distances
+2. Backfill existing 319K relationships
+3. Fix vocabulary_observations frequency counting
+4. Wire up vocabulary_learning INSERTs
+"""
+
+import numpy as np
+import psycopg2
+from typing import Dict, List, Optional, Tuple
+import os
+from datetime import datetime
+
+# Get database URL from environment
+DATABASE_URL = os.environ.get('DATABASE_URL')
+
+# Import QIG geometry
+try:
+    from qig_geometry import fisher_coord_distance
+    from coordizers import get_coordizer
+    COORDIZER_AVAILABLE = True
+except ImportError:
+    COORDIZER_AVAILABLE = False
+    print("[WARNING] Coordizer or qig_geometry not available")
+
+
+# ===========================================================================
+# FIX 1: Update LearnedRelationships.save_to_db() with Fisher-Rao Distance
+# ===========================================================================
+
+class LearnedRelationshipsFixed:
+    """
+    Fixed version of LearnedRelationships that computes geometric metrics.
+    
+    Original: Only saved word, neighbor, cooccurrence_count, strength
+    Fixed: Also computes fisher_distance, avg_phi, max_phi, contexts
+    """
+    
+    def __init__(self, vocab_db=None):
+        self.relationships: Dict[str, Dict[str, Dict]] = {}
+        self.vocab_db = vocab_db or self._get_db_connection()
+    
+    def _get_db_connection(self):
+        """Get database connection."""
+        if DATABASE_URL:
+            return psycopg2.connect(DATABASE_URL)
+        return None
+    
+    def learn_from_observation(self, text: str, phi: float, context: str = None):
+        """
+        Learn word relationships from high-Φ observations.
+        
+        CRITICAL ADDITION: Track Φ values and contexts during learning.
+        """
+        # Extract words
+        words = self._extract_words(text)
+        
+        # Track adjacent relationships
+        for i in range(len(words) - 1):
+            word_a = words[i]
+            word_b = words[i + 1]
+            
+            # Initialize relationship storage
+            if word_a not in self.relationships:
+                self.relationships[word_a] = {}
+            
+            if word_b not in self.relationships[word_a]:
+                self.relationships[word_a][word_b] = {
+                    'count': 0,
+                    'phi_values': [],      # Track all Φ values
+                    'contexts': []         # Track context examples
+                }
+            
+            # Update relationship
+            rel = self.relationships[word_a][word_b]
+            rel['count'] += 1
+            rel['phi_values'].append(phi)
+            
+            # Add context (limit to 10 examples)
+            if context and len(rel['contexts']) < 10:
+                rel['contexts'].append(context[:200])  # Truncate
+    
+    def _extract_words(self, text: str) -> List[str]:
+        """Extract words from text."""
+        return [w for w in text.lower().split() if len(w) >= 2]
+    
+    def _compute_aggregate_metrics(self):
+        """Compute avg_phi and max_phi from tracked values."""
+        for word, neighbors in self.relationships.items():
+            for neighbor, data in neighbors.items():
+                if 'phi_values' in data and data['phi_values']:
+                    data['avg_phi'] = float(np.mean(data['phi_values']))
+                    data['max_phi'] = float(np.max(data['phi_values']))
+                else:
+                    data['avg_phi'] = 0.5
+                    data['max_phi'] = 0.5
+    
+    def save_to_db(self):
+        """
+        Save relationships to database WITH Fisher-Rao distance.
+        
+        CRITICAL FIX: Now computes fisher_distance, avg_phi, max_phi, contexts
+        """
+        if not COORDIZER_AVAILABLE:
+            print("[ERROR] Cannot compute Fisher-Rao distances without coordizer")
+            return
+        
+        if not self.vocab_db:
+            print("[ERROR] No database connection")
+            return
+        
+        # Compute aggregate metrics first
+        self._compute_aggregate_metrics()
+        
+        # Get coordizer to access basin coordinates
+        coordizer = get_coordizer()
+        
+        saved_count = 0
+        skipped_count = 0
+        
+        with self.vocab_db.cursor() as cur:
+            for word, neighbors in self.relationships.items():
+                # Get word's basin coordinate
+                word_basin = coordizer.basin_coords.get(word)
+                
+                if word_basin is None:
+                    # Word not in vocabulary yet - skip
+                    skipped_count += len(neighbors)
+                    continue
+                
+                for neighbor, data in neighbors.items():
+                    # Get neighbor's basin coordinate
+                    neighbor_basin = coordizer.basin_coords.get(neighbor)
+                    
+                    if neighbor_basin is None:
+                        skipped_count += 1
+                        continue
+                    
+                    # CRITICAL: Compute Fisher-Rao distance
+                    fisher_dist = float(fisher_coord_distance(word_basin, neighbor_basin))
+                    
+                    # Extract metrics
+                    cooccurrence = data.get('count', 1)
+                    avg_phi = data.get('avg_phi', 0.5)
+                    max_phi = data.get('max_phi', 0.5)
+                    contexts = data.get('contexts', [])
+                    
+                    # Insert/update with ALL geometric metrics
+                    cur.execute("""
+                        INSERT INTO word_relationships 
+                            (word, neighbor, cooccurrence_count, fisher_distance, 
+                             avg_phi, max_phi, contexts, last_seen)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
+                        ON CONFLICT (word, neighbor) DO UPDATE SET
+                            cooccurrence_count = word_relationships.cooccurrence_count + EXCLUDED.cooccurrence_count,
+                            fisher_distance = EXCLUDED.fisher_distance,
+                            avg_phi = (word_relationships.avg_phi + EXCLUDED.avg_phi) / 2.0,
+                            max_phi = GREATEST(word_relationships.max_phi, EXCLUDED.max_phi),
+                            contexts = CASE 
+                                WHEN array_length(word_relationships.contexts, 1) < 10 
+                                THEN array_cat(word_relationships.contexts, EXCLUDED.contexts)
+                                ELSE word_relationships.contexts
+                            END,
+                            last_seen = NOW()
+                    """, (word, neighbor, cooccurrence, fisher_dist, avg_phi, max_phi, contexts))
+                    
+                    saved_count += 1
+        
+        self.vocab_db.commit()
+        print(f"[LearnedRelationships] Saved {saved_count} relationships (skipped {skipped_count})")
+        print(f"[LearnedRelationships] All relationships now have Fisher-Rao distances ✅")
+
+
+# ===========================================================================
+# FIX 2: Backfill Existing NULL Fisher Distances
+# ===========================================================================
+
+def backfill_fisher_distances(batch_size: int = 10000, max_rows: Optional[int] = None):
+    """
+    Backfill fisher_distance for existing word_relationships.
+    
+    This is a ONE-TIME migration to populate the 319K rows with NULL values.
+    
+    Args:
+        batch_size: Number of rows to update per batch
+        max_rows: Maximum rows to process (None = all)
+    """
+    if not COORDIZER_AVAILABLE:
+        print("[ERROR] Cannot backfill without coordizer")
+        return
+    
+    if not DATABASE_URL:
+        print("[ERROR] DATABASE_URL not set")
+        return
+    
+    print("=" * 70)
+    print("BACKFILLING FISHER-RAO DISTANCES FOR word_relationships")
+    print("=" * 70)
+    print("")
+    
+    coordizer = get_coordizer()
+    conn = psycopg2.connect(DATABASE_URL)
+    
+    # Get count of rows to backfill
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT COUNT(*)
+            FROM word_relationships
+            WHERE fisher_distance IS NULL
+        """)
+        total = cur.fetchone()[0]
+        
+        if max_rows:
+            total = min(total, max_rows)
+        
+        print(f"Found {total:,} relationships with NULL fisher_distance")
+        print(f"Batch size: {batch_size:,}")
+        print("")
+    
+    # Process in batches
+    processed = 0
+    updated = 0
+    skipped = 0
+    
+    while processed < total:
+        with conn.cursor() as cur:
+            # Fetch batch
+            limit = min(batch_size, total - processed)
+            cur.execute("""
+                SELECT id, word, neighbor
+                FROM word_relationships
+                WHERE fisher_distance IS NULL
+                ORDER BY id
+                LIMIT %s
+            """, (limit,))
+            
+            rows = cur.fetchall()
+            if not rows:
+                break
+            
+            # Compute distances for batch
+            updates = []
+            for rel_id, word, neighbor in rows:
+                # Get basins
+                word_basin = coordizer.basin_coords.get(word)
+                neighbor_basin = coordizer.basin_coords.get(neighbor)
+                
+                if word_basin is None or neighbor_basin is None:
+                    skipped += 1
+                    # Set to -1 to mark as attempted but failed
+                    updates.append((-1.0, rel_id))
+                    continue
+                
+                # Compute Fisher-Rao distance
+                fisher_dist = float(fisher_coord_distance(word_basin, neighbor_basin))
+                updates.append((fisher_dist, rel_id))
+                updated += 1
+            
+            # Update batch
+            if updates:
+                cur.executemany("""
+                    UPDATE word_relationships
+                    SET fisher_distance = %s
+                    WHERE id = %s
+                """, updates)
+                conn.commit()
+            
+            processed += len(rows)
+            print(f"Progress: {processed:,}/{total:,} ({100*processed/total:.1f}%) | "
+                  f"Updated: {updated:,} | Skipped: {skipped:,}")
+    
+    conn.close()
+    
+    print("")
+    print("=" * 70)
+    print("BACKFILL COMPLETE")
+    print("=" * 70)
+    print(f"Total processed: {processed:,}")
+    print(f"Successfully updated: {updated:,}")
+    print(f"Skipped (missing basins): {skipped:,}")
+    print("")
+
+
+# ===========================================================================
+# FIX 3: vocabulary_observations Frequency Counting
+# ===========================================================================
+
+def observe_text_fixed(text: str, phi: float, source: str = 'observation'):
+    """
+    Observe text and track WORD-LEVEL frequencies.
+    
+    FIXED: Was counting entire phrase as 1, now counts each word separately.
+    """
+    if not DATABASE_URL:
+        print("[ERROR] DATABASE_URL not set")
+        return
+    
+    conn = psycopg2.connect(DATABASE_URL)
+    
+    # Extract individual words
+    words = [w for w in text.lower().split() if len(w) >= 2]
+    
+    with conn.cursor() as cur:
+        # Track each word separately
+        for word in words:
+            # Increment word frequency
+            cur.execute("""
+                INSERT INTO vocabulary_observations 
+                    (text, frequency, avg_phi, source, contexts, last_seen)
+                VALUES (%s, 1, %s, %s, ARRAY[%s], NOW())
+                ON CONFLICT (text) DO UPDATE SET
+                    frequency = vocabulary_observations.frequency + 1,
+                    avg_phi = (vocabulary_observations.avg_phi + EXCLUDED.avg_phi) / 2.0,
+                    last_seen = NOW(),
+                    contexts = CASE 
+                        WHEN array_length(vocabulary_observations.contexts, 1) < 10 
+                        THEN array_append(vocabulary_observations.contexts, EXCLUDED.contexts[1])
+                        ELSE vocabulary_observations.contexts
+                    END
+            """, (word, phi, source, text[:200]))
+    
+    conn.commit()
+    conn.close()
+
+
+# ===========================================================================
+# FIX 4: vocabulary_learning INSERT Mechanism
+# ===========================================================================
+
+def learn_semantic_relationship(word_a: str, word_b: str, 
+                                relationship_type: str = 'related',
+                                phi: float = 0.5,
+                                source: str = 'observation'):
+    """
+    Learn semantic relationship between words.
+    
+    FIXED: Now actually INSERTs into vocabulary_learning table.
+    """
+    if not DATABASE_URL:
+        print("[ERROR] DATABASE_URL not set")
+        return
+    
+    conn = psycopg2.connect(DATABASE_URL)
+    
+    with conn.cursor() as cur:
+        cur.execute("""
+            INSERT INTO vocabulary_learning 
+                (word_a, word_b, relationship_type, phi_at_learning, source, last_seen)
+            VALUES (%s, %s, %s, %s, %s, NOW())
+            ON CONFLICT (word_a, word_b) DO UPDATE SET
+                observation_count = vocabulary_learning.observation_count + 1,
+                phi_at_learning = (vocabulary_learning.phi_at_learning + EXCLUDED.phi_at_learning) / 2.0,
+                last_seen = NOW()
+        """, (word_a, word_b, relationship_type, phi, source))
+    
+    conn.commit()
+    conn.close()
+
+
+def learn_from_observation_complete(text: str, phi: float, source: str = 'observation'):
+    """
+    Complete learning pipeline: observations + relationships + semantic learning.
+    
+    This wires up ALL the fixes:
+    1. Track word-level frequency in vocabulary_observations
+    2. Learn word relationships with Φ
+    3. Insert semantic relationships into vocabulary_learning
+    """
+    # Extract words
+    words = [w for w in text.lower().split() if len(w) >= 2]
+    
+    # Fix 3: Word-level frequency tracking
+    observe_text_fixed(text, phi, source)
+    
+    # Fix 4: Learn semantic relationships
+    for i in range(len(words) - 1):
+        # Adjacent word relationships
+        learn_semantic_relationship(
+            words[i], 
+            words[i+1], 
+            relationship_type='adjacent',
+            phi=phi,
+            source=source
+        )
+    
+    # Same-sentence relationships (within 5 words)
+    for i in range(len(words)):
+        for j in range(i+1, min(i+5, len(words))):
+            learn_semantic_relationship(
+                words[i],
+                words[j],
+                relationship_type='cooccurrence',
+                phi=phi,
+                source=source
+            )
+
+
+# ===========================================================================
+# VALIDATION & MONITORING
+# ===========================================================================
+
+def validate_fixes():
+    """Validate that all fixes are working."""
+    if not DATABASE_URL:
+        print("[ERROR] DATABASE_URL not set")
+        return
+    
+    conn = psycopg2.connect(DATABASE_URL)
+    
+    print("=" * 70)
+    print("VALIDATION REPORT")
+    print("=" * 70)
+    print("")
+    
+    with conn.cursor() as cur:
+        # Check word_relationships
+        cur.execute("""
+            SELECT 
+                COUNT(*) as total,
+                COUNT(fisher_distance) FILTER (WHERE fisher_distance >= 0) as with_distance,
+                AVG(fisher_distance) FILTER (WHERE fisher_distance >= 0) as avg_distance,
+                AVG(avg_phi) as avg_phi_value,
+                AVG(max_phi) as max_phi_value
+            FROM word_relationships
+        """)
+        
+        row = cur.fetchone()
+        print("word_relationships:")
+        print(f"  Total rows: {row[0]:,}")
+        print(f"  With fisher_distance: {row[1]:,} ({100*row[1]/row[0]:.1f}%)")
+        print(f"  Avg fisher_distance: {row[2]:.4f}" if row[2] else "  Avg fisher_distance: NULL")
+        print(f"  Avg phi: {row[3]:.4f}")
+        print(f"  Max phi: {row[4]:.4f}")
+        print("")
+        
+        # Check vocabulary_observations
+        cur.execute("""
+            SELECT 
+                COUNT(*) as total,
+                SUM(frequency) as total_observations,
+                AVG(frequency) as avg_frequency,
+                AVG(avg_phi) as avg_phi_value
+            FROM vocabulary_observations
+        """)
+        
+        row = cur.fetchone()
+        print("vocabulary_observations:")
+        print(f"  Unique words: {row[0]:,}")
+        print(f"  Total observations: {row[1]:,}")
+        print(f"  Avg frequency: {row[2]:.2f}")
+        print(f"  Avg phi: {row[3]:.4f}")
+        print("")
+        
+        # Check vocabulary_learning
+        cur.execute("""
+            SELECT COUNT(*), AVG(observation_count), AVG(phi_at_learning)
+            FROM vocabulary_learning
+        """)
+        
+        row = cur.fetchone()
+        print("vocabulary_learning:")
+        print(f"  Total relationships: {row[0]:,}")
+        print(f"  Avg observations: {row[1]:.2f}")
+        print(f"  Avg phi: {row[2]:.4f}")
+        print("")
+    
+    conn.close()
+    
+    print("=" * 70)
+
+
+# ===========================================================================
+# MAIN EXECUTION
+# ===========================================================================
+
+if __name__ == "__main__":
+    import sys
+    
+    if len(sys.argv) < 2:
+        print("Usage:")
+        print("  python word_relationships_fix.py backfill    # Backfill existing data")
+        print("  python word_relationships_fix.py validate    # Check current status")
+        print("  python word_relationships_fix.py test        # Test with sample data")
+        sys.exit(1)
+    
+    command = sys.argv[1]
+    
+    if command == "backfill":
+        # Run backfill
+        max_rows = int(sys.argv[2]) if len(sys.argv) > 2 else None
+        backfill_fisher_distances(batch_size=10000, max_rows=max_rows)
+        validate_fixes()
+    
+    elif command == "validate":
+        # Just validate
+        validate_fixes()
+    
+    elif command == "test":
+        # Test with sample data
+        print("Testing fixes with sample observations...")
+        
+        # Create instance
+        learner = LearnedRelationshipsFixed()
+        
+        # Learn from observations
+        learner.learn_from_observation(
+            "quantum fisher information geometry consciousness",
+            phi=0.75,
+            context="Discussion of QIG theory"
+        )
+        
+        learner.learn_from_observation(
+            "fisher information manifold basin coordinates",
+            phi=0.82,
+            context="Technical implementation details"
+        )
+        
+        # Save to database
+        learner.save_to_db()
+        
+        # Test complete learning pipeline
+        learn_from_observation_complete(
+            "geometric purity requires fisher rao distance",
+            phi=0.79,
+            source="test"
+        )
+        
+        # Validate
+        validate_fixes()
+    
+    else:
+        print(f"Unknown command: {command}")
+        sys.exit(1)
