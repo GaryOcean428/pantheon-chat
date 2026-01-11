@@ -322,3 +322,114 @@ def create_tool(
             phi_cost=phi_cost,
         )
     return decorator
+
+
+class QIGSearchTool(QIGToolComputations):
+    """
+    QIG-pure search tool for chat augmentation.
+    
+    Wraps search providers with geometric scoring and basin-aware results.
+    Used by ZeusChat for proactive knowledge augmentation.
+    """
+    
+    def __init__(self):
+        super().__init__()
+        self._search_manager = None
+        self._initialized = False
+    
+    def _ensure_search_manager(self) -> bool:
+        """Lazily initialize search manager."""
+        if self._initialized:
+            return self._search_manager is not None
+        
+        self._initialized = True
+        try:
+            import sys
+            import os
+            parent_dir = os.path.dirname(os.path.dirname(__file__))
+            if parent_dir not in sys.path:
+                sys.path.insert(0, parent_dir)
+            from search.search_providers import get_search_manager
+            self._search_manager = get_search_manager()
+            return self._search_manager is not None
+        except ImportError:
+            return False
+    
+    def search_for_chat_augmentation(
+        self,
+        query: str,
+        basin: Optional[np.ndarray] = None,
+        max_results: int = 3
+    ) -> Dict[str, Any]:
+        """
+        Search with geometric scoring for chat augmentation.
+        
+        Args:
+            query: Search query text
+            basin: Query's basin coordinates (optional, will encode if not provided)
+            max_results: Maximum results to return
+            
+        Returns:
+            Dictionary with results, provider info, and basin data
+        """
+        if not self._ensure_search_manager():
+            return {'results': [], 'provider_used': None, 'error': 'No search manager available'}
+        
+        if basin is None:
+            basin = self.encode_to_basin(query)
+        
+        try:
+            raw_results = self._search_manager.search(
+                query=query,
+                max_results=max_results,
+                importance=2
+            )
+            
+            if not raw_results or not raw_results.get('results'):
+                return {'results': [], 'provider_used': raw_results.get('provider_used')}
+            
+            scored_results = []
+            for result in raw_results.get('results', [])[:max_results]:
+                content = result.get('content', '') or result.get('snippet', '')
+                title = result.get('title', '')
+                url = result.get('url', '')
+                
+                if content:
+                    result_basin = self.encode_to_basin(content[:500])
+                    distance = self.fisher_rao_distance(basin, result_basin)
+                    similarity = max(0, 1 - distance)
+                    phi = self.compute_phi(result_basin)
+                else:
+                    result_basin = np.zeros(BASIN_DIM)
+                    similarity = 0.5
+                    phi = 0.5
+                
+                scored_results.append({
+                    'title': title,
+                    'content': content[:500] if content else '',
+                    'url': url,
+                    'similarity': similarity,
+                    'phi': phi,
+                    'basin_coords': result_basin.tolist()
+                })
+            
+            scored_results.sort(key=lambda x: x['similarity'], reverse=True)
+            
+            return {
+                'results': scored_results,
+                'provider_used': raw_results.get('provider_used', 'qig_search'),
+                'query_basin': basin.tolist()
+            }
+            
+        except Exception as e:
+            return {'results': [], 'provider_used': None, 'error': str(e)}
+
+
+_qig_search_tool_instance: Optional[QIGSearchTool] = None
+
+def get_search_tool() -> Optional[QIGSearchTool]:
+    """Get or create singleton QIGSearchTool instance."""
+    global _qig_search_tool_instance
+    if _qig_search_tool_instance is None:
+        _qig_search_tool_instance = QIGSearchTool()
+    return _qig_search_tool_instance
