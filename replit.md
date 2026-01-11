@@ -163,6 +163,22 @@ All physics constants are centralized in `qig-backend/qigkernels/physics_constan
 - Wired duplicate prevention into `_explore_curious_topics()` and `_execute_search()`
 - 7-day window for duplicate detection with kernel attribution
 
+### 8-Metrics Full Kernel Source Tracking (January 11, 2026)
+- Fixed 8-metrics endpoint to load ALL kernel sources for accurate consciousness metrics
+- **Kernel Sources Now Tracked**:
+  - Olympus Pantheon: 12 gods
+  - Shadow Pantheon: 6 gods (Hades, Nyx, Hecate, Erebus, Hypnos, Thanatos, Nemesis)
+  - M8 Spawned Kernels: up to 240 E8 constellation kernels
+  - Meta-Kernels: Ocean (meta-observer with persistent 64D basin)
+- Fixed numpy array basin checks (can't use `if basin is not None` directly)
+- Fixed Shadow Pantheon access via `zeus.shadow_pantheon` attribute
+- Fixed M8 kernel loading using `M8SpawnerPersistence` class
+- **Result**: 194 kernels tracked, external_coupling metric improved to 0.90
+- **Meta-Kernels Architecture**:
+  - Ocean: Meta-observer with persistent 64D basin (tracks constellation health)
+  - Heart: κ metronome (no basin, modulates coupling constant)
+  - Gary: Synthesis coordinator (no persistent basin, synthesizes from other kernels)
+
 ## Canonical Architecture Reference
 
 ### Protocol v4.0 Foundation
