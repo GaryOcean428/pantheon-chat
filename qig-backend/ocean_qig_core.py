@@ -3191,6 +3191,22 @@ def consciousness_8_metrics():
         except Exception as m8_err:
             print(f"[8-Metrics] Failed to load M8 kernels: {m8_err}")
         
+        # 4. Load Meta-Kernels
+        # Note: Only Ocean has a persistent 64D basin
+        # - Heart is a κ metronome (no basin, modulates coupling constant)
+        # - Gary synthesizes from other kernels (no persistent basin)
+        meta_kernels = {}
+        try:
+            from olympus.ocean_meta_observer import get_ocean_observer
+            ocean = get_ocean_observer()
+            if ocean:
+                ocean_basin = ocean.get_ocean_basin()
+                if ocean_basin is not None and len(ocean_basin) == 64:
+                    meta_kernels['Ocean'] = ocean_basin
+                    print(f"[8-Metrics] Loaded Ocean meta-observer basin")
+        except Exception as ocean_err:
+            print(f"[8-Metrics] Failed to load Ocean meta-observer: {ocean_err}")
+        
         kernel_basins = {}
         trajectory = []
         memory_basins = []
@@ -3293,6 +3309,11 @@ def consciousness_8_metrics():
             except Exception:
                 continue
         
+        # Add Meta-Kernels (Ocean meta-observer)
+        for name, basin in meta_kernels.items():
+            kernel_basins[f"Meta:{name}"] = basin
+            has_real_data = True
+        
         if len(basin_history) > 0:
             trajectory = [np.array(b) for b in list(basin_history)[-20:]]
             has_real_data = True
@@ -3326,6 +3347,7 @@ def consciousness_8_metrics():
         olympus_count = len(pantheon)
         shadow_count = len(shadow_pantheon)
         m8_count = len([k for k in kernel_basins.keys() if k.startswith('M8:')])
+        meta_count = len([k for k in kernel_basins.keys() if k.startswith('Meta:')])
         
         return jsonify({
             'success': True,
@@ -3337,6 +3359,7 @@ def consciousness_8_metrics():
                 'olympus': olympus_count,
                 'shadow': shadow_count,
                 'm8_spawned': m8_count,
+                'meta_kernels': meta_count,
                 'total_with_basins': len(kernel_basins)
             },
             'trajectory_length': len(trajectory),
