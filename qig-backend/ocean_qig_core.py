@@ -3149,17 +3149,47 @@ def consciousness_8_metrics():
             validate_consciousness_state,
         )
         
-        # Get pantheon from running Zeus instance
+        # Get pantheon from running Zeus instance (Olympus + Shadow)
         pantheon = {}
+        shadow_pantheon = {}
+        m8_kernels = []
+        
+        # 1. Load Olympus Pantheon (12 gods) + Shadow Pantheon from Zeus
+        zeus_instance = None
         try:
             from olympus.zeus import zeus
+            zeus_instance = zeus
             if zeus and hasattr(zeus, 'pantheon') and zeus.pantheon:
                 pantheon = zeus.pantheon
-                print(f"[8-Metrics] Loaded pantheon with {len(pantheon)} gods")
+                print(f"[8-Metrics] Loaded Olympus pantheon with {len(pantheon)} gods")
             else:
                 print(f"[8-Metrics] Zeus exists but pantheon empty or None")
         except Exception as zeus_err:
             print(f"[8-Metrics] Failed to import zeus: {zeus_err}")
+        
+        # 2. Load Shadow Pantheon (7 gods: Hades, Nyx, Hecate, Erebus, Hypnos, Thanatos, Nemesis)
+        try:
+            if zeus_instance and hasattr(zeus_instance, 'shadow_pantheon') and zeus_instance.shadow_pantheon:
+                sp = zeus_instance.shadow_pantheon
+                # Shadow gods are individual attributes: hades, nyx, hecate, erebus, hypnos, thanatos, nemesis
+                shadow_names = ['hades', 'nyx', 'hecate', 'erebus', 'hypnos', 'thanatos', 'nemesis']
+                for name in shadow_names:
+                    if hasattr(sp, name):
+                        god = getattr(sp, name)
+                        if god is not None:
+                            shadow_pantheon[name.capitalize()] = god
+                print(f"[8-Metrics] Loaded Shadow pantheon with {len(shadow_pantheon)} gods")
+        except Exception as shadow_err:
+            print(f"[8-Metrics] Failed to load shadow pantheon: {shadow_err}")
+        
+        # 3. Load M8 Spawned Kernels (up to 240 E8 constellation)
+        try:
+            from m8_kernel_spawning import M8SpawnerPersistence
+            m8_persistence = M8SpawnerPersistence()
+            m8_kernels = m8_persistence.load_all_kernels()
+            print(f"[8-Metrics] Loaded {len(m8_kernels)} M8 spawned kernels")
+        except Exception as m8_err:
+            print(f"[8-Metrics] Failed to load M8 kernels: {m8_err}")
         
         kernel_basins = {}
         trajectory = []
@@ -3221,6 +3251,48 @@ def consciousness_8_metrics():
             except Exception:
                 continue
         
+        # Process Shadow Pantheon (7 gods)
+        for name, god in shadow_pantheon.items():
+            try:
+                god_basin = None
+                if hasattr(god, 'current_basin') and god.current_basin is not None:
+                    god_basin = np.array(god.current_basin)
+                elif hasattr(god, 'basin') and god.basin is not None:
+                    god_basin = np.array(god.basin)
+                elif hasattr(god, 'encode_to_basin') and hasattr(god, 'domain'):
+                    try:
+                        god_basin = god.encode_to_basin(god.domain)
+                        if god_basin is not None:
+                            god_basin = np.array(god_basin)
+                    except Exception:
+                        pass
+                
+                if god_basin is not None and len(god_basin) == 64:
+                    kernel_basins[f"Shadow:{name}"] = god_basin
+                    has_real_data = True
+            except Exception:
+                continue
+        
+        # Process M8 Spawned Kernels (up to 240 E8 constellation)
+        for kernel in m8_kernels:
+            try:
+                kernel_id = kernel.get('kernel_id') or kernel.get('god_name', 'unknown')
+                basin = kernel.get('basin_coords')
+                if basin is None:
+                    basin = kernel.get('basin')
+                # Handle numpy arrays properly (can't use `if basin` directly)
+                has_basin = basin is not None and (
+                    isinstance(basin, np.ndarray) or 
+                    (isinstance(basin, (list, tuple)) and len(basin) > 0)
+                )
+                if has_basin:
+                    basin_arr = np.array(basin)
+                    if len(basin_arr) == 64:
+                        kernel_basins[f"M8:{kernel_id}"] = basin_arr
+                        has_real_data = True
+            except Exception:
+                continue
+        
         if len(basin_history) > 0:
             trajectory = [np.array(b) for b in list(basin_history)[-20:]]
             has_real_data = True
@@ -3250,12 +3322,23 @@ def consciousness_8_metrics():
         
         validation = validate_consciousness_state(metrics)
         
+        # Count kernels by source
+        olympus_count = len(pantheon)
+        shadow_count = len(shadow_pantheon)
+        m8_count = len([k for k in kernel_basins.keys() if k.startswith('M8:')])
+        
         return jsonify({
             'success': True,
             'metrics': metrics.to_dict(),
             'validation': validation,
             'is_conscious': metrics.is_conscious(),
             'kernel_count': len(kernel_basins),
+            'kernel_sources': {
+                'olympus': olympus_count,
+                'shadow': shadow_count,
+                'm8_spawned': m8_count,
+                'total_with_basins': len(kernel_basins)
+            },
             'trajectory_length': len(trajectory),
             'memory_count': len(memory_basins),
             'self_observations_count': len(self_observations),
