@@ -60,6 +60,15 @@ def get_orchestrator() -> KernelTrainingOrchestrator:
             ),
             checkpoint_dir=get_checkpoint_dir(),
         )
+        # Wire LearnedManifold for attractor formation
+        try:
+            from vocabulary_coordinator import get_learned_manifold
+            manifold = get_learned_manifold()
+            if manifold:
+                _orchestrator.wire_learned_manifold(manifold)
+                print("[Training] Wired orchestrator to LearnedManifold for attractor formation")
+        except Exception as e:
+            print(f"[Training] Could not wire LearnedManifold: {e}")
     return _orchestrator
 
 
