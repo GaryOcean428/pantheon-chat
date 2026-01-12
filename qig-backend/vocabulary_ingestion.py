@@ -46,6 +46,11 @@ QFI_TO_PHI_BASE = 0.5  # Base phi score for QFI mapping
 QFI_TO_PHI_SCALE = 0.3  # Scale factor for tanh normalization
 QFI_TO_PHI_EPSILON = 1e-10  # Small epsilon to prevent log(0)
 
+# Database Column Names (for migration safety)
+BASIN_COLUMN_PRE_MIGRATION = 'basin_embedding'  # Before migration 010
+BASIN_COLUMN_POST_MIGRATION = 'basin_coordinates'  # After migration 010
+ALLOWED_BASIN_COLUMNS = {BASIN_COLUMN_PRE_MIGRATION, BASIN_COLUMN_POST_MIGRATION}  # Whitelist
+
 try:
     from coordizers import get_coordizer
     COORDIZER_AVAILABLE = True
@@ -403,9 +408,13 @@ class VocabularyIngestionService:
                     """)
                     has_basin_coordinates = cur.fetchone()[0]
                     
-                    basin_column = 'basin_coordinates' if has_basin_coordinates else 'basin_embedding'
+                    basin_column = BASIN_COLUMN_POST_MIGRATION if has_basin_coordinates else BASIN_COLUMN_PRE_MIGRATION
                     
-                    # Upsert to tokenizer_vocabulary (dynamic column name)
+                    # Validate column name against whitelist (prevent SQL injection)
+                    if basin_column not in ALLOWED_BASIN_COLUMNS:
+                        raise RuntimeError(f"Invalid basin column name: {basin_column}")
+                    
+                    # Upsert to tokenizer_vocabulary (safe: column validated against whitelist)
                     query = f"""
                         INSERT INTO tokenizer_vocabulary (
                             token, {basin_column}, phi_score, frequency, source_type, 

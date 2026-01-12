@@ -427,17 +427,19 @@ class VocabularyPersistence:
                 f"expected list of 64 floats, got {type(basin_embedding)} with length {len(basin_embedding) if isinstance(basin_embedding, list) else 'N/A'}"
             )
         
-        # Proceed with upsert (authorized)
-        # Note: This is a pass-through - actual upsert happens in VocabularyIngestionService
-        # This method serves as validation checkpoint, not the actual persistence
-        print(f"[VocabularyPersistence] Authorized upsert for '{word}' from ingestion service")
+        # Proceed with validation (authorized caller)
+        # IMPORTANT: This method does NOT perform database writes
+        # It serves as a validation checkpoint before VocabularyIngestionService writes to DB
+        # The 'persisted' flag means "validation passed, safe to persist"
+        print(f"[VocabularyPersistence] Validation passed for '{word}' from ingestion service")
         
-        # Return validation success - actual DB write happens in ingestion service
+        # Return validation success - actual DB write happens in VocabularyIngestionService._upsert_to_database
         return {
             'word': word, 
-            'persisted': True,
+            'persisted': False,  # Not yet persisted, just validated
             'validation': 'passed',
-            'basin_dimension': len(basin_embedding)
+            'basin_dimension': len(basin_embedding),
+            'note': 'Validation checkpoint - actual DB write in VocabularyIngestionService'
         }
 
 
