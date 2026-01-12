@@ -30,8 +30,15 @@ class TestKernelInitializationFix(unittest.TestCase):
         )
         
         # Verify constants have correct values
-        self.assertEqual(PHI_INIT_SPAWNED, 0.25, "PHI_INIT_SPAWNED should be 0.25 (LINEAR regime)")
-        self.assertEqual(PHI_MIN_ALIVE, 0.05, "PHI_MIN_ALIVE should be 0.05 (minimum survival)")
+        # Test relationships rather than exact hardcoded values for maintainability
+        self.assertGreater(PHI_INIT_SPAWNED, 0.1, "PHI_INIT_SPAWNED must be above BREAKDOWN regime")
+        self.assertLessEqual(PHI_INIT_SPAWNED, 0.7, "PHI_INIT_SPAWNED must be in LINEAR regime")
+        self.assertGreater(PHI_MIN_ALIVE, 0.0, "PHI_MIN_ALIVE must be positive")
+        self.assertLess(PHI_MIN_ALIVE, PHI_INIT_SPAWNED, "PHI_MIN_ALIVE must be less than PHI_INIT_SPAWNED")
+        
+        # Verify current expected values (these can be adjusted if physics constants change)
+        self.assertAlmostEqual(PHI_INIT_SPAWNED, 0.25, places=2, msg="PHI_INIT_SPAWNED expected to be ~0.25")
+        self.assertAlmostEqual(PHI_MIN_ALIVE, 0.05, places=2, msg="PHI_MIN_ALIVE expected to be ~0.05")
         self.assertEqual(KAPPA_INIT_SPAWNED, KAPPA_STAR, "KAPPA_INIT_SPAWNED should equal KAPPA_STAR")
         
         # Verify PHI_INIT_SPAWNED is above BREAKDOWN regime (< 0.1)
