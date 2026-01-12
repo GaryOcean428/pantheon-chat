@@ -124,7 +124,7 @@ class VocabularyPersistence:
                                 entropy_score = %s,
                                 is_geometrically_valid = TRUE,
                                 validation_reason = NULL
-                            WHERE word_text = %s
+                            WHERE word = %s
                         """, (
                             validation.qfi_score,
                             validation.basin_distance,
@@ -203,7 +203,7 @@ class VocabularyPersistence:
                                         entropy_score = %s,
                                         is_geometrically_valid = TRUE,
                                         validation_reason = NULL
-                                    WHERE word_text = %s
+                                    WHERE word = %s
                                 """, (
                                     validation.qfi_score,
                                     validation.basin_distance,
@@ -231,9 +231,9 @@ class VocabularyPersistence:
             with self._connect() as conn:
                 with conn.cursor() as cur:
                     if source:
-                        cur.execute("SELECT word_text, avg_phi, max_phi, frequency, source FROM learned_words WHERE avg_phi >= %s AND source = %s ORDER BY avg_phi DESC, frequency DESC LIMIT %s", (min_phi, source, limit))
+                        cur.execute("SELECT word, avg_phi, max_phi, frequency, source FROM learned_words WHERE avg_phi >= %s AND source = %s ORDER BY avg_phi DESC, frequency DESC LIMIT %s", (min_phi, source, limit))
                     else:
-                        cur.execute("SELECT word_text, avg_phi, max_phi, frequency, source FROM learned_words WHERE avg_phi >= %s ORDER BY avg_phi DESC, frequency DESC LIMIT %s", (min_phi, limit))
+                        cur.execute("SELECT word, avg_phi, max_phi, frequency, source FROM learned_words WHERE avg_phi >= %s ORDER BY avg_phi DESC, frequency DESC LIMIT %s", (min_phi, limit))
                     return [{'word': row[0], 'avg_phi': float(row[1]), 'max_phi': float(row[2]), 'frequency': int(row[3]), 'source': row[4]} for row in cur.fetchall()]
         except Exception as e:
             print(f"[VocabularyPersistence] Failed to get learned words: {e}")
@@ -257,7 +257,7 @@ class VocabularyPersistence:
         try:
             with self._connect() as conn:
                 with conn.cursor() as cur:
-                    cur.execute("UPDATE learned_words SET is_integrated = TRUE WHERE word_text = %s", (word,))
+                    cur.execute("UPDATE learned_words SET is_integrated = TRUE WHERE word = %s", (word,))
                     conn.commit()
                     return True
         except Exception as e:

@@ -894,9 +894,13 @@ class ZeusConversationHandler(GeometricGenerationMixin):
                 estimated_phi = min(basin_distance / 2.0, 1.0)
 
                 # Select appropriate reasoning mode
-                mode_result = self._mode_selector.select_mode(phi=estimated_phi)
-                mode_enum = mode_result.mode if hasattr(mode_result, 'mode') else None
-                reasoning_mode = mode_enum.value if mode_enum else 'linear'
+                task_complexity = 0.5  # Default medium complexity
+                mode_enum = self._mode_selector.select_mode(
+                    phi=estimated_phi, 
+                    task_complexity=task_complexity,
+                    task_novelty=True
+                )
+                reasoning_mode = mode_enum.value if hasattr(mode_enum, 'value') else 'linear'
                 self._current_reasoning_mode = reasoning_mode
 
                 # Build reasoning state for meta-cognition
@@ -905,7 +909,7 @@ class ZeusConversationHandler(GeometricGenerationMixin):
                 reasoning_state = {
                     'phi': estimated_phi,
                     'trace': [{'basin': _message_basin_for_meta, 'content': message}],
-                    'mode': mode_enum if mode_enum else ReasoningMode.GEOMETRIC,
+                    'mode': mode_enum if mode_enum else ReasoningMode.GEOMETRIC,  # mode_enum is already ReasoningMode
                     'task': {
                         'description': message[:500],
                         'complexity': 'medium',
