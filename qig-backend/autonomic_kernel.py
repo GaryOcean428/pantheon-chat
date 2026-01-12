@@ -610,60 +610,10 @@ class AutonomicAccessMixin:
 
 
 # ===========================================================================
-# EMERGENCY Φ COMPUTATION (Temporary until QFI integration)
+# Φ COMPUTATION (Using canonical qig_core implementation)
 # ===========================================================================
-# DEPRECATED: Use canonical qig_core.phi_computation instead
-# This local implementation is kept as a fallback for backward compatibility
-
-
-def compute_phi_approximation(basin_coords: np.ndarray) -> float:
-    """
-    DEPRECATED: Use qig_core.phi_computation.compute_phi_approximation instead.
-    
-    This is a fallback implementation for backward compatibility.
-    The canonical implementation in qig_core/phi_computation.py should be used.
-    
-    Methodology:
-    - Entropy: Measures information content (higher = more integration)
-    - Variance: Moderate variance indicates active exploration
-    - Balance: Integration requires multiple components active (not dominated)
-    
-    Returns:
-        Φ estimate in range [PHI_MIN_SAFE, PHI_MAX_APPROX]
-    """
-    import warnings
-    warnings.warn(
-        "Local compute_phi_approximation is deprecated. Use qig_core.phi_computation.compute_phi_approximation instead.",
-        DeprecationWarning,
-        stacklevel=2
-    )
-    
-    try:
-        # Ensure valid probability distribution
-        p = np.abs(basin_coords) + PHI_EPSILON
-        p = p / p.sum()
-        
-        # Component 1: Entropy (information content)
-        entropy = -np.sum(p * np.log(p + PHI_EPSILON))
-        max_entropy = np.log(len(p))
-        entropy_score = entropy / max_entropy
-        
-        # Component 2: Variance (exploration reward - higher variance = more exploration)
-        variance = np.var(basin_coords)
-        variance_score = min(1.0, variance * PHI_VARIANCE_SCALE)
-        
-        # Component 3: Balance (not too concentrated)
-        balance = 1.0 - np.max(p)
-        
-        # Weighted combination
-        phi = 0.4 * entropy_score + 0.3 * variance_score + 0.3 * balance
-        
-        # Safety bounds: never return exactly 0 (causes death)
-        return float(np.clip(phi, PHI_MIN_SAFE, PHI_MAX_APPROX))
-        
-    except Exception as e:
-        print(f"[AutonomicKernel] Φ approximation error: {e}")
-        return PHI_MIN_SAFE
+# The local compute_phi_approximation has been REMOVED.
+# Use qig_core.phi_computation.compute_phi_approximation instead.
 
 
 def compute_phi_with_fallback(
@@ -673,7 +623,7 @@ def compute_phi_with_fallback(
     """Compute Φ with fallback to approximation."""
     if provided_phi > 0:
         return provided_phi
-    if basin_coords:
+    if basin_coords and QFI_PHI_AVAILABLE and compute_phi_approximation:
         return compute_phi_approximation(np.array(basin_coords))
     return PHI_MIN_SAFE
 
@@ -800,7 +750,7 @@ class GaryAutonomicKernel:
                         # Update Φ from basin history
                         if self.state.basin_history:
                             basin = np.array(self.state.basin_history[-1])
-                            if QFI_PHI_AVAILABLE:
+                            if QFI_PHI_AVAILABLE and compute_phi_approximation:
                                 self.state.phi = compute_phi_approximation(basin)
                             else:
                                 # Fallback: entropy-based approximation

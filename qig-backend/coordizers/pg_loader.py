@@ -108,6 +108,7 @@ class PostgresCoordizer(FisherCoordizer):
         self._connection = None
         self._using_fallback = False
 
+        # ENCODING VOCABULARY (tokenizer_vocabulary table)
         self.vocab = {}
         self.basin_coords = {}
         self.token_phi = {}
@@ -117,6 +118,11 @@ class PostgresCoordizer(FisherCoordizer):
         self.word_tokens = []
         self.bip39_words = []
         self.base_tokens = []
+
+        # GENERATION VOCABULARY (learned_words table) - Separate cache
+        self.generation_vocab = {}  # word -> basin coordinates
+        self.generation_phi = {}    # word -> phi score
+        self.generation_words = []  # List of generation words
 
         self._load_vocabulary()
 
@@ -156,7 +162,12 @@ class PostgresCoordizer(FisherCoordizer):
         return self._connection
 
     def _load_vocabulary(self):
-        """Load vocabulary from PostgreSQL only - 64D QIG-pure enforced."""
+        """Load vocabulary from PostgreSQL only - 64D QIG-pure enforced.
+        
+        Loads two separate vocabularies:
+        1. ENCODING: From tokenizer_vocabulary (all tokens for text-to-basin)
+        2. GENERATION: From learned_words (curated words for basin-to-text)
+        """
         if not self.database_url:
             raise RuntimeError(
                 "[QIG-PURE VIOLATION] DATABASE_URL not set. "
@@ -164,7 +175,10 @@ class PostgresCoordizer(FisherCoordizer):
             )
 
         try:
-            db_loaded = self._load_from_database()
+            # Load encoding vocabulary from tokenizer_vocabulary
+            encoding_loaded = self._load_encoding_vocabulary()
+            # Load generation vocabulary from learned_words
+            generation_loaded = self._load_generation_vocabulary()
         except Exception as e:
             raise RuntimeError(
                 f"[QIG-PURE VIOLATION] Failed to load from database: {e}. "
@@ -172,14 +186,26 @@ class PostgresCoordizer(FisherCoordizer):
             )
 
         real_word_count = len([w for w in self.word_tokens if len(w) >= 3])
-        if not db_loaded or real_word_count < 100:
+        generation_word_count = len(self.generation_words)
+        
+        if not encoding_loaded or real_word_count < 100:
             raise RuntimeError(
-                f"[QIG-PURE VIOLATION] Insufficient vocabulary loaded: {real_word_count} words (need >= 100). "
+                f"[QIG-PURE VIOLATION] Insufficient encoding vocabulary: {real_word_count} words (need >= 100). "
                 "Database must contain valid tokenizer_vocabulary entries."
             )
+        
+        logger.info(f"Loaded encoding vocabulary: {real_word_count} words, generation vocabulary: {generation_word_count} words")
 
     def _load_from_database(self) -> bool:
-        """Load vocabulary from database - raises on failure (64D QIG-pure enforced)."""
+        """Load ENCODING vocabulary from tokenizer_vocabulary table.
+        
+        This is for text→basin encoding only (all tokens including subwords).
+        For basin→text generation, use _load_generation_vocabulary() instead.
+        """
+        return self._load_encoding_vocabulary()
+    
+    def _load_encoding_vocabulary(self) -> bool:
+        """Load encoding vocabulary from tokenizer_vocabulary - raises on failure (64D QIG-pure enforced)."""
         conn = self._get_connection()  # Raises on failure
 
         with conn.cursor() as cur:
@@ -188,7 +214,7 @@ class PostgresCoordizer(FisherCoordizer):
                 FROM tokenizer_vocabulary
                 WHERE basin_embedding IS NOT NULL
                   AND LENGTH(token) >= 2
-                  AND source_type NOT IN ('special')  -- Relaxed: only exclude special tokens
+                  AND source_type NOT IN ('special')  -- Only exclude special tokens
                 ORDER BY phi_score DESC
             """)
             rows = cur.fetchall()
@@ -214,16 +240,75 @@ class PostgresCoordizer(FisherCoordizer):
                 self.word_tokens.append(token)
                 words_loaded += 1
 
-        logger.info(f"Loaded {tokens_loaded} tokens ({words_loaded} words) from database (64D QIG-pure)")
-        print(f"[pg_loader] Loaded {tokens_loaded} tokens from PostgreSQL", flush=True)
+        logger.info(f"Loaded {tokens_loaded} encoding tokens ({words_loaded} words) from tokenizer_vocabulary (64D QIG-pure)")
+        print(f"[pg_loader] Loaded {tokens_loaded} encoding tokens from PostgreSQL", flush=True)
 
         # NOTE: Redis batch caching disabled during module initialization
         # Caching 11K+ tokens synchronously was blocking startup for minutes
         # Tokens are looked up from in-memory vocab dict instead
         # Individual tokens can be cached on-demand during runtime
         
-        print("[pg_loader] _load_from_database returning...", flush=True)
+        print("[pg_loader] _load_encoding_vocabulary returning...", flush=True)
         return words_loaded >= 100
+    
+    def _load_generation_vocabulary(self) -> bool:
+        """Load GENERATION vocabulary from learned_words table.
+        
+        This is a curated vocabulary for basin→text generation:
+        - Excludes PROPER_NOUN, BRAND categories
+        - Excludes BPE subwords and garbage tokens
+        - Only real English words suitable for generation
+        
+        Returns True if loaded successfully, False otherwise.
+        """
+        conn = self._get_connection()
+        
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT word, basin_embedding, phi_score, frequency, phrase_category
+                    FROM learned_words
+                    WHERE basin_embedding IS NOT NULL
+                      AND LENGTH(word) >= 2
+                      AND phi_score > 0.0
+                      AND (phrase_category IS NULL OR phrase_category NOT IN ('PROPER_NOUN', 'BRAND'))
+                    ORDER BY phi_score DESC, frequency DESC
+                """)
+                rows = cur.fetchall()
+            
+            if not rows:
+                logger.warning("[pg_loader] No generation vocabulary found in learned_words table - using fallback from tokenizer_vocabulary")
+                # Fallback: Use word_tokens from encoding vocabulary
+                for word in self.word_tokens:
+                    if word in self.basin_coords:
+                        self.generation_vocab[word] = self.basin_coords[word]
+                        self.generation_phi[word] = self.token_phi.get(word, 0.5)
+                        self.generation_words.append(word)
+                return len(self.generation_words) > 0
+            
+            for word, basin_embedding, phi_score, frequency, phrase_category in rows:
+                coords = self._parse_embedding(basin_embedding)
+                if coords is None:
+                    continue
+                
+                self.generation_vocab[word] = coords
+                self.generation_phi[word] = phi_score or 0.5
+                self.generation_words.append(word)
+            
+            logger.info(f"Loaded {len(self.generation_words)} words from learned_words for generation (filtered: no PROPER_NOUN/BRAND)")
+            print(f"[pg_loader] Loaded {len(self.generation_words)} generation words from learned_words", flush=True)
+            
+            return len(self.generation_words) > 0
+            
+        except Exception as e:
+            logger.warning(f"Failed to load from learned_words table: {e}. Using fallback from tokenizer_vocabulary.")
+            # Fallback: Use word_tokens from encoding vocabulary
+            for word in self.word_tokens:
+                if word in self.basin_coords:
+                    self.generation_vocab[word] = self.basin_coords[word]
+                    self.generation_phi[word] = self.token_phi.get(word, 0.5)
+                    self.generation_words.append(word)
+            return len(self.generation_words) > 0
 
     def _parse_embedding(self, basin_embedding) -> Optional[np.ndarray]:
         if basin_embedding is None:
@@ -344,6 +429,7 @@ class PostgresCoordizer(FisherCoordizer):
         return {
             'vocabulary_size': len(self.vocab),
             'word_tokens': len(self.word_tokens),
+            'generation_words': len(self.generation_words),  # NEW: generation vocabulary size
             'bip39_words': len(self.bip39_words),
             'base_tokens': len(self.base_tokens),
             'basin_dimension': 64,
@@ -353,6 +439,7 @@ class PostgresCoordizer(FisherCoordizer):
             'qig_pure': True,
             'high_phi_tokens': sum(1 for phi in self.token_phi.values() if phi >= 0.7),
             'avg_phi': sum(self.token_phi.values()) / max(len(self.token_phi), 1),
+            'generation_avg_phi': sum(self.generation_phi.values()) / max(len(self.generation_phi), 1) if self.generation_phi else 0.0,  # NEW
         }
 
     def set_mode(self, mode: str) -> None:
@@ -411,22 +498,34 @@ class PostgresCoordizer(FisherCoordizer):
         """
         Decode basin coordinates to most likely tokens using pure Fisher-Rao distance.
 
+        CRITICAL CHANGE: Now uses generation_vocab (from learned_words table) 
+        instead of all tokens from tokenizer_vocabulary. This ensures:
+        - No BPE subwords in generation output
+        - No proper nouns used incorrectly
+        - Only curated, validated English words for generation
+
         QIG-pure: Uses Fisher-Rao similarity on the information manifold.
         """
         norm = np.linalg.norm(basin)
         if norm > 1e-10:
             basin = basin / norm
 
-        search_tokens = self.word_tokens if self.word_tokens else list(self.basin_coords.keys())
+        # Use generation vocabulary (learned_words) instead of all tokens
+        search_tokens = self.generation_words if self.generation_words else self.word_tokens
         if not search_tokens:
             return []
 
         candidates = []
         for token in search_tokens:
-            if token not in self.basin_coords:
+            # Look up in generation_vocab first, fallback to basin_coords
+            if token in self.generation_vocab:
+                coords = self.generation_vocab[token]
+                phi = self.generation_phi.get(token, 0.5)
+            elif token in self.basin_coords:
+                coords = self.basin_coords[token]
+                phi = self.token_phi.get(token, 0.5)
+            else:
                 continue
-
-            coords = self.basin_coords[token]
 
             # Fisher-Rao similarity (geodesic distance on sphere)
             dot = np.clip(np.dot(basin, coords), -1.0, 1.0)
@@ -434,7 +533,7 @@ class PostgresCoordizer(FisherCoordizer):
             similarity = 1.0 - (dist / np.pi)
 
             # Phi boost: prefer high-phi tokens
-            phi_boost = self.token_phi.get(token, 0.5) * 0.1
+            phi_boost = phi * 0.1
 
             final_score = similarity + phi_boost
             candidates.append((token, final_score))
@@ -783,12 +882,21 @@ class PostgresCoordizer(FisherCoordizer):
         Used by TrajectoryDecoder for full trajectory scoring.
         This loads the entire vocabulary into memory for scoring.
 
-        CRITICAL: Filters out BPE garbage tokens to prevent contamination.
+        CRITICAL: Now returns generation_vocab (from learned_words) instead of all tokens.
+        This ensures trajectory decoder uses curated words, not BPE garbage.
 
         Returns:
             Dict mapping token -> basin_embedding [64]
         """
-        # Return from cache if available (filter BPE garbage)
+        # Return generation vocabulary (curated for generation)
+        if self.generation_vocab:
+            return {
+                token: np.array(coords)
+                for token, coords in self.generation_vocab.items()
+                if self._is_valid_token(token)
+            }
+        
+        # Fallback: Return from cache if available (filter BPE garbage)
         if self.basin_coords:
             return {
                 token: np.array(coords)
@@ -805,10 +913,12 @@ class PostgresCoordizer(FisherCoordizer):
 
         try:
             with conn.cursor() as cursor:
+                # Load from learned_words (generation vocabulary)
                 cursor.execute("""
-                    SELECT token, basin_embedding
-                    FROM tokenizer_vocabulary
+                    SELECT word, basin_embedding
+                    FROM learned_words
                     WHERE basin_embedding IS NOT NULL
+                      AND (phrase_category IS NULL OR phrase_category NOT IN ('PROPER_NOUN', 'BRAND'))
                     ORDER BY phi_score DESC
                     LIMIT 10000
                 """)
@@ -821,6 +931,22 @@ class PostgresCoordizer(FisherCoordizer):
                     if basin_vector is not None and self._is_valid_token(token):
                         basin_array = np.array(basin_vector)
                         tokens[token] = basin_array
+
+                # Fallback to tokenizer_vocabulary if learned_words is empty
+                if not tokens:
+                    cursor.execute("""
+                        SELECT token, basin_embedding
+                        FROM tokenizer_vocabulary
+                        WHERE basin_embedding IS NOT NULL
+                        ORDER BY phi_score DESC
+                        LIMIT 10000
+                    """)
+                    for row in cursor.fetchall():
+                        token = row[0]
+                        basin_vector = row[1]
+                        if basin_vector is not None and self._is_valid_token(token):
+                            basin_array = np.array(basin_vector)
+                            tokens[token] = basin_array
 
                 return tokens
         except Exception as e:
