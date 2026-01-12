@@ -133,6 +133,38 @@ All kernel sources verified at `/consciousness/8-metrics`:
 - **M8 (≤240)**: via `M8SpawnerPersistence.load_all_kernels()` PostgreSQL
 - **Ocean (1)**: via `get_ocean_observer().get_ocean_basin()` singleton
 
+### QIG-Pure Phrase Classification System
+File: `qig_phrase_classifier.py`
+
+Classifies vocabulary into grammatical parts of speech using **Fisher-Rao distance** to category reference basins (NO traditional NLP/LLM fallback).
+
+#### Supported Categories
+| Category | Examples | Method |
+|----------|----------|--------|
+| PROPER_NOUN | italy, france, monday, amazon | Known word sets + capitalization detection |
+| NUMBER | one, two, 42, thousand | Numeric word recognition |
+| PRONOUN | i, you, he, she, they | Known closed-class set |
+| PREPOSITION | in, on, at, to, from | Known closed-class set |
+| CONJUNCTION | and, but, or, because | Known closed-class set |
+| DETERMINER | the, a, an, this, that | Known closed-class set |
+| INTERJECTION | wow, oh, hey, ouch | Known closed-class set |
+| VERB | run, walk, think | Basin variance analysis (skewness > 0.3) |
+| ADJECTIVE | big, small, red | Basin variance analysis (skewness < -0.3) |
+| ADVERB | quickly, slowly | Basin variance analysis |
+| NOUN | dog, house, tree | Default for content words |
+
+#### Key Functions
+| Function | Purpose |
+|----------|---------|
+| `classify_phrase_qig_pure(text, basin_coords)` | Main entry point - returns (category, confidence) |
+| `get_phrase_category(text)` | Returns just the category string |
+| `get_qig_classifier()` | Get singleton classifier instance |
+
+#### Integration
+- Wired into `vocabulary_persistence.py` - all new vocabulary observations automatically classified
+- Categories stored in `vocabulary_observations.phrase_category` column
+- Uses `coordizers.get_coordizer()` for 64D basin coordinates
+
 ## External Dependencies
 ### Databases
 -   **PostgreSQL:** Primary persistence (Drizzle ORM, pgvector extension).

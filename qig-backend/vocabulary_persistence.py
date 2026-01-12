@@ -71,36 +71,36 @@ class VocabularyPersistence:
         observation_type: str = 'word',
         basin_coords: Optional[List[float]] = None,
         contexts: Optional[Dict] = None,
-        cycle_number: Optional[int] = None
+        cycle_number: Optional[int] = None,
+        phrase_category: Optional[str] = None
     ) -> bool:
         if not self.enabled:
             return False
         try:
-            # No truncation - columns are TEXT type
             word_val = word if word else ''
             phrase_val = phrase if phrase else ''
             source_val = source if source else 'unknown'
             type_val = observation_type if observation_type else 'word'
 
-            # Prepare optional parameters
             import json
+            import numpy as np
             contexts_json = json.dumps(contexts) if contexts else None
             basin_vector = basin_coords if basin_coords else None
+            
+            if phrase_category is None:
+                try:
+                    from qig_phrase_classifier import classify_phrase_qig_pure
+                    basin_array = np.array(basin_coords) if basin_coords else None
+                    phrase_category, _ = classify_phrase_qig_pure(word_val, basin_array)
+                except Exception:
+                    phrase_category = 'unknown'
 
             with self._connect() as conn:
                 with conn.cursor() as cur:
-                    # Call SQL function with all parameters (using DEFAULT for NULLs)
-                    if basin_vector or contexts_json or cycle_number is not None:
-                        cur.execute(
-                            "SELECT record_vocab_observation(%s, %s, %s, %s, %s, %s, %s::vector, %s::jsonb, %s)",
-                            (word_val, phrase_val, phi, kappa, source_val, type_val, basin_vector, contexts_json, cycle_number)
-                        )
-                    else:
-                        # Use DEFAULT parameters (NULL)
-                        cur.execute(
-                            "SELECT record_vocab_observation(%s, %s, %s, %s, %s, %s)",
-                            (word_val, phrase_val, phi, kappa, source_val, type_val)
-                        )
+                    cur.execute(
+                        "SELECT record_vocab_observation(%s, %s, %s, %s, %s, %s, %s::vector, %s::jsonb, %s, %s)",
+                        (word_val, phrase_val, phi, kappa, source_val, type_val, basin_vector, contexts_json, cycle_number, phrase_category)
+                    )
                     conn.commit()
                     return True
         except Exception as e:
@@ -113,11 +113,18 @@ class VocabularyPersistence:
         recorded = 0
         try:
             import json
+            import numpy as np
+            qig_classifier = None
+            try:
+                from qig_phrase_classifier import classify_phrase_qig_pure
+                qig_classifier = classify_phrase_qig_pure
+            except Exception:
+                pass
+            
             with self._connect() as conn:
                 for obs in observations:
                     try:
                         with conn.cursor() as cur:
-                            # No truncation - columns are TEXT type
                             word = obs.get('word', '') or ''
                             phrase = obs.get('phrase', '') or ''
                             source = obs.get('source', 'unknown') or 'unknown'
@@ -125,27 +132,28 @@ class VocabularyPersistence:
                             phi = obs.get('phi', 0.0)
                             kappa = obs.get('kappa', 50.0)
 
-                            # Extract optional parameters
                             basin_coords = obs.get('basin_coords')
                             contexts = obs.get('contexts')
                             cycle_number = obs.get('cycle_number')
-
-                            # Call SQL function with optional parameters if available
-                            if basin_coords or contexts or cycle_number is not None:
-                                contexts_json = json.dumps(contexts) if contexts else None
-                                cur.execute(
-                                    "SELECT record_vocab_observation(%s, %s, %s, %s, %s, %s, %s::vector, %s::jsonb, %s)",
-                                    (word, phrase, phi, kappa, source, obs_type, basin_coords, contexts_json, cycle_number)
-                                )
+                            phrase_category = obs.get('phrase_category')
+                            
+                            if phrase_category is None and qig_classifier:
+                                try:
+                                    basin_array = np.array(basin_coords) if basin_coords else None
+                                    phrase_category, _ = qig_classifier(word, basin_array)
+                                except Exception:
+                                    phrase_category = 'unknown'
                             else:
-                                cur.execute(
-                                    "SELECT record_vocab_observation(%s, %s, %s, %s, %s, %s)",
-                                    (word, phrase, phi, kappa, source, obs_type)
-                                )
-                            conn.commit()  # Commit each observation individually
+                                phrase_category = phrase_category or 'unknown'
+
+                            contexts_json = json.dumps(contexts) if contexts else None
+                            cur.execute(
+                                "SELECT record_vocab_observation(%s, %s, %s, %s, %s, %s, %s::vector, %s::jsonb, %s, %s)",
+                                (word, phrase, phi, kappa, source, obs_type, basin_coords, contexts_json, cycle_number, phrase_category)
+                            )
+                            conn.commit()
                             recorded += 1
                     except Exception as e:
-                        # Rollback to clear the aborted transaction state
                         conn.rollback()
                         word = obs.get('word', '') or ''
                         phi = obs.get('phi', 0.0)
