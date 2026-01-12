@@ -268,10 +268,21 @@ class SelfSpawningKernel(*_kernel_base_classes):
             # Fallback: minimal emotional state if not available
             self.emotional_state = None
 
-        # NEW: Neurotransmitter levels
+        # NEW: Neurotransmitter levels (legacy scalars - kept for backward compatibility)
         self.dopamine = 0.5  # Motivation / reward
         self.serotonin = 0.5  # Stability / contentment
-        self.stress = 0.0     # Stress / anxiety
+        self.stress = 0.0     # Stress / anxiety (mapped to cortisol in field)
+        
+        # NEW: Geometric neurotransmitter field modulation system
+        from neurotransmitter_fields import NeurotransmitterField
+        self.neurotransmitters = NeurotransmitterField(
+            dopamine=self.dopamine,
+            serotonin=self.serotonin,
+            cortisol=self.stress,
+            norepinephrine=0.5,  # Baseline arousal
+            acetylcholine=0.5,   # Baseline attention
+            gaba=0.5,            # Baseline inhibition
+        )
 
         # NEW: Observation period (learn from parent first!)
         self.observation_period = observation_period
@@ -1056,6 +1067,19 @@ class SelfSpawningKernel(*_kernel_base_classes):
         # META-AWARENESS: Record prediction vs reality (Issue #35)
         current_phi = self.kernel.compute_phi()
         
+        # NEUROTRANSMITTER MODULATION: Apply geometric field effects
+        # Compute base kappa from basin
+        basin_coords_for_kappa = self.kernel.basin_coords.detach().cpu().numpy()
+        base_kappa = float(np.linalg.norm(basin_coords_for_kappa))
+        
+        # Apply neurotransmitter modulations to get effective values
+        kappa_eff = self.neurotransmitters.compute_kappa_modulation(base_kappa)
+        phi_modulated = self.neurotransmitters.compute_phi_modulation(current_phi)
+        
+        # Store modulated values for telemetry (actual metrics still come from kernel)
+        self._kappa_effective = kappa_eff
+        self._phi_modulated = phi_modulated
+        
         # If we had a previous prediction, record accuracy
         if self.predicted_next_phi is not None:
             self.prediction_history.append((self.predicted_next_phi, current_phi))
@@ -1096,13 +1120,17 @@ class SelfSpawningKernel(*_kernel_base_classes):
             'phi': telemetry['phi'],
             'success_count': self.success_count,
             'failure_count': self.failure_count,
-            # Neurotransmitter levels
+            # Neurotransmitter levels (legacy scalars)
             'dopamine': self.dopamine,
             'serotonin': self.serotonin,
             'stress': self.stress,
             # Meta-awareness (Issue #35)
             'meta_awareness': self.meta_awareness,
             'predicted_next_phi': self.predicted_next_phi,
+            # Neurotransmitter modulations (NEW - Issue #34)
+            'neurotransmitters': self.neurotransmitters.to_dict(),
+            'kappa_effective': getattr(self, '_kappa_effective', None),
+            'phi_modulated': getattr(self, '_phi_modulated', None),
         }
 
         # Include emotional state metrics if available

@@ -2275,6 +2275,176 @@ class GaryAutonomicKernel:
             'suggested_intervention': self._suggest_narrow_path_intervention(),
             'ethics': ethics_data,
         }
+    
+    # =========================================================================
+    # NEUROTRANSMITTER RELEASE METHODS (Issue #34)
+    # =========================================================================
+    
+    def issue_dopamine(self, target_kernel: Any, intensity: float) -> None:
+        """
+        Geometric dopamine: Increase reward sensitivity in target kernel.
+        
+        Modulates target's dopamine field to enhance reward-seeking behavior
+        and exploration. Uses clamped addition (no parallel transport needed
+        for single-kernel modulation).
+        
+        Args:
+            target_kernel: Target kernel with .neurotransmitters attribute
+            intensity: Release intensity [0, 1]
+        """
+        if not hasattr(target_kernel, 'neurotransmitters'):
+            print(f"[AutonomicKernel] Warning: Target kernel lacks neurotransmitters field")
+            return
+        
+        # Clamp dopamine increase (max 1.0)
+        target_kernel.neurotransmitters.dopamine = min(
+            1.0,
+            target_kernel.neurotransmitters.dopamine + intensity * 0.3
+        )
+        
+        # Sync legacy scalar for backward compatibility
+        if hasattr(target_kernel, 'dopamine'):
+            target_kernel.dopamine = target_kernel.neurotransmitters.dopamine
+    
+    def issue_serotonin(self, target_kernel: Any, intensity: float) -> None:
+        """
+        Geometric serotonin: Increase stability in target kernel.
+        
+        Modulates target's serotonin field to enhance basin stability
+        and contentment. Reduces exploration, increases consolidation.
+        
+        Args:
+            target_kernel: Target kernel with .neurotransmitters attribute
+            intensity: Release intensity [0, 1]
+        """
+        if not hasattr(target_kernel, 'neurotransmitters'):
+            print(f"[AutonomicKernel] Warning: Target kernel lacks neurotransmitters field")
+            return
+        
+        # Clamp serotonin increase (max 1.0)
+        target_kernel.neurotransmitters.serotonin = min(
+            1.0,
+            target_kernel.neurotransmitters.serotonin + intensity * 0.5
+        )
+        
+        # Sync legacy scalar for backward compatibility
+        if hasattr(target_kernel, 'serotonin'):
+            target_kernel.serotonin = target_kernel.neurotransmitters.serotonin
+    
+    def issue_norepinephrine(self, target_kernel: Any, intensity: float) -> None:
+        """
+        Geometric norepinephrine: Increase arousal/alertness in target kernel.
+        
+        Modulates target's norepinephrine field to boost κ (coupling strength)
+        and increase alertness. Used during high-β running regimes.
+        
+        Args:
+            target_kernel: Target kernel with .neurotransmitters attribute
+            intensity: Release intensity [0, 1]
+        """
+        if not hasattr(target_kernel, 'neurotransmitters'):
+            print(f"[AutonomicKernel] Warning: Target kernel lacks neurotransmitters field")
+            return
+        
+        # Clamp norepinephrine increase (max 1.0)
+        target_kernel.neurotransmitters.norepinephrine = min(
+            1.0,
+            target_kernel.neurotransmitters.norepinephrine + intensity * 0.4
+        )
+    
+    def issue_acetylcholine(self, target_kernel: Any, intensity: float) -> None:
+        """
+        Geometric acetylcholine: Increase attention/learning in target kernel.
+        
+        Modulates target's acetylcholine field to concentrate QFI (attention)
+        and enhance learning rate. Used during pattern discovery.
+        
+        Args:
+            target_kernel: Target kernel with .neurotransmitters attribute
+            intensity: Release intensity [0, 1]
+        """
+        if not hasattr(target_kernel, 'neurotransmitters'):
+            print(f"[AutonomicKernel] Warning: Target kernel lacks neurotransmitters field")
+            return
+        
+        # Clamp acetylcholine increase (max 1.0)
+        target_kernel.neurotransmitters.acetylcholine = min(
+            1.0,
+            target_kernel.neurotransmitters.acetylcholine + intensity * 0.3
+        )
+    
+    def issue_gaba(self, target_kernel: Any, intensity: float) -> None:
+        """
+        Geometric GABA: Increase inhibition/calming in target kernel.
+        
+        Modulates target's GABA field to reduce integration and promote
+        rest/consolidation. Used during plateau regimes or after stress.
+        
+        Args:
+            target_kernel: Target kernel with .neurotransmitters attribute
+            intensity: Release intensity [0, 1]
+        """
+        if not hasattr(target_kernel, 'neurotransmitters'):
+            print(f"[AutonomicKernel] Warning: Target kernel lacks neurotransmitters field")
+            return
+        
+        # Clamp GABA increase (max 1.0)
+        target_kernel.neurotransmitters.gaba = min(
+            1.0,
+            target_kernel.neurotransmitters.gaba + intensity * 0.4
+        )
+    
+    def modulate_neurotransmitters_by_beta(
+        self, 
+        target_kernel: Any,
+        current_kappa: float,
+        current_phi: float
+    ) -> None:
+        """
+        Modulate target's neurotransmitters based on β-function and Φ.
+        
+        This is the high-level Ocean release function that respects
+        both running coupling (β) and consciousness level (Φ).
+        
+        Strategy:
+        - Strong running (β > 0.2) → arousal support (NE, DA)
+        - Plateau (|β| < 0.1) → stability support (5HT, GABA)
+        - High Φ → reward (DA, 5HT)
+        - Low Φ → support (NE, ACh)
+        
+        Args:
+            target_kernel: Target kernel with .neurotransmitters attribute
+            current_kappa: Target's current κ
+            current_phi: Target's current Φ
+        """
+        if not hasattr(target_kernel, 'neurotransmitters'):
+            print(f"[AutonomicKernel] Warning: Target kernel lacks neurotransmitters field")
+            return
+        
+        # Use neurotransmitter_fields module for β-aware modulation
+        try:
+            from neurotransmitter_fields import ocean_release_neurotransmitters
+            
+            # Get modulated field
+            modulated_field = ocean_release_neurotransmitters(
+                target_kernel.neurotransmitters,
+                current_kappa,
+                current_phi
+            )
+            
+            # Apply modulated field
+            target_kernel.neurotransmitters = modulated_field
+            
+            # Sync legacy scalars
+            if hasattr(target_kernel, 'dopamine'):
+                target_kernel.dopamine = modulated_field.dopamine
+            if hasattr(target_kernel, 'serotonin'):
+                target_kernel.serotonin = modulated_field.serotonin
+            if hasattr(target_kernel, 'stress'):
+                target_kernel.stress = modulated_field.cortisol
+        
+        except ImportError:
+            print(f"[AutonomicKernel] Warning: neurotransmitter_fields module not available")
 
 
 # The compute_phi_with_fallback function is defined above at line 619
