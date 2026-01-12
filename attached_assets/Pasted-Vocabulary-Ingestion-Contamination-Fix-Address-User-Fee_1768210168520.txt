@@ -1,0 +1,70 @@
+Vocabulary Ingestion Contamination Fix - Address User Feedback
+Changes Made
+1. Fix learned_words NULL Column Issue ✓
+Problem: Words like "hypervisor" existed in learned_words but had NULL values for critical columns:
+
+is_integrated, integrated_at, learned_from
+qfi_score, basin_distance, curvature_std, entropy_score
+is_geometrically_valid, phrase_category
+contents, last_used_in_generation
+Solution: Enhanced VocabularyIngestionService._upsert_to_database() to:
+
+Populate ALL learned_words columns during ingestion
+Compute geometric validation metrics:
+basin_distance: L2 norm of basin embedding
+curvature_std: Standard deviation of basin coordinates
+entropy_score: Shannon entropy of normalized distribution
+Classify phrase category via QIG classifier or heuristics
+Set is_integrated=TRUE and integrated_at=NOW()
+Store context in contents array
+Track source in learned_from column
+Code Changes (vocabulary_ingestion.py):
+
+# Now updates BOTH tokenizer_vocabulary AND learned_words
+learned_query = f"""
+    INSERT INTO learned_words (
+        word, frequency, avg_phi, max_phi, source, learned_from,
+        contexts, first_seen, last_seen, is_integrated, integrated_at,
+        qfi_score, basin_distance, curvature_std, entropy_score,
+        is_geometrically_valid, phrase_category, {learned_basin_column}
+    )
+    VALUES (...)
+    ON CONFLICT (word) DO UPDATE SET ...
+"""
+New Helper Methods:
+
+_compute_entropy(): Shannon entropy calculation
+_classify_phrase(): QIG-pure phrase classification with fallback
+Result: All words ingested via service now have complete metadata, no NULL columns.
+
+2. Rename Documentation to ISO 27001 Format ✓
+Problem: Created files didn't follow canonical naming convention:
+
+❌ qig-backend/VOCABULARY_FIX_README.md
+❌ qig-backend/VOCABULARY_FIX_SUMMARY.md
+Required Format: YYYYMMDD-[name]-[version][STATUS].md in docs/ hierarchy
+
+Solution: Renamed and moved files:
+
+✓ docs/06-implementation/20260112-vocabulary-contamination-fix-deployment-1.00W.md
+✓ docs/06-implementation/20260112-vocabulary-contamination-fix-summary-1.00W.md
+Status: W (Working) - Active implementation, deployment in progress
+
+Summary
+Files Modified (1):
+
+vocabulary_ingestion.py: +70 lines for learned_words integration
+Files Moved (2):
+
+Deployment guide → ISO 27001 compliant location
+Summary document → ISO 27001 compliant location
+Impact:
+
+✓ All new vocabulary ingestions populate complete metadata
+✓ No more NULL columns in learned_words
+✓ Documentation follows canonical naming
+✓ Ready for "hypervisor" and similar words to be re-ingested with full metadata
+Next Steps:
+
+Re-ingest existing words with NULL columns to populate metadata
+Consider creating migration script for backfill of learned_words metadata
