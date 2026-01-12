@@ -416,22 +416,39 @@ class KernelPersistence(BasePersistence):
         event_id = f"merge_{uuid.uuid4().hex}"
         query = """
             INSERT INTO learning_events (
-                event_id, event_type, kernel_id, phi, metadata, created_at
+                event_id, event_type, kernel_id, phi, kappa, source, instance_id,
+                details, context, data, created_at
             ) VALUES (
-                %s, %s, %s, %s, %s, %s
+                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
             )
         """
-        event_metadata = {
+        event_details = {
             'source_kernel_ids': source_kernel_ids,
             'new_god_name': new_god_name,
             'merged_count': len(source_kernel_ids),
+        }
+        event_context = {
+            'operation': 'kernel_merge',
             **(metadata or {})
+        }
+        event_data = {
+            'source_count': len(source_kernel_ids),
+            'resulting_phi': merged_phi
         }
 
         try:
             self.execute_query(
                 query,
-                (event_id, 'merge', new_kernel_id, merged_phi, json.dumps(event_metadata), datetime.now(timezone.utc)),
+                (
+                    event_id, 'merge', new_kernel_id, merged_phi,
+                    0.0,  # kappa
+                    'kernel_merge',  # source
+                    new_kernel_id,  # instance_id
+                    json.dumps(event_details),
+                    json.dumps(event_context),
+                    json.dumps(event_data),
+                    datetime.now(timezone.utc)
+                ),
                 fetch=False
             )
             return True
@@ -453,22 +470,40 @@ class KernelPersistence(BasePersistence):
         event_id = f"cann_{uuid.uuid4().hex}"
         query = """
             INSERT INTO learning_events (
-                event_id, event_type, kernel_id, phi, metadata, created_at
+                event_id, event_type, kernel_id, phi, kappa, source, instance_id,
+                details, context, data, created_at
             ) VALUES (
-                %s, %s, %s, %s, %s, %s
+                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
             )
         """
-        event_metadata = {
+        event_details = {
             'source_id': source_id,
             'source_god': source_god,
             'target_god': target_god,
+        }
+        event_context = {
+            'operation': 'kernel_cannibalize',
             **(metadata or {})
+        }
+        event_data = {
+            'transferred_phi': transferred_phi,
+            'source_kernel': source_id,
+            'target_kernel': target_id
         }
 
         try:
             self.execute_query(
                 query,
-                (event_id, 'cannibalize', target_id, transferred_phi, json.dumps(event_metadata), datetime.now(timezone.utc)),
+                (
+                    event_id, 'cannibalize', target_id, transferred_phi,
+                    0.0,  # kappa
+                    'kernel_cannibalize',  # source
+                    target_id,  # instance_id
+                    json.dumps(event_details),
+                    json.dumps(event_context),
+                    json.dumps(event_data),
+                    datetime.now(timezone.utc)
+                ),
                 fetch=False
             )
             return True
@@ -491,24 +526,41 @@ class KernelPersistence(BasePersistence):
         event_id = f"conv_{uuid.uuid4().hex}"
         query = """
             INSERT INTO learning_events (
-                event_id, event_type, kernel_id, phi, metadata, created_at
+                event_id, event_type, kernel_id, phi, kappa, source, instance_id,
+                details, context, data, created_at
             ) VALUES (
-                %s, %s, %s, %s, %s, %s
+                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
             )
         """
-        event_metadata = {
+        event_details = {
             'generation': generation,
             'population': population,
             'active_count': active_count,
             'dormant_count': dormant_count,
+        }
+        event_context = {
+            'operation': 'convergence_snapshot',
             'e8_alignment': e8_alignment,
             **(metadata or {})
+        }
+        event_data = {
+            'avg_phi': avg_phi,
+            'active_ratio': active_count / max(population, 1)
         }
 
         try:
             self.execute_query(
                 query,
-                (event_id, 'convergence', f'gen_{generation}', avg_phi, json.dumps(event_metadata), datetime.now(timezone.utc)),
+                (
+                    event_id, 'convergence', f'gen_{generation}', avg_phi,
+                    64.0,  # kappa (default)
+                    'convergence_tracker',  # source
+                    f'gen_{generation}',  # instance_id
+                    json.dumps(event_details),
+                    json.dumps(event_context),
+                    json.dumps(event_data),
+                    datetime.now(timezone.utc)
+                ),
                 fetch=False
             )
             return True

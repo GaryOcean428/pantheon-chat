@@ -216,6 +216,9 @@ class KernelTrainingOrchestrator:
         # Record in history
         self._record_metrics(god_name, metrics)
 
+        # Get basin before from kernel for tracking
+        basin_before = kernel.get_basin_signature() if kernel else None
+
         # CRITICAL: Persist training to database (kernel_training_history table)
         # This ensures training survives restarts and enables analytics
         self._persist_training_history(
@@ -223,7 +226,11 @@ class KernelTrainingOrchestrator:
             metrics=metrics,
             training_type="outcome",
             basin_coords=basin_coords,
-            trigger="chat_interaction"
+            basin_before=basin_before,
+            trigger="chat_interaction",
+            input_data={"prompt": prompt[:500] if prompt else None},
+            output_data={"response": response[:500] if response else None, "success": success},
+            notes=f"Coherence: {coherence_score:.2f}, Reward: {reward:.3f}"
         )
 
         # Auto-save checkpoint if improved
@@ -608,9 +615,13 @@ class KernelTrainingOrchestrator:
         metrics: TrainingMetrics,
         training_type: str,
         basin_coords: Optional[np.ndarray] = None,
+        basin_before: Optional[np.ndarray] = None,
         trigger: Optional[str] = None,
         session_id: Optional[str] = None,
         conversation_id: Optional[str] = None,
+        input_data: Optional[Dict] = None,
+        output_data: Optional[Dict] = None,
+        notes: Optional[str] = None,
     ) -> bool:
         """
         Persist training record to kernel_training_history table.
@@ -622,10 +633,14 @@ class KernelTrainingOrchestrator:
             god_name: Name of the god (e.g., "Apollo", "Nyx")
             metrics: Training metrics from this step
             training_type: "outcome", "hourly", or "nightly"
-            basin_coords: Optional 64D basin coordinates
+            basin_coords: Optional 64D basin coordinates (basin after training)
+            basin_before: Optional 64D basin coordinates before training
             trigger: What triggered this training
             session_id: Optional session ID for tracking
             conversation_id: Optional conversation ID
+            input_data: Optional dict with training input (prompt, etc)
+            output_data: Optional dict with training output (response, etc)
+            notes: Optional notes about this training step
 
         Returns:
             True if persisted successfully
@@ -637,21 +652,39 @@ class KernelTrainingOrchestrator:
         try:
             cursor = conn.cursor()
 
-            # Convert basin coords to list for storage
-            basin_list = None
-            if basin_coords is not None:
-                basin_list = basin_coords.tolist() if hasattr(basin_coords, 'tolist') else list(basin_coords)
+            # Convert basin coords to pgvector format
+            def to_pgvector(arr):
+                if arr is None:
+                    return None
+                lst = arr.tolist() if hasattr(arr, 'tolist') else list(arr)
+                return '[' + ','.join(str(x) for x in lst) + ']'
+
+            basin_after_str = to_pgvector(basin_coords)
+            basin_before_str = to_pgvector(basin_before)
+            
+            # Compute phi_delta
+            phi_before = float(getattr(metrics, 'phi_before', 0.5))
+            phi_after = float(getattr(metrics, 'phi_after', 0.5))
+            phi_delta = phi_after - phi_before
 
             query = """
                 INSERT INTO kernel_training_history (
                     kernel_id, god_name, loss, reward, gradient_norm,
                     phi_before, phi_after, kappa_before, kappa_after,
-                    basin_coords, training_type, trigger, step_count,
-                    session_id, conversation_id, created_at
+                    basin_coords, basin_before, basin_after, phi_delta,
+                    training_type, trigger, step_count,
+                    session_id, conversation_id, input_data, output_data, notes, 
+                    success, created_at
                 ) VALUES (
-                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::vector, %s::vector, %s,
+                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
                 )
             """
+            
+            # Convert basin_coords to list for ARRAY column
+            basin_list = None
+            if basin_coords is not None:
+                basin_list = basin_coords.tolist() if hasattr(basin_coords, 'tolist') else list(basin_coords)
 
             cursor.execute(query, (
                 god_name,
@@ -659,16 +692,23 @@ class KernelTrainingOrchestrator:
                 float(metrics.loss),
                 float(metrics.reward),
                 float(getattr(metrics, 'gradient_norm', 0.0)),
-                float(getattr(metrics, 'phi_before', 0.5)),
-                float(getattr(metrics, 'phi_after', 0.5)),
+                phi_before,
+                phi_after,
                 float(getattr(metrics, 'kappa_before', 64.0)),
                 float(getattr(metrics, 'kappa_after', 64.0)),
                 basin_list,
+                basin_before_str,
+                basin_after_str,
+                phi_delta,
                 training_type,
                 trigger,
                 int(getattr(metrics, 'step_count', 0)),
                 session_id,
                 conversation_id,
+                Json(input_data) if input_data else None,
+                Json(output_data) if output_data else None,
+                notes,
+                metrics.reward > 0.5,  # success = positive reward
                 datetime.now(timezone.utc)
             ))
 

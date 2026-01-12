@@ -59,10 +59,12 @@ def classify_phrase(word: str, basin: np.ndarray) -> str:
 
 
 def compute_qfi(basin: np.ndarray) -> float:
-    """Compute Quantum Fisher Information score."""
-    fisher_metric = np.outer(basin, basin)
-    fisher_metric += np.eye(64) * 1e-6
-    qfi = np.linalg.det(fisher_metric)
+    """Compute Quantum Fisher Information score using trace-based QFI.
+    
+    QIG-pure formula: QFI = tr(|basin><basin|) = trace of outer product
+    This measures the information content of the basin embedding.
+    """
+    qfi = np.trace(np.outer(basin, basin))
     return float(qfi)
 
 
