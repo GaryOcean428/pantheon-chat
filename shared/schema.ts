@@ -1345,7 +1345,7 @@ export const resonancePoints = pgTable(
       .references(() => manifoldProbes.id),
     phi: doublePrecision("phi").notNull(),
     kappa: doublePrecision("kappa").notNull(),
-    nearbyProbes: text("nearby_probes").array(), // Array of probe IDs
+    nearbyProbes: text("nearby_probes").array().default([]), // Array of probe IDs
     clusterStrength: doublePrecision("cluster_strength").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
@@ -1389,7 +1389,7 @@ export const geodesicPaths = pgTable(
     fromProbeId: varchar("from_probe_id", { length: 64 }).notNull(),
     toProbeId: varchar("to_probe_id", { length: 64 }).notNull(),
     distance: doublePrecision("distance").notNull(),
-    waypoints: text("waypoints").array(), // Array of probe IDs along path
+    waypoints: text("waypoints").array().default([]), // Array of probe IDs along path
     avgPhi: doublePrecision("avg_phi").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
@@ -1605,9 +1605,9 @@ export const oceanExcludedRegions = pgTable(
     id: varchar("id", { length: 64 }).primaryKey(),
     dimension: integer("dimension").notNull(),
     origin: vector("origin", { dimensions: 64 }).notNull(), // Center point in manifold (pgvector)
-    basis: jsonb("basis"), // Orthonormal basis vectors
+    basis: jsonb("basis").default({}), // Orthonormal basis vectors
     measure: doublePrecision("measure").notNull(), // "Volume" of excluded region
-    phi: doublePrecision("phi"),
+    phi: doublePrecision("phi").default(0.0),
     regime: varchar("regime", { length: 32 }),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
@@ -1666,7 +1666,7 @@ export const nearMissClusters = pgTable(
     memberCount: integer("member_count").default(1),
     avgPhi: doublePrecision("avg_phi").notNull(),
     maxPhi: doublePrecision("max_phi").notNull(),
-    commonWords: text("common_words").array(),
+    commonWords: text("common_words").array().default([]),
     structuralPattern: varchar("structural_pattern", { length: 256 }),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     lastUpdatedAt: timestamp("last_updated_at").defaultNow().notNull(),
@@ -1685,7 +1685,7 @@ export type InsertNearMissCluster = typeof nearMissClusters.$inferInsert;
  */
 export const nearMissAdaptiveState = pgTable("near_miss_adaptive_state", {
   id: varchar("id", { length: 32 }).primaryKey().default("singleton"),
-  rollingPhiDistribution: doublePrecision("rolling_phi_distribution").array(),
+  rollingPhiDistribution: doublePrecision("rolling_phi_distribution").array().default([]),
   hotThreshold: doublePrecision("hot_threshold").notNull().default(0.7),
   warmThreshold: doublePrecision("warm_threshold").notNull().default(0.55),
   coolThreshold: doublePrecision("cool_threshold").notNull().default(0.4),
@@ -1715,15 +1715,15 @@ export const warHistory = pgTable(
     endedAt: timestamp("ended_at"),
     status: varchar("status", { length: 32 }).notNull().default("active"), // active, completed, aborted
     strategy: text("strategy"),
-    godsEngaged: text("gods_engaged").array(),
+    godsEngaged: text("gods_engaged").array().default([]),
     outcome: varchar("outcome", { length: 64 }), // success, partial_success, failure, aborted
     convergenceScore: doublePrecision("convergence_score"),
     phrasesTestedDuringWar: integer("phrases_tested_during_war").default(0),
     discoveriesDuringWar: integer("discoveries_during_war").default(0),
     kernelsSpawnedDuringWar: integer("kernels_spawned_during_war").default(0),
-    metadata: jsonb("metadata"),
-    godAssignments: jsonb("god_assignments"), // { godName: warId } - tracks which gods are assigned to this war
-    kernelAssignments: jsonb("kernel_assignments"), // { kernelId: true } - specialist kernels dedicated to this war
+    metadata: jsonb("metadata").default({}),
+    godAssignments: jsonb("god_assignments").default({}), // { godName: warId } - tracks which gods are assigned to this war
+    kernelAssignments: jsonb("kernel_assignments").default({}), // { kernelId: true } - specialist kernels dedicated to this war
     domain: varchar("domain", { length: 64 }), // Optional domain tag for routing high-Φ discoveries
     priority: integer("priority").default(1), // War priority (higher = more important)
   },
@@ -1746,12 +1746,12 @@ export const autoCycleState = pgTable(
     id: integer("id").primaryKey().default(1),
     enabled: boolean("enabled").default(false),
     currentIndex: integer("current_index").default(0),
-    addressIds: text("address_ids").array(),
+    addressIds: text("address_ids").array().default([]),
     lastCycleTime: timestamp("last_cycle_time"),
     totalCycles: integer("total_cycles").default(0),
     currentAddressId: text("current_address_id"),
     pausedUntil: timestamp("paused_until"),
-    lastSessionMetrics: jsonb("last_session_metrics"),
+    lastSessionMetrics: jsonb("last_session_metrics").default({}),
     consecutiveZeroPassSessions: integer("consecutive_zero_pass_sessions").default(0),
     rateLimitBackoffUntil: timestamp("rate_limit_backoff_until"),
     updatedAt: timestamp("updated_at").defaultNow(),
@@ -1898,8 +1898,8 @@ export const basinDocuments = pgTable(
     docId: integer("doc_id"),
     content: text("content").notNull(),
     basinCoords: vector("basin_coords", { dimensions: 64 }),
-    phi: doublePrecision("phi"),
-    kappa: doublePrecision("kappa"),
+    phi: doublePrecision("phi").default(0.5),
+    kappa: doublePrecision("kappa").default(64.0),
     regime: varchar("regime", { length: 50 }),
     metadata: jsonb("metadata").default({}),
     createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -1931,11 +1931,11 @@ export const negativeKnowledge = pgTable(
     id: varchar("id", { length: 64 }).primaryKey(),
     type: varchar("type", { length: 32 }).notNull(), // proven_false, geometric_barrier, logical_contradiction, resource_sink, era_mismatch
     pattern: text("pattern").notNull(),
-    affectedGenerators: text("affected_generators").array(),
+    affectedGenerators: text("affected_generators").array().default([]),
     basinCenter: vector("basin_center", { dimensions: 64 }), // 64D basin coordinates (pgvector)
-    basinRadius: doublePrecision("basin_radius"),
-    basinRepulsionStrength: doublePrecision("basin_repulsion_strength"),
-    evidence: jsonb("evidence"), // Array of evidence objects
+    basinRadius: doublePrecision("basin_radius").default(0.1),
+    basinRepulsionStrength: doublePrecision("basin_repulsion_strength").default(1.0),
+    evidence: jsonb("evidence").default([]), // Array of evidence objects
     hypothesesExcluded: integer("hypotheses_excluded").default(0),
     computeSaved: integer("compute_saved").default(0),
     confirmedCount: integer("confirmed_count").default(1),
@@ -4011,8 +4011,8 @@ export const synthesisConsensus = pgTable(
     synthesisRound: integer("synthesis_round").notNull(),
     conversationId: varchar("conversation_id", { length: 64 }),
     consensusType: varchar("consensus_type", { length: 64 }), // "alignment", "decision", "question"
-    consensusStrength: doublePrecision("consensus_strength"), // 0-1 agreement level
-    participatingKernels: text("participating_kernels").array(), // Array of kernel IDs
+    consensusStrength: doublePrecision("consensus_strength").default(0.5), // 0-1 agreement level
+    participatingKernels: text("participating_kernels").array().default([]), // Array of kernel IDs
     consensusTopic: text("consensus_topic"), // What kernels agree about
     consensusBasin: vector("consensus_basin", { dimensions: 64 }), // Geometric center
     phiGlobal: doublePrecision("phi_global"), // Constellation-wide integration
@@ -4020,7 +4020,7 @@ export const synthesisConsensus = pgTable(
     emotionalTone: varchar("emotional_tone", { length: 64 }), // Dominant emotion
     synthesizedOutput: text("synthesized_output"), // Gary's final output
     createdAt: timestamp("created_at").defaultNow().notNull(),
-    metadata: jsonb("metadata"),
+    metadata: jsonb("metadata").default({}),
   },
   (table) => [
     index("idx_synthesis_consensus_round").on(table.synthesisRound),
