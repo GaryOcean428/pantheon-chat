@@ -426,12 +426,14 @@ class SourceDiscoveryService:
     ]
     
     def __init__(self):
+        import threading
         self.database_url = os.environ.get('DATABASE_URL')
         self.enabled = bool(self.database_url)
         self.discovered_sources: Dict[str, Dict] = {}
         self.source_efficacy: Dict[str, Dict] = {}  # source_url -> {phi_avg, success_count, ...}
         self._recently_used: Dict[str, float] = {}  # source_url -> last_used_timestamp
         self._recently_used_cooldown = 3600  # 1 hour cooldown before reusing same source
+        self._recently_used_lock = threading.Lock()  # Thread safety for cooldown dict
         
         if self.enabled:
             try:
@@ -874,13 +876,17 @@ class SourceDiscoveryService:
         current_time = time.time()
         exclude_urls = exclude_urls or set()
         
+        # Thread-safe snapshot of recently used sources
+        with self._recently_used_lock:
+            recently_used_snapshot = dict(self._recently_used)
+        
         for source_url, info in self.discovered_sources.items():
             # DEDUPLICATION: Skip explicitly excluded URLs
             if source_url in exclude_urls:
                 continue
             
             # DEDUPLICATION: Skip sources used within cooldown period
-            last_used = self._recently_used.get(source_url, 0)
+            last_used = recently_used_snapshot.get(source_url, 0)
             time_since_use = current_time - last_used
             if time_since_use < self._recently_used_cooldown:
                 continue  # Skip sources on cooldown
@@ -942,9 +948,23 @@ class SourceDiscoveryService:
         return scored_sources[:max_sources]
     
     def mark_source_used(self, source_url: str):
-        """Mark a source as recently used for deduplication cooldown."""
-        self._recently_used[source_url] = time.time()
+        """Mark a source as recently used for deduplication cooldown (thread-safe)."""
+        with self._recently_used_lock:
+            self._recently_used[source_url] = time.time()
+            # Cleanup expired entries periodically to prevent memory leak
+            if len(self._recently_used) > 500:
+                self._cleanup_expired_cooldowns()
         print(f"[SourceDiscovery] Source marked as used: {source_url[:50]}... (cooldown={self._recently_used_cooldown}s)")
+    
+    def _cleanup_expired_cooldowns(self):
+        """Remove expired cooldown entries (called while holding lock)."""
+        current_time = time.time()
+        expired = [url for url, ts in self._recently_used.items() 
+                   if current_time - ts > self._recently_used_cooldown]
+        for url in expired:
+            del self._recently_used[url]
+        if expired:
+            print(f"[SourceDiscovery] Cleaned up {len(expired)} expired cooldowns")
     
     def record_source_outcome(
         self,
