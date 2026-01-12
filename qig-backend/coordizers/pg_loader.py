@@ -232,7 +232,7 @@ class PostgresCoordizer(FisherCoordizer):
                 SELECT token, basin_embedding, phi_score, frequency, source_type, token_id
                 FROM tokenizer_vocabulary
                 WHERE basin_embedding IS NOT NULL
-                  AND LENGTH(token) >= 2
+                  AND LENGTH(token) >= 1
                   AND source_type NOT IN ('special')  -- Only exclude special tokens
                 ORDER BY phi_score DESC
             """)
@@ -290,7 +290,7 @@ class PostgresCoordizer(FisherCoordizer):
                     SELECT word, basin_coords, COALESCE(phi_score, avg_phi, 0.5) as phi, frequency, phrase_category
                     FROM learned_words
                     WHERE basin_coords IS NOT NULL
-                      AND LENGTH(word) >= 2
+                      AND LENGTH(word) >= 1
                       AND COALESCE(phi_score, avg_phi, 0.0) > 0.0
                       AND (phrase_category IS NULL OR phrase_category NOT IN %s)
                     ORDER BY COALESCE(phi_score, avg_phi) DESC, frequency DESC
