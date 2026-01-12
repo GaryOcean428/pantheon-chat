@@ -1982,7 +1982,7 @@ export const falsePatternClasses = pgTable(
   {
     id: varchar("id", { length: 64 }).primaryKey(),
     className: varchar("class_name", { length: 255 }).notNull().unique(),
-    examples: text("examples").array(),
+    examples: text("examples").array().default([]),
     count: integer("count").default(0),
     avgPhiAtFailure: doublePrecision("avg_phi_at_failure").default(0),
     lastUpdated: timestamp("last_updated").defaultNow().notNull(),
@@ -2001,7 +2001,7 @@ export const eraExclusions = pgTable(
   {
     id: varchar("id", { length: 64 }).primaryKey(),
     era: varchar("era", { length: 64 }).notNull(),
-    excludedPatterns: text("excluded_patterns").array(),
+    excludedPatterns: text("excluded_patterns").array().default([]),
     reason: text("reason").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
