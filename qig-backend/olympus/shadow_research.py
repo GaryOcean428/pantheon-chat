@@ -64,6 +64,15 @@ except ImportError:
     SearchImportance = None
     print("[ShadowResearch] SearchBudgetOrchestrator not available - search disabled")
 
+# Import SearchSourceIndexer for source tracking
+try:
+    from search.source_indexer import index_search_results
+    HAS_SOURCE_INDEXER = True
+except ImportError:
+    HAS_SOURCE_INDEXER = False
+    index_search_results = None
+    print("[ShadowResearch] SearchSourceIndexer not available - source indexing disabled")
+
 # Import curriculum training module
 try:
     from .curriculum_training import load_and_train_curriculum
@@ -545,6 +554,15 @@ class ResearchQueue:
         self._knowledge_base: Optional['KnowledgeBase'] = None
         self._skipped_duplicates = 0
         self._iteration_requests = 0
+        
+        # Import ExplorationHistoryPersistence for better duplicate detection
+        try:
+            from autonomous_curiosity import ExplorationHistoryPersistence
+            self._exploration_history = ExplorationHistoryPersistence()
+        except ImportError:
+            self._exploration_history = None
+            print("[ResearchQueue] ExplorationHistoryPersistence not available")
+        
         self._load_pending_from_db()
     
     def _load_pending_from_db(self):
@@ -658,6 +676,10 @@ class ResearchQueue:
     
     def _is_duplicate(self, topic: str) -> bool:
         """Check if topic was already researched."""
+        # Check exploration_history first for database-backed duplicate detection
+        if hasattr(self, '_exploration_history') and self._exploration_history and self._exploration_history.is_duplicate(topic, topic):
+            return True
+        
         if not self._knowledge_base:
             return False
         
@@ -1579,6 +1601,21 @@ class ShadowLearningLoop:
             basin_coords=basin_coords
         )
 
+        # Record exploration to prevent duplicates
+        scrapy_results = content.get('scrapy_crawls', [])
+        if hasattr(self, '_queue') and hasattr(self._queue, '_exploration_history') and self._queue._exploration_history:
+            try:
+                self._queue._exploration_history.record_exploration(
+                    topic=base_topic,
+                    query=topic,
+                    kernel_name=assigned_god,
+                    exploration_type='shadow_research',
+                    source_type='scrapy' if scrapy_results else 'conceptual',
+                    information_gain=phi
+                )
+            except Exception as e:
+                print(f"[ShadowResearch] Exploration recording failed: {e}")
+
         return {
             "knowledge_id": knowledge_id,
             "topic": topic,
@@ -1721,6 +1758,22 @@ class ShadowLearningLoop:
             confidence=confidence,
             variation=f"scrapy:{insight.spider_type}"
         )
+
+        # Index scraped source for future reference
+        if HAS_SOURCE_INDEXER and index_search_results:
+            try:
+                index_search_results(
+                    provider='scrapy',
+                    query=topic,
+                    results=[{
+                        'url': insight.source_url,
+                        'title': insight.title or topic,
+                        'content': insight.raw_content[:500] if insight.raw_content else ''
+                    }],
+                    kernel_id=None
+                )
+            except Exception as e:
+                print(f"[ShadowResearch] Source indexing failed: {e}")
 
         if insight.pattern_hits:
             print(f"[ShadowLearningLoop] Scrapy found {len(insight.pattern_hits)} patterns: {insight.pattern_hits}")
