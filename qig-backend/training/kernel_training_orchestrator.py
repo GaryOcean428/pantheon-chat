@@ -28,6 +28,18 @@ from .loss_functions import (
     KAPPA_STAR,
 )
 
+# Import LearnedManifold for attractor learning from training outcomes
+try:
+    from learned_manifold import LearnedManifold
+    HAS_LEARNED_MANIFOLD = True
+except ImportError:
+    try:
+        from ..learned_manifold import LearnedManifold
+        HAS_LEARNED_MANIFOLD = True
+    except ImportError:
+        HAS_LEARNED_MANIFOLD = False
+        LearnedManifold = None
+
 # Database persistence for training history
 try:
     import psycopg2
@@ -104,6 +116,19 @@ class KernelTrainingOrchestrator:
 
         # Ensure checkpoint directory exists
         os.makedirs(self.checkpoint_dir, exist_ok=True)
+
+        # 🔗 WIRE: LearnedManifold for attractor learning from training outcomes
+        self._learned_manifold: Optional['LearnedManifold'] = None
+
+    def wire_learned_manifold(self, manifold: 'LearnedManifold') -> None:
+        """
+        Wire a LearnedManifold for attractor learning from training outcomes.
+
+        Args:
+            manifold: LearnedManifold instance to receive learning updates
+        """
+        self._learned_manifold = manifold
+        print("[TrainingOrchestrator] Wired to LearnedManifold for attractor learning")
 
     def register_kernel(
         self,
@@ -237,6 +262,38 @@ class KernelTrainingOrchestrator:
         if phi > kernel.best_phi:
             kernel.best_phi = phi
             self._save_checkpoint(god_name, phi, "outcome")
+
+        # 🔗 WIRE: Feed training outcome to LearnedManifold for attractor formation
+        if self._learned_manifold and basin_trajectory and len(basin_trajectory) > 0:
+            try:
+                # Ensure trajectory is a list of numpy arrays
+                trajectory_list = []
+                for b in basin_trajectory:
+                    if isinstance(b, np.ndarray):
+                        trajectory_list.append(b)
+                    else:
+                        trajectory_list.append(np.array(b, dtype=np.float64))
+
+                # Use reward as outcome measure (higher reward = success)
+                outcome = max(0.0, min(1.0, (reward + 1.0) / 2.0))  # Normalize reward to 0-1
+
+                # Strategy based on god name
+                strategy = f"kernel_{god_name.lower()}"
+
+                # Feed trajectory to LearnedManifold
+                self._learned_manifold.learn_from_experience(
+                    trajectory=trajectory_list,
+                    outcome=outcome,
+                    strategy=strategy
+                )
+                print(f"[TrainingOrchestrator→LearnedManifold] Training fed to manifold "
+                      f"(god={god_name}, outcome={outcome:.2f}, trajectory_len={len(trajectory_list)})")
+            except Exception as e:
+                print(f"[TrainingOrchestrator→LearnedManifold] Learning failed: {e}")
+        elif self._learned_manifold:
+            # Log when trajectory is empty/None so we can debug
+            print(f"[TrainingOrchestrator→LearnedManifold] WARNING: No trajectory provided for {god_name}, "
+                  f"attractor formation skipped (trajectory={basin_trajectory})")
 
         return metrics
 

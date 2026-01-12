@@ -524,27 +524,34 @@ class ChainOfThoughtManager:
             self.completed_chains.append(chain)
 
             # 🔗 WIRE: Feed chain outcome to LearnedManifold
-            if self._learned_manifold and chain.thought_chain:
-                try:
-                    # Extract basin trajectory from chain
-                    trajectory = [step.basin for step in chain.thought_chain]
+            if self._learned_manifold is not None:
+                if chain.thought_chain and len(chain.thought_chain) > 0:
+                    try:
+                        # Extract basin trajectory from chain
+                        trajectory = [step.basin for step in chain.thought_chain if step.basin is not None]
 
-                    # Use overall_accuracy as outcome (default 0.5 if not set)
-                    outcome = chain.overall_accuracy if chain.overall_accuracy > 0 else 0.5
+                        if len(trajectory) > 0:
+                            # Use overall_accuracy as outcome (default 0.5 if not set)
+                            outcome = chain.overall_accuracy if chain.overall_accuracy > 0 else 0.5
 
-                    # Detect reasoning type for strategy
-                    pattern = chain.detect_pattern()
-                    strategy = f"chain_{pattern.get('reasoning_type', 'unknown')}"
+                            # Detect reasoning type for strategy
+                            pattern = chain.detect_pattern()
+                            strategy = f"chain_{pattern.get('reasoning_type', 'unknown')}"
 
-                    # Feed to LearnedManifold
-                    self._learned_manifold.learn_from_experience(
-                        trajectory=trajectory,
-                        outcome=outcome,
-                        strategy=strategy
-                    )
-                    print(f"[ChainManager→LearnedManifold] Chain '{session_id}' fed to manifold (outcome={outcome:.2f}, strategy={strategy})")
-                except Exception as e:
-                    print(f"[ChainManager→LearnedManifold] Learning failed: {e}")
+                            # Feed to LearnedManifold
+                            self._learned_manifold.learn_from_experience(
+                                trajectory=trajectory,
+                                outcome=outcome,
+                                strategy=strategy
+                            )
+                            print(f"[ChainManager→LearnedManifold] Chain '{session_id}' fed to manifold "
+                                  f"(outcome={outcome:.2f}, strategy={strategy}, trajectory_len={len(trajectory)})")
+                        else:
+                            print(f"[ChainManager→LearnedManifold] WARNING: Chain '{session_id}' has no valid basins, skipping")
+                    except Exception as e:
+                        print(f"[ChainManager→LearnedManifold] Learning failed for chain '{session_id}': {e}")
+                else:
+                    print(f"[ChainManager→LearnedManifold] WARNING: Chain '{session_id}' has no thought steps, skipping")
 
             if len(self.completed_chains) > 100:
                 self.completed_chains = self.completed_chains[-100:]

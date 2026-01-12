@@ -143,29 +143,57 @@ class LearnedManifold:
         Failure → flatten/remove basins (anti-Hebbian)
         
         Args:
-            trajectory: Basin path taken during episode
+            trajectory: Basin path taken during episode (list of 64D arrays)
             outcome: Success measure (1.0 = perfect, 0.0 = failure)
             strategy: Which navigation mode was used
         """
+        # Validate trajectory
+        if trajectory is None or len(trajectory) == 0:
+            print(f"[LearnedManifold] WARNING: learn_from_experience called with empty trajectory, skipping")
+            return
+
+        # Validate each point in trajectory
+        valid_trajectory = []
+        for i, point in enumerate(trajectory):
+            if point is None:
+                continue
+            if isinstance(point, np.ndarray) and len(point) == self.basin_dim:
+                valid_trajectory.append(point)
+            elif hasattr(point, '__len__') and len(point) == self.basin_dim:
+                valid_trajectory.append(np.array(point, dtype=np.float64))
+
+        if len(valid_trajectory) == 0:
+            print(f"[LearnedManifold] WARNING: No valid trajectory points after validation, skipping")
+            return
+
+        print(f"[LearnedManifold] learn_from_experience called with trajectory_len={len(valid_trajectory)}, "
+              f"outcome={outcome:.3f}, strategy={strategy}")
+
         self.total_learning_episodes += 1
         
         if outcome > 0.7:  # Successful episode
             self.successful_episodes += 1
             
             # Deepen the attractor at endpoint
-            endpoint = trajectory[-1]
+            endpoint = valid_trajectory[-1]
             self._deepen_basin(endpoint, amount=outcome, strategy=strategy)
             
             # Strengthen geodesic path
-            if len(trajectory) > 1:
-                self._strengthen_path(trajectory, amount=outcome)
+            if len(valid_trajectory) > 1:
+                self._strengthen_path(valid_trajectory, amount=outcome)
+            
+            print(f"[LearnedManifold] Attractor deepened at endpoint (outcome={outcome:.3f}, "
+                  f"total_attractors={len(self.attractors)})")
         
         else:  # Failed episode
             self.failed_episodes += 1
             
             # Flatten/prune this basin
-            endpoint = trajectory[-1]
+            endpoint = valid_trajectory[-1]
             self._flatten_basin(endpoint, amount=1.0 - outcome)
+            
+            print(f"[LearnedManifold] Basin flattened (outcome={outcome:.3f}, "
+                  f"total_attractors={len(self.attractors)})")
     
     def _deepen_basin(self, basin: np.ndarray, amount: float, strategy: str):
         """

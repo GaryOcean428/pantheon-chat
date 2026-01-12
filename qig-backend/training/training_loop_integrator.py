@@ -472,6 +472,12 @@ class TrainingLoopIntegrator:
             from training.kernel_training_orchestrator import KernelTrainingOrchestrator
             self.orchestrator = KernelTrainingOrchestrator()
             print("[TrainingLoopIntegrator] Auto-initialized orchestrator")
+            
+            # Wire LearnedManifold for attractor formation
+            manifold = get_learned_manifold()
+            if manifold and self.orchestrator:
+                self.orchestrator.wire_learned_manifold(manifold)
+                print("[TrainingLoopIntegrator] Wired orchestrator to LearnedManifold")
         except Exception as e:
             print(f"[TrainingLoopIntegrator] Could not auto-initialize orchestrator: {e}")
         
