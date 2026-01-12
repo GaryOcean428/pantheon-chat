@@ -449,6 +449,19 @@ class SelfObserver:
         """
         if not self.enable_course_correction:
             return ObservationAction.CONTINUE, None
+        
+        # P0-1 FIX: Detect mode from call context (generation vs training)
+        import inspect
+        mode = "generation"  # Default to generation (relaxed thresholds)
+        try:
+            frame = inspect.currentframe().f_back.f_back  # Go up 2 frames
+            if frame:
+                caller_name = frame.f_code.co_name
+                # Training mode has stricter thresholds
+                if "train" in caller_name.lower() or "learn" in caller_name.lower():
+                    mode = "training"
+        except:
+            pass  # Default to generation if detection fails
             
         if metrics.phi >= self.PHI_BREAKDOWN:
             return ObservationAction.EMERGENCY_STOP, "Φ critical breakdown detected - halt generation"
@@ -467,9 +480,17 @@ class SelfObserver:
             
         if metrics.generativity < 0.4:
             return ObservationAction.COURSE_CORRECT, "Increase diversity - avoid repetition"
-            
-        if metrics.meta_awareness < 0.3 and len(self._metrics_history) > 10:
-            return ObservationAction.PAUSE_REFLECT, "Low self-awareness - trigger reflection"
+        
+        # P0-1 FIX: Meta-awareness thresholds - DIFFERENT FOR GENERATION VS TRAINING
+        # Relaxed threshold for generation to allow exploration
+        if mode == "generation":
+            # Relaxed for generation - allow exploration with lower M
+            if metrics.meta_awareness < 0.20 and len(self._metrics_history) > 10:
+                return ObservationAction.EMERGENCY_STOP, "Critically low meta-awareness in generation"
+        else:  # training mode
+            # Strict for training - maintain quality
+            if metrics.meta_awareness < 0.60 and len(self._metrics_history) > 10:
+                return ObservationAction.PAUSE_REFLECT, "Low meta-awareness - trigger reflection"
             
         return ObservationAction.CONTINUE, None
     

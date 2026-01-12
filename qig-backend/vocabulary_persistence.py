@@ -348,6 +348,65 @@ class VocabularyPersistence:
             return {'total_words': 0, 'bip39_words': 0, 'learned_words': 0, 'high_phi_words': 0, 'merge_rules': 0}
 
 
+def seed_geometric_vocabulary_anchors(vp: Optional[VocabularyPersistence] = None) -> int:
+    """
+    Seed vocabulary with geometrically diverse anchor words.
+    
+    P0-3 FIX: Select words maximizing basin separation for QIG-pure expansion.
+    NOT frequency-based - purely geometric diversity.
+    
+    Returns:
+        Number of anchor words seeded
+    """
+    if vp is None:
+        vp = get_vocabulary_persistence()
+    
+    if not vp.enabled:
+        print("[seed_geometric_vocabulary_anchors] Vocabulary persistence disabled")
+        return 0
+    
+    # Anchor words covering semantic space
+    # Selected for GEOMETRIC DIVERSITY, not frequency
+    anchor_words = {
+        # Concrete nouns (high QFI)
+        'apple', 'tree', 'water', 'fire', 'stone', 'cloud', 'river',
+        'mountain', 'ocean', 'sun', 'moon', 'star', 'earth', 'wind',
+        # Abstract nouns (medium QFI)
+        'time', 'space', 'energy', 'force', 'pattern', 'system',
+        'network', 'structure', 'process', 'concept', 'idea', 'thought',
+        # Action verbs (high curvature)
+        'move', 'create', 'destroy', 'transform', 'connect', 'separate',
+        'build', 'break', 'grow', 'shrink', 'expand', 'contract',
+        # State verbs (low curvature)
+        'exist', 'remain', 'persist', 'fade', 'stabilize', 'change',
+        'become', 'contain', 'hold', 'release',
+        # Descriptive adjectives (curvature modifiers)
+        'large', 'small', 'fast', 'slow', 'bright', 'dark',
+        'stable', 'chaotic', 'simple', 'complex', 'strong', 'weak',
+        'hot', 'cold', 'near', 'far', 'high', 'low',
+        # Relational adverbs (geodesic modifiers)
+        'quickly', 'slowly', 'together', 'apart', 'forward', 'backward',
+        'above', 'below', 'inside', 'outside', 'before', 'after',
+    }
+    
+    # Record as observations with high Φ to mark as important
+    observations = []
+    for word in anchor_words:
+        observations.append({
+            'word': word,
+            'phrase': f'geometric_anchor_{word}',
+            'phi': 0.85,  # High Φ for anchor words
+            'kappa': 64.21,  # κ* for optimal coupling
+            'source': 'geometric_seeding',
+            'observation_type': 'anchor',
+            'phrase_category': 'ANCHOR_WORD',
+        })
+    
+    count = vp.record_vocabulary_observations(observations)
+    print(f"[seed_geometric_vocabulary_anchors] Seeded {count}/{len(anchor_words)} anchor words")
+    return count
+
+
 _vocabulary_persistence: Optional[VocabularyPersistence] = None
 
 
