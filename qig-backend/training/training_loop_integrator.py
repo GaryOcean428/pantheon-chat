@@ -53,9 +53,35 @@ class TrainingLoopIntegrator:
         self._outcome_count = 0
         self._basin_update_count = 0
         
+        # P1-4 FIX: Ensure all dependencies properly initialized
         # Initialize progress tracking and coherence evaluation
-        self.progress_tracker = get_progress_tracker()
-        self.coherence_evaluator = get_coherence_evaluator()
+        try:
+            self.progress_tracker = get_progress_tracker()
+        except Exception as e:
+            print(f"[TrainingLoopIntegrator] Warning: Could not initialize progress_tracker: {e}")
+            self.progress_tracker = None
+            
+        try:
+            self.coherence_evaluator = get_coherence_evaluator()
+        except Exception as e:
+            print(f"[TrainingLoopIntegrator] Warning: Could not initialize coherence_evaluator: {e}")
+            self.coherence_evaluator = None
+        
+        # P1-4 FIX: Add coordizer reference for vocabulary operations
+        try:
+            from coordizers import get_coordizer
+            self.coordizer = get_coordizer()
+        except Exception as e:
+            print(f"[TrainingLoopIntegrator] Warning: Could not initialize coordizer: {e}")
+            self.coordizer = None
+        
+        # P1-4 FIX: Add vocabulary persistence reference
+        try:
+            from vocabulary_persistence import get_vocabulary_persistence
+            self.vocab_persistence = get_vocabulary_persistence()
+        except Exception as e:
+            print(f"[TrainingLoopIntegrator] Warning: Could not initialize vocab_persistence: {e}")
+            self.vocab_persistence = None
         
         print("[TrainingLoopIntegrator] Initialized")
     
@@ -124,14 +150,19 @@ class TrainingLoopIntegrator:
             return {"status": "training_disabled"}
         
         try:
+            # P1-4 FIX: Defensive check for coherence_evaluator
             # Evaluate coherence of response
-            coherence_metrics = self.coherence_evaluator.evaluate(
-                text=response,
-                basin_trajectory=basin_trajectory
-            )
-            
-            # Use evaluated coherence score
-            evaluated_coherence = coherence_metrics.overall_coherence
+            if self.coherence_evaluator:
+                coherence_metrics = self.coherence_evaluator.evaluate(
+                    text=response,
+                    basin_trajectory=basin_trajectory
+                )
+                # Use evaluated coherence score
+                evaluated_coherence = coherence_metrics.overall_coherence
+            else:
+                # Fallback if coherence evaluator not available
+                evaluated_coherence = coherence_score
+                print("[TrainingLoopIntegrator] Warning: Using fallback coherence score (evaluator not available)")
             
             # Train via orchestrator
             metrics = self.orchestrator.train_from_outcome(
@@ -167,29 +198,38 @@ class TrainingLoopIntegrator:
                 except Exception as manifold_err:
                     print(f"[TrainingLoopIntegrator] Manifold recording error: {manifold_err}")
             
-            # Record progress
+            # P1-4 FIX: Record progress with defensive check
             session_id = f"training_{god_name}"
-            progress_update = self.progress_tracker.record_training_step(
-                session_id=session_id,
-                topic=god_name,
-                phi=phi,
-                coherence=evaluated_coherence
-            )
+            if self.progress_tracker:
+                progress_update = self.progress_tracker.record_training_step(
+                    session_id=session_id,
+                    topic=god_name,
+                    phi=phi,
+                    coherence=evaluated_coherence
+                )
+            else:
+                progress_update = {"status": "tracker_unavailable"}
             
-            return {
+            # Build response with available data
+            response_data = {
                 "status": "success",
                 "metrics": metrics,
                 "outcome_count": self._outcome_count,
-                "coherence": coherence_metrics.overall_coherence,
-                "coherence_details": {
+                "coherence": evaluated_coherence if self.coherence_evaluator else coherence_score,
+                "progress": progress_update
+            }
+            
+            # Add coherence details if available
+            if self.coherence_evaluator and 'coherence_metrics' in locals():
+                response_data["coherence_details"] = {
                     "perplexity": coherence_metrics.perplexity,
                     "self_consistency": coherence_metrics.self_consistency,
                     "long_range_coherence": coherence_metrics.long_range_coherence,
                     "repetition_score": coherence_metrics.repetition_score,
                     "entropy_collapse": coherence_metrics.entropy_collapse_score,
-                },
-                "progress": progress_update
-            }
+                }
+            
+            return response_data
             
         except Exception as e:
             print(f"[TrainingLoopIntegrator] Training error: {e}")
