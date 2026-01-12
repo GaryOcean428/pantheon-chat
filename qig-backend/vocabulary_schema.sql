@@ -219,7 +219,7 @@ EXCEPTION
 END;
 $$ LANGUAGE plpgsql;
 
--- Function to get high-Φ vocabulary
+-- Function to get high-Φ vocabulary (uses consolidated tokenizer_vocabulary table)
 CREATE OR REPLACE FUNCTION get_high_phi_vocabulary(
     p_min_phi REAL DEFAULT 0.7,
     p_limit INT DEFAULT 100
@@ -231,10 +231,12 @@ CREATE OR REPLACE FUNCTION get_high_phi_vocabulary(
 ) AS $$
 BEGIN
     RETURN QUERY
-    SELECT l.word, l.avg_phi, l.frequency, l.source
-    FROM learned_words l
-    WHERE l.avg_phi >= p_min_phi
-    ORDER BY l.avg_phi DESC, l.frequency DESC
+    SELECT t.token as word, t.phi_score as avg_phi, t.frequency, t.source
+    FROM tokenizer_vocabulary t
+    WHERE t.phi_score >= p_min_phi
+      AND t.token_role IN ('generation', 'both')
+      AND (t.phrase_category IS NULL OR t.phrase_category NOT IN ('PROPER_NOUN', 'BRAND'))
+    ORDER BY t.phi_score DESC, t.frequency DESC
     LIMIT p_limit;
 END;
 $$ LANGUAGE plpgsql;
@@ -254,10 +256,10 @@ BEGIN
         SELECT COUNT(*) INTO v_bip39 FROM bip39_words;
     END IF;
 
-    -- Check if learned_words exists before querying
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'learned_words') THEN
-        SELECT COUNT(*) INTO v_learned FROM learned_words;
-        SELECT COUNT(*) INTO v_high_phi FROM learned_words WHERE avg_phi >= 0.7;
+    -- Use consolidated tokenizer_vocabulary table with generation role filter
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'tokenizer_vocabulary') THEN
+        SELECT COUNT(*) INTO v_learned FROM tokenizer_vocabulary WHERE token_role IN ('generation', 'both');
+        SELECT COUNT(*) INTO v_high_phi FROM tokenizer_vocabulary WHERE phi_score >= 0.7 AND token_role IN ('generation', 'both');
     END IF;
 
     -- Check if bpe_merge_rules exists before querying

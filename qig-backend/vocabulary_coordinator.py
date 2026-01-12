@@ -851,12 +851,14 @@ class VocabularyCoordinator:
         try:
             conn = psycopg2.connect(database_url)
             with conn.cursor() as cur:
-                # Get unintegrated high-phi words
+                # Get unintegrated high-phi words from tokenizer_vocabulary
                 cur.execute("""
-                    SELECT word, avg_phi, max_phi, frequency, source
-                    FROM learned_words
-                    WHERE is_integrated = FALSE AND avg_phi >= %s
-                    ORDER BY avg_phi DESC, frequency DESC
+                    SELECT token as word, phi_score as avg_phi, phi_score as max_phi, frequency, source
+                    FROM tokenizer_vocabulary
+                    WHERE is_real_word = FALSE AND phi_score >= %s
+                      AND token_role IN ('generation', 'both')
+                      AND (phrase_category IS NULL OR phrase_category NOT IN ('PROPER_NOUN', 'BRAND'))
+                    ORDER BY phi_score DESC, frequency DESC
                     LIMIT %s
                 """, (min_phi, limit))
                 rows = cur.fetchall()

@@ -254,16 +254,17 @@ def load_grammar_from_db():
         conn = psycopg2.connect(db_url, connect_timeout=10)
         cur = conn.cursor()
         
-        # CRITICAL: Use learned_words (generation vocabulary) instead of tokenizer_vocabulary
-        # This ensures no BPE subwords or garbage tokens in POS grammar
+        # Use tokenizer_vocabulary with generation role filter (consolidated vocabulary table)
+        # token_role filter ensures no BPE subwords or encoding-only tokens in POS grammar
         cur.execute("""
-            SELECT word, basin_coords 
-            FROM learned_words
-            WHERE LENGTH(word) >= 3
-              AND word ~ '^[a-zA-Z]+$'
-              AND basin_coords IS NOT NULL
+            SELECT token as word, basin_embedding as basin_coords 
+            FROM tokenizer_vocabulary
+            WHERE LENGTH(token) >= 3
+              AND token ~ '^[a-zA-Z]+$'
+              AND basin_embedding IS NOT NULL
+              AND token_role IN ('generation', 'both')
               AND (phrase_category IS NULL OR phrase_category NOT IN ('PROPER_NOUN', 'BRAND'))
-            ORDER BY COALESCE(phi_score, avg_phi, 0.5) DESC
+            ORDER BY COALESCE(phi_score, 0.5) DESC
             LIMIT 5000
         """)
         rows = cur.fetchall()

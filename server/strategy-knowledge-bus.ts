@@ -726,9 +726,11 @@ export class StrategyKnowledgeBus {
       const existingSet = new Set((existingPatterns.rows || []).map(r => r.pattern));
       
       const learnedWords = await db.execute<{ word: string; avg_phi: number; frequency: number }>(
-        `SELECT word, avg_phi, frequency FROM learned_words 
-         WHERE avg_phi > 0.4 AND frequency > 5
-         ORDER BY avg_phi DESC 
+        `SELECT token as word, phi_score as avg_phi, frequency FROM tokenizer_vocabulary 
+         WHERE phi_score > 0.4 AND frequency > 5
+           AND token_role IN ('generation', 'both')
+           AND (phrase_category IS NULL OR phrase_category NOT IN ('PROPER_NOUN', 'BRAND'))
+         ORDER BY phi_score DESC 
          LIMIT 100`
       );
       
