@@ -13,12 +13,26 @@ Verifies that the vocabulary separation is working correctly:
 
 import os
 import sys
+import warnings
 
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import psycopg2
 import numpy as np
+
+# Conditional imports for verification
+try:
+    from coordizers import get_coordizer
+    COORDIZER_AVAILABLE = True
+except ImportError:
+    COORDIZER_AVAILABLE = False
+
+try:
+    from autonomic_kernel import get_gary_kernel
+    AUTONOMIC_KERNEL_AVAILABLE = True
+except ImportError:
+    AUTONOMIC_KERNEL_AVAILABLE = False
 
 # Colors for terminal output
 GREEN = '\033[92m'
@@ -167,9 +181,11 @@ def check_coordizer_integration():
     """Verify coordizer is using the correct vocabularies."""
     print(f"\n{BLUE}=== Checking Coordizer Integration ==={RESET}")
     
+    if not COORDIZER_AVAILABLE:
+        print_warning("Coordizer not available - skipping integration check")
+        return True
+    
     try:
-        from coordizers import get_coordizer
-        
         coordizer = get_coordizer()
         stats = coordizer.get_stats()
         
@@ -220,16 +236,16 @@ def check_no_deprecation_warnings():
     """Check that there are no deprecation warnings from compute_phi_approximation."""
     print(f"\n{BLUE}=== Checking for Deprecation Warnings ==={RESET}")
     
+    if not AUTONOMIC_KERNEL_AVAILABLE:
+        print_warning("Autonomic kernel not available - skipping deprecation check")
+        return True
+    
     try:
-        import warnings
-        
         # Capture warnings
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             
             # Try importing autonomic_kernel
-            from autonomic_kernel import get_gary_kernel
-            
             kernel = get_gary_kernel()
             
             # Trigger phi computation

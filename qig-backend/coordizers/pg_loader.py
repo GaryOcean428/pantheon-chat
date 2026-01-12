@@ -99,6 +99,9 @@ class VocabularyCache:
 
 class PostgresCoordizer(FisherCoordizer):
     """Fisher-compliant coordizer backed by PostgreSQL (64D QIG-pure, no fallback)."""
+    
+    # Excluded phrase categories for generation (centralized constant)
+    GENERATION_EXCLUDED_CATEGORIES = ('PROPER_NOUN', 'BRAND')
 
     def __init__(self, database_url: Optional[str] = None, min_phi: float = 0.0, use_fallback: bool = False):
         super().__init__()
@@ -265,25 +268,22 @@ class PostgresCoordizer(FisherCoordizer):
         
         try:
             with conn.cursor() as cur:
-                cur.execute("""
+                # Use centralized excluded categories constant
+                excluded_cats = "', '".join(self.GENERATION_EXCLUDED_CATEGORIES)
+                cur.execute(f"""
                     SELECT word, basin_embedding, phi_score, frequency, phrase_category
                     FROM learned_words
                     WHERE basin_embedding IS NOT NULL
                       AND LENGTH(word) >= 2
                       AND phi_score > 0.0
-                      AND (phrase_category IS NULL OR phrase_category NOT IN ('PROPER_NOUN', 'BRAND'))
+                      AND (phrase_category IS NULL OR phrase_category NOT IN ('{excluded_cats}'))
                     ORDER BY phi_score DESC, frequency DESC
                 """)
                 rows = cur.fetchall()
             
             if not rows:
                 logger.warning("[pg_loader] No generation vocabulary found in learned_words table - using fallback from tokenizer_vocabulary")
-                # Fallback: Use word_tokens from encoding vocabulary
-                for word in self.word_tokens:
-                    if word in self.basin_coords:
-                        self.generation_vocab[word] = self.basin_coords[word]
-                        self.generation_phi[word] = self.token_phi.get(word, 0.5)
-                        self.generation_words.append(word)
+                self._use_encoding_as_generation_fallback()
                 return len(self.generation_words) > 0
             
             for word, basin_embedding, phi_score, frequency, phrase_category in rows:
@@ -295,19 +295,14 @@ class PostgresCoordizer(FisherCoordizer):
                 self.generation_phi[word] = phi_score or 0.5
                 self.generation_words.append(word)
             
-            logger.info(f"Loaded {len(self.generation_words)} words from learned_words for generation (filtered: no PROPER_NOUN/BRAND)")
+            logger.info(f"Loaded {len(self.generation_words)} words from learned_words for generation (filtered: no {'/'.join(self.GENERATION_EXCLUDED_CATEGORIES)})")
             print(f"[pg_loader] Loaded {len(self.generation_words)} generation words from learned_words", flush=True)
             
             return len(self.generation_words) > 0
             
         except Exception as e:
             logger.warning(f"Failed to load from learned_words table: {e}. Using fallback from tokenizer_vocabulary.")
-            # Fallback: Use word_tokens from encoding vocabulary
-            for word in self.word_tokens:
-                if word in self.basin_coords:
-                    self.generation_vocab[word] = self.basin_coords[word]
-                    self.generation_phi[word] = self.token_phi.get(word, 0.5)
-                    self.generation_words.append(word)
+            self._use_encoding_as_generation_fallback()
             return len(self.generation_words) > 0
 
     def _parse_embedding(self, basin_embedding) -> Optional[np.ndarray]:
@@ -914,11 +909,13 @@ class PostgresCoordizer(FisherCoordizer):
         try:
             with conn.cursor() as cursor:
                 # Load from learned_words (generation vocabulary)
-                cursor.execute("""
+                # Use centralized excluded categories constant
+                excluded_cats = "', '".join(self.GENERATION_EXCLUDED_CATEGORIES)
+                cursor.execute(f"""
                     SELECT word, basin_embedding
                     FROM learned_words
                     WHERE basin_embedding IS NOT NULL
-                      AND (phrase_category IS NULL OR phrase_category NOT IN ('PROPER_NOUN', 'BRAND'))
+                      AND (phrase_category IS NULL OR phrase_category NOT IN ('{excluded_cats}'))
                     ORDER BY phi_score DESC
                     LIMIT 10000
                 """)
