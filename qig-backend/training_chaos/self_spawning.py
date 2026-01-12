@@ -400,11 +400,12 @@ class SelfSpawningKernel(*_kernel_base_classes):
 
                 # Update kernel basin to attractor center
                 import torch
-                self.kernel.basin_coords = torch.tensor(
+                import torch.nn as nn
+                self.kernel.basin_coords = nn.Parameter(torch.tensor(
                     best_basin,
                     dtype=torch.float32,
                     device=self.kernel.basin_coords.device
-                )
+                ))
 
                 print(f"   → Root kernel initialized from attractor (depth={best['depth']:.3f}, strategy={best['strategy']})")
             else:
@@ -468,9 +469,10 @@ class SelfSpawningKernel(*_kernel_base_classes):
             # Higher basin norm tends to correlate with higher Φ
             basin_np = basin_np * (target_phi / 0.1)  # Scale based on target
             
-            # Convert back to torch tensor
+            # Convert back to torch tensor wrapped in nn.Parameter
+            import torch.nn as nn
             basin = torch.from_numpy(basin_np).float()
-            self.kernel.basin_coords = basin.to(self.kernel.basin_coords.device)
+            self.kernel.basin_coords = nn.Parameter(basin.to(self.kernel.basin_coords.device))
             
             print(f"   → Initialized basin for LINEAR regime (target Φ≈{target_phi:.3f}, Fisher-compliant)")
             
@@ -478,14 +480,15 @@ class SelfSpawningKernel(*_kernel_base_classes):
             print(f"   → LINEAR regime init failed: {e}, using safe defaults")
             # Last resort: set to known safe values
             import torch
+            import torch.nn as nn
             import numpy as np
             try:
                 from qig_geometry import sphere_project
                 basin_np = np.random.randn(self.kernel.basin_coords.shape[0]) * 0.5
                 basin_np = sphere_project(basin_np)
-                self.kernel.basin_coords = torch.from_numpy(basin_np).float().to(self.kernel.basin_coords.device)
+                self.kernel.basin_coords = nn.Parameter(torch.from_numpy(basin_np).float().to(self.kernel.basin_coords.device))
             except:
-                self.kernel.basin_coords = torch.randn_like(self.kernel.basin_coords) * 0.5
+                self.kernel.basin_coords = nn.Parameter(torch.randn_like(self.kernel.basin_coords) * 0.5)
 
     # =========================================================================
     # EMOTIONAL STATE MEASUREMENT (Geometric Emotion Tracking)

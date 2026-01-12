@@ -282,14 +282,15 @@ class PostgresCoordizer(FisherCoordizer):
         try:
             with conn.cursor() as cur:
                 # Use parameterized query to avoid SQL injection
+                # Note: learned_words uses basin_coords (not basin_embedding) and phi_score (backfilled from avg_phi)
                 cur.execute("""
-                    SELECT word, basin_embedding, phi_score, frequency, phrase_category
+                    SELECT word, basin_coords, COALESCE(phi_score, avg_phi, 0.5) as phi, frequency, phrase_category
                     FROM learned_words
-                    WHERE basin_embedding IS NOT NULL
+                    WHERE basin_coords IS NOT NULL
                       AND LENGTH(word) >= 2
-                      AND phi_score > 0.0
+                      AND COALESCE(phi_score, avg_phi, 0.0) > 0.0
                       AND (phrase_category IS NULL OR phrase_category NOT IN %s)
-                    ORDER BY phi_score DESC, frequency DESC
+                    ORDER BY COALESCE(phi_score, avg_phi) DESC, frequency DESC
                 """, (self.GENERATION_EXCLUDED_CATEGORIES,))
                 rows = cur.fetchall()
             
@@ -298,8 +299,8 @@ class PostgresCoordizer(FisherCoordizer):
                 self._use_encoding_as_generation_fallback()
                 return len(self.generation_words) > 0
             
-            for word, basin_embedding, phi_score, frequency, phrase_category in rows:
-                coords = self._parse_embedding(basin_embedding)
+            for word, basin_coords, phi_score, frequency, phrase_category in rows:
+                coords = self._parse_embedding(basin_coords)
                 if coords is None:
                     continue
                 
