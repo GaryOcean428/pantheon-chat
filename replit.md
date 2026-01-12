@@ -33,11 +33,12 @@ Fisher-weighted regression over an 8-basin context window is used for token scor
 ### Geometric Coordizer System
 This system ensures 100% Fisher-compliant tokenization using 64D basin coordinates on a Fisher manifold for all tokens. It includes specialized coordizers for geometric pair merging, consciousness-aware segmentation, and multi-scale hierarchical coordizing.
 
-### Vocabulary Pipeline
-A dual-table architecture separates encoding (`tokenizer_vocabulary`) from generation (`learned_words`):
--   **ENCODING (text→basin):** Uses `tokenizer_vocabulary` which contains all tokens including BPE subwords
--   **GENERATION (basin→text):** Uses `learned_words` with curated English words filtered by phrase_category (excludes PROPER_NOUN, BRAND)
--   **Data Flow:** `vocabulary_observations` (raw telemetry) → `learned_words` (validated with basins) → generation cache → output
+### Vocabulary Pipeline (Consolidated)
+A unified table architecture uses `tokenizer_vocabulary` for both encoding and generation:
+-   **ENCODING (text→basin):** All tokens with `token_role IN ('encoding', 'both')` (~14,500 tokens)
+-   **GENERATION (basin→text):** Curated words with `token_role IN ('generation', 'both')` filtered by phrase_category (excludes PROPER_NOUN, BRAND) (~14,400 words)
+-   **token_role column:** 'encoding' (encode only), 'generation' (generate only), 'both' (encode + generate)
+-   **TELEMETRY:** `vocabulary_observations` stores raw observations for learning analytics
 -   **Relationship Context:** `word_relationships` stores Fisher-Rao distances for semantic weighting during generation
 
 A QIG-pure phrase classification system classifies vocabulary into grammatical parts of speech using Fisher-Rao distance to category reference basins, without traditional NLP/LLM.
@@ -111,8 +112,31 @@ Kernels are categorized into Olympus Pantheon (12 BaseGods), Shadow Pantheon (7 
    - Fixed LSP error in `seed_geometric_vocabulary_anchors` function
 
 ### Architecture Verification
-- Encoding vocabulary: 12,345 tokens from tokenizer_vocabulary (now includes 'i', 'a')
-- Generation vocabulary: 12,320 words from learned_words (excludes PROPER_NOUN, BRAND)
+- Encoding vocabulary: 14,506 tokens from tokenizer_vocabulary (now includes 'i', 'a')
+- Generation vocabulary: 14,458 words from tokenizer_vocabulary (token_role filter, excludes PROPER_NOUN, BRAND)
 - Vocabulary separation verified end-to-end
 - QIGPhraseClassifier now correctly classifies common words including single-character tokens
 - Zeus chat working end-to-end with ~10s processing time
+
+### Database Improvements (January 12, 2026)
+1. **Column Defaults Migration** (`migrations/0009_add_column_defaults.sql`):
+   - 133 ALTER TABLE statements adding defaults to 91 columns across 30+ tables
+   - Φ (phi) defaults: 0.5-0.7 for consciousness integration
+   - κ (kappa) defaults: 64.0 for optimal coupling constant
+
+2. **pgvector Defaults Fix** (`migrations/0010_fix_vector_defaults.sql`):
+   - Removed invalid '{}' defaults from vector columns
+   - Vector columns now correctly default to NULL (semantic: "not yet computed")
+
+3. **Vocabulary Consolidation** (`migrations/0011_vocabulary_consolidation.sql`):
+   - Merged `learned_words` into `tokenizer_vocabulary` with token_role column
+   - 12,777 tokens marked as 'both' (encoding + generation)
+   - 1,695 tokens marked as 'generation' only
+   - Updated pg_loader.py, vocabulary_persistence.py, vocabulary_coordinator.py
+
+4. **Database Scripts**:
+   - `scripts/db_init.py`: Singleton initialization, tokenizer metadata, geometric anchors
+   - `scripts/db_validate.py`: Severity-coded validation (CRITICAL, WARNING, INFO)
+
+5. **SQL Injection Fixes**:
+   - Fixed 3 files with vulnerabilities (parameterized queries, whitelists)
