@@ -40,6 +40,12 @@ try:
 except ImportError:
     KAPPA_STAR = 64.21  # Fallback value
 
+# QFI Computation Constants
+FISHER_REGULARIZATION = 1e-6  # Numerical stability for Fisher metric determinant
+QFI_TO_PHI_BASE = 0.5  # Base phi score for QFI mapping
+QFI_TO_PHI_SCALE = 0.3  # Scale factor for tanh normalization
+QFI_TO_PHI_EPSILON = 1e-10  # Small epsilon to prevent log(0)
+
 try:
     from coordizers import get_coordizer
     COORDIZER_AVAILABLE = True
@@ -209,12 +215,27 @@ class VocabularyIngestionService:
             with self.vp._connect() as conn:
                 with conn.cursor() as cur:
                     # Check tokenizer_vocabulary first (primary table)
+                    # Use basin_embedding for now (pre-migration 010)
+                    # After migration 010, this will be basin_coordinates
                     cur.execute("""
-                        SELECT basin_embedding, phi_score, source_type
+                        SELECT 
+                            CASE 
+                                WHEN EXISTS (
+                                    SELECT 1 FROM information_schema.columns 
+                                    WHERE table_name = 'tokenizer_vocabulary' 
+                                      AND column_name = 'basin_coordinates'
+                                )
+                                THEN basin_coordinates
+                                ELSE basin_embedding
+                            END as basin,
+                            phi_score, 
+                            source_type
                         FROM tokenizer_vocabulary
                         WHERE token = %s
-                          AND basin_embedding IS NOT NULL
-                          AND array_length(basin_embedding, 1) = 64
+                          AND (
+                              (basin_coordinates IS NOT NULL AND array_length(basin_coordinates, 1) = 64)
+                              OR (basin_embedding IS NOT NULL AND array_length(basin_embedding, 1) = 64)
+                          )
                         LIMIT 1
                     """, (word,))
                     row = cur.fetchone()
@@ -318,7 +339,7 @@ class VocabularyIngestionService:
         fisher_metric = np.outer(basin, basin)
         
         # Add small regularization for numerical stability
-        fisher_metric += np.eye(64) * 1e-6
+        fisher_metric += np.eye(64) * FISHER_REGULARIZATION
         
         # Determinant as QFI score
         qfi = np.linalg.det(fisher_metric)
@@ -332,6 +353,11 @@ class VocabularyIngestionService:
         Heuristic mapping: QFI reflects geometric complexity,
         which correlates with integration potential.
         
+        The mapping uses:
+        - QFI_TO_PHI_BASE (0.5): Baseline phi for typical QFI values
+        - QFI_TO_PHI_SCALE (0.3): Amplification factor for log-normalized QFI
+        - QFI_TO_PHI_EPSILON (1e-10): Prevents log(0) for zero QFI
+        
         Args:
             qfi: QFI score
         
@@ -339,7 +365,7 @@ class VocabularyIngestionService:
             Φ score in [0, 1]
         """
         # Log-scale normalization (QFI can be very large or small)
-        phi = 0.5 + 0.3 * np.tanh(np.log10(abs(qfi) + 1e-10))
+        phi = QFI_TO_PHI_BASE + QFI_TO_PHI_SCALE * np.tanh(np.log10(abs(qfi) + QFI_TO_PHI_EPSILON))
         
         # Clamp to [0, 1]
         phi = max(0.0, min(1.0, phi))
@@ -359,6 +385,7 @@ class VocabularyIngestionService:
         Atomic upsert to tokenizer_vocabulary table.
         
         This is the ONLY authorized database write for vocabulary.
+        Handles both pre-migration (basin_embedding) and post-migration (basin_coordinates).
         """
         try:
             with self.vp._connect() as conn:
@@ -366,20 +393,34 @@ class VocabularyIngestionService:
                     # Convert numpy array to list for PostgreSQL
                     basin_list = basin_embedding.tolist()
                     
-                    # Upsert to tokenizer_vocabulary
+                    # Check which column exists (migration 010 renames basin_embedding -> basin_coordinates)
                     cur.execute("""
+                        SELECT EXISTS (
+                            SELECT 1 FROM information_schema.columns 
+                            WHERE table_name = 'tokenizer_vocabulary' 
+                              AND column_name = 'basin_coordinates'
+                        )
+                    """)
+                    has_basin_coordinates = cur.fetchone()[0]
+                    
+                    basin_column = 'basin_coordinates' if has_basin_coordinates else 'basin_embedding'
+                    
+                    # Upsert to tokenizer_vocabulary (dynamic column name)
+                    query = f"""
                         INSERT INTO tokenizer_vocabulary (
-                            token, basin_embedding, phi_score, frequency, source_type, 
+                            token, {basin_column}, phi_score, frequency, source_type, 
                             last_used, created_at
                         )
                         VALUES (%s, %s, %s, 1, %s, NOW(), NOW())
                         ON CONFLICT (token) DO UPDATE SET
-                            basin_embedding = COALESCE(EXCLUDED.basin_embedding, tokenizer_vocabulary.basin_embedding),
+                            {basin_column} = COALESCE(EXCLUDED.{basin_column}, tokenizer_vocabulary.{basin_column}),
                             phi_score = GREATEST(tokenizer_vocabulary.phi_score, EXCLUDED.phi_score),
                             frequency = tokenizer_vocabulary.frequency + 1,
                             last_used = NOW()
                         RETURNING token_id, frequency
-                    """, (word, basin_list, phi_score, source))
+                    """
+                    
+                    cur.execute(query, (word, basin_list, phi_score, source))
                     
                     row = cur.fetchone()
                     token_id = row[0] if row else None

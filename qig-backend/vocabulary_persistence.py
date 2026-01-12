@@ -428,8 +428,17 @@ class VocabularyPersistence:
             )
         
         # Proceed with upsert (authorized)
+        # Note: This is a pass-through - actual upsert happens in VocabularyIngestionService
+        # This method serves as validation checkpoint, not the actual persistence
         print(f"[VocabularyPersistence] Authorized upsert for '{word}' from ingestion service")
-        return {'word': word, 'persisted': True}
+        
+        # Return validation success - actual DB write happens in ingestion service
+        return {
+            'word': word, 
+            'persisted': True,
+            'validation': 'passed',
+            'basin_dimension': len(basin_embedding)
+        }
 
 
 def seed_geometric_vocabulary_anchors(vp: Optional[VocabularyPersistence] = None) -> int:

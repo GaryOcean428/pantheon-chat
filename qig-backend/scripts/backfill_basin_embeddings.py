@@ -69,15 +69,47 @@ def find_words_needing_backfill(limit: Optional[int] = None) -> List[Tuple[str, 
     
     with vp._connect() as conn:
         with conn.cursor() as cur:
+            # Check which column exists (migration 010 renames basin_embedding -> basin_coordinates)
+            cur.execute("""
+                SELECT EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name = 'tokenizer_vocabulary' 
+                      AND column_name = 'basin_coordinates'
+                )
+            """)
+            has_basin_coordinates = cur.fetchone()[0]
+            
+            basin_column = 'basin_coordinates' if has_basin_coordinates else 'basin_embedding'
+            
             # Find words with empty or NULL basins
-            query = """
-                SELECT token, embedding
-                FROM tokenizer_vocabulary 
-                WHERE array_length(basin_embedding, 1) = 0 
-                   OR array_length(basin_embedding, 1) IS NULL
-                   OR basin_embedding IS NULL
-                ORDER BY token
-            """
+            # Note: 'embedding' column may not exist after migration 010
+            cur.execute(f"""
+                SELECT EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name = 'tokenizer_vocabulary' 
+                      AND column_name = 'embedding'
+                )
+            """)
+            has_embedding = cur.fetchone()[0]
+            
+            if has_embedding:
+                query = f"""
+                    SELECT token, embedding
+                    FROM tokenizer_vocabulary 
+                    WHERE array_length({basin_column}, 1) = 0 
+                       OR array_length({basin_column}, 1) IS NULL
+                       OR {basin_column} IS NULL
+                    ORDER BY token
+                """
+            else:
+                query = f"""
+                    SELECT token, NULL::float8[]
+                    FROM tokenizer_vocabulary 
+                    WHERE array_length({basin_column}, 1) = 0 
+                       OR array_length({basin_column}, 1) IS NULL
+                       OR {basin_column} IS NULL
+                    ORDER BY token
+                """
             
             if limit:
                 query += f" LIMIT {limit}"
@@ -190,11 +222,23 @@ def verify_backfill():
     
     with vp._connect() as conn:
         with conn.cursor() as cur:
+            # Check which column exists
             cur.execute("""
+                SELECT EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name = 'tokenizer_vocabulary' 
+                      AND column_name = 'basin_coordinates'
+                )
+            """)
+            has_basin_coordinates = cur.fetchone()[0]
+            
+            basin_column = 'basin_coordinates' if has_basin_coordinates else 'basin_embedding'
+            
+            cur.execute(f"""
                 SELECT 
-                    COUNT(*) FILTER (WHERE array_length(basin_embedding, 1) = 64) as valid_basins,
-                    COUNT(*) FILTER (WHERE array_length(basin_embedding, 1) = 0 OR array_length(basin_embedding, 1) IS NULL) as empty_basins,
-                    COUNT(*) FILTER (WHERE basin_embedding IS NULL) as null_basins,
+                    COUNT(*) FILTER (WHERE array_length({basin_column}, 1) = 64) as valid_basins,
+                    COUNT(*) FILTER (WHERE array_length({basin_column}, 1) = 0 OR array_length({basin_column}, 1) IS NULL) as empty_basins,
+                    COUNT(*) FILTER (WHERE {basin_column} IS NULL) as null_basins,
                     COUNT(*) as total
                 FROM tokenizer_vocabulary
             """)
