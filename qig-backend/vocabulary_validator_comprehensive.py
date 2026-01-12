@@ -21,6 +21,7 @@ QIG PURITY: All validation uses geometric principles (no ML/transformer-based va
 
 import re
 import math
+import os
 import logging
 from typing import Tuple, Set, Dict, Optional
 from collections import Counter
@@ -66,9 +67,13 @@ TRUNCATION_INDICATORS = {
 MIN_VOWEL_RATIO = 0.20  # At least 20% vowels
 MAX_VOWEL_RATIO = 0.80  # At most 80% vowels
 
-# Entropy thresholds
-MAX_ENTROPY_FOR_WORD = 4.5  # Natural words have lower entropy
-MIN_ENTROPY_FOR_WORD = 2.0  # Too low = repeated patterns
+# Entropy thresholds (configurable via environment or defaults)
+# Natural English words typically have entropy 3.0-4.5 bits
+MAX_ENTROPY_FOR_WORD = float(os.environ.get('VOCAB_MAX_ENTROPY', '4.5'))
+MIN_ENTROPY_FOR_WORD = float(os.environ.get('VOCAB_MIN_ENTROPY', '2.0'))
+
+# Minimum word length for entropy checking
+MIN_WORD_LENGTH_FOR_ENTROPY_CHECK = 4
 
 
 def compute_shannon_entropy(text: str) -> float:
@@ -204,7 +209,7 @@ def is_high_entropy_garbled(word: str) -> bool:
     Returns:
         True if word has suspiciously high entropy
     """
-    if not word or len(word) < 4:
+    if not word or len(word) < MIN_WORD_LENGTH_FOR_ENTROPY_CHECK:
         return False
     
     # Check known garbled sequences first
@@ -219,7 +224,7 @@ def is_high_entropy_garbled(word: str) -> bool:
         return True
     
     # Too low entropy suggests repeated patterns (also suspicious)
-    if entropy < MIN_ENTROPY_FOR_WORD and len(word) > 4:
+    if entropy < MIN_ENTROPY_FOR_WORD and len(word) > MIN_WORD_LENGTH_FOR_ENTROPY_CHECK:
         return True
     
     return False

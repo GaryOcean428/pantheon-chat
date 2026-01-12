@@ -40,12 +40,24 @@ def scan_vocabulary_table(table_name: str, word_column: str = 'word') -> Dict[st
     Scan a vocabulary table and identify contaminated entries.
     
     Args:
-        table_name: Name of the table to scan
-        word_column: Name of the column containing words
+        table_name: Name of the table to scan (validated against whitelist)
+        word_column: Name of the column containing words (validated against whitelist)
         
     Returns:
         Dictionary with scan results
     """
+    # Whitelist of allowed tables and columns for SQL safety
+    ALLOWED_TABLES = {'tokenizer_vocabulary', 'learned_words', 'bip39_words', 'word_relationships'}
+    ALLOWED_COLUMNS = {'word', 'source_word', 'target_word'}
+    
+    if table_name not in ALLOWED_TABLES:
+        logger.error(f"Invalid table name: {table_name}. Allowed: {ALLOWED_TABLES}")
+        return {}
+    
+    if word_column not in ALLOWED_COLUMNS:
+        logger.error(f"Invalid column name: {word_column}. Allowed: {ALLOWED_COLUMNS}")
+        return {}
+    
     conn = get_db_connection()
     if not conn:
         logger.error(f"Failed to connect to database")
@@ -116,14 +128,26 @@ def clean_vocabulary_table(table_name: str, contaminated_words: List[str],
     Remove contaminated words from a vocabulary table.
     
     Args:
-        table_name: Name of the table to clean
+        table_name: Name of the table to clean (validated against whitelist)
         contaminated_words: List of contaminated words to remove
-        word_column: Name of the column containing words
+        word_column: Name of the column containing words (validated against whitelist)
         dry_run: If True, don't actually delete (just report)
         
     Returns:
         Number of rows deleted
     """
+    # Whitelist validation for SQL safety
+    ALLOWED_TABLES = {'tokenizer_vocabulary', 'learned_words', 'bip39_words'}
+    ALLOWED_COLUMNS = {'word'}
+    
+    if table_name not in ALLOWED_TABLES:
+        logger.error(f"Invalid table name: {table_name}. Allowed: {ALLOWED_TABLES}")
+        return 0
+    
+    if word_column not in ALLOWED_COLUMNS:
+        logger.error(f"Invalid column name: {word_column}. Allowed: {ALLOWED_COLUMNS}")
+        return 0
+    
     if not contaminated_words:
         logger.info(f"No contaminated words to remove from {table_name}")
         return 0
@@ -368,8 +392,11 @@ def main(dry_run: bool = True):
     print("\n" + report)
     
     # Save report to file
+    # Use environment variable or default to docs/04-records/
+    reports_dir = os.environ.get('VOCABULARY_REPORTS_DIR', 
+                                  os.path.join(os.path.dirname(__file__), '..', '..', 'docs', '04-records'))
     report_filename = f"vocabulary_cleanup_report_{'dry_run' if dry_run else 'live'}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
-    report_path = os.path.join(os.path.dirname(__file__), '..', 'docs', '04-records', report_filename)
+    report_path = os.path.join(reports_dir, report_filename)
     
     try:
         os.makedirs(os.path.dirname(report_path), exist_ok=True)
