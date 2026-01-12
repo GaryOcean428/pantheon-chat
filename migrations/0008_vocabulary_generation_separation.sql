@@ -80,7 +80,10 @@ WHERE token ~ '^[ĠġĊċ]'  -- Starts with BPE markers
 DELETE FROM tokenizer_vocabulary
 WHERE LENGTH(token) < 2 AND source_type != 'special';
 
-RAISE NOTICE 'Deleted garbage tokens from tokenizer_vocabulary';
+DO $$
+BEGIN
+    RAISE NOTICE 'Deleted garbage tokens from tokenizer_vocabulary';
+END $$;
 
 -- ============================================================================
 -- PART 4: Fix shadow_operations_state PRIMARY KEY constraint
@@ -171,7 +174,10 @@ ON CONFLICT (word) DO UPDATE SET
     frequency = learned_words.frequency + EXCLUDED.frequency,
     updated_at = NOW();
 
-RAISE NOTICE 'Populated learned_words table from tokenizer_vocabulary';
+DO $$
+BEGIN
+    RAISE NOTICE 'Populated learned_words table from tokenizer_vocabulary';
+END $$;
 
 -- ============================================================================
 -- PART 7: Create view for generation-ready vocabulary
