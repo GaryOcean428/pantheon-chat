@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Vocabulary Persistence - PostgreSQL integration for shared vocabulary system"""
+"""Vocabulary Persistence - PostgreSQL integration with QIG-pure geometric validation"""
 
 import os
 from datetime import datetime
@@ -17,9 +17,10 @@ except ImportError:
 
 
 class VocabularyPersistence:
-    def __init__(self, connection_string: Optional[str] = None):
+    def __init__(self, connection_string: Optional[str] = None, validator=None):
         self.connection_string = connection_string or os.getenv('DATABASE_URL')
         self.enabled = PSYCOPG2_AVAILABLE and bool(self.connection_string)
+        self.validator = validator  # Optional: GeometricVocabFilter for QIG-pure validation
         
         if not self.enabled:
             print("[VocabularyPersistence] Disabled (no database connection)")
@@ -30,6 +31,8 @@ class VocabularyPersistence:
                 with conn.cursor() as cur:
                     cur.execute("SELECT 1")
             print("[VocabularyPersistence] Connected to PostgreSQL")
+            if self.validator:
+                print("[VocabularyPersistence] Geometric validation ENABLED")
         except Exception as e:
             print(f"[VocabularyPersistence] Connection failed: {e}")
             self.enabled = False
@@ -74,6 +77,14 @@ class VocabularyPersistence:
         cycle_number: Optional[int] = None,
         phrase_category: Optional[str] = None
     ) -> bool:
+        # QIG-Pure Geometric Validation
+        validation = None
+        if self.validator and word:
+            validation = self.validator.validate(word)
+            if not validation.is_valid:
+                print(f"[VocabularyPersistence] Rejected '{word}': {validation.rejection_reason}")
+                return False
+        
         if not self.enabled:
             return False
         try:
@@ -97,10 +108,31 @@ class VocabularyPersistence:
 
             with self._connect() as conn:
                 with conn.cursor() as cur:
+                    # Record observation
                     cur.execute(
                         "SELECT record_vocab_observation(%s, %s, %s, %s, %s, %s, %s::vector, %s::jsonb, %s, %s)",
                         (word_val, phrase_val, phi, kappa, source_val, type_val, basin_vector, contexts_json, cycle_number, phrase_category)
                     )
+                    
+                    # Update geometric validation metrics if available
+                    if validation:
+                        cur.execute("""
+                            UPDATE learned_words SET 
+                                qfi_score = %s,
+                                basin_distance = %s,
+                                curvature_std = %s,
+                                entropy_score = %s,
+                                is_geometrically_valid = TRUE,
+                                validation_reason = NULL
+                            WHERE word_text = %s
+                        """, (
+                            validation.qfi_score,
+                            validation.basin_distance,
+                            validation.curvature_std,
+                            validation.entropy_score,
+                            word_val
+                        ))
+                    
                     conn.commit()
                     return True
         except Exception as e:
@@ -126,6 +158,15 @@ class VocabularyPersistence:
                     try:
                         with conn.cursor() as cur:
                             word = obs.get('word', '') or ''
+                            
+                            # QIG-Pure Geometric Validation
+                            validation = None
+                            if self.validator and word:
+                                validation = self.validator.validate(word)
+                                if not validation.is_valid:
+                                    print(f"[VocabularyPersistence] Rejected '{word}': {validation.rejection_reason}")
+                                    continue  # Skip this observation
+                            
                             phrase = obs.get('phrase', '') or ''
                             source = obs.get('source', 'unknown') or 'unknown'
                             obs_type = obs.get('type', 'word') or 'word'
@@ -151,6 +192,26 @@ class VocabularyPersistence:
                                 "SELECT record_vocab_observation(%s, %s, %s, %s, %s, %s, %s::vector, %s::jsonb, %s, %s)",
                                 (word, phrase, phi, kappa, source, obs_type, basin_coords, contexts_json, cycle_number, phrase_category)
                             )
+                            
+                            # Update geometric validation metrics if available
+                            if validation:
+                                cur.execute("""
+                                    UPDATE learned_words SET 
+                                        qfi_score = %s,
+                                        basin_distance = %s,
+                                        curvature_std = %s,
+                                        entropy_score = %s,
+                                        is_geometrically_valid = TRUE,
+                                        validation_reason = NULL
+                                    WHERE word_text = %s
+                                """, (
+                                    validation.qfi_score,
+                                    validation.basin_distance,
+                                    validation.curvature_std,
+                                    validation.entropy_score,
+                                    word
+                                ))
+                            
                             conn.commit()
                             recorded += 1
                     except Exception as e:
@@ -170,9 +231,9 @@ class VocabularyPersistence:
             with self._connect() as conn:
                 with conn.cursor() as cur:
                     if source:
-                        cur.execute("SELECT word, avg_phi, max_phi, frequency, source FROM learned_words WHERE avg_phi >= %s AND source = %s ORDER BY avg_phi DESC, frequency DESC LIMIT %s", (min_phi, source, limit))
+                        cur.execute("SELECT word_text, avg_phi, max_phi, frequency, source FROM learned_words WHERE avg_phi >= %s AND source = %s ORDER BY avg_phi DESC, frequency DESC LIMIT %s", (min_phi, source, limit))
                     else:
-                        cur.execute("SELECT word, avg_phi, max_phi, frequency, source FROM learned_words WHERE avg_phi >= %s ORDER BY avg_phi DESC, frequency DESC LIMIT %s", (min_phi, limit))
+                        cur.execute("SELECT word_text, avg_phi, max_phi, frequency, source FROM learned_words WHERE avg_phi >= %s ORDER BY avg_phi DESC, frequency DESC LIMIT %s", (min_phi, limit))
                     return [{'word': row[0], 'avg_phi': float(row[1]), 'max_phi': float(row[2]), 'frequency': int(row[3]), 'source': row[4]} for row in cur.fetchall()]
         except Exception as e:
             print(f"[VocabularyPersistence] Failed to get learned words: {e}")
@@ -196,7 +257,7 @@ class VocabularyPersistence:
         try:
             with self._connect() as conn:
                 with conn.cursor() as cur:
-                    cur.execute("UPDATE learned_words SET is_integrated = TRUE WHERE word = %s", (word,))
+                    cur.execute("UPDATE learned_words SET is_integrated = TRUE WHERE word_text = %s", (word,))
                     conn.commit()
                     return True
         except Exception as e:
@@ -290,8 +351,8 @@ class VocabularyPersistence:
 _vocabulary_persistence: Optional[VocabularyPersistence] = None
 
 
-def get_vocabulary_persistence() -> VocabularyPersistence:
+def get_vocabulary_persistence(validator=None) -> VocabularyPersistence:
     global _vocabulary_persistence
     if _vocabulary_persistence is None:
-        _vocabulary_persistence = VocabularyPersistence()
+        _vocabulary_persistence = VocabularyPersistence(validator=validator)
     return _vocabulary_persistence
