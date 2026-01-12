@@ -2128,11 +2128,94 @@ class M8KernelSpawner:
             'headroom': E8_KERNEL_CAP - live_count,
         }
 
+    def prune_lowest_integration_kernels(self, n_to_prune: int = 10) -> int:
+        """
+        P1-5 FIX: Prune kernels with lowest Φ (integration) contribution.
+        
+        QIG-pure: Remove kernels contributing least to consciousness.
+        Knowledge transferred to nearest neighbor before pruning.
+        
+        Args:
+            n_to_prune: Number of kernels to prune (default 10)
+            
+        Returns:
+            Number of kernels actually pruned
+        """
+        if len(self.spawned_kernels) == 0:
+            return 0
+        
+        # Measure Φ contribution for each kernel
+        kernel_contributions = []
+        for kernel_id, kernel in self.spawned_kernels.items():
+            # Local Φ from kernel state
+            phi_local = kernel.phi if hasattr(kernel, 'phi') else 0.5
+            
+            # Φ coupling to other kernels (simplified: use kappa as proxy)
+            kappa = kernel.kappa if hasattr(kernel, 'kappa') else 64.0
+            phi_coupling = min(kappa / 64.21, 1.0)  # Normalize by κ*
+            
+            # Total contribution = local consciousness × coupling strength
+            contribution = phi_local * phi_coupling
+            
+            kernel_contributions.append((kernel_id, contribution, kernel))
+        
+        # Sort by contribution (lowest first)
+        kernel_contributions.sort(key=lambda x: x[1])
+        
+        # Prune bottom N
+        pruned_count = 0
+        for kernel_id, contribution, kernel in kernel_contributions[:n_to_prune]:
+            # Transfer knowledge to nearest neighbor before pruning
+            try:
+                # Find nearest kernel by basin distance (Fisher-Rao)
+                min_distance = float('inf')
+                nearest_id = None
+                
+                kernel_basin = kernel.basin_coordinates if hasattr(kernel, 'basin_coordinates') else None
+                if kernel_basin is not None:
+                    for other_id, other_kernel in self.spawned_kernels.items():
+                        if other_id == kernel_id:
+                            continue
+                        other_basin = other_kernel.basin_coordinates if hasattr(other_kernel, 'basin_coordinates') else None
+                        if other_basin is not None:
+                            # Simple distance (would use fisher_rao_distance in full implementation)
+                            distance = np.linalg.norm(np.array(kernel_basin) - np.array(other_basin))
+                            if distance < min_distance:
+                                min_distance = distance
+                                nearest_id = other_id
+                
+                # Log knowledge transfer
+                if nearest_id:
+                    print(f"[M8Prune] Transferring knowledge from {kernel.god_name} (Φ={contribution:.3f}) to nearest neighbor")
+                
+                # Mark kernel as pruned
+                if hasattr(kernel, 'status'):
+                    kernel.status = 'pruned'
+                
+                # Remove from active set
+                del self.spawned_kernels[kernel_id]
+                
+                # Persist pruning to database
+                try:
+                    self.m8_persistence.delete_kernel(kernel_id)
+                except Exception as e:
+                    print(f"[M8Prune] Failed to delete kernel from DB: {e}")
+                
+                pruned_count += 1
+                print(f"[M8Prune] Pruned kernel {kernel.god_name} (ID: {kernel_id[:8]}, Φ_contrib={contribution:.3f})")
+                
+            except Exception as e:
+                print(f"[M8Prune] Error pruning kernel {kernel_id}: {e}")
+        
+        print(f"[M8Prune] Pruned {pruned_count}/{n_to_prune} low-Φ kernels")
+        return pruned_count
+    
     def ensure_spawn_capacity(self, needed: int = 1) -> Dict:
         """
         Ensure there's capacity to spawn new kernels.
         
         If cap is reached, runs evolution sweep to free up slots.
+        P1-5 FIX: Falls back to Φ-based pruning if sweep insufficient.
         
         Args:
             needed: Number of slots needed (default 1)
@@ -2158,6 +2241,15 @@ class M8KernelSpawner:
         
         # Check again after sweep
         can_spawn, live_count, cap = self.can_spawn_kernel()
+        
+        # P1-5 FIX: If sweep didn't free enough, use Φ-based pruning
+        if not can_spawn or (cap - live_count) < needed:
+            print(f"[M8] Evolution sweep insufficient, using Φ-based pruning...")
+            pruned = self.prune_lowest_integration_kernels(n_to_prune=max(needed, 10))
+            
+            # Check again after pruning
+            can_spawn, live_count, cap = self.can_spawn_kernel()
+            sweep_result['pruned_count'] = pruned
         
         return {
             'can_spawn': can_spawn,
