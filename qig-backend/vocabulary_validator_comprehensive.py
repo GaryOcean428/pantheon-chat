@@ -51,6 +51,20 @@ CDN_FRAGMENTS = {
     'jsdelivr', 'unpkg', 'cdnjs', 'bootstrapcdn', 'googleapis',
 }
 
+# XML/RDF namespace prefixes and web artifacts - these come from scraped HTML/XML
+XML_NAMESPACE_ARTIFACTS = {
+    'xmlns', 'xmlschema', 'xhtml', 'xlink', 'xsi', 'xsd',
+    'skos', 'sioc', 'rdfs', 'foaf', 'purl', 'rdf', 'owl',
+    'dcterms', 'dcmi', 'dctype', 'vcard', 'opengraph',
+    'schema', 'vocab', 'property', 'typeof', 'itemtype',
+    'itemscope', 'itemprop', 'microdata', 'jsonld',
+    'noscript', 'antibot', 'recaptcha', 'captcha',
+    'stylesheet', 'javascript', 'onclick', 'onload',
+    'viewport', 'charset', 'contenttype', 'doctype',
+    'paloaltonetworks', 'northropgrumman', 'rdgroup',
+    'homodigitalis', 'informationsecurity',
+}
+
 # Known garbled sequences from PR 28 analysis
 KNOWN_GARBLED = {
     'hipsbb', 'karangehlod', 'mireichle', 'yfnxrf', 'fpdxwd',
@@ -160,7 +174,8 @@ def is_url_fragment(word: str) -> bool:
     - http/https/www
     - CDN hostnames (mintcdn, cloudflare, etc.)
     - Tracking parameters (srsltid, fbclid, utm_*)
-    - XML namespaces (xmlns)
+    - XML namespaces (xmlns, skos, rdfs, foaf, etc.)
+    - HTML/JavaScript artifacts (noscript, onclick, etc.)
     
     Args:
         word: Word to check
@@ -175,6 +190,10 @@ def is_url_fragment(word: str) -> bool:
     
     # Check known CDN fragments
     if word_lower in CDN_FRAGMENTS:
+        return True
+    
+    # Check XML/RDF namespace artifacts
+    if word_lower in XML_NAMESPACE_ARTIFACTS:
         return True
     
     # Check URL patterns
