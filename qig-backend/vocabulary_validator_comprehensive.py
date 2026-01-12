@@ -57,6 +57,20 @@ KNOWN_GARBLED = {
     'arphpl', 'cppdhfna',
 }
 
+# Known valid words that might fail heuristics (god names, common words with repeated letters)
+KNOWN_VALID_WORDS = {
+    # Olympus/Shadow Pantheon god names
+    'nyx', 'erebus', 'hecate', 'typhon', 'charon', 'thanatos', 'hypnos',
+    'zeus', 'hera', 'athena', 'apollo', 'artemis', 'ares', 'hades',
+    'poseidon', 'hermes', 'hephaestus', 'aphrodite', 'dionysus', 'demeter',
+    # Common English words with repeated letters or low entropy
+    'level', 'radar', 'civic', 'kayak', 'refer', 'rotor', 'stats', 'tenet',
+    'deed', 'noon', 'peep', 'poop', 'sass', 'sees', 'toot', 'boob',
+    # Technical terms used in QIG
+    'opsec', 'phi', 'psi', 'rho', 'tau', 'chi', 'kappa', 'omega', 'gamma',
+    'basin', 'kernel', 'spawned', 'manifold', 'geodesic', 'metric',
+}
+
 # Truncation indicators (common word endings that might be cut off)
 TRUNCATION_INDICATORS = {
     'inder', 'itants', 'ticism', 'oligonucle', 'ically',  # PR 28 examples
@@ -212,7 +226,11 @@ def is_high_entropy_garbled(word: str) -> bool:
     if not word or len(word) < MIN_WORD_LENGTH_FOR_ENTROPY_CHECK:
         return False
     
-    # Check known garbled sequences first
+    # Check whitelist first - known valid words pass
+    if word.lower() in KNOWN_VALID_WORDS:
+        return False
+    
+    # Check known garbled sequences
     if word.lower() in KNOWN_GARBLED:
         return True
     
@@ -224,7 +242,8 @@ def is_high_entropy_garbled(word: str) -> bool:
         return True
     
     # Too low entropy suggests repeated patterns (also suspicious)
-    if entropy < MIN_ENTROPY_FOR_WORD and len(word) > MIN_WORD_LENGTH_FOR_ENTROPY_CHECK:
+    # But only for longer words - short words naturally have low entropy
+    if entropy < MIN_ENTROPY_FOR_WORD and len(word) > 6:
         return True
     
     return False
@@ -256,6 +275,10 @@ def is_truncated_word(word: str) -> bool:
     
     word_lower = word.lower()
     
+    # Check whitelist first - known valid words pass
+    if word_lower in KNOWN_VALID_WORDS:
+        return False
+    
     # Check for known truncation patterns
     for indicator in TRUNCATION_INDICATORS:
         if word_lower == indicator:
@@ -267,7 +290,9 @@ def is_truncated_word(word: str) -> bool:
     vowel_ratio = compute_vowel_ratio(word)
     if vowel_ratio < MIN_VOWEL_RATIO:
         # Too few vowels - likely consonant cluster from truncation
-        return True
+        # But short words (3-4 chars) can legitimately have no vowels
+        if len(word) > 4:
+            return True
     
     # Check for unusual starting consonant clusters (might be truncated start)
     if len(word_lower) >= 3:
@@ -275,7 +300,7 @@ def is_truncated_word(word: str) -> bool:
         if sum(1 for c in first_three if c in 'aeiou') == 0:
             # Three consonants at start - suspicious
             # But allow some valid patterns (str, thr, sch, etc.)
-            valid_clusters = {'str', 'thr', 'sch', 'spr', 'spl', 'squ', 'chr'}
+            valid_clusters = {'str', 'thr', 'sch', 'spr', 'spl', 'squ', 'chr', 'nyx', 'gym', 'gly', 'cry', 'dry', 'fly', 'fry', 'pry', 'shy', 'sky', 'sly', 'spy', 'sty', 'try', 'why', 'wry'}
             if first_three not in valid_clusters:
                 return True
     
