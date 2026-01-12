@@ -346,6 +346,101 @@ class VocabularyPersistence:
         except Exception as e:
             print(f"[VocabularyPersistence] Failed to get stats: {e}")
             return {'total_words': 0, 'bip39_words': 0, 'learned_words': 0, 'high_phi_words': 0, 'merge_rules': 0}
+    
+    def learn_word(self, word: str, context: str = "") -> Dict:
+        """
+        Learn a word through unified ingestion service.
+        
+        DEPRECATED: Use VocabularyIngestionService directly instead.
+        This method is kept for backward compatibility but routes to the service.
+        
+        Args:
+            word: Word to learn
+            context: Optional context for better embedding
+        
+        Returns:
+            Result dict from ingestion service
+        """
+        try:
+            from vocabulary_ingestion import get_ingestion_service
+            service = get_ingestion_service()
+            return service.ingest_word(word, context=context, source='learn_word_legacy')
+        except Exception as e:
+            print(f"[VocabularyPersistence] learn_word failed for '{word}': {e}")
+            return {'word': word, 'error': str(e), 'persisted': False}
+    
+    def upsert_word(
+        self,
+        word: str,
+        basin_embedding: Optional[List[float]] = None,
+        qfi_score: Optional[float] = None,
+        **kwargs
+    ) -> Dict:
+        """
+        Direct upsert - SHOULD ONLY BE CALLED BY VocabularyIngestionService.
+        
+        Runtime validation ensures this is only called from authorized ingestion service.
+        All other callers should use VocabularyIngestionService.ingest_word() instead.
+        
+        Args:
+            word: Word to upsert
+            basin_embedding: 64D basin embedding (required, must not be None)
+            qfi_score: QFI score
+            **kwargs: Additional metadata
+        
+        Returns:
+            Result dict
+        
+        Raises:
+            RuntimeError: If called directly (not from ingestion service)
+            ValueError: If basin_embedding is None or invalid
+        """
+        # Runtime validation - check caller
+        import inspect
+        caller_frame = inspect.stack()[1]
+        caller_function = caller_frame.function
+        caller_filename = caller_frame.filename
+        
+        # Allow calls from VocabularyIngestionService._upsert_to_database
+        is_authorized = (
+            caller_function == '_upsert_to_database' and
+            'vocabulary_ingestion' in caller_filename
+        )
+        
+        if not is_authorized:
+            raise RuntimeError(
+                f"[VocabularyPersistence] Direct upsert_word() call from {caller_function} "
+                f"in {caller_filename}.\n"
+                "Use VocabularyIngestionService.ingest_word() instead to prevent NULL basin contamination."
+            )
+        
+        # Validate basin_embedding (critical validation)
+        if basin_embedding is None:
+            raise ValueError(
+                f"[VocabularyPersistence] basin_embedding is None for '{word}'. "
+                "All vocabulary MUST have valid 64D basin embeddings."
+            )
+        
+        if not isinstance(basin_embedding, list) or len(basin_embedding) != 64:
+            raise ValueError(
+                f"[VocabularyPersistence] Invalid basin_embedding for '{word}': "
+                f"expected list of 64 floats, got {type(basin_embedding)} with length {len(basin_embedding) if isinstance(basin_embedding, list) else 'N/A'}"
+            )
+        
+        # Proceed with validation (authorized caller)
+        # IMPORTANT: This method does NOT perform database writes
+        # It serves as a validation checkpoint before VocabularyIngestionService writes to DB
+        # The 'persisted' flag means "validation passed, safe to persist"
+        print(f"[VocabularyPersistence] Validation passed for '{word}' from ingestion service")
+        
+        # Return validation success - actual DB write happens in VocabularyIngestionService._upsert_to_database
+        return {
+            'word': word, 
+            'persisted': False,  # Not yet persisted, just validated
+            'validation': 'passed',
+            'basin_dimension': len(basin_embedding),
+            'note': 'Validation checkpoint - actual DB write in VocabularyIngestionService'
+        }
 
 
 def seed_geometric_vocabulary_anchors(vp: Optional[VocabularyPersistence] = None) -> int:
