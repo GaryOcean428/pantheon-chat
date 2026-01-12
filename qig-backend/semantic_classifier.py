@@ -173,19 +173,49 @@ class SemanticClassifier:
         if hypernym_result:
             return hypernym_result, fisher_strength
         
-        if fisher_strength > 0.8 and len(w1) >= 4 and len(w2) >= 4:
+        # QIG-pure: Fisher-Rao distance thresholds
+        # High similarity (exp(-d) > 0.7) → synonym
+        if fisher_strength > 0.7 and len(w1) >= 3 and len(w2) >= 3:
             return RelationshipType.SYNONYM, fisher_strength
         
-        if fisher_strength > 0.5:
+        # Medium similarity → co_occurrence (most word pairs with any geometric relationship)
+        if fisher_strength > 0.25:
             return RelationshipType.CO_OCCURRENCE, fisher_strength
         
         return RelationshipType.UNKNOWN, fisher_strength
     
     def _is_morphological(self, word1: str, word2: str) -> bool:
         """Check if words are morphological variants (same root)."""
-        if len(word1) < 3 or len(word2) < 3:
+        if len(word1) < 2 or len(word2) < 2:
             return False
         
+        # Check for common suffixes with possible consonant doubling
+        morphological_suffixes = ['s', 'es', 'ed', 'ing', 'er', 'est', 'ly', 'tion', 'ness', 'ion', 'ity', 'ment', 'ance', 'ence', 'ful', 'less', 'able', 'ible', 'ive']
+        
+        for w1, w2 in [(word1, word2), (word2, word1)]:
+            for suffix in morphological_suffixes:
+                if w2.endswith(suffix) and len(w2) > len(suffix):
+                    base = w2[:-len(suffix)]
+                    # Direct match
+                    if base == w1:
+                        return True
+                    # Handle consonant doubling (run -> running)
+                    if len(base) >= 2 and base[-1] == base[-2] and base[:-1] == w1:
+                        return True
+                    # Handle e-dropping (write -> writing)
+                    if w1.endswith('e') and w1[:-1] == base:
+                        return True
+                    # Handle y -> i (happy -> happily)
+                    if base.endswith('i') and w1.endswith('y') and base[:-1] == w1[:-1]:
+                        return True
+        
+        # Direct plural check
+        if word1 + 's' == word2 or word2 + 's' == word1:
+            return True
+        if word1 + 'es' == word2 or word2 + 'es' == word1:
+            return True
+        
+        # Check common prefix with minimum 3 characters
         min_len = min(len(word1), len(word2))
         common_prefix_len = 0
         for i in range(min_len):
@@ -194,21 +224,14 @@ class SemanticClassifier:
             else:
                 break
         
+        # If they share most of their letters, likely morphological
         if common_prefix_len >= 3:
             longer = word1 if len(word1) > len(word2) else word2
             shorter = word2 if len(word1) > len(word2) else word1
             suffix = longer[len(shorter):]
             
-            if suffix in ['s', 'es', 'ed', 'ing', 'er', 'est', 'ly', 'tion', 'ness']:
+            if suffix in morphological_suffixes:
                 return True
-            
-            if suffix in ['ion', 'ity', 'ment', 'ance', 'ence']:
-                return True
-        
-        if word1 + 's' == word2 or word2 + 's' == word1:
-            return True
-        if word1 + 'es' == word2 or word2 + 'es' == word1:
-            return True
         
         return False
     
