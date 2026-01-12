@@ -63,6 +63,10 @@ XML_NAMESPACE_ARTIFACTS = {
     'viewport', 'charset', 'contenttype', 'doctype',
     'paloaltonetworks', 'northropgrumman', 'rdgroup',
     'homodigitalis', 'informationsecurity',
+    # URL parameters and web infrastructure
+    'itemsperpage', 'onetrust', 'experienc', 'antiform',
+    # Foreign/non-English scraped artifacts (names, typos)
+    'stalczynski', 'feyzi', 'dokumen', 'zarya', 'vetted',
 }
 
 # Known garbled sequences from PR 28 analysis
