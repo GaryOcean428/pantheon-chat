@@ -90,7 +90,8 @@ class VocabularyPersistence:
         try:
             word_val = word if word else ''
             phrase_val = phrase if phrase else ''
-            source_val = source if source else 'unknown'
+            # Truncate source to 32 chars to fit VARCHAR(32) column
+            source_val = (source[:32] if source and len(source) > 32 else source) if source else 'unknown'
             type_val = observation_type if observation_type else 'word'
 
             import json
@@ -220,7 +221,9 @@ class VocabularyPersistence:
                                     continue  # Skip this observation
                             
                             phrase = obs.get('phrase', '') or ''
-                            source = obs.get('source', 'unknown') or 'unknown'
+                            raw_source = obs.get('source', 'unknown') or 'unknown'
+                            # Truncate source to 32 chars to fit VARCHAR(32) column
+                            source = raw_source[:32] if len(raw_source) > 32 else raw_source
                             obs_type = obs.get('type', 'word') or 'word'
                             phi = obs.get('phi', 0.0)
                             kappa = obs.get('kappa', 50.0)

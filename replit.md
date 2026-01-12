@@ -140,3 +140,20 @@ Kernels are categorized into Olympus Pantheon (12 BaseGods), Shadow Pantheon (7 
 
 5. **SQL Injection Fixes**:
    - Fixed 3 files with vulnerabilities (parameterized queries, whitelists)
+
+### P0 Roadmap Gap Implementations (January 12, 2026)
+1. **Gap 1: E8 Specialization Levels** (`frozen_physics.py`, `m8_kernel_spawning.py`):
+   - 4 specialization levels: basic_rank ≤8, refined_adjoint ≤56, specialist_dim ≤126, full_roots >126
+   - spawn_kernel() blocks spawns when E8 constellation population is insufficient
+   - E8 cap enforced at 240 kernels maximum
+
+2. **Gap 2: Kappa Evolution Endpoint** (`ocean_qig_core.py`, `server/routes/consciousness.ts`):
+   - `/api/consciousness/kappa-evolution` endpoint with full PostgreSQL persistence
+   - Python backend reads/writes κ trajectory to `telemetry_snapshots` table
+   - Node.js fallback with debouncing (1 second minimum between samples)
+   - Returns κ trajectory, β-function values, regime (emergence/plateau/runaway)
+
+3. **Gap 3: Meta-Awareness Threshold** (`frozen_physics.py`, `m8_kernel_spawning.py`):
+   - META_AWARENESS_MIN = 0.6 enforced for kernel spawning
+   - Live M tracking via telemetry with database persistence to `m8_kernel_awareness` table
+   - Low-M kernels blocked from spawning until M threshold met
