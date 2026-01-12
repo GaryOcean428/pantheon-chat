@@ -1,8 +1,10 @@
 # Autonomic System Mandatory Implementation
 
 ## Issue Reference
-- **Issue**: GaryOcean428/pantheon-chat#[P0-CRITICAL] Make autonomic system mandatory for spawned kernels
-- **Related Issues**: #30 (Φ=0.000 initialization bug), #38 (β-function running coupling)
+- **Issue**: P0-CRITICAL - Make autonomic system mandatory for spawned kernels
+- **Related Issues**: 
+  - Issue #30: Φ=0.000 initialization bug causing immediate kernel death
+  - Issue #38: β-function running coupling integration
 
 ## Problem Statement
 Spawned kernels could be created without autonomic support system, leading to:
