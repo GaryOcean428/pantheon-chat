@@ -132,35 +132,43 @@ CREATE TABLE IF NOT EXISTS vocabulary_stats (
 -- Functions for vocabulary management
 
 -- Function to record vocabulary observation
+-- Parameters aligned with Python vocabulary_persistence.py:
+-- (word, phrase, phi, kappa, source, type, basin_coords, contexts, cycle_number, phrase_category)
 CREATE OR REPLACE FUNCTION record_vocab_observation(
-    p_text TEXT,
+    p_word TEXT,
+    p_phrase TEXT DEFAULT '',
+    p_phi REAL DEFAULT 0.5,
+    p_kappa REAL DEFAULT 58.0,
+    p_source TEXT DEFAULT 'kernel',
     p_type TEXT DEFAULT 'word',
-    p_phi REAL DEFAULT 0.0,
-    p_source_type TEXT DEFAULT 'kernel',
     p_basin_coords vector DEFAULT NULL,
-    p_contexts TEXT[] DEFAULT NULL,
+    p_contexts JSONB DEFAULT NULL,
     p_cycle_number INT DEFAULT NULL,
-    p_is_real_word BOOLEAN DEFAULT NULL,
     p_phrase_category TEXT DEFAULT 'unknown'
 ) RETURNS VOID AS $$
 DECLARE
     v_phi_safe REAL;
+    v_contexts_array TEXT[];
 BEGIN
-    -- Ensure phi is never 0 (causes max_phi to stay 0 forever)
     v_phi_safe := GREATEST(p_phi, 0.5);
+    
+    IF p_contexts IS NOT NULL THEN
+        SELECT array_agg(elem::TEXT) INTO v_contexts_array
+        FROM jsonb_array_elements_text(p_contexts) elem;
+    END IF;
 
     INSERT INTO vocabulary_observations (
-        text, type, avg_phi, max_phi, source_type,
-        basin_coords, contexts, cycle_number,
-        is_real_word, phrase_category, frequency,
+        id, text, type, source_type, avg_phi, max_phi, 
+        basin_coords, contexts, cycle_number, phrase_category,
         first_seen, last_seen, is_integrated, integrated_at
     )
     VALUES (
-        p_text, p_type, v_phi_safe, v_phi_safe, p_source_type,
-        p_basin_coords, p_contexts, p_cycle_number,
-        p_is_real_word, p_phrase_category, 1,
-        NOW(), NOW(), (p_cycle_number IS NOT NULL),
-        CASE WHEN p_cycle_number IS NOT NULL THEN NOW() ELSE NULL END
+        'vo_' || gen_random_uuid()::TEXT, 
+        p_word, p_type, p_source, v_phi_safe, v_phi_safe,
+        p_basin_coords, v_contexts_array, p_cycle_number, p_phrase_category,
+        NOW(), NOW(), 
+        (p_cycle_number IS NOT NULL OR v_phi_safe >= 0.6),
+        CASE WHEN (p_cycle_number IS NOT NULL OR v_phi_safe >= 0.6) THEN NOW() ELSE NULL END
     )
     ON CONFLICT (text) DO UPDATE SET
         frequency = vocabulary_observations.frequency + 1,
@@ -170,12 +178,14 @@ BEGIN
         basin_coords = COALESCE(EXCLUDED.basin_coords, vocabulary_observations.basin_coords),
         contexts = COALESCE(EXCLUDED.contexts, vocabulary_observations.contexts),
         cycle_number = COALESCE(EXCLUDED.cycle_number, vocabulary_observations.cycle_number),
-        is_real_word = COALESCE(EXCLUDED.is_real_word, vocabulary_observations.is_real_word),
-        phrase_category = COALESCE(EXCLUDED.phrase_category, vocabulary_observations.phrase_category);
+        phrase_category = CASE 
+            WHEN vocabulary_observations.phrase_category = 'unknown' OR vocabulary_observations.phrase_category IS NULL 
+            THEN EXCLUDED.phrase_category 
+            ELSE vocabulary_observations.phrase_category 
+        END;
 
-    -- Update learned_words table (if it exists - legacy table)
     INSERT INTO learned_words (word, frequency, avg_phi, max_phi, source, last_seen)
-    VALUES (p_text, 1, v_phi_safe, v_phi_safe, p_source_type, NOW())
+    VALUES (p_word, 1, v_phi_safe, v_phi_safe, p_source, NOW())
     ON CONFLICT (word) DO UPDATE SET
         frequency = learned_words.frequency + 1,
         avg_phi = (learned_words.avg_phi * learned_words.frequency + v_phi_safe) / (learned_words.frequency + 1),
@@ -183,7 +193,6 @@ BEGIN
         last_seen = NOW();
 EXCEPTION
     WHEN undefined_table THEN
-        -- learned_words table doesn't exist, skip it
         NULL;
 END;
 $$ LANGUAGE plpgsql;

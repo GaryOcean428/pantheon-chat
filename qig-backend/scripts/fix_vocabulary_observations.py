@@ -43,15 +43,6 @@ CODE_ARTIFACTS = {
     'from', 'as', 'with', 'pass', 'global', 'nonlocal',
 }
 
-# Category keywords for phrase_category classification
-CATEGORY_KEYWORDS = {
-    'topic': ['about', 'regarding', 'concerning', 'related', 'topic', 'subject', 'area'],
-    'concept': ['idea', 'concept', 'theory', 'principle', 'abstract', 'notion', 'understanding'],
-    'pattern': ['pattern', 'structure', 'format', 'template', 'schema', 'model', 'form'],
-    'entity': ['name', 'person', 'place', 'organization', 'company', 'product', 'brand'],
-    'action': ['do', 'make', 'create', 'build', 'run', 'process', 'execute', 'perform'],
-    'property': ['is', 'has', 'can', 'attribute', 'property', 'feature', 'characteristic'],
-}
 
 
 def classify_type(text: str) -> str:
@@ -77,39 +68,22 @@ def classify_type(text: str) -> str:
 
 
 def classify_phrase_category(text: str) -> str:
-    """Classify phrase into topic/concept/pattern/entity/action/property/unknown."""
+    """Classify phrase using QIG-pure geometric method (Fisher-Rao distance).
+    
+    Returns parts of speech: NOUN, PROPER_NOUN, PRONOUN, VERB, ADJECTIVE, 
+    ADVERB, PREPOSITION, CONJUNCTION, INTERJECTION, NUMBER, DETERMINER
+    """
     if not text:
         return 'unknown'
 
-    text_lower = text.lower()
-
-    # Check for category keywords
-    for category, keywords in CATEGORY_KEYWORDS.items():
-        for keyword in keywords:
-            if keyword in text_lower:
-                return category
-
-    # Check by structure
-    words = text.split()
-    if len(words) >= 2:
-        # "X of Y" patterns are often concepts
-        if 'of' in words or 'for' in words:
-            return 'concept'
-        # Capitalized words suggest entity
-        if any(w[0].isupper() for w in words if w):
-            return 'entity'
-
-    # Single word heuristics
-    if len(words) == 1:
-        word = words[0]
-        # Verbs (ending in -ing, -ed) suggest action
-        if word.endswith('ing') or word.endswith('ed'):
-            return 'action'
-        # Abstract endings suggest concept
-        if word.endswith('ness') or word.endswith('ity') or word.endswith('ism'):
-            return 'concept'
-
-    return 'unknown'
+    try:
+        from qig_phrase_classifier import classify_phrase_qig_pure
+        category, confidence = classify_phrase_qig_pure(text, None)
+        return category
+    except ImportError:
+        return 'unknown'
+    except Exception:
+        return 'unknown'
 
 
 def is_real_word_strict(text: str) -> bool:
