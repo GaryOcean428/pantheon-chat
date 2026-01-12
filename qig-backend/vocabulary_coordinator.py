@@ -222,9 +222,8 @@ class VocabularyCoordinator:
             except Exception as e:
                 print(f"[VocabularyCoordinator] Failed to persist '{word}': {e}")
         
-        # Also update learned_words.basin_coords for vocabulary integration
-        # NOTE: Only set basin_coords here, NOT is_integrated - that flag is controlled
-        # by integrate_pending_vocabulary which enforces high-Φ gating
+        # Phase 2b: Update tokenizer_vocabulary with basin_embedding for generation
+        # Also update learned_words for backward compatibility
         if words_with_basins:
             database_url = os.environ.get('DATABASE_URL')
             if database_url:
@@ -233,15 +232,34 @@ class VocabularyCoordinator:
                     with conn.cursor() as cur:
                         for word, basin in words_with_basins:
                             basin_list = basin.tolist() if hasattr(basin, 'tolist') else list(basin)
+                            # Primary: Update tokenizer_vocabulary (consolidated table)
                             cur.execute("""
-                                UPDATE learned_words
-                                SET basin_coords = %s::vector
-                                WHERE word = %s AND basin_coords IS NULL
-                            """, (str(basin_list), word))
+                                INSERT INTO tokenizer_vocabulary (
+                                    token, basin_embedding, token_role, is_real_word, frequency
+                                )
+                                VALUES (%s, %s::vector, 'generation', TRUE, 1)
+                                ON CONFLICT (token) DO UPDATE SET
+                                    basin_embedding = COALESCE(EXCLUDED.basin_embedding, tokenizer_vocabulary.basin_embedding),
+                                    token_role = CASE 
+                                        WHEN tokenizer_vocabulary.token_role = 'encoding' THEN 'both'
+                                        ELSE COALESCE(tokenizer_vocabulary.token_role, 'generation')
+                                    END,
+                                    is_real_word = TRUE,
+                                    updated_at = NOW()
+                            """, (word, str(basin_list)))
+                            # Backward compatibility: Also update learned_words if it exists
+                            try:
+                                cur.execute("""
+                                    UPDATE learned_words
+                                    SET basin_coords = %s::vector
+                                    WHERE word = %s AND basin_coords IS NULL
+                                """, (str(basin_list), word))
+                            except Exception:
+                                pass  # Table may not exist
                     conn.commit()
                     conn.close()
                 except Exception as e:
-                    print(f"[VocabularyCoordinator] Failed to update learned_words basin_coords: {e}")
+                    print(f"[VocabularyCoordinator] Failed to update tokenizer_vocabulary basin_embedding: {e}")
         
         if persisted > 0:
             print(f"[VocabularyCoordinator] Persisted {persisted} tokens to coordizer DB")
@@ -891,17 +909,37 @@ class VocabularyCoordinator:
                     except Exception as e:
                         errors.append(f"save_token_{w['word']}: {e}")
 
-                # Update learned_words with basin_coords and mark as integrated
+                # Phase 2b: Update tokenizer_vocabulary with basin_embedding and mark as generation-ready
+                # Also update learned_words for backward compatibility
                 for word, basin in words_with_basins:
                     try:
                         basin_list = basin.tolist() if hasattr(basin, 'tolist') else list(basin)
+                        # Primary: Update tokenizer_vocabulary (consolidated table)
                         cur.execute("""
-                            UPDATE learned_words
-                            SET basin_coords = %s::vector,
-                                is_integrated = TRUE,
-                                integrated_at = NOW()
-                            WHERE word = %s
-                        """, (str(basin_list), word))
+                            INSERT INTO tokenizer_vocabulary (
+                                token, basin_embedding, token_role, is_real_word, frequency
+                            )
+                            VALUES (%s, %s::vector, 'generation', TRUE, 1)
+                            ON CONFLICT (token) DO UPDATE SET
+                                basin_embedding = COALESCE(EXCLUDED.basin_embedding, tokenizer_vocabulary.basin_embedding),
+                                token_role = CASE 
+                                    WHEN tokenizer_vocabulary.token_role = 'encoding' THEN 'both'
+                                    ELSE COALESCE(tokenizer_vocabulary.token_role, 'generation')
+                                END,
+                                is_real_word = TRUE,
+                                updated_at = NOW()
+                        """, (word, str(basin_list)))
+                        # Backward compatibility: Update learned_words if it exists
+                        try:
+                            cur.execute("""
+                                UPDATE learned_words
+                                SET basin_coords = %s::vector,
+                                    is_integrated = TRUE,
+                                    integrated_at = NOW()
+                                WHERE word = %s
+                            """, (str(basin_list), word))
+                        except Exception:
+                            pass  # Table may not exist
                     except Exception as e:
                         errors.append(f"update_basin_{word}: {e}")
                 

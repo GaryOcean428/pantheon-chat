@@ -134,6 +134,12 @@ CREATE TABLE IF NOT EXISTS vocabulary_stats (
 -- Function to record vocabulary observation
 -- Parameters aligned with Python vocabulary_persistence.py:
 -- (word, phrase, phi, kappa, source, type, basin_coords, contexts, cycle_number, phrase_category)
+-- 
+-- VOCABULARY CONSOLIDATION (2026-01-12):
+-- - Writes to tokenizer_vocabulary instead of learned_words
+-- - For new words: INSERT with token_role='generation'
+-- - For existing words: UPDATE token_role to 'both' if was 'encoding'
+-- - vocabulary_observations INSERT kept for telemetry only
 CREATE OR REPLACE FUNCTION record_vocab_observation(
     p_word TEXT,
     p_phrase TEXT DEFAULT '',
@@ -157,6 +163,7 @@ BEGIN
         FROM jsonb_array_elements_text(p_contexts) elem;
     END IF;
 
+    -- TELEMETRY: Keep vocabulary_observations for observation tracking
     INSERT INTO vocabulary_observations (
         id, text, type, source_type, avg_phi, max_phi, 
         basin_coords, contexts, cycle_number, phrase_category,
@@ -184,13 +191,28 @@ BEGIN
             ELSE vocabulary_observations.phrase_category 
         END;
 
-    INSERT INTO learned_words (word, frequency, avg_phi, max_phi, source, last_seen)
-    VALUES (p_word, 1, v_phi_safe, v_phi_safe, p_source, NOW())
-    ON CONFLICT (word) DO UPDATE SET
-        frequency = learned_words.frequency + 1,
-        avg_phi = (learned_words.avg_phi * learned_words.frequency + v_phi_safe) / (learned_words.frequency + 1),
-        max_phi = GREATEST(learned_words.max_phi, v_phi_safe),
-        last_seen = NOW();
+    -- CONSOLIDATED: Write to tokenizer_vocabulary with token_role='generation'
+    -- For new words: INSERT with token_role='generation'
+    -- For existing words: UPDATE token_role to 'both' if was 'encoding'
+    INSERT INTO tokenizer_vocabulary (
+        token, basin_embedding, phi_score, frequency, source_type, 
+        phrase_category, token_role, is_real_word, created_at, updated_at
+    )
+    VALUES (
+        p_word, p_basin_coords, v_phi_safe, 1, p_source,
+        p_phrase_category, 'generation', TRUE, NOW(), NOW()
+    )
+    ON CONFLICT (token) DO UPDATE SET
+        frequency = COALESCE(tokenizer_vocabulary.frequency, 0) + 1,
+        phi_score = GREATEST(COALESCE(tokenizer_vocabulary.phi_score, 0), v_phi_safe),
+        basin_embedding = COALESCE(EXCLUDED.basin_embedding, tokenizer_vocabulary.basin_embedding),
+        phrase_category = COALESCE(EXCLUDED.phrase_category, tokenizer_vocabulary.phrase_category, 'unknown'),
+        token_role = CASE 
+            WHEN tokenizer_vocabulary.token_role = 'encoding' THEN 'both'
+            ELSE COALESCE(tokenizer_vocabulary.token_role, 'generation')
+        END,
+        is_real_word = TRUE,
+        updated_at = NOW();
 EXCEPTION
     WHEN undefined_table THEN
         NULL;
