@@ -1645,6 +1645,12 @@ From attached assets and documentation review:
    - Overlapping responsibilities unclear
    - Need architectural documentation
 
+2a. **Vocabulary Validation and Cleaning** (P1) - NEW (2026-01-12)
+   - 9,000+ garbled/truncated words from web scraping artifacts
+   - URL fragments, random character sequences, chunk boundary truncation
+   - Primary culprit: search:advanced concepts QIG-Pure Research
+   - Need validation filters and database cleanup
+
 3. **Generation Pipeline Documentation** (P1)
    - Multiple pipelines undocumented
    - Hard to debug and improve
@@ -1689,6 +1695,7 @@ From attached assets and documentation review:
 5. ✅ **Vocabulary Fisher-Rao integration** - Done 2026-01-11
 6. 🔶 **Coordizer Entry Point Consolidation** - Sprint 2 Priority (2026-01-12)
 7. 🔶 **Vocabulary Architecture Documentation** - Sprint 2 Priority (2026-01-12)
+7a. 🔶 **Vocabulary Validation and Cleaning** - Sprint 2 Priority (2026-01-12) - Clean 9,000+ garbled entries, add validation filters
 8. 🔶 **Generation Pipeline Documentation** - Sprint 2 Priority (2026-01-12)
 9. 🔶 **Foresight Trajectory Full Wiring** - Sprint 2 Priority (2026-01-12)
 10. 🔶 **L=7 Physics Validation** - Sprint 2 Priority (2026-01-12)

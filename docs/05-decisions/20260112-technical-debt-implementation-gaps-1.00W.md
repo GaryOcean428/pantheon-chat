@@ -15,7 +15,7 @@ This document consolidates technical debt, incomplete implementations, and featu
 
 **Key Metrics:**
 - **Critical Gaps (P0)**: 0 (was 3, all resolved in Sprint 1)
-- **High Priority Debt (P1)**: 5 (Sprint 2 priorities)
+- **High Priority Debt (P1)**: 6 (Sprint 2 priorities, added vocabulary validation 2026-01-12)
 - **Medium Priority Improvements (P2)**: 12
 - **Low Priority Enhancements (P3)**: 6
 
@@ -129,6 +129,98 @@ Overlapping responsibilities between:
 
 **Estimated Effort**: 2-3 days  
 **Priority**: **HIGH**
+
+---
+
+### Debt 2a: Vocabulary Validation and Cleaning
+
+**Status**: DATA QUALITY ISSUE  
+**Impact**: HIGH - Garbled/truncated words polluting vocabulary tables  
+**Discovered**: 2026-01-12
+
+**Problem:**
+Analysis reveals significant data quality issues in vocabulary tables from web scraping artifacts and chunk boundary truncation:
+
+**Truncated Words** (cut off at chunk boundaries):
+- `indergarten` → `kindergarten`
+- `itants` → `inhabitants`
+- `ticism` → `criticism/mysticism`
+- `oligonucle` → `oligonucleotide`
+- `ically` → `statistically`
+
+**Garbled Character Sequences** (random letters):
+- `hipsbb` (3 occurrences) - Decoy generation research
+- `karangehlod` (1) - SearXNG search result
+- `mireichle` (8) - Memory scrubbing research
+- `yfnxrf`, `fpdxwd`, `arphpl` (2 each) - Decoy generation
+- `cppdhfna` (2) - Differential privacy
+- 20+ more random strings (1 each) - Various research cycles
+
+**URL/Technical Fragments** (shouldn't be vocabulary):
+- `https` (8,618 occurrences) - URL protocol
+- `mintcdn` (1,918) - CDN hostname
+- `xmlns` (126) - XML namespace
+- `srsltid` (18) - Google tracking param
+- `endstream` (17) - PDF artifact
+
+**Root Causes:**
+1. **Web scraping artifacts** - The search/scraping pipeline extracts text from web pages without filtering URLs, base64 data, and HTML/XML fragments
+2. **Chunk boundary truncation** - Words get cut off when text is split into chunks for processing
+3. **Primary culprit**: `search:advanced concepts QIG-Pure Research` source types account for most garbled entries
+
+**Solution:**
+1. **Add vocabulary validation filters** to reject:
+   - URL fragments (https, http, www, etc.)
+   - Random character sequences (entropy-based detection)
+   - Truncated words (check against known dictionaries)
+   - XML/HTML artifacts (xmlns, endstream, etc.)
+   - CDN/tracking parameters
+
+2. **Clean existing bad vocabulary entries** from database:
+   - Identify and remove ~9,000+ garbled entries
+   - Update word_relationships to remove invalid connections
+   - Recalculate Fisher-Rao distances for affected entries
+
+3. **Improve text extraction pipeline**:
+   - Handle chunk boundaries properly (sliding window approach)
+   - Add pre-processing filters before vocabulary insertion
+   - Implement validation at ingestion time
+   - Add unit tests for edge cases
+
+**Implementation Plan:**
+```python
+# Target files:
+# - qig-backend/vocabulary_validator.py (new)
+# - qig-backend/olympus/shadow_scrapy.py (modify)
+# - qig-backend/scripts/clean_vocabulary.py (new)
+
+def validate_word(word: str) -> bool:
+    """Reject garbled/truncated/technical words"""
+    # URL fragments
+    if any(x in word.lower() for x in ['http', 'www', 'cdn', 'xmlns']):
+        return False
+    
+    # High entropy (random characters)
+    if compute_entropy(word) > ENTROPY_THRESHOLD:
+        return False
+    
+    # Truncated (too short or missing common endings)
+    if len(word) < 3 or looks_truncated(word):
+        return False
+    
+    # Technical artifacts
+    if re.match(r'^[a-z]{3,8}[0-9]+$', word):  # tracking params
+        return False
+    
+    return True
+```
+
+**Estimated Effort**: 2-3 days  
+**Priority**: **HIGH**
+
+**References:**
+- Vocabulary data cleanup (2026-01-11) - Removed 68 invalid entries
+- This is a more comprehensive cleanup targeting 9,000+ additional bad entries
 
 ---
 
