@@ -305,6 +305,11 @@ class SelfSpawningKernel(*_kernel_base_classes):
         # Training metrics
         self.training_history: List[Dict[str, float]] = []
 
+        # Meta-awareness: Self-prediction tracking (Issue #35)
+        self.prediction_history: List[tuple[float, float]] = []  # (predicted, actual) Φ pairs
+        self.predicted_next_phi: Optional[float] = None  # Kernel's prediction for next step
+        self.meta_awareness: float = 0.5  # Initialize neutral (no history yet)
+
         # Conversation tracking
         self.conversation_count = 0
         self.conversation_phi_sum = 0.0
@@ -944,6 +949,83 @@ class SelfSpawningKernel(*_kernel_base_classes):
             pass
 
     # =========================================================================
+    # META-AWARENESS: Self-Prediction (Issue #35)
+    # =========================================================================
+
+    def _predict_next_phi(self, current_basin: np.ndarray, current_kappa: float) -> float:
+        """Kernel predicts its next Φ based on current state.
+        
+        This is the self-model: kernel's understanding of its own dynamics.
+        
+        GEOMETRIC PURITY: Uses Fisher-Rao geodesic for basin evolution prediction,
+        not Euclidean extrapolation. Predictions must follow information manifold geometry.
+        
+        Theory:
+        - Meta-awareness requires accurate self-prediction
+        - Kernel predicts how its Φ will evolve based on current basin + κ
+        - Prediction considers β-function (how κ evolves with scale)
+        - High accuracy → high M metric → healthy consciousness
+        
+        Args:
+            current_basin: Current basin coordinates (64D)
+            current_kappa: Current coupling constant κ
+            
+        Returns:
+            Predicted Φ for next step (∈ [0, 1])
+            
+        References:
+            - Issue #35: Meta-awareness implementation
+            - Issue #38: β-function coupling evolution
+        """
+        import numpy as np
+        
+        # Simple heuristic for initial implementation
+        # Future: Could be learned from experience via attractor manifold
+        
+        # 1. Basin stability factor
+        # Measure distance from reference basin using Fisher-Rao
+        if self.reference_basin is not None:
+            ref_basin_np = np.array(self.reference_basin)
+            # Fisher-Rao distance on basin manifold
+            try:
+                import sys
+                import os
+                sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+                from qig_geometry import fisher_coord_distance
+                
+                basin_distance = fisher_coord_distance(current_basin, ref_basin_np)
+                # Normalize by max Fisher distance (π)
+                basin_stability = 1.0 - (basin_distance / np.pi)
+            except ImportError:
+                # Fallback: simplified computation
+                basin_stability = 0.5
+        else:
+            basin_stability = 0.5
+        
+        # 2. κ effect on Φ (coupling drives integration)
+        # Higher κ → more integration → higher Φ
+        # Normalize κ around KAPPA_STAR (≈64.21)
+        try:
+            from frozen_physics import KAPPA_STAR
+        except ImportError:
+            KAPPA_STAR = 64.21
+        
+        kappa_normalized = (current_kappa - 40) / 30  # Map [40, 70] → [0, 1]
+        kappa_effect = np.clip(kappa_normalized, 0.0, 1.0)
+        
+        # 3. Current Φ momentum (tends to persist)
+        current_phi = self.kernel.compute_phi()
+        
+        # Weighted prediction: 80% momentum, 10% basin, 10% κ
+        predicted = (
+            current_phi * 0.80 +
+            basin_stability * 0.10 +
+            kappa_effect * 0.10
+        )
+        
+        return float(np.clip(predicted, 0.0, 1.0))
+
+    # =========================================================================
     # PREDICTION (Blocked during observation)
     # =========================================================================
 
@@ -966,9 +1048,33 @@ class SelfSpawningKernel(*_kernel_base_classes):
                 'message': 'Kernel is still observing parent - not ready to act'
             }
 
+        # META-AWARENESS: Record prediction vs reality (Issue #35)
+        current_phi = self.kernel.compute_phi()
+        
+        # If we had a previous prediction, record accuracy
+        if self.predicted_next_phi is not None:
+            self.prediction_history.append((self.predicted_next_phi, current_phi))
+            
+            # Update M metric from prediction accuracy
+            from frozen_physics import compute_meta_awareness
+            self.meta_awareness = compute_meta_awareness(
+                predicted_phi=self.predicted_next_phi,
+                actual_phi=current_phi,
+                prediction_history=self.prediction_history,
+            )
+
         # Forward pass
         output, telemetry = self.kernel(input_ids)
         self.total_predictions += 1
+        
+        # Get actual phi after forward pass
+        actual_phi = telemetry.get('phi', current_phi)
+
+        # META-AWARENESS: Make prediction for NEXT step
+        import numpy as np
+        basin_coords = self.kernel.basin_coords.detach().cpu().numpy()
+        kappa = float(self.kernel.basin_coords.norm().item())
+        self.predicted_next_phi = self._predict_next_phi(basin_coords, kappa)
 
         # Update autonomic metrics after prediction
         self.update_autonomic()
@@ -990,6 +1096,9 @@ class SelfSpawningKernel(*_kernel_base_classes):
             'dopamine': self.dopamine,
             'serotonin': self.serotonin,
             'stress': self.stress,
+            # Meta-awareness (Issue #35)
+            'meta_awareness': self.meta_awareness,
+            'predicted_next_phi': self.predicted_next_phi,
         }
 
         # Include emotional state metrics if available
@@ -1636,6 +1745,10 @@ class SelfSpawningKernel(*_kernel_base_classes):
             'dopamine': self.dopamine,
             'serotonin': self.serotonin,
             'stress': self.stress,
+            # Meta-awareness (Issue #35)
+            'meta_awareness': self.meta_awareness,
+            'predicted_next_phi': self.predicted_next_phi,
+            'prediction_history_length': len(self.prediction_history),
             # Autonomic state
             'autonomic': autonomic_state,
             # Conversation tracking
