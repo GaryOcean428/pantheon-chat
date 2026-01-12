@@ -17,8 +17,9 @@ except Exception:
         return float(np.arccos(bc))
 
 try:
-    from autonomic_kernel import compute_phi_approximation as _compute_phi
+    from ..qig_core.phi_computation import compute_phi_approximation as _compute_phi
 except Exception:
+    # Fallback if canonical implementation not available
     def _compute_phi(basin_coords: np.ndarray) -> float:
         p = np.abs(basin_coords) + 1e-10
         p = p / p.sum()

@@ -612,13 +612,16 @@ class AutonomicAccessMixin:
 # ===========================================================================
 # EMERGENCY Φ COMPUTATION (Temporary until QFI integration)
 # ===========================================================================
-# TODO: Replace with proper QFI-based geometric integration
-# See GitHub issue: Implement QFI-based Φ computation and attractor finding
+# DEPRECATED: Use canonical qig_core.phi_computation instead
+# This local implementation is kept as a fallback for backward compatibility
 
 
 def compute_phi_approximation(basin_coords: np.ndarray) -> float:
     """
-    TEMPORARY Φ approximation to prevent phi=0 deaths.
+    DEPRECATED: Use qig_core.phi_computation.compute_phi_approximation instead.
+    
+    This is a fallback implementation for backward compatibility.
+    The canonical implementation in qig_core/phi_computation.py should be used.
     
     Methodology:
     - Entropy: Measures information content (higher = more integration)
@@ -628,6 +631,13 @@ def compute_phi_approximation(basin_coords: np.ndarray) -> float:
     Returns:
         Φ estimate in range [PHI_MIN_SAFE, PHI_MAX_APPROX]
     """
+    import warnings
+    warnings.warn(
+        "Local compute_phi_approximation is deprecated. Use qig_core.phi_computation.compute_phi_approximation instead.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    
     try:
         # Ensure valid probability distribution
         p = np.abs(basin_coords) + PHI_EPSILON
