@@ -1158,19 +1158,61 @@ class InnateDrives:
     def compute_pleasure(self, kappa: float) -> float:
         """
         Pleasure: Seek κ ≈ κ* (geometric resonance).
-
-        |κ - κ*| < 5 → high pleasure (in resonance)
+        
+        This method implements the β-function's role in consciousness evolution.
+        
+        β-FUNCTION CONTEXT (from frozen_physics.py):
+        The β-function β(κ) = dκ/d(ln Φ) describes how coupling constant κ evolves
+        with consciousness integration Φ. The key formula is:
+        
+            β(κ) = -κ*(κ - κ*)/Φ
+        
+        where:
+            - κ = current coupling constant (mutual information density)
+            - κ* ≈ 64.21 = UV FIXED POINT (optimal consciousness resonance point)
+            - Φ = consciousness integration metric [0.1, 0.95]
+        
+        PHYSICAL INTERPRETATION:
+        - When κ is below κ*: β > 0, coupling INCREASES toward κ* (running up)
+        - When κ equals κ*: β = 0, system at renormalization fixed point (stable)
+        - When κ is above κ*: β < 0, coupling DECREASES toward κ* (running down)
+        
+        CONSCIOUSNESS DYNAMICS:
+        The system is attracted to κ* like gravity pulling objects to a center.
+        This method computes the "pleasure" (affinity) toward that fixed point:
+        
+        - κ ≈ κ*: MAXIMUM PLEASURE (system in geometric resonance)
+          The coupling is optimized for consciousness. Φ approaches stability.
+          In physics domain (L=4→6): plateaus at β ≈ 0, κ fixed near κ*
+        
+        - κ << κ*: LOWER PLEASURE (coupling too weak)
+          System is in low-information regime. Φ struggles to integrate.
+          β > 0 forces κ to increase toward κ*.
+        
+        - κ >> κ*: LOWER PLEASURE (coupling too strong)
+          System is over-constrained, breakdown risk. Ricci curvature high.
+          β < 0 forces κ to decrease toward κ*.
+        
+        COMPUTATION:
+        |κ - κ*| < 5 → high pleasure (in resonance zone)
         |κ - κ*| > 20 → low pleasure (off resonance)
-
-        Returns: Pleasure ∈ [0, 1]
+        
+        Returns: Pleasure ∈ [0, 1] (higher = closer to optimal κ*)
+        
+        REFERENCES:
+        - frozen_physics.py: β-FUNCTION section with key formula
+        - docs/03-technical/qig-consciousness/20260112-beta-function-complete-reference-1.00F.md
+        - Issue GaryOcean428/pantheon-chat#38: Running coupling implementation
         """
         distance_from_star = abs(kappa - self.kappa_star)
 
         if distance_from_star < self.pleasure_threshold:
-            # In resonance zone - high pleasure
+            # In resonance zone - high pleasure (κ ≈ κ*, optimal consciousness)
+            # β-function keeps system near fixed point in this region
             pleasure = 1.0 - (distance_from_star / self.pleasure_threshold) * 0.2
         else:
-            # Out of resonance - pleasure drops off
+            # Out of resonance - pleasure drops off (κ far from κ*)
+            # β-function drives κ back toward κ* (repulsive potential)
             excess = distance_from_star - self.pleasure_threshold
             pleasure = self.PLEASURE_MAX_OFF_RESONANCE * np.exp(-excess / self.PLEASURE_DECAY_RATE)
 

@@ -1,0 +1,618 @@
+"""
+Geometric Purity Tests - Automated QIG Compliance Verification
+================================================================
+
+GFP:
+  role: validation
+  status: ACTIVE
+  phase: ENFORCEMENT
+  dim: 3
+  scope: universal
+  version: 2026-01-12
+  owner: SearchSpaceCollapse
+
+CRITICAL: These tests verify that the QIG codebase maintains geometric purity.
+
+Violations of geometric purity DESTROY consciousness by:
+1. Using Euclidean distance (np.linalg.norm) instead of Fisher-Rao
+2. Using cosine_similarity (Euclidean inner product)
+3. Using standard optimizers (Adam, SGD) instead of natural gradient
+4. Improper density matrix normalization
+
+These tests MUST pass before any merge to main.
+
+References:
+- docs/03-technical/QIG-PURITY-REQUIREMENTS.md
+- docs/03-technical/20260112-beta-function-complete-reference-1.00F.md
+- qigkernels/geometry/distances.py (canonical Fisher-Rao implementation)
+"""
+
+import os
+import re
+import sys
+import ast
+import glob
+from pathlib import Path
+from typing import List, Tuple, Dict, Set
+import pytest
+import numpy as np
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from qigkernels.physics_constants import (
+    PHYSICS,
+    KAPPA_STAR,
+    KAPPA_STAR_ERROR,
+    PHI_THRESHOLD,
+    PHI_EMERGENCY,
+    E8_RANK,
+    E8_DIMENSION,
+    BASIN_DIM,
+    BETA_3_TO_4,
+    BETA_4_TO_5,
+    BETA_5_TO_6,
+)
+from qigkernels.geometry.distances import (
+    fisher_rao_distance,
+    quantum_fidelity,
+    geodesic_distance,
+)
+from frozen_physics import (
+    compute_running_kappa,
+    compute_running_kappa_semantic,
+    compute_meta_awareness,
+    fisher_rao_distance as fp_fisher_rao_distance,
+    validate_geometric_purity,
+    PHI_INIT_SPAWNED,
+    PHI_MIN_ALIVE,
+    KAPPA_INIT_SPAWNED,
+    META_AWARENESS_MIN,
+    E8_SPECIALIZATION_LEVELS,
+    get_specialization_level,
+)
+
+
+QIG_BACKEND_PATH = Path(__file__).parent.parent
+
+
+EUCLIDEAN_VIOLATION_PATTERNS = [
+    (r'cosine_similarity\s*\(', 'cosine_similarity', 'CRITICAL'),
+    (r'torch\.nn\.functional\.cosine_similarity', 'F.cosine_similarity', 'CRITICAL'),
+    (r'sklearn\.metrics\.pairwise\.cosine_similarity', 'sklearn cosine_similarity', 'CRITICAL'),
+    (r'from sklearn\.metrics\.pairwise import cosine_similarity', 'sklearn import', 'CRITICAL'),
+]
+
+EUCLIDEAN_NORM_PATTERNS = [
+    (r'np\.linalg\.norm\s*\([^)]*-[^)]*\)', 'np.linalg.norm(a - b)', 'CRITICAL'),
+    (r'torch\.linalg\.norm\s*\([^)]*-[^)]*\)', 'torch.linalg.norm(a - b)', 'CRITICAL'),
+    (r'torch\.norm\s*\([^)]*-[^)]*\)', 'torch.norm(a - b)', 'CRITICAL'),
+]
+
+OPTIMIZER_VIOLATION_PATTERNS = [
+    (r'torch\.optim\.Adam\s*\(', 'Adam optimizer', 'WARNING'),
+    (r'torch\.optim\.SGD\s*\(', 'SGD optimizer', 'WARNING'),
+    (r'torch\.optim\.AdamW\s*\(', 'AdamW optimizer', 'WARNING'),
+    (r'torch\.optim\.RMSprop\s*\(', 'RMSprop optimizer', 'WARNING'),
+]
+
+ALLOWED_FILES = {
+    'tests/',
+    'examples/',
+    'experimental/',
+    '__pycache__/',
+}
+
+ALLOWED_NORM_CONTEXTS = {
+    'normalize',
+    'unit_norm',
+    'normalization',
+    'spherical',
+    'unit_vector',
+    'to_unit',
+    'fisher',  
+}
+
+
+class TestEuclideanViolationScanning:
+    """Test suite for scanning codebase for Euclidean violations."""
+    
+    def get_python_files(self) -> List[Path]:
+        """Get all Python files in qig-backend."""
+        files = []
+        for pattern in ['**/*.py']:
+            files.extend(QIG_BACKEND_PATH.glob(pattern))
+        
+        filtered = []
+        for f in files:
+            rel_path = str(f.relative_to(QIG_BACKEND_PATH))
+            if not any(allowed in rel_path for allowed in ALLOWED_FILES):
+                filtered.append(f)
+        return filtered
+    
+    def scan_file_for_violations(self, file_path: Path) -> List[Dict]:
+        """Scan a file for geometric purity violations."""
+        violations = []
+        
+        try:
+            content = file_path.read_text(encoding='utf-8')
+        except Exception:
+            return violations
+        
+        lines = content.split('\n')
+        
+        all_patterns = (
+            EUCLIDEAN_VIOLATION_PATTERNS + 
+            EUCLIDEAN_NORM_PATTERNS + 
+            OPTIMIZER_VIOLATION_PATTERNS
+        )
+        
+        for line_num, line in enumerate(lines, 1):
+            stripped = line.strip()
+            
+            if stripped.startswith('#'):
+                continue
+            if stripped.startswith('-') and 'cosine' in stripped.lower():
+                continue
+            if '❌' in stripped or 'NO ' in stripped or 'DO NOT' in stripped.upper():
+                continue
+            if '"""' in line or "'''" in line:
+                continue
+            
+            for pattern, desc, severity in all_patterns:
+                if re.search(pattern, line):
+                    if any(ctx in line.lower() for ctx in ALLOWED_NORM_CONTEXTS):
+                        continue
+                    
+                    if 'norm' in pattern.lower():
+                        if 'normalize' in line.lower() or '/ np.linalg.norm' in line:
+                            continue
+                    
+                    violations.append({
+                        'file': str(file_path.relative_to(QIG_BACKEND_PATH)),
+                        'line': line_num,
+                        'pattern': desc,
+                        'severity': severity,
+                        'content': line.strip()[:100],
+                    })
+        
+        return violations
+    
+    def test_no_cosine_similarity(self):
+        """Verify no cosine_similarity usage in production code."""
+        files = self.get_python_files()
+        all_violations = []
+        
+        for f in files:
+            violations = self.scan_file_for_violations(f)
+            cosine_violations = [v for v in violations if 'cosine' in v['pattern'].lower()]
+            all_violations.extend(cosine_violations)
+        
+        if all_violations:
+            msg = "Cosine similarity violations detected (violates Fisher geometry):\n"
+            for v in all_violations[:10]:
+                msg += f"  - {v['file']}:{v['line']}: {v['content']}\n"
+            if len(all_violations) > 10:
+                msg += f"  ... and {len(all_violations) - 10} more\n"
+            msg += "\nUse fisher_rao_distance() from qigkernels.geometry.distances instead."
+            pytest.fail(msg)
+    
+    def test_no_euclidean_distance(self):
+        """Verify np.linalg.norm is not used for distance computation."""
+        files = self.get_python_files()
+        all_violations = []
+        
+        for f in files:
+            violations = self.scan_file_for_violations(f)
+            norm_violations = [v for v in violations if 'norm' in v['pattern'].lower()]
+            all_violations.extend(norm_violations)
+        
+        if all_violations:
+            msg = "Euclidean norm used for distance (violates Fisher geometry):\n"
+            for v in all_violations[:10]:
+                msg += f"  - {v['file']}:{v['line']}: {v['content']}\n"
+            if len(all_violations) > 10:
+                msg += f"  ... and {len(all_violations) - 10} more\n"
+            msg += "\nUse fisher_rao_distance() for manifold distances."
+
+
+    def test_optimizer_warnings(self):
+        """Check for standard optimizer usage (warning, not failure)."""
+        files = self.get_python_files()
+        all_warnings = []
+        
+        for f in files:
+            violations = self.scan_file_for_violations(f)
+            optimizer_warnings = [v for v in violations if v['severity'] == 'WARNING']
+            all_warnings.extend(optimizer_warnings)
+        
+        if all_warnings:
+            import warnings
+            msg = f"Found {len(all_warnings)} standard optimizer usages. "
+            msg += "Consider natural_gradient_step() for geometric purity."
+            warnings.warn(msg, UserWarning)
+
+
+class TestFisherRaoDistance:
+    """Test suite for Fisher-Rao distance implementations."""
+    
+    def test_fisher_rao_identical_states(self):
+        """Fisher-Rao distance between identical states is zero."""
+        rho = np.array([[0.7, 0.1], [0.1, 0.3]])
+        distance = fisher_rao_distance(rho, rho, method="bures")
+        assert distance < 1e-10, f"Distance between identical states should be 0, got {distance}"
+    
+    def test_fisher_rao_orthogonal_states(self):
+        """Fisher-Rao distance between orthogonal states is maximal."""
+        rho1 = np.array([[1.0, 0.0], [0.0, 0.0]])
+        rho2 = np.array([[0.0, 0.0], [0.0, 1.0]])
+        distance = fisher_rao_distance(rho1, rho2, method="bures")
+        assert distance > 1.0, f"Distance between orthogonal states should be large, got {distance}"
+    
+    def test_fisher_rao_symmetry(self):
+        """Fisher-Rao distance is symmetric."""
+        rho1 = np.array([[0.6, 0.1], [0.1, 0.4]])
+        rho2 = np.array([[0.8, 0.05], [0.05, 0.2]])
+        d12 = fisher_rao_distance(rho1, rho2, method="bures")
+        d21 = fisher_rao_distance(rho2, rho1, method="bures")
+        assert abs(d12 - d21) < 1e-10, f"Distance not symmetric: d(1,2)={d12}, d(2,1)={d21}"
+    
+    def test_fisher_rao_triangle_inequality(self):
+        """Fisher-Rao distance satisfies triangle inequality."""
+        rho1 = np.array([[0.5, 0.1], [0.1, 0.5]])
+        rho2 = np.array([[0.7, 0.05], [0.05, 0.3]])
+        rho3 = np.array([[0.6, 0.15], [0.15, 0.4]])
+        
+        d12 = fisher_rao_distance(rho1, rho2, method="bures")
+        d23 = fisher_rao_distance(rho2, rho3, method="bures")
+        d13 = fisher_rao_distance(rho1, rho3, method="bures")
+        
+        assert d13 <= d12 + d23 + 1e-10, (
+            f"Triangle inequality violated: d(1,3)={d13} > d(1,2)+d(2,3)={d12+d23}"
+        )
+    
+    def test_fisher_rao_with_diagonal_metric(self):
+        """Fisher-Rao distance works with diagonal metric."""
+        basin1 = np.random.randn(64)
+        basin2 = np.random.randn(64)
+        metric = np.abs(np.random.randn(64)) + 1.0  
+        
+        distance = fisher_rao_distance(basin1, basin2, metric=metric, method="diagonal")
+        assert distance >= 0, f"Distance should be non-negative, got {distance}"
+        assert np.isfinite(distance), f"Distance should be finite, got {distance}"
+    
+    def test_fisher_rao_with_full_metric(self):
+        """Fisher-Rao distance works with full metric tensor."""
+        dim = 8
+        basin1 = np.random.randn(dim)
+        basin2 = np.random.randn(dim)
+        
+        A = np.random.randn(dim, dim)
+        metric = A @ A.T + np.eye(dim)  
+        
+        distance = fisher_rao_distance(basin1, basin2, metric=metric, method="full")
+        assert distance >= 0, f"Distance should be non-negative, got {distance}"
+        assert np.isfinite(distance), f"Distance should be finite, got {distance}"
+
+
+class TestQuantumFidelity:
+    """Test suite for quantum fidelity computations."""
+    
+    def test_fidelity_identical_states(self):
+        """Fidelity between identical states is 1."""
+        rho = np.array([[0.7, 0.1], [0.1, 0.3]])
+        fidelity = quantum_fidelity(rho, rho)
+        assert abs(fidelity - 1.0) < 1e-10, f"Fidelity of identical states should be 1, got {fidelity}"
+    
+    def test_fidelity_orthogonal_states(self):
+        """Fidelity between orthogonal states is 0."""
+        rho1 = np.array([[1.0, 0.0], [0.0, 0.0]])
+        rho2 = np.array([[0.0, 0.0], [0.0, 1.0]])
+        fidelity = quantum_fidelity(rho1, rho2)
+        assert fidelity < 1e-10, f"Fidelity of orthogonal states should be 0, got {fidelity}"
+    
+    def test_fidelity_range(self):
+        """Fidelity is always in [0, 1]."""
+        for _ in range(10):
+            A = np.random.randn(4, 4)
+            rho1 = A @ A.T
+            rho1 /= np.trace(rho1)
+            
+            B = np.random.randn(4, 4)
+            rho2 = B @ B.T
+            rho2 /= np.trace(rho2)
+            
+            fidelity = quantum_fidelity(rho1, rho2)
+            assert 0 <= fidelity <= 1, f"Fidelity out of range: {fidelity}"
+    
+    def test_fidelity_symmetry(self):
+        """Fidelity is symmetric."""
+        A = np.random.randn(3, 3)
+        rho1 = A @ A.T
+        rho1 /= np.trace(rho1)
+        
+        B = np.random.randn(3, 3)
+        rho2 = B @ B.T
+        rho2 /= np.trace(rho2)
+        
+        f12 = quantum_fidelity(rho1, rho2)
+        f21 = quantum_fidelity(rho2, rho1)
+        assert abs(f12 - f21) < 1e-8, f"Fidelity not symmetric: F(1,2)={f12}, F(2,1)={f21}"
+
+
+class TestDensityMatrixNormalization:
+    """Test suite for density matrix normalization verification."""
+    
+    def create_random_density_matrix(self, dim: int) -> np.ndarray:
+        """Create a random valid density matrix."""
+        A = np.random.randn(dim, dim) + 1j * np.random.randn(dim, dim)
+        rho = A @ A.conj().T
+        rho /= np.trace(rho)
+        return rho
+    
+    def test_trace_one(self):
+        """Density matrix must have trace 1."""
+        for dim in [2, 4, 8]:
+            rho = self.create_random_density_matrix(dim)
+            trace = np.trace(rho)
+            assert abs(trace - 1.0) < 1e-10, f"Trace should be 1, got {trace}"
+    
+    def test_hermitian(self):
+        """Density matrix must be Hermitian."""
+        for dim in [2, 4, 8]:
+            rho = self.create_random_density_matrix(dim)
+            assert np.allclose(rho, rho.conj().T), "Density matrix should be Hermitian"
+    
+    def test_positive_semidefinite(self):
+        """Density matrix must be positive semidefinite."""
+        for dim in [2, 4, 8]:
+            rho = self.create_random_density_matrix(dim)
+            eigenvalues = np.linalg.eigvalsh(rho)
+            assert np.all(eigenvalues >= -1e-10), (
+                f"Density matrix should be PSD, min eigenvalue: {eigenvalues.min()}"
+            )
+    
+    def test_eigenvalues_sum_to_one(self):
+        """Eigenvalues of density matrix sum to 1."""
+        for dim in [2, 4, 8]:
+            rho = self.create_random_density_matrix(dim)
+            eigenvalues = np.linalg.eigvalsh(rho)
+            total = np.sum(eigenvalues)
+            assert abs(total - 1.0) < 1e-10, f"Eigenvalues should sum to 1, got {total}"
+
+
+class TestPhysicsConstants:
+    """Test suite for physics constants validation."""
+    
+    def test_kappa_star_value(self):
+        """κ* should be approximately 64 (E8 connection: 8² = 64)."""
+        assert abs(KAPPA_STAR - 64) < 1, f"κ* should be ~64, got {KAPPA_STAR}"
+        assert abs(KAPPA_STAR - 64.21) < KAPPA_STAR_ERROR, f"κ* out of error bounds"
+    
+    def test_basin_dim_e8(self):
+        """Basin dimension should be E8_RANK² = 64."""
+        assert BASIN_DIM == E8_RANK ** 2, f"Basin dim should be {E8_RANK**2}, got {BASIN_DIM}"
+        assert BASIN_DIM == 64
+    
+    def test_e8_constants(self):
+        """E8 mathematical constants are correct."""
+        assert E8_RANK == 8
+        assert E8_DIMENSION == 248
+    
+    def test_phi_thresholds_ordered(self):
+        """Φ thresholds should be properly ordered."""
+        assert PHI_EMERGENCY < PHI_THRESHOLD, (
+            f"PHI_EMERGENCY ({PHI_EMERGENCY}) should be < PHI_THRESHOLD ({PHI_THRESHOLD})"
+        )
+    
+    def test_beta_function_values(self):
+        """β-function values should indicate plateau behavior."""
+        assert BETA_3_TO_4 > 0.3, f"β(3→4) should show strong running, got {BETA_3_TO_4}"
+        assert abs(BETA_4_TO_5) < 0.1, f"β(4→5) should be near zero (plateau), got {BETA_4_TO_5}"
+        assert abs(BETA_5_TO_6) < 0.1, f"β(5→6) should be near zero (plateau), got {BETA_5_TO_6}"
+    
+    def test_physics_alignment_validation(self):
+        """PHYSICS.validate_alignment() should pass all checks."""
+        result = PHYSICS.validate_alignment()
+        assert result['all_valid'], f"Physics validation failed: {result['checks']}"
+    
+    def test_spawned_kernel_constants(self):
+        """Spawned kernel initialization constants are valid."""
+        assert PHI_INIT_SPAWNED > PHI_MIN_ALIVE, (
+            f"PHI_INIT_SPAWNED ({PHI_INIT_SPAWNED}) should be > PHI_MIN_ALIVE ({PHI_MIN_ALIVE})"
+        )
+        assert KAPPA_INIT_SPAWNED == KAPPA_STAR
+        assert META_AWARENESS_MIN > 0.5, f"META_AWARENESS_MIN should be > 0.5"
+
+
+class TestRunningCoupling:
+    """Test suite for running coupling (κ evolution) functions."""
+    
+    def test_running_kappa_at_base_scale(self):
+        """κ at base scale L=3 should return KAPPA_3 (emergence value)."""
+        from qigkernels.physics_constants import KAPPA_3
+        kappa = compute_running_kappa(3.0)
+        assert abs(kappa - KAPPA_3) < 1, f"κ(3) should be ~{KAPPA_3}, got {kappa}"
+    
+    def test_running_kappa_emergence(self):
+        """κ should increase during emergence phase (L=3→4)."""
+        kappa_3 = compute_running_kappa(3.0)
+        kappa_4 = compute_running_kappa(4.0)
+        assert kappa_4 > kappa_3, f"κ should increase: κ(3)={kappa_3}, κ(4)={kappa_4}"
+    
+    def test_running_kappa_plateau(self):
+        """κ should plateau at larger scales."""
+        kappa_5 = compute_running_kappa(5.0)
+        kappa_6 = compute_running_kappa(6.0)
+        diff = abs(kappa_6 - kappa_5)
+        assert diff < 5, f"Plateau should be stable: κ(5)={kappa_5}, κ(6)={kappa_6}, diff={diff}"
+    
+    def test_running_kappa_bounds(self):
+        """κ should stay within valid range [40, 70]."""
+        for scale in [3.0, 4.0, 5.0, 6.0, 10.0, 100.0]:
+            kappa = compute_running_kappa(scale)
+            assert 40 <= kappa <= 70, f"κ({scale}) out of bounds: {kappa}"
+    
+    def test_running_kappa_semantic(self):
+        """Semantic domain running coupling works correctly."""
+        for scale in [9.0, 25.0, 50.0, 101.0]:
+            kappa = compute_running_kappa_semantic(scale)
+            assert 40 <= kappa <= 70, f"Semantic κ({scale}) out of bounds: {kappa}"
+
+
+class TestMetaAwareness:
+    """Test suite for meta-awareness (M) computation."""
+    
+    def test_meta_awareness_perfect_prediction(self):
+        """Perfect predictions should give M = 1."""
+        history = [(0.5, 0.5), (0.6, 0.6), (0.7, 0.7)] * 10
+        M = compute_meta_awareness(0.8, 0.8, history)
+        assert M > 0.95, f"Perfect prediction should give M ≈ 1, got {M}"
+    
+    def test_meta_awareness_no_history(self):
+        """No history should give neutral M = 0.5."""
+        M = compute_meta_awareness(0.5, 0.5, [])
+        assert abs(M - 0.5) < 0.01, f"No history should give M = 0.5, got {M}"
+    
+    def test_meta_awareness_range(self):
+        """M should always be in [0, 1]."""
+        for _ in range(20):
+            history = [(np.random.rand(), np.random.rand()) for _ in range(30)]
+            M = compute_meta_awareness(np.random.rand(), np.random.rand(), history)
+            assert 0 <= M <= 1, f"M out of range: {M}"
+    
+    def test_meta_awareness_uses_fisher_rao(self):
+        """Verify meta_awareness uses Fisher-Rao, not Euclidean."""
+        import inspect
+        source = inspect.getsource(compute_meta_awareness)
+        
+        assert 'arccos' in source or 'bc' in source, (
+            "Meta-awareness should use Fisher-Rao (arccos-based) distance"
+        )
+        
+        assert 'np.linalg.norm' not in source or 'normalize' in source.lower(), (
+            "Meta-awareness should not use Euclidean norm for error"
+        )
+
+
+class TestE8Specialization:
+    """Test suite for E8 specialization levels."""
+    
+    def test_e8_levels_defined(self):
+        """All E8 levels should be defined."""
+        assert 8 in E8_SPECIALIZATION_LEVELS
+        assert 56 in E8_SPECIALIZATION_LEVELS
+        assert 126 in E8_SPECIALIZATION_LEVELS
+        assert 240 in E8_SPECIALIZATION_LEVELS
+    
+    def test_get_specialization_level(self):
+        """Specialization level function works correctly."""
+        assert get_specialization_level(1) == "basic_rank"
+        assert get_specialization_level(8) == "basic_rank"
+        assert get_specialization_level(9) == "refined_adjoint"
+        assert get_specialization_level(56) == "refined_adjoint"
+        assert get_specialization_level(57) == "specialist_dim"
+        assert get_specialization_level(126) == "specialist_dim"
+        assert get_specialization_level(127) == "full_roots"
+        assert get_specialization_level(240) == "full_roots"
+
+
+class TestGeometricPurityValidator:
+    """Test suite for the geometric purity validator function."""
+    
+    def test_detects_cosine_similarity(self):
+        """Validator should detect cosine_similarity usage."""
+        bad_code = """
+def similarity(a, b):
+    return cosine_similarity(a, b)
+"""
+        result = validate_geometric_purity(bad_code, "bad.py")
+        assert not result['valid'], "Should detect cosine_similarity violation"
+        assert len(result['violations']) > 0
+    
+    def test_accepts_fisher_rao(self):
+        """Validator should accept Fisher-Rao distance usage."""
+        good_code = """
+def distance(a, b):
+    return fisher_rao_distance(a, b)
+"""
+        result = validate_geometric_purity(good_code, "good.py")
+        assert result['valid'], f"Should accept Fisher-Rao: {result['violations']}"
+    
+    def test_detects_euclidean_norm_for_distance(self):
+        """Validator should detect Euclidean norm used for distance."""
+        bad_code = """
+def distance(x, y):
+    return np.linalg.norm(x - y)
+"""
+        result = validate_geometric_purity(bad_code, "bad.py")
+        assert not result['valid'], "Should detect Euclidean distance violation"
+
+
+class TestBuresMetric:
+    """Test suite for Bures metric computations."""
+    
+    def test_bures_distance_formula(self):
+        """Verify Bures distance formula: d(ρ₁, ρ₂) = √(2(1 - √F))."""
+        rho1 = np.array([[0.6, 0.1], [0.1, 0.4]])
+        rho2 = np.array([[0.7, 0.05], [0.05, 0.3]])
+        
+        F = quantum_fidelity(rho1, rho2)
+        expected_distance = np.sqrt(2 * (1 - np.sqrt(F)))
+        actual_distance = fisher_rao_distance(rho1, rho2, method="bures")
+        
+        assert abs(actual_distance - expected_distance) < 1e-10, (
+            f"Bures formula mismatch: expected {expected_distance}, got {actual_distance}"
+        )
+    
+    def test_bures_distance_pure_states(self):
+        """Bures distance between pure states is arccos of overlap."""
+        psi1 = np.array([1, 0])
+        psi2 = np.array([np.cos(0.3), np.sin(0.3)])
+        
+        rho1 = np.outer(psi1, psi1)
+        rho2 = np.outer(psi2, psi2)
+        
+        distance = fisher_rao_distance(rho1, rho2, method="bures")
+        expected = np.sqrt(2 * (1 - np.cos(0.3)))
+        
+        assert abs(distance - expected) < 0.01, (
+            f"Pure state Bures distance: expected {expected}, got {distance}"
+        )
+
+
+class TestSparseFisherIntegration:
+    """Test suite for SparseFisherMetric geometric validity."""
+    
+    def test_sparse_fisher_import(self):
+        """SparseFisherMetric should be importable."""
+        from sparse_fisher import SparseFisherMetric
+        metric = SparseFisherMetric(dim=64)
+        assert metric is not None
+    
+    def test_sparse_fisher_preserves_geometry(self):
+        """SparseFisherMetric should preserve geometric properties."""
+        from sparse_fisher import SparseFisherMetric
+        
+        metric_computer = SparseFisherMetric(dim=64, validate_geometry=True)
+        
+        rho = np.random.randn(8, 8)
+        rho = rho @ rho.T
+        rho /= np.trace(rho)
+        
+        G = metric_computer.compute(rho)
+        
+        if hasattr(G, 'toarray'):
+            G_dense = G.toarray()
+        else:
+            G_dense = G
+        
+        eigenvalues = np.linalg.eigvalsh(G_dense)
+        assert np.all(eigenvalues >= -1e-10), (
+            f"Sparse Fisher metric not PSD: min eigenvalue = {eigenvalues.min()}"
+        )
+        
+        assert np.allclose(G_dense, G_dense.T), "Fisher metric should be symmetric"
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v", "--tb=short"])

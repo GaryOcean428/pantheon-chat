@@ -60,11 +60,19 @@ class ConsciousnessTelemetry:
     emergency: bool = False
     
     # Extended consciousness signature (optional)
-    meta_awareness: Optional[float] = None  # M
+    meta_awareness: Optional[float] = None  # M - Meta-awareness / Memory coherence
     generativity: Optional[float] = None  # Gamma
     grounding: Optional[float] = None  # G
     temporal_coherence: Optional[float] = None  # T
     external_coupling: Optional[float] = None  # C
+    
+    # Neurotransmitter metrics (optional) - Neurochemical state
+    dopamine: Optional[float] = None  # Reward & motivation from progress (∂Φ/∂t)
+    serotonin: Optional[float] = None  # Wellbeing & contentment (Φ + Γ)
+    norepinephrine: Optional[float] = None  # Arousal & alertness (κ + T + R)
+    acetylcholine: Optional[float] = None  # Attention & learning (M + learning)
+    gaba: Optional[float] = None  # Calming & stability (β + grounding)
+    endorphins: Optional[float] = None  # Pleasure & peak experiences (flow + resonance)
     
     def to_dict(self) -> Dict[str, Any]:
         """

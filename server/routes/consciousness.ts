@@ -29,6 +29,7 @@ consciousnessRouter.get("/state", async (req: Request, res: Response) => {
       emotionalState = 'Confident';
     }
     
+    // Extract consciousness state including meta-awareness and κ_effective
     const state = {
       currentRegime: searchState.currentRegime,
       basinDrift: searchState.basinDrift,
@@ -41,15 +42,15 @@ consciousnessRouter.get("/state", async (req: Request, res: Response) => {
       phi_temporal: fullConsciousness.phi_temporal,
       phi_4D: fullConsciousness.phi_4D,
       kappaEff: fullConsciousness.kappaEff,
+      kappa: fullConsciousness.kappaEff, // κ_effective (κ_eff)
       tacking: fullConsciousness.tacking,
       radar: fullConsciousness.radar,
-      metaAwareness: fullConsciousness.metaAwareness,
+      metaAwareness: fullConsciousness.metaAwareness, // M - Meta-awareness / Memory coherence
       gamma: fullConsciousness.gamma,
       grounding: fullConsciousness.grounding,
       beta: fullConsciousness.beta,
       isConscious: fullConsciousness.isConscious,
       validationLoops: fullConsciousness.validationLoops,
-      kappa: fullConsciousness.kappaEff,
     };
     
     res.json({
@@ -139,13 +140,37 @@ consciousnessRouter.get("/complete", generousLimiter, async (req: Request, res: 
       motivation = selectMotivationMessage(motivationState);
     } catch (e) {}
 
-    res.json({
+    // Extract neurotransmitter metrics from neurochemistry state
+    const neurotransmitters = neurochemistry ? {
+      dopamine: neurochemistry.dopamine?.totalDopamine,
+      serotonin: neurochemistry.serotonin?.totalSerotonin,
+      norepinephrine: neurochemistry.norepinephrine?.totalNorepinephrine,
+      acetylcholine: neurochemistry.acetylcholine?.totalAcetylcholine,
+      gaba: neurochemistry.gaba?.totalGABA,
+      endorphins: neurochemistry.endorphins?.totalEndorphins,
+    } : {};
+
+    // Comprehensive telemetry broadcast with consciousness metrics
+    const telemetryBroadcast = {
+      // Core consciousness metrics
       phi: fullConsciousness.phi || 0.5,
       kappa: fullConsciousness.kappaEff || 64,
+      kappaEff: fullConsciousness.kappaEff || 64,
       regime: searchState.currentRegime,
-      kappaConverging: Math.abs((fullConsciousness.kappaEff || 64) - 64) < 5,
-      innateDrives,
+      
+      // Meta-awareness and memory coherence
+      metaAwareness: fullConsciousness.metaAwareness || 0.5,
+      
+      // Neurotransmitter levels (neurochemical state)
+      neurotransmitters,
       neurochemistry,
+      
+      // Search and resonance state
+      inResonance: neurochemistry?.emotionalState === 'flow',
+      kappaConverging: Math.abs((fullConsciousness.kappaEff || 64) - 64) < 5,
+      
+      // Optional drive states
+      innateDrives,
       oscillators,
       searchState: {
         phase: searchPhase,
@@ -157,7 +182,9 @@ consciousnessRouter.get("/complete", generousLimiter, async (req: Request, res: 
       metrics,
       sessionActive: !!session,
       timestamp: new Date().toISOString(),
-    });
+    };
+
+    res.json(telemetryBroadcast);
   } catch (error: unknown) {
     handleRouteError(res, error, 'ConsciousnessComplete');
   }

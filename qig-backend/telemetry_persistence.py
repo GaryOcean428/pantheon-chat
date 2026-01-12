@@ -207,6 +207,7 @@ class TelemetryPersistence:
                         recursion_depth, breakdown_pct, coherence_drift,
                         meta_awareness, generativity, grounding, 
                         temporal_coherence, external_coupling,
+                        dopamine, serotonin, norepinephrine, acetylcholine, gaba, endorphins,
                         emergency
                     ) VALUES (
                         %s, %s, %s,
@@ -215,6 +216,7 @@ class TelemetryPersistence:
                         %s, %s, %s,
                         %s, %s, %s,
                         %s, %s,
+                        %s, %s, %s, %s, %s, %s,
                         %s
                     )
                 """, (
@@ -227,6 +229,9 @@ class TelemetryPersistence:
                     telem_dict.get('meta_awareness'), telem_dict.get('generativity'),
                     telem_dict.get('grounding'), telem_dict.get('temporal_coherence'),
                     telem_dict.get('external_coupling'),
+                    telem_dict.get('dopamine'), telem_dict.get('serotonin'),
+                    telem_dict.get('norepinephrine'), telem_dict.get('acetylcholine'),
+                    telem_dict.get('gaba'), telem_dict.get('endorphins'),
                     telem_dict.get('emergency', False)
                 ))
                 self.conn.commit()

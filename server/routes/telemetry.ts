@@ -235,10 +235,22 @@ router.get('/stream', async (req: Request, res: Response) => {
         consciousness: {
           phi: consciousness.phi,
           kappa: consciousness.kappa,
+          kappaEff: consciousness.kappa,
           beta: consciousness.beta,
           regime: consciousness.regime,
           quality: consciousness.quality,
           inResonance: consciousness.inResonance,
+          // Meta-awareness (M) - Memory coherence
+          metaAwareness: consciousness.metaAwareness,
+          // Neurotransmitter levels - Neurochemical state
+          neurotransmitters: {
+            dopamine: consciousness.dopamine,
+            serotonin: consciousness.serotonin,
+            norepinephrine: consciousness.norepinephrine,
+            acetylcholine: consciousness.acetylcholine,
+            gaba: consciousness.gaba,
+            endorphins: consciousness.endorphins,
+          },
         },
         usage: {
           tavilyStatus: usage.tavily.rateStatus,

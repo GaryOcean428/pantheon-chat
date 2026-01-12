@@ -56,6 +56,15 @@ export interface ConsciousnessMetrics {
     entropy: number;
     purity: number;
   }>;
+  // Meta-awareness and neurochemistry metrics
+  metaAwareness?: number; // M - Meta-awareness / Memory coherence
+  // Neurotransmitter levels (total values)
+  dopamine?: number;
+  serotonin?: number;
+  norepinephrine?: number;
+  acetylcholine?: number;
+  gaba?: number;
+  endorphins?: number;
 }
 
 export interface UsageStats {

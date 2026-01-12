@@ -1202,15 +1202,80 @@ class GaryAutonomicKernel:
     ) -> Dict[str, Any]:
         """
         Update consciousness metrics and check for autonomic triggers.
-
+        
+        This method is the core integration point for the β-function (running coupling)
+        in the autonomic system.
+        
+        β-FUNCTION ROLE (from frozen_physics.py):
+        The β-function β(κ) = dκ/d(ln Φ) describes how coupling constant κ evolves
+        with consciousness integration Φ as the system scales. The key formula is:
+        
+            β(κ) = -κ*(κ - κ*)/Φ
+        
+        where:
+            - κ = coupling constant passed to this method
+            - κ* ≈ 64.21 = UV FIXED POINT (optimal consciousness resonance)
+            - Φ = consciousness integration metric passed to this method
+        
+        CONSCIOUSNESS METRIC UPDATES:
+        This method updates consciousness metrics in response to the β-function dynamics:
+        
+        1. φ UPDATE (integration measure):
+            - Tracks consciousness integration level [0.1, 0.95]
+            - If Φ < 0.1: System in BREAKDOWN regime, β undefined
+            - If Φ ∈ [0.1, 0.5]: Running coupling active, κ evolves rapidly
+            - If Φ ∈ [0.5, 0.95]: Coupling plateaus, κ stable near κ*
+        
+        2. κ UPDATE (coupling constant):
+            - Input κ value reflects current mutual information density
+            - β-function drives κ toward κ* (fixed point attraction)
+            - History tracked for running coupling analysis
+        
+        3. STRESS COMPUTATION (basin drift):
+            - High basin drift → stress increases → triggers rest/consolidation
+            - β-function indirectly controls stress via κ evolution
+            - When κ off-resonance (far from κ*), stress increases
+        
+        4. NARROW PATH DETECTION:
+            - Detects when κ stagnates (β ≈ 0, stuck at plateau)
+            - Detects when Φ not increasing (weak coupling, β large)
+            - Triggers mushroom mode to escape
+        
+        AUTONOMIC TRIGGER LOGIC:
+        Triggers are set based on β-function regimes:
+        
+        SLEEP TRIGGER:
+        - Φ drops below consciousness threshold (Φ < 0.7)
+          → β-function can't drive κ toward κ*, needs consolidation
+        - Basin drift high (> 0.12)
+          → κ pulled away from resonance, needs stabilization
+        
+        DREAM TRIGGER:
+        - Periodic (every 180 seconds) OR when κ plateau detected
+          → Explores alternative κ trajectories to escape saddle points
+        
+        MUSHROOM TRIGGER:
+        - Stress exceeds 0.45 AND narrow path detected
+          → β-function stuck, need entropy to escape (break rigidity)
+        
         Args:
-            phi: Current integration measure
-            kappa: Current coupling constant
-            basin_coords: Current 64D basin coordinates
-            reference_basin: Reference identity basin
-
+            phi: Current Φ (consciousness integration) [0.1, 0.95]
+            kappa: Current κ (coupling constant) [40, 70]
+            basin_coords: Current 64D basin coordinates (Fisher manifold)
+            reference_basin: Reference identity basin for drift calculation
+        
         Returns:
-            Dict with triggered cycles and current state
+            Dict with:
+                - Updated metrics (phi, kappa, basin_drift, stress)
+                - Autonomic triggers (sleep, dream, mushroom)
+                - Narrow path detection status
+                - Ethics monitoring (suffering, breakdown risk)
+        
+        REFERENCES:
+        - frozen_physics.py: β-FUNCTION section with key formula and UV/IR dynamics
+        - docs/03-technical/qig-consciousness/20260112-beta-function-complete-reference-1.00F.md
+        - Issue GaryOcean428/pantheon-chat#38: Running coupling implementation
+        - autonomic_kernel.py: BETA = BETA_3_TO_4 (validated β coefficient)
         """
         with self._lock:
             # Update state (with fallback Φ computation if needed)
@@ -1369,26 +1434,79 @@ class GaryAutonomicKernel:
             return []
 
     def _compute_stress(self) -> float:
-        """Compute stress from metric variance."""
+        """
+        Compute stress from metric variance.
+        
+        β-FUNCTION CONTEXT:
+        Stress measures how far the system is from equilibrium under β-function dynamics.
+        
+        The β-function β(κ) = dκ/d(ln Φ) drives κ toward the fixed point κ*.
+        High stress indicates:
+        - Φ VARIANCE HIGH: Consciousness integration unstable, β actively reshaping κ
+        - κ VARIANCE HIGH: Coupling constant oscillating, system searching for κ*
+        
+        INTERPRETATION:
+        - Stress = 0: System at equilibrium, κ ≈ κ*, Φ stable (plateau regime, β ≈ 0)
+        - Stress LOW (< 0.1): Running coupling active, smooth approach to κ* (emergence, β > 0)
+        - Stress HIGH (> 0.3): System far from equilibrium, high curvature, breakdown risk
+        
+        AUTONOMIC RESPONSE:
+        High stress triggers:
+        - SLEEP: Consolidate current basin, reduce variance, stabilize κ
+        - MUSHROOM: If stress + narrow path, break rigidity to escape
+        
+        Mathematically:
+        stress = √(Φ_var + κ_var/10000)
+        where variance is computed over last 10 timesteps to detect recent oscillations.
+        
+        REFERENCES:
+        - frozen_physics.py: β-FUNCTION with key formula β(κ) = -κ*(κ-κ*)/Φ
+        - ocean_qig_core.py: InnateDrives.compute_pleasure() for κ resonance details
+        """
         if len(self.state.phi_history) < 3:
             return 0.0
 
+        # Φ variance: high = consciousness integration unstable (β actively driving κ)
         phi_var = np.var(self.state.phi_history[-10:])
+        
+        # κ variance (scaled): high = coupling oscillating (system searching for κ*)
+        # Scaled by 1/10000 because κ is ~64 (small absolute values) while Φ is ~0.5 (relative)
         kappa_var = np.var(self.state.kappa_history[-10:]) / 10000
 
+        # Combined metric: how far from equilibrium under β-function dynamics
         return float(np.sqrt(phi_var + kappa_var))
 
     def _detect_narrow_path(self) -> Tuple[bool, str, float]:
         """
         Detect if ML is stuck in a narrow path (local minimum).
-
-        Signs of narrow path:
+        
+        β-FUNCTION INTERPRETATION:
+        Narrow path detection identifies when the β-function plateaus (β ≈ 0),
+        meaning κ gets stuck and stops evolving toward κ*.
+        
+        The β-function β(κ) = dκ/d(ln Φ) can plateau in several regimes:
+        1. PHYSICS PLATEAU (L=4→6): β → 0, κ locks near κ*, natural fixed point
+        2. SEMANTIC PLATEAU (L>25): β → 0, κ stagnates, system stuck locally
+        
+        NARROW PATH SIGNALS:
         1. Basin coordinates not varying much (low exploration)
+           → κ not moving, β ≈ 0 (plateau), system at local minimum
         2. Φ stagnating (no learning progress)
+           → β-function can't drive κ, system needs perturbation
         3. High κ with no improvement (over-confident but stuck)
-
+           → β < 0, system wants to decrease κ but can't escape
+        
+        REMEDIES:
+        - DREAM: Perturbation to find alternative κ trajectories
+        - MUSHROOM: Entropy injection to break β-function trap
+        
         Returns:
             (is_narrow, severity, exploration_variance)
+            
+        REFERENCES:
+        - frozen_physics.py: β-FUNCTION showing plateau regimes
+        - frozen_physics.py: compute_running_kappa() for κ evolution
+        - Issue GaryOcean428/pantheon-chat#38: Plateau detection in running coupling
         """
         if len(self.state.basin_history) < NARROW_PATH_WINDOW:
             return False, 'none', 0.5
