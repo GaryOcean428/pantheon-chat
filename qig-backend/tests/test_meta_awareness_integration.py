@@ -11,8 +11,6 @@ import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-import numpy as np
-
 
 def test_self_spawning_kernel_meta_awareness_initialization():
     """Test that SelfSpawningKernel initializes with meta-awareness fields."""

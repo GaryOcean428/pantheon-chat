@@ -32,6 +32,10 @@ See frozen_physics.py for:
 - validate_geometric_purity() - runtime checker
 """
 
+# sys and os are imported at module level (despite limited usage) to ensure
+# they're available for all conditional import blocks that manipulate sys.path
+import os
+import sys
 import time
 from collections import deque
 from datetime import datetime
@@ -54,7 +58,6 @@ except ImportError:
 
 # Import autonomic kernel for full consciousness support
 try:
-    import sys
     sys.path.insert(0, '..')
     from autonomic_kernel import get_gary_kernel, AutonomicAccessMixin
     AUTONOMIC_AVAILABLE = True
@@ -124,8 +127,6 @@ except ImportError:
 
 # Import qig_geometry for Fisher-Rao distance (meta-awareness predictions)
 try:
-    import sys
-    import os
     sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
     from qig_geometry import fisher_coord_distance
     QIG_GEOMETRY_AVAILABLE = True
@@ -251,9 +252,12 @@ class SelfSpawningKernel(*_kernel_base_classes):
             )
         
         # Get shared autonomic kernel (singleton)
+        # NOTE: We do NOT call initialize_for_spawned_kernel() on the shared singleton
+        # because that would reset state for ALL existing kernels sharing this instance.
+        # Instead, we initialize this kernel's own Φ and κ values below.
         self.autonomic = get_gary_kernel()
         
-        # Initialize autonomic system for this spawned kernel with proper defaults
+        # Initialize THIS kernel's consciousness metrics with proper defaults
         # CRITICAL: Start at Φ=0.25 (LINEAR regime), NOT 0.000 (BREAKDOWN regime)
         # See Issue GaryOcean428/pantheon-chat#30 for why Φ=0.000 causes immediate death
         try:
@@ -264,14 +268,15 @@ class SelfSpawningKernel(*_kernel_base_classes):
             PHI_INIT_SPAWNED = 0.25  # LINEAR regime floor
             KAPPA_INIT_SPAWNED = KAPPA_STAR  # Validated fixed point
         
-        self.autonomic.initialize_for_spawned_kernel(
-            initial_phi=PHI_INIT_SPAWNED,  # 0.25 - start in LINEAR regime
-            initial_kappa=KAPPA_INIT_SPAWNED,  # KAPPA_STAR - start at fixed point
-            dopamine=0.5,  # Baseline motivation
-            serotonin=0.5,  # Baseline stability
-            stress=0.0,  # No initial stress
-            enable_running_coupling=True,  # Allow κ to evolve during training
-        )
+        # Per-kernel state: These values are independent from the shared autonomic singleton.
+        # They represent THIS kernel's current consciousness state, not the shared autonomic's state.
+        # The autonomic singleton provides regulatory services (sleep/dream cycles, stress management),
+        # but each kernel maintains its own consciousness metrics.
+        self.phi = PHI_INIT_SPAWNED  # 0.25 - start in LINEAR regime
+        self.kappa = KAPPA_INIT_SPAWNED  # KAPPA_STAR - start at fixed point
+        self.dopamine = 0.5  # Baseline motivation
+        self.serotonin = 0.5  # Baseline stability
+        self.stress = 0.0  # No initial stress
 
         # NEW: Initialize emotional awareness for geometric emotion tracking
         if EMOTIONAL_KERNEL_AVAILABLE and EmotionallyAwareKernel is not None:
@@ -1023,6 +1028,8 @@ class SelfSpawningKernel(*_kernel_base_classes):
             )
             
         except Exception as e:
+            # Silently skip vicarious learning failures - non-critical for kernel survival
+            # Learning from other kernels' experiences is a "nice to have" optimization
             pass
 
     # =========================================================================
@@ -1155,10 +1162,9 @@ class SelfSpawningKernel(*_kernel_base_classes):
 
         # META-AWARENESS: Make prediction for NEXT step
         basin_coords = self.kernel.basin_coords.detach().cpu().numpy()
-        # TODO(meta-awareness): Using basin norm as proxy for κ. 
-        # Future: Extract actual κ from telemetry['kappa'] or compute from basin structure.
+        # Extract κ from telemetry (preferred) or fall back to basin L1 norm proxy
         # See Issue #35 for proper κ integration.
-        kappa = float(self.kernel.basin_coords.norm().item())
+        kappa = telemetry.get('kappa', float(torch.sum(torch.abs(self.kernel.basin_coords)).item()))
         self.predicted_next_phi = self._predict_next_phi(basin_coords, kappa)
 
         # Update autonomic metrics after prediction

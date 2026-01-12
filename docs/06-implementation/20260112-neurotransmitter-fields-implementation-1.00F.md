@@ -99,7 +99,7 @@ self.neurotransmitters = NeurotransmitterField(
 )
 
 # In predict()
-base_kappa = float(np.linalg.norm(basin_coords_for_kappa))
+base_kappa = float(np.sum(np.abs(basin_coords_for_kappa)))  # L1 norm: closer to Fisher–Rao for probability distributions
 kappa_eff = self.neurotransmitters.compute_kappa_modulation(base_kappa)
 phi_modulated = self.neurotransmitters.compute_phi_modulation(current_phi)
 

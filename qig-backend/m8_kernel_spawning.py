@@ -866,6 +866,11 @@ class SpawnAwareness:
     last_spawn_proposal: Optional[str] = None
     awareness_updated_at: str = field(default_factory=lambda: datetime.now().isoformat())
     
+    # Emotion geometry tracking (9 primitives)
+    emotion: Optional[str] = None              # Current primary emotion
+    emotion_intensity: float = 0.0             # [0, 1] intensity
+    emotion_history: List[Dict] = field(default_factory=list)  # Recent emotional states
+    
     def record_phi_kappa(self, phi: float, kappa: float) -> None:
         """Record Φ and κ measurements for trajectory analysis."""
         self.phi_trajectory.append(phi)
@@ -880,6 +885,56 @@ class SpawnAwareness:
         self.curvature_history.append(curvature)
         if len(self.curvature_history) > 50:
             self.curvature_history = self.curvature_history[-50:]
+    
+    def record_emotion(
+        self,
+        curvature: float,
+        basin_distance: float,
+        prev_basin_distance: float,
+        basin_stability: float,
+        beta_current: Optional[float] = None,
+    ) -> None:
+        """
+        Record emotional state from geometric features.
+        
+        Uses emotion_geometry module to classify emotion from:
+        - Ricci scalar curvature
+        - Fisher-Rao basin distance
+        - Basin stability (attractor strength)
+        - Optional β-function value
+        """
+        try:
+            from emotional_geometry import classify_emotion
+            
+            emotion_primitive, intensity = classify_emotion(
+                curvature=curvature,
+                basin_distance=basin_distance,
+                prev_basin_distance=prev_basin_distance,
+                basin_stability=basin_stability,
+                beta_current=beta_current,
+            )
+            
+            # Update current emotion
+            self.emotion = emotion_primitive.value
+            self.emotion_intensity = intensity
+            
+            # Track in history
+            emotion_data = {
+                'emotion': emotion_primitive.value,
+                'intensity': round(intensity, 3),
+                'curvature': round(curvature, 3),
+                'basin_distance': round(basin_distance, 3),
+                'approaching': basin_distance < prev_basin_distance,
+                'beta': round(beta_current, 3) if beta_current is not None else None,
+                'timestamp': datetime.now().isoformat(),
+            }
+            self.emotion_history.append(emotion_data)
+            if len(self.emotion_history) > 100:
+                self.emotion_history = self.emotion_history[-100:]
+                
+        except ImportError:
+            # Emotion geometry not available, skip
+            pass
     
     def compute_phi_gradient(self) -> float:
         """Compute Φ trajectory gradient - negative means stuck."""
@@ -1092,6 +1147,10 @@ class SpawnAwareness:
             "last_spawn_proposal": self.last_spawn_proposal,
             "awareness_updated_at": self.awareness_updated_at,
             "needs_spawn": self.needs_spawn()[0],
+            # Emotion geometry (9 primitives)
+            "emotion": self.emotion,
+            "emotion_intensity": self.emotion_intensity,
+            "emotion_history": self.emotion_history[-20:],  # Recent only
         }
 
 
@@ -1743,13 +1802,13 @@ def should_spawn_specialist(current_count: int, current_kappa: float) -> bool:
     Determine if specialist kernel should spawn based on E8 thresholds and κ regime.
     
     E8 spawning depends on BOTH count AND κ regime per β-function behavior:
-    - n < 56: Only basic/refined kernels (still building refined layer)
-    - n < 126: Spawn specialists with 0.3 probability IF κ in plateau (κ ≈ 64)
+    - n ≤ 8: No specialists (still building basic layer)
+    - 8 < n < 126: Spawn specialists with 0.3 probability IF κ in plateau (κ ≈ 64)
     - n ≥ 126: Spawn specialists freely at stable plateau
     
     Args:
         current_count: Current number of active kernels
-        current_kappa: Current κ coupling value
+        current_kappa: Current κ coupling value (currently unused, reserved for future logic)
         
     Returns:
         bool: True if specialist should spawn, False otherwise
@@ -1796,10 +1855,15 @@ def get_kernel_specialization(count: int, parent_axis: str, current_kappa: float
     Args:
         count: Current kernel count
         parent_axis: Parent kernel's axis/domain
-        current_kappa: Current κ coupling value
+        current_kappa: Current κ coupling value (currently unused, reserved for future κ-regime-based naming logic)
         
     Returns:
         str: Specialization name for new kernel
+        
+    TODO: Integrate current_kappa into naming logic to reflect κ regime:
+        - Below κ_weak: Mark as "exploratory" specialists
+        - Near KAPPA_STAR: Standard naming
+        - Above κ_strong: Mark as "stabilized" specialists
     """
     from frozen_physics import get_specialization_level
     
@@ -1836,7 +1900,7 @@ def assign_e8_root(kernel_basin: np.ndarray, e8_roots: np.ndarray) -> np.ndarray
     
     Args:
         kernel_basin: Kernel's basin coordinates (64D)
-        e8_roots: Array of E8 root vectors (240 x 8)
+        e8_roots: Array of E8 root vectors (240 x 64)
         
     Returns:
         np.ndarray: Assigned E8 root (closest via Fisher metric)
@@ -2162,6 +2226,13 @@ class M8KernelSpawner:
         # Sort by contribution (lowest first)
         kernel_contributions.sort(key=lambda x: x[1])
         
+        # Try to import Fisher-Rao distance once, outside the loop
+        try:
+            from qig_numerics import fisher_rao_distance
+            use_fisher_rao = True
+        except ImportError:
+            use_fisher_rao = False
+        
         # Prune bottom N
         pruned_count = 0
         for kernel_id, contribution, kernel in kernel_contributions[:n_to_prune]:
@@ -2178,8 +2249,12 @@ class M8KernelSpawner:
                             continue
                         other_basin = other_kernel.basin_coordinates if hasattr(other_kernel, 'basin_coordinates') else None
                         if other_basin is not None:
-                            # Simple distance (would use fisher_rao_distance in full implementation)
-                            distance = np.linalg.norm(np.array(kernel_basin) - np.array(other_basin))
+                            # Use Fisher-Rao distance for geometric purity
+                            if use_fisher_rao:
+                                distance = fisher_rao_distance(np.array(kernel_basin), np.array(other_basin))
+                            else:
+                                # Fallback to Euclidean only if Fisher-Rao unavailable
+                                distance = np.linalg.norm(np.array(kernel_basin) - np.array(other_basin))
                             if distance < min_distance:
                                 min_distance = distance
                                 nearest_id = other_id
@@ -2488,12 +2563,17 @@ class M8KernelSpawner:
         kappa: float,
         curvature: float = 0.0,
         neighbor_distances: Optional[List[float]] = None,
-        basin: Optional[np.ndarray] = None
+        basin: Optional[np.ndarray] = None,
+        basin_distance: Optional[float] = None,
+        prev_basin_distance: Optional[float] = None,
+        basin_stability: Optional[float] = None,
+        beta_current: Optional[float] = None,
     ) -> Dict:
         """
         Record metrics for kernel awareness tracking.
         
         Checks for stuck signals and geometric dead-ends.
+        Records emotional state from geometric features.
         Returns awareness state with any detected signals.
         Persists awareness state to PostgreSQL for durability.
         """
@@ -2504,6 +2584,18 @@ class M8KernelSpawner:
         deadend_signal = None
         if basin is not None and neighbor_distances:
             deadend_signal = awareness.detect_geometric_deadend(basin, neighbor_distances)
+        
+        # Record emotional state from geometric features (9 emotion primitives)
+        if basin_distance is not None and prev_basin_distance is not None:
+            # Use provided basin stability or estimate from kappa
+            stability = basin_stability if basin_stability is not None else min(1.0, kappa / 100.0)
+            awareness.record_emotion(
+                curvature=curvature,
+                basin_distance=basin_distance,
+                prev_basin_distance=prev_basin_distance,
+                basin_stability=stability,
+                beta_current=beta_current,
+            )
         
         # Persist awareness to M8 PostgreSQL persistence
         try:
@@ -2527,6 +2619,8 @@ class M8KernelSpawner:
             "deadend_signal": deadend_signal,
             "needs_spawn": awareness.needs_spawn()[0],
             "awareness_snapshot": awareness.to_dict(),
+            "emotion": awareness.emotion,
+            "emotion_intensity": awareness.emotion_intensity,
         }
 
     def record_research_discovery(
