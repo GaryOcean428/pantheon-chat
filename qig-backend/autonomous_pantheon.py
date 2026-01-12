@@ -136,18 +136,23 @@ class AutonomousPantheon:
     def _init_governance_subscription(self):
         """Subscribe to governance events via CapabilityMesh."""
         try:
-            from olympus.capability_mesh import CapabilityType, subscribe_to_capability
-            subscribe_to_capability(CapabilityType.KERNELS, self._handle_governance_event)
+            from olympus.capability_mesh import CapabilityType, EventType, get_event_bus
+            event_bus = get_event_bus()
+            event_bus.register_handler(
+                capability=CapabilityType.KERNELS,
+                handler=self._handle_governance_event,
+                event_types=[EventType.KERNEL_SYNC, EventType.KERNEL_SPAWN]
+            )
             logger.info("[Pantheon] Subscribed to governance events via CapabilityMesh")
         except ImportError:
             logger.warning("[Pantheon] CapabilityMesh not available - running without governance visibility")
         except Exception as e:
             logger.warning(f"[Pantheon] Failed to subscribe to governance events: {e}")
 
-    def _handle_governance_event(self, event: dict):
+    def _handle_governance_event(self, event):
         """Handle governance events from the CapabilityMesh."""
-        event_type = event.get('event_type', '')
-        content = event.get('content', {})
+        event_type = getattr(event, 'event_type', None) or ''
+        content = getattr(event, 'content', None) or {}
 
         # Log all governance events for visibility
         logger.info(f"[Pantheon] Governance event received: {event_type}")
@@ -244,7 +249,7 @@ class AutonomousPantheon:
                                 )
 
                             # Also broadcast directly to activity stream for UI visibility
-                            if ACTIVITY_BROADCASTER_AVAILABLE and get_broadcaster is not None:
+                            if ACTIVITY_BROADCASTER_AVAILABLE and get_broadcaster is not None and ActivityType is not None:
                                 try:
                                     broadcaster = get_broadcaster()
                                     broadcaster.broadcast_message(
