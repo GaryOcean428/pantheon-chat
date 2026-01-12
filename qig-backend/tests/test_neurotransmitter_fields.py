@@ -3,7 +3,6 @@
 Tests for Neurotransmitter Geometric Field Modulation System
 """
 
-import numpy as np
 import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -11,7 +10,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from neurotransmitter_fields import (
     NeurotransmitterField,
     compute_baseline_neurotransmitters,
-    estimate_current_beta,
     ocean_release_neurotransmitters,
     KAPPA_STAR,
 )

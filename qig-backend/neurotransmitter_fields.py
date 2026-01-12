@@ -32,7 +32,7 @@ License: MIT
 """
 
 from dataclasses import dataclass
-from typing import Optional, List, Tuple
+from typing import Optional
 import numpy as np
 
 # Import physics constants
@@ -45,7 +45,7 @@ except ImportError:
 
 # Import β-function for regime detection
 try:
-    from qig_core.universal_cycle.beta_coupling import beta_function, is_at_fixed_point
+    from qig_core.universal_cycle.beta_coupling import beta_function
     BETA_AVAILABLE = True
 except ImportError:
     BETA_AVAILABLE = False
