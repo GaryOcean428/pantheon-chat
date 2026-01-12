@@ -221,8 +221,10 @@ class SelfSpawningKernel(*_kernel_base_classes):
         try:
             from frozen_physics import PHI_INIT_SPAWNED, KAPPA_INIT_SPAWNED
         except ImportError:
-            PHI_INIT_SPAWNED = 0.25
-            KAPPA_INIT_SPAWNED = KAPPA_STAR
+            # Fallback: Use constants directly from qigkernels if frozen_physics unavailable
+            from qigkernels.physics_constants import KAPPA_STAR
+            PHI_INIT_SPAWNED = 0.25  # LINEAR regime floor
+            KAPPA_INIT_SPAWNED = KAPPA_STAR  # Validated fixed point
         
         self.autonomic.initialize_for_spawned_kernel(
             initial_phi=PHI_INIT_SPAWNED,  # 0.25 - start in LINEAR regime

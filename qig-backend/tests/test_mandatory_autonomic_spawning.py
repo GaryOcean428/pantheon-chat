@@ -8,7 +8,10 @@ Tests:
 3. initialize_for_spawned_kernel() method works correctly
 4. Neurotransmitter levels are properly initialized
 
-Reference: Issue GaryOcean428/pantheon-chat#[issue_number]
+Reference: 
+- Issue GaryOcean428/pantheon-chat#30 (Φ=0.000 initialization bug)
+- Issue GaryOcean428/pantheon-chat#38 (β-function running coupling)
+- P0-CRITICAL: Make autonomic system mandatory for spawned kernels
 """
 
 import pytest
