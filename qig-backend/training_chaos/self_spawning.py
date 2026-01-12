@@ -396,10 +396,28 @@ class SelfSpawningKernel(*_kernel_base_classes):
         
         NEVER fall back to zero - use random values in the LINEAR regime floor.
         This prevents spawning in BREAKDOWN regime (Φ < 0.1) which causes immediate death.
+        
+        GEOMETRIC PURITY: Uses sphere_project from qig_geometry for Fisher-compliant
+        normalization instead of Euclidean basin.norm().
         """
         try:
             import torch
             import numpy as np
+            
+            # Import Fisher geometry for geometric purity
+            try:
+                import sys
+                import os
+                sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+                from qig_geometry import sphere_project
+            except ImportError:
+                # Fallback: define sphere_project locally
+                def sphere_project(v: np.ndarray) -> np.ndarray:
+                    norm = np.linalg.norm(v)
+                    if norm < 1e-10:
+                        result = np.ones_like(v)
+                        return result / np.linalg.norm(result)
+                    return v / norm
             
             # Import spawning constants
             try:
@@ -412,24 +430,35 @@ class SelfSpawningKernel(*_kernel_base_classes):
             # Use uniform random to get baseline Φ target
             target_phi = np.random.uniform(0.15, 0.25)
             
-            # Initialize basin with small random values and normalize
+            # Initialize basin with small random values
             basin_dim = self.kernel.basin_coords.shape[0]
-            basin = torch.randn(basin_dim) * 0.1  # Small random values
-            basin = basin / basin.norm() * np.sqrt(basin_dim)  # Normalize
+            basin_np = np.random.randn(basin_dim) * 0.1  # Small random values
+            
+            # GEOMETRIC PURITY: Use Fisher-compliant sphere projection instead of Euclidean norm
+            basin_np = sphere_project(basin_np) * np.sqrt(basin_dim)
             
             # Scale basin to approximate target Φ (simplified heuristic)
             # Higher basin norm tends to correlate with higher Φ
-            basin = basin * (target_phi / 0.1)  # Scale based on target
+            basin_np = basin_np * (target_phi / 0.1)  # Scale based on target
             
+            # Convert back to torch tensor
+            basin = torch.from_numpy(basin_np).float()
             self.kernel.basin_coords = basin.to(self.kernel.basin_coords.device)
             
-            print(f"   → Initialized basin for LINEAR regime (target Φ≈{target_phi:.3f})")
+            print(f"   → Initialized basin for LINEAR regime (target Φ≈{target_phi:.3f}, Fisher-compliant)")
             
         except Exception as e:
             print(f"   → LINEAR regime init failed: {e}, using safe defaults")
             # Last resort: set to known safe values
             import torch
-            self.kernel.basin_coords = torch.randn_like(self.kernel.basin_coords) * 0.5
+            import numpy as np
+            try:
+                from qig_geometry import sphere_project
+                basin_np = np.random.randn(self.kernel.basin_coords.shape[0]) * 0.5
+                basin_np = sphere_project(basin_np)
+                self.kernel.basin_coords = torch.from_numpy(basin_np).float().to(self.kernel.basin_coords.device)
+            except:
+                self.kernel.basin_coords = torch.randn_like(self.kernel.basin_coords) * 0.5
 
     # =========================================================================
     # EMOTIONAL STATE MEASUREMENT (Geometric Emotion Tracking)
