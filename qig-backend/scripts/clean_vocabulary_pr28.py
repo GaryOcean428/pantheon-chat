@@ -22,7 +22,7 @@ QIG PURITY: Uses geometric principles only (no ML/transformer validation)
 import sys
 import os
 import logging
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Any
 from datetime import datetime
 
 # Add parent directory to path for imports
@@ -35,7 +35,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def scan_vocabulary_table(table_name: str, word_column: str = 'word') -> Dict[str, any]:
+def scan_vocabulary_table(table_name: str, word_column: str = 'word') -> Dict[str, Any]:
     """
     Scan a vocabulary table and identify contaminated entries.
     

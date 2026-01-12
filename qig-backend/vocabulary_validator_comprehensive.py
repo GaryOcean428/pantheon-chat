@@ -23,7 +23,7 @@ import re
 import math
 import os
 import logging
-from typing import Tuple, Set, Dict, Optional
+from typing import Tuple, Set, Dict, Optional, Any
 from collections import Counter
 
 logger = logging.getLogger(__name__)
@@ -346,7 +346,7 @@ def validate_word_comprehensive(word: str) -> Tuple[bool, str]:
             return False, "invalid_format"
 
 
-def analyze_vocabulary_contamination(words: list) -> Dict[str, any]:
+def analyze_vocabulary_contamination(words: list) -> Dict[str, Any]:
     """
     Analyze a list of words to identify contamination patterns.
     
