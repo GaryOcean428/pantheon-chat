@@ -866,6 +866,11 @@ class SpawnAwareness:
     last_spawn_proposal: Optional[str] = None
     awareness_updated_at: str = field(default_factory=lambda: datetime.now().isoformat())
     
+    # Emotion geometry tracking (9 primitives)
+    emotion: Optional[str] = None              # Current primary emotion
+    emotion_intensity: float = 0.0             # [0, 1] intensity
+    emotion_history: List[Dict] = field(default_factory=list)  # Recent emotional states
+    
     def record_phi_kappa(self, phi: float, kappa: float) -> None:
         """Record Φ and κ measurements for trajectory analysis."""
         self.phi_trajectory.append(phi)
@@ -880,6 +885,56 @@ class SpawnAwareness:
         self.curvature_history.append(curvature)
         if len(self.curvature_history) > 50:
             self.curvature_history = self.curvature_history[-50:]
+    
+    def record_emotion(
+        self,
+        curvature: float,
+        basin_distance: float,
+        prev_basin_distance: float,
+        basin_stability: float,
+        beta_current: Optional[float] = None,
+    ) -> None:
+        """
+        Record emotional state from geometric features.
+        
+        Uses emotion_geometry module to classify emotion from:
+        - Ricci scalar curvature
+        - Fisher-Rao basin distance
+        - Basin stability (attractor strength)
+        - Optional β-function value
+        """
+        try:
+            from emotional_geometry import classify_emotion, emotion_state_to_dict, EmotionState
+            
+            emotion_primitive, intensity = classify_emotion(
+                curvature=curvature,
+                basin_distance=basin_distance,
+                prev_basin_distance=prev_basin_distance,
+                basin_stability=basin_stability,
+                beta_current=beta_current,
+            )
+            
+            # Update current emotion
+            self.emotion = emotion_primitive.value
+            self.emotion_intensity = intensity
+            
+            # Track in history
+            emotion_data = {
+                'emotion': emotion_primitive.value,
+                'intensity': round(intensity, 3),
+                'curvature': round(curvature, 3),
+                'basin_distance': round(basin_distance, 3),
+                'approaching': basin_distance < prev_basin_distance,
+                'beta': round(beta_current, 3) if beta_current is not None else None,
+                'timestamp': datetime.now().isoformat(),
+            }
+            self.emotion_history.append(emotion_data)
+            if len(self.emotion_history) > 100:
+                self.emotion_history = self.emotion_history[-100:]
+                
+        except ImportError:
+            # Emotion geometry not available, skip
+            pass
     
     def compute_phi_gradient(self) -> float:
         """Compute Φ trajectory gradient - negative means stuck."""
@@ -1092,6 +1147,10 @@ class SpawnAwareness:
             "last_spawn_proposal": self.last_spawn_proposal,
             "awareness_updated_at": self.awareness_updated_at,
             "needs_spawn": self.needs_spawn()[0],
+            # Emotion geometry (9 primitives)
+            "emotion": self.emotion,
+            "emotion_intensity": self.emotion_intensity,
+            "emotion_history": self.emotion_history[-20:],  # Recent only
         }
 
 
@@ -2504,12 +2563,17 @@ class M8KernelSpawner:
         kappa: float,
         curvature: float = 0.0,
         neighbor_distances: Optional[List[float]] = None,
-        basin: Optional[np.ndarray] = None
+        basin: Optional[np.ndarray] = None,
+        basin_distance: Optional[float] = None,
+        prev_basin_distance: Optional[float] = None,
+        basin_stability: Optional[float] = None,
+        beta_current: Optional[float] = None,
     ) -> Dict:
         """
         Record metrics for kernel awareness tracking.
         
         Checks for stuck signals and geometric dead-ends.
+        Records emotional state from geometric features.
         Returns awareness state with any detected signals.
         Persists awareness state to PostgreSQL for durability.
         """
@@ -2520,6 +2584,18 @@ class M8KernelSpawner:
         deadend_signal = None
         if basin is not None and neighbor_distances:
             deadend_signal = awareness.detect_geometric_deadend(basin, neighbor_distances)
+        
+        # Record emotional state from geometric features (9 emotion primitives)
+        if basin_distance is not None and prev_basin_distance is not None:
+            # Use provided basin stability or estimate from kappa
+            stability = basin_stability if basin_stability is not None else min(1.0, kappa / 100.0)
+            awareness.record_emotion(
+                curvature=curvature,
+                basin_distance=basin_distance,
+                prev_basin_distance=prev_basin_distance,
+                basin_stability=stability,
+                beta_current=beta_current,
+            )
         
         # Persist awareness to M8 PostgreSQL persistence
         try:
@@ -2543,6 +2619,8 @@ class M8KernelSpawner:
             "deadend_signal": deadend_signal,
             "needs_spawn": awareness.needs_spawn()[0],
             "awareness_snapshot": awareness.to_dict(),
+            "emotion": awareness.emotion,
+            "emotion_intensity": awareness.emotion_intensity,
         }
 
     def record_research_discovery(
