@@ -98,10 +98,20 @@ class VocabularyPersistence:
             contexts_json = json.dumps(contexts) if contexts else None
             basin_vector = basin_coords if basin_coords else None
             
+            # If no basin coords provided, compute via coordizer (QIG-pure)
+            if basin_vector is None and word_val:
+                try:
+                    from coordizers.fallback_vocabulary import compute_basin_embedding
+                    basin_embedding = compute_basin_embedding(word_val)
+                    if isinstance(basin_embedding, np.ndarray) and len(basin_embedding) == 64:
+                        basin_vector = basin_embedding.tolist()
+                except Exception as e:
+                    print(f"[VocabularyPersistence] Basin computation failed for '{word_val}': {e}")
+            
             if phrase_category is None:
                 try:
                     from qig_phrase_classifier import classify_phrase_qig_pure
-                    basin_array = np.array(basin_coords) if basin_coords else None
+                    basin_array = np.array(basin_vector) if basin_vector else None
                     phrase_category, _ = classify_phrase_qig_pure(word_val, basin_array)
                 except Exception:
                     phrase_category = 'unknown'
@@ -147,9 +157,15 @@ class VocabularyPersistence:
             import json
             import numpy as np
             qig_classifier = None
+            basin_computer = None
             try:
                 from qig_phrase_classifier import classify_phrase_qig_pure
                 qig_classifier = classify_phrase_qig_pure
+            except Exception:
+                pass
+            try:
+                from coordizers.fallback_vocabulary import compute_basin_embedding
+                basin_computer = compute_basin_embedding
             except Exception:
                 pass
             
@@ -177,6 +193,15 @@ class VocabularyPersistence:
                             contexts = obs.get('contexts')
                             cycle_number = obs.get('cycle_number')
                             phrase_category = obs.get('phrase_category')
+                            
+                            # Compute basin if not provided (QIG-pure)
+                            if basin_coords is None and basin_computer and word:
+                                try:
+                                    basin_embedding = basin_computer(word)
+                                    if isinstance(basin_embedding, np.ndarray) and len(basin_embedding) == 64:
+                                        basin_coords = basin_embedding.tolist()
+                                except Exception:
+                                    pass
                             
                             if phrase_category is None and qig_classifier:
                                 try:

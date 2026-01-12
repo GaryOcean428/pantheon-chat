@@ -284,6 +284,11 @@ class ExplorationHistoryPersistence:
     
     Tracks queries/topics that have been explored to avoid repeating same searches.
     Uses exploration_history table with topic+query uniqueness constraint.
+    
+    Topic Normalization:
+    - All topics/queries are normalized before storage and comparison
+    - Strips "(cycle XXXXX)" suffixes, lowercases, trims whitespace
+    - This prevents "topic (cycle 1)" and "topic (cycle 2)" from being treated as different
     """
     
     _instance = None
@@ -298,10 +303,29 @@ class ExplorationHistoryPersistence:
         if self._initialized:
             return
         import os
+        import re
         self._db_url = os.environ.get('DATABASE_URL')
         self._initialized = True
         self._recent_cache: Set[str] = set()
+        self._cycle_pattern = re.compile(r'\s*\(cycle\s*\d+[^)]*\)\s*$', re.IGNORECASE)
         self._load_recent_into_cache()
+    
+    def _normalize_topic(self, text: str) -> str:
+        """
+        Normalize topic/query for consistent duplicate detection.
+        
+        Transformations:
+        1. Lowercase
+        2. Strip leading/trailing whitespace
+        3. Remove "(cycle XXXXX)" suffixes (case-insensitive)
+        4. Collapse multiple spaces to single space
+        """
+        if not text:
+            return ""
+        normalized = text.lower().strip()
+        normalized = self._cycle_pattern.sub('', normalized)
+        normalized = ' '.join(normalized.split())
+        return normalized
     
     def _get_connection(self):
         """Get database connection."""
@@ -327,17 +351,27 @@ class ExplorationHistoryPersistence:
                     ORDER BY created_at DESC LIMIT 500
                 """)
                 for row in cur.fetchall():
-                    key = f"{row[0]}:{row[1]}"
+                    norm_topic = self._normalize_topic(row[0])
+                    norm_query = self._normalize_topic(row[1])
+                    key = f"{norm_topic}:{norm_query}"
                     self._recent_cache.add(key)
-            logger.info(f"[ExplorationHistoryPersistence] Loaded {len(self._recent_cache)} recent explorations")
+            logger.info(f"[ExplorationHistoryPersistence] Loaded {len(self._recent_cache)} recent explorations (normalized)")
         except Exception as e:
             logger.warning(f"[ExplorationHistoryPersistence] Cache load failed: {e}")
         finally:
             conn.close()
     
     def is_duplicate(self, topic: str, query: str) -> bool:
-        """Check if this exploration is a duplicate (already done recently)."""
-        key = f"{topic}:{query}"
+        """
+        Check if this exploration is a duplicate (already done recently).
+        
+        Uses normalized topic/query for comparison to catch near-duplicates
+        like "Topic (cycle 1)" vs "Topic (cycle 2)".
+        """
+        norm_topic = self._normalize_topic(topic)
+        norm_query = self._normalize_topic(query)
+        key = f"{norm_topic}:{norm_query}"
+        
         if key in self._recent_cache:
             return True
         
@@ -348,10 +382,11 @@ class ExplorationHistoryPersistence:
             with conn.cursor() as cur:
                 cur.execute("""
                     SELECT 1 FROM exploration_history
-                    WHERE topic = %s AND query = %s
+                    WHERE LOWER(TRIM(regexp_replace(topic, '\s*\(cycle\s*\d+[^)]*\)\s*$', '', 'i'))) = %s
+                    AND LOWER(TRIM(regexp_replace(query, '\s*\(cycle\s*\d+[^)]*\)\s*$', '', 'i'))) = %s
                     AND created_at > NOW() - INTERVAL '24 hours'
                     LIMIT 1
-                """, (topic, query))
+                """, (norm_topic, norm_query))
                 return cur.fetchone() is not None
         except Exception as e:
             return False
@@ -367,8 +402,16 @@ class ExplorationHistoryPersistence:
         source_type: str = None,
         information_gain: float = 0.0
     ) -> bool:
-        """Record an exploration to prevent future duplicates."""
-        key = f"{topic}:{query}"
+        """
+        Record an exploration to prevent future duplicates.
+        
+        Stores the ORIGINAL topic/query for display/analytics purposes.
+        Uses NORMALIZED keys for cache-based duplicate detection.
+        DB conflict resolution uses normalized comparison via SQL regexp_replace.
+        """
+        norm_topic = self._normalize_topic(topic)
+        norm_query = self._normalize_topic(query)
+        key = f"{norm_topic}:{norm_query}"
         self._recent_cache.add(key)
         
         conn = self._get_connection()
@@ -393,9 +436,15 @@ class ExplorationHistoryPersistence:
             conn.close()
     
     def get_unexplored_topics(self, candidate_topics: List[str], limit: int = 10) -> List[str]:
-        """Filter candidate topics to only return unexplored ones."""
+        """
+        Filter candidate topics to only return unexplored ones.
+        
+        Uses normalized comparison to catch near-duplicates.
+        """
         if not candidate_topics:
             return []
+        
+        normalized_candidates = [self._normalize_topic(t) for t in candidate_topics]
         
         conn = self._get_connection()
         if not conn:
@@ -403,12 +452,15 @@ class ExplorationHistoryPersistence:
         try:
             with conn.cursor() as cur:
                 cur.execute("""
-                    SELECT topic FROM exploration_history
-                    WHERE topic = ANY(%s)
-                    AND created_at > NOW() - INTERVAL '7 days'
-                """, (candidate_topics,))
+                    SELECT LOWER(TRIM(regexp_replace(topic, '\s*\(cycle\s*\d+[^)]*\)\s*$', '', 'i'))) 
+                    FROM exploration_history
+                    WHERE created_at > NOW() - INTERVAL '7 days'
+                """)
                 explored = {row[0] for row in cur.fetchall()}
-            unexplored = [t for t in candidate_topics if t not in explored]
+            unexplored = [
+                t for t, norm in zip(candidate_topics, normalized_candidates) 
+                if norm not in explored
+            ]
             return unexplored[:limit]
         except Exception as e:
             return candidate_topics[:limit]
