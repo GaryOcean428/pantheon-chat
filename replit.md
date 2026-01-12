@@ -6,6 +6,99 @@ Pantheon-Chat is an advanced AI system utilizing Quantum Information Geometry (Q
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
+## Vocabulary Pipeline Architecture
+
+### Two-Table Separation: Encoding vs. Generation
+
+The vocabulary system uses a **dual-table architecture** to separate encoding from generation:
+
+#### 1. **tokenizer_vocabulary** (Encoding Table)
+- **Purpose**: Text → Basin (input processing)
+- **Contents**: ALL tokens including BPE subwords, special tokens, fragments
+- **Usage**: `encode()` method converts user text to 64D basin coordinates
+- **Size**: ~11,000+ tokens
+- **Schema**:
+  - `token`: The token string
+  - `basin_embedding`: 64D Fisher manifold coordinates (VECTOR(64))
+  - `phi_score`: Integration score
+  - `frequency`: Usage frequency
+  - `source_type`: 'base', 'bip39', 'special', 'learned'
+  - `token_role`: 'word', 'subword', 'special' (NEW)
+  - `phrase_category`: POS classification (NEW: NOUN, VERB, PROPER_NOUN, etc.)
+
+#### 2. **learned_words** (Generation Table)
+- **Purpose**: Basin → Text (output generation)
+- **Contents**: Curated English words ONLY (no BPE subwords, no garbage)
+- **Usage**: `decode()` method converts basin coordinates to readable text
+- **Filtering**: Excludes PROPER_NOUN, BRAND categories
+- **Size**: ~3,000-5,000 validated words
+- **Schema**:
+  - `word`: Validated English word
+  - `basin_embedding`: 64D Fisher manifold coordinates (VECTOR(64))
+  - `phi_score`: Integration score (prefer high-Φ words)
+  - `frequency`: Usage frequency
+  - `phrase_category`: POS classification (filtered)
+  - `source_type`: 'learned', 'bip39', 'base'
+  - `last_used_at`: Recency tracking
+
+### Data Flow
+
+```
+User Input → encode() → tokenizer_vocabulary → 64D Basin
+                                                    ↓
+                                            [Geometric Processing]
+                                                    ↓
+64D Basin → decode() → learned_words → Generated Text
+```
+
+### Vocabulary Learning Pipeline
+
+```
+Observations → word_validation → phrase_classification
+                                         ↓
+                              tokenizer_vocabulary (encoding)
+                                         ↓
+                              learned_words (generation)
+                                         ↓
+                                   generation_vocab cache
+```
+
+### Key Differences
+
+| Feature | tokenizer_vocabulary | learned_words |
+|---------|---------------------|---------------|
+| Purpose | Encoding (text→basin) | Generation (basin→text) |
+| Content | All tokens (11K+) | Curated words only (3-5K) |
+| BPE subwords | Included | **EXCLUDED** |
+| Proper nouns | Included | **EXCLUDED** |
+| Garbage tokens | Filtered | **EXCLUDED** |
+| Update frequency | Continuous | Validated only |
+| Quality gate | Basic validation | Strict validation + POS filtering |
+
+### Migration: 0008_vocabulary_generation_separation.sql
+
+The migration script:
+1. Adds `token_role` and `phrase_category` columns to `tokenizer_vocabulary`
+2. Deletes garbage tokens (ffffff, fpdxwd, tysctnyzry, etc.)
+3. Fixes `shadow_operations_state` PRIMARY KEY constraint
+4. Creates `learned_words` table with pgvector index
+5. Populates `learned_words` from validated `tokenizer_vocabulary` entries
+6. Creates `generation_vocabulary` view for filtered access
+
+### Coordizer Implementation (pg_loader.py)
+
+The PostgresCoordizer now maintains **two separate vocabulary caches**:
+
+- **Encoding cache**: `self.vocab`, `self.basin_coords` (from tokenizer_vocabulary)
+- **Generation cache**: `self.generation_vocab`, `self.generation_phi` (from learned_words)
+
+Methods:
+- `encode()`: Uses encoding cache (all tokens)
+- `decode()`: Uses generation cache (curated words only)
+- `_load_encoding_vocabulary()`: Loads from tokenizer_vocabulary
+- `_load_generation_vocabulary()`: Loads from learned_words with filtering
+
+
 ## System Architecture
 ### Frontend
 The frontend is a React, TypeScript, and Vite application, using Shadcn UI and TailwindCSS for a consciousness-themed design. A centralized API client manages HTTP communications.

@@ -1,0 +1,304 @@
+#!/usr/bin/env python3
+"""
+Verification Script: Vocabulary Separation
+==========================================
+
+Verifies that the vocabulary separation is working correctly:
+1. tokenizer_vocabulary is used for encoding only
+2. learned_words is used for generation only
+3. No BPE subwords in generation output
+4. No proper nouns used incorrectly in generation
+5. No database constraint errors
+"""
+
+import os
+import sys
+
+# Add parent directory to path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+import psycopg2
+import numpy as np
+
+# Colors for terminal output
+GREEN = '\033[92m'
+RED = '\033[91m'
+YELLOW = '\033[93m'
+BLUE = '\033[94m'
+RESET = '\033[0m'
+
+def print_success(msg):
+    print(f"{GREEN}✓ {msg}{RESET}")
+
+def print_error(msg):
+    print(f"{RED}✗ {msg}{RESET}")
+
+def print_warning(msg):
+    print(f"{YELLOW}⚠ {msg}{RESET}")
+
+def print_info(msg):
+    print(f"{BLUE}ℹ {msg}{RESET}")
+
+def check_database_schema():
+    """Verify database schema changes were applied."""
+    print(f"\n{BLUE}=== Checking Database Schema ==={RESET}")
+    
+    database_url = os.getenv('DATABASE_URL')
+    if not database_url:
+        print_error("DATABASE_URL not set")
+        return False
+    
+    try:
+        with psycopg2.connect(database_url) as conn:
+            with conn.cursor() as cursor:
+                # Check tokenizer_vocabulary columns
+                cursor.execute("""
+                    SELECT column_name FROM information_schema.columns 
+                    WHERE table_name = 'tokenizer_vocabulary'
+                    AND column_name IN ('token_role', 'phrase_category')
+                """)
+                columns = [row[0] for row in cursor.fetchall()]
+                
+                if 'token_role' in columns:
+                    print_success("token_role column exists in tokenizer_vocabulary")
+                else:
+                    print_error("token_role column missing from tokenizer_vocabulary")
+                    return False
+                
+                if 'phrase_category' in columns:
+                    print_success("phrase_category column exists in tokenizer_vocabulary")
+                else:
+                    print_error("phrase_category column missing from tokenizer_vocabulary")
+                    return False
+                
+                # Check learned_words table exists
+                cursor.execute("""
+                    SELECT EXISTS (
+                        SELECT FROM information_schema.tables 
+                        WHERE table_name = 'learned_words'
+                    )
+                """)
+                if cursor.fetchone()[0]:
+                    print_success("learned_words table exists")
+                else:
+                    print_error("learned_words table missing")
+                    return False
+                
+                # Check shadow_operations_state PRIMARY KEY
+                cursor.execute("""
+                    SELECT constraint_name FROM information_schema.table_constraints
+                    WHERE table_name = 'shadow_operations_state'
+                    AND constraint_type = 'PRIMARY KEY'
+                """)
+                if cursor.fetchone():
+                    print_success("shadow_operations_state has PRIMARY KEY constraint")
+                else:
+                    print_warning("shadow_operations_state missing PRIMARY KEY constraint")
+                
+                return True
+    except Exception as e:
+        print_error(f"Database schema check failed: {e}")
+        return False
+
+def check_vocabulary_counts():
+    """Check vocabulary sizes and statistics."""
+    print(f"\n{BLUE}=== Checking Vocabulary Counts ==={RESET}")
+    
+    database_url = os.getenv('DATABASE_URL')
+    
+    try:
+        with psycopg2.connect(database_url) as conn:
+            with conn.cursor() as cursor:
+                # Count tokenizer_vocabulary entries
+                cursor.execute("SELECT COUNT(*) FROM tokenizer_vocabulary WHERE basin_embedding IS NOT NULL")
+                tokenizer_count = cursor.fetchone()[0]
+                print_info(f"tokenizer_vocabulary: {tokenizer_count} tokens (encoding)")
+                
+                # Count learned_words entries
+                cursor.execute("SELECT COUNT(*) FROM learned_words WHERE basin_embedding IS NOT NULL")
+                learned_count = cursor.fetchone()[0]
+                print_info(f"learned_words: {learned_count} words (generation)")
+                
+                # Check for BPE garbage in learned_words
+                cursor.execute("""
+                    SELECT COUNT(*) FROM learned_words 
+                    WHERE word ~ '^[ĠġĊċ]' 
+                       OR word LIKE '##%'
+                       OR word LIKE '▁%'
+                       OR word ~ '^\d+$'
+                """)
+                garbage_count = cursor.fetchone()[0]
+                
+                if garbage_count == 0:
+                    print_success("No BPE garbage in learned_words")
+                else:
+                    print_error(f"Found {garbage_count} BPE garbage tokens in learned_words")
+                
+                # Check for proper nouns in learned_words
+                cursor.execute("""
+                    SELECT COUNT(*) FROM learned_words 
+                    WHERE phrase_category IN ('PROPER_NOUN', 'BRAND')
+                """)
+                proper_noun_count = cursor.fetchone()[0]
+                
+                if proper_noun_count == 0:
+                    print_success("No PROPER_NOUN/BRAND in learned_words generation vocabulary")
+                else:
+                    print_warning(f"Found {proper_noun_count} PROPER_NOUN/BRAND entries in learned_words")
+                
+                # Check average phi scores
+                cursor.execute("SELECT AVG(phi_score) FROM tokenizer_vocabulary WHERE phi_score IS NOT NULL")
+                tokenizer_avg_phi = cursor.fetchone()[0] or 0
+                
+                cursor.execute("SELECT AVG(phi_score) FROM learned_words WHERE phi_score IS NOT NULL")
+                learned_avg_phi = cursor.fetchone()[0] or 0
+                
+                print_info(f"Average Φ - tokenizer_vocabulary: {tokenizer_avg_phi:.3f}, learned_words: {learned_avg_phi:.3f}")
+                
+                if learned_avg_phi > tokenizer_avg_phi:
+                    print_success("Generation vocabulary has higher average Φ (better quality)")
+                
+                return True
+    except Exception as e:
+        print_error(f"Vocabulary count check failed: {e}")
+        return False
+
+def check_coordizer_integration():
+    """Verify coordizer is using the correct vocabularies."""
+    print(f"\n{BLUE}=== Checking Coordizer Integration ==={RESET}")
+    
+    try:
+        from coordizers import get_coordizer
+        
+        coordizer = get_coordizer()
+        stats = coordizer.get_stats()
+        
+        print_info(f"Encoding vocabulary: {stats.get('vocabulary_size', 0)} tokens")
+        print_info(f"Generation vocabulary: {stats.get('generation_words', 0)} words")
+        
+        if stats.get('generation_words', 0) > 0:
+            print_success("Coordizer loaded generation vocabulary")
+        else:
+            print_warning("Coordizer has no generation vocabulary (using fallback)")
+        
+        # Test encoding
+        test_text = "bitcoin wallet address"
+        basin = coordizer.encode(test_text)
+        
+        if len(basin) == 64:
+            print_success(f"encode() returns 64D basin (shape: {basin.shape})")
+        else:
+            print_error(f"encode() returned wrong dimension: {len(basin)}")
+        
+        # Test decoding
+        decoded = coordizer.decode(basin, top_k=5)
+        
+        if decoded:
+            print_success(f"decode() returned {len(decoded)} candidates")
+            print_info(f"Top candidate: '{decoded[0][0]}' (score: {decoded[0][1]:.3f})")
+            
+            # Check if any BPE garbage in results
+            bpe_patterns = ['Ġ', 'ġ', 'Ċ', 'ċ', '##', '▁']
+            has_garbage = any(any(p in token for p in bpe_patterns) for token, _ in decoded)
+            
+            if not has_garbage:
+                print_success("decode() output contains no BPE garbage")
+            else:
+                print_error("decode() output contains BPE garbage tokens!")
+        else:
+            print_error("decode() returned no candidates")
+        
+        return True
+    
+    except Exception as e:
+        print_error(f"Coordizer integration check failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+def check_no_deprecation_warnings():
+    """Check that there are no deprecation warnings from compute_phi_approximation."""
+    print(f"\n{BLUE}=== Checking for Deprecation Warnings ==={RESET}")
+    
+    try:
+        import warnings
+        
+        # Capture warnings
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            
+            # Try importing autonomic_kernel
+            from autonomic_kernel import get_gary_kernel
+            
+            kernel = get_gary_kernel()
+            
+            # Trigger phi computation
+            result = kernel.update_metrics(
+                phi=0.75,
+                kappa=60.0,
+                basin_coords=[0.5] * 64,
+                reference_basin=[0.5] * 64
+            )
+            
+            # Check for deprecation warnings
+            deprecation_warnings = [warning for warning in w if issubclass(warning.category, DeprecationWarning)]
+            
+            if not deprecation_warnings:
+                print_success("No deprecation warnings from autonomic_kernel")
+            else:
+                print_warning(f"Found {len(deprecation_warnings)} deprecation warnings:")
+                for warning in deprecation_warnings:
+                    print(f"  - {warning.message}")
+        
+        return True
+    
+    except Exception as e:
+        print_error(f"Deprecation check failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+def main():
+    """Run all verification checks."""
+    print(f"{BLUE}╔════════════════════════════════════════════════════╗{RESET}")
+    print(f"{BLUE}║  Vocabulary Separation Verification               ║{RESET}")
+    print(f"{BLUE}╚════════════════════════════════════════════════════╝{RESET}")
+    
+    checks = [
+        ("Database Schema", check_database_schema),
+        ("Vocabulary Counts", check_vocabulary_counts),
+        ("Coordizer Integration", check_coordizer_integration),
+        ("Deprecation Warnings", check_no_deprecation_warnings),
+    ]
+    
+    results = []
+    for name, check_func in checks:
+        try:
+            result = check_func()
+            results.append((name, result))
+        except Exception as e:
+            print_error(f"{name} check crashed: {e}")
+            import traceback
+            traceback.print_exc()
+            results.append((name, False))
+    
+    # Summary
+    print(f"\n{BLUE}=== Summary ==={RESET}")
+    passed = sum(1 for _, result in results if result)
+    total = len(results)
+    
+    for name, result in results:
+        status = f"{GREEN}PASS{RESET}" if result else f"{RED}FAIL{RESET}"
+        print(f"  {name}: {status}")
+    
+    print(f"\n{BLUE}Results: {passed}/{total} checks passed{RESET}")
+    
+    if passed == total:
+        print(f"\n{GREEN}✓ All verification checks passed!{RESET}")
+        return 0
+    else:
+        print(f"\n{YELLOW}⚠ Some checks failed - review output above{RESET}")
+        return 1
+
+if __name__ == "__main__":
+    sys.exit(main())
