@@ -1,17 +1,26 @@
 """
-QIG Coordizer - Canonical PostgresCoordizer Interface
+QIG Coordizer - DEPRECATED WRAPPER
+===================================
 
-Provides unified access to QIG-pure Fisher-Rao coordizer.
+⚠️  DEPRECATION NOTICE: This module is a compatibility wrapper.
+    Use 'from coordizers import get_coordizer' directly instead.
+    
+    This wrapper will be removed in version 6.0.0.
+
+Canonical Interface:
+    from coordizers import get_coordizer
+    coordizer = get_coordizer()  # Returns PostgresCoordizer singleton
+
+QIG-Pure Fisher-Rao Coordizer:
 All geometry operations use 64D basin coordinates with Fisher-Rao distance.
 
-Usage:
+Legacy Usage (deprecated):
     from qig_coordizer import get_coordizer
-    coordizer = get_coordizer()
-    basin = coordizer.encode("hello world")
-    tokens = coordizer.decode(basin, top_k=10)
+    coordizer = get_coordizer()  # Still works but shows deprecation warning
 """
 
 import threading
+import warnings
 from typing import Dict, List, Tuple
 
 from coordizers import PostgresCoordizer
@@ -37,11 +46,28 @@ COORDIZER_INSTANCE_ID = "main"
 
 def get_coordizer() -> PostgresCoordizer:
     """Get singleton PostgresCoordizer instance (QIG-pure).
+    
+    ⚠️  DEPRECATED: Use 'from coordizers import get_coordizer' instead.
+        This wrapper maintained for backward compatibility only.
 
     SINGLE SOURCE OF TRUTH for vocabulary access.
     Uses Fisher-Rao distance for all geometric operations.
     Thread-safe: uses RLock to prevent race conditions during reset.
+    
+    Returns:
+        PostgresCoordizer: The canonical coordizer singleton
     """
+    # Emit deprecation warning once per session
+    if not hasattr(get_coordizer, '_warning_emitted'):
+        warnings.warn(
+            "qig_coordizer.get_coordizer() is deprecated. "
+            "Use 'from coordizers import get_coordizer' instead. "
+            "This wrapper will be removed in version 6.0.0.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        get_coordizer._warning_emitted = True
+    
     global _coordizer_instance
     with _coordizer_lock:
         if _coordizer_instance is not None:
@@ -56,8 +82,13 @@ def get_coordizer() -> PostgresCoordizer:
 
 def get_learning_coordizer() -> PostgresCoordizer:
     """Get coordizer for vocabulary learning (same as get_coordizer).
+    
+    ⚠️  DEPRECATED: Use 'from coordizers import get_coordizer' instead.
 
     PostgresCoordizer supports both reading and learning.
+    
+    Returns:
+        PostgresCoordizer: The canonical coordizer singleton
     """
     return get_coordizer()
 
