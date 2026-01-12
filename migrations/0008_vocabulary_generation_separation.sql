@@ -149,7 +149,7 @@ COMMENT ON COLUMN learned_words.phrase_category IS 'POS category from qig_phrase
 
 INSERT INTO learned_words (word, basin_embedding, phi_score, frequency, phrase_category, source_type, created_at, updated_at)
 SELECT 
-    LOWER(token),  -- Normalize to lowercase for generation
+    LOWER(token),  -- Normalize to lowercase for generation (case-insensitive matching)
     basin_embedding,
     phi_score,
     frequency,
@@ -161,7 +161,8 @@ FROM tokenizer_vocabulary
 WHERE 
     -- Valid words only
     LENGTH(token) >= 2
-    AND token ~ '^[a-zA-Z]+$'  -- Alphabetic only (both uppercase and lowercase)
+    -- Match alphabetic tokens (both cases allowed in source, normalized to lowercase for generation)
+    AND token ~ '^[a-zA-Z]+$'
     AND token_role = 'word'
     AND basin_embedding IS NOT NULL
     -- Exclude categories inappropriate for generation
