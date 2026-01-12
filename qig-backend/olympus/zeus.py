@@ -661,8 +661,9 @@ class Zeus(BaseGod):
                     else:
                         print("💀 [Zeus] Underworld search completed: No intelligence found")
             except Exception as e:
-                print(f"⚠️ [Zeus] Underworld search failed: {e}")
-                underworld_intel = {'error': str(e), 'source_count': 0}
+                error_msg = str(e) if str(e) else type(e).__name__
+                print(f"⚠️ [Zeus] Underworld search failed: {error_msg}")
+                underworld_intel = {'error': error_msg, 'source_count': 0}
 
         # Step 4.5 - CHECK SHADOW INTEL (The "Gut Feeling" Check)
         # Zeus consults accumulated shadow knowledge before deciding

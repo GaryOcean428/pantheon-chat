@@ -101,7 +101,7 @@ def audit_vocabulary(dry_run: bool = True, limit: int = None):
         
         # Fetch all words
         with conn.cursor() as cur:
-            query = "SELECT id, word_text FROM learned_words"
+            query = "SELECT id, word FROM learned_words"
             if limit:
                 query += f" LIMIT {limit}"
             
