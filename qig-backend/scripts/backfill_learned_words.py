@@ -155,7 +155,7 @@ def backfill_word(conn, word: str, existing_basin, dry_run: bool = False) -> boo
         phi_score = qfi_to_phi(qfi_score)
         phrase_category = classify_phrase(word, basin)
         
-        basin_list = basin.tolist()
+        basin_str = '[' + ','.join(str(x) for x in basin.tolist()) + ']'
         
         if dry_run:
             logger.info(f"[DRY RUN] Would update '{word}': category={phrase_category}, qfi={qfi_score:.4f}")
@@ -164,7 +164,7 @@ def backfill_word(conn, word: str, existing_basin, dry_run: bool = False) -> boo
         with conn.cursor() as cur:
             cur.execute("""
                 UPDATE learned_words SET
-                    basin_coords = COALESCE(basin_coords, %s),
+                    basin_coords = COALESCE(basin_coords, %s::vector(64)),
                     is_integrated = TRUE,
                     integrated_at = COALESCE(integrated_at, NOW()),
                     qfi_score = COALESCE(qfi_score, %s),
@@ -176,7 +176,7 @@ def backfill_word(conn, word: str, existing_basin, dry_run: bool = False) -> boo
                     avg_phi = COALESCE(avg_phi, %s),
                     max_phi = COALESCE(max_phi, %s)
                 WHERE word = %s
-            """, (basin_list, qfi_score, basin_distance, curvature_std, 
+            """, (basin_str, qfi_score, basin_distance, curvature_std, 
                   entropy_score, phrase_category, phi_score, phi_score, word))
         
         return True
