@@ -13,6 +13,16 @@ import numpy as np
 from word_validation import is_valid_english_word, validate_for_vocabulary, STOP_WORDS
 from qig_geometry import fisher_coord_distance
 
+# Import comprehensive validator for web scraping contamination prevention (PR 27/28)
+try:
+    from vocabulary_validator_comprehensive import validate_word_comprehensive
+    COMPREHENSIVE_VALIDATOR_AVAILABLE = True
+    print("[VocabularyCoordinator] Comprehensive validator available (PR 27/28 contamination prevention)")
+except ImportError:
+    COMPREHENSIVE_VALIDATOR_AVAILABLE = False
+    validate_word_comprehensive = None
+    print("[VocabularyCoordinator] Comprehensive validator not available - using basic validation only")
+
 try:
     from vocabulary_persistence import get_vocabulary_persistence
     VOCAB_PERSISTENCE_AVAILABLE = True
@@ -346,6 +356,9 @@ class VocabularyCoordinator:
         
         CRITICAL: Observes ALL potential words, lets emergence determine value.
         Non-dictionary words are queued for proper noun consideration.
+        
+        PR 27/28 Integration: Uses comprehensive validator to prevent web scraping contamination.
+        Filters out URL fragments, garbled sequences, and truncated words before vocabulary insertion.
         """
         observations = []
         words = phrase.lower().strip().split()
@@ -355,6 +368,20 @@ class VocabularyCoordinator:
         for word, count in word_counts.items():
             if len(word) < 3:
                 continue
+            
+            # PR 27/28: First pass through comprehensive validator to catch contamination
+            if COMPREHENSIVE_VALIDATOR_AVAILABLE:
+                is_valid_comprehensive, comprehensive_reason = validate_word_comprehensive(word)
+                if not is_valid_comprehensive:
+                    # Log rejection for monitoring (except URL fragments which are very common)
+                    if not comprehensive_reason.startswith('url_fragment'):
+                        if comprehensive_reason.startswith('high_entropy'):
+                            print(f"[VocabCoordinator] Rejected garbled: {word} ({comprehensive_reason})")
+                        elif comprehensive_reason.startswith('truncated'):
+                            print(f"[VocabCoordinator] Rejected truncated: {word} ({comprehensive_reason})")
+                    continue
+            
+            # Second pass through existing validator for standard checks
             is_valid, reason = validate_for_vocabulary(word, require_dictionary=False)
             if not is_valid:
                 continue
