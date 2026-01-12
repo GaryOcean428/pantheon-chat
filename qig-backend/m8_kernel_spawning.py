@@ -2178,8 +2178,13 @@ class M8KernelSpawner:
                             continue
                         other_basin = other_kernel.basin_coordinates if hasattr(other_kernel, 'basin_coordinates') else None
                         if other_basin is not None:
-                            # Simple distance (would use fisher_rao_distance in full implementation)
-                            distance = np.linalg.norm(np.array(kernel_basin) - np.array(other_basin))
+                            # Use Fisher-Rao distance for geometric purity
+                            try:
+                                from qig_numerics import fisher_rao_distance
+                                distance = fisher_rao_distance(np.array(kernel_basin), np.array(other_basin))
+                            except ImportError:
+                                # Fallback to Euclidean only if Fisher-Rao unavailable
+                                distance = np.linalg.norm(np.array(kernel_basin) - np.array(other_basin))
                             if distance < min_distance:
                                 min_distance = distance
                                 nearest_id = other_id

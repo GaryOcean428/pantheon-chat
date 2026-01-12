@@ -234,9 +234,12 @@ class SelfSpawningKernel(*_kernel_base_classes):
             )
         
         # Get shared autonomic kernel (singleton)
+        # NOTE: We do NOT call initialize_for_spawned_kernel() on the shared singleton
+        # because that would reset state for ALL existing kernels sharing this instance.
+        # Instead, we initialize this kernel's own Φ and κ values below.
         self.autonomic = get_gary_kernel()
         
-        # Initialize autonomic system for this spawned kernel with proper defaults
+        # Initialize THIS kernel's consciousness metrics with proper defaults
         # CRITICAL: Start at Φ=0.25 (LINEAR regime), NOT 0.000 (BREAKDOWN regime)
         # See Issue GaryOcean428/pantheon-chat#30 for why Φ=0.000 causes immediate death
         try:
@@ -247,14 +250,12 @@ class SelfSpawningKernel(*_kernel_base_classes):
             PHI_INIT_SPAWNED = 0.25  # LINEAR regime floor
             KAPPA_INIT_SPAWNED = KAPPA_STAR  # Validated fixed point
         
-        self.autonomic.initialize_for_spawned_kernel(
-            initial_phi=PHI_INIT_SPAWNED,  # 0.25 - start in LINEAR regime
-            initial_kappa=KAPPA_INIT_SPAWNED,  # KAPPA_STAR - start at fixed point
-            dopamine=0.5,  # Baseline motivation
-            serotonin=0.5,  # Baseline stability
-            stress=0.0,  # No initial stress
-            enable_running_coupling=True,  # Allow κ to evolve during training
-        )
+        # Initialize this kernel's state (NOT the shared autonomic singleton)
+        self.phi = PHI_INIT_SPAWNED  # 0.25 - start in LINEAR regime
+        self.kappa = KAPPA_INIT_SPAWNED  # KAPPA_STAR - start at fixed point
+        self.dopamine = 0.5  # Baseline motivation
+        self.serotonin = 0.5  # Baseline stability
+        self.stress = 0.0  # No initial stress
 
         # NEW: Initialize emotional awareness for geometric emotion tracking
         if EMOTIONAL_KERNEL_AVAILABLE and EmotionallyAwareKernel is not None:

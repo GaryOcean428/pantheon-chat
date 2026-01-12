@@ -460,8 +460,9 @@ class SelfObserver:
                 # Training mode has stricter thresholds
                 if "train" in caller_name.lower() or "learn" in caller_name.lower():
                     mode = "training"
-        except:
-            pass  # Default to generation if detection fails
+        except Exception:
+            # Default to generation if detection fails; swallow only non-critical errors
+            logger.debug("SelfObserver: failed to infer mode from call stack; defaulting to 'generation'")
         # Skip emergency stop for first 20 tokens - insufficient history for accurate assessment
         # Early tokens often have unstable Φ readings due to lack of context
         MIN_TOKENS_FOR_EMERGENCY_STOP = 20
