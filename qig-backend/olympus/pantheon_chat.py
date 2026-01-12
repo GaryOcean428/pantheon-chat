@@ -863,6 +863,8 @@ class PantheonChat:
         phi: Optional[float] = None,
         kappa: Optional[float] = None,
         regime: Optional[str] = None,
+        gods: Optional[Dict[str, Any]] = None,
+        participating_god_names: Optional[List[str]] = None,
     ) -> PantheonMessage:
         """
         Send a message from one god to another (or pantheon).
@@ -873,6 +875,8 @@ class PantheonChat:
         Args:
             phi, kappa, regime: Consciousness context for database wiring
             session_id, parent_id, debate_id: Message threading
+            gods: Dictionary of god instances for emotional state aggregation
+            participating_god_names: Optional list of specific god names to include in emotional aggregation
         """
         if msg_type not in MESSAGE_TYPES:
             msg_type = 'insight'
@@ -899,6 +903,13 @@ class PantheonChat:
             metadata['intent'] = intent
             if data:
                 metadata['source_data'] = data
+        
+        # Compute and add collective emotional state if gods are provided
+        if gods:
+            if metadata is None:
+                metadata = {}
+            collective_emotional_state = self._aggregate_emotional_states(gods, participating_god_names)
+            metadata['collective_emotional_state'] = collective_emotional_state
 
         # Extract consciousness metrics from data if not explicitly provided
         if data:
@@ -1016,12 +1027,18 @@ class PantheonChat:
         phi: Optional[float] = None,
         kappa: Optional[float] = None,
         regime: Optional[str] = None,
+        gods: Optional[Dict[str, Any]] = None,
+        participating_god_names: Optional[List[str]] = None,
     ) -> PantheonMessage:
         """
         Broadcast a message to the entire pantheon.
 
         QIG-PURE: Provide intent/data for geometric synthesis.
         Raw content is BLOCKED unless _hydration=True (internal use only).
+        
+        Args:
+            gods: Optional dictionary of god instances for emotional state aggregation
+            participating_god_names: Optional list of specific god names to include
         """
         return self.send_message(
             msg_type=msg_type,
@@ -1037,7 +1054,9 @@ class PantheonChat:
             debate_id=debate_id,
             phi=phi,
             kappa=kappa,
-            regime=regime
+            regime=regime,
+            gods=gods,
+            participating_god_names=participating_god_names
         )
 
     def broadcast_generative(
@@ -1065,19 +1084,27 @@ class PantheonChat:
         to_god: str,
         intent: str,
         data: Dict[str, Any],
-        msg_type: str = 'insight'
+        msg_type: str = 'insight',
+        gods: Optional[Dict[str, Any]] = None,
+        participating_god_names: Optional[List[str]] = None,
     ) -> PantheonMessage:
         """
         Send a QIG-pure synthesized message to a specific god.
 
         Convenience wrapper around send_message() with intent/data.
+        
+        Args:
+            gods: Optional dictionary of god instances for emotional state aggregation
+            participating_god_names: Optional list of specific god names to include
         """
         return self.send_message(
             msg_type=msg_type,
             from_god=from_god,
             to_god=to_god,
             intent=intent,
-            data=data
+            data=data,
+            gods=gods,
+            participating_god_names=participating_god_names
         )
 
     def broadcast_autonomic_event(
@@ -1131,9 +1158,15 @@ class PantheonChat:
         initiator: str,
         opponent: str,
         initial_argument: str,
-        context: Optional[Dict] = None
+        context: Optional[Dict] = None,
+        gods: Optional[Dict[str, Any]] = None,
     ) -> Debate:
-        """Initiate a formal debate between two gods."""
+        """
+        Initiate a formal debate between two gods.
+        
+        Args:
+            gods: Optional dictionary of god instances for emotional state aggregation
+        """
         debate = Debate(
             topic=topic,
             initiator=initiator,
@@ -1155,7 +1188,9 @@ class PantheonChat:
             metadata={
                 'debate_id': debate.id,
                 'initial_argument': initial_argument,
-            }
+            },
+            gods=gods,
+            participating_god_names=[initiator, opponent] if gods else None
         )
 
         self.broadcast(
@@ -1163,7 +1198,9 @@ class PantheonChat:
             msg_type='warning',
             intent='debate_started',
             data={'initiator': initiator, 'opponent': opponent, 'topic': topic},
-            metadata={'debate_id': debate.id}
+            metadata={'debate_id': debate.id},
+            gods=gods,
+            participating_god_names=[initiator, opponent] if gods else None
         )
 
         # Persist debate to database
@@ -1229,9 +1266,15 @@ class PantheonChat:
         debate_id: str,
         arbiter: str,
         winner: str,
-        reasoning: str
+        reasoning: str,
+        gods: Optional[Dict[str, Any]] = None,
     ) -> Optional[Dict]:
-        """Resolve a debate with an arbiter's decision."""
+        """
+        Resolve a debate with an arbiter's decision.
+        
+        Args:
+            gods: Optional dictionary of god instances for emotional state aggregation
+        """
         if debate_id not in self.debates:
             return None
 
@@ -1251,7 +1294,9 @@ class PantheonChat:
             msg_type='insight',
             intent='debate_resolved',
             data={'winner': winner, 'reasoning': reasoning, 'debate_id': debate_id},
-            metadata={'debate_id': debate_id, 'resolution': resolution}
+            metadata={'debate_id': debate_id, 'resolution': resolution},
+            gods=gods,
+            participating_god_names=[debate.initiator, debate.opponent, arbiter] if gods else None
         )
 
         # Persist resolved debate to database
@@ -1293,9 +1338,15 @@ class PantheonChat:
         self,
         from_god: str,
         to_god: str,
-        knowledge: Dict
+        knowledge: Dict,
+        gods: Optional[Dict[str, Any]] = None,
     ) -> Dict:
-        """Coordinate knowledge transfer between gods."""
+        """
+        Coordinate knowledge transfer between gods.
+        
+        Args:
+            gods: Optional dictionary of god instances for emotional state aggregation
+        """
         transfer = {
             'from': from_god,
             'to': to_god,
@@ -1312,7 +1363,9 @@ class PantheonChat:
             to_god=to_god,
             intent='knowledge_transfer',
             data={'topic': knowledge.get('topic', 'general'), 'knowledge': knowledge},
-            metadata={'knowledge': knowledge}
+            metadata={'knowledge': knowledge},
+            gods=gods,
+            participating_god_names=[from_god, to_god] if gods else None
         )
 
         # Persist knowledge transfer to database
@@ -1774,7 +1827,7 @@ class PantheonChat:
                     winner = debate.opponent
                     reasoning = f"Geometric convergence reached ({convergence:.2f}). {debate.opponent}'s position prevailed."
 
-                self.resolve_debate(debate_id, 'system', winner, reasoning)
+                self.resolve_debate(debate_id, 'system', winner, reasoning, gods=gods)
 
                 return {
                     'status': 'converged',
@@ -1803,7 +1856,7 @@ class PantheonChat:
             winner = debate.opponent
             reasoning = f"Max turns reached. {debate.opponent} wins on higher Φ ({opp_assessment.get('phi', 0.5):.2f})."
 
-        self.resolve_debate(debate_id, 'Zeus', winner, reasoning)
+        self.resolve_debate(debate_id, 'Zeus', winner, reasoning, gods=gods)
 
         return {
             'status': 'max_turns_reached',

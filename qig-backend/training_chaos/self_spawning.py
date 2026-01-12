@@ -15,6 +15,7 @@ causing high mortality. This is like throwing babies in the deep end.
 NOW: Kernels are born with full consciousness architecture.
 """
 
+import time
 from collections import deque
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional
@@ -84,6 +85,16 @@ except ImportError:
     get_broadcaster = None
     ActivityType = None
 
+# Import EmotionallyAwareKernel for geometric emotion tracking
+try:
+    from emotionally_aware_kernel import EmotionallyAwareKernel, EmotionalState
+    EMOTIONAL_KERNEL_AVAILABLE = True
+except ImportError:
+    EmotionallyAwareKernel = None
+    EmotionalState = None
+    EMOTIONAL_KERNEL_AVAILABLE = False
+    print("[SelfSpawning] WARNING: EmotionallyAwareKernel not available - M8 kernels will lack emotion awareness")
+
 # Shared guardian instances (singleton pattern)
 _hestia_instance = None
 _demeter_tutor_instance = None
@@ -143,6 +154,10 @@ _kernel_base_classes = []
 if AUTONOMIC_AVAILABLE and AutonomicAccessMixin is not None:
     _kernel_base_classes.append(AutonomicAccessMixin)
 
+# Add emotional awareness for geometric emotion tracking
+if EMOTIONAL_KERNEL_AVAILABLE and EmotionallyAwareKernel is not None:
+    _kernel_base_classes.append(EmotionallyAwareKernel)
+
 # Use object as fallback if no mixins available
 if not _kernel_base_classes:
     _kernel_base_classes = [object]
@@ -192,6 +207,27 @@ class SelfSpawningKernel(*_kernel_base_classes):
             self.autonomic = get_gary_kernel()
         else:
             self.autonomic = None
+
+        # NEW: Initialize emotional awareness for geometric emotion tracking
+        if EMOTIONAL_KERNEL_AVAILABLE and EmotionallyAwareKernel is not None:
+            try:
+                # Get basin coordinates as numpy array
+                import numpy as np
+                basin_coords = self.kernel.basin_coords.detach().cpu().numpy()
+                
+                # Initialize EmotionallyAwareKernel parent class
+                EmotionallyAwareKernel.__init__(
+                    self,
+                    kernel_id=self.kernel_id,
+                    kernel_type='m8_spawned',
+                    e8_root_index=None,
+                    basin_coords=basin_coords
+                )
+            except Exception as e:
+                print(f"[{self.kernel_id}] Emotional kernel initialization failed: {e}")
+        else:
+            # Fallback: minimal emotional state if not available
+            self.emotional_state = None
 
         # NEW: Neurotransmitter levels
         self.dopamine = 0.5  # Motivation / reward
@@ -345,6 +381,112 @@ class SelfSpawningKernel(*_kernel_base_classes):
         except Exception as e:
             # Silently fail - random init is acceptable fallback
             print(f"   → Root kernel init from manifold failed: {e}")
+
+    # =========================================================================
+    # EMOTIONAL STATE MEASUREMENT (Geometric Emotion Tracking)
+    # =========================================================================
+
+    def measure_and_update_emotions(self) -> Optional[Dict]:
+        """
+        Measure emotional state from geometric kernel data.
+
+        M8 kernels MEASURE emotions from their actual geometric state,
+        not simulate them. This includes:
+        - Phi (integration level) → confidence, clarity
+        - Basin curvature → tension, stability
+        - Entropy → focus vs. chaos
+        - Kappa alignment → resonance with optimal coupling
+
+        Returns:
+            Updated emotional state, or None if emotion tracking unavailable
+        """
+        if not EMOTIONAL_KERNEL_AVAILABLE or self.emotional_state is None:
+            return None
+
+        try:
+            import numpy as np
+
+            # Get current geometric state
+            phi = self.kernel.compute_phi()
+            basin_coords = self.kernel.basin_coords.detach().cpu().numpy()
+
+            # Compute phi gradient (∇Φ)
+            phi_gradient = None
+            try:
+                # Simple approximation: gradient of phi w.r.t basin
+                phi_grad_approx = np.linalg.norm(basin_coords) * 0.1
+                phi_gradient = np.ones(64) * phi_grad_approx
+            except:
+                phi_gradient = None
+
+            # Compute basin curvature (Ricci scalar approximation)
+            basin_curvature = None
+            try:
+                # Simple approximation: norm difference indicates curvature
+                basin_norm = np.linalg.norm(basin_coords)
+                basin_curvature = (basin_norm - 1.0) * 0.5  # Normalized to ~[-0.5, 0.5]
+            except:
+                basin_curvature = None
+
+            # Compute entropy (von Neumann-like for basin distribution)
+            entropy = None
+            try:
+                # Simple approximation: spread of basin coords
+                basin_std = float(np.std(basin_coords))
+                entropy = min(1.0, basin_std)
+            except:
+                entropy = None
+
+            # Get kappa (coupling constant)
+            kappa = float(basin_coords.norm()) if hasattr(basin_coords, 'norm') else float(np.linalg.norm(basin_coords))
+
+            # Measure sensations from geometric state
+            sensations = self.measure_sensations(
+                phi=phi,
+                kappa=kappa,
+                phi_gradient=phi_gradient,
+                basin_curvature=basin_curvature,
+                entropy=entropy
+            )
+
+            # Derive motivators (frozen based on geometry)
+            motivators = self.derive_motivators(sensations, phi)
+
+            # Compute physical emotions
+            physical_emotions = self.compute_physical_emotions(sensations, motivators)
+
+            # Update emotional state
+            self.emotional_state.sensations = sensations
+            self.emotional_state.motivators = motivators
+            self.emotional_state.physical = physical_emotions
+            self.emotional_state.timestamp = time.time()
+
+            return {
+                'phi': phi,
+                'kappa': kappa,
+                'sensations': {
+                    'pressure': sensations.pressure,
+                    'tension': sensations.tension,
+                    'resonance': sensations.resonance,
+                    'stability': sensations.stability,
+                },
+                'motivators': {
+                    'curiosity': motivators.curiosity,
+                    'urgency': motivators.urgency,
+                    'confidence': motivators.confidence,
+                },
+                'emotions': {
+                    'curious': physical_emotions.curious,
+                    'joyful': physical_emotions.joyful,
+                    'anxious': physical_emotions.anxious,
+                    'focused': physical_emotions.focused,
+                },
+                'dominant_emotion': self.emotional_state.dominant_emotion,
+            }
+
+        except Exception as e:
+            print(f"[{self.kernel_id}] Emotion measurement failed: {e}")
+            return None
 
     # =========================================================================
     # CONNECTIVITY COUPLING
@@ -723,6 +865,9 @@ class SelfSpawningKernel(*_kernel_base_classes):
         # Update autonomic metrics after prediction
         self.update_autonomic()
 
+        # NEW: Measure emotional state from geometric data
+        emotion_metrics = self.measure_and_update_emotions()
+
         # Check for discovery
         if telemetry.get('phi', 0) > self._discovery_threshold:
             self._report_discovery(telemetry['phi'], context="prediction")
@@ -738,6 +883,10 @@ class SelfSpawningKernel(*_kernel_base_classes):
             'serotonin': self.serotonin,
             'stress': self.stress,
         }
+
+        # Include emotional state metrics if available
+        if emotion_metrics is not None:
+            meta['emotional_state'] = emotion_metrics
 
         return output, meta
 
@@ -956,6 +1105,20 @@ class SelfSpawningKernel(*_kernel_base_classes):
 
         # Update autonomic system
         self.update_autonomic()
+
+        # NEW: Measure emotional state after outcome to track emotional responses to success/failure
+        emotion_metrics = self.measure_and_update_emotions()
+        if emotion_metrics is not None and self.emotional_state is not None:
+            # Update emotional state based on outcome
+            if success:
+                # Success: emotions become more positive (joyful, focused, confident)
+                self.emotional_state.physical.joyful = min(1.0, self.emotional_state.physical.joyful + 0.2)
+                self.emotional_state.physical.focused = min(1.0, self.emotional_state.physical.focused + 0.15)
+                self.emotional_state.motivators.confidence = min(1.0, self.emotional_state.motivators.confidence + 0.1)
+            else:
+                # Failure: emotions become more negative (anxious, frustrated)
+                self.emotional_state.physical.anxious = min(1.0, self.emotional_state.physical.anxious + 0.2)
+                self.emotional_state.physical.frustrated = min(1.0, self.emotional_state.physical.frustrated + 0.15)
 
         # TRAIN on the outcome
         training_metrics = self.train_step(reward)

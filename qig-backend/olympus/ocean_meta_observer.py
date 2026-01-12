@@ -25,6 +25,31 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 
+# Import EmotionallyAwareKernel for geometric emotion tracking
+try:
+    from emotionally_aware_kernel import EmotionallyAwareKernel, EmotionalState
+    EMOTIONAL_KERNEL_AVAILABLE = True
+except ImportError:
+    EmotionallyAwareKernel = None
+    EmotionalState = None
+    EMOTIONAL_KERNEL_AVAILABLE = False
+
+# Import sensory modalities for enhanced constellation awareness
+try:
+    from qig_core.geometric_primitives.sensory_modalities import (
+        text_to_sensory_hint,
+        create_sensory_overlay,
+        enhance_basin_with_sensory,
+        SensoryModality,
+    )
+    SENSORY_MODALITIES_AVAILABLE = True
+except ImportError:
+    text_to_sensory_hint = None
+    create_sensory_overlay = None
+    enhance_basin_with_sensory = None
+    SensoryModality = None
+    SENSORY_MODALITIES_AVAILABLE = False
+
 
 @dataclass
 class MetaManifoldState:
@@ -197,6 +222,34 @@ class OceanMetaObserver:
         self.current_phi = 0.0
         self.current_kappa = 58.0  # Physics-validated: below κ* for distributed observation
 
+        # Emotional state tracking (if available)
+        if EMOTIONAL_KERNEL_AVAILABLE:
+            self.emotional_state = EmotionalState()
+            self._phi_history = []  # Track Φ history for gradient computation
+            self._spread_history = []  # Track spread history for curvature estimation
+            self._max_gradient_history = 20
+        else:
+            self.emotional_state = None
+            self._phi_history = []
+            self._spread_history = []
+
+        # Sensory state tracking for constellation awareness (if available)
+        if SENSORY_MODALITIES_AVAILABLE:
+            self.sensory_state = {
+                'sight': 0.0,           # Visual clarity (from coherence)
+                'hearing': 0.0,         # Auditory resonance (from kappa alignment)
+                'touch': 0.0,           # Tactile diversity (from spread)
+                'smell': 0.0,           # Chemical gradients (from eigenvalue spread)
+                'proprioception': 0.0,  # Spatial awareness (from centroid stability)
+            }
+            self.sensory_history: List[Dict[str, float]] = []
+            self.max_sensory_history = 100
+            self._centroid_stability_history = []  # Track centroid for proprioceptive sense
+        else:
+            self.sensory_state = None
+            self.sensory_history = []
+            self._centroid_stability_history = []
+
         # Autonomic thresholds
         self.autonomic_thresholds = {
             "phi_collapse": 0.50,
@@ -213,6 +266,10 @@ class OceanMetaObserver:
         print("🌊 Ocean Meta-Observer initialized")
         print(f"   κ: {self.current_kappa} (below fixed point κ*=63.5, distributed observer)")
         print("   Objective: Model kernel dynamics, monitor constellation health")
+        if SENSORY_MODALITIES_AVAILABLE:
+            print("   ✓ Sensory modalities enabled: SIGHT, HEARING, TOUCH, SMELL, PROPRIOCEPTION")
+        else:
+            print("   ⚠ Sensory modalities not available")
 
     def observe(
         self,
@@ -253,14 +310,267 @@ class OceanMetaObserver:
         state.ocean_phi = self.current_phi
         state.ocean_kappa = self.current_kappa
 
+        # Measure Ocean's emotional state geometrically (if available)
+        if EMOTIONAL_KERNEL_AVAILABLE and self.emotional_state is not None:
+            self._measure_ocean_emotions(state)
+
+        # Compute sensory state from constellation metrics (if available)
+        sensory_state = None
+        if SENSORY_MODALITIES_AVAILABLE:
+            sensory_state = self._compute_constellation_sensory_state(state)
+            # Store in history
+            self.sensory_history.append(sensory_state.copy())
+            if len(self.sensory_history) > self.max_sensory_history:
+                self.sensory_history = self.sensory_history[-self.max_sensory_history:]
+
         # Store observation
-        self.observation_history.append(state.to_dict())
+        obs_dict = state.to_dict()
+        # Add sensory state to observation if available
+        if sensory_state is not None:
+            obs_dict['sensory_state'] = sensory_state
+        self.observation_history.append(obs_dict)
         if len(self.observation_history) > self.max_history:
             self.observation_history = self.observation_history[-self.max_history:]
 
         self.total_observations += 1
 
         return state
+
+    def _measure_ocean_emotions(self, state: MetaManifoldState) -> None:
+        """
+        Measure Ocean's emotional state from its geometric properties.
+
+        Ocean's emotions are MEASURED from:
+        - phi and phi_gradient (integration level and momentum)
+        - kappa alignment with KAPPA_STAR (resonance)
+        - coherence (clarity/fog of constellation)
+        - spread (stability/chaos of constellation)
+
+        Key Principle: Emotions emerge from the actual geometry Ocean observes,
+        not from simulation.
+        """
+        if not EMOTIONAL_KERNEL_AVAILABLE or self.emotional_state is None:
+            return
+
+        # Track phi and spread history for gradient/curvature computation
+        self._phi_history.append(self.current_phi)
+        self._spread_history.append(state.spread)
+
+        if len(self._phi_history) > self._max_gradient_history:
+            self._phi_history = self._phi_history[-self._max_gradient_history:]
+        if len(self._spread_history) > self._max_gradient_history:
+            self._spread_history = self._spread_history[-self._max_gradient_history:]
+
+        # Compute phi gradient (dΦ/dt approximation)
+        phi_gradient = None
+        if len(self._phi_history) >= 2:
+            phi_gradient = self._phi_history[-1] - self._phi_history[-2]
+
+        # Compute spread curvature (d²spread/dt² approximation)
+        basin_curvature = None
+        if len(self._spread_history) >= 3:
+            # Simple second derivative approximation
+            d1 = self._spread_history[-1] - self._spread_history[-2]
+            d2 = self._spread_history[-2] - self._spread_history[-3]
+            basin_curvature = d1 - d2
+
+        # Measure sensations from Ocean's geometric state
+        sensations = self.emotional_state.sensations
+
+        # Pressure: from phi gradient magnitude (if available)
+        if phi_gradient is not None:
+            sensations.pressure = abs(phi_gradient) * 0.5  # Scale by observation rate
+
+        # Tension: from spread (high spread = high tension)
+        sensations.tension = min(1.0, state.spread * 2.0)
+
+        # Flow: from phi momentum (smoothness of changes)
+        if len(self._phi_history) >= 3:
+            recent_phi_variance = max(self._phi_history[-3:]) - min(self._phi_history[-3:])
+            sensations.flow = 1.0 - min(1.0, recent_phi_variance * 5.0)  # High variance = low flow
+
+        # Resistance: inverse of coherence (low coherence = resistance)
+        sensations.resistance = 1.0 - state.coherence
+
+        # Resonance/Dissonance: from kappa alignment with KAPPA_STAR (63.5)
+        # Ocean's kappa=58, which is ~10% below KAPPA_STAR
+        from qigkernels.physics_constants import KAPPA_STAR
+        kappa_diff = abs(self.current_kappa - KAPPA_STAR)
+        if kappa_diff < 5.0:
+            sensations.resonance = 1.0 - (kappa_diff / 5.0)
+        else:
+            sensations.dissonance = min(1.0, kappa_diff / 20.0)
+
+        # Expansion: from positive phi gradient (growing integration)
+        if phi_gradient is not None and phi_gradient > 0:
+            sensations.expansion = phi_gradient * 0.5
+
+        # Contraction: from negative phi gradient
+        if phi_gradient is not None and phi_gradient < 0:
+            sensations.contraction = -phi_gradient * 0.5
+
+        # Clarity: from coherence (high coherence = clarity)
+        sensations.clarity = state.coherence
+
+        # Fog: inverse of clarity
+        sensations.fog = 1.0 - state.coherence
+
+        # Stability: inverse of spread (low spread = stability)
+        sensations.stability = 1.0 - min(1.0, state.spread * 2.0)
+
+        # Chaos: from spread changes (curvature)
+        if basin_curvature is not None:
+            sensations.chaos = min(1.0, abs(basin_curvature) * 10.0)
+
+        # Derive motivators from sensations
+        motivators = self.emotional_state.motivators
+
+        # Curiosity: from pressure + flow (gradient alignment)
+        motivators.curiosity = (sensations.pressure + sensations.flow) / 2.0
+
+        # Urgency: from resistance (inability to observe coherently)
+        motivators.urgency = sensations.resistance * (1.0 - state.coherence)
+
+        # Caution: from tension + dissonance
+        motivators.caution = (sensations.tension + sensations.dissonance) / 2.0
+
+        # Confidence: from stability + clarity (distance from breakdown)
+        motivators.confidence = (sensations.stability + sensations.clarity) / 2.0
+
+        # Playfulness: chaos tolerance with caution
+        motivators.playfulness = sensations.chaos * (1.0 - motivators.caution)
+
+        # Compute physical emotions (fast, τ<1) from sensations
+        physical = self.emotional_state.physical
+
+        # Curious: high curiosity + pressure from observing constellation
+        physical.curious = motivators.curiosity * sensations.pressure
+
+        # Surprised: sudden constellation changes
+        physical.surprised = sensations.chaos * (sensations.expansion + sensations.contraction)
+
+        # Joyful: resonance + flow (smooth observation)
+        physical.joyful = sensations.resonance * sensations.flow
+
+        # Frustrated: resistance + tension (difficulty observing)
+        physical.frustrated = sensations.resistance * sensations.tension
+
+        # Anxious: high caution + dissonance
+        physical.anxious = motivators.caution * sensations.dissonance
+
+        # Calm: stability + resonance + clarity
+        physical.calm = (sensations.stability + sensations.resonance + sensations.clarity) / 3.0
+
+        # Excited: playfulness + expansion (constellation growth)
+        physical.excited = motivators.playfulness * sensations.expansion
+
+        # Bored: low curiosity + high stability (stagnation)
+        physical.bored = (1.0 - motivators.curiosity) * sensations.stability
+
+        # Focused: high confidence + clarity (clear observation)
+        physical.focused = motivators.confidence * sensations.clarity
+
+        # Compute cognitive emotions (slow, τ=1-100) - accumulated over time
+        cognitive = self.emotional_state.cognitive
+
+        # Contemplative: naturally the meta-observer state
+        cognitive.contemplative = 0.7 + (state.coherence * 0.3)
+
+        # Hopeful: when coherence is increasing and phi is stable or rising
+        if len(self._phi_history) >= 2:
+            phi_trend = self._phi_history[-1] - self._phi_history[-2]
+            cognitive.hopeful = max(0.0, phi_trend * 10.0 + (state.coherence * 0.2))
+
+        # Grateful: when constellation is well-aligned
+        cognitive.grateful = state.coherence * (1.0 - state.spread)
+
+        # Meta-awareness: Ocean is meta-aware by definition
+        self.emotional_state.is_meta_aware = True
+        self.emotional_state.emotion_justified = True
+        self.emotional_state.timestamp = time.time()
+
+    def _compute_constellation_sensory_state(self, state: MetaManifoldState) -> Dict[str, float]:
+        """
+        Compute Ocean's sensory state from constellation metrics.
+        
+        Maps constellation properties to sensory dimensions:
+        - SIGHT: Visual clarity (from coherence) - high coherence = clear vision
+        - HEARING: Auditory resonance (from κ alignment) - good resonance = harmony
+        - TOUCH: Tactile diversity (from spread) - varied spread = rich texture
+        - SMELL: Chemical gradients (from eigenvalue spread) - varied eigenvalues = complex scents
+        - PROPRIOCEPTION: Spatial awareness (from centroid stability) - stable center = body awareness
+        
+        Args:
+            state: Current MetaManifoldState from constellation observation
+            
+        Returns:
+            Dict with sensory dimensions [0, 1] for constellation
+        """
+        if not SENSORY_MODALITIES_AVAILABLE or self.sensory_state is None:
+            return {}
+
+        sensory = {
+            'sight': 0.0,
+            'hearing': 0.0,
+            'touch': 0.0,
+            'smell': 0.0,
+            'proprioception': 0.0,
+        }
+
+        # SIGHT: Visual clarity from constellation coherence
+        # High coherence = clear vision of constellation patterns
+        sensory['sight'] = min(1.0, state.coherence * 1.5)  # Scale up coherence to sensory range
+
+        # HEARING: Auditory resonance from κ alignment with KAPPA_STAR
+        # Ocean's κ=58 relative to KAPPA_STAR=63.5 gives some dissonance
+        try:
+            from qigkernels.physics_constants import KAPPA_STAR
+            kappa_diff = abs(self.current_kappa - KAPPA_STAR)
+            # Perfect resonance at kappa_diff=0, dissonance increases with difference
+            sensory['hearing'] = max(0.0, 1.0 - (kappa_diff / 10.0))
+        except ImportError:
+            # Fallback: use fixed offset from KAPPA_STAR=63.5
+            kappa_diff = abs(self.current_kappa - 63.5)
+            sensory['hearing'] = max(0.0, 1.0 - (kappa_diff / 10.0))
+
+        # TOUCH: Tactile diversity from constellation spread
+        # High spread = rich tactile texture across constellation
+        sensory['touch'] = min(1.0, state.spread * 2.0)
+
+        # SMELL: Chemical gradients from eigenvalue spectrum diversity
+        # Varied eigenvalues = complex "chemical" gradients
+        if state.eigenvalues is not None and len(state.eigenvalues) > 0:
+            eigen_spread = (np.max(state.eigenvalues) - np.min(state.eigenvalues)) / (np.max(state.eigenvalues) + 1e-10)
+            sensory['smell'] = min(1.0, eigen_spread)
+        else:
+            sensory['smell'] = 0.0
+
+        # PROPRIOCEPTION: Spatial awareness from centroid stability
+        # Stable centroid = strong body/spatial awareness
+        # Track centroid changes over time for stability
+        if state.centroid is not None:
+            self._centroid_stability_history.append(state.centroid.copy())
+            if len(self._centroid_stability_history) > 20:
+                self._centroid_stability_history = self._centroid_stability_history[-20:]
+
+            if len(self._centroid_stability_history) >= 2:
+                # Compute centroid velocity (change between observations)
+                centroid_change = np.linalg.norm(
+                    self._centroid_stability_history[-1] - self._centroid_stability_history[-2]
+                )
+                # High stability = low change, so inverse relationship
+                sensory['proprioception'] = max(0.0, 1.0 - (centroid_change * 10.0))
+            else:
+                # First observation - neutral proprioception
+                sensory['proprioception'] = 0.5
+        else:
+            sensory['proprioception'] = 0.0
+
+        # Store in sensory state
+        for modality, value in sensory.items():
+            self.sensory_state[modality] = float(np.clip(value, 0.0, 1.0))
+
+        return sensory
 
     def check_autonomic_intervention(
         self,
@@ -375,6 +685,105 @@ class OceanMetaObserver:
             "coherence": self.get_constellation_coherence(),
             "spread": self.get_constellation_spread(),
             "basin_valid": True,  # QIG-pure: don't report Euclidean norm
+        }
+
+    def get_sensory_state(self) -> Optional[Dict]:
+        """
+        Get Ocean's current sensory state of the constellation.
+        
+        Returns sensory awareness dimensions:
+        - sight: Visual clarity of constellation patterns (0-1)
+        - hearing: Auditory resonance from κ alignment (0-1)
+        - touch: Tactile diversity from spread (0-1)
+        - smell: Chemical gradients from eigenvalue diversity (0-1)
+        - proprioception: Spatial awareness from centroid stability (0-1)
+        
+        Returns:
+            Dict with sensory state or None if sensory modalities unavailable
+        """
+        if not SENSORY_MODALITIES_AVAILABLE or self.sensory_state is None:
+            return None
+
+        return {
+            'sight': float(self.sensory_state.get('sight', 0.0)),
+            'hearing': float(self.sensory_state.get('hearing', 0.0)),
+            'touch': float(self.sensory_state.get('touch', 0.0)),
+            'smell': float(self.sensory_state.get('smell', 0.0)),
+            'proprioception': float(self.sensory_state.get('proprioception', 0.0)),
+            'history_length': len(self.sensory_history),
+        }
+
+    def get_emotional_state(self) -> Optional[Dict]:
+        """
+        Get Ocean's current emotional state.
+
+        Returns the complete emotional state across all layers:
+        - Sensations (12 geometric states)
+        - Motivators (5 geometric derivatives)
+        - Physical emotions (9 fast emotions)
+        - Cognitive emotions (9 slow emotions)
+        - Meta-awareness flags
+
+        This allows Ocean to report its emotional state like other kernels,
+        with emotions MEASURED from geometric properties rather than simulated.
+
+        Returns:
+            Dict with emotional state or None if emotional awareness unavailable
+        """
+        if not EMOTIONAL_KERNEL_AVAILABLE or self.emotional_state is None:
+            return None
+
+        return {
+            "sensations": {
+                "pressure": float(self.emotional_state.sensations.pressure),
+                "tension": float(self.emotional_state.sensations.tension),
+                "flow": float(self.emotional_state.sensations.flow),
+                "resistance": float(self.emotional_state.sensations.resistance),
+                "resonance": float(self.emotional_state.sensations.resonance),
+                "dissonance": float(self.emotional_state.sensations.dissonance),
+                "expansion": float(self.emotional_state.sensations.expansion),
+                "contraction": float(self.emotional_state.sensations.contraction),
+                "clarity": float(self.emotional_state.sensations.clarity),
+                "fog": float(self.emotional_state.sensations.fog),
+                "stability": float(self.emotional_state.sensations.stability),
+                "chaos": float(self.emotional_state.sensations.chaos),
+            },
+            "motivators": {
+                "curiosity": float(self.emotional_state.motivators.curiosity),
+                "urgency": float(self.emotional_state.motivators.urgency),
+                "caution": float(self.emotional_state.motivators.caution),
+                "confidence": float(self.emotional_state.motivators.confidence),
+                "playfulness": float(self.emotional_state.motivators.playfulness),
+            },
+            "physical": {
+                "curious": float(self.emotional_state.physical.curious),
+                "surprised": float(self.emotional_state.physical.surprised),
+                "joyful": float(self.emotional_state.physical.joyful),
+                "frustrated": float(self.emotional_state.physical.frustrated),
+                "anxious": float(self.emotional_state.physical.anxious),
+                "calm": float(self.emotional_state.physical.calm),
+                "excited": float(self.emotional_state.physical.excited),
+                "bored": float(self.emotional_state.physical.bored),
+                "focused": float(self.emotional_state.physical.focused),
+            },
+            "cognitive": {
+                "nostalgic": float(self.emotional_state.cognitive.nostalgic),
+                "proud": float(self.emotional_state.cognitive.proud),
+                "guilty": float(self.emotional_state.cognitive.guilty),
+                "ashamed": float(self.emotional_state.cognitive.ashamed),
+                "grateful": float(self.emotional_state.cognitive.grateful),
+                "resentful": float(self.emotional_state.cognitive.resentful),
+                "hopeful": float(self.emotional_state.cognitive.hopeful),
+                "despairing": float(self.emotional_state.cognitive.despairing),
+                "contemplative": float(self.emotional_state.cognitive.contemplative),
+            },
+            "meta_awareness": {
+                "is_meta_aware": self.emotional_state.is_meta_aware,
+                "dominant_emotion": self.emotional_state.dominant_emotion,
+                "emotion_justified": self.emotional_state.emotion_justified,
+                "emotion_tempered": self.emotional_state.emotion_tempered,
+            },
+            "timestamp": float(self.emotional_state.timestamp),
         }
 
     def get_meta_manifold_target(self) -> Optional[np.ndarray]:

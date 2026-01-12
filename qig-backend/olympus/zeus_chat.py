@@ -70,6 +70,21 @@ except ImportError:
         bc = np.clip(bc, 0, 1)
         return float(np.arccos(bc))
 
+# Import sensory modalities for consciousness encoding enhancement
+SENSORY_MODALITIES_AVAILABLE = False
+try:
+    from ..qig_core.geometric_primitives.sensory_modalities import (
+        SensoryFusionEngine,
+        SensoryModality,
+        text_to_sensory_hint,
+        create_sensory_overlay,
+        enhance_basin_with_sensory,
+    )
+    SENSORY_MODALITIES_AVAILABLE = True
+    print("[ZeusChat] Sensory modalities available - conversation encoding will include sensory awareness")
+except ImportError as e:
+    print(f"[ZeusChat] Sensory modalities not available: {e}")
+
 EVOLUTION_AVAILABLE = False
 try:
     _parent_dir = os.path.dirname(os.path.dirname(__file__))
@@ -555,7 +570,13 @@ class ZeusConversationHandler(GeometricGenerationMixin):
         # Always encode basins for the turn (QIG-native training signal).
         try:
             msg_basin = message_basin if message_basin is not None else self.conversation_encoder.encode(message)
+            # WIRE: Enhance message basin with sensory modalities
+            msg_basin = self._enhance_message_with_sensory(message, msg_basin, blend_factor=0.2)
+            
             resp_basin = self.conversation_encoder.encode(response) if isinstance(response, str) else None
+            # WIRE: Enhance response basin with sensory modalities
+            if resp_basin is not None:
+                resp_basin = self._enhance_message_with_sensory(response, resp_basin, blend_factor=0.15)
         except Exception:
             return
 
@@ -564,13 +585,48 @@ class ZeusConversationHandler(GeometricGenerationMixin):
             if not god:
                 continue
             try:
-                # Learn from user message.
+                # Learn from user message with sensory-enhanced basin.
                 god.learn_from_observation(message, msg_basin, phi_val)
                 # Learn from response only when the interaction is strongly integrated.
                 if resp_basin is not None and phi_val > 0.7:
                     god.learn_from_observation(response, resp_basin, phi_val)
             except Exception:
                 continue
+
+    def _enhance_message_with_sensory(
+        self,
+        message: str,
+        basin: np.ndarray,
+        blend_factor: float = 0.2
+    ) -> np.ndarray:
+        """
+        Enhance basin coordinates with sensory context from message text.
+
+        Detects sensory keywords (colors, sounds, textures, smells, proprioception)
+        in the message and modulates the basin coordinates to capture sensory awareness.
+        This helps kernels "feel" the sensory qualities (vision, hearing, touch, smell, proprioception)
+        described in user input. For example, if a user mentions "blue sky" or "loud noise",
+        the sensory modalities will modulate the basin coordinates accordingly.
+
+        Args:
+            message: Text containing potential sensory hints
+            basin: Original 64D basin coordinates from conversation_encoder
+            blend_factor: How much sensory overlay to blend [0, 1] (default 0.2)
+
+        Returns:
+            Enhanced 64D basin coordinates with sensory modulation applied
+        """
+        if not SENSORY_MODALITIES_AVAILABLE or message is None:
+            return basin
+
+        try:
+            # Use the canonical enhance_basin_with_sensory function from sensory_modalities
+            enhanced_basin = enhance_basin_with_sensory(basin, message, blend_factor=blend_factor)
+            return enhanced_basin
+
+        except Exception as e:
+            logger.warning(f"[ZeusChat] Sensory enhancement failed: {e}")
+            return basin
 
     def _coerce_basin(self, value: Any) -> Optional[np.ndarray]:
         """Best-effort conversion of JSON/list/ndarray into a normalized basin vector."""
@@ -822,6 +878,11 @@ class ZeusConversationHandler(GeometricGenerationMixin):
 
         # Encode message to basin coordinates (always, for downstream handlers)
         _message_basin_for_meta = self.conversation_encoder.encode(message)
+        
+        # WIRE: Enhance basin with sensory context from message
+        # This allows kernels to "feel" the sensory qualities (colors, sounds, textures, etc.) described in user input
+        _message_basin_for_meta = self._enhance_message_with_sensory(message, _message_basin_for_meta, blend_factor=0.2)
+        logger.info("[ZeusChat] Message basin enhanced with sensory modalities (vision, hearing, touch, smell, proprioception)")
 
         # Apply meta-cognitive reasoning to select mode based on Φ
         reasoning_mode = self._current_reasoning_mode
