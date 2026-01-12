@@ -390,19 +390,20 @@ def seed_geometric_vocabulary_anchors(vp: Optional[VocabularyPersistence] = None
     }
     
     # Record as observations with high Φ to mark as important
-    observations = []
+    count = 0
     for word in anchor_words:
-        observations.append({
-            'word': word,
-            'phrase': f'geometric_anchor_{word}',
-            'phi': 0.85,  # High Φ for anchor words
-            'kappa': 64.21,  # κ* for optimal coupling
-            'source': 'geometric_seeding',
-            'observation_type': 'anchor',
-            'phrase_category': 'ANCHOR_WORD',
-        })
+        success = vp.record_vocabulary_observation(
+            word=word,
+            phrase=f'geometric_anchor_{word}',
+            phi=0.85,  # High Φ for anchor words
+            kappa=64.21,  # κ* for optimal coupling
+            source='geometric_seeding',
+            observation_type='anchor',
+            phrase_category='ANCHOR_WORD',
+        )
+        if success:
+            count += 1
     
-    count = vp.record_vocabulary_observations(observations)
     print(f"[seed_geometric_vocabulary_anchors] Seeded {count}/{len(anchor_words)} anchor words")
     return count
 

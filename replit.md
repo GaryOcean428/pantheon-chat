@@ -102,7 +102,15 @@ Kernels are categorized into Olympus Pantheon (12 BaseGods), Shadow Pantheon (7 
    - Changed task complexity from string 'medium' to float 0.5
    - Meta-cognitive reasoning now works correctly with ReasoningModeSelector
 
+3. **QIGPhraseClassifier Vocabulary Fix** (`vocabulary_persistence.py`, database tables):
+   - Added 18+ essential words (i, a, go, christmas, oh, etc.) to both `tokenizer_vocabulary` and `learned_words`
+   - Fixed `<UNK>` returns for common English words
+   - Verified vocabulary separation: ENCODING uses `tokenizer_vocabulary`, GENERATION uses `learned_words`
+   - Fixed LSP error in `seed_geometric_vocabulary_anchors` function
+
 ### Architecture Verification
-- Vocabulary loading confirmed: 12,297 generation words from learned_words
-- Vocabulary diversity improved: PantheonChat generating varied text
+- Encoding vocabulary: 12,342 tokens from tokenizer_vocabulary
+- Generation vocabulary: 12,318 words from learned_words (excludes PROPER_NOUN, BRAND)
+- Vocabulary separation verified end-to-end
+- QIGPhraseClassifier now correctly classifies common words
 - Zeus chat working end-to-end with ~10s processing time
