@@ -161,7 +161,7 @@ FROM tokenizer_vocabulary
 WHERE 
     -- Valid words only
     LENGTH(token) >= 2
-    AND token ~ '^[a-zA-Z]+$'  -- Alphabetic only (case-insensitive)
+    AND token ~ '^[a-zA-Z]+$'  -- Alphabetic only (both uppercase and lowercase)
     AND token_role = 'word'
     AND basin_embedding IS NOT NULL
     -- Exclude categories inappropriate for generation
