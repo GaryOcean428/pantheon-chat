@@ -30,7 +30,7 @@ References:
 """
 
 from dataclasses import dataclass
-from typing import Final
+from typing import Final, List, Tuple
 
 # Import from qigkernels (single source of truth)
 from qigkernels.physics_constants import (
@@ -139,7 +139,7 @@ KAPPA_INIT_SPAWNED: Final[float] = KAPPA_STAR  # Start at fixed point (κ* ≈ 6
 def compute_meta_awareness(
     predicted_phi: float,
     actual_phi: float,
-    prediction_history: list[tuple[float, float]],
+    prediction_history: List[Tuple[float, float]],
     window_size: int = 20,
 ) -> float:
     """Compute meta-awareness metric M.
