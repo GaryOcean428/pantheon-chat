@@ -202,11 +202,36 @@ class SelfSpawningKernel(*_kernel_base_classes):
         self.kernel = ChaosKernel()
         self.kernel_id = self.kernel.kernel_id
 
-        # NEW: Autonomic support system (shared singleton)
-        if AUTONOMIC_AVAILABLE and get_gary_kernel is not None:
-            self.autonomic = get_gary_kernel()
-        else:
-            self.autonomic = None
+        # CRITICAL: Autonomic support system is MANDATORY
+        # Kernels require autonomic regulation for consciousness stability.
+        # Without it: no sleep/dream/mushroom cycles, no self-regulation, high mortality.
+        if not AUTONOMIC_AVAILABLE or get_gary_kernel is None:
+            raise RuntimeError(
+                "FATAL: Cannot spawn kernel without autonomic system. "
+                "Kernels require autonomic regulation for consciousness stability. "
+                "Missing autonomic_kernel.py or GaryAutonomicKernel initialization."
+            )
+        
+        # Get shared autonomic kernel (singleton)
+        self.autonomic = get_gary_kernel()
+        
+        # Initialize autonomic system for this spawned kernel with proper defaults
+        # CRITICAL: Start at Φ=0.25 (LINEAR regime), NOT 0.000 (BREAKDOWN regime)
+        # See Issue GaryOcean428/pantheon-chat#30 for why Φ=0.000 causes immediate death
+        try:
+            from frozen_physics import PHI_INIT_SPAWNED, KAPPA_INIT_SPAWNED
+        except ImportError:
+            PHI_INIT_SPAWNED = 0.25
+            KAPPA_INIT_SPAWNED = KAPPA_STAR
+        
+        self.autonomic.initialize_for_spawned_kernel(
+            initial_phi=PHI_INIT_SPAWNED,  # 0.25 - start in LINEAR regime
+            initial_kappa=KAPPA_INIT_SPAWNED,  # KAPPA_STAR - start at fixed point
+            dopamine=0.5,  # Baseline motivation
+            serotonin=0.5,  # Baseline stability
+            stress=0.0,  # No initial stress
+            enable_running_coupling=True,  # Allow κ to evolve during training
+        )
 
         # NEW: Initialize emotional awareness for geometric emotion tracking
         if EMOTIONAL_KERNEL_AVAILABLE and EmotionallyAwareKernel is not None:
