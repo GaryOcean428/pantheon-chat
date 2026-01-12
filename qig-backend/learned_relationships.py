@@ -162,11 +162,12 @@ class LearnedRelationships:
                 """)
                 rows = cur.fetchall()
                 
-                # Load word frequencies from learned_words table
+                # Load word frequencies from tokenizer_vocabulary table (consolidated)
                 cur.execute("""
-                    SELECT word, frequency 
-                    FROM learned_words 
+                    SELECT token, frequency 
+                    FROM tokenizer_vocabulary 
                     WHERE frequency > 0
+                      AND token_role IN ('generation', 'both')
                 """)
                 freq_rows = cur.fetchall()
             
@@ -335,20 +336,24 @@ class LearnedRelationships:
                        OR updated_at >= NOW() - INTERVAL '1 minute'
                 """)
                 
-                # Save word frequencies to learned_words table
+                # Save word frequencies to tokenizer_vocabulary table (consolidated)
                 if freq_records:
                     execute_values(
                         cur,
                         """
-                        INSERT INTO learned_words (word, frequency, updated_at)
+                        INSERT INTO tokenizer_vocabulary (token, frequency, updated_at, token_role)
                         VALUES %s
-                        ON CONFLICT (word) 
+                        ON CONFLICT (token) 
                         DO UPDATE SET 
-                            frequency = GREATEST(learned_words.frequency, EXCLUDED.frequency),
-                            updated_at = NOW()
+                            frequency = GREATEST(tokenizer_vocabulary.frequency, EXCLUDED.frequency),
+                            updated_at = NOW(),
+                            token_role = CASE 
+                                WHEN tokenizer_vocabulary.token_role = 'encoding' THEN 'both'
+                                ELSE tokenizer_vocabulary.token_role 
+                            END
                         """,
                         freq_records,
-                        template="(%s, %s, NOW())"
+                        template="(%s, %s, NOW(), 'generation')"
                     )
             
             conn.commit()

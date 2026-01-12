@@ -329,23 +329,23 @@ class VocabularyPersistence:
                 with conn.cursor() as cur:
                     if source:
                         cur.execute("""
-                            SELECT token as word, phi_score as avg_phi, phi_score as max_phi, frequency, source 
+                            SELECT token as word, phi_score as avg_phi, phi_score as max_phi, frequency, source_type 
                             FROM tokenizer_vocabulary 
-                            WHERE phi_score >= %s AND source = %s
+                            WHERE phi_score >= %s AND source_type = %s
                               AND token_role IN ('generation', 'both')
                               AND (phrase_category IS NULL OR phrase_category NOT IN ('PROPER_NOUN', 'BRAND'))
                             ORDER BY phi_score DESC, frequency DESC LIMIT %s
                         """, (min_phi, source, limit))
                     else:
                         cur.execute("""
-                            SELECT token as word, phi_score as avg_phi, phi_score as max_phi, frequency, source 
+                            SELECT token as word, phi_score as avg_phi, phi_score as max_phi, frequency, source_type 
                             FROM tokenizer_vocabulary 
                             WHERE phi_score >= %s
                               AND token_role IN ('generation', 'both')
                               AND (phrase_category IS NULL OR phrase_category NOT IN ('PROPER_NOUN', 'BRAND'))
                             ORDER BY phi_score DESC, frequency DESC LIMIT %s
                         """, (min_phi, limit))
-                    return [{'word': row[0], 'avg_phi': float(row[1]), 'max_phi': float(row[2]), 'frequency': int(row[3]), 'source': row[4]} for row in cur.fetchall()]
+                    return [{'word': row[0], 'avg_phi': float(row[1]), 'max_phi': float(row[2]), 'frequency': int(row[3] or 0), 'source': row[4] or 'unknown'} for row in cur.fetchall()]
         except Exception as e:
             print(f"[VocabularyPersistence] Failed to get learned words: {e}")
             return []

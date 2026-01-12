@@ -55,14 +55,31 @@ Audited 107 PostgreSQL tables across the Pantheon-Chat system. Identified legacy
 - Migrated 1,695 tokens as 'generation' only
 - 35 tokens remain 'encoding' only
 
-### Code Updates
+### Code Updates (8 files migrated)
 - `pg_loader.py`: Now loads 14,458 generation words from tokenizer_vocabulary
 - `vocabulary_persistence.py`: Uses COALESCE for NULL-safe frequency updates
 - `vocabulary_coordinator.py`: Updated to use token_role logic
-- `record_vocab_observation` SQL function: Writes to tokenizer_vocabulary
+- `vocabulary_ingestion.py`: Writes ONLY to tokenizer_vocabulary with token_role
+- `vocabulary_schema.sql`: get_high_phi_vocabulary() and update_vocabulary_stats() updated
+- `pos_grammar.py`: Uses tokenizer_vocabulary for phrase classification
+- `strategy-knowledge-bus.ts`: Queries tokenizer_vocabulary for vocabulary words
+- `learned_relationships.py`: Loads and saves word frequencies to tokenizer_vocabulary
 
 ### Legacy Table Status
-The `learned_words` table (16,165 rows) is now legacy. Data has been migrated to tokenizer_vocabulary. Consider dropping after verification period.
+The `learned_words` table (16,165 rows) is now legacy. **Core runtime paths** have been migrated to tokenizer_vocabulary:
+- ✅ Encoding vocabulary loading
+- ✅ Generation vocabulary loading
+- ✅ Vocabulary persistence (read/write)
+- ✅ Word relationship learning
+- ✅ Phrase classification
+
+**Remaining dependencies (non-critical, for cleanup):**
+- `shared/schema.ts`: Drizzle ORM definition (remove after migration)
+- `scripts/backfill_learned_words.py`: Operational script (archive)
+- `scripts/audit_vocabulary.py`: Audit script (archive)
+- `scripts/verify_vocabulary_separation.py`: Verification script (archive)
+- `vocabulary_cleanup.py`: Cleanup utility (archive)
+- `sync_learned_to_tokenizer()` SQL function: Now obsolete (drop)
 
 ---
 
