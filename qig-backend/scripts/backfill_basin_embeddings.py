@@ -51,6 +51,11 @@ except ImportError as e:
     print(f"[ERROR] Required services not available: {e}")
     sys.exit(1)
 
+# Column name whitelist (prevent SQL injection)
+BASIN_COLUMN_PRE_MIGRATION = 'basin_embedding'
+BASIN_COLUMN_POST_MIGRATION = 'basin_coordinates'
+ALLOWED_BASIN_COLUMNS = {BASIN_COLUMN_PRE_MIGRATION, BASIN_COLUMN_POST_MIGRATION}
+
 
 def find_words_needing_backfill(limit: Optional[int] = None) -> List[Tuple[str, Optional[List[float]]]]:
     """
@@ -232,8 +237,13 @@ def verify_backfill():
             """)
             has_basin_coordinates = cur.fetchone()[0]
             
-            basin_column = 'basin_coordinates' if has_basin_coordinates else 'basin_embedding'
+            basin_column = BASIN_COLUMN_POST_MIGRATION if has_basin_coordinates else BASIN_COLUMN_PRE_MIGRATION
             
+            # Validate column name against whitelist (prevent SQL injection)
+            if basin_column not in ALLOWED_BASIN_COLUMNS:
+                raise RuntimeError(f"Invalid basin column name: {basin_column}")
+            
+            # Build query with validated column name (safe from SQL injection)
             cur.execute(f"""
                 SELECT 
                     COUNT(*) FILTER (WHERE array_length({basin_column}, 1) = 64) as valid_basins,
