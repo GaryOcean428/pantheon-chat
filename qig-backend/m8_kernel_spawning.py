@@ -904,7 +904,7 @@ class SpawnAwareness:
         - Optional β-function value
         """
         try:
-            from emotional_geometry import classify_emotion, emotion_state_to_dict, EmotionState
+            from emotional_geometry import classify_emotion
             
             emotion_primitive, intensity = classify_emotion(
                 curvature=curvature,
