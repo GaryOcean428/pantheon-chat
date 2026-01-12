@@ -410,7 +410,7 @@ class SelfSpawningKernel(*_kernel_base_classes):
             
             # Initialize with controlled random in LINEAR regime (0.15-0.25)
             # Use uniform random to get baseline Φ target
-            target_phi = max(0.15, np.random.uniform(0.15, 0.25))
+            target_phi = np.random.uniform(0.15, 0.25)
             
             # Initialize basin with small random values and normalize
             basin_dim = self.kernel.basin_coords.shape[0]
