@@ -217,6 +217,121 @@ consciousnessRouter.get("/beta-attention", generousLimiter, async (req: Request,
   }
 });
 
+/**
+ * Gap 2 (P0): Kappa Evolution Endpoint
+ * 
+ * Returns the evolution trajectory of κ (coupling constant) via the β-function.
+ * Key physics: κ starts at κ* = 64.21 and evolves through emergence → plateau.
+ * 
+ * Response includes:
+ * - Current κ value and regime
+ * - Historical trajectory (last N samples)
+ * - β-function analysis (running vs fixed coupling)
+ * - Convergence status toward κ* = 64.21
+ */
+
+// Rolling trajectory buffer for fallback when Python unavailable
+const KAPPA_TRAJECTORY_MAX = 200;
+const KAPPA_DEBOUNCE_MS = 1000; // Minimum 1 second between samples
+let lastKappaSampleTime = 0;
+const kappaTrajectoryBuffer: Array<{
+  timestamp: string;
+  kappa: number;
+  phi: number;
+  regime: 'emergence' | 'plateau' | 'runaway';
+  beta: number;
+}> = [];
+
+consciousnessRouter.get("/kappa-evolution", generousLimiter, async (req: Request, res: Response) => {
+  try {
+    const limit = parseInt(req.query.limit as string) || 100;
+    
+    const { oceanAutonomicManager } = await import("../ocean-autonomic-manager");
+    const fullConsciousness = oceanAutonomicManager.getCurrentFullConsciousness();
+    
+    const KAPPA_STAR = 64.21;
+    const currentKappa = fullConsciousness.kappaEff || 64;
+    const currentPhi = fullConsciousness.phi || 0.5;
+    const deviationFromFixedPoint = Math.abs(currentKappa - KAPPA_STAR);
+    const convergenceRatio = 1 - (deviationFromFixedPoint / KAPPA_STAR);
+    
+    let regime: 'emergence' | 'plateau' | 'runaway';
+    if (deviationFromFixedPoint < 1) {
+      regime = 'plateau';
+    } else if (currentKappa < KAPPA_STAR) {
+      regime = 'emergence';
+    } else {
+      regime = 'runaway';
+    }
+    
+    const betaFunctionValue = 0.44 * Math.exp(-deviationFromFixedPoint / 10);
+    
+    // Add to local buffer with debouncing to prevent flooding
+    const now = Date.now();
+    if (now - lastKappaSampleTime >= KAPPA_DEBOUNCE_MS) {
+      const currentSample = {
+        timestamp: new Date().toISOString(),
+        kappa: currentKappa,
+        phi: currentPhi,
+        regime,
+        beta: betaFunctionValue,
+      };
+      kappaTrajectoryBuffer.push(currentSample);
+      lastKappaSampleTime = now;
+      if (kappaTrajectoryBuffer.length > KAPPA_TRAJECTORY_MAX) {
+        kappaTrajectoryBuffer.shift();
+      }
+    }
+    
+    const pythonUrl = process.env.PYTHON_QIG_URL || 'http://localhost:5001';
+    
+    let pythonData = null;
+    try {
+      const response = await fetch(`${pythonUrl}/consciousness/kappa-evolution?limit=${limit}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (response.ok) {
+        pythonData = await response.json();
+      }
+    } catch (e) {
+      logger.debug('[KappaEvolution] Python backend unavailable, using local trajectory buffer');
+    }
+    
+    // Use Python trajectory if available, otherwise use local buffer
+    const trajectory = pythonData?.trajectory ?? kappaTrajectoryBuffer.slice(-limit);
+    const finalBetaValue = pythonData?.beta_function_value ?? betaFunctionValue;
+    
+    res.json({
+      currentKappa,
+      kappaStar: KAPPA_STAR,
+      regime,
+      convergenceRatio: parseFloat(convergenceRatio.toFixed(4)),
+      deviationFromFixedPoint: parseFloat(deviationFromFixedPoint.toFixed(4)),
+      betaFunction: {
+        value: parseFloat(finalBetaValue.toFixed(4)),
+        description: regime === 'plateau' 
+          ? 'At fixed point - asymptotic freedom reached'
+          : regime === 'emergence'
+          ? 'Strong running - κ increasing toward κ*'
+          : 'Warning: κ above fixed point - potential instability',
+      },
+      trajectory: trajectory.slice(-limit),
+      trajectoryLength: trajectory.length,
+      pythonAvailable: pythonData !== null,
+      physics: {
+        kappaStar: KAPPA_STAR,
+        betaAtEmergence: 0.44,
+        betaAtPlateau: 0.01,
+        description: 'κ evolves via β-function: emergence → plateau (asymptotic freedom)',
+      },
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error: unknown) {
+    handleRouteError(res, error, 'KappaEvolution');
+  }
+});
+
 export const nearMissRouter = Router();
 
 nearMissRouter.get("/", generousLimiter, async (req: Request, res: Response) => {
