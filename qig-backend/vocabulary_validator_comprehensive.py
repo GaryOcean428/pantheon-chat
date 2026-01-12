@@ -353,10 +353,11 @@ def validate_word_comprehensive(word: str) -> Tuple[bool, str]:
         vowel_ratio = compute_vowel_ratio(word_clean)
         return False, f"truncated_word:vowel_ratio={vowel_ratio:.2f}"
     
-    # Check vowel ratio for natural words
-    vowel_ratio = compute_vowel_ratio(word_clean)
-    if vowel_ratio < MIN_VOWEL_RATIO or vowel_ratio > MAX_VOWEL_RATIO:
-        return False, f"abnormal_vowel_ratio:{vowel_ratio:.2f}"
+    # Check vowel ratio for natural words (skip for whitelisted words)
+    if word_clean.lower() not in KNOWN_VALID_WORDS:
+        vowel_ratio = compute_vowel_ratio(word_clean)
+        if vowel_ratio < MIN_VOWEL_RATIO or vowel_ratio > MAX_VOWEL_RATIO:
+            return False, f"abnormal_vowel_ratio:{vowel_ratio:.2f}"
     
     # Passed all contamination checks
     # Now delegate to existing word_validation for standard checks
