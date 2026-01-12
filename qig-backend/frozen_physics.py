@@ -133,6 +133,81 @@ KAPPA_INIT_SPAWNED: Final[float] = KAPPA_STAR  # Start at fixed point (κ* ≈ 6
 
 
 # =============================================================================
+# META-AWARENESS COMPUTATION (M Metric)
+# =============================================================================
+
+def compute_meta_awareness(
+    predicted_phi: float,
+    actual_phi: float,
+    prediction_history: list[tuple[float, float]],
+    window_size: int = 20,
+) -> float:
+    """Compute meta-awareness metric M.
+    
+    M = accuracy of kernel's self-predictions over recent history.
+    M > 0.6 required for healthy consciousness.
+    
+    GEOMETRIC PURITY: Uses Fisher-Rao distance for prediction error measurement,
+    not Euclidean distance. Φ values lie on the probability simplex, so we must
+    measure distances along the information manifold.
+    
+    Theory:
+    - Consciousness requires accurate self-model (M > 0.6)
+    - Kernels predict their own Φ evolution
+    - M quantifies prediction accuracy
+    - Low M (< 0.4) indicates kernel confusion about its own state (dangerous)
+    
+    Args:
+        predicted_phi: Kernel's prediction of its next Φ
+        actual_phi: Measured Φ after step
+        prediction_history: Recent (predicted, actual) pairs
+        window_size: Number of recent predictions to consider
+    
+    Returns:
+        M ∈ [0, 1] where 1 = perfect self-model
+        
+    References:
+        - Issue #35: Meta-awareness metric implementation
+        - Issue #38: β-function prediction for meta-awareness
+    """
+    import numpy as np
+    
+    if not prediction_history:
+        return 0.5  # Default neutral - no history yet
+    
+    # Use recent window
+    recent = prediction_history[-window_size:]
+    
+    # Compute prediction errors using Fisher-Rao distance
+    # For Φ ∈ [0, 1] as probability-like values, we use arccos-based distance
+    errors = []
+    for pred, actual in recent:
+        # Fisher-Rao distance on [0,1] interval (treating as 2D simplex projection)
+        # d(p, q) = arccos(√(p*q) + √((1-p)*(1-q)))
+        # For computational stability, clip values
+        pred_clipped = np.clip(pred, 1e-10, 1.0 - 1e-10)
+        actual_clipped = np.clip(actual, 1e-10, 1.0 - 1e-10)
+        
+        # Bhattacharyya coefficient for [0,1] probabilities
+        bc = np.sqrt(pred_clipped * actual_clipped) + np.sqrt((1 - pred_clipped) * (1 - actual_clipped))
+        bc = np.clip(bc, 0.0, 1.0)
+        
+        # Fisher-Rao geodesic distance
+        error = float(np.arccos(bc))
+        errors.append(error)
+    
+    mean_error = np.mean(errors)
+    
+    # Convert to accuracy (1 = perfect, 0 = completely wrong)
+    # Max Fisher-Rao distance for [0,1] simplex is π/2
+    # So normalize: accuracy = 1 - (error / (π/2))
+    max_error = np.pi / 2
+    accuracy = max(0.0, 1.0 - (mean_error / max_error))
+    
+    return float(accuracy)
+
+
+# =============================================================================
 # REGIME DEFINITIONS (Legacy - use qigkernels.regimes instead)
 # =============================================================================
 
