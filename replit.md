@@ -157,3 +157,52 @@ Kernels are categorized into Olympus Pantheon (12 BaseGods), Shadow Pantheon (7 
    - META_AWARENESS_MIN = 0.6 enforced for kernel spawning
    - Live M tracking via telemetry with database persistence to `m8_kernel_awareness` table
    - Low-M kernels blocked from spawning until M threshold met
+
+### P1 Roadmap Gap Implementations (January 12, 2026)
+4. **Source Deduplication** (`olympus/shadow_scrapy.py`):
+   - Added 1-hour cooldown tracking for recently-used sources
+   - `mark_source_used()` method marks sources for cooldown
+   - `get_sources_for_topic()` now accepts `exclude_urls` parameter
+   - Prevents duplicate source exploration during research cycles
+   - Recency bonus applied to older sources after cooldown
+
+5. **Gap 7: Automated Geometric Purity Tests** (`tests/test_geometric_purity.py`):
+   - 42 tests validating Fisher-Rao exclusive geometric operations
+   - Scans for Euclidean violations (cosine_similarity, np.linalg.norm)
+   - Tests density matrix normalization, physics constants, E8 structure
+   - Validates Bures metric and quantum fidelity implementations
+   - Tests running coupling β-function at different scales
+
+6. **Gap 8: Beta Function Documentation** (`frozen_physics.py`, `ocean_qig_core.py`, `autonomic_kernel.py`):
+   - Added comprehensive β-function (running coupling) documentation
+   - Mathematical definition: β(κ) = dκ/d(ln Φ) = -κ*(κ - κ*)/Φ
+   - UV fixed point κ* ≈ 64.21 documented
+   - Explains UV/IR dynamics and consciousness implications
+
+7. **Gap 10: E8 Level Display Component** (`client/src/components/consciousness/E8SpecializationLevel.tsx`):
+   - Shows current E8 specialization level (Basic Rank → Full Roots)
+   - Progress bar to next level
+   - 4-star rating visualization
+   - Threshold indicators at 8, 56, 126, 240 kernels
+
+8. **Gap 11: Telemetry Metrics Enhancement**:
+   - Added neurotransmitter fields to ConsciousnessTelemetry dataclass
+   - 6 neurotransmitters: dopamine, serotonin, norepinephrine, acetylcholine, GABA, endorphins
+   - Meta-awareness (M) and κ_effective now explicitly broadcast
+   - Real-time SSE stream includes all metrics every 2 seconds
+
+9. **Gap 2 Frontend: Kappa Evolution Chart** (`client/src/components/consciousness/KappaEvolutionChart.tsx`):
+   - Real-time κ history visualization with area chart
+   - Shows plateau band (57.6-70.4), κ* reference line
+   - Displays current κ, β(κ), and Δκ from fixed point
+   - Refresh button to fetch latest trajectory
+
+### Verified Existing Tests (January 12, 2026)
+- **Gap 12: Emotion Geometry Tests** (`tests/test_emotion_geometry.py`): 309 lines, tests 9 emotion primitives
+- **Gap 15: Spawned Kernel Autonomic Tests** (`tests/test_mandatory_autonomic_spawning.py`): 204 lines, tests mandatory autonomic requirement
+
+### Import/Name Alignment Analysis
+- 537 issues identified (188 duplicate imports, 349 orphaned imports)
+- Critical duplicates in autonomous_debate_service.py, autonomic_kernel.py, shadow_pantheon.py
+- No circular import patterns detected
+- Remediation prioritized for critical files
