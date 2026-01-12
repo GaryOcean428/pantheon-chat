@@ -66,6 +66,10 @@ KNOWN_VALID_WORDS = {
     # Common English words with repeated letters or low entropy
     'level', 'radar', 'civic', 'kayak', 'refer', 'rotor', 'stats', 'tenet',
     'deed', 'noon', 'peep', 'poop', 'sass', 'sees', 'toot', 'boob',
+    # Common vowel-less words (all consonants + y)
+    'gym', 'cry', 'dry', 'fly', 'fry', 'pry', 'shy', 'sky', 'sly', 'spy',
+    'sty', 'try', 'why', 'wry', 'gym', 'glyph', 'lynx', 'myth', 'sync', 'hymn',
+    'tryst', 'psych', 'pygmy', 'crypt', 'gypsy', 'lynch',
     # Technical terms used in QIG
     'opsec', 'phi', 'psi', 'rho', 'tau', 'chi', 'kappa', 'omega', 'gamma',
     'basin', 'kernel', 'spawned', 'manifold', 'geodesic', 'metric',
