@@ -974,9 +974,14 @@ class QIGGenerativeService:
         
         grammar = load_grammar_from_db()
         
-        # Get embeddings from coordizer
+        # Get embeddings from coordizer - USE GENERATION VOCAB (not encoding vocab)
+        # This is critical: generation_vocab contains curated words only, no BPE garbage
         embeddings = {}
-        if self.coordizer and hasattr(self.coordizer, 'basin_coords'):
+        if self.coordizer and hasattr(self.coordizer, 'generation_vocab') and self.coordizer.generation_vocab:
+            embeddings = self.coordizer.generation_vocab
+        elif self.coordizer and hasattr(self.coordizer, 'basin_coords'):
+            # Fallback to encoding vocab only if no generation vocab
+            logger.warning("[QIGGen] No generation_vocab, falling back to basin_coords - may contain BPE garbage")
             embeddings = self.coordizer.basin_coords
         
         sentences = []

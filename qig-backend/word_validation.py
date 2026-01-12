@@ -32,7 +32,60 @@ BPE_SUBWORD_PREFIXES = {'Ġ', 'ġ', 'Ċ', 'ċ', '##', '▁', '_'}
 BPE_SPECIAL_TOKENS = {'<pad>', '<unk>', '<s>', '</s>', '<mask>', '[PAD]', '[UNK]', '[CLS]', '[SEP]', '[MASK]'}
 
 MAX_WORD_LENGTH = 20
-MIN_WORD_LENGTH = 2
+MIN_WORD_LENGTH = 3  # Increased from 2 to prevent very short garbage
+
+# CRITICAL: Technical garbage blocklist - words from web scraping/code that should NEVER be in generation vocabulary
+# PR 27/28 contamination prevention - ALL ENTRIES MUST BE LOWERCASE for matching
+TECHNICAL_GARBAGE_WORDS: Set[str] = {
+    # JavaScript/Web artifacts (all lowercase)
+    'nowprocket', 'specialtoken', 'chartbeat', 'productids', 'disablenav',
+    'businesscode', 'nreum', 'endobj', 'prefetch', 'favicon', 'dokumen',
+    'ipynb', 'lstrip', 'rstrip', 'pvid', 'goto', 'elden', 'exports',
+    'stylesheet', 'viewport', 'lightbox', 'popover', 'dropdown', 'navbar',
+    'sidebar', 'tooltip', 'colspan', 'rowspan', 'tbody', 'thead', 'iframe',
+    'onclick', 'onload', 'onchange', 'onfocus', 'onblur', 'onsubmit',
+    'addclass', 'removeclass', 'toggleclass', 'getelementbyid', 'queryselector',
+    'setattribute', 'getattribute', 'innerhtml', 'outerhtml', 'textcontent',
+    'classname', 'classlist', 'dataset', 'contenttype', 'xmlhttprequest',
+    'websocket', 'localstorage', 'sessionstorage', 'indexeddb', 'serviceworker',
+    'formdata', 'filereader', 'bloburl', 'dataurl', 'jsonp', 'cors',
+    # Python/Programming artifacts  
+    'isinstance', 'getattr', 'setattr', 'hasattr', 'delattr', 'importlib',
+    'asyncio', 'itertools', 'functools', 'datetime', 'timedelta', 'timezone',
+    'numpy', 'scipy', 'pandas', 'matplotlib', 'tensorflow', 'pytorch',
+    'sklearn', 'keras', 'opencv', 'pillow', 'beautifulsoup', 'scrapy',
+    'django', 'flask', 'fastapi', 'sqlalchemy', 'celery', 'redis',
+    'postgresql', 'mongodb', 'elasticsearch', 'kubernetes', 'dockerfile',
+    # Technical math terms that aren't natural language
+    'dirichlet', 'gaussian', 'laplacian', 'hessian', 'jacobian', 'eigenvalue',
+    'eigenvector', 'sigmoid', 'softmax', 'relu', 'tanh', 'leaky',
+    # File extensions / formats
+    'xlsx', 'docx', 'pptx', 'jpeg', 'webp', 'avif', 'wasm', 'woff',
+    # Brand names / domains (CRITICAL: exclude from generation)
+    'microsoft', 'yahoo', 'google', 'amazon', 'facebook', 'twitter',
+    'instagram', 'linkedin', 'alibaba', 'aliexpress', 'taobao', 'shopify', 
+    'wordpress', 'wix', 'squarespace', 'mailchimp', 'hubspot', 'salesforce', 
+    'zendesk', 'spotify', 'netflix', 'youtube', 'tiktok', 'snapchat',
+    'tesla', 'apple', 'samsung', 'nvidia', 'intel', 'amd', 'nvidia',
+    'fenrir', 'steam', 'twitch', 'discord', 'slack', 'zoom', 'skype',
+    # Console/DevTools
+    'debugger', 'breakpoint', 'stacktrace', 'sourcemap', 'minified',
+    # Unicode/encoding terms
+    'unicode', 'utf8', 'utf16', 'ascii', 'latin1', 'charset', 'encoding',
+    # Gaming/specialized terms that aren't natural language
+    'opsec', 'nyx', 'gauss', 'longs', 'asia',
+}
+
+# Patterns that indicate technical garbage - use re.search (not re.match) for these
+# Patterns are designed for re.search to match anywhere in the word
+TECHNICAL_GARBAGE_PATTERNS = [
+    r'obj$', r'^api', r'url$', r'uri$', r'^http', r'^https', r'^ftp',
+    r'config', r'param', r'init$', r'ptr$', r'arr$', r'buf$', 
+    r'src$', r'dst$', r'ctx', r'callback', r'handler', r'listener$',
+    r'token', r'prefix', r'suffix', r'fetch', r'parse', r'render',
+    r'component', r'module', r'plugin', r'widget', r'modal', r'dialog',
+    r'normalized', r'embed', r'^cdn', r'json', r'xml', r'html',
+]
 
 STOP_WORDS: Set[str] = {
     'the', 'and', 'for', 'that', 'this', 'with', 'was', 'are', 'but', 'not',
@@ -120,6 +173,7 @@ def is_bpe_garbage(token: str) -> bool:
     - Pure numeric tokens
     - Tokens starting with non-alphabetic characters
     - Control characters
+    - Technical garbage words (PR 27/28 prevention)
 
     Returns:
         True if token is BPE garbage, False if potentially valid
@@ -129,6 +183,10 @@ def is_bpe_garbage(token: str) -> bool:
 
     # Check special tokens first (case-sensitive)
     if token in BPE_SPECIAL_TOKENS:
+        return True
+    
+    # CRITICAL: Check technical garbage blocklist (PR 27/28 contamination prevention)
+    if token.lower() in TECHNICAL_GARBAGE_WORDS:
         return True
 
     # Check for subword prefixes
@@ -146,9 +204,14 @@ def is_bpe_garbage(token: str) -> bool:
 
     # Check for control characters or non-printable chars
     if any(ord(c) < 32 or ord(c) > 126 for c in token if c not in {'-', "'"}):
-        # Allow extended ASCII for hyphenated/apostrophe words, but reject control chars
         cleaned = token.replace('-', '').replace("'", '')
         if any(ord(c) < 32 or ord(c) > 126 for c in cleaned):
+            return True
+    
+    # Check technical garbage patterns (use re.search to match anywhere in word)
+    token_lower = token.lower()
+    for pattern in TECHNICAL_GARBAGE_PATTERNS:
+        if re.search(pattern, token_lower):
             return True
 
     return False
