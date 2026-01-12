@@ -84,11 +84,15 @@ def find_words_needing_backfill(limit: Optional[int] = None) -> List[Tuple[str, 
             """)
             has_basin_coordinates = cur.fetchone()[0]
             
-            basin_column = 'basin_coordinates' if has_basin_coordinates else 'basin_embedding'
+            basin_column = BASIN_COLUMN_POST_MIGRATION if has_basin_coordinates else BASIN_COLUMN_PRE_MIGRATION
+            
+            # Validate column name against whitelist (prevent SQL injection)
+            if basin_column not in ALLOWED_BASIN_COLUMNS:
+                raise RuntimeError(f"Invalid basin column name: {basin_column}")
             
             # Find words with empty or NULL basins
             # Note: 'embedding' column may not exist after migration 010
-            cur.execute(f"""
+            cur.execute("""
                 SELECT EXISTS (
                     SELECT 1 FROM information_schema.columns 
                     WHERE table_name = 'tokenizer_vocabulary' 
@@ -97,29 +101,49 @@ def find_words_needing_backfill(limit: Optional[int] = None) -> List[Tuple[str, 
             """)
             has_embedding = cur.fetchone()[0]
             
+            # Build query with validated column name (safe from SQL injection)
+            # basin_column is validated against ALLOWED_BASIN_COLUMNS whitelist above
             if has_embedding:
-                query = f"""
-                    SELECT token, embedding
-                    FROM tokenizer_vocabulary 
-                    WHERE array_length({basin_column}, 1) = 0 
-                       OR array_length({basin_column}, 1) IS NULL
-                       OR {basin_column} IS NULL
-                    ORDER BY token
-                """
+                if limit:
+                    cur.execute(f"""
+                        SELECT token, embedding
+                        FROM tokenizer_vocabulary 
+                        WHERE array_length({basin_column}, 1) = 0 
+                           OR array_length({basin_column}, 1) IS NULL
+                           OR {basin_column} IS NULL
+                        ORDER BY token
+                        LIMIT %s
+                    """, (limit,))
+                else:
+                    cur.execute(f"""
+                        SELECT token, embedding
+                        FROM tokenizer_vocabulary 
+                        WHERE array_length({basin_column}, 1) = 0 
+                           OR array_length({basin_column}, 1) IS NULL
+                           OR {basin_column} IS NULL
+                        ORDER BY token
+                    """)
             else:
-                query = f"""
-                    SELECT token, NULL::float8[]
-                    FROM tokenizer_vocabulary 
-                    WHERE array_length({basin_column}, 1) = 0 
-                       OR array_length({basin_column}, 1) IS NULL
-                       OR {basin_column} IS NULL
-                    ORDER BY token
-                """
+                if limit:
+                    cur.execute(f"""
+                        SELECT token, NULL::float8[]
+                        FROM tokenizer_vocabulary 
+                        WHERE array_length({basin_column}, 1) = 0 
+                           OR array_length({basin_column}, 1) IS NULL
+                           OR {basin_column} IS NULL
+                        ORDER BY token
+                        LIMIT %s
+                    """, (limit,))
+                else:
+                    cur.execute(f"""
+                        SELECT token, NULL::float8[]
+                        FROM tokenizer_vocabulary 
+                        WHERE array_length({basin_column}, 1) = 0 
+                           OR array_length({basin_column}, 1) IS NULL
+                           OR {basin_column} IS NULL
+                        ORDER BY token
+                    """)
             
-            if limit:
-                query += f" LIMIT {limit}"
-            
-            cur.execute(query)
             results = cur.fetchall()
     
     return results

@@ -4,6 +4,10 @@ Database Migration Tool for Olympus Schema Enhancements
 
 Safely applies the Olympus pantheon schema enhancements to the PostgreSQL database.
 Includes rollback capability and validation.
+
+SQL Injection Prevention:
+- All table names are validated against ALLOWED_TABLES whitelist
+- Dynamic query construction only uses validated identifiers
 """
 
 import os
@@ -11,6 +15,16 @@ import sys
 import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from datetime import datetime
+
+# SQL Injection Prevention: Whitelist of allowed table names
+ALLOWED_TABLES = {
+    'spawned_kernels',
+    'pantheon_assessments',
+    'shadow_operations',
+    'basin_documents',
+    'god_reputation',
+    'autonomous_operations_log'
+}
 
 
 class OlympusMigration:
@@ -71,11 +85,22 @@ class OlympusMigration:
         return existing
     
     def backup_existing_data(self, table_name: str):
-        """Create a backup of existing table data."""
-        backup_table = f"{table_name}_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        """Create a backup of existing table data.
+        
+        SQL Injection Prevention: table_name must be in ALLOWED_TABLES whitelist.
+        """
+        # Validate table_name against whitelist (SQL injection prevention)
+        if table_name not in ALLOWED_TABLES:
+            print(f"  ✗ Invalid table name: {table_name} (not in whitelist)")
+            return None
+        
+        # Generate sanitized backup table name (only alphanumeric, underscore allowed)
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        backup_table = f"{table_name}_backup_{timestamp}"
         
         try:
             with self.conn.cursor() as cur:
+                # table_name is validated against ALLOWED_TABLES whitelist above
                 cur.execute(f"""
                     CREATE TABLE {backup_table} AS 
                     SELECT * FROM {table_name}
@@ -165,21 +190,23 @@ class OlympusMigration:
             return False
     
     def validate_migration(self):
-        """Validate that the migration was successful."""
+        """Validate that the migration was successful.
+        
+        SQL Injection Prevention: Only validates tables in ALLOWED_TABLES whitelist.
+        """
         print(f"\n🔍 Validating migration...")
         
-        expected_tables = [
-            'spawned_kernels',
-            'pantheon_assessments',
-            'shadow_operations',
-            'basin_documents',
-            'god_reputation',
-            'autonomous_operations_log'
-        ]
+        # Use the module-level ALLOWED_TABLES whitelist for validation
+        expected_tables = list(ALLOWED_TABLES)
         
         all_valid = True
         with self.conn.cursor() as cur:
             for table in expected_tables:
+                # Validate table name against whitelist (SQL injection prevention)
+                if table not in ALLOWED_TABLES:
+                    print(f"  ✗ Skipping invalid table: {table}")
+                    continue
+                
                 # Check table exists
                 cur.execute("""
                     SELECT EXISTS (
@@ -191,7 +218,7 @@ class OlympusMigration:
                 exists = cur.fetchone()[0]
                 
                 if exists:
-                    # Get row count
+                    # Get row count - table name is validated against ALLOWED_TABLES whitelist above
                     cur.execute(f"SELECT COUNT(*) FROM {table}")
                     count = cur.fetchone()[0]
                     print(f"  ✓ {table}: {count} rows")

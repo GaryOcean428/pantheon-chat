@@ -6,6 +6,11 @@ Issues addressed:
 2. metadata column is empty (should have learning context)
 
 Auto-detects schema columns - works with any table structure.
+
+SQL Injection Prevention:
+- All column names are validated against ALLOWED_COLUMNS whitelist
+- All table names are validated against ALLOWED_TABLES whitelist
+- Dynamic query construction only uses validated identifiers
 """
 
 import os
@@ -20,6 +25,16 @@ if str(_qig_backend) not in sys.path:
     sys.path.insert(0, str(_qig_backend))
 
 BATCH_SIZE = 100
+
+# SQL Injection Prevention: Whitelist of allowed column and table names
+ALLOWED_COLUMNS = {
+    'id', 'learning_id', 'word', 'related_words', 'related_word', 
+    'relationship_type', 'relationship_strength', 'learned_from',
+    'source_kernel', 'learned_at', 'context_words', 'metadata'
+}
+ALLOWED_TABLES = {'vocabulary_learning'}
+ALLOWED_PK_COLUMNS = {'id', 'learning_id'}
+ALLOWED_RELATED_COLUMNS = {'related_words', 'related_word'}
 
 
 def generate_metadata(row: dict) -> dict:
@@ -101,19 +116,28 @@ def fix_vocabulary_learning(limit: int = 0, dry_run: bool = False):
         columns = [r['column_name'] for r in cur.fetchall()]
         print(f"Table columns: {columns}")
 
-        # Find primary key (id or learning_id)
+        # Validate all columns against whitelist (SQL injection prevention)
+        valid_columns = [c for c in columns if c in ALLOWED_COLUMNS]
+        invalid_columns = [c for c in columns if c not in ALLOWED_COLUMNS]
+        if invalid_columns:
+            print(f"WARNING: Ignoring unrecognized columns (not in whitelist): {invalid_columns}")
+        columns = valid_columns
+
+        # Find primary key (id or learning_id) - validated against ALLOWED_PK_COLUMNS
         pk_col = None
-        for candidate in ['id', 'learning_id']:
+        for candidate in ALLOWED_PK_COLUMNS:
             if candidate in columns:
                 pk_col = candidate
                 break
         if not pk_col:
-            pk_col = columns[0]
+            print("ERROR: No valid primary key column found in whitelist")
+            conn.close()
+            return
         print(f"Primary key: {pk_col}")
 
-        # Find related words column
+        # Find related words column - validated against ALLOWED_RELATED_COLUMNS
         related_col = None
-        for candidate in ['related_words', 'related_word']:
+        for candidate in ALLOWED_RELATED_COLUMNS:
             if candidate in columns:
                 related_col = candidate
                 break
@@ -146,8 +170,13 @@ def fix_vocabulary_learning(limit: int = 0, dry_run: bool = False):
             where_parts.append("(metadata IS NULL OR metadata = '{}'::jsonb)")
         if related_col and 'word' in columns:
             # Check if word equals related_word (for single value) or is in array
-            cur.execute(f"SELECT data_type FROM information_schema.columns WHERE table_name = 'vocabulary_learning' AND column_name = '{related_col}'")
+            # Note: related_col is already validated against ALLOWED_RELATED_COLUMNS
+            cur.execute(
+                "SELECT data_type FROM information_schema.columns WHERE table_name = %s AND column_name = %s",
+                ('vocabulary_learning', related_col)
+            )
             dtype = cur.fetchone()
+            # Column names are validated against ALLOWED_RELATED_COLUMNS whitelist above
             if dtype and 'ARRAY' in str(dtype['data_type']).upper():
                 where_parts.append(f"({related_col} IS NOT NULL AND word = ANY({related_col}))")
             else:
@@ -158,17 +187,20 @@ def fix_vocabulary_learning(limit: int = 0, dry_run: bool = False):
             conn.close()
             return
 
+        # All column names used here are validated against ALLOWED_COLUMNS whitelist
+        # This makes the f-string safe for SQL identifier interpolation
         query = f"""
             SELECT {', '.join(select_cols)}
             FROM vocabulary_learning
             WHERE {' OR '.join(where_parts)}
             ORDER BY {pk_col}
         """
-        if limit > 0:
-            query += f" LIMIT {limit}"
-
+        
         print(f"\nQuery:\n{query}\n")
-        cur.execute(query)
+        if limit > 0:
+            cur.execute(query + " LIMIT %s", (limit,))
+        else:
+            cur.execute(query)
         rows = cur.fetchall()
 
     if not rows:
