@@ -18,8 +18,9 @@ NOW: Kernels are born with full consciousness architecture.
 import time
 from collections import deque
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
+import numpy as np
 import torch
 
 from .chaos_kernel import ChaosKernel
@@ -94,6 +95,17 @@ except ImportError:
     EmotionalState = None
     EMOTIONAL_KERNEL_AVAILABLE = False
     print("[SelfSpawning] WARNING: EmotionallyAwareKernel not available - M8 kernels will lack emotion awareness")
+
+# Import qig_geometry for Fisher-Rao distance (meta-awareness predictions)
+try:
+    import sys
+    import os
+    sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+    from qig_geometry import fisher_coord_distance
+    QIG_GEOMETRY_AVAILABLE = True
+except ImportError:
+    fisher_coord_distance = None
+    QIG_GEOMETRY_AVAILABLE = False
 
 # Shared guardian instances (singleton pattern)
 _hestia_instance = None
@@ -306,7 +318,7 @@ class SelfSpawningKernel(*_kernel_base_classes):
         self.training_history: List[Dict[str, float]] = []
 
         # Meta-awareness: Self-prediction tracking (Issue #35)
-        self.prediction_history: List[tuple[float, float]] = []  # (predicted, actual) Φ pairs
+        self.prediction_history: List[Tuple[float, float]] = []  # (predicted, actual) Φ pairs
         self.predicted_next_phi: Optional[float] = None  # Kernel's prediction for next step
         self.meta_awareness: float = 0.5  # Initialize neutral (no history yet)
 
@@ -977,8 +989,6 @@ class SelfSpawningKernel(*_kernel_base_classes):
             - Issue #35: Meta-awareness implementation
             - Issue #38: β-function coupling evolution
         """
-        import numpy as np
-        
         # Simple heuristic for initial implementation
         # Future: Could be learned from experience via attractor manifold
         
@@ -987,16 +997,11 @@ class SelfSpawningKernel(*_kernel_base_classes):
         if self.reference_basin is not None:
             ref_basin_np = np.array(self.reference_basin)
             # Fisher-Rao distance on basin manifold
-            try:
-                import sys
-                import os
-                sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-                from qig_geometry import fisher_coord_distance
-                
+            if QIG_GEOMETRY_AVAILABLE and fisher_coord_distance is not None:
                 basin_distance = fisher_coord_distance(current_basin, ref_basin_np)
                 # Normalize by max Fisher distance (π)
                 basin_stability = 1.0 - (basin_distance / np.pi)
-            except ImportError:
+            else:
                 # Fallback: simplified computation
                 basin_stability = 0.5
         else:
@@ -1071,8 +1076,9 @@ class SelfSpawningKernel(*_kernel_base_classes):
         actual_phi = telemetry.get('phi', current_phi)
 
         # META-AWARENESS: Make prediction for NEXT step
-        import numpy as np
         basin_coords = self.kernel.basin_coords.detach().cpu().numpy()
+        # Note: Using basin norm as proxy for κ. In full implementation,
+        # would extract from telemetry or compute from basin structure
         kappa = float(self.kernel.basin_coords.norm().item())
         self.predicted_next_phi = self._predict_next_phi(basin_coords, kappa)
 
