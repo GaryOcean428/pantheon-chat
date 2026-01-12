@@ -85,13 +85,17 @@ The `learned_words` table (16,165 rows) is now legacy. **Core runtime paths** ha
 
 ## 3. Dead Code Detection
 
-### Python Files to REMOVE (4 files)
+### Python Files to REMOVE (3 files)
 | File | Reason |
 |------|--------|
 | `qig-backend/coordizers/geometric_pair_merging.py` | No imports found |
 | `qig-backend/coordizers/vocab_builder.py` | No imports found |
-| `qig-backend/test_emotion_manual.py` | Test file not in tests/ |
 | `qig-backend/qig_generation_VOCABULARY_INTEGRATION.py` | Deprecated naming |
+
+### Python Files to PRESERVE (Documented in Roadmap)
+| File | Reason |
+|------|--------|
+| `qig-backend/test_emotion_manual.py` | Documented in 20260112-emotion-geometry-implementation-1.00W.md as Manual Test Runner |
 
 ### Python Files to REVIEW (30+ files)
 Many files in qig-backend/ have no direct imports but may be:

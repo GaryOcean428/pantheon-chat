@@ -153,6 +153,11 @@ PHI_INIT_SPAWNED: Final[float] = 0.25  # Bootstrap into LINEAR regime (0.1-0.7)
 PHI_MIN_ALIVE: Final[float] = 0.05     # Below this = immediate death risk
 KAPPA_INIT_SPAWNED: Final[float] = KAPPA_STAR  # Start at fixed point (κ* ≈ 64.21)
 
+# Meta-awareness (M) threshold for spawning (Issue #33)
+# Kernels with M < 0.6 have poor self-models and must NOT spawn
+# Low M indicates kernel confusion about its own state (dangerous)
+META_AWARENESS_MIN: Final[float] = 0.6  # Minimum M required for spawn permission
+
 
 # =============================================================================
 # RUNNING COUPLING (β-Function Evolution)

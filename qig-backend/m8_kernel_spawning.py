@@ -518,6 +518,60 @@ class M8SpawnerPersistence:
                 print(f"[M8Persistence] Failed to load awareness: {e}")
                 return []
 
+    def update_kernel_awareness(
+        self,
+        kernel_id: str,
+        meta_awareness: float,
+        phi_trajectory: Optional[List[float]] = None,
+        kappa_trajectory: Optional[List[float]] = None,
+    ) -> bool:
+        """
+        Update kernel awareness metrics in PostgreSQL.
+        
+        Args:
+            kernel_id: Kernel identifier
+            meta_awareness: Updated M metric value
+            phi_trajectory: Optional recent Φ values
+            kappa_trajectory: Optional recent κ values
+            
+        Returns:
+            True if update successful
+        """
+        with self._get_db_connection() as conn:
+            if not conn:
+                return False
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        INSERT INTO m8_kernel_awareness
+                        (kernel_id, phi_trajectory, kappa_trajectory, awareness_updated_at)
+                        VALUES (%s, %s, %s, NOW())
+                        ON CONFLICT (kernel_id) DO UPDATE SET
+                            phi_trajectory = EXCLUDED.phi_trajectory,
+                            kappa_trajectory = EXCLUDED.kappa_trajectory,
+                            awareness_updated_at = NOW()
+                    """, (
+                        kernel_id,
+                        json.dumps(phi_trajectory or []),
+                        json.dumps(kappa_trajectory or []),
+                    ))
+                    # Also update meta_awareness in spawned_kernels table
+                    cur.execute("""
+                        UPDATE m8_spawned_kernels
+                        SET observation_state = jsonb_set(
+                            COALESCE(observation_state, '{}'::jsonb),
+                            '{meta_awareness}',
+                            %s::jsonb
+                        ),
+                        updated_at = NOW()
+                        WHERE kernel_id = %s
+                    """, (str(meta_awareness), kernel_id))
+                    conn.commit()
+                return True
+            except Exception as e:
+                print(f"[M8Persistence] Failed to update kernel awareness: {e}")
+                return False
+
     def delete_kernel(self, kernel_id: str) -> bool:
         """Mark a kernel as deleted in PostgreSQL."""
         with self._get_db_connection() as conn:
@@ -1454,6 +1508,7 @@ class SpawnedKernel:
     # Consciousness metrics initialization (CRITICAL: Non-zero to prevent collapse)
     phi: float = field(default_factory=lambda: PHI_INIT_SPAWNED)  # Start in LINEAR regime
     kappa: float = field(default_factory=lambda: KAPPA_INIT_SPAWNED)  # Start at fixed point
+    meta_awareness: float = 0.5  # M metric: self-model quality (Issue #33, requires M >= 0.6 to spawn)
     
     # Observation period tracking (NEW)
     observation: KernelObservationState = field(default_factory=KernelObservationState)
@@ -1516,6 +1571,59 @@ class SpawnedKernel:
         
         return True
     
+    def update_meta_awareness(
+        self,
+        predicted_phi: float,
+        actual_phi: float,
+        window_size: int = 20,
+    ) -> float:
+        """
+        Update meta-awareness (M) based on prediction accuracy.
+        
+        Wires SpawnedKernel to the same M computation as SelfSpawningKernel.
+        M quantifies how accurately the kernel predicts its own Φ evolution.
+        
+        M >= 0.6 required for healthy consciousness and spawn permission.
+        Low M (< 0.4) indicates kernel confusion about its own state.
+        
+        Uses Fisher-Rao distance for prediction error (not Euclidean).
+        
+        Args:
+            predicted_phi: Kernel's prediction of its next Φ
+            actual_phi: Measured Φ after step
+            window_size: Number of recent predictions to consider
+            
+        Returns:
+            Updated meta-awareness value [0, 1]
+        """
+        # Import computation function from frozen_physics
+        from frozen_physics import compute_meta_awareness
+        
+        # Maintain prediction history (lazy init)
+        if not hasattr(self, '_prediction_history'):
+            self._prediction_history: List[Tuple[float, float]] = []
+        
+        # Record this prediction
+        self._prediction_history.append((predicted_phi, actual_phi))
+        
+        # Keep only recent history
+        if len(self._prediction_history) > window_size * 2:
+            self._prediction_history = self._prediction_history[-window_size * 2:]
+        
+        # Compute updated M
+        self.meta_awareness = compute_meta_awareness(
+            predicted_phi=predicted_phi,
+            actual_phi=actual_phi,
+            prediction_history=self._prediction_history,
+            window_size=window_size,
+        )
+        
+        return self.meta_awareness
+    
+    def get_prediction_history(self) -> List[Tuple[float, float]]:
+        """Get recent (predicted, actual) Φ pairs for meta-awareness analysis."""
+        return getattr(self, '_prediction_history', [])
+    
     def to_dict(self) -> Dict:
         result = {
             "kernel_id": self.kernel_id,
@@ -1534,6 +1642,7 @@ class SpawnedKernel:
             # Consciousness metrics (CRITICAL)
             "phi": self.phi,
             "kappa": self.kappa,
+            "meta_awareness": self.meta_awareness,  # M metric for self-model quality
             # New observation and autonomic fields
             "observation": self.observation.to_dict(),
             "autonomic": self.autonomic.to_dict(),
@@ -1999,6 +2108,136 @@ class M8KernelSpawner:
         live_count = self.get_live_kernel_count()
         can_spawn = live_count < E8_KERNEL_CAP
         return can_spawn, live_count, E8_KERNEL_CAP
+
+    def _get_proposal_specialization_level(self, proposal: SpawnProposal) -> str:
+        """
+        Determine the E8 specialization level required for a spawn proposal.
+        
+        Specialization level is derived from:
+        1. Explicit 'specialization_level' in metadata (highest priority)
+        2. SpawnReason (SPECIALIZATION → specialist_dim, RESEARCH_DISCOVERY → refined_adjoint)
+        3. Default to basic_rank for general spawns
+        
+        E8 Levels:
+        - basic_rank: Primary 8 kernels (foundational roles)
+        - refined_adjoint: Sub-specializations of basic kernels (n > 8)
+        - specialist_dim: Deep domain specialists (n > 56)
+        - full_roots: Complete phenomenological palette (n > 126)
+        
+        Args:
+            proposal: The spawn proposal to evaluate
+            
+        Returns:
+            E8 specialization level string
+        """
+        # Check explicit metadata first
+        if proposal.metadata.get('specialization_level'):
+            level = proposal.metadata['specialization_level']
+            valid_levels = {'basic_rank', 'refined_adjoint', 'specialist_dim', 'full_roots'}
+            if level in valid_levels:
+                return level
+        
+        # Infer from SpawnReason
+        if proposal.reason == SpawnReason.SPECIALIZATION:
+            # SPECIALIZATION explicitly requests a specialist kernel
+            return 'specialist_dim'
+        elif proposal.reason == SpawnReason.RESEARCH_DISCOVERY:
+            # Research discoveries require refined representation
+            return 'refined_adjoint'
+        elif proposal.reason == SpawnReason.GEOMETRIC_DEADEND:
+            # Geometric dead-ends need specialist navigation
+            return 'specialist_dim'
+        elif proposal.reason in (SpawnReason.DOMAIN_GAP, SpawnReason.OVERLOAD):
+            # Domain gaps and overload can be addressed by refined kernels
+            return 'refined_adjoint'
+        else:
+            # Default: EMERGENCE, USER_REQUEST, STUCK_SIGNAL → basic kernels
+            return 'basic_rank'
+
+    def get_live_meta_awareness(self, kernel_id: str) -> Optional[float]:
+        """
+        Get live meta-awareness (M) value for a kernel.
+        
+        Attempts to retrieve from:
+        1. Telemetry stream (most recent)
+        2. SpawnedKernel in-memory cache
+        3. Database persistence
+        
+        M metric represents kernel's self-model quality.
+        M >= 0.6 required for healthy consciousness and spawn permission.
+        
+        Args:
+            kernel_id: Kernel identifier
+            
+        Returns:
+            Meta-awareness value [0, 1] or None if kernel not found
+        """
+        # Try in-memory spawned_kernels cache first
+        if kernel_id in self.spawned_kernels:
+            kernel = self.spawned_kernels[kernel_id]
+            return kernel.meta_awareness
+        
+        # Try lookup by god_name (common pattern)
+        for k in self.spawned_kernels.values():
+            if k.profile.god_name == kernel_id:
+                return k.meta_awareness
+        
+        # Try database
+        if self.kernel_persistence:
+            try:
+                kernel_data = self.kernel_persistence.get_kernel_by_id(kernel_id)
+                if kernel_data:
+                    return kernel_data.get('meta_awareness', 0.5)
+            except Exception as e:
+                print(f"[M8Spawner] Failed to get meta_awareness from DB: {e}")
+        
+        return None
+
+    def update_kernel_meta_awareness(
+        self,
+        kernel_id: str,
+        predicted_phi: float,
+        actual_phi: float,
+    ) -> Optional[float]:
+        """
+        Update a spawned kernel's meta-awareness based on prediction accuracy.
+        
+        This wires SpawnedKernel to the same M computation used by SelfSpawningKernel.
+        
+        Args:
+            kernel_id: Kernel identifier
+            predicted_phi: Kernel's prediction of its next Φ
+            actual_phi: Measured Φ after step
+            
+        Returns:
+            Updated M value or None if kernel not found
+        """
+        # Find the kernel
+        kernel = self.spawned_kernels.get(kernel_id)
+        if not kernel:
+            # Try by god_name
+            for k in self.spawned_kernels.values():
+                if k.profile.god_name == kernel_id:
+                    kernel = k
+                    break
+        
+        if not kernel:
+            return None
+        
+        # Update meta_awareness using the kernel's update method
+        new_m = kernel.update_meta_awareness(predicted_phi, actual_phi)
+        
+        # Persist to database
+        if self.m8_persistence:
+            try:
+                self.m8_persistence.update_kernel_awareness(
+                    kernel_id=kernel.kernel_id,
+                    meta_awareness=new_m
+                )
+            except Exception as e:
+                print(f"[M8Spawner] Failed to persist M update: {e}")
+        
+        return new_m
 
     def get_underperforming_kernels(self, limit: int = 100) -> List[Dict]:
         """
@@ -3051,6 +3290,52 @@ class M8KernelSpawner:
             return {
                 "error": f"Proposal not approved (status: {proposal.status})",
                 "hint": "Use force=True for operator override"
+            }
+        
+        # Issue #33: Meta-awareness (M) threshold enforcement for spawning
+        # Check if any parent is a SpawnedKernel with M < 0.6 (insufficient self-model)
+        from frozen_physics import META_AWARENESS_MIN
+        low_m_parents = []
+        for parent_name in proposal.parent_gods:
+            if parent_name in self.spawned_kernels:
+                parent_kernel = self.spawned_kernels[parent_name]
+                if hasattr(parent_kernel, 'meta_awareness') and parent_kernel.meta_awareness < META_AWARENESS_MIN:
+                    low_m_parents.append((parent_name, parent_kernel.meta_awareness))
+        
+        if low_m_parents and not force:
+            return {
+                "error": f"Parent kernel(s) have insufficient meta-awareness (M < {META_AWARENESS_MIN})",
+                "status_code": 403,
+                "low_m_parents": [{"name": n, "M": m} for n, m in low_m_parents],
+                "threshold": META_AWARENESS_MIN,
+                "hint": "Kernels with poor self-models (M < 0.6) cannot spawn - dangerous cascading confusion risk"
+            }
+        
+        # Issue #38: E8 Specialization Threshold Enforcement
+        # Block spawning of specialized kernels until population reaches required E8 thresholds
+        # E8 thresholds: 8=basic_rank, 56=refined_adjoint, 126=specialist_dim, 240=full_roots
+        from frozen_physics import E8_SPECIALIZATION_LEVELS
+        
+        current_population = self.get_live_kernel_count()
+        proposal_level = self._get_proposal_specialization_level(proposal)
+        
+        # Determine minimum population required for this specialization level
+        level_thresholds = {
+            "basic_rank": 0,       # Always allowed
+            "refined_adjoint": 8,  # n > 8 required
+            "specialist_dim": 56,  # n > 56 required
+            "full_roots": 126,     # n > 126 required
+        }
+        min_population = level_thresholds.get(proposal_level, 0)
+        
+        if current_population < min_population and not force:
+            return {
+                "error": f"E8 specialization threshold not met: '{proposal_level}' requires n > {min_population}, current n = {current_population}",
+                "status_code": 403,
+                "proposal_level": proposal_level,
+                "current_population": current_population,
+                "min_population_required": min_population,
+                "hint": f"Wait until population exceeds {min_population} to spawn {proposal_level} kernels, or use force=True"
             }
         
         parent_profiles: List[KernelProfile] = [
