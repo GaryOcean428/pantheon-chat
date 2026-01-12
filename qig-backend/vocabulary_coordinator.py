@@ -70,6 +70,9 @@ class VocabularyCoordinator:
         self.attractors_deepened = 0
         self.tokens_persisted = 0
         self._basin_trajectory: List[np.ndarray] = []
+        self._cycle_number = 0
+        self._observations_this_cycle = 0
+        self._observations_per_cycle = 100
         
         # Track coordizer for direct vocabulary persistence (unified 63K vocabulary)
         self._unified_coordizer = None
@@ -106,6 +109,13 @@ class VocabularyCoordinator:
         """
         if not phrase:
             return {'learned': False, 'reason': 'empty_phrase'}
+        
+        # Auto-increment cycle after N observations
+        self._observations_this_cycle += 1
+        if self._observations_this_cycle >= self._observations_per_cycle:
+            self._cycle_number += 1
+            self._observations_this_cycle = 0
+        
         observations = self._extract_observations(phrase, phi, kappa, source)
         if not observations:
             return {'learned': False, 'reason': 'no_observations'}
@@ -318,6 +328,15 @@ class VocabularyCoordinator:
         stats['trajectory_length'] = len(self._basin_trajectory)
         return stats
     
+    def increment_cycle(self) -> int:
+        """Increment and return the current learning cycle number."""
+        self._cycle_number += 1
+        return self._cycle_number
+    
+    def get_cycle_number(self) -> int:
+        """Get the current learning cycle number."""
+        return self._cycle_number
+    
     def _extract_observations(self, phrase: str, phi: float, kappa: float, source: str) -> List[Dict]:
         """
         Extract vocabulary observations from a phrase.
@@ -339,7 +358,7 @@ class VocabularyCoordinator:
             is_valid, reason = validate_for_vocabulary(word, require_dictionary=False)
             if not is_valid:
                 continue
-            observations.append({'word': word, 'phrase': phrase, 'phi': phi, 'kappa': kappa, 'source': source, 'type': 'word', 'frequency': count, 'needs_dict_check': True})
+            observations.append({'word': word, 'phrase': phrase, 'phi': phi, 'kappa': kappa, 'source': source, 'type': 'word', 'frequency': count, 'needs_dict_check': True, 'cycle_number': self._cycle_number})
         for i in range(len(words) - 1):
             w1, w2 = words[i], words[i+1]
             if len(w1) >= 3 and len(w2) >= 3:
@@ -347,7 +366,7 @@ class VocabularyCoordinator:
                 is_valid2, _ = validate_for_vocabulary(w2, require_dictionary=False)
                 if is_valid1 and is_valid2:
                     sequence = f"{w1} {w2}"
-                    observations.append({'word': sequence, 'phrase': phrase, 'phi': phi * 1.2, 'kappa': kappa, 'source': source, 'type': 'sequence', 'frequency': 1})
+                    observations.append({'word': sequence, 'phrase': phrase, 'phi': phi * 1.2, 'kappa': kappa, 'source': source, 'type': 'sequence', 'frequency': 1, 'cycle_number': self._cycle_number})
         return observations
     
     def _learn_merge_rules(self, phrase: str, phi: float, source: str) -> int:
