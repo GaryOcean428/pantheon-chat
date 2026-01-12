@@ -1604,8 +1604,30 @@ class SelfSpawningKernel(*_kernel_base_classes):
             return {'action': 'none', 'error': str(e)}
 
     # =========================================================================
-    # TRAINING
+    # TRAINING (with Running Coupling)
     # =========================================================================
+    
+    def _compute_running_kappa(self) -> tuple[float, float]:
+        """
+        Compute dynamic κ using running coupling (β-function).
+        
+        CRITICAL: κ MUST evolve with scale - constant κ violates QIG.
+        
+        Returns:
+            (kappa_effective, scale) tuple
+        """
+        import numpy as np
+        
+        try:
+            from frozen_physics import compute_running_kappa_semantic
+            # Estimate semantic scale from training progression
+            # Map steps to semantic scale: 0→9, 100→25, 1000→101
+            scale = 9.0 + np.log1p(self.total_training_steps) * 10.0
+            kappa_eff = compute_running_kappa_semantic(scale)
+            return kappa_eff, scale
+        except ImportError:
+            # Fallback: use constant κ* (not ideal, but safe)
+            return 64.21, 9.0
 
     def train_step(self, reward: float) -> Dict[str, Any]:
         """
@@ -1625,18 +1647,7 @@ class SelfSpawningKernel(*_kernel_base_classes):
         phi = self.kernel.compute_phi()
         
         # RUNNING COUPLING: Compute dynamic κ based on training scale
-        # Scale = training step + vocab complexity + context depth
-        # For self-spawning kernels, use step-based scale estimation
-        try:
-            from frozen_physics import compute_running_kappa_semantic
-            # Estimate semantic scale from training progression
-            # Map steps to semantic scale: 0→9, 100→25, 1000→101
-            import numpy as np
-            scale = 9.0 + np.log1p(self.total_training_steps) * 10.0
-            kappa_eff = compute_running_kappa_semantic(scale)
-        except ImportError:
-            # Fallback: use constant κ* (not ideal, but safe)
-            kappa_eff = 64.21
+        kappa_eff, scale = self._compute_running_kappa()
 
         if reward > 0:
             loss = -phi * reward
@@ -1661,7 +1672,7 @@ class SelfSpawningKernel(*_kernel_base_classes):
             'phi_after': phi_after,
             'basin_norm': self.kernel.basin_coords.norm().item(),
             'kappa_effective': kappa_eff,  # NEW: Track running coupling
-            'scale': scale if 'scale' in locals() else None,  # NEW: Track scale
+            'scale': scale,  # NEW: Track scale
         }
         self.training_history.append(metrics)
 
@@ -1677,19 +1688,13 @@ class SelfSpawningKernel(*_kernel_base_classes):
             return {'error': 'not_enough_experiences', 'have': len(self.experience_buffer)}
 
         import random
-        import numpy as np
         experiences = random.sample(list(self.experience_buffer), batch_size)
 
         total_loss = 0.0
         self.optimizer.zero_grad()
         
         # RUNNING COUPLING: Compute dynamic κ for this batch
-        try:
-            from frozen_physics import compute_running_kappa_semantic
-            scale = 9.0 + np.log1p(self.total_training_steps) * 10.0
-            kappa_eff = compute_running_kappa_semantic(scale)
-        except ImportError:
-            kappa_eff = 64.21
+        kappa_eff, scale = self._compute_running_kappa()
 
         for exp in experiences:
             reward = exp['reward']
@@ -1713,7 +1718,7 @@ class SelfSpawningKernel(*_kernel_base_classes):
             'phi_after': self.kernel.compute_phi(),
             'training_steps': self.total_training_steps,
             'kappa_effective': kappa_eff,  # NEW: Track running coupling
-            'scale': scale if 'scale' in locals() else None,  # NEW: Track scale
+            'scale': scale,  # NEW: Track scale
         }
 
     # =========================================================================
