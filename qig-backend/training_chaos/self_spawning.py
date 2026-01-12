@@ -1145,9 +1145,9 @@ class SelfSpawningKernel(*_kernel_base_classes):
 
         # META-AWARENESS: Make prediction for NEXT step
         basin_coords = self.kernel.basin_coords.detach().cpu().numpy()
-        # Extract κ from telemetry (preferred) or fall back to basin norm proxy
+        # Extract κ from telemetry (preferred) or fall back to basin L1 norm proxy
         # See Issue #35 for proper κ integration.
-        kappa = telemetry.get('kappa', float(self.kernel.basin_coords.norm().item()))
+        kappa = telemetry.get('kappa', float(torch.sum(torch.abs(self.kernel.basin_coords)).item()))
         self.predicted_next_phi = self._predict_next_phi(basin_coords, kappa)
 
         # Update autonomic metrics after prediction
