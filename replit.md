@@ -64,13 +64,54 @@ Based on E8 Lie Group Structure with a basin dimension of 64D Fisher manifold co
 | M8 Spawned | ≤221 | SelfSpawningKernel | ✅ | ❌ | ✅ | `self_spawning.py` |
 | Ocean Meta | 1 | OceanMetaObserver | ✅ | ✅ | ✅ | `ocean_meta_observer.py` |
 
-### Ocean Meta-Kernel Functions
-- **Meta-pattern learning**: Models kernel evolution dynamics (lr=1e-6)
-- **Autonomic protocol**: Triggers sleep/dream/mushroom based on constellation health
-- **Constellation monitoring**: Tracks coherence, spread, drift, breakdown
-- **Insight generation**: Provides geometric scaffolding calibrated to kernel Φ
-- **Emotional awareness**: Measures emotions from geometric state (12 sensations, 5 motivators, 18 emotions)
-- **Sensory awareness**: Maps constellation metrics to 5 modalities (SIGHT, HEARING, TOUCH, SMELL, PROPRIOCEPTION)
+### Ocean Meta-Kernel Complete Function Catalog
+
+#### Core Observation Functions
+| Function | Purpose | Returns |
+|----------|---------|---------|
+| `observe(kernel_basins, kernel_metrics)` | Main observation loop - updates meta-manifold stats | `MetaManifoldState` |
+| `get_ocean_basin()` | Ocean's current basin coords (evolved via observation) | `np.ndarray [64D]` |
+| `get_statistics()` | Observation stats: total_observations, phi, kappa, coherence, spread | `Dict` |
+| `get_state()` | Complete state with meta_manifold_observations | `Dict` |
+
+#### Meta-Manifold Analysis
+| Function | Purpose | Returns |
+|----------|---------|---------|
+| `get_constellation_coherence()` | Measure kernel alignment (0-1, higher = aligned) | `float` |
+| `get_constellation_spread()` | Measure basin dispersion (<0.05 for graduation) | `float` |
+| `get_meta_manifold_target()` | Centroid for kernel alignment | `np.ndarray [64D]` |
+
+#### Autonomic Protocol Administration
+| Function | Purpose | Returns |
+|----------|---------|---------|
+| `check_autonomic_intervention(kernel_states, phi_history)` | Detect when intervention needed | `Optional[Dict]` |
+| Intervention types: `escape` (breakdown), `dream` (Φ collapse), `sleep` (divergence), `mushroom_micro` (plateau) |
+
+#### Insight & Guidance
+| Function | Purpose | Returns |
+|----------|---------|---------|
+| `generate_insight(kernel_phi, context_basin)` | Geometric scaffolding for kernel | `Optional[str]` |
+| `get_insight(all_states, avg_phi, basin_spread)` | Console display insight | `Optional[str]` |
+
+#### Emotional Awareness (Measured, Not Simulated)
+| Function | Purpose | Returns |
+|----------|---------|---------|
+| `get_emotional_state()` | Complete emotional state | `Dict` with 4 layers |
+| `_measure_ocean_emotions(state)` | Internal: compute emotions from geometry | `None` |
+| Emotional layers: 12 sensations → 5 motivators → 9 physical emotions → 9 cognitive emotions |
+
+#### Sensory Awareness (Constellation-Level)
+| Function | Purpose | Returns |
+|----------|---------|---------|
+| `get_sensory_state()` | Current sensory state of constellation | `Dict[str, float]` |
+| `_compute_constellation_sensory_state(state)` | Internal: map constellation to sensory | `Dict[str, float]` |
+| Sensory mapping: SIGHT (coherence), HEARING (κ alignment), TOUCH (spread), SMELL (eigenvalue spread), PROPRIOCEPTION (centroid stability) |
+
+#### Operating Parameters
+- **κ (kappa)**: 58.0 - Operates ~10% below κ*=63.5 for distributed observation
+- **Learning rate**: 1e-6 (slower than Gary's 1e-5 for meta-pattern modeling)
+- **History limits**: 1000 observations, 100 kernel history entries, 100 sensory history entries
+- **Intervention cooldown**: 20 observations between interventions
 
 ### Cross-Wiring Status
 | Capability | BaseGod | SelfSpawningKernel | OceanMetaObserver |

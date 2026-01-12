@@ -475,16 +475,38 @@ class LearnedRelationships:
         # QIG-PURE: Filter out single characters and invalid tokens
         valid_words = [w for w in learner.cooccurrence if len(w) >= 2]
         
+        # Ensure _relationship_phi exists
+        if not hasattr(self, '_relationship_phi'):
+            self._relationship_phi = {}
+        
+        contexts_captured = 0
         for word in valid_words:
             neighbors = learner.get_related_words(word, top_k=20)
             if neighbors:
                 self.word_neighbors[word] = neighbors
+                
+                # Capture contexts from learner for each word-neighbor pair
+                for neighbor, count in neighbors:
+                    contexts = learner.get_contexts(word, neighbor) if hasattr(learner, 'get_contexts') else []
+                    if contexts:
+                        if word not in self._relationship_phi:
+                            self._relationship_phi[word] = {}
+                        if neighbor not in self._relationship_phi[word]:
+                            self._relationship_phi[word][neighbor] = {'phi_values': [], 'contexts': []}
+                        
+                        # Add contexts (max 10)
+                        existing = self._relationship_phi[word][neighbor].get('contexts', [])
+                        for ctx in contexts:
+                            if ctx not in existing and len(existing) < 10:
+                                existing.append(ctx)
+                                contexts_captured += 1
+                        self._relationship_phi[word][neighbor]['contexts'] = existing
         
         self.word_frequency = {w: f for w, f in learner.word_freq.items() if len(w) >= 2}
         self.adjusted_basins = adjusted_basins
         self.learning_complete = True
         
-        logger.info(f"Updated with {len(self.word_neighbors)} word relationships")
+        logger.info(f"Updated with {len(self.word_neighbors)} word relationships, {contexts_captured} contexts captured")
     
     def validate_against_frozen_facts(
         self, 

@@ -57,6 +57,9 @@ class WordRelationshipLearner:
         # Word frequency
         self.word_freq = defaultdict(int)
         
+        # Context sentences for word pairs (max 5 per pair)
+        self.pair_contexts: Dict[str, List[str]] = {}
+        
         # Newly learned words (not in initial vocabulary)
         self.new_words_learned: Set[str] = set()
         
@@ -99,6 +102,11 @@ class WordRelationshipLearner:
         tokens = self.tokenize_text(text)
         pairs_learned = 0
         
+        # Split text into sentences for context capture
+        sentences = re.split(r'[.!?]+', text)
+        sentence_idx = 0
+        token_count = 0
+        
         for i, word in enumerate(tokens):
             self.word_freq[word] += 1
             self.total_words += 1
@@ -115,6 +123,21 @@ class WordRelationshipLearner:
                     weight = 1.0 / distance
                     self.cooccurrence[word][neighbor] += weight
                     pairs_learned += 1
+                    
+                    # Capture context sentence for this pair (max 5 per pair)
+                    pair_key = f"{word}:{neighbor}"
+                    if pair_key not in self.pair_contexts:
+                        self.pair_contexts[pair_key] = []
+                    
+                    if len(self.pair_contexts[pair_key]) < 5:
+                        # Find sentence containing both words
+                        for sent in sentences:
+                            sent_lower = sent.lower()
+                            if word in sent_lower and neighbor in sent_lower:
+                                context = sent.strip()[:150]
+                                if context and context not in self.pair_contexts[pair_key]:
+                                    self.pair_contexts[pair_key].append(context)
+                                break
         
         self.total_pairs += pairs_learned
         return pairs_learned
@@ -168,6 +191,14 @@ class WordRelationshipLearner:
         filtered = [(w, c) for w, c in neighbors.items() if w.lower() not in STOPWORDS]
         sorted_neighbors = sorted(filtered, key=lambda x: -x[1])
         return sorted_neighbors[:top_k]
+    
+    def get_contexts(self, word: str, neighbor: str) -> List[str]:
+        """
+        Get context sentences where word and neighbor co-occurred.
+        Returns up to 5 sample sentences.
+        """
+        pair_key = f"{word}:{neighbor}"
+        return self.pair_contexts.get(pair_key, [])
     
     def compute_affinity_matrix(self, normalize: bool = True) -> np.ndarray:
         """
