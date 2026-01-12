@@ -99,7 +99,6 @@ except ImportError:
     TemporalReasoning = None
     get_temporal_reasoning = None
     TEMPORAL_REASONING_AVAILABLE = False
-print("[autonomic_kernel] temporal_reasoning done", flush=True)
 
 # Import neurotransmitter_fields for geometric modulation (Issue #34)
 try:
@@ -108,14 +107,12 @@ try:
 except ImportError:
     ocean_release_neurotransmitters = None
     NEUROTRANSMITTER_FIELDS_AVAILABLE = False
-print("[autonomic_kernel] neurotransmitter_fields done", flush=True)
 
 # Import QFI-based Φ computation (Issue #6)
 try:
-    from qig_core.phi_computation import compute_phi_qig, compute_phi_approximation
+    from qig_core.phi_computation import compute_phi_approximation
     QFI_PHI_AVAILABLE = True
 except ImportError:
-    compute_phi_qig = None
     compute_phi_approximation = None
     QFI_PHI_AVAILABLE = False
 print("[autonomic_kernel] phi_computation done", flush=True)
