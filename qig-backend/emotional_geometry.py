@@ -250,7 +250,7 @@ def measure_basin_approach(
     return d_current < d_prev
 
 
-def compute_surprise_magnitude(trajectory: list[np.ndarray]) -> float:
+def compute_surprise_magnitude(trajectory: List[np.ndarray]) -> float:
     """
     Compute surprise magnitude from curvature gradient along geodesic.
     
@@ -311,7 +311,7 @@ class EmotionTracker:
     """
     
     def __init__(self, history_size: int = 100):
-        self.history: list[Dict[str, Any]] = []
+        self.history: List[Dict[str, Any]] = []
         self.history_size = history_size
         self.previous_basin: Optional[np.ndarray] = None
         self.previous_basin_distance: float = 0.0
