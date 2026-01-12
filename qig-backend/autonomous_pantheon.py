@@ -742,7 +742,7 @@ class AutonomousPantheon:
                     COUNT(*) FILTER (WHERE phi >= 0.7) as high_phi_count,
                     COUNT(*) FILTER (WHERE phi < 0.3) as low_phi_count
                 FROM kernels
-                WHERE is_alive = true
+                WHERE active = true
             """)
             result = cursor.fetchone()
             population, avg_phi, high_phi_count, low_phi_count = result or (0, 0.5, 0, 0)
@@ -757,18 +757,18 @@ class AutonomousPantheon:
             # === CANNIBALIZE: High-Phi kernels absorb low-Phi kernels ===
             if high_phi_count > 0 and low_phi_count > 0:
                 cursor.execute("""
-                    SELECT id, kernel_name, phi 
+                    SELECT id, kernel_id, phi 
                     FROM kernels 
-                    WHERE is_alive = true AND phi >= 0.7
+                    WHERE active = true AND phi >= 0.7
                     ORDER BY phi DESC
                     LIMIT 3
                 """)
                 strong_kernels = cursor.fetchall()
                 
                 cursor.execute("""
-                    SELECT id, kernel_name, phi 
+                    SELECT id, kernel_id, phi 
                     FROM kernels 
-                    WHERE is_alive = true AND phi < 0.3
+                    WHERE active = true AND phi < 0.3
                     ORDER BY phi ASC
                     LIMIT 3
                 """)
@@ -800,10 +800,10 @@ class AutonomousPantheon:
             # === MERGE: Find similar kernels (same domain/capability overlap) ===
             if population >= 30:  # Merge when population is especially high
                 cursor.execute("""
-                    SELECT k1.id, k1.kernel_name, k1.phi, k2.id, k2.kernel_name, k2.phi
+                    SELECT k1.id, k1.kernel_id, k1.phi, k2.id, k2.kernel_id, k2.phi
                     FROM kernels k1
                     JOIN kernels k2 ON k1.id < k2.id
-                    WHERE k1.is_alive = true AND k2.is_alive = true
+                    WHERE k1.active = true AND k2.active = true
                       AND k1.god_name = k2.god_name
                       AND ABS(k1.phi - k2.phi) < 0.2
                     ORDER BY (k1.phi + k2.phi) DESC
@@ -833,12 +833,12 @@ class AutonomousPantheon:
             
             # === EVOLVE: Stagnant mid-Phi kernels need mutation ===
             cursor.execute("""
-                SELECT id, kernel_name, phi
+                SELECT id, kernel_id, phi
                 FROM kernels
-                WHERE is_alive = true 
+                WHERE active = true 
                   AND phi BETWEEN 0.4 AND 0.6
-                  AND updated_at < NOW() - INTERVAL '1 hour'
-                ORDER BY updated_at ASC
+                  AND last_active_at < NOW() - INTERVAL '1 hour'
+                ORDER BY last_active_at ASC
                 LIMIT 2
             """)
             stagnant_kernels = cursor.fetchall()
