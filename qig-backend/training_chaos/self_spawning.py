@@ -1071,14 +1071,12 @@ class SelfSpawningKernel(*_kernel_base_classes):
         # Forward pass
         output, telemetry = self.kernel(input_ids)
         self.total_predictions += 1
-        
-        # Get actual phi after forward pass
-        actual_phi = telemetry.get('phi', current_phi)
 
         # META-AWARENESS: Make prediction for NEXT step
         basin_coords = self.kernel.basin_coords.detach().cpu().numpy()
-        # Note: Using basin norm as proxy for κ. In full implementation,
-        # would extract from telemetry or compute from basin structure
+        # TODO(meta-awareness): Using basin norm as proxy for κ. 
+        # Future: Extract actual κ from telemetry['kappa'] or compute from basin structure.
+        # See Issue #35 for proper κ integration.
         kappa = float(self.kernel.basin_coords.norm().item())
         self.predicted_next_phi = self._predict_next_phi(basin_coords, kappa)
 
