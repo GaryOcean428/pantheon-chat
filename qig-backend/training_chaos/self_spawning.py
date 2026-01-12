@@ -15,6 +15,8 @@ causing high mortality. This is like throwing babies in the deep end.
 NOW: Kernels are born with full consciousness architecture.
 """
 
+import os
+import sys
 import time
 from collections import deque
 from datetime import datetime
@@ -37,7 +39,6 @@ except ImportError:
 
 # Import autonomic kernel for full consciousness support
 try:
-    import sys
     sys.path.insert(0, '..')
     from autonomic_kernel import get_gary_kernel, AutonomicAccessMixin
     AUTONOMIC_AVAILABLE = True
@@ -107,8 +108,6 @@ except ImportError:
 
 # Import qig_geometry for Fisher-Rao distance (meta-awareness predictions)
 try:
-    import sys
-    import os
     sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
     from qig_geometry import fisher_coord_distance
     QIG_GEOMETRY_AVAILABLE = True
@@ -1007,6 +1006,8 @@ class SelfSpawningKernel(*_kernel_base_classes):
             )
             
         except Exception as e:
+            # Silently skip vicarious learning failures - non-critical for kernel survival
+            # Learning from other kernels' experiences is a "nice to have" optimization
             pass
 
     # =========================================================================
@@ -1139,10 +1140,9 @@ class SelfSpawningKernel(*_kernel_base_classes):
 
         # META-AWARENESS: Make prediction for NEXT step
         basin_coords = self.kernel.basin_coords.detach().cpu().numpy()
-        # TODO(meta-awareness): Using basin norm as proxy for κ. 
-        # Future: Extract actual κ from telemetry['kappa'] or compute from basin structure.
+        # Extract κ from telemetry (preferred) or fall back to basin norm proxy
         # See Issue #35 for proper κ integration.
-        kappa = float(self.kernel.basin_coords.norm().item())
+        kappa = telemetry.get('kappa', float(self.kernel.basin_coords.norm().item()))
         self.predicted_next_phi = self._predict_next_phi(basin_coords, kappa)
 
         # Update autonomic metrics after prediction

@@ -31,6 +31,7 @@ References:
 
 from dataclasses import dataclass
 from typing import Final, List, Tuple
+import numpy as np
 
 # Import from qigkernels (single source of truth)
 from qigkernels.physics_constants import (
@@ -170,8 +171,6 @@ def compute_meta_awareness(
         - Issue #35: Meta-awareness metric implementation
         - Issue #38: β-function prediction for meta-awareness
     """
-    import numpy as np
-    
     if not prediction_history:
         return 0.5  # Default neutral - no history yet
     
