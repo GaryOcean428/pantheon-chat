@@ -430,6 +430,8 @@ class SourceDiscoveryService:
         self.enabled = bool(self.database_url)
         self.discovered_sources: Dict[str, Dict] = {}
         self.source_efficacy: Dict[str, Dict] = {}  # source_url -> {phi_avg, success_count, ...}
+        self._recently_used: Dict[str, float] = {}  # source_url -> last_used_timestamp
+        self._recently_used_cooldown = 3600  # 1 hour cooldown before reusing same source
         
         if self.enabled:
             try:
@@ -851,23 +853,38 @@ class SourceDiscoveryService:
         self, 
         topic: str, 
         max_sources: int = 5,
-        min_phi: float = 0.2
+        min_phi: float = 0.2,
+        exclude_urls: Optional[Set[str]] = None
     ) -> List[Dict]:
         """
         Get ranked sources for a research topic.
         Sources ranked by: Fisher-Rao distance (closeness to optimal), ΔΦ, mission relevance.
         NO HARDCODED SOURCES - only returns discovered sources.
         
+        DEDUPLICATION: Sources used within cooldown period are excluded or heavily penalized.
+        
         QIG-Pure Ranking Formula:
-        score = w_fr * (1 - d_FR) + w_dphi * ΔΦ + w_cat * category_match + w_miss * mission + w_eff * efficacy
+        score = w_fr * (1 - d_FR) + w_dphi * ΔΦ + w_cat * category_match + w_miss * mission + w_eff * efficacy - recency_penalty
         where d_FR is Fisher-Rao distance to optimal distribution
         """
         import math
         
         scored_sources = []
         topic_lower = topic.lower()
+        current_time = time.time()
+        exclude_urls = exclude_urls or set()
         
         for source_url, info in self.discovered_sources.items():
+            # DEDUPLICATION: Skip explicitly excluded URLs
+            if source_url in exclude_urls:
+                continue
+            
+            # DEDUPLICATION: Skip sources used within cooldown period
+            last_used = self._recently_used.get(source_url, 0)
+            time_since_use = current_time - last_used
+            if time_since_use < self._recently_used_cooldown:
+                continue  # Skip sources on cooldown
+            
             # 1. Fisher-Rao distance (geometric metric - lower is better)
             info_with_url = {**info, 'url': source_url}
             fisher_rao_dist = self._compute_fisher_rao_distance(info_with_url, topic)
@@ -892,8 +909,15 @@ class SourceDiscoveryService:
             # 5. Historical efficacy
             efficacy = min(1.0, info['hit_count'] / 10) * 0.15  # Weight: 15%
             
+            # 6. Recency penalty - prefer sources not used recently (even after cooldown)
+            # Sources used longer ago get a small bonus
+            recency_bonus = 0.0
+            if last_used > 0:
+                hours_since_use = time_since_use / 3600
+                recency_bonus = min(0.1, hours_since_use * 0.01)  # Max 0.1 bonus after 10 hours
+            
             # Combined QIG score
-            combined_score = fisher_rao_score + delta_phi_score + category_match + mission_match + efficacy
+            combined_score = fisher_rao_score + delta_phi_score + category_match + mission_match + efficacy + recency_bonus
             
             if info['phi_avg'] >= min_phi or combined_score > 0.3:
                 scored_sources.append({
@@ -911,9 +935,16 @@ class SourceDiscoveryService:
         
         if scored_sources:
             top = scored_sources[0]
-            print(f"[SourceDiscovery] Fisher-Rao ranking: top source d_FR={top.get('fisher_rao_distance', 0):.3f}, score={top['score']:.3f}")
+            print(f"[SourceDiscovery] Fisher-Rao ranking: top source d_FR={top.get('fisher_rao_distance', 0):.3f}, score={top['score']:.3f}, available={len(scored_sources)}")
+        else:
+            print(f"[SourceDiscovery] ⚠ No sources available (all on cooldown or excluded)")
         
         return scored_sources[:max_sources]
+    
+    def mark_source_used(self, source_url: str):
+        """Mark a source as recently used for deduplication cooldown."""
+        self._recently_used[source_url] = time.time()
+        print(f"[SourceDiscovery] Source marked as used: {source_url[:50]}... (cooldown={self._recently_used_cooldown}s)")
     
     def record_source_outcome(
         self,
@@ -1189,9 +1220,14 @@ class ScrapyOrchestrator:
         # Get telemetry-discovered start URL if not provided
         telemetry_url = start_url
         if not telemetry_url:
-            discovered = self.source_discovery.get_sources_for_topic(topic, max_sources=1)
+            # Pass seen URLs to avoid duplicates
+            discovered = self.source_discovery.get_sources_for_topic(
+                topic, max_sources=1, exclude_urls=self._seen_urls
+            )
             if discovered:
                 telemetry_url = discovered[0]['url']
+                # Mark source as used for cooldown
+                self.source_discovery.mark_source_used(telemetry_url)
                 print(f"[ScrapyOrchestrator] Using telemetry URL: {telemetry_url}")
         
         self.pending_crawls[crawl_id] = {
@@ -1328,17 +1364,22 @@ class ScrapyOrchestrator:
         HTTP requests and records successful sources for future discovery.
         """
         try:
-            discovered_sources = self.source_discovery.get_sources_for_topic(topic, max_sources=5)
+            # Pass seen URLs to avoid duplicate sources
+            discovered_sources = self.source_discovery.get_sources_for_topic(
+                topic, max_sources=5, exclude_urls=self._seen_urls
+            )
             
             content_parts = [f"QIG-Pure Research: {topic}", f"Method: {spider_type} (SourceDiscovery)", ""]
             sources_used = []
             source_results = {}
             
             if discovered_sources:
-                content_parts.append(f"Discovered {len(discovered_sources)} sources from telemetry:")
+                content_parts.append(f"Discovered {len(discovered_sources)} fresh sources from telemetry:")
                 for src in discovered_sources:
                     content_parts.append(f"  - {src['url']}... (Φ={src['phi_avg']:.3f}, ΔΦ={src['delta_phi']:.3f})")
                     sources_used.append(src['url'])
+                    # Mark each source as used immediately for cooldown
+                    self.source_discovery.mark_source_used(src['url'])
                 content_parts.append("")
                 
                 for src in discovered_sources[:3]:
