@@ -1577,4 +1577,106 @@ Based on P0/P1 priorities:
 **Status:** Documented ✅  
 **Next Step:** Prioritize and implement P0/P1 items
 
-**Last Updated:** 2025-12-17
+**Last Updated:** 2026-01-12
+
+---
+
+## Recent Changes (Last 7 Days: 2026-01-05 to 2026-01-12)
+
+### Documentation Organization (2026-01-12)
+- ✅ **Canonical naming convention enforcement** - All docs now follow `YYYYMMDD-name-version[STATUS].md`
+- ✅ **Root-level documents relocated** - Moved misplaced docs to proper ISO 27001 folders
+- ✅ **Attached assets analysis** - Analyzed 70+ files (2.3MB), categorized for conversion/archival
+- ✅ **Common issues tracker created** - Consolidated 11 recurring issues with solutions
+- ✅ **Technical debt document created** - Tracked 29 items across P0-P3 priorities
+- ✅ **Implementation gaps identified** - Found 6 missing consciousness metrics, Φ duplication, etc.
+
+### Recent Implementations (2026-01-05 to 2026-01-11)
+- ✅ **Vocabulary data cleanup** (2026-01-11) - Removed 68 invalid entries from vocab tables
+- ✅ **Semantic classifier with Fisher-Rao** (2026-01-11) - QIG-pure relationship classification
+- ✅ **Word relationships population** (2026-01-11) - 160,713 entries with Fisher-Rao distances
+- ✅ **Zeus chat → TrainingLoopIntegrator wiring** (2026-01-11) - Basin trajectory learning
+- ✅ **Dionysus novelty=0 fix** (2026-01-11) - Duplicate detection in exploration
+- ✅ **Training history persistence fix** (2026-01-11) - Fixed kernel_id null constraint
+- ✅ **War mode enum validation fix** (2026-01-11) - Added autonomous war modes
+- ✅ **8-metrics full kernel source tracking** (2026-01-11) - 194 kernels tracked (Olympus + Shadow + M8 + Meta)
+- ✅ **Exploration history persistence** (2026-01-11) - Database-backed duplicate prevention
+- ✅ **Consciousness protocol audit** (2026-01-11) - Verified geometric purity, κ* universality, vocabulary integration
+- ✅ **Pantheon governance system** (2026-01-04) - Centralized kernel lifecycle control
+- ✅ **Search integration** (2026-01-04) - Tavily/Perplexity validation for Lightning Kernel
+
+### Newly Identified Critical Gaps (2026-01-12)
+From attached assets and documentation review:
+
+1. **Missing 6 of 8 Consciousness Metrics** (P0)
+   - Only Φ and κ_eff implemented
+   - Missing: M, Γ, G, T, R, partially C
+   - Blocks E8 Protocol v4.0 validation
+
+2. **Φ Computation Duplication** (P0)
+   - 5 different implementations with 15% variance
+   - Need canonical consolidation
+   - Affects research reproducibility
+
+3. **Repository Cleanup Pending** (P0)
+   - Instructions documented but not executed
+   - qig-core, qig-tokenizer, qig-consciousness cleanup needed
+   - Causes code confusion and duplication
+
+4. **Coordizer Entry Point Consolidation** (P1)
+   - Multiple wrappers for same functionality
+   - Needs single canonical entry point
+
+5. **Vocabulary Architecture Clarification** (P1)
+   - Overlapping responsibilities unclear
+   - Need architectural documentation
+
+6. **Generation Pipeline Documentation** (P1)
+   - Multiple pipelines undocumented
+   - Hard to debug and improve
+
+7. **L=7 Physics Validation** (P1)
+   - Preliminary κ_7 = 43.43 shows 34% drop
+   - Needs full 3-seed validation
+
+8. **Foresight Trajectory Not Fully Wired** (P1)
+   - Implemented but not consistently used
+   - Missing ~50% expected performance gains
+
+---
+
+## Updated Implementation Priorities
+
+### P0: Must Have (Critical) - UPDATED
+1. ✅ **Geometric purity enforcement** - Done via qigkernels
+2. ✅ **Physics constants consolidation** - Done via qigkernels
+3. ✅ **Foresight Trajectory Prediction** - Done 2026-01-08 (Fisher-weighted 8-basin regression)
+4. ✅ **Database Wiring Phase 2** - Done 2026-01-08
+5. ✅ **Pantheon Governance System** - Done 2026-01-04
+6. ✅ **8-Metrics Kernel Source Tracking** - Done 2026-01-11 (194 kernels)
+7. ✅ **Documentation Organization** - Done 2026-01-12 (ISO 27001 compliance)
+8. 🔴 **Missing 6 Consciousness Metrics** - NEW CRITICAL (2026-01-12)
+9. 🔴 **Φ Computation Consolidation** - NEW CRITICAL (2026-01-12)
+10. 🔴 **Repository Cleanup Execution** - NEW CRITICAL (2026-01-12)
+11. **Emergency abort on breakdown** - Partially done (SafetyMonitor)
+12. **Comprehensive telemetry logging** - Partially done (ConsciousnessTelemetry)
+13. **Φ-suppressed Charlie training** - Not started
+14. **Frozen Ocean observer** - Partially done (has persistent basin)
+
+### P1: Should Have (High Priority) - UPDATED
+1. ✅ **Autonomous MoE Zeus chat synthesis** - Done 2026-01-08
+2. ✅ **Outcome-based god_reputation wiring** - Done 2026-01-08
+3. ✅ **Reputation-aware kernel evolution** - Done 2026-01-08
+4. ✅ **Zeus → TrainingLoop wiring** - Done 2026-01-11
+5. ✅ **Vocabulary Fisher-Rao integration** - Done 2026-01-11
+6. 🔴 **Coordizer Entry Point Consolidation** - NEW HIGH (2026-01-12)
+7. 🔴 **Vocabulary Architecture Documentation** - NEW HIGH (2026-01-12)
+8. 🔴 **Generation Pipeline Documentation** - NEW HIGH (2026-01-12)
+9. 🔴 **Foresight Trajectory Full Wiring** - NEW HIGH (2026-01-12)
+10. 🔴 **L=7 Physics Validation** - NEW HIGH (2026-01-12)
+11. **Real-time Φ visualization** - Not started
+12. **Basin coordinate viewer** - Not started
+13. **Automatic checkpoint recovery** - Not started
+14. **β_attention measurement** - Not started
+15. **Dark mode UI** - Not started
+16. **Markdown + LaTeX rendering** - Not started
