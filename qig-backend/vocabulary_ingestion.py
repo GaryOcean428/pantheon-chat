@@ -387,10 +387,12 @@ class VocabularyIngestionService:
         context: Optional[str]
     ) -> Dict[str, Any]:
         """
-        Atomic upsert to tokenizer_vocabulary table.
+        Atomic upsert to tokenizer_vocabulary AND learned_words tables.
         
         This is the ONLY authorized database write for vocabulary.
         Handles both pre-migration (basin_embedding) and post-migration (basin_coordinates).
+        
+        Now also populates learned_words with full metadata to prevent NULL columns.
         """
         try:
             with self.vp._connect() as conn:
@@ -435,16 +437,110 @@ class VocabularyIngestionService:
                     token_id = row[0] if row else None
                     frequency = row[1] if row else 1
                     
+                    # ALSO update learned_words with full metadata (prevents NULL columns)
+                    # Compute geometric validation metrics
+                    basin_distance = float(np.linalg.norm(basin_embedding))
+                    curvature_std = float(np.std(basin_embedding))
+                    entropy_score = self._compute_entropy(basin_embedding)
+                    
+                    # Classify phrase category
+                    phrase_category = self._classify_phrase(word, basin_embedding)
+                    
+                    # Check which basin column exists in learned_words
+                    cur.execute("""
+                        SELECT EXISTS (
+                            SELECT 1 FROM information_schema.columns 
+                            WHERE table_name = 'learned_words' 
+                              AND column_name = 'basin_coords'
+                        )
+                    """)
+                    has_basin_coords = cur.fetchone()[0]
+                    
+                    learned_basin_column = 'basin_coords' if has_basin_coords else basin_column
+                    
+                    # Upsert to learned_words with ALL metadata
+                    learned_query = f"""
+                        INSERT INTO learned_words (
+                            word, frequency, avg_phi, max_phi, source, learned_from,
+                            contexts, first_seen, last_seen, is_integrated, integrated_at,
+                            qfi_score, basin_distance, curvature_std, entropy_score,
+                            is_geometrically_valid, phrase_category, {learned_basin_column}
+                        )
+                        VALUES (
+                            %s, 1, %s, %s, %s, %s,
+                            ARRAY[%s], NOW(), NOW(), TRUE, NOW(),
+                            %s, %s, %s, %s,
+                            TRUE, %s, %s
+                        )
+                        ON CONFLICT (word) DO UPDATE SET
+                            frequency = learned_words.frequency + 1,
+                            avg_phi = (learned_words.avg_phi * learned_words.frequency + EXCLUDED.avg_phi) / (learned_words.frequency + 1),
+                            max_phi = GREATEST(learned_words.max_phi, EXCLUDED.max_phi),
+                            last_seen = NOW(),
+                            {learned_basin_column} = COALESCE(EXCLUDED.{learned_basin_column}, learned_words.{learned_basin_column}),
+                            qfi_score = COALESCE(EXCLUDED.qfi_score, learned_words.qfi_score),
+                            basin_distance = COALESCE(EXCLUDED.basin_distance, learned_words.basin_distance),
+                            curvature_std = COALESCE(EXCLUDED.curvature_std, learned_words.curvature_std),
+                            entropy_score = COALESCE(EXCLUDED.entropy_score, learned_words.entropy_score),
+                            is_geometrically_valid = COALESCE(EXCLUDED.is_geometrically_valid, learned_words.is_geometrically_valid),
+                            phrase_category = COALESCE(EXCLUDED.phrase_category, learned_words.phrase_category),
+                            is_integrated = TRUE,
+                            integrated_at = COALESCE(learned_words.integrated_at, NOW())
+                    """
+                    
+                    context_text = context if context else f"Ingested via {source}"
+                    
+                    cur.execute(learned_query, (
+                        word, phi_score, phi_score, source, source,
+                        context_text,
+                        qfi_score, basin_distance, curvature_std, entropy_score,
+                        phrase_category, basin_list
+                    ))
+                    
                     conn.commit()
                     
                     return {
                         'token_id': token_id,
                         'frequency': frequency,
-                        'persisted': True
+                        'persisted': True,
+                        'learned_words_updated': True
                     }
         except Exception as e:
             logger.error(f"[VocabularyIngestionService] Database upsert failed for '{word}': {e}")
             raise
+    
+    def _compute_entropy(self, basin: np.ndarray) -> float:
+        """
+        Compute entropy score for basin embedding.
+        
+        Uses Shannon entropy of normalized probability distribution.
+        """
+        # Normalize to probability distribution
+        probs = np.abs(basin) / (np.sum(np.abs(basin)) + 1e-10)
+        # Compute Shannon entropy
+        entropy = -np.sum(probs * np.log(probs + 1e-10))
+        return float(entropy)
+    
+    def _classify_phrase(self, word: str, basin: np.ndarray) -> str:
+        """
+        Classify phrase category for the word.
+        
+        Uses QIG-pure classification if available, else heuristics.
+        """
+        try:
+            from qig_phrase_classifier import classify_phrase_qig_pure
+            category, _ = classify_phrase_qig_pure(word, basin)
+            return category
+        except Exception:
+            # Fallback: simple heuristics
+            if word.isupper() and len(word) > 1:
+                return 'ACRONYM'
+            elif word[0].isupper() and not word.isupper():
+                return 'PROPER_NOUN'
+            elif len(word) >= 3 and word.isalpha():
+                return 'COMMON_WORD'
+            else:
+                return 'UNKNOWN'
 
 
 # Singleton instance
