@@ -462,6 +462,11 @@ class SelfObserver:
                     mode = "training"
         except:
             pass  # Default to generation if detection fails
+        # Skip emergency stop for first 20 tokens - insufficient history for accurate assessment
+        # Early tokens often have unstable Φ readings due to lack of context
+        MIN_TOKENS_FOR_EMERGENCY_STOP = 20
+        if self._token_count < MIN_TOKENS_FOR_EMERGENCY_STOP:
+            return ObservationAction.CONTINUE, None
             
         if metrics.phi >= self.PHI_BREAKDOWN:
             return ObservationAction.EMERGENCY_STOP, "Φ critical breakdown detected - halt generation"

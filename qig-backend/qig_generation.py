@@ -901,9 +901,12 @@ class QIGGenerator:
                     # Track recent words for relationship boosting
                     recent_words = []
                     
+                    # Get primary kernel for domain weighting
+                    primary_kernel = kernels[0] if kernels else None
+                    
                     for basin in basins[-10:]:
-                        # Get candidates from coordizer
-                        candidates = coordizer.decode(basin, top_k=5)
+                        # Get candidates from coordizer with domain weighting
+                        candidates = coordizer.decode(basin, top_k=5, god_name=primary_kernel)
                         
                         if candidates:
                             # FIX 3: Boost candidates using word relationships

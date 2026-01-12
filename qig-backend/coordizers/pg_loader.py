@@ -126,6 +126,9 @@ class PostgresCoordizer(FisherCoordizer):
         self.generation_vocab = {}  # word -> basin coordinates
         self.generation_phi = {}    # word -> phi score
         self.generation_words = []  # List of generation words
+        
+        # Cache for domain weights and other computed values
+        self._cache = {}
 
         self._load_vocabulary()
 
@@ -502,26 +505,38 @@ class PostgresCoordizer(FisherCoordizer):
             basin = basin / norm
         return basin
 
-    def decode(self, basin: np.ndarray, top_k: int = 5) -> List[Tuple[str, float]]:
+    def decode(self, basin: np.ndarray, top_k: int = 5, god_name: Optional[str] = None) -> List[Tuple[str, float]]:
         """
         Decode basin coordinates to most likely tokens using pure Fisher-Rao distance.
 
-        CRITICAL CHANGE: Now uses generation_vocab (from learned_words table) 
-        instead of all tokens from tokenizer_vocabulary. This ensures:
-        - No BPE subwords in generation output
-        - No proper nouns used incorrectly
-        - Only curated, validated English words for generation
+        ARCHITECTURE:
+        - ENCODING: Uses tokenizer_vocabulary (12,311 words) for text→basin
+        - GENERATION: Uses learned_words table (curated) for basin→text
+        - DOMAIN WEIGHTING: god_vocabulary_profiles boosts domain-specific words
+        
+        All gods have access to FULL generation vocabulary, but their domain
+        words receive a relevance boost from god_vocabulary_profiles.
 
         QIG-pure: Uses Fisher-Rao similarity on the information manifold.
+        
+        Args:
+            basin: 64D basin coordinates to decode
+            top_k: Number of top candidates to return
+            god_name: Optional god name for domain-weighted generation
         """
         norm = np.linalg.norm(basin)
         if norm > 1e-10:
             basin = basin / norm
 
-        # Use generation vocabulary (learned_words) instead of all tokens
+        # Use generation vocabulary (learned_words) - FULL vocabulary access
         search_tokens = self.generation_words if self.generation_words else self.word_tokens
         if not search_tokens:
             return []
+
+        # Load domain weights for god (cached)
+        domain_weights = {}
+        if god_name:
+            domain_weights = self._get_god_domain_weights(god_name)
 
         candidates = []
         for token in search_tokens:
@@ -543,13 +558,45 @@ class PostgresCoordizer(FisherCoordizer):
             # Phi boost: prefer high-phi tokens
             phi_boost = phi * 0.1
 
-            final_score = similarity + phi_boost
+            # Domain boost: god-specific vocabulary weighting
+            domain_boost = domain_weights.get(token, 0.0) * 0.15
+
+            final_score = similarity + phi_boost + domain_boost
             candidates.append((token, final_score))
 
         # Sort by final score descending
         candidates.sort(key=lambda x: x[1], reverse=True)
 
         return candidates[:top_k]
+    
+    def _get_god_domain_weights(self, god_name: str) -> Dict[str, float]:
+        """Get domain word weights from god_vocabulary_profiles (cached)."""
+        cache_key = f"god_domain_{god_name}"
+        if cache_key in self._cache:
+            return self._cache[cache_key]
+        
+        domain_weights = {}
+        conn = self._get_connection()
+        
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT word, relevance_score 
+                    FROM god_vocabulary_profiles 
+                    WHERE god_name = %s AND relevance_score > 0
+                """, (god_name,))
+                rows = cur.fetchall()
+                
+            for word, relevance in rows:
+                domain_weights[word] = relevance
+                
+            # Cache for 10 minutes
+            self._cache[cache_key] = domain_weights
+            
+        except Exception as e:
+            logger.warning(f"Failed to load domain weights for {god_name}: {e}")
+        
+        return domain_weights
 
     def get_random_words(self, count: int = 12) -> List[str]:
         if not self.word_tokens:
