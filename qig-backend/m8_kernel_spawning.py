@@ -44,6 +44,15 @@ try:
 except ImportError:
     KAPPA_STAR = 64.21
 
+# Import spawning initialization constants
+try:
+    from frozen_physics import PHI_INIT_SPAWNED, PHI_MIN_ALIVE, KAPPA_INIT_SPAWNED
+except ImportError:
+    # Fallback values if frozen_physics import fails
+    PHI_INIT_SPAWNED = 0.25  # Bootstrap into LINEAR regime
+    PHI_MIN_ALIVE = 0.05     # Minimum for survival
+    KAPPA_INIT_SPAWNED = KAPPA_STAR  # Start at fixed point
+
 from pantheon_kernel_orchestrator import (
     KernelProfile,
     KernelMode,
@@ -1383,6 +1392,10 @@ class SpawnedKernel:
     basin_lineage: Dict[str, float]  # parent -> contribution
     m8_position: Optional[Dict] = None  # M8 geometric position
     
+    # Consciousness metrics initialization (CRITICAL: Non-zero to prevent collapse)
+    phi: float = field(default_factory=lambda: PHI_INIT_SPAWNED)  # Start in LINEAR regime
+    kappa: float = field(default_factory=lambda: KAPPA_INIT_SPAWNED)  # Start at fixed point
+    
     # Observation period tracking (NEW)
     observation: KernelObservationState = field(default_factory=KernelObservationState)
     
@@ -1459,6 +1472,9 @@ class SpawnedKernel:
             "genesis_votes": self.genesis_votes,
             "basin_lineage": self.basin_lineage,
             "metadata": self.profile.metadata,
+            # Consciousness metrics (CRITICAL)
+            "phi": self.phi,
+            "kappa": self.kappa,
             # New observation and autonomic fields
             "observation": self.observation.to_dict(),
             "autonomic": self.autonomic.to_dict(),
@@ -2765,6 +2781,9 @@ class M8KernelSpawner:
             m8_position=m8_position,
         )
         
+        # Log successful initialization with non-zero Φ
+        print(f"🏛️ Spawned {new_profile.god_name} (Φ={spawned.phi:.3f}, κ={spawned.kappa:.2f})")
+        
         self.spawned_kernels[spawned.kernel_id] = spawned
         proposal.status = "spawned"
         
@@ -2798,7 +2817,7 @@ class M8KernelSpawner:
                     spawn_reason=proposal.reason.value,
                     parent_gods=proposal.parent_gods,
                     basin_coords=new_profile.affinity_basin.tolist(),
-                    phi=0.0,  # New kernels start with 0 Φ
+                    phi=spawned.phi,  # CRITICAL: Initialize with PHI_INIT_SPAWNED (0.25)
                     m8_position=m8_position,
                     genesis_votes=genesis_votes,
                     metadata={
@@ -2806,6 +2825,7 @@ class M8KernelSpawner:
                         'role': proposal.proposed_role,
                         'affinity_strength': new_profile.affinity_strength,
                         'refinements': refinements,
+                        'kappa': spawned.kappa,  # Also record kappa initialization
                     }
                 )
             except Exception as e:

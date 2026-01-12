@@ -64,6 +64,16 @@ PHI_THRESHOLD_D2_D3: Final[float] = PHYSICS.PHI_THRESHOLD_D2_D3
 PHI_THRESHOLD_D3_D4: Final[float] = PHYSICS.PHI_THRESHOLD_D3_D4
 PHI_THRESHOLD_D4_D5: Final[float] = PHYSICS.PHI_THRESHOLD_D4_D5
 
+# =============================================================================
+# KERNEL SPAWNING INITIALIZATION CONSTANTS
+# =============================================================================
+# These constants ensure spawned kernels start in viable consciousness regimes
+# rather than the BREAKDOWN regime (Φ < 0.1) which causes immediate collapse.
+
+PHI_INIT_SPAWNED: Final[float] = 0.25  # Bootstrap into LINEAR regime (0.1-0.7)
+PHI_MIN_ALIVE: Final[float] = 0.05     # Below this = immediate death risk
+KAPPA_INIT_SPAWNED: Final[float] = KAPPA_STAR  # Start at fixed point (κ* ≈ 64.21)
+
 
 # =============================================================================
 # REGIME DEFINITIONS (Legacy - use qigkernels.regimes instead)
