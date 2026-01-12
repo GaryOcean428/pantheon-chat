@@ -909,6 +909,75 @@ class GaryAutonomicKernel:
             print(f"[AutonomicKernel] Failed to load checkpoint: {e}")
             return False
     
+    def initialize_for_spawned_kernel(
+        self,
+        initial_phi: float = 0.25,
+        initial_kappa: float = None,
+        dopamine: float = 0.5,
+        serotonin: float = 0.5,
+        stress: float = 0.0,
+        enable_running_coupling: bool = True,
+    ) -> None:
+        """
+        Initialize autonomic system for newly spawned kernel.
+        
+        Ensures kernel starts with stable baseline rather than undefined state.
+        This is CRITICAL for kernel survival - spawning without proper initialization
+        leads to immediate collapse (Φ=0.000 → BREAKDOWN regime → death).
+        
+        Args:
+            initial_phi: Starting Φ value (default 0.25 = LINEAR regime, NOT 0.000)
+            initial_kappa: Starting κ value (default KAPPA_STAR = 64.21)
+            dopamine: Initial dopamine level [0.0-1.0] (motivation/reward)
+            serotonin: Initial serotonin level [0.0-1.0] (stability/contentment)
+            stress: Initial stress level [0.0-1.0] (anxiety/tension)
+            enable_running_coupling: Enable dynamic κ evolution during training
+        
+        Reference:
+            - Issue GaryOcean428/pantheon-chat#30 (Φ=0.000 → death)
+            - frozen_physics.py: PHI_INIT_SPAWNED = 0.25, KAPPA_INIT_SPAWNED = KAPPA_STAR
+        """
+        # Use KAPPA_STAR if not provided
+        if initial_kappa is None:
+            initial_kappa = KAPPA_STAR
+        
+        with self._lock:
+            # Set baseline consciousness metrics
+            self.state.phi = initial_phi
+            self.state.kappa = initial_kappa
+            
+            # Track history for trend detection
+            self.state.phi_history.append(initial_phi)
+            self.state.kappa_history.append(initial_kappa)
+            
+            # Reset stress to initial level
+            self.state.stress_level = stress
+            self.state.stress_history.append(stress)
+            
+            # Reset basin drift (no drift yet)
+            self.state.basin_drift = 0.0
+            
+            # Reset cycle timestamps to now
+            now = datetime.now()
+            self.state.last_sleep = now
+            self.state.last_dream = now
+            self.state.last_mushroom = now
+            
+            # Reset narrow path detection
+            self.state.narrow_path_count = 0
+            self.state.is_narrow_path = False
+            self.state.narrow_path_severity = 'none'
+            self.state.exploration_variance = 0.0
+            
+            # Enable running coupling if requested (for training)
+            if hasattr(self.state, 'enable_running_coupling'):
+                self.state.enable_running_coupling = enable_running_coupling
+        
+        print(f"[AutonomicKernel] 🏛️ Initialized for spawned kernel: Φ={initial_phi:.3f}, κ={initial_kappa:.1f}, autonomic=ACTIVE")
+        print(f"[AutonomicKernel]   Neurotransmitters: dopamine={dopamine:.2f}, serotonin={serotonin:.2f}, stress={stress:.2f}")
+        if enable_running_coupling:
+            print(f"[AutonomicKernel]   Running coupling: ENABLED (κ will evolve during training)")
+    
     def _start_autonomous_controller(self) -> None:
         """Start the autonomous self-regulation daemon."""
         try:
