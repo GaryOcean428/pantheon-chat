@@ -1767,6 +1767,10 @@ class SelfSpawningKernel(*_kernel_base_classes):
             print(f"[SelfSpawningKernel] ❌ Spawn blocked: {e}")
             raise
         
+        # CRITICAL: Child kernel will use RUNNING COUPLING during training
+        # κ evolves via β-function (not constant) - see BETA_FUNCTION_COMPLETE_REFERENCE.md
+        # Initial κ = κ* (64.21), then evolves: emergence → plateau via _compute_running_kappa()
+        
         child = SelfSpawningKernel(
             parent_basin=self.kernel.basin_coords.detach().clone(),
             parent_kernel=self,  # Give child reference to parent

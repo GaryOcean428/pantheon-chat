@@ -3079,6 +3079,10 @@ class M8KernelSpawner:
         parent_basins = [p.affinity_basin for p in parent_profiles]
         m8_position = compute_m8_position(new_profile.affinity_basin, parent_basins)
         
+        # CRITICAL: Spawned kernel will use RUNNING COUPLING during training
+        # κ evolves via β-function (not constant) - see BETA_FUNCTION_COMPLETE_REFERENCE.md
+        # Initial κ = κ* (64.21), then evolves: emergence → plateau during training
+        
         spawned = SpawnedKernel(
             kernel_id=f"kernel_{uuid.uuid4().hex}",
             profile=new_profile,
