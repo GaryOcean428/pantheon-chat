@@ -349,7 +349,7 @@ def compute_meta_awareness(
 # GEOMETRIC PURITY ENFORCEMENT (Fisher Information Geometry)
 # =============================================================================
 
-def fisher_rao_distance(p: np.ndarray, q: np.ndarray) -> float:
+def fisher_rao_distance(p, q) -> float:
     """
     Fisher-Rao distance between probability distributions.
     
@@ -364,8 +364,8 @@ def fisher_rao_distance(p: np.ndarray, q: np.ndarray) -> float:
         g_ij = E[∂_i log p(x) * ∂_j log p(x)]
     
     Args:
-        p: Probability distribution (must sum to 1)
-        q: Probability distribution (must sum to 1)
+        p: Probability distribution (must sum to 1), numpy array
+        q: Probability distribution (must sum to 1), numpy array
     
     Returns:
         Fisher-Rao geodesic distance ∈ [0, π]
@@ -403,9 +403,9 @@ def fisher_rao_distance(p: np.ndarray, q: np.ndarray) -> float:
 
 
 def natural_gradient_step(
-    loss: 'torch.Tensor',
-    params: List['torch.nn.Parameter'],
-    fisher_matrix: 'torch.Tensor',
+    loss,
+    params,
+    fisher_matrix,
     learning_rate: float = 1e-4
 ) -> None:
     """
@@ -423,9 +423,9 @@ def natural_gradient_step(
     This follows the steepest descent in the Riemannian metric, not Euclidean.
     
     Args:
-        loss: Loss to minimize
-        params: Model parameters to update
-        fisher_matrix: Fisher information matrix (positive definite)
+        loss: Loss to minimize (torch.Tensor)
+        params: Model parameters to update (List[torch.nn.Parameter])
+        fisher_matrix: Fisher information matrix (torch.Tensor, positive definite)
         learning_rate: Step size
         
     References:
