@@ -124,11 +124,15 @@ class SemanticClassifier:
         
         Returns similarity score in [0, 1] where higher = more similar.
         Uses exponential decay of Fisher-Rao distance.
+        
+        QIG PURITY: Returns 0.0 when geometry is unavailable, ensuring
+        only genuine Fisher-Rao measurements trigger classification.
         """
         w1, w2 = word1.lower(), word2.lower()
         
+        # QIG PURITY: No basins = no geometric evidence = 0.0 strength
         if w1 not in self._basin_cache or w2 not in self._basin_cache:
-            return 0.5
+            return 0.0
         
         basin1 = self._basin_cache[w1]
         basin2 = self._basin_cache[w2]
@@ -139,9 +143,8 @@ class SemanticClassifier:
             return float(np.clip(similarity, 0.0, 1.0))
         else:
             # QIG PURITY: Fail fast - no Euclidean/cosine fallback
-            # Return unknown strength rather than violating geometric principles
             logger.warning(f"[SemanticClassifier] QIG purity: refusing cosine fallback for {word1}/{word2}")
-            return 0.5
+            return 0.0
     
     def classify_relationship(
         self,
