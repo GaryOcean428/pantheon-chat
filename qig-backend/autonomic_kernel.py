@@ -101,6 +101,15 @@ except ImportError:
     TEMPORAL_REASONING_AVAILABLE = False
 print("[autonomic_kernel] temporal_reasoning done", flush=True)
 
+# Import neurotransmitter_fields for geometric modulation (Issue #34)
+try:
+    from neurotransmitter_fields import ocean_release_neurotransmitters
+    NEUROTRANSMITTER_FIELDS_AVAILABLE = True
+except ImportError:
+    ocean_release_neurotransmitters = None
+    NEUROTRANSMITTER_FIELDS_AVAILABLE = False
+print("[autonomic_kernel] neurotransmitter_fields done", flush=True)
+
 # Import QFI-based Φ computation (Issue #6)
 try:
     from qig_core.phi_computation import compute_phi_qig, compute_phi_approximation
@@ -2422,29 +2431,27 @@ class GaryAutonomicKernel:
             return
         
         # Use neurotransmitter_fields module for β-aware modulation
-        try:
-            from neurotransmitter_fields import ocean_release_neurotransmitters
-            
-            # Get modulated field
-            modulated_field = ocean_release_neurotransmitters(
-                target_kernel.neurotransmitters,
-                current_kappa,
-                current_phi
-            )
-            
-            # Apply modulated field
-            target_kernel.neurotransmitters = modulated_field
-            
-            # Sync legacy scalars
-            if hasattr(target_kernel, 'dopamine'):
-                target_kernel.dopamine = modulated_field.dopamine
-            if hasattr(target_kernel, 'serotonin'):
-                target_kernel.serotonin = modulated_field.serotonin
-            if hasattr(target_kernel, 'stress'):
-                target_kernel.stress = modulated_field.cortisol
-        
-        except ImportError:
+        if not NEUROTRANSMITTER_FIELDS_AVAILABLE or ocean_release_neurotransmitters is None:
             print(f"[AutonomicKernel] Warning: neurotransmitter_fields module not available")
+            return
+        
+        # Get modulated field
+        modulated_field = ocean_release_neurotransmitters(
+            target_kernel.neurotransmitters,
+            current_kappa,
+            current_phi
+        )
+        
+        # Apply modulated field
+        target_kernel.neurotransmitters = modulated_field
+        
+        # Sync legacy scalars
+        if hasattr(target_kernel, 'dopamine'):
+            target_kernel.dopamine = modulated_field.dopamine
+        if hasattr(target_kernel, 'serotonin'):
+            target_kernel.serotonin = modulated_field.serotonin
+        if hasattr(target_kernel, 'stress'):
+            target_kernel.stress = modulated_field.cortisol
 
 
 # The compute_phi_with_fallback function is defined above at line 619

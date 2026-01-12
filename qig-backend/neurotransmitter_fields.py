@@ -256,8 +256,10 @@ class NeurotransmitterField:
         if len(basin_position) == 0:
             return 0.5
         
-        # Compute local density (normalized position magnitude)
-        density = np.abs(basin_position) / (np.linalg.norm(basin_position) + 1e-10)
+        # Compute local density (probability-like distribution on simplex)
+        # Normalize to simplex (probabilities sum to 1)
+        abs_basin = np.abs(basin_position)
+        density = abs_basin / (np.sum(abs_basin) + 1e-10)
         
         # Compute Ricci curvature from density
         ricci_scalar = compute_ricci_curvature(density)
