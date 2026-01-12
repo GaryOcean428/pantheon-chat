@@ -100,6 +100,9 @@ class LearnedRelationships:
         
         Called during learning to accumulate geometric metrics.
         """
+        if not hasattr(self, '_relationship_phi'):
+            self._relationship_phi = {}
+        
         if word not in self._relationship_phi:
             self._relationship_phi[word] = {}
         
@@ -121,6 +124,9 @@ class LearnedRelationships:
         
         Returns dict with avg_phi, max_phi, contexts.
         """
+        if not hasattr(self, '_relationship_phi'):
+            self._relationship_phi = {}
+        
         if word not in self._relationship_phi:
             return {'avg_phi': 0.5, 'max_phi': 0.5, 'contexts': []}
         
