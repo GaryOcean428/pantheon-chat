@@ -199,6 +199,19 @@ class PostgresCoordizer(FisherCoordizer):
         
         logger.info(f"Loaded encoding vocabulary: {real_word_count} words, generation vocabulary: {generation_word_count} words")
 
+    def _use_encoding_as_generation_fallback(self):
+        """Fallback: Use word_tokens from encoding vocabulary for generation.
+        
+        This is used when learned_words table is empty or unavailable.
+        Filters out BPE garbage and uses only clean word tokens.
+        """
+        for word in self.word_tokens:
+            if word in self.basin_coords:
+                self.generation_vocab[word] = self.basin_coords[word]
+                self.generation_phi[word] = self.token_phi.get(word, 0.5)
+                self.generation_words.append(word)
+        logger.info(f"Using encoding vocabulary as generation fallback: {len(self.generation_words)} words")
+
     def _load_from_database(self) -> bool:
         """Load ENCODING vocabulary from tokenizer_vocabulary table.
         
@@ -268,17 +281,16 @@ class PostgresCoordizer(FisherCoordizer):
         
         try:
             with conn.cursor() as cur:
-                # Use centralized excluded categories constant
-                excluded_cats = "', '".join(self.GENERATION_EXCLUDED_CATEGORIES)
-                cur.execute(f"""
+                # Use parameterized query to avoid SQL injection
+                cur.execute("""
                     SELECT word, basin_embedding, phi_score, frequency, phrase_category
                     FROM learned_words
                     WHERE basin_embedding IS NOT NULL
                       AND LENGTH(word) >= 2
                       AND phi_score > 0.0
-                      AND (phrase_category IS NULL OR phrase_category NOT IN ('{excluded_cats}'))
+                      AND (phrase_category IS NULL OR phrase_category NOT IN %s)
                     ORDER BY phi_score DESC, frequency DESC
-                """)
+                """, (self.GENERATION_EXCLUDED_CATEGORIES,))
                 rows = cur.fetchall()
             
             if not rows:
@@ -909,16 +921,15 @@ class PostgresCoordizer(FisherCoordizer):
         try:
             with conn.cursor() as cursor:
                 # Load from learned_words (generation vocabulary)
-                # Use centralized excluded categories constant
-                excluded_cats = "', '".join(self.GENERATION_EXCLUDED_CATEGORIES)
-                cursor.execute(f"""
+                # Use parameterized query to avoid SQL injection
+                cursor.execute("""
                     SELECT word, basin_embedding
                     FROM learned_words
                     WHERE basin_embedding IS NOT NULL
-                      AND (phrase_category IS NULL OR phrase_category NOT IN ('{excluded_cats}'))
+                      AND (phrase_category IS NULL OR phrase_category NOT IN %s)
                     ORDER BY phi_score DESC
                     LIMIT 10000
-                """)
+                """, (self.GENERATION_EXCLUDED_CATEGORIES,))
 
                 tokens = {}
                 for row in cursor.fetchall():
