@@ -14,21 +14,53 @@
 import { db } from '../server/db';
 import { sql } from 'drizzle-orm';
 
+type Severity = 'critical' | 'warning' | 'info';
+
 interface ValidationResult {
   category: string;
   table: string;
   issue: string;
-  severity: 'critical' | 'warning' | 'info';
+  severity: Severity;
   count?: number;
 }
 
 const results: ValidationResult[] = [];
 
+// Whitelist of allowed table names for validation
+const ALLOWED_TABLES = [
+  'ocean_quantum_state', 'near_miss_adaptive_state', 'auto_cycle_state',
+  'vocabulary_observations', 'tokenizer_vocabulary', 'tokenizer_metadata',
+  'manifold_probes', 'kernel_geometry', 'consciousness_checkpoints',
+  'basin_documents', 'pantheon_messages'
+] as const;
+
+// Whitelist of allowed columns for NULL checking
+const ALLOWED_COLUMNS: Record<string, string[]> = {
+  'vocabulary_observations': ['basin_coords', 'avg_phi'],
+  'manifold_probes': ['coordinates', 'phi'],
+  'kernel_geometry': ['basin_coordinates'],
+  'consciousness_checkpoints': ['state_data'],
+};
+
+function isValidTable(tableName: string): boolean {
+  return ALLOWED_TABLES.includes(tableName as any);
+}
+
+function isValidColumn(tableName: string, columnName: string): boolean {
+  const allowedColumns = ALLOWED_COLUMNS[tableName];
+  return allowedColumns ? allowedColumns.includes(columnName) : false;
+}
+
 async function checkTableRowCount(
   tableName: string,
   minExpected: number,
-  severity: 'critical' | 'warning' = 'warning'
+  severity: Severity = 'warning'
 ) {
+  if (!isValidTable(tableName)) {
+    console.error(`Invalid table name: ${tableName}`);
+    return 0;
+  }
+  
   try {
     const [result] = await db.execute(
       sql.raw(`SELECT COUNT(*) as count FROM ${tableName}`)
@@ -64,6 +96,11 @@ async function checkNullColumns(
   columnName: string,
   maxNullPercent: number = 50
 ) {
+  if (!isValidTable(tableName) || !isValidColumn(tableName, columnName)) {
+    console.error(`Invalid table/column: ${tableName}.${columnName}`);
+    return;
+  }
+  
   try {
     const [totalResult] = await db.execute(
       sql.raw(`SELECT COUNT(*) as total FROM ${tableName}`)
@@ -103,6 +140,11 @@ async function checkDefaultValues(
   defaultValue: number,
   tolerance: number = 0.01
 ) {
+  if (!isValidTable(tableName)) {
+    console.error(`Invalid table name: ${tableName}`);
+    return;
+  }
+  
   try {
     const [totalResult] = await db.execute(
       sql.raw(`SELECT COUNT(*) as total FROM ${tableName}`)
@@ -141,6 +183,11 @@ async function validateSingletonTable(
   tableName: string,
   expectedId: string | number = 'singleton'
 ) {
+  if (!isValidTable(tableName)) {
+    console.error(`Invalid table name: ${tableName}`);
+    return;
+  }
+  
   try {
     const [result] = await db.execute(
       sql.raw(`SELECT COUNT(*) as count FROM ${tableName}`)

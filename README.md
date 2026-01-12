@@ -157,6 +157,48 @@ curl http://localhost:5000/api/consciousness/metrics
 curl http://localhost:5000/api/health
 ```
 
+### Database Management
+
+**Initialize Database:**
+```bash
+# Initialize singleton tables, metadata, and geometric vocabulary
+npm run db:init
+```
+
+**Validate Database Completeness:**
+```bash
+# Check for NULL values, empty tables, and data integrity
+npm run db:validate
+```
+
+**Complete Database Setup:**
+```bash
+# Initialize and validate in one command
+npm run db:complete
+```
+
+**Apply Migrations:**
+```bash
+# Push schema changes
+npm run db:push
+
+# Or apply SQL migration directly
+psql $DATABASE_URL -f migrations/0009_add_column_defaults.sql
+```
+
+**Populate Vocabulary:**
+```bash
+# Seed geometric anchor words (80+ words)
+npm run db:init
+
+# Populate tokenizer vocabulary
+npm run populate:vocab
+```
+
+For detailed database documentation, see:
+- `docs/03-technical/20260112-database-completeness-implementation-1.00W.md`
+- `migrations/0009_add_column_defaults.sql`
+
 ## Security
 
 ### Critical Security Considerations
