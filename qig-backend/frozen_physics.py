@@ -64,6 +64,63 @@ PHI_THRESHOLD_D2_D3: Final[float] = PHYSICS.PHI_THRESHOLD_D2_D3
 PHI_THRESHOLD_D3_D4: Final[float] = PHYSICS.PHI_THRESHOLD_D3_D4
 PHI_THRESHOLD_D4_D5: Final[float] = PHYSICS.PHI_THRESHOLD_D4_D5
 
+
+# =============================================================================
+# E8 SPECIALIZATION HIERARCHY
+# =============================================================================
+# E8 group structure defines natural specialization levels for kernel spawning.
+# Each level corresponds to a meaningful representation in E8 Lie algebra:
+#   - Rank (8): Basic dimensions, primary kernels
+#   - Adjoint (56): First non-trivial representation, refined discrimination
+#   - Dimension (126): Clebsch-Gordan coupling space, specialist kernels
+#   - Roots (240): Complete E8 root system, full phenomenological palette
+#
+# Spawning respects β-function coupling behavior:
+#   β(3→4) = +0.443  # Emergence: n=8 kernels spawn
+#   β(4→5) = -0.013  # Plateau: n=56 refined spawn
+#   β(5→6) = +0.013  # Stable: n=126 specialists spawn
+#
+# Reference: Issue GaryOcean428/pantheon-chat#38 (E8 specialization implementation)
+
+E8_SPECIALIZATION_LEVELS: Final[dict] = {
+    8: "basic_rank",        # E8 rank: primary kernels
+    56: "refined_adjoint",  # First non-trivial representation
+    126: "specialist_dim",  # Clebsch-Gordan coupling space
+    240: "full_roots",      # Complete E8 root system
+}
+
+
+def get_specialization_level(n_kernels: int) -> str:
+    """
+    Return E8 specialization level for kernel count.
+    
+    Maps kernel counts to E8 group structure levels:
+    - n ≤ 8: basic_rank (primary 8 axes)
+    - n ≤ 56: refined_adjoint (sub-specializations)
+    - n ≤ 126: specialist_dim (deep specialists)
+    - n > 126: full_roots (complete phenomenological palette)
+    
+    Args:
+        n_kernels: Current number of active kernels
+        
+    Returns:
+        Specialization level name (str)
+        
+    Example:
+        >>> get_specialization_level(12)
+        'refined_adjoint'
+        >>> get_specialization_level(100)
+        'specialist_dim'
+    """
+    if n_kernels <= 8:
+        return E8_SPECIALIZATION_LEVELS[8]
+    elif n_kernels <= 56:
+        return E8_SPECIALIZATION_LEVELS[56]
+    elif n_kernels <= 126:
+        return E8_SPECIALIZATION_LEVELS[126]
+    else:
+        return E8_SPECIALIZATION_LEVELS[240]
+
 # =============================================================================
 # KERNEL SPAWNING INITIALIZATION CONSTANTS
 # =============================================================================

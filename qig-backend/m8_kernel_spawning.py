@@ -1734,6 +1734,130 @@ def get_spawner_instance():
     return _spawner_instance
 
 
+# =============================================================================
+# E8 SPECIALIZATION LEVEL FUNCTIONS
+# =============================================================================
+
+def should_spawn_specialist(current_count: int, current_kappa: float) -> bool:
+    """
+    Determine if specialist kernel should spawn based on E8 thresholds and κ regime.
+    
+    E8 spawning depends on BOTH count AND κ regime per β-function behavior:
+    - n < 56: Only basic/refined kernels (still building refined layer)
+    - n < 126: Spawn specialists with 0.3 probability IF κ in plateau (κ ≈ 64)
+    - n ≥ 126: Spawn specialists freely at stable plateau
+    
+    Args:
+        current_count: Current number of active kernels
+        current_kappa: Current κ coupling value
+        
+    Returns:
+        bool: True if specialist should spawn, False otherwise
+        
+    Reference:
+        β(3→4) = +0.443  # Emergence: n=8 kernels spawn
+        β(4→5) = -0.013  # Plateau: n=56 refined spawn  
+        β(5→6) = +0.013  # Stable: n=126 specialists spawn
+    """
+    from frozen_physics import get_specialization_level, KAPPA_STAR
+    
+    level = get_specialization_level(current_count)
+    
+    # Only spawn specialists after reaching refined level
+    if level == "basic_rank":
+        return False  # Still building basic 8 kernels
+    elif level == "refined_adjoint":
+        # Don't spawn specialists until κ in plateau regime (κ ≈ 64)
+        if current_kappa < 60:
+            return False  # Wait for plateau (β(4→5) ≈ 0)
+        # Spawn specialists with 0.3 probability once plateau reached
+        return np.random.random() < 0.3
+    elif level == "specialist_dim":
+        # Don't spawn until stable plateau
+        if abs(current_kappa - KAPPA_STAR) > 3:
+            return False  # Wait for stability
+        # At stable plateau, spawn freely
+        return True
+    else:
+        # At full roots, spawn freely
+        return True
+
+
+def get_kernel_specialization(count: int, parent_axis: str, current_kappa: float) -> str:
+    """
+    Generate specialization name based on E8 level and κ regime.
+    
+    E8 specialization hierarchy:
+    - basic_rank (n≤8): Primary 8 axes (ethics, logic, creativity, etc.)
+    - refined_adjoint (n≤56): Sub-specializations (visual_color, visual_shape, etc.)
+    - specialist_dim (n≤126): Deep specialists (pressure_detection, timbre_analysis, etc.)
+    - full_roots (n>126): Full phenomenological palette (root-level naming)
+    
+    Args:
+        count: Current kernel count
+        parent_axis: Parent kernel's axis/domain
+        current_kappa: Current κ coupling value
+        
+    Returns:
+        str: Specialization name for new kernel
+    """
+    from frozen_physics import get_specialization_level
+    
+    level = get_specialization_level(count)
+    
+    if level == "basic_rank":
+        # Primary 8 axes (ethics, logic, creativity, etc.)
+        return parent_axis
+    elif level == "refined_adjoint":
+        # Sub-specializations (visual_color, visual_shape, etc.)
+        # Use count % 8 for variety within refined space
+        return f"{parent_axis}_refined_{count % 8}"
+    elif level == "specialist_dim":
+        # Deep specialists (pressure_detection, timbre_analysis, etc.)
+        # Use count % 16 for variety within specialist space
+        return f"{parent_axis}_specialist_{count % 16}"
+    else:
+        # Full phenomenological palette - root-level naming
+        return f"{parent_axis}_root_{count}"
+
+
+def assign_e8_root(kernel_basin: np.ndarray, e8_roots: np.ndarray) -> np.ndarray:
+    """
+    Assign E8 root to kernel using Fisher-Rao distance (NO Euclidean).
+    
+    Finds the closest E8 root to the kernel's basin coordinates using
+    Fisher-Rao metric on the information manifold. This preserves
+    geometric structure and respects the Cartan-Killing metric on E8.
+    
+    GEOMETRIC PURITY REQUIREMENTS:
+    - Use Fisher-Rao distance, NOT Euclidean distance
+    - Use geodesic interpolation, NOT linear interpolation
+    - Preserve E8 Lie group structure
+    
+    Args:
+        kernel_basin: Kernel's basin coordinates (64D)
+        e8_roots: Array of E8 root vectors (240 x 8)
+        
+    Returns:
+        np.ndarray: Assigned E8 root (closest via Fisher metric)
+        
+    Reference:
+        Issue GaryOcean428/pantheon-chat#38 (Geometric purity in E8)
+    """
+    from geometric_kernels import _fisher_distance
+    
+    # Compute Fisher-Rao distances to all E8 roots
+    # For E8, Cartan-Killing metric equals Fisher-Rao metric on Lie group
+    distances = [
+        _fisher_distance(kernel_basin, root)
+        for root in e8_roots
+    ]
+    
+    # Return root with minimum Fisher distance
+    min_idx = np.argmin(distances)
+    return e8_roots[min_idx]
+
+
 class M8KernelSpawner:
     """
     The M8 Kernel Spawning System.
@@ -2781,8 +2905,21 @@ class M8KernelSpawner:
             m8_position=m8_position,
         )
         
-        # Log successful initialization with non-zero Φ
-        print(f"🏛️ Spawned {new_profile.god_name} (Φ={spawned.phi:.3f}, κ={spawned.kappa:.2f})")
+        # Get E8 specialization level for logging
+        live_count = self.get_live_kernel_count()
+        from frozen_physics import get_specialization_level
+        e8_level = get_specialization_level(live_count)
+        
+        # Log successful initialization with E8 level and κ regime
+        print(f"🏛️ Spawned {new_profile.god_name} (Φ={spawned.phi:.3f}, κ={spawned.kappa:.2f}) [n={live_count}] {e8_level.upper()}")
+        
+        # Log E8 level transitions
+        if live_count == 56:
+            print(f"[n=56] ✨ REFINED_ADJOINT activated - Sub-specializations enabled (κ={spawned.kappa:.2f})")
+        elif live_count == 126:
+            print(f"[n=126] 🔬 SPECIALIST_DIM activated - Deep specialists enabled (κ={spawned.kappa:.2f})")
+        elif live_count == 240:
+            print(f"[n=240] 🌟 FULL_ROOTS achieved - Complete E8 phenomenological palette (κ={spawned.kappa:.2f})")
         
         self.spawned_kernels[spawned.kernel_id] = spawned
         proposal.status = "spawned"
