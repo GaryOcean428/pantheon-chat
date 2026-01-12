@@ -890,10 +890,17 @@ export class StrategyKnowledgeBus {
 
       withDbRetry(async () => {
         await db!.insert(knowledgeScaleMappings).values(insertData);
+        console.log(
+          `[KnowledgeBus] Scale mapping saved: ${sourceScale.toFixed(1)} -> ${targetScale.toFixed(1)} (loss: ${(lossEstimate * 100).toFixed(1)}%)`
+        );
       }, "KnowledgeBus.createScaleInvariantBridge").catch((err) => {
         console.error("[KnowledgeBus] Failed to save scale mapping:", err);
       });
     }
+
+    console.log(
+      `[KnowledgeBus] Created scale bridge: ${bridgeId}`
+    );
 
     this.saveToJson();
     return bridgeId;
