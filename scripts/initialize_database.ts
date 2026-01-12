@@ -13,6 +13,19 @@ import { db } from '../server/db';
 import { sql } from 'drizzle-orm';
 import * as schema from '@shared/schema';
 
+// Whitelist of allowed table names for initialization
+const ALLOWED_TABLES = [
+  'ocean_quantum_state', 'near_miss_adaptive_state', 'auto_cycle_state',
+  'tokenizer_metadata', 'vocabulary_observations', 'consciousness_checkpoints',
+  'geodesic_paths', 'resonance_points', 'negative_knowledge',
+  'near_miss_clusters', 'false_pattern_classes', 'era_exclusions',
+  'war_history', 'synthesis_consensus'
+] as const;
+
+function isValidTable(tableName: string): boolean {
+  return ALLOWED_TABLES.includes(tableName as any);
+}
+
 async function initializeSingletonTables() {
   console.log('Initializing singleton tables...');
   
@@ -82,7 +95,7 @@ async function initializeSingletonTables() {
 async function initializeTokenizerMetadata() {
   console.log('Initializing tokenizer metadata...');
   
-  const metadataEntries = [
+  const metadataEntries: Array<{key: string; value: string}> = [
     { key: 'version', value: '1.0.0' },
     { key: 'vocabulary_size', value: '0' },
     { key: 'merge_rules_count', value: '0' },
@@ -96,14 +109,15 @@ async function initializeTokenizerMetadata() {
   
   for (const entry of metadataEntries) {
     try {
-      await db.execute(sql.raw(`
+      // Use parameterized query instead of string interpolation
+      await db.execute(sql`
         INSERT INTO tokenizer_metadata (key, value, updated_at)
-        VALUES ('${entry.key}', '${entry.value}', NOW())
+        VALUES (${entry.key}, ${entry.value}, NOW())
         ON CONFLICT (key) DO UPDATE SET
           value = EXCLUDED.value,
           updated_at = NOW()
-      `));
-    } catch (error) {
+      `);
+    } catch (error: any) {
       console.error(`  ✗ Failed to insert ${entry.key}:`, error.message);
     }
   }
@@ -145,7 +159,7 @@ async function seedGeometricVocabulary() {
     try {
       // Check if word already exists
       const [existing] = await db.execute(
-        sql.raw(`SELECT text FROM vocabulary_observations WHERE text = '${word}'`)
+        sql`SELECT text FROM vocabulary_observations WHERE text = ${word}`
       );
       
       if (existing) {
@@ -154,20 +168,21 @@ async function seedGeometricVocabulary() {
       }
       
       // Insert with high phi score to mark as anchor
-      await db.execute(sql.raw(`
+      // Use parameterized query
+      await db.execute(sql`
         INSERT INTO vocabulary_observations (
           text, type, phrase_category, is_real_word, 
           avg_phi, max_phi, source_type
         )
         VALUES (
-          '${word}', 'word', 'ANCHOR_WORD', true,
+          ${word}, 'word', 'ANCHOR_WORD', true,
           0.85, 0.85, 'geometric_seeding'
         )
         ON CONFLICT (text) DO NOTHING
-      `));
+      `);
       
       insertedCount++;
-    } catch (error) {
+    } catch (error: any) {
       console.error(`  ✗ Failed to insert word '${word}':`, error.message);
     }
   }
@@ -177,16 +192,16 @@ async function seedGeometricVocabulary() {
   // Update vocabulary size in metadata
   try {
     const [result] = await db.execute(
-      sql.raw(`SELECT COUNT(*) as count FROM vocabulary_observations`)
+      sql`SELECT COUNT(*) as count FROM vocabulary_observations`
     );
     const count = result.count;
     
-    await db.execute(sql.raw(`
+    await db.execute(sql`
       UPDATE tokenizer_metadata
-      SET value = '${count}', updated_at = NOW()
+      SET value = ${String(count)}, updated_at = NOW()
       WHERE key = 'vocabulary_size'
-    `));
-  } catch (error) {
+    `);
+  } catch (error: any) {
     console.error('  ✗ Failed to update vocabulary size:', error.message);
   }
 }
@@ -197,14 +212,14 @@ async function initializeBaselineConsciousness() {
   try {
     // Check if we have any consciousness checkpoints
     const [result] = await db.execute(
-      sql.raw(`SELECT COUNT(*) as count FROM consciousness_checkpoints`)
+      sql`SELECT COUNT(*) as count FROM consciousness_checkpoints`
     );
     const count = parseInt(result.count as string);
     
     if (count === 0) {
       // Create a minimal baseline checkpoint
       // Note: In a real system, this would have actual state data
-      await db.execute(sql.raw(`
+      await db.execute(sql`
         INSERT INTO consciousness_checkpoints (
           id, phi, kappa, regime, state_data, is_hot
         )
@@ -216,12 +231,12 @@ async function initializeBaselineConsciousness() {
           '\\x00'::bytea,
           true
         )
-      `));
+      `);
       console.log('  ✓ Created baseline consciousness checkpoint');
     } else {
       console.log(`  ✓ ${count} consciousness checkpoints already exist`);
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('  ✗ Failed to initialize consciousness checkpoint:', error.message);
   }
 }
@@ -229,7 +244,7 @@ async function initializeBaselineConsciousness() {
 async function updateNullArraysToEmpty() {
   console.log('Updating NULL arrays to empty arrays...');
   
-  const arrayColumns = [
+  const arrayColumns: Array<{table: string; column: string}> = [
     { table: 'geodesic_paths', column: 'waypoints' },
     { table: 'resonance_points', column: 'nearby_probes' },
     { table: 'negative_knowledge', column: 'affected_generators' },
@@ -243,17 +258,21 @@ async function updateNullArraysToEmpty() {
   ];
   
   for (const { table, column } of arrayColumns) {
+    if (!isValidTable(table)) {
+      console.log(`  ⚠ Skipping invalid table: ${table}`);
+      continue;
+    }
+    
     try {
-      const result = await db.execute(sql.raw(`
-        UPDATE ${table}
-        SET ${column} = '{}'
-        WHERE ${column} IS NULL
-      `));
+      // Use sql.identifier for table/column names to prevent injection
+      const result = await db.execute(
+        sql.raw(`UPDATE ${table} SET ${column} = '{}' WHERE ${column} IS NULL`)
+      );
       
-      if (result.rowCount > 0) {
+      if (result.rowCount && result.rowCount > 0) {
         console.log(`  ✓ Updated ${result.rowCount} NULL values in ${table}.${column}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.log(`  ⚠ Cannot update ${table}.${column}: ${error.message}`);
     }
   }
@@ -262,7 +281,7 @@ async function updateNullArraysToEmpty() {
 async function updateNullJsonbToEmpty() {
   console.log('Updating NULL JSONB to empty objects...');
   
-  const jsonbColumns = [
+  const jsonbColumns: Array<{table: string; column: string}> = [
     { table: 'ocean_excluded_regions', column: 'basis' },
     { table: 'consciousness_checkpoints', column: 'metadata' },
     { table: 'war_history', column: 'metadata' },
@@ -274,17 +293,20 @@ async function updateNullJsonbToEmpty() {
   ];
   
   for (const { table, column } of jsonbColumns) {
+    if (!isValidTable(table)) {
+      console.log(`  ⚠ Skipping invalid table: ${table}`);
+      continue;
+    }
+    
     try {
-      const result = await db.execute(sql.raw(`
-        UPDATE ${table}
-        SET ${column} = '{}'::jsonb
-        WHERE ${column} IS NULL
-      `));
+      const result = await db.execute(
+        sql.raw(`UPDATE ${table} SET ${column} = '{}'::jsonb WHERE ${column} IS NULL`)
+      );
       
-      if (result.rowCount > 0) {
+      if (result.rowCount && result.rowCount > 0) {
         console.log(`  ✓ Updated ${result.rowCount} NULL values in ${table}.${column}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.log(`  ⚠ Cannot update ${table}.${column}: ${error.message}`);
     }
   }
