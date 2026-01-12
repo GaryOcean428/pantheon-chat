@@ -89,3 +89,20 @@ Kernels are categorized into Olympus Pantheon (12 BaseGods), Shadow Pantheon (7 
 -   `psycopg2`
 -   `redis`
 -   `requests`
+
+## Recent Changes (January 12, 2026)
+### Bug Fixes
+1. **Emergency Stop Threshold Fix** (`qig_core/self_observer.py`):
+   - Fixed premature emergency stop at token 1 due to unstable Φ readings
+   - Added MIN_TOKENS_FOR_EMERGENCY_STOP = 5 check before emergency stop can trigger
+   - Kernels now generate 5+ tokens before emergency stop evaluation
+
+2. **Meta-cognition Type Error Fix** (`olympus/zeus_chat.py`):
+   - Fixed `'>=' not supported between instances of 'str' and 'float'` error
+   - Changed task complexity from string 'medium' to float 0.5
+   - Meta-cognitive reasoning now works correctly with ReasoningModeSelector
+
+### Architecture Verification
+- Vocabulary loading confirmed: 12,297 generation words from learned_words
+- Vocabulary diversity improved: PantheonChat generating varied text
+- Zeus chat working end-to-end with ~10s processing time
