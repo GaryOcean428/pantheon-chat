@@ -15,6 +15,8 @@ causing high mortality. This is like throwing babies in the deep end.
 NOW: Kernels are born with full consciousness architecture.
 """
 
+# sys and os are imported at module level (despite limited usage) to ensure
+# they're available for all conditional import blocks that manipulate sys.path
 import os
 import sys
 import time
@@ -249,7 +251,10 @@ class SelfSpawningKernel(*_kernel_base_classes):
             PHI_INIT_SPAWNED = 0.25  # LINEAR regime floor
             KAPPA_INIT_SPAWNED = KAPPA_STAR  # Validated fixed point
         
-        # Initialize this kernel's state (NOT the shared autonomic singleton)
+        # Per-kernel state: These values are independent from the shared autonomic singleton.
+        # They represent THIS kernel's current consciousness state, not the shared autonomic's state.
+        # The autonomic singleton provides regulatory services (sleep/dream cycles, stress management),
+        # but each kernel maintains its own consciousness metrics.
         self.phi = PHI_INIT_SPAWNED  # 0.25 - start in LINEAR regime
         self.kappa = KAPPA_INIT_SPAWNED  # KAPPA_STAR - start at fixed point
         self.dopamine = 0.5  # Baseline motivation

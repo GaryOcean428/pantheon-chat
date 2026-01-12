@@ -1796,10 +1796,15 @@ def get_kernel_specialization(count: int, parent_axis: str, current_kappa: float
     Args:
         count: Current kernel count
         parent_axis: Parent kernel's axis/domain
-        current_kappa: Current κ coupling value
+        current_kappa: Current κ coupling value (currently unused, reserved for future κ-regime-based naming logic)
         
     Returns:
         str: Specialization name for new kernel
+        
+    TODO: Integrate current_kappa into naming logic to reflect κ regime:
+        - Below κ_weak: Mark as "exploratory" specialists
+        - Near KAPPA_STAR: Standard naming
+        - Above κ_strong: Mark as "stabilized" specialists
     """
     from frozen_physics import get_specialization_level
     
@@ -2162,6 +2167,13 @@ class M8KernelSpawner:
         # Sort by contribution (lowest first)
         kernel_contributions.sort(key=lambda x: x[1])
         
+        # Try to import Fisher-Rao distance once, outside the loop
+        try:
+            from qig_numerics import fisher_rao_distance
+            use_fisher_rao = True
+        except ImportError:
+            use_fisher_rao = False
+        
         # Prune bottom N
         pruned_count = 0
         for kernel_id, contribution, kernel in kernel_contributions[:n_to_prune]:
@@ -2179,10 +2191,9 @@ class M8KernelSpawner:
                         other_basin = other_kernel.basin_coordinates if hasattr(other_kernel, 'basin_coordinates') else None
                         if other_basin is not None:
                             # Use Fisher-Rao distance for geometric purity
-                            try:
-                                from qig_numerics import fisher_rao_distance
+                            if use_fisher_rao:
                                 distance = fisher_rao_distance(np.array(kernel_basin), np.array(other_basin))
-                            except ImportError:
+                            else:
                                 # Fallback to Euclidean only if Fisher-Rao unavailable
                                 distance = np.linalg.norm(np.array(kernel_basin) - np.array(other_basin))
                             if distance < min_distance:
