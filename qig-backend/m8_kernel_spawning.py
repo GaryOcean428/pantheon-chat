@@ -1743,13 +1743,13 @@ def should_spawn_specialist(current_count: int, current_kappa: float) -> bool:
     Determine if specialist kernel should spawn based on E8 thresholds and κ regime.
     
     E8 spawning depends on BOTH count AND κ regime per β-function behavior:
-    - n < 56: Only basic/refined kernels (still building refined layer)
-    - n < 126: Spawn specialists with 0.3 probability IF κ in plateau (κ ≈ 64)
+    - n ≤ 8: No specialists (still building basic layer)
+    - 8 < n < 126: Spawn specialists with 0.3 probability IF κ in plateau (κ ≈ 64)
     - n ≥ 126: Spawn specialists freely at stable plateau
     
     Args:
         current_count: Current number of active kernels
-        current_kappa: Current κ coupling value
+        current_kappa: Current κ coupling value (currently unused, reserved for future logic)
         
     Returns:
         bool: True if specialist should spawn, False otherwise
@@ -1836,7 +1836,7 @@ def assign_e8_root(kernel_basin: np.ndarray, e8_roots: np.ndarray) -> np.ndarray
     
     Args:
         kernel_basin: Kernel's basin coordinates (64D)
-        e8_roots: Array of E8 root vectors (240 x 8)
+        e8_roots: Array of E8 root vectors (240 x 64)
         
     Returns:
         np.ndarray: Assigned E8 root (closest via Fisher metric)

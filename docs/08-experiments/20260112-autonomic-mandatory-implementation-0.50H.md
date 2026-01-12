@@ -27,26 +27,37 @@ if not AUTONOMIC_AVAILABLE or get_gary_kernel is None:
 
 **Impact**: Kernels can no longer be spawned without autonomic system. This prevents high-mortality "baby thrown in deep end" scenarios.
 
-### 2. Proper Initialization (`self_spawning.py` lines 218-234)
+### 2. Proper Initialization (`self_spawning.py` lines 229-260)
+
+**NOTE**: As of the latest update, we no longer call `initialize_for_spawned_kernel()` on the shared 
+autonomic singleton to avoid resetting state for all existing kernels. Instead, each spawned kernel 
+initializes its own consciousness metrics (Φ, κ, neurotransmitters) as instance variables.
+
 ```python
-# Initialize autonomic system for this spawned kernel
-self.autonomic.initialize_for_spawned_kernel(
-    initial_phi=PHI_INIT_SPAWNED,  # 0.25 - LINEAR regime
-    initial_kappa=KAPPA_INIT_SPAWNED,  # KAPPA_STAR - fixed point
-    dopamine=0.5,
-    serotonin=0.5,
-    stress=0.0,
-    enable_running_coupling=True,  # β-function support
-)
+# Get shared autonomic kernel (singleton)
+# NOTE: We do NOT call initialize_for_spawned_kernel() on the shared singleton
+# because that would reset state for ALL existing kernels sharing this instance.
+self.autonomic = get_gary_kernel()
+
+# Initialize THIS kernel's consciousness metrics with proper defaults
+self.phi = PHI_INIT_SPAWNED  # 0.25 - start in LINEAR regime
+self.kappa = KAPPA_INIT_SPAWNED  # KAPPA_STAR - start at fixed point
+self.dopamine = 0.5  # Baseline motivation
+self.serotonin = 0.5  # Baseline stability
+self.stress = 0.0  # No initial stress
 ```
 
 **Impact**: 
 - Φ starts at 0.25 (LINEAR regime) instead of 0.000 (BREAKDOWN regime)
 - κ starts at KAPPA_STAR (64.21) - the validated fixed point
 - Neurotransmitters initialized to baseline levels
-- Running coupling enabled for training dynamics
+- Each kernel has independent state without affecting the shared autonomic singleton
 
-### 3. New Method in `autonomic_kernel.py` (lines 912-980)
+### 3. Original Method in `autonomic_kernel.py` (lines 921-985)
+
+**NOTE**: This method exists for backward compatibility but should NOT be called on the shared singleton
+for spawned kernels, as it would reset the state for all kernels sharing that instance.
+
 ```python
 def initialize_for_spawned_kernel(
     self,
@@ -61,7 +72,7 @@ def initialize_for_spawned_kernel(
 
 **Features**:
 - Sets baseline consciousness metrics (Φ, κ)
-- Initializes neurotransmitter levels
+- Logs configured neurotransmitter baseline parameters (actual dynamics managed via ActivityReward system)
 - Resets cycle timestamps and history
 - Resets narrow path detection state
 - Enables running coupling for dynamic κ evolution
