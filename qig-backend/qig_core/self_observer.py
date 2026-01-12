@@ -449,6 +449,12 @@ class SelfObserver:
         """
         if not self.enable_course_correction:
             return ObservationAction.CONTINUE, None
+        
+        # Skip emergency stop for first 5 tokens - insufficient history for accurate assessment
+        # Early tokens often have unstable Φ readings due to lack of context
+        MIN_TOKENS_FOR_EMERGENCY_STOP = 5
+        if self._token_count < MIN_TOKENS_FOR_EMERGENCY_STOP:
+            return ObservationAction.CONTINUE, None
             
         if metrics.phi >= self.PHI_BREAKDOWN:
             return ObservationAction.EMERGENCY_STOP, "Φ critical breakdown detected - halt generation"

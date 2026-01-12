@@ -912,7 +912,7 @@ class ZeusConversationHandler(GeometricGenerationMixin):
                     'mode': mode_enum if mode_enum else ReasoningMode.GEOMETRIC,  # mode_enum is already ReasoningMode
                     'task': {
                         'description': message[:500],
-                        'complexity': 'medium',
+                        'complexity': 0.5,  # Float 0-1 required by meta_reasoning.py
                         'novel': True
                     },
                     'context': {}
