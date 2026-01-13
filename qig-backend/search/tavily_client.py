@@ -108,7 +108,7 @@ class TavilySearchClient:
             api_key: Tavily API key. If not provided, uses TAVILY_API_KEY env var.
         """
         self.api_key = api_key or os.getenv('TAVILY_API_KEY')
-        self.client = None
+        self.client: Any = None
         self.available = False
         
         if not self.api_key:

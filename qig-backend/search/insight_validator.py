@@ -3,10 +3,14 @@ Insight Validator - External Search Validation for Lightning Insights
 
 Validates cross-domain insights from the Lightning Kernel using external search APIs.
 Implements a two-phase validation strategy:
-  Phase 1: Tavily search for raw sources and facts
-  Phase 2: Perplexity synthesis for relationship validation
+  Phase 1: Tavily search for raw sources and facts (using full SDK capabilities)
+  Phase 2: Perplexity synthesis for relationship validation (using direct API)
 
-This closes the loop from Lightning insights â external validation â curriculum â training.
+This closes the loop from Lightning insights -> external validation -> curriculum -> training.
+
+Updated Jan 2026: Now uses comprehensive Tavily and Perplexity clients with full 
+SDK capabilities (search, extract, crawl, map, research, pro_search).
+Default: use_mcp=False to use direct APIs (full feature access).
 """
 
 import os
@@ -22,6 +26,19 @@ if TYPE_CHECKING:
 else:
     # Runtime: use string annotation or Any
     CrossDomainInsight = Any
+
+# Import comprehensive search clients
+try:
+    from search.tavily_client import get_tavily_client, TavilySearchClient
+except ImportError:
+    get_tavily_client = None
+    TavilySearchClient = None
+
+try:
+    from search.perplexity_client import get_perplexity_client, PerplexityClient
+except ImportError:
+    get_perplexity_client = None
+    PerplexityClient = None
 
 # QIG-pure Fisher-Rao distance for geometric validation
 try:
@@ -52,12 +69,12 @@ class InsightValidator:
     """
     Validates Lightning insights using hybrid Tavily + Perplexity strategy.
     
-    Architecture:
-    - Tavily MCP (primary): Raw search, fact finding
-    - Perplexity API (secondary): Synthesis, relationship validation
+    Architecture (Updated Jan 2026):
+    - Tavily SDK (primary): Full search, extract, crawl, map capabilities
+    - Perplexity API (secondary): Synthesis, research, relationship validation
     
     Usage:
-        validator = InsightValidator()
+        validator = InsightValidator()  # use_mcp=False by default now
         result = validator.validate(lightning_insight)
         
         if result.validated:
@@ -66,59 +83,54 @@ class InsightValidator:
     
     def __init__(
         self,
-        use_mcp: bool = True,
+        use_mcp: bool = False,  # Changed default: direct API for full capabilities
         validation_threshold: float = 0.7
     ):
         """
         Initialize validator.
         
         Args:
-            use_mcp: If True, use Tavily MCP; if False, use direct API
+            use_mcp: If True, use Tavily MCP (limited); if False, use direct SDK (full features)
             validation_threshold: Minimum score to consider validated (0.7 default)
         """
         self.use_mcp = use_mcp
         self.validation_threshold = validation_threshold
         
-        # Tavily setup
-        if not use_mcp:
+        # Initialize comprehensive Tavily client
+        self.tavily_client: Any = None
+        if not use_mcp and get_tavily_client:
+            self.tavily_client = get_tavily_client()
+            if self.tavily_client and self.tavily_client.available:
+                logger.info("[InsightValidator] Using Tavily SDK with full capabilities")
+            else:
+                logger.warning("[InsightValidator] Tavily client not available")
+                self.tavily_client = None
+        elif not use_mcp:
+            # Fallback to basic tavily-python if our client not imported
             try:
                 from tavily import TavilyClient
                 tavily_key = os.getenv('TAVILY_API_KEY')
-                if not tavily_key:
-                    logger.warning("TAVILY_API_KEY not set, Tavily search disabled")
-                    self.tavily_client = None
-                else:
+                if tavily_key:
                     self.tavily_client = TavilyClient(api_key=tavily_key)
+                    logger.info("[InsightValidator] Using basic Tavily client")
             except ImportError:
-                logger.warning("tavily-python not installed, using MCP fallback")
-                self.tavily_client = None
-                self.use_mcp = True
-        else:
-            self.tavily_client = None
+                logger.warning("[InsightValidator] tavily-python not installed")
         
-        # Perplexity setup (direct API)
-        try:
-            # Try perplexity-python SDK first
-            try:
-                from perplexity import Perplexity
-                perplexity_key = os.getenv('PERPLEXITY_API_KEY')
-                if not perplexity_key:
-                    logger.warning("PERPLEXITY_API_KEY not set, Perplexity synthesis disabled")
-                    self.perplexity_client = None
-                else:
-                    self.perplexity_client = Perplexity(api_key=perplexity_key)
-            except ImportError:
-                # Fallback to requests-based implementation
-                import requests
-                perplexity_key = os.getenv('PERPLEXITY_API_KEY')
-                if perplexity_key:
-                    self.perplexity_client = PerplexityRequestsClient(perplexity_key)
-                else:
-                    logger.warning("PERPLEXITY_API_KEY not set, Perplexity synthesis disabled")
-                    self.perplexity_client = None
-        except Exception as e:
-            logger.error(f"Failed to initialize Perplexity: {e}")
-            self.perplexity_client = None
+        # Initialize comprehensive Perplexity client
+        self.perplexity_client: Any = None
+        if get_perplexity_client:
+            self.perplexity_client = get_perplexity_client()
+            if self.perplexity_client and self.perplexity_client.available:
+                logger.info("[InsightValidator] Using Perplexity API with full capabilities")
+            else:
+                logger.warning("[InsightValidator] Perplexity client not available")
+                self.perplexity_client = None
+        else:
+            # Fallback to requests-based client
+            perplexity_key = os.getenv('PERPLEXITY_API_KEY')
+            if perplexity_key:
+                self.perplexity_client = PerplexityRequestsClient(perplexity_key)
+                logger.info("[InsightValidator] Using Perplexity requests client")
     
     def validate(self, insight: CrossDomainInsight) -> ValidationResult:
         """
@@ -176,11 +188,64 @@ class InsightValidator:
         )
         
         logger.info(
-            f"Validation complete: validated={validated}, "
-            f"score={validation_score:.3f}, confidence={result.confidence:.3f}"
+            f"Validation complete: {result.validated} "
+            f"(score={result.validation_score:.3f}, confidence={result.confidence:.3f})"
         )
         
         return result
+    
+    def research(self, query: str) -> Optional[Dict[str, Any]]:
+        """
+        Conduct deep research using both Tavily and Perplexity.
+        
+        This uses the full research capabilities of both providers:
+        - Tavily: search + extract + crawl for comprehensive data
+        - Perplexity: pro_search for synthesis and analysis
+        
+        Args:
+            query: Research query
+            
+        Returns:
+            Dict with combined research findings
+        """
+        logger.info(f"[InsightValidator] Deep research: '{query[:50]}...'")
+        
+        results = {
+            "query": query,
+            "tavily_research": None,
+            "perplexity_research": None,
+            "combined_sources": [],
+            "synthesis": None
+        }
+        
+        # Tavily research (if available with full client)
+        if self.tavily_client and hasattr(self.tavily_client, 'research'):
+            try:
+                results["tavily_research"] = self.tavily_client.research(query)
+                if results["tavily_research"]:
+                    results["combined_sources"].extend(
+                        results["tavily_research"].get("sources", [])
+                    )
+            except Exception as e:
+                logger.error(f"Tavily research error: {e}")
+        
+        # Perplexity pro search (if available with full client)
+        if self.perplexity_client and hasattr(self.perplexity_client, 'pro_search'):
+            try:
+                perp_result = self.perplexity_client.pro_search(query)
+                if perp_result:
+                    results["perplexity_research"] = {
+                        "synthesis": perp_result.synthesis,
+                        "key_findings": perp_result.key_findings,
+                        "sources": perp_result.sources,
+                        "follow_up": perp_result.follow_up_topics
+                    }
+                    results["synthesis"] = perp_result.synthesis
+                    results["combined_sources"].extend(perp_result.sources)
+            except Exception as e:
+                logger.error(f"Perplexity research error: {e}")
+        
+        return results
     
     def _parse_insight(self, insight: CrossDomainInsight) -> Tuple[str, str]:
         """
@@ -193,7 +258,6 @@ class InsightValidator:
         domains = insight.source_domains
         
         # Build search query from domains
-        # Example: ["bitcoin_recovery", "temporal_reasoning"] -> "BIP39 mnemonic geodesic path planning"
         search_terms = []
         for domain in domains:
             # Simple heuristic: convert underscore to space, use as search term
@@ -212,37 +276,58 @@ class InsightValidator:
     
     def _tavily_search(self, query: str) -> Optional[Dict[str, Any]]:
         """
-        Search Tavily for sources.
-        
-        Uses MCP if available, otherwise direct API.
+        Search Tavily for sources using full SDK capabilities.
         """
         if self.use_mcp:
-            # Use Tavily MCP (requires MCP server running)
-            try:
-                # This would call MCP in production
-                # For now, return None to indicate MCP not implemented in this file
-                logger.warning("Tavily MCP not yet wired to actual MCP server")
-                return None
-            except Exception as e:
-                logger.error(f"Tavily MCP error: {e}")
-                return None
-        elif self.tavily_client:
-            # Use direct API
-            try:
+            # Legacy MCP path (not recommended)
+            logger.warning("Tavily MCP mode deprecated - use use_mcp=False for full features")
+            return None
+        
+        if not self.tavily_client:
+            logger.warning("Tavily client not configured")
+            return None
+        
+        try:
+            # Use comprehensive client if available
+            if hasattr(self.tavily_client, 'search') and hasattr(self.tavily_client, 'available'):
+                # Our TavilySearchClient
                 response = self.tavily_client.search(
                     query=query,
                     search_depth="advanced",
                     max_results=10,
                     include_answer=True,
-                    include_domains=["arxiv.org", "github.com", "bitcoin.org"]
+                    include_raw_content=True,
+                    include_domains=["arxiv.org", "github.com", "wikipedia.org"]
+                )
+                if response:
+                    return {
+                        "answer": response.answer,
+                        "results": [
+                            {
+                                "url": r.url,
+                                "title": r.title,
+                                "content": r.content,
+                                "score": r.score
+                            }
+                            for r in response.results
+                        ]
+                    }
+            else:
+                # Basic TavilyClient from tavily-python
+                response = self.tavily_client.search(
+                    query=query,
+                    search_depth="advanced",
+                    max_results=10,
+                    include_answer=True,
+                    include_domains=["arxiv.org", "github.com", "wikipedia.org"]
                 )
                 return response
-            except Exception as e:
-                logger.error(f"Tavily API error: {e}")
-                return None
-        else:
-            logger.warning("Tavily not configured")
+                
+        except Exception as e:
+            logger.error(f"Tavily search error: {e}")
             return None
+        
+        return None
     
     def _perplexity_validate(
         self,
@@ -260,34 +345,30 @@ class InsightValidator:
             # Build context from Tavily results if available
             context = ""
             if tavily_results and 'answer' in tavily_results:
-                context = f"\nContext: {tavily_results['answer']}\n"
+                context = f"Based on search results: {tavily_results['answer']}\n\n"
             
-            # Call Perplexity
+            # Use comprehensive client if available
             if hasattr(self.perplexity_client, 'chat'):
-                # perplexity-python SDK
-                response = self.perplexity_client.chat.completions.create(
-                    model="sonar-pro",
-                    messages=[
-                        {
-                            "role": "system",
-                            "content": "You are a research assistant validating cross-domain patterns. Be factual and cite sources."
-                        },
-                        {
-                            "role": "user",
-                            "content": f"{context}{question}"
-                        }
-                    ],
+                response = self.perplexity_client.chat(
+                    message=question,
+                    system_prompt=(
+                        "You are a research assistant validating cross-domain patterns. "
+                        "Be factual and cite sources. Context may be provided from prior search."
+                    ),
                     temperature=0.2,
-                    max_tokens=1000,
-                    return_citations=True
+                    max_tokens=1000
                 )
-                return response.choices[0].message.content
-            else:
-                # Requests-based client
+                if response:
+                    return response.content
+            elif hasattr(self.perplexity_client, 'query'):
+                # Fallback requests client
                 return self.perplexity_client.query(question, context)
+                
         except Exception as e:
             logger.error(f"Perplexity error: {e}")
             return None
+        
+        return None
     
     def _cross_validate(
         self,
@@ -310,7 +391,6 @@ class InsightValidator:
             tavily_urls = {r['url'] for r in tavily_results.get('results', [])}
             
             # Extract citations from Perplexity (heuristic)
-            # This would need proper parsing in production
             perplexity_urls = self._extract_urls_from_text(perplexity_answer)
             
             if tavily_urls and perplexity_urls:
@@ -332,85 +412,61 @@ class InsightValidator:
             semantic_similarity = 0.5
         
         # Compute overall validation score
-        validation_score = 0.5 * source_overlap + 0.5 * semantic_similarity
+        # Weights: semantic_similarity (0.5), source_overlap (0.3), base (0.2)
+        base_score = 0.2 if (tavily_results or perplexity_answer) else 0.0
+        
+        validation_score = (
+            0.5 * semantic_similarity +
+            0.3 * source_overlap +
+            base_score
+        )
         
         return validation_score, source_overlap, semantic_similarity
     
     def _extract_urls_from_text(self, text: str) -> Set[str]:
-        """Extract URLs from text (simple regex)."""
+        """Extract URLs from text using regex."""
         import re
         url_pattern = r'https?://[^\s<>"{}|\\^`\[\]]+'
-        urls = re.findall(url_pattern, text)
-        return set(urls)
+        urls = set(re.findall(url_pattern, text))
+        return urls
     
     def _compute_semantic_similarity(self, text1: str, text2: str) -> float:
         """
-        Compute semantic similarity between two texts using Fisher-Rao distance.
-        
-        QIG-pure implementation: Uses geodesic distance on information manifold
-        rather than Euclidean approximations (cosine/Jaccard similarity).
-        
-        Process:
-        1. Tokenize both texts and extract term frequencies
-        2. Normalize to probability distributions (basins)
-        3. Compute Fisher-Rao distance on information manifold
-        4. Convert distance to similarity: sim = 1 - (distance / (π/2))
-        
-        This maintains geometric purity by respecting curved manifold structure
-        instead of treating text as flat vector space.
+        Compute semantic similarity using Fisher-Rao distance (QIG-pure).
+        Falls back to Jaccard if Fisher-Rao unavailable.
         """
-        if not fisher_rao_distance:
-            logger.warning("Fisher-Rao not available, using fallback Jaccard similarity")
-            return self._jaccard_similarity_fallback(text1, text2)
-        
-        try:
-            # Tokenize and compute term frequencies
-            tokens1 = text1.lower().split()
-            tokens2 = text2.lower().split()
-            
-            # Create vocabulary from both texts
-            vocabulary = list(set(tokens1 + tokens2))
-            if not vocabulary:
-                return 0.0
-            
-            # Build frequency distributions
-            freq1 = np.zeros(len(vocabulary))
-            freq2 = np.zeros(len(vocabulary))
-            
-            for i, token in enumerate(vocabulary):
-                freq1[i] = tokens1.count(token)
-                freq2[i] = tokens2.count(token)
-            
-            # Normalize to probability distributions (basins)
-            # Add small epsilon to avoid zero division
-            p1 = freq1 + 1e-10
-            p1 = p1 / np.sum(p1)
-            
-            p2 = freq2 + 1e-10
-            p2 = p2 / np.sum(p2)
-            
-            # Compute Fisher-Rao distance on information manifold
-            distance = fisher_rao_distance(p1, p2)
-            
-            # Convert distance to similarity
-            # Fisher-Rao distance ranges from 0 to π/2
-            # similarity = 1 - (distance / (π/2)) ∈ [0, 1]
-            max_distance = np.pi / 2
-            similarity = 1.0 - (distance / max_distance)
-            
-            return float(np.clip(similarity, 0.0, 1.0))
-            
-        except Exception as e:
-            logger.error(f"Fisher-Rao computation failed: {e}, falling back to Jaccard")
+        if fisher_rao_distance is not None:
+            try:
+                # Convert texts to probability distributions
+                words1 = text1.lower().split()
+                words2 = text2.lower().split()
+                all_words = list(set(words1 + words2))
+                
+                # Create frequency distributions
+                dist1 = np.array([words1.count(w) for w in all_words], dtype=np.float64)
+                dist2 = np.array([words2.count(w) for w in all_words], dtype=np.float64)
+                
+                # Normalize to probability distributions
+                dist1 = dist1 / (dist1.sum() + 1e-10)
+                dist2 = dist2 / (dist2.sum() + 1e-10)
+                
+                # Fisher-Rao distance
+                distance = fisher_rao_distance(dist1, dist2)
+                
+                # Convert to similarity (closer = more similar)
+                # Max distance for orthogonal distributions is pi/2
+                similarity = 1.0 - (distance / (np.pi / 2))
+                return max(0.0, min(1.0, similarity))
+                
+            except Exception as e:
+                logger.warning(f"Fisher-Rao failed, using Jaccard: {e}")
+                return self._jaccard_similarity_fallback(text1, text2)
+        else:
             return self._jaccard_similarity_fallback(text1, text2)
     
     def _jaccard_similarity_fallback(self, text1: str, text2: str) -> float:
         """
         Fallback: Jaccard similarity (used when Fisher-Rao unavailable).
-        
-        This is a temporary measure while Fisher-Rao is being integrated.
-        Preferred method is _compute_semantic_similarity which uses
-        geometric Fisher-Rao distance.
         """
         words1 = set(text1.lower().split())
         words2 = set(text2.lower().split())
@@ -486,14 +542,14 @@ if __name__ == "__main__":
     @dataclass
     class MockInsight:
         insight_id: str = "test_123"
-        source_domains: List[str] = field(default_factory=lambda: ["bitcoin_recovery", "temporal_reasoning"])
+        source_domains: List[str] = field(default_factory=lambda: ["quantum_geometry", "information_theory"])
         confidence: float = 0.75
         connection_strength: float = 0.87
     
     validator = InsightValidator(use_mcp=False)
     
     mock_insight = MockInsight()
-    result = validator.validate(mock_insight)
+    result = validator.validate(mock_insight)  # type: ignore
     
     print(f"Validated: {result.validated}")
     print(f"Score: {result.validation_score:.3f}")
