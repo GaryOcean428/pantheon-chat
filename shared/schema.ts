@@ -4187,6 +4187,212 @@ export const passphraseVocabulary = pgTable("passphrase_vocabulary", {
   index("idx_vocab_frequency").on(table.frequency),
 ]);
 
+/**
+ * ============================================================================
+ * MISSING TABLES - Added from database reconciliation analysis
+ * These tables exist in Neon DB but were missing from schema.ts
+ * ============================================================================
+ */
+
+/**
+ * M8_SPAWN_HISTORY - History of M8 kernel spawning events
+ * Tracks when kernels are spawned, their parent, and spawn conditions
+ */
+export const m8SpawnHistory = pgTable("m8_spawn_history", {
+  id: serial("id").primaryKey(),
+  parentKernelId: varchar("parent_kernel_id", { length: 64 }).notNull(),
+  spawnedKernelId: varchar("spawned_kernel_id", { length: 64 }).notNull(),
+  spawnReason: text("spawn_reason"),
+  parentBasinCoords: vector("parent_basin_coords", { dimensions: 64 }),
+  spawnedBasinCoords: vector("spawned_basin_coords", { dimensions: 64 }),
+  parentPhi: doublePrecision("parent_phi"),
+  parentKappa: doublePrecision("parent_kappa"),
+  spawnedAt: timestamp("spawned_at").defaultNow().notNull(),
+  metadata: jsonb("metadata"),
+}, (table) => [
+  index("idx_m8_spawn_parent").on(table.parentKernelId),
+  index("idx_m8_spawn_spawned").on(table.spawnedKernelId),
+  index("idx_m8_spawn_time").on(table.spawnedAt),
+]);
+
+export type M8SpawnHistoryRow = typeof m8SpawnHistory.$inferSelect;
+export type InsertM8SpawnHistory = typeof m8SpawnHistory.$inferInsert;
+
+/**
+ * M8_SPAWN_PROPOSALS - Governance proposals for M8 kernel spawning
+ * Democratic voting system for spawning new kernels
+ */
+export const m8SpawnProposals = pgTable("m8_spawn_proposals", {
+  id: serial("id").primaryKey(),
+  proposalId: varchar("proposal_id", { length: 64 }).notNull().unique(),
+  proposerGodName: varchar("proposer_god_name", { length: 64 }).notNull(),
+  proposedKernelSpec: jsonb("proposed_kernel_spec").notNull(),
+  reason: text("reason").notNull(),
+  status: varchar("status", { length: 32 }).notNull().default("pending"), // pending, approved, rejected, spawned
+  votesFor: integer("votes_for").default(0),
+  votesAgainst: integer("votes_against").default(0),
+  votingEndsAt: timestamp("voting_ends_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  decidedAt: timestamp("decided_at"),
+  spawnedKernelId: varchar("spawned_kernel_id", { length: 64 }),
+  metadata: jsonb("metadata"),
+}, (table) => [
+  index("idx_m8_proposals_status").on(table.status),
+  index("idx_m8_proposals_proposer").on(table.proposerGodName),
+  index("idx_m8_proposals_created").on(table.createdAt),
+]);
+
+export type M8SpawnProposalRow = typeof m8SpawnProposals.$inferSelect;
+export type InsertM8SpawnProposal = typeof m8SpawnProposals.$inferInsert;
+
+/**
+ * M8_SPAWNED_KERNELS - Registry of all M8-spawned kernel instances
+ * Tracks active spawned kernels and their lifecycle
+ */
+export const m8SpawnedKernels = pgTable("m8_spawned_kernels", {
+  id: serial("id").primaryKey(),
+  kernelId: varchar("kernel_id", { length: 64 }).notNull().unique(),
+  kernelName: varchar("kernel_name", { length: 128 }).notNull(),
+  parentKernelId: varchar("parent_kernel_id", { length: 64 }),
+  specialization: varchar("specialization", { length: 64 }),
+  status: varchar("status", { length: 32 }).notNull().default("active"), // active, dormant, terminated
+  basinCoords: vector("basin_coords", { dimensions: 64 }),
+  currentPhi: doublePrecision("current_phi"),
+  currentKappa: doublePrecision("current_kappa"),
+  currentRegime: varchar("current_regime", { length: 32 }),
+  spawnedAt: timestamp("spawned_at").defaultNow().notNull(),
+  lastActiveAt: timestamp("last_active_at"),
+  terminatedAt: timestamp("terminated_at"),
+  metadata: jsonb("metadata"),
+}, (table) => [
+  index("idx_m8_kernels_kernel_id").on(table.kernelId),
+  index("idx_m8_kernels_parent").on(table.parentKernelId),
+  index("idx_m8_kernels_status").on(table.status),
+  index("idx_m8_kernels_spawned").on(table.spawnedAt),
+]);
+
+export type M8SpawnedKernelRow = typeof m8SpawnedKernels.$inferSelect;
+export type InsertM8SpawnedKernel = typeof m8SpawnedKernels.$inferInsert;
+
+/**
+ * PANTHEON_PROPOSALS - Pantheon-level governance proposals
+ * Distinct from governance_proposals - these are pantheon god consensus decisions
+ */
+export const pantheonProposals = pgTable("pantheon_proposals", {
+  id: serial("id").primaryKey(),
+  proposalId: varchar("proposal_id", { length: 64 }).notNull().unique(),
+  proposerGodName: varchar("proposer_god_name", { length: 64 }).notNull(),
+  proposalType: varchar("proposal_type", { length: 32 }).notNull(), // system_change, spawn_kernel, policy, experiment
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  status: varchar("status", { length: 32 }).notNull().default("pending"),
+  votesFor: integer("votes_for").default(0),
+  votesAgainst: integer("votes_against").default(0),
+  votesAbstain: integer("votes_abstain").default(0),
+  requiredVotes: integer("required_votes").default(3),
+  votingEndsAt: timestamp("voting_ends_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  decidedAt: timestamp("decided_at"),
+  implementedAt: timestamp("implemented_at"),
+  outcome: text("outcome"),
+  metadata: jsonb("metadata"),
+}, (table) => [
+  index("idx_pantheon_proposals_status").on(table.status),
+  index("idx_pantheon_proposals_type").on(table.proposalType),
+  index("idx_pantheon_proposals_proposer").on(table.proposerGodName),
+  index("idx_pantheon_proposals_created").on(table.createdAt),
+]);
+
+export type PantheonProposalRow = typeof pantheonProposals.$inferSelect;
+export type InsertPantheonProposal = typeof pantheonProposals.$inferInsert;
+
+/**
+ * GOD_VOCABULARY_PROFILES - Per-god vocabulary preferences and patterns
+ * Tracks vocabulary usage patterns for each pantheon god
+ */
+export const godVocabularyProfiles = pgTable("god_vocabulary_profiles", {
+  id: serial("id").primaryKey(),
+  godName: varchar("god_name", { length: 64 }).notNull(),
+  word: varchar("word", { length: 100 }).notNull(),
+  usageCount: integer("usage_count").default(0).notNull(),
+  phiSum: doublePrecision("phi_sum").default(0),
+  phiAvg: doublePrecision("phi_avg").default(0),
+  phiMax: doublePrecision("phi_max").default(0),
+  successCount: integer("success_count").default(0),
+  context: text("context"),
+  firstUsedAt: timestamp("first_used_at").defaultNow(),
+  lastUsedAt: timestamp("last_used_at").defaultNow(),
+  metadata: jsonb("metadata"),
+}, (table) => [
+  uniqueIndex("idx_god_vocab_god_word").on(table.godName, table.word),
+  index("idx_god_vocab_god").on(table.godName),
+  index("idx_god_vocab_word").on(table.word),
+  index("idx_god_vocab_phi_avg").on(table.phiAvg),
+  index("idx_god_vocab_usage").on(table.usageCount),
+]);
+
+export type GodVocabularyProfileRow = typeof godVocabularyProfiles.$inferSelect;
+export type InsertGodVocabularyProfile = typeof godVocabularyProfiles.$inferInsert;
+
+/**
+ * VOCABULARY_LEARNING - Vocabulary learning progress tracking
+ * Part of the vocabulary system architecture alongside learned_words and vocabulary_observations
+ */
+export const vocabularyLearning = pgTable("vocabulary_learning", {
+  id: serial("id").primaryKey(),
+  word: varchar("word", { length: 100 }).notNull(),
+  learningPhase: varchar("learning_phase", { length: 32 }).notNull(), // discovery, testing, consolidation, mastered
+  observationCount: integer("observation_count").default(0),
+  successCount: integer("success_count").default(0),
+  failureCount: integer("failure_count").default(0),
+  phiSum: doublePrecision("phi_sum").default(0),
+  phiAvg: doublePrecision("phi_avg").default(0),
+  confidenceScore: doublePrecision("confidence_score").default(0),
+  lastObservedAt: timestamp("last_observed_at"),
+  promotedToLearnedAt: timestamp("promoted_to_learned_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  metadata: jsonb("metadata"),
+}, (table) => [
+  uniqueIndex("idx_vocab_learning_word").on(table.word),
+  index("idx_vocab_learning_phase").on(table.learningPhase),
+  index("idx_vocab_learning_confidence").on(table.confidenceScore),
+  index("idx_vocab_learning_last_observed").on(table.lastObservedAt),
+]);
+
+export type VocabularyLearningRow = typeof vocabularyLearning.$inferSelect;
+export type InsertVocabularyLearning = typeof vocabularyLearning.$inferInsert;
+
+/**
+ * EXPLORATION_HISTORY - Research exploration tracking
+ * Tracks which addresses/topics have been explored during research
+ */
+export const explorationHistory = pgTable("exploration_history", {
+  id: serial("id").primaryKey(),
+  address: varchar("address", { length: 255 }).notNull(),
+  exploredAt: timestamp("explored_at").defaultNow().notNull(),
+  phiScore: doublePrecision("phi_score"),
+  kappaScore: doublePrecision("kappa_score"),
+  resultCount: integer("result_count"),
+  strategy: varchar("strategy", { length: 64 }),
+  jobId: varchar("job_id", { length: 64 }),
+  outcome: varchar("outcome", { length: 32 }), // success, failure, near_miss
+  metadata: jsonb("metadata"),
+}, (table) => [
+  index("idx_exploration_address").on(table.address),
+  index("idx_exploration_time").on(table.exploredAt),
+  index("idx_exploration_phi").on(table.phiScore),
+  index("idx_exploration_job").on(table.jobId),
+]);
+
+export type ExplorationHistoryRow = typeof explorationHistory.$inferSelect;
+export type InsertExplorationHistory = typeof explorationHistory.$inferInsert;
+
+/**
+ * ============================================================================
+ * TYPE EXPORTS - Inferred types for all tables
+ * ============================================================================
+ */
+
 export type QigMetadata = typeof qigMetadata.$inferSelect;
 export type GovernanceProposal = typeof governanceProposals.$inferSelect;
 export type ToolRequest = typeof toolRequests.$inferSelect;
