@@ -1811,9 +1811,9 @@ export const kernelGeometry = pgTable(
     spawnedDuringWarId: varchar("spawned_during_war_id", { length: 64 }),
     lastActiveAt: timestamp("last_active_at"), // Last time kernel was active
     metadata: jsonb("metadata").default({}), // FIXED: Add empty object default
-    phi: doublePrecision("phi"),
-    kappa: doublePrecision("kappa"),
-    regime: varchar("regime", { length: 64 }),
+    phi: doublePrecision("phi").default(0.0), // FIXED: Add default below threshold
+    kappa: doublePrecision("kappa").default(64.21), // FIXED: Add κ* default
+    regime: varchar("regime", { length: 64 }).default("linear"), // FIXED: Add default regime
     generation: integer("generation"),
     successCount: integer("success_count").default(0),
     failureCount: integer("failure_count").default(0),
@@ -1866,9 +1866,9 @@ export const chaosEvents = pgTable(
     childKernelId: varchar("child_kernel_id", { length: 64 }),
     secondParentId: varchar("second_parent_id", { length: 64 }), // For breeding
     reason: varchar("reason", { length: 128 }), // spawn reason or death cause
-    phi: doublePrecision("phi"),
-    phiBefore: doublePrecision("phi_before"),
-    phiAfter: doublePrecision("phi_after"),
+    phi: doublePrecision("phi").default(0.0), // FIXED: Add default
+    phiBefore: doublePrecision("phi_before").default(0.0), // FIXED: Add default
+    phiAfter: doublePrecision("phi_after").default(0.0), // FIXED: Add default
     success: boolean("success"),
     outcome: jsonb("outcome").default({}), // FIXED: Add empty object default
     autopsy: jsonb("autopsy").default({}), // FIXED: Add empty object default
@@ -2450,7 +2450,7 @@ export const pantheonKnowledgeTransfers = pgTable(
     fromGod: varchar("from_god", { length: 32 }).notNull(),
     toGod: varchar("to_god", { length: 32 }).notNull(),
     knowledgeType: varchar("knowledge_type", { length: 64 }),
-    content: jsonb("content"),
+    content: jsonb("content").default({}), // FIXED: Add empty object default
     accepted: boolean("accepted").default(false),
     createdAt: timestamp("created_at").defaultNow(),
   },
@@ -2571,7 +2571,7 @@ export const tokenizerVocabulary = pgTable(
     updatedAt: timestamp("updated_at").defaultNow(),
     // Legacy columns - preserved for backwards compatibility with existing data
     embedding: vector("embedding", { dimensions: 64 }),
-    metadata: jsonb("metadata"),
+    metadata: jsonb("metadata").default({}), // FIXED: Add empty object default
   },
   (table) => [
     index("idx_tokenizer_vocab_token_id").on(table.tokenId),
@@ -2618,7 +2618,7 @@ export const ragUploads = pgTable(
     filename: varchar("filename", { length: 512 }).notNull(),
     contentHash: varchar("content_hash", { length: 64 }).unique(),
     fileSize: integer("file_size"),
-    metadata: jsonb("metadata"),
+    metadata: jsonb("metadata").default({}), // FIXED: Add empty object default
     uploadedAt: timestamp("uploaded_at", { withTimezone: true }).defaultNow().notNull(),
     addedToCurriculum: boolean("added_to_curriculum").default(false),
   },
