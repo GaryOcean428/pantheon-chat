@@ -295,6 +295,9 @@ class OceanMetaObserver:
             self._neurochemistry_regulator = OceanNeurochemistryRegulator()
             self._neurochemistry_regulator.set_observer(self)
 
+        # Wire to Ocean+Heart consensus for cycle governance
+        self._wire_consensus()
+
         print("🌊 Ocean Meta-Observer initialized")
         print(f"   κ: {self.current_kappa} (below fixed point κ*=63.5, distributed observer)")
         print("   Objective: Model kernel dynamics, monitor constellation health")
@@ -1013,6 +1016,53 @@ class OceanMetaObserver:
             "constellation_spread": self.get_constellation_spread(),
             "meta_manifold_observations": self.meta_statistics.observation_count,
         }
+    
+    def get_latest_state(self) -> Optional[MetaManifoldState]:
+        """
+        Get the latest MetaManifoldState for consensus sensing.
+        
+        Used by OceanHeartConsensus to evaluate cycle needs.
+        
+        Returns:
+            MetaManifoldState with current constellation properties, or None if no observations yet
+        """
+        if not self.observation_history:
+            return None
+        
+        coherence = self.get_constellation_coherence()
+        spread = self.get_constellation_spread()
+        
+        state = MetaManifoldState(
+            centroid=self.ocean_basin.copy(),
+            spread=spread,
+            eigenvalues=np.ones(self.basin_dim),
+            coherence=coherence,
+            ocean_phi=self.current_phi,
+            ocean_kappa=self.current_kappa,
+            timestamp=time.time(),
+        )
+        
+        if self._kernel_emotional_states:
+            state.kernel_emotional_states = self._kernel_emotional_states.copy()
+            state.emotional_coherence = self.get_constellation_emotional_coherence()
+        
+        return state
+    
+    def _wire_consensus(self) -> None:
+        """Wire this observer to the Ocean+Heart consensus system."""
+        try:
+            from olympus.ocean_heart_consensus import get_ocean_heart_consensus
+            from olympus.heart_kernel import get_heart_kernel
+            
+            consensus = get_ocean_heart_consensus()
+            consensus.wire_ocean(self)
+            
+            heart = get_heart_kernel()
+            consensus.wire_heart(heart)
+            
+            print("   ✓ Ocean+Heart consensus wired for cycle governance")
+        except Exception as e:
+            print(f"   ⚠ Ocean+Heart consensus wiring failed: {e}")
 
 
 # Global singleton

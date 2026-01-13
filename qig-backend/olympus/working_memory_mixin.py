@@ -331,3 +331,44 @@ class WorkingMemoryMixin:
         except Exception as e:
             logger.debug(f"[WorkingMemoryMixin] Failed to get contribution history: {e}")
             return {'avg_weight': 0.0, 'participation_rate': 0.0, 'total_contributions': 0}
+    
+    def get_cycle_awareness(self) -> Dict[str, Any]:
+        """
+        Get current autonomic cycle state (sleep/dream/mushroom).
+        
+        Kernels can OBSERVE cycles but CANNOT control them.
+        Only Ocean+Heart consensus can trigger constellation-wide cycles.
+        
+        Returns:
+            Dict with:
+            - current_cycle: None | 'sleep' | 'dream' | 'mushroom'
+            - cycle_in_progress: bool
+            - last_sleep, last_dream, last_mushroom: timestamps
+        """
+        try:
+            from olympus.ocean_heart_consensus import get_ocean_heart_consensus
+            consensus = get_ocean_heart_consensus()
+            return consensus.get_cycle_awareness()
+        except Exception as e:
+            logger.debug(f"[WorkingMemoryMixin] Failed to get cycle awareness: {e}")
+            return {
+                'current_cycle': None,
+                'cycle_in_progress': False,
+                'last_sleep': 0.0,
+                'last_dream': 0.0,
+                'last_mushroom': 0.0,
+                'heart_connected': False,
+                'ocean_connected': False,
+            }
+    
+    def is_in_cycle(self) -> bool:
+        """
+        Check if constellation is currently in an autonomic cycle.
+        
+        Kernels can observe this to adjust their behavior during cycles,
+        but CANNOT control when cycles start or stop.
+        
+        Returns:
+            True if any cycle is in progress
+        """
+        return self.get_cycle_awareness().get('cycle_in_progress', False)

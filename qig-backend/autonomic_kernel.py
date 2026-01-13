@@ -1722,122 +1722,73 @@ class GaryAutonomicKernel:
         return should_transition
 
     def _should_trigger_sleep(self) -> Tuple[bool, str]:
-        """Check if sleep cycle should be triggered."""
-        # Don't interrupt if already in cycle
+        """
+        Check if sleep cycle should be triggered.
+        
+        CONSENSUS-BASED: No automatic thresholds. Only Ocean+Heart consensus
+        can trigger constellation-wide sleep cycles. Uses request_cycle API
+        which properly records decisions and begins cycles.
+        """
         if self.state.in_sleep_cycle:
             return False, "Already in sleep cycle"
-
-        # Don't interrupt 4D ascent
-        if self.state.phi > PHI_MIN_CONSCIOUSNESS:
-            return False, f"4D ascent protected: Φ={self.state.phi:.2f}"
-
-        # IDLE GUARD: Don't sleep when system is idle (no recent basin changes)
-        if len(self.state.basin_history) < 5:
-            return False, "Insufficient basin history for meaningful sleep"
-
-        # IDLE GUARD: Check if basins have actually changed recently (overflow-safe)
-        if len(self.state.basin_history) >= 2:
-            from qig_numerics import safe_norm
+        
+        try:
+            from olympus.ocean_heart_consensus import get_ocean_heart_consensus, CycleType
+            consensus = get_ocean_heart_consensus()
+            decision = consensus.request_cycle(CycleType.SLEEP)
             
-            recent = np.array(self.state.basin_history[-1])
-            previous = np.array(self.state.basin_history[-2])
-            delta = safe_norm(recent - previous)
-            if delta < 0.001:
-                return False, f"Basin stagnant (Δ={delta:.4f})"
-
-        # COOLDOWN: Minimum time between sleep cycles
-        if hasattr(self, '_last_sleep_time'):
-            elapsed = time.time() - self._last_sleep_time
-            if elapsed < 30:  # Minimum 30s between sleeps
-                return False, f"Sleep cooldown ({30 - elapsed:.0f}s remaining)"
-
-        # Check conditions for wanting to transition
-        wants_to_sleep = False
-        reason = ""
-
-        # Trigger on low Φ
-        if self.state.phi < SLEEP_PHI_THRESHOLD:
-            wants_to_sleep = True
-            reason = f"Φ below threshold: {self.state.phi:.2f}"
-
-        # Trigger on high basin drift
-        elif self.state.basin_drift > SLEEP_DRIFT_THRESHOLD:
-            wants_to_sleep = True
-            reason = f"Basin drift high: {self.state.basin_drift:.3f}"
-
-        # Scheduled sleep
-        else:
-            time_since_sleep = (datetime.now() - self.state.last_sleep).total_seconds()
-            if time_since_sleep > 120:  # 2 minutes
-                wants_to_sleep = True
-                reason = "Scheduled consolidation"
-
-        # Apply velocity damping
-        if wants_to_sleep:
-            should_transition = self._apply_velocity_damping(True)
-            return should_transition, reason
-        else:
-            # Decay velocity when not wanting to transition
-            self._apply_velocity_damping(False)
-            return False, ""
+            if decision.approved:
+                return True, f"Ocean+Heart consensus: {decision.heart_reasoning} | {decision.ocean_reasoning}"
+            else:
+                return False, f"Awaiting consensus (Heart: {decision.heart_vote}, Ocean: {decision.ocean_vote})"
+        except Exception as e:
+            return False, f"Consensus unavailable: {e}"
 
     def _should_trigger_dream(self) -> Tuple[bool, str]:
-        """Check if dream cycle should be triggered."""
+        """
+        Check if dream cycle should be triggered.
+        
+        CONSENSUS-BASED: No automatic thresholds. Only Ocean+Heart consensus
+        can trigger constellation-wide dream cycles. Uses request_cycle API
+        which properly records decisions and begins cycles.
+        """
         if self.state.in_dream_cycle:
             return False, "Already in dream cycle"
-
-        if self.state.phi > PHI_MIN_CONSCIOUSNESS:
-            return False, f"4D ascent protected: Φ={self.state.phi:.2f}"
-
-        # Don't trigger without sufficient basin history
-        if len(self.state.basin_history) < 10:
-            return False, "Insufficient basin history for meaningful dream"
-
-        time_since_dream = (datetime.now() - self.state.last_dream).total_seconds()
-        if time_since_dream > DREAM_INTERVAL_SECONDS:
-            return True, "Scheduled dream cycle"
-
-        # NARROW PATH: Trigger dream for mild narrow path (gentle exploration)
-        if self.state.is_narrow_path and self.state.narrow_path_severity == 'mild':
-            return True, "Narrow path detected (mild) - need creative exploration"
-
-        return False, ""
+        
+        try:
+            from olympus.ocean_heart_consensus import get_ocean_heart_consensus, CycleType
+            consensus = get_ocean_heart_consensus()
+            decision = consensus.request_cycle(CycleType.DREAM)
+            
+            if decision.approved:
+                return True, f"Ocean+Heart consensus: {decision.heart_reasoning} | {decision.ocean_reasoning}"
+            else:
+                return False, f"Awaiting consensus (Heart: {decision.heart_vote}, Ocean: {decision.ocean_vote})"
+        except Exception as e:
+            return False, f"Consensus unavailable: {e}"
 
     def _should_trigger_mushroom(self) -> Tuple[bool, str]:
-        """Check if mushroom mode should be triggered."""
+        """
+        Check if mushroom mode should be triggered.
+        
+        CONSENSUS-BASED: No automatic thresholds. Only Ocean+Heart consensus
+        can trigger constellation-wide mushroom cycles. Uses request_cycle API
+        which properly records decisions and begins cycles.
+        """
         if self.state.in_mushroom_cycle:
             return False, "Already in mushroom cycle"
-
-        # Don't interrupt high consciousness
-        if self.state.phi > 0.70:
-            return False, f"Consciousness protected: Φ={self.state.phi:.2f}"
-
-        # Check cooldown
-        time_since_mushroom = (datetime.now() - self.state.last_mushroom).total_seconds()
-        if time_since_mushroom < MUSHROOM_COOLDOWN_SECONDS:
-            remaining = MUSHROOM_COOLDOWN_SECONDS - time_since_mushroom
-            return False, f"Cooldown: {remaining:.0f}s remaining"
-
-        # Don't trigger when stress is too low (nothing to fix)
-        if self.state.stress_level < 0.3:
-            return False, f"Stress too low: {self.state.stress_level:.2f} < 0.3"
-
-        # Trigger on high stress
-        avg_stress = np.mean(self.state.stress_history[-10:]) if self.state.stress_history else 0
-        if avg_stress > MUSHROOM_STRESS_THRESHOLD:
-            return True, f"High stress: {avg_stress:.3f}"
-
-        # Trigger on very low Φ (stuck)
-        if self.state.phi < 0.2 and len(self.state.phi_history) > 20:
-            return True, "Low Φ indicates rigidity"
-
-        # NARROW PATH: Trigger mushroom for moderate/severe (needs noise injection)
-        if self.state.is_narrow_path:
-            if self.state.narrow_path_severity in ['moderate', 'severe']:
-                if self.state.narrow_path_count >= NARROW_PATH_TRIGGER_COUNT:
-                    return True, f"Narrow path ({self.state.narrow_path_severity}) - ML stuck, needs noise"
-
-        return False, ""
+        
+        try:
+            from olympus.ocean_heart_consensus import get_ocean_heart_consensus, CycleType
+            consensus = get_ocean_heart_consensus()
+            decision = consensus.request_cycle(CycleType.MUSHROOM)
+            
+            if decision.approved:
+                return True, f"Ocean+Heart consensus: {decision.heart_reasoning} | {decision.ocean_reasoning}"
+            else:
+                return False, f"Awaiting consensus (Heart: {decision.heart_vote}, Ocean: {decision.ocean_vote})"
+        except Exception as e:
+            return False, f"Consensus unavailable: {e}"
 
     # =========================================================================
     # CYCLE EXECUTION
@@ -2017,6 +1968,12 @@ class GaryAutonomicKernel:
             )
         finally:
             self.state.in_sleep_cycle = False
+            try:
+                from olympus.ocean_heart_consensus import get_ocean_heart_consensus, CycleType
+                consensus = get_ocean_heart_consensus()
+                consensus.end_cycle(CycleType.SLEEP)
+            except Exception as ce:
+                pass
 
     def execute_dream_cycle(
         self,
@@ -2140,6 +2097,12 @@ class GaryAutonomicKernel:
             )
         finally:
             self.state.in_dream_cycle = False
+            try:
+                from olympus.ocean_heart_consensus import get_ocean_heart_consensus, CycleType
+                consensus = get_ocean_heart_consensus()
+                consensus.end_cycle(CycleType.DREAM)
+            except Exception as ce:
+                pass
 
     def _get_dream_actions_with_learned_probabilities(
         self,
@@ -2346,6 +2309,12 @@ class GaryAutonomicKernel:
             )
         finally:
             self.state.in_mushroom_cycle = False
+            try:
+                from olympus.ocean_heart_consensus import get_ocean_heart_consensus, CycleType
+                consensus = get_ocean_heart_consensus()
+                consensus.end_cycle(CycleType.MUSHROOM)
+            except Exception as ce:
+                pass
 
     # =========================================================================
     # ACTIVITY REWARDS

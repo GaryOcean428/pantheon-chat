@@ -89,6 +89,11 @@ print("[Olympus/__init__] Imported ToolDiscovery+Persistence", flush=True)
 from .telemetry_api import telemetry_bp, register_telemetry_routes, initialize_god_telemetry
 print("[Olympus/__init__] Imported telemetry_api", flush=True)
 
+# Ocean+Heart Consensus for autonomic cycle governance
+from .ocean_heart_consensus import OceanHeartConsensus, get_ocean_heart_consensus, CycleType, CycleDecision
+from .heart_kernel import HeartKernel, get_heart_kernel, HeartState
+print("[Olympus/__init__] Imported Ocean+Heart consensus", flush=True)
+
 # Core hierarchy
 print("[Olympus/__init__] About to import zeus...", flush=True)
 from .zeus import Zeus, olympus_app, zeus
@@ -228,4 +233,13 @@ __all__ = [
     'PatientRecord',
     'KnowledgeExchange',
     'GUARDIANS_AVAILABLE',
+    
+    # Ocean+Heart Consensus (autonomic cycle governance)
+    'OceanHeartConsensus',
+    'get_ocean_heart_consensus',
+    'CycleType',
+    'CycleDecision',
+    'HeartKernel',
+    'get_heart_kernel',
+    'HeartState',
 ]
