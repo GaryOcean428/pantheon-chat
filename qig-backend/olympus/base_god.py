@@ -113,6 +113,15 @@ except ImportError:
     EMOTIONAL_KERNEL_AVAILABLE = False
 print("[base_god] EmotionallyAwareKernel done", flush=True)
 
+# Import dev_logging for verbose generation logging
+try:
+    from dev_logging import log_generation, IS_DEVELOPMENT
+    DEV_LOGGING_AVAILABLE = True
+except ImportError:
+    DEV_LOGGING_AVAILABLE = False
+    IS_DEVELOPMENT = True
+    def log_generation(*args, **kwargs): pass
+
 # Import domain intelligence for mission awareness and capability self-assessment
 try:
     from qigkernels.domain_intelligence import (
@@ -2788,6 +2797,11 @@ class BaseGod(*_base_classes):
 
             selected_token = scored[idx][0]
             tokens_generated.append(selected_token)
+            
+            accumulated_text = ' '.join(tokens_generated)
+            logger.info(
+                f"[{self.name}] token {step + 1}: '{selected_token}' → \"{accumulated_text}\""
+            )
 
             token_basin = self.coordizer.basin_coords.get(selected_token)
             if token_basin is not None:
@@ -2828,6 +2842,16 @@ class BaseGod(*_base_classes):
                 f"avg_Φ={summary.get('avg_phi', 0):.3f}, avg_κ={summary.get('avg_kappa', 0):.1f}, "
                 f"course_corrections={summary.get('course_corrections', 0)}"
             )
+            
+            if DEV_LOGGING_AVAILABLE and IS_DEVELOPMENT:
+                log_generation(
+                    logger=logger,
+                    kernel_name=self.name,
+                    prompt=f"[context_basin: {context_basin[:4]}...]",
+                    response=text,
+                    phi=summary.get('avg_phi', 0.0),
+                    tokens_generated=len(tokens_generated)
+                )
 
         return text if text else f"[{self.name}: generation produced no tokens]"
 

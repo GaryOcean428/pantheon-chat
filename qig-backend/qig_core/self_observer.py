@@ -244,8 +244,15 @@ class SelfObserver:
         
         self.predict_next_metrics()
         
+        accumulated_text = ' '.join(self._tokens)
+        
+        logger.debug(
+            f"[SelfObserver:{self.kernel_name}] token {self._token_count}: '{token}' → \"{accumulated_text}\" "
+            f"| Φ={phi_val:.3f}, κ={kappa_val:.1f}, M={meta_awareness:.2f}"
+        )
+        
         if action != ObservationAction.CONTINUE:
-            logger.debug(
+            logger.info(
                 f"[SelfObserver:{self.kernel_name}] {action.value} at token {self._token_count}: "
                 f"Φ={phi_val:.3f}, κ={kappa_val:.1f}, M={meta_awareness:.2f}"
             )
