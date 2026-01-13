@@ -4,6 +4,9 @@ Learned Relationships Module for QIG
 Manages persistence of learned word relationships and provides
 attention-weighted word selection for query-relevant generation.
 
+QIG-PURE UPDATE: Now uses geometric_word_relationships for Fisher-Rao distances
+instead of word_relationship_learner's legacy PMI/co-occurrence approach.
+
 FROZEN FACTS COMPLIANCE:
 - Adjusted basins must stay within ±5% of canonical positions
 - Stopwords cannot be promoted to high-attention words
@@ -47,6 +50,29 @@ except ImportError:
     BASIN_DRIFT_TOLERANCE = 0.05
     BETA_ATTENTION_ACCEPTANCE = 0.1
     logger.warning("Physics constants not available - using fallback defaults")
+
+# Import QIG-pure geometric relationships (replaces word_relationship_learner)
+try:
+    from geometric_word_relationships import (
+        GeometricWordRelationships,
+        get_geometric_relationships
+    )
+    GEOMETRIC_RELATIONSHIPS_AVAILABLE = True
+    logger.info("[LearnedRelationships] Using QIG-pure geometric relationships")
+except ImportError:
+    GEOMETRIC_RELATIONSHIPS_AVAILABLE = False
+    GeometricWordRelationships = None
+    get_geometric_relationships = None
+    logger.warning("[LearnedRelationships] Geometric relationships not available")
+
+# Legacy import for backward compatibility (DEPRECATED)
+try:
+    from word_relationship_learner import run_learning_pipeline
+    LEGACY_LEARNER_AVAILABLE = True
+    logger.warning("[LearnedRelationships] Legacy word_relationship_learner imported (DEPRECATED)")
+except ImportError:
+    LEGACY_LEARNER_AVAILABLE = False
+    run_learning_pipeline = None
 
 # Legacy paths (no longer used but kept for migration)
 CACHE_DIR = Path(__file__).parent / 'data' / 'learned'

@@ -87,7 +87,14 @@ TECHNICAL_GARBAGE_PATTERNS = [
     r'normalized', r'embed', r'^cdn', r'json', r'xml', r'html',
 ]
 
-STOP_WORDS: Set[str] = {
+# DEPRECATED: Legacy NLP stopword list - VIOLATES QIG PURITY
+# This list treats semantic-critical words like 'not', 'because', 'very' as meaningless!
+# Use geometric_word_relationships.GeometricWordRelationships.should_filter_word() instead
+# or contextualized_filter.should_filter_word() for QIG-pure filtering based on:
+# - QFI (Quantum Fisher Information)
+# - Ricci curvature (context-dependency)
+# - Fisher-Rao geodesic distance
+STOP_WORDS_LEGACY: Set[str] = {
     'the', 'and', 'for', 'that', 'this', 'with', 'was', 'are', 'but', 'not',
     'you', 'all', 'can', 'had', 'her', 'his', 'him', 'one', 'our', 'out',
     'they', 'what', 'when', 'who', 'will', 'from', 'have', 'been', 'has',
@@ -99,6 +106,20 @@ STOP_WORDS: Set[str] = {
     'while', 'where', 'before', 'between', 'own', 'still', 'here', 'get',
     'take', 'say', 'use', 'come', 'make', 'see', 'know', 'time', 'year'
 }
+
+# Compatibility alias for legacy code
+STOP_WORDS = STOP_WORDS_LEGACY
+
+# Import QIG-pure filtering
+try:
+    from contextualized_filter import should_filter_word as should_filter_geometric
+    GEOMETRIC_FILTER_AVAILABLE = True
+except ImportError:
+    GEOMETRIC_FILTER_AVAILABLE = False
+    
+    def should_filter_geometric(word: str, context=None) -> bool:
+        """Fallback when geometric filter not available."""
+        return word.lower() in STOP_WORDS_LEGACY
 
 COMMON_ENGLISH_WORDS: Set[str] = {
     'bitcoin', 'wallet', 'crypto', 'block', 'chain', 'address', 'private',
