@@ -1317,7 +1317,7 @@ export const manifoldProbes = pgTable(
     // DEPRECATED: Old columns (exist in DB, kept for migration)
     parentId: varchar("parent_id", { length: 64 }),
     probeType: varchar("probe_type", { length: 32 }),
-    metadata: jsonb("metadata"),
+    metadata: jsonb("metadata").default({}), // FIXED: Add empty object default
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [
@@ -1446,7 +1446,7 @@ export const tpsLandmarks = pgTable(
     spacetimeZ: doublePrecision("spacetime_z").default(0),
     spacetimeT: doublePrecision("spacetime_t").notNull(), // Unix timestamp
     culturalCoords: vector("cultural_coords", { dimensions: 64 }), // 64D cultural signature (pgvector)
-    fisherSignature: jsonb("fisher_signature"), // Fisher information matrix (sparse)
+    fisherSignature: jsonb("fisher_signature").default({}), // FIXED: Add empty object default
     lightConePast: text("light_cone_past").array(),
     lightConeFuture: text("light_cone_future").array(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -1469,10 +1469,10 @@ export const tpsGeodesicPaths = pgTable(
     fromLandmark: varchar("from_landmark", { length: 64 }).notNull(),
     toLandmark: varchar("to_landmark", { length: 64 }).notNull(),
     distance: doublePrecision("distance").notNull(),
-    waypoints: jsonb("waypoints"), // Array of BlockUniverseMap positions
+    waypoints: jsonb("waypoints").default({}), // FIXED: Add empty object default
     totalArcLength: doublePrecision("total_arc_length"),
     avgCurvature: doublePrecision("avg_curvature"),
-    regimeTransitions: jsonb("regime_transitions"),
+    regimeTransitions: jsonb("regime_transitions").default({}), // FIXED: Add empty object default
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [
@@ -1580,7 +1580,7 @@ export const consciousnessCheckpoints = pgTable(
     regime: varchar("regime", { length: 32 }).notNull(),
     stateData: bytea("state_data").notNull(), // Binary NumPy state_dict
     basinData: bytea("basin_data"), // Binary NumPy basin coordinates
-    metadata: jsonb("metadata"), // Additional JSON metadata
+    metadata: jsonb("metadata").default({}), // FIXED: Add empty object default
     createdAt: timestamp("created_at").defaultNow().notNull(),
     isHot: boolean("is_hot").default(true), // Marks recently created checkpoints
   },
@@ -1640,7 +1640,7 @@ export const nearMissEntries = pgTable(
     phiHistory: doublePrecision("phi_history").array(), // Trajectory of Φ values
     isEscalating: boolean("is_escalating").default(false),
     queuePriority: integer("queue_priority").default(1),
-    structuralSignature: jsonb("structural_signature"), // Word count, entropy, etc.
+    structuralSignature: jsonb("structural_signature").default({}), // FIXED: Add empty object default
   },
   (table) => [
     uniqueIndex("idx_near_miss_phrase_hash").on(table.phraseHash),
@@ -1810,7 +1810,7 @@ export const kernelGeometry = pgTable(
     spawnedAt: timestamp("spawned_at").defaultNow().notNull(),
     spawnedDuringWarId: varchar("spawned_during_war_id", { length: 64 }),
     lastActiveAt: timestamp("last_active_at"), // Last time kernel was active
-    metadata: jsonb("metadata"),
+    metadata: jsonb("metadata").default({}), // FIXED: Add empty object default
     phi: doublePrecision("phi"),
     kappa: doublePrecision("kappa"),
     regime: varchar("regime", { length: 64 }),
@@ -1836,7 +1836,7 @@ export const kernelGeometry = pgTable(
     hasShadowAffinity: boolean("has_shadow_affinity").default(false),
     shadowGodLink: varchar("shadow_god_link", { length: 32 }), // nyx, erebus, etc.
     // Legacy columns from original schema
-    snapshotData: jsonb("snapshot_data"),
+    snapshotData: jsonb("snapshot_data").default({}), // FIXED: Add empty object default
     passes: integer("passes"),
     createdAt: timestamp("created_at").defaultNow(),
   },
@@ -1870,11 +1870,11 @@ export const chaosEvents = pgTable(
     phiBefore: doublePrecision("phi_before"),
     phiAfter: doublePrecision("phi_after"),
     success: boolean("success"),
-    outcome: jsonb("outcome"), // Additional event-specific data
-    autopsy: jsonb("autopsy"), // Death autopsy details
+    outcome: jsonb("outcome").default({}), // FIXED: Add empty object default
+    autopsy: jsonb("autopsy").default({}), // FIXED: Add empty object default
     createdAt: timestamp("created_at").defaultNow().notNull(),
     // Legacy column - preserved for backwards compatibility
-    eventData: jsonb("event_data"),
+    eventData: jsonb("event_data").default({}), // FIXED: Add empty object default
   },
   (table) => [
     index("idx_chaos_events_session").on(table.sessionId),
@@ -2237,7 +2237,7 @@ export const learningEvents = pgTable(
     source: varchar("source", { length: 64 }),
     instanceId: varchar("instance_id", { length: 64 }),
     createdAt: timestamp("created_at").defaultNow(),
-    data: jsonb("data"),
+    data: jsonb("data").default({}), // FIXED: Add empty object default
   },
   (table) => [
     index("idx_learning_events_type").on(table.eventType),
@@ -2322,7 +2322,7 @@ export const narrowPathEvents = pgTable(
     kappa: doublePrecision("kappa"),
     interventionAction: varchar("intervention_action", { length: 32 }),
     interventionIntensity: varchar("intervention_intensity", { length: 32 }),
-    interventionResult: jsonb("intervention_result"),
+    interventionResult: jsonb("intervention_result").default({}), // FIXED: Add empty object default
     detectedAt: timestamp("detected_at").defaultNow(),
     resolvedAt: timestamp("resolved_at"),
   },
@@ -2397,7 +2397,7 @@ export const pantheonMessages = pgTable(
     isRead: boolean("is_read"),
     isResponded: boolean("is_responded"),
     debateId: varchar("debate_id", { length: 64 }),
-    metadata: jsonb("metadata"),
+    metadata: jsonb("metadata").default({}), // FIXED: Add empty object default
     createdAt: timestamp("created_at").defaultNow(),
   },
   (table) => [
@@ -2421,12 +2421,12 @@ export const pantheonDebates = pgTable(
     topic: text("topic").notNull(),
     initiator: varchar("initiator", { length: 32 }).notNull(),
     opponent: varchar("opponent", { length: 32 }).notNull(),
-    context: jsonb("context"),
+    context: jsonb("context").default({}), // FIXED: Add empty object default
     status: varchar("status", { length: 32 }).default("active"),
-    arguments: jsonb("arguments").$type<Array<{ god: string, argument: string, timestamp: string }>>(),
+    arguments: jsonb("arguments").$type<Array<{ god: string, argument: string, timestamp: string }>>().default([]), // FIXED: Add empty array default
     winner: varchar("winner", { length: 32 }),
     arbiter: varchar("arbiter", { length: 32 }),
-    resolution: jsonb("resolution"),
+    resolution: jsonb("resolution").default({}), // FIXED: Add empty object default
     startedAt: timestamp("started_at").defaultNow(),
     resolvedAt: timestamp("resolved_at"),
   },
