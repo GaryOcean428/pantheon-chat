@@ -18,6 +18,14 @@ import hashlib
 
 from .constants import BASIN_DIM, PHI_THRESHOLD_DEFAULT, KAPPA_STAR, BETA_RUNNING
 
+# Import canonical Φ computation
+try:
+    from qig_core.phi_computation import compute_phi_fast
+    CANONICAL_PHI_AVAILABLE = True
+except ImportError:
+    CANONICAL_PHI_AVAILABLE = False
+    compute_phi_fast = None
+
 
 class QIGToolComputations:
     """

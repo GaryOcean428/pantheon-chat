@@ -256,6 +256,31 @@ except ImportError as e:
 except Exception as e:
     print(f"[WARNING] ShadowResearchAPI initialization failed: {e}")
 
+# Initialize Unified Learning Loop - central orchestrator for cognitive subsystems
+# Wires together: PredictionBridge, ResearchOrchestrator, LongHorizonPlanner,
+# CognitiveRouter, EthicsService, TrainingIntegrator
+UNIFIED_LEARNING_LOOP_AVAILABLE = False
+_unified_learning_loop = None
+try:
+    from unified_learning_loop import get_unified_learning_loop
+
+    _unified_learning_loop = get_unified_learning_loop()
+    init_status = _unified_learning_loop.get_status()
+    components_active = sum(1 for v in init_status.get('components', {}).values() if v)
+
+    # Wire to training integrator if available
+    if TRAINING_LOOP_AVAILABLE and _training_integrator:
+        # Unified loop can use training integrator for feeding insights
+        if hasattr(_unified_learning_loop, '_training_integrator') and _unified_learning_loop._training_integrator is None:
+            _unified_learning_loop._training_integrator = _training_integrator
+
+    UNIFIED_LEARNING_LOOP_AVAILABLE = True
+    print(f"[INFO] UnifiedLearningLoop active - {components_active} cognitive subsystems wired")
+except ImportError as e:
+    print(f"[WARNING] UnifiedLearningLoop not available: {e}")
+except Exception as e:
+    print(f"[WARNING] UnifiedLearningLoop initialization failed: {e}")
+
 # Register QIG Constellation routes
 CONSTELLATION_AVAILABLE = False
 try:
@@ -275,6 +300,61 @@ try:
 except ImportError as e:
     print(f"[WARNING] Federation service not available: {e}")
     FEDERATION_AVAILABLE = False
+
+# Initialize Mesh Network for cross-project WebSocket communication
+# Runs on separate port (8765) for real-time kernel communication
+MESH_NETWORK_AVAILABLE = False
+_mesh_network = None
+try:
+    import asyncio
+    import threading
+    from mesh_network import initialize_mesh_network, get_mesh_network, NodeType
+
+    def _start_mesh_network_background():
+        """Start mesh network in background thread with its own event loop."""
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            # Determine node type from environment
+            node_id = os.getenv("MESH_NODE_ID", "pantheon-replit")
+            node_type_str = os.getenv("MESH_NODE_TYPE", "development")
+            node_type = NodeType(node_type_str) if node_type_str in ["production", "development", "research"] else NodeType.DEVELOPMENT
+            mesh_port = int(os.getenv("MESH_PORT", "8765"))
+
+            # Initialize and start mesh network
+            mesh = loop.run_until_complete(
+                initialize_mesh_network(
+                    node_id=node_id,
+                    node_type=node_type,
+                    host="0.0.0.0",
+                    port=mesh_port
+                )
+            )
+            print(f"[INFO] Mesh network started on port {mesh_port}")
+
+            # Keep the event loop running
+            loop.run_forever()
+        except Exception as e:
+            print(f"[WARNING] Mesh network loop error: {e}")
+        finally:
+            loop.close()
+
+    # Check if mesh network is enabled via environment
+    if os.getenv("MESH_ENABLED", "false").lower() == "true":
+        mesh_thread = threading.Thread(
+            target=_start_mesh_network_background,
+            daemon=True,
+            name="mesh-network"
+        )
+        mesh_thread.start()
+        MESH_NETWORK_AVAILABLE = True
+        print("[INFO] Mesh Network initialized (WebSocket cross-project communication)")
+    else:
+        print("[INFO] Mesh Network disabled (set MESH_ENABLED=true to enable)")
+except ImportError as e:
+    print(f"[WARNING] Mesh network not available: {e}")
+except Exception as e:
+    print(f"[WARNING] Mesh network initialization failed: {e}")
 
 # Register M8 Kernel Spawning routes
 try:
@@ -324,6 +404,52 @@ except ImportError as e:
     print(f"[WARNING] Search Budget API not available: {e}")
 except Exception as e:
     print(f"[WARNING] Search Budget API initialization failed: {e}")
+
+# Initialize Autonomous Improvement Loop (self-improvement when idle)
+# Runs in background thread, kernel decides what to learn
+AUTONOMOUS_IMPROVEMENT_AVAILABLE = False
+_autonomous_improvement_loop = None
+_autonomous_research = None
+_basin_maintenance = None
+try:
+    import asyncio
+    import threading
+    from autonomous_improvement import (
+        autonomous_improvement_loop,
+        self_directed_research,
+        basin_maintenance_loop,
+    )
+    _autonomous_improvement_loop = autonomous_improvement_loop
+    _autonomous_research = self_directed_research
+    _basin_maintenance = basin_maintenance_loop
+
+    def _start_autonomous_improvement_background(kernel_instance):
+        """Start autonomous improvement loops in background thread."""
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            # Run all three loops concurrently
+            loop.run_until_complete(asyncio.gather(
+                _autonomous_improvement_loop.run_when_idle(kernel_instance),
+                _basin_maintenance.maintain_basin(kernel_instance),
+            ))
+        except Exception as e:
+            print(f"[WARNING] Autonomous improvement loop error: {e}")
+        finally:
+            loop.close()
+
+    # Check if autonomous improvement is enabled via environment
+    if os.getenv("AUTONOMOUS_IMPROVEMENT_ENABLED", "false").lower() == "true":
+        # Note: We need a kernel instance - this will be started when PureQIGNetwork is available
+        # For now, just mark as available and defer startup
+        AUTONOMOUS_IMPROVEMENT_AVAILABLE = True
+        print("[INFO] Autonomous Improvement available (will start when kernel is ready)")
+    else:
+        print("[INFO] Autonomous Improvement disabled (set AUTONOMOUS_IMPROVEMENT_ENABLED=true to enable)")
+except ImportError as e:
+    print(f"[WARNING] Autonomous improvement not available: {e}")
+except Exception as e:
+    print(f"[WARNING] Autonomous improvement initialization failed: {e}")
 
 # Initialize Startup Catch-Up Training System
 # This replaces Celery Beat scheduler (not deployed on Railway)

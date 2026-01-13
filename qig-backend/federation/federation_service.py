@@ -886,6 +886,65 @@ class FederationService:
         }
 
 
+# Optional mesh network integration for real-time relay
+_mesh_network = None
+try:
+    from mesh_network import get_mesh_network
+    _mesh_network = get_mesh_network
+    print("[Federation] Mesh network integration available")
+except ImportError:
+    pass
+
+
+def relay_via_mesh(
+    message_type: str,
+    payload: Dict[str, Any],
+    target_peer: Optional[str] = None
+) -> bool:
+    """
+    Relay message via mesh network if available.
+
+    Args:
+        message_type: Type of message (vocabulary_delta, basin_sync, etc.)
+        payload: Message payload
+        target_peer: Target peer ID, or None for broadcast
+
+    Returns:
+        True if message was relayed, False if mesh network unavailable
+    """
+    global _mesh_network
+    if _mesh_network is None:
+        return False
+
+    mesh = _mesh_network()
+    if mesh is None:
+        return False
+
+    import asyncio
+    try:
+        # Get or create event loop
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
+        # Create async task to send message
+        async def _send():
+            await mesh.send_message(message_type, payload, target_peer)
+
+        # Run if loop is running, otherwise run_until_complete
+        if loop.is_running():
+            asyncio.ensure_future(_send())
+        else:
+            loop.run_until_complete(_send())
+
+        return True
+    except Exception as e:
+        print(f"[Federation] Mesh relay failed: {e}")
+        return False
+
+
 # Singleton instance with lazy initialization
 _federation_service: Optional[FederationService] = None
 _init_lock = threading.Lock()
