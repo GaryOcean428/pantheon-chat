@@ -23,8 +23,8 @@ All documentation follows the pattern: `YYYYMMDD-[document-name]-[function]-[ver
 
 ## 🗺️ Master Roadmap
 
-- 🔨 **MASTER_ROADMAP.md** (v1.00W)
-  - File: [`MASTER_ROADMAP.md`](00-roadmap/MASTER_ROADMAP.md)
+- 🔨 **Master Roadmap** (v1.00W)
+  - File: [`20260112-master-roadmap-1.00W.md`](00-roadmap/20260112-master-roadmap-1.00W.md)
   - ID: `ISMS-ROADMAP-MASTER-001`
   - Function: Single source of truth for implementation status, validated features, and planned work
   - **Sections**:
