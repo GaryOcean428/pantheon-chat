@@ -19,12 +19,20 @@ Legacy Usage (deprecated):
     coordizer = get_coordizer()  # Still works but shows deprecation warning
 """
 
+import importlib
+import os
+import sys
 import threading
 import warnings
 from typing import Dict, List, Tuple
 
-from coordizers import PostgresCoordizer
-from coordizers import get_coordizer as _get_coordizer
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+
+_coordizers = importlib.import_module('coordizers')
+PostgresCoordizer = getattr(_coordizers, 'PostgresCoordizer')
+_get_coordizer = getattr(_coordizers, 'get_coordizer')
 
 # Try Redis for state persistence
 REDIS_AVAILABLE = False
@@ -107,7 +115,7 @@ def reset_coordizer() -> None:
             if hasattr(_coordizer_instance, 'close'):
                 try:
                     _coordizer_instance.close()
-                except:
+                except (OSError, RuntimeError, ValueError):
                     pass
             _coordizer_instance = None
 
@@ -151,7 +159,7 @@ def _save_coordizer_state(coordizer) -> None:
             {}
         )
         print(f"[QIGCoordizer] Saved state to Redis ({len(coordizer.vocab)} tokens)")
-    except Exception as e:
+    except (OSError, RuntimeError, ValueError, TypeError) as e:
         print(f"[QIGCoordizer] Redis save failed: {e}")
 
 
@@ -165,13 +173,9 @@ def get_coordizer_stats() -> dict:
 class QIGCoordizer(PostgresCoordizer):
     """Backward-compatible alias for PostgresCoordizer."""
 
-    def __init__(self, **kwargs):
-        # Delegate to PostgresCoordizer
-        super().__init__(**kwargs)
-
     def set_mode(self, mode: str) -> None:
         """Mode switching (legacy compatibility - no-op)."""
-        pass
+        return None
 
 
 # Backward compatibility aliases
