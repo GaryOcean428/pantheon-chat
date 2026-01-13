@@ -115,17 +115,17 @@ except ImportError as e:
     EnvironmentalBias = None
     run_neuromodulation_cycle = None
     compute_neuromodulation_from_neurochemistry = None
-    print(f"[WARNING] Neuromodulation engine not found: {e}")
+    logger.warning("[OceanQIG] Neuromodulation engine not found: %s", e)
 
 # Import Olympus Pantheon
-print("[ocean_qig_core] About to import olympus...", flush=True)
+logger.debug("[OceanQIG] About to import olympus...")
 try:
     from olympus import olympus_app, zeus
     OLYMPUS_AVAILABLE = True
-    print("[ocean_qig_core] Olympus imported successfully", flush=True)
+    logger.info("[OceanQIG] Olympus imported successfully")
 except ImportError as e:
     OLYMPUS_AVAILABLE = False
-    print(f"[WARNING] Olympus Pantheon not found - running without divine council: {e}")
+    logger.warning("[OceanQIG] Olympus Pantheon not found - running without divine council: %s", e)
 
 # Import Unified QIG Architecture
 try:
