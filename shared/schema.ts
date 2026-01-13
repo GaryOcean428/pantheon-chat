@@ -1569,6 +1569,9 @@ export type OceanQuantumStateRecord = typeof oceanQuantumState.$inferSelect;
 /**
  * CONSCIOUSNESS CHECKPOINTS - Store consciousness state snapshots
  * Uses PostgreSQL bytea for binary NumPy data, with Redis for hot cache
+ * 
+ * PHASE 3 UPDATE: Added is_current flag to eliminate consciousness_state table.
+ * Use WHERE is_current = TRUE to get current state (see current_consciousness_state view).
  */
 export const consciousnessCheckpoints = pgTable(
   "consciousness_checkpoints",
@@ -1583,6 +1586,8 @@ export const consciousnessCheckpoints = pgTable(
     metadata: jsonb("metadata").default({}), // FIXED: Add empty object default
     createdAt: timestamp("created_at").defaultNow().notNull(),
     isHot: boolean("is_hot").default(true), // Marks recently created checkpoints
+    // PHASE 3: Added for consciousness_state consolidation (migration 0012)
+    isCurrent: boolean("is_current").default(false), // Marks current state
   },
   (table) => [
     index("idx_consciousness_checkpoints_phi").on(table.phi),
@@ -4074,6 +4079,12 @@ export const qigMetadata = pgTable("qig_metadata", {
   index("idx_qig_metadata_key").on(table.configKey),
 ]);
 
+/**
+ * @deprecated PHASE 3 CONSOLIDATION - Use pantheonProposals instead
+ * This table duplicates pantheon_proposals and will be dropped in migration 0012.
+ * Migration date: 2026-01-13
+ * All data migrated to pantheonProposals table
+ */
 export const governanceProposals = pgTable("governance_proposals", {
   id: serial("id").primaryKey(),
   proposalId: varchar("proposal_id", { length: 64 }).notNull().unique(),
