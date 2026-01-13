@@ -790,21 +790,84 @@ def run_learning_and_cache(curriculum_dir: str = '/home/runner/workspace/docs/09
         coordizer = PostgresCoordizer()
         geo_rel = GeometricWordRelationships(coordizer)
         
-        # Learn relationships geometrically (no PMI/co-occurrence)
-        relationships = geo_rel.compute_all_relationships()
-        
         lr = get_learned_relationships()
+        
+        # Use GeometricWordRelationships' pre-loaded vocabulary
+        relationships = geo_rel.compute_all_relationships(max_words=1000)
+        relationships_computed = 0
+        
+        for word, related in relationships.items():
+            if related:
+                lr.word_neighbors[word] = related
+                relationships_computed += len(related)
+        
         lr.learning_complete = True
         lr.save_to_cache()
         
+        # Persist to PostgreSQL using GeometricWordRelationships' vocabulary
+        _persist_geometric_relationships_to_db(geo_rel)
+        
         return {
             'success': True,
-            'relationships_computed': len(relationships),
+            'relationships_computed': relationships_computed,
             'words_learned': len(lr.word_neighbors),
         }
     except Exception as e:
         logger.error(f"Geometric learning failed: {e}")
         return {'success': False, 'error': str(e)}
+
+
+def _persist_geometric_relationships_to_db(geo_rel) -> int:
+    """Persist geometric relationships to PostgreSQL."""
+    if not DB_AVAILABLE:
+        return 0
+    
+    conn = get_db_connection()
+    if not conn:
+        return 0
+    
+    try:
+        cur = conn.cursor()
+        
+        # Use get_all_relationships which includes Fisher-Rao distances
+        all_relationships = geo_rel.get_all_relationships()
+        records = []
+        
+        for word, related in all_relationships.items():
+            for neighbor, props in related.items():
+                records.append((
+                    word,
+                    neighbor,
+                    float(props.get('fisher_rao_distance', 0.0)),
+                    float(props.get('qfi_weight', 0.5))
+                ))
+        
+        if records:
+            from psycopg2.extras import execute_values
+            execute_values(
+                cur,
+                """
+                INSERT INTO word_relationships (word1, word2, fisher_distance, qfi_weight)
+                VALUES %s
+                ON CONFLICT (word1, word2) DO UPDATE SET
+                    fisher_distance = EXCLUDED.fisher_distance,
+                    qfi_weight = EXCLUDED.qfi_weight,
+                    updated_at = NOW()
+                """,
+                records
+            )
+            conn.commit()
+            logger.info(f"[LearnedRelationships] Persisted {len(records)} relationships to PostgreSQL")
+        
+        conn.close()
+        return len(records)
+    except Exception as e:
+        logger.error(f"Failed to persist geometric relationships: {e}")
+        try:
+            conn.close()
+        except:
+            pass
+        return 0
 
 
 if __name__ == '__main__':

@@ -1749,9 +1749,14 @@ class AutonomousCuriosityEngine:
             geo_rel = GeometricWordRelationships(coordizer)
             
             # QIG-PURE: Compute geometric relationships using Fisher-Rao distances
-            # No more co-occurrence/PMI based learning from curriculum files
-            relationships = geo_rel.compute_all_relationships()
-            relationship_count = len(relationships) if relationships else 0
+            # Use GeometricWordRelationships' pre-loaded vocabulary
+            relationships = geo_rel.compute_all_relationships(max_words=500)
+            relationship_count = 0
+            
+            for word, related in relationships.items():
+                if related:
+                    lr.word_neighbors[word] = related
+                    relationship_count += len(related)
             
             logger.info(f"[AutonomousCuriosityEngine] Computed {relationship_count} geometric relationships (QIG-pure)")
             
@@ -1759,6 +1764,11 @@ class AutonomousCuriosityEngine:
             if relationship_count > 0:
                 lr.learning_complete = True
                 lr.save_to_cache()
+                
+                # Validate against frozen facts
+                validation = lr.validate_against_frozen_facts()
+                if not validation.get('valid', True):
+                    logger.warning(f"[AutonomousCuriosityEngine] Validation warning: {validation.get('stats', {})}")
             
             self.stats['word_learning_cycles'] += 1
             self.stats['last_word_learning'] = datetime.now().isoformat()
