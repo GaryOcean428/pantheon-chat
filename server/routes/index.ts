@@ -10,7 +10,8 @@ export {
 
 export { 
   searchRouter, 
-  formatRouter 
+  formatRouter,
+  budgetRouter
 } from "./search";
 
 export { oceanRouter } from "./ocean";

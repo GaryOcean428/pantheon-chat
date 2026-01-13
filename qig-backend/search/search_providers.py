@@ -20,7 +20,23 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class SearchProviderConfig:
-    """Configuration for a search provider."""
+    """
+    Configuration for a search provider.
+    
+    Pricing sources (as of January 2026):
+    - Tavily: Credit-based pricing (~$0.01 per credit for basic search)
+      * search (basic): 1 credit = $0.01
+      * search (advanced): 2 credits = $0.02
+      * extract: 2 credits = $0.02
+      * crawl: 4 credits = $0.04
+      * map: 4 credits = $0.04
+      * research: 4 credits = $0.04
+    - Perplexity: Token-based pricing (conservative estimate $0.02/query)
+      * sonar: $1/M input, $1/M output → avg ~$0.0015/query
+      * sonar-pro: $3/M input, $15/M output → avg ~$0.0165/query
+    - Google: $0.005 per query (estimate)
+    - DuckDuckGo: Free
+    """
     name: str
     enabled: bool = False
     api_key_env: Optional[str] = None
@@ -78,7 +94,7 @@ class SearchProviderManager:
                 name='perplexity',
                 enabled=False,
                 api_key_env='PERPLEXITY_API_KEY',
-                cost_per_query=0.005,
+                cost_per_query=0.02,
                 priority=2
             ),
             'google': SearchProviderConfig(

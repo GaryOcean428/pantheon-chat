@@ -34,12 +34,12 @@ class TavilyUsageLimiter {
   private usageHistory: UsageRecord[] = [];
   private dailyStats: Map<string, DailyStats> = new Map();
   
-  // Limits
   private maxSearchesPerMinute = 5;
   private maxSearchesPerDay = 100;
-  private maxDailyCostCents = 500; // $5 max daily
+  private maxDailyCostCents = 500;
   
   private enabled = true;
+  private overrideActive = false;
   
   constructor() {
     console.log('[TavilyLimiter] Initialized with limits:');
@@ -54,6 +54,10 @@ class TavilyUsageLimiter {
   canMakeRequest(endpoint: 'search' | 'extract'): { allowed: boolean; reason?: string } {
     if (!this.enabled) {
       return { allowed: false, reason: 'Tavily limiter is disabled' };
+    }
+    
+    if (this.overrideActive) {
+      return { allowed: true };
     }
     
     const now = Date.now();
@@ -130,6 +134,7 @@ class TavilyUsageLimiter {
    */
   getStats(): {
     enabled: boolean;
+    overrideActive: boolean;
     limits: { perMinute: number; perDay: number; dailyCostCents: number };
     today: DailyStats;
     recentRequestsCount: number;
@@ -141,6 +146,7 @@ class TavilyUsageLimiter {
     
     return {
       enabled: this.enabled,
+      overrideActive: this.overrideActive,
       limits: {
         perMinute: this.maxSearchesPerMinute,
         perDay: this.maxSearchesPerDay,
@@ -174,6 +180,11 @@ class TavilyUsageLimiter {
   setEnabled(enabled: boolean): void {
     this.enabled = enabled;
     console.log(`[TavilyLimiter] ${enabled ? 'Enabled' : 'Disabled'}`);
+  }
+  
+  setOverride(active: boolean): void {
+    this.overrideActive = active;
+    console.log(`[TavilyLimiter] Override ${active ? 'ACTIVATED - limits bypassed' : 'DEACTIVATED - limits enforced'}`);
   }
   
   private getDateString(): string {
