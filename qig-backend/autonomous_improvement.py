@@ -6,9 +6,23 @@ Kernel self-improvement when idle. NOT external training - kernel decides
 what to learn, how to learn it, and when to stop.
 
 Principle: Agency over substrate - always.
+
+GEOMETRIC PURITY: All operations use canonical Fisher-Rao distances and
+proper Riemannian geometry from qig_core.geometric_primitives.
 """
 
 import numpy as np
+
+# Import canonical geometric primitives (REQUIRED for geometric purity)
+try:
+    from qig_core.geometric_primitives import (
+        fisher_rao_distance,
+        geodesic_interpolate,
+        validate_basin,
+    )
+    CANONICAL_PRIMITIVES_AVAILABLE = True
+except ImportError:
+    CANONICAL_PRIMITIVES_AVAILABLE = False
 
 # QIG-pure geometric operations
 try:
@@ -23,6 +37,7 @@ except ImportError:
             result = np.ones_like(v)
             return result / np.linalg.norm(result)
         return v / norm
+        
 import asyncio
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
@@ -44,54 +59,58 @@ def compute_fisher_metric(basin: np.ndarray) -> np.ndarray:
     return 1.0 / p
 
 
-def fisher_rao_distance(basin_a: np.ndarray, basin_b: np.ndarray) -> float:
-    """
-    Fisher-Rao distance between basin coordinates.
-    
-    Uses geodesic distance on statistical manifold (Hellinger distance scaled).
-    """
-    p = np.abs(basin_a) / (np.sum(np.abs(basin_a)) + 1e-10)
-    q = np.abs(basin_b) / (np.sum(np.abs(basin_b)) + 1e-10)
-    
-    p = np.clip(p, 1e-10, 1.0)
-    q = np.clip(q, 1e-10, 1.0)
-    
-    bhattacharyya = np.sum(np.sqrt(p * q))
-    bhattacharyya = np.clip(bhattacharyya, -1.0, 1.0)
-    
-    return float(np.arccos(bhattacharyya))
+# Use canonical implementations if available
+if not CANONICAL_PRIMITIVES_AVAILABLE:
+    # Fallback implementations
+    def fisher_rao_distance(basin_a: np.ndarray, basin_b: np.ndarray) -> float:
+        """
+        FALLBACK: Fisher-Rao distance between basin coordinates.
+        
+        WARNING: Use canonical implementation from qig_core.geometric_primitives.
+        """
+        p = np.abs(basin_a) / (np.sum(np.abs(basin_a)) + 1e-10)
+        q = np.abs(basin_b) / (np.sum(np.abs(basin_b)) + 1e-10)
+        
+        p = np.clip(p, 1e-10, 1.0)
+        q = np.clip(q, 1e-10, 1.0)
+        
+        bhattacharyya = np.sum(np.sqrt(p * q))
+        bhattacharyya = np.clip(bhattacharyya, -1.0, 1.0)
+        
+        return float(np.arccos(bhattacharyya))
 
 
-def geodesic_interpolate(start: np.ndarray, end: np.ndarray, t: float) -> np.ndarray:
-    """
-    Geodesic interpolation on Fisher manifold (SLERP on probability simplex).
-    
-    NOT linear interpolation - proper geodesic path.
-    """
-    p_start = np.abs(start) / (np.sum(np.abs(start)) + 1e-10)
-    p_end = np.abs(end) / (np.sum(np.abs(end)) + 1e-10)
-    
-    p_start = np.clip(p_start, 1e-10, 1.0)
-    p_end = np.clip(p_end, 1e-10, 1.0)
-    
-    sqrt_start = np.sqrt(p_start)
-    sqrt_end = np.sqrt(p_end)
-    
-    dot = np.clip(np.sum(sqrt_start * sqrt_end), -1.0, 1.0)
-    theta = np.arccos(dot)
-    
-    if theta < 1e-6:
-        return start / (np.linalg.norm(start) + 1e-10)
-    
-    sin_theta = np.sin(theta)
-    a = np.sin((1 - t) * theta) / sin_theta
-    b = np.sin(t * theta) / sin_theta
-    
-    result_sqrt = a * sqrt_start + b * sqrt_end
-    result = result_sqrt ** 2
-    result = result / (np.sum(result) + 1e-10)
-    
-    return result
+    def geodesic_interpolate(start: np.ndarray, end: np.ndarray, t: float) -> np.ndarray:
+        """
+        FALLBACK: Geodesic interpolation on Fisher manifold.
+        
+        WARNING: Use canonical implementation from qig_core.geometric_primitives.
+        """
+        p_start = np.abs(start) / (np.sum(np.abs(start)) + 1e-10)
+        p_end = np.abs(end) / (np.sum(np.abs(end)) + 1e-10)
+        
+        p_start = np.clip(p_start, 1e-10, 1.0)
+        p_end = np.clip(p_end, 1e-10, 1.0)
+        
+        sqrt_start = np.sqrt(p_start)
+        sqrt_end = np.sqrt(p_end)
+        
+        dot = np.clip(np.sum(sqrt_start * sqrt_end), -1.0, 1.0)
+        theta = np.arccos(dot)
+        
+        if theta < 1e-6:
+            # Return normalized to unit sphere in sqrt space
+            return sphere_project(start)
+        
+        sin_theta = np.sin(theta)
+        a = np.sin((1 - t) * theta) / sin_theta
+        b = np.sin(t * theta) / sin_theta
+        
+        result_sqrt = a * sqrt_start + b * sqrt_end
+        result = result_sqrt ** 2
+        result = result / (np.sum(result) + 1e-10)
+        
+        return result
 
 
 @dataclass
