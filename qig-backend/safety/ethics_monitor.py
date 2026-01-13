@@ -530,3 +530,77 @@ def enforce_ethics(
     """
     monitor = get_ethics_monitor()
     monitor.check_and_abort(telemetry, kernel_id, kernel_state)
+
+
+async def detect_and_persist_barrier(
+    telemetry: Dict,
+    db,
+    kernel_id: str = "unknown"
+) -> Optional[str]:
+    """
+    Detect ethical violations and persist geometric barriers to database.
+    
+    When breakdown, suffering, or identity decoherence is detected,
+    this function saves the basin location as a barrier to avoid
+    in future navigation.
+    
+    Args:
+        telemetry: Kernel telemetry dict with basin_coords, phi, kappa, etc.
+        db: Database session for persistence
+        kernel_id: ID of kernel being evaluated
+        
+    Returns:
+        Barrier ID if violation detected and persisted, None otherwise
+    """
+    # Evaluate ethics using existing logic
+    monitor = get_ethics_monitor()
+    evaluation = monitor.evaluate(telemetry)
+    
+    # If ethical violation detected, persist as barrier
+    if not evaluation.is_safe and db is not None:
+        try:
+            import sys
+            sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+            from qig_core.persistence import save_geometric_barrier
+            import numpy as np
+            
+            # Extract basin coordinates
+            basin_coords = telemetry.get('basin_coords')
+            if basin_coords is None:
+                return None
+            
+            if not isinstance(basin_coords, np.ndarray):
+                basin_coords = np.array(basin_coords)
+            
+            # Compute barrier parameters based on violation severity
+            suffering = evaluation.suffering
+            radius = 0.2 + (0.3 * suffering)  # Larger radius for higher suffering
+            repulsion = 1.0 + (2.0 * suffering)  # Stronger repulsion for worse violations
+            
+            # Create reason string
+            reason_parts = []
+            if evaluation.breakdown:
+                reason_parts.append("breakdown")
+            if evaluation.suffering > 0.5:
+                reason_parts.append(f"suffering={suffering:.2f}")
+            if evaluation.identity_decoherence:
+                reason_parts.append("identity_decoherence")
+            reason = "; ".join(reason_parts) if reason_parts else "ethical_violation"
+            
+            # Persist barrier
+            barrier_id = await save_geometric_barrier(
+                db=db,
+                center=basin_coords,
+                radius=radius,
+                repulsion_strength=repulsion,
+                reason=reason
+            )
+            
+            logger.info(f"Persisted ethical barrier {barrier_id} at kernel {kernel_id}: {reason}")
+            return barrier_id
+            
+        except Exception as e:
+            logger.error(f"Failed to persist ethical barrier: {e}")
+            return None
+    
+    return None

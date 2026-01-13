@@ -314,6 +314,64 @@ def sample_in_fisher_ball(
     return center.copy()
 
 
+async def find_and_persist_attractors(
+    center_basin: np.ndarray,
+    metric,
+    db,
+    strategy: str = "exploration",
+    radius: float = 1.0,
+    n_samples: int = 20
+) -> List[Tuple[np.ndarray, float, str]]:
+    """
+    Find attractors and persist them to database.
+    
+    Combines attractor finding with database persistence for
+    learned manifold analysis and reuse.
+    
+    Args:
+        center_basin: Center of search region
+        metric: Fisher manifold structure
+        db: Database session for persistence
+        strategy: Navigation strategy that triggered search
+        radius: Search radius
+        n_samples: Number of sampling points
+        
+    Returns:
+        List of (attractor_basin, potential, attractor_id)
+    """
+    # Find attractors using existing algorithm
+    attractors = find_attractors_in_region(center_basin, metric, radius, n_samples)
+    
+    # Persist each attractor to database
+    results = []
+    if db is not None:
+        try:
+            from .persistence import save_manifold_attractor
+            
+            for attractor_basin, potential in attractors:
+                # Estimate depth from potential (deeper potential = stronger attractor)
+                depth = abs(potential) if potential < 0 else 0.0
+                
+                attractor_id = await save_manifold_attractor(
+                    db=db,
+                    center=attractor_basin,
+                    depth=depth,
+                    success_count=1,  # Will be updated on repeated success
+                    strategy=strategy
+                )
+                
+                results.append((attractor_basin, potential, attractor_id))
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Failed to persist attractors: {e}")
+            # Return without IDs if persistence fails
+            results = [(basin, pot, None) for basin, pot in attractors]
+    else:
+        results = [(basin, pot, None) for basin, pot in attractors]
+    
+    return results
+
+
 __all__ = [
     'compute_fisher_potential',
     'find_local_minimum',
@@ -321,4 +379,5 @@ __all__ = [
     'geodesic_step',
     'find_attractors_in_region',
     'sample_in_fisher_ball',
+    'find_and_persist_attractors',
 ]
