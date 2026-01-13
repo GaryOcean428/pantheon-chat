@@ -1469,10 +1469,10 @@ export const tpsGeodesicPaths = pgTable(
     fromLandmark: varchar("from_landmark", { length: 64 }).notNull(),
     toLandmark: varchar("to_landmark", { length: 64 }).notNull(),
     distance: doublePrecision("distance").notNull(),
-    waypoints: jsonb("waypoints").default({}), // FIXED: Add empty object default
+    waypoints: jsonb("waypoints").default([]), // FIXED: Add empty array default for array of positions
     totalArcLength: doublePrecision("total_arc_length"),
     avgCurvature: doublePrecision("avg_curvature"),
-    regimeTransitions: jsonb("regime_transitions").default({}), // FIXED: Add empty object default
+    regimeTransitions: jsonb("regime_transitions").default([]), // FIXED: Add empty array default for array of transitions
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [

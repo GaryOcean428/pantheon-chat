@@ -44,7 +44,14 @@ async function getActualColumns(db: any, tableNames: string[]): Promise<Map<stri
     return columnMap;
   }
 
+  // Validate table names to prevent SQL injection (must be alphanumeric + underscores only)
+  const validTableNames = tableNames.filter(name => /^[a-z0-9_]+$/i.test(name));
+  if (validTableNames.length !== tableNames.length) {
+    throw new Error('Invalid table names detected. Table names must be alphanumeric with underscores only.');
+  }
+
   // Batch query all tables at once to avoid N+1 problem
+  // Note: Using parameterized array with validated names is safe here
   const results = await db.execute(sql`
     SELECT 
       table_name,
@@ -58,7 +65,7 @@ async function getActualColumns(db: any, tableNames: string[]): Promise<Map<stri
       udt_name
     FROM information_schema.columns
     WHERE table_schema = 'public'
-    AND table_name = ANY(${tableNames})
+    AND table_name = ANY(${validTableNames})
     ORDER BY table_name, ordinal_position
   `);
   
