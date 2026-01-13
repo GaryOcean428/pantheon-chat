@@ -32,8 +32,11 @@ try:
     NUMPY_AVAILABLE = True
 except ImportError:
     NUMPY_AVAILABLE = False
+    
     # Create minimal numpy-like interface for basic operations
-    class np:
+    class _FallbackNumpy:
+        """Fallback implementation when numpy is not available."""
+        
         @staticmethod
         def ndarray(*args, **kwargs):
             return list
@@ -56,15 +59,20 @@ except ImportError:
             return math.acos(x)
         
         @staticmethod
+        def _flatten(arr):
+            """Helper to flatten nested iterables."""
+            result = []
+            for item in arr:
+                if hasattr(item, '__iter__') and not isinstance(item, str):
+                    result.extend(_FallbackNumpy._flatten(item))
+                else:
+                    result.append(item)
+            return result
+        
+        @staticmethod
         def mean(arr, axis=None):
-            if axis is not None:
-                # Simplified: just return mean of flattened array
-                flat = [item for sublist in arr for item in (sublist if hasattr(sublist, '__iter__') else [sublist])]
-                return sum(flat) / len(flat) if flat else 0
-            if hasattr(arr, '__iter__'):
-                flat = [item for sublist in arr for item in (sublist if hasattr(sublist, '__iter__') else [sublist])]
-                return sum(flat) / len(flat) if flat else 0
-            return arr
+            flat = _FallbackNumpy._flatten([arr] if not hasattr(arr, '__iter__') else arr)
+            return sum(flat) / len(flat) if flat else 0
         
         @staticmethod
         def linalg_norm(v):
@@ -82,6 +90,9 @@ except ImportError:
                 return abs(v)
         
         pi = 3.14159265359
+    
+    # Alias fallback to np
+    np = _FallbackNumpy
 
 import logging
 from typing import List, Set, Dict, Optional, Tuple
@@ -177,8 +188,11 @@ class ContextualizedWordFilter:
         else:
             logger.warning("[ContextualizedWordFilter] No coordizer - using fallback filtering")
     
-    def _get_basin(self, word: str) -> Optional[np.ndarray]:
-        """Get basin coordinates for word with caching."""
+    def _get_basin(self, word: str):
+        """Get basin coordinates for word with caching.
+        
+        Returns coordinates as list/array-like object (type varies based on coordizer).
+        """
         if word in self._basin_cache:
             return self._basin_cache[word]
         
@@ -205,7 +219,7 @@ class ContextualizedWordFilter:
     def compute_geometric_relevance(self, 
                                    word: str,
                                    context_words: List[str],
-                                   context_basin: Optional[np.ndarray] = None) -> float:
+                                   context_basin=None) -> float:
         """
         Compute geometric relevance of word in context.
         
@@ -269,7 +283,7 @@ class ContextualizedWordFilter:
     def should_keep_word(self,
                         word: str,
                         context_words: List[str],
-                        context_basin: Optional[np.ndarray] = None) -> bool:
+                        context_basin=None) -> bool:
         """
         Determine if word should be kept based on geometric relevance.
         

@@ -275,7 +275,11 @@ export function demoContextualizedFilter(): void {
   console.log('\n=== Demo Complete ===');
 }
 
-// Export for testing
-if (require.main === module) {
-  demoContextualizedFilter();
+// Run demo if executed directly (Node.js compatibility check)
+try {
+  if (require.main === module) {
+    demoContextualizedFilter();
+  }
+} catch (err) {
+  // Not running in Node.js context, skip demo
 }
