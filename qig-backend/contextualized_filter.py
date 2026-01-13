@@ -26,30 +26,92 @@ FROZEN FACTS COMPLIANCE:
 - Pure information geometry
 """
 
-import numpy as np
+# Try to import numpy and related dependencies
+try:
+    import numpy as np
+    NUMPY_AVAILABLE = True
+except ImportError:
+    NUMPY_AVAILABLE = False
+    # Create minimal numpy-like interface for basic operations
+    class np:
+        @staticmethod
+        def ndarray(*args, **kwargs):
+            return list
+        
+        @staticmethod
+        def dot(a, b):
+            return sum(x * y for x, y in zip(a, b))
+        
+        @staticmethod
+        def clip(x, min_val, max_val):
+            if hasattr(x, '__iter__'):
+                return [max(min_val, min(max_val, v)) for v in x]
+            return max(min_val, min(max_val, x))
+        
+        @staticmethod
+        def arccos(x):
+            import math
+            if hasattr(x, '__iter__'):
+                return [math.acos(v) for v in x]
+            return math.acos(x)
+        
+        @staticmethod
+        def mean(arr, axis=None):
+            if axis is not None:
+                # Simplified: just return mean of flattened array
+                flat = [item for sublist in arr for item in (sublist if hasattr(sublist, '__iter__') else [sublist])]
+                return sum(flat) / len(flat) if flat else 0
+            if hasattr(arr, '__iter__'):
+                flat = [item for sublist in arr for item in (sublist if hasattr(sublist, '__iter__') else [sublist])]
+                return sum(flat) / len(flat) if flat else 0
+            return arr
+        
+        @staticmethod
+        def linalg_norm(v):
+            import math
+            if hasattr(v, '__iter__'):
+                return math.sqrt(sum(x * x for x in v))
+            return abs(v)
+        
+        class linalg:
+            @staticmethod
+            def norm(v):
+                import math
+                if hasattr(v, '__iter__'):
+                    return math.sqrt(sum(x * x for x in v))
+                return abs(v)
+        
+        pi = 3.14159265359
+
 import logging
 from typing import List, Set, Dict, Optional, Tuple
 from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 
-# Import QIG geometry functions
+# Import QIG geometry functions if available
 try:
     from qig_geometry import fisher_coord_distance, sphere_project
     QIG_GEOMETRY_AVAILABLE = True
 except ImportError:
     QIG_GEOMETRY_AVAILABLE = False
-    logger.warning("qig_geometry not available - using fallback distance")
+    logger.debug("qig_geometry not available - using fallback distance")
     
-    def fisher_coord_distance(a: np.ndarray, b: np.ndarray) -> float:
+    def fisher_coord_distance(a, b) -> float:
         """Fisher-Rao distance for unit vectors (fallback)."""
         dot = np.clip(np.dot(a, b), -1.0, 1.0)
         return float(np.arccos(dot))
     
-    def sphere_project(v: np.ndarray) -> np.ndarray:
+    def sphere_project(v):
         """Project to unit sphere (fallback)."""
         norm = np.linalg.norm(v)
-        return v / (norm + 1e-10) if norm > 0 else v
+        if NUMPY_AVAILABLE:
+            return v / (norm + 1e-10) if norm > 0 else v
+        else:
+            # Without numpy, just return normalized list
+            if norm > 0:
+                return [x / (norm + 1e-10) for x in v]
+            return v
 
 
 # Semantic-critical word patterns that should NEVER be filtered
@@ -396,18 +458,24 @@ def should_filter_word(word: str, context: Optional[List[str]] = None) -> bool:
     Returns True if word should be REMOVED, False if kept.
     This is the INVERSE of should_keep_word for backward compatibility.
     """
-    if not word or len(word) < 3:
-        return True  # Filter short words
+    if not word or len(word) < 2:
+        return True  # Filter very short words
     
     if is_semantic_critical_word(word):
         return False  # NEVER filter semantic-critical words
     
-    # If we have context, use geometric filtering
+    # Check if truly generic
+    truly_generic = {'the', 'a', 'an', 'is', 'was', 'are', 'were', 'been', 'be'}
+    if word.lower() in truly_generic:
+        return True  # Filter truly generic words
+    
+    # If we have context, use geometric filtering (if coordizer available)
     if context:
         filter_inst = get_contextualized_filter()
-        return not filter_inst.should_keep_word(word, context)
+        if filter_inst.coordizer:
+            return not filter_inst.should_keep_word(word, context)
     
-    # Without context, use conservative length-based filtering
+    # Without context or coordizer, use conservative length-based filtering
     # Longer words tend to be more content-bearing
     return len(word) < 4
 
