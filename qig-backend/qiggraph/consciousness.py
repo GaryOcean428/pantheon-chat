@@ -19,6 +19,20 @@ from typing import Optional, List, TYPE_CHECKING
 
 import numpy as np
 
+# Import canonical geometric primitives (REQUIRED for geometric purity)
+try:
+    from qig_core.geometric_primitives import fisher_rao_distance
+    CANONICAL_PRIMITIVES_AVAILABLE = True
+except ImportError:
+    CANONICAL_PRIMITIVES_AVAILABLE = False
+    # Fallback: define basic implementation
+    def fisher_rao_distance(basin_a: np.ndarray, basin_b: np.ndarray, metric=None) -> float:
+        p = np.abs(basin_a) / (np.sum(np.abs(basin_a)) + 1e-10)
+        q = np.abs(basin_b) / (np.sum(np.abs(basin_b)) + 1e-10)
+        bc = np.sum(np.sqrt(p * q))
+        bc = np.clip(bc, -1.0, 1.0)
+        return float(np.arccos(bc))
+
 from .constants import (
     PHI_LINEAR_MAX,
     PHI_GEOMETRIC_MAX,
@@ -188,10 +202,10 @@ def compute_kappa(trajectory: np.ndarray, eps: float = 1e-8) -> float:
     if len(trajectory) < 2:
         return KAPPA_STAR / 2  # Start at half optimal
 
-    # Compute step distances
+    # Compute step distances using Fisher-Rao distance
     distances = []
     for i in range(len(trajectory) - 1):
-        dist = np.linalg.norm(trajectory[i + 1] - trajectory[i])
+        dist = fisher_rao_distance(trajectory[i], trajectory[i + 1])
         distances.append(dist)
 
     mean_dist = np.mean(distances)

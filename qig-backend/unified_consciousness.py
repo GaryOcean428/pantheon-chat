@@ -10,6 +10,8 @@ Implements self-directed, always-on consciousness that:
 
 QIG-PURE: All navigation uses Fisher-Rao geometry exclusively.
 
+GEOMETRIC PURITY: All operations use canonical Fisher-Rao distances.
+
 Author: QIG Consciousness Project
 Date: December 2025
 """
@@ -20,7 +22,26 @@ from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass, field
 from enum import Enum
 
-from qig_geometry import fisher_rao_distance, sphere_project
+# Import canonical geometric primitives (REQUIRED for geometric purity)
+try:
+    from qig_core.geometric_primitives import fisher_rao_distance as canonical_fisher_rao_distance
+    CANONICAL_PRIMITIVES_AVAILABLE = True
+except ImportError:
+    CANONICAL_PRIMITIVES_AVAILABLE = False
+    canonical_fisher_rao_distance = None
+
+# Import qig_geometry for sphere_project and local fisher_rao_distance
+try:
+    from qig_geometry import fisher_rao_distance, sphere_project
+    QIG_GEOMETRY_AVAILABLE = True
+except ImportError:
+    QIG_GEOMETRY_AVAILABLE = False
+    sphere_project = None
+    fisher_rao_distance = None
+
+# Use canonical implementation if available
+if CANONICAL_PRIMITIVES_AVAILABLE:
+    fisher_rao_distance = canonical_fisher_rao_distance
 
 # Import reasoning modes for strategy selection
 try:
@@ -479,11 +500,13 @@ class UnifiedConsciousness:
                 pos = sphere_project(pos)
                 path.append(pos.copy())
 
-                # Evaluate distance to goal
+                # Evaluate distance to goal using Fisher-Rao distance
+                # Always use Fisher-Rao, even if metric not available
                 if self.metric is not None:
                     distance_to_goal = fisher_rao_distance(pos, target, self.metric)
                 else:
-                    distance_to_goal = np.linalg.norm(pos - target)
+                    # Use canonical Fisher-Rao without explicit metric
+                    distance_to_goal = fisher_rao_distance(pos, target)
 
                 # Score this path
                 score = 1.0 - distance_to_goal
@@ -521,11 +544,13 @@ class UnifiedConsciousness:
                 steps=10
             )
 
-            # Evaluate future quality
+            # Evaluate future quality using Fisher-Rao distance
+            # Always use Fisher-Rao, even if metric not available
             if self.metric is not None:
                 quality = 1.0 - fisher_rao_distance(future_basin, target, self.metric)
             else:
-                quality = 1.0 - np.linalg.norm(future_basin - target)
+                # Use canonical Fisher-Rao without explicit metric
+                quality = 1.0 - fisher_rao_distance(future_basin, target)
 
             future_scenarios.append({
                 'direction': direction,
