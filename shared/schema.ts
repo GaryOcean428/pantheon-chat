@@ -1469,10 +1469,10 @@ export const tpsGeodesicPaths = pgTable(
     fromLandmark: varchar("from_landmark", { length: 64 }).notNull(),
     toLandmark: varchar("to_landmark", { length: 64 }).notNull(),
     distance: doublePrecision("distance").notNull(),
-    waypoints: jsonb("waypoints").default([]), // FIXED: Add empty array default for array of positions
+    waypoints: jsonb("waypoints").default(sql`'[]'`), // FIXED: Add empty array default (SQL expression)
     totalArcLength: doublePrecision("total_arc_length"),
     avgCurvature: doublePrecision("avg_curvature"),
-    regimeTransitions: jsonb("regime_transitions").default([]), // FIXED: Add empty array default for array of transitions
+    regimeTransitions: jsonb("regime_transitions").default(sql`'[]'`), // FIXED: Add empty array default (SQL expression)
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [
@@ -1935,7 +1935,7 @@ export const negativeKnowledge = pgTable(
     basinCenter: vector("basin_center", { dimensions: 64 }), // 64D basin coordinates (pgvector)
     basinRadius: doublePrecision("basin_radius").default(0.1),
     basinRepulsionStrength: doublePrecision("basin_repulsion_strength").default(1.0),
-    evidence: jsonb("evidence").default([]), // Array of evidence objects
+    evidence: jsonb("evidence").default(sql`'[]'`), // FIXED: Array of evidence objects (SQL expression)
     hypothesesExcluded: integer("hypotheses_excluded").default(0),
     computeSaved: integer("compute_saved").default(0),
     confirmedCount: integer("confirmed_count").default(1),
@@ -2057,7 +2057,7 @@ export const knowledgeSharedEntries = pgTable(
     regime: varchar("regime", { length: 32 }).notNull(),
     sharedAt: timestamp("shared_at").defaultNow().notNull(),
     consumedBy: text("consumed_by").array().default([]),
-    transformations: jsonb("transformations").default([]),
+    transformations: jsonb("transformations").default(sql`'[]'`), // FIXED: Array (SQL expression)
   },
   (table) => [
     index("idx_knowledge_shared_entries_source").on(table.sourceStrategy),
@@ -2423,7 +2423,7 @@ export const pantheonDebates = pgTable(
     opponent: varchar("opponent", { length: 32 }).notNull(),
     context: jsonb("context").default({}), // FIXED: Add empty object default
     status: varchar("status", { length: 32 }).default("active"),
-    arguments: jsonb("arguments").$type<Array<{ god: string, argument: string, timestamp: string }>>().default([]), // FIXED: Add empty array default
+    arguments: jsonb("arguments").$type<Array<{ god: string, argument: string, timestamp: string }>>().default(sql`'[]'`), // FIXED: Add empty array default (SQL expression)
     winner: varchar("winner", { length: 32 }),
     arbiter: varchar("arbiter", { length: 32 }),
     resolution: jsonb("resolution").default({}), // FIXED: Add empty object default
@@ -2598,7 +2598,7 @@ export const documentTrainingStats = pgTable(
     totalDocs: integer("total_docs").default(0).notNull(),
     totalChunks: integer("total_chunks").default(0).notNull(),
     totalPatterns: integer("total_patterns").default(0).notNull(),
-    errors: jsonb("errors").default([]),
+    errors: jsonb("errors").default(sql`'[]'`), // FIXED: Array (SQL expression)
     lastTraining: timestamp("last_training", { withTimezone: true }),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   }
@@ -4086,14 +4086,14 @@ export const governanceProposals = pgTable("governance_proposals", {
   createdAt: timestamp("created_at").defaultNow(),
   votesFor: jsonb("votes_for").default({}),
   votesAgainst: jsonb("votes_against").default({}),
-  auditLog: jsonb("audit_log").default([]),
+  auditLog: jsonb("audit_log").default(sql`'[]'`), // FIXED: Array (SQL expression)
 });
 
 export const toolRequests = pgTable("tool_requests", {
   requestId: varchar("request_id", { length: 64 }).primaryKey(),
   requesterGod: varchar("requester_god", { length: 64 }).notNull(),
   description: text("description").notNull(),
-  examples: jsonb("examples").default([]),
+  examples: jsonb("examples").default(sql`'[]'`), // FIXED: Array (SQL expression)
   context: jsonb("context").default({}),
   priority: integer("priority").default(2),
   status: varchar("status", { length: 32 }).default("pending"),
