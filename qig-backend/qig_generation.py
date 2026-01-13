@@ -500,10 +500,7 @@ class QIGGenerator:
                     kappa=current_kappa
                 )
                 # Handle course correction if recommended
-                if observation.action == ObservationAction.EMERGENCY_STOP:
-                    print(f"[SelfObserver] Emergency stop at iteration {iterations}")
-                    break
-                elif observation.action == ObservationAction.COURSE_CORRECT:
+                if observation.action == ObservationAction.COURSE_CORRECT:
                     # Apply course correction if available
                     if observation.course_correction:
                         print(f"[SelfObserver] Course correction: {observation.course_correction}")

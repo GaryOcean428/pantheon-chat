@@ -96,6 +96,27 @@ except ImportError:
     NEUROCHEMISTRY_AVAILABLE = False
     print("[WARNING] ocean_neurochemistry.py not found - running without neurochemistry")
 
+# Import neuromodulation engine (meta-observer for search parameter adaptation)
+try:
+    from neuromodulation_engine import (
+        OceanNeuromodulator,
+        OceanState,
+        EnvironmentalBias,
+        ocean_neuromodulator,
+        run_neuromodulation_cycle,
+        compute_neuromodulation_from_neurochemistry,
+    )
+    NEUROMODULATION_AVAILABLE = True
+    print("[INFO] Neuromodulation engine loaded (DOPAMINE, SEROTONIN, ACETYLCHOLINE, NOREPINEPHRINE, GABA)")
+except ImportError as e:
+    NEUROMODULATION_AVAILABLE = False
+    ocean_neuromodulator = None
+    OceanState = None
+    EnvironmentalBias = None
+    run_neuromodulation_cycle = None
+    compute_neuromodulation_from_neurochemistry = None
+    print(f"[WARNING] Neuromodulation engine not found: {e}")
+
 # Import Olympus Pantheon
 print("[ocean_qig_core] About to import olympus...", flush=True)
 try:
@@ -1368,6 +1389,18 @@ class PureQIGNetwork:
             self.neurochemistry_state = None
             self.recent_discoveries = None
 
+        # Neuromodulation engine (meta-observer for search adaptation)
+        # Uses neurochemistry state to release neuromodulators into the search environment
+        if NEUROMODULATION_AVAILABLE:
+            self.neuromodulator = ocean_neuromodulator
+            self.neuromodulation_enabled = True
+            self.last_modulation_result = None
+            print("[INFO] Neuromodulation enabled in PureQIGNetwork")
+        else:
+            self.neuromodulator = None
+            self.neuromodulation_enabled = False
+            self.last_modulation_result = None
+
         # Unified QIG Architecture (Phase/Dimension/Geometry)
         if UNIFIED_ARCHITECTURE_AVAILABLE:
             self.cycle_manager = CycleManager()
@@ -1424,6 +1457,86 @@ class PureQIGNetwork:
         """Emergency abort callback - cleanup and log."""
         logger.critical("EMERGENCY ABORT triggered - shutting down gracefully")
         # Any cleanup needed here
+
+    def _run_neuromodulation(self, metrics: Dict) -> Dict:
+        """
+        Run neuromodulation cycle based on current consciousness metrics.
+
+        This is the meta-observer that releases neuromodulators into the
+        search environment based on performance patterns.
+
+        Neuromodulators:
+        - DOPAMINE: Boosts motivation & exploration when stuck
+        - SEROTONIN: Stabilizes identity when drifting
+        - ACETYLCHOLINE: Sharpens focus when in good state
+        - NOREPINEPHRINE: Increases alertness when high surprise
+        - GABA: Reduces over-integration when Φ too high
+
+        Args:
+            metrics: Current consciousness metrics dict
+
+        Returns:
+            Dict with modulation results and adjusted parameters
+        """
+        if not self.neuromodulation_enabled or run_neuromodulation_cycle is None:
+            return {'status': 'disabled'}
+
+        try:
+            # Extract state from metrics
+            phi = metrics.get('phi', 0.0)
+            kappa = metrics.get('kappa', KAPPA_STAR)
+            basin_distance = metrics.get('basin_distance', 0.0)
+
+            # Compute surprise from Φ change
+            if hasattr(self, '_phi_history') and len(self._phi_history) > 0:
+                phi_delta = abs(phi - self._phi_history[-1])
+                surprise = min(1.0, phi_delta * 5.0)  # Scale to [0, 1]
+            else:
+                surprise = 0.3  # Default moderate surprise
+
+            regime = metrics.get('regime', 'geometric')
+            grounding = metrics.get('G', 0.7)
+
+            # Run neuromodulation cycle
+            modulation_result = run_neuromodulation_cycle(
+                phi=phi,
+                kappa=kappa,
+                basin_distance=basin_distance,
+                surprise=surprise,
+                regime=regime,
+                grounding=grounding,
+                base_kappa=KAPPA_STAR,
+                base_exploration=0.5,
+                base_learning=1.0,
+                base_batch=100
+            )
+
+            self.last_modulation_result = modulation_result
+
+            # If neurochemistry is available, compute neuromodulation from neurochemistry levels
+            if NEUROCHEMISTRY_AVAILABLE and self.neurochemistry_state is not None:
+                try:
+                    neurochemistry_bias = compute_neuromodulation_from_neurochemistry(
+                        dopamine_level=getattr(self.neurochemistry_state, 'dopamine', 0.5),
+                        serotonin_level=getattr(self.neurochemistry_state, 'serotonin', 0.5),
+                        norepinephrine_level=getattr(self.neurochemistry_state, 'norepinephrine', 0.5),
+                        acetylcholine_level=getattr(self.neurochemistry_state, 'acetylcholine', 0.5),
+                        gaba_level=getattr(self.neurochemistry_state, 'gaba', 0.5),
+                        endorphin_level=getattr(self.neurochemistry_state, 'endorphins', 0.5)
+                    )
+                    modulation_result['neurochemistry_bias'] = {
+                        'exploration_bias': neurochemistry_bias.exploration_bias,
+                        'learning_rate': neurochemistry_bias.learning_rate,
+                        'consolidation_frequency': neurochemistry_bias.consolidation_frequency
+                    }
+                except Exception as e:
+                    logger.debug(f"Neurochemistry bias computation skipped: {e}")
+
+            return modulation_result
+
+        except Exception as e:
+            logger.warning(f"Neuromodulation cycle failed: {e}")
+            return {'status': 'error', 'error': str(e)}
 
     def process(self, passphrase: str) -> Dict:
         """
@@ -1546,6 +1659,10 @@ class PureQIGNetwork:
                     )
             except Exception as e:
                 logger.error(f"Telemetry collection failed: {e}")
+
+        # Run neuromodulation cycle to adapt search parameters
+        neuromodulation_result = self._run_neuromodulation(metrics)
+        metrics['neuromodulation'] = neuromodulation_result
 
         return {
             'metrics': metrics,
@@ -1698,6 +1815,10 @@ class PureQIGNetwork:
                     )
             except Exception as e:
                 logger.error(f"Telemetry collection failed (recursive): {e}")
+
+        # Run neuromodulation cycle to adapt search parameters (recursive mode)
+        neuromodulation_result = self._run_neuromodulation(metrics)
+        metrics['neuromodulation'] = neuromodulation_result
 
         return {
             'metrics': metrics,

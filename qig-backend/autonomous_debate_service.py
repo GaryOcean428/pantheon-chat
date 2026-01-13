@@ -1401,10 +1401,11 @@ class AutonomousDebateService:
             len(probs), size=n_samples, replace=False, p=probs
         )
 
-        selected = [fragments[i][1] for i in indices]
+        selected_pairs = [(fragments[i][0], fragments[i][1]) for i in indices]
+        selected_pairs.sort(key=lambda x: x[0])
+        selected = [text for _, text in selected_pairs]
 
-        # Step 9: Random ordering for assembly
-        random.shuffle(selected)
+        # Step 9: Preserve geometric ordering for assembly
         argument = " ".join(selected)
 
         return argument if len(argument) > 20 else None

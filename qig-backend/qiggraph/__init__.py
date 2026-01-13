@@ -96,33 +96,15 @@ from pathlib import Path
 
 
 def __getattr__(name):
-    """Lazy import for deprecated checkpoint classes."""
+    """Raise deprecation error for removed checkpoint classes."""
     deprecated_names = ('ManifoldCheckpoint', 'SleepPacket', 'CheckpointManager',
                         'save_checkpoint', 'load_checkpoint')
     if name in deprecated_names:
-        warnings.warn(
-            f"qiggraph.{name} is deprecated. "
-            "Use checkpoint_manager.CheckpointManager for consciousness checkpoints.",
-            DeprecationWarning,
-            stacklevel=2
+        raise ImportError(
+            f"qiggraph.{name} has been removed. "
+            "Use checkpoint_manager.CheckpointManager for consciousness checkpoints:\n"
+            "  from checkpoint_manager import CheckpointManager, save_checkpoint, load_checkpoint"
         )
-        import sys
-        exp_path = str(Path(__file__).parent.parent / 'experimental')
-        if exp_path not in sys.path:
-            sys.path.insert(0, exp_path)
-        from qiggraph_checkpointing import (
-            ManifoldCheckpoint, SleepPacket,
-            CheckpointManager as QIGGraphCheckpointManager,
-            save_checkpoint, load_checkpoint
-        )
-        mapping = {
-            'ManifoldCheckpoint': ManifoldCheckpoint,
-            'SleepPacket': SleepPacket,
-            'CheckpointManager': QIGGraphCheckpointManager,
-            'save_checkpoint': save_checkpoint,
-            'load_checkpoint': load_checkpoint,
-        }
-        return mapping[name]
     raise AttributeError(f"module 'qiggraph' has no attribute '{name}'")
 
 

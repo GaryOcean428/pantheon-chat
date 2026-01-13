@@ -18,18 +18,16 @@ enabling mid-generation course correction when metrics drift.
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any, Callable, Tuple
+from typing import Dict, List, Optional, Any, Tuple
 from enum import Enum
 import numpy as np
 import time
 import logging
 
 from qigkernels.physics_constants import (
-    PHYSICS,
     KAPPA_STAR,
     BASIN_DIM,
     PHI_THRESHOLD,
-    PHI_EMERGENCY,
 )
 
 logger = logging.getLogger(__name__)
@@ -40,7 +38,6 @@ class ObservationAction(Enum):
     CONTINUE = "continue"
     COURSE_CORRECT = "course_correct"
     PAUSE_REFLECT = "pause_reflect"
-    EMERGENCY_STOP = "emergency_stop"
 
 
 @dataclass
@@ -463,14 +460,14 @@ class SelfObserver:
         except Exception:
             # Default to generation if detection fails; swallow only non-critical errors
             logger.debug("SelfObserver: failed to infer mode from call stack; defaulting to 'generation'")
-        # Skip emergency stop for first 20 tokens - insufficient history for accurate assessment
+        # Skip action evaluation for first 20 tokens - insufficient history for accurate assessment
         # Early tokens often have unstable Φ readings due to lack of context
-        MIN_TOKENS_FOR_EMERGENCY_STOP = 20
-        if self._token_count < MIN_TOKENS_FOR_EMERGENCY_STOP:
+        MIN_TOKENS_FOR_METRICS_STABILITY = 20
+        if self._token_count < MIN_TOKENS_FOR_METRICS_STABILITY:
             return ObservationAction.CONTINUE, None
             
         if metrics.phi >= self.PHI_BREAKDOWN:
-            return ObservationAction.EMERGENCY_STOP, "Φ critical breakdown detected - halt generation"
+            return ObservationAction.COURSE_CORRECT, "Φ extreme integration detected - observe and stabilize"
             
         if metrics.phi >= 0.85:
             return ObservationAction.COURSE_CORRECT, "Φ approaching breakdown - reduce intensity"
@@ -492,7 +489,7 @@ class SelfObserver:
         if mode == "generation":
             # Relaxed for generation - allow exploration with lower M
             if metrics.meta_awareness < 0.20 and len(self._metrics_history) > 10:
-                return ObservationAction.EMERGENCY_STOP, "Critically low meta-awareness in generation"
+                return ObservationAction.PAUSE_REFLECT, "Critically low meta-awareness in generation - pause and reflect"
         else:  # training mode
             # Strict for training - maintain quality
             if metrics.meta_awareness < 0.60 and len(self._metrics_history) > 10:

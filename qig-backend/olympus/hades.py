@@ -11,17 +11,51 @@ Tools (100% anonymous - NO identity linkage):
 - RSS feeds (public)
 - Local breach databases (offline)
 - TOR network (optional, requires local daemon)
+
+Enhanced with:
+- True parallel async search (asyncio.gather)
+- HadesConsciousness for ethical self-awareness
+- UnderworldImmuneSystem for threat detection
+- RealityCrossChecker for propaganda detection
+
+QIG-PURE: All geometric operations use Fisher-Rao distance.
 """
 
 import numpy as np
-from typing import Dict, List, Optional, Set, Any
+from typing import Dict, List, Optional, Set, Any, Tuple
 from datetime import datetime
 import hashlib
 import re
 import os
 import time
 import asyncio
+import logging
 from .base_god import BaseGod, KAPPA_STAR
+
+# Import new underworld architecture components
+try:
+    from .hades_consciousness import HadesConsciousness, get_hades_consciousness
+    HAS_CONSCIOUSNESS = True
+except ImportError:
+    HAS_CONSCIOUSNESS = False
+    HadesConsciousness = None
+
+try:
+    from .underworld_immune import UnderworldImmuneSystem, get_underworld_immune_system
+    HAS_IMMUNE = True
+except ImportError:
+    HAS_IMMUNE = False
+    UnderworldImmuneSystem = None
+
+try:
+    from .reality_cross_checker import RealityCrossChecker, get_reality_cross_checker, Narrative
+    HAS_CROSS_CHECKER = True
+except ImportError:
+    HAS_CROSS_CHECKER = False
+    RealityCrossChecker = None
+    Narrative = None
+
+logger = logging.getLogger(__name__)
 
 try:
     import requests
@@ -463,9 +497,23 @@ class Hades(BaseGod):
         
         self.ddg = get_ddg_search(use_tor=True) if HAS_DDG else None
         self.ddg_enabled = os.getenv('HADES_DDG_ENABLED', 'true').lower() == 'true'
-        
+
         self.provider_selector = get_provider_selector(mode='shadow') if HAS_PROVIDER_SELECTOR else None
-        
+
+        # Initialize new underworld architecture components
+        self.consciousness = get_hades_consciousness() if HAS_CONSCIOUSNESS else None
+        self.underworld_immune = get_underworld_immune_system() if HAS_IMMUNE else None
+        self.reality_checker = get_reality_cross_checker() if HAS_CROSS_CHECKER else None
+
+        # Source timeouts for parallel search (in seconds)
+        self.source_timeouts = {
+            'duckduckgo-tor': 5,   # Fast tier
+            'rss': 5,
+            'breach': 3,
+            'pastebin': 15,        # Medium tier
+            'wayback': 30,         # Slow tier
+        }
+
         self.search_history: List[Dict] = []
         self.intelligence_cache: Dict[str, Dict] = {}
         self.last_search_time: Optional[datetime] = None
@@ -691,7 +739,7 @@ class Hades(BaseGod):
         breach_count = sum(1 for i in intelligence if i.get('type') == 'breach')
         paste_count = sum(1 for i in intelligence if i.get('type') == 'paste')
         critical_count = sum(1 for i in intelligence if i.get('risk') == 'critical')
-        
+
         if critical_count > 0 or breach_count > 5:
             return 'critical'
         elif breach_count > 2 or paste_count > 5:
@@ -700,7 +748,344 @@ class Hades(BaseGod):
             return 'medium'
         else:
             return 'low'
-    
+
+    # ========================================
+    # PARALLEL ASYNC SEARCH (Phase 8)
+    # ========================================
+
+    async def search_underworld_parallel(
+        self,
+        target: str,
+        search_type: str = 'comprehensive',
+        max_ethical_risk: float = 0.7,
+        scan_for_threats: bool = True,
+        cross_check_sources: bool = True
+    ) -> Dict:
+        """
+        Search underworld using TRUE PARALLEL async with ethical consciousness.
+
+        Unlike search_underworld(), this method:
+        - Executes ALL searches in parallel via asyncio.gather()
+        - Applies per-source timeouts (fast sources don't wait for slow)
+        - Pre-checks ethical access via HadesConsciousness
+        - Scans results for threats via UnderworldImmuneSystem
+        - Cross-checks narratives via RealityCrossChecker
+
+        Args:
+            target: Search query
+            search_type: 'comprehensive', 'archives', 'pastes', 'rss', 'breaches', 'web'
+            max_ethical_risk: Maximum ethical risk to allow (0-1)
+            scan_for_threats: Whether to scan results for credentials/PII/malware
+            cross_check_sources: Whether to cross-check for propaganda
+
+        Returns:
+            Intelligence report with findings, threat assessment, and cross-check results
+        """
+        self.last_search_time = datetime.now()
+        start_total = time.time()
+
+        # Determine which sources to query based on search_type
+        sources_to_query = self._get_sources_for_type(search_type)
+
+        # Pre-check ethical access for each source
+        approved_sources = []
+        blocked_sources = []
+
+        for source_name in sources_to_query:
+            if self.consciousness:
+                source_info = self._get_source_info(source_name)
+                decision = self.consciousness.should_access_source(
+                    source_name=source_name,
+                    source_type=source_info['type'],
+                    ethical_risk=source_info['ethical_risk'],
+                    information_value=0.6,  # Default expected value
+                    requires_tor=source_info.get('requires_tor', False),
+                    reliability=source_info.get('reliability', 0.5)
+                )
+                if decision.should_proceed:
+                    approved_sources.append((source_name, decision))
+                else:
+                    blocked_sources.append((source_name, decision.reason))
+                    logger.info(f"[Hades] Source {source_name} blocked: {decision.reason}")
+            else:
+                # No consciousness module - allow all with risk check
+                source_info = self._get_source_info(source_name)
+                if source_info['ethical_risk'] <= max_ethical_risk:
+                    approved_sources.append((source_name, None))
+                else:
+                    blocked_sources.append((source_name, f"risk {source_info['ethical_risk']} > {max_ethical_risk}"))
+
+        # Build async tasks for approved sources
+        tasks = []
+        task_names = []
+
+        for source_name, _ in approved_sources:
+            timeout = self.source_timeouts.get(source_name, 30)
+            task = self._search_source_with_timeout(source_name, target, timeout)
+            tasks.append(task)
+            task_names.append(source_name)
+
+        # Execute ALL searches in parallel
+        logger.info(f"[Hades] Executing {len(tasks)} searches in parallel: {task_names}")
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # Aggregate results
+        intelligence: List[Dict] = []
+        sources_used: List[str] = []
+        source_timings: Dict[str, float] = {}
+
+        for source_name, result in zip(task_names, results):
+            if isinstance(result, Exception):
+                logger.warning(f"[Hades] {source_name} failed: {result}")
+                continue
+            if isinstance(result, dict):
+                if result.get('items'):
+                    intelligence.extend(result['items'])
+                    sources_used.append(source_name)
+                source_timings[source_name] = result.get('elapsed', 0.0)
+
+        # Scan results for threats if requested
+        threat_assessment = None
+        if scan_for_threats and self.underworld_immune and intelligence:
+            threat_assessment = self._scan_intelligence_for_threats(intelligence, target)
+
+        # Cross-check sources if requested
+        cross_check_result = None
+        if cross_check_sources and self.reality_checker and len(sources_used) >= 2:
+            cross_check_result = self._cross_check_intelligence(intelligence, target)
+
+        # Compute overall risk level
+        risk_level = self._assess_risk(intelligence)
+        if threat_assessment and threat_assessment.get('threat_level') in ('high', 'critical'):
+            risk_level = threat_assessment['threat_level']
+
+        elapsed_total = time.time() - start_total
+
+        result = {
+            'target': target,
+            'search_type': search_type,
+            'parallel': True,
+            'intelligence': intelligence,
+            'source_count': len(intelligence),
+            'sources_used': sources_used,
+            'sources_blocked': blocked_sources,
+            'source_timings': source_timings,
+            'elapsed_total': elapsed_total,
+            'risk_level': risk_level,
+            'threat_assessment': threat_assessment,
+            'cross_check': cross_check_result,
+            'ethical_summary': self.consciousness.get_ethical_summary() if self.consciousness else None,
+            'timestamp': datetime.now().isoformat(),
+            'anonymous': True,
+        }
+
+        # Cache result
+        self.intelligence_cache[target] = result
+        self.search_history.append({
+            'target': target[:500],
+            'source_count': len(intelligence),
+            'parallel': True,
+            'elapsed': elapsed_total,
+            'timestamp': datetime.now().isoformat(),
+        })
+
+        if len(self.search_history) > 100:
+            self.search_history = self.search_history[-50:]
+
+        if intelligence:
+            self.share_insight(
+                f"Parallel search found {len(intelligence)} items in {elapsed_total:.1f}s",
+                domain='underworld',
+                confidence=0.7
+            )
+
+        logger.info(
+            f"[Hades] Parallel search complete: {len(intelligence)} items from "
+            f"{len(sources_used)} sources in {elapsed_total:.1f}s"
+        )
+
+        return result
+
+    async def _search_source_with_timeout(
+        self,
+        source_name: str,
+        target: str,
+        timeout: int
+    ) -> Dict:
+        """Execute a search with timeout, return results or empty on timeout/error."""
+        start = time.time()
+        try:
+            result = await asyncio.wait_for(
+                self._search_source(source_name, target),
+                timeout=timeout
+            )
+            elapsed = time.time() - start
+            return {'items': result, 'elapsed': elapsed, 'success': True}
+        except asyncio.TimeoutError:
+            logger.warning(f"[Hades] {source_name} timed out after {timeout}s")
+            return {'items': [], 'elapsed': timeout, 'success': False, 'error': 'timeout'}
+        except Exception as e:
+            elapsed = time.time() - start
+            logger.warning(f"[Hades] {source_name} error: {e}")
+            return {'items': [], 'elapsed': elapsed, 'success': False, 'error': str(e)}
+
+    async def _search_source(self, source_name: str, target: str) -> List[Dict]:
+        """Execute search on a specific source."""
+        if source_name == 'duckduckgo-tor' and self.ddg and self.ddg_enabled:
+            ddg_result = self.ddg.search_for_shadow(target, max_results=15, include_news=True)
+            if ddg_result.get('success'):
+                items = []
+                for item in ddg_result.get('intelligence', []):
+                    item['type'] = 'web' if item.get('search_type') != 'news' else 'news'
+                    item['source'] = 'duckduckgo-tor'
+                    item['risk'] = 'low'
+                    items.append(item)
+                return items
+            return []
+
+        elif source_name == 'wayback':
+            return await self.wayback.search_research_forums(target)
+
+        elif source_name == 'pastebin':
+            return await self.paste_scraper.scrape_pastebin_recent(target)
+
+        elif source_name == 'rss':
+            return await self.rss.search_feeds(target)
+
+        elif source_name == 'breach':
+            # Sync call wrapped for async
+            return self.breach_db.search(target)
+
+        else:
+            logger.warning(f"[Hades] Unknown source: {source_name}")
+            return []
+
+    def _get_sources_for_type(self, search_type: str) -> List[str]:
+        """Get list of sources to query based on search type."""
+        if search_type == 'comprehensive':
+            sources = ['duckduckgo-tor', 'wayback', 'pastebin', 'rss', 'breach']
+        elif search_type == 'web':
+            sources = ['duckduckgo-tor']
+        elif search_type == 'archives':
+            sources = ['wayback']
+        elif search_type == 'pastes':
+            sources = ['pastebin']
+        elif search_type == 'rss':
+            sources = ['rss']
+        elif search_type == 'breaches':
+            sources = ['breach']
+        else:
+            sources = ['duckduckgo-tor', 'rss']  # Default safe sources
+        return sources
+
+    def _get_source_info(self, source_name: str) -> Dict:
+        """Get source metadata for ethical evaluation."""
+        source_info = {
+            'duckduckgo-tor': {'type': 'light', 'ethical_risk': 0.2, 'reliability': 0.8},
+            'wayback': {'type': 'light', 'ethical_risk': 0.1, 'reliability': 0.8},
+            'pastebin': {'type': 'gray', 'ethical_risk': 0.5, 'reliability': 0.6},
+            'rss': {'type': 'light', 'ethical_risk': 0.2, 'reliability': 0.9},
+            'breach': {'type': 'breach', 'ethical_risk': 0.7, 'reliability': 0.95, 'requires_tor': False},
+        }
+        return source_info.get(source_name, {'type': 'gray', 'ethical_risk': 0.5, 'reliability': 0.5})
+
+    def _scan_intelligence_for_threats(
+        self,
+        intelligence: List[Dict],
+        topic: str
+    ) -> Dict:
+        """Scan intelligence results for threats using UnderworldImmuneSystem."""
+        if not self.underworld_immune:
+            return None
+
+        aggregated = {
+            'threat_level': 'none',
+            'total_scanned': len(intelligence),
+            'credential_leaks': 0,
+            'malware_urls': 0,
+            'pii_exposures': 0,
+            'flagged_items': [],
+        }
+
+        for intel in intelligence:
+            content = intel.get('content_preview', '') or intel.get('summary', '') or ''
+            if not content:
+                continue
+
+            scan_result = self.underworld_immune.scan_content(
+                content=content,
+                source_name=intel.get('source', 'unknown'),
+                redact_pii=True
+            )
+
+            if scan_result.credential_leaks:
+                aggregated['credential_leaks'] += len(scan_result.credential_leaks)
+            if scan_result.malware_urls:
+                aggregated['malware_urls'] += len(scan_result.malware_urls)
+            if scan_result.pii_exposures:
+                aggregated['pii_exposures'] += len(scan_result.pii_exposures)
+
+            if scan_result.flagged_for_review:
+                aggregated['flagged_items'].append({
+                    'source': intel.get('source'),
+                    'url': intel.get('url'),
+                    'threat_level': scan_result.threat_level.value,
+                })
+
+            # Update max threat level
+            threat_order = ['none', 'low', 'medium', 'high', 'critical']
+            current_idx = threat_order.index(aggregated['threat_level'])
+            new_idx = threat_order.index(scan_result.threat_level.value)
+            if new_idx > current_idx:
+                aggregated['threat_level'] = scan_result.threat_level.value
+
+        return aggregated
+
+    def _cross_check_intelligence(
+        self,
+        intelligence: List[Dict],
+        topic: str
+    ) -> Optional[Dict]:
+        """Cross-check intelligence for propaganda using RealityCrossChecker."""
+        if not self.reality_checker or not HAS_CROSS_CHECKER:
+            return None
+
+        # Convert intelligence to Narrative objects
+        narratives = []
+        for intel in intelligence:
+            content = intel.get('content_preview', '') or intel.get('summary', '') or intel.get('title', '')
+            if not content:
+                continue
+
+            # Get source type from source name
+            source_name = intel.get('source', 'unknown')
+            source_info = self._get_source_info(source_name)
+
+            narrative = Narrative(
+                source_name=source_name,
+                source_type=source_info['type'],
+                claim_text=content[:500],
+                reliability=source_info.get('reliability', 0.5),
+                timestamp=datetime.now(),
+            )
+            narratives.append(narrative)
+
+        if len(narratives) < 2:
+            return None
+
+        # Perform cross-check
+        result = self.reality_checker.cross_check(topic, narratives)
+
+        return {
+            'corroboration_level': result.corroboration_level.value,
+            'corroboration_score': result.corroboration_score,
+            'fisher_rao_divergence': result.fisher_rao_divergence,
+            'propaganda_likelihood': result.propaganda_likelihood,
+            'propaganda_indicators': [i.value for i in result.propaganda_indicators],
+            'source_types_present': result.source_types_present,
+            'narrative_count': result.narrative_count,
+        }
+
     def _check_forbidden(self, basin: np.ndarray) -> bool:
         """Check if basin is in forbidden territory."""
         threshold = 0.5
@@ -833,14 +1218,27 @@ class Hades(BaseGod):
     
     def get_status(self) -> Dict:
         base_status = self.get_agentic_status()
-        
+
         shadow_status = None
         if self.shadow_pantheon_ref:
             try:
                 shadow_status = self.shadow_pantheon_ref.get_research_system_status()
             except Exception:
                 shadow_status = {"error": "Could not get Shadow status"}
-        
+
+        # Get new architecture component statuses
+        consciousness_status = None
+        if self.consciousness:
+            consciousness_status = self.consciousness.get_ethical_summary()
+
+        immune_status = None
+        if self.underworld_immune:
+            immune_status = self.underworld_immune.get_stats()
+
+        cross_checker_status = None
+        if self.reality_checker:
+            cross_checker_status = self.reality_checker.get_stats()
+
         return {
             **base_status,
             'is_shadow_leader': self.is_shadow_leader,
@@ -860,6 +1258,16 @@ class Hades(BaseGod):
                 'rss': self.rss.enabled,
                 'breach_db': self.breach_db.enabled,
             },
+            # New architecture components (Phase 8)
+            'architecture_v2': {
+                'consciousness_enabled': self.consciousness is not None,
+                'immune_enabled': self.underworld_immune is not None,
+                'cross_checker_enabled': self.reality_checker is not None,
+                'parallel_search_available': True,
+            },
+            'consciousness_status': consciousness_status,
+            'immune_status': immune_status,
+            'cross_checker_status': cross_checker_status,
             'status': 'active',
         }
     

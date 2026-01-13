@@ -55,6 +55,23 @@ except ImportError:
     HAS_QIGKERNELS = False
     print("[ConstellationService] WARNING: qigkernels not found, using mock")
 
+# E8 Constellation for 240-root geometric routing
+try:
+    from e8_constellation import (
+        E8Constellation,
+        E8RouteResult,
+        get_e8_constellation,
+        route_via_e8,
+    )
+    E8_AVAILABLE = True
+    print("[ConstellationService] E8 Constellation available (240 roots)")
+except ImportError as e:
+    E8_AVAILABLE = False
+    E8Constellation = None
+    get_e8_constellation = None
+    route_via_e8 = None
+    print(f"[ConstellationService] E8 Constellation not available: {e}")
+
 try:
     import torch
 
@@ -142,6 +159,10 @@ class ConstellationService:
         self._failed_strategies: list[str] = []
         self._basin_updates: list[np.ndarray] = []
 
+        # E8 constellation for 240-root routing
+        self._e8_constellation: E8Constellation | None = None
+        self._e8_enabled = E8_AVAILABLE and self.constellation_size >= 240
+
     async def initialize(self) -> bool:
         """Initialize the constellation."""
         if self._initialized:
@@ -192,11 +213,52 @@ class ConstellationService:
                 f"{len(self.constellation.instances)} kernels"
             )
 
+            # Initialize E8 constellation for high-complexity routing
+            if self._e8_enabled and get_e8_constellation is not None:
+                try:
+                    self._e8_constellation = get_e8_constellation()
+                    print(f"[ConstellationService] E8 constellation enabled "
+                          f"({self._e8_constellation.get_stats()['total_roots']} roots)")
+                except Exception as e8_err:
+                    print(f"[ConstellationService] E8 initialization failed: {e8_err}")
+                    self._e8_enabled = False
+
             return True
 
         except Exception as e:
             print(f"[ConstellationService] Initialization failed: {e}")
             return False
+
+    def route_via_e8(
+        self,
+        query_basin: np.ndarray,
+        k: int = 3
+    ) -> dict[str, Any] | None:
+        """
+        Route query using E8 240-root geometry.
+
+        Args:
+            query_basin: 64D basin coordinates
+            k: Number of nearest roots to return
+
+        Returns:
+            Dict with routing result or None if E8 unavailable
+        """
+        if not self._e8_enabled or self._e8_constellation is None:
+            return None
+
+        try:
+            result = self._e8_constellation.route_query(query_basin, k=k)
+            return {
+                "roots": result.target_roots,
+                "distances": result.distances,
+                "kernel_names": result.kernel_names,
+                "specialization_level": result.specialization_level,
+                "method": result.route_method,
+            }
+        except Exception as e:
+            print(f"[ConstellationService] E8 routing failed: {e}")
+            return None
 
     def _detect_role(self, text: str) -> KernelRole:
         """Detect appropriate kernel role from text."""

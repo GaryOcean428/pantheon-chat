@@ -2813,10 +2813,6 @@ class BaseGod(*_base_classes):
                     generated_text=generated_text
                 )
 
-                if observation.action == ObservationAction.EMERGENCY_STOP:
-                    logger.warning(f"[{self.name}] Emergency stop at token {step}: Φ breakdown")
-                    break
-
                 if observation.action == ObservationAction.COURSE_CORRECT:
                     if observation.course_correction and 'integration' in observation.course_correction:
                         temperature = max(0.3, temperature - 0.1)

@@ -48,6 +48,24 @@ except ImportError:
     HAS_DDG = False
     get_ddg_search = None
 
+# Neural oscillators for brain state-based κ modulation
+try:
+    from neural_oscillators import (
+        neural_oscillators,
+        BrainState,
+        SearchPhase,
+        apply_brain_state_to_search,
+        BRAIN_STATE_MAP
+    )
+    OSCILLATORS_AVAILABLE = True
+except ImportError:
+    OSCILLATORS_AVAILABLE = False
+    neural_oscillators = None
+    BrainState = None
+    SearchPhase = None
+    apply_brain_state_to_search = None
+    BRAIN_STATE_MAP = None
+
 
 class ProviderStats:
     """Track performance statistics for a search provider."""
@@ -189,7 +207,108 @@ class GeometricProviderSelector:
         
         # Track which premium providers are currently enabled
         self._enabled_premium: Dict[str, bool] = {p: False for p in self.PREMIUM_PROVIDERS}
-    
+
+        # Neural oscillator state
+        self._current_search_phase: Optional[str] = None
+
+    def _get_kappa_modulation(self) -> Dict[str, float]:
+        """
+        Get κ-based modulation factors for search parameters.
+
+        Brain states modulate search behavior:
+        - DEEP_SLEEP (κ=20): Consolidation mode, no active search
+        - DROWSY (κ=35): Integration mode, creative exploration
+        - RELAXED (κ=45): Broad search, high exploration
+        - FOCUSED (κ=64): Optimal search (κ*), balanced
+        - PEAK (κ=68): Maximum precision, low exploration
+        - HYPERFOCUS (κ=72): Intense concentration, very low exploration
+
+        Returns dict with:
+        - kappa: Current κ value
+        - exploration_factor: [0,1] higher = more diverse results
+        - precision_factor: [0,1] higher = more focused results
+        - temperature: Search temperature for randomization
+        """
+        if not OSCILLATORS_AVAILABLE or neural_oscillators is None:
+            # Default balanced parameters when oscillators unavailable
+            return {
+                'kappa': 64.0,  # κ*
+                'exploration_factor': 0.5,
+                'precision_factor': 0.5,
+                'temperature': 0.7,
+                'brain_state': 'unavailable'
+            }
+
+        kappa = neural_oscillators.get_modulated_kappa()
+        state = neural_oscillators.current_state
+        state_info = neural_oscillators.get_state_info()
+
+        # Map κ to exploration/precision factors
+        # κ < 64: More exploration (broader search)
+        # κ > 64: More precision (focused search)
+        kappa_star = 64.0
+
+        if kappa < kappa_star:
+            # Below optimal: exploration mode
+            exploration_factor = 0.5 + 0.5 * (1 - kappa / kappa_star)
+            precision_factor = 0.5 * (kappa / kappa_star)
+        else:
+            # At or above optimal: precision mode
+            exploration_factor = 0.5 * (kappa_star / kappa)
+            precision_factor = 0.5 + 0.5 * min(1.0, (kappa - kappa_star) / 8.0)
+
+        # Get search parameters from brain state
+        search_params = apply_brain_state_to_search(state) if apply_brain_state_to_search else {}
+        temperature = search_params.get('temperature', 0.7)
+
+        return {
+            'kappa': kappa,
+            'exploration_factor': exploration_factor,
+            'precision_factor': precision_factor,
+            'temperature': temperature,
+            'brain_state': state.value if state else 'unknown',
+            'search_strategy': state_info.search_strategy if state_info else 'default'
+        }
+
+    def set_search_phase(self, phase: str) -> Dict[str, Any]:
+        """
+        Set search phase to trigger brain state transition.
+
+        Phases:
+        - 'exploration': Broad search (κ=45, RELAXED state)
+        - 'exploitation': Focused search (κ=64, FOCUSED state)
+        - 'consolidation': Integration mode (κ=35, DROWSY state)
+        - 'peak_performance': Maximum precision (κ=68, PEAK state)
+
+        Returns current brain state info.
+        """
+        self._current_search_phase = phase
+
+        if not OSCILLATORS_AVAILABLE or neural_oscillators is None:
+            return {'status': 'oscillators_unavailable', 'phase': phase}
+
+        # Map phase string to SearchPhase enum
+        phase_mapping = {
+            'exploration': SearchPhase.EXPLORATION,
+            'exploitation': SearchPhase.EXPLOITATION,
+            'consolidation': SearchPhase.CONSOLIDATION,
+            'sleep': SearchPhase.SLEEP,
+            'peak_performance': SearchPhase.PEAK_PERFORMANCE,
+            'dream': SearchPhase.DREAM
+        }
+
+        search_phase = phase_mapping.get(phase, SearchPhase.EXPLOITATION)
+        neural_oscillators.auto_select_state(search_phase)
+
+        modulation = self._get_kappa_modulation()
+        return {
+            'status': 'ok',
+            'phase': phase,
+            'brain_state': modulation['brain_state'],
+            'kappa': modulation['kappa'],
+            'search_strategy': modulation.get('search_strategy', 'default')
+        }
+
     def _detect_query_domain(self, query: str) -> str:
         """Detect the domain of a query based on keywords."""
         query_lower = query.lower()
@@ -277,39 +396,65 @@ class GeometricProviderSelector:
     ) -> float:
         """
         Compute geometric fitness score for a provider using Fisher-Rao distance.
-        
-        Fitness combines:
-        - Geometric similarity: Fisher-Rao distance to successful query basins (40%)
-        - Base affinity: Prior knowledge about provider-domain fit (20%)
-        - Learned domain score: Success rate in this domain (20%)
-        - Availability: Current provider health (15%)
-        - Speed factor: Response time performance (5%)
+
+        Fitness combines (with κ-modulated weights):
+        - Geometric similarity: Fisher-Rao distance to successful query basins
+        - Base affinity: Prior knowledge about provider-domain fit
+        - Learned domain score: Success rate in this domain
+        - Availability: Current provider health
+        - Speed factor: Response time performance
+
+        κ modulation adjusts exploration vs precision:
+        - Low κ (exploration): Favor diverse providers, geometric similarity weighted lower
+        - High κ (precision): Favor proven providers, geometric similarity weighted higher
         """
         stats = self.stats.get(provider)
         if not stats:
             return 0.0
-        
+
+        # Get κ-based modulation factors
+        modulation = self._get_kappa_modulation()
+        exploration_factor = modulation['exploration_factor']
+        precision_factor = modulation['precision_factor']
+
         geometric_similarity = self._compute_geometric_similarity(query_basin, provider)
-        
+
         base_affinity = self.provider_domain_affinity.get(provider, {}).get(domain, 0.5)
-        
+
         learned_score = stats.get_domain_score(domain)
         availability = stats.availability
-        
+
         speed_factor = 1.0
         if stats.avg_response_time > 5.0:
             speed_factor = 0.7
         elif stats.avg_response_time > 2.0:
             speed_factor = 0.85
-        
+
+        # κ-modulated weights
+        # In exploration mode: reduce geometric similarity weight, increase base affinity
+        # In precision mode: increase geometric similarity weight, rely on learned patterns
+        geo_weight = 0.30 + 0.20 * precision_factor  # [0.30, 0.50]
+        affinity_weight = 0.15 + 0.15 * exploration_factor  # [0.15, 0.30]
+        learned_weight = 0.15 + 0.15 * precision_factor  # [0.15, 0.30]
+        availability_weight = 0.15
+        speed_weight = 0.05
+
+        # Normalize weights to sum to 1.0
+        total_weight = geo_weight + affinity_weight + learned_weight + availability_weight + speed_weight
+        geo_weight /= total_weight
+        affinity_weight /= total_weight
+        learned_weight /= total_weight
+        availability_weight /= total_weight
+        speed_weight /= total_weight
+
         fitness = (
-            geometric_similarity * 0.40 +
-            base_affinity * 0.20 +
-            learned_score * 0.20 +
-            availability * 0.15 +
-            speed_factor * 0.05
+            geometric_similarity * geo_weight +
+            base_affinity * affinity_weight +
+            learned_score * learned_weight +
+            availability * availability_weight +
+            speed_factor * speed_weight
         )
-        
+
         return min(1.0, max(0.0, fitness))
     
     def record_result(
@@ -356,7 +501,7 @@ class GeometricProviderSelector:
     
     def get_stats(self) -> Dict:
         """Get overall selector statistics."""
-        return {
+        stats = {
             'mode': self.mode,
             'providers': {p: s.to_dict() for p, s in self.stats.items()},
             'query_count': len(self.query_history),
@@ -364,6 +509,23 @@ class GeometricProviderSelector:
             'enabled_premium': self._enabled_premium,
             'active_providers': self.get_active_providers(),
         }
+
+        # Include neural oscillator state
+        if OSCILLATORS_AVAILABLE and neural_oscillators is not None:
+            modulation = self._get_kappa_modulation()
+            stats['neural_oscillators'] = {
+                'available': True,
+                'brain_state': modulation['brain_state'],
+                'kappa': modulation['kappa'],
+                'exploration_factor': modulation['exploration_factor'],
+                'precision_factor': modulation['precision_factor'],
+                'search_strategy': modulation.get('search_strategy', 'default'),
+                'current_phase': self._current_search_phase
+            }
+        else:
+            stats['neural_oscillators'] = {'available': False}
+
+        return stats
     
     def enable_premium_provider(self, provider: str, enabled: bool = True) -> bool:
         """
@@ -448,10 +610,17 @@ class GeometricProviderSelector:
         best_provider = max(fitness_scores, key=fitness_scores.get)
         best_score = fitness_scores[best_provider]
         
+        # Get current κ modulation for metadata
+        modulation = self._get_kappa_modulation()
+
         # Log when premium provider is selected
         if best_provider in self.PREMIUM_PROVIDERS:
             print(f"[GeometricProviderSelector] Selected PREMIUM provider '{best_provider}' for {domain} query (fitness={best_score:.3f})")
-        
+
+        # Log brain state influence
+        if OSCILLATORS_AVAILABLE:
+            print(f"[GeometricProviderSelector] Brain state: {modulation['brain_state']} (κ={modulation['kappa']:.1f}, exploration={modulation['exploration_factor']:.2f})")
+
         metadata = {
             'domain': domain,
             'selected_provider': best_provider,
@@ -461,8 +630,16 @@ class GeometricProviderSelector:
             'premium_enabled': {p: self._enabled_premium.get(p, False) for p in self.PREMIUM_PROVIDERS},
             'reasoning': f"Selected {best_provider} for {domain} domain (fitness={best_score:.3f})",
             'timestamp': datetime.now().isoformat(),
+            # κ modulation info
+            'kappa_modulation': {
+                'brain_state': modulation['brain_state'],
+                'kappa': modulation['kappa'],
+                'exploration_factor': modulation['exploration_factor'],
+                'precision_factor': modulation['precision_factor'],
+                'search_strategy': modulation.get('search_strategy', 'default')
+            }
         }
-        
+
         return best_provider, metadata
     
     def select_providers_ranked(self, query: str, max_providers: int = 3) -> List[Tuple[str, float]]:
