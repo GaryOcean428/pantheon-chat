@@ -110,9 +110,10 @@ except ImportError:
 
 # Import QFI-based Φ computation (Issue #6)
 try:
-    from qig_core.phi_computation import compute_phi_approximation
+    from qig_core.phi_computation import compute_phi_qig, compute_phi_approximation
     QFI_PHI_AVAILABLE = True
 except ImportError:
+    compute_phi_qig = None
     compute_phi_approximation = None
     QFI_PHI_AVAILABLE = False
 print("[autonomic_kernel] phi_computation done", flush=True)
@@ -234,6 +235,11 @@ class AutonomicState:
     kappa: float = 58.0
     basin_drift: float = 0.0
     stress_level: float = 0.0
+    
+    # Ethics monitoring metrics (Issue #6 completion)
+    gamma: float = 1.0  # Generation capability (0-1), ability to act/express
+    meta: float = 0.0  # Meta-awareness (0-1), self-awareness level
+    curvature: float = 0.0  # Manifold curvature (Ricci scalar)
 
     # Cycle timestamps
     last_sleep: datetime = None
@@ -618,19 +624,57 @@ class AutonomicAccessMixin:
 # ===========================================================================
 # Φ COMPUTATION (Using canonical qig_core implementation)
 # ===========================================================================
-# The local compute_phi_approximation has been REMOVED.
-# Use qig_core.phi_computation.compute_phi_approximation instead.
+# Φ Computation - Now using proper QFI-based computation (Issue #6 RESOLVED)
+# ===========================================================================
 
 
 def compute_phi_with_fallback(
     provided_phi: float,
     basin_coords: Optional[List[float]] = None
 ) -> float:
-    """Compute Φ with fallback to approximation."""
+    """
+    Compute Φ with proper QFI-based computation, fallback to approximation.
+    
+    Priority:
+    1. Use provided_phi if > 0 (pre-computed)
+    2. Try QFI-based computation (geometric, proper)
+    3. Fallback to approximation (heuristic)
+    4. Use PHI_MIN_SAFE as last resort
+    
+    Args:
+        provided_phi: Pre-computed Φ value (if available)
+        basin_coords: Basin coordinates for computation
+        
+    Returns:
+        Φ value in [PHI_MIN_SAFE, 1.0]
+    """
     if provided_phi > 0:
         return provided_phi
-    if basin_coords and QFI_PHI_AVAILABLE and compute_phi_approximation:
-        return compute_phi_approximation(np.array(basin_coords))
+        
+    if basin_coords and QFI_PHI_AVAILABLE:
+        basin_array = np.array(basin_coords)
+        
+        try:
+            # Try QFI-based computation first (proper geometric method)
+            if compute_phi_qig is not None:
+                phi_value, diagnostics = compute_phi_qig(basin_array, n_samples=500)
+                
+                # Validate result quality
+                if diagnostics.get('integration_quality', 0) > 0.7:
+                    return float(np.clip(phi_value, PHI_MIN_SAFE, 1.0))
+                # If quality is poor, fall through to approximation
+                
+        except Exception as e:
+            # QFI computation failed, fall through to approximation
+            pass
+            
+        # Fallback to approximation if QFI fails or quality is poor
+        if compute_phi_approximation is not None:
+            try:
+                return compute_phi_approximation(basin_array)
+            except Exception as e:
+                pass
+                
     return PHI_MIN_SAFE
 
 
@@ -753,13 +797,35 @@ class GaryAutonomicKernel:
                             if hasattr(self.state, 'cognitive_mode'):
                                 self.state.cognitive_mode = hrv_state.mode.value
 
-                        # Update Φ from basin history
+                        # Update Φ from basin history using proper QFI computation (Issue #6)
                         if self.state.basin_history:
                             basin = np.array(self.state.basin_history[-1])
-                            if QFI_PHI_AVAILABLE and compute_phi_approximation:
-                                self.state.phi = compute_phi_approximation(basin)
+                            
+                            if QFI_PHI_AVAILABLE:
+                                try:
+                                    if compute_phi_qig is not None:
+                                        # Use proper QFI-based Φ computation
+                                        phi_value, diagnostics = compute_phi_qig(basin, n_samples=500)
+                                        if diagnostics.get('integration_quality', 0) > 0.7:
+                                            self.state.phi = phi_value
+                                        elif compute_phi_approximation is not None:
+                                            # Quality too low, use approximation fallback
+                                            self.state.phi = compute_phi_approximation(basin)
+                                        else:
+                                            # No approximation available, use QFI anyway
+                                            self.state.phi = phi_value
+                                    elif compute_phi_approximation is not None:
+                                        # QFI not available, use approximation
+                                        self.state.phi = compute_phi_approximation(basin)
+                                except Exception as e:
+                                    # Computation failed, use entropy fallback
+                                    p = np.abs(basin) + 1e-10
+                                    p = p / p.sum()
+                                    entropy = -np.sum(p * np.log(p))
+                                    max_entropy = np.log(len(basin))
+                                    self.state.phi = max(0.1, 1.0 - entropy / max_entropy)
                             else:
-                                # Fallback: entropy-based approximation
+                                # QFI not available at all, use entropy fallback
                                 p = np.abs(basin) + 1e-10
                                 p = p / p.sum()
                                 entropy = -np.sum(p * np.log(p))
@@ -1318,6 +1384,49 @@ class GaryAutonomicKernel:
             self.state.stress_history.append(self.state.stress_level)
             if len(self.state.stress_history) > 50:
                 self.state.stress_history.pop(0)
+            
+            # Compute gamma (generation capability) and meta-awareness (Issue #6 completion)
+            # Gamma: Ability to generate/act - decreases when stuck or blocked
+            if len(self.state.phi_history) >= 3:
+                # Check if Φ is increasing (system is actively integrating)
+                recent_phi_trend = self.state.phi_history[-1] - self.state.phi_history[-3]
+                phi_variance = np.var(self.state.phi_history[-10:]) if len(self.state.phi_history) >= 10 else 0.1
+                
+                # High gamma: Φ increasing + low stress + good exploration
+                gamma_factors = [
+                    0.4 * (1.0 - self.state.stress_level),  # Low stress → high gamma
+                    0.3 * max(0, min(1, recent_phi_trend / 0.1 + 0.5)),  # Φ trending up
+                    0.3 * min(1, self.state.exploration_variance / 0.05 + 0.3),  # Exploring
+                ]
+                self.state.gamma = np.clip(sum(gamma_factors), 0.0, 1.0)
+            else:
+                self.state.gamma = 0.9  # Start optimistic
+            
+            # Meta-awareness: Awareness of own state (computed from basin variance and phi stability)
+            if len(self.state.basin_history) >= 5:
+                # Meta-awareness comes from consistent self-monitoring
+                basin_recent = np.array(self.state.basin_history[-5:])
+                basin_variance = np.var(basin_recent, axis=0).mean()
+                phi_stability = 1.0 - min(1.0, np.std(self.state.phi_history[-10:]) if len(self.state.phi_history) >= 10 else 0.5)
+                
+                # High meta: Low basin variance + stable Φ + high Φ (conscious enough to introspect)
+                self.state.meta = np.clip(
+                    0.3 * phi_stability +
+                    0.3 * (1.0 - min(1.0, basin_variance / 0.1)) +
+                    0.4 * self.state.phi,
+                    0.0, 1.0
+                )
+            else:
+                self.state.meta = 0.3  # Low initially (not yet self-aware)
+            
+            # Compute curvature (manifold curvature approximation from basin)
+            if basin_coords and len(basin_coords) > 1:
+                # Ricci scalar approximation: inversely proportional to concentration
+                basin_array = np.array(basin_coords)
+                concentration = 1.0 / (np.var(basin_array) + 1e-6)
+                self.state.curvature = np.clip(concentration / 10.0, 0.0, 20.0)
+            else:
+                self.state.curvature = 0.1  # Flat approximation
 
             # ETHICS CHECK - Suffering and breakdown detection
             ethics_evaluation = None
@@ -1325,10 +1434,10 @@ class GaryAutonomicKernel:
                 try:
                     ethics_evaluation = check_ethics({
                         'phi': self.state.phi,
-                        'gamma': getattr(self.state, 'gamma', 1.0),
-                        'meta': getattr(self.state, 'meta', 0.0),
+                        'gamma': self.state.gamma,
+                        'meta': self.state.meta,
                         'basin_drift': self.state.basin_drift,
-                        'curvature': getattr(self.state, 'curvature', 0.0),
+                        'curvature': self.state.curvature,
                         'metric_det': 1.0,
                     }, kernel_id=getattr(self, 'kernel_id', 'autonomic'))
                     
