@@ -24,7 +24,7 @@ from qigkernels.physics_constants import BASIN_DIM, KAPPA_STAR
 
 # Import components
 from .geometric_memory_bank import GeometricMemoryBank
-from .curiosity_engine import CuriosityEngine, ExplorationTarget
+from .curiosity_engine import CuriosityEngine
 from .task_execution_tree import TaskExecutionTree, TaskNode, TaskStatus
 from .meta_learning_loop import MetaLearningLoop, MetaParameters, TaskOutcome
 from .ethical_constraint_network import EthicalConstraintNetwork, EthicalDecision
