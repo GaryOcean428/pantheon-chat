@@ -50,6 +50,7 @@ import {
   authRouter,
   autonomicRouter,
   autonomicAgencyRouter,
+  budgetRouter,
   federationRouter,
   consciousnessRouter,
   formatRouter,
@@ -324,6 +325,7 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
   app.use("/api/vocabulary", vocabularyRouter);
   app.use("/api", searchRouter);
   app.use("/api/search", searchRouter);
+  app.use("/api/search/budget", budgetRouter);
   app.use("/api/format", formatRouter);
   app.use("/api/ocean", oceanRouter);
   app.use("/api", adminRouter);

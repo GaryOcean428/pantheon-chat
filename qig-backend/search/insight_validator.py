@@ -83,30 +83,25 @@ class InsightValidator:
     
     def __init__(
         self,
-        use_mcp: bool = False,  # Changed default: direct API for full capabilities
         validation_threshold: float = 0.7
     ):
         """
-        Initialize validator.
+        Initialize validator using direct SDK APIs.
         
         Args:
-            use_mcp: If True, use Tavily MCP (limited); if False, use direct SDK (full features)
             validation_threshold: Minimum score to consider validated (0.7 default)
         """
-        self.use_mcp = use_mcp
         self.validation_threshold = validation_threshold
         
-        # Initialize comprehensive Tavily client
         self.tavily_client: Any = None
-        if not use_mcp and get_tavily_client:
+        if get_tavily_client:
             self.tavily_client = get_tavily_client()
             if self.tavily_client and self.tavily_client.available:
                 logger.info("[InsightValidator] Using Tavily SDK with full capabilities")
             else:
                 logger.warning("[InsightValidator] Tavily client not available")
                 self.tavily_client = None
-        elif not use_mcp:
-            # Fallback to basic tavily-python if our client not imported
+        else:
             try:
                 from tavily import TavilyClient
                 tavily_key = os.getenv('TAVILY_API_KEY')
@@ -278,11 +273,6 @@ class InsightValidator:
         """
         Search Tavily for sources using full SDK capabilities.
         """
-        if self.use_mcp:
-            # Legacy MCP path (not recommended)
-            logger.warning("Tavily MCP mode deprecated - use use_mcp=False for full features")
-            return None
-        
         if not self.tavily_client:
             logger.warning("Tavily client not configured")
             return None
@@ -546,7 +536,7 @@ if __name__ == "__main__":
         confidence: float = 0.75
         connection_strength: float = 0.87
     
-    validator = InsightValidator(use_mcp=False)
+    validator = InsightValidator()
     
     mock_insight = MockInsight()
     result = validator.validate(mock_insight)  # type: ignore

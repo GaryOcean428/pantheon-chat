@@ -135,6 +135,172 @@ class KernelToolRequest:
         self.result: Optional[Dict[str, Any]] = None
 
 
+class SearchRequestBatcher:
+    """
+    Budget-aware request batching for search optimization.
+    
+    Features:
+    - Collects similar search requests from kernels
+    - Batches requests with overlapping topics (Fisher distance < 0.3)
+    - Checks budget availability before searching
+    - Caches results for duplicate queries within 5 minutes
+    """
+    
+    FISHER_DISTANCE_THRESHOLD = 0.3
+    CACHE_TTL_SECONDS = 300  # 5 minutes
+    
+    def __init__(self):
+        self._pending_requests: List[KernelToolRequest] = []
+        self._topic_embeddings: Dict[str, np.ndarray] = {}
+        self._result_cache: Dict[str, Dict] = {}
+        self._cache_timestamps: Dict[str, float] = {}
+        self._lock = threading.Lock()
+    
+    def _compute_topic_embedding(self, query: str) -> np.ndarray:
+        """Compute simple topic embedding using word hash for similarity."""
+        words = query.lower().split()[:20]
+        embedding = np.zeros(64)
+        for i, word in enumerate(words):
+            idx = hash(word) % 64
+            embedding[idx] += 1.0 / (i + 1)
+        norm = np.linalg.norm(embedding)
+        return embedding / norm if norm > 0 else embedding
+    
+    def _fisher_distance(self, emb1: np.ndarray, emb2: np.ndarray) -> float:
+        """Compute Fisher-Rao distance between topic embeddings."""
+        emb1_safe = np.clip(emb1, 1e-10, None)
+        emb2_safe = np.clip(emb2, 1e-10, None)
+        emb1_norm = emb1_safe / np.sum(emb1_safe)
+        emb2_norm = emb2_safe / np.sum(emb2_safe)
+        bc_coeff = np.sum(np.sqrt(emb1_norm * emb2_norm))
+        bc_coeff = np.clip(bc_coeff, 0, 1)
+        return np.arccos(bc_coeff)
+    
+    def add_request(self, request: KernelToolRequest) -> Optional[Dict]:
+        """
+        Add a search request to the batcher.
+        
+        Returns cached result if duplicate query exists within TTL.
+        """
+        with self._lock:
+            cache_key = request.query.lower().strip()
+            
+            # Check cache first
+            if cache_key in self._result_cache:
+                cache_time = self._cache_timestamps.get(cache_key, 0)
+                if time.time() - cache_time < self.CACHE_TTL_SECONDS:
+                    logger.debug(f"[SearchRequestBatcher] Cache hit for: {cache_key[:50]}...")
+                    return self._result_cache[cache_key]
+            
+            # Add to pending
+            self._pending_requests.append(request)
+            self._topic_embeddings[request.query] = self._compute_topic_embedding(request.query)
+            return None
+    
+    def get_batch(self) -> List[List[KernelToolRequest]]:
+        """
+        Get batched requests grouped by topic similarity.
+        
+        Returns list of request batches where each batch has Fisher distance < 0.3.
+        """
+        with self._lock:
+            if not self._pending_requests:
+                return []
+            
+            batches: List[List[KernelToolRequest]] = []
+            processed = set()
+            
+            for i, req1 in enumerate(self._pending_requests):
+                if i in processed:
+                    continue
+                
+                batch = [req1]
+                processed.add(i)
+                emb1 = self._topic_embeddings.get(req1.query)
+                
+                if emb1 is not None:
+                    for j, req2 in enumerate(self._pending_requests):
+                        if j in processed or j <= i:
+                            continue
+                        
+                        emb2 = self._topic_embeddings.get(req2.query)
+                        if emb2 is not None:
+                            dist = self._fisher_distance(emb1, emb2)
+                            if dist < self.FISHER_DISTANCE_THRESHOLD:
+                                batch.append(req2)
+                                processed.add(j)
+                
+                batches.append(batch)
+            
+            return batches
+    
+    def check_budget(self, provider: str = 'tavily') -> Dict[str, Any]:
+        """
+        Check budget availability for premium search providers.
+        
+        Returns budget status including remaining quota and recommendation.
+        """
+        try:
+            from search.search_budget_orchestrator import get_budget_orchestrator
+            orchestrator = get_budget_orchestrator()
+            if orchestrator:
+                context = orchestrator.get_budget_context()
+                provider_info = context.providers.get(provider, {})
+                return {
+                    'available': provider_info.get('remaining', 0) > 0,
+                    'remaining': provider_info.get('remaining', 0),
+                    'daily_limit': provider_info.get('daily_limit', 0),
+                    'recommendation': context.recommendation,
+                    'budget_percentage': context.budget_percentage
+                }
+        except ImportError:
+            pass
+        
+        return {
+            'available': True,
+            'remaining': -1,
+            'daily_limit': -1,
+            'recommendation': 'unknown',
+            'budget_percentage': 1.0
+        }
+    
+    def flush_batch(self) -> List[KernelToolRequest]:
+        """
+        Flush all pending requests and clear the batch.
+        
+        Returns the flushed requests for processing.
+        """
+        with self._lock:
+            flushed = list(self._pending_requests)
+            self._pending_requests.clear()
+            self._topic_embeddings.clear()
+            return flushed
+    
+    def cache_result(self, query: str, result: Dict):
+        """Cache a search result for duplicate query optimization."""
+        with self._lock:
+            cache_key = query.lower().strip()
+            self._result_cache[cache_key] = result
+            self._cache_timestamps[cache_key] = time.time()
+            
+            # Clean old cache entries
+            now = time.time()
+            expired = [k for k, t in self._cache_timestamps.items() 
+                      if now - t > self.CACHE_TTL_SECONDS]
+            for k in expired:
+                self._result_cache.pop(k, None)
+                self._cache_timestamps.pop(k, None)
+    
+    def get_stats(self) -> Dict[str, Any]:
+        """Get batcher statistics."""
+        with self._lock:
+            return {
+                'pending_count': len(self._pending_requests),
+                'cache_size': len(self._result_cache),
+                'topic_embeddings': len(self._topic_embeddings)
+            }
+
+
 class CurriculumProgressPersistence:
     """
     Database persistence for curriculum learning progress.
@@ -645,6 +811,7 @@ class AutonomousCuriosityEngine:
         self.curiosity_drive = CuriosityDrive()
         self.curriculum_loader = CurriculumLoader()
         self.exploration_history = ExplorationHistoryPersistence()
+        self.request_batcher = SearchRequestBatcher()
         
         self.pending_requests: deque = deque(maxlen=100)
         self.active_explorations: Dict[str, Dict] = {}
@@ -857,6 +1024,42 @@ class AutonomousCuriosityEngine:
             'stalls_list': list(self._learning_stalls)[-10:]  # Last 10
         }
     
+    def get_budget_status(self) -> Dict[str, Any]:
+        """
+        Get remaining daily quota for search providers.
+        
+        Returns budget status for all providers including:
+        - remaining quota per provider
+        - total budget percentage
+        - recommendation (free_only, can_use_paid, budget_critical)
+        """
+        try:
+            from search.search_budget_orchestrator import get_budget_orchestrator
+            orchestrator = get_budget_orchestrator()
+            if orchestrator:
+                context = orchestrator.get_budget_context()
+                return {
+                    'providers': context.providers,
+                    'total_remaining': context.total_budget_remaining,
+                    'total_used': context.total_budget_used,
+                    'budget_percentage': context.budget_percentage,
+                    'recommendation': context.recommendation,
+                    'date': context.date,
+                    'batcher_stats': self.request_batcher.get_stats()
+                }
+        except ImportError:
+            logger.debug("[AutonomousCuriosityEngine] Budget orchestrator not available")
+        
+        return {
+            'providers': {},
+            'total_remaining': -1,
+            'total_used': 0,
+            'budget_percentage': 1.0,
+            'recommendation': 'unknown',
+            'date': datetime.now().strftime('%Y-%m-%d'),
+            'batcher_stats': self.request_batcher.get_stats()
+        }
+    
     def start(self):
         """Start the autonomous curiosity loop."""
         if self.running:
@@ -1016,7 +1219,7 @@ class AutonomousCuriosityEngine:
                 request.result = {'error': str(e)}
     
     def _execute_search(self, request: KernelToolRequest):
-        """Execute a search request."""
+        """Execute a search request with batcher integration."""
         # Extract topic from context or use query as topic
         topic = request.context.get('topic', request.query[:50]) if request.context else request.query[:50]
         
@@ -1026,6 +1229,19 @@ class AutonomousCuriosityEngine:
             request.status = 'skipped_duplicate'
             request.result = {'message': 'Duplicate search skipped'}
             return
+        
+        # Check batcher cache for recent results
+        cached_result = self.request_batcher.add_request(request)
+        if cached_result:
+            logger.info(f"[AutonomousCuriosityEngine] Using cached result for: {request.query[:50]}...")
+            request.status = 'cached'
+            request.result = cached_result
+            return
+        
+        # Check budget before premium searches
+        budget_status = self.request_batcher.check_budget()
+        if not budget_status.get('available', True) and budget_status.get('recommendation') == 'free_only':
+            logger.info(f"[AutonomousCuriosityEngine] Budget exhausted, using free provider only")
         
         print(f"[AutonomousCuriosityEngine] Executing search for {request.kernel_name}: {request.query}")
         
@@ -1085,6 +1301,9 @@ class AutonomousCuriosityEngine:
                         'success': True
                     }
                 )
+                
+                # Cache result for duplicate query optimization
+                self.request_batcher.cache_result(request.query, result)
                 
             except Exception as e:
                 request.status = 'failed'

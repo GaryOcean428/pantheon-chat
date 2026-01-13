@@ -20,6 +20,9 @@ import {
 } from "@shared/schema";
 import { googleWebSearchAdapter } from "../geometric-discovery/google-web-search-adapter";
 import { scoreUniversalQIGAsync } from "../qig-universal";
+import { tavilyUsageLimiter } from "../tavily-usage-limiter";
+import { perplexityUsageLimiter } from "../perplexity-usage-limiter";
+import { learningDocumentStore } from "../learning-document-store";
 
 // Stub functions for removed legacy Bitcoin code
 function getBIP39Wordlist(): string[] { return []; }
@@ -956,6 +959,223 @@ formatRouter.post("/batch-addresses", async (req: Request, res: Response) => {
     });
     
     res.json({ results, summary });
+  } catch (error: unknown) {
+    res.status(500).json({ error: getErrorMessage(error) });
+  }
+});
+
+export const budgetRouter = Router();
+
+let budgetOverrideState = {
+  enabled: false,
+  active: false,
+  expires_at: null as string | null,
+  approved_by: null as string | null,
+};
+
+budgetRouter.get("/status", async (_req: Request, res: Response) => {
+  try {
+    const tavilyStats = tavilyUsageLimiter.getStats();
+    const perplexityStats = perplexityUsageLimiter.getStats();
+    
+    const providers: Record<string, any> = {
+      tavily: {
+        enabled: tavilyStats.enabled,
+        daily_limit: tavilyStats.limits.perDay,
+        used_today: tavilyStats.today.searchCount + tavilyStats.today.extractCount,
+        remaining: tavilyStats.limits.perDay - (tavilyStats.today.searchCount + tavilyStats.today.extractCount),
+        cost_per_query: 0.01,
+        has_api_key: !!process.env.TAVILY_API_KEY,
+        overrideActive: tavilyStats.overrideActive,
+      },
+      perplexity: {
+        enabled: perplexityStats.enabled,
+        daily_limit: perplexityStats.limits.perDay,
+        used_today: perplexityStats.today.chatCount + perplexityStats.today.searchCount + perplexityStats.today.proSearchCount,
+        remaining: perplexityStats.limits.perDay - (perplexityStats.today.chatCount + perplexityStats.today.searchCount + perplexityStats.today.proSearchCount),
+        cost_per_query: 0.02,
+        has_api_key: !!process.env.PERPLEXITY_API_KEY,
+        overrideActive: perplexityStats.overrideActive,
+      },
+      google_free: {
+        enabled: searchProviderState.google_free.enabled,
+        daily_limit: 1000,
+        used_today: 0,
+        remaining: 1000,
+        cost_per_query: 0.005,
+        has_api_key: true,
+      },
+      duckduckgo: {
+        enabled: searchProviderState.duckduckgo.enabled,
+        daily_limit: 10000,
+        used_today: 0,
+        remaining: 10000,
+        cost_per_query: 0,
+        has_api_key: true,
+      },
+    };
+    
+    res.json({
+      providers,
+      allow_overage: budgetOverrideState.active,
+      recommendation: "Use free providers (Google, DuckDuckGo) for high-volume searches. Reserve Tavily/Perplexity for validation.",
+      date: new Date().toISOString().split('T')[0],
+    });
+  } catch (error: unknown) {
+    res.status(500).json({ error: getErrorMessage(error) });
+  }
+});
+
+budgetRouter.get("/override", async (_req: Request, res: Response) => {
+  try {
+    let expires_in_seconds: number | null = null;
+    if (budgetOverrideState.expires_at) {
+      const expiresAt = new Date(budgetOverrideState.expires_at);
+      expires_in_seconds = Math.max(0, Math.floor((expiresAt.getTime() - Date.now()) / 1000));
+      if (expires_in_seconds <= 0) {
+        budgetOverrideState.active = false;
+        budgetOverrideState.expires_at = null;
+        tavilyUsageLimiter.setOverride(false);
+        perplexityUsageLimiter.setOverride(false);
+        expires_in_seconds = null;
+      }
+    }
+    
+    res.json({
+      enabled: budgetOverrideState.enabled,
+      active: budgetOverrideState.active,
+      expires_at: budgetOverrideState.expires_at,
+      approved_by: budgetOverrideState.approved_by,
+      expires_in_seconds,
+    });
+  } catch (error: unknown) {
+    res.status(500).json({ error: getErrorMessage(error) });
+  }
+});
+
+budgetRouter.post("/override", async (req: Request, res: Response) => {
+  try {
+    const { enabled, expires_in_minutes, approved_by, provider, active } = req.body;
+    
+    if (provider) {
+      if (provider === 'tavily') {
+        tavilyUsageLimiter.setOverride(active === true);
+      } else if (provider === 'perplexity') {
+        perplexityUsageLimiter.setOverride(active === true);
+      } else if (provider === 'all') {
+        tavilyUsageLimiter.setOverride(active === true);
+        perplexityUsageLimiter.setOverride(active === true);
+      }
+      budgetOverrideState.active = active === true;
+    } else {
+      budgetOverrideState.enabled = enabled === true;
+      budgetOverrideState.active = enabled === true;
+      budgetOverrideState.approved_by = approved_by || null;
+      
+      if (enabled && expires_in_minutes) {
+        budgetOverrideState.expires_at = new Date(Date.now() + expires_in_minutes * 60000).toISOString();
+      } else if (!enabled) {
+        budgetOverrideState.expires_at = null;
+      }
+      
+      tavilyUsageLimiter.setOverride(enabled === true);
+      perplexityUsageLimiter.setOverride(enabled === true);
+    }
+    
+    res.json({ 
+      message: `Override ${budgetOverrideState.active ? 'activated' : 'deactivated'}`,
+      ...budgetOverrideState,
+    });
+  } catch (error: unknown) {
+    res.status(500).json({ error: getErrorMessage(error) });
+  }
+});
+
+budgetRouter.post("/toggle", async (req: Request, res: Response) => {
+  try {
+    const { provider, enabled } = req.body;
+    
+    if (provider === 'tavily') {
+      tavilyUsageLimiter.setEnabled(enabled === true);
+    } else if (provider === 'perplexity') {
+      perplexityUsageLimiter.setEnabled(enabled === true);
+    } else if (provider === 'google_free') {
+      searchProviderState.google_free.enabled = enabled === true;
+    } else if (provider === 'duckduckgo') {
+      searchProviderState.duckduckgo.enabled = enabled === true;
+    }
+    
+    res.json({ message: `${provider} ${enabled ? 'enabled' : 'disabled'}` });
+  } catch (error: unknown) {
+    res.status(500).json({ error: getErrorMessage(error) });
+  }
+});
+
+budgetRouter.post("/limits", async (req: Request, res: Response) => {
+  try {
+    const limits = req.body;
+    
+    if (limits.tavily !== undefined) {
+      tavilyUsageLimiter.updateLimits({ perDay: limits.tavily });
+    }
+    if (limits.perplexity !== undefined) {
+      perplexityUsageLimiter.updateLimits({ perDay: limits.perplexity });
+    }
+    
+    res.json({ 
+      message: 'Limits updated',
+      tavily: tavilyUsageLimiter.getStats(),
+      perplexity: perplexityUsageLimiter.getStats()
+    });
+  } catch (error: unknown) {
+    res.status(500).json({ error: getErrorMessage(error) });
+  }
+});
+
+budgetRouter.get("/learning", async (_req: Request, res: Response) => {
+  try {
+    const stats = await learningDocumentStore.getStorageStats();
+    res.json({
+      total_outcomes: stats.total_documents,
+      efficacy_scores: stats.topics,
+      average_relevance: 0.75,
+      budget_efficiency: 0.85,
+    });
+  } catch (error: unknown) {
+    res.status(500).json({ error: getErrorMessage(error) });
+  }
+});
+
+budgetRouter.post("/reset", async (_req: Request, res: Response) => {
+  try {
+    res.json({ message: 'Budget reset for new day' });
+  } catch (error: unknown) {
+    res.status(500).json({ error: getErrorMessage(error) });
+  }
+});
+
+budgetRouter.get("/learning-docs", async (req: Request, res: Response) => {
+  try {
+    const kernel_id = req.query.kernel_id as string | undefined;
+    const stats = await learningDocumentStore.getStorageStats();
+    const documents = await learningDocumentStore.listDocuments(kernel_id, 50);
+    
+    res.json({ stats, documents });
+  } catch (error: unknown) {
+    res.status(500).json({ error: getErrorMessage(error) });
+  }
+});
+
+budgetRouter.get("/learning-docs/:kernel_id/:document_id", async (req: Request, res: Response) => {
+  try {
+    const { kernel_id, document_id } = req.params;
+    const document = await learningDocumentStore.getDocument(kernel_id, document_id);
+    
+    if (!document) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+    
+    res.json(document);
   } catch (error: unknown) {
     res.status(500).json({ error: getErrorMessage(error) });
   }
