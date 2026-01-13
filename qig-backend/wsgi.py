@@ -314,7 +314,8 @@ try:
         """Start mesh network in background thread with its own event loop."""
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        try:
+    
+        async def main():
             # Determine node type from environment
             node_id = os.getenv("MESH_NODE_ID", "pantheon-replit")
             node_type_str = os.getenv("MESH_NODE_TYPE", "development")
@@ -322,21 +323,33 @@ try:
             mesh_port = int(os.getenv("MESH_PORT", "8765"))
 
             # Initialize and start mesh network
-            mesh = loop.run_until_complete(
-                initialize_mesh_network(
-                    node_id=node_id,
-                    node_type=node_type,
-                    host="0.0.0.0",
-                    port=mesh_port
-                )
+            mesh = await initialize_mesh_network(
+                node_id=node_id,
+                node_type=node_type,
+                host="0.0.0.0",
+                port=mesh_port
             )
             print(f"[INFO] Mesh network started on port {mesh_port}")
+        
+            # This future will be cancelled on shutdown
+            await asyncio.Future()
 
-            # Keep the event loop running
-            loop.run_forever()
+        try:
+            loop.run_until_complete(main())
+        except (asyncio.CancelledError, KeyboardInterrupt):
+            print("[INFO] Mesh network loop shutting down.")
         except Exception as e:
             print(f"[WARNING] Mesh network loop error: {e}")
         finally:
+            # Gracefully shutdown running tasks
+            tasks = asyncio.all_tasks(loop=loop)
+            for task in tasks:
+                task.cancel()
+        
+            async def gather_cancelled():
+                await asyncio.gather(*tasks, return_exceptions=True)
+
+            loop.run_until_complete(gather_cancelled())
             loop.close()
 
     # Check if mesh network is enabled via environment
