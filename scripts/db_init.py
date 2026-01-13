@@ -145,9 +145,9 @@ def initialize_tokenizer_metadata(conn) -> None:
         for key, value in metadata_entries:
             try:
                 cur.execute("""
-                    INSERT INTO tokenizer_metadata (key, value, updated_at)
+                    INSERT INTO tokenizer_metadata (config_key, value, updated_at)
                     VALUES (%s, %s, NOW())
-                    ON CONFLICT (key) DO UPDATE SET
+                    ON CONFLICT (config_key) DO UPDATE SET
                         value = EXCLUDED.value,
                         updated_at = NOW()
                 """, (key, value))

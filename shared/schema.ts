@@ -2525,7 +2525,7 @@ export type InsertTokenizerMergeRule = typeof tokenizerMergeRules.$inferInsert;
 export const tokenizerMetadata = pgTable(
   "tokenizer_metadata",
   {
-    key: text("key").primaryKey(),
+    configKey: text("config_key").primaryKey(),
     value: text("value").notNull(),
     updatedAt: timestamp("updated_at").defaultNow(),
   }
@@ -4067,11 +4067,11 @@ export type InsertHRVTackingState = typeof hrvTackingState.$inferInsert;
 // ============================================================================
 
 export const qigMetadata = pgTable("qig_metadata", {
-  key: text("key").primaryKey(),
+  configKey: text("config_key").primaryKey(),
   value: text("value").notNull(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [
-  index("idx_qig_metadata_key").on(table.key),
+  index("idx_qig_metadata_key").on(table.configKey),
 ]);
 
 export const governanceProposals = pgTable("governance_proposals", {

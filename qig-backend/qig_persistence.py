@@ -1332,7 +1332,7 @@ class QIGPersistence:
             with self.get_connection() as conn:
                 with conn.cursor() as cur:
                     cur.execute("""
-                        SELECT value FROM qig_metadata WHERE key = %s
+                        SELECT value FROM qig_metadata WHERE config_key = %s
                     """, (key,))
                     result = cur.fetchone()
                     return result[0] if result else None
@@ -1349,9 +1349,9 @@ class QIGPersistence:
             with self.get_connection() as conn:
                 with conn.cursor() as cur:
                     cur.execute("""
-                        INSERT INTO qig_metadata (key, value, updated_at)
+                        INSERT INTO qig_metadata (config_key, value, updated_at)
                         VALUES (%s, %s, NOW())
-                        ON CONFLICT (key) DO UPDATE SET
+                        ON CONFLICT (config_key) DO UPDATE SET
                             value = EXCLUDED.value,
                             updated_at = NOW()
                     """, (key, value))
