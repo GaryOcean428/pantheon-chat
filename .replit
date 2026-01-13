@@ -56,3 +56,6 @@ ENABLE_QIG_PERSISTENCE = "1"
 PERSIST_EMOTIONS = "1"
 ENABLE_TOKENIZER_SYNC = "1"
 ENABLE_OCEAN_TELEMETRY = "1"
+
+[objectStorage]
+defaultBucketID = "replit-objstore-41aac0d5-56aa-40df-bad9-9502775a4765"
