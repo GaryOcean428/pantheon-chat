@@ -1611,7 +1611,8 @@ class ShadowLearningLoop:
                     kernel_name=assigned_god,
                     exploration_type='shadow_research',
                     source_type='scrapy' if scrapy_results else 'conceptual',
-                    information_gain=phi
+                    information_gain=phi,
+                    basin_coords=basin_coords
                 )
             except Exception as e:
                 print(f"[ShadowResearch] Exploration recording failed: {e}")

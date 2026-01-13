@@ -17,13 +17,14 @@ FROZEN FACTS COMPLIANCE:
 """
 
 import asyncio
+import hashlib
 import json
 import random
 import threading
 import time
 import logging
 from datetime import datetime, timedelta
-from typing import Any, Callable, Dict, List, Optional, Set
+from typing import Any, Callable, Dict, List, Optional, Set, Union
 from collections import deque
 from pathlib import Path
 import numpy as np
@@ -399,8 +400,9 @@ class ExplorationHistoryPersistence:
         query: str, 
         kernel_name: str = None,
         exploration_type: str = 'curiosity_driven',
-        source_type: str = None,
-        information_gain: float = 0.0
+        source_type: str = 'unknown',
+        information_gain: float = 0.0,
+        basin_coords: Optional[Union[np.ndarray, list]] = None
     ) -> bool:
         """
         Record an exploration to prevent future duplicates.
@@ -408,11 +410,36 @@ class ExplorationHistoryPersistence:
         Stores the ORIGINAL topic/query for display/analytics purposes.
         Uses NORMALIZED keys for cache-based duplicate detection.
         DB conflict resolution uses normalized comparison via SQL regexp_replace.
+        
+        Args:
+            topic: The exploration topic
+            query: The specific query explored
+            kernel_name: Name of the kernel that performed exploration
+            exploration_type: Type of exploration (curiosity_driven, shadow_research, etc.)
+            source_type: Source of data (scrapy, search, conceptual, etc.)
+            information_gain: Φ-based measure of knowledge gained (0.0-1.0)
+            basin_coords: 64D basin coordinates for geometric hashing
         """
         norm_topic = self._normalize_topic(topic)
         norm_query = self._normalize_topic(query)
         key = f"{norm_topic}:{norm_query}"
         self._recent_cache.add(key)
+        
+        # Compute basin_hash from coordinates if provided
+        basin_hash = None
+        if basin_coords is not None:
+            try:
+                if isinstance(basin_coords, np.ndarray):
+                    coords_list = basin_coords.tolist()
+                else:
+                    coords_list = list(basin_coords)
+                basin_hash = hashlib.md5(str(coords_list).encode()).hexdigest()[:16]
+            except Exception as e:
+                logger.warning(f"[ExplorationHistoryPersistence] Failed to compute basin_hash: {e}")
+        
+        # Ensure source_type is never None
+        if source_type is None:
+            source_type = 'unknown'
         
         conn = self._get_connection()
         if not conn:
@@ -421,12 +448,14 @@ class ExplorationHistoryPersistence:
             with conn.cursor() as cur:
                 cur.execute("""
                     INSERT INTO exploration_history 
-                    (topic, query, kernel_name, exploration_type, source_type, information_gain)
-                    VALUES (%s, %s, %s, %s, %s, %s)
+                    (topic, query, kernel_name, exploration_type, source_type, information_gain, basin_hash)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (topic, query) DO UPDATE SET
                         created_at = NOW(),
-                        information_gain = GREATEST(exploration_history.information_gain, EXCLUDED.information_gain)
-                """, (topic, query, kernel_name, exploration_type, source_type, information_gain))
+                        information_gain = GREATEST(exploration_history.information_gain, EXCLUDED.information_gain),
+                        basin_hash = COALESCE(EXCLUDED.basin_hash, exploration_history.basin_hash),
+                        source_type = COALESCE(EXCLUDED.source_type, exploration_history.source_type)
+                """, (topic, query, kernel_name, exploration_type, source_type, information_gain, basin_hash))
                 conn.commit()
                 return True
         except Exception as e:
@@ -1041,7 +1070,8 @@ class AutonomousCuriosityEngine:
                     kernel_name=request.kernel_name,
                     exploration_type='kernel_search',
                     source_type=result.get('provider', 'unknown'),
-                    information_gain=result.get('information_gain', 0.5)
+                    information_gain=result.get('information_gain', 0.5),
+                    basin_coords=result.get('basin_coords')
                 )
                 
                 # Broadcast search completion for kernel visibility
@@ -1236,12 +1266,16 @@ class AutonomousCuriosityEngine:
                 )
                 
                 # Record exploration to prevent future duplicates
+                # Get basin_coords from curiosity drive if available
+                topic_basin = self.curiosity_drive.interest_basins.get(topic)
                 self.exploration_history.record_exploration(
                     topic=topic,
                     query=query,
                     kernel_name=kernel_name,
                     exploration_type='curiosity_driven',
-                    information_gain=curiosity
+                    source_type='curiosity_engine',
+                    information_gain=curiosity,
+                    basin_coords=topic_basin
                 )
                 
                 self.stats['total_explorations'] += 1
