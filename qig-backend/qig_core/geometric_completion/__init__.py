@@ -70,17 +70,20 @@ try:
         "root_geometric_completion",
         os.path.join(_root_path, "geometric_completion.py")
     )
-    _root_gc = importlib.util.module_from_spec(_spec)
-    _spec.loader.exec_module(_root_gc)
+    if _spec and _spec.loader:
+        _root_gc = importlib.util.module_from_spec(_spec)
+        _spec.loader.exec_module(_root_gc)
 
-    # Re-export the missing items
-    CompletionQuality = _root_gc.CompletionQuality
-    GenerationState = _root_gc.GenerationState
-    check_geometric_completion = _root_gc.check_geometric_completion
-    compute_generation_metrics = _root_gc.compute_generation_metrics
-    assess_completion_quality = _root_gc.assess_completion_quality
-    get_adaptive_temperature = _root_gc.get_adaptive_temperature
-except Exception as e:
+        # Re-export the missing items
+        CompletionQuality = _root_gc.CompletionQuality
+        GenerationState = _root_gc.GenerationState
+        check_geometric_completion = _root_gc.check_geometric_completion
+        compute_generation_metrics = _root_gc.compute_generation_metrics
+        assess_completion_quality = _root_gc.assess_completion_quality
+        get_adaptive_temperature = _root_gc.get_adaptive_temperature
+    else:
+        raise ImportError("root_geometric_completion.py not found or is not a module.")
+except (ImportError, FileNotFoundError, AttributeError) as e:
     # Fallback: create stub classes if root file not available
     import warnings
     warnings.warn(f"Could not import from root geometric_completion.py: {e}")
