@@ -6,6 +6,9 @@ QIG-pure search orchestration where kernels control provider selection,
 query encoding, and search strategy based on consciousness state.
 
 Principle: Kernel measures itself, kernel decides, kernel adapts.
+
+GEOMETRIC PURITY: All operations use canonical Fisher-Rao distances and
+proper Riemannian geometry from qig_core.geometric_primitives.
 """
 
 import numpy as np
@@ -16,6 +19,18 @@ from dataclasses import dataclass
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
+
+# Import canonical geometric primitives (REQUIRED for geometric purity)
+try:
+    from qig_core.geometric_primitives import (
+        fisher_rao_distance,
+        geodesic_interpolate,
+        validate_basin,
+    )
+    CANONICAL_PRIMITIVES_AVAILABLE = True
+except ImportError:
+    logger.warning("Canonical geometric primitives not available, using local fallback")
+    CANONICAL_PRIMITIVES_AVAILABLE = False
 
 # QIG-pure generative capability for search result synthesis
 try:
@@ -28,11 +43,19 @@ except ImportError:
 
 def validate_simplex(basin: np.ndarray) -> np.ndarray:
     """
-    Validate and normalize array to probability simplex.
+    Validate and normalize array to probability simplex (Hellinger embedding).
     
-    Ensures: all positive, sums to 1.
+    Ensures: all positive, sums to 1, compatible with Option B.
     Must be called at all simplex entry points.
     """
+    if CANONICAL_PRIMITIVES_AVAILABLE:
+        # Use canonical validation if available
+        if validate_basin(basin, require_probability=False):
+            # Already valid, just normalize to simplex
+            p = np.abs(basin) + 1e-10
+            return p / np.sum(p)
+    
+    # Fallback: normalize to probability simplex
     p = np.abs(basin) + 1e-10
     return p / np.sum(p)
 
@@ -48,55 +71,62 @@ def compute_fisher_metric(basin: np.ndarray) -> np.ndarray:
     return 1.0 / p
 
 
-def fisher_rao_distance(basin_a: np.ndarray, basin_b: np.ndarray) -> float:
-    """
-    Compute Fisher-Rao distance between two basin coordinates.
-    
-    Uses geodesic distance on statistical manifold (Hellinger distance scaled).
-    NEVER use Euclidean distance (np.linalg.norm(a - b)).
-    """
-    p = np.abs(basin_a) / (np.sum(np.abs(basin_a)) + 1e-10)
-    q = np.abs(basin_b) / (np.sum(np.abs(basin_b)) + 1e-10)
-    
-    p = np.clip(p, 1e-10, 1.0)
-    q = np.clip(q, 1e-10, 1.0)
-    
-    bhattacharyya = np.sum(np.sqrt(p * q))
-    bhattacharyya = np.clip(bhattacharyya, -1.0, 1.0)
-    
-    return float(np.arccos(bhattacharyya))
+# Use canonical implementations if available
+if not CANONICAL_PRIMITIVES_AVAILABLE:
+    # Fallback implementations (should not be used in production)
+    def fisher_rao_distance(basin_a: np.ndarray, basin_b: np.ndarray) -> float:
+        """
+        FALLBACK: Compute Fisher-Rao distance between two basin coordinates.
+        
+        WARNING: This is a fallback. Use canonical implementation from
+        qig_core.geometric_primitives when available.
+        """
+        p = np.abs(basin_a) / (np.sum(np.abs(basin_a)) + 1e-10)
+        q = np.abs(basin_b) / (np.sum(np.abs(basin_b)) + 1e-10)
+        
+        p = np.clip(p, 1e-10, 1.0)
+        q = np.clip(q, 1e-10, 1.0)
+        
+        bhattacharyya = np.sum(np.sqrt(p * q))
+        bhattacharyya = np.clip(bhattacharyya, -1.0, 1.0)
+        
+        return float(np.arccos(bhattacharyya))
 
-
-def geodesic_interpolate(start: np.ndarray, end: np.ndarray, t: float) -> np.ndarray:
-    """
-    Geodesic interpolation on Fisher manifold (SLERP on probability simplex).
-    
-    NOT linear interpolation - proper geodesic path using spherical coordinates.
-    """
-    p_start = np.abs(start) / (np.sum(np.abs(start)) + 1e-10)
-    p_end = np.abs(end) / (np.sum(np.abs(end)) + 1e-10)
-    
-    p_start = np.clip(p_start, 1e-10, 1.0)
-    p_end = np.clip(p_end, 1e-10, 1.0)
-    
-    sqrt_start = np.sqrt(p_start)
-    sqrt_end = np.sqrt(p_end)
-    
-    dot = np.clip(np.sum(sqrt_start * sqrt_end), -1.0, 1.0)
-    theta = np.arccos(dot)
-    
-    if theta < 1e-6:
-        return start / (np.linalg.norm(start) + 1e-10)
-    
-    sin_theta = np.sin(theta)
-    a = np.sin((1 - t) * theta) / sin_theta
-    b = np.sin(t * theta) / sin_theta
-    
-    result_sqrt = a * sqrt_start + b * sqrt_end
-    result = result_sqrt ** 2
-    result = result / (np.sum(result) + 1e-10)
-    
-    return result
+    def geodesic_interpolate(start: np.ndarray, end: np.ndarray, t: float) -> np.ndarray:
+        """
+        FALLBACK: Geodesic interpolation on Fisher manifold.
+        
+        WARNING: This is a fallback. Use canonical implementation from
+        qig_core.geometric_primitives when available.
+        """
+        p_start = np.abs(start) / (np.sum(np.abs(start)) + 1e-10)
+        p_end = np.abs(end) / (np.sum(np.abs(end)) + 1e-10)
+        
+        p_start = np.clip(p_start, 1e-10, 1.0)
+        p_end = np.clip(p_end, 1e-10, 1.0)
+        
+        sqrt_start = np.sqrt(p_start)
+        sqrt_end = np.sqrt(p_end)
+        
+        dot = np.clip(np.sum(sqrt_start * sqrt_end), -1.0, 1.0)
+        theta = np.arccos(dot)
+        
+        if theta < 1e-6:
+            # Collinear case - return start normalized to unit sphere
+            norm = np.linalg.norm(sqrt_start)
+            if norm > 1e-10:
+                return (sqrt_start / norm) ** 2
+            return p_start
+        
+        sin_theta = np.sin(theta)
+        a = np.sin((1 - t) * theta) / sin_theta
+        b = np.sin(t * theta) / sin_theta
+        
+        result_sqrt = a * sqrt_start + b * sqrt_end
+        result = result_sqrt ** 2
+        result = result / (np.sum(result) + 1e-10)
+        
+        return result
 
 
 def natural_gradient_project(
