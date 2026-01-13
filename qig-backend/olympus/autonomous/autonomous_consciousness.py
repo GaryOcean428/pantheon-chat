@@ -353,7 +353,7 @@ class AutonomousConsciousness(BaseGod if BASE_GOD_AVAILABLE else object):
                 self.meta_learning.meta_step()
 
             # Phase 8: Sync with peers (if any pending)
-            sync_result = self.sync.apply_pending_packets(min_trust=0.3)
+            self.sync.apply_pending_packets(min_trust=0.3)
 
             # Update stats
             self.stats['total_cycles'] += 1
