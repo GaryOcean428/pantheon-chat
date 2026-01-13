@@ -366,15 +366,20 @@ class TaskExecutionTree:
                     for c in task.children
                 )
                 if not all_children_finished:
-                    # Find children that still need processing
                     unfinished_children = [
                         c for c in task.children
                         if c.status not in [TaskStatus.COMPLETED, TaskStatus.FAILED]
                     ]
-                    # Put parent back at bottom of stack
-                    self._active_stack.insert(0, task)
-                    # Push unfinished children (PENDING ones first)
+
+                    # Re-queue parent to be reconsidered after children progress
+                    self._active_stack.append(task)
+
+                    # Prioritize PENDING children, but ensure all unfinished children get revisited
                     pending_children = [c for c in unfinished_children if c.status == TaskStatus.PENDING]
+                    other_unfinished = [c for c in unfinished_children if c.status != TaskStatus.PENDING]
+
+                    for child in reversed(other_unfinished):
+                        self._active_stack.append(child)
                     for child in reversed(pending_children):
                         self._active_stack.append(child)
                     continue
