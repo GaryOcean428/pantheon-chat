@@ -682,12 +682,20 @@ class VocabularyCoordinator:
         
         words = re.findall(r'\b[a-z]{3,}\b', text.lower())
         
-        stopwords = {'the', 'and', 'for', 'that', 'this', 'with', 'was', 'are', 
-                     'has', 'have', 'been', 'were', 'from', 'which', 'also', 
-                     'but', 'not', 'can', 'may', 'will', 'would', 'could',
-                     'their', 'there', 'these', 'those', 'than', 'then'}
+        # Import contextualized filter
+        try:
+            from contextualized_filter import should_filter_word
+        except ImportError:
+            # Fallback: minimal generic-only filter
+            def should_filter_word(w, ctx=None):
+                if len(w) < 3:
+                    return True
+                generic_only = {'the', 'and', 'for', 'that', 'this', 'with', 'was', 
+                               'are', 'has', 'have', 'been', 'were', 'from', 'which'}
+                return w in generic_only
         
-        filtered_words = [w for w in words if w not in stopwords and len(w) >= 4]
+        # Use contextualized filtering with all words as context
+        filtered_words = [w for w in words if not should_filter_word(w, words) and len(w) >= 4]
         
         word_counts: Dict[str, int] = {}
         for word in filtered_words:

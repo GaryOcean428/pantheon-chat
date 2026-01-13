@@ -260,14 +260,23 @@ class DebateResearchBridge(BaseBridge):
         return None
     
     def _topics_related(self, topic1: str, topic2: str) -> bool:
-        """Check if two topics are semantically related."""
+        """Check if two topics are semantically related using contextualized filtering."""
         t1_words = set(topic1.lower().split())
         t2_words = set(topic2.lower().split())
         
-        stopwords = {'the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 
-                     'to', 'of', 'and', 'or', 'in', 'on', 'at', 'for', 'with'}
-        t1_words -= stopwords
-        t2_words -= stopwords
+        # Use contextualized filter if available
+        try:
+            from contextualized_filter import should_filter_word
+            all_words = list(t1_words | t2_words)
+            # Filter using geometric relevance with all words as context
+            t1_words = {w for w in t1_words if not should_filter_word(w, all_words)}
+            t2_words = {w for w in t2_words if not should_filter_word(w, all_words)}
+        except ImportError:
+            # Fallback: only filter truly generic function words
+            truly_generic = {'the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 
+                           'to', 'of', 'and', 'or', 'in', 'on', 'at', 'for', 'with'}
+            t1_words -= truly_generic
+            t2_words -= truly_generic
         
         if not t1_words or not t2_words:
             return False

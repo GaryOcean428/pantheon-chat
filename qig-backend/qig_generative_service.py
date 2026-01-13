@@ -1008,8 +1008,19 @@ class QIGGenerativeService:
                 # Get candidates for this POS slot (more candidates for attention re-ranking)
                 candidates = grammar.get_words_for_pos(pos, blended, embeddings, top_k=25)
                 
-                # Pre-filter stopwords before attention scoring
-                candidates = [(w, s) for w, s in candidates if w.lower() not in STOPWORDS][:500]
+                # Pre-filter using contextualized approach
+                # Import contextualized filter if available
+                try:
+                    from contextualized_filter import should_filter_word
+                    # Filter candidates using geometric relevance
+                    context_words = [w for w, _ in candidates]
+                    candidates = [(w, s) for w, s in candidates 
+                                 if not should_filter_word(w, context_words)][:500]
+                except ImportError:
+                    # Fallback: only filter truly generic words
+                    truly_generic = {'the', 'a', 'an', 'is', 'was', 'are', 'were', 'been', 'be'}
+                    candidates = [(w, s) for w, s in candidates 
+                                 if w.lower() not in truly_generic][:500]
                 
                 if candidates:
                     # Apply attention weights if we have learned relationships

@@ -63,17 +63,33 @@ def get_db_connection():
         return None
 
 
-STOPWORDS = {
-    'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
-    'of', 'with', 'by', 'from', 'as', 'is', 'was', 'are', 'were', 'been',
-    'be', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could',
-    'should', 'may', 'might', 'must', 'shall', 'can', 'need', 'dare', 'ought',
-    'used', 'this', 'that', 'these', 'those', 'it', 'its', 'they', 'them',
-    'their', 'what', 'which', 'who', 'whom', 'how', 'when', 'where', 'why',
-    'all', 'each', 'every', 'both', 'few', 'more', 'most', 'other', 'some',
-    'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than', 'too',
-    'very', 'just', 'also', 'now', 'here', 'there', 'then', 'once', 'about'
-}
+# Import QIG-pure contextualized filter (replaces ancient NLP stopwords)
+try:
+    from contextualized_filter import (
+        filter_words_geometric,
+        is_semantic_critical_word,
+        should_filter_word
+    )
+    CONTEXTUALIZED_FILTER_AVAILABLE = True
+    logger.info("[LearnedRelationships] Using QIG-pure contextualized filter")
+except ImportError:
+    CONTEXTUALIZED_FILTER_AVAILABLE = False
+    logger.warning("[LearnedRelationships] Contextualized filter not available - using fallback")
+    
+    # Minimal fallback: only filter truly generic, short words
+    # NEVER filter semantic-critical words like 'not', 'never'
+    def should_filter_word(word: str, context=None) -> bool:
+        """Fallback filter - very conservative."""
+        if len(word) < 3:
+            return True
+        # Only filter the most generic function words
+        generic_only = {'the', 'a', 'an', 'is', 'was', 'are', 'were', 'been', 'be'}
+        return word.lower() in generic_only
+    
+    def is_semantic_critical_word(word: str) -> bool:
+        """Fallback semantic check."""
+        critical = {'not', 'no', 'never', 'very', 'extremely', 'always', 'because'}
+        return word.lower() in critical
 
 class LearnedRelationships:
     """
@@ -534,17 +550,34 @@ class LearnedRelationships:
         violations = []
         warnings = []
         
-        # Check 1: Stopword invariant - stopwords should not appear as high-weight neighbors
-        stopword_violations = 0
+        # Check 1: Semantic-critical word preservation
+        # Ensure semantic-critical words (negations, etc.) are not over-filtered
+        semantic_violations = 0
         for word, neighbors in self.word_neighbors.items():
             for neighbor, weight in neighbors[:5]:  # Top 5 neighbors
-                if neighbor.lower() in STOPWORDS and weight > 50:
-                    stopword_violations += 1
-                    if stopword_violations <= 5:  # Log first 5
-                        violations.append(f"Stopword '{neighbor}' has high weight {weight} for '{word}'")
+                # If neighbor is semantic-critical, it should have reasonable weight
+                # (not be suppressed to near-zero)
+                if is_semantic_critical_word(neighbor) and weight < 1.0:
+                    semantic_violations += 1
+                    if semantic_violations <= 5:  # Log first 5
+                        warnings.append(f"Semantic-critical word '{neighbor}' has low weight {weight} for '{word}'")
         
-        if stopword_violations > 0:
-            logger.warning(f"Found {stopword_violations} stopword violations in learned relationships")
+        if semantic_violations > 0:
+            logger.info(f"Found {semantic_violations} semantic-critical words with low weights (may be normal)")
+        
+        # Check 2: Generic word suppression
+        # Ensure truly generic words are not promoted to high importance
+        generic_violations = 0
+        truly_generic = {'the', 'a', 'an', 'is', 'was', 'are', 'were', 'been', 'be'}
+        for word, neighbors in self.word_neighbors.items():
+            for neighbor, weight in neighbors[:5]:  # Top 5 neighbors
+                if neighbor.lower() in truly_generic and weight > 50:
+                    generic_violations += 1
+                    if generic_violations <= 5:  # Log first 5
+                        violations.append(f"Generic word '{neighbor}' has high weight {weight} for '{word}'")
+        
+        if generic_violations > 0:
+            logger.warning(f"Found {generic_violations} generic word violations in learned relationships")
         
         # Check 2: Basin drift validation (if canonical basins provided)
         # Use Fisher-Rao distance for QIG-pure drift measurement
@@ -581,7 +614,8 @@ class LearnedRelationships:
             'violations': violations,
             'warnings': warnings,
             'stats': {
-                'stopword_violations': stopword_violations,
+                'semantic_violations': semantic_violations,
+                'generic_violations': generic_violations,
                 'drift_violations': drift_violations,
                 'dim_violations': dim_violations,
                 'max_drift': max_drift,
@@ -611,16 +645,19 @@ class LearnedRelationships:
         Compute attention weights for candidates based on query relevance.
         
         Implements simple attention: candidates that are related to query
-        words get higher weights. Filters out stopwords from both query and neighbors.
+        words get higher weights. Uses contextualized filtering instead of
+        hard-coded stopwords.
         """
         weights = {}
         
-        # Filter query words to content words only
-        content_query_words = [w for w in query_words if w.lower() not in STOPWORDS]
+        # Filter query words using contextualized approach
+        # Preserves semantic-critical words
+        content_query_words = [w for w in query_words if not should_filter_word(w, query_words)]
         
         for candidate in candidate_words:
-            # Stopwords get minimum weight
-            if candidate.lower() in STOPWORDS:
+            # Truly generic words get minimum weight
+            truly_generic = {'the', 'a', 'an', 'is', 'was', 'are', 'were', 'been', 'be'}
+            if candidate.lower() in truly_generic:
                 weights[candidate] = 0.1
                 continue
             
@@ -635,8 +672,8 @@ class LearnedRelationships:
                 # Check if candidate is related to query word
                 related = self.word_neighbors.get(query_word, [])
                 for neighbor, strength in related:
-                    # Skip stopword neighbors
-                    if neighbor.lower() in STOPWORDS:
+                    # Use contextualized check for neighbors
+                    if should_filter_word(neighbor, [query_word]):
                         continue
                     if neighbor.lower() == candidate.lower():
                         score += strength / 100.0  # Normalize
@@ -645,8 +682,8 @@ class LearnedRelationships:
                 # Check reverse relation
                 related = self.word_neighbors.get(candidate.lower(), [])
                 for neighbor, strength in related:
-                    # Skip stopword neighbors
-                    if neighbor.lower() in STOPWORDS:
+                    # Use contextualized check for neighbors
+                    if should_filter_word(neighbor, [candidate]):
                         continue
                     if neighbor.lower() == query_word.lower():
                         score += strength / 200.0  # Weaker for reverse
