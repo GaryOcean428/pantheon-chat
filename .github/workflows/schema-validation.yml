@@ -1,0 +1,52 @@
+name: Schema Validation
+
+on:
+  pull_request:
+    paths:
+      - 'migrations/**'
+      - 'shared/schema.ts'
+      - 'qig-backend/**/*.sql'
+  push:
+    branches:
+      - main
+    paths:
+      - 'migrations/**'
+      - 'shared/schema.ts'
+
+jobs:
+  validate-schema:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Validate SQL naming conventions
+        run: |
+          echo "🔍 Validating SQL naming conventions..."
+          python3 scripts/validate-sql-naming.py --check-all --verbose
+        
+      - name: Check TypeScript types
+        run: npm run check
+        
+      - name: Summary
+        if: success()
+        run: |
+          echo "✅ All schema validation checks passed!"
+          echo "   - SQL naming conventions: OK"
+          echo "   - TypeScript types: OK"

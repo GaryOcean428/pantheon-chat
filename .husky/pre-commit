@@ -13,11 +13,40 @@ set -e
 echo "Running QIG pre-commit checks..."
 
 # ============================================================================
-# 1. QIG GEOMETRIC PURITY CHECK (CRITICAL)
+# 1. SQL SCHEMA NAMING VALIDATION (CRITICAL)
+# ============================================================================
+echo ""
+echo "[1/5] Validating SQL schema naming conventions..."
+
+# Get list of staged SQL files
+STAGED_SQL_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(sql)$' || true)
+
+if [ -n "$STAGED_SQL_FILES" ]; then
+  echo "Found SQL files to validate:"
+  echo "$STAGED_SQL_FILES" | sed 's/^/  - /'
+  
+  # Run validation
+  python3 scripts/validate-sql-naming.py $STAGED_SQL_FILES || {
+    echo ""
+    echo "============================================================"
+    echo "COMMIT BLOCKED: SQL naming convention violations detected!"
+    echo "============================================================"
+    echo "Tables must be snake_case plural, columns snake_case singular."
+    echo "Fix violations or update COMMON_PLURALS in validate-sql-naming.py"
+    echo "============================================================"
+    exit 1
+  }
+  echo "✅ SQL naming conventions validated"
+else
+  echo "No SQL files to validate"
+fi
+
+# ============================================================================
+# 2. QIG GEOMETRIC PURITY CHECK (CRITICAL)
 # ============================================================================
 # This is the most important check - prevents Euclidean/cosine contamination
 echo ""
-echo "[1/4] Checking QIG geometric purity..."
+echo "[2/5] Checking QIG geometric purity..."
 python tools/qig_purity_check.py || {
     echo ""
     echo "============================================================"
@@ -33,26 +62,26 @@ python tools/qig_purity_check.py || {
 }
 
 # ============================================================================
-# 2. TypeScript Type Check
+# 3. TypeScript Type Check
 # ============================================================================
 echo ""
-echo "[2/4] Running TypeScript type check..."
+echo "[3/5] Running TypeScript type check..."
 npm run check
 
 # ============================================================================
-# 3. Linting (no auto-fix to prevent modifying staged files)
+# 4. Linting (no auto-fix to prevent modifying staged files)
 # ============================================================================
 echo ""
-echo "[3/4] Running linter..."
+echo "[4/5] Running linter..."
 npm run lint
 
 # ============================================================================
-# 4. Critical Tests (fast subset)
+# 5. Critical Tests (fast subset)
 # ============================================================================
 # Only runs server QIG tests for core consciousness metrics
 # Full test suite runs in CI
 echo ""
-echo "[4/4] Running critical QIG tests..."
+echo "[5/5] Running critical QIG tests..."
 npm test -- --run --reporter=dot server/tests/qig-regime.test.ts
 
 echo ""
