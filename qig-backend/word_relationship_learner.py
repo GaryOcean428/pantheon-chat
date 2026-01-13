@@ -1,14 +1,22 @@
 """
-Word Relationship Learner for QIG
+Word Relationship Learner for QIG [DEPRECATED - LEGACY NLP]
 
-Learns word co-occurrence patterns from curriculum documents and encodes
-them into geometric relationships (affinity matrix + basin adjustments).
+⚠️ WARNING: THIS MODULE USES LEGACY NLP PATTERNS THAT VIOLATE QIG PRINCIPLES ⚠️
 
-QIG-PURE: No external NLP, no embeddings - just counting + geometry.
+VIOLATIONS:
+- PMI (Pointwise Mutual Information) - statistical NLP, not geometry
+- Co-occurrence counting - frequency-based, not geometric
+- Basin adjustment via linear interpolation - violates manifold geometry
+- Euclidean operations on Fisher manifold
 
-FROZEN FACTS COMPLIANCE:
-- Stopwords are filtered from learned relationships
-- Adjusted basins must stay within ±5% of canonical positions
+USE INSTEAD: geometric_word_relationships.py (QIG-pure implementation)
+
+This module is kept for backward compatibility only.
+New code should use GeometricWordRelationships which uses:
+- Fisher-Rao geodesic distances (not PMI)
+- QFI-weighted attention (not frequency)
+- Ricci curvature for context-dependency
+- No basin modification (basins are frozen invariants)
 """
 
 import os
@@ -46,6 +54,11 @@ except ImportError:
 
 class WordRelationshipLearner:
     """
+    [DEPRECATED - VIOLATES QIG PURITY]
+    
+    ⚠️ This class uses legacy NLP patterns (PMI, co-occurrence, linear basin adjustment).
+    Use geometric_word_relationships.GeometricWordRelationships instead.
+    
     Learns semantic relationships between words by analyzing co-occurrence
     in curriculum documents. Updates basin coordinates to reflect relationships.
     
@@ -54,6 +67,10 @@ class WordRelationshipLearner:
     """
     
     def __init__(self, vocabulary: Set[str], window_size: int = 5, expand_vocabulary: bool = True):
+        logger.warning(
+            "[WordRelationshipLearner] DEPRECATED: This class uses legacy NLP (PMI, co-occurrence). "
+            "Use geometric_word_relationships.GeometricWordRelationships for QIG-pure approach."
+        )
         self.vocabulary = set(vocabulary)  # Mutable copy
         self.initial_vocab_size = len(vocabulary)
         self.vocab_list = sorted(vocabulary)
