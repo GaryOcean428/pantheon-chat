@@ -59,7 +59,11 @@ WHERE gp.proposal_id IS NULL
    OR pp.proposal_id IS NULL;
 
 -- Step 2: If <10 unique rows, manually reconcile
--- Step 3: Update all foreign key references
+
+-- Step 3: Execute migration in a transaction for atomicity
+BEGIN;
+
+-- Update all foreign key references
 UPDATE tool_requests 
 SET proposal_id = (
   SELECT pp.id 
@@ -69,6 +73,8 @@ SET proposal_id = (
 
 -- Step 4: Drop governance_proposals
 DROP TABLE governance_proposals CASCADE;
+
+COMMIT;
 
 -- Step 5: Update code to use pantheonProposals only
 ```
@@ -99,17 +105,20 @@ Identical row counts suggest possible duplication.
 
 **Investigation Required:**
 ```sql
--- Check if these are the same data
+-- Check if these are the same data using content hash for reliable matching
 SELECT 
   kse.id as shared_id,
   kt.id as transfer_id,
   kse.created_at as shared_time,
   kt.created_at as transfer_time,
   kse.content,
-  kt.knowledge_type
+  kt.knowledge_type,
+  -- Compare content hashes
+  md5(kse.content::text) as shared_hash,
+  md5(COALESCE(kt.knowledge_data::text, '')) as transfer_hash
 FROM knowledge_shared_entries kse
 FULL OUTER JOIN knowledge_transfers kt
-  ON kse.created_at = kt.created_at
+  ON md5(kse.content::text) = md5(COALESCE(kt.knowledge_data::text, ''))
   AND kse.source_kernel_id = kt.source_kernel_id;
 ```
 

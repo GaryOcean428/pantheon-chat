@@ -4321,7 +4321,7 @@ export const godVocabularyProfiles = pgTable("god_vocabulary_profiles", {
   successCount: integer("success_count").default(0),
   context: text("context"), // OK: Nullable (not all usages have context)
   firstUsedAt: timestamp("first_used_at").defaultNow(),
-  lastUsedAt: timestamp("last_used_at").defaultNow(),
+  lastUsedAt: timestamp("last_used_at"), // FIXED: Removed .defaultNow() - must be manually updated by application
   metadata: jsonb("metadata").default({}), // FIXED: Add empty object default
 }, (table) => [
   uniqueIndex("idx_god_vocab_god_word").on(table.godName, table.word),
