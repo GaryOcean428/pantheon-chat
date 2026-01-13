@@ -17,7 +17,6 @@ so these are now regular functions called by:
 """
 
 import os
-import json
 from typing import Dict, List, Any, Optional
 from datetime import datetime, timedelta
 import numpy as np
@@ -62,8 +61,14 @@ def get_orchestrator() -> KernelTrainingOrchestrator:
         )
         # Wire LearnedManifold for attractor formation
         try:
-            from vocabulary_coordinator import get_learned_manifold
-            manifold = get_learned_manifold()
+            import importlib
+
+            vocab_module = importlib.import_module('vocabulary_coordinator')
+            get_learned_manifold = getattr(vocab_module, 'get_learned_manifold', None)
+            if get_learned_manifold is not None:
+                manifold = get_learned_manifold()
+            else:
+                manifold = None
             if manifold:
                 _orchestrator.wire_learned_manifold(manifold)
                 print("[Training] Wired orchestrator to LearnedManifold for attractor formation")
@@ -89,7 +94,12 @@ def get_coordizer():
     if _coordizer is None:
         try:
             # Use canonical singleton from coordizers package
-            from coordizers import get_coordizer as _get_canonical_coordizer
+            import importlib
+
+            coordizers_module = importlib.import_module('coordizers')
+            _get_canonical_coordizer = getattr(coordizers_module, 'get_coordizer', None)
+            if _get_canonical_coordizer is None:
+                raise ImportError('coordizers.get_coordizer not found')
             _coordizer = _get_canonical_coordizer()
             if _coordizer and len(_coordizer.vocab) >= 50:
                 print(f"[Training] ✓ Using canonical PostgresCoordizer: {len(_coordizer.vocab)} tokens")
