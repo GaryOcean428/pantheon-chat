@@ -54,7 +54,7 @@ This document verifies the implementation status of all components referenced in
   - `qig-backend/vocabulary_persistence.py`
   - `qig-backend/vocabulary_validator.py`
   - `qig-backend/vocabulary_validator_comprehensive.py`
-- Word Relationships: `qig-backend/word_relationship_learner.py`
+- Word Relationships: `qig-backend/word_relationship_learner.py` **[DEPRECATED - Use `geometric_word_relationships.py` instead]**
 - Database Integration: `qig-backend/vocabulary_api.py`
 
 **Status**: COMPLETE - Full sleep packet architecture operational
