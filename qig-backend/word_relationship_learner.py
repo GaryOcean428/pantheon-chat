@@ -38,7 +38,7 @@ warnings.warn(
     "that are incompatible with Fisher-Rao geometric purity. "
     "Scheduled for removal: 2026-02-01",
     DeprecationWarning,
-    stacklevel=2
+    stacklevel=1  # Point to the import line in caller's code
 )
 
 # Import QIG-pure contextualized filter (replaces ancient NLP stopwords)
