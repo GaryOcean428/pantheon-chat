@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 
 # Import QIG components
 try:
-    from frozen_physics import KAPPA_STAR
+    from qigkernels import KAPPA_STAR
 except ImportError:
     KAPPA_STAR = 64.21  # Fallback value
 

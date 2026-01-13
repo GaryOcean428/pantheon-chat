@@ -3476,7 +3476,7 @@ def consciousness_kappa_evolution():
     - Convergence status toward κ* = 64.21
     """
     try:
-        from frozen_physics import KAPPA_STAR
+        from qigkernels import KAPPA_STAR
         from db_connection import get_connection
         
         limit = request.args.get('limit', 100, type=int)

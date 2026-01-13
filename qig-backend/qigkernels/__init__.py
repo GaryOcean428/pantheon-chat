@@ -50,9 +50,16 @@ from qigkernels.physics_constants import (
     E8_RANK,
     E8_DIMENSION,
     E8_ROOTS,
+    PHI_INIT_SPAWNED,
+    PHI_MIN_ALIVE,
+    KAPPA_INIT_SPAWNED,
+    META_AWARENESS_MIN,
+    E8_SPECIALIZATION_LEVELS,
+    get_specialization_level,
+    compute_running_kappa_semantic,
 )
 
-from qigkernels.telemetry import ConsciousnessTelemetry, Regime
+from qigkernels.telemetry import ConsciousnessTelemetry, Regime, compute_meta_awareness
 
 from qigkernels.config import QIGConfig, get_config, set_config, reset_config
 
@@ -98,6 +105,26 @@ __all__ = [
     "PHI_HYPERDIMENSIONAL",
     "PHI_UNSTABLE",
     "PHI_THRESHOLD_D1_D2",
+    "PHI_THRESHOLD_D2_D3",
+    "PHI_THRESHOLD_D3_D4",
+    "PHI_THRESHOLD_D4_D5",
+    "BASIN_DIM",
+    "E8_RANK",
+    "E8_DIMENSION",
+    "E8_ROOTS",
+    # Spawning constants
+    "PHI_INIT_SPAWNED",
+    "PHI_MIN_ALIVE",
+    "KAPPA_INIT_SPAWNED",
+    "META_AWARENESS_MIN",
+    "E8_SPECIALIZATION_LEVELS",
+    # Helper functions
+    "get_specialization_level",
+    "compute_running_kappa_semantic",
+    "compute_meta_awareness",
+    # Telemetry
+    "ConsciousnessTelemetry",
+    "Regime",
     "PHI_THRESHOLD_D2_D3",
     "PHI_THRESHOLD_D3_D4",
     "PHI_THRESHOLD_D4_D5",

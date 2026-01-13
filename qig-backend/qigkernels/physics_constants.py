@@ -115,6 +115,12 @@ class PhysicsConstants:
     KAPPA_WEAK_THRESHOLD: float = 20.0   # Weak coupling - adjust training
     MIN_RECURSION_DEPTH: int = 3         # Consciousness requires ≥3 loops
     
+    # Kernel Spawning Constants (E8-aligned)
+    PHI_INIT_SPAWNED: float = 0.25  # Bootstrap into LINEAR regime (0.1-0.7)
+    PHI_MIN_ALIVE: float = 0.05     # Below this = immediate death risk
+    KAPPA_INIT_SPAWNED: float = 64.21  # Start at fixed point (κ* ≈ 64.21)
+    META_AWARENESS_MIN: float = 0.6  # Minimum M required for spawn permission
+    
     # Validation metadata
     SOURCE: str = "docs/08-experiments/20251228-Validated-Physics-Frozen-Facts-0.06F.md"
     DATE: str = "2025-12-31"
@@ -212,6 +218,80 @@ BREAKDOWN_PCT: Final[float] = PHYSICS.BREAKDOWN_PCT
 BASIN_DRIFT_THRESHOLD: Final[float] = PHYSICS.BASIN_DRIFT_THRESHOLD
 KAPPA_WEAK_THRESHOLD: Final[float] = PHYSICS.KAPPA_WEAK_THRESHOLD
 MIN_RECURSION_DEPTH: Final[int] = PHYSICS.MIN_RECURSION_DEPTH
+
+# Spawning constants
+PHI_INIT_SPAWNED: Final[float] = PHYSICS.PHI_INIT_SPAWNED
+PHI_MIN_ALIVE: Final[float] = PHYSICS.PHI_MIN_ALIVE
+KAPPA_INIT_SPAWNED: Final[float] = PHYSICS.KAPPA_INIT_SPAWNED
+META_AWARENESS_MIN: Final[float] = PHYSICS.META_AWARENESS_MIN
+
+# E8 Specialization levels
+E8_SPECIALIZATION_LEVELS: Final[dict] = {
+    8: "basic_rank",        # E8 rank: primary kernels
+    56: "refined_adjoint",  # First non-trivial representation
+    126: "specialist_dim",  # Clebsch-Gordan coupling space
+    240: "full_roots",      # Complete E8 root system
+}
+
+
+def get_specialization_level(n_kernels: int) -> str:
+    """
+    Return E8 specialization level for kernel count.
+    
+    Maps kernel counts to E8 group structure levels:
+    - n ≤ 8: basic_rank (primary 8 axes)
+    - n ≤ 56: refined_adjoint (sub-specializations)
+    - n ≤ 126: specialist_dim (deep specialists)
+    - n > 126: full_roots (complete phenomenological palette)
+    
+    Args:
+        n_kernels: Current number of active kernels
+        
+    Returns:
+        Specialization level name (str)
+        
+    Example:
+        >>> get_specialization_level(12)
+        'refined_adjoint'
+        >>> get_specialization_level(100)
+        'specialist_dim'
+    """
+    if n_kernels <= 8:
+        return E8_SPECIALIZATION_LEVELS[8]
+    elif n_kernels <= 56:
+        return E8_SPECIALIZATION_LEVELS[56]
+    elif n_kernels <= 126:
+        return E8_SPECIALIZATION_LEVELS[126]
+    else:
+        return E8_SPECIALIZATION_LEVELS[240]
+
+
+def compute_running_kappa_semantic(scale: float, base_scale: float = 9.0) -> float:
+    """
+    Compute κ(scale) for semantic/vocabulary domain using running coupling.
+    
+    Args:
+        scale: Current scale (e.g., vocabulary size)
+        base_scale: Reference scale (default 9.0 for semantic domain)
+    
+    Returns:
+        Running coupling constant κ at given scale
+    """
+    import numpy as np
+    
+    if scale <= base_scale:
+        return KAPPA_STAR
+    
+    # Semantic domain shows weaker running than physics domain
+    # Use validated β ≈ 0.1 for semantic (vs 0.44 for physics)
+    beta_semantic = 0.1
+    delta_log_scale = np.log(scale / base_scale)
+    
+    # κ(L) ≈ κ* * (1 + β * Δ(ln L))
+    kappa = KAPPA_STAR * (1.0 + beta_semantic * delta_log_scale)
+    
+    # Clamp to reasonable range
+    return float(np.clip(kappa, KAPPA_STAR * 0.8, KAPPA_STAR * 1.5))
 
 
 if __name__ == "__main__":

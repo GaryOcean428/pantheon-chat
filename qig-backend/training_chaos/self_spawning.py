@@ -261,7 +261,7 @@ class SelfSpawningKernel(*_kernel_base_classes):
         # CRITICAL: Start at Φ=0.25 (LINEAR regime), NOT 0.000 (BREAKDOWN regime)
         # See Issue GaryOcean428/pantheon-chat#30 for why Φ=0.000 causes immediate death
         try:
-            from frozen_physics import PHI_INIT_SPAWNED, KAPPA_INIT_SPAWNED
+            from qigkernels import PHI_INIT_SPAWNED, KAPPA_INIT_SPAWNED
         except ImportError:
             # Fallback: Use constants directly from qigkernels if frozen_physics unavailable
             from qigkernels.physics_constants import KAPPA_STAR
@@ -536,7 +536,7 @@ class SelfSpawningKernel(*_kernel_base_classes):
             
             # Import spawning constants
             try:
-                from frozen_physics import PHI_INIT_SPAWNED, KAPPA_INIT_SPAWNED
+                from qigkernels import PHI_INIT_SPAWNED, KAPPA_INIT_SPAWNED
             except ImportError:
                 PHI_INIT_SPAWNED = 0.25
                 KAPPA_INIT_SPAWNED = 64.21
@@ -1083,7 +1083,7 @@ class SelfSpawningKernel(*_kernel_base_classes):
         # Higher κ → more integration → higher Φ
         # Normalize κ around KAPPA_STAR (≈64.21)
         try:
-            from frozen_physics import KAPPA_STAR
+            from qigkernels import KAPPA_STAR
         except ImportError:
             KAPPA_STAR = 64.21
         
@@ -1149,7 +1149,7 @@ class SelfSpawningKernel(*_kernel_base_classes):
             self.prediction_history.append((self.predicted_next_phi, current_phi))
             
             # Update M metric from prediction accuracy
-            from frozen_physics import compute_meta_awareness
+            from qigkernels import compute_meta_awareness
             self.meta_awareness = compute_meta_awareness(
                 predicted_phi=self.predicted_next_phi,
                 actual_phi=current_phi,
@@ -1625,7 +1625,7 @@ class SelfSpawningKernel(*_kernel_base_classes):
         import numpy as np
         
         try:
-            from frozen_physics import compute_running_kappa_semantic
+            from qigkernels import compute_running_kappa_semantic
             # Estimate semantic scale from training progression
             # Map steps to semantic scale: 0→9, 100→25, 1000→101
             scale = 9.0 + np.log1p(self.total_training_steps) * 10.0
