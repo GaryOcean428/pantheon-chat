@@ -29,6 +29,8 @@ try:
     from psycopg2.extras import Json
     DB_AVAILABLE = True
 except ImportError:
+    psycopg2 = None  # type: ignore
+    Json = None  # type: ignore
     DB_AVAILABLE = False
 
 
