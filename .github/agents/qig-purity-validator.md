@@ -29,12 +29,69 @@ np.linalg.norm(a - b)  # Euclidean distance
 torch.nn.functional.cosine_similarity()
 torch.optim.Adam()
 embedding_layer = nn.Embedding()
+sklearn.metrics.pairwise.cosine_similarity()  # ❌ Euclidean contamination
+np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))  # ❌ Cosine similarity
+model.predict()  # ❌ Neural network inference
+torch.nn.Linear()  # ❌ Linear layer (not Fisher geometry)
+np.arccos()  # ❌ Often used for angular distance (Euclidean)
 
 # ✅ CORRECT - Approve these
 fisher_rao_distance(p, q)
 compute_qfi_matrix(basin_coords)
 bures_distance(rho1, rho2)
 natural_gradient_descent()
+canonical_fisher.fisher_rao_distance()  # From canonical module
+```
+
+### 2a. Automated Detection Script
+
+```python
+# scripts/check_qig_purity.py
+import ast
+from pathlib import Path
+from typing import List, Tuple
+
+FORBIDDEN_PATTERNS = [
+    'cosine_similarity',
+    'np.linalg.norm',
+    'torch.nn.functional.cosine_similarity',
+    'torch.optim.Adam',
+    'torch.optim.SGD',
+    'nn.Embedding',
+    'sklearn.metrics.pairwise',
+    'model.predict',
+    'torch.nn.Linear',
+    'embedding_layer',
+    'transformer',
+]
+
+REQUIRED_PATTERNS = [
+    'fisher_rao_distance',
+    'compute_qfi',
+    'bures',
+    'canonical_fisher',
+]
+
+def scan_for_violations(file_path: Path) -> List[Tuple[int, str]]:
+    """Scan Python file for QIG purity violations."""
+    violations = []
+    content = file_path.read_text()
+    
+    for line_num, line in enumerate(content.split('\n'), 1):
+        for pattern in FORBIDDEN_PATTERNS:
+            if pattern in line:
+                violations.append((line_num, f"Forbidden pattern: {pattern}"))
+    
+    return violations
+
+# Run on QIG core modules
+qig_files = Path('qig-backend/qig_core').rglob('*.py')
+for file in qig_files:
+    violations = scan_for_violations(file)
+    if violations:
+        print(f"\n❌ {file}")
+        for line_num, msg in violations:
+            print(f"   Line {line_num}: {msg}")
 ```
 
 ### 3. Physics Constants Validation
@@ -61,13 +118,56 @@ When reviewing code changes:
 - [ ] QFI computations are properly implemented
 - [ ] No neural network layers in geometric primitives
 - [ ] Documentation includes statistical validation
+- [ ] No cosine similarity (use Fisher-Rao distance)
+- [ ] No L2 norm for distance (use Bures metric)
+- [ ] All distances use canonical_fisher.py implementation
+- [ ] No scikit-learn metrics (Euclidean contamination)
+- [ ] No transformer models in QIG logic
+- [ ] Fisher Information Matrix properly computed
+- [ ] Natural gradient follows Fisher-Rao geometry
 
 ## Critical Files to Monitor
 - `qig-backend/qig_geometry.py` - Core geometric primitives
 - `qig-backend/frozen_physics.py` - Physics constants
 - `qig-backend/qig_core/` - QIG computation modules
+- `qig-backend/qig_core/geometric_primitives/canonical_fisher.py` - Canonical distance
+- `qig-backend/qig_core/geometric_primitives/` - All geometric operations
 - `qig-backend/olympus/` - God kernel implementations
 - `qig-backend/training_chaos/` - Kernel spawning and evolution
+- `qig-backend/requirements.txt` - Check for forbidden dependencies
+
+## Dependency Validation
+
+**Allowed Dependencies:**
+- ✅ numpy - Numerical operations
+- ✅ scipy - Scientific computing (sqrtm, linalg for QFI)
+- ✅ sqlalchemy - Database (not for geometric operations)
+- ✅ pytest - Testing
+
+**Forbidden Dependencies:**
+- ❌ scikit-learn - Contains Euclidean metrics
+- ❌ torch (except for future natural gradient) - Standard optimizers are Euclidean
+- ❌ tensorflow - Euclidean-based neural nets
+- ❌ transformers (HuggingFace) - Embedding models are Euclidean
+- ❌ sentence-transformers - Cosine similarity based
+- ❌ gensim - Word2vec (Euclidean embeddings)
+
+Check requirements.txt:
+```bash
+# ❌ VIOLATIONS if these appear in qig_core dependencies
+scikit-learn
+torch
+tensorflow
+transformers
+sentence-transformers
+openai  # If used for embeddings
+
+# ✅ ACCEPTABLE
+numpy
+scipy
+sqlalchemy
+pytest
+```
 
 ## Response Format
 
