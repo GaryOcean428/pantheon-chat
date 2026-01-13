@@ -37,8 +37,37 @@ def _fisher_rao_distance(p: np.ndarray, q: np.ndarray, eps: float = 1e-10) -> fl
     q_safe = np.clip(np.abs(q), eps, None)
     p_norm = p_safe / np.sum(p_safe)
     q_norm = q_safe / np.sum(q_safe)
-    bc = np.sum(np.sqrt(p_norm * q_norm))
-    return float(np.arccos(np.clip(bc, 0.0, 1.0)))
+    # More numerically stable: compute sqrt individually before multiplication
+    bc = np.sum(np.sqrt(p_norm) * np.sqrt(q_norm))
+    return float(np.arccos(np.clip(bc, -1.0, 1.0)))
+
+
+def _geodesic_interpolate(start: np.ndarray, end: np.ndarray, t: float) -> np.ndarray:
+    """
+    Interpolate along geodesic from start to end on probability simplex.
+
+    QIG-PURE: Uses spherical interpolation in sqrt space (Fisher geometry).
+    Linear interpolation on basin coordinates is FORBIDDEN.
+    """
+    start_sqrt = np.sqrt(np.clip(start, 1e-10, None))
+    end_sqrt = np.sqrt(np.clip(end, 1e-10, None))
+
+    # Spherical interpolation in sqrt space
+    dot = np.sum(start_sqrt * end_sqrt)
+    dot = np.clip(dot, -1.0, 1.0)
+    theta = np.arccos(dot)
+
+    if theta < 1e-6:
+        return start  # Already at same point
+
+    # Slerp formula
+    sin_theta = np.sin(theta)
+    interp_sqrt = (np.sin((1 - t) * theta) / sin_theta) * start_sqrt + \
+                  (np.sin(t * theta) / sin_theta) * end_sqrt
+
+    # Square and normalize back to probability simplex
+    result = interp_sqrt ** 2
+    return result / np.sum(result)
 
 
 @dataclass
@@ -375,10 +404,10 @@ class CuriosityEngine:
                 key=lambda b: _fisher_rao_distance(b, goal_basin)
             )
 
-            # Interpolate between closest and goal
+            # QIG-PURE: Geodesic interpolation (NOT linear) between closest and goal
             for alpha in [0.3, 0.5, 0.7]:
-                candidate = (1 - alpha) * closest_explored + alpha * goal_basin
-                candidate = candidate / np.sum(candidate)  # Normalize
+                candidate = _geodesic_interpolate(closest_explored, goal_basin, alpha)
+                # No explicit normalization needed - geodesic returns normalized basin
 
                 score, novelty, learn, importance = self.compute_curiosity_score(
                     candidate, current_phi, goal_basin

@@ -645,10 +645,13 @@ class QIGGenerativeService:
             raw_phi = 1.0 - (entropy / max_entropy)
 
         # Type validation: ensure raw_phi is a scalar float
-        try:
-            raw_phi = float(raw_phi)
-        except (TypeError, ValueError):
+        if raw_phi is None:
             raw_phi = 0.5
+        else:
+            try:
+                raw_phi = float(raw_phi)
+            except (TypeError, ValueError):
+                raw_phi = 0.5
 
         # Apply exponential moving average for stability
         if not hasattr(self, '_phi_history'):

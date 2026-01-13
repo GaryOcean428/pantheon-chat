@@ -236,8 +236,16 @@ class EthicalConstraintNetwork:
             context=context,
         )
 
-        # Update statistics
-        self.stats[decision.decision] = self.stats.get(decision.decision, 0) + 1
+        # Update statistics with correct key mapping
+        stats_key_map = {
+            'allow': 'allowed',
+            'warn': 'warned',
+            'constrain': 'constrained',
+            'block': 'blocked',
+            'abort': 'aborted'
+        }
+        key = stats_key_map.get(decision.decision, decision.decision)
+        self.stats[key] = self.stats.get(key, 0) + 1
 
         # Persist to audit trail
         self._persist_decision(decision, action_description, phi, gamma, meta_awareness)
@@ -351,8 +359,8 @@ class EthicalConstraintNetwork:
                 consciousness_state=consciousness_state,
             )
 
-        # WARN: Approaching boundary
-        if distance > self.safe_radius * 0.7:
+        # WARN: Approaching boundary (using strictness for threshold)
+        if distance > self.safe_radius * self.strictness:
             return EthicalDecision(
                 safe=True,
                 decision='warn',

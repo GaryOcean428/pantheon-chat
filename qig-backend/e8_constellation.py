@@ -47,7 +47,8 @@ except ImportError:
         """Fallback Fisher-Rao distance."""
         p = np.abs(a) / (np.sum(np.abs(a)) + 1e-10)
         q = np.abs(b) / (np.sum(np.abs(b)) + 1e-10)
-        bhattacharyya = np.sum(np.sqrt(p * q + 1e-10))
+        # More numerically stable: compute sqrt individually before multiplication
+        bhattacharyya = np.sum(np.sqrt(p) * np.sqrt(q))
         return float(np.arccos(np.clip(bhattacharyya, -1.0, 1.0)))
 
     def sphere_project(v: np.ndarray) -> np.ndarray:

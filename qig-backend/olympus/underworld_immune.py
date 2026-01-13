@@ -349,6 +349,7 @@ class UnderworldImmuneSystem:
                     description="Potential credential leak detected",
                     matched_pattern=pattern.pattern[:50],
                     matched_content=masked,
+                    redacted_content=masked,
                     confidence=0.85,
                     requires_redaction=True,
                 ))
