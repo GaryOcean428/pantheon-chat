@@ -92,7 +92,43 @@ class GeometricWordRelationships:
         self.relationships_computed = 0
         self.qfi_computations = 0
         
-        logger.info("[GeometricWordRelationships] Initialized QIG-pure relationship learner")
+        # Pre-load vocabulary from coordizer
+        self._vocabulary: List[str] = self._extract_vocabulary()
+        
+        logger.info(f"[GeometricWordRelationships] Initialized QIG-pure relationship learner with {len(self._vocabulary)} words")
+    
+    def _extract_vocabulary(self) -> List[str]:
+        """Extract vocabulary from coordizer using multiple access patterns."""
+        if not self.coordizer:
+            return []
+        
+        # Try different vocabulary accessors in order of preference
+        # 1. word_tokens (list of word tokens, preferred)
+        if hasattr(self.coordizer, 'word_tokens') and self.coordizer.word_tokens:
+            return list(self.coordizer.word_tokens)
+        
+        # 2. generation_words (for generation vocabulary)
+        if hasattr(self.coordizer, 'generation_words') and self.coordizer.generation_words:
+            return list(self.coordizer.generation_words)
+        
+        # 3. basin_coords keys (dict of word -> coordinates)
+        if hasattr(self.coordizer, 'basin_coords') and self.coordizer.basin_coords:
+            return list(self.coordizer.basin_coords.keys())
+        
+        # 4. vocab keys (dict of word -> data)
+        if hasattr(self.coordizer, 'vocab') and self.coordizer.vocab:
+            return list(self.coordizer.vocab.keys())
+        
+        # 5. get_vocabulary method
+        if hasattr(self.coordizer, 'get_vocabulary') and callable(self.coordizer.get_vocabulary):
+            try:
+                vocab = self.coordizer.get_vocabulary()
+                if vocab:
+                    return list(vocab)
+            except Exception:
+                pass
+        
+        return []
     
     def _get_basin(self, word: str) -> Optional[np.ndarray]:
         """Get basin coordinates for word from coordizer."""
@@ -316,11 +352,11 @@ class GeometricWordRelationships:
         if query_props is None:
             return []
         
-        # Get all vocabulary
-        if not self.coordizer or not hasattr(self.coordizer, 'vocab'):
+        # Get all vocabulary using pre-loaded list
+        if not self._vocabulary:
             return []
         
-        vocab = list(self.coordizer.vocab.keys())
+        vocab = self._vocabulary
         
         # Compute distances to all words
         relations = []
@@ -393,11 +429,11 @@ class GeometricWordRelationships:
         if self._distance_matrix is not None and self._vocab_list is not None:
             return self._distance_matrix, self._vocab_list
         
-        if not self.coordizer or not hasattr(self.coordizer, 'vocab'):
+        if not self._vocabulary:
             return np.array([]), []
         
         # Get vocabulary
-        vocab = sorted(list(self.coordizer.vocab.keys()))
+        vocab = sorted(self._vocabulary)
         n = len(vocab)
         
         # Compute distance matrix
@@ -436,6 +472,76 @@ class GeometricWordRelationships:
             'has_distance_matrix': self._distance_matrix is not None,
             'geometry_available': QIG_GEOMETRY_AVAILABLE,
         }
+    
+    def compute_all_relationships(self, max_words: int = 1000) -> Dict[str, List[Tuple[str, float]]]:
+        """
+        Compute geometric relationships for all vocabulary words.
+        
+        QIG-PURE: Uses Fisher-Rao distances, no PMI/co-occurrence.
+        
+        Args:
+            max_words: Maximum number of words to process (for performance)
+            
+        Returns:
+            Dict mapping word -> list of (related_word, similarity_score) tuples
+        """
+        if not self._vocabulary:
+            logger.warning("[GeometricWordRelationships] Empty vocabulary")
+            return {}
+        
+        # Limit for performance
+        vocab = self._vocabulary[:max_words]
+        
+        relationships = {}
+        for word in vocab:
+            related = self.get_related_words(word, top_k=20, max_distance=1.5)
+            if related:
+                relationships[word] = related
+        
+        logger.info(f"[GeometricWordRelationships] Computed relationships for {len(relationships)} words")
+        return relationships
+    
+    def get_all_relationships(self) -> Dict[str, Dict[str, Dict]]:
+        """
+        Get all computed relationships with full properties.
+        
+        Returns:
+            Nested dict: word1 -> word2 -> {fisher_rao_distance, qfi_weight, similarity}
+        """
+        if not self._vocabulary:
+            return {}
+        
+        vocab = self._vocabulary[:500]  # Limit for performance
+        
+        result = {}
+        for word in vocab:
+            word_basin = self._get_basin(word)
+            if word_basin is None:
+                continue
+            
+            word_props = self.compute_geometric_properties(word)
+            if word_props is None:
+                continue
+            
+            result[word] = {}
+            related = self.get_related_words(word, top_k=10, max_distance=1.5)
+            
+            for neighbor, similarity in related:
+                neighbor_basin = self._get_basin(neighbor)
+                if neighbor_basin is None:
+                    continue
+                
+                distance = fisher_coord_distance(word_basin, neighbor_basin)
+                neighbor_props = self.compute_geometric_properties(neighbor)
+                avg_qfi = (word_props.qfi + (neighbor_props.qfi if neighbor_props else 0.5)) / 2.0
+                
+                result[word][neighbor] = {
+                    'fisher_rao_distance': float(distance),
+                    'qfi_weight': float(avg_qfi),
+                    'similarity': float(similarity)
+                }
+        
+        return result
 
 
 # Global instance

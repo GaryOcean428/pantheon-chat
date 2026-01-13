@@ -65,6 +65,10 @@ except ImportError:
     get_geometric_relationships = None
     logger.warning("[LearnedRelationships] Geometric relationships not available")
 
+# Legacy word_relationship_learner has been removed (QIG-PURE compliance)
+# Use GeometricWordRelationships instead
+LEGACY_LEARNER_AVAILABLE = False
+
 # Legacy paths (no longer used but kept for migration)
 CACHE_DIR = Path(__file__).parent / 'data' / 'learned'
 ADJUSTED_BASINS_FILE = CACHE_DIR / 'adjusted_basins.npz'
@@ -510,16 +514,8 @@ class LearnedRelationships:
     
     def update_from_learner(self, learner, adjusted_basins: Dict[str, np.ndarray]):
         """Update from a WordRelationshipLearner instance."""
-        if hasattr(learner, 'cooccurrence'):
-            valid_words = [w for w in learner.cooccurrence if len(w) >= 2]
-        elif hasattr(learner, 'coordizer') and getattr(learner, 'coordizer') is not None:
-            coordizer = getattr(learner, 'coordizer')
-            if hasattr(coordizer, 'vocab'):
-                valid_words = [w for w in coordizer.vocab.keys() if isinstance(w, str) and len(w) >= 2]
-            else:
-                valid_words = []
-        else:
-            valid_words = []
+        # QIG-PURE: Filter out single characters and invalid tokens
+        valid_words = [w for w in learner.cooccurrence if len(w) >= 2]
         
         # Ensure _relationship_phi exists
         if not hasattr(self, '_relationship_phi'):
@@ -548,10 +544,7 @@ class LearnedRelationships:
                                 contexts_captured += 1
                         self._relationship_phi[word][neighbor]['contexts'] = existing
         
-        if hasattr(learner, 'word_freq'):
-            self.word_frequency = {w: f for w, f in learner.word_freq.items() if len(w) >= 2}
-        else:
-            self.word_frequency = {}
+        self.word_frequency = {w: f for w, f in learner.word_freq.items() if len(w) >= 2}
         self.adjusted_basins = adjusted_basins
         self.learning_complete = True
         
@@ -783,36 +776,98 @@ def get_learned_relationships() -> LearnedRelationships:
 
 def run_learning_and_cache(curriculum_dir: str = '/home/runner/workspace/docs/09-curriculum') -> Dict:
     """
-    Run the learning pipeline and cache results.
+    Run the QIG-pure geometric learning pipeline and cache results.
+    Uses GeometricWordRelationships instead of deprecated WordRelationshipLearner.
     """
-    if not GEOMETRIC_RELATIONSHIPS_AVAILABLE or get_geometric_relationships is None:
-        return {'success': False, 'error': 'geometric_relationships_unavailable'}
-
-    coordizer = None
+    if not GEOMETRIC_RELATIONSHIPS_AVAILABLE:
+        logger.error("GeometricWordRelationships not available")
+        return {'success': False, 'error': 'GeometricWordRelationships not available'}
+    
+    logger.info("Running QIG-pure geometric learning pipeline...")
+    
     try:
-        from coordizers import get_coordizer
-
-        coordizer = get_coordizer()
+        from coordizers.pg_loader import PostgresCoordizer
+        coordizer = PostgresCoordizer()
+        geo_rel = GeometricWordRelationships(coordizer)
+        
+        lr = get_learned_relationships()
+        
+        # Use GeometricWordRelationships' pre-loaded vocabulary
+        relationships = geo_rel.compute_all_relationships(max_words=1000)
+        relationships_computed = 0
+        
+        for word, related in relationships.items():
+            if related:
+                lr.word_neighbors[word] = related
+                relationships_computed += len(related)
+        
+        lr.learning_complete = True
+        lr.save_to_cache()
+        
+        # Persist to PostgreSQL using GeometricWordRelationships' vocabulary
+        _persist_geometric_relationships_to_db(geo_rel)
+        
+        return {
+            'success': True,
+            'relationships_computed': relationships_computed,
+            'words_learned': len(lr.word_neighbors),
+        }
     except Exception as e:
-        logger.warning(f"Could not load coordizer: {e}")
+        logger.error(f"Geometric learning failed: {e}")
+        return {'success': False, 'error': str(e)}
 
-    learner = get_geometric_relationships(coordizer=coordizer)
 
-    lr = LearnedRelationships.__new__(LearnedRelationships)
-    lr.word_neighbors = {}
-    lr.adjusted_basins = {}
-    lr.word_frequency = {}
-    lr.learning_complete = False
-    lr._relationship_phi = {}
-    lr.update_from_learner(learner, {})
-    lr.save_to_cache()
-
-    return {
-        'success': True,
-        'words_learned': len(lr.word_neighbors),
-        'basins_adjusted': len(lr.adjusted_basins),
-        'stats': {'source': 'geometric_word_relationships'}
-    }
+def _persist_geometric_relationships_to_db(geo_rel) -> int:
+    """Persist geometric relationships to PostgreSQL."""
+    if not DB_AVAILABLE:
+        return 0
+    
+    conn = get_db_connection()
+    if not conn:
+        return 0
+    
+    try:
+        cur = conn.cursor()
+        
+        # Use get_all_relationships which includes Fisher-Rao distances
+        all_relationships = geo_rel.get_all_relationships()
+        records = []
+        
+        for word, related in all_relationships.items():
+            for neighbor, props in related.items():
+                records.append((
+                    word,
+                    neighbor,
+                    float(props.get('fisher_rao_distance', 0.0)),
+                    float(props.get('qfi_weight', 0.5))
+                ))
+        
+        if records:
+            from psycopg2.extras import execute_values
+            execute_values(
+                cur,
+                """
+                INSERT INTO word_relationships (word1, word2, fisher_distance, qfi_weight)
+                VALUES %s
+                ON CONFLICT (word1, word2) DO UPDATE SET
+                    fisher_distance = EXCLUDED.fisher_distance,
+                    qfi_weight = EXCLUDED.qfi_weight,
+                    updated_at = NOW()
+                """,
+                records
+            )
+            conn.commit()
+            logger.info(f"[LearnedRelationships] Persisted {len(records)} relationships to PostgreSQL")
+        
+        conn.close()
+        return len(records)
+    except Exception as e:
+        logger.error(f"Failed to persist geometric relationships: {e}")
+        try:
+            conn.close()
+        except:
+            pass
+        return 0
 
 
 if __name__ == '__main__':
@@ -820,8 +875,8 @@ if __name__ == '__main__':
     
     result = run_learning_and_cache()
     print(f"\nLearning complete:")
-    print(f"  Words learned: {result['words_learned']}")
-    print(f"  Basins adjusted: {result['basins_adjusted']}")
+    print(f"  Success: {result.get('success')}")
+    print(f"  Relationships: {result.get('relationships_computed', 0)}")
     
     # Test attention
     lr = get_learned_relationships()

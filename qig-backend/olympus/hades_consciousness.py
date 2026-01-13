@@ -74,6 +74,7 @@ class EthicalDecisionType(Enum):
     BLOCKED_HARM_RATIO = "blocked_harm_ratio"
     BLOCKED_ETHICAL_ABORT = "blocked_ethical_abort"
     BLOCKED_LOW_VALUE = "blocked_low_value"
+    BLOCKED_HARM_BUDGET = "blocked_harm_budget"
     APPROVED_WITH_MITIGATION = "approved_with_mitigation"
 
 

@@ -1314,11 +1314,16 @@ class AutonomousCuriosityEngine:
     
     def _learn_from_search_result(self, result: Dict):
         """
-        Learn word relationships from search result immediately.
-        Updates word relationships and kernel basins in real-time.
-        Also persists rich content to shadow_knowledge for vocabulary learning.
+        Learn from search result using QIG-pure geometric approach.
+        Persists rich content to shadow_knowledge for vocabulary learning.
+        
+        QIG-PURE: Uses GeometricWordRelationships (Fisher-Rao based)
+        instead of deprecated WordRelationshipLearner (PMI/co-occurrence).
         """
         try:
+            from geometric_word_relationships import GeometricWordRelationships
+            from coordizers.pg_loader import PostgresCoordizer
+            
             # Extract text from result with full citation metadata
             text_content = []
             citation_metadata = []
@@ -1347,7 +1352,14 @@ class AutonomousCuriosityEngine:
             
             # Persist to shadow_knowledge for vocabulary learning (rich content persistence)
             self._persist_search_to_shadow_knowledge(result, text_content, citation_metadata)
-            return
+            
+            # QIG-PURE: Use geometric relationships instead of PMI/co-occurrence
+            coordizer = PostgresCoordizer()
+            geo_rel = GeometricWordRelationships(coordizer)
+            
+            # Geometric relationships are computed from basin coordinates,
+            # not from text co-occurrence. Just log the content persistence.
+            print(f"[AutonomousCuriosityEngine] Persisted {len(text_content)} search snippets to shadow_knowledge (QIG-pure)")
                 
         except Exception as e:
             print(f"[AutonomousCuriosityEngine] Error learning from search: {e}")
@@ -1722,8 +1734,52 @@ class AutonomousCuriosityEngine:
             return
         
         self._last_word_learning_time = current_time
-        logger.info("[AutonomousCuriosityEngine] WordRelationshipLearner removed (legacy NLP forbidden) - scheduled word learning disabled")
-        return
+        
+        try:
+            from geometric_word_relationships import GeometricWordRelationships
+            from learned_relationships import get_learned_relationships, LearnedRelationships
+            from coordizers.pg_loader import PostgresCoordizer
+            
+            logger.info("[AutonomousCuriosityEngine] Starting scheduled geometric word relationship computation (QIG-pure)")
+            
+            lr = get_learned_relationships()
+            baseline_count = len(lr.word_neighbors)
+            
+            coordizer = PostgresCoordizer()
+            geo_rel = GeometricWordRelationships(coordizer)
+            
+            # QIG-PURE: Compute geometric relationships using Fisher-Rao distances
+            # Use GeometricWordRelationships' pre-loaded vocabulary
+            relationships = geo_rel.compute_all_relationships(max_words=500)
+            relationship_count = 0
+            
+            for word, related in relationships.items():
+                if related:
+                    lr.word_neighbors[word] = related
+                    relationship_count += len(related)
+            
+            logger.info(f"[AutonomousCuriosityEngine] Computed {relationship_count} geometric relationships (QIG-pure)")
+            
+            # Update learned relationships with geometric data
+            if relationship_count > 0:
+                lr.learning_complete = True
+                lr.save_to_cache()
+                
+                # Validate against frozen facts
+                validation = lr.validate_against_frozen_facts()
+                if not validation.get('valid', True):
+                    logger.warning(f"[AutonomousCuriosityEngine] Validation warning: {validation.get('stats', {})}")
+            
+            self.stats['word_learning_cycles'] += 1
+            self.stats['last_word_learning'] = datetime.now().isoformat()
+            self.stats['word_learning_relevance'] = relationship_count
+            
+            logger.info(f"[AutonomousCuriosityEngine] Geometric learning complete: {relationship_count} relationships (QIG-pure)")
+            
+        except Exception as e:
+            logger.error(f"[AutonomousCuriosityEngine] Word learning failed: {e}")
+            import traceback
+            traceback.print_exc()
     
     def _get_premium_quota_summary(self) -> Dict[str, Any]:
         """

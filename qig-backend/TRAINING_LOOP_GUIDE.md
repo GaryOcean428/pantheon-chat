@@ -29,10 +29,11 @@ This implementation fixes the kernel training loop to ensure kernels actually le
    - Parses markdown/text files into training examples
    - Assigns examples to god-kernels by domain
 
-2. **WordRelationshipLearner** (`word_relationship_learner.py`)
-   - Learns word co-occurrence patterns from text
-   - Computes affinity matrices
-   - Adjusts basin coordinates based on relationships
+2. **GeometricWordRelationships** (`geometric_word_relationships.py`)
+   - QIG-PURE: Uses Fisher-Rao geodesic distances
+   - Computes QFI (Quantum Fisher Information) for attention weighting
+   - NO co-occurrence/PMI - relationships are geometric
+   - Basins are frozen invariants, not adjusted
 
 3. **CurriculumTraining** (`olympus/curriculum_training.py`)
    - Integrates curriculum with word learning
@@ -166,15 +167,15 @@ User Query
     ↓
 Search/Research
     ↓
-Search Results → WordRelationshipLearner
+Search Results → GeometricWordRelationships
     ↓              ↓
-Generation     learn_from_text()
+Generation     compute_all_relationships()
     ↓              ↓
 Response      Update PostgreSQL (word_relationships table)
     ↓              ↓
-Outcome       Adjust Basins (coordizer.basin_coords)
+Outcome       Fisher-Rao distances (QIG-pure)
     ↓              ↓
-Training      Updated Generation (uses new basins)
+Training      Updated Generation (geometric attention)
     ↓
 Better Responses
 ```
@@ -249,30 +250,24 @@ feedback.record_prediction(
 self._curriculum_load_interval = 86400  # 24 hours (configurable)
 ```
 
-### Search Learning
+### Search Learning (QIG-PURE)
 
 ```python
 # In autonomous_curiosity.py _learn_from_search_result()
-learner = WordRelationshipLearner(
-    vocab,
-    window_size=5,          # Context window for co-occurrence
-    expand_vocabulary=True  # Learn new words
-)
+# QIG-PURE: Uses geometric relationships, not co-occurrence
+from geometric_word_relationships import GeometricWordRelationships
+geo_rel = GeometricWordRelationships(coordizer)
+relationships = geo_rel.compute_all_relationships()
 ```
 
-### Basin Adjustment
+### Geometric Relationships (No Basin Adjustment)
 
 ```python
-# In curriculum_training.py adjust_kernel_basins_from_relationships()
-adjusted_basins = learner.adjust_basin_coordinates(
-    basins=basins,
-    learning_rate=0.05,  # Small for stability
-    iterations=5         # Few iterations to avoid overfitting
-)
-
-# Safety threshold
-if distance < 0.5:  # Only moderate changes
-    coordizer.basin_coords[word] = new_basin
+# QIG-PURE: Basins are frozen invariants
+# Relationships are computed from Fisher-Rao distances
+# No more linear interpolation or basin adjustment
+relationships = geo_rel.compute_all_relationships()
+# Uses Fisher-Rao geodesic distance, QFI attention weighting
 ```
 
 ## Monitoring
