@@ -159,7 +159,7 @@ class LearningDocumentStore {
         .map((obj: { name: string }) => obj.name);
       
       if (kernel_id) {
-        documents = documents.filter(key => key.startsWith(`learning/${kernel_id}/`));
+        documents = documents.filter((key: string) => key.startsWith(`learning/${kernel_id}/`));
       }
       
       return documents.slice(0, limit);
