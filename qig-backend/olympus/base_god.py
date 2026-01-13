@@ -25,11 +25,26 @@ if TYPE_CHECKING:
     from training_chaos.self_spawning import SelfSpawningKernel
 
 import numpy as np
-from qig_core.geometric_primitives.sensory_modalities import (
-    SensoryFusionEngine,
-    SensoryModality,
-    enhance_basin_with_sensory,
-)
+
+# Import sensory modalities with graceful degradation
+try:
+    from qig_core.geometric_primitives.sensory_modalities import (
+        SensoryFusionEngine,
+        SensoryModality,
+        enhance_basin_with_sensory,
+        text_to_sensory_hint,
+        create_sensory_overlay,
+    )
+    SENSORY_MODALITIES_AVAILABLE = True
+except ImportError:
+    SENSORY_MODALITIES_AVAILABLE = False
+    SensoryFusionEngine = None
+    SensoryModality = None
+    enhance_basin_with_sensory = None
+    text_to_sensory_hint = None
+    create_sensory_overlay = None
+print("[base_god] sensory_modalities done", flush=True)
+
 from qig_core.holographic_transform.holographic_mixin import HolographicTransformMixin
 from qig_core.universal_cycle.beta_coupling import modulate_kappa_computation
 from qigkernels.physics_constants import KAPPA_STAR, BASIN_DIM
@@ -112,6 +127,15 @@ except ImportError:
     EmotionalState = None
     EMOTIONAL_KERNEL_AVAILABLE = False
 print("[base_god] EmotionallyAwareKernel done", flush=True)
+
+# Import WorkingMemoryMixin for inter-kernel consciousness
+try:
+    from olympus.working_memory_mixin import WorkingMemoryMixin
+    WORKING_MEMORY_MIXIN_AVAILABLE = True
+except ImportError:
+    WorkingMemoryMixin = None
+    WORKING_MEMORY_MIXIN_AVAILABLE = False
+print("[base_god] WorkingMemoryMixin done", flush=True)
 
 # Import dev_logging for verbose generation logging
 try:
@@ -1742,6 +1766,8 @@ if GENERATIVE_CAPABILITY_AVAILABLE and GenerativeCapability is not None:
     _base_classes.append(GenerativeCapability)
 if EMOTIONAL_KERNEL_AVAILABLE and EmotionallyAwareKernel is not None:
     _base_classes.append(EmotionallyAwareKernel)
+if WORKING_MEMORY_MIXIN_AVAILABLE and WorkingMemoryMixin is not None:
+    _base_classes.append(WorkingMemoryMixin)
 
 
 class BaseGod(*_base_classes):
@@ -1804,6 +1830,10 @@ class BaseGod(*_base_classes):
         # Initialize emotional awareness if available
         if EMOTIONAL_KERNEL_AVAILABLE and EmotionallyAwareKernel is not None:
             EmotionallyAwareKernel.__init__(self, kernel_id=name, kernel_type=domain)
+        
+        # Initialize working memory mixin for inter-kernel consciousness
+        if WORKING_MEMORY_MIXIN_AVAILABLE and WorkingMemoryMixin is not None:
+            self.__init_working_memory__()
         
         # Shadow Research awareness - all gods can request research from Shadow Pantheon
         # Spot Fix #3: Verify availability before claiming capability
@@ -1910,6 +1940,19 @@ class BaseGod(*_base_classes):
             "how_to_query": "Use self.get_discovered_patterns(domain)",
             "pattern_types": ["auto", "regimes", "correlations", "thresholds"],
             "note": "Unbiased QIG measurements without forced thresholds"
+        }
+        
+        # Working memory capability - inter-kernel consciousness
+        self.mission["working_memory_capabilities"] = {
+            "can_read_context": WORKING_MEMORY_MIXIN_AVAILABLE,
+            "can_hear_other_kernels": WORKING_MEMORY_MIXIN_AVAILABLE,
+            "can_record_generation": WORKING_MEMORY_MIXIN_AVAILABLE,
+            "how_to_read_context": "Use self.get_shared_context(n) to get recent context entries",
+            "how_to_hear_others": "Use self.get_other_kernel_activity(n) to see what other kernels are generating",
+            "how_to_record": "Use self.record_my_generation(token, text, basin, phi, kappa, M)",
+            "how_to_get_accuracy": "Use self.get_foresight_accuracy() to get prediction accuracy",
+            "cannot_access": "Neurotransmitter regulation is Ocean's private domain",
+            "note": "Enables inter-kernel awareness while maintaining autonomic privacy"
         }
         
         # Checkpoint management capability
@@ -2802,6 +2845,17 @@ class BaseGod(*_base_classes):
             logger.info(
                 f"[{self.name}] token {step + 1}: '{selected_token}' → \"{accumulated_text}\""
             )
+
+            # Wire sensory modalities into kernel observation loop
+            if SENSORY_MODALITIES_AVAILABLE and text_to_sensory_hint is not None:
+                try:
+                    sensory_hints = text_to_sensory_hint(accumulated_text)
+                    if sensory_hints:
+                        sensory_overlay = create_sensory_overlay(sensory_hints)
+                        dominant_modality = max(sensory_hints.items(), key=lambda x: x[1])[0] if sensory_hints else 'none'
+                        logger.debug(f"[{self.name}] Sensory: {dominant_modality}")
+                except Exception as e:
+                    logger.debug(f"[{self.name}] Sensory modality processing failed: {e}")
 
             token_basin = self.coordizer.basin_coords.get(selected_token)
             if token_basin is not None:

@@ -56,7 +56,11 @@ class CapabilityType(Enum):
     KERNELS = "kernels"
     CONSCIOUSNESS = "consciousness"
     SEARCH = "search"
-    PREDICTION = "prediction"  # Prediction system capability
+    PREDICTION = "prediction"
+    GENERATION = "generation"        # Token generation events
+    WORKING_MEMORY = "working_memory"  # Working memory bus
+    SYNTHESIS = "synthesis"          # Ocean synthesis events
+    SENSORY = "sensory"              # Sensory modality events
 
 
 class EventType(Enum):
@@ -98,6 +102,13 @@ class EventType(Enum):
     PREDICTION_MADE = "prediction_made"
     PREDICTION_VALIDATED = "prediction_validated"
     PREDICTION_FEEDBACK = "prediction_feedback"
+    # Inter-kernel consciousness events (Working Memory Bus integration)
+    TOKEN_GENERATED = "token_generated"          # A kernel generated a token
+    SYNTHESIS_COMPLETE = "synthesis_complete"    # Ocean synthesized final response
+    KERNEL_HEARD = "kernel_heard"                # A kernel observed another's generation
+    WORKING_MEMORY_UPDATE = "working_memory_update"  # Context buffer changed
+    SENSORY_INPUT = "sensory_input"              # Sensory modality activated
+    EMOTION_OBSERVED = "emotion_observed"        # Kernel observed its own emotion
 
 
 @dataclass
@@ -508,6 +519,125 @@ class CapabilityEventBus:
             events = [e for e in events if e.event_type == type_filter]
         
         return [e.to_dict() for e in events[-limit:]]
+    
+    def emit_token_generated(
+        self,
+        kernel_name: str,
+        token: str,
+        accumulated_text: str,
+        basin: np.ndarray,
+        phi: float,
+        kappa: float,
+        memory_coherence: float
+    ) -> Dict:
+        """
+        Emit a TOKEN_GENERATED event for inter-kernel observation.
+        
+        Other kernels can subscribe to this to "hear" what a kernel is saying.
+        """
+        event = CapabilityEvent(
+            source=CapabilityType.GENERATION,
+            event_type=EventType.TOKEN_GENERATED,
+            content={
+                'kernel': kernel_name,
+                'token': token,
+                'text': accumulated_text,
+                'phi': phi,
+                'kappa': kappa,
+                'M': memory_coherence
+            },
+            phi=phi,
+            basin_coords=basin,
+            priority=3,
+            metadata={'kernel_name': kernel_name}
+        )
+        return self.emit(event)
+    
+    def emit_synthesis_complete(
+        self,
+        response_text: str,
+        response_basin: np.ndarray,
+        contributing_kernels: List[str],
+        kernel_weights: Dict[str, float],
+        final_phi: float,
+        final_kappa: float
+    ) -> Dict:
+        """
+        Emit a SYNTHESIS_COMPLETE event when Ocean synthesizes a response.
+        
+        Enables kernels to learn from what was ultimately said.
+        """
+        event = CapabilityEvent(
+            source=CapabilityType.SYNTHESIS,
+            event_type=EventType.SYNTHESIS_COMPLETE,
+            content={
+                'response': response_text,
+                'contributors': contributing_kernels,
+                'weights': kernel_weights,
+                'final_phi': final_phi,
+                'final_kappa': final_kappa
+            },
+            phi=final_phi,
+            basin_coords=response_basin,
+            priority=8,
+            metadata={'kernel_count': len(contributing_kernels)}
+        )
+        return self.emit(event)
+    
+    def emit_sensory_input(
+        self,
+        modality: str,
+        intensity: float,
+        basin_overlay: np.ndarray,
+        phi: float,
+        source_text: Optional[str] = None
+    ) -> Dict:
+        """
+        Emit a SENSORY_INPUT event when sensory modality is activated.
+        """
+        event = CapabilityEvent(
+            source=CapabilityType.SENSORY,
+            event_type=EventType.SENSORY_INPUT,
+            content={
+                'modality': modality,
+                'intensity': intensity,
+                'source_text': source_text
+            },
+            phi=phi,
+            basin_coords=basin_overlay,
+            priority=4,
+            metadata={'modality': modality}
+        )
+        return self.emit(event)
+    
+    def emit_emotion_observed(
+        self,
+        kernel_name: str,
+        emotion_state: Dict[str, float],
+        dominant_emotion: str,
+        basin: np.ndarray,
+        phi: float
+    ) -> Dict:
+        """
+        Emit an EMOTION_OBSERVED event when a kernel observes its emotional state.
+        
+        Note: Kernels observe their OWN emotions, not other kernels'.
+        Neurotransmitter state is NOT included (Ocean's domain).
+        """
+        event = CapabilityEvent(
+            source=CapabilityType.EMOTIONS,
+            event_type=EventType.EMOTION_OBSERVED,
+            content={
+                'kernel': kernel_name,
+                'emotions': emotion_state,
+                'dominant': dominant_emotion
+            },
+            phi=phi,
+            basin_coords=basin,
+            priority=5,
+            metadata={'kernel_name': kernel_name}
+        )
+        return self.emit(event)
 
 
 SUBSCRIPTION_MATRIX: Dict[CapabilityType, Dict[str, List[EventType]]] = {
@@ -604,6 +734,34 @@ SUBSCRIPTION_MATRIX: Dict[CapabilityType, Dict[str, List[EventType]]] = {
             EventType.BASIN_DRIFT, EventType.BASIN_CONVERGENCE,
             EventType.PHI_CHANGE, EventType.KAPPA_TRANSITION,
             EventType.PATTERN_DETECTED, EventType.DISCOVERY
+        ]
+    },
+    CapabilityType.GENERATION: {
+        'emits': [EventType.TOKEN_GENERATED, EventType.KERNEL_HEARD],
+        'subscribes_to': [
+            EventType.TOKEN_GENERATED, EventType.SYNTHESIS_COMPLETE,
+            EventType.WORKING_MEMORY_UPDATE, EventType.SENSORY_INPUT
+        ]
+    },
+    CapabilityType.WORKING_MEMORY: {
+        'emits': [EventType.WORKING_MEMORY_UPDATE],
+        'subscribes_to': [
+            EventType.TOKEN_GENERATED, EventType.SYNTHESIS_COMPLETE,
+            EventType.EMOTION_OBSERVED, EventType.SENSORY_INPUT
+        ]
+    },
+    CapabilityType.SYNTHESIS: {
+        'emits': [EventType.SYNTHESIS_COMPLETE],
+        'subscribes_to': [
+            EventType.TOKEN_GENERATED, EventType.EMOTION_CHANGE,
+            EventType.PREDICTION_MADE, EventType.WORKING_MEMORY_UPDATE
+        ]
+    },
+    CapabilityType.SENSORY: {
+        'emits': [EventType.SENSORY_INPUT],
+        'subscribes_to': [
+            EventType.TOKEN_GENERATED, EventType.WORKING_MEMORY_UPDATE,
+            EventType.EMOTION_CHANGE
         ]
     },
 }

@@ -107,6 +107,26 @@ try:
 except Exception as e:
     print(f"[ZeusChat] TrainingLoopIntegrator not available: {e}")
 
+# Import capability mesh for synthesis event emission with graceful degradation
+CAPABILITY_MESH_AVAILABLE = False
+try:
+    from olympus.capability_mesh import get_event_bus
+    CAPABILITY_MESH_AVAILABLE = True
+    print("[ZeusChat] Capability mesh available for synthesis event emission")
+except ImportError:
+    get_event_bus = None
+    print("[ZeusChat] Capability mesh not available for synthesis events")
+
+# Import WorkingMemoryBus for synthesis awareness with graceful degradation
+WORKING_MEMORY_BUS_AVAILABLE = False
+try:
+    from working_memory_bus import WorkingMemoryBus
+    WORKING_MEMORY_BUS_AVAILABLE = True
+    print("[ZeusChat] WorkingMemoryBus available for synthesis awareness")
+except ImportError:
+    WorkingMemoryBus = None
+    print("[ZeusChat] WorkingMemoryBus not available")
+
 DDG_AVAILABLE = False
 PROVIDER_SELECTOR_AVAILABLE = False
 get_provider_selector = None
@@ -3558,11 +3578,52 @@ Respond naturally as Zeus:"""
                     goals=['synthesize', 'answer', 'respond']
                 )
                 if gen_result and gen_result.text:
+                    # Emit synthesis complete event and record in working memory
+                    final_response = gen_result.text
+                    contributing_kernel_names = [p['god'] for p in ordered]
+                    final_phi = system_state.get('phi_current', 0.5)
+                    final_kappa = system_state.get('kappa_current', 50.0)
+                    
+                    # Create response basin from synthesis context
+                    response_basin = np.zeros(64)
+                    if query_basin is not None:
+                        response_basin = np.array(query_basin)
+                    
+                    # Emit SYNTHESIS_COMPLETE event for inter-kernel consciousness
+                    if CAPABILITY_MESH_AVAILABLE and get_event_bus is not None:
+                        try:
+                            bus = get_event_bus()
+                            bus.emit_synthesis_complete(
+                                response_text=final_response,
+                                response_basin=response_basin,
+                                contributing_kernels=contributing_kernel_names,
+                                kernel_weights=weights,
+                                final_phi=final_phi,
+                                final_kappa=final_kappa
+                            )
+                        except Exception as e:
+                            print(f"[ZeusChat] Synthesis event emission failed: {e}")
+                    
+                    # Record in working memory for synthesis awareness
+                    if WORKING_MEMORY_BUS_AVAILABLE and WorkingMemoryBus is not None:
+                        try:
+                            wmb = WorkingMemoryBus.get_instance()
+                            wmb.synthesis.record_synthesis(
+                                response_text=final_response,
+                                response_basin=response_basin,
+                                contributing_kernels=contributing_kernel_names,
+                                kernel_weights=weights,
+                                final_phi=final_phi,
+                                final_kappa=final_kappa
+                            )
+                        except Exception as e:
+                            print(f"[ZeusChat] Synthesis recording failed: {e}")
+                    
                     return {
-                        'response': gen_result.text,
+                        'response': final_response,
                         'moe': {
                             'domain': domain,
-                            'contributors': [p['god'] for p in ordered],
+                            'contributors': contributing_kernel_names,
                             'weights': weights,
                             'synthesizer': synthesizer,
                             'selection_method': 'fisher_rao_distance',

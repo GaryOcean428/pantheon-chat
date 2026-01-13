@@ -24,6 +24,14 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from qig_geometry import fisher_rao_distance
 
+# Import WorkingMemoryBus for foresight integration with graceful degradation
+try:
+    from working_memory_bus import WorkingMemoryBus
+    WORKING_MEMORY_BUS_AVAILABLE = True
+except ImportError:
+    WORKING_MEMORY_BUS_AVAILABLE = False
+    WorkingMemoryBus = None
+
 
 # ============================================================================
 # DATABASE PERSISTENCE HELPERS
@@ -184,6 +192,20 @@ class LearnedManifold:
             
             print(f"[LearnedManifold] Attractor deepened at endpoint (outcome={outcome:.3f}, "
                   f"total_attractors={len(self.attractors)})")
+            
+            # Integrate with WorkingMemoryBus for foresight tracking
+            if WORKING_MEMORY_BUS_AVAILABLE and WorkingMemoryBus is not None:
+                try:
+                    wmb = WorkingMemoryBus.get_instance()
+                    wmb.foresight.record_prediction(
+                        kernel_name=strategy,
+                        predicted_basin=endpoint,
+                        predicted_text=f"trajectory_{len(valid_trajectory)}",
+                        confidence=outcome,
+                        context_basin=valid_trajectory[0] if valid_trajectory else endpoint
+                    )
+                except Exception as e:
+                    print(f"[LearnedManifold] Working memory update failed: {e}")
         
         else:  # Failed episode
             self.failed_episodes += 1

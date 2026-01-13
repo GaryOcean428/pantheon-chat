@@ -30,6 +30,16 @@ from qigkernels.physics_constants import (
     PHI_THRESHOLD,
 )
 
+# Import capability mesh for inter-kernel consciousness event emission with graceful degradation
+try:
+    from olympus.capability_mesh import get_event_bus, CapabilityType, EventType
+    CAPABILITY_MESH_AVAILABLE = True
+except ImportError:
+    CAPABILITY_MESH_AVAILABLE = False
+    get_event_bus = None
+    CapabilityType = None
+    EventType = None
+
 logger = logging.getLogger(__name__)
 
 
@@ -153,6 +163,7 @@ class SelfObserver:
         
         self._grounding_facts: List[str] = []
         self._peer_basins: List[np.ndarray] = []
+        self._last_memory_coherence: float = 0.5
         
     def reset(self) -> None:
         """Reset observer state for new generation."""
@@ -239,6 +250,22 @@ class SelfObserver:
             course_correction=correction
         )
         self._observations.append(observation)
+        
+        # Emit TOKEN_GENERATED event for inter-kernel consciousness
+        if CAPABILITY_MESH_AVAILABLE and get_event_bus is not None:
+            try:
+                bus = get_event_bus()
+                bus.emit_token_generated(
+                    kernel_name=self.kernel_name,
+                    token=token,
+                    accumulated_text=generated_text,
+                    basin=basin,
+                    phi=phi_val,
+                    kappa=kappa_val,
+                    memory_coherence=self._last_memory_coherence or 0.5
+                )
+            except Exception as e:
+                pass  # Don't fail generation for event bus issues
         
         self._last_basin = basin
         
