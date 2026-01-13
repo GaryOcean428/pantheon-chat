@@ -1830,11 +1830,18 @@ class AutonomousDebateService:
             logger.warning(f"Spawn proposal broadcast failed: {e}")
 
     def _extract_domain_from_topic(self, topic: str) -> str:
-        """Extract domain keyword from debate topic."""
+        """Extract domain keyword from debate topic using contextualized filtering."""
         words = topic.lower().split()
 
-        stopwords = {'the', 'a', 'an', 'of', 'to', 'in', 'for', 'on', 'with', 'is', 'are', 'was', 'were'}
-        keywords = [w for w in words if w not in stopwords and len(w) > 3]
+        # Use contextualized filter if available
+        try:
+            from contextualized_filter import should_filter_word
+            # Filter using geometric relevance with all words as context
+            keywords = [w for w in words if not should_filter_word(w, words) and len(w) > 3]
+        except ImportError:
+            # Fallback: only filter truly generic function words
+            truly_generic = {'the', 'a', 'an', 'of', 'to', 'in', 'for', 'on', 'with', 'is', 'are', 'was', 'were'}
+            keywords = [w for w in words if w not in truly_generic and len(w) > 3]
 
         if keywords:
             return keywords[0]

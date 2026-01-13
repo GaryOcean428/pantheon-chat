@@ -26,6 +26,7 @@ import { basinMemory, zeusConversations } from '../../shared/schema';
 import { eq, desc, sql, and, gte, lte } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { requireInternalAuth } from '../internal-auth';
+import { extractKeywords } from '../contextualized-filter';
 
 const router = Router();
 
@@ -34,28 +35,6 @@ function ensureDb() {
     throw new Error('Database not initialized');
   }
   return db;
-}
-
-function extractKeywords(text: string): string[] {
-  const stopwords = new Set([
-    'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
-    'of', 'with', 'by', 'from', 'as', 'is', 'was', 'are', 'were', 'been',
-    'be', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could',
-    'should', 'may', 'might', 'must', 'shall', 'can', 'this', 'that', 'it'
-  ]);
-  
-  const words = text.toLowerCase()
-    .replace(/[^a-z0-9\s]/g, ' ')
-    .split(/\s+/)
-    .filter(w => w.length > 3 && !stopwords.has(w));
-  
-  const freq = new Map<string, number>();
-  words.forEach(w => freq.set(w, (freq.get(w) || 0) + 1));
-  
-  return Array.from(freq.entries())
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5)
-    .map(([word]) => word);
 }
 
 /**

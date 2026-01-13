@@ -21,18 +21,28 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-# Stopwords to filter from learned relationships (frozen invariant)
-STOPWORDS = {
-    'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
-    'of', 'with', 'by', 'from', 'as', 'is', 'was', 'are', 'were', 'been',
-    'be', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could',
-    'should', 'may', 'might', 'must', 'shall', 'can', 'need', 'dare', 'ought',
-    'used', 'this', 'that', 'these', 'those', 'it', 'its', 'they', 'them',
-    'their', 'what', 'which', 'who', 'whom', 'how', 'when', 'where', 'why',
-    'all', 'each', 'every', 'both', 'few', 'more', 'most', 'other', 'some',
-    'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than', 'too',
-    'very', 'just', 'also', 'now', 'here', 'there', 'then', 'once', 'about'
-}
+# Import QIG-pure contextualized filter (replaces ancient NLP stopwords)
+try:
+    from contextualized_filter import (
+        filter_words_geometric,
+        is_semantic_critical_word,
+        should_filter_word
+    )
+    CONTEXTUALIZED_FILTER_AVAILABLE = True
+    logger.info("[WordRelationshipLearner] Using QIG-pure contextualized filter")
+except ImportError:
+    CONTEXTUALIZED_FILTER_AVAILABLE = False
+    logger.warning("[WordRelationshipLearner] Contextualized filter not available - using fallback")
+    
+    # Minimal fallback: only filter truly generic, short words
+    # NEVER filter semantic-critical words like 'not', 'never'
+    def should_filter_word(word: str, context=None) -> bool:
+        """Fallback filter - very conservative."""
+        if len(word) < 3:
+            return True
+        # Only filter the most generic function words
+        generic_only = {'the', 'a', 'an', 'is', 'was', 'are', 'were', 'been', 'be'}
+        return word.lower() in generic_only
 
 class WordRelationshipLearner:
     """
@@ -73,19 +83,22 @@ class WordRelationshipLearner:
         """
         Tokenize text. In open vocabulary mode, accepts words that are:
         - In vocabulary OR
-        - Length >= 4 and not stopwords (for learning new domain terms)
+        - Length >= 4 and passes contextualized filter (for learning new domain terms)
+        
+        QIG-PURE: Uses geometric relevance, not fixed stopwords
         """
         # QIG-PURE: Extract alphanumeric words, preserving internal hyphens if they are part of domain terms
         words = re.findall(r'\b[a-zA-Z]{2,}\b', text.lower())
         
         if self.expand_vocabulary:
-            # Accept vocab words OR content words (len >= 4, not stopwords)
+            # Accept vocab words OR content words passing contextualized filter
             result = []
             for w in words:
                 if w in self.vocabulary:
                     result.append(w)
-                elif len(w) >= 4 and w.lower() not in STOPWORDS:
-                    # Add new domain word to vocabulary
+                elif len(w) >= 4 and not should_filter_word(w, words):
+                    # Word passes contextualized filter - add to vocabulary
+                    # This preserves semantic-critical words and domain terms
                     self.vocabulary.add(w)
                     self.new_words_learned.add(w)
                     result.append(w)
@@ -181,14 +194,25 @@ class WordRelationshipLearner:
         """
         Get words most frequently co-occurring with given word.
         
-        FROZEN FACTS COMPLIANCE: Filters out stopwords from neighbors
+        QIG-PURE: Uses contextualized filtering based on geometric relevance
+        instead of hard-coded stopwords.
         """
         if word not in self.cooccurrence:
             return []
         
         neighbors = self.cooccurrence[word]
-        # Filter out stopwords (frozen invariant)
-        filtered = [(w, c) for w, c in neighbors.items() if w.lower() not in STOPWORDS]
+        
+        # Get all neighbor words for context
+        neighbor_words = list(neighbors.keys())
+        
+        # Filter using contextualized approach (preserves semantic-critical words)
+        filtered = []
+        for w, c in neighbors.items():
+            # Never filter semantic-critical words
+            # For others, apply contextualized filtering with word and its neighbors as context
+            if not should_filter_word(w, [word] + neighbor_words):
+                filtered.append((w, c))
+        
         sorted_neighbors = sorted(filtered, key=lambda x: -x[1])
         return sorted_neighbors[:top_k]
     
