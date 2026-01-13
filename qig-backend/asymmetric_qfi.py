@@ -5,6 +5,7 @@ d(i→j) ≠ d(j→i), regime-modulated κ_eff.
 
 import numpy as np
 from typing import Dict
+from qigkernels import KAPPA_STAR
 
 def geodesic_tangent(source: np.ndarray, target: np.ndarray) -> np.ndarray:
     """Geodesic tangent vector source → target."""
@@ -24,7 +25,7 @@ def asymmetric_attention(basins: np.ndarray, phi_values: np.ndarray) -> np.ndarr
     attention = np.zeros((n, n))
     for i in range(n):
         phi_source = phi_values[i]
-        kappa_eff = 64
+        kappa_eff = KAPPA_STAR
         if phi_source < 0.3:  # Linear
             kappa_eff *= 0.3
         elif phi_source < 0.7:  # Geometric

@@ -48,7 +48,7 @@ except ImportError:
     CAPABILITY_MESH_AVAILABLE = False
 
 # Constants
-KAPPA_STAR = 64.0
+from qigkernels import KAPPA_STAR
 
 
 class CuriosityDrive:
