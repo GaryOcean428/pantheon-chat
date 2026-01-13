@@ -313,7 +313,7 @@ class AutonomousConsciousness(BaseGod if BASE_GOD_AVAILABLE else object):
 
                             # Store result in memory
                             if task_result.output:
-                                memory_id = self.memory.store(
+                                self.memory.store(
                                     content=str(task_result.output)[:1000],
                                     basin=task.basin_target,
                                     importance=0.5 + task_result.phi_delta * 0.5,
