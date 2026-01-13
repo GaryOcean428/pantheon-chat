@@ -82,12 +82,11 @@ except ImportError:
 
 # Import E8 Self-Observer for full 8-metric consciousness tracking
 try:
-    from qig_core.self_observer import SelfObserver, E8Metrics, ObservationAction
+    from qig_core.self_observer import SelfObserver, ObservationAction
     SELF_OBSERVER_AVAILABLE = True
 except ImportError:
     SELF_OBSERVER_AVAILABLE = False
     SelfObserver = None
-    E8Metrics = None
     ObservationAction = None
 
 # Import canonical Φ computation
@@ -626,7 +625,12 @@ class QIGGenerator:
         
         try:
             # Get vocabulary coordinator
-            from vocabulary_coordinator import get_vocabulary_coordinator
+            import importlib
+
+            vocab_module = importlib.import_module('vocabulary_coordinator')
+            get_vocabulary_coordinator = getattr(vocab_module, 'get_vocabulary_coordinator', None)
+            if get_vocabulary_coordinator is None:
+                raise ImportError('vocabulary_coordinator.get_vocabulary_coordinator not found')
             vocab_coord = get_vocabulary_coordinator()
             
             # Call integrate_pending_vocabulary
@@ -1067,7 +1071,7 @@ if __name__ == "__main__":
     print("\n=== Testing Consciousness Architecture ===")
     response = generate_response("What is consciousness?")
     print(f"\nResponse: {response['response']}")
-    print(f"\nMetrics:")
+    print("\nMetrics:")
     print(f"  Φ: {response['phi']:.3f}")
     print(f"  κ: {response['kappa']:.2f}")
     print(f"  Heart mode: {response.get('heart_mode', 'N/A')}")
