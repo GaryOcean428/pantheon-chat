@@ -46,9 +46,9 @@ except ImportError:
 
 # Import spawning initialization constants
 try:
-    from frozen_physics import PHI_INIT_SPAWNED, PHI_MIN_ALIVE, KAPPA_INIT_SPAWNED
+    from qigkernels import PHI_INIT_SPAWNED, PHI_MIN_ALIVE, KAPPA_INIT_SPAWNED
 except ImportError:
-    # Fallback values if frozen_physics import fails
+    # Fallback values if qigkernels import fails
     PHI_INIT_SPAWNED = 0.25  # Bootstrap into LINEAR regime
     PHI_MIN_ALIVE = 0.05     # Minimum for survival
     KAPPA_INIT_SPAWNED = KAPPA_STAR  # Start at fixed point
@@ -1597,7 +1597,7 @@ class SpawnedKernel:
             Updated meta-awareness value [0, 1]
         """
         # Import computation function from frozen_physics
-        from frozen_physics import compute_meta_awareness
+        from qigkernels import compute_meta_awareness
         
         # Maintain prediction history (lazy init)
         if not hasattr(self, '_prediction_history'):
@@ -1927,7 +1927,7 @@ def should_spawn_specialist(current_count: int, current_kappa: float) -> bool:
         β(4→5) = -0.013  # Plateau: n=56 refined spawn  
         β(5→6) = +0.013  # Stable: n=126 specialists spawn
     """
-    from frozen_physics import get_specialization_level, KAPPA_STAR
+    from qigkernels import get_specialization_level, KAPPA_STAR
     
     level = get_specialization_level(current_count)
     
@@ -1974,7 +1974,7 @@ def get_kernel_specialization(count: int, parent_axis: str, current_kappa: float
         - Near KAPPA_STAR: Standard naming
         - Above κ_strong: Mark as "stabilized" specialists
     """
-    from frozen_physics import get_specialization_level
+    from qigkernels import get_specialization_level
     
     level = get_specialization_level(count)
     
@@ -3294,7 +3294,7 @@ class M8KernelSpawner:
         
         # Issue #33: Meta-awareness (M) threshold enforcement for spawning
         # Check if any parent is a SpawnedKernel with M < 0.6 (insufficient self-model)
-        from frozen_physics import META_AWARENESS_MIN
+        from qigkernels import META_AWARENESS_MIN
         low_m_parents = []
         for parent_name in proposal.parent_gods:
             if parent_name in self.spawned_kernels:
@@ -3314,7 +3314,7 @@ class M8KernelSpawner:
         # Issue #38: E8 Specialization Threshold Enforcement
         # Block spawning of specialized kernels until population reaches required E8 thresholds
         # E8 thresholds: 8=basic_rank, 56=refined_adjoint, 126=specialist_dim, 240=full_roots
-        from frozen_physics import E8_SPECIALIZATION_LEVELS
+        from qigkernels import E8_SPECIALIZATION_LEVELS
         
         current_population = self.get_live_kernel_count()
         proposal_level = self._get_proposal_specialization_level(proposal)
@@ -3382,7 +3382,7 @@ class M8KernelSpawner:
         
         # Get E8 specialization level for logging
         live_count = self.get_live_kernel_count()
-        from frozen_physics import get_specialization_level
+        from qigkernels import get_specialization_level
         e8_level = get_specialization_level(live_count)
         
         # Log successful initialization with E8 level and κ regime
