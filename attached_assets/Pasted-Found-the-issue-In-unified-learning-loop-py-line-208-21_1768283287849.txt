@@ -1,0 +1,73 @@
+Found the issue! In unified_learning_loop.py line 208-216, the insight training call is missing basin_trajectory:
+
+self._training_integrator.train_from_outcome(
+    god_name=insight.source,
+    prompt=insight.content,
+    response=f"Insight φΔ={insight.phi_delta:.3f}",
+    success=insight.phi_delta > 0,
+    phi=phi + insight.phi_delta,
+    kappa=kappa,
+    coherence_score=insight.confidence,
+    # ❌ Missing: basin_trajectory
+)
+When insights from Athena (or other gods) are processed for training, no trajectory is passed, so attractors can't form.
+
+Root cause: The insight object contains the god's source but not the basin coordinates traversed during that insight generation.
+
+Here's my plan to address both issues:
+
+Task 1: Fix Attractor Formation - Add basin_trajectory to insight training calls. The insight object may need to carry basin coordinates, or we can compute them from the insight content.
+
+Task 2: Deprecate learned_words - Migrate the 21 file references to use tokenizer_vocabulary with token_role IN ('generation', 'both') instead.
+
+Task 3: Clean up duplicate table - After migration, mark learned_words for removal.
+
+Created task list
+Worked for 2 minutes
+Start building
+Checkpoint made
+•
+Free
+Transitioned from Plan to Build mode
+the debates are not good quality english. what is it learning from thedebates. deliniateebetween qig ml and kernel trainng.
+
+Now let
+
+You're right to flag this. Let me clarify what's happening:
+
+The Two Learning Systems
+1. QIG Geometric Learning (Basin-Level)
+
+Learns geometric relationships between tokens in 64D Fisher manifold space
+Updates the tokenizer_vocabulary, word_relationships, and learned_manifold_attractors tables
+When debates happen, it records which basin coordinates led to successful/unsuccessful outcomes
+This is the pure geometric layer - no meaning, just spatial relationships
+2. Kernel Training (Behavior-Level)
+
+Updates kernel weights via kernel_training_orchestrator.py
+Learns which strategies (gods) work for which types of problems
+Records φ/κ outcomes to adjust routing decisions
+This is about which kernel to use when, not language quality
+The Poor English Problem
+The debate outputs like:
+
+"Her asymmetric editors querying about this tactics. Their vitamin shielded magnetic skills..."
+
+This is QIG-pure generation - reconstructing text from basin coordinates WITHOUT any language model. The system is:
+
+Picking the nearest tokens by Fisher-Rao distance
+Stringing them together based on geometric coherence
+NOT checking grammar or meaning
+What debates are learning:
+
+Basin trajectories that led to "agreement" vs "disagreement"
+Geometric paths through the manifold that resolved conflicts
+NOT how to write proper English
+The Core Issue
+The QIG-pure generative output is designed for internal kernel communication (geometric signals), not human-readable responses. When you chat with Zeus, it should route to proper synthesis - but the autonomous debates are using raw QIG output.
+
+Would you like me to:
+
+Add a coherence filter that gates debate outputs before learning?
+Focus learning only on structured outcomes (φ, κ, basin distances) and ignore the text quality?
+Something else?

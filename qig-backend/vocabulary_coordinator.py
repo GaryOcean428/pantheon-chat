@@ -17,7 +17,7 @@ from qig_geometry import fisher_coord_distance
 try:
     from vocabulary_validator_comprehensive import validate_word_comprehensive
     COMPREHENSIVE_VALIDATOR_AVAILABLE = True
-    print("[VocabularyCoordinator] Comprehensive validator available (PR 27/28 contamination prevention)")
+    print("[VocabularyCoordinator] Comprehensive validator available (contamination prevention)")
 except ImportError:
     COMPREHENSIVE_VALIDATOR_AVAILABLE = False
     validate_word_comprehensive = None
