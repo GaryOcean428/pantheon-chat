@@ -119,25 +119,10 @@ All three have:
    python3 -m pytest tests/test_attractor_finding.py -v
    ```
 
-2. **Verify attractor stability**
-   ```python
-   from qig_core.attractor_finding import find_local_minimum, compute_fisher_potential
-   from qig_geometry import FisherManifold
-   import numpy as np
-   
-   basin = np.random.rand(64)
-   metric = FisherManifold()
-   
-   # Find attractor
-   attractor, potential, converged = find_local_minimum(basin, metric)
-   assert converged, "Failed to find attractor"
-   
-   # Verify it's a minimum
-   for _ in range(10):
-       nearby = basin + np.random.randn(64) * 0.1
-       nearby_potential = compute_fisher_potential(nearby, metric)
-       assert nearby_potential >= potential, "Attractor is not a minimum"
-   ```
+2. **Check test results**
+   - All tests must pass
+   - Document any failures and root causes
+   - Note: Tests will validate attractor stability automatically
 
 3. **Document results** in this file
 
@@ -177,24 +162,11 @@ All three have:
    python3 -m pytest tests/test_geodesic_navigation.py -v
    ```
 
-2. **Verify geodesic properties**
-   ```python
-   from qig_core.geodesic_navigation import compute_geodesic_path, navigate_to_target
-   from qig_geometry import FisherManifold, fisher_coord_distance
-   import numpy as np
-   
-   start = np.random.rand(64)
-   end = np.random.rand(64)
-   metric = FisherManifold()
-   
-   # Compute path
-   path = compute_geodesic_path(start, end, metric, n_steps=50)
-   
-   # Verify geodesic is shortest path
-   path_length = sum(fisher_coord_distance(path[i], path[i+1]) for i in range(len(path)-1))
-   direct_distance = fisher_coord_distance(start, end)
-   assert abs(path_length - direct_distance) < 0.1, f"Path not geodesic: {path_length} vs {direct_distance}"
-   ```
+2. **Check test results**
+   - All tests must pass
+   - Verify geodesic path tests validate shortest-path property
+   - Verify parallel transport tests validate vector preservation
+   - Document any failures and root causes
 
 3. **Document results** in this file
 
