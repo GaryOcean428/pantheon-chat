@@ -1070,7 +1070,8 @@ class AutonomousCuriosityEngine:
                     kernel_name=request.kernel_name,
                     exploration_type='kernel_search',
                     source_type=result.get('provider', 'unknown'),
-                    information_gain=result.get('information_gain', 0.5)
+                    information_gain=result.get('information_gain', 0.5),
+                    basin_coords=result.get('basin_coords')
                 )
                 
                 # Broadcast search completion for kernel visibility
@@ -1265,12 +1266,16 @@ class AutonomousCuriosityEngine:
                 )
                 
                 # Record exploration to prevent future duplicates
+                # Get basin_coords from curiosity drive if available
+                topic_basin = self.curiosity_drive.interest_basins.get(topic)
                 self.exploration_history.record_exploration(
                     topic=topic,
                     query=query,
                     kernel_name=kernel_name,
                     exploration_type='curiosity_driven',
-                    information_gain=curiosity
+                    source_type='curiosity_engine',
+                    information_gain=curiosity,
+                    basin_coords=topic_basin
                 )
                 
                 self.stats['total_explorations'] += 1
