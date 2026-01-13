@@ -413,7 +413,6 @@ class LightningKernel(BaseGod):
         if InsightValidator is not None:
             try:
                 self.insight_validator = InsightValidator(
-                    use_mcp=True,  # Prefer MCP over direct API
                     validation_threshold=0.7  # 70% confidence required
                 )
                 self.validation_enabled = True

@@ -7774,7 +7774,7 @@ def debug_validate_insights():
         from search.insight_validator import InsightValidator, ValidationResult
 
         # Create validator with explicit settings
-        validator = InsightValidator(use_mcp=use_mcp, validation_threshold=0.7)
+        validator = InsightValidator(validation_threshold=0.7)
 
         # Get database connection
         import psycopg2

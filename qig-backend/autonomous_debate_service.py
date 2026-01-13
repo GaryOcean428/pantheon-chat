@@ -273,7 +273,7 @@ class AutonomousDebateService:
         self._validation_poll_count = 0
         self._insights_validated = 0
         self._validation_enabled = INSIGHT_VALIDATOR_AVAILABLE and bool(os.environ.get('ENABLE_BACKGROUND_VALIDATION', 'true').lower() == 'true')
-        self._insight_validator = InsightValidator(use_mcp=False, validation_threshold=0.7) if INSIGHT_VALIDATOR_AVAILABLE else None
+        self._insight_validator = InsightValidator(validation_threshold=0.7) if INSIGHT_VALIDATOR_AVAILABLE else None
 
         if self._vocabulary_coordinator:
             logger.info("VocabularyCoordinator connected for research learning")
