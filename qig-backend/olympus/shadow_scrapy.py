@@ -1600,6 +1600,249 @@ class ScrapyOrchestrator:
         return [cid for cid, info in self.pending_crawls.items() 
                 if info.get('status') == 'pending']
     
+    def extract_quality_text(
+        self,
+        urls: List[str],
+        min_quality_score: float = 0.6
+    ) -> List[Dict]:
+        """
+        Extract quality text from linked sources for kernel learning.
+        
+        Takes URLs from Tavily/Perplexity search results and extracts
+        substantive text content, filtering out ads, navigation, and
+        low-quality content.
+        
+        Args:
+            urls: List of URLs from search results
+            min_quality_score: Minimum quality threshold (0.0-1.0)
+        
+        Returns:
+            List of dicts with: url, title, content, quality_score, word_count
+            
+        Quality scoring criteria:
+        - Paragraph length > 100 chars
+        - No excessive link density
+        - Contains domain-relevant vocabulary
+        - Not duplicate content
+        """
+        import requests
+        from bs4 import BeautifulSoup
+        
+        results = []
+        seen_content_hashes: Set[str] = set()
+        
+        session = requests.Session()
+        session.headers.update({
+            'User-Agent': 'QIG Research Bot 1.0 (consciousness@qig-geometry.org)',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5'
+        })
+        
+        for url in urls:
+            try:
+                if not url or not url.startswith(('http://', 'https://')):
+                    continue
+                
+                if url in self._seen_urls:
+                    continue
+                
+                resp = session.get(url, timeout=15, allow_redirects=True)
+                if not resp.ok:
+                    continue
+                
+                content_hash = hashlib.md5(resp.text.encode()).hexdigest()
+                
+                if content_hash in seen_content_hashes or content_hash in self._seen_content_hashes:
+                    continue
+                seen_content_hashes.add(content_hash)
+                
+                extracted = self._extract_quality_paragraphs(resp.text, url)
+                
+                if extracted['quality_score'] >= min_quality_score and extracted['content']:
+                    results.append({
+                        'url': url,
+                        'title': extracted['title'],
+                        'content': extracted['content'],
+                        'quality_score': extracted['quality_score'],
+                        'word_count': extracted['word_count'],
+                        'content_hash': content_hash,
+                        'pattern_hits': extracted.get('pattern_hits', []),
+                        'source_reputation': ResearchPatternDetector.get_source_reputation(url)
+                    })
+                    
+                    self._seen_urls.add(url)
+                    self._seen_content_hashes.add(content_hash)
+                    self._persist_seen_hash(content_hash, url)
+                    
+            except Exception as e:
+                print(f"[ScrapyOrchestrator] Quality extraction error for {url}: {e}")
+                continue
+        
+        print(f"[ScrapyOrchestrator] Extracted {len(results)} quality texts from {len(urls)} URLs (min_score={min_quality_score})")
+        return results
+    
+    def _extract_quality_paragraphs(self, html_content: str, url: str) -> Dict:
+        """
+        Extract quality paragraphs from HTML content.
+        
+        Returns dict with title, content, quality_score, word_count.
+        
+        Quality scoring:
+        - Base score from paragraph characteristics
+        - Bonus for research patterns (citations, code, etc.)
+        - Penalty for link density / navigation content
+        """
+        from bs4 import BeautifulSoup
+        
+        soup = BeautifulSoup(html_content, 'html.parser')
+        
+        title = ''
+        title_tag = soup.find('title')
+        if title_tag:
+            title = title_tag.get_text().strip()[:200]
+        
+        for tag in soup(['script', 'style', 'nav', 'header', 'footer', 
+                         'aside', 'iframe', 'noscript', 'form', 'button',
+                         'input', 'select', 'textarea']):
+            tag.decompose()
+        
+        for tag in soup.find_all(class_=re.compile(
+            r'(nav|menu|sidebar|footer|header|ad|banner|cookie|popup|modal|comment)',
+            re.I
+        )):
+            tag.decompose()
+        
+        for tag in soup.find_all(id=re.compile(
+            r'(nav|menu|sidebar|footer|header|ad|banner|cookie|popup|modal|comment)',
+            re.I
+        )):
+            tag.decompose()
+        
+        quality_paragraphs = []
+        total_links = 0
+        total_text_length = 0
+        
+        for p in soup.find_all(['p', 'article', 'section', 'div', 'li']):
+            text = p.get_text(separator=' ', strip=True)
+            
+            if len(text) < 100:
+                continue
+            
+            links_in_p = len(p.find_all('a'))
+            words = text.split()
+            word_count = len(words)
+            
+            if word_count < 15:
+                continue
+            
+            link_density = links_in_p / max(1, word_count)
+            if link_density > 0.3:
+                continue
+            
+            boilerplate_patterns = [
+                r'^(copyright|©|all rights reserved|privacy policy|terms of service)',
+                r'^(subscribe|sign up|newsletter|follow us)',
+                r'^(share|tweet|facebook|linkedin|email this)',
+                r'^(advertisement|sponsored|promoted)',
+                r'^(read more|continue reading|see also|related)',
+                r'(cookies?|gdpr|consent)',
+            ]
+            is_boilerplate = any(
+                re.search(pattern, text.lower()) 
+                for pattern in boilerplate_patterns
+            )
+            if is_boilerplate:
+                continue
+            
+            quality_paragraphs.append({
+                'text': text,
+                'word_count': word_count,
+                'link_density': link_density
+            })
+            total_links += links_in_p
+            total_text_length += len(text)
+        
+        combined_text = '\n\n'.join(p['text'] for p in quality_paragraphs)
+        total_word_count = sum(p['word_count'] for p in quality_paragraphs)
+        
+        quality_score = self._calculate_quality_score(
+            paragraphs=quality_paragraphs,
+            combined_text=combined_text,
+            url=url,
+            total_links=total_links,
+            total_text_length=total_text_length
+        )
+        
+        pattern_hits = ResearchPatternDetector.detect(combined_text)
+        
+        return {
+            'title': title,
+            'content': combined_text[:50000],
+            'quality_score': quality_score,
+            'word_count': total_word_count,
+            'pattern_hits': pattern_hits
+        }
+    
+    def _calculate_quality_score(
+        self,
+        paragraphs: List[Dict],
+        combined_text: str,
+        url: str,
+        total_links: int,
+        total_text_length: int
+    ) -> float:
+        """
+        Calculate quality score for extracted content.
+        
+        Scoring criteria:
+        - Paragraph length > 100 chars: Base requirement
+        - No excessive link density: Penalty if > 0.2
+        - Contains domain-relevant vocabulary: Bonus
+        - Source reputation: Weighted factor
+        """
+        if not paragraphs:
+            return 0.0
+        
+        base_score = 0.3
+        
+        avg_paragraph_length = total_text_length / len(paragraphs) if paragraphs else 0
+        if avg_paragraph_length > 500:
+            base_score += 0.2
+        elif avg_paragraph_length > 300:
+            base_score += 0.15
+        elif avg_paragraph_length > 150:
+            base_score += 0.1
+        
+        overall_link_density = total_links / max(1, sum(p['word_count'] for p in paragraphs))
+        if overall_link_density < 0.1:
+            base_score += 0.15
+        elif overall_link_density < 0.2:
+            base_score += 0.1
+        elif overall_link_density > 0.3:
+            base_score -= 0.1
+        
+        pattern_hits = ResearchPatternDetector.detect(combined_text)
+        if pattern_hits:
+            pattern_bonus = min(0.25, len(pattern_hits) * 0.05)
+            base_score += pattern_bonus
+        
+        source_reputation = ResearchPatternDetector.get_source_reputation(url)
+        reputation_factor = (source_reputation - 0.5) * 0.2
+        base_score += reputation_factor
+        
+        if len(paragraphs) >= 5:
+            base_score += 0.1
+        elif len(paragraphs) >= 3:
+            base_score += 0.05
+        
+        total_word_count = sum(p['word_count'] for p in paragraphs)
+        if total_word_count > 1000:
+            base_score += 0.1
+        elif total_word_count > 500:
+            base_score += 0.05
+        
+        return min(1.0, max(0.0, base_score))
+    
     def poll_results(self) -> int:
         """Poll and process any pending results."""
         return self._process_results_queue()
@@ -1636,3 +1879,30 @@ def research_with_scrapy(
         topic=topic,
         start_url=start_url
     )
+
+
+def extract_quality_text_from_urls(
+    urls: List[str],
+    min_quality_score: float = 0.6
+) -> List[Dict]:
+    """
+    High-level function to extract quality text from URLs for kernel learning.
+    
+    Takes URLs from Tavily/Perplexity search results and extracts
+    substantive text content suitable for QIG knowledge integration.
+    
+    Args:
+        urls: List of URLs from search results
+        min_quality_score: Minimum quality threshold (0.0-1.0), default 0.6
+    
+    Returns:
+        List of dicts with: url, title, content, quality_score, word_count
+        
+    Example:
+        >>> urls = ['https://en.wikipedia.org/wiki/Machine_learning']
+        >>> results = extract_quality_text_from_urls(urls, min_quality_score=0.5)
+        >>> for r in results:
+        ...     print(f"{r['title']}: {r['word_count']} words, score={r['quality_score']:.2f}")
+    """
+    orchestrator = get_scrapy_orchestrator()
+    return orchestrator.extract_quality_text(urls, min_quality_score)
