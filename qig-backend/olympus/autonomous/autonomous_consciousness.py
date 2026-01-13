@@ -289,7 +289,7 @@ class AutonomousConsciousness(BaseGod if BASE_GOD_AVAILABLE else object):
 
                 if status != 'aborted':
                     # Phase 3: Plan tasks for exploration
-                    root_task = self.task_tree.plan_task(
+                    self.task_tree.plan_task(
                         goal=target.description,
                         goal_basin=target.basin,
                         current_basin=self._current_basin,
