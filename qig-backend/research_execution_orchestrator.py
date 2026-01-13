@@ -326,6 +326,16 @@ class ResearchExecutionOrchestrator:
                 logger.warning(f"[ResearchOrchestrator] Curiosity update failed: {e}")
         
         if info_gain > 0.3 and self._prediction_bridge:
+            # Encode query to basin for insight tracking and attractor formation
+            insight_basin = None
+            try:
+                from coordizers import get_coordizer
+                coordizer = get_coordizer()
+                if coordizer and hasattr(coordizer, 'encode'):
+                    insight_basin = coordizer.encode(task.query)
+            except Exception:
+                pass  # Fallback: no basin coords
+            
             insight = InsightRecord(
                 insight_id=f"research_insight_{task.task_id}",
                 source='research',
@@ -333,6 +343,7 @@ class ResearchExecutionOrchestrator:
                 phi_delta=info_gain * 0.1,
                 kappa_delta=0.0,
                 curvature=info_gain,
+                basin_coords=insight_basin,
                 confidence=min(1.0, info_gain + 0.3),
                 metadata={
                     'task_type': task.task_type,
@@ -346,6 +357,18 @@ class ResearchExecutionOrchestrator:
         
         if self._training_integrator and task.status == 'completed':
             try:
+                # Encode query to basin for attractor formation
+                basin_trajectory = None
+                try:
+                    from coordizers import get_coordizer
+                    coordizer = get_coordizer()
+                    if coordizer and hasattr(coordizer, 'encode'):
+                        query_basin = coordizer.encode(task.query)
+                        if query_basin is not None:
+                            basin_trajectory = [query_basin]
+                except Exception:
+                    pass  # Fallback: no basin trajectory
+                
                 self._training_integrator.train_from_outcome(
                     god_name=task.kernel_name,
                     prompt=task.query,
@@ -353,6 +376,7 @@ class ResearchExecutionOrchestrator:
                     success=True,
                     phi=0.5 + info_gain * 0.2,
                     kappa=58.0,
+                    basin_trajectory=basin_trajectory,
                     coherence_score=min(1.0, info_gain + 0.5),
                 )
             except Exception as e:

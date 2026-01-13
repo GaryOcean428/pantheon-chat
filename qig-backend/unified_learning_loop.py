@@ -205,6 +205,12 @@ class UnifiedLearningLoop:
                         continue
                 
                 if self._training_integrator:
+                    # Build basin_trajectory from insight's basin_coords
+                    # This is the critical wiring that populates learned_manifold_attractors
+                    insight_basin_trajectory = None
+                    if insight.basin_coords is not None:
+                        insight_basin_trajectory = [insight.basin_coords]
+                    
                     self._training_integrator.train_from_outcome(
                         god_name=insight.source,
                         prompt=insight.content,
@@ -212,6 +218,7 @@ class UnifiedLearningLoop:
                         success=insight.phi_delta > 0,
                         phi=phi + insight.phi_delta,
                         kappa=kappa,
+                        basin_trajectory=insight_basin_trajectory,
                         coherence_score=insight.confidence,
                     )
                     training_signals += 1
