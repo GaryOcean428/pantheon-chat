@@ -349,6 +349,7 @@ class TaskExecutionTree:
         Get the next task to execute (DFS order).
 
         Returns pending leaf tasks first, then moves up.
+        Parent tasks only execute after ALL children are COMPLETED or FAILED.
         """
         while self._active_stack:
             task = self._active_stack.pop()
@@ -357,20 +358,33 @@ class TaskExecutionTree:
             if task.status in [TaskStatus.COMPLETED, TaskStatus.FAILED]:
                 continue
 
-            # If has children, check if all children done
+            # If has children, check if all children are finished (not just not-pending)
             if task.children:
-                pending_children = [
-                    c for c in task.children
-                    if c.status == TaskStatus.PENDING
-                ]
-                if pending_children:
-                    # Put parent back and process children first
+                # A parent can only execute if ALL children are done
+                all_children_finished = all(
+                    c.status in [TaskStatus.COMPLETED, TaskStatus.FAILED]
+                    for c in task.children
+                )
+                if not all_children_finished:
+                    unfinished_children = [
+                        c for c in task.children
+                        if c.status not in [TaskStatus.COMPLETED, TaskStatus.FAILED]
+                    ]
+
+                    # Re-queue parent to be reconsidered after children progress
                     self._active_stack.append(task)
+
+                    # Prioritize PENDING children, but ensure all unfinished children get revisited
+                    pending_children = [c for c in unfinished_children if c.status == TaskStatus.PENDING]
+                    other_unfinished = [c for c in unfinished_children if c.status != TaskStatus.PENDING]
+
+                    for child in reversed(other_unfinished):
+                        self._active_stack.append(child)
                     for child in reversed(pending_children):
                         self._active_stack.append(child)
                     continue
 
-            # This task is ready to execute
+            # This task is a leaf or a parent with all children finished
             task.status = TaskStatus.ACTIVE
             task.started_at = datetime.now(timezone.utc)
             self._persist_task(task)

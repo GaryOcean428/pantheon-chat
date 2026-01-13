@@ -953,8 +953,8 @@ class Hades(BaseGod):
             return await self.rss.search_feeds(target)
 
         elif source_name == 'breach':
-            # Sync call wrapped for async
-            return self.breach_db.search(target)
+            # Run sync call in a separate thread to avoid blocking the event loop
+            return await asyncio.to_thread(self.breach_db.search, target)
 
         else:
             logger.warning(f"[Hades] Unknown source: {source_name}")

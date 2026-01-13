@@ -236,8 +236,8 @@ class GeometricMemoryBank:
                     ON CONFLICT (id) DO UPDATE SET
                         content = EXCLUDED.content,
                         importance = EXCLUDED.importance,
-                        access_count = memory_fragments.access_count + 1,
-                        last_accessed = NOW(),
+                        access_count = EXCLUDED.access_count,
+                        last_accessed = EXCLUDED.last_accessed,
                         metadata = EXCLUDED.metadata,
                         consolidated_into = EXCLUDED.consolidated_into
                 """, (
