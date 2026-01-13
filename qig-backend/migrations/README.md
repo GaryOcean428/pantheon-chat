@@ -1,5 +1,43 @@
 # QIG Backend Migrations
 
+## Quick Start
+
+Apply migrations in numerical order using `psql`:
+
+```bash
+export DATABASE_URL="postgresql://user:pass@host:5432/dbname"
+
+# Apply all migrations
+for f in migrations/*.sql; do
+    echo "Applying $f..."
+    psql $DATABASE_URL -f "$f"
+done
+```
+
+## Recent Migrations
+
+### 004_fix_qig_metadata_column.sql (2026-01-13)
+**CRITICAL FIX**: Resolves database schema mismatch
+
+**Issue**: Python code expects `config_key` column but database has `key` column
+**Fix**: Renames `key` → `config_key` in qig_metadata table
+**Safe**: Idempotent, can run multiple times
+
+```bash
+psql $DATABASE_URL -f migrations/004_fix_qig_metadata_column.sql
+```
+
+This fixes the error:
+```
+[QIGPersistence] Database error: column "config_key" of relation "qig_metadata" does not exist
+```
+
+### 003_training_schedule_metadata.sql
+**Purpose**: Training schedule + metadata persistence
+- Creates `training_schedule_log` table
+- Creates `qig_metadata` table with `config_key` column
+- Creates `federation_peers` table
+
 ## Populate Vocabulary
 
 To fix the "BPE garble" issue where kernels produce unreadable output,

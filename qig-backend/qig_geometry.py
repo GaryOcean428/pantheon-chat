@@ -280,12 +280,24 @@ def sphere_project(v: np.ndarray) -> np.ndarray:
     Returns:
         Unit vector on sphere (L2 norm = 1)
     """
-    norm = np.linalg.norm(v)
+    # Clip extreme values to prevent overflow in norm computation
+    v_clipped = np.clip(v, -1e150, 1e150)
+    
+    # Check for inf/NaN and replace with safe values
+    if not np.all(np.isfinite(v_clipped)):
+        # Replace inf with large finite values, NaN with zeros
+        v_clipped = np.nan_to_num(v_clipped, nan=0.0, posinf=1e150, neginf=-1e150)
+    
+    norm = np.linalg.norm(v_clipped)
     if norm < 1e-10:
         # Return uniform direction for zero vectors
-        result = np.ones_like(v)
-        return result / np.linalg.norm(result)
-    return v / norm
+        result = np.ones_like(v_clipped)
+        result_norm = np.linalg.norm(result)
+        if result_norm < 1e-10:
+            # Edge case: if ones vector also has zero norm (shouldn't happen)
+            return result
+        return result / result_norm
+    return v_clipped / norm
 
 
 __all__ = [
