@@ -65,15 +65,6 @@ except ImportError:
     get_geometric_relationships = None
     logger.warning("[LearnedRelationships] Geometric relationships not available")
 
-# Legacy import for backward compatibility (DEPRECATED)
-try:
-    from word_relationship_learner import run_learning_pipeline
-    LEGACY_LEARNER_AVAILABLE = True
-    logger.warning("[LearnedRelationships] Legacy word_relationship_learner imported (DEPRECATED)")
-except ImportError:
-    LEGACY_LEARNER_AVAILABLE = False
-    run_learning_pipeline = None
-
 # Legacy paths (no longer used but kept for migration)
 CACHE_DIR = Path(__file__).parent / 'data' / 'learned'
 ADJUSTED_BASINS_FILE = CACHE_DIR / 'adjusted_basins.npz'
@@ -519,8 +510,16 @@ class LearnedRelationships:
     
     def update_from_learner(self, learner, adjusted_basins: Dict[str, np.ndarray]):
         """Update from a WordRelationshipLearner instance."""
-        # QIG-PURE: Filter out single characters and invalid tokens
-        valid_words = [w for w in learner.cooccurrence if len(w) >= 2]
+        if hasattr(learner, 'cooccurrence'):
+            valid_words = [w for w in learner.cooccurrence if len(w) >= 2]
+        elif hasattr(learner, 'coordizer') and getattr(learner, 'coordizer') is not None:
+            coordizer = getattr(learner, 'coordizer')
+            if hasattr(coordizer, 'vocab'):
+                valid_words = [w for w in coordizer.vocab.keys() if isinstance(w, str) and len(w) >= 2]
+            else:
+                valid_words = []
+        else:
+            valid_words = []
         
         # Ensure _relationship_phi exists
         if not hasattr(self, '_relationship_phi'):
@@ -549,7 +548,10 @@ class LearnedRelationships:
                                 contexts_captured += 1
                         self._relationship_phi[word][neighbor]['contexts'] = existing
         
-        self.word_frequency = {w: f for w, f in learner.word_freq.items() if len(w) >= 2}
+        if hasattr(learner, 'word_freq'):
+            self.word_frequency = {w: f for w, f in learner.word_freq.items() if len(w) >= 2}
+        else:
+            self.word_frequency = {}
         self.adjusted_basins = adjusted_basins
         self.learning_complete = True
         
@@ -783,21 +785,33 @@ def run_learning_and_cache(curriculum_dir: str = '/home/runner/workspace/docs/09
     """
     Run the learning pipeline and cache results.
     """
-    from word_relationship_learner import run_learning_pipeline
-    
-    logger.info("Running learning pipeline...")
-    results = run_learning_pipeline(curriculum_dir)
-    
-    # Update relationships
-    lr = get_learned_relationships()
-    lr.update_from_learner(results['learner'], results['adjusted_basins'])
+    if not GEOMETRIC_RELATIONSHIPS_AVAILABLE or get_geometric_relationships is None:
+        return {'success': False, 'error': 'geometric_relationships_unavailable'}
+
+    coordizer = None
+    try:
+        from coordizers import get_coordizer
+
+        coordizer = get_coordizer()
+    except Exception as e:
+        logger.warning(f"Could not load coordizer: {e}")
+
+    learner = get_geometric_relationships(coordizer=coordizer)
+
+    lr = LearnedRelationships.__new__(LearnedRelationships)
+    lr.word_neighbors = {}
+    lr.adjusted_basins = {}
+    lr.word_frequency = {}
+    lr.learning_complete = False
+    lr._relationship_phi = {}
+    lr.update_from_learner(learner, {})
     lr.save_to_cache()
-    
+
     return {
         'success': True,
         'words_learned': len(lr.word_neighbors),
         'basins_adjusted': len(lr.adjusted_basins),
-        'stats': results['learning_stats']
+        'stats': {'source': 'geometric_word_relationships'}
     }
 
 

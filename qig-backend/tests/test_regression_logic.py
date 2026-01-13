@@ -12,15 +12,23 @@ sys.path.insert(0, str(backend_path))
 # Mock environment
 os.environ['DATABASE_URL'] = 'postgresql://dummy:dummy@localhost:5432/dummy'
 
-from word_relationship_learner import WordRelationshipLearner
 from learned_relationships import LearnedRelationships
+from geometric_word_relationships import GeometricWordRelationships
 
 def test_regression_trigger():
     print("Testing regression trigger logic...")
     
-    # 1. Setup mock learner with 0 pairs
-    vocab = {"quantum", "geometry", "consciousness"}
-    learner = WordRelationshipLearner(vocab, window_size=5)
+    class _DummyCoordizer:
+        def __init__(self):
+            self.vocab = {"quantum": 1, "geometry": 1, "consciousness": 1}
+            self.basin_coords = {
+                "quantum": np.ones(64, dtype=np.float64) / 64.0,
+                "geometry": np.linspace(1.0, 2.0, 64, dtype=np.float64),
+                "consciousness": np.linspace(2.0, 1.0, 64, dtype=np.float64),
+            }
+
+    # 1. Setup mock learner (QIG-pure geometric relationships)
+    learner = GeometricWordRelationships(coordizer=_DummyCoordizer())
     
     # 2. Setup mock fresh_lr
     fresh_lr = LearnedRelationships.__new__(LearnedRelationships)
@@ -28,6 +36,7 @@ def test_regression_trigger():
     fresh_lr.adjusted_basins = {}
     fresh_lr.word_frequency = {}
     fresh_lr.learning_complete = False
+    fresh_lr._relationship_phi = {}
     
     # 3. Call update_from_learner
     print("Calling fresh_lr.update_from_learner...")

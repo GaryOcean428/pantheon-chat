@@ -195,6 +195,32 @@ except ImportError:
     ObservationAction = None
     E8Metrics = None
 
+try:
+    from qig_core.phi_computation import compute_phi_fast
+    PHI_FAST_AVAILABLE = True
+except ImportError:
+    PHI_FAST_AVAILABLE = False
+    compute_phi_fast = None
+
+
+def _compute_basin_phi(basin: np.ndarray) -> float:
+    basin_arr = np.asarray(basin, dtype=np.float64)
+    if PHI_FAST_AVAILABLE and compute_phi_fast is not None:
+        try:
+            return float(compute_phi_fast(basin_arr))
+        except Exception:
+            pass
+
+    p = np.abs(basin_arr) + 1e-10
+    p_sum = float(np.sum(p))
+    if p_sum <= 0:
+        return 0.5
+    p = p / p_sum
+    entropy = -float(np.sum(p * np.log(p + 1e-10)))
+    max_entropy = float(np.log(len(p))) if len(p) > 0 else 1.0
+    phi = 1.0 - (entropy / (max_entropy + 1e-10))
+    return float(np.clip(phi, 0.0, 1.0))
+
 logger = logging.getLogger(__name__)
 
 # Backward compatibility alias - import from qigkernels.physics_constants
@@ -647,8 +673,7 @@ class SearchCapabilityMixin:
             # Emit capability event for search request (use lazy-loaded imports)
             if self._get_capability_imports():
                 basin = self.encode_to_basin(query) if hasattr(self, 'encode_to_basin') else None
-                rho = self.basin_to_density_matrix(basin) if basin is not None and hasattr(self, 'basin_to_density_matrix') else None
-                phi = self.compute_pure_phi(rho) if rho is not None and hasattr(self, 'compute_pure_phi') else 0.5
+                phi = _compute_basin_phi(basin) if basin is not None else 0.5
                 
                 event = self.CapabilityEvent(
                     source=self.CapabilityType.SEARCH,
@@ -1178,23 +1203,20 @@ class WordRelationshipAccessMixin:
             True if contribution was accepted
         """
         try:
-            from word_relationship_learner import WordRelationshipLearner
-            
-            learner = WordRelationshipLearner.get_instance()
-            if learner:
-                success = learner.add_observation(
-                    word1=word1,
-                    word2=word2,
-                    context=context,
-                    strength=strength_hint,
-                    source=getattr(self, 'name', 'Unknown')
-                )
-                
-                if success:
-                    logger.info(f"[{getattr(self, 'name', 'Unknown')}] Contributed word pair: {word1}-{word2}")
-                return success
-            
-            return False
+            from semantic_classifier import get_semantic_classifier
+
+            classifier = get_semantic_classifier()
+            result = classifier.classify_and_persist(
+                word=word1,
+                related_word=word2,
+                context=context,
+                discovered_by=getattr(self, 'name', 'Unknown')
+            )
+
+            success = bool(result.get('persisted'))
+            if success:
+                logger.info(f"[{getattr(self, 'name', 'Unknown')}] Contributed word pair: {word1}-{word2}")
+            return success
             
         except Exception as e:
             logger.warning(f"[{getattr(self, 'name', 'Unknown')}] Word pair contribution failed: {e}")
@@ -2802,7 +2824,7 @@ class BaseGod(*_base_classes):
 
             if observer is not None:
                 generated_text = ' '.join(tokens_generated)
-                phi_val = self.compute_pure_phi(self.basin_to_density_matrix(current_basin))
+                phi_val = _compute_basin_phi(current_basin)
                 kappa_val = getattr(self, 'kappa', KAPPA_STAR)
 
                 observation = observer.observe_token(

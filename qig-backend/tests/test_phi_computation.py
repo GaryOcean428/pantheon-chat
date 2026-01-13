@@ -28,6 +28,7 @@ from qig_core.phi_computation import (
     compute_phi_geometric,
     compute_phi_qig,
     compute_phi_approximation,
+    compute_phi_fast,
 )
 
 
@@ -107,6 +108,19 @@ class TestPhiBounds:
         phi, _ = compute_phi_qig(basin, n_samples=100)
         
         assert not np.isinf(phi), "Φ is infinite"
+
+
+def test_phi_fast_varies_across_distributions() -> None:
+    uniform = np.ones(64, dtype=np.float64) / 64.0
+    delta = np.zeros(64, dtype=np.float64)
+    delta[0] = 1.0
+
+    phi_uniform = compute_phi_fast(uniform)
+    phi_delta = compute_phi_fast(delta)
+
+    assert 0.0 <= phi_uniform <= 1.0
+    assert 0.0 <= phi_delta <= 1.0
+    assert phi_uniform != phi_delta
 
 
 class TestPhiKnownCases:

@@ -1319,9 +1319,6 @@ class AutonomousCuriosityEngine:
         Also persists rich content to shadow_knowledge for vocabulary learning.
         """
         try:
-            from word_relationship_learner import WordRelationshipLearner
-            from coordizers.pg_loader import PostgresCoordizer
-            
             # Extract text from result with full citation metadata
             text_content = []
             citation_metadata = []
@@ -1350,27 +1347,7 @@ class AutonomousCuriosityEngine:
             
             # Persist to shadow_knowledge for vocabulary learning (rich content persistence)
             self._persist_search_to_shadow_knowledge(result, text_content, citation_metadata)
-            
-            # Initialize learner with current vocabulary
-            coordizer = PostgresCoordizer()
-            vocab = set(coordizer.word_tokens)
-            learner = WordRelationshipLearner(vocab, window_size=5, expand_vocabulary=True)
-            
-            # Learn from all text
-            total_pairs = 0
-            for text in text_content:
-                pairs = learner.learn_from_text(text)
-                total_pairs += pairs
-            
-            if total_pairs > 0:
-                # Update word relationships cache (using curriculum_training module)
-                try:
-                    from olympus.curriculum_training import update_word_relationships_cache, adjust_kernel_basins_from_relationships
-                    update_word_relationships_cache(learner)
-                    adjust_kernel_basins_from_relationships(learner, coordizer)
-                    print(f"[AutonomousCuriosityEngine] Learned {total_pairs} word pairs from search, updated basins")
-                except ImportError:
-                    print(f"[AutonomousCuriosityEngine] Learned {total_pairs} word pairs (curriculum_training not available)")
+            return
                 
         except Exception as e:
             print(f"[AutonomousCuriosityEngine] Error learning from search: {e}")
@@ -1745,94 +1722,8 @@ class AutonomousCuriosityEngine:
             return
         
         self._last_word_learning_time = current_time
-        
-        try:
-            from word_relationship_learner import WordRelationshipLearner
-            from learned_relationships import get_learned_relationships, LearnedRelationships
-            from coordizers.pg_loader import PostgresCoordizer
-            
-            logger.info("[AutonomousCuriosityEngine] Starting scheduled word relationship learning")
-            
-            lr = get_learned_relationships()
-            baseline_count = len(lr.word_neighbors)
-            
-            coordizer = PostgresCoordizer()
-            vocab = set(coordizer.basin_coords.keys())
-            learner = WordRelationshipLearner(vocab, window_size=5, expand_vocabulary=True)
-            
-            # PRIMARY PATH: docs/09-curriculum is ALWAYS the first source checked
-            docs_path = Path(__file__).parent.parent / 'docs' / '09-curriculum'
-            if not docs_path.exists():
-                # Try alternative paths
-                alt_paths = [
-                    Path('../docs/09-curriculum'),
-                    Path('docs/09-curriculum'),
-                ]
-                for alt_path in alt_paths:
-                    if alt_path.exists():
-                        docs_path = alt_path
-                        break
-            
-            curriculum_pairs = 0
-            if docs_path.exists():
-                logger.info(f"[AutonomousCuriosityEngine] Learning word relationships from curriculum: {docs_path}")
-                stats = learner.learn_from_directory(str(docs_path))
-                curriculum_pairs = stats.get('total_pairs', 0)
-                logger.info(f"[AutonomousCuriosityEngine] Curriculum yielded {curriculum_pairs} pairs from {stats.get('files_processed', 0)} files")
-            else:
-                logger.warning(f"[AutonomousCuriosityEngine] Curriculum directory not found, triggering search fallback")
-            
-            # Learn from existing explorations
-            exploration_pairs = self._learn_from_explorations(learner)
-            
-            total_pairs_before_fallback = curriculum_pairs + exploration_pairs
-            logger.info(f"[AutonomousCuriosityEngine] Before fallback: {curriculum_pairs} curriculum + {exploration_pairs} exploration = {total_pairs_before_fallback} pairs")
-            
-            # SEARCH FALLBACK: Trigger when curriculum yields 0 new relationships
-            search_fallback_pairs = 0
-            if total_pairs_before_fallback == 0:
-                logger.warning("[AutonomousCuriosityEngine] 🔄 Curriculum exhausted (0 new relationships), triggering SEARCH FALLBACK")
-                search_fallback_pairs = self._trigger_search_fallback_learning(learner)
-            
-            total_pairs = curriculum_pairs + exploration_pairs + search_fallback_pairs
-            logger.info(f"[AutonomousCuriosityEngine] Total pairs: {total_pairs} (curriculum={curriculum_pairs}, exploration={exploration_pairs}, search_fallback={search_fallback_pairs})")
-            
-            fresh_lr = LearnedRelationships.__new__(LearnedRelationships)
-            fresh_lr.word_neighbors = {}
-            fresh_lr.adjusted_basins = {}
-            fresh_lr.word_frequency = {}
-            fresh_lr.learning_complete = False
-            
-            fresh_lr.update_from_learner(learner, {})
-            
-            validation = fresh_lr.validate_against_frozen_facts()
-            
-            if not validation['valid']:
-                logger.warning(f"[AutonomousCuriosityEngine] Word learning REJECTED: {validation['stats']}")
-                return
-            
-            new_count = len(fresh_lr.word_neighbors)
-            if new_count < baseline_count * 0.95:
-                logger.warning(f"[AutonomousCuriosityEngine] Word learning REJECTED: regression detected "
-                             f"({new_count} < {baseline_count * 0.95:.0f} = 95% baseline)")
-                return
-            
-            if new_count > baseline_count:
-                improvement_pct = ((new_count - baseline_count) / baseline_count) * 100 if baseline_count > 0 else 100
-                logger.info(f"[AutonomousCuriosityEngine] Improvement: +{improvement_pct:.1f}% relationships")
-            
-            fresh_lr.save_to_cache()
-            
-            self.stats['word_learning_cycles'] += 1
-            self.stats['last_word_learning'] = datetime.now().isoformat()
-            self.stats['word_learning_relevance'] = validation['stats'].get('total_relationships', 0)
-            
-            logger.info(f"[AutonomousCuriosityEngine] Word learning complete: {len(fresh_lr.word_neighbors)} relationships saved to PostgreSQL")
-            
-        except Exception as e:
-            logger.error(f"[AutonomousCuriosityEngine] Word learning failed: {e}")
-            import traceback
-            traceback.print_exc()
+        logger.info("[AutonomousCuriosityEngine] WordRelationshipLearner removed (legacy NLP forbidden) - scheduled word learning disabled")
+        return
     
     def _get_premium_quota_summary(self) -> Dict[str, Any]:
         """

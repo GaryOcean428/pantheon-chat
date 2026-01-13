@@ -42,7 +42,6 @@ def load_and_train_curriculum(shadow_loop):
     """
     try:
         from training.curriculum_loader import load_all_curriculum
-        from word_relationship_learner import WordRelationshipLearner
         
         print("[CurriculumTraining] Loading curriculum for training...")
         
@@ -62,32 +61,10 @@ def load_and_train_curriculum(shadow_loop):
         
         total_examples = sum(len(examples) for examples in all_curriculum.values())
         print(f"[CurriculumTraining] Loaded {total_examples} curriculum examples across {len(all_curriculum)} gods")
-        
-        # Train word relationships from curriculum content
+
+        # Legacy co-occurrence learning removed (no legacy allowed)
         if shadow_loop.vocab_coordinator and coordizer:
-            vocab = set(coordizer.word_tokens)
-            learner = WordRelationshipLearner(vocab, window_size=5, expand_vocabulary=True)
-            
-            # Learn from all curriculum examples
-            total_pairs_learned = 0
-            for god_name, examples in all_curriculum.items():
-                for example in examples:
-                    # Extract text content from example
-                    # Curriculum examples have 'content' field as string
-                    text = example.get('content', '')
-                    
-                    if text and isinstance(text, str):
-                        pairs = learner.learn_from_text(text)
-                        total_pairs_learned += pairs
-            
-            print(f"[CurriculumTraining] Learned {total_pairs_learned} word pairs from curriculum")
-            
-            # Update word relationships cache
-            update_word_relationships_cache(learner)
-            
-            # Adjust kernel basins based on learned relationships
-            if coordizer and total_pairs_learned > 0:
-                adjust_kernel_basins_from_relationships(learner, coordizer)
+            print("[CurriculumTraining] WordRelationshipLearner removed (legacy NLP forbidden) - skipping word relationship training")
         
         print("[CurriculumTraining] Curriculum training complete")
         
