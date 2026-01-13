@@ -57,10 +57,10 @@ VALUES
 ON CONFLICT (task_type) DO NOTHING;
 
 -- Seed initial metadata
-INSERT INTO qig_metadata (key, value, updated_at)
+INSERT INTO qig_metadata (config_key, value, updated_at)
 VALUES
     ('sleep_consolidation_cycle_count', '0', NOW())
-ON CONFLICT (key) DO NOTHING;
+ON CONFLICT (config_key) DO NOTHING;
 
 -- ============================================================================
 -- FEDERATION_PEERS TABLE
