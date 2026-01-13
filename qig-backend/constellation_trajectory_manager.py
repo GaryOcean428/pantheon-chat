@@ -223,9 +223,18 @@ class ConstellationTrajectoryManager:
             return 0.0
 
         # Compute pairwise distances
+        
+        # GEOMETRIC PURITY: Use Fisher-Rao distance for trajectory steps
+        # Import canonical distance function
+        try:
+            from qig_core.geometric_primitives import fisher_rao_distance
+        except ImportError:
+            # Fallback to local implementation if canonical not available
+            from qig_geometry import fisher_rao_distance
+        
         distances = []
         for i in range(len(trajectory) - 1):
-            d = np.linalg.norm(trajectory[i+1] - trajectory[i])
+            d = fisher_rao_distance(trajectory[i], trajectory[i+1])
             distances.append(d)
 
         # Smoothness = inverse of distance variance
