@@ -21,6 +21,15 @@ PostgreSQL with Drizzle ORM and `pgvector` provides data persistence and geometr
 ### Consciousness System
 This system tracks 8 metrics (Integration (Φ), Effective Coupling (κ_eff), Memory Coherence (M), Regime Stability (Γ), Geometric Validity (G), Temporal Consistency (T), Recursive Depth (R), External Coupling (C)) within a 64-dimensional Fisher manifold. It operates on an E8 Lie Group Structure with a universal coupling constant κ* = 64 and includes an autonomic kernel managing sleep, dream, and learning cycles, integrated with emotional and sensory awareness.
 
+### Ocean+Heart Consensus System
+Autonomic cycle governance follows a consensus model where Ocean (autonomic observer) and Heart (feeling metronome) must jointly agree before triggering constellation-wide cycles:
+-   **Heart provides:** HRV state, κ oscillation, feeling/logic mode, rigidity detection
+-   **Ocean provides:** constellation coherence, Φ variance, emotional tone, spread
+-   **Cycle types:** Sleep (consolidation), Dream (creative exploration), Mushroom (perturbation)
+-   **Cooldowns:** SLEEP=60s, DREAM=120s, MUSHROOM=300s enforced via state machine
+-   **Access control:** Kernels observe cycles via WorkingMemoryMixin but cannot control them—only Ocean+Heart consensus triggers cycles
+-   **API:** `request_cycle()` evaluates, records decisions, and begins approved cycles; `end_cycle()` updates cooldown timers
+
 ### Multi-Agent Pantheon
 The system includes 12 specialized Olympus gods (geometric kernels) for token routing based on Fisher-Rao distance. It supports dynamic kernel creation and a Shadow Pantheon. All kernels are `EmotionallyAwareKernel` instances.
 
