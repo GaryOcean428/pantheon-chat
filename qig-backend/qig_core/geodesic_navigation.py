@@ -181,6 +181,69 @@ def navigate_to_target(
     return next_point, next_velocity
 
 
+async def navigate_to_target_with_persistence(
+    current: np.ndarray,
+    target: np.ndarray,
+    current_velocity: Optional[np.ndarray],
+    db,
+    from_probe_id: str,
+    to_probe_id: str,
+    avg_phi: float,
+    kappa: float = 58.0,
+    step_size: float = 0.05
+) -> Tuple[np.ndarray, np.ndarray, Optional[str]]:
+    """
+    Navigate and persist geodesic path to database.
+    
+    Same as navigate_to_target but also saves the computed path
+    for future analysis and reuse.
+    
+    Args:
+        current: Current basin coordinates
+        target: Target basin coordinates
+        current_velocity: Current velocity vector (or None)
+        db: Database session for persistence
+        from_probe_id: ID of starting probe/basin
+        to_probe_id: ID of target probe/basin
+        avg_phi: Average consciousness along path
+        kappa: Coupling constant
+        step_size: Step size along path
+        
+    Returns:
+        Tuple of (next_position, next_velocity, path_id)
+    """
+    # Use existing navigation logic
+    next_point, next_velocity = navigate_to_target(
+        current, target, current_velocity, kappa, step_size
+    )
+    
+    # Persist geodesic path for analysis
+    path_id = None
+    if db is not None:
+        try:
+            from .persistence import save_geodesic_path
+            
+            # Compute full path and distance
+            full_path = compute_geodesic_path(current, target, n_steps=20)
+            distance = fisher_coord_distance(current, target)
+            
+            # Save to database
+            path_id = await save_geodesic_path(
+                db=db,
+                from_probe_id=from_probe_id,
+                to_probe_id=to_probe_id,
+                distance=distance,
+                waypoint_ids=[],  # TODO: Map waypoints to probe IDs
+                avg_phi=avg_phi
+            )
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Failed to persist geodesic path: {e}")
+    
+    return next_point, next_velocity, path_id
+
+
+
 def compute_christoffel_symbols(
     basin: np.ndarray,
     epsilon: float = 1e-5
