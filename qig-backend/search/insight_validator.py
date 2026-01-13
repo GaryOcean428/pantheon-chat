@@ -273,11 +273,6 @@ class InsightValidator:
         """
         Search Tavily for sources using full SDK capabilities.
         """
-        if self.use_mcp:
-            # Legacy MCP path (not recommended)
-            logger.warning("Tavily MCP mode deprecated - use use_mcp=False for full features")
-            return None
-        
         if not self.tavily_client:
             logger.warning("Tavily client not configured")
             return None
@@ -541,7 +536,7 @@ if __name__ == "__main__":
         confidence: float = 0.75
         connection_strength: float = 0.87
     
-    validator = InsightValidator(use_mcp=False)
+    validator = InsightValidator()
     
     mock_insight = MockInsight()
     result = validator.validate(mock_insight)  # type: ignore

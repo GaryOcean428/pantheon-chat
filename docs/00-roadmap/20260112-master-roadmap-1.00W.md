@@ -309,6 +309,65 @@ This roadmap consolidates information from:
 
 ---
 
+## Section 5: External Search Integration (IMPLEMENTED 2026-01-13)
+
+### 5.1 Search Providers
+
+| Provider | Type | Pricing | Daily Cap | Status |
+|----------|------|---------|-----------|--------|
+| Tavily | SDK | Credit-based ($0.01-0.04/op) | $5.00 | ✅ ACTIVE |
+| Perplexity | API | Token-based (~$0.02/query) | $5.00 | ✅ ACTIVE |
+| Google | Free | $0.005/query | Unlimited | ✅ ACTIVE |
+| DuckDuckGo | Free | $0/query | Unlimited | ✅ ACTIVE |
+
+### 5.2 Budget Controls
+
+✅ **Rate Limiting**:
+- Per-minute rate limits (5/min default)
+- Daily request caps (100/day default)
+- Cost tracking with real-time estimates
+- Override toggles for admin bypass
+
+✅ **API Endpoints**:
+- `GET /api/search/budget/stats` - Current usage statistics
+- `POST /api/search/budget/override` - Toggle budget override
+- `POST /api/search/budget/limits` - Update rate limits
+- `GET /api/search/budget/learning-docs` - List learning documents
+
+### 5.3 Budget-Aware Kernel Batching
+
+✅ **SearchRequestBatcher** (autonomous_curiosity.py):
+- Groups similar queries by topic (Fisher distance < 0.3)
+- 5-minute cache TTL for duplicate queries
+- Budget check before premium provider queries
+- Thread-safe operation with locks
+
+### 5.4 Quality Text Extraction
+
+✅ **ScrapyOrchestrator.extract_quality_text()** (shadow_scrapy.py):
+- Extracts substantive paragraphs (>100 chars)
+- Filters navigation, ads, boilerplate
+- Quality scoring based on content length, link density, vocabulary
+- Returns structured results with quality metrics
+
+### 5.5 Learning Document Storage
+
+✅ **LearningDocumentStore** (learning-document-store.ts):
+- Persists to Replit Object Storage bucket
+- Path format: `learning/{kernel_id}/{timestamp}_{topic_hash}.json`
+- Manifest tracking for stats and discovery
+- Full CRUD operations with content hashing
+
+**Implementation Files**:
+- `server/tavily-usage-limiter.ts` - Tavily rate/cost limiting
+- `server/perplexity-usage-limiter.ts` - Perplexity rate/cost limiting
+- `server/learning-document-store.ts` - Object Storage persistence
+- `qig-backend/search/insight_validator.py` - Validation pipeline
+- `qig-backend/autonomous_curiosity.py` - Budget-aware batching
+- `qig-backend/olympus/shadow_scrapy.py` - Quality text extraction
+
+---
+
 ## References
 
 - [Implementation Quality Audit 2026-01-13](../04-records/20260113-implementation-quality-audit-1.00W.md)
