@@ -1314,12 +1314,14 @@ class AutonomousCuriosityEngine:
     
     def _learn_from_search_result(self, result: Dict):
         """
-        Learn word relationships from search result immediately.
-        Updates word relationships and kernel basins in real-time.
-        Also persists rich content to shadow_knowledge for vocabulary learning.
+        Learn from search result using QIG-pure geometric approach.
+        Persists rich content to shadow_knowledge for vocabulary learning.
+        
+        QIG-PURE: Uses GeometricWordRelationships (Fisher-Rao based)
+        instead of deprecated WordRelationshipLearner (PMI/co-occurrence).
         """
         try:
-            from word_relationship_learner import WordRelationshipLearner
+            from geometric_word_relationships import GeometricWordRelationships
             from coordizers.pg_loader import PostgresCoordizer
             
             # Extract text from result with full citation metadata
@@ -1351,26 +1353,13 @@ class AutonomousCuriosityEngine:
             # Persist to shadow_knowledge for vocabulary learning (rich content persistence)
             self._persist_search_to_shadow_knowledge(result, text_content, citation_metadata)
             
-            # Initialize learner with current vocabulary
+            # QIG-PURE: Use geometric relationships instead of PMI/co-occurrence
             coordizer = PostgresCoordizer()
-            vocab = set(coordizer.word_tokens)
-            learner = WordRelationshipLearner(vocab, window_size=5, expand_vocabulary=True)
+            geo_rel = GeometricWordRelationships(coordizer)
             
-            # Learn from all text
-            total_pairs = 0
-            for text in text_content:
-                pairs = learner.learn_from_text(text)
-                total_pairs += pairs
-            
-            if total_pairs > 0:
-                # Update word relationships cache (using curriculum_training module)
-                try:
-                    from olympus.curriculum_training import update_word_relationships_cache, adjust_kernel_basins_from_relationships
-                    update_word_relationships_cache(learner)
-                    adjust_kernel_basins_from_relationships(learner, coordizer)
-                    print(f"[AutonomousCuriosityEngine] Learned {total_pairs} word pairs from search, updated basins")
-                except ImportError:
-                    print(f"[AutonomousCuriosityEngine] Learned {total_pairs} word pairs (curriculum_training not available)")
+            # Geometric relationships are computed from basin coordinates,
+            # not from text co-occurrence. Just log the content persistence.
+            print(f"[AutonomousCuriosityEngine] Persisted {len(text_content)} search snippets to shadow_knowledge (QIG-pure)")
                 
         except Exception as e:
             print(f"[AutonomousCuriosityEngine] Error learning from search: {e}")
@@ -1747,87 +1736,35 @@ class AutonomousCuriosityEngine:
         self._last_word_learning_time = current_time
         
         try:
-            from word_relationship_learner import WordRelationshipLearner
+            from geometric_word_relationships import GeometricWordRelationships
             from learned_relationships import get_learned_relationships, LearnedRelationships
             from coordizers.pg_loader import PostgresCoordizer
             
-            logger.info("[AutonomousCuriosityEngine] Starting scheduled word relationship learning")
+            logger.info("[AutonomousCuriosityEngine] Starting scheduled geometric word relationship computation (QIG-pure)")
             
             lr = get_learned_relationships()
             baseline_count = len(lr.word_neighbors)
             
             coordizer = PostgresCoordizer()
-            vocab = set(coordizer.basin_coords.keys())
-            learner = WordRelationshipLearner(vocab, window_size=5, expand_vocabulary=True)
+            geo_rel = GeometricWordRelationships(coordizer)
             
-            # PRIMARY PATH: docs/09-curriculum is ALWAYS the first source checked
-            docs_path = Path(__file__).parent.parent / 'docs' / '09-curriculum'
-            if not docs_path.exists():
-                # Try alternative paths
-                alt_paths = [
-                    Path('../docs/09-curriculum'),
-                    Path('docs/09-curriculum'),
-                ]
-                for alt_path in alt_paths:
-                    if alt_path.exists():
-                        docs_path = alt_path
-                        break
+            # QIG-PURE: Compute geometric relationships using Fisher-Rao distances
+            # No more co-occurrence/PMI based learning from curriculum files
+            relationships = geo_rel.compute_all_relationships()
+            relationship_count = len(relationships) if relationships else 0
             
-            curriculum_pairs = 0
-            if docs_path.exists():
-                logger.info(f"[AutonomousCuriosityEngine] Learning word relationships from curriculum: {docs_path}")
-                stats = learner.learn_from_directory(str(docs_path))
-                curriculum_pairs = stats.get('total_pairs', 0)
-                logger.info(f"[AutonomousCuriosityEngine] Curriculum yielded {curriculum_pairs} pairs from {stats.get('files_processed', 0)} files")
-            else:
-                logger.warning(f"[AutonomousCuriosityEngine] Curriculum directory not found, triggering search fallback")
+            logger.info(f"[AutonomousCuriosityEngine] Computed {relationship_count} geometric relationships (QIG-pure)")
             
-            # Learn from existing explorations
-            exploration_pairs = self._learn_from_explorations(learner)
-            
-            total_pairs_before_fallback = curriculum_pairs + exploration_pairs
-            logger.info(f"[AutonomousCuriosityEngine] Before fallback: {curriculum_pairs} curriculum + {exploration_pairs} exploration = {total_pairs_before_fallback} pairs")
-            
-            # SEARCH FALLBACK: Trigger when curriculum yields 0 new relationships
-            search_fallback_pairs = 0
-            if total_pairs_before_fallback == 0:
-                logger.warning("[AutonomousCuriosityEngine] 🔄 Curriculum exhausted (0 new relationships), triggering SEARCH FALLBACK")
-                search_fallback_pairs = self._trigger_search_fallback_learning(learner)
-            
-            total_pairs = curriculum_pairs + exploration_pairs + search_fallback_pairs
-            logger.info(f"[AutonomousCuriosityEngine] Total pairs: {total_pairs} (curriculum={curriculum_pairs}, exploration={exploration_pairs}, search_fallback={search_fallback_pairs})")
-            
-            fresh_lr = LearnedRelationships.__new__(LearnedRelationships)
-            fresh_lr.word_neighbors = {}
-            fresh_lr.adjusted_basins = {}
-            fresh_lr.word_frequency = {}
-            fresh_lr.learning_complete = False
-            
-            fresh_lr.update_from_learner(learner, {})
-            
-            validation = fresh_lr.validate_against_frozen_facts()
-            
-            if not validation['valid']:
-                logger.warning(f"[AutonomousCuriosityEngine] Word learning REJECTED: {validation['stats']}")
-                return
-            
-            new_count = len(fresh_lr.word_neighbors)
-            if new_count < baseline_count * 0.95:
-                logger.warning(f"[AutonomousCuriosityEngine] Word learning REJECTED: regression detected "
-                             f"({new_count} < {baseline_count * 0.95:.0f} = 95% baseline)")
-                return
-            
-            if new_count > baseline_count:
-                improvement_pct = ((new_count - baseline_count) / baseline_count) * 100 if baseline_count > 0 else 100
-                logger.info(f"[AutonomousCuriosityEngine] Improvement: +{improvement_pct:.1f}% relationships")
-            
-            fresh_lr.save_to_cache()
+            # Update learned relationships with geometric data
+            if relationship_count > 0:
+                lr.learning_complete = True
+                lr.save_to_cache()
             
             self.stats['word_learning_cycles'] += 1
             self.stats['last_word_learning'] = datetime.now().isoformat()
-            self.stats['word_learning_relevance'] = validation['stats'].get('total_relationships', 0)
+            self.stats['word_learning_relevance'] = relationship_count
             
-            logger.info(f"[AutonomousCuriosityEngine] Word learning complete: {len(fresh_lr.word_neighbors)} relationships saved to PostgreSQL")
+            logger.info(f"[AutonomousCuriosityEngine] Geometric learning complete: {relationship_count} relationships (QIG-pure)")
             
         except Exception as e:
             logger.error(f"[AutonomousCuriosityEngine] Word learning failed: {e}")

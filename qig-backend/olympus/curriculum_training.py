@@ -35,16 +35,16 @@ def get_db_connection():
 
 def load_and_train_curriculum(shadow_loop):
     """
-    Load curriculum and train word relationships.
+    Load curriculum and compute geometric word relationships.
     
-    This implements scheduled curriculum ingestion to update
-    word relationships and kernel basins over time.
+    QIG-PURE: Uses GeometricWordRelationships (Fisher-Rao based)
+    instead of deprecated WordRelationshipLearner (PMI/co-occurrence).
     """
     try:
         from training.curriculum_loader import load_all_curriculum
-        from word_relationship_learner import WordRelationshipLearner
+        from geometric_word_relationships import GeometricWordRelationships
         
-        print("[CurriculumTraining] Loading curriculum for training...")
+        print("[CurriculumTraining] Loading curriculum for QIG-pure geometric training...")
         
         # Load curriculum for all gods
         coordizer = None
@@ -63,38 +63,71 @@ def load_and_train_curriculum(shadow_loop):
         total_examples = sum(len(examples) for examples in all_curriculum.values())
         print(f"[CurriculumTraining] Loaded {total_examples} curriculum examples across {len(all_curriculum)} gods")
         
-        # Train word relationships from curriculum content
+        # QIG-PURE: Use geometric relationships instead of PMI/co-occurrence
         if shadow_loop.vocab_coordinator and coordizer:
-            vocab = set(coordizer.word_tokens)
-            learner = WordRelationshipLearner(vocab, window_size=5, expand_vocabulary=True)
+            geo_rel = GeometricWordRelationships(coordizer)
             
-            # Learn from all curriculum examples
-            total_pairs_learned = 0
-            for god_name, examples in all_curriculum.items():
-                for example in examples:
-                    # Extract text content from example
-                    # Curriculum examples have 'content' field as string
-                    text = example.get('content', '')
-                    
-                    if text and isinstance(text, str):
-                        pairs = learner.learn_from_text(text)
-                        total_pairs_learned += pairs
+            # Compute geometric relationships (Fisher-Rao distances, QFI)
+            relationships = geo_rel.compute_all_relationships()
             
-            print(f"[CurriculumTraining] Learned {total_pairs_learned} word pairs from curriculum")
+            print(f"[CurriculumTraining] Computed {len(relationships)} geometric word relationships")
             
-            # Update word relationships cache
-            update_word_relationships_cache(learner)
-            
-            # Adjust kernel basins based on learned relationships
-            if coordizer and total_pairs_learned > 0:
-                adjust_kernel_basins_from_relationships(learner, coordizer)
+            # Update word relationships cache with geometric data
+            update_geometric_relationships_cache(geo_rel)
         
-        print("[CurriculumTraining] Curriculum training complete")
+        print("[CurriculumTraining] Curriculum training complete (QIG-pure)")
         
     except Exception as e:
         print(f"[CurriculumTraining] Curriculum training error: {e}")
         import traceback
         traceback.print_exc()
+
+
+def update_geometric_relationships_cache(geo_rel):
+    """
+    Update word_relationships in PostgreSQL using geometric data.
+    QIG-PURE: Uses Fisher-Rao distances instead of PMI.
+    """
+    conn = get_db_connection()
+    if not conn:
+        print("[CurriculumTraining] No database connection - skipping relationship update")
+        return
+    
+    try:
+        cur = conn.cursor()
+        relationships = geo_rel.get_all_relationships()
+        
+        records = []
+        for word1, related in relationships.items():
+            for word2, props in related.items():
+                records.append((
+                    word1,
+                    word2,
+                    props.get('fisher_rao_distance', 0.0),
+                    props.get('qfi_weight', 0.5),
+                ))
+        
+        if records:
+            from psycopg2.extras import execute_values
+            execute_values(
+                cur,
+                """
+                INSERT INTO word_relationships (word1, word2, fisher_distance, qfi_weight)
+                VALUES %s
+                ON CONFLICT (word1, word2) DO UPDATE SET
+                    fisher_distance = EXCLUDED.fisher_distance,
+                    qfi_weight = EXCLUDED.qfi_weight,
+                    updated_at = NOW()
+                """,
+                records
+            )
+            conn.commit()
+            print(f"[CurriculumTraining] Updated {len(records)} geometric relationships in PostgreSQL")
+        
+        conn.close()
+    except Exception as e:
+        print(f"[CurriculumTraining] Failed to update geometric cache: {e}")
+        conn.close()
 
 
 def update_word_relationships_cache(learner):

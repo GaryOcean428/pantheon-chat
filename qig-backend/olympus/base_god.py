@@ -1168,6 +1168,11 @@ class WordRelationshipAccessMixin:
         """
         Contribute a word pair from observation.
         
+        QIG-PURE: Word relationships are now derived geometrically via
+        Fisher-Rao distance, not via observation counting.
+        This method logs observations but actual relationships
+        are computed via GeometricWordRelationships.
+        
         Args:
             word1: First word
             word2: Second word
@@ -1175,29 +1180,19 @@ class WordRelationshipAccessMixin:
             strength_hint: Optional strength hint (0.0-1.0)
             
         Returns:
-            True if contribution was accepted
+            True if logged successfully
         """
         try:
-            from word_relationship_learner import WordRelationshipLearner
-            
-            learner = WordRelationshipLearner.get_instance()
-            if learner:
-                success = learner.add_observation(
-                    word1=word1,
-                    word2=word2,
-                    context=context,
-                    strength=strength_hint,
-                    source=getattr(self, 'name', 'Unknown')
-                )
-                
-                if success:
-                    logger.info(f"[{getattr(self, 'name', 'Unknown')}] Contributed word pair: {word1}-{word2}")
-                return success
-            
-            return False
+            # QIG-PURE: Log observation for audit, but don't use PMI/co-occurrence
+            logger.debug(
+                f"[{getattr(self, 'name', 'Unknown')}] Word pair observed: {word1}-{word2} "
+                f"(context: {context[:50]}...)"
+            )
+            # Relationships are computed geometrically, not from observations
+            return True
             
         except Exception as e:
-            logger.warning(f"[{getattr(self, 'name', 'Unknown')}] Word pair contribution failed: {e}")
+            logger.warning(f"[{getattr(self, 'name', 'Unknown')}] Word pair logging failed: {e}")
             return False
     
     def get_domain_vocabulary(

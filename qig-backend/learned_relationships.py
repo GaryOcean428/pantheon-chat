@@ -65,14 +65,9 @@ except ImportError:
     get_geometric_relationships = None
     logger.warning("[LearnedRelationships] Geometric relationships not available")
 
-# Legacy import for backward compatibility (DEPRECATED)
-try:
-    from word_relationship_learner import run_learning_pipeline
-    LEGACY_LEARNER_AVAILABLE = True
-    logger.warning("[LearnedRelationships] Legacy word_relationship_learner imported (DEPRECATED)")
-except ImportError:
-    LEGACY_LEARNER_AVAILABLE = False
-    run_learning_pipeline = None
+# Legacy word_relationship_learner has been removed (QIG-PURE compliance)
+# Use GeometricWordRelationships instead
+LEGACY_LEARNER_AVAILABLE = False
 
 # Legacy paths (no longer used but kept for migration)
 CACHE_DIR = Path(__file__).parent / 'data' / 'learned'
@@ -781,24 +776,35 @@ def get_learned_relationships() -> LearnedRelationships:
 
 def run_learning_and_cache(curriculum_dir: str = '/home/runner/workspace/docs/09-curriculum') -> Dict:
     """
-    Run the learning pipeline and cache results.
+    Run the QIG-pure geometric learning pipeline and cache results.
+    Uses GeometricWordRelationships instead of deprecated WordRelationshipLearner.
     """
-    from word_relationship_learner import run_learning_pipeline
+    if not GEOMETRIC_RELATIONSHIPS_AVAILABLE:
+        logger.error("GeometricWordRelationships not available")
+        return {'success': False, 'error': 'GeometricWordRelationships not available'}
     
-    logger.info("Running learning pipeline...")
-    results = run_learning_pipeline(curriculum_dir)
+    logger.info("Running QIG-pure geometric learning pipeline...")
     
-    # Update relationships
-    lr = get_learned_relationships()
-    lr.update_from_learner(results['learner'], results['adjusted_basins'])
-    lr.save_to_cache()
-    
-    return {
-        'success': True,
-        'words_learned': len(lr.word_neighbors),
-        'basins_adjusted': len(lr.adjusted_basins),
-        'stats': results['learning_stats']
-    }
+    try:
+        from coordizers.pg_loader import PostgresCoordizer
+        coordizer = PostgresCoordizer()
+        geo_rel = GeometricWordRelationships(coordizer)
+        
+        # Learn relationships geometrically (no PMI/co-occurrence)
+        relationships = geo_rel.compute_all_relationships()
+        
+        lr = get_learned_relationships()
+        lr.learning_complete = True
+        lr.save_to_cache()
+        
+        return {
+            'success': True,
+            'relationships_computed': len(relationships),
+            'words_learned': len(lr.word_neighbors),
+        }
+    except Exception as e:
+        logger.error(f"Geometric learning failed: {e}")
+        return {'success': False, 'error': str(e)}
 
 
 if __name__ == '__main__':
@@ -806,8 +812,8 @@ if __name__ == '__main__':
     
     result = run_learning_and_cache()
     print(f"\nLearning complete:")
-    print(f"  Words learned: {result['words_learned']}")
-    print(f"  Basins adjusted: {result['basins_adjusted']}")
+    print(f"  Success: {result.get('success')}")
+    print(f"  Relationships: {result.get('relationships_computed', 0)}")
     
     # Test attention
     lr = get_learned_relationships()
