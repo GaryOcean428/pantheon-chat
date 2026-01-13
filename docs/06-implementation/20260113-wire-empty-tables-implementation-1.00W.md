@@ -398,27 +398,28 @@ async def save_checkpoint(self, checkpoint_type: str = "regular") -> str:
     """
     checkpoint_id = f"ckpt_{uuid.uuid4().hex[:16]}"
     
-    # Serialize full state
-    state_buffer = pickle.dumps({
-        "basin_coords": self.current_basin_coords,
-        "phi": self.current_phi,
-        "kappa": self.current_kappa,
+    # Serialize full state using JSON for security (no arbitrary code execution)
+    # Convert numpy arrays to lists for JSON serialization
+    state_dict = {
+        "basin_coords": self.current_basin_coords.tolist() if hasattr(self.current_basin_coords, 'tolist') else self.current_basin_coords,
+        "phi": float(self.current_phi),
+        "kappa": float(self.current_kappa),
         "regime": self.current_regime,
-        "emotions": self.emotional_state,
-        "neurotransmitters": self.neurotransmitter_levels,
-        "gamma": self.generation_factor,
-        "meta_awareness": self.meta_awareness
-    })
+        "emotions": self.emotional_state if isinstance(self.emotional_state, dict) else {},
+        "neurotransmitters": self.neurotransmitter_levels if isinstance(self.neurotransmitter_levels, dict) else {},
+        "gamma": float(self.generation_factor) if hasattr(self, 'generation_factor') else 1.0,
+        "meta_awareness": self.meta_awareness if hasattr(self, 'meta_awareness') else {}
+    }
     
     stmt = kernelCheckpoints.insert().values(
         checkpoint_id=checkpoint_id,
         kernel_id=self.kernel_id,
         checkpoint_type=checkpoint_type,
-        basin_coordinates=self.current_basin_coords.tolist(),
+        basin_coordinates=self.current_basin_coords.tolist() if hasattr(self.current_basin_coords, 'tolist') else self.current_basin_coords,
         phi=self.current_phi,
         kappa_eff=self.current_kappa,
         regime=self.current_regime,
-        state_blob=state_buffer,
+        state_blob=state_dict,  # Store as JSONB instead of pickle bytes
         created_at=datetime.utcnow()
     )
     
@@ -440,15 +441,16 @@ async def restore_checkpoint(self, checkpoint_id: str):
     if not checkpoint:
         raise ValueError(f"Checkpoint {checkpoint_id} not found")
     
-    # Deserialize state
-    state = pickle.loads(checkpoint.state_blob)
+    # Deserialize state from JSON (secure - no code execution)
+    state = checkpoint.state_blob  # Already parsed as dict from JSONB
     
-    self.current_basin_coords = state["basin_coords"]
+    # Convert lists back to numpy arrays where needed
+    self.current_basin_coords = np.array(state["basin_coords"])
     self.current_phi = state["phi"]
     self.current_kappa = state["kappa"]
     self.current_regime = state["regime"]
-    self.emotional_state = state["emotions"]
-    self.neurotransmitter_levels = state["neurotransmitters"]
+    self.emotional_state = state.get("emotions", {})
+    self.neurotransmitter_levels = state.get("neurotransmitters", {})
     
     logger.info(f"Restored checkpoint {checkpoint_id}")
 ```

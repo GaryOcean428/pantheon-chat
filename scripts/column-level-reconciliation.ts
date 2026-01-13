@@ -40,25 +40,31 @@ interface ColumnInfo {
 async function getActualColumns(db: any, tableNames: string[]): Promise<Map<string, ColumnInfo[]>> {
   const columnMap = new Map<string, ColumnInfo[]>();
   
-  for (const tableName of tableNames) {
-    const results = await db.execute(sql`
-      SELECT 
-        table_name,
-        column_name,
-        data_type,
-        is_nullable,
-        column_default,
-        character_maximum_length,
-        numeric_precision,
-        numeric_scale,
-        udt_name
-      FROM information_schema.columns
-      WHERE table_schema = 'public'
-      AND table_name = ${tableName}
-      ORDER BY ordinal_position
-    `);
-    
-    const columns: ColumnInfo[] = results.rows.map((row: any) => ({
+  if (tableNames.length === 0) {
+    return columnMap;
+  }
+
+  // Batch query all tables at once to avoid N+1 problem
+  const results = await db.execute(sql`
+    SELECT 
+      table_name,
+      column_name,
+      data_type,
+      is_nullable,
+      column_default,
+      character_maximum_length,
+      numeric_precision,
+      numeric_scale,
+      udt_name
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+    AND table_name = ANY(${tableNames})
+    ORDER BY table_name, ordinal_position
+  `);
+  
+  // Group columns by table name
+  for (const row of results.rows) {
+    const column: ColumnInfo = {
       tableName: row.table_name,
       columnName: row.column_name,
       dataType: row.data_type === 'USER-DEFINED' ? row.udt_name : row.data_type,
@@ -67,9 +73,12 @@ async function getActualColumns(db: any, tableNames: string[]): Promise<Map<stri
       characterMaximumLength: row.character_maximum_length,
       numericPrecision: row.numeric_precision,
       numericScale: row.numeric_scale,
-    }));
-    
-    columnMap.set(tableName, columns);
+    };
+
+    if (!columnMap.has(column.tableName)) {
+      columnMap.set(column.tableName, []);
+    }
+    columnMap.get(column.tableName)!.push(column);
   }
   
   return columnMap;
@@ -208,37 +217,40 @@ async function main() {
   console.log('**ID**: ISMS-DB-COLUMN-RECONCILIATION-001\n');
   console.log('---\n');
   
-  const client = postgres(DATABASE_URL!, { max: 1 });
-  const db = drizzle(client);
+  let client: ReturnType<typeof postgres> | null = null;
   
-  console.log('## Analysis Scope\n');
-  console.log('Performing deep column-level analysis on:\n');
-  console.log('1. 7 newly added tables (Phase 1)');
-  console.log('2. All 110 existing tables for column mismatches');
-  console.log('3. Nullable constraints');
-  console.log('4. Type mismatches');
-  console.log('5. Missing defaults\n');
-  console.log('---\n');
-  
-  // Analyze newly added tables first
-  const newlyAddedTables = [
-    'm8_spawn_history',
-    'm8_spawn_proposals',
-    'm8_spawned_kernels',
-    'pantheon_proposals',
-    'god_vocabulary_profiles',
-    'vocabulary_learning',
-    'exploration_history',
-  ];
-  
-  console.log('## Section 1: Newly Added Tables (Phase 1)\n');
-  console.log('Analyzing 7 tables added to schema.ts...\n');
-  
-  const newTableColumns = await getActualColumns(db, newlyAddedTables);
-  
-  for (const tableName of newlyAddedTables) {
-    const columns = newTableColumns.get(tableName);
-    if (!columns) {
+  try {
+    client = postgres(DATABASE_URL!, { max: 1 });
+    const db = drizzle(client);
+    
+    console.log('## Analysis Scope\n');
+    console.log('Performing deep column-level analysis on:\n');
+    console.log('1. 7 newly added tables (Phase 1)');
+    console.log('2. All 110 existing tables for column mismatches');
+    console.log('3. Nullable constraints');
+    console.log('4. Type mismatches');
+    console.log('5. Missing defaults\n');
+    console.log('---\n');
+    
+    // Analyze newly added tables first
+    const newlyAddedTables = [
+      'm8_spawn_history',
+      'm8_spawn_proposals',
+      'm8_spawned_kernels',
+      'pantheon_proposals',
+      'god_vocabulary_profiles',
+      'vocabulary_learning',
+      'exploration_history',
+    ];
+    
+    console.log('## Section 1: Newly Added Tables (Phase 1)\n');
+    console.log('Analyzing 7 tables added to schema.ts...\n');
+    
+    const newTableColumns = await getActualColumns(db, newlyAddedTables);
+    
+    for (const tableName of newlyAddedTables) {
+      const columns = newTableColumns.get(tableName);
+      if (!columns) {
       console.log(`### ❌ ${tableName} - NOT FOUND IN DATABASE\n`);
       console.log(`**CRITICAL**: Table exists in schema.ts but not in database!\n`);
       continue;
@@ -420,11 +432,21 @@ async function main() {
   console.log('8. Add constraints for enum-like varchar columns');
   console.log('9. Review integer vs bigint for ID columns');
   console.log('10. Standardize naming conventions (created_at vs createdAt)\n');
-  
-  await client.end();
+  } catch (error) {
+    // Log error without exposing sensitive information
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    console.error('❌ Analysis failed:', errorMessage);
+    throw error;
+  } finally {
+    // Ensure database connection is always closed
+    if (client) {
+      await client.end();
+    }
+  }
 }
 
 main().catch((err) => {
-  console.error('Error:', err);
+  // Minimal error output to stderr to avoid leaking sensitive data
+  console.error('❌ Fatal error during reconciliation. Check logs for details.');
   process.exit(1);
 });
