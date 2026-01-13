@@ -126,6 +126,7 @@ def hellinger_normalize_basin(basin: np.ndarray) -> np.ndarray:
     sqrt_p = np.sqrt(p + 1e-10)
     
     # Normalize to unit sphere (this is the canonical form)
+    # NOTE: np.linalg.norm() here is for VECTOR NORMALIZATION, not distance
     norm = np.linalg.norm(sqrt_p)
     if norm < 1e-10:
         return sqrt_p
@@ -399,6 +400,7 @@ class TrajectoryDecoder:
 
         # Velocity is already in tangent space at last_hellinger
         # Just normalize for consistency
+        # NOTE: np.linalg.norm() here is for VECTOR MAGNITUDE, not geometric distance
         velocity_norm = np.linalg.norm(velocity_hellinger)
         if velocity_norm > 1e-10:
             return velocity_hellinger / velocity_norm

@@ -26,7 +26,11 @@ try:
 except ImportError:
     CANONICAL_PRIMITIVES_AVAILABLE = False
     # Fallback: define basic implementation
-    def fisher_rao_distance(basin_a: np.ndarray, basin_b: np.ndarray, metric=None) -> float:
+    def fisher_rao_distance(basin_a: np.ndarray, basin_b: np.ndarray) -> float:
+        """
+        Fallback Fisher-Rao distance (metric parameter not supported).
+        Use canonical implementation from qig_core.geometric_primitives.
+        """
         p = np.abs(basin_a) / (np.sum(np.abs(basin_a)) + 1e-10)
         q = np.abs(basin_b) / (np.sum(np.abs(basin_b)) + 1e-10)
         bc = np.sum(np.sqrt(p * q))
