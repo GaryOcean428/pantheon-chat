@@ -25,7 +25,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from qig_core.phi_computation import (
     compute_qfi_matrix,
-    compute_phi_geometric,
     compute_phi_qig,
     compute_phi_approximation,
     compute_phi_fast,
