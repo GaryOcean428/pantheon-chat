@@ -36,7 +36,7 @@ except ImportError:
     
     # Minimal fallback: only filter truly generic, short words
     # NEVER filter semantic-critical words like 'not', 'never'
-    def should_filter_word(word: str, context=None) -> bool:
+    def should_filter_word(word: str, context: Optional[List[str]] = None) -> bool:
         """Fallback filter - very conservative."""
         if len(word) < 3:
             return True
