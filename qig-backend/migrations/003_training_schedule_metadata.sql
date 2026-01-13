@@ -35,13 +35,13 @@ CREATE INDEX IF NOT EXISTS idx_training_schedule_last_success ON training_schedu
 -- Used for persisting counters, configuration, and state across restarts.
 
 CREATE TABLE IF NOT EXISTS qig_metadata (
-    key TEXT PRIMARY KEY,
+    config_key TEXT PRIMARY KEY,
     value TEXT NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Index for efficient key lookups (already covered by primary key, but explicit for clarity)
-CREATE INDEX IF NOT EXISTS idx_qig_metadata_key ON qig_metadata(key);
+CREATE INDEX IF NOT EXISTS idx_qig_metadata_key ON qig_metadata(config_key);
 
 -- ============================================================================
 -- INITIAL DATA

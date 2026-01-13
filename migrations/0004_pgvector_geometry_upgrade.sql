@@ -24,9 +24,9 @@ BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM pg_indexes
         WHERE schemaname = 'public'
-          AND indexname = 'manifold_probes_coordinates_hnsw'
+          AND indexname = 'idx_manifold_probes_coordinates_hnsw'
     ) THEN
-        EXECUTE 'CREATE INDEX manifold_probes_coordinates_hnsw
+        EXECUTE 'CREATE INDEX idx_manifold_probes_coordinates_hnsw
                  ON manifold_probes
                  USING hnsw (coordinates vector_cosine_ops)
                  WITH (m = 16, ef_construction = 64)';

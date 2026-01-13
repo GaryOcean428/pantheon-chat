@@ -61,26 +61,41 @@ def extract_column_names(sql: str, table_name: str) -> List[str]:
     
     table_body = match.group(1)
     
+    # SQL keywords that are NOT column names
+    sql_keywords = {'CONSTRAINT', 'PRIMARY', 'FOREIGN', 'UNIQUE', 'CHECK', 'REFERENCES', 'DEFAULT', 'NOT', 'NULL'}
+    
     # Extract column definitions (before constraints)
     columns = []
     for line in table_body.split('\n'):
         line = line.strip()
-        if not line or line.startswith('CONSTRAINT') or line.startswith('PRIMARY') or line.startswith('FOREIGN'):
+        if not line or line.startswith('--'):
             continue
-        if line.startswith('--'):
+        
+        # Skip constraint lines
+        first_word = line.split('(')[0].split()[0].upper() if line.split() else ''
+        if first_word in sql_keywords:
             continue
             
         # Extract column name (first word in the line)
         col_match = re.match(r'"?([a-zA-Z_][a-zA-Z0-9_]*)"?', line)
         if col_match:
-            columns.append(col_match.group(1))
+            col_name = col_match.group(1)
+            # Skip if it's a SQL keyword
+            if col_name.upper() not in sql_keywords:
+                columns.append(col_name)
     
     return columns
 
 def extract_index_names(sql: str) -> List[str]:
     """Extract index names from CREATE INDEX statements."""
+    # Remove SQL comments to avoid matching text in comments like "-- Create index for..."
+    sql_cleaned = re.sub(r'--.*$', '', sql, flags=re.MULTILINE)
+    
+    # Remove PL/pgSQL blocks to avoid matching 'for' loops
+    sql_cleaned = re.sub(r'DO\s*\$\$.*?END\s*\$\$\s*;', '', sql_cleaned, flags=re.IGNORECASE | re.DOTALL)
+    
     pattern = r'CREATE\s+(?:UNIQUE\s+)?INDEX\s+(?:IF\s+NOT\s+EXISTS\s+)?"?([a-zA-Z_][a-zA-Z0-9_]*)"?'
-    matches = re.findall(pattern, sql, re.IGNORECASE)
+    matches = re.findall(pattern, sql_cleaned, re.IGNORECASE)
     return matches
 
 def is_snake_case(name: str) -> bool:
