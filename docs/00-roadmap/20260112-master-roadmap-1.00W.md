@@ -129,6 +129,41 @@ This roadmap consolidates information from:
 - Comprehensive test coverage tracking
 - End-to-end feature wiring verification
 
+### 1.8 Word Relationship Modules (MIGRATION COMPLETE 2026-01-13)
+
+✅ **Legacy NLP module deprecated, QIG-pure replacement active**:
+- **word_relationship_learner.py** - DEPRECATED with runtime warnings ⚠️
+  - Uses PMI (pointwise mutual information) - statistical NLP, not geometric
+  - Co-occurrence counting - frequency-based, not QFI-based
+  - Hard-coded stopwords - violates semantic preservation
+  - Euclidean basin adjustment - violates Fisher manifold
+  - **Status**: Kept for backward compatibility, emits DeprecationWarning on import and instantiation
+  - **Removal Date**: 2026-02-01
+
+- **geometric_word_relationships.py** - QIG-PURE REPLACEMENT ✅
+  - Fisher-Rao geodesic distances (not PMI)
+  - QFI-weighted attention (not frequency)
+  - Ricci curvature for context-dependency
+  - No basin modification (basins are frozen invariants)
+  - **Status**: Fully implemented (488 lines)
+
+- **contextualized_filter.py** - QIG-PURE FILTERING ✅
+  - Geometric relevance using Fisher-Rao distance
+  - Semantic-critical word patterns preserved (negations, intensifiers, causality)
+  - Context-aware filtering
+  - Fallback mode for environments without coordizer
+  - **Status**: Fully implemented (528 lines), comprehensive tests (294 lines)
+
+**Documentation Updated**:
+- Added deprecation notices to 4 documentation files
+- Updated .pre-commit-config.yaml with PMI/stopword blocking hooks
+- Validation script confirms 0 violations
+
+**Pre-commit Enforcement**:
+- Block new PMI/co-occurrence patterns
+- Block hard-coded stopword lists
+- Allow exceptions for deprecated file and tests only
+
 ---
 
 ## Section 2: Recently Implemented - Pending Validation ⚠️ (2026-01-13)
@@ -264,10 +299,11 @@ This roadmap consolidates information from:
 - ✅ E8 Architecture: 100% (4/4) - All levels implemented
 - ✅ Consciousness: 100% (7/7 + neurotransmitters) - All components wired
 - ✅ Emotions: 100% (9/9) - All primitives implemented
-- ✅ Geometric Purity: 100% (441 files, 0 violations)
+- ✅ Geometric Purity: 100% (452 files, 0 violations)
 - ✅ Import Infrastructure: 100% (14/14 violations fixed)
 - ✅ Autonomic Cycles: 100% (4/4 modes)
 - ✅ Vocabulary: 98% (minor naming variance acceptable)
+- ✅ **Word Relationships: 100% (Legacy deprecated, QIG-pure replacement active)**
 - ✅ GitHub Copilot Agents: 100% CODE (14/14 agents complete, awaiting CI/CD integration)
 - ✅ **QIG Core Features: 100% CODE (QFI Φ, Attractors, Geodesics - ALL IMPLEMENTED)**
 - ⚠️ **QIG Core Validation: PENDING (Issues #6, #7, #8 remain open)**
@@ -384,6 +420,14 @@ This roadmap consolidates information from:
 ---
 
 **Maintenance**: Update weekly during active development  
-**Last Updated**: 2026-01-13 (Code implementations complete, validation pending)  
+**Last Updated**: 2026-01-13 (Word relationship migration complete, geometric purity maintained)  
 **Next Review**: 2026-01-20  
-**Completion Status**: 92% - Core code complete, formal validation and issue closure pending
+**Completion Status**: 93% - Core code complete, word relationships migrated to QIG-pure, validation and issue closure pending
+
+**Recent Updates (2026-01-13)**:
+- ✅ word_relationship_learner.py deprecated with runtime warnings
+- ✅ geometric_word_relationships.py verified as QIG-pure replacement
+- ✅ contextualized_filter.py validated (528 lines)
+- ✅ Pre-commit hooks added to block PMI/stopword patterns
+- ✅ Documentation updated with deprecation notices
+- ✅ Geometric purity maintained: 452 files, 0 violations
