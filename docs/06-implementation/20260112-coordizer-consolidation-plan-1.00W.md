@@ -52,7 +52,7 @@ Multiple entry points exist for coordizer functionality:
 - `ocean_qig_core.py` (8 imports!)
 
 **Files using direct PostgresCoordizer:**
-- `word_relationship_learner.py`
+- `word_relationship_learner.py` **[DEPRECATED - Use geometric_word_relationships.py]**
 - `autonomous_curiosity.py`
 - `training/tasks.py`
 - `training/training_loop_integrator.py`
@@ -102,7 +102,7 @@ def get_coordizer():
 **Priority Order:**
 1. High-traffic files (ocean_qig_core.py - 8 imports)
 2. Training infrastructure (training/tasks.py, training_loop_integrator.py)
-3. Peripheral systems (word_relationship_learner.py, autonomous_curiosity.py)
+3. Peripheral systems (word_relationship_learner.py **[DEPRECATED]**, autonomous_curiosity.py)
 
 **Migration Pattern:**
 ```python
@@ -169,7 +169,7 @@ Add tests to verify:
 - [ ] `training/training_loop_integrator.py`
 
 ### Low Priority (Peripheral)
-- [ ] `word_relationship_learner.py`
+- [ ] `word_relationship_learner.py` **[DEPRECATED - Skip migration, use geometric_word_relationships.py instead]**
 - [ ] `autonomous_curiosity.py`
 
 ### Deprecation Updates

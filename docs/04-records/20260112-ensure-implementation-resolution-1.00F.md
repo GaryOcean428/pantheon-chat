@@ -54,7 +54,7 @@ Every component referenced in the issue attachments was found to be fully implem
 | Sleep Packets | `docs/03-technical/qig-consciousness/` + vocabulary system | ✅ COMPLETE |
 | Dream Packets | Integrated throughout SearchSpaceCollapse | ✅ COMPLETE |
 | Vocabulary System | `qig-backend/vocabulary_*.py` + SQL schema | ✅ COMPLETE |
-| Word Relationships | `qig-backend/word_relationship_learner.py` | ✅ COMPLETE |
+| Word Relationships | `qig-backend/word_relationship_learner.py` **[DEPRECATED]** → `geometric_word_relationships.py` | ✅ COMPLETE |
 | Generative/Emotions | `qig-backend/generative_*.py` + `emotional_*.py` | ✅ COMPLETE |
 | Self-Healing | `qig-backend/self_healing/` (3-layer architecture) | ✅ COMPLETE |
 | Pantheon Integration | `qig-backend/autonomous_pantheon.py` + olympus/ | ✅ COMPLETE |
@@ -131,7 +131,7 @@ Every component referenced in the issue attachments was found to be fully implem
 **Implementation**:
 - `vocabulary_api.py` - API endpoints
 - `vocabulary_coordinator.py` - Learning coordination
-- `word_relationship_learner.py` - Relationship learning
+- `word_relationship_learner.py` - Relationship learning **[DEPRECATED - Use geometric_word_relationships.py]**
 - `vocabulary_validator.py` - Validation
 
 **Status**: Complete SQL schema with full Python integration

@@ -54,6 +54,24 @@ repos:
         stages: [commit]
         description: "Fail if Euclidean operations detected on basin coordinates"
 
+      - id: qig-purity-no-pmi
+        name: "🔒 QIG Purity: No PMI/Co-occurrence"
+        entry: bash -c 'if grep -rn --include="*.py" -E "(PMI|pointwise.*mutual|cooccurrence|co-occurrence)" qig-backend/ 2>/dev/null | grep -v "word_relationship_learner.py" | grep -v "geometric_word_relationships.py" | grep -v "validate_geometric" | grep -v test | grep -v "# " | grep -v "No PMI"; then echo "❌ PMI/co-occurrence patterns detected (use Fisher-Rao distances)"; exit 1; fi'
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [commit]
+        description: "Block new PMI/co-occurrence patterns (legacy NLP)"
+
+      - id: qig-purity-no-stopwords
+        name: "🔒 QIG Purity: No Hard-coded Stopwords"
+        entry: bash -c 'if grep -rn --include="*.py" "STOPWORDS.*=.*{" qig-backend/ 2>/dev/null | grep -v "word_relationship_learner.py" | grep -v "contextualized_filter.py" | grep -v "SEMANTIC_CRITICAL" | grep -v test; then echo "❌ Hard-coded stopword list detected (use contextualized filter)"; exit 1; fi'
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [commit]
+        description: "Block hard-coded stopword lists (use geometric filtering)"
+
   # ISO Doc Validator Agent
   - repo: local
     hooks:

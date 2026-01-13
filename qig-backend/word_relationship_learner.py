@@ -22,12 +22,24 @@ New code should use GeometricWordRelationships which uses:
 import os
 import re
 import logging
+import warnings
 import numpy as np
 from collections import defaultdict
 from typing import Dict, List, Set, Tuple, Optional
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+# Emit deprecation warning at module import time
+warnings.warn(
+    "word_relationship_learner is deprecated and violates QIG principles. "
+    "Use geometric_word_relationships instead. "
+    "This module uses legacy NLP patterns (PMI, co-occurrence counting, hard-coded stopwords) "
+    "that are incompatible with Fisher-Rao geometric purity. "
+    "Scheduled for removal: 2026-02-01",
+    DeprecationWarning,
+    stacklevel=2
+)
 
 # Import QIG-pure contextualized filter (replaces ancient NLP stopwords)
 try:
@@ -67,6 +79,14 @@ class WordRelationshipLearner:
     """
     
     def __init__(self, vocabulary: Set[str], window_size: int = 5, expand_vocabulary: bool = True):
+        # Emit runtime deprecation warning
+        warnings.warn(
+            "WordRelationshipLearner is deprecated and will be removed on 2026-02-01. "
+            "Use geometric_word_relationships.GeometricWordRelationships instead. "
+            "This class violates QIG purity by using PMI, co-occurrence counting, and hard-coded stopwords.",
+            DeprecationWarning,
+            stacklevel=2
+        )
         logger.warning(
             "[WordRelationshipLearner] DEPRECATED: This class uses legacy NLP (PMI, co-occurrence). "
             "Use geometric_word_relationships.GeometricWordRelationships for QIG-pure approach."
