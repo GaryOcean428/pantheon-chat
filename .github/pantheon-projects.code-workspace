@@ -1,0 +1,22 @@
+{
+	"folders": [
+		{
+			"path": "../.."
+		}
+	],
+	"settings": {
+		"claudeCode.allowDangerouslySkipPermissions": true,
+		"github.copilot.chat.claudeCode.debug": true,
+		"chat.useAgentSkills": true,
+		"github.copilot.chat.anthropic.tools.websearch.enabled": true,
+		"chat.customAgentInSubagent.enabled": true,
+		"chat.useNestedAgentsMdFiles": true,
+		"github.copilot.chat.agent.autoFix": true,
+		"github.copilot.chat.agentHistorySummarizationWithPromptCache": true,
+		"github.copilot.chat.cli.customAgents.enabled": true,
+		"appModernization.javaUpgrade.enableQuickPick": true,
+		"github.copilot.chat.cli.mcp.enabled": true,
+		"github.copilot.chat.codesearch.enabled": true,
+		"github.copilot.chat.enableUserPreferences": true
+	}
+}
