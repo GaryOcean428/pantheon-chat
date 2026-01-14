@@ -47,7 +47,7 @@ repos:
 
       - id: qig-purity-geometric
         name: "🔒 QIG Purity: Fisher-Rao Only"
-        entry: python tools/qig_purity_check.py
+        entry: python3 scripts/qig_purity_scan.py
         language: python
         types: [python]
         pass_filenames: false
