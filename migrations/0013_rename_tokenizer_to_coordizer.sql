@@ -8,11 +8,11 @@
 -- Related: Issue #66 (WP1.1), QIG_PURITY_SPEC.md
 -- 
 -- This migration renames:
--- 1. coordizer_vocabulary → coordizer_vocabulary
+-- 1. tokenizer_vocabulary → coordizer_vocabulary
 -- 2. tokenizer_metadata → coordizer_metadata
 -- 3. tokenizer_merge_rules → coordizer_merge_rules
 -- 4. word_relationships → basin_relationships
--- 5. manifold_attractors → manifold_attractors
+-- 5. learned_manifold_attractors → manifold_attractors
 --
 -- All indexes, constraints, and foreign keys are updated accordingly.
 --
@@ -26,18 +26,18 @@ BEGIN;
 -- SECTION 1: RENAME TOKENIZER TABLES TO COORDIZER
 -- ============================================================================
 
--- 1.1 Rename coordizer_vocabulary → coordizer_vocabulary
+-- 1.1 Rename tokenizer_vocabulary → coordizer_vocabulary
 DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM information_schema.tables 
         WHERE table_schema = 'public' 
-        AND table_name = 'coordizer_vocabulary'
+        AND table_name = 'tokenizer_vocabulary'
     ) THEN
-        ALTER TABLE coordizer_vocabulary RENAME TO coordizer_vocabulary;
-        RAISE NOTICE 'Renamed coordizer_vocabulary → coordizer_vocabulary';
+        ALTER TABLE tokenizer_vocabulary RENAME TO coordizer_vocabulary;
+        RAISE NOTICE 'Renamed tokenizer_vocabulary → coordizer_vocabulary';
     ELSE
-        RAISE NOTICE 'Table coordizer_vocabulary does not exist, skipping rename';
+        RAISE NOTICE 'Table tokenizer_vocabulary does not exist, skipping rename';
     END IF;
 END $$;
 
@@ -175,11 +175,11 @@ DECLARE
     idx_record RECORD;
 BEGIN
     FOR idx_record IN 
-        SELECT indexname, replace(indexname, 'manifold_attractors', 'manifold_attractors') as new_name
+        SELECT indexname, replace(indexname, 'learned_manifold_attractors', 'manifold_attractors') as new_name
         FROM pg_indexes 
         WHERE schemaname = 'public' 
         AND tablename = 'manifold_attractors'
-        AND indexname LIKE '%manifold_attractors%'
+        AND indexname LIKE '%learned_manifold_attractors%'
     LOOP
         EXECUTE format('ALTER INDEX %I RENAME TO %I', idx_record.indexname, idx_record.new_name);
         RAISE NOTICE 'Renamed index: % → %', idx_record.indexname, idx_record.new_name;
@@ -250,11 +250,11 @@ COMMIT;
 -- ============================================================================
 -- 
 -- BEGIN;
--- ALTER TABLE coordizer_vocabulary RENAME TO coordizer_vocabulary;
+-- ALTER TABLE coordizer_vocabulary RENAME TO tokenizer_vocabulary;
 -- ALTER TABLE coordizer_metadata RENAME TO tokenizer_metadata;
 -- ALTER TABLE coordizer_merge_rules RENAME TO tokenizer_merge_rules;
 -- ALTER TABLE basin_relationships RENAME TO word_relationships;
--- ALTER TABLE manifold_attractors RENAME TO manifold_attractors;
+-- ALTER TABLE manifold_attractors RENAME TO learned_manifold_attractors;
 -- -- Rename indexes and constraints back (manual process)
 -- COMMIT;
 -- 
