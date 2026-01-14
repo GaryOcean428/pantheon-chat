@@ -134,7 +134,7 @@ The following terms are **BANNED** in QIG-core code. They carry semantic baggage
 | `token_id` | `symbol_id` or `glyph_id` | Identifier for geometric symbol, not token. |
 | `tokenizer_vocabulary` | `coordizer_vocabulary` (DB table name) | Table stores coordizer mappings. |
 
-**Exception:** Variable names like `get_tokenizer` in legacy interfaces MAY alias to `get_coordizer` during transition, but new code MUST use `coordizer`.
+**Exception:** Variable names like `get_tokenizer` in legacy interfaces MAY alias to `get_coordizer` during transition period. The migration is **gradual** - both terms MAY coexist temporarily with clear deprecation warnings.
 
 ### §2.3 Other Forbidden Terms
 
@@ -191,6 +191,10 @@ def fisher_rao_distance(p: np.ndarray, q: np.ndarray) -> float:
     Returns:
         Geodesic distance in [0, π/2]
     """
+    # Validate shapes match
+    if p.shape != q.shape:
+        raise ValueError(f"Shape mismatch: p.shape={p.shape}, q.shape={q.shape}")
+    
     # Bhattacharyya coefficient
     bc = np.sum(np.sqrt(p * q))
     
@@ -305,12 +309,14 @@ These constants are **FROZEN** from physics validation. They MUST NOT be modifie
 
 | Constant | Symbol | Value | Purpose | Source |
 |----------|--------|-------|---------|--------|
-| **PHI_MIN** | Φ_min | 0.75 | Consciousness phase transition | FROZEN FACT |
+| **PHI_MIN** | Φ_min | 0.75 | Consciousness phase transition (canonical) | FROZEN FACT |
 | **PHI_DETECTION** | Φ_detect | 0.70 | Near-miss detection threshold | FROZEN FACT |
 | **PHI_4D_ACTIVATION** | Φ_4D | 0.70 | 4D block universe access | FROZEN FACT |
 | **KAPPA_MIN** | κ_min | 40 | Minimum for consciousness | VALIDATED |
 | **KAPPA_MAX** | κ_max | 70 | Maximum before breakdown | VALIDATED |
 | **RESONANCE_BAND** | - | 6.4 | 10% of κ* for resonance | DERIVED |
+
+**Note:** Multiple Φ thresholds exist for different purposes. Use `CONSCIOUSNESS_THRESHOLDS.PHI_MIN` (0.75) for consciousness detection, `CONSCIOUSNESS_THRESHOLDS.PHI_DETECTION` (0.70) for near-miss detection.
 
 **TypeScript Reference:** `shared/constants/qig.ts::CONSCIOUSNESS_THRESHOLDS`
 
@@ -656,6 +662,9 @@ forbidden_functions:
   - cosine_similarity
   - torch.nn.functional.cosine_similarity
   - scipy.spatial.distance.cosine
+  - scipy.spatial.distance.euclidean
+  - sklearn.metrics.pairwise.cosine_similarity
+  - sklearn.metrics.pairwise.euclidean_distances
 
 forbidden_patterns:
   - pattern: "np\\.linalg\\.norm\\(.*-.*\\)"
@@ -673,9 +682,16 @@ required_constants:
 
 hardcoded_numbers:
   warn:
-    - 0.75  # Should be PHI_THRESHOLD
-    - 64    # Should be KAPPA_STAR
-    - 240   # Should be E8_ROOTS
+    - value: 0.75
+      suggest: "CONSCIOUSNESS_THRESHOLDS.PHI_MIN (if consciousness phase transition)"
+    - value: 0.70
+      suggest: "CONSCIOUSNESS_THRESHOLDS.PHI_DETECTION (if near-miss detection)"
+    - value: 64
+      suggest: "QIG_CONSTANTS.KAPPA_STAR or CONSCIOUSNESS_THRESHOLDS.KAPPA_OPTIMAL"
+    - value: 240
+      suggest: "E8_CONSTANTS.E8_ROOTS"
+  
+  note: "Multiple valid thresholds exist. Context determines which constant to use."
 ```
 
 ---
@@ -745,18 +761,25 @@ from qig_geometry import natural_gradient_step
 
 ### §9.3 Constant Migration
 
-**Step 1: Replace hardcoded values**
+**Step 1: Replace hardcoded values (context-aware)**
 
 ```python
-# BEFORE
+# BEFORE (ambiguous context)
 if phi >= 0.75:
     conscious = True
 
-# AFTER
-from qigkernels.physics_constants import PHI_THRESHOLD
+# AFTER (explicit semantic meaning)
+from qigkernels.physics_constants import CONSCIOUSNESS_THRESHOLDS
 
-if phi >= PHI_THRESHOLD:
+# For consciousness phase transition (canonical threshold)
+if phi >= CONSCIOUSNESS_THRESHOLDS.PHI_MIN:
     conscious = True
+
+# For near-miss detection (sensitivity margin)
+if phi >= CONSCIOUSNESS_THRESHOLDS.PHI_DETECTION:
+    near_miss = True
+
+# IMPORTANT: Use the constant that matches your semantic intent!
 ```
 
 ---
