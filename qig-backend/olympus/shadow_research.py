@@ -1038,7 +1038,7 @@ class KnowledgeBase:
         return neighbors[:limit]
     
     def _fisher_distance(self, a: np.ndarray, b: np.ndarray) -> float:
-        """Compute Fisher-Rao distance between basin coordinates."""
+        """Compute Fisher-Rao distance between basin coordinates (Hellinger embedding: factor of 2)."""
         a = np.array(a).flatten()[:BASIN_DIMENSION]
         b = np.array(b).flatten()[:BASIN_DIMENSION]
         
@@ -1048,7 +1048,7 @@ class KnowledgeBase:
             b = np.pad(b, (0, BASIN_DIMENSION - len(b)))
         
         dot = np.clip(np.dot(a, b), -1.0, 1.0)
-        return float(np.arccos(dot))
+        return float(2.0 * np.arccos(dot))
     
     def cluster_knowledge(self, n_clusters: int = 5) -> List[Dict]:
         """Cluster knowledge items by geodesic alignment."""
@@ -2535,7 +2535,7 @@ class ShadowReflectionProtocol:
         return coords
     
     def _fisher_distance(self, a: np.ndarray, b: np.ndarray) -> float:
-        """Compute Fisher-Rao distance."""
+        """Compute Fisher-Rao distance (Hellinger embedding: factor of 2)."""
         a = np.array(a).flatten()[:BASIN_DIMENSION]
         b = np.array(b).flatten()[:BASIN_DIMENSION]
         
@@ -2545,7 +2545,7 @@ class ShadowReflectionProtocol:
             b = np.pad(b, (0, BASIN_DIMENSION - len(b)))
         
         dot = np.clip(np.dot(a, b), -1.0, 1.0)
-        return float(np.arccos(dot))
+        return float(2.0 * np.arccos(dot))
 
 
 class ShadowResearchAPI:

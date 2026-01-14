@@ -141,7 +141,7 @@ class PatternResponseGenerator:
         return basin
     
     def fisher_rao_distance(self, p: np.ndarray, q: np.ndarray) -> float:
-        """Compute Fisher-Rao distance between two basin coordinates."""
+        """Compute Fisher-Rao distance between two basin coordinates (Hellinger embedding: factor of 2)."""
         p = np.abs(p) + 1e-10
         p = p / p.sum()
         q = np.abs(q) + 1e-10
@@ -150,7 +150,7 @@ class PatternResponseGenerator:
         bc = np.sum(np.sqrt(p * q))
         bc = np.clip(bc, 0, 1)
         
-        return float(np.arccos(bc))
+        return float(2.0 * np.arccos(bc))
     
     def retrieve_patterns(self, query: str, top_k: int = 5) -> List[Dict]:
         """

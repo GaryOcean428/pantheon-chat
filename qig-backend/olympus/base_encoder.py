@@ -282,10 +282,10 @@ class BaseEncoder(ABC):
         """
         Compute Fisher-Rao distance between two basin coordinates.
 
-        On unit sphere: d(p,q) = arccos(p·q)
+        On unit sphere with Hellinger embedding: d(p,q) = 2 * arccos(p·q)
         """
         dot = float(np.clip(np.dot(basin1, basin2), -1.0, 1.0))
-        distance = float(np.arccos(dot))
+        distance = float(2.0 * np.arccos(dot))  # Hellinger embedding: factor of 2
         return distance
 
     def similarity(self, text1: str, text2: str) -> float:
@@ -299,8 +299,8 @@ class BaseEncoder(ABC):
 
         distance = self.fisher_distance(basin1, basin2)
 
-        # Convert distance to similarity: s = 1 - d/π
-        similarity = 1.0 - distance / np.pi
+        # Convert distance to similarity: s = 1 - d/(2π) (max distance is 2π with factor of 2)
+        similarity = 1.0 - distance / (2.0 * np.pi)
 
         return float(np.clip(similarity, 0, 1))
 

@@ -8,13 +8,14 @@ try:
     from ..qig_core.geometric_primitives.fisher_metric import fisher_rao_distance
 except Exception:
     def fisher_rao_distance(p: np.ndarray, q: np.ndarray) -> float:
+        """Fallback Fisher-Rao distance (Hellinger embedding: factor of 2)."""
         p = np.abs(p) + 1e-10
         p = p / p.sum()
         q = np.abs(q) + 1e-10
         q = q / q.sum()
         bc = np.sum(np.sqrt(p * q))
         bc = np.clip(bc, 0, 1)
-        return float(np.arccos(bc))
+        return float(2.0 * np.arccos(bc))
 
 try:
     from ..qig_core.phi_computation import compute_phi_approximation as _compute_phi

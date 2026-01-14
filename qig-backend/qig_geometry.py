@@ -19,22 +19,23 @@ def fisher_rao_distance(p: np.ndarray, q: np.ndarray) -> float:
     """
     Compute Fisher-Rao distance between two probability distributions.
 
-    This is the GEODESIC distance on the information manifold.
+    This is the GEODESIC distance on the information manifold using Hellinger embedding.
 
-    Formula: d_FR(p, q) = arccos(Σ√(p_i * q_i))
+    Formula: d_FR(p, q) = 2 * arccos(Σ√(p_i * q_i))
 
     The Bhattacharyya coefficient BC = Σ√(p_i * q_i) measures overlap.
-    The geodesic distance is arccos(BC), ranging from 0 (identical) to π/2 (orthogonal).
+    With Hellinger embedding (√p on unit sphere S^63), the geodesic distance
+    is 2*arccos(BC), ranging from 0 (identical) to π (orthogonal).
 
-    NOTE: Some references use 2*arccos(BC) for the "statistical distance" but
-    the geodesic distance on the Fisher manifold is arccos(BC) without the factor of 2.
+    The factor of 2 comes from the Hellinger embedding: when we map p → √p,
+    the arc length on the sphere is 2*arccos(BC).
 
     Args:
         p: First probability distribution
         q: Second probability distribution
 
     Returns:
-        Fisher-Rao distance (≥ 0, max π/2)
+        Fisher-Rao distance (≥ 0, max π)
     """
     p = np.abs(p) + 1e-10
     p = p / p.sum()
@@ -45,27 +46,27 @@ def fisher_rao_distance(p: np.ndarray, q: np.ndarray) -> float:
     bc = np.sum(np.sqrt(p * q))
     bc = np.clip(bc, 0, 1)
 
-    return float(np.arccos(bc))
+    return float(2.0 * np.arccos(bc))
 
 
 def fisher_coord_distance(a: np.ndarray, b: np.ndarray) -> float:
     """
     Compute Fisher-Rao distance between two basin coordinate vectors.
 
-    For unit vectors: d = arccos(a · b)
+    For unit vectors with Hellinger embedding: d = 2 * arccos(a · b)
 
     Args:
         a: First basin coordinate vector (64D)
         b: Second basin coordinate vector (64D)
 
     Returns:
-        Fisher-Rao distance (0 to π)
+        Fisher-Rao distance (0 to 2π)
     """
     a_norm = a / (np.linalg.norm(a) + 1e-10)
     b_norm = b / (np.linalg.norm(b) + 1e-10)
 
     dot = np.clip(np.dot(a_norm, b_norm), -1.0, 1.0)
-    return float(np.arccos(dot))
+    return float(2.0 * np.arccos(dot))
 
 
 def fisher_similarity(a: np.ndarray, b: np.ndarray) -> float:

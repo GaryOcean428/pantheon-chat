@@ -36,7 +36,7 @@ def _fisher_rao_distance(p: np.ndarray, q: np.ndarray, eps: float = 1e-10) -> fl
     Compute Fisher-Rao distance between two basin coordinates.
 
     Uses Bhattacharyya coefficient for probability distributions.
-    FR_distance = arccos(sum(sqrt(p_i * q_i)))
+    FR_distance = 2 * arccos(sum(sqrt(p_i * q_i))) (Hellinger embedding: factor of 2)
     """
     # Normalize to probability distributions
     p_safe = np.clip(np.abs(p), eps, None)
@@ -48,7 +48,7 @@ def _fisher_rao_distance(p: np.ndarray, q: np.ndarray, eps: float = 1e-10) -> fl
     bc = np.sum(np.sqrt(p_norm * q_norm))
     bc = np.clip(bc, 0.0, 1.0)
 
-    return float(np.arccos(bc))
+    return float(2.0 * np.arccos(bc))
 
 
 def _fisher_frechet_mean(basins: List[np.ndarray]) -> np.ndarray:

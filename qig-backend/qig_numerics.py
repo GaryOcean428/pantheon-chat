@@ -143,8 +143,8 @@ def fisher_rao_distance(basin1: np.ndarray, basin2: np.ndarray, eps: float = EPS
     dot = np.sum(b1 * b2)
     dot = np.clip(dot, -1.0, 1.0)
     
-    # Geodesic distance
-    return float(np.arccos(dot))
+    # Geodesic distance (Hellinger embedding: factor of 2)
+    return float(2.0 * np.arccos(dot))
 
 
 def bures_distance(rho1: np.ndarray, rho2: np.ndarray, eps: float = EPSILON) -> float:

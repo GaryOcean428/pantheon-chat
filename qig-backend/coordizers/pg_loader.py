@@ -591,10 +591,10 @@ class PostgresCoordizer(FisherCoordizer):
             else:
                 continue
 
-            # Fisher-Rao similarity (geodesic distance on sphere)
+            # Fisher-Rao similarity (geodesic distance on sphere, Hellinger embedding: factor of 2)
             dot = np.clip(np.dot(basin, coords), -1.0, 1.0)
-            dist = np.arccos(dot)
-            similarity = 1.0 - (dist / np.pi)
+            dist = 2.0 * np.arccos(dot)
+            similarity = 1.0 - (dist / (2.0 * np.pi))
 
             # Phi boost: prefer high-phi tokens
             phi_boost = phi * 0.1

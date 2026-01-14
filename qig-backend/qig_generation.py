@@ -151,7 +151,7 @@ class QIGGenerationConfig:
 def fisher_rao_distance(p: np.ndarray, q: np.ndarray) -> float:
     """
     Compute Fisher-Rao distance between probability distributions.
-    d_FR(p, q) = arccos(Σ√(p_i * q_i))
+    d_FR(p, q) = 2 * arccos(Σ√(p_i * q_i)) (Hellinger embedding: factor of 2)
     """
     p = np.abs(p) + 1e-10
     q = np.abs(q) + 1e-10
@@ -161,7 +161,7 @@ def fisher_rao_distance(p: np.ndarray, q: np.ndarray) -> float:
     bc = np.sum(np.sqrt(p * q))
     bc = np.clip(bc, -1.0, 1.0)
     
-    return float(np.arccos(bc))
+    return float(2.0 * np.arccos(bc))
 
 
 def encode_to_basin(text: str, dimension: int = BASIN_DIMENSION) -> np.ndarray:

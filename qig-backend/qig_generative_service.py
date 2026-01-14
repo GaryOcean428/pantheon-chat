@@ -73,9 +73,9 @@ try:
 except ImportError:
     logger.warning("[QIGGenerativeService] qig_geometry ImportError, using fallback")
     def fisher_coord_distance(a: np.ndarray, b: np.ndarray) -> float:
-        """Fisher-Rao distance for unit vectors."""
+        """Fisher-Rao distance for unit vectors (Hellinger embedding: factor of 2)."""
         dot = np.clip(np.dot(a, b), -1.0, 1.0)
-        return float(np.arccos(dot))
+        return float(2.0 * np.arccos(dot))
     
     def sphere_project(v: np.ndarray) -> np.ndarray:
         """Project to unit sphere."""

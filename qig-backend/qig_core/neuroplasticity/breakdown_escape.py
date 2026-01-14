@@ -288,7 +288,7 @@ class BreakdownEscape:
         """
         Compute geodesic (Fisher-Rao) distance between points.
         
-        For unit vectors: d = arccos(a · b)
+        For unit vectors with Hellinger embedding: d = 2 * arccos(a · b)
         
         Args:
             a: First point
@@ -300,7 +300,7 @@ class BreakdownEscape:
         a_norm = a / (np.linalg.norm(a) + 1e-10)
         b_norm = b / (np.linalg.norm(b) + 1e-10)
         dot = np.clip(np.dot(a_norm, b_norm), -1.0, 1.0)
-        return float(np.arccos(dot))
+        return float(2.0 * np.arccos(dot))  # Hellinger embedding: factor of 2
     
     def _navigate_geodesic(
         self,

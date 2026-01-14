@@ -111,7 +111,7 @@ def classify_regime(phi: float) -> Regime:
 def fisher_rao_distance(p: np.ndarray, q: np.ndarray) -> float:
     """
     Compute Fisher-Rao distance between probability distributions.
-    d_FR(p, q) = arccos(Σ√(p_i * q_i))
+    d_FR(p, q) = 2 * arccos(Σ√(p_i * q_i)) (Hellinger embedding: factor of 2)
     """
     # Ensure valid probability distributions
     p = np.abs(p) + 1e-10
@@ -123,8 +123,8 @@ def fisher_rao_distance(p: np.ndarray, q: np.ndarray) -> float:
     bc = np.sum(np.sqrt(p * q))
     bc = np.clip(bc, -1.0, 1.0)
     
-    # Fisher-Rao distance
-    return np.arccos(bc)
+    # Fisher-Rao distance (Hellinger embedding: factor of 2)
+    return 2.0 * np.arccos(bc)
 
 
 class AttractorConvergenceChecker:

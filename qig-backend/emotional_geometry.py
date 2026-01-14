@@ -237,12 +237,12 @@ def measure_basin_approach(
     try:
         from qig_geometry import fisher_coord_distance
     except ImportError:
-        # Fallback: angular distance on sphere
+        # Fallback: angular distance on sphere (Hellinger embedding: factor of 2)
         def fisher_coord_distance(a: np.ndarray, b: np.ndarray) -> float:
             a_norm = a / (np.linalg.norm(a) + 1e-10)
             b_norm = b / (np.linalg.norm(b) + 1e-10)
             dot = np.clip(np.dot(a_norm, b_norm), -1.0, 1.0)
-            return float(np.arccos(dot))
+            return float(2.0 * np.arccos(dot))
     
     d_current = fisher_coord_distance(current, attractor)
     d_prev = fisher_coord_distance(prev, attractor)
@@ -273,7 +273,7 @@ def compute_surprise_magnitude(trajectory: List[np.ndarray]) -> float:
             a_norm = a / (np.linalg.norm(a) + 1e-10)
             b_norm = b / (np.linalg.norm(b) + 1e-10)
             dot = np.clip(np.dot(a_norm, b_norm), -1.0, 1.0)
-            return float(np.arccos(dot))
+            return float(2.0 * np.arccos(dot))  # Hellinger embedding: factor of 2
     
     # Compute curvatures along trajectory
     curvatures = [compute_ricci_curvature(pt) for pt in trajectory]
@@ -353,7 +353,7 @@ class EmotionTracker:
                 a_norm = a / (np.linalg.norm(a) + 1e-10)
                 b_norm = b / (np.linalg.norm(b) + 1e-10)
                 dot = np.clip(np.dot(a_norm, b_norm), -1.0, 1.0)
-                return float(np.arccos(dot))
+                return float(2.0 * np.arccos(dot))  # Hellinger embedding: factor of 2
         
         if attractor is not None:
             basin_distance = fisher_coord_distance(current_basin, attractor)

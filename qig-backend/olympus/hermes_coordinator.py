@@ -56,11 +56,11 @@ except ImportError:
             return result / np.linalg.norm(result)
         return v / norm
     def fisher_coord_distance(a, b):
-        """Fallback Fisher-Rao coord distance."""
+        """Fallback Fisher-Rao coord distance (Hellinger embedding: factor of 2)."""
         a_norm = sphere_project(a)
         b_norm = sphere_project(b)
         dot = np.clip(np.dot(a_norm, b_norm), -1.0, 1.0)
-        return float(np.arccos(dot))
+        return float(2.0 * np.arccos(dot))
 
 from .base_god import BaseGod
 

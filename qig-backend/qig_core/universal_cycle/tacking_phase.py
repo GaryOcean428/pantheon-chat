@@ -162,14 +162,14 @@ class TackingPhase:
         return promising
 
     def _fisher_distance(self, coords_a: np.ndarray, coords_b: np.ndarray) -> float:
-        """Compute Fisher geodesic distance"""
+        """Compute Fisher geodesic distance (Hellinger embedding: factor of 2)"""
         # Normalize
         a = coords_a / (np.linalg.norm(coords_a) + 1e-10)
         b = coords_b / (np.linalg.norm(coords_b) + 1e-10)
 
         # Compute geodesic distance on sphere
         dot = np.clip(np.dot(a, b), -1.0, 1.0)
-        return float(np.arccos(dot))
+        return float(2.0 * np.arccos(dot))
 
     def _compute_geodesic_path(
         self,

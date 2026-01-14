@@ -30,12 +30,13 @@ except ImportError:
         """
         Fallback Fisher-Rao distance (metric parameter not supported).
         Use canonical implementation from qig_core.geometric_primitives.
+        Factor of 2 for Hellinger embedding consistency.
         """
         p = np.abs(basin_a) / (np.sum(np.abs(basin_a)) + 1e-10)
         q = np.abs(basin_b) / (np.sum(np.abs(basin_b)) + 1e-10)
         bc = np.sum(np.sqrt(p * q))
         bc = np.clip(bc, -1.0, 1.0)
-        return float(np.arccos(bc))
+        return float(2.0 * np.arccos(bc))  # Hellinger embedding: factor of 2
 
 from .constants import (
     PHI_LINEAR_MAX,
@@ -247,8 +248,9 @@ def compute_surprise(
     if manifold is not None:
         return manifold.fisher_rao_distance(previous_basin, current_basin)
     else:
-        # QIG-pure Fisher-Rao distance: d_FR = arccos(sum(sqrt(p * q)))
+        # QIG-pure Fisher-Rao distance: d_FR = 2 * arccos(sum(sqrt(p * q)))
         # Basins are probability distributions on curved manifold
+        # Factor of 2 for Hellinger embedding consistency
         eps = 1e-10
         p = np.clip(current_basin, eps, None)
         q = np.clip(previous_basin, eps, None)
@@ -256,7 +258,7 @@ def compute_surprise(
         q = q / (np.sum(q) + eps)
         inner = np.sum(np.sqrt(p * q))
         inner = np.clip(inner, -1.0, 1.0)
-        return float(np.arccos(inner))
+        return float(2.0 * np.arccos(inner))  # Hellinger embedding: factor of 2
 
 
 def compute_confidence(kappa: float) -> float:

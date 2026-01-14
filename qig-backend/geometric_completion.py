@@ -40,14 +40,14 @@ try:
 except ImportError:
     FISHER_AVAILABLE = False
     def fisher_rao_distance(p, q):
-        """Fallback Fisher-Rao distance."""
+        """Fallback Fisher-Rao distance (Hellinger embedding: factor of 2)."""
         p = np.abs(p) + 1e-10
         p = p / p.sum()
         q = np.abs(q) + 1e-10
         q = q / q.sum()
         bc = np.sum(np.sqrt(p * q))
         bc = np.clip(bc, 0, 1)
-        return float(np.arccos(bc))
+        return float(2.0 * np.arccos(bc))
     
     def compute_phi(trajectory, window_size=5):
         """Fallback Φ computation."""

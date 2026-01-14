@@ -111,6 +111,7 @@ class QIGToolComputations:
         """
         Fisher-Rao geodesic distance on probability simplex.
         Proper QIG metric, NOT Euclidean.
+        Factor of 2 for Hellinger embedding consistency.
         """
         p1 = np.abs(basin1) + 1e-10
         p1 = p1 / p1.sum()
@@ -121,7 +122,7 @@ class QIGToolComputations:
         inner = np.sum(np.sqrt(p1 * p2))
         inner = np.clip(inner, 0, 1)
         
-        return float(np.arccos(inner))
+        return float(2.0 * np.arccos(inner))  # Hellinger embedding: factor of 2
     
     def bures_distance(self, rho1: np.ndarray, rho2: np.ndarray) -> float:
         """Compute Bures distance between density matrices."""
