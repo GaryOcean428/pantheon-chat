@@ -602,7 +602,7 @@ class TestSparseFisherIntegration:
         G = metric_computer.compute(rho)
         
         if hasattr(G, 'toarray'):
-            G_dense = G.toarray()
+            G_dense = G.toarray()  # type: ignore[union-attr]
         else:
             G_dense = G
         
