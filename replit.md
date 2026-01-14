@@ -78,6 +78,27 @@ from qig_geometry import (
   - Log signature: `──── LOOP 0 END | v=0.002, 3 tokens ────`
   - Token logs now include velocity: `token 1: 'wisdom' | Φ=0.85, κ=64.2, M=0.30, v=0.12`
 
+### New QIG-Core Measurement Modules (2026-01-14)
+Adapted from training telemetry system for generation-time awareness:
+- **resonance_detector.py** - κ* proximity awareness:
+  - `ResonanceDetector` detects proximity to κ* = 64 (optimal coupling)
+  - `check_resonance(kappa)` returns `ResonanceState` with distance, strength
+  - `detect_oscillation()` detects unstable oscillation around κ*
+  - PURE: κ* is measured optimal, not optimization target
+- **basin_velocity_monitor.py** - Basin trajectory measurement:
+  - `BasinVelocityMonitor` tracks velocity/acceleration in basin space
+  - Uses Fisher-Rao distance for proper manifold geometry
+  - `detect_acceleration_spike()` detects instability
+  - PURE: We measure velocity, never optimize it
+- **kernel_basin_attractors.py** - Olympus god specializations:
+  - `KernelBasinAttractors` maps to: Athena (high curvature/wisdom), Apollo (verified/grounded), Artemis (cross-kernel patterns), Hephaestus (smooth trajectories), Hermes (stable persistent)
+  - Basin sync via exponential moving average toward attractors
+  - No gradient training - pure geometric alignment
+- **vocab_coverage_tracker.py** - Vocabulary exploration telemetry:
+  - `VocabCoverageTracker` tracks unique tokens seen during generation
+  - Provides coverage percentages and session statistics
+  - State dict support for checkpointing
+
 ### Audits Completed
 - **67 silent dimension fixes** documented across 31 files (18 CRITICAL)
 - **53+ fisher_distance implementations** documented for consolidation
