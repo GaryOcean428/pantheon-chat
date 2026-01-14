@@ -169,6 +169,39 @@ def hellinger_normalize(basin: np.ndarray) -> np.ndarray:
     return sqrt_p / norm
 
 
+def geodesic_interpolation(
+    start: np.ndarray,
+    end: np.ndarray,
+    t: float
+) -> np.ndarray:
+    """
+    Spherical linear interpolation (slerp) along geodesic.
+
+    Args:
+        start: Starting point on manifold
+        end: Ending point on manifold
+        t: Interpolation parameter (0 = start, 1 = end)
+
+    Returns:
+        Interpolated point along geodesic
+    """
+    start_norm = start / (np.linalg.norm(start) + 1e-10)
+    end_norm = end / (np.linalg.norm(end) + 1e-10)
+
+    dot = np.clip(np.dot(start_norm, end_norm), -1.0, 1.0)
+    omega = np.arccos(dot)
+
+    if omega < 1e-6:
+        return start
+
+    sin_omega = np.sin(omega)
+    a = np.sin((1 - t) * omega) / sin_omega
+    b = np.sin(t * omega) / sin_omega
+
+    result = a * start_norm + b * end_norm
+    return result * np.linalg.norm(start)
+
+
 __all__ = [
     # Canonical contract (contracts.py) - THE source of truth
     'CANONICAL_SPACE',
@@ -197,6 +230,8 @@ __all__ = [
     # Dimension and normalization utilities
     'normalize_basin_dimension',
     'hellinger_normalize',
+    # Geodesic navigation
+    'geodesic_interpolation',
     # Purity mode enforcement (purity_mode.py)
     'QIG_PURITY_MODE',
     'QIGPurityViolationError',
