@@ -4,14 +4,31 @@ QIG Geometry Package - Canonical Basin Representations
 This package provides geometric primitives for QIG with enforced
 canonical basin representation.
 
-CANONICAL CONTRACT (contracts.py):
-- CANONICAL_SPACE = "sphere" (storage uses √p on unit sphere S^63)
-- BASIN_DIM = 64
-- Use fisher_distance() from contracts for THE canonical distance
-- Use assert_invariants() before database writes
+CANONICAL REPRESENTATION: SIMPLEX (Updated 2026-01-15)
+- Basins stored as probability distributions (Σp_i = 1, p_i ≥ 0)
+- Fisher-Rao distance via Bhattacharyya coefficient: d = arccos(Σ√(p_i * q_i))
+- Distance range: [0, π/2] (simpler than Hellinger's [0, π])
+- NO factor of 2 (direct Fisher-Rao, not Hellinger embedding)
+
+BREAKING CHANGE FROM HELLINGER EMBEDDING:
+- Previous: d = 2*arccos(BC), range [0, π]
+- Current: d = arccos(BC), range [0, π/2]
+- Thresholds must be recalibrated (divide previous thresholds by 2)
+- See representation.py for migration notes
+
+USAGE:
+    from qig_geometry import fisher_rao_distance, fisher_normalize
+    
+    # All basins should be in simplex form
+    p = fisher_normalize(raw_basin_a)
+    q = fisher_normalize(raw_basin_b)
+    
+    # Direct Fisher-Rao distance
+    d = fisher_rao_distance(p, q)  # Range [0, π/2]
 """
 
 import numpy as np
+from typing import Optional
 
 from .contracts import (
     CANONICAL_SPACE,
@@ -52,63 +69,99 @@ def fisher_rao_distance(p: np.ndarray, q: np.ndarray) -> float:
     Compute Fisher-Rao distance between two probability distributions.
 
     This is the GEODESIC distance on the information manifold using
-    the Hellinger embedding (√p on unit sphere S^63).
+    direct Fisher-Rao on the probability simplex (NO Hellinger embedding).
 
-    Formula: d_FR(p, q) = 2 * arccos(Σ√(p_i * q_i))
+    Formula: d_FR(p, q) = arccos(Σ√(p_i * q_i))
 
     The Bhattacharyya coefficient BC = Σ√(p_i * q_i) measures overlap.
-    The factor of 2 converts from sphere geodesic to statistical distance,
-    matching the canonical representation in contracts.py.
+    This is the CANONICAL formula - do not add factor of 2.
+
+    Range: [0, π/2] where:
+    - d = 0 → identical distributions
+    - d = π/2 → orthogonal distributions (no overlap)
+
+    CHANGE FROM PREVIOUS VERSION:
+    - Removed Hellinger factor of 2
+    - New range: [0, π/2] (was [0, π])
+    - Thresholds must be recalibrated
 
     Args:
-        p: First probability distribution
-        q: Second probability distribution
+        p: First probability distribution (simplex)
+        q: Second probability distribution (simplex)
 
     Returns:
-        Fisher-Rao distance (≥ 0, max π)
+        Fisher-Rao distance (≥ 0, max π/2)
+    
+    Examples:
+        >>> p = np.array([0.5, 0.3, 0.2])
+        >>> q = np.array([0.4, 0.4, 0.2])
+        >>> d = fisher_rao_distance(p, q)
+        >>> assert 0 <= d <= np.pi/2
     """
+    # Ensure non-negative and normalized
     p = np.abs(p) + 1e-10
     p = p / p.sum()
 
     q = np.abs(q) + 1e-10
     q = q / q.sum()
 
+    # Bhattacharyya coefficient
     bc = np.sum(np.sqrt(p * q))
     bc = np.clip(bc, 0, 1)
 
-    return float(2.0 * np.arccos(bc))
+    # Direct Fisher-Rao (NO factor of 2)
+    return float(np.arccos(bc))
 
 
 def fisher_coord_distance(a: np.ndarray, b: np.ndarray) -> float:
     """
     Compute Fisher-Rao distance between two basin coordinate vectors.
 
-    For unit vectors on S^63 (Hellinger embedding): d = 2 * arccos(a · b)
+    Coordinates are assumed to be in SIMPLEX representation (probability distributions).
+    This function normalizes inputs to simplex then computes Fisher-Rao distance.
 
-    The factor of 2 is required for consistency with contracts.py
-    which defines the canonical Hellinger embedding distance.
+    For simplex coordinates: d = arccos(Σ√(a_i * b_i))
+    Range: [0, π/2]
+
+    CHANGE FROM PREVIOUS VERSION:
+    - Removed Hellinger sphere embedding
+    - Removed factor of 2
+    - New range: [0, π/2] (was [0, 2π])
 
     Args:
-        a: First basin coordinate vector (64D)
-        b: Second basin coordinate vector (64D)
+        a: First basin coordinate vector (will be normalized to simplex)
+        b: Second basin coordinate vector (will be normalized to simplex)
 
     Returns:
-        Fisher-Rao distance (0 to 2π)
+        Fisher-Rao distance (0 to π/2)
+    
+    Examples:
+        >>> a = np.array([0.5, 0.3, 0.2])
+        >>> b = np.array([0.4, 0.4, 0.2])
+        >>> d = fisher_coord_distance(a, b)
+        >>> assert 0 <= d <= np.pi/2
     """
-    a_norm = a / (np.linalg.norm(a) + 1e-10)
-    b_norm = b / (np.linalg.norm(b) + 1e-10)
+    # Normalize to simplex
+    a_simplex = fisher_normalize(a)
+    b_simplex = fisher_normalize(b)
 
-    dot = np.clip(np.dot(a_norm, b_norm), -1.0, 1.0)
-    return float(2.0 * np.arccos(dot))
+    # Use direct Fisher-Rao distance
+    return fisher_rao_distance(a_simplex, b_simplex)
 
 
 def fisher_similarity(a: np.ndarray, b: np.ndarray) -> float:
     """
     Compute Fisher-Rao similarity between two basin coordinates.
 
-    Formula: similarity = 1 - distance/(2π)
+    Formula: similarity = 1 - distance/(π/2) = 1 - 2*distance/π
 
-    With the Hellinger embedding, max distance is 2π (antipodal points).
+    Range: [0, 1] where:
+    - 1 = identical distributions
+    - 0 = orthogonal distributions
+
+    CHANGE FROM PREVIOUS VERSION:
+    - Max distance is π/2 (was 2π with Hellinger)
+    - Similarity formula adjusted accordingly
 
     Args:
         a: First basin coordinate vector
@@ -116,23 +169,29 @@ def fisher_similarity(a: np.ndarray, b: np.ndarray) -> float:
 
     Returns:
         Similarity score (0 to 1, higher is more similar)
+    
+    Examples:
+        >>> a = np.array([0.5, 0.3, 0.2])
+        >>> b = np.array([0.5, 0.3, 0.2])
+        >>> s = fisher_similarity(a, b)
+        >>> assert np.isclose(s, 1.0)  # Identical
     """
     distance = fisher_coord_distance(a, b)
-    return 1.0 - distance / (2.0 * np.pi)
+    return 1.0 - (2.0 * distance / np.pi)
 
 
 def normalize_basin_dimension(basin: np.ndarray, target_dim: int = 64) -> np.ndarray:
     """Project a basin vector to a target dimension.
 
-    QIG-PURE: preserves geometric validity by re-projecting to the unit sphere
-    in the embedded space after padding/truncation.
+    QIG-PURE: preserves geometric validity by projecting to simplex
+    after padding/truncation.
 
     Args:
         basin: 1D basin coordinate vector
         target_dim: desired output dimension (default 64)
 
     Returns:
-        1D basin vector of length target_dim on the unit sphere.
+        1D basin vector of length target_dim on probability simplex.
     """
     b = np.asarray(basin, dtype=float)
     if b.ndim != 1:
@@ -140,37 +199,15 @@ def normalize_basin_dimension(basin: np.ndarray, target_dim: int = 64) -> np.nda
 
     current_dim = int(b.shape[0])
     if current_dim == int(target_dim):
-        return sphere_project(b)
+        return fisher_normalize(b)
 
     if current_dim < int(target_dim):
         result = np.zeros(int(target_dim), dtype=float)
         result[:current_dim] = b
-        return sphere_project(result)
+        return fisher_normalize(result)
 
     result = b[: int(target_dim)].copy()
-    return sphere_project(result)
-
-
-def hellinger_normalize(basin: np.ndarray) -> np.ndarray:
-    """
-    Normalize basin to Hellinger embedding (sqrt space on unit sphere).
-    
-    Storage Format: sqrt(p) normalized to the unit sphere.
-    This ensures compatibility with pgvector <#> operator.
-    
-    Args:
-        basin: Basin coordinates (may be signed or unnormalized)
-    
-    Returns:
-        Hellinger-normalized basin on unit sphere
-    """
-    p = np.abs(basin) + 1e-10
-    p = p / np.sum(p)
-    sqrt_p = np.sqrt(p)
-    norm = np.linalg.norm(sqrt_p)
-    if norm < 1e-10:
-        return sqrt_p
-    return sqrt_p / norm
+    return fisher_normalize(result)
 
 
 def geodesic_interpolation(
@@ -179,34 +216,49 @@ def geodesic_interpolation(
     t: float
 ) -> np.ndarray:
     """
-    Spherical linear interpolation (slerp) along geodesic.
+    Spherical linear interpolation (slerp) along geodesic on simplex.
+
+    Uses SLERP in sqrt-space which gives geodesic on the simplex.
 
     Args:
-        start: Starting point on manifold
-        end: Ending point on manifold
+        start: Starting point (probability distribution)
+        end: Ending point (probability distribution)
         t: Interpolation parameter (0 = start, 1 = end)
 
     Returns:
-        Interpolated point along geodesic
+        Interpolated point along geodesic (probability distribution)
+    
+    Examples:
+        >>> start = np.array([1.0, 0.0, 0.0])
+        >>> end = np.array([0.0, 1.0, 0.0])
+        >>> mid = geodesic_interpolation(start, end, 0.5)
+        >>> assert np.isclose(mid.sum(), 1.0)
     """
-    start_norm = start / (np.linalg.norm(start) + 1e-10)
-    end_norm = end / (np.linalg.norm(end) + 1e-10)
-
-    dot = np.clip(np.dot(start_norm, end_norm), -1.0, 1.0)
+    # Normalize to simplex
+    p_start = fisher_normalize(start)
+    p_end = fisher_normalize(end)
+    
+    # SLERP in sqrt space (geodesic on simplex)
+    sqrt_start = np.sqrt(p_start)
+    sqrt_end = np.sqrt(p_end)
+    
+    # Compute angle between sqrt vectors
+    dot = np.clip(np.dot(sqrt_start, sqrt_end), -1.0, 1.0)
     omega = np.arccos(dot)
 
     if omega < 1e-6:
-        return start
+        return p_start.copy()
 
     sin_omega = np.sin(omega)
     a = np.sin((1 - t) * omega) / sin_omega
     b = np.sin(t * omega) / sin_omega
 
-    result = a * start_norm + b * end_norm
-    return result * np.linalg.norm(start)
+    sqrt_result = a * sqrt_start + b * sqrt_end
+    
+    # Square to get back to simplex
+    result = sqrt_result ** 2
+    return result / result.sum()
 
-
-from typing import Optional
 
 def estimate_manifold_curvature(
     points: np.ndarray,
@@ -215,11 +267,10 @@ def estimate_manifold_curvature(
     """
     Estimate local curvature of the Fisher manifold from sample points.
 
-    QIG-PURE: Assumes input points are already on S^63 (no normalization).
-    Center is computed as spherical barycenter via sphere_project on mean.
+    QIG-PURE: Uses Fisher-Rao distance on simplex (not Euclidean).
 
     Args:
-        points: Array of shape (N, D) - N points already on S^63
+        points: Array of shape (N, D) - N probability distributions
         center: Optional center point for curvature estimation
 
     Returns:
@@ -229,8 +280,8 @@ def estimate_manifold_curvature(
         return 0.0
 
     if center is None:
-        mean_vec = np.mean(points, axis=0)
-        center = sphere_project(mean_vec)
+        # Compute Fréchet mean (geometric mean on simplex)
+        center = fisher_normalize(np.mean(points, axis=0))
 
     distances = []
     for point in points:
@@ -253,17 +304,13 @@ def basin_magnitude(basin: np.ndarray) -> float:
     """
     Compute a Fisher-Rao appropriate magnitude measure for basin coordinates.
     
-    This is used for logging and monitoring purposes. Instead of Euclidean L2 norm,
-    we compute the Fisher-Rao distance from the origin (uniform distribution).
-    
-    For a probability distribution p, this measures how far p is from the
-    maximum entropy (uniform) state.
+    This measures how far the distribution is from uniform (maximum entropy).
     
     Args:
         basin: Basin coordinate vector
         
     Returns:
-        Fisher-Rao magnitude from uniform distribution (≥ 0)
+        Fisher-Rao distance from uniform distribution (≥ 0, max π/2)
     """
     p = fisher_normalize(basin)
     uniform = np.ones_like(p) / len(p)
@@ -309,13 +356,12 @@ __all__ = [
     'enforce_canonical',
     'sphere_project',
     'fisher_normalize',
-    # Distance functions (for compatibility)
+    # Distance functions - CANONICAL IMPLEMENTATIONS
     'fisher_rao_distance',
     'fisher_coord_distance',
     'fisher_similarity',
     # Dimension and normalization utilities
     'normalize_basin_dimension',
-    'hellinger_normalize',
     # Geodesic navigation
     'geodesic_interpolation',
     # Curvature and magnitude utilities
