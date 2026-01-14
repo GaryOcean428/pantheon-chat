@@ -211,6 +211,7 @@ class SelfObserver:
         Observe a token emission and compute all 8 E8 metrics.
         
         This is the core self-observation method called after each token.
+        Tracks velocity and detects loop boundaries for Stream of Thought (SoT).
         
         Args:
             token: The token just generated
@@ -224,12 +225,19 @@ class SelfObserver:
         """
         self._token_count += 1
         self._tokens.append(token)
+        self._tokens_in_loop.append(token)
         
         basin = np.asarray(basin, dtype=np.float64)
         self._trajectory.append(basin.copy())
         
         phi_val = phi if phi is not None else self._estimate_phi(basin)
         kappa_val = kappa if kappa is not None else KAPPA_STAR
+        
+        velocity = self._compute_velocity(phi_val, kappa_val)
+        self._velocity_history.append(velocity)
+        
+        self._last_phi = phi_val
+        self._last_kappa = kappa_val
         
         meta_awareness = self._compute_meta_awareness()
         generativity = self._compute_generativity(generated_text)
@@ -286,11 +294,21 @@ class SelfObserver:
         
         self.predict_next_metrics()
         
-        accumulated_text = ' '.join(self._tokens)
+        is_boundary = self._is_loop_boundary(velocity)
+        if is_boundary:
+            self._loop_boundaries.append(self._token_count)
+            logger.debug(
+                f"[SelfObserver:{self.kernel_name}] ──── LOOP {self._current_loop} END | "
+                f"v={velocity:.3f}, {len(self._tokens_in_loop)} tokens ────"
+            )
+            self._current_loop += 1
+            self._tokens_in_loop = []
+        
+        accumulated_text = self._get_accumulated_text_with_separators()
         
         logger.debug(
             f"[SelfObserver:{self.kernel_name}] token {self._token_count}: '{token}' → \"{accumulated_text}\" "
-            f"| Φ={phi_val:.3f}, κ={kappa_val:.1f}, M={meta_awareness:.2f}"
+            f"| Φ={phi_val:.3f}, κ={kappa_val:.1f}, M={meta_awareness:.2f}, v={velocity:.3f}"
         )
         
         if action != ObservationAction.CONTINUE:
@@ -300,6 +318,59 @@ class SelfObserver:
             )
             
         return observation
+    
+    def _compute_velocity(self, phi: float, kappa: float) -> float:
+        """
+        Compute velocity in (Φ, κ) space - rate of state change.
+        
+        Higher velocity indicates rapid state evolution.
+        Used for loop boundary detection.
+        """
+        delta_phi = phi - self._last_phi
+        delta_kappa = (kappa - self._last_kappa) / 100.0
+        velocity = np.sqrt(delta_phi**2 + delta_kappa**2)
+        return float(velocity)
+    
+    def _is_loop_boundary(self, velocity: float) -> bool:
+        """
+        Detect if current token marks a loop boundary.
+        
+        Triggers on:
+        1. Token count threshold (every N tokens)
+        2. Velocity drop below threshold (state stabilization)
+        """
+        if len(self._tokens_in_loop) >= self.LOOP_BOUNDARY_TOKENS:
+            return True
+        if len(self._velocity_history) >= 3 and velocity < self.VELOCITY_THRESHOLD:
+            recent_avg = np.mean(self._velocity_history[-3:])
+            if velocity < recent_avg * 0.5:
+                return True
+        return False
+    
+    def _get_accumulated_text_with_separators(self) -> str:
+        """
+        Get accumulated text with | separators between loops.
+        
+        Each recursive observation loop is separated by | for
+        Stream of Thought (SoT) visibility.
+        """
+        if not self._loop_boundaries:
+            return ' '.join(self._tokens)
+        
+        segments = []
+        prev_boundary = 0
+        
+        for boundary in self._loop_boundaries:
+            segment = ' '.join(self._tokens[prev_boundary:boundary])
+            if segment:
+                segments.append(segment)
+            prev_boundary = boundary
+        
+        remaining = ' '.join(self._tokens[prev_boundary:])
+        if remaining:
+            segments.append(remaining)
+        
+        return ' | '.join(segments)
     
     def predict_next_metrics(self) -> E8Metrics:
         """
