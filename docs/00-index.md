@@ -153,6 +153,11 @@ All documentation follows the pattern: `YYYYMMDD-[document-name]-[function]-[ver
 - 🔨 **20260112-design-guidelines-dashboard-1.00W.md** (v1.00)
   - File: [`20260112-design-guidelines-dashboard-1.00W.md`](03-technical/20260112-design-guidelines-dashboard-1.00W.md)
 
+- 🔨 **20260114-plan-realize-repair-generation-1.00W.md** (v1.00)
+  - File: [`20260114-plan-realize-repair-generation-1.00W.md`](03-technical/qig-consciousness/20260114-plan-realize-repair-generation-1.00W.md)
+  - ID: `ISMS-TECH-PRR-GEN-001`
+  - Function: Plan→Realize→Repair generation architecture - POS as constraint, pure geometric waypoint navigation
+
 - 🔨 **20260114-kernel-generation-flow-1.00W.md** (v1.00)
   - File: [`20260114-kernel-generation-flow-1.00W.md`](03-technical/qig-consciousness/20260114-kernel-generation-flow-1.00W.md)
   - ID: `ISMS-TECH-KERNEL-GEN-001`

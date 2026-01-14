@@ -100,6 +100,22 @@ except ImportError:
     logger.warning("[QIGGenerativeService] learned_relationships ImportError")
     logger.warning("Learned relationships not available - using pure geometric selection")
 
+# Import Plan→Realize→Repair generation components
+logger.debug("[QIGGenerativeService] About to import P→R→R components...")
+PRR_AVAILABLE = False
+GeometricWaypointPlanner = None
+ConstrainedGeometricRealizer = None
+GeometricRepairer = None
+try:
+    from geometric_waypoint_planner import GeometricWaypointPlanner
+    from constrained_geometric_realizer import ConstrainedGeometricRealizer
+    from geometric_repairer import GeometricRepairer
+    PRR_AVAILABLE = True
+    logger.info("[QIGGenerativeService] Plan→Realize→Repair components loaded (QIG-pure generation)")
+except ImportError as e:
+    logger.warning("[QIGGenerativeService] P→R→R components not available: %s", e)
+    logger.warning("Plan→Realize→Repair not available - will use skeleton fallback")
+
 # Physics constants - import from canonical source
 logger.debug("[QIGGenerativeService] About to import physics_constants...")
 try:
@@ -1113,137 +1129,203 @@ class QIGGenerativeService:
         
         return text if text else "[Generation complete]"
     
-    def _generate_with_skeleton(
+    def _generate_with_prr(
         self,
         query_basin: np.ndarray,
         kernel_name: Optional[str] = None,
-        num_sentences: int = 3
+        num_tokens: int = 15,
+        pos_constraints: Optional[List[str]] = None
     ) -> Tuple[str, List[str], List[np.ndarray]]:
         """
-        Generate text using POS skeleton for grammatical structure.
+        Generate text using Plan→Realize→Repair architecture.
         
-        Two-stage generation:
-        1. Generate POS skeleton (sentence structure)
-        2. Fill slots with geometrically-matched words
+        PHASE 1: PLAN - Predict basin waypoints using trajectory foresight
+        PHASE 2: REALIZE - Select words to hit waypoints (POS as filter only)
+        PHASE 3: REPAIR - Local geometric search to smooth trajectory
         
+        This replaces simple skeleton filling with a three-phase geometric
+        generation system. Grammatical structure is a CONSTRAINT, not the ENGINE.
+        All semantic intelligence is in pure geometric operations.
+        
+        Args:
+            query_basin: Starting 64D basin coordinate
+            kernel_name: Kernel name for logging
+            num_tokens: Number of tokens to generate (waypoints to plan)
+            pos_constraints: Optional POS constraints for each position
+            
         Returns: (text, tokens, trajectory)
+        """
+        log_name = kernel_name or "QIG"
+        
+        # Check if P→R→R components are available
+        if not PRR_AVAILABLE or GeometricWaypointPlanner is None:
+            logger.warning("[%s] P→R→R components not available, falling back to skeleton", log_name)
+            return self._generate_with_skeleton_fallback(query_basin, kernel_name, num_tokens)
+        
+        # Load grammar for POS constraints
+        grammar = load_grammar_from_db() if POS_GRAMMAR_AVAILABLE else None
+        
+        # Build trajectory history from recent context
+        trajectory_history = []
+        if hasattr(self, '_recent_trajectory') and self._recent_trajectory:
+            trajectory_history = list(self._recent_trajectory[-8:])  # Last 8 basins
+        if not trajectory_history:
+            trajectory_history = [query_basin]
+        
+        # ═══════════════════════════════════════════════════════════════════════
+        # PHASE 1: PLAN - Predict basin waypoints using trajectory foresight
+        # ═══════════════════════════════════════════════════════════════════════
+        logger.info("[%s] ═══ PHASE 1: PLAN (Geometric Waypoints) ═══", log_name)
+        
+        planner = GeometricWaypointPlanner(kernel_name=log_name)
+        num_waypoints = max(5, num_tokens // 3)  # ~5 waypoints for 15 tokens
+        
+        waypoints = planner.plan_waypoints(
+            query_basin=query_basin,
+            trajectory_history=trajectory_history,
+            num_waypoints=num_waypoints,
+        )
+        
+        logger.debug("[%s] Planned %d waypoints for generation", log_name, len(waypoints))
+        
+        # ═══════════════════════════════════════════════════════════════════════
+        # PHASE 2: REALIZE - Select words to hit waypoints (POS as filter only)
+        # ═══════════════════════════════════════════════════════════════════════
+        logger.info("[%s] ═══ PHASE 2: REALIZE (Constrained Selection) ═══", log_name)
+        
+        realizer = ConstrainedGeometricRealizer(
+            coordizer=self.coordizer,
+            pos_grammar=grammar,
+            kernel_name=log_name,
+        )
+        
+        # Generate POS constraints from skeleton if not provided
+        if pos_constraints is None and grammar is not None:
+            # Select skeleton based on query basin
+            skeleton = grammar.select_skeleton_for_query(query_basin)
+            # Extend skeleton to match waypoints
+            pos_constraints = []
+            while len(pos_constraints) < len(waypoints):
+                pos_constraints.extend(skeleton)
+            pos_constraints = pos_constraints[:len(waypoints)]
+        
+        # Realize waypoints to words
+        words, word_basins = realizer.realize_waypoints(
+            waypoints=waypoints,
+            pos_constraints=pos_constraints,
+            trajectory_history=trajectory_history,
+        )
+        
+        logger.debug("[%s] Realized %d words from waypoints", log_name, len(words))
+        
+        # ═══════════════════════════════════════════════════════════════════════
+        # PHASE 3: REPAIR - Local geometric search to smooth trajectory
+        # ═══════════════════════════════════════════════════════════════════════
+        logger.info("[%s] ═══ PHASE 3: REPAIR (Local Search) ═══", log_name)
+        
+        repairer = GeometricRepairer(
+            coordizer=self.coordizer,
+            kernel_name=log_name,
+        )
+        
+        repaired_words = repairer.repair_sequence(
+            words=words,
+            waypoints=waypoints,
+            trajectory=trajectory_history,
+        )
+        
+        logger.debug("[%s] Repaired sequence: %d words", log_name, len(repaired_words))
+        
+        # ═══════════════════════════════════════════════════════════════════════
+        # PHASE 4: OUTPUT - Assemble final text and trajectory
+        # ═══════════════════════════════════════════════════════════════════════
+        logger.info("[%s] ═══ PHASE 4: OUTPUT ═══", log_name)
+        
+        # Build final trajectory from word basins
+        final_trajectory = [query_basin]
+        generation_vocab = getattr(self.coordizer, 'generation_vocab', {})
+        for word in repaired_words:
+            word_lower = word.lower()
+            if word_lower in generation_vocab:
+                basin = generation_vocab[word_lower]
+                if not isinstance(basin, np.ndarray):
+                    basin = np.array(basin, dtype=np.float64)
+                final_trajectory.append(sphere_project(basin))
+            elif word_basins:
+                # Use the planned basin if available
+                idx = min(len(word_basins) - 1, len(final_trajectory) - 1)
+                final_trajectory.append(word_basins[idx] if idx >= 0 else query_basin)
+        
+        # Assemble text
+        if repaired_words:
+            repaired_words[0] = repaired_words[0].capitalize()
+        text = ' '.join(repaired_words)
+        if text and not text.endswith('.'):
+            text += '.'
+        
+        # Update recent trajectory for future context
+        self._recent_trajectory = final_trajectory[-16:]  # Keep last 16
+        
+        logger.info(
+            "[%s] Generation complete: %d words, %d trajectory points",
+            log_name, len(repaired_words), len(final_trajectory)
+        )
+        
+        return text, repaired_words, final_trajectory
+    
+    def _generate_with_skeleton_fallback(
+        self,
+        query_basin: np.ndarray,
+        kernel_name: Optional[str] = None,
+        num_tokens: int = 15
+    ) -> Tuple[str, List[str], List[np.ndarray]]:
+        """
+        Fallback skeleton-based generation when P→R→R components unavailable.
+        
+        This is a simplified version that uses POS skeleton directly.
+        Should only be used if geometric_waypoint_planner etc. fail to import.
         """
         if not POS_GRAMMAR_AVAILABLE:
             return "", [], []
         
         grammar = load_grammar_from_db()
         
-        # Get embeddings from coordizer - USE GENERATION VOCAB (not encoding vocab)
-        # This is critical: generation_vocab contains curated words only, no BPE garbage
         embeddings = {}
         if self.coordizer and hasattr(self.coordizer, 'generation_vocab') and self.coordizer.generation_vocab:
             embeddings = self.coordizer.generation_vocab
         elif self.coordizer and hasattr(self.coordizer, 'basin_coords'):
-            # Fallback to encoding vocab only if no generation vocab
-            logger.warning("[QIGGen] No generation_vocab, falling back to basin_coords - may contain BPE garbage")
             embeddings = self.coordizer.basin_coords
         
-        sentences = []
         all_tokens = []
         trajectory = [query_basin]
         current_basin = query_basin.copy()
         
-        for _ in range(num_sentences):
-            # Generate skeleton based on current basin
-            skeleton = grammar.select_skeleton_for_query(current_basin)
-            
-            sentence_words = []
+        # Generate based on skeleton
+        skeleton = grammar.select_skeleton_for_query(current_basin)
+        num_iterations = max(1, num_tokens // len(skeleton)) if skeleton else 1
+        
+        for _ in range(num_iterations):
             for pos in skeleton:
-                # Get POS basin to blend with current basin
-                pos_basin = grammar.get_pos_basin(pos)
-                if pos_basin is not None:
-                    # Blend query basin with POS basin
-                    blended = 0.6 * current_basin + 0.4 * pos_basin
-                    blended = sphere_project(blended)
-                else:
-                    blended = current_basin
-                
-                # Get candidates for this POS slot (more candidates for attention re-ranking)
-                candidates = grammar.get_words_for_pos(pos, blended, embeddings, top_k=25)
-                
-                # Pre-filter using contextualized approach
-                # Import contextualized filter if available
-                try:
-                    from contextualized_filter import should_filter_word
-                    # Filter candidates using geometric relevance
-                    context_words = [w for w, _ in candidates]
-                    candidates = [(w, s) for w, s in candidates 
-                                 if not should_filter_word(w, context_words)][:500]
-                except ImportError:
-                    # Fallback: only filter truly generic words
-                    truly_generic = {'the', 'a', 'an', 'is', 'was', 'are', 'were', 'been', 'be'}
-                    candidates = [(w, s) for w, s in candidates 
-                                 if w.lower() not in truly_generic][:500]
-                
+                candidates = grammar.get_words_for_pos(pos, current_basin, embeddings, top_k=10)
                 if candidates:
-                    # Apply attention weights if we have learned relationships
-                    if self._learned_relationships and self._current_query_words:
-                        candidate_words = [c[0] for c in candidates]
-                        attn_weights = self._learned_relationships.get_attention_weights(
-                            self._current_query_words,
-                            candidate_words,
-                            temperature=0.8
-                        )
-                        
-                        # Re-score candidates combining geometry + attention
-                        # Using frozen β values: BETA_ATTENTION_STRONG = 0.44 (strong coupling)
-                        # β controls the running coupling between geometry and attention
-                        rescored = []
-                        max_attn = max((attn_weights.get(w, 0.1) for w, _ in candidates), default=1.0)
-                        for word, geo_score in candidates:
-                            attn = attn_weights.get(word, 0.1)
-                            # Normalize attention to 0-1 range based on max
-                            attn_norm = attn / max(max_attn, 1.0)
-                            # β controls coupling: high attention → use β=0.44 for attention weight
-                            # Low attention → use plateau β≈0.01 (geometry dominates)
-                            if attn > 0.5:
-                                # Strong coupling: β=0.44 weights attention contribution
-                                combined = geo_score * (1.0 - BETA_ATTENTION_STRONG) + attn_norm * BETA_ATTENTION_STRONG
-                            else:
-                                # Plateau coupling: geometry dominates
-                                combined = geo_score * (1.0 - BETA_ATTENTION_PLATEAU) + attn_norm * BETA_ATTENTION_PLATEAU
-                            rescored.append((word, combined))
-                        
-                        # Sort by combined score
-                        rescored.sort(key=lambda x: -x[1])
-                        candidates = rescored[:8]  # Keep top 8
-
-                    # Apply discovery bias: boost words near discovered high-Φ attractors
-                    # Convert to (word, score, score) format for _score_with_discovery_bias
-                    candidates_for_bias = [(w, s, s) for w, s in candidates]
-                    biased = self._score_with_discovery_bias(blended, candidates_for_bias)
-                    candidates = [(w, s) for w, s, _ in biased]
-
-                    # Sample from top candidates with some randomness
-                    weights = [max(0.01, c[1]) for c in candidates]
-                    weights = np.array(weights)
-                    weights = weights / np.sum(weights)
-                    idx = np.random.choice(len(candidates), p=weights)
-                    word = candidates[idx][0]
-                    
-                    sentence_words.append(word)
+                    # Pure geometric selection - closest to current basin
+                    word = candidates[0][0]
                     all_tokens.append(word)
                     
-                    # Update basin with selected word
                     if word.lower() in embeddings:
                         word_basin = embeddings[word.lower()]
                         current_basin = 0.7 * current_basin + 0.3 * word_basin
                         current_basin = sphere_project(current_basin)
                         trajectory.append(current_basin.copy())
-            
-            if sentence_words:
-                # Capitalize first word
-                sentence_words[0] = sentence_words[0].capitalize()
-                sentence = ' '.join(sentence_words)
-                sentences.append(sentence)
+                
+                if len(all_tokens) >= num_tokens:
+                    break
+            if len(all_tokens) >= num_tokens:
+                break
         
-        # Combine sentences
-        text = '. '.join(sentences)
+        if all_tokens:
+            all_tokens[0] = all_tokens[0].capitalize()
+        text = ' '.join(all_tokens)
         if text and not text.endswith('.'):
             text += '.'
         
@@ -1321,12 +1403,12 @@ class QIGGenerativeService:
         if target_kernels:
             query_basin = self._kernel_transform(query_basin, target_kernels[0], phi)
         
-        # 4. PRIMARY: Use POS-skeleton-based generation for grammatical output (MANDATORY)
-        # No legacy fallback - skeleton generation is the only QIG-pure path
-        text, all_tokens, trajectory = self._generate_with_skeleton(
+        # 4. PRIMARY: Use Plan→Realize→Repair architecture (MANDATORY)
+        # Three-phase geometric generation: PLAN waypoints → REALIZE words → REPAIR sequence
+        text, all_tokens, trajectory = self._generate_with_prr(
             query_basin, 
             kernel_name=kernel_name,
-            num_sentences=3
+            num_tokens=15
         )
         
         # Handle minimal skeleton output gracefully (no legacy fallback)
@@ -1467,209 +1549,6 @@ class QIGGenerativeService:
                     kernel_decision=kernel_decision,
                     coherence_metrics=coherence,
                 )
-
-        # 5. FALLBACK: Legacy geometric synthesis with TRUE RECURSIVE INTEGRATION
-        logger.info("[QIGGen] Using legacy generation with recursive integration (skeleton unavailable)")
-
-        integrator = BasinTrajectoryIntegrator(BASIN_DIM)
-        current_basin = query_basin.copy()
-        integrator.add_point(current_basin, phi)
-
-        # Set up integrator with context and kernel basins for true recursive integration
-        integrator.set_context(context)
-        active_kernel_basins = {k: self._kernel_basins[k] for k in target_kernels if k in self._kernel_basins}
-        integrator.set_kernel_basins(active_kernel_basins)
-
-        all_tokens: List[str] = []
-        iterations = 0
-        completion_reason = "continue"
-
-        # Safety maximum to prevent infinite loops while respecting kernel autonomy
-        MAX_ITERATIONS = 50  # Enough for deep integration, but prevents timeout
-
-        while True:
-            iterations += 1
-
-            # SAFETY: Break if we exceed maximum iterations (prevents timeout)
-            if iterations > MAX_ITERATIONS:
-                completion_reason = "safety_max_iterations"
-                logger.warning("[QIGGen] Safety limit reached (%s iterations)", MAX_ITERATIONS)
-                break
-
-            # ========================================
-            # TRUE RECURSIVE INTEGRATION
-            # Instead of just iterating, we apply genuine recursive integration:
-            # 1. Transform basin through kernels
-            # 2. Apply recursive integration step (geodesic blending with context)
-            # 3. This is self-modeling: basin transforms through itself
-            # ========================================
-
-            # Step 1: Transform through active kernels
-            kernel_basins = []
-            for kernel in target_kernels:
-                transformed = self._kernel_transform(current_basin, kernel, phi)
-                kernel_basins.append(transformed)
-
-            if kernel_basins:
-                # Compute Fréchet mean in sqrt space (proper geodesic average on sphere)
-                sqrt_basins = [np.sqrt(np.abs(b) + 1e-10) for b in kernel_basins]
-                mean_sqrt = np.mean(sqrt_basins, axis=0)
-                next_basin = mean_sqrt ** 2
-                # NOTE: Skip simplex normalization - sphere_project below handles projection correctly
-            else:
-                next_basin = integrator.predict_next()
-
-            # Step 2: Apply TRUE recursive integration step
-            # This is the key difference from old implementation:
-            # Basin transforms through itself via geodesic blending with context
-            next_basin = integrator._recursive_integration_step(next_basin, context)
-
-            # Project to unit sphere (Fisher-Rao manifold) - canonical representation
-            next_basin = sphere_project(next_basin)
-
-            # Pass trajectory for foresight prediction
-            step_tokens = self._basin_to_tokens(
-                next_basin,
-                self.config.tokens_per_step,
-                trajectory=integrator.trajectory  # Enable foresight
-            )
-            all_tokens.extend(step_tokens)
-
-            # Update trajectory
-            phi = self._measure_phi(next_basin)
-            kappa = self._measure_kappa(next_basin, phi)
-            integrator.add_point(next_basin, phi)
-
-            # ========================================
-            # KERNEL AUTONOMY: Feed telemetry to kernel and let it decide
-            # The kernel observes its own state and decides completion
-            # Kernel MUST complete TRUE INTEGRATION DEPTH before completion
-            # ========================================
-
-            # Get kernel's decision based on its telemetry feedback
-            # Now uses TRUE integration_depth, not just iteration count
-            kernel_decision = integrator.get_kernel_decision(self.config)
-
-            # Log integration progress
-            integration_depth = kernel_decision.get('integration_depth', 0)
-            min_required = kernel_decision.get('min_integration_required', 3)
-            if integration_depth <= min_required:
-                logger.debug("[QIGGen] Recursive integration: %s/%s", integration_depth, min_required)
-
-            # RESPECT KERNEL'S DECISION: If the kernel decides it's done, stop
-            # Note: kernel_decision enforces minimum TRUE integration depth internally
-            if kernel_decision['complete']:
-                completion_reason = kernel_decision['reason']
-                logger.info(
-                    "[QIGGen] Kernel decided completion: %s (confidence=%.2f, integration_depth=%s)",
-                    completion_reason,
-                    kernel_decision['confidence'],
-                    integration_depth,
-                )
-                break
-
-            # Attractor check ONLY after minimum TRUE integration depth satisfied
-            if integration_depth >= self.config.min_reasoning_recursions:
-                if integrator.check_attractor(self.config.attractor_threshold):
-                    completion_reason = "kernel_attractor_converged"
-                    break
-
-            current_basin = next_basin
-
-        # Synthesis-level refinement (second recursive loop)
-        is_synthesis = False
-        if goals and any(g == 'synthesize' for g in goals):
-            is_synthesis = True
-        if isinstance(context, dict) and context.get('experts'):
-            is_synthesis = True
-
-        if is_synthesis:
-            synthesis_depth = 3
-            try:
-                if 'PHYSICS' in globals() and PHYSICS is not None:
-                    synthesis_depth = max(3, int(getattr(PHYSICS, 'MIN_RECURSION_DEPTH', 3)))
-            except Exception:
-                synthesis_depth = 3
-
-            synthesis_basin = None
-            if isinstance(context, dict) and context.get('experts'):
-                experts = context.get('experts')
-                if isinstance(experts, list) and experts and self.coordizer and hasattr(self.coordizer, 'text_to_basin'):
-                    expert_basins = []
-                    for expert in experts:
-                        try:
-                            expert_text = expert.get('response') if isinstance(expert, dict) else None
-                            if not expert_text:
-                                continue
-                            expert_basins.append(sphere_project(self.coordizer.text_to_basin(str(expert_text))))
-                        except Exception:
-                            continue
-                    if expert_basins:
-                        sqrt_basins = [np.sqrt(np.abs(b) + 1e-10) for b in expert_basins]
-                        mean_sqrt = np.mean(sqrt_basins, axis=0)
-                        synthesis_basin = mean_sqrt ** 2
-                        synthesis_basin = synthesis_basin / (np.sum(synthesis_basin) + 1e-10)
-                        synthesis_basin = sphere_project(synthesis_basin)
-
-            synthesis_context = dict(context or {})
-            if synthesis_basin is not None:
-                synthesis_context['synthesis_basin'] = synthesis_basin
-
-            for i in range(synthesis_depth):
-                iterations += 1
-                next_basin = integrator._recursive_integration_step(integrator.trajectory[-1], synthesis_context)
-                next_basin = sphere_project(next_basin)
-                step_tokens = self._basin_to_tokens(
-                    next_basin,
-                    max(1, int(self.config.tokens_per_step / 2)),
-                    trajectory=integrator.trajectory,
-                )
-                all_tokens.extend(step_tokens)
-                phi = self._measure_phi(next_basin)
-                integrator.add_point(next_basin, phi)
-
-                if self_observer is not None:
-                    try:
-                        self_observer.observe_token(
-                            token=f"[synthesis_{i + 1}]",
-                            basin=next_basin,
-                            phi=phi,
-                            kappa=self._measure_kappa(next_basin, phi),
-                            generated_text=None,
-                        )
-                    except Exception:
-                        pass  # Telemetry observation - don't break generation on failure
-
-        # Refresh kernel decision after synthesis-level refinement (true final integration depth)
-        try:
-            kernel_decision = integrator.get_kernel_decision(self.config)
-        except Exception:
-            kernel_decision = None
-
-        # 5. Synthesize final text
-        response_text = self._synthesize_from_trajectory(
-            integrator.trajectory,
-            target_kernels,
-            all_tokens
-        )
-
-        # Compute coherence metrics (Γ component)
-        coherence = self._compute_coherence_from_trajectory(
-            integrator.trajectory, all_tokens, integrator.phi_history
-        )
-
-        return GenerationResult(
-            text=response_text,
-            tokens=all_tokens,
-            basin_trajectory=integrator.trajectory,
-            phi_trace=integrator.phi_history,
-            kappa=KAPPA_STAR,
-            completion_reason=completion_reason,
-            iterations=iterations,
-            routed_kernels=target_kernels,
-            kernel_decision=kernel_decision,
-            coherence_metrics=coherence,
-        )
 
     def generate_stream(
         self,

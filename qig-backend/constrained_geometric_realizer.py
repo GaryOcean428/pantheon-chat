@@ -152,17 +152,19 @@ class ConstrainedGeometricRealizer:
     def realize_waypoints(
         self,
         waypoints: List[np.ndarray],
-        pos_constraints: Optional[List[str]] = None
-    ) -> List[str]:
+        pos_constraints: Optional[List[str]] = None,
+        trajectory_history: Optional[List[np.ndarray]] = None
+    ) -> Tuple[List[str], List[np.ndarray]]:
         """
         Realize waypoints into words using geometric selection.
         
         Args:
             waypoints: List of target basin coordinates (64D)
             pos_constraints: Optional list of POS tags to constrain each slot
+            trajectory_history: Optional previous trajectory for coherence
         
         Returns:
-            List of selected words matching waypoints
+            Tuple of (words, word_basins) - selected words and their basin coordinates
         """
         logger.info(
             "[%s] ═══ PHASE 2: REALIZE (Constrained Selection) ═══",
@@ -171,10 +173,12 @@ class ConstrainedGeometricRealizer:
         
         if not waypoints:
             logger.warning("[%s] No waypoints provided", self.kernel_name)
-            return []
+            return [], []
         
         words = []
-        trajectory = []  # Build trajectory as we go
+        word_basins = []
+        # Start trajectory with history if provided
+        trajectory = list(trajectory_history) if trajectory_history else []
         
         for i, waypoint in enumerate(waypoints):
             # Ensure waypoint is numpy array
@@ -195,11 +199,23 @@ class ConstrainedGeometricRealizer:
             
             words.append(word)
             
-            # Add selected word's basin to trajectory
-            if word in self.generation_vocab:
-                trajectory.append(self.generation_vocab[word])
+            # Get and track word's basin
+            word_lower = word.lower()
+            if word_lower in self.generation_vocab:
+                basin = self.generation_vocab[word_lower]
+                if not isinstance(basin, np.ndarray):
+                    basin = np.array(basin, dtype=np.float64)
+                word_basins.append(basin)
+                trajectory.append(basin)
+            elif word in self.generation_vocab:
+                basin = self.generation_vocab[word]
+                if not isinstance(basin, np.ndarray):
+                    basin = np.array(basin, dtype=np.float64)
+                word_basins.append(basin)
+                trajectory.append(basin)
             else:
-                trajectory.append(waypoint)  # Use waypoint if word not found
+                word_basins.append(waypoint)  # Use waypoint if word not found
+                trajectory.append(waypoint)
             
             logger.debug(
                 "[%s] slot %d: '%s' (d=%.2f, pos=%s)",
@@ -211,7 +227,7 @@ class ConstrainedGeometricRealizer:
             self.kernel_name, len(waypoints), len(words)
         )
         
-        return words
+        return words, word_basins
     
     def select_word_geometric(
         self,
