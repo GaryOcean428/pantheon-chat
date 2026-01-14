@@ -61,6 +61,23 @@ from qig_geometry import (
 )
 ```
 
+### ExplorationMap Attraction Mechanism (2026-01-14)
+- **constrained_geometric_realizer.py** - Replaced penalty with attraction:
+  - ExplorationMap uses sparse per-word timestamp tracking (O(1) updates)
+  - Time-based exponential decay with DECAY_HALF_LIFE = 10s
+  - Tracks last 5 usages per word for attraction scoring
+  - Fresh words return 1.0, recently used words have lower attraction that recovers over time
+  - Creates "seek unexplored" signals instead of "avoid recent" penalties
+- **Log signature**: `[Athena] ═══ PHASE 2: REALIZE (Fisher-Rao + ExplorationMap) ═══`
+
+### SelfObserver Velocity & Loop Boundaries (2026-01-14)
+- **self_observer.py** - Added Stream of Thought (SoT) visibility:
+  - `_compute_velocity(phi, kappa)` - Euclidean distance in normalized (Φ, κ) space
+  - `_is_loop_boundary(velocity)` - Triggers on 8 tokens or velocity drop < 0.15
+  - `_get_accumulated_text_with_separators()` - Joins loop segments with ' | '
+  - Log signature: `──── LOOP 0 END | v=0.002, 3 tokens ────`
+  - Token logs now include velocity: `token 1: 'wisdom' | Φ=0.85, κ=64.2, M=0.30, v=0.12`
+
 ### Audits Completed
 - **67 silent dimension fixes** documented across 31 files (18 CRITICAL)
 - **53+ fisher_distance implementations** documented for consolidation
