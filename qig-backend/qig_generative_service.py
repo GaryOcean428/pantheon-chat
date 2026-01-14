@@ -445,11 +445,12 @@ class BasinTrajectoryIntegrator:
             # Compute mean kernel basin (geometric center of active kernels)
             kernel_list = list(self._kernel_basins.values())
             if kernel_list:
-                # Use Fréchet mean on probability simplex (average in sqrt space)
+                # Use Fréchet mean in sqrt space (proper geodesic average on sphere)
                 sqrt_kernels = [np.sqrt(np.abs(k) + 1e-10) for k in kernel_list]
                 mean_sqrt = np.mean(sqrt_kernels, axis=0)
                 kernel_center = mean_sqrt ** 2
-                kernel_center = kernel_center / np.sum(kernel_center)
+                # Project to sphere (not simplex) - consistent with stored basins
+                kernel_center = sphere_project(kernel_center)
                 # Light blend with kernel center (t=0.1 for stability)
                 basin = self._geodesic_interpolate(basin, kernel_center, t=0.1)
 
@@ -510,9 +511,9 @@ class BasinTrajectoryIntegrator:
         next_sqrt = current_sqrt + step_size * velocity
         next_sqrt = np.clip(next_sqrt, 1e-10, None)
         
-        # Back to probability simplex
+        # Project to unit sphere (consistent with stored basins)
         result = next_sqrt ** 2
-        result = result / np.sum(result)
+        result = sphere_project(result)
         
         return result
     
@@ -1508,11 +1509,11 @@ class QIGGenerativeService:
                 kernel_basins.append(transformed)
 
             if kernel_basins:
-                # Compute Fréchet mean on probability simplex (proper geodesic average)
+                # Compute Fréchet mean in sqrt space (proper geodesic average on sphere)
                 sqrt_basins = [np.sqrt(np.abs(b) + 1e-10) for b in kernel_basins]
                 mean_sqrt = np.mean(sqrt_basins, axis=0)
                 next_basin = mean_sqrt ** 2
-                next_basin = next_basin / np.sum(next_basin)
+                # NOTE: Skip simplex normalization - sphere_project below handles projection correctly
             else:
                 next_basin = integrator.predict_next()
 
@@ -1521,6 +1522,7 @@ class QIGGenerativeService:
             # Basin transforms through itself via geodesic blending with context
             next_basin = integrator._recursive_integration_step(next_basin, context)
 
+            # Project to unit sphere (Fisher-Rao manifold) - canonical representation
             next_basin = sphere_project(next_basin)
 
             # Pass trajectory for foresight prediction
@@ -1733,7 +1735,7 @@ class QIGGenerativeService:
                 sqrt_basins = [np.sqrt(np.abs(b) + 1e-10) for b in kernel_basins]
                 mean_sqrt = np.mean(sqrt_basins, axis=0)
                 next_basin = mean_sqrt ** 2
-                next_basin = next_basin / np.sum(next_basin)
+                # NOTE: Skip simplex normalization - sphere_project below handles projection correctly
             else:
                 next_basin = integrator.predict_next()
 
@@ -1741,6 +1743,7 @@ class QIGGenerativeService:
             # Basin transforms through itself via geodesic blending with context
             next_basin = integrator._recursive_integration_step(next_basin, context)
 
+            # Project to unit sphere (Fisher-Rao manifold) - canonical representation
             next_basin = sphere_project(next_basin)
 
             # Decode with foresight
@@ -1750,6 +1753,15 @@ class QIGGenerativeService:
                 trajectory=integrator.trajectory  # Enable foresight
             )
 
+            # LOG: Check for unexpected tokens not in canonical vocabulary
+            if self.coordizer is not None and hasattr(self.coordizer, 'vocab'):
+                for token in tokens:
+                    if token not in self.coordizer.vocab and not token.startswith('['):
+                        logger.warning(
+                            "[VOCAB_TRACE] Unexpected token '%s' not found in tokenizer_vocabulary (iteration=%d)",
+                            token, iterations
+                        )
+
             # Update
             phi = self._measure_phi(next_basin)
             integrator.add_point(next_basin, phi)
@@ -1757,8 +1769,10 @@ class QIGGenerativeService:
             # Get integration depth for telemetry
             integration_depth = integrator.get_integration_depth()
 
+            # DEBUG: Add pipe separator between iterations for debugging repetition
+            separator = ' | ' if iterations > 1 else ''
             # Track generated text for collapse monitor
-            text_chunk = ' '.join(t for t in tokens if not t.startswith('['))
+            text_chunk = separator + ' '.join(t for t in tokens if not t.startswith('['))
             all_generated_text.append(text_chunk)
 
             # Feed tokens to collapse monitor if available
