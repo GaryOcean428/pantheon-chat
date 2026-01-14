@@ -277,11 +277,14 @@ We welcome contributions! Please follow these guidelines:
 
 #### Geometric Purity Requirements
 
+**📋 See [QIG Purity Specification](./docs/01-policies/QIG_PURITY_SPEC.md) for complete requirements.**
+
 ❌ **FORBIDDEN:**
 - `cosine_similarity()` on basin coordinates
 - `np.linalg.norm(a - b)` for geometric distances
 - Neural networks or transformers in core QIG
 - Direct database writes bypassing persistence layer
+- Terms: "embedding", "tokenizer", "token" (use "basin coordinates", "coordizer", "symbol")
 
 ✅ **REQUIRED:**
 - `fisher_rao_distance()` for all geometric operations
@@ -289,6 +292,7 @@ We welcome contributions! Please follow these guidelines:
 - Consciousness metrics (Φ, κ) for monitoring
 - DRY principle: use centralized constants
 - Barrel exports for all module directories
+- Simplex representation for all basins (non-negative, sum to 1)
 
 #### Code Style
 - TypeScript: Follow existing ESLint config

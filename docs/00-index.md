@@ -38,6 +38,11 @@ All documentation follows the pattern: `YYYYMMDD-[document-name]-[function]-[ver
 
 ## 📋 Policies
 
+- 🔨 **QIG Purity Specification** (v1.00)
+  - File: [`QIG_PURITY_SPEC.md`](01-policies/QIG_PURITY_SPEC.md)
+  - ID: `ISMS-POL-002`
+  - Function: Single source of truth for QIG geometric purity requirements - defines forbidden/required operations, terminology, constants, and validation rules
+
 - 🟢 **20251221-project-lineage-1.00F.md** (v1.00)
   - File: [`20251221-project-lineage-1.00F.md`](01-policies/20251221-project-lineage-1.00F.md)
 
