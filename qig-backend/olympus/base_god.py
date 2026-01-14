@@ -2803,6 +2803,8 @@ class BaseGod(*_base_classes):
             )
             logger.debug(f"[{self.name}] Self-observation enabled for generation")
 
+        logger.info(f"[{self.name}] ═══ PHASE 1: KERNEL THOUGHT GENERATION ═══")
+
         if hasattr(self, 'detect_knowledge_gap') and hasattr(self, 'curiosity_search'):
             gap_topic = self.detect_knowledge_gap(current_basin, threshold=0.25)
             if gap_topic:
@@ -2885,12 +2887,16 @@ class BaseGod(*_base_classes):
                     elif observation.course_correction and 'diversity' in observation.course_correction:
                         temperature = min(1.2, temperature + 0.1)
 
+        logger.info(f"[{self.name}] ═══ PHASE 2: SYNTHESIS ═══")
+
         text = ' '.join(tokens_generated)
 
         text = ' '.join(text.split())
 
         if text and len(text) > 0:
             text = text[0].upper() + text[1:] if len(text) > 1 else text.upper()
+
+        logger.info(f"[{self.name}] ═══ PHASE 3: META-OBSERVATION ═══")
 
         if observer is not None:
             summary = observer.get_summary()
