@@ -2591,44 +2591,6 @@ export type CoordizerVocabularyRow = typeof coordizerVocabulary.$inferSelect;
 export type InsertCoordizerVocabulary = typeof coordizerVocabulary.$inferInsert;
 
 // ============================================================================
-// BACKWARD COMPATIBILITY ALIASES (deprecated - use Coordizer names)
-// ============================================================================
-/** @deprecated Use CoordizerVocabularyRow instead */
-export type TokenizerVocabularyRow = CoordizerVocabularyRow;
-/** @deprecated Use InsertCoordizerVocabulary instead */
-export type InsertTokenizerVocabulary = InsertCoordizerVocabulary;
-/** @deprecated Use coordizerVocabulary instead */
-export const tokenizerVocabulary = coordizerVocabulary;
-
-/** @deprecated Use CoordizerMergeRule instead */
-export type TokenizerMergeRule = CoordizerMergeRule;
-/** @deprecated Use InsertCoordizerMergeRule instead */
-export type InsertTokenizerMergeRule = InsertCoordizerMergeRule;
-/** @deprecated Use coordizerMergeRules instead */
-export const tokenizerMergeRules = coordizerMergeRules;
-
-/** @deprecated Use CoordizerMetadataRow instead */
-export type TokenizerMetadataRow = CoordizerMetadataRow;
-/** @deprecated Use InsertCoordizerMetadata instead */
-export type InsertTokenizerMetadata = InsertCoordizerMetadata;
-/** @deprecated Use coordizerMetadata instead */
-export const tokenizerMetadata = coordizerMetadata;
-
-/** @deprecated Use BasinRelationshipRow instead */
-export type WordRelationshipRow = BasinRelationshipRow;
-/** @deprecated Use InsertBasinRelationship instead */
-export type InsertWordRelationship = InsertBasinRelationship;
-/** @deprecated Use basinRelationships instead */
-export const wordRelationships = basinRelationships;
-
-/** @deprecated Use ManifoldAttractor instead */
-export type LearnedManifoldAttractor = ManifoldAttractor;
-/** @deprecated Use InsertManifoldAttractor instead */
-export type InsertLearnedManifoldAttractor = InsertManifoldAttractor;
-/** @deprecated Use manifoldAttractors instead */
-export const learnedManifoldAttractors = manifoldAttractors;
-
-// ============================================================================
 // DOCUMENT TRAINING & RAG TABLES - Replaces JSON file storage
 // ============================================================================
 

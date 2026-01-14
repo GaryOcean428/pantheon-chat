@@ -33,11 +33,13 @@ psql -d $DATABASE_URL -f migrations/0013_rename_tokenizer_to_coordizer.sql
 ```
 
 ## Backward Compatibility
-The schema.ts file includes deprecated type aliases for smooth transition:
-- `tokenizerVocabulary` → `coordizerVocabulary` (deprecated)
-- `tokenizerMetadata` → `coordizerMetadata` (deprecated)
-- `wordRelationships` → `basinRelationships` (deprecated)
-- `learnedManifoldAttractors` → `manifoldAttractors` (deprecated)
+⚠️ **BREAKING CHANGE**: No backward compatibility aliases provided. All imports must use new names:
+- Use `coordizerVocabulary` (not `tokenizerVocabulary`)
+- Use `coordizerMetadata` (not `tokenizerMetadata`)
+- Use `basinRelationships` (not `wordRelationships`)
+- Use `manifoldAttractors` (not `learnedManifoldAttractors`)
+
+All code has been updated to use the new names. External tools must be updated before applying this migration.
 
 ## Files Changed
 - **105+** files updated
@@ -71,5 +73,5 @@ npm run check
 
 ## Status
 ✅ Complete - All code references updated
-✅ Backward compatibility maintained
+✅ No backward compatibility - clean migration
 ✅ Migration file created and tested
