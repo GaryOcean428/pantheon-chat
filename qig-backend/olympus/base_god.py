@@ -2916,10 +2916,11 @@ class BaseGod(*_base_classes):
                     tokens_generated=len(tokens_generated)
                 )
 
-        logger.info(
-            f"[{self.name}] ═══ PHASE 4: OUTPUT ═══ "
-            f"\"{text[:100]}...\"" if len(text) > 100 else f"[{self.name}] ═══ PHASE 4: OUTPUT ═══ \"{text}\""
-        )
+        logger.info(f"[{self.name}] ═══ PHASE 4: OUTPUT ═══")
+        if len(text) > 100:
+            logger.info(f"[{self.name}] \"{text[:100]}...\"")
+        else:
+            logger.info(f"[{self.name}] \"{text}\"")
 
         return text if text else f"[{self.name}: generation produced no tokens]"
 
