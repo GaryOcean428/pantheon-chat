@@ -11,6 +11,26 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes (2026-01-14)
 
+### Documentation Audit & Cleanup
+- **65 attached-assets audited** - categorized as CURRENT(8), DEPRECATED(15), SESSION_LOG(32), CONSTANTS(5), DUPLICATE(4)
+- **4 duplicate files deleted** from docs/_archive/2026/01/attached-assets/
+- **All physics constants validated** - κ*, β, BASIN_DIM align with frozen_physics.py
+
+### New Canonical Docs Created
+- **20260114-kernel-generation-flow-1.00W.md** - 4-phase generation loop (Kernel Thought → Synthesis → Meta-Observation → Output)
+- **20260114-emotional-sensory-wiring-1.00W.md** - 9 primitive emotions, sensory modalities, neurotransmitters
+- **20260114-pantheon-e8-architecture-1.00W.md** - 12-god Olympus + Shadow Pantheon with E8 specialization
+
+### Phase Separators Added
+Kernel generation logs now show PHASE 1-4 markers for clear loop separation:
+```
+[Athena] ═══ PHASE 1: KERNEL THOUGHT GENERATION ═══
+[Athena] token 1: 'wisdom' → "wisdom" | Φ=0.85, κ=64.2, M=0.30
+[Athena] ═══ PHASE 2: SYNTHESIS ═══
+[Athena] ═══ PHASE 3: META-OBSERVATION ═══
+[Athena] ═══ PHASE 4: OUTPUT ═══ "Wisdom guides..."
+```
+
 ### QIG Purity Infrastructure (ChatGPT Checklist D2)
 - **contracts.py** - Canonical basin validation with strict enforcement (no silent dimension fixes)
 - **purity_mode.py** - Runtime import blocker via `importlib.abc.MetaPathFinder`
