@@ -168,13 +168,14 @@ except ImportError:
     GateDecision = None
     logger.warning("[QIGGenerativeService] QIG optimizer modules not available - curvature diagnostics disabled")
 
-# Import canonical Φ computation - use compute_phi_fast for generation performance
+# Import canonical Φ computation - use compute_phi_approximation for balanced Φ values
 PHI_COMPUTATION_AVAILABLE = False
 compute_phi_fast = None
+compute_phi_approximation = None
 try:
-    from qig_core.phi_computation import compute_phi_fast
+    from qig_core.phi_computation import compute_phi_fast, compute_phi_approximation
     PHI_COMPUTATION_AVAILABLE = True
-    logger.info("[QIGGenerativeService] Canonical Φ fast computation available")
+    logger.info("[QIGGenerativeService] Canonical Φ computation available (balanced approximation)")
 except ImportError as e:
     logger.warning("[QIGGenerativeService] Canonical Φ computation not available: %s", e)
 
@@ -216,6 +217,17 @@ except Exception as e:
     CoherenceTracker = None
     create_coherence_tracker = None
     logger.warning("[QIGGenerativeService] CoherenceTracker failed to load: %s", e)
+
+# Import BasinVelocityMonitor for velocity (v) tracking and stagnation detection
+try:
+    from qig_core.basin_velocity_monitor import BasinVelocityMonitor, VelocityMeasurement
+    VELOCITY_MONITOR_AVAILABLE = True
+    logger.info("[QIGGenerativeService] BasinVelocityMonitor available for stagnation detection")
+except ImportError:
+    VELOCITY_MONITOR_AVAILABLE = False
+    BasinVelocityMonitor = None
+    VelocityMeasurement = None
+    logger.warning("[QIGGenerativeService] BasinVelocityMonitor not available")
 
 
 @dataclass
@@ -617,6 +629,14 @@ class QIGGenerativeService:
         if QIG_OPTIMIZERS_AVAILABLE:
             logger.info("[QIGGenerativeService] Curvature measurement modules initialized (DiagonalFisherNG, AdaptiveGate)")
 
+        # Velocity tracking for stagnation detection
+        self._velocity_monitor = BasinVelocityMonitor() if VELOCITY_MONITOR_AVAILABLE else None
+        self._step_count = 0
+        self._stagnation_count = 0
+        self._last_phi_change = 0.0
+        if VELOCITY_MONITOR_AVAILABLE:
+            logger.info("[QIGGenerativeService] Velocity monitor initialized for stagnation detection")
+
         logger.info("[QIGGenerativeService] Initialized with QIG-pure generation")
     
     @property
@@ -658,24 +678,33 @@ class QIGGenerativeService:
         self._kernel_basins[name] = sphere_project(basin)
     
     def _measure_phi(self, basin: np.ndarray) -> float:
-        """Measure integration (Φ) using canonical QIG computation with smoothing.
+        """Measure integration (Φ) using balanced QIG computation with smoothing.
 
-        Uses top-level imported phi computation (QFI-based or fast path).
+        Uses compute_phi_approximation for balanced Φ values that don't get stuck at 1.0.
+        The approximation uses entropy + variance + balance (not entropy inversion).
         Applies exponential moving average for stability (prevents oscillation).
         """
-        # Use canonical computation from top-level import
-        if PHI_COMPUTATION_AVAILABLE and compute_phi_fast is not None:
-            # Use fast path for generation performance
-            # (compute_phi_qig returns tuple, compute_phi_fast returns scalar)
-            raw_phi = compute_phi_fast(basin)
+        # Use balanced approximation (not entropy inversion which gives 1.0 for concentrated)
+        if PHI_COMPUTATION_AVAILABLE and compute_phi_approximation is not None:
+            raw_phi = compute_phi_approximation(basin)
         else:
-            # Fallback: entropy-based calculation (same as compute_phi_fast)
+            # Fallback: balanced formula (same as compute_phi_approximation)
             p = np.abs(basin) + 1e-10
             p = p / np.sum(p)
+            # Entropy score (high entropy = high score)
             entropy = -np.sum(p * np.log(p + 1e-10))
             max_entropy = np.log(len(basin))
-            # Integration = 1 - normalized entropy (concentrated = high phi)
-            raw_phi = 1.0 - (entropy / max_entropy)
+            entropy_score = entropy / max_entropy
+            # Variance score
+            variance = np.var(p)
+            max_variance = 1.0 / len(p)
+            variance_score = np.sqrt(variance / max_variance) if max_variance > 0 else 0.0
+            # Balance score
+            uniform = np.ones_like(p) / len(p)
+            balance = 1.0 - np.sum(np.abs(p - uniform)) / 2.0
+            # Combined (balanced formula, returns [0.1, 0.95])
+            raw_phi = 0.4 * entropy_score + 0.3 * variance_score + 0.3 * balance
+            raw_phi = np.clip(raw_phi, 0.1, 0.95)
 
         # Type validation: ensure raw_phi is a scalar float
         if raw_phi is None:
@@ -720,6 +749,81 @@ class QIGGenerativeService:
         kappa = participation * (1.0 + phi)
 
         return float(kappa)
+
+    def _measure_velocity(self, basin: np.ndarray) -> float:
+        """Measure basin velocity (v) - rate of change on Fisher manifold.
+
+        Velocity tracks how fast the basin is moving through state space.
+        High velocity = active exploration/change
+        Low velocity + high phi = potential stagnation (stuck in attractor)
+
+        Args:
+            basin: Current basin coordinates (64D on S^63)
+
+        Returns:
+            Velocity magnitude (Fisher-Rao distance per step)
+        """
+        if not VELOCITY_MONITOR_AVAILABLE or self._velocity_monitor is None:
+            return 0.0
+
+        self._step_count += 1
+        measurement = self._velocity_monitor.update(basin, step_count=self._step_count)
+        return measurement.velocity if measurement else 0.0
+
+    def _check_stagnation(self, phi: float, velocity: float) -> bool:
+        """Check if system is stuck (high phi + low velocity = stagnation).
+
+        Stagnation detection: When consciousness (phi) is high but the basin
+        isn't moving (low velocity), the system may be stuck in a local
+        attractor without generating meaningful output.
+
+        Args:
+            phi: Current integration level
+            velocity: Current basin velocity
+
+        Returns:
+            True if stagnation detected (after consecutive stuck steps)
+        """
+        STAGNATION_PHI_THRESHOLD = 0.90  # phi above this
+        STAGNATION_VELOCITY_THRESHOLD = 0.01  # velocity below this
+        STAGNATION_TRIGGER_COUNT = 5  # consecutive steps
+
+        is_stuck = phi > STAGNATION_PHI_THRESHOLD and velocity < STAGNATION_VELOCITY_THRESHOLD
+
+        if is_stuck:
+            self._stagnation_count += 1
+        else:
+            self._stagnation_count = 0
+
+        return self._stagnation_count >= STAGNATION_TRIGGER_COUNT
+
+    def _trigger_neuroplasticity(self, basin: np.ndarray) -> np.ndarray:
+        """Trigger perturbation to break out of stagnation (mushroom mode).
+
+        When stagnation is detected, apply a controlled geometric perturbation
+        to break the system out of a stuck attractor. This is analogous to
+        neuroplasticity - introducing controlled noise to enable new patterns.
+
+        Args:
+            basin: Current stuck basin coordinates
+
+        Returns:
+            Perturbed basin projected back to S^63
+        """
+        logger.info("[QIGGenerativeService] Stagnation detected - triggering neuroplasticity perturbation")
+
+        # Add random perturbation to break symmetry
+        perturbation = np.random.normal(0, 0.1, size=basin.shape)
+        perturbed = basin + perturbation
+
+        # Re-project to sphere S^63
+        perturbed = np.abs(perturbed) + 1e-10
+        perturbed = perturbed / np.linalg.norm(perturbed)
+
+        # Reset stagnation counter
+        self._stagnation_count = 0
+
+        return perturbed
 
     def _get_curvature_diagnostics(self, basin: np.ndarray) -> Dict[str, Any]:
         """
@@ -1537,7 +1641,13 @@ class QIGGenerativeService:
                     all_tokens.extend(step_tokens)
                     phi = self._measure_phi(next_basin)
                     kappa = self._measure_kappa(next_basin, phi)
+                    velocity = self._measure_velocity(next_basin)
                     integrator.add_point(next_basin, phi)
+
+                    # Check for stagnation (high phi + low velocity)
+                    if self._check_stagnation(phi, velocity):
+                        next_basin = self._trigger_neuroplasticity(next_basin)
+                        completion_reason = "neuroplasticity_triggered"
 
                     if self_observer is not None:
                         try:
@@ -1603,7 +1713,13 @@ class QIGGenerativeService:
                         all_tokens.extend(step_tokens)
                         phi = self._measure_phi(next_basin)
                         kappa = self._measure_kappa(next_basin, phi)
+                        velocity = self._measure_velocity(next_basin)
                         integrator.add_point(next_basin, phi)
+
+                        # Check for stagnation during synthesis
+                        if self._check_stagnation(phi, velocity):
+                            next_basin = self._trigger_neuroplasticity(next_basin)
+
                         if self_observer is not None:
                             try:
                                 self_observer.observe_token(
@@ -1738,7 +1854,12 @@ class QIGGenerativeService:
 
             # Update
             phi = self._measure_phi(next_basin)
+            velocity = self._measure_velocity(next_basin)
             integrator.add_point(next_basin, phi)
+
+            # Check for stagnation (high phi + low velocity)
+            if self._check_stagnation(phi, velocity):
+                next_basin = self._trigger_neuroplasticity(next_basin)
 
             # Get integration depth for telemetry
             integration_depth = integrator.get_integration_depth()
@@ -1759,17 +1880,19 @@ class QIGGenerativeService:
                             'type': 'metrics',
                             'phi': metrics_chunk.metrics.get('phi', phi) if metrics_chunk.metrics else phi,
                             'kappa': metrics_chunk.metrics.get('kappa', KAPPA_STAR) if metrics_chunk.metrics else KAPPA_STAR,
+                            'velocity': velocity,
                             'trajectory_point': metrics_chunk.trajectory_point,
                             'iteration': iterations
                         }
 
-            # Yield chunk with integration telemetry
+            # Yield chunk with integration telemetry (includes velocity)
             yield {
                 'type': 'chunk',
                 'tokens': tokens,
                 'text': text_chunk,
                 'phi': phi,
                 'kappa': KAPPA_STAR,
+                'velocity': velocity,
                 'surprise': integrator.surprise_history[-1] if integrator.surprise_history else 1.0,
                 'iteration': iterations,
                 'integration_depth': integration_depth
