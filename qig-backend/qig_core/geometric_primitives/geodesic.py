@@ -54,7 +54,10 @@ class Geodesic:
         self.curvature = self._compute_curvature()
 
     def _compute_length(self) -> float:
-        """Compute total length of geodesic using Fisher-Rao metric"""
+        """Compute total length of geodesic using Fisher-Rao metric.
+        
+        Uses factor of 2 for consistency with Hellinger embedding (contracts.py).
+        """
         length = 0.0
 
         for i in range(len(self.path) - 1):
@@ -68,7 +71,8 @@ class Geodesic:
             inner = np.sum(np.sqrt(p1 * p2))
             inner = np.clip(inner, 0, 1)
 
-            length += float(np.arccos(inner))
+            # Factor of 2 for Hellinger embedding
+            length += float(2.0 * np.arccos(inner))
 
         return length
 
@@ -204,7 +208,7 @@ def geodesic_between_bubbles(
         num_points=num_points
     )
 
-    # Compute length
+    # Compute length (factor of 2 for Hellinger embedding per contracts.py)
     length = 0.0
     for i in range(len(path) - 1):
         p1 = path[i]
@@ -212,7 +216,7 @@ def geodesic_between_bubbles(
 
         inner = np.sum(np.sqrt(p1 * p2))
         inner = np.clip(inner, 0, 1)
-        length += float(np.arccos(inner))
+        length += float(2.0 * np.arccos(inner))
 
     # Stability based on bubble energies
     stability = min(bubble1.stability, bubble2.stability)

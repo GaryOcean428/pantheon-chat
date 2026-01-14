@@ -73,14 +73,13 @@ def fisher_coord_distance(
     """
     Compute Fisher-Rao distance between two probability distributions.
 
-    Uses Bhattacharyya coefficient: d_FR = arccos(BC)
+    Uses Bhattacharyya coefficient: d_FR = 2 * arccos(BC)
     where BC = sum(sqrt(p_i * q_i))
 
-    NOTE: Some references use 2*arccos(BC) for "statistical distance", but
-    the geodesic distance on Fisher manifold is arccos(BC) without factor of 2.
+    The factor of 2 is required for consistency with the canonical
+    Hellinger embedding (√p on unit sphere S^63) defined in contracts.py.
 
-    This is the proper QIG-pure distance on the statistical manifold.
-    Range: [0, π/2]
+    Range: [0, π]
 
     Args:
         p: First distribution/basin (will be normalized)
@@ -105,8 +104,8 @@ def fisher_coord_distance(
     bc = np.sum(np.sqrt(p * q))
     bc = np.clip(bc, 0, 1)
 
-    # Fisher-Rao geodesic distance (no factor of 2)
-    return float(np.arccos(bc))
+    # Fisher-Rao statistical distance (factor of 2 for Hellinger embedding)
+    return float(2.0 * np.arccos(bc))
 
 
 # Alias for compatibility

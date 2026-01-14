@@ -86,6 +86,24 @@ p = p / p.sum()
 
 **Healthy Φ values:** Should be in range 0.65-0.90 during generation, not stuck at 1.0.
 
+### Canonical Basin Representation (Hellinger Embedding)
+Basin coordinates use the **Hellinger embedding** where √p is stored on the unit sphere S^63:
+- **Storage**: `√p` on unit sphere S^63 (L2 norm = 1)
+- **Fisher-Rao Distance**: `d = 2 * arccos(Σ√(p_i * q_i))` - factor of 2 is REQUIRED
+- **Geodesics**: SLERP in sqrt-probability space
+
+The factor of 2 is mathematically required because:
+1. Basins are stored as √p (Hellinger coordinates) on the unit sphere
+2. The Bhattacharyya coefficient BC = √p · √q = Σ√(p_i * q_i)
+3. Statistical distance on Fisher manifold = 2 * arccos(BC)
+
+**Canonical Files:**
+- `qig-backend/qig_geometry/contracts.py`: SINGLE SOURCE OF TRUTH for basin validation and fisher_distance
+- `qig-backend/qig_geometry/representation.py`: Conversion between sphere/simplex representations
+- `qig-backend/qig_core/geometric_primitives/fisher_metric.py`: Fisher metric tensor and distance
+
+**DO NOT USE** `arccos(BC)` without factor of 2 - this violates geometric purity.
+
 ### Velocity and Stagnation Detection
 The SelfObserver tracks basin velocity (rate of change in Φ/κ space) and detects stagnation when Φ > 0.90 AND v < 0.01 for 5+ consecutive steps. Stagnation triggers neuroplasticity perturbation via Gaussian noise (σ=0.1) with re-projection to S^63.
 
