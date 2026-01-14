@@ -261,7 +261,7 @@ class TrainedKernelManager:
                 regime=self.state.current_regime.value if self.state.current_metrics else "unknown",
                 tokens_generated=len(generated_tokens),
                 trajectory_length=len(self.state.trajectory),
-                basin_norm=float(np.sqrt(np.sum(self.state.current_basin ** 2))),  # L2 magnitude for logging
+                basin_norm=float(__import__('qig_geometry').basin_magnitude(self.state.current_basin)),
             )
 
             return InferenceResult(

@@ -170,7 +170,7 @@ class ConversationalKernelMixin:
         return {
             'listening': True,
             'phi': phi,
-            'superposition_norm': float(np.sqrt(np.sum(self.superposition_basin ** 2)))  # L2 magnitude for logging
+            'superposition_norm': float(__import__('qig_geometry').basin_magnitude(self.superposition_basin))
         }
     
     def speak(self, context: Optional[Dict] = None) -> Tuple[str, Dict]:

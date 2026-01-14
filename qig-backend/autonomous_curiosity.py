@@ -77,7 +77,9 @@ class CuriosityDrive:
         """
         if topic in self.interest_basins:
             basin = self.interest_basins[topic]
-            familiarity = float(np.sqrt(np.sum(basin ** 2)))  # L2 magnitude for familiarity score
+            # Use Fisher-Rao magnitude from uniform distribution
+            from qig_geometry import basin_magnitude
+            familiarity = float(basin_magnitude(basin))
             novelty = 1.0 - min(1.0, familiarity / 10.0)
         else:
             novelty = 1.0
