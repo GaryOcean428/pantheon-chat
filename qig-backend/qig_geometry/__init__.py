@@ -37,6 +37,13 @@ from .representation import (
     fisher_normalize,
 )
 
+from .purity_mode import (
+    QIG_PURITY_MODE,
+    QIGPurityViolationError,
+    check_purity_mode,
+    enforce_purity_startup,
+)
+
 
 def fisher_rao_distance(p: np.ndarray, q: np.ndarray) -> float:
     """
@@ -188,4 +195,9 @@ __all__ = [
     # Dimension and normalization utilities
     'normalize_basin_dimension',
     'hellinger_normalize',
+    # Purity mode enforcement (purity_mode.py)
+    'QIG_PURITY_MODE',
+    'QIGPurityViolationError',
+    'check_purity_mode',
+    'enforce_purity_startup',
 ]

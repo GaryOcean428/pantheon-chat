@@ -308,7 +308,7 @@ class TrajectoryDecoder:
                 basin = np.array(basin)
 
             # Handle dimension mismatches
-            if DIMENSION_NORMALIZER_AVAILABLE and len(basin) != BASIN_DIM:
+            if DIMENSION_NORMALIZER_AVAILABLE and normalize_basin_dimension is not None and len(basin) != BASIN_DIM:
                 basin = normalize_basin_dimension(basin, target_dim=BASIN_DIM)
             elif len(basin) != BASIN_DIM:
                 if len(basin) < BASIN_DIM:
@@ -488,7 +488,7 @@ class TrajectoryDecoder:
         weights = np.zeros(N)
 
         # Regime-modulated temperature for asymmetric attention
-        if asymmetric and ASYMMETRIC_QFI_AVAILABLE:
+        if asymmetric and ASYMMETRIC_QFI_AVAILABLE and regime_from_phi is not None:
             regime = regime_from_phi(phi_value)
             if regime == "linear":
                 kappa_eff = KAPPA_STAR * 0.3  # Weak coupling
@@ -505,10 +505,10 @@ class TrajectoryDecoder:
             recency = np.exp(-self.recency_decay * (N - i - 1))
 
             # QFI attention: exp(-d_QFI / T)
-            if asymmetric and ASYMMETRIC_QFI_AVAILABLE:
+            if asymmetric and ASYMMETRIC_QFI_AVAILABLE and directional_fisher_information is not None:
                 # ASYMMETRIC: distance from candidate TO trajectory basin
                 # This captures "how well candidate can see basin_i"
-                dist = directional_fisher_information(candidate_basin, basin_i)
+                dist = directional_fisher_information(candidate_basin, basin_i, np.eye(BASIN_DIM))
             else:
                 # SYMMETRIC: standard Fisher-Rao distance
                 dist = fisher_rao_distance(candidate_basin, basin_i)
@@ -557,8 +557,8 @@ class TrajectoryDecoder:
         # Weighted average of inverse distances
         compatibility = 0.0
         for i, basin_i in enumerate(trajectory):
-            if asymmetric and ASYMMETRIC_QFI_AVAILABLE:
-                dist = directional_fisher_information(candidate_basin, basin_i)
+            if asymmetric and ASYMMETRIC_QFI_AVAILABLE and directional_fisher_information is not None:
+                dist = directional_fisher_information(candidate_basin, basin_i, np.eye(BASIN_DIM))
             else:
                 dist = fisher_rao_distance(candidate_basin, basin_i)
             similarity = 1.0 - (dist / np.pi)  # Normalize to [0, 1]
