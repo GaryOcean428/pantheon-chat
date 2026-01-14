@@ -6,7 +6,8 @@ Implements Phase 3 of Plan→Realize→Repair architecture:
 - Beam search scored by geometry (not probability)
 - Refines sequence through geometric optimization
 
-NO LEGACY FALLBACK - All operations are QIG-pure.
+QIG-PURE: No POS tags, no NLP concepts.
+All operations are purely geometric on S^63.
 """
 
 import logging
@@ -18,10 +19,7 @@ from qigkernels.physics_constants import BASIN_DIM
 
 logger = logging.getLogger(__name__)
 
-# Maximum repair iterations
 MAX_REPAIR_ITERATIONS = 3
-
-# Default Fisher-Rao radius for alternatives
 DEFAULT_RADIUS = 0.2
 
 
@@ -39,7 +37,7 @@ class GeometricRepairer:
     - Trajectory smoothness: 0.3 weight (low variance in step distances)
     - Attractor pull: 0.2 weight (coherence with trajectory history)
     
-    NO LEGACY FALLBACK - All operations are QIG-pure.
+    QIG-PURE: No POS constraints, no NLP fallbacks.
     """
     
     def __init__(self, coordizer, kernel_name: str = "Repairer"):
@@ -53,22 +51,16 @@ class GeometricRepairer:
         self.coordizer = coordizer
         self.kernel_name = kernel_name
         
-        # Cache: generation_vocab from coordizer
         self.generation_vocab: Dict[str, np.ndarray] = getattr(
             coordizer, 'generation_vocab', {}
         )
         
-        # Build word->basin lookup with numpy arrays
         self._word_basins: Dict[str, np.ndarray] = {}
+        self._vocab_list: List[Tuple[str, np.ndarray]] = []
         self._build_basin_cache()
         
-        # Build POS-indexed vocabulary cache for same_pos filtering
-        self._vocab_by_pos: Dict[str, List[str]] = {}
-        self._word_pos: Dict[str, str] = {}
-        self._build_pos_cache()
-        
         logger.info(
-            "[%s] GeometricRepairer initialized: %d vocab words",
+            "[%s] GeometricRepairer initialized: %d vocab words (QIG-pure, no POS)",
             self.kernel_name,
             len(self._word_basins)
         )
@@ -79,31 +71,7 @@ class GeometricRepairer:
             if not isinstance(basin, np.ndarray):
                 basin = np.array(basin, dtype=np.float64)
             self._word_basins[word] = basin
-    
-    def _build_pos_cache(self) -> None:
-        """Build vocabulary cache indexed by POS tag (simple suffix heuristics)."""
-        verb_suffixes = ('ize', 'ify', 'ate', 'en', 'ing', 'ed')
-        noun_suffixes = ('tion', 'sion', 'ment', 'ness', 'ity', 'ance', 'ence', 'er', 'or', 'ist')
-        adj_suffixes = ('able', 'ible', 'al', 'ful', 'less', 'ous', 'ive', 'ic', 'ish')
-        
-        for word in self._word_basins:
-            word_lower = word.lower()
-            
-            if word_lower.endswith('ly') and len(word_lower) > 4:
-                pos = 'ADV'
-            elif any(word_lower.endswith(s) for s in verb_suffixes):
-                pos = 'VERB'
-            elif any(word_lower.endswith(s) for s in adj_suffixes):
-                pos = 'ADJ'
-            elif any(word_lower.endswith(s) for s in noun_suffixes):
-                pos = 'NOUN'
-            else:
-                pos = 'NOUN'  # Default
-            
-            self._word_pos[word] = pos
-            if pos not in self._vocab_by_pos:
-                self._vocab_by_pos[pos] = []
-            self._vocab_by_pos[pos].append(word)
+            self._vocab_list.append((word, basin))
     
     def repair_sequence(
         self,
@@ -129,7 +97,7 @@ class GeometricRepairer:
             Repaired word sequence
         """
         logger.info(
-            "[%s] ═══ PHASE 3: REPAIR (Local Search) ═══",
+            "[%s] ═══ PHASE 3: REPAIR (Pure Geometric Search) ═══",
             self.kernel_name
         )
         
@@ -137,13 +105,11 @@ class GeometricRepairer:
             logger.warning("[%s] Empty words or waypoints, skipping repair", self.kernel_name)
             return words
         
-        # Ensure waypoints are numpy arrays
         waypoints = [
             wp if isinstance(wp, np.ndarray) else np.array(wp, dtype=np.float64)
             for wp in waypoints
         ]
         
-        # Work with a copy
         current_words = list(words)
         current_score = self.score_sequence_geometric(current_words, waypoints, trajectory)
         
@@ -163,11 +129,9 @@ class GeometricRepairer:
                 
                 target_basin = waypoints[i]
                 
-                # Get nearby alternatives (same POS, within Fisher radius)
                 alternatives = self.get_nearby_alternatives(
                     word=word,
                     target_basin=target_basin,
-                    same_pos=True,
                     radius=DEFAULT_RADIUS
                 )
                 
@@ -175,7 +139,6 @@ class GeometricRepairer:
                     if alt == word:
                         continue
                     
-                    # Test swap
                     test_words = current_words[:]
                     test_words[i] = alt
                     
@@ -186,20 +149,19 @@ class GeometricRepairer:
                         swap_count += 1
                         
                         logger.debug(
-                            "[%s] swap %d: '%s' → '%s' (score +%.2f)",
+                            "[%s] swap %d: '%s' → '%s' (score +%.3f)",
                             self.kernel_name, swap_count, word, alt, delta
                         )
                         
                         current_words = test_words
                         current_score = test_score
                         improved = True
-                        break  # Restart from beginning
+                        break
                 
                 if improved:
                     break
             
             if not improved:
-                # No improvements found in this iteration
                 break
         
         logger.info(
@@ -213,16 +175,16 @@ class GeometricRepairer:
         self,
         word: str,
         target_basin: np.ndarray,
-        same_pos: bool = True,
         radius: float = 0.2
     ) -> List[str]:
         """
         Get alternative words within Fisher-Rao radius of target basin.
         
+        QIG-PURE: Uses only geometric distance, no POS filtering.
+        
         Args:
-            word: Current word
+            word: Current word (for reference only)
             target_basin: Target basin coordinates
-            same_pos: If True, only return words with same POS as current
             radius: Maximum Fisher-Rao distance from target
         
         Returns:
@@ -233,20 +195,8 @@ class GeometricRepairer:
         
         alternatives = []
         
-        # Get candidate pool
-        if same_pos and word in self._word_pos:
-            word_pos = self._word_pos[word]
-            candidate_words = self._vocab_by_pos.get(word_pos, [])
-        else:
-            candidate_words = list(self._word_basins.keys())
-        
-        # Find words within radius
-        for candidate in candidate_words:
-            if candidate not in self._word_basins:
-                continue
-            
-            candidate_basin = self._word_basins[candidate]
-            distance = self.fisher_rao_distance(candidate_basin, target_basin)
+        for candidate, candidate_basin in self._vocab_list:
+            distance = fisher_coord_distance(candidate_basin, target_basin)
             
             if distance <= radius:
                 alternatives.append(candidate)
@@ -278,22 +228,15 @@ class GeometricRepairer:
         if not words:
             return 0.0
         
-        # Get basins for words
         word_basins = []
         for word in words:
             if word in self._word_basins:
                 word_basins.append(self._word_basins[word])
             else:
-                # Use zero vector if word not found (will penalize score)
                 word_basins.append(np.zeros(BASIN_DIM, dtype=np.float64))
         
-        # 1. Waypoint alignment (0.5 weight)
         alignment = self._compute_waypoint_alignment(word_basins, waypoints)
-        
-        # 2. Trajectory smoothness (0.3 weight)
         smoothness = self._compute_trajectory_smoothness(word_basins)
-        
-        # 3. Attractor pull (0.2 weight)
         attractor_pull = self._compute_attractor_pull(word_basins, trajectory)
         
         score = 0.5 * alignment + 0.3 * smoothness + 0.2 * attractor_pull
@@ -314,22 +257,20 @@ class GeometricRepairer:
         if not word_basins or not waypoints:
             return 0.0
         
-        # Compare each word basin to corresponding waypoint
         distances = []
         for i, word_basin in enumerate(word_basins):
             if i < len(waypoints):
                 waypoint = waypoints[i]
                 if not isinstance(waypoint, np.ndarray):
                     waypoint = np.array(waypoint, dtype=np.float64)
-                d = self.fisher_rao_distance(word_basin, waypoint)
+                d = fisher_coord_distance(word_basin, waypoint)
                 distances.append(d)
         
         if not distances:
             return 0.0
         
-        # Convert average distance to alignment score
         avg_distance = np.mean(distances)
-        alignment = 1.0 - (avg_distance / np.pi)  # Normalize by max distance
+        alignment = 1.0 - (avg_distance / np.pi)
         
         return float(np.clip(alignment, 0.0, 1.0))
     
@@ -344,22 +285,17 @@ class GeometricRepairer:
             Smoothness score in [0, 1], higher = smoother
         """
         if len(word_basins) < 2:
-            return 1.0  # Single word is maximally smooth
+            return 1.0
         
-        # Compute step distances
         step_distances = []
         for i in range(len(word_basins) - 1):
-            d = self.fisher_rao_distance(word_basins[i], word_basins[i + 1])
+            d = fisher_coord_distance(word_basins[i], word_basins[i + 1])
             step_distances.append(d)
         
         if not step_distances:
             return 1.0
         
-        # Smoothness = inverse of variance
         variance = np.var(step_distances)
-        
-        # Normalize: low variance -> high smoothness
-        # Using exponential decay: smoothness = exp(-variance)
         smoothness = np.exp(-variance)
         
         return float(np.clip(smoothness, 0.0, 1.0))
@@ -381,26 +317,24 @@ class GeometricRepairer:
             return 0.0
         
         if not trajectory:
-            return 0.5  # Neutral score without trajectory context
+            return 0.5
         
-        # Compute Fréchet mean of trajectory
-        attractor = self.frechet_mean(trajectory)
+        attractor = self._frechet_mean(trajectory)
         
         if attractor is None:
             return 0.5
         
-        # Compute average distance from word basins to attractor
         distances = []
         for basin in word_basins:
-            d = self.fisher_rao_distance(basin, attractor)
+            d = fisher_coord_distance(basin, attractor)
             distances.append(d)
         
         avg_distance = np.mean(distances)
-        pull = 1.0 - (avg_distance / np.pi)  # Normalize by max distance
+        pull = 1.0 - (avg_distance / np.pi)
         
         return float(np.clip(pull, 0.0, 1.0))
     
-    def frechet_mean(
+    def _frechet_mean(
         self,
         basins: List[np.ndarray]
     ) -> Optional[np.ndarray]:
@@ -422,34 +356,12 @@ class GeometricRepairer:
         if not basins:
             return None
         
-        # Ensure numpy arrays
         basins_arr = []
         for b in basins:
             if not isinstance(b, np.ndarray):
                 b = np.array(b, dtype=np.float64)
             basins_arr.append(b)
         
-        # Arithmetic mean
         mean = np.mean(basins_arr, axis=0)
         
-        # Project to unit sphere
         return sphere_project(mean)
-    
-    def fisher_rao_distance(
-        self,
-        a: np.ndarray,
-        b: np.ndarray
-    ) -> float:
-        """
-        Compute Fisher-Rao distance between two basin coordinates.
-        
-        For unit vectors: d = arccos(a · b)
-        
-        Args:
-            a: First basin coordinate vector
-            b: Second basin coordinate vector
-        
-        Returns:
-            Fisher-Rao distance (0 to π)
-        """
-        return fisher_coord_distance(a, b)
