@@ -912,7 +912,7 @@ class QIGGenerator:
                         if candidates:
                             # FIX 3: Boost candidates using word relationships
                             if recent_words and self._vocabulary_integration_enabled:
-                                candidates = self._boost_via_word_relationships(
+                                candidates = self._boost_via_basin_relationships(
                                     candidates,
                                     recent_words
                                 )
@@ -958,7 +958,7 @@ class QIGGenerator:
         
         return f"{base_response}\n\n[Φ={final_phi:.3f} | {primary_kernel}]"
     
-    def _boost_via_word_relationships(
+    def _boost_via_basin_relationships(
         self,
         candidates: List[Tuple[str, float]],
         recent_words: List[str],

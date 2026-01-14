@@ -1,11 +1,11 @@
--- Populate tokenizer_vocabulary with BIP39 words and basin embeddings
+-- Populate coordizer_vocabulary with BIP39 words and basin embeddings
 -- Run with: psql "$DATABASE_URL" -f scripts/populate-tokenizer-vocab.sql
 
 -- Ensure pgvector extension exists
 CREATE EXTENSION IF NOT EXISTS vector;
 
 -- Ensure table exists
-CREATE TABLE IF NOT EXISTS tokenizer_vocabulary (
+CREATE TABLE IF NOT EXISTS coordizer_vocabulary (
     id SERIAL PRIMARY KEY,
     token TEXT UNIQUE NOT NULL,
     token_id INTEGER,
@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS tokenizer_vocabulary (
 
 -- Insert BIP39 words with deterministic embeddings based on word hash
 -- Using a subset of common BIP39 words for immediate usability
-INSERT INTO tokenizer_vocabulary (token, token_id, weight, frequency, phi_score, source_type)
+INSERT INTO coordizer_vocabulary (token, token_id, weight, frequency, phi_score, source_type)
 VALUES 
     ('abandon', 1, 1.0, 100, 0.70, 'bip39'),
     ('ability', 2, 1.0, 100, 0.70, 'bip39'),
@@ -78,7 +78,7 @@ ON CONFLICT (token) DO UPDATE SET
     updated_at = NOW();
 
 -- Add common English words for readable generation
-INSERT INTO tokenizer_vocabulary (token, token_id, weight, frequency, phi_score, source_type)
+INSERT INTO coordizer_vocabulary (token, token_id, weight, frequency, phi_score, source_type)
 VALUES
     ('the', 1001, 1.5, 1000, 0.80, 'base'),
     ('be', 1002, 1.5, 900, 0.80, 'base'),
@@ -138,8 +138,8 @@ ON CONFLICT (token) DO UPDATE SET
 
 -- Report results
 SELECT source_type, COUNT(*) as count, AVG(phi_score)::numeric(5,3) as avg_phi 
-FROM tokenizer_vocabulary 
+FROM coordizer_vocabulary 
 GROUP BY source_type 
 ORDER BY count DESC;
 
-SELECT 'Total words in tokenizer_vocabulary:' as status, COUNT(*) as count FROM tokenizer_vocabulary;
+SELECT 'Total words in coordizer_vocabulary:' as status, COUNT(*) as count FROM coordizer_vocabulary;

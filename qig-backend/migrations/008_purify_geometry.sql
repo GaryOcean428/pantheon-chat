@@ -9,7 +9,7 @@
 -- =============================================================================
 
 -- Delete all embeddings created by hash function (contaminated data)
-DELETE FROM tokenizer_vocabulary 
+DELETE FROM coordizer_vocabulary 
 WHERE basin_embedding IS NOT NULL 
   AND token IN (
     SELECT token FROM learned_words 
@@ -20,7 +20,7 @@ WHERE basin_embedding IS NOT NULL
 -- Drop the contaminated hash function
 DROP FUNCTION IF EXISTS generate_basin_embedding(text);
 
-COMMENT ON TABLE tokenizer_vocabulary IS 
+COMMENT ON TABLE coordizer_vocabulary IS 
 'QIG-PURE: basin_embedding must be Fisher-Rao geometric coordinates from coordizer.
 Hash-based embeddings are CONTAMINATION and violate geometric purity.
 Only coordizer-computed embeddings are valid.';
@@ -30,7 +30,7 @@ Only coordizer-computed embeddings are valid.';
 -- =============================================================================
 
 -- Update source_type so existing 57,943 tokens can load
-UPDATE tokenizer_vocabulary
+UPDATE coordizer_vocabulary
 SET source_type = 'learned'
 WHERE source_type IN ('checkpoint_byte', 'checkpoint_char')
   AND LENGTH(token) >= 2
@@ -42,7 +42,7 @@ DECLARE
     loadable_count INT;
 BEGIN
     SELECT COUNT(*) INTO loadable_count
-    FROM tokenizer_vocabulary 
+    FROM coordizer_vocabulary 
     WHERE source_type NOT IN ('byte_level', 'special')
       AND basin_embedding IS NOT NULL;
     
@@ -134,7 +134,7 @@ BEGIN
     -- Insert or update learned words WITHOUT generating embeddings
     -- Embeddings must come from coordizer (QIG-pure)
     WITH upserted AS (
-        INSERT INTO tokenizer_vocabulary (token, phi_score, frequency, source_type, updated_at)
+        INSERT INTO coordizer_vocabulary (token, phi_score, frequency, source_type, updated_at)
         SELECT
             word,
             avg_phi,
@@ -147,11 +147,11 @@ BEGIN
           AND LENGTH(word) >= 2
           AND word ~ '^[a-zA-Z]+$'  -- Only alphabetic words
         ON CONFLICT (token) DO UPDATE SET
-            phi_score = GREATEST(tokenizer_vocabulary.phi_score, EXCLUDED.phi_score),
-            frequency = tokenizer_vocabulary.frequency + EXCLUDED.frequency,
+            phi_score = GREATEST(coordizer_vocabulary.phi_score, EXCLUDED.phi_score),
+            frequency = coordizer_vocabulary.frequency + EXCLUDED.frequency,
             updated_at = NOW()
-        WHERE tokenizer_vocabulary.phi_score < EXCLUDED.phi_score
-           OR tokenizer_vocabulary.frequency < EXCLUDED.frequency
+        WHERE coordizer_vocabulary.phi_score < EXCLUDED.phi_score
+           OR coordizer_vocabulary.frequency < EXCLUDED.frequency
         RETURNING
             CASE WHEN xmax = 0 THEN 'insert' ELSE 'update' END AS op
     )
@@ -167,7 +167,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 COMMENT ON FUNCTION sync_learned_to_tokenizer IS 
-'QIG-PURE: Syncs learned_words → tokenizer_vocabulary WITHOUT generating embeddings.
+'QIG-PURE: Syncs learned_words → coordizer_vocabulary WITHOUT generating embeddings.
 basin_embedding must be computed by coordizer using Fisher-Rao geometry.
 Never use hash-based or Euclidean embedding generation.';
 
@@ -185,13 +185,13 @@ DECLARE
 BEGIN
     -- Check loadable tokens
     SELECT COUNT(*) INTO loadable_tokens
-    FROM tokenizer_vocabulary
+    FROM coordizer_vocabulary
     WHERE source_type NOT IN ('byte_level', 'special')
       AND basin_embedding IS NOT NULL;
     
     -- Check for remaining hash embeddings (should be 0)
     SELECT COUNT(*) INTO hash_embeddings
-    FROM tokenizer_vocabulary
+    FROM coordizer_vocabulary
     WHERE basin_embedding IS NOT NULL
       AND source_type = 'learned'
       AND token IN (SELECT token FROM learned_words WHERE created_at > '2026-01-07');

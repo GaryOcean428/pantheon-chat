@@ -12,7 +12,7 @@ Usage:
 
 Requirements:
     - PostgreSQL with pgvector extension
-    - tokenizer_vocabulary with basin_coords populated
+    - coordizer_vocabulary with basin_coords populated
     - vocabulary_learning table created
 """
 import os
@@ -120,10 +120,10 @@ def populate_vocabulary_learning_related_words(conn):
     cursor = conn.cursor()
 
     # 1. Load all vocabulary with basins into memory
-    print("\n1. Loading vocabulary from tokenizer_vocabulary...")
+    print("\n1. Loading vocabulary from coordizer_vocabulary...")
     cursor.execute("""
         SELECT word, basin_coords
-        FROM tokenizer_vocabulary
+        FROM coordizer_vocabulary
         WHERE basin_coords IS NOT NULL
         ORDER BY frequency DESC
         LIMIT 5000  -- Limit to top 5K for performance
@@ -164,7 +164,7 @@ def populate_vocabulary_learning_related_words(conn):
         # Get basin for this word
         cursor.execute("""
             SELECT basin_coords
-            FROM tokenizer_vocabulary
+            FROM coordizer_vocabulary
             WHERE token_id = %s
         """, (token_id,))
 
@@ -256,7 +256,7 @@ def populate_initial_vocabulary_learning(conn):
         cursor.close()
         return
 
-    print("\nvocabulary_learning is empty, seeding from tokenizer_vocabulary...")
+    print("\nvocabulary_learning is empty, seeding from coordizer_vocabulary...")
 
     # Seed with top 100 high-Φ tokens
     cursor.execute("""
@@ -279,7 +279,7 @@ def populate_initial_vocabulary_learning(conn):
             basin_coords AS basin_shift,
             'initialization' AS learned_from,
             NOW() AS learned_at
-        FROM tokenizer_vocabulary
+        FROM coordizer_vocabulary
         WHERE basin_coords IS NOT NULL
           AND phi_score > 0.5
         ORDER BY phi_score DESC, frequency DESC

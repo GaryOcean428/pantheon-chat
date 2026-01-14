@@ -50,7 +50,7 @@ router.get('/status', async (req: Request, res: Response) => {
     
     if (db) {
       const vocabCount = await withDbRetry(
-        async () => db!.select({ count: sql<number>`count(*)` }).from(schema.tokenizerVocabulary),
+        async () => db!.select({ count: sql<number>`count(*)` }).from(schema.coordizerVocabulary),
         'sync-status-vocab'
       );
       counts.vocabulary = vocabCount?.[0]?.count || 0;
@@ -88,7 +88,7 @@ router.get('/export/vocabulary', async (req: Request, res: Response) => {
     const since = req.query.since ? new Date(req.query.since as string) : null;
     const limit = Math.min(parseInt(req.query.limit as string) || 10000, 50000);
     
-    let query = db.select().from(schema.tokenizerVocabulary).limit(limit);
+    let query = db.select().from(schema.coordizerVocabulary).limit(limit);
     
     // Note: If there's an updatedAt column, filter by it
     // For now, export all within limit
@@ -139,10 +139,10 @@ router.post('/import/vocabulary', async (req: Request, res: Response) => {
         try {
           // Upsert - insert or update on conflict
           await withDbRetry(
-            async () => db!.insert(schema.tokenizerVocabulary)
+            async () => db!.insert(schema.coordizerVocabulary)
               .values(item)
               .onConflictDoUpdate({
-                target: schema.tokenizerVocabulary.token,
+                target: schema.coordizerVocabulary.token,
                 set: {
                   basinEmbedding: item.basinEmbedding,
                   phiScore: item.phiScore,

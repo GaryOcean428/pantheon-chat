@@ -54,7 +54,7 @@ SINGLETON_TABLES = [
 ]
 
 CORE_TABLE_MINIMUMS = {
-    "tokenizer_vocabulary": 10000,
+    "coordizer_vocabulary": 10000,
     "learned_words": 5000,
 }
 
@@ -82,7 +82,7 @@ COLUMN_DEFAULTS: Dict[str, Dict[str, Any]] = {
         "total_cycles": 0,
         "consecutive_zero_pass_sessions": 0,
     },
-    "tokenizer_vocabulary": {
+    "coordizer_vocabulary": {
         "frequency": 1,
         "is_bpe_merge": False,
     },
@@ -122,7 +122,7 @@ TABLES_TO_CHECK = [
     "ocean_quantum_state",
     "near_miss_adaptive_state",
     "auto_cycle_state",
-    "tokenizer_vocabulary",
+    "coordizer_vocabulary",
     "learned_words",
     "vocabulary_observations",
     "consciousness_checkpoints",

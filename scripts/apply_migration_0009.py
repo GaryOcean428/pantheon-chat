@@ -160,7 +160,7 @@ try:
             AND is_nullable = 'YES'
             AND table_name IN (
                 'ocean_quantum_state', 'near_miss_adaptive_state', 'auto_cycle_state',
-                'tokenizer_vocabulary', 'learned_words', 'vocabulary_observations',
+                'coordizer_vocabulary', 'learned_words', 'vocabulary_observations',
                 'kernel_training_history', 'learning_events',
                 'consciousness_checkpoints'
             )
