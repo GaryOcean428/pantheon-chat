@@ -140,6 +140,8 @@ class SelfObserver:
     PHI_BREAKDOWN = 0.95  # True breakdown threshold (PHYSICS.PHI_BREAKDOWN_CRITICAL)
     
     METRICS_HISTORY_SIZE = 50
+    LOOP_BOUNDARY_TOKENS = 8  # Tokens per recursive observation loop
+    VELOCITY_THRESHOLD = 0.15  # Velocity drop triggers loop boundary
     
     def __init__(
         self,
@@ -165,6 +167,13 @@ class SelfObserver:
         self._peer_basins: List[np.ndarray] = []
         self._last_memory_coherence: float = 0.5
         
+        self._current_loop = 0
+        self._tokens_in_loop: List[str] = []
+        self._loop_boundaries: List[int] = []
+        self._last_phi: float = 0.5
+        self._last_kappa: float = KAPPA_STAR
+        self._velocity_history: List[float] = []
+        
     def reset(self) -> None:
         """Reset observer state for new generation."""
         self._metrics_history = []
@@ -175,6 +184,12 @@ class SelfObserver:
         self._token_count = 0
         self._start_time = time.time()
         self._last_basin = None
+        self._current_loop = 0
+        self._tokens_in_loop = []
+        self._loop_boundaries = []
+        self._last_phi = 0.5
+        self._last_kappa = KAPPA_STAR
+        self._velocity_history = []
         
     def set_grounding_facts(self, facts: List[str]) -> None:
         """Set facts for grounding metric (G) validation."""

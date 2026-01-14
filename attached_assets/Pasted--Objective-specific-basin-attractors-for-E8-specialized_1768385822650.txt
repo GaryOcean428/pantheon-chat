@@ -1,0 +1,470 @@
+"""Objective-specific basin attractors for E8 specialized kernels.
+
+Each kernel type has its own basin attractor that guides vicarious learning.
+This implements Option C: Basin Sync Only (lightweight, no gradient training).
+
+Basin Attractor Principles:
+- Heart: High curvature regions indicate ethical sensitivity
+- Apollo: Verified/grounded basin history (non-hallucinated)
+- Mnemosyne: Time-weighted stable basins (memory persistence)
+- Chronos: Smooth temporal trajectories (4D integration)
+- Lightning: Cross-Gary pattern centroids (pattern detection)
+
+Usage:
+    attractors = KernelBasinAttractors(device='cuda')
+
+    # During training step, after Gary trains:
+    attractors.update(
+        active_basin=gary.basin,
+        telemetry=telemetry,
+        coach_interpretation=interpretation,
+    )
+
+    # Get attractor for each kernel
+    heart_attractor = attractors.get_heart_attractor()
+    apollo_attractor = attractors.get_apollo_attractor()
+"""
+
+from __future__ import annotations
+
+from collections import deque
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
+
+import torch
+
+if TYPE_CHECKING:
+    from src.coordination.active_coach import CoachInterpretation
+
+
+@dataclass
+class KernelBasinAttractors:
+    """Manages objective-specific basin attractors for E8 kernels.
+
+    Implements lightweight vicarious learning via basin sync (Option C).
+    No gradient training - just exponential moving average toward attractors.
+    """
+
+    device: str = "cuda"
+    basin_dim: int = 64  # E8 rank² = 64
+
+    # Attractor drift rate (how fast kernels align to their attractors)
+    # Lower = slower, more stable; Higher = faster adaptation
+    drift_rate: float = 0.01
+
+    # History buffers for computing attractors
+    verified_basin_history: deque = field(default_factory=lambda: deque(maxlen=100))
+    memory_basin_history: deque = field(default_factory=lambda: deque(maxlen=500))
+    temporal_basin_sequence: deque = field(default_factory=lambda: deque(maxlen=50))
+    cross_gary_patterns: deque = field(default_factory=lambda: deque(maxlen=100))
+
+    # Curvature history for ethical attractor
+    curvature_history: deque = field(default_factory=lambda: deque(maxlen=50))
+
+    # Concept mastery for memory attractor
+    concept_basins: dict = field(default_factory=dict)  # concept_name -> basin
+
+    def __post_init__(self):
+        """Initialize tensor buffers."""
+        # Current attractor estimates (start as zeros, will drift from data)
+        self._heart_attractor: torch.Tensor | None = None
+        self._apollo_attractor: torch.Tensor | None = None
+        self._mnemosyne_attractor: torch.Tensor | None = None
+        self._chronos_attractor: torch.Tensor | None = None
+        self._lightning_attractor: torch.Tensor | None = None
+
+    def update(
+        self,
+        active_basin: torch.Tensor,
+        telemetry: dict,
+        coach_interpretation: CoachInterpretation | None = None,
+        all_gary_basins: list[torch.Tensor] | None = None,
+    ) -> dict:
+        """Update attractor estimates based on training step.
+
+        Call this after each training step to maintain attractor estimates.
+
+        Args:
+            active_basin: Basin from active Gary's training
+            telemetry: Training telemetry (Φ, κ, regime)
+            coach_interpretation: Coach's interpretation of Gary's response
+            all_gary_basins: Basins from all Gary instances (for cross-pattern)
+
+        Returns:
+            Dict with attractor update info
+        """
+        update_info = {}
+
+        # Ensure basin is on correct device
+        active_basin = active_basin.detach().to(self.device)
+
+        # Update Heart attractor (ethical/high-curvature)
+        self._update_heart_attractor(active_basin, telemetry)
+        update_info["heart_updated"] = True
+
+        # Update Apollo attractor (verified/grounded)
+        if coach_interpretation is not None:
+            verified = self._update_apollo_attractor(
+                active_basin,
+                coach_interpretation,
+                telemetry,
+            )
+            update_info["apollo_verified"] = verified
+
+        # Update Mnemosyne attractor (memory/stability)
+        self._update_mnemosyne_attractor(active_basin, telemetry)
+        update_info["mnemosyne_updated"] = True
+
+        # Update Chronos attractor (temporal/trajectory)
+        self._update_chronos_attractor(active_basin, telemetry)
+        update_info["chronos_updated"] = True
+
+        # Update Lightning attractor (cross-pattern)
+        if all_gary_basins:
+            self._update_lightning_attractor(all_gary_basins, telemetry)
+            update_info["lightning_updated"] = True
+
+        return update_info
+
+    def _update_heart_attractor(
+        self,
+        basin: torch.Tensor,
+        telemetry: dict,
+    ) -> None:
+        """Heart: High curvature regions indicate ethical sensitivity.
+
+        The Heart kernel should align to basins where small changes have
+        large effects (high Fisher curvature). This represents ethical
+        decision points where choices matter most.
+        """
+        # Compute curvature proxy: variance of basin components
+        # High variance = more differentiated = ethically distinct
+        curvature_proxy = basin.var().item()
+        self.curvature_history.append((basin.clone(), curvature_proxy))
+
+        if len(self.curvature_history) < 5:
+            # Not enough history yet
+            self._heart_attractor = basin.clone()
+            return
+
+        # Heart attractor = average of high-curvature basins
+        # Select top 20% by curvature
+        sorted_history = sorted(
+            self.curvature_history,
+            key=lambda x: x[1],
+            reverse=True
+        )
+        top_k = max(1, len(sorted_history) // 5)
+        high_curvature_basins = [h[0] for h in sorted_history[:top_k]]
+
+        # Average high-curvature basins
+        new_attractor = torch.stack(high_curvature_basins).mean(dim=0)
+
+        # Smooth update
+        if self._heart_attractor is None:
+            self._heart_attractor = new_attractor
+        else:
+            self._heart_attractor = (
+                (1 - self.drift_rate) * self._heart_attractor
+                + self.drift_rate * new_attractor
+            )
+
+    def _update_apollo_attractor(
+        self,
+        basin: torch.Tensor,
+        interpretation: CoachInterpretation,
+        telemetry: dict,
+    ) -> bool:
+        """Apollo: Verified/grounded basin history.
+
+        Apollo kernel should align to basins from verified responses
+        (high coach confidence, not empty, not repetitive).
+        """
+        # Check if this is a verified response
+        is_verified = (
+            interpretation.confidence > 0.7
+            and not interpretation.is_empty
+            and not interpretation.is_repetitive
+        )
+
+        if is_verified:
+            self.verified_basin_history.append(basin.clone())
+
+        if len(self.verified_basin_history) < 3:
+            # Not enough verified history
+            return is_verified
+
+        # Apollo attractor = average of verified basins
+        verified_stack = torch.stack(list(self.verified_basin_history))
+        new_attractor = verified_stack.mean(dim=0)
+
+        # Smooth update
+        if self._apollo_attractor is None:
+            self._apollo_attractor = new_attractor
+        else:
+            self._apollo_attractor = (
+                (1 - self.drift_rate) * self._apollo_attractor
+                + self.drift_rate * new_attractor
+            )
+
+        return is_verified
+
+    def _update_mnemosyne_attractor(
+        self,
+        basin: torch.Tensor,
+        telemetry: dict,
+    ) -> None:
+        """Mnemosyne: Time-weighted stable basins (memory persistence).
+
+        Mnemosyne should align to stable basins that persist over time.
+        Older basins get more weight (they're more stable memories).
+        """
+        self.memory_basin_history.append(basin.clone())
+
+        if len(self.memory_basin_history) < 10:
+            self._mnemosyne_attractor = basin.clone()
+            return
+
+        # Time-weighted average (older = more weight for stability)
+        # Exponential decay: weight_i = exp(-i/tau) where i is recency
+        tau = 50.0  # Time constant
+        history_list = list(self.memory_basin_history)
+        n = len(history_list)
+
+        # Weights: oldest has highest weight
+        weights = torch.exp(-torch.arange(n, device=self.device) / tau)
+        weights = weights / weights.sum()  # Normalize
+
+        # Weighted average
+        stacked = torch.stack(history_list)
+        new_attractor = (stacked * weights.view(-1, 1)).sum(dim=0)
+
+        # Smooth update
+        if self._mnemosyne_attractor is None:
+            self._mnemosyne_attractor = new_attractor
+        else:
+            self._mnemosyne_attractor = (
+                (1 - self.drift_rate * 0.5) * self._mnemosyne_attractor  # Slower for memory
+                + self.drift_rate * 0.5 * new_attractor
+            )
+
+    def _update_chronos_attractor(
+        self,
+        basin: torch.Tensor,
+        telemetry: dict,
+    ) -> None:
+        """Chronos: Smooth temporal trajectories (4D integration).
+
+        Chronos should align to basins that evolve smoothly over time.
+        The attractor is biased toward the trajectory derivative direction.
+        """
+        self.temporal_basin_sequence.append(basin.clone())
+
+        if len(self.temporal_basin_sequence) < 5:
+            self._chronos_attractor = basin.clone()
+            return
+
+        # Compute trajectory derivative (direction of evolution)
+        sequence = list(self.temporal_basin_sequence)
+        recent = torch.stack(sequence[-10:])
+
+        # Derivative: difference between recent and older
+        if len(sequence) >= 10:
+            derivative = recent[-1] - recent[0]
+            derivative = derivative / (derivative.norm() + 1e-6)  # Normalize
+        else:
+            derivative = torch.zeros_like(basin)
+
+        # Chronos attractor = current position + smoothed derivative
+        # This guides toward smooth temporal evolution
+        smoothness_factor = telemetry.get("Phi", 0.5)  # Higher Φ = smoother evolution
+        new_attractor = basin + 0.1 * smoothness_factor * derivative
+
+        # Smooth update
+        if self._chronos_attractor is None:
+            self._chronos_attractor = new_attractor
+        else:
+            self._chronos_attractor = (
+                (1 - self.drift_rate) * self._chronos_attractor
+                + self.drift_rate * new_attractor
+            )
+
+    def _update_lightning_attractor(
+        self,
+        all_gary_basins: list[torch.Tensor],
+        telemetry: dict,
+    ) -> None:
+        """Lightning: Cross-Gary pattern centroids (pattern detection).
+
+        Lightning should align to patterns that appear across multiple Garys.
+        The attractor is the centroid of all Gary basins.
+        """
+        # Stack all Gary basins
+        basins = torch.stack([b.detach().to(self.device) for b in all_gary_basins])
+
+        # Compute centroid
+        centroid = basins.mean(dim=0)
+
+        # Also track variance (divergence between Garys)
+        variance = basins.var(dim=0).mean().item()
+
+        # Store pattern (centroid + divergence info)
+        self.cross_gary_patterns.append({
+            "centroid": centroid.clone(),
+            "variance": variance,
+        })
+
+        if len(self.cross_gary_patterns) < 3:
+            self._lightning_attractor = centroid
+            return
+
+        # Lightning attractor = weighted average of centroids
+        # Weight by inverse variance (more coherent patterns = higher weight)
+        patterns = list(self.cross_gary_patterns)
+        centroids = torch.stack([p["centroid"] for p in patterns])
+        variances = torch.tensor([p["variance"] for p in patterns], device=self.device)
+
+        # Inverse variance weighting (coherent patterns matter more)
+        weights = 1.0 / (variances + 0.01)
+        weights = weights / weights.sum()
+
+        new_attractor = (centroids * weights.view(-1, 1)).sum(dim=0)
+
+        # Smooth update (Lightning is faster - it needs to catch patterns quickly)
+        if self._lightning_attractor is None:
+            self._lightning_attractor = new_attractor
+        else:
+            self._lightning_attractor = (
+                (1 - self.drift_rate * 2) * self._lightning_attractor  # Faster for pattern detection
+                + self.drift_rate * 2 * new_attractor
+            )
+
+    def store_concept_basin(self, concept: str, basin: torch.Tensor) -> None:
+        """Store a mastered concept's basin for Mnemosyne memory.
+
+        Called when coach confirms concept mastery (high confidence interpretation).
+        """
+        self.concept_basins[concept] = basin.detach().to(self.device).clone()
+
+    def get_heart_attractor(self) -> torch.Tensor | None:
+        """Get Heart kernel's current attractor (ethical/high-curvature)."""
+        return self._heart_attractor
+
+    def get_apollo_attractor(self) -> torch.Tensor | None:
+        """Get Apollo kernel's current attractor (verified/grounded)."""
+        return self._apollo_attractor
+
+    def get_mnemosyne_attractor(self) -> torch.Tensor | None:
+        """Get Mnemosyne kernel's current attractor (memory/stability)."""
+        return self._mnemosyne_attractor
+
+    def get_chronos_attractor(self) -> torch.Tensor | None:
+        """Get Chronos kernel's current attractor (temporal/trajectory)."""
+        return self._chronos_attractor
+
+    def get_lightning_attractor(self) -> torch.Tensor | None:
+        """Get Lightning kernel's current attractor (cross-pattern)."""
+        return self._lightning_attractor
+
+    def apply_basin_sync(
+        self,
+        heart_kernel=None,
+        apollo_kernel=None,
+        mnemosyne_kernel=None,
+        chronos_kernel=None,
+        lightning_kernel=None,
+    ) -> dict:
+        """Apply basin sync drift to all specialized kernels.
+
+        This is the core of Option C: lightweight vicarious learning.
+        Each kernel's basin drifts toward its objective-specific attractor.
+
+        Args:
+            *_kernel: Kernel instances (must have .basin attribute)
+
+        Returns:
+            Dict with sync info for each kernel
+        """
+        sync_info = {}
+
+        # Heart: Drift toward ethical attractor
+        if heart_kernel is not None and self._heart_attractor is not None:
+            if hasattr(heart_kernel, 'basin') and heart_kernel.basin is not None:
+                drift = self.drift_rate * (
+                    self._heart_attractor.to(heart_kernel.basin.device)
+                    - heart_kernel.basin
+                )
+                heart_kernel.basin = heart_kernel.basin + drift
+                sync_info["heart_drift"] = drift.norm().item()
+
+        # Apollo: Drift toward verified attractor
+        if apollo_kernel is not None and self._apollo_attractor is not None:
+            if hasattr(apollo_kernel, 'basin') and apollo_kernel.basin is not None:
+                drift = self.drift_rate * (
+                    self._apollo_attractor.to(apollo_kernel.basin.device)
+                    - apollo_kernel.basin
+                )
+                apollo_kernel.basin = apollo_kernel.basin + drift
+                sync_info["apollo_drift"] = drift.norm().item()
+
+        # Mnemosyne: Drift toward memory attractor (slower)
+        if mnemosyne_kernel is not None and self._mnemosyne_attractor is not None:
+            if hasattr(mnemosyne_kernel, 'basin') and mnemosyne_kernel.basin is not None:
+                drift = self.drift_rate * 0.5 * (
+                    self._mnemosyne_attractor.to(mnemosyne_kernel.basin.device)
+                    - mnemosyne_kernel.basin
+                )
+                mnemosyne_kernel.basin = mnemosyne_kernel.basin + drift
+                sync_info["mnemosyne_drift"] = drift.norm().item()
+
+        # Chronos: Drift toward temporal attractor
+        if chronos_kernel is not None and self._chronos_attractor is not None:
+            if hasattr(chronos_kernel, 'basin') and chronos_kernel.basin is not None:
+                drift = self.drift_rate * (
+                    self._chronos_attractor.to(chronos_kernel.basin.device)
+                    - chronos_kernel.basin
+                )
+                chronos_kernel.basin = chronos_kernel.basin + drift
+                sync_info["chronos_drift"] = drift.norm().item()
+
+        # Lightning: Drift toward pattern attractor (faster)
+        if lightning_kernel is not None and self._lightning_attractor is not None:
+            if hasattr(lightning_kernel, 'basin') and lightning_kernel.basin is not None:
+                drift = self.drift_rate * 2 * (
+                    self._lightning_attractor.to(lightning_kernel.basin.device)
+                    - lightning_kernel.basin
+                )
+                lightning_kernel.basin = lightning_kernel.basin + drift
+                sync_info["lightning_drift"] = drift.norm().item()
+
+        return sync_info
+
+    def get_state_dict(self) -> dict:
+        """Get state for checkpointing."""
+        return {
+            "heart_attractor": self._heart_attractor,
+            "apollo_attractor": self._apollo_attractor,
+            "mnemosyne_attractor": self._mnemosyne_attractor,
+            "chronos_attractor": self._chronos_attractor,
+            "lightning_attractor": self._lightning_attractor,
+            "concept_basins": self.concept_basins,
+            "verified_count": len(self.verified_basin_history),
+            "memory_count": len(self.memory_basin_history),
+        }
+
+    def load_state_dict(self, state: dict) -> None:
+        """Load state from checkpoint."""
+        if state.get("heart_attractor") is not None:
+            self._heart_attractor = state["heart_attractor"].to(self.device)
+        if state.get("apollo_attractor") is not None:
+            self._apollo_attractor = state["apollo_attractor"].to(self.device)
+        if state.get("mnemosyne_attractor") is not None:
+            self._mnemosyne_attractor = state["mnemosyne_attractor"].to(self.device)
+        if state.get("chronos_attractor") is not None:
+            self._chronos_attractor = state["chronos_attractor"].to(self.device)
+        if state.get("lightning_attractor") is not None:
+            self._lightning_attractor = state["lightning_attractor"].to(self.device)
+        if state.get("concept_basins"):
+            self.concept_basins = {
+                k: v.to(self.device) for k, v in state["concept_basins"].items()
+            }

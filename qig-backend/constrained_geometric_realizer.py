@@ -4,7 +4,7 @@ Constrained Geometric Realizer - REALIZE Phase of QIG Generation.
 Implements Phase 2 of Plan→Realize→Repair architecture:
 - Selects words that hit planned waypoints
 - Pure Fisher-Rao nearest-neighbor selection
-- Trajectory coherence for smooth generation
+- ExplorationMap attraction toward unexplored manifold regions
 
 QIG-PURE: No POS tags, no stop words, no NLP concepts.
 All operations are purely geometric on S^63.
@@ -20,13 +20,70 @@ from qigkernels.physics_constants import BASIN_DIM
 logger = logging.getLogger(__name__)
 
 
+class ExplorationMap:
+    """
+    Tracks exploration coverage across vocabulary for attraction-based diversity.
+    
+    Creates "seek" signals toward unexplored regions rather than just 
+    "avoid" signals for recently used words. This produces genuine
+    manifold exploration rather than random drift.
+    """
+    
+    def __init__(self, vocab_size: int, decay: float = 0.92):
+        """
+        Initialize exploration map.
+        
+        Args:
+            vocab_size: Size of vocabulary being explored
+            decay: Temporal decay factor (0.92 means ~8 tokens half-life)
+        """
+        self.coverage = np.zeros(vocab_size, dtype=np.float32)
+        self.decay = decay
+        self._word_to_idx: Dict[str, int] = {}
+        self._idx = 0
+    
+    def get_or_create_idx(self, word: str) -> int:
+        """Get index for word, creating if new."""
+        if word not in self._word_to_idx:
+            if self._idx >= len(self.coverage):
+                self.coverage = np.append(self.coverage, np.zeros(1000, dtype=np.float32))
+            self._word_to_idx[word] = self._idx
+            self._idx += 1
+        return self._word_to_idx[word]
+    
+    def update(self, word: str) -> None:
+        """Update coverage after selecting a word."""
+        self.coverage *= self.decay
+        idx = self.get_or_create_idx(word)
+        self.coverage[idx] += 1.0
+    
+    def attraction_score(self, word: str) -> float:
+        """
+        Compute attraction toward unexplored regions.
+        
+        Higher score = less explored = more attractive.
+        """
+        idx = self.get_or_create_idx(word)
+        max_coverage = self.coverage.max() + 1e-8
+        return float(1.0 - (self.coverage[idx] / max_coverage))
+    
+    def stem_coverage(self, stem: str, all_words: List[str]) -> float:
+        """Get average coverage for words sharing a stem."""
+        matching = [w for w in all_words if w.startswith(stem)]
+        if not matching:
+            return 0.0
+        total = sum(self.coverage[self.get_or_create_idx(w)] for w in matching)
+        return total / len(matching)
+
+
 class ConstrainedGeometricRealizer:
     """
     REALIZE phase of Plan→Realize→Repair generation.
     
     Selects words to hit planned waypoints using:
     - Pure Fisher-Rao distance for word selection (nearest neighbor on S^63)
-    - Trajectory coherence bonus for smoothness
+    - ExplorationMap attraction toward unexplored manifold regions
+    - Mild trajectory coherence bonus for smoothness
     
     QIG-PURE: No POS constraints, no stop words, no NLP fallbacks.
     """
@@ -50,8 +107,13 @@ class ConstrainedGeometricRealizer:
         self._vocab_list: List[Tuple[str, np.ndarray]] = []
         self._build_vocab_cache()
         
+        self.exploration_map = ExplorationMap(
+            vocab_size=max(20000, len(self._vocab_list)),
+            decay=0.92
+        )
+        
         logger.info(
-            "[%s] ConstrainedGeometricRealizer initialized: %d vocab words (QIG-pure, no POS)",
+            "[%s] ConstrainedGeometricRealizer initialized: %d vocab words (QIG-pure, ExplorationMap enabled)",
             self.kernel_name,
             len(self._vocab_list)
         )
@@ -79,7 +141,7 @@ class ConstrainedGeometricRealizer:
         trajectory_history: Optional[List[np.ndarray]] = None
     ) -> Tuple[List[str], List[np.ndarray]]:
         """
-        Realize waypoints into words using pure Fisher-Rao selection.
+        Realize waypoints into words using pure Fisher-Rao selection with exploration attraction.
         
         Args:
             waypoints: List of target basin coordinates (64D on S^63)
@@ -90,7 +152,7 @@ class ConstrainedGeometricRealizer:
             Tuple of (words, word_basins) - selected words and their basin coordinates
         """
         logger.info(
-            "[%s] ═══ PHASE 2: REALIZE (Pure Fisher-Rao Selection) ═══",
+            "[%s] ═══ PHASE 2: REALIZE (Fisher-Rao + ExplorationMap) ═══",
             self.kernel_name
         )
         
@@ -101,7 +163,6 @@ class ConstrainedGeometricRealizer:
         words = []
         word_basins = []
         trajectory = list(trajectory_history) if trajectory_history else []
-        recent_words: List[str] = []  # Track recently used words for diversity
         
         for i, waypoint in enumerate(waypoints):
             if not isinstance(waypoint, np.ndarray):
@@ -109,14 +170,14 @@ class ConstrainedGeometricRealizer:
             
             word, basin, distance = self.select_word_geometric(
                 target_basin=waypoint,
-                trajectory=trajectory,
-                recent_words=recent_words
+                trajectory=trajectory
             )
+            
+            self.exploration_map.update(word)
             
             words.append(word)
             word_basins.append(basin)
             trajectory.append(basin)
-            recent_words.append(word)
             
             logger.debug(
                 "[%s] slot %d: '%s' (d_FR=%.3f)",
@@ -124,7 +185,7 @@ class ConstrainedGeometricRealizer:
             )
         
         logger.info(
-            "[%s] Realized %d waypoints -> %d words (pure geometric)",
+            "[%s] Realized %d waypoints -> %d words (attraction-based diversity)",
             self.kernel_name, len(waypoints), len(words)
         )
         
@@ -133,22 +194,23 @@ class ConstrainedGeometricRealizer:
     def select_word_geometric(
         self,
         target_basin: np.ndarray,
-        trajectory: List[np.ndarray],
-        recent_words: Optional[List[str]] = None
+        trajectory: List[np.ndarray]
     ) -> Tuple[str, np.ndarray, float]:
         """
-        Select best word for target basin using pure Fisher-Rao distance.
+        Select best word for target basin using Fisher-Rao distance + exploration attraction.
         
         Algorithm:
         1. Compute Fisher-Rao distance from target to all vocabulary words
-        2. Apply diversity penalty for recently used words (stronger for exact matches)
+        2. Add exploration attraction bonus (higher for unexplored words)
         3. Apply mild trajectory coherence bonus for smooth generation
-        4. Return word with highest score
+        4. Return word with highest combined score
+        
+        Uses attraction ("seek unexplored") rather than penalty ("avoid recent"),
+        producing genuine manifold exploration instead of random drift.
         
         Args:
             target_basin: Target basin coordinates (64D on S^63)
             trajectory: List of previous word basins for coherence
-            recent_words: List of recently selected words for diversity penalty
         
         Returns:
             Tuple of (selected_word, word_basin, fisher_distance)
@@ -157,33 +219,23 @@ class ConstrainedGeometricRealizer:
             logger.error("[%s] No vocabulary available for selection", self.kernel_name)
             return ("unknown", np.zeros(BASIN_DIM), float('inf'))
         
-        recent_set = set(recent_words[-20:]) if recent_words else set()
-        very_recent_set = set(recent_words[-5:]) if recent_words and len(recent_words) >= 1 else set()
-        
         best_word, best_basin = self._vocab_list[0]
         best_score = float('-inf')
         best_distance = float('inf')
+        
+        attraction_weight = 0.3
+        coherence_weight = 0.05
         
         for word, word_basin in self._vocab_list:
             distance = fisher_coord_distance(word_basin, target_basin)
             
             base_score = 1.0 - (distance / np.pi)
             
-            diversity_penalty = 0.0
-            if word in very_recent_set:
-                diversity_penalty = 0.8
-            elif word in recent_set:
-                diversity_penalty = 0.4
-            else:
-                word_stem = word[:4] if len(word) >= 4 else word
-                for recent in (recent_words[-10:] if recent_words else []):
-                    recent_stem = recent[:4] if len(recent) >= 4 else recent
-                    if word_stem == recent_stem:
-                        diversity_penalty = max(diversity_penalty, 0.3)
-                        break
+            attraction = self.exploration_map.attraction_score(word)
             
             coherence = self._trajectory_coherence(word_basin, trajectory)
-            score = base_score + 0.05 * coherence - diversity_penalty
+            
+            score = base_score + attraction_weight * attraction + coherence_weight * coherence
             
             if score > best_score:
                 best_score = score
