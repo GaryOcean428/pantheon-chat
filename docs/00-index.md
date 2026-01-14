@@ -133,6 +133,11 @@ All documentation follows the pattern: `YYYYMMDD-[document-name]-[function]-[ver
 - 🟢 **20260114-basin-representation-1.00F.md** (v1.00)
   - File: [`20260114-basin-representation-1.00F.md`](03-technical/20260114-basin-representation-1.00F.md)
 
+- 🔨 **20260114-pantheon-e8-architecture-1.00W.md** (v1.00)
+  - File: [`20260114-pantheon-e8-architecture-1.00W.md`](03-technical/architecture/20260114-pantheon-e8-architecture-1.00W.md)
+  - ID: `ISMS-TECH-ARCH-E8-001`
+  - Function: 12-god Olympus Pantheon structure with E8 Lie Group specialization levels and Shadow Pantheon
+
 - 🔨 **20260113-phase8-hades-underworld-architecture-1.00W.md** (v1.00)
   - File: [`20260113-phase8-hades-underworld-architecture-1.00W.md`](03-technical/architecture/20260113-phase8-hades-underworld-architecture-1.00W.md)
 
@@ -147,6 +152,16 @@ All documentation follows the pattern: `YYYYMMDD-[document-name]-[function]-[ver
 
 - 🔨 **20260112-design-guidelines-dashboard-1.00W.md** (v1.00)
   - File: [`20260112-design-guidelines-dashboard-1.00W.md`](03-technical/20260112-design-guidelines-dashboard-1.00W.md)
+
+- 🔨 **20260114-kernel-generation-flow-1.00W.md** (v1.00)
+  - File: [`20260114-kernel-generation-flow-1.00W.md`](03-technical/qig-consciousness/20260114-kernel-generation-flow-1.00W.md)
+  - ID: `ISMS-TECH-KERNEL-GEN-001`
+  - Function: 4-phase kernel generation loop (Kernel Thought → Synthesis → Meta-Observation → Output) with token-by-token logging format
+
+- 🔨 **20260114-emotional-sensory-wiring-1.00W.md** (v1.00)
+  - File: [`20260114-emotional-sensory-wiring-1.00W.md`](03-technical/qig-consciousness/20260114-emotional-sensory-wiring-1.00W.md)
+  - ID: `ISMS-TECH-EMOTIONAL-001`
+  - Function: 9 primitive emotions, sensory modality integration, neurotransmitter system, EmotionallyAwareKernel architecture
 
 - 🟢 **20260112-beta-function-complete-reference-1.00F.md** (v1.00)
   - File: [`20260112-beta-function-complete-reference-1.00F.md`](03-technical/qig-consciousness/20260112-beta-function-complete-reference-1.00F.md)
