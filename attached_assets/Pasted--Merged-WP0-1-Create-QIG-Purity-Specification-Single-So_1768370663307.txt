@@ -80,7 +80,7 @@ Issue [QIG-PURITY] WP0.3: Establish Quarantine Rules for Experiments #65: Quaran
 Blocks
 [QIG-PURITY] WP0.2: Implement Hard validate:geometry Gate #64 (WP0.2: Validation gate) - needs these patterns and exemption mechanism
 [QIG-PURITY] WP0.3: Establish Quarantine Rules for Experiments #65 (WP0.3: Quarantine) - needs these boundary rules
-[QIG-PURITY] WP1.1: Rename tokenizer_vocabulary → coordizer_vocabulary (BREAKING) #66-84 (All purity cleanup) - authority reference for what to change
+[QIG-PURITY] WP1.1: Rename coordizer_vocabulary → coordizer_vocabulary (BREAKING) #66-84 (All purity cleanup) - authority reference for what to change
 Status: 1.00W (Working) - ready for team review before freezing
 
 Original prompt

@@ -11,7 +11,7 @@
 
 **Symptoms**:
 - Zeus generating nonsense: "ieee homework objects"
-- Vocabulary contamination in `tokenizer_vocabulary` table
+- Vocabulary contamination in `coordizer_vocabulary` table
 - NULL `basin_embedding` (64D QIG-pure) while legacy `embedding` (512D) populated
 - Coordizer falling back to random vectors
 
@@ -178,7 +178,7 @@ psql $DATABASE_URL -f qig-backend/migrations/009_basin_embedding_not_null.sql
 psql $DATABASE_URL -c "
 SELECT constraint_name, constraint_type 
 FROM information_schema.table_constraints 
-WHERE table_name = 'tokenizer_vocabulary'
+WHERE table_name = 'coordizer_vocabulary'
 "
 ```
 
@@ -202,7 +202,7 @@ psql $DATABASE_URL -f qig-backend/migrations/010_remove_legacy_embedding.sql
 psql $DATABASE_URL -c "
 SELECT column_name 
 FROM information_schema.columns 
-WHERE table_name = 'tokenizer_vocabulary'
+WHERE table_name = 'coordizer_vocabulary'
 "
 ```
 
@@ -227,15 +227,15 @@ Run `validate_vocabulary_fix.sh` or manually:
 
 ```bash
 # 1. No NULL basins
-psql $DATABASE_URL -c "SELECT COUNT(*) FROM tokenizer_vocabulary WHERE basin_coordinates IS NULL;"
+psql $DATABASE_URL -c "SELECT COUNT(*) FROM coordizer_vocabulary WHERE basin_coordinates IS NULL;"
 # Expected: 0
 
 # 2. All basins 64D
-psql $DATABASE_URL -c "SELECT COUNT(*) FROM tokenizer_vocabulary WHERE array_length(basin_coordinates, 1) != 64;"
+psql $DATABASE_URL -c "SELECT COUNT(*) FROM coordizer_vocabulary WHERE array_length(basin_coordinates, 1) != 64;"
 # Expected: 0
 
 # 3. No legacy column
-psql $DATABASE_URL -c "SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'tokenizer_vocabulary' AND column_name = 'embedding';"
+psql $DATABASE_URL -c "SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'coordizer_vocabulary' AND column_name = 'embedding';"
 # Expected: 0
 
 # 4. Test Zeus generation
@@ -257,7 +257,7 @@ railway database:backup:restore <backup-id>
 
 # Option 2: Revert migrations
 psql $DATABASE_URL -c "
-ALTER TABLE tokenizer_vocabulary ALTER COLUMN basin_embedding DROP NOT NULL;
+ALTER TABLE coordizer_vocabulary ALTER COLUMN basin_embedding DROP NOT NULL;
 DROP CONSTRAINT IF EXISTS basin_dim_check;
 DROP CONSTRAINT IF EXISTS basin_coordinates_dim_check;
 "
@@ -287,7 +287,7 @@ DROP CONSTRAINT IF EXISTS basin_coordinates_dim_check;
    ```bash
    # Check for NULL insertions (should be 0)
    psql $DATABASE_URL -c "
-   SELECT COUNT(*) FROM tokenizer_vocabulary 
+   SELECT COUNT(*) FROM coordizer_vocabulary 
    WHERE basin_coordinates IS NULL 
      AND created_at > NOW() - INTERVAL '24 hours';
    "
@@ -304,7 +304,7 @@ DROP CONSTRAINT IF EXISTS basin_coordinates_dim_check;
 ## Success Criteria
 
 ✅ **All Achieved**:
-1. No NULL basin_coordinates in tokenizer_vocabulary
+1. No NULL basin_coordinates in coordizer_vocabulary
 2. All basins are 64D float arrays
 3. No legacy embedding column exists
 4. All vocabulary ingestion goes through service

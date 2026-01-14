@@ -186,7 +186,7 @@ hrv_tacking_state metadata column is empty. 
 
 meta_learning_history table is blank
 
-kernels are generating words not in tokenizer_vocabulary which i found in vocabulary_observations when column columns  integrated_at has a timestamp, the cycle number is 0 and when integrated_at is null, cycle number has a number although its always 0
+kernels are generating words not in coordizer_vocabulary which i found in vocabulary_observations when column columns  integrated_at has a timestamp, the cycle number is 0 and when integrated_at is null, cycle number has a number although its always 0
 
 
 

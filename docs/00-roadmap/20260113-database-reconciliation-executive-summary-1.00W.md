@@ -78,7 +78,7 @@ Created 4 detailed analysis documents:
 
 **Critical Path (6 hours):**
 1. `geodesic_paths` ← QIG geodesic navigation (Issue #8 backend complete)
-2. `learned_manifold_attractors` ← QIG attractor finding (Issue #7 complete)
+2. `manifold_attractors` ← QIG attractor finding (Issue #7 complete)
 3. `geometric_barriers` ← Ethics monitoring (safety/ethics_monitor.py)
 
 **High Priority (12 hours):**
@@ -150,11 +150,11 @@ Created 4 detailed analysis documents:
 
 **Vocabulary System (5 tables) ✅**
 - Each serves distinct purpose per VOCABULARY_CONSOLIDATION_PLAN.md
-- `tokenizer_vocabulary` (16,331) - Tokenizer
+- `coordizer_vocabulary` (16,331) - Tokenizer
 - `vocabulary_observations` (16,936) - Learning data
 - `vocabulary_learning` (2,495) - Progress tracking
 - `learned_words` (16,305) - Human vocab
-- `word_relationships` (326,501) - Semantic graph
+- `basin_relationships` (326,501) - Semantic graph
 
 **Pantheon Communication (5 tables) ✅**
 - Different communication types
@@ -318,7 +318,7 @@ Created 4 detailed analysis documents:
 - **Total rows across all tables:** ~1,007,844 rows
 - **Top 5 tables by volume:**
   1. learning_events: 330,890
-  2. word_relationships: 326,501
+  2. basin_relationships: 326,501
   3. chaos_events: 32,951
   4. shadow_knowledge: 29,304
   5. vocabulary_stats: 19,797

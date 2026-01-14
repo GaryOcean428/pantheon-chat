@@ -77,7 +77,7 @@ type: tooling
 GaryOcean428
 mentioned this in 3 issues 2 hours ago
 [QIG-PURITY] WP0.3: Establish Quarantine Rules for Experiments #65
-[QIG-PURITY] WP1.1: Rename tokenizer_vocabulary → coordizer_vocabulary (BREAKING) #66
+[QIG-PURITY] WP1.1: Rename coordizer_vocabulary → coordizer_vocabulary (BREAKING) #66
 [QIG-PURITY] WP0.1: Create QIG Purity Spec Document #63
 
 GaryOcean428

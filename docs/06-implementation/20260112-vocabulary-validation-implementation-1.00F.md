@@ -138,12 +138,12 @@ def validate_word_comprehensive(word: str) -> Tuple[bool, str]:
 #### Key Features
 
 1. **Multi-Table Scanning**
-   - Scans: `tokenizer_vocabulary`, `learned_words`, `bip39_words`
+   - Scans: `coordizer_vocabulary`, `learned_words`, `bip39_words`
    - Identifies contamination by type
    - Tracks frequency of contaminated entries
 
 2. **Relationship Cleanup**
-   - Removes word_relationships involving contaminated words
+   - Removes basin_relationships involving contaminated words
    - Prevents orphaned Fisher-Rao distance calculations
    - Maintains referential integrity
 

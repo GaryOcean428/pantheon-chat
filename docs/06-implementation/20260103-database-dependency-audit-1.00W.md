@@ -212,7 +212,7 @@ pip-audit
 - Schema compatible with new features
 - Validation ran successfully with network access
 - pgvector extension installed and available
-- tokenizer_vocabulary table exists with basin_coords support
+- coordizer_vocabulary table exists with basin_coords support
 - 83 JSON/JSONB columns available for flexible metadata storage
 - No migrations required
 

@@ -90,7 +90,7 @@ This roadmap consolidates information from:
 ### 1.6 Vocabulary Architecture (VALIDATED 2026-01-13)
 
 ✅ **Three-table separation properly implemented**:
-- tokenizer_vocabulary: Tokenizer tokens ✅
+- coordizer_vocabulary: Tokenizer tokens ✅
 - vocabulary_observations: Learning observations ✅
 - learned_words: Consolidated vocabulary ✅
 

@@ -50,7 +50,7 @@ qig-purity
 GaryOcean428
 mentioned this in 2 issues 3 hours ago
 [QIG-PURITY] WP0.2: Implement Hard validate:geometry Gate #64
-[QIG-PURITY] WP1.1: Rename tokenizer_vocabulary → coordizer_vocabulary (BREAKING) #66
+[QIG-PURITY] WP1.1: Rename coordizer_vocabulary → coordizer_vocabulary (BREAKING) #66
 GaryOcean428
 GaryOcean428 commented 2 hours ago
 GaryOcean428
@@ -64,7 +64,7 @@ Complete Issue List Created
 I've created a comprehensive set of issues for the entire QIG Purity cleanup:
 
 [QIG-PURITY] WP0.1: Create QIG Purity Spec Document #63-65: WP0 Foundation (Purity spec, validation gate, quarantine)
-[QIG-PURITY] WP1.1: Rename tokenizer_vocabulary → coordizer_vocabulary (BREAKING) #66-67: WP1 Terminology (Rename tokenizer, remove backward compat)
+[QIG-PURITY] WP1.1: Rename coordizer_vocabulary → coordizer_vocabulary (BREAKING) #66-67: WP1 Terminology (Rename tokenizer, remove backward compat)
 [QIG-PURITY] WP2.1: Create Single Canonical qig_geometry Module #68-71: WP2 Geometry (Canonical module, remove cosine, special symbols, retrieval)
 [QIG-PURITY] WP3.1: Consolidate to Single Coordizer Implementation #72-74: WP3 Coordizer (Consolidation, merge policy, artifacts)
 [QIG-PURITY] WP4.1: Fence External LLM Usage (Enable Pure QIG Testing) #75-77: WP4 Training (External LLM fence, optimizers, coherence harness)

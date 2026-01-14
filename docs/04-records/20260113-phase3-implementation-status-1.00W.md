@@ -132,7 +132,7 @@ Completed Phase 3 database table consolidation as identified in Database Reconci
 ### Related: Phase 2 (Wire Empty Tables)
 - 20+ empty tables need to be wired to features
 - Estimated: 48 hours total
-- Priority items: geodesic_paths, learned_manifold_attractors, geometric_barriers
+- Priority items: geodesic_paths, manifold_attractors, geometric_barriers
 - Implementation guides exist in docs/06-implementation/
 
 ---

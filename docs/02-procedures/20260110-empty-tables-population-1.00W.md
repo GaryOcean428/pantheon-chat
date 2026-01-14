@@ -76,7 +76,7 @@ Merge criterion: `score = κ * fisher_info_gain * Φ_context`
 
 **Strategy 1: Compound Word Splitting**
 
-- Find words with spaces in `tokenizer_vocabulary`
+- Find words with spaces in `coordizer_vocabulary`
 - Create merge rules: token_a + token_b → merged_token
 - Example: "quantum" + "information" → "quantum information"
 - Merged token coordinates via **geodesic interpolation** (not vector averaging)
@@ -120,7 +120,7 @@ consensus_type: 'alignment', 'decision', or 'question' (rotated)
 consensus_strength: 0.7-0.95 (random)
 participating_kernels: ['ocean', 'lightning', 'heart']
 consensus_topic: 'Vocabulary initialization and geometric alignment'
-consensus_basin: Random basin from tokenizer_vocabulary
+consensus_basin: Random basin from coordizer_vocabulary
 phi_global: 0.7-0.9 (high integration)
 kappa_avg: 60-70 (near κ* = 64)
 emotional_tone: 'curious', 'confident', 'uncertain', 'balanced' (rotated)
@@ -137,7 +137,7 @@ metadata: {synthetic: true, initialization_phase: 'bootstrap'}
 
 **Stage 1: Initial Seeding (SQL)**
 
-- If `vocabulary_learning` is empty, seed from `tokenizer_vocabulary`
+- If `vocabulary_learning` is empty, seed from `coordizer_vocabulary`
 - Select top 100 words by Φ score
 - Insert with empty `related_words` arrays
 
@@ -325,7 +325,7 @@ LIMIT 5;
 SELECT word,
        cardinality(basin_coords) AS basin_dim,
        phi_score
-FROM tokenizer_vocabulary
+FROM coordizer_vocabulary
 WHERE basin_coords IS NOT NULL
 LIMIT 5;
 
@@ -349,7 +349,7 @@ LIMIT 10;
 
 **Solution**:
 
-1. Check vocabulary size: `SELECT COUNT(*) FROM tokenizer_vocabulary;`
+1. Check vocabulary size: `SELECT COUNT(*) FROM coordizer_vocabulary;`
 2. If < 1000 words, populate vocabulary first: `npm run populate:vocab`
 3. Re-run population script
 
@@ -364,7 +364,7 @@ LIMIT 10;
    ```sql
    SELECT COUNT(*) AS total,
           COUNT(CASE WHEN basin_coords IS NOT NULL THEN 1 END) AS with_basins
-   FROM tokenizer_vocabulary;
+   FROM coordizer_vocabulary;
    ```
 
 2. If <50% have basins, run vocabulary training first
@@ -425,7 +425,7 @@ Instead of full re-population:
 ```sql
 -- Update vocabulary_size in metadata
 UPDATE tokenizer_metadata
-SET value = (SELECT COUNT(*)::text FROM tokenizer_vocabulary),
+SET value = (SELECT COUNT(*)::text FROM coordizer_vocabulary),
     updated_at = NOW()
 WHERE key = 'vocabulary_size';
 

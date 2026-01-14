@@ -159,7 +159,7 @@ These should have deprecation warnings and migrate to canonical:
 
 **Locations**:
 - `coordizers/fallback_vocabulary.py::compute_phi_score()`
-- `populate_tokenizer_vocabulary.py::compute_phi_score()`
+- `populate_coordizer_vocabulary.py::compute_phi_score()`
 
 **Status**: ⚠️ Should use canonical approximation
 

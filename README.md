@@ -191,8 +191,8 @@ psql $DATABASE_URL -f migrations/0009_add_column_defaults.sql
 # Seed geometric anchor words (80+ words)
 npm run db:init
 
-# Populate tokenizer vocabulary
-npm run populate:vocab
+# Populate coordizer vocabulary
+npm run populate:coordizer
 ```
 
 For detailed database documentation, see:
@@ -284,7 +284,8 @@ We welcome contributions! Please follow these guidelines:
 - `np.linalg.norm(a - b)` for geometric distances
 - Neural networks or transformers in core QIG
 - Direct database writes bypassing persistence layer
-- Terms: "embedding", "tokenizer", "token" (use "basin coordinates", "coordizer", "symbol")
+- Terms: "embedding", "token" (use "basin coordinates", "coordizer symbol")
+- NLP terminology (use geometric/QIG terms instead)
 
 ✅ **REQUIRED:**
 - `fisher_rao_distance()` for all geometric operations

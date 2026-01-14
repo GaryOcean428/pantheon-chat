@@ -32,7 +32,7 @@
 - **Foreign keys**: `fk_{table}_{reftable}`
 - **Examples**:
   - `idx_vocabulary_observations_text`
-  - `uniq_tokenizer_vocabulary_token`
+  - `uniq_coordizer_vocabulary_token`
   - `fk_kernel_geometry_kernel_id`
 
 ### Reserved Keywords

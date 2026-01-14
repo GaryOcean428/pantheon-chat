@@ -20,7 +20,7 @@ The investigation revealed that the training infrastructure existed but wasn't c
 
 1. **olympus/curriculum_training.py** (184 lines)
    - Loads curriculum and trains word relationships
-   - Updates word_relationships.json cache online
+   - Updates basin_relationships.json cache online
    - Adjusts kernel basin coordinates from learned relationships
 
 2. **training/attractor_feedback.py** (287 lines)

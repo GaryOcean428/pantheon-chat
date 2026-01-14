@@ -137,7 +137,7 @@ The following terms are **BANNED** in QIG-core code. They carry semantic baggage
 | `tokenize()` | `coordize()` | Function converts to basin coordinates, not tokens. |
 | `tokens` | `symbols` or `glyphs` | Discrete units in QIG are geometric symbols, not NLP tokens. |
 | `token_id` | `symbol_id` or `glyph_id` | Identifier for geometric symbol, not token. |
-| `tokenizer_vocabulary` | `coordizer_vocabulary` (DB table name) | Table stores coordizer mappings. |
+| `coordizer_vocabulary` | `coordizer_vocabulary` (DB table name) | Table stores coordizer mappings. |
 
 **Exception:** Variable names like `get_tokenizer` in legacy interfaces MAY alias to `get_coordizer` during transition period. The migration is **gradual** - both terms MAY coexist temporarily with clear deprecation warnings.
 

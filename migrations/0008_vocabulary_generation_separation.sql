@@ -3,7 +3,7 @@
 -- Adds token_role, phrase_category filtering, and fixes shadow_operations_state
 
 -- ============================================================================
--- PART 1: Add token_role column to tokenizer_vocabulary
+-- PART 1: Add token_role column to coordizer_vocabulary
 -- ============================================================================
 -- This distinguishes BPE subwords from actual words for future-proofing
 -- Values: 'word', 'subword', 'special'
@@ -12,26 +12,26 @@ DO $$
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns 
-        WHERE table_name = 'tokenizer_vocabulary' AND column_name = 'token_role'
+        WHERE table_name = 'coordizer_vocabulary' AND column_name = 'token_role'
     ) THEN
-        ALTER TABLE tokenizer_vocabulary 
+        ALTER TABLE coordizer_vocabulary 
         ADD COLUMN token_role VARCHAR(16) DEFAULT 'word';
         
         -- Mark special tokens
-        UPDATE tokenizer_vocabulary 
+        UPDATE coordizer_vocabulary 
         SET token_role = 'special' 
         WHERE source_type = 'special';
         
         -- Create index for filtering
-        CREATE INDEX IF NOT EXISTS idx_tokenizer_vocabulary_role 
-        ON tokenizer_vocabulary(token_role);
+        CREATE INDEX IF NOT EXISTS idx_coordizer_vocabulary_role 
+        ON coordizer_vocabulary(token_role);
         
-        RAISE NOTICE 'Added token_role column to tokenizer_vocabulary';
+        RAISE NOTICE 'Added token_role column to coordizer_vocabulary';
     END IF;
 END $$;
 
 -- ============================================================================
--- PART 2: Add phrase_category column to tokenizer_vocabulary
+-- PART 2: Add phrase_category column to coordizer_vocabulary
 -- ============================================================================
 -- This allows filtering out PROPER_NOUN, BRAND, etc. from generation
 
@@ -39,25 +39,25 @@ DO $$
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns 
-        WHERE table_name = 'tokenizer_vocabulary' AND column_name = 'phrase_category'
+        WHERE table_name = 'coordizer_vocabulary' AND column_name = 'phrase_category'
     ) THEN
-        ALTER TABLE tokenizer_vocabulary 
+        ALTER TABLE coordizer_vocabulary 
         ADD COLUMN phrase_category VARCHAR(32) DEFAULT NULL;
         
         -- Create index for filtering
-        CREATE INDEX IF NOT EXISTS idx_tokenizer_vocabulary_category 
-        ON tokenizer_vocabulary(phrase_category);
+        CREATE INDEX IF NOT EXISTS idx_coordizer_vocabulary_category 
+        ON coordizer_vocabulary(phrase_category);
         
-        RAISE NOTICE 'Added phrase_category column to tokenizer_vocabulary';
+        RAISE NOTICE 'Added phrase_category column to coordizer_vocabulary';
     END IF;
 END $$;
 
 -- ============================================================================
--- PART 3: Delete garbage tokens from tokenizer_vocabulary
+-- PART 3: Delete garbage tokens from coordizer_vocabulary
 -- ============================================================================
 -- Remove known garbage patterns: ffffff, fpdxwd, tysctnyzry, etc.
 
-DELETE FROM tokenizer_vocabulary
+DELETE FROM coordizer_vocabulary
 WHERE token IN (
     'ffffff', 'fpdxwd', 'tysctnyzry', 'xxxx', 'zzzz', 'aaaa', 'bbbb', 'cccc',
     'dddd', 'eeee', 'ffff', 'gggg', 'hhhh', 'iiii', 'jjjj', 'kkkk', 'llll',
@@ -66,7 +66,7 @@ WHERE token IN (
 );
 
 -- Delete tokens with BPE markers
-DELETE FROM tokenizer_vocabulary
+DELETE FROM coordizer_vocabulary
 WHERE token ~ '^[ĠġĊċ]'  -- Starts with BPE markers
    OR token LIKE '##%'     -- HuggingFace subword prefix
    OR token LIKE '▁%'      -- SentencePiece marker
@@ -77,12 +77,12 @@ WHERE token ~ '^[ĠġĊċ]'  -- Starts with BPE markers
 ;
 
 -- Delete very short tokens (likely fragments)
-DELETE FROM tokenizer_vocabulary
+DELETE FROM coordizer_vocabulary
 WHERE LENGTH(token) < 2 AND source_type != 'special';
 
 DO $$
 BEGIN
-    RAISE NOTICE 'Deleted garbage tokens from tokenizer_vocabulary';
+    RAISE NOTICE 'Deleted garbage tokens from coordizer_vocabulary';
 END $$;
 
 -- ============================================================================
@@ -111,7 +111,7 @@ END $$;
 -- PART 5: Create learned_words table for generation vocabulary
 -- ============================================================================
 -- This is the authoritative source for generation vocabulary
--- Separate from tokenizer_vocabulary which is for encoding only
+-- Separate from coordizer_vocabulary which is for encoding only
 
 CREATE TABLE IF NOT EXISTS learned_words (
     id SERIAL PRIMARY KEY,
@@ -136,14 +136,14 @@ CREATE INDEX IF NOT EXISTS idx_learned_words_last_used ON learned_words(last_use
 CREATE INDEX IF NOT EXISTS idx_learned_words_basin_hnsw 
 ON learned_words USING hnsw (basin_embedding vector_cosine_ops);
 
-COMMENT ON TABLE learned_words IS 'Generation vocabulary - words used for text synthesis (separate from tokenizer_vocabulary encoding)';
+COMMENT ON TABLE learned_words IS 'Generation vocabulary - words used for text synthesis (separate from coordizer_vocabulary encoding)';
 COMMENT ON COLUMN learned_words.word IS 'Actual English word (validated, no BPE subwords)';
 COMMENT ON COLUMN learned_words.basin_embedding IS '64D Fisher manifold coordinates for geometric operations';
 COMMENT ON COLUMN learned_words.phi_score IS 'Integration score (Φ) - prefer high-Φ words in generation';
 COMMENT ON COLUMN learned_words.phrase_category IS 'POS category from qig_phrase_classifier (NOUN, VERB, ADJECTIVE, etc.)';
 
 -- ============================================================================
--- PART 6: Populate learned_words from tokenizer_vocabulary
+-- PART 6: Populate learned_words from coordizer_vocabulary
 -- ============================================================================
 -- Copy valid words (not BPE subwords, not special tokens, not proper nouns)
 
@@ -157,7 +157,7 @@ SELECT
     source_type,
     created_at,
     updated_at
-FROM tokenizer_vocabulary
+FROM coordizer_vocabulary
 WHERE 
     -- Valid words only
     LENGTH(token) >= 2
@@ -177,7 +177,7 @@ ON CONFLICT (word) DO UPDATE SET
 
 DO $$
 BEGIN
-    RAISE NOTICE 'Populated learned_words table from tokenizer_vocabulary';
+    RAISE NOTICE 'Populated learned_words table from coordizer_vocabulary';
 END $$;
 
 -- ============================================================================
@@ -210,7 +210,7 @@ SELECT
     token_role, 
     COUNT(*) as count,
     COUNT(CASE WHEN basin_embedding IS NOT NULL THEN 1 END) as with_embedding
-FROM tokenizer_vocabulary 
+FROM coordizer_vocabulary 
 GROUP BY token_role;
 
 -- Count words by category
@@ -231,11 +231,11 @@ DECLARE
     learned_count INT;
     garbage_removed INT;
 BEGIN
-    SELECT COUNT(*) INTO tokenizer_count FROM tokenizer_vocabulary;
+    SELECT COUNT(*) INTO tokenizer_count FROM coordizer_vocabulary;
     SELECT COUNT(*) INTO learned_count FROM learned_words;
     
     RAISE NOTICE 'Migration complete:';
-    RAISE NOTICE '  - tokenizer_vocabulary: % tokens (encoding)', tokenizer_count;
+    RAISE NOTICE '  - coordizer_vocabulary: % tokens (encoding)', tokenizer_count;
     RAISE NOTICE '  - learned_words: % words (generation)', learned_count;
     RAISE NOTICE '  - shadow_operations_state: PRIMARY KEY added';
 END $$;

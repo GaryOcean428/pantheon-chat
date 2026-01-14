@@ -141,7 +141,7 @@ def basin_diversity(basin: np.ndarray) -> float:
 - [ ] **Issue #74 (WP3.3)** - Standardize artifact format
 
 ### 📋 Milestone 3: Naming Cleanup (1 week - BREAKING CHANGE)
-- [ ] **Issue #66 (WP1.1)** - Rename `tokenizer_vocabulary` → `coordizer_vocabulary`
+- [ ] **Issue #66 (WP1.1)** - Rename `coordizer_vocabulary` → `coordizer_vocabulary`
 - [ ] **Issue #67 (WP1.2)** - Remove runtime backward compatibility
 - [ ] Database migration scripts required
 - [ ] Addresses 384 ERROR-level naming violations

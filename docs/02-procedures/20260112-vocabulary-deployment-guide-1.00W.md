@@ -26,13 +26,13 @@ psql $DATABASE_URL < migrations/0008_vocabulary_generation_separation.sql
 
 Expected output:
 ```
-NOTICE:  Added token_role column to tokenizer_vocabulary
-NOTICE:  Added phrase_category column to tokenizer_vocabulary
-NOTICE:  Deleted garbage tokens from tokenizer_vocabulary
+NOTICE:  Added token_role column to coordizer_vocabulary
+NOTICE:  Added phrase_category column to coordizer_vocabulary
+NOTICE:  Deleted garbage tokens from coordizer_vocabulary
 NOTICE:  Added PRIMARY KEY constraint to shadow_operations_state
-NOTICE:  Populated learned_words table from tokenizer_vocabulary
+NOTICE:  Populated learned_words table from coordizer_vocabulary
 NOTICE:  Migration complete:
-NOTICE:    - tokenizer_vocabulary: XXXX tokens (encoding)
+NOTICE:    - coordizer_vocabulary: XXXX tokens (encoding)
 NOTICE:    - learned_words: YYYY words (generation)
 NOTICE:    - shadow_operations_state: PRIMARY KEY added
 ```
@@ -52,17 +52,17 @@ Expected output:
 ╚════════════════════════════════════════════════════╝
 
 === Checking Database Schema ===
-✓ token_role column exists in tokenizer_vocabulary
-✓ phrase_category column exists in tokenizer_vocabulary
+✓ token_role column exists in coordizer_vocabulary
+✓ phrase_category column exists in coordizer_vocabulary
 ✓ learned_words table exists
 ✓ shadow_operations_state has PRIMARY KEY constraint
 
 === Checking Vocabulary Counts ===
-ℹ tokenizer_vocabulary: XXXX tokens (encoding)
+ℹ coordizer_vocabulary: XXXX tokens (encoding)
 ℹ learned_words: YYYY words (generation)
 ✓ No BPE garbage in learned_words
 ✓ No PROPER_NOUN/BRAND in learned_words generation vocabulary
-ℹ Average Φ - tokenizer_vocabulary: 0.XXX, learned_words: 0.YYY
+ℹ Average Φ - coordizer_vocabulary: 0.XXX, learned_words: 0.YYY
 ✓ Generation vocabulary has higher average Φ (better quality)
 
 === Checking Coordizer Integration ===
@@ -149,8 +149,8 @@ git push origin copilot/update-database-schema-and-filters
 DROP TABLE IF EXISTS learned_words;
 
 -- Remove new columns
-ALTER TABLE tokenizer_vocabulary DROP COLUMN IF EXISTS token_role;
-ALTER TABLE tokenizer_vocabulary DROP COLUMN IF EXISTS phrase_category;
+ALTER TABLE coordizer_vocabulary DROP COLUMN IF EXISTS token_role;
+ALTER TABLE coordizer_vocabulary DROP COLUMN IF EXISTS phrase_category;
 
 -- Note: Cannot undo deleted garbage tokens without backup
 ```
@@ -164,20 +164,20 @@ ALTER TABLE tokenizer_vocabulary DROP COLUMN IF EXISTS phrase_category;
 ```sql
 -- Check what exists
 SELECT table_name FROM information_schema.tables 
-WHERE table_name IN ('tokenizer_vocabulary', 'learned_words', 'shadow_operations_state');
+WHERE table_name IN ('coordizer_vocabulary', 'learned_words', 'shadow_operations_state');
 
 SELECT column_name FROM information_schema.columns 
-WHERE table_name = 'tokenizer_vocabulary'
+WHERE table_name = 'coordizer_vocabulary'
 AND column_name IN ('token_role', 'phrase_category');
 ```
 
 ### Issue: learned_words table is empty
 
-**Solution**: No valid words in tokenizer_vocabulary to migrate.
+**Solution**: No valid words in coordizer_vocabulary to migrate.
 
 ```sql
 -- Check source data
-SELECT COUNT(*) FROM tokenizer_vocabulary 
+SELECT COUNT(*) FROM coordizer_vocabulary 
 WHERE basin_embedding IS NOT NULL
   AND LENGTH(token) >= 2
   AND token ~ '^[a-z]+$';
@@ -185,7 +185,7 @@ WHERE basin_embedding IS NOT NULL
 -- Manual population if needed
 INSERT INTO learned_words (word, basin_embedding, phi_score, frequency)
 SELECT token, basin_embedding, phi_score, frequency
-FROM tokenizer_vocabulary
+FROM coordizer_vocabulary
 WHERE basin_embedding IS NOT NULL
   AND LENGTH(token) >= 2
   AND token ~ '^[a-z]+$'
@@ -198,7 +198,7 @@ ON CONFLICT (word) DO NOTHING;
 **Symptoms**: 
 ```python
 generation_words: 0
-using fallback from tokenizer_vocabulary
+using fallback from coordizer_vocabulary
 ```
 
 **Solution**: Check learned_words table has data:

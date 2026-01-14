@@ -486,7 +486,7 @@ address: varchar("address", { length: 255 }),  // Limited length
 **Problem**: Some count columns use `integer` (max 2.1B) instead of `bigint` (max 9.2 quintillion)
 
 **High-Risk Counters** (could exceed 2.1B):
-- `word_relationships` table (326K rows, but relationships grow exponentially)
+- `basin_relationships` table (326K rows, but relationships grow exponentially)
 - `learning_events` table (330K rows, continuous growth)
 - Usage counters in high-traffic tables
 

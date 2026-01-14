@@ -14,7 +14,7 @@ Fixed critical issue in Migration 0009 where `DEFAULT '{}'` was incorrectly appl
 
 ### Invalid Defaults Found
 Migration 0009 set problematic defaults on 6 direct columns:
-1. **tokenizer_vocabulary.embedding** - `'{}'::real[]`
+1. **coordizer_vocabulary.embedding** - `'{}'::real[]`
 2. **kernel_training_history.basin_coords** - `'{}'::double precision[]`
 3. **shadow_knowledge.basin_coords** - `'{}'::double precision[]`
 4. **research_requests.basin_coords** - `'{}'::double precision[]`
@@ -53,7 +53,7 @@ Created comprehensive Migration 0010 that:
 ### 1. Fixes All Vector Columns
 ```sql
 -- ARRAY columns (6 direct fixes)
-ALTER TABLE tokenizer_vocabulary ALTER COLUMN embedding DROP DEFAULT;
+ALTER TABLE coordizer_vocabulary ALTER COLUMN embedding DROP DEFAULT;
 ALTER TABLE kernel_training_history ALTER COLUMN basin_coords DROP DEFAULT;
 ALTER TABLE shadow_knowledge ALTER COLUMN basin_coords DROP DEFAULT;
 ALTER TABLE research_requests ALTER COLUMN basin_coords DROP DEFAULT;
@@ -81,7 +81,7 @@ ALTER TABLE zeus_conversations ALTER COLUMN basin_coords DROP DEFAULT;
 ## Affected Tables
 
 ### Direct (6 tables):
-1. tokenizer_vocabulary
+1. coordizer_vocabulary
 2. kernel_training_history
 3. shadow_knowledge
 4. research_requests

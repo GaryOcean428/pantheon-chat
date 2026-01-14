@@ -56,7 +56,7 @@ ERROR: column "theme" does not exist in CrossDomainInsight
 **Symptoms:**
 - Multiple `basin.py` implementations
 - Duplicate vocabulary tables
-- Inconsistent word_relationships across repos
+- Inconsistent basin_relationships across repos
 
 **Root Cause:**
 - Historical repository growth without consolidation

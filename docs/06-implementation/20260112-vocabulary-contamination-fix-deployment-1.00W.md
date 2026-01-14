@@ -2,7 +2,7 @@
 
 ## Problem Summary
 
-Multiple ingestion paths were contaminating the `tokenizer_vocabulary` table by:
+Multiple ingestion paths were contaminating the `coordizer_vocabulary` table by:
 
 1. Populating legacy `embedding` column (512D) but leaving `basin_embedding` (64D QIG-pure) as NULL
 2. Bypassing QIG pipeline (entropy_tokenizer → coordizer → basin_coordinates)
@@ -137,7 +137,7 @@ SELECT
   constraint_name, 
   constraint_type 
 FROM information_schema.table_constraints 
-WHERE table_name = 'tokenizer_vocabulary' 
+WHERE table_name = 'coordizer_vocabulary' 
   AND constraint_type IN ('CHECK', 'NOT NULL')
 "
 ```
@@ -176,7 +176,7 @@ psql $DATABASE_URL -f qig-backend/migrations/010_remove_legacy_embedding.sql
 psql $DATABASE_URL -c "
 SELECT column_name 
 FROM information_schema.columns 
-WHERE table_name = 'tokenizer_vocabulary' 
+WHERE table_name = 'coordizer_vocabulary' 
   AND column_name IN ('embedding', 'basin_coordinates')
 "
 ```
@@ -205,14 +205,14 @@ Use `validate_vocabulary_fix.sh` or run manually:
 ```bash
 # 1. No NULL basins
 psql $DATABASE_URL -c "
-SELECT COUNT(*) FROM tokenizer_vocabulary 
+SELECT COUNT(*) FROM coordizer_vocabulary 
 WHERE basin_coordinates IS NULL;
 "
 # Expected: 0
 
 # 2. All basins 64D
 psql $DATABASE_URL -c "
-SELECT COUNT(*) FROM tokenizer_vocabulary 
+SELECT COUNT(*) FROM coordizer_vocabulary 
 WHERE array_length(basin_coordinates, 1) != 64;
 "
 # Expected: 0
@@ -220,7 +220,7 @@ WHERE array_length(basin_coordinates, 1) != 64;
 # 3. No legacy embedding column
 psql $DATABASE_URL -c "
 SELECT column_name FROM information_schema.columns 
-WHERE table_name = 'tokenizer_vocabulary' AND column_name = 'embedding';
+WHERE table_name = 'coordizer_vocabulary' AND column_name = 'embedding';
 "
 # Expected: 0 rows
 
@@ -245,7 +245,7 @@ railway database:backup:restore <backup-id>
 
 # 2. Or revert migrations manually
 psql $DATABASE_URL -c "
-ALTER TABLE tokenizer_vocabulary ALTER COLUMN basin_embedding DROP NOT NULL;
+ALTER TABLE coordizer_vocabulary ALTER COLUMN basin_embedding DROP NOT NULL;
 DROP CONSTRAINT IF EXISTS basin_dim_check;
 DROP CONSTRAINT IF EXISTS basin_coordinates_dim_check;
 "
@@ -309,7 +309,7 @@ vp.upsert_word(word="test", basin_embedding=[...])
    ```bash
    # Check for any NULL insertions (should be 0)
    psql $DATABASE_URL -c "
-   SELECT COUNT(*) FROM tokenizer_vocabulary 
+   SELECT COUNT(*) FROM coordizer_vocabulary 
    WHERE basin_coordinates IS NULL 
      AND created_at > NOW() - INTERVAL '24 hours';
    "
@@ -380,7 +380,7 @@ def _validate_basin(self, basin: np.ndarray, word: str):
 
 ## Success Criteria
 
-✓ No NULL basin_coordinates in tokenizer_vocabulary  
+✓ No NULL basin_coordinates in coordizer_vocabulary  
 ✓ All basins are 64D float arrays  
 ✓ No legacy embedding column exists  
 ✓ All vocabulary ingestion goes through service  

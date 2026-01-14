@@ -97,7 +97,7 @@ The migration creates the following tables:
 **Vocabulary & Learning:**
 - `vocabulary_observations` - Pattern learning
 - `learning_events` - Learning history
-- `tokenizer_vocabulary`, `tokenizer_merge_rules`, `tokenizer_metadata` - Tokenization
+- `coordizer_vocabulary`, `tokenizer_merge_rules`, `tokenizer_metadata` - Tokenization
 
 **Olympus Pantheon Tables:**
 - `pantheon_messages`, `pantheon_debates`, `pantheon_knowledge_transfers` - Agent coordination

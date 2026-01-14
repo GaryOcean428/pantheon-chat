@@ -9995,8 +9995,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.tokenizer_vocabulary": {
-      "name": "tokenizer_vocabulary",
+    "public.coordizer_vocabulary": {
+      "name": "coordizer_vocabulary",
       "schema": "",
       "columns": {
         "id": {
@@ -10135,15 +10135,15 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "tokenizer_vocabulary_token_unique": {
-          "name": "tokenizer_vocabulary_token_unique",
+        "coordizer_vocabulary_token_unique": {
+          "name": "coordizer_vocabulary_token_unique",
           "nullsNotDistinct": false,
           "columns": [
             "token"
           ]
         },
-        "tokenizer_vocabulary_token_id_unique": {
-          "name": "tokenizer_vocabulary_token_id_unique",
+        "coordizer_vocabulary_token_id_unique": {
+          "name": "coordizer_vocabulary_token_id_unique",
           "nullsNotDistinct": false,
           "columns": [
             "token_id"
@@ -11610,8 +11610,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.word_relationships": {
-      "name": "word_relationships",
+    "public.basin_relationships": {
+      "name": "basin_relationships",
       "schema": "",
       "columns": {
         "id": {

@@ -7,7 +7,7 @@
 This document provides a comprehensive review of Issue #31 implementation, verifying that all requirements from the original comprehensive plan have been correctly addressed.
 
 ## Original Problem Statement
-The system was using `tokenizer_vocabulary` for both text→basin encoding and basin→text generation, causing:
+The system was using `coordizer_vocabulary` for both text→basin encoding and basin→text generation, causing:
 - BPE subwords (Ġ, ##, ▁) in generated text
 - Proper nouns used incorrectly
 - Garbage tokens (ffffff, fpdxwd, tysctnyzry)
@@ -19,18 +19,18 @@ The system was using `tokenizer_vocabulary` for both text→basin encoding and b
 
 ### Phase 1: Database Schema & Data Cleanup ✅
 
-#### ✅ Add token_role column to tokenizer_vocabulary
+#### ✅ Add token_role column to coordizer_vocabulary
 **Location**: `migrations/0008_vocabulary_generation_separation.sql`, lines 11-31
 - Column added with VARCHAR(16) type
 - Default value: 'word'
-- Index created: `idx_tokenizer_vocabulary_role`
+- Index created: `idx_coordizer_vocabulary_role`
 - Special tokens marked with 'special' role
 
-#### ✅ Add phrase_category column to tokenizer_vocabulary
+#### ✅ Add phrase_category column to coordizer_vocabulary
 **Location**: `migrations/0008_vocabulary_generation_separation.sql`, lines 38-51
 - Column added with VARCHAR(32) type
 - Default value: NULL
-- Index created: `idx_tokenizer_vocabulary_category`
+- Index created: `idx_coordizer_vocabulary_category`
 - Enables POS-based filtering
 
 #### ✅ Delete garbage tokens from vocabulary tables
@@ -58,7 +58,7 @@ The system was using `tokenizer_vocabulary` for both text→basin encoding and b
   - `source_type` VARCHAR(32)
   - `created_at`, `updated_at`, `last_used_at` TIMESTAMP
 - pgvector HNSW index created for fast similarity search
-- Populated from validated tokenizer_vocabulary entries
+- Populated from validated coordizer_vocabulary entries
 
 ### Phase 2: Coordizer Refactoring (pg_loader.py) ✅
 
@@ -83,10 +83,10 @@ The system was using `tokenizer_vocabulary` for both text→basin encoding and b
 - **Lines 918-926**: Same filtering in `get_all_tokens()`
 - **Security**: Uses parameterized queries (%s placeholders)
 
-#### ✅ Keep tokenizer_vocabulary for encoding only
+#### ✅ Keep coordizer_vocabulary for encoding only
 **Location**: `qig-backend/coordizers/pg_loader.py`
 - **Lines 215-256**: `_load_encoding_vocabulary()` method
-- Loads ALL tokens from `tokenizer_vocabulary` table
+- Loads ALL tokens from `coordizer_vocabulary` table
 - Includes BPE subwords, special tokens, everything
 - Used only for text→basin encoding via `encode()` method
 
@@ -118,7 +118,7 @@ The system was using `tokenizer_vocabulary` for both text→basin encoding and b
 - **Lines 626-627, 753-754**: Uses imported version with availability check
 - **Result**: No deprecation warnings
 
-#### ✅ Update code that incorrectly references tokenizer_vocabulary
+#### ✅ Update code that incorrectly references coordizer_vocabulary
 **Location**: `qig-backend/coordizers/pg_loader.py`
 - All generation methods now use `learned_words` table
 - Clear separation: encoding vs. generation
