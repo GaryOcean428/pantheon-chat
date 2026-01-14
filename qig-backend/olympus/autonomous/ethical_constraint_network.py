@@ -51,7 +51,8 @@ def _fisher_rao_distance(p: np.ndarray, q: np.ndarray, eps: float = 1e-10) -> fl
     p_norm = p_safe / np.sum(p_safe)
     q_norm = q_safe / np.sum(q_safe)
     bc = np.sum(np.sqrt(p_norm * q_norm))
-    return float(np.arccos(np.clip(bc, 0.0, 1.0)))
+    # Hellinger embedding: factor of 2 for canonical formula d = 2 * arccos(BC)
+    return float(2.0 * np.arccos(np.clip(bc, 0.0, 1.0)))
 
 
 @dataclass

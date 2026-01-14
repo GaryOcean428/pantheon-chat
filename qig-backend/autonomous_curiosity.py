@@ -176,7 +176,8 @@ class SearchRequestBatcher:
         emb2_norm = emb2_safe / np.sum(emb2_safe)
         bc_coeff = np.sum(np.sqrt(emb1_norm * emb2_norm))
         bc_coeff = np.clip(bc_coeff, 0, 1)
-        return np.arccos(bc_coeff)
+        # Hellinger embedding: factor of 2 for canonical formula d = 2 * arccos(BC)
+        return 2.0 * np.arccos(bc_coeff)
     
     def add_request(self, request: KernelToolRequest) -> Optional[Dict]:
         """

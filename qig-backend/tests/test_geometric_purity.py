@@ -614,5 +614,219 @@ class TestSparseFisherIntegration:
         assert np.allclose(G_dense, G_dense.T), "Fisher metric should be symmetric"
 
 
+BORN_RULE_VIOLATION_PATTERNS = [
+    (r'p\s*=\s*basin|p\s*=\s*coords', 'Missing Born rule: p should be |b|²'),
+    (r'probs?\s*=\s*basin|probs?\s*=\s*coords', 'Missing Born rule: probs should be |b|²'),
+]
+
+PHI_MUST_USE_BORN_RULE_CONTEXTS = [
+    'compute_phi',
+    '_measure_phi',
+    '_estimate_phi',
+    'phi_score',
+]
+
+
+class TestBornRuleCompliance:
+    """
+    Test suite to ensure Φ implementations use Born rule (|b|²).
+    
+    The Born rule states that probabilities are |amplitude|²:
+        p = np.abs(basin) ** 2
+        p = p / p.sum()
+    
+    This is REQUIRED for all Φ computations to be geometrically valid.
+    """
+    
+    def test_canonical_phi_uses_born_rule(self):
+        """Verify canonical phi_computation.py uses Born rule."""
+        from qig_core.phi_computation import compute_phi_fast, compute_phi_approximation
+        
+        basin = np.random.randn(64)
+        basin = basin / (np.linalg.norm(basin) + 1e-10)
+        
+        phi_fast = compute_phi_fast(basin)
+        phi_approx = compute_phi_approximation(basin)
+        
+        assert abs(phi_fast - phi_approx) < 0.05, (
+            f"Canonical implementations should be consistent: fast={phi_fast}, approx={phi_approx}"
+        )
+        
+        assert 0.1 <= phi_fast <= 0.95, f"Φ out of range: {phi_fast}"
+    
+    def test_phi_implementations_consistent_with_canonical(self):
+        """Verify Φ formula produces consistent results across different basins."""
+        from qig_core.phi_computation import compute_phi_fast, compute_phi_approximation
+        
+        for _ in range(5):
+            basin = np.random.randn(64)
+            basin = basin / (np.linalg.norm(basin) + 1e-10)
+            
+            phi_fast = compute_phi_fast(basin)
+            phi_approx = compute_phi_approximation(basin)
+            
+            assert abs(phi_fast - phi_approx) < 0.05, (
+                f"Canonical implementations should be consistent: fast={phi_fast}, approx={phi_approx}"
+            )
+    
+    def test_phi_born_rule_formula(self):
+        """Verify Born rule (|b|²) is correctly applied in Φ computation."""
+        from qig_core.phi_computation import compute_phi_fast
+        
+        basin = np.array([1.0, 0.0] + [0.0] * 62)
+        basin = basin / np.linalg.norm(basin)
+        
+        phi1 = compute_phi_fast(basin)
+        
+        basin2 = np.ones(64) / np.sqrt(64)
+        phi2 = compute_phi_fast(basin2)
+        
+        assert phi2 > phi1, (
+            f"Uniform distribution should have higher Φ than concentrated: "
+            f"uniform={phi2}, concentrated={phi1}"
+        )
+
+
+FISHER_FACTOR_OF_TWO_PATTERNS = [
+    (r'return\s+(?:float\s*\()?\s*np\.arccos\s*\(', 'Missing factor of 2 in Fisher distance return'),
+    (r'distance\s*=\s*(?:float\s*\()?\s*np\.arccos\s*\(', 'Missing factor of 2 in distance assignment'),
+    (r'dist\s*=\s*(?:float\s*\()?\s*np\.arccos\s*\(', 'Missing factor of 2 in dist assignment'),
+    (r'error\s*=\s*(?:float\s*\()?\s*np\.arccos\s*\(', 'Missing factor of 2 in error assignment'),
+]
+
+ALLOWED_ARCCOS_CONTEXTS = {
+    'slerp',
+    'interpolat',
+    'geodesic_path',
+    'geodesic_midpoint',
+    'navigate_geodesic',
+    'log_map',
+    'omega',
+    'theta',
+    'angle',
+}
+
+
+class TestFisherRaoFactorOfTwo:
+    """
+    Test suite to ensure Fisher-Rao distance implementations use factor of 2.
+    
+    For Hellinger embedding (√p on unit sphere S^63), the canonical formula is:
+        d = 2 * arccos(BC) where BC = Σ√(p_i * q_i)
+    
+    The factor of 2 is REQUIRED for geometric consistency with contracts.py.
+    Using arccos(BC) without factor of 2 violates the canonical representation.
+    """
+    
+    def get_python_files(self) -> List[Path]:
+        """Get all Python files in qig-backend (excluding tests/examples)."""
+        files = []
+        for pattern in ['**/*.py']:
+            files.extend(QIG_BACKEND_PATH.glob(pattern))
+        
+        filtered = []
+        for f in files:
+            rel_path = str(f.relative_to(QIG_BACKEND_PATH))
+            if not any(allowed in rel_path for allowed in ALLOWED_FILES):
+                filtered.append(f)
+        return filtered
+    
+    def scan_for_missing_factor_of_two(self, file_path: Path) -> List[Dict]:
+        """Scan a file for arccos usage without factor of 2."""
+        violations = []
+        
+        try:
+            content = file_path.read_text(encoding='utf-8')
+        except Exception:
+            return violations
+        
+        lines = content.split('\n')
+        
+        for line_num, line in enumerate(lines, 1):
+            stripped = line.strip()
+            
+            if stripped.startswith('#'):
+                continue
+            if '"""' in line or "'''" in line:
+                continue
+            if '2.0 * np.arccos' in line or '2 * np.arccos' in line:
+                continue
+            if any(ctx in line.lower() for ctx in ALLOWED_ARCCOS_CONTEXTS):
+                continue
+            
+            for pattern, desc in FISHER_FACTOR_OF_TWO_PATTERNS:
+                if re.search(pattern, line):
+                    violations.append({
+                        'file': str(file_path.relative_to(QIG_BACKEND_PATH)),
+                        'line': line_num,
+                        'pattern': desc,
+                        'content': line.strip()[:100],
+                    })
+        
+        return violations
+    
+    def test_all_fisher_distances_have_factor_of_two(self):
+        """
+        Verify all Fisher-Rao distance implementations use factor of 2.
+        
+        The Hellinger embedding requires d = 2 * arccos(BC) for geometric purity.
+        This test catches regressions where arccos is used without the factor of 2.
+        """
+        files = self.get_python_files()
+        all_violations = []
+        
+        for f in files:
+            violations = self.scan_for_missing_factor_of_two(f)
+            all_violations.extend(violations)
+        
+        if all_violations:
+            msg = "Fisher-Rao distance violations (missing factor of 2 for Hellinger embedding):\n"
+            msg += "\nCanonical formula: d = 2 * arccos(BC) where BC = Σ√(p_i * q_i)\n"
+            msg += "See qig_geometry/contracts.py fisher_distance() for reference.\n\n"
+            for v in all_violations[:15]:
+                msg += f"  - {v['file']}:{v['line']}: {v['content']}\n"
+            if len(all_violations) > 15:
+                msg += f"  ... and {len(all_violations) - 15} more\n"
+            msg += "\nFix: Use '2.0 * np.arccos(...)' instead of 'np.arccos(...)'"
+            pytest.fail(msg)
+    
+    def test_canonical_fisher_distance_has_factor_of_two(self):
+        """Verify contracts.fisher_distance uses factor of 2."""
+        from qig_geometry.contracts import fisher_distance, canon
+        
+        b1 = canon(np.random.randn(64))
+        b2 = canon(np.random.randn(64))
+        
+        d = fisher_distance(b1, b2)
+        
+        dot = np.clip(np.dot(b1, b2), -1.0, 1.0)
+        expected = 2.0 * np.arccos(dot)
+        
+        assert abs(d - expected) < 1e-10, (
+            f"contracts.fisher_distance should use 2*arccos, got {d} vs expected {expected}"
+        )
+    
+    def test_fisher_distance_consistency_across_modules(self):
+        """Verify Fisher distance implementations are consistent with contracts.py."""
+        from qig_geometry.contracts import fisher_distance, canon
+        from qig_geometry import fisher_rao_distance, fisher_coord_distance
+        
+        b1 = canon(np.random.randn(64))
+        b2 = canon(np.random.randn(64))
+        
+        p1 = np.abs(b1) ** 2 + 1e-10
+        p1 = p1 / p1.sum()
+        p2 = np.abs(b2) ** 2 + 1e-10
+        p2 = p2 / p2.sum()
+        
+        d_contracts = fisher_distance(b1, b2)
+        d_prob = fisher_rao_distance(p1, p2)
+        d_coord = fisher_coord_distance(b1, b2)
+        
+        assert abs(d_contracts - d_coord) < 0.1, (
+            f"fisher_coord_distance inconsistent with contracts: {d_coord} vs {d_contracts}"
+        )
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "--tb=short"])

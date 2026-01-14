@@ -391,10 +391,10 @@ class GeometricHealthMonitor:
         Fisher-Rao distance between basins.
 
         Basins are unit-norm vectors on hypersphere.
-        Fisher distance = arccos(basin1 · basin2)
+        Hellinger embedding: factor of 2 for canonical formula d = 2 * arccos(BC)
         """
         dot_product = np.clip(np.dot(basin1, basin2), -1.0, 1.0)
-        return float(np.arccos(dot_product))
+        return float(2.0 * np.arccos(dot_product))
 
     def _classify_regime(self, phi: float) -> str:
         """Classify processing regime from Φ."""

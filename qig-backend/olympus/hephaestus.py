@@ -189,7 +189,8 @@ class Hephaestus(BaseGod):
             # Fisher-Rao distance: d = arccos(p·q) for unit vectors
             dot_product = float(np.dot(target_basin, word_basin))
             dot_product = np.clip(dot_product, -1.0, 1.0)
-            fisher_distance = np.arccos(dot_product)
+            # Hellinger embedding: factor of 2 for canonical formula d = 2 * arccos(BC)
+            fisher_distance = 2.0 * np.arccos(dot_product)
             # Convert to similarity: s = 1 - d/π (range [0,1])
             similarity = 1.0 - fisher_distance / np.pi
             phi = self.word_phi_scores.get(word, 0.3)

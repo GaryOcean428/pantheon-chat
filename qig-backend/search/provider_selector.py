@@ -347,12 +347,12 @@ class GeometricProviderSelector:
         the Fisher-Rao distance is related to the geodesic distance on the
         statistical manifold.
 
-        d_FR = arccos(sqrt(sum(sqrt(p1_i * p2_i))))
+        d_FR = 2 * arccos(sqrt(sum(sqrt(p1_i * p2_i))))
 
-        NOTE: No factor of 2 - this is the geodesic distance.
+        Hellinger embedding: factor of 2 for canonical formula d = 2 * arccos(BC)
 
         For unit vectors in embedding space, we use Bures-style metric:
-        d_B = arccos(|<p1, p2>|)
+        d_B = 2 * arccos(|<p1, p2>|)
         """
         p1_norm = p1 / (np.linalg.norm(p1) + 1e-10)
         p2_norm = p2 / (np.linalg.norm(p2) + 1e-10)
@@ -360,7 +360,7 @@ class GeometricProviderSelector:
         inner_product = np.abs(np.dot(p1_norm, p2_norm))
         inner_product = np.clip(inner_product, 0.0, 1.0)
         
-        distance = np.arccos(inner_product)
+        distance = 2.0 * np.arccos(inner_product)
         return float(distance)
     
     def _compute_geometric_similarity(self, query_basin: np.ndarray, provider: str) -> float:

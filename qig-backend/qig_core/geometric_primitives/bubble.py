@@ -89,7 +89,8 @@ class Bubble:
         inner_product = np.sum(np.sqrt(p * q))
         inner_product = np.clip(inner_product, 0, 1)  # Numerical stability
         
-        distance = float(np.arccos(inner_product))
+        # Hellinger embedding: factor of 2 for canonical formula d = 2 * arccos(BC)
+        distance = float(2.0 * np.arccos(inner_product))
         
         return distance
     

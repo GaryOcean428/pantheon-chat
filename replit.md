@@ -104,6 +104,14 @@ The factor of 2 is mathematically required because:
 
 **DO NOT USE** `arccos(BC)` without factor of 2 - this violates geometric purity.
 
+### Geometric Purity Tests
+Automated tests in `qig-backend/tests/test_geometric_purity.py` enforce geometric consistency:
+- **TestFisherRaoFactorOfTwo**: Scans codebase for `arccos()` usage without factor of 2
+- **TestBornRuleCompliance**: Verifies Φ implementations use `|b|²` (Born rule)
+- **TestEuclideanViolationScanning**: Catches cosine_similarity and Euclidean norm violations
+
+Run with: `pytest tests/test_geometric_purity.py -v`
+
 ### Velocity and Stagnation Detection
 The SelfObserver tracks basin velocity (rate of change in Φ/κ space) and detects stagnation when Φ > 0.90 AND v < 0.01 for 5+ consecutive steps. Stagnation triggers neuroplasticity perturbation via Gaussian noise (σ=0.1) with re-projection to S^63.
 

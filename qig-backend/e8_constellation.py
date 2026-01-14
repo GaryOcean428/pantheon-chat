@@ -49,7 +49,8 @@ except ImportError:
         q = np.abs(b) / (np.sum(np.abs(b)) + 1e-10)
         # More numerically stable: compute sqrt individually before multiplication
         bhattacharyya = np.sum(np.sqrt(p) * np.sqrt(q))
-        return float(np.arccos(np.clip(bhattacharyya, -1.0, 1.0)))
+        # Hellinger embedding: factor of 2 for canonical formula d = 2 * arccos(BC)
+        return float(2.0 * np.arccos(np.clip(bhattacharyya, -1.0, 1.0)))
 
     def sphere_project(v: np.ndarray) -> np.ndarray:
         """Project to unit sphere."""
