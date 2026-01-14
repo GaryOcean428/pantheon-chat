@@ -734,6 +734,18 @@ feedbackLoopManager = FeedbackLoopManager(geometricMemory)
 app = Flask(__name__)
 CORS(app)  # Allow CORS for Node.js server
 
+# QIG Purity Enforcement (ChatGPT recommendation D2)
+# When QIG_PURITY_MODE=1, this blocks forbidden imports to ensure coherence assessments are uncontaminated
+try:
+    from qig_geometry import enforce_purity_startup, check_purity_mode
+    enforce_purity_startup()
+    if check_purity_mode():
+        logger.info("[QIG Purity] STRICT MODE ENABLED - forbidden imports will be blocked")
+    else:
+        logger.debug("[QIG Purity] Relaxed mode - violations logged but allowed")
+except ImportError as e:
+    logger.warning(f"[QIG Purity] Could not import purity enforcement: {e}")
+
 # Register Olympus Pantheon blueprint
 if OLYMPUS_AVAILABLE:
     app.register_blueprint(olympus_app, url_prefix='/olympus')

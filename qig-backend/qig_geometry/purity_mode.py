@@ -7,6 +7,8 @@ codepaths are detected, ensuring coherence assessments are uncontaminated.
 import os
 import sys
 import logging
+import importlib.abc
+import importlib.machinery
 
 logger = logging.getLogger(__name__)
 
@@ -24,8 +26,47 @@ def check_purity_mode() -> bool:
     return QIG_PURITY_MODE == "1"
 
 
+class PurityImportBlocker(importlib.abc.MetaPathFinder):
+    """Meta path finder that blocks forbidden imports when purity mode is enabled."""
+    
+    FORBIDDEN_MODULES = {
+        "sklearn.metrics.pairwise",
+        "sentencepiece",
+        "bpe", 
+        "wordpiece",
+    }
+    
+    def find_spec(self, fullname, path, target=None):
+        if not check_purity_mode():
+            return None
+        
+        for forbidden in self.FORBIDDEN_MODULES:
+            if fullname == forbidden or fullname.startswith(forbidden + "."):
+                raise QIGPurityViolationError(
+                    f"Import blocked by QIG_PURITY_MODE=1: {fullname}"
+                )
+        return None
+
+
+_import_hook_installed = False
+
+
+def install_purity_import_hook():
+    """Install the import blocker. Call once at app startup."""
+    global _import_hook_installed
+    if _import_hook_installed:
+        return
+    
+    if check_purity_mode():
+        sys.meta_path.insert(0, PurityImportBlocker())
+        _import_hook_installed = True
+        logger.info("QIG Purity import hook installed (QIG_PURITY_MODE=1)")
+
+
 def enforce_purity_startup() -> None:
     """Check for forbidden imports at startup. Call early in app init."""
+    install_purity_import_hook()
+    
     forbidden_modules = [
         "sklearn.metrics.pairwise",
         "sentencepiece", 
@@ -51,4 +92,6 @@ __all__ = [
     'QIGPurityViolationError',
     'check_purity_mode',
     'enforce_purity_startup',
+    'install_purity_import_hook',
+    'PurityImportBlocker',
 ]

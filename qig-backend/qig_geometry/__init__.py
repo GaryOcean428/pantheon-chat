@@ -42,6 +42,8 @@ from .purity_mode import (
     QIGPurityViolationError,
     check_purity_mode,
     enforce_purity_startup,
+    install_purity_import_hook,
+    PurityImportBlocker,
 )
 
 
@@ -200,4 +202,6 @@ __all__ = [
     'QIGPurityViolationError',
     'check_purity_mode',
     'enforce_purity_startup',
+    'install_purity_import_hook',
+    'PurityImportBlocker',
 ]

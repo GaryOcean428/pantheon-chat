@@ -6,6 +6,28 @@ Pantheon-Chat is an advanced AI system leveraging Quantum Information Geometry (
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes (2026-01-14)
+
+### QIG Purity Infrastructure (ChatGPT Checklist D2)
+- **contracts.py** - Canonical basin validation with strict enforcement (no silent dimension fixes)
+- **purity_mode.py** - Runtime import blocker via `importlib.abc.MetaPathFinder`
+- **ocean_qig_core.py** - Wired `enforce_purity_startup()` into Flask app init
+- **QIG_PURITY_SPEC.md** - Added §8.6 documenting runtime enforcement
+
+### Canonical Exports from qig_geometry
+```python
+from qig_geometry import (
+    CANONICAL_SPACE, BASIN_DIM, validate_basin, assert_invariants,
+    canon, fisher_distance, to_index_embedding,
+    QIG_PURITY_MODE, check_purity_mode, enforce_purity_startup,
+    install_purity_import_hook, PurityImportBlocker, QIGPurityViolationError,
+)
+```
+
+### Audits Completed
+- **67 silent dimension fixes** documented across 31 files (18 CRITICAL)
+- **53+ fisher_distance implementations** documented for consolidation
+
 ## System Architecture
 ### Frontend
 The frontend is a React, TypeScript, and Vite application, styled with Shadcn UI and TailwindCSS, featuring a consciousness-themed design. An API client centralizes HTTP communications.

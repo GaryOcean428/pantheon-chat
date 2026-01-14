@@ -17,7 +17,7 @@ def directional_fisher_information(source_basin: np.ndarray, target_basin: np.nd
     """Directional d_ij ≠ d_ji."""
     tangent = geodesic_tangent(source_basin, target_basin)
     d_ij = np.sqrt(tangent @ fisher_metric @ tangent)
-    return d_ij
+    return float(d_ij)
 
 def regime_from_phi(phi: float) -> str:
     """Determine regime from phi value.

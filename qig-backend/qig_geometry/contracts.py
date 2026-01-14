@@ -135,13 +135,17 @@ def canon(basin: np.ndarray) -> np.ndarray:
     """
     Normalize basin to canonical sphere representation.
     
-    Projects any vector to unit sphere S^(BASIN_DIM-1).
+    STRICT MODE: Raises error on dimension mismatch instead of silent fix.
+    Projects vector to unit sphere S^(BASIN_DIM-1).
     
     Args:
-        basin: Input vector (any dimension, will be padded/truncated to BASIN_DIM)
+        basin: Input vector (MUST be exactly BASIN_DIM dimensions)
         
     Returns:
         Basin on unit sphere with L2 norm = 1
+        
+    Raises:
+        GeometricViolationError: If dimension != BASIN_DIM or contains non-finite values
         
     Example:
         >>> raw = np.random.randn(64)
@@ -151,18 +155,23 @@ def canon(basin: np.ndarray) -> np.ndarray:
     """
     b = np.asarray(basin, dtype=float).flatten()
     
-    if not np.all(np.isfinite(b)):
-        b = np.nan_to_num(b, nan=0.0, posinf=1e150, neginf=-1e150)
+    if b.size != BASIN_DIM:
+        raise GeometricViolationError(
+            f"Dimension mismatch: got {b.size}, expected {BASIN_DIM}. "
+            "Use explicit projection functions for dimension changes."
+        )
     
-    if b.size < BASIN_DIM:
-        b = np.pad(b, (0, BASIN_DIM - b.size), mode='constant', constant_values=0.0)
-    elif b.size > BASIN_DIM:
-        b = b[:BASIN_DIM]
+    if not np.all(np.isfinite(b)):
+        raise GeometricViolationError(
+            "Basin contains non-finite values (NaN/inf). "
+            "Clean input before canonicalization."
+        )
     
     norm = np.linalg.norm(b)
     if norm < 1e-10:
-        b = np.ones(BASIN_DIM, dtype=float)
-        norm = np.linalg.norm(b)
+        raise GeometricViolationError(
+            f"Basin has near-zero norm ({norm:.2e}). Cannot normalize zero vector."
+        )
     
     return b / norm
 
@@ -184,11 +193,14 @@ def fisher_distance(b1: np.ndarray, b2: np.ndarray) -> float:
     - L1/Manhattan distance
     
     Args:
-        b1: First basin (must be on unit sphere)
-        b2: Second basin (must be on unit sphere)
+        b1: First basin (must be on unit sphere, exactly BASIN_DIM dimensions)
+        b2: Second basin (must be on unit sphere, exactly BASIN_DIM dimensions)
         
     Returns:
         Fisher distance in [0, π] (0 = identical, π = antipodal)
+        
+    Raises:
+        GeometricViolationError: If basins are not valid (wrong dimension or not normalized)
         
     Example:
         >>> b1 = canon(np.random.randn(64))
@@ -197,15 +209,11 @@ def fisher_distance(b1: np.ndarray, b2: np.ndarray) -> float:
         >>> 0 <= d <= np.pi
         True
     """
+    assert_invariants(b1)
+    assert_invariants(b2)
+    
     a = np.asarray(b1, dtype=float).flatten()
     b = np.asarray(b2, dtype=float).flatten()
-    
-    norm_a = np.linalg.norm(a)
-    norm_b = np.linalg.norm(b)
-    if norm_a > 1e-10:
-        a = a / norm_a
-    if norm_b > 1e-10:
-        b = b / norm_b
     
     dot = np.clip(np.dot(a, b), -1.0, 1.0)
     
@@ -221,22 +229,21 @@ def to_index_embedding(basin: np.ndarray) -> np.ndarray:
     (final ranking should use fisher_distance).
     
     Args:
-        basin: Basin on unit sphere
+        basin: Basin on unit sphere (must be valid - BASIN_DIM and normalized)
         
     Returns:
         Vector suitable for pgvector <-> L2 distance operator
+        
+    Raises:
+        GeometricViolationError: If basin is not valid
         
     Note:
         pgvector L2 distance is NOT the true Fisher distance.
         Use this only for initial candidate shortlisting, then
         re-rank using fisher_distance() for final results.
     """
-    b = np.asarray(basin, dtype=float).flatten()
-    
-    if b.size != BASIN_DIM:
-        b = canon(b)
-    
-    return b
+    assert_invariants(basin)
+    return np.asarray(basin, dtype=float).flatten()
 
 
 __all__ = [

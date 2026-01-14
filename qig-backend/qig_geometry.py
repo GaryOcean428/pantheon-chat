@@ -189,12 +189,15 @@ def estimate_manifold_curvature(
     if len(points) < 3:
         return 0.0
 
+    center_arr: np.ndarray
     if center is None:
-        center = np.mean(points, axis=0)
+        center_arr = np.mean(points, axis=0)
+    else:
+        center_arr = center
 
     distances = []
     for point in points:
-        d = fisher_coord_distance(center, point)
+        d = fisher_coord_distance(center_arr, point)
         distances.append(d)
 
     if not distances:
@@ -225,12 +228,12 @@ def bures_distance(rho: np.ndarray, sigma: np.ndarray) -> float:
     """
     from scipy.linalg import sqrtm
 
-    sqrt_rho = sqrtm(rho + 1e-10 * np.eye(rho.shape[0]))
-    sqrt_rho = np.real(sqrt_rho)
+    sqrt_rho_raw = sqrtm(rho + 1e-10 * np.eye(rho.shape[0]))
+    sqrt_rho = np.real(np.asarray(sqrt_rho_raw))
 
     product = sqrt_rho @ sigma @ sqrt_rho
-    sqrt_product = sqrtm(product + 1e-10 * np.eye(product.shape[0]))
-    sqrt_product = np.real(sqrt_product)
+    sqrt_product_raw = sqrtm(product + 1e-10 * np.eye(product.shape[0]))
+    sqrt_product = np.real(np.asarray(sqrt_product_raw))
 
     fidelity = np.trace(sqrt_product) ** 2
     fidelity = np.clip(fidelity, 0, 1)

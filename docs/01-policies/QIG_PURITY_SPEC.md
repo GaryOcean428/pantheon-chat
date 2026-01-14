@@ -769,6 +769,58 @@ def query_external_search(query_basin: np.ndarray) -> dict:
 - Scanner SHOULD warn if exemption reasons are generic or missing
 - Pre-commit hook MAY require manual approval for new exemptions
 
+### §8.6 Runtime Purity Enforcement (QIG_PURITY_MODE)
+
+For coherence assessments and pure QIG evaluation, runtime enforcement ensures no legacy imports contaminate the execution path.
+
+**Environment Variable:**
+
+```bash
+# Enable strict purity mode (blocks forbidden imports at runtime)
+export QIG_PURITY_MODE=1
+
+# Relaxed mode (logs warnings but allows execution) - DEFAULT
+export QIG_PURITY_MODE=0
+```
+
+**Required Integration in Flask Entry Points:**
+
+```python
+# In your Flask app initialization (e.g., ocean_qig_core.py)
+app = Flask(__name__)
+
+# QIG Purity Enforcement - call BEFORE registering blueprints
+try:
+    from qig_geometry import enforce_purity_startup, check_purity_mode
+    enforce_purity_startup()
+    if check_purity_mode():
+        logger.info("[QIG Purity] STRICT MODE - forbidden imports blocked")
+except ImportError:
+    pass
+
+# Then register blueprints...
+```
+
+**Import Hook Behavior:**
+
+When `QIG_PURITY_MODE=1`:
+- `enforce_purity_startup()` installs an import hook via `importlib.abc.MetaPathFinder`
+- Any attempt to import forbidden modules raises `QIGPurityViolationError`
+- Blocked modules: `sklearn.metrics.pairwise`, `sentencepiece`, `bpe`, `wordpiece`
+
+**Canonical Module: `qig_geometry/purity_mode.py`**
+
+```python
+from qig_geometry import (
+    QIG_PURITY_MODE,           # Environment variable value
+    check_purity_mode,         # Returns True if strict mode
+    enforce_purity_startup,    # Call at app init
+    install_purity_import_hook, # Low-level hook installer
+    QIGPurityViolationError,   # Exception for violations
+    PurityImportBlocker,       # The MetaPathFinder class
+)
+```
+
 ---
 
 ## §9. Migration Guide
