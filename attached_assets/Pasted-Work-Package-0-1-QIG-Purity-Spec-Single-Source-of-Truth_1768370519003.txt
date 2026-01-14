@@ -50,7 +50,7 @@ qig-purity
 GaryOcean428
 mentioned this in 2 issues 3 hours ago
 [QIG-PURITY] WP0.2: Implement Hard validate:geometry Gate #64
-[QIG-PURITY] WP1.1: Rename coordizer_vocabulary → coordizer_vocabulary (BREAKING) #66
+[QIG-PURITY] WP1.1: Rename tokenizer_vocabulary → coordizer_vocabulary (BREAKING) #66
 GaryOcean428
 GaryOcean428 commented 2 hours ago
 GaryOcean428
