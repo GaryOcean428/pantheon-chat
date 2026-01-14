@@ -317,7 +317,7 @@ class AutonomousImprovementLoop:
             if hasattr(kernel, 'provider_selector'):
                 telemetry = None
                 if hasattr(kernel, 'measure_phi') and hasattr(kernel, 'measure_kappa'):
-                    from geometric_search import SearchTelemetry
+                    from geometric_search import SearchTelemetry  # type: ignore[attr-defined]
                     telemetry = SearchTelemetry(
                         phi=kernel.measure_phi(),
                         kappa_eff=kernel.measure_kappa(),

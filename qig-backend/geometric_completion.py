@@ -40,10 +40,10 @@ try:
 except ImportError:
     FISHER_AVAILABLE = False
     def fisher_rao_distance(p, q):
-        """Fallback Fisher-Rao distance (Hellinger embedding: factor of 2)."""
-        p = np.abs(p) + 1e-10
+        """Fallback Fisher-Rao distance (Hellinger embedding: factor of 2, Born rule: |b|²)."""
+        p = np.abs(p) ** 2 + 1e-10
         p = p / p.sum()
-        q = np.abs(q) + 1e-10
+        q = np.abs(q) ** 2 + 1e-10
         q = q / q.sum()
         bc = np.sum(np.sqrt(p * q))
         bc = np.clip(bc, 0, 1)

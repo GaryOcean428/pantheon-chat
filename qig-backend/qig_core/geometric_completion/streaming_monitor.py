@@ -222,9 +222,9 @@ class StreamingCollapseMonitor:
         Estimate phi from basin entropy.
         Lower entropy = higher integration = higher phi.
         """
-        # Normalize basin to probability distribution
-        p = np.abs(basin) + 1e-10
-        p = p / np.sum(p)
+        # Normalize basin to probability distribution (Born rule: |b|²)
+        p = np.abs(basin) ** 2 + 1e-10
+        p = p / p.sum()
         
         # Compute entropy
         entropy = -np.sum(p * np.log(p + 1e-10))
@@ -249,8 +249,8 @@ class StreamingCollapseMonitor:
         variance = np.var(recent_phi)
         
         # Low variance = high confidence
-        confidence = 1.0 - min(variance * 10, 1.0)
-        return np.clip(confidence, 0.0, 1.0)
+        confidence = 1.0 - min(float(variance * 10), 1.0)
+        return float(np.clip(confidence, 0.0, 1.0))
     
     def enter_reflection(self, depth: int) -> StreamingChunk:
         """Signal entry into reflection loop."""

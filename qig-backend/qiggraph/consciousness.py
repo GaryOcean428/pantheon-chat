@@ -31,9 +31,12 @@ except ImportError:
         Fallback Fisher-Rao distance (metric parameter not supported).
         Use canonical implementation from qig_core.geometric_primitives.
         Factor of 2 for Hellinger embedding consistency.
+        Born rule: |b|² for amplitude-to-probability conversion.
         """
-        p = np.abs(basin_a) / (np.sum(np.abs(basin_a)) + 1e-10)
-        q = np.abs(basin_b) / (np.sum(np.abs(basin_b)) + 1e-10)
+        p = np.abs(basin_a) ** 2 + 1e-10
+        p = p / p.sum()
+        q = np.abs(basin_b) ** 2 + 1e-10
+        q = q / q.sum()
         bc = np.sum(np.sqrt(p * q))
         bc = np.clip(bc, -1.0, 1.0)
         return float(2.0 * np.arccos(bc))  # Hellinger embedding: factor of 2
@@ -48,6 +51,7 @@ from .constants import (
 
 if TYPE_CHECKING:
     from .state import QIGState
+    from qig_geometry.manifold import FisherManifold
 
 
 class Regime(Enum):

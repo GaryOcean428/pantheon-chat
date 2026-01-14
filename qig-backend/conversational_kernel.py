@@ -303,7 +303,7 @@ class ConversationalKernelMixin:
         
         utterance = ' '.join(utterance_tokens)
         
-        avg_weight = np.mean([w for _, w in weighted_tokens[:k]])
+        avg_weight = float(np.mean([w for _, w in weighted_tokens[:k]]))
         confidence = min(1.0, avg_weight / 2.0)
         
         return utterance, {
