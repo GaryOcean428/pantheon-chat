@@ -21,6 +21,7 @@ from typing import List, Dict, Optional, Any
 import numpy as np
 from functools import lru_cache
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from qig_geometry import fisher_coord_distance
 
 BASIN_DIMENSION = 64
 EXTERNAL_WEIGHT = 0.7  # Weight external results lower than local
@@ -456,7 +457,6 @@ class ExternalKnowledgeBase:
         basin2 = np.asarray(basin2, dtype=np.float64)
         
         # Use canonical Fisher-Rao coordinate distance
-        from qig_geometry import fisher_coord_distance
         return fisher_coord_distance(basin1, basin2)
 
 

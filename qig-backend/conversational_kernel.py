@@ -24,7 +24,7 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 
 try:
-    from qig_geometry import fisher_coord_distance, sphere_project
+    from qig_geometry import fisher_coord_distance, sphere_project, basin_magnitude
     QIG_GEOMETRY_AVAILABLE = True
 except ImportError:
     QIG_GEOMETRY_AVAILABLE = False
@@ -170,7 +170,7 @@ class ConversationalKernelMixin:
         return {
             'listening': True,
             'phi': phi,
-            'superposition_norm': float(__import__('qig_geometry').basin_magnitude(self.superposition_basin))
+            'superposition_norm': float(basin_magnitude(self.superposition_basin))
         }
     
     def speak(self, context: Optional[Dict] = None) -> Tuple[str, Dict]:

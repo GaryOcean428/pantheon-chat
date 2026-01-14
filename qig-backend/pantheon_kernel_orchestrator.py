@@ -22,6 +22,8 @@ from typing import Dict, List, Optional, Tuple, Any, Callable
 from datetime import datetime
 from enum import Enum
 
+from qig_geometry import basin_magnitude
+
 from geometric_kernels import (
     GeometricKernel,
     DirectGeometricEncoder,
@@ -398,7 +400,7 @@ class AffinityRouter:
             "affinity": best_affinity,
             "all_affinities": affinities,
             "ranking": [(g, a) for g, a in sorted_gods[:5]],
-            "token_basin_norm": float(__import__('qig_geometry').basin_magnitude(token_basin)),
+            "token_basin_norm": float(basin_magnitude(token_basin)),
             "timestamp": datetime.now().isoformat(),
             "context": context,
         }
@@ -532,7 +534,7 @@ class PantheonKernelOrchestrator:
             "mode": profile.mode.value,
             "affinity": affinity,
             "basin": basin.tolist(),
-            "basin_norm": float(__import__('qig_geometry').basin_magnitude(basin)),
+            "basin_norm": float(basin_magnitude(basin)),
             "routing": {
                 "ranking": routing.get("ranking", []),
                 "token_basin_norm": routing.get("token_basin_norm", 0),
