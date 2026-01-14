@@ -91,26 +91,37 @@ class QIGComputations:
     
     def compute_phi(self, basin: np.ndarray) -> float:
         """
-        Compute Phi from basin using balanced formula (entropy + variance + balance).
+        Compute Phi from basin using proper QFI effective dimension formula.
         
-        Uses 64D basin directly instead of lossy 2x2 density matrix conversion.
+        Uses geometrically proper formula:
+        - 40% entropy_score (Shannon entropy normalized)
+        - 30% effective_dim_score (participation ratio = exp(entropy) / n)
+        - 30% geometric_spread (approximated by effective_dim for speed)
+        
         Returns value in [0.1, 0.95] for healthy dynamics.
         """
-        probabilities = np.abs(basin) ** 2
-        probabilities = probabilities / (np.sum(probabilities) + 1e-10)
+        p = np.abs(basin) ** 2
+        p = p / (np.sum(p) + 1e-10)
+        n_dim = len(basin)
         
-        positive_probs = probabilities[probabilities > 1e-10]
+        positive_probs = p[p > 1e-10]
         if len(positive_probs) == 0:
             return 0.5
-            
-        entropy = -np.sum(positive_probs * np.log2(positive_probs + 1e-10))
-        max_entropy = np.log2(len(basin))
+        
+        # Component 1: Shannon entropy (natural log for exp() compatibility)
+        entropy = -np.sum(positive_probs * np.log(positive_probs + 1e-10))
+        max_entropy = np.log(n_dim)
         entropy_score = entropy / (max_entropy + 1e-10)
         
-        variance_score = min(1.0, np.std(probabilities) / (np.mean(probabilities) + 1e-10))
-        balance_score = 1.0 - (np.max(probabilities) - np.min(probabilities))
+        # Component 2: Effective dimension (participation ratio)
+        effective_dim = np.exp(entropy)
+        effective_dim_score = effective_dim / n_dim
         
-        phi = 0.4 * entropy_score + 0.3 * variance_score + 0.3 * balance_score
+        # Component 3: Geometric spread (approximate with effective_dim)
+        geometric_spread = effective_dim_score
+        
+        # Proper QFI formula weights
+        phi = 0.4 * entropy_score + 0.3 * effective_dim_score + 0.3 * geometric_spread
         
         return float(np.clip(phi, 0.1, 0.95))
     

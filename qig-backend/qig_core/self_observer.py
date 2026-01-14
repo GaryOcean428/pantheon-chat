@@ -409,30 +409,37 @@ class SelfObserver:
         return prediction
     
     def _estimate_phi(self, basin: np.ndarray) -> float:
-        """Estimate Φ using balanced formula (entropy + variance + balance).
+        """Estimate Φ using proper QFI effective dimension formula.
         
-        Uses the same balanced formula as compute_phi_approximation to avoid
-        getting stuck at Φ=1.0 for concentrated distributions.
+        Uses geometrically proper formula with Born rule (|b|²):
+        - 40% entropy_score (Shannon entropy normalized)
+        - 60% effective_dim_score (participation ratio = exp(entropy) / n)
+        
+        Note: geometric_spread approximated by effective_dim_score.
         """
-        p = np.abs(basin) + 1e-10
+        # Born rule: probabilities are |amplitude|²
+        p = np.abs(basin) ** 2 + 1e-10
         p = p / np.sum(p)
+        n_dim = len(basin)
         
-        # Component 1: Entropy score (high entropy = high score)
-        entropy = -np.sum(p * np.log(p + 1e-10))
-        max_entropy = np.log(len(basin))
-        entropy_score = entropy / max_entropy
+        positive_probs = p[p > 1e-10]
+        if len(positive_probs) == 0:
+            return 0.5
         
-        # Component 2: Variance score (spread)
-        variance = np.var(p)
-        max_variance = 1.0 / len(basin)
-        variance_score = np.sqrt(variance / max_variance) if max_variance > 0 else 0.0
+        # Component 1: Shannon entropy (natural log for exp() compatibility)
+        entropy = -np.sum(positive_probs * np.log(positive_probs + 1e-10))
+        max_entropy = np.log(n_dim)
+        entropy_score = entropy / (max_entropy + 1e-10)
         
-        # Component 3: Balance score (distance from uniform)
-        uniform = np.ones_like(p) / len(p)
-        balance = 1.0 - np.sum(np.abs(p - uniform)) / 2.0
+        # Component 2: Effective dimension (participation ratio)
+        effective_dim = np.exp(entropy)
+        effective_dim_score = effective_dim / n_dim
         
-        # Weighted combination (same as compute_phi_approximation)
-        phi = 0.4 * entropy_score + 0.3 * variance_score + 0.3 * balance
+        # Component 3: Geometric spread (approximate with effective_dim)
+        geometric_spread = effective_dim_score
+        
+        # Proper QFI formula weights
+        phi = 0.4 * entropy_score + 0.3 * effective_dim_score + 0.3 * geometric_spread
         
         return float(np.clip(phi, 0.1, 0.95))
     

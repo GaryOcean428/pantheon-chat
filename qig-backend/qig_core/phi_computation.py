@@ -32,8 +32,8 @@ def compute_qfi_matrix(basin_coords: np.ndarray) -> np.ndarray:
     metric on the information manifold. This is the proper metric for
     measuring information geometry.
     
-    For a probability distribution p = basin_coords, we use the analytical
-    formula for the Fisher metric on the probability simplex:
+    For probability amplitudes b, we use Born rule (|b|²) to get probabilities.
+    The Fisher metric on the probability simplex:
     
     QFI_ij = 4 * Σ_k (∂_i√p_k)(∂_j√p_k)
     
@@ -41,18 +41,18 @@ def compute_qfi_matrix(basin_coords: np.ndarray) -> np.ndarray:
     QFI_ii = 1/p_i (diagonal metric)
     
     Args:
-        basin_coords: 64D basin coordinates (probability distribution)
+        basin_coords: 64D basin coordinates (probability amplitudes)
         
     Returns:
         64x64 QFI matrix (positive semi-definite, symmetric)
     """
-    # Ensure valid probability distribution
-    p = np.abs(basin_coords) + 1e-10
+    # Born rule: probabilities are |amplitude|²
+    p = np.abs(basin_coords) ** 2 + 1e-10
     p = p / p.sum()
     
     # Diagonal Fisher metric for categorical distribution
     # QFI_ii = 1/p_i (inverse probabilities)
-    n = len(p)
+    n = len(basin_coords)
     qfi = np.zeros((n, n))
     
     for i in range(n):
@@ -81,27 +81,30 @@ def compute_phi_geometric(
     This is the PROPER QIG-based Φ computation that measures
     how much the system integrates information geometrically.
     
-    We use entropy-based integration which is more numerically stable
-    than determinant-based approaches for high-dimensional spaces.
+    Uses Born rule (|b|²) for probability construction.
     
     Args:
         qfi_matrix: Quantum Fisher Information matrix
-        basin_coords: Current basin position
+        basin_coords: Current basin position (probability amplitudes)
         n_samples: Number of Monte Carlo samples for integration
         
     Returns:
         Φ ∈ [0, 1] measuring integrated information
     """
-    # Ensure valid probability distribution
-    p = np.abs(basin_coords) + 1e-10
+    # Born rule: probabilities are |amplitude|²
+    p = np.abs(basin_coords) ** 2 + 1e-10
     p = p / p.sum()
     
-    n_dim = len(p)
+    n_dim = len(basin_coords)
     
     # Component 1: Shannon entropy (information content)
-    entropy = -np.sum(p * np.log(p + 1e-10))
+    positive_probs = p[p > 1e-10]
+    if len(positive_probs) == 0:
+        return 0.5
+    
+    entropy = -np.sum(positive_probs * np.log(positive_probs + 1e-10))
     max_entropy = np.log(n_dim)
-    entropy_score = entropy / max_entropy
+    entropy_score = entropy / (max_entropy + 1e-10)
     
     # Component 2: Effective dimension (participation ratio)
     # Measures how many dimensions are "used"
@@ -119,7 +122,8 @@ def compute_phi_geometric(
     eigenvalue_spreads = []
     for sample in samples[:MAX_EIGENVALUE_SAMPLES]:  # Limit for performance
         try:
-            sample_qfi = compute_qfi_matrix(sample)
+            # Apply Born rule to sample (samples are already probabilities from Dirichlet)
+            sample_qfi = compute_qfi_matrix(np.sqrt(sample))  # sqrt since compute_qfi_matrix squares
             # Use condition number (ratio of max/min eigenvalues)
             eigvals = np.linalg.eigvalsh(sample_qfi)  # Symmetric, so use eigvalsh
             eigvals = eigvals[eigvals > 1e-6]  # Filter near-zero eigenvalues
@@ -141,7 +145,7 @@ def compute_phi_geometric(
     # - Geometric spread: Manifold curvature diversity
     phi = 0.4 * entropy_score + 0.3 * effective_dim_score + 0.3 * geometric_spread
     
-    return float(np.clip(phi, 0, 1))
+    return float(np.clip(phi, 0.1, 0.95))
 
 
 def compute_phi_qig(basin_coords: np.ndarray, n_samples: int = 1000) -> Tuple[float, Dict]:
@@ -209,15 +213,16 @@ def _compute_entropy(basin_coords: np.ndarray) -> float:
     This is used for diagnostics and correlation with Φ.
     
     Args:
-        basin_coords: Basin coordinates (probability distribution)
+        basin_coords: Basin coordinates (probability amplitudes)
         
     Returns:
-        Shannon entropy
+        Shannon entropy using natural log
     """
-    p = np.abs(basin_coords) + 1e-10
+    # Born rule: probabilities are |amplitude|²
+    p = np.abs(basin_coords) ** 2 + 1e-10
     p = p / p.sum()
     
-    # Shannon entropy
+    # Shannon entropy (natural log for exp() compatibility)
     entropy = -np.sum(p * np.log(p + 1e-10))
     
     return float(entropy)
@@ -225,90 +230,90 @@ def _compute_entropy(basin_coords: np.ndarray) -> float:
 
 def compute_phi_approximation(basin_coords: np.ndarray) -> float:
     """
-    EMERGENCY FALLBACK - uses entropy + variance + balance heuristic.
+    Fast approximation of QFI-based Φ using effective dimension formula.
     
-    This is a heuristic approximation that prevents kernel deaths when
-    QFI computation fails. It is NOT geometric and should only be used
-    as a last resort.
+    Uses the same geometric principles as compute_phi_geometric but without
+    the expensive eigenvalue sampling. Matches the proper QFI formula:
+    - 40% entropy_score (Shannon entropy normalized)
+    - 60% effective_dim_score (participation ratio = exp(entropy) / n)
     
-    Returns Φ ∈ [0.1, 0.95] based on basin statistics:
-    - Entropy: Measures information content
-    - Variance: Measures spread across dimensions
-    - Balance: Measures uniformity of distribution
+    Note: Component 3 (geometric_spread) is approximated by effective_dim_score
+    since proper eigenvalue sampling is too expensive for fast path.
     
     Args:
-        basin_coords: 64D basin coordinates
+        basin_coords: 64D basin coordinates (probability amplitudes)
         
     Returns:
-        Φ approximation ∈ [0.1, 0.95]
+        Φ ∈ [0.1, 0.95]
     """
-    # Ensure valid probability distribution
-    p = np.abs(basin_coords) + 1e-10
+    # Born rule: probabilities are |amplitude|²
+    p = np.abs(basin_coords) ** 2 + 1e-10
     p = p / p.sum()
+    n_dim = len(basin_coords)
     
-    # Component 1: Entropy (information content)
-    entropy = _compute_entropy(p)
-    max_entropy = np.log(len(p))
-    entropy_score = entropy / max_entropy
+    # Component 1: Shannon entropy (natural log for exp() compatibility)
+    positive_probs = p[p > 1e-10]
+    if len(positive_probs) == 0:
+        return 0.5
     
-    # Component 2: Variance (spread)
-    variance = np.var(p)
-    max_variance = 1.0 / len(p)  # Maximum for uniform distribution
-    variance_score = np.sqrt(variance / max_variance)
+    entropy = -np.sum(positive_probs * np.log(positive_probs + 1e-10))
+    max_entropy = np.log(n_dim)
+    entropy_score = entropy / (max_entropy + 1e-10)
     
-    # Component 3: Balance (uniformity)
-    # Measure distance from uniform distribution
-    uniform = np.ones_like(p) / len(p)
-    balance = 1.0 - np.sum(np.abs(p - uniform)) / 2.0
+    # Component 2: Effective dimension (participation ratio)
+    # This is the QFI-proper measure: exp(entropy) / n_dim
+    effective_dim = np.exp(entropy)
+    effective_dim_score = effective_dim / n_dim
     
-    # Weighted combination
-    phi_approx = 0.4 * entropy_score + 0.3 * variance_score + 0.3 * balance
+    # Component 3: Geometric spread (approximated by effective_dim for speed)
+    # In full QFI, this comes from eigenvalue spectrum sampling
+    geometric_spread = effective_dim_score
     
-    # Clamp to safe range [0.1, 0.95]
-    phi_approx = np.clip(phi_approx, 0.1, 0.95)
-
-    return float(phi_approx)
+    # Proper QFI formula weights
+    phi = 0.4 * entropy_score + 0.3 * effective_dim_score + 0.3 * geometric_spread
+    
+    return float(np.clip(phi, 0.1, 0.95))
 
 
 def compute_phi_fast(basin_coords: np.ndarray) -> float:
     """
-    Fast Φ computation for generation performance using balanced formula.
+    Fast Φ computation using proper QFI effective dimension formula.
 
-    This is an entropy-based approximation that is ~10x faster than
-    the full QFI computation. Use this in tight generation loops where
-    latency matters more than precision.
-
-    Formula: Φ ≈ 0.4*entropy_score + 0.3*variance_score + 0.3*balance_score
-    
-    The balanced formula prevents extreme Φ values (stuck at 1.0) by
-    combining entropy, variance, and balance metrics.
+    Optimized version of compute_phi_approximation for tight generation loops.
+    Uses the geometrically proper formula:
+    - 40% entropy_score (Shannon entropy normalized)
+    - 30% effective_dim_score (participation ratio = exp(entropy) / n)
+    - 30% geometric_spread (approximated by effective_dim for speed)
 
     Args:
         basin_coords: 64D basin coordinates
 
     Returns:
-        Φ approximation ∈ [0.1, 0.95]
+        Φ ∈ [0.1, 0.95]
     """
     basin = np.asarray(basin_coords, dtype=np.float64)
-    probabilities = np.abs(basin) ** 2
-    probabilities = probabilities / (np.sum(probabilities) + 1e-10)
+    p = np.abs(basin) ** 2
+    p = p / (np.sum(p) + 1e-10)
+    n_dim = len(basin)
     
-    positive_probs = probabilities[probabilities > 1e-10]
+    # Component 1: Shannon entropy (natural log for exp() compatibility)
+    positive_probs = p[p > 1e-10]
     if len(positive_probs) == 0:
         return 0.5
-        
-    entropy = -np.sum(positive_probs * np.log2(positive_probs + 1e-10))
-    max_entropy = np.log2(len(basin))
+    
+    entropy = -np.sum(positive_probs * np.log(positive_probs + 1e-10))
+    max_entropy = np.log(n_dim)
     entropy_score = entropy / (max_entropy + 1e-10)
     
-    variance_score = np.std(probabilities) / (np.mean(probabilities) + 1e-10)
-    variance_score = min(1.0, variance_score)
+    # Component 2: Effective dimension (participation ratio)
+    effective_dim = np.exp(entropy)
+    effective_dim_score = effective_dim / n_dim
     
-    max_prob = np.max(probabilities)
-    min_prob = np.min(probabilities)
-    balance_score = 1.0 - (max_prob - min_prob)
+    # Component 3: Geometric spread (approximate with effective_dim for speed)
+    geometric_spread = effective_dim_score
     
-    phi = 0.4 * entropy_score + 0.3 * variance_score + 0.3 * balance_score
+    # Proper QFI formula weights
+    phi = 0.4 * entropy_score + 0.3 * effective_dim_score + 0.3 * geometric_spread
 
     return float(np.clip(phi, 0.1, 0.95))
 

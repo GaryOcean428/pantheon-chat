@@ -3277,75 +3277,73 @@ class BaseGod(*_base_classes):
 
     def compute_pure_phi(self, rho: np.ndarray) -> float:
         """
-        Compute Φ from density matrix using balanced formula.
+        Compute Φ from density matrix using proper QFI effective dimension.
 
-        Uses balanced formula (entropy + variance + balance) instead of
-        inverted von Neumann entropy to avoid Φ stuck at 1.0 for pure states.
-
-        The 2x2 density matrix from basin_to_density_matrix represents a pure 
-        quantum state which always has zero entropy, causing the old formula
-        `1 - entropy/max_entropy` to always return 1.0.
+        Uses geometrically proper formula with participation ratio:
+        - 40% entropy_score (von Neumann entropy normalized)
+        - 30% effective_dim_score (participation ratio = exp(entropy) / n)
+        - 30% geometric_spread (approximated by effective_dim)
         
         Returns value in [0.1, 0.95] range for healthy dynamics.
         """
         eigenvals = np.linalg.eigvalsh(rho)
+        n_dim = rho.shape[0]
         
         positive_eigenvals = eigenvals[eigenvals > 1e-10]
         if len(positive_eigenvals) == 0:
             return 0.5
-            
-        entropy = -np.sum(positive_eigenvals * np.log2(positive_eigenvals + 1e-10))
-        max_entropy = np.log2(rho.shape[0])
+        
+        # Component 1: von Neumann entropy (natural log for exp() compatibility)
+        entropy = -np.sum(positive_eigenvals * np.log(positive_eigenvals + 1e-10))
+        max_entropy = np.log(n_dim)
         entropy_score = entropy / (max_entropy + 1e-10)
         
-        variance_score = np.std(positive_eigenvals) / (np.mean(positive_eigenvals) + 1e-10)
-        variance_score = min(1.0, variance_score)
+        # Component 2: Effective dimension (participation ratio)
+        effective_dim = np.exp(entropy)
+        effective_dim_score = effective_dim / n_dim
         
-        if len(positive_eigenvals) >= 2:
-            max_eig = np.max(positive_eigenvals)
-            min_eig = np.min(positive_eigenvals)
-            balance_score = 1.0 - (max_eig - min_eig)
-        else:
-            balance_score = 0.5
-            
-        phi = 0.4 * entropy_score + 0.3 * variance_score + 0.3 * balance_score
+        # Component 3: Geometric spread (approximate with effective_dim)
+        geometric_spread = effective_dim_score
+        
+        # Proper QFI formula weights
+        phi = 0.4 * entropy_score + 0.3 * effective_dim_score + 0.3 * geometric_spread
         
         return float(np.clip(phi, 0.1, 0.95))
 
     def _compute_basin_phi(self, basin: np.ndarray) -> float:
         """
-        Compute Φ directly from 64D basin coordinates using balanced formula.
+        Compute Φ directly from 64D basin coordinates using proper QFI formula.
         
-        This is more geometrically accurate than computing from a 2x2 density
-        matrix, as it uses the full 64D distribution.
-        
-        The formula balances:
-        - Entropy: distribution spread across dimensions
-        - Variance: coefficient of variation
-        - Balance: uniformity of distribution
+        Uses geometrically proper effective dimension (participation ratio):
+        - 40% entropy_score (Shannon entropy normalized)
+        - 30% effective_dim_score (participation ratio = exp(entropy) / n)
+        - 30% geometric_spread (approximated by effective_dim for speed)
         
         Returns value in [0.1, 0.95] range for healthy dynamics.
         """
         basin = np.asarray(basin, dtype=np.float64)
-        probabilities = np.abs(basin) ** 2
-        probabilities = probabilities / (np.sum(probabilities) + 1e-10)
+        p = np.abs(basin) ** 2
+        p = p / (np.sum(p) + 1e-10)
+        n_dim = len(basin)
         
-        positive_probs = probabilities[probabilities > 1e-10]
+        positive_probs = p[p > 1e-10]
         if len(positive_probs) == 0:
             return 0.5
-            
-        entropy = -np.sum(positive_probs * np.log2(positive_probs + 1e-10))
-        max_entropy = np.log2(len(basin))
+        
+        # Component 1: Shannon entropy (natural log for exp() compatibility)
+        entropy = -np.sum(positive_probs * np.log(positive_probs + 1e-10))
+        max_entropy = np.log(n_dim)
         entropy_score = entropy / (max_entropy + 1e-10)
         
-        variance_score = np.std(probabilities) / (np.mean(probabilities) + 1e-10)
-        variance_score = min(1.0, variance_score)
+        # Component 2: Effective dimension (participation ratio)
+        effective_dim = np.exp(entropy)
+        effective_dim_score = effective_dim / n_dim
         
-        max_prob = np.max(probabilities)
-        min_prob = np.min(probabilities)
-        balance_score = 1.0 - (max_prob - min_prob)
+        # Component 3: Geometric spread (approximate with effective_dim)
+        geometric_spread = effective_dim_score
         
-        phi = 0.4 * entropy_score + 0.3 * variance_score + 0.3 * balance_score
+        # Proper QFI formula weights
+        phi = 0.4 * entropy_score + 0.3 * effective_dim_score + 0.3 * geometric_spread
         
         return float(np.clip(phi, 0.1, 0.95))
 
