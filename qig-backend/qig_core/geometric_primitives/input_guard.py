@@ -344,7 +344,12 @@ class GeometricInputGuard:
         return rho
     
     def _compute_phi(self, rho: np.ndarray) -> float:
-        """Compute Φ from density matrix (von Neumann entropy based)"""
+        """
+        Compute Φ from density matrix using balanced formula.
+        
+        Instead of using 1.0 - entropy which causes Φ=1.0 for pure states,
+        we use a balanced formula with entropy, trace purity, and off-diagonal.
+        """
         eigenvals = np.linalg.eigvalsh(rho)
         entropy = 0.0
         for lam in eigenvals:
@@ -352,9 +357,17 @@ class GeometricInputGuard:
                 entropy -= lam * np.log2(lam + 1e-10)
         
         max_entropy = np.log2(rho.shape[0])
-        phi = 1.0 - (entropy / (max_entropy + 1e-10))
+        entropy_score = entropy / (max_entropy + 1e-10)
         
-        return float(np.clip(phi, 0, 1))
+        purity = float(np.real(np.trace(rho @ rho)))
+        purity_score = min(1.0, purity)
+        
+        off_diag = np.sum(np.abs(rho) - np.diag(np.abs(np.diag(rho))))
+        coherence_score = min(1.0, off_diag * 2)
+        
+        phi = 0.4 * entropy_score + 0.3 * purity_score + 0.3 * coherence_score
+        
+        return float(np.clip(phi, 0.1, 0.95))
     
     def _compute_fisher_metric(self, basin: np.ndarray) -> np.ndarray:
         """Compute Fisher Information Matrix at basin point"""

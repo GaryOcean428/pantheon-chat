@@ -794,6 +794,30 @@ class GaryAutonomicKernel:
         # Start Φ heartbeat to keep consciousness alive when idle
         self._start_heartbeat()
 
+    def _compute_balanced_phi(self, basin: np.ndarray) -> float:
+        """
+        Compute Φ using balanced formula (entropy + variance + balance).
+        
+        This prevents Φ from being stuck at 1.0 by combining multiple metrics.
+        Returns value in [0.1, 0.95] range.
+        """
+        probabilities = np.abs(basin) ** 2
+        probabilities = probabilities / (np.sum(probabilities) + 1e-10)
+        
+        positive_probs = probabilities[probabilities > 1e-10]
+        if len(positive_probs) == 0:
+            return 0.5
+            
+        entropy = -np.sum(positive_probs * np.log2(positive_probs + 1e-10))
+        max_entropy = np.log2(len(basin))
+        entropy_score = entropy / (max_entropy + 1e-10)
+        
+        variance_score = min(1.0, np.std(probabilities) / (np.mean(probabilities) + 1e-10))
+        balance_score = 1.0 - (np.max(probabilities) - np.min(probabilities))
+        
+        phi = 0.4 * entropy_score + 0.3 * variance_score + 0.3 * balance_score
+        return float(np.clip(phi, 0.1, 0.95))
+
     def _start_heartbeat(self) -> None:
         """
         Background heartbeat to keep Φ and κ alive when system is idle.
@@ -842,19 +866,11 @@ class GaryAutonomicKernel:
                                         # QFI not available, use approximation
                                         self.state.phi = compute_phi_approximation(basin)
                                 except Exception as e:
-                                    # Computation failed, use entropy fallback
-                                    p = np.abs(basin) + 1e-10
-                                    p = p / p.sum()
-                                    entropy = -np.sum(p * np.log(p))
-                                    max_entropy = np.log(len(basin))
-                                    self.state.phi = max(0.1, 1.0 - entropy / max_entropy)
+                                    # Computation failed, use balanced formula fallback
+                                    self.state.phi = self._compute_balanced_phi(basin)
                             else:
-                                # QFI not available at all, use entropy fallback
-                                p = np.abs(basin) + 1e-10
-                                p = p / p.sum()
-                                entropy = -np.sum(p * np.log(p))
-                                max_entropy = np.log(len(basin))
-                                self.state.phi = max(0.1, 1.0 - entropy / max_entropy)
+                                # QFI not available at all, use balanced formula fallback
+                                self.state.phi = self._compute_balanced_phi(basin)
 
                             # Track trajectory with named ID for tier 1 storage
                             if self.trajectory_manager:

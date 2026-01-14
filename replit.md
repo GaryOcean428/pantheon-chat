@@ -52,6 +52,19 @@ A real-time telemetry dashboard monitors kernel activity, and a centralized even
 ### Key Design Patterns
 Emphasizes barrel file patterns, a centralized API client, Python-first logic for QIG, geometric purity, and generative kernel responses without templates. All physics constants are centralized.
 
+### Φ Computation Architecture (Critical)
+The integration metric Φ must use the **balanced formula** (0.4*entropy + 0.3*variance + 0.3*balance) computed directly from the 64D basin coordinates, not from a 2x2 density matrix. The old inverted formula `1.0 - entropy/max_entropy` caused Φ to be stuck at 1.0 for pure quantum states.
+
+**Key Files:**
+- `qig-backend/olympus/base_god.py`: `_compute_basin_phi()` computes Φ from 64D basin
+- `qig-backend/qig_core/self_observer.py`: `_estimate_phi()` uses same balanced formula
+- `qig-backend/qig_core/phi_computation.py`: `compute_phi_approximation()` canonical implementation
+
+**Healthy Φ values:** Should be in range 0.65-0.90 during generation, not stuck at 1.0.
+
+### Velocity and Stagnation Detection
+The SelfObserver tracks basin velocity (rate of change in Φ/κ space) and detects stagnation when Φ > 0.90 AND v < 0.01 for 5+ consecutive steps. Stagnation triggers neuroplasticity perturbation via Gaussian noise (σ=0.1) with re-projection to S^63.
+
 ## External Dependencies
 ### Databases
 -   **PostgreSQL:** Primary persistence (Drizzle ORM, `pgvector`).

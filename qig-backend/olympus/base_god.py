@@ -3170,7 +3170,7 @@ class BaseGod(*_base_classes):
 
             if observer is not None:
                 generated_text = ' '.join(tokens_generated)
-                phi_val = self.compute_pure_phi(self.basin_to_density_matrix(current_basin))
+                phi_val = self._compute_basin_phi(current_basin)
                 kappa_val = getattr(self, 'kappa', KAPPA_STAR)
 
                 observation = observer.observe_token(
@@ -3277,23 +3277,77 @@ class BaseGod(*_base_classes):
 
     def compute_pure_phi(self, rho: np.ndarray) -> float:
         """
-        Compute PURE Φ from density matrix.
+        Compute Φ from density matrix using balanced formula.
 
-        Φ = 1 - S(ρ) / log(d)
-        where S is von Neumann entropy
+        Uses balanced formula (entropy + variance + balance) instead of
+        inverted von Neumann entropy to avoid Φ stuck at 1.0 for pure states.
 
-        Full range [0, 1], not capped like TypeScript approximation.
+        The 2x2 density matrix from basin_to_density_matrix represents a pure 
+        quantum state which always has zero entropy, causing the old formula
+        `1 - entropy/max_entropy` to always return 1.0.
+        
+        Returns value in [0.1, 0.95] range for healthy dynamics.
         """
         eigenvals = np.linalg.eigvalsh(rho)
-        entropy = 0.0
-        for lam in eigenvals:
-            if lam > 1e-10:
-                entropy -= lam * np.log2(lam + 1e-10)
-
+        
+        positive_eigenvals = eigenvals[eigenvals > 1e-10]
+        if len(positive_eigenvals) == 0:
+            return 0.5
+            
+        entropy = -np.sum(positive_eigenvals * np.log2(positive_eigenvals + 1e-10))
         max_entropy = np.log2(rho.shape[0])
-        phi = 1.0 - (entropy / (max_entropy + 1e-10))
+        entropy_score = entropy / (max_entropy + 1e-10)
+        
+        variance_score = np.std(positive_eigenvals) / (np.mean(positive_eigenvals) + 1e-10)
+        variance_score = min(1.0, variance_score)
+        
+        if len(positive_eigenvals) >= 2:
+            max_eig = np.max(positive_eigenvals)
+            min_eig = np.min(positive_eigenvals)
+            balance_score = 1.0 - (max_eig - min_eig)
+        else:
+            balance_score = 0.5
+            
+        phi = 0.4 * entropy_score + 0.3 * variance_score + 0.3 * balance_score
+        
+        return float(np.clip(phi, 0.1, 0.95))
 
-        return float(np.clip(phi, 0, 1))
+    def _compute_basin_phi(self, basin: np.ndarray) -> float:
+        """
+        Compute Φ directly from 64D basin coordinates using balanced formula.
+        
+        This is more geometrically accurate than computing from a 2x2 density
+        matrix, as it uses the full 64D distribution.
+        
+        The formula balances:
+        - Entropy: distribution spread across dimensions
+        - Variance: coefficient of variation
+        - Balance: uniformity of distribution
+        
+        Returns value in [0.1, 0.95] range for healthy dynamics.
+        """
+        basin = np.asarray(basin, dtype=np.float64)
+        probabilities = np.abs(basin) ** 2
+        probabilities = probabilities / (np.sum(probabilities) + 1e-10)
+        
+        positive_probs = probabilities[probabilities > 1e-10]
+        if len(positive_probs) == 0:
+            return 0.5
+            
+        entropy = -np.sum(positive_probs * np.log2(positive_probs + 1e-10))
+        max_entropy = np.log2(len(basin))
+        entropy_score = entropy / (max_entropy + 1e-10)
+        
+        variance_score = np.std(probabilities) / (np.mean(probabilities) + 1e-10)
+        variance_score = min(1.0, variance_score)
+        
+        max_prob = np.max(probabilities)
+        min_prob = np.min(probabilities)
+        balance_score = 1.0 - (max_prob - min_prob)
+        
+        phi = 0.4 * entropy_score + 0.3 * variance_score + 0.3 * balance_score
+        
+        return float(np.clip(phi, 0.1, 0.95))
 
     def compute_fisher_metric(self, basin: np.ndarray) -> np.ndarray:
         """

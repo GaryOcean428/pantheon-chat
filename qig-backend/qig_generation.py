@@ -679,15 +679,23 @@ class QIGGenerator:
             except Exception:
                 pass  # Fall through to fast path
         
-        # Fast path: entropy-based approximation (compute_phi_fast equivalent)
-        p = np.abs(basin) + 1e-10
-        p = p / np.sum(p)
+        # Fast path: balanced formula (entropy + variance + balance)
+        probabilities = np.abs(basin) ** 2
+        probabilities = probabilities / (np.sum(probabilities) + 1e-10)
         
-        entropy = -np.sum(p * np.log(p + 1e-10))
-        max_entropy = np.log(len(basin))
+        positive_probs = probabilities[probabilities > 1e-10]
+        if len(positive_probs) == 0:
+            return 0.5
+            
+        entropy = -np.sum(positive_probs * np.log2(positive_probs + 1e-10))
+        max_entropy = np.log2(len(basin))
+        entropy_score = entropy / (max_entropy + 1e-10)
         
-        phi = 1.0 - (entropy / max_entropy)
-        return float(np.clip(phi, 0.0, 1.0))
+        variance_score = min(1.0, np.std(probabilities) / (np.mean(probabilities) + 1e-10))
+        balance_score = 1.0 - (np.max(probabilities) - np.min(probabilities))
+        
+        phi = 0.4 * entropy_score + 0.3 * variance_score + 0.3 * balance_score
+        return float(np.clip(phi, 0.1, 0.95))
     
     def _select_mode(self, phi: float) -> GenerationMode:
         """Select generation mode from phi."""

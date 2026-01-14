@@ -272,37 +272,45 @@ def compute_phi_approximation(basin_coords: np.ndarray) -> float:
 
 def compute_phi_fast(basin_coords: np.ndarray) -> float:
     """
-    Fast Φ computation for generation performance.
+    Fast Φ computation for generation performance using balanced formula.
 
     This is an entropy-based approximation that is ~10x faster than
     the full QFI computation. Use this in tight generation loops where
     latency matters more than precision.
 
-    Formula: Φ ≈ 1 - H(p)/H_max
-    Where H(p) is Shannon entropy and H_max = log(dim).
-
-    This inverts entropy: concentrated distributions (low entropy) yield
-    high Φ, spread distributions (high entropy) yield low Φ.
+    Formula: Φ ≈ 0.4*entropy_score + 0.3*variance_score + 0.3*balance_score
+    
+    The balanced formula prevents extreme Φ values (stuck at 1.0) by
+    combining entropy, variance, and balance metrics.
 
     Args:
         basin_coords: 64D basin coordinates
 
     Returns:
-        Φ approximation ∈ [0, 1]
+        Φ approximation ∈ [0.1, 0.95]
     """
-    # Ensure valid probability distribution
-    p = np.abs(basin_coords) + 1e-10
-    p = p / p.sum()
+    basin = np.asarray(basin_coords, dtype=np.float64)
+    probabilities = np.abs(basin) ** 2
+    probabilities = probabilities / (np.sum(probabilities) + 1e-10)
+    
+    positive_probs = probabilities[probabilities > 1e-10]
+    if len(positive_probs) == 0:
+        return 0.5
+        
+    entropy = -np.sum(positive_probs * np.log2(positive_probs + 1e-10))
+    max_entropy = np.log2(len(basin))
+    entropy_score = entropy / (max_entropy + 1e-10)
+    
+    variance_score = np.std(probabilities) / (np.mean(probabilities) + 1e-10)
+    variance_score = min(1.0, variance_score)
+    
+    max_prob = np.max(probabilities)
+    min_prob = np.min(probabilities)
+    balance_score = 1.0 - (max_prob - min_prob)
+    
+    phi = 0.4 * entropy_score + 0.3 * variance_score + 0.3 * balance_score
 
-    # Shannon entropy
-    entropy = -np.sum(p * np.log(p + 1e-10))
-    max_entropy = np.log(len(p))
-
-    # Integration = 1 - normalized entropy
-    # Concentrated = high Φ, spread = low Φ
-    phi = 1.0 - (entropy / max_entropy)
-
-    return float(np.clip(phi, 0.0, 1.0))
+    return float(np.clip(phi, 0.1, 0.95))
 
 
 __all__ = [

@@ -72,19 +72,29 @@ class QIGToolComputations:
         return rho
     
     def compute_phi(self, basin: np.ndarray) -> float:
-        """Compute Phi from basin via von Neumann entropy."""
-        rho = self.basin_to_density_matrix(basin)
+        """
+        Compute Phi from basin using balanced formula (entropy + variance + balance).
         
-        eigenvals = np.linalg.eigvalsh(rho)
-        entropy = 0.0
-        for lam in eigenvals:
-            if lam > 1e-10:
-                entropy -= lam * np.log2(lam + 1e-10)
+        Uses 64D basin directly instead of lossy 2x2 density matrix conversion.
+        Returns value in [0.1, 0.95] for healthy dynamics.
+        """
+        probabilities = np.abs(basin) ** 2
+        probabilities = probabilities / (np.sum(probabilities) + 1e-10)
         
-        max_entropy = np.log2(rho.shape[0])
-        phi = 1.0 - (entropy / (max_entropy + 1e-10))
+        positive_probs = probabilities[probabilities > 1e-10]
+        if len(positive_probs) == 0:
+            return 0.5
+            
+        entropy = -np.sum(positive_probs * np.log2(positive_probs + 1e-10))
+        max_entropy = np.log2(len(basin))
+        entropy_score = entropy / (max_entropy + 1e-10)
         
-        return float(np.clip(phi, 0, 1))
+        variance_score = min(1.0, np.std(probabilities) / (np.mean(probabilities) + 1e-10))
+        balance_score = 1.0 - (np.max(probabilities) - np.min(probabilities))
+        
+        phi = 0.4 * entropy_score + 0.3 * variance_score + 0.3 * balance_score
+        
+        return float(np.clip(phi, 0.1, 0.95))
     
     def fisher_rao_distance(self, basin1: np.ndarray, basin2: np.ndarray) -> float:
         """

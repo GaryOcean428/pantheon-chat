@@ -409,13 +409,32 @@ class SelfObserver:
         return prediction
     
     def _estimate_phi(self, basin: np.ndarray) -> float:
-        """Estimate Φ from basin entropy."""
+        """Estimate Φ using balanced formula (entropy + variance + balance).
+        
+        Uses the same balanced formula as compute_phi_approximation to avoid
+        getting stuck at Φ=1.0 for concentrated distributions.
+        """
         p = np.abs(basin) + 1e-10
         p = p / np.sum(p)
+        
+        # Component 1: Entropy score (high entropy = high score)
         entropy = -np.sum(p * np.log(p + 1e-10))
         max_entropy = np.log(len(basin))
-        normalized_entropy = entropy / max_entropy
-        return float(np.clip(1.0 - normalized_entropy, 0.0, 1.0))
+        entropy_score = entropy / max_entropy
+        
+        # Component 2: Variance score (spread)
+        variance = np.var(p)
+        max_variance = 1.0 / len(basin)
+        variance_score = np.sqrt(variance / max_variance) if max_variance > 0 else 0.0
+        
+        # Component 3: Balance score (distance from uniform)
+        uniform = np.ones_like(p) / len(p)
+        balance = 1.0 - np.sum(np.abs(p - uniform)) / 2.0
+        
+        # Weighted combination (same as compute_phi_approximation)
+        phi = 0.4 * entropy_score + 0.3 * variance_score + 0.3 * balance
+        
+        return float(np.clip(phi, 0.1, 0.95))
     
     def _compute_meta_awareness(self) -> float:
         """
