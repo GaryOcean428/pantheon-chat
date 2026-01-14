@@ -9,10 +9,15 @@ from typing import Dict, Any, Optional, List, Tuple
 from dataclasses import dataclass
 
 try:
-    from qig_core.training import GeometricVicarious, IdentityReinforcement, TrainStep4D
+    from qig_core.training.geometric_vicarious import GeometricVicarious
+    from qig_core.training.identity_reinforcement import IdentityReinforcement
+    from qig_core.training.train_step_4d import TrainStep4D
     TRAINING_MODULES_AVAILABLE = True
 except ImportError:
     TRAINING_MODULES_AVAILABLE = False
+    GeometricVicarious = None  # type: ignore
+    IdentityReinforcement = None  # type: ignore
+    TrainStep4D = None  # type: ignore
 
 
 @dataclass
