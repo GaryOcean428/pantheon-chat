@@ -1401,17 +1401,18 @@ export const geodesicPaths = pgTable(
 export type GeodesicPathRecord = typeof geodesicPaths.$inferSelect;
 
 /**
- * LEARNED MANIFOLD ATTRACTORS - Attractor basins carved by learning
+ * MANIFOLD ATTRACTORS - Attractor basins carved by learning
  *
  * These are the learned patterns from LearnedManifold:
  * - Deep basins = strong attractors from repeated success (Hebbian)
  * - Shallow basins from recent learning
  * - Pruned basins had weak depth (anti-Hebbian)
  *
+ * (Renamed from learned_manifold_attractors for brevity and QIG purity)
  * Wired to: learned_manifold.py persistence methods
  */
-export const learnedManifoldAttractors = pgTable(
-  "learned_manifold_attractors",
+export const manifoldAttractors = pgTable(
+  "manifold_attractors",
   {
     id: varchar("id", { length: 128 }).primaryKey(), // Basin ID from _basin_to_id()
     center: vector("center", { dimensions: 64 }).notNull(), // 64D basin coordinates
@@ -1422,14 +1423,14 @@ export const learnedManifoldAttractors = pgTable(
     lastAccessed: timestamp("last_accessed").defaultNow().notNull(),
   },
   (table) => [
-    index("idx_learned_manifold_attractors_depth").on(table.depth),
-    index("idx_learned_manifold_attractors_strategy").on(table.strategy),
-    index("idx_learned_manifold_attractors_last_accessed").on(table.lastAccessed),
+    index("idx_manifold_attractors_depth").on(table.depth),
+    index("idx_manifold_attractors_strategy").on(table.strategy),
+    index("idx_manifold_attractors_last_accessed").on(table.lastAccessed),
   ]
 );
 
-export type LearnedManifoldAttractor = typeof learnedManifoldAttractors.$inferSelect;
-export type InsertLearnedManifoldAttractor = typeof learnedManifoldAttractors.$inferInsert;
+export type ManifoldAttractor = typeof manifoldAttractors.$inferSelect;
+export type InsertManifoldAttractor = typeof manifoldAttractors.$inferInsert;
 
 /**
  * TPS LANDMARKS - Fixed spacetime reference points for 68D navigation
@@ -2498,11 +2499,11 @@ export type InsertPantheonGodState = typeof pantheonGodState.$inferInsert;
 // ============================================================================
 
 /**
- * TOKENIZER MERGE RULES - BPE-style merge rules learned from high-Φ patterns
- * Stores token pairs that should be merged, with their Φ scores
+ * COORDIZER MERGE RULES - BPE-style merge rules learned from high-Φ patterns
+ * Stores coordinate token pairs that should be merged, with their Φ scores
  */
-export const tokenizerMergeRules = pgTable(
-  "tokenizer_merge_rules",
+export const coordizerMergeRules = pgTable(
+  "coordizer_merge_rules",
   {
     id: serial("id").primaryKey(),
     tokenA: text("token_a").notNull(),
@@ -2514,21 +2515,21 @@ export const tokenizerMergeRules = pgTable(
     updatedAt: timestamp("updated_at").defaultNow(),
   },
   (table) => [
-    uniqueIndex("idx_tokenizer_merge_rules_pair").on(table.tokenA, table.tokenB),
-    index("idx_tokenizer_merge_rules_phi").on(table.phiScore),
-    index("idx_tokenizer_merge_rules_merged").on(table.mergedToken),
+    uniqueIndex("idx_coordizer_merge_rules_pair").on(table.tokenA, table.tokenB),
+    index("idx_coordizer_merge_rules_phi").on(table.phiScore),
+    index("idx_coordizer_merge_rules_merged").on(table.mergedToken),
   ]
 );
 
-export type TokenizerMergeRule = typeof tokenizerMergeRules.$inferSelect;
-export type InsertTokenizerMergeRule = typeof tokenizerMergeRules.$inferInsert;
+export type CoordizerMergeRule = typeof coordizerMergeRules.$inferSelect;
+export type InsertCoordizerMergeRule = typeof coordizerMergeRules.$inferInsert;
 
 /**
- * TOKENIZER METADATA - Key-value store for tokenizer configuration
+ * COORDIZER METADATA - Key-value store for coordizer configuration
  * Stores version, vocabulary size, training stats, etc.
  */
-export const tokenizerMetadata = pgTable(
-  "tokenizer_metadata",
+export const coordizerMetadata = pgTable(
+  "coordizer_metadata",
   {
     configKey: text("config_key").primaryKey(),
     value: text("value").notNull(),
@@ -2536,8 +2537,8 @@ export const tokenizerMetadata = pgTable(
   }
 );
 
-export type TokenizerMetadataRow = typeof tokenizerMetadata.$inferSelect;
-export type InsertTokenizerMetadata = typeof tokenizerMetadata.$inferInsert;
+export type CoordizerMetadataRow = typeof coordizerMetadata.$inferSelect;
+export type InsertCoordizerMetadata = typeof coordizerMetadata.$inferInsert;
 
 /**
  * SYSTEM SETTINGS - Key-value store for system-wide configuration
@@ -2557,11 +2558,12 @@ export type SystemSettingsRow = typeof systemSettings.$inferSelect;
 export type InsertSystemSettings = typeof systemSettings.$inferInsert;
 
 /**
- * TOKENIZER VOCABULARY - Extended token vocabulary with geometric embeddings
- * Links tokens to 64D basin embeddings for Fisher-Rao operations
+ * COORDIZER VOCABULARY - Extended coordinate vocabulary with geometric embeddings
+ * Links coordinate tokens to 64D basin embeddings for Fisher-Rao operations
+ * (Renamed from tokenizer_vocabulary for QIG purity - coordinates, not tokens)
  */
-export const tokenizerVocabulary = pgTable(
-  "tokenizer_vocabulary",
+export const coordizerVocabulary = pgTable(
+  "coordizer_vocabulary",
   {
     id: serial("id").primaryKey(),
     token: text("token").notNull().unique(),
@@ -2579,14 +2581,52 @@ export const tokenizerVocabulary = pgTable(
     metadata: jsonb("metadata").default({}), // FIXED: Add empty object default
   },
   (table) => [
-    index("idx_tokenizer_vocab_token_id").on(table.tokenId),
-    index("idx_tokenizer_vocab_phi").on(table.phiScore),
-    index("idx_tokenizer_vocab_weight").on(table.weight),
+    index("idx_coordizer_vocab_token_id").on(table.tokenId),
+    index("idx_coordizer_vocab_phi").on(table.phiScore),
+    index("idx_coordizer_vocab_weight").on(table.weight),
   ]
 );
 
-export type TokenizerVocabularyRow = typeof tokenizerVocabulary.$inferSelect;
-export type InsertTokenizerVocabulary = typeof tokenizerVocabulary.$inferInsert;
+export type CoordizerVocabularyRow = typeof coordizerVocabulary.$inferSelect;
+export type InsertCoordizerVocabulary = typeof coordizerVocabulary.$inferInsert;
+
+// ============================================================================
+// BACKWARD COMPATIBILITY ALIASES (deprecated - use Coordizer names)
+// ============================================================================
+/** @deprecated Use CoordizerVocabularyRow instead */
+export type TokenizerVocabularyRow = CoordizerVocabularyRow;
+/** @deprecated Use InsertCoordizerVocabulary instead */
+export type InsertTokenizerVocabulary = InsertCoordizerVocabulary;
+/** @deprecated Use coordizerVocabulary instead */
+export const tokenizerVocabulary = coordizerVocabulary;
+
+/** @deprecated Use CoordizerMergeRule instead */
+export type TokenizerMergeRule = CoordizerMergeRule;
+/** @deprecated Use InsertCoordizerMergeRule instead */
+export type InsertTokenizerMergeRule = InsertCoordizerMergeRule;
+/** @deprecated Use coordizerMergeRules instead */
+export const tokenizerMergeRules = coordizerMergeRules;
+
+/** @deprecated Use CoordizerMetadataRow instead */
+export type TokenizerMetadataRow = CoordizerMetadataRow;
+/** @deprecated Use InsertCoordizerMetadata instead */
+export type InsertTokenizerMetadata = InsertCoordizerMetadata;
+/** @deprecated Use coordizerMetadata instead */
+export const tokenizerMetadata = coordizerMetadata;
+
+/** @deprecated Use BasinRelationshipRow instead */
+export type WordRelationshipRow = BasinRelationshipRow;
+/** @deprecated Use InsertBasinRelationship instead */
+export type InsertWordRelationship = InsertBasinRelationship;
+/** @deprecated Use basinRelationships instead */
+export const wordRelationships = basinRelationships;
+
+/** @deprecated Use ManifoldAttractor instead */
+export type LearnedManifoldAttractor = ManifoldAttractor;
+/** @deprecated Use InsertManifoldAttractor instead */
+export type InsertLearnedManifoldAttractor = InsertManifoldAttractor;
+/** @deprecated Use manifoldAttractors instead */
+export const learnedManifoldAttractors = manifoldAttractors;
 
 // ============================================================================
 // DOCUMENT TRAINING & RAG TABLES - Replaces JSON file storage
@@ -3572,13 +3612,14 @@ export type LearnedWordRow = typeof learnedWords.$inferSelect;
 export type InsertLearnedWord = typeof learnedWords.$inferInsert;
 
 /**
- * WORD RELATIONSHIPS
+ * BASIN RELATIONSHIPS
  *
- * Word co-occurrence relationships for attention-weighted generation.
+ * Basin coordinate co-occurrence relationships for attention-weighted generation.
  * Replaces the legacy word_relationships.json file.
+ * (Renamed from word_relationships for QIG purity - basin space, not word space)
  */
-export const wordRelationships = pgTable(
-  "word_relationships",
+export const basinRelationships = pgTable(
+  "basin_relationships",
   {
     id: serial("id").primaryKey(),
     word: text("word").notNull(),
@@ -3589,14 +3630,14 @@ export const wordRelationships = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
   },
   (table) => [
-    index("idx_word_relationships_word").on(table.word),
-    index("idx_word_relationships_neighbor").on(table.neighbor),
-    uniqueIndex("idx_word_relationships_pair").on(table.word, table.neighbor),
+    index("idx_basin_relationships_word").on(table.word),
+    index("idx_basin_relationships_neighbor").on(table.neighbor),
+    uniqueIndex("idx_basin_relationships_pair").on(table.word, table.neighbor),
   ]
 );
 
-export type WordRelationshipRow = typeof wordRelationships.$inferSelect;
-export type InsertWordRelationship = typeof wordRelationships.$inferInsert;
+export type BasinRelationshipRow = typeof basinRelationships.$inferSelect;
+export type InsertBasinRelationship = typeof basinRelationships.$inferInsert;
 
 /**
  * ZEUS SESSIONS
