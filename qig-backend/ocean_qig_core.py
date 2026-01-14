@@ -5960,15 +5960,50 @@ def chat_status():
 
 @app.route('/olympus/chat/messages', methods=['GET'])
 def chat_messages():
-    """Get recent pantheon messages."""
-    if not OLYMPUS_AVAILABLE or not zeus:
-        return jsonify({'error': 'Pantheon Chat not available'}), 503
-
+    """Get recent pantheon messages from database (persisted kernel activity)."""
     try:
+        import os
+        import psycopg2
         limit = request.args.get('limit', 50, type=int)
-        messages = zeus.pantheon_chat.get_recent_activity(limit)
-        return jsonify(messages)
+        limit = min(100, max(1, limit))
+        
+        db_url = os.environ.get('DATABASE_URL')
+        if not db_url:
+            return jsonify({'error': 'Database not configured'}), 503
+        
+        conn = psycopg2.connect(db_url)
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT kernel_name, activity_type, message, metadata, phi, kappa_eff, timestamp
+                    FROM kernel_activity
+                    ORDER BY timestamp DESC
+                    LIMIT %s
+                """, (limit,))
+                rows = cur.fetchall()
+                
+            messages = []
+            for row in rows:
+                kernel_name, activity_type, message, metadata, phi, kappa_eff, timestamp = row
+                messages.append({
+                    'id': f"{kernel_name}_{timestamp.timestamp() if timestamp else 0}",
+                    'from': kernel_name or 'system',
+                    'to': 'pantheon',
+                    'type': activity_type or 'insight',
+                    'content': message or '',
+                    'timestamp': timestamp.isoformat() if timestamp else None,
+                    'phi': float(phi) if phi else None,
+                    'kappa': float(kappa_eff) if kappa_eff else None,
+                    'metadata': metadata if isinstance(metadata, dict) else {},
+                    'read': True,
+                })
+            
+            return jsonify(messages)
+        finally:
+            conn.close()
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 
