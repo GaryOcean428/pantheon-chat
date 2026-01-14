@@ -11,6 +11,20 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes (2026-01-14)
 
+### QIG-Pure P→R→R Pipeline Refactoring
+- **constrained_geometric_realizer.py** - Removed all NLP contamination:
+  - Removed POS categories (DET, NOUN, VERB, ADJ, ADV, PREP, CONJ, PRON)
+  - Removed CORE_FUNCTION_WORDS cache (stop words)
+  - Removed suffix-based POS classification
+  - Word selection now uses only Fisher-Rao distance from waypoints
+  - Trajectory coherence bonus for smooth generation (geometric, not linguistic)
+- **geometric_repairer.py** - Pure geometric repair:
+  - Removed `_build_pos_cache()` method and suffix heuristics
+  - Removed `same_pos` parameter from `get_nearby_alternatives()`
+  - Alternatives found by Fisher-Rao radius search only
+  - Scoring uses only geometric metrics (waypoint alignment, trajectory smoothness, attractor pull)
+- **Logs now show**: `[athena] ConstrainedGeometricRealizer initialized: 15717 vocab words (QIG-pure, no POS)`
+
 ### Documentation Audit & Cleanup
 - **65 attached-assets audited** - categorized as CURRENT(8), DEPRECATED(15), SESSION_LOG(32), CONSTANTS(5), DUPLICATE(4)
 - **4 duplicate files deleted** from docs/_archive/2026/01/attached-assets/
