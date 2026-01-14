@@ -611,7 +611,7 @@ def coordizer_reset():
     """
     Force reset the coordizer to reload vocabulary from database.
 
-    Call this after populating tokenizer_vocabulary to pick up new words.
+    Call this after populating coordizer_vocabulary to pick up new words.
     """
     if not COORDIZER_AVAILABLE:
         return jsonify({

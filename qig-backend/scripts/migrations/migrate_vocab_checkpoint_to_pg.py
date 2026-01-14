@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Migrate 32K Vocabulary Checkpoint to PostgreSQL tokenizer_vocabulary
+Migrate 32K Vocabulary Checkpoint to PostgreSQL coordizer_vocabulary
 
 This script loads the QIG-pure 32K vocabulary checkpoint from
 shared/coordizer/checkpoint_32000.json and merges it into the
-PostgreSQL tokenizer_vocabulary table (the actual vocabulary table
+PostgreSQL coordizer_vocabulary table (the actual vocabulary table
 used by the QIG system).
 
 Usage:
@@ -142,7 +142,7 @@ def is_real_word(token: str) -> bool:
 
 
 def transform_vocab_to_records(checkpoint: dict) -> list[dict]:
-    """Transform checkpoint vocab to database records for tokenizer_vocabulary table."""
+    """Transform checkpoint vocab to database records for coordizer_vocabulary table."""
     records = []
     seen_tokens = set()  # Track seen tokens to avoid duplicates
     vocab = checkpoint.get('vocab', {})
@@ -232,14 +232,14 @@ def get_db_connection():
 
 
 def ensure_table_exists(conn):
-    """Ensure tokenizer_vocabulary table exists with pgvector extension."""
+    """Ensure coordizer_vocabulary table exists with pgvector extension."""
     with conn.cursor() as cur:
         # Enable pgvector extension
         cur.execute("CREATE EXTENSION IF NOT EXISTS vector;")
         
         # Create table if not exists (matching schema.ts definition)
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS tokenizer_vocabulary (
+            CREATE TABLE IF NOT EXISTS coordizer_vocabulary (
                 id SERIAL PRIMARY KEY,
                 token TEXT NOT NULL UNIQUE,
                 token_id INTEGER NOT NULL UNIQUE,
@@ -255,17 +255,17 @@ def ensure_table_exists(conn):
         
         # Create indexes for efficient retrieval
         cur.execute("""
-            CREATE INDEX IF NOT EXISTS idx_tokenizer_vocab_token_id ON tokenizer_vocabulary(token_id);
+            CREATE INDEX IF NOT EXISTS idx_tokenizer_vocab_token_id ON coordizer_vocabulary(token_id);
         """)
         cur.execute("""
-            CREATE INDEX IF NOT EXISTS idx_tokenizer_vocab_phi ON tokenizer_vocabulary(phi_score);
+            CREATE INDEX IF NOT EXISTS idx_tokenizer_vocab_phi ON coordizer_vocabulary(phi_score);
         """)
         cur.execute("""
-            CREATE INDEX IF NOT EXISTS idx_tokenizer_vocab_weight ON tokenizer_vocabulary(weight);
+            CREATE INDEX IF NOT EXISTS idx_tokenizer_vocab_weight ON coordizer_vocabulary(weight);
         """)
         
         conn.commit()
-        logger.info("Table tokenizer_vocabulary ensured with indexes")
+        logger.info("Table coordizer_vocabulary ensured with indexes")
 
 
 def insert_tokens_batch(conn, records: list[dict], batch_size: int = 100, dry_run: bool = False):
@@ -290,16 +290,16 @@ def insert_tokens_batch(conn, records: list[dict], batch_size: int = 100, dry_ru
                 
                 # Upsert query - one at a time to avoid batch conflicts
                 cur.execute("""
-                    INSERT INTO tokenizer_vocabulary (
+                    INSERT INTO coordizer_vocabulary (
                         token, token_id, weight, frequency, phi_score, basin_embedding, source_type,
                         created_at, updated_at
                     )
                     VALUES (%s, %s, %s, %s, %s, %s::vector, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                     ON CONFLICT (token) DO UPDATE SET
-                        weight = GREATEST(tokenizer_vocabulary.weight, EXCLUDED.weight),
-                        frequency = GREATEST(tokenizer_vocabulary.frequency, EXCLUDED.frequency),
-                        phi_score = GREATEST(tokenizer_vocabulary.phi_score, EXCLUDED.phi_score),
-                        basin_embedding = COALESCE(EXCLUDED.basin_embedding, tokenizer_vocabulary.basin_embedding),
+                        weight = GREATEST(coordizer_vocabulary.weight, EXCLUDED.weight),
+                        frequency = GREATEST(coordizer_vocabulary.frequency, EXCLUDED.frequency),
+                        phi_score = GREATEST(coordizer_vocabulary.phi_score, EXCLUDED.phi_score),
+                        basin_embedding = COALESCE(EXCLUDED.basin_embedding, coordizer_vocabulary.basin_embedding),
                         source_type = EXCLUDED.source_type,
                         updated_at = CURRENT_TIMESTAMP
                 """, (r['token'], r['token_id'], r['weight'], r['frequency'], r['phi_score'], basin_str, r['source_type']))
@@ -328,7 +328,7 @@ def insert_tokens_batch(conn, records: list[dict], batch_size: int = 100, dry_ru
 def get_existing_token_count(conn) -> int:
     """Get count of existing tokens in vocabulary."""
     with conn.cursor() as cur:
-        cur.execute("SELECT COUNT(*) FROM tokenizer_vocabulary")
+        cur.execute("SELECT COUNT(*) FROM coordizer_vocabulary")
         return cur.fetchone()[0]
 
 
@@ -336,13 +336,13 @@ def verify_migration(conn, expected_count: int):
     """Verify the migration was successful."""
     with conn.cursor() as cur:
         # Count total tokens
-        cur.execute("SELECT COUNT(*) FROM tokenizer_vocabulary")
+        cur.execute("SELECT COUNT(*) FROM coordizer_vocabulary")
         total = cur.fetchone()[0]
         
         # Count by source type
         cur.execute("""
             SELECT source_type, COUNT(*) 
-            FROM tokenizer_vocabulary 
+            FROM coordizer_vocabulary 
             GROUP BY source_type 
             ORDER BY COUNT(*) DESC
         """)
@@ -354,14 +354,14 @@ def verify_migration(conn, expected_count: int):
                 MIN(phi_score) as min_phi,
                 AVG(phi_score) as avg_phi,
                 MAX(phi_score) as max_phi
-            FROM tokenizer_vocabulary
+            FROM coordizer_vocabulary
         """)
         phi_stats = cur.fetchone()
         
         # Sample high-phi real words (not byte tokens)
         cur.execute("""
             SELECT token, phi_score, source_type 
-            FROM tokenizer_vocabulary 
+            FROM coordizer_vocabulary 
             WHERE source_type IN ('base', 'learned')
               AND LENGTH(token) >= 2
               AND token NOT LIKE '<%%>'
@@ -377,7 +377,7 @@ def verify_migration(conn, expected_count: int):
                 COUNT(*) FILTER (WHERE source_type = 'learned') as learned_words,
                 COUNT(*) FILTER (WHERE source_type = 'byte_level') as byte_tokens,
                 COUNT(*) FILTER (WHERE source_type = 'special') as special_tokens
-            FROM tokenizer_vocabulary
+            FROM coordizer_vocabulary
         """)
         word_counts = cur.fetchone()
     
@@ -407,7 +407,7 @@ def verify_migration(conn, expected_count: int):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Migrate 32K vocabulary checkpoint to PostgreSQL tokenizer_vocabulary')
+    parser = argparse.ArgumentParser(description='Migrate 32K vocabulary checkpoint to PostgreSQL coordizer_vocabulary')
     parser.add_argument('--dry-run', action='store_true', help='Preview without making changes')
     parser.add_argument('--batch-size', type=int, default=1000, help='Batch size for inserts')
     parser.add_argument('--checkpoint', type=str, default=str(CHECKPOINT_PATH), help='Path to checkpoint JSON')
@@ -434,7 +434,7 @@ def main():
         # Get existing count
         try:
             existing_count = get_existing_token_count(conn)
-            logger.info(f"Existing tokens in tokenizer_vocabulary: {existing_count}")
+            logger.info(f"Existing tokens in coordizer_vocabulary: {existing_count}")
         except psycopg2.errors.UndefinedTable:
             existing_count = 0
             logger.info("Table does not exist yet, will create")
@@ -451,7 +451,7 @@ def main():
         if not args.dry_run:
             success = verify_migration(conn, len(records))
             if success:
-                logger.info("\n✅ Migration to tokenizer_vocabulary completed successfully!")
+                logger.info("\n✅ Migration to coordizer_vocabulary completed successfully!")
             else:
                 logger.warning("\n⚠️ Migration completed but verification found discrepancies")
         else:

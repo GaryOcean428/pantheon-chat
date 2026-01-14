@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Backfill Fisher-Rao Distances for word_relationships
+Backfill Fisher-Rao Distances for basin_relationships
 
 One-time migration script to populate NULL fisher_distance values
-for the ~319K existing word_relationships rows.
+for the ~319K existing basin_relationships rows.
 
 Usage:
     python backfill_fisher_distances.py              # Run full backfill
@@ -62,7 +62,7 @@ def load_basin_coords() -> Dict[str, np.ndarray]:
         with conn.cursor() as cur:
             cur.execute("""
                 SELECT token, basin_embedding::text 
-                FROM tokenizer_vocabulary 
+                FROM coordizer_vocabulary 
                 WHERE basin_embedding IS NOT NULL
             """)
             for token, coords_text in cur.fetchall():
@@ -83,7 +83,7 @@ def get_null_count(conn) -> int:
     """Get count of rows with NULL fisher_distance."""
     with conn.cursor() as cur:
         cur.execute("""
-            SELECT COUNT(*) FROM word_relationships 
+            SELECT COUNT(*) FROM basin_relationships 
             WHERE fisher_distance IS NULL
         """)
         return cur.fetchone()[0]
@@ -92,7 +92,7 @@ def get_null_count(conn) -> int:
 def get_total_count(conn) -> int:
     """Get total row count."""
     with conn.cursor() as cur:
-        cur.execute("SELECT COUNT(*) FROM word_relationships")
+        cur.execute("SELECT COUNT(*) FROM basin_relationships")
         return cur.fetchone()[0]
 
 
@@ -102,7 +102,7 @@ def backfill_fisher_distances(
     dry_run: bool = False
 ) -> Dict:
     """
-    Backfill fisher_distance for existing word_relationships.
+    Backfill fisher_distance for existing basin_relationships.
     
     Args:
         batch_size: Number of rows to process per batch
@@ -122,7 +122,7 @@ def backfill_fisher_distances(
         return {'error': 'DATABASE_URL not set'}
     
     logger.info("=" * 70)
-    logger.info("BACKFILLING FISHER-RAO DISTANCES FOR word_relationships")
+    logger.info("BACKFILLING FISHER-RAO DISTANCES FOR basin_relationships")
     logger.info("=" * 70)
     
     basin_coords = load_basin_coords()
@@ -167,7 +167,7 @@ def backfill_fisher_distances(
         with conn.cursor() as cur:
             cur.execute("""
                 SELECT id, word, neighbor
-                FROM word_relationships
+                FROM basin_relationships
                 WHERE fisher_distance IS NULL
                 ORDER BY id
                 LIMIT %s
@@ -194,7 +194,7 @@ def backfill_fisher_distances(
             if updates:
                 from psycopg2.extras import execute_batch
                 execute_batch(cur, """
-                    UPDATE word_relationships
+                    UPDATE basin_relationships
                     SET fisher_distance = %s
                     WHERE id = %s
                 """, updates, page_size=batch_size)
@@ -236,29 +236,29 @@ def validate_results() -> Dict:
     conn = psycopg2.connect(db_url)
     
     with conn.cursor() as cur:
-        cur.execute("SELECT COUNT(*) FROM word_relationships")
+        cur.execute("SELECT COUNT(*) FROM basin_relationships")
         total = cur.fetchone()[0]
         
-        cur.execute("SELECT COUNT(*) FROM word_relationships WHERE fisher_distance IS NOT NULL AND fisher_distance >= 0")
+        cur.execute("SELECT COUNT(*) FROM basin_relationships WHERE fisher_distance IS NOT NULL AND fisher_distance >= 0")
         with_fisher = cur.fetchone()[0]
         
-        cur.execute("SELECT COUNT(*) FROM word_relationships WHERE fisher_distance IS NULL")
+        cur.execute("SELECT COUNT(*) FROM basin_relationships WHERE fisher_distance IS NULL")
         null_count = cur.fetchone()[0]
         
-        cur.execute("SELECT COUNT(*) FROM word_relationships WHERE fisher_distance = -1")
+        cur.execute("SELECT COUNT(*) FROM basin_relationships WHERE fisher_distance = -1")
         missing_basins = cur.fetchone()[0]
         
         cur.execute("""
             SELECT AVG(fisher_distance), MIN(fisher_distance), MAX(fisher_distance)
-            FROM word_relationships
+            FROM basin_relationships
             WHERE fisher_distance > 0
         """)
         avg_dist, min_dist, max_dist = cur.fetchone()
         
-        cur.execute("SELECT COUNT(*) FROM word_relationships WHERE avg_phi IS NOT NULL AND avg_phi != 0.5")
+        cur.execute("SELECT COUNT(*) FROM basin_relationships WHERE avg_phi IS NOT NULL AND avg_phi != 0.5")
         with_phi = cur.fetchone()[0]
         
-        cur.execute("SELECT COUNT(*) FROM word_relationships WHERE contexts IS NOT NULL AND array_length(contexts, 1) > 0")
+        cur.execute("SELECT COUNT(*) FROM basin_relationships WHERE contexts IS NOT NULL AND array_length(contexts, 1) > 0")
         with_contexts = cur.fetchone()[0]
     
     conn.close()

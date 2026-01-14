@@ -29,7 +29,7 @@ const results: ValidationResult[] = [];
 // Whitelist of allowed table names for validation
 const ALLOWED_TABLES = [
   'ocean_quantum_state', 'near_miss_adaptive_state', 'auto_cycle_state',
-  'vocabulary_observations', 'tokenizer_vocabulary', 'tokenizer_metadata',
+  'vocabulary_observations', 'coordizer_vocabulary', 'tokenizer_metadata',
   'manifold_probes', 'kernel_geometry', 'consciousness_checkpoints',
   'basin_documents', 'pantheon_messages'
 ] as const;
@@ -239,7 +239,7 @@ async function main() {
   // Check core tables for minimum data
   console.log('Checking core tables for minimum data...');
   const vocabCount = await checkTableRowCount('vocabulary_observations', 10, 'warning');
-  await checkTableRowCount('tokenizer_vocabulary', 100, 'info');
+  await checkTableRowCount('coordizer_vocabulary', 100, 'info');
   await checkTableRowCount('tokenizer_metadata', 5, 'info');
   console.log();
 

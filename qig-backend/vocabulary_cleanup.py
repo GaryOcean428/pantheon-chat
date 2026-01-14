@@ -5,7 +5,7 @@ Vocabulary Cleanup Script
 Cleans vocabulary contamination by:
 1. Populating bip39_words with 2048 BIP39 English mnemonic words
 2. Validating English-only vocabulary (rejecting alphanumeric fragments)
-3. Cleaning tokenizer_vocabulary of non-English entries
+3. Cleaning coordizer_vocabulary of non-English entries
 4. Migrating valid learned words to learned_words table
 
 CRITICAL: Vocabulary = English words ONLY
@@ -108,7 +108,7 @@ def get_bip39_set() -> Set[str]:
 
 def analyze_vocabulary_contamination() -> Tuple[int, int, List[str]]:
     """
-    Analyze tokenizer_vocabulary for contamination.
+    Analyze coordizer_vocabulary for contamination.
     Returns: (total_entries, contaminated_count, sample_contaminated)
     """
     conn = get_db_connection()
@@ -118,10 +118,10 @@ def analyze_vocabulary_contamination() -> Tuple[int, int, List[str]]:
     try:
         cur = conn.cursor()
         
-        cur.execute("SELECT COUNT(*) FROM tokenizer_vocabulary")
+        cur.execute("SELECT COUNT(*) FROM coordizer_vocabulary")
         total = cur.fetchone()[0]
         
-        cur.execute("SELECT token FROM tokenizer_vocabulary LIMIT 1000")
+        cur.execute("SELECT token FROM coordizer_vocabulary LIMIT 1000")
         tokens = [row[0] for row in cur.fetchall()]
         
         bip39_words = get_bip39_set()
@@ -146,9 +146,9 @@ def analyze_vocabulary_contamination() -> Tuple[int, int, List[str]]:
         conn.close()
 
 
-def clean_tokenizer_vocabulary(dry_run: bool = True) -> int:
+def clean_coordizer_vocabulary(dry_run: bool = True) -> int:
     """
-    Remove non-English entries from tokenizer_vocabulary.
+    Remove non-English entries from coordizer_vocabulary.
     
     Keeps:
     - BIP39 words
@@ -168,7 +168,7 @@ def clean_tokenizer_vocabulary(dry_run: bool = True) -> int:
         
         bip39_words = get_bip39_set()
         
-        cur.execute("SELECT id, token FROM tokenizer_vocabulary")
+        cur.execute("SELECT id, token FROM coordizer_vocabulary")
         all_tokens = cur.fetchall()
         
         to_delete = []
@@ -204,7 +204,7 @@ def clean_tokenizer_vocabulary(dry_run: bool = True) -> int:
             for i in range(0, len(delete_ids), batch_size):
                 batch = delete_ids[i:i + batch_size]
                 placeholders = ','.join(['%s'] * len(batch))
-                cur.execute(f"DELETE FROM tokenizer_vocabulary WHERE id IN ({placeholders})", batch)
+                cur.execute(f"DELETE FROM coordizer_vocabulary WHERE id IN ({placeholders})", batch)
             
             conn.commit()
             print(f"[OK] Deleted {len(to_delete)} contaminated entries")
@@ -221,7 +221,7 @@ def clean_tokenizer_vocabulary(dry_run: bool = True) -> int:
 
 def migrate_valid_words_to_learned():
     """
-    Migrate valid English words from tokenizer_vocabulary to learned_words.
+    Migrate valid English words from coordizer_vocabulary to learned_words.
     Only migrates words that pass English validation.
     """
     conn = get_db_connection()
@@ -235,7 +235,7 @@ def migrate_valid_words_to_learned():
         
         cur.execute("""
             SELECT token, frequency, phi_score 
-            FROM tokenizer_vocabulary 
+            FROM coordizer_vocabulary 
             WHERE token NOT IN (SELECT word FROM learned_words)
         """)
         candidates = cur.fetchall()
@@ -295,7 +295,7 @@ def dictionary_validate_vocabulary(batch_size: int = 100, dry_run: bool = True) 
     try:
         cur = conn.cursor()
         
-        cur.execute("SELECT token FROM tokenizer_vocabulary")
+        cur.execute("SELECT token FROM coordizer_vocabulary")
         all_tokens = [row[0] for row in cur.fetchall()]
         
         print(f"[INFO] Checking {len(all_tokens)} vocabulary tokens against dictionary...")
@@ -339,7 +339,7 @@ def dictionary_validate_vocabulary(batch_size: int = 100, dry_run: bool = True) 
             for batch_start in range(0, len(invalid_words), batch_size):
                 batch = invalid_words[batch_start:batch_start + batch_size]
                 cur.execute(
-                    "DELETE FROM tokenizer_vocabulary WHERE token = ANY(%s)",
+                    "DELETE FROM coordizer_vocabulary WHERE token = ANY(%s)",
                     (batch,)
                 )
             
@@ -374,8 +374,8 @@ def run_full_cleanup(dry_run: bool = True):
     print("\n[3/4] Migrating valid words to learned_words...")
     migrate_valid_words_to_learned()
     
-    print(f"\n[4/4] Cleaning tokenizer_vocabulary (dry_run={dry_run})...")
-    deleted = clean_tokenizer_vocabulary(dry_run=dry_run)
+    print(f"\n[4/4] Cleaning coordizer_vocabulary (dry_run={dry_run})...")
+    deleted = clean_coordizer_vocabulary(dry_run=dry_run)
     
     print("\n" + "=" * 60)
     print("SUMMARY")

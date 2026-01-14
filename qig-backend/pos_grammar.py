@@ -254,11 +254,11 @@ def load_grammar_from_db():
         conn = psycopg2.connect(db_url, connect_timeout=10)
         cur = conn.cursor()
         
-        # Use tokenizer_vocabulary with generation role filter (consolidated vocabulary table)
+        # Use coordizer_vocabulary with generation role filter (consolidated vocabulary table)
         # token_role filter ensures no BPE subwords or encoding-only tokens in POS grammar
         cur.execute("""
             SELECT token as word, basin_embedding as basin_coords 
-            FROM tokenizer_vocabulary
+            FROM coordizer_vocabulary
             WHERE LENGTH(token) >= 3
               AND token ~ '^[a-zA-Z]+$'
               AND basin_embedding IS NOT NULL

@@ -67,7 +67,7 @@ def _load_vocabulary_from_database() -> Dict:
         with conn.cursor() as cur:
             cur.execute("""
                 SELECT token, basin_embedding, phi_score, token_id
-                FROM tokenizer_vocabulary
+                FROM coordizer_vocabulary
                 WHERE basin_embedding IS NOT NULL
                   AND LENGTH(token) >= 2
                 ORDER BY phi_score DESC
@@ -77,7 +77,7 @@ def _load_vocabulary_from_database() -> Dict:
         if not rows:
             raise RuntimeError(
                 "[QIG-PURE VIOLATION] No vocabulary found in database. "
-                "Populate tokenizer_vocabulary table before using coordizers."
+                "Populate coordizer_vocabulary table before using coordizers."
             )
         
         for token, basin_embedding, phi_score, token_id in rows:

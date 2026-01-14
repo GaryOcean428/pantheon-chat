@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Populate NULL columns in tokenizer_vocabulary table.
+"""Populate NULL columns in coordizer_vocabulary table.
 
 Phase 2.3 of NULL column population plan.
 Reference: docs/03-technical/20260110-null-column-population-plan-1.00W.md
@@ -75,7 +75,7 @@ def populate_null_columns(limit: int = 0, dry_run: bool = False):
     # Get tokens with NULL columns
     query = """
         SELECT id, token, source_type, phi_score, basin_embedding
-        FROM tokenizer_vocabulary
+        FROM coordizer_vocabulary
         WHERE embedding IS NULL
            OR metadata IS NULL
            OR scale IS NULL
@@ -88,7 +88,7 @@ def populate_null_columns(limit: int = 0, dry_run: bool = False):
     rows = cur.fetchall()
 
     if not rows:
-        print("No tokenizer_vocabulary rows found needing NULL column population")
+        print("No coordizer_vocabulary rows found needing NULL column population")
         cur.close()
         conn.close()
         return
@@ -120,7 +120,7 @@ def populate_null_columns(limit: int = 0, dry_run: bool = False):
 
                 # Update row - copy basin_embedding to embedding for legacy compatibility
                 cur.execute("""
-                    UPDATE tokenizer_vocabulary
+                    UPDATE coordizer_vocabulary
                     SET embedding = basin_embedding,
                         metadata = %s::jsonb,
                         scale = %s
@@ -144,7 +144,7 @@ def populate_null_columns(limit: int = 0, dry_run: bool = False):
             COUNT(embedding) as has_embedding,
             COUNT(metadata) as has_metadata,
             COUNT(scale) as has_scale
-        FROM tokenizer_vocabulary
+        FROM coordizer_vocabulary
     """)
     stats = cur.fetchone()
     print(f"\nFinal stats:")
@@ -161,7 +161,7 @@ def populate_null_columns(limit: int = 0, dry_run: bool = False):
 
 if __name__ == '__main__':
     import argparse
-    parser = argparse.ArgumentParser(description='Populate NULL columns in tokenizer_vocabulary')
+    parser = argparse.ArgumentParser(description='Populate NULL columns in coordizer_vocabulary')
     parser.add_argument('--limit', type=int, default=0,
                         help='Maximum rows to process (0 = all)')
     parser.add_argument('--dry-run', action='store_true',

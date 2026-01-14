@@ -1,7 +1,7 @@
 """
 PostgreSQL-backed Coordizer (64D QIG-pure, no fallback).
 
-Loads vocabulary from PostgreSQL tokenizer_vocabulary table.
+Loads vocabulary from PostgreSQL coordizer_vocabulary table.
 REQUIRES database connection - impure fallbacks are not allowed.
 
 Simplified canonical coordizer following qig-tokenizer/FisherCoordizer interface.
@@ -111,7 +111,7 @@ class PostgresCoordizer(FisherCoordizer):
         self._connection = None
         self._using_fallback = False
 
-        # ENCODING VOCABULARY (tokenizer_vocabulary table)
+        # ENCODING VOCABULARY (coordizer_vocabulary table)
         self.vocab = {}
         self.basin_coords = {}
         self.token_phi = {}
@@ -122,7 +122,7 @@ class PostgresCoordizer(FisherCoordizer):
         self.bip39_words = []
         self.base_tokens = []
 
-        # GENERATION VOCABULARY (tokenizer_vocabulary with token_role filter) - Separate cache
+        # GENERATION VOCABULARY (coordizer_vocabulary with token_role filter) - Separate cache
         self.generation_vocab = {}  # word -> basin coordinates
         self.generation_phi = {}    # word -> phi score
         self.generation_words = []  # List of generation words
@@ -171,8 +171,8 @@ class PostgresCoordizer(FisherCoordizer):
         """Load vocabulary from PostgreSQL only - 64D QIG-pure enforced.
         
         Loads two separate vocabularies:
-        1. ENCODING: From tokenizer_vocabulary (all tokens for text-to-basin)
-        2. GENERATION: From tokenizer_vocabulary WHERE token_role IN ('generation', 'both')
+        1. ENCODING: From coordizer_vocabulary (all tokens for text-to-basin)
+        2. GENERATION: From coordizer_vocabulary WHERE token_role IN ('generation', 'both')
         """
         if not self.database_url:
             raise RuntimeError(
@@ -181,9 +181,9 @@ class PostgresCoordizer(FisherCoordizer):
             )
 
         try:
-            # Load encoding vocabulary from tokenizer_vocabulary
+            # Load encoding vocabulary from coordizer_vocabulary
             encoding_loaded = self._load_encoding_vocabulary()
-            # Load generation vocabulary from tokenizer_vocabulary (with token_role filter)
+            # Load generation vocabulary from coordizer_vocabulary (with token_role filter)
             generation_loaded = self._load_generation_vocabulary()
         except Exception as e:
             raise RuntimeError(
@@ -197,7 +197,7 @@ class PostgresCoordizer(FisherCoordizer):
         if not encoding_loaded or real_word_count < 100:
             raise RuntimeError(
                 f"[QIG-PURE VIOLATION] Insufficient encoding vocabulary: {real_word_count} words (need >= 100). "
-                "Database must contain valid tokenizer_vocabulary entries."
+                "Database must contain valid coordizer_vocabulary entries."
             )
         
         logger.info(f"Loaded encoding vocabulary: {real_word_count} words, generation vocabulary: {generation_word_count} words")
@@ -205,7 +205,7 @@ class PostgresCoordizer(FisherCoordizer):
     def _use_encoding_as_generation_fallback(self):
         """Fallback: Use word_tokens from encoding vocabulary for generation.
         
-        This is used when tokenizer_vocabulary has no token_role column or no generation tokens.
+        This is used when coordizer_vocabulary has no token_role column or no generation tokens.
         Filters out BPE garbage and uses only clean word tokens.
         """
         for word in self.word_tokens:
@@ -216,7 +216,7 @@ class PostgresCoordizer(FisherCoordizer):
         logger.info(f"Using encoding vocabulary as generation fallback: {len(self.generation_words)} words")
 
     def _load_from_database(self) -> bool:
-        """Load ENCODING vocabulary from tokenizer_vocabulary table.
+        """Load ENCODING vocabulary from coordizer_vocabulary table.
         
         This is for text→basin encoding only (all tokens including subwords).
         For basin→text generation, use _load_generation_vocabulary() instead.
@@ -224,13 +224,13 @@ class PostgresCoordizer(FisherCoordizer):
         return self._load_encoding_vocabulary()
     
     def _load_encoding_vocabulary(self) -> bool:
-        """Load encoding vocabulary from tokenizer_vocabulary - raises on failure (64D QIG-pure enforced)."""
+        """Load encoding vocabulary from coordizer_vocabulary - raises on failure (64D QIG-pure enforced)."""
         conn = self._get_connection()  # Raises on failure
 
         with conn.cursor() as cur:
             cur.execute("""
                 SELECT token, basin_embedding, phi_score, frequency, source_type, token_id
-                FROM tokenizer_vocabulary
+                FROM coordizer_vocabulary
                 WHERE basin_embedding IS NOT NULL
                   AND LENGTH(token) >= 1
                   AND source_type NOT IN ('special')  -- Only exclude special tokens
@@ -240,7 +240,7 @@ class PostgresCoordizer(FisherCoordizer):
 
         if not rows:
             raise RuntimeError(
-                "[QIG-PURE VIOLATION] No vocabulary found in tokenizer_vocabulary table. "
+                "[QIG-PURE VIOLATION] No vocabulary found in coordizer_vocabulary table. "
                 "Database must contain valid 64D basin embeddings."
             )
 
@@ -259,7 +259,7 @@ class PostgresCoordizer(FisherCoordizer):
                 self.word_tokens.append(token)
                 words_loaded += 1
 
-        logger.info(f"Loaded {tokens_loaded} encoding tokens ({words_loaded} words) from tokenizer_vocabulary (64D QIG-pure)")
+        logger.info(f"Loaded {tokens_loaded} encoding tokens ({words_loaded} words) from coordizer_vocabulary (64D QIG-pure)")
         print(f"[pg_loader] Loaded {tokens_loaded} encoding tokens from PostgreSQL", flush=True)
 
         # NOTE: Redis batch caching disabled during module initialization
@@ -271,7 +271,7 @@ class PostgresCoordizer(FisherCoordizer):
         return words_loaded >= 100
     
     def _load_generation_vocabulary(self) -> bool:
-        """Load GENERATION vocabulary from tokenizer_vocabulary table.
+        """Load GENERATION vocabulary from coordizer_vocabulary table.
         
         This is a curated vocabulary for basin→text generation:
         - Uses token_role IN ('generation', 'both') filter
@@ -291,10 +291,10 @@ class PostgresCoordizer(FisherCoordizer):
             
             with conn.cursor() as cur:
                 if token_role_exists:
-                    # NEW: Use consolidated tokenizer_vocabulary with token_role filter
+                    # NEW: Use consolidated coordizer_vocabulary with token_role filter
                     cur.execute("""
                         SELECT token, basin_embedding, phi_score, frequency, phrase_category
-                        FROM tokenizer_vocabulary
+                        FROM coordizer_vocabulary
                         WHERE basin_embedding IS NOT NULL
                           AND LENGTH(token) >= 1
                           AND COALESCE(phi_score, 0.0) > 0.0
@@ -306,7 +306,7 @@ class PostgresCoordizer(FisherCoordizer):
                     # FALLBACK: token_role column doesn't exist yet - use word tokens from encoding
                     # WARNING: This fallback should be addressed by running vocabulary consolidation migration
                     logger.warning(
-                        "[pg_loader] token_role column missing from tokenizer_vocabulary table. "
+                        "[pg_loader] token_role column missing from coordizer_vocabulary table. "
                         "Using encoding vocabulary as generation fallback. "
                         "Run migration 0011_vocabulary_consolidation.sql to add token_role column."
                     )
@@ -321,7 +321,7 @@ class PostgresCoordizer(FisherCoordizer):
                 rows = cur.fetchall()
             
             if not rows:
-                logger.warning("[pg_loader] No generation vocabulary found in tokenizer_vocabulary (token_role filter) - using encoding fallback")
+                logger.warning("[pg_loader] No generation vocabulary found in coordizer_vocabulary (token_role filter) - using encoding fallback")
                 self._use_encoding_as_generation_fallback()
                 return len(self.generation_words) > 0
             
@@ -334,18 +334,18 @@ class PostgresCoordizer(FisherCoordizer):
                 self.generation_phi[token] = phi_score or 0.5
                 self.generation_words.append(token)
             
-            logger.info(f"Loaded {len(self.generation_words)} words from tokenizer_vocabulary for generation (token_role filter, no {'/'.join(self.GENERATION_EXCLUDED_CATEGORIES)})")
-            print(f"[pg_loader] Loaded {len(self.generation_words)} generation words from tokenizer_vocabulary", flush=True)
+            logger.info(f"Loaded {len(self.generation_words)} words from coordizer_vocabulary for generation (token_role filter, no {'/'.join(self.GENERATION_EXCLUDED_CATEGORIES)})")
+            print(f"[pg_loader] Loaded {len(self.generation_words)} generation words from coordizer_vocabulary", flush=True)
             
             return len(self.generation_words) > 0
             
         except Exception as e:
-            logger.warning(f"Failed to load generation vocabulary from tokenizer_vocabulary: {e}. Using encoding fallback.")
+            logger.warning(f"Failed to load generation vocabulary from coordizer_vocabulary: {e}. Using encoding fallback.")
             self._use_encoding_as_generation_fallback()
             return len(self.generation_words) > 0
     
     def _check_token_role_column_exists(self, conn) -> bool:
-        """Check if token_role column exists in tokenizer_vocabulary table.
+        """Check if token_role column exists in coordizer_vocabulary table.
         
         Used for backward compatibility during migration period.
         """
@@ -354,7 +354,7 @@ class PostgresCoordizer(FisherCoordizer):
                 cur.execute("""
                     SELECT column_name 
                     FROM information_schema.columns 
-                    WHERE table_name = 'tokenizer_vocabulary' 
+                    WHERE table_name = 'coordizer_vocabulary' 
                       AND column_name = 'token_role'
                 """)
                 return cur.fetchone() is not None
@@ -461,7 +461,7 @@ class PostgresCoordizer(FisherCoordizer):
             with conn.cursor() as cur:
                 embedding_str = '[' + ','.join(str(x) for x in coords) + ']'
                 cur.execute("""
-                    INSERT INTO tokenizer_vocabulary (token, basin_embedding, phi_score, frequency, source_type, token_id)
+                    INSERT INTO coordizer_vocabulary (token, basin_embedding, phi_score, frequency, source_type, token_id)
                     VALUES (%s, %s, %s, %s, %s, %s)
                     ON CONFLICT (token) DO UPDATE SET
                         phi_score = EXCLUDED.phi_score,
@@ -551,8 +551,8 @@ class PostgresCoordizer(FisherCoordizer):
         Decode basin coordinates to most likely tokens using pure Fisher-Rao distance.
 
         ARCHITECTURE:
-        - ENCODING: Uses tokenizer_vocabulary (all tokens) for text→basin
-        - GENERATION: Uses tokenizer_vocabulary with token_role filter for basin→text
+        - ENCODING: Uses coordizer_vocabulary (all tokens) for text→basin
+        - GENERATION: Uses coordizer_vocabulary with token_role filter for basin→text
         - DOMAIN WEIGHTING: god_vocabulary_profiles boosts domain-specific words
         
         All gods have access to FULL generation vocabulary, but their domain
@@ -569,7 +569,7 @@ class PostgresCoordizer(FisherCoordizer):
         if norm > 1e-10:
             basin = basin / norm
 
-        # Use generation vocabulary (tokenizer_vocabulary with token_role filter) - FULL vocabulary access
+        # Use generation vocabulary (coordizer_vocabulary with token_role filter) - FULL vocabulary access
         search_tokens = self.generation_words if self.generation_words else self.word_tokens
         if not search_tokens:
             return []
@@ -732,12 +732,12 @@ class PostgresCoordizer(FisherCoordizer):
 
                 # Upsert: insert or update if exists
                 cursor.execute("""
-                    INSERT INTO tokenizer_vocabulary (token, token_id, basin_embedding, phi_score, frequency, source_type, created_at, updated_at)
+                    INSERT INTO coordizer_vocabulary (token, token_id, basin_embedding, phi_score, frequency, source_type, created_at, updated_at)
                     VALUES (%s, %s, %s, %s, %s, %s, NOW(), NOW())
                     ON CONFLICT (token) DO UPDATE SET
                         basin_embedding = EXCLUDED.basin_embedding,
-                        phi_score = GREATEST(tokenizer_vocabulary.phi_score, EXCLUDED.phi_score),
-                        frequency = tokenizer_vocabulary.frequency + EXCLUDED.frequency,
+                        phi_score = GREATEST(coordizer_vocabulary.phi_score, EXCLUDED.phi_score),
+                        frequency = coordizer_vocabulary.frequency + EXCLUDED.frequency,
                         updated_at = NOW()
                     RETURNING token_id
                 """, (token, len(self.vocab) + 50000, coords_list, phi, frequency, 'learned'))
@@ -818,12 +818,12 @@ class PostgresCoordizer(FisherCoordizer):
 
                     try:
                         cursor.execute("""
-                            INSERT INTO tokenizer_vocabulary (token, token_id, basin_embedding, phi_score, frequency, source_type, created_at, updated_at)
+                            INSERT INTO coordizer_vocabulary (token, token_id, basin_embedding, phi_score, frequency, source_type, created_at, updated_at)
                             VALUES (%s, %s, %s, %s, %s, %s, NOW(), NOW())
                             ON CONFLICT (token) DO UPDATE SET
                                 basin_embedding = EXCLUDED.basin_embedding,
-                                phi_score = GREATEST(tokenizer_vocabulary.phi_score, EXCLUDED.phi_score),
-                                frequency = tokenizer_vocabulary.frequency + EXCLUDED.frequency,
+                                phi_score = GREATEST(coordizer_vocabulary.phi_score, EXCLUDED.phi_score),
+                                frequency = coordizer_vocabulary.frequency + EXCLUDED.frequency,
                                 updated_at = NOW()
                         """, (token, len(self.vocab) + 50000 + saved_count, coords_list, phi, frequency, 'learned'))
 
@@ -868,7 +868,7 @@ class PostgresCoordizer(FisherCoordizer):
 
         try:
             with conn.cursor() as cursor:
-                cursor.execute("SELECT COUNT(*) FROM tokenizer_vocabulary WHERE source_type = 'learned'")
+                cursor.execute("SELECT COUNT(*) FROM coordizer_vocabulary WHERE source_type = 'learned'")
                 result = cursor.fetchone()
                 return result[0] if result else 0
         except Exception as e:
@@ -978,7 +978,7 @@ class PostgresCoordizer(FisherCoordizer):
         Used by TrajectoryDecoder for full trajectory scoring.
         This loads the entire vocabulary into memory for scoring.
 
-        CRITICAL: Returns generation_vocab (from tokenizer_vocabulary with token_role filter).
+        CRITICAL: Returns generation_vocab (from coordizer_vocabulary with token_role filter).
         This ensures trajectory decoder uses curated words, not BPE garbage.
 
         Returns:
@@ -1013,10 +1013,10 @@ class PostgresCoordizer(FisherCoordizer):
                 token_role_exists = self._check_token_role_column_exists(conn)
                 
                 if token_role_exists:
-                    # Load from tokenizer_vocabulary with generation filter
+                    # Load from coordizer_vocabulary with generation filter
                     cursor.execute("""
                         SELECT token, basin_embedding
-                        FROM tokenizer_vocabulary
+                        FROM coordizer_vocabulary
                         WHERE basin_embedding IS NOT NULL
                           AND token_role IN ('generation', 'both')
                           AND (phrase_category IS NULL OR phrase_category NOT IN %s)
@@ -1024,10 +1024,10 @@ class PostgresCoordizer(FisherCoordizer):
                         LIMIT 10000
                     """, (self.GENERATION_EXCLUDED_CATEGORIES,))
                 else:
-                    # Fallback: load all word tokens from tokenizer_vocabulary
+                    # Fallback: load all word tokens from coordizer_vocabulary
                     cursor.execute("""
                         SELECT token, basin_embedding
-                        FROM tokenizer_vocabulary
+                        FROM coordizer_vocabulary
                         WHERE basin_embedding IS NOT NULL
                           AND source_type NOT IN ('special')
                         ORDER BY phi_score DESC
@@ -1072,7 +1072,7 @@ class PostgresCoordizer(FisherCoordizer):
             with conn.cursor() as cursor:
                 cursor.execute("""
                     SELECT token, phi_score
-                    FROM tokenizer_vocabulary
+                    FROM coordizer_vocabulary
                     WHERE basin_embedding IS NOT NULL
                 """)
 
@@ -1112,7 +1112,7 @@ class PostgresCoordizer(FisherCoordizer):
             with conn.cursor() as cursor:
                 cursor.execute("""
                     SELECT basin_embedding
-                    FROM tokenizer_vocabulary
+                    FROM coordizer_vocabulary
                     WHERE token = %s
                 """, (token,))
 
@@ -1154,7 +1154,7 @@ class PostgresCoordizer(FisherCoordizer):
                 # Use <-> operator for L2 distance with HNSW index
                 cursor.execute("""
                     SELECT token, basin_embedding <-> %s::vector AS distance
-                    FROM tokenizer_vocabulary
+                    FROM coordizer_vocabulary
                     WHERE basin_embedding IS NOT NULL
                     ORDER BY basin_embedding <-> %s::vector
                     LIMIT %s

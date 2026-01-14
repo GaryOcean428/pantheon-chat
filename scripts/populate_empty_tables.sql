@@ -29,7 +29,7 @@ ON CONFLICT (key) DO UPDATE SET
 
 -- Update vocabulary_size from actual count
 UPDATE tokenizer_metadata
-SET value = (SELECT COUNT(*)::text FROM tokenizer_vocabulary)
+SET value = (SELECT COUNT(*)::text FROM coordizer_vocabulary)
 WHERE key = 'vocabulary_size';
 
 -- ============================================================================
@@ -56,12 +56,12 @@ SELECT
     SUBSTRING(word FROM 1 FOR POSITION(' ' IN word || ' ') - 1) AS token_a,
     SUBSTRING(word FROM POSITION(' ' IN word || ' ') + 1) AS token_b,
     word AS merged_token,
-    COALESCE((SELECT AVG(phi_score) FROM tokenizer_vocabulary WHERE word IN (
+    COALESCE((SELECT AVG(phi_score) FROM coordizer_vocabulary WHERE word IN (
         SUBSTRING(word FROM 1 FOR POSITION(' ' IN word || ' ') - 1),
         SUBSTRING(word FROM POSITION(' ' IN word || ' ') + 1)
     )), 0.5) AS phi_score,
     frequency AS frequency
-FROM tokenizer_vocabulary
+FROM coordizer_vocabulary
 WHERE word LIKE '% %'  -- Has space (compound word)
 ON CONFLICT (token_a, token_b) DO UPDATE SET
     phi_score = GREATEST(tokenizer_merge_rules.phi_score, EXCLUDED.phi_score),
@@ -80,7 +80,7 @@ vocabulary_with_prefix AS (
         tv.word AS merged_token,
         COALESCE(tv.phi_score, 0.6) AS phi_score,
         tv.frequency AS frequency
-    FROM tokenizer_vocabulary tv
+    FROM coordizer_vocabulary tv
     CROSS JOIN common_prefixes cp
     WHERE tv.word LIKE cp.prefix || '%'
     AND LENGTH(tv.word) > LENGTH(cp.prefix) + 2  -- At least 3 chars after prefix
@@ -105,7 +105,7 @@ vocabulary_with_suffix AS (
         tv.word AS merged_token,
         COALESCE(tv.phi_score, 0.6) AS phi_score,
         tv.frequency AS frequency
-    FROM tokenizer_vocabulary tv
+    FROM coordizer_vocabulary tv
     CROSS JOIN common_suffixes cs
     WHERE tv.word LIKE '%' || cs.suffix
     AND LENGTH(tv.word) > LENGTH(cs.suffix) + 2  -- At least 3 chars before suffix
@@ -154,7 +154,7 @@ SELECT
     ARRAY[]::text[] AS context_words,
     'initialization' AS learned_from,
     NOW() AS learned_at
-FROM tokenizer_vocabulary
+FROM coordizer_vocabulary
 WHERE phi_score > 0.6  -- Only high-quality tokens
 LIMIT 100  -- Seed with top 100 words
 ON CONFLICT DO NOTHING;
@@ -178,8 +178,8 @@ BEGIN
         FROM (
             SELECT tv.word,
                    fisher_rao_similarity(tv.basin_coords, source.basin_coords) AS similarity
-            FROM tokenizer_vocabulary tv,
-                 (SELECT basin_coords FROM tokenizer_vocabulary WHERE token_id = word_rec.token_id) AS source
+            FROM coordizer_vocabulary tv,
+                 (SELECT basin_coords FROM coordizer_vocabulary WHERE token_id = word_rec.token_id) AS source
             WHERE tv.word != word_rec.word
             AND tv.basin_coords IS NOT NULL
             AND source.basin_coords IS NOT NULL
@@ -200,7 +200,7 @@ END $$;
 UPDATE vocabulary_learning vl
 SET related_words = (
     SELECT ARRAY_AGG(tv.word ORDER BY tv.frequency DESC)
-    FROM tokenizer_vocabulary tv
+    FROM coordizer_vocabulary tv
     WHERE tv.word != vl.word
     AND (
         tv.word LIKE vl.word || '%' OR
@@ -245,7 +245,7 @@ SELECT
     0.7 + (random() * 0.25) AS consensus_strength,  -- 0.7-0.95 range
     ARRAY['ocean', 'lightning', 'heart']::text[] AS participating_kernels,
     'Vocabulary initialization and geometric alignment' AS consensus_topic,
-    (SELECT basin_coords FROM tokenizer_vocabulary ORDER BY RANDOM() LIMIT 1) AS consensus_basin,
+    (SELECT basin_coords FROM coordizer_vocabulary ORDER BY RANDOM() LIMIT 1) AS consensus_basin,
     0.7 + (random() * 0.2) AS phi_global,  -- 0.7-0.9 range
     60.0 + (random() * 10.0) AS kappa_avg,  -- 60-70 range (near κ* = 64)
     CASE (generate_series(1, 10) % 4)
@@ -277,7 +277,7 @@ DECLARE
     vocab_learning_count INTEGER;
     vocab_learning_with_related INTEGER;
 BEGIN
-    SELECT COUNT(*) INTO vocab_size FROM tokenizer_vocabulary;
+    SELECT COUNT(*) INTO vocab_size FROM coordizer_vocabulary;
     SELECT COUNT(*) INTO merge_rules_count FROM tokenizer_merge_rules;
     SELECT COUNT(*) INTO metadata_count FROM tokenizer_metadata;
     SELECT COUNT(*) INTO consensus_count FROM synthesis_consensus;
@@ -289,7 +289,7 @@ BEGIN
     RAISE NOTICE '========================================';
     RAISE NOTICE 'TABLE POPULATION RESULTS';
     RAISE NOTICE '========================================';
-    RAISE NOTICE 'tokenizer_vocabulary: % words', vocab_size;
+    RAISE NOTICE 'coordizer_vocabulary: % words', vocab_size;
     RAISE NOTICE 'tokenizer_merge_rules: % rules', merge_rules_count;
     RAISE NOTICE 'tokenizer_metadata: % entries', metadata_count;
     RAISE NOTICE 'synthesis_consensus: % records', consensus_count;

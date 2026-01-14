@@ -4877,7 +4877,7 @@ def learning_status():
     """
     Get comprehensive learning status for telemetry.
     
-    Returns vocabulary_size from PostgreSQL tokenizer_vocabulary table,
+    Returns vocabulary_size from PostgreSQL coordizer_vocabulary table,
     plus word relationship and curiosity engine stats.
     """
     try:
@@ -4892,7 +4892,7 @@ def learning_status():
             try:
                 conn = psycopg2.connect(database_url)
                 with conn.cursor() as cur:
-                    cur.execute("SELECT COUNT(*) FROM tokenizer_vocabulary WHERE basin_embedding IS NOT NULL")
+                    cur.execute("SELECT COUNT(*) FROM coordizer_vocabulary WHERE basin_embedding IS NOT NULL")
                     row = cur.fetchone()
                     vocabulary_size = row[0] if row else 0
                     

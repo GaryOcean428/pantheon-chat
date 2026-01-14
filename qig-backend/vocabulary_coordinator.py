@@ -173,10 +173,10 @@ class VocabularyCoordinator:
         Persist vocabulary observations to PostgresCoordizer for continuous learning.
         
         This solves the critical issue where vocabulary was learned during sessions
-        but lost on restart because it was never written back to the tokenizer_vocabulary table.
+        but lost on restart because it was never written back to the coordizer_vocabulary table.
         
         Also updates learned_words.basin_coords so integrate_pending_vocabulary can
-        push vectors into tokenizer_vocabulary and generation can use them.
+        push vectors into coordizer_vocabulary and generation can use them.
         
         Args:
             observations: List of vocabulary observation dicts with word, phi, etc.
@@ -222,7 +222,7 @@ class VocabularyCoordinator:
             except Exception as e:
                 print(f"[VocabularyCoordinator] Failed to persist '{word}': {e}")
         
-        # Phase 2b: Update tokenizer_vocabulary with basin_embedding for generation
+        # Phase 2b: Update coordizer_vocabulary with basin_embedding for generation
         # Also update learned_words for backward compatibility
         if words_with_basins:
             database_url = os.environ.get('DATABASE_URL')
@@ -232,17 +232,17 @@ class VocabularyCoordinator:
                     with conn.cursor() as cur:
                         for word, basin in words_with_basins:
                             basin_list = basin.tolist() if hasattr(basin, 'tolist') else list(basin)
-                            # Primary: Update tokenizer_vocabulary (consolidated table)
+                            # Primary: Update coordizer_vocabulary (consolidated table)
                             cur.execute("""
-                                INSERT INTO tokenizer_vocabulary (
+                                INSERT INTO coordizer_vocabulary (
                                     token, basin_embedding, token_role, is_real_word, frequency
                                 )
                                 VALUES (%s, %s::vector, 'generation', TRUE, 1)
                                 ON CONFLICT (token) DO UPDATE SET
-                                    basin_embedding = COALESCE(EXCLUDED.basin_embedding, tokenizer_vocabulary.basin_embedding),
+                                    basin_embedding = COALESCE(EXCLUDED.basin_embedding, coordizer_vocabulary.basin_embedding),
                                     token_role = CASE 
-                                        WHEN tokenizer_vocabulary.token_role = 'encoding' THEN 'both'
-                                        ELSE COALESCE(tokenizer_vocabulary.token_role, 'generation')
+                                        WHEN coordizer_vocabulary.token_role = 'encoding' THEN 'both'
+                                        ELSE COALESCE(coordizer_vocabulary.token_role, 'generation')
                                     END,
                                     is_real_word = TRUE,
                                     updated_at = NOW()
@@ -259,7 +259,7 @@ class VocabularyCoordinator:
                     conn.commit()
                     conn.close()
                 except Exception as e:
-                    print(f"[VocabularyCoordinator] Failed to update tokenizer_vocabulary basin_embedding: {e}")
+                    print(f"[VocabularyCoordinator] Failed to update coordizer_vocabulary basin_embedding: {e}")
         
         if persisted > 0:
             print(f"[VocabularyCoordinator] Persisted {persisted} tokens to coordizer DB")
@@ -859,10 +859,10 @@ class VocabularyCoordinator:
         try:
             conn = psycopg2.connect(database_url)
             with conn.cursor() as cur:
-                # Get unintegrated high-phi words from tokenizer_vocabulary
+                # Get unintegrated high-phi words from coordizer_vocabulary
                 cur.execute("""
                     SELECT token as word, phi_score as avg_phi, phi_score as max_phi, frequency, source
-                    FROM tokenizer_vocabulary
+                    FROM coordizer_vocabulary
                     WHERE is_real_word = FALSE AND phi_score >= %s
                       AND token_role IN ('generation', 'both')
                       AND (phrase_category IS NULL OR phrase_category NOT IN ('PROPER_NOUN', 'BRAND'))
@@ -919,22 +919,22 @@ class VocabularyCoordinator:
                     except Exception as e:
                         errors.append(f"save_token_{w['word']}: {e}")
 
-                # Phase 2b: Update tokenizer_vocabulary with basin_embedding and mark as generation-ready
+                # Phase 2b: Update coordizer_vocabulary with basin_embedding and mark as generation-ready
                 # Also update learned_words for backward compatibility
                 for word, basin in words_with_basins:
                     try:
                         basin_list = basin.tolist() if hasattr(basin, 'tolist') else list(basin)
-                        # Primary: Update tokenizer_vocabulary (consolidated table)
+                        # Primary: Update coordizer_vocabulary (consolidated table)
                         cur.execute("""
-                            INSERT INTO tokenizer_vocabulary (
+                            INSERT INTO coordizer_vocabulary (
                                 token, basin_embedding, token_role, is_real_word, frequency
                             )
                             VALUES (%s, %s::vector, 'generation', TRUE, 1)
                             ON CONFLICT (token) DO UPDATE SET
-                                basin_embedding = COALESCE(EXCLUDED.basin_embedding, tokenizer_vocabulary.basin_embedding),
+                                basin_embedding = COALESCE(EXCLUDED.basin_embedding, coordizer_vocabulary.basin_embedding),
                                 token_role = CASE 
-                                    WHEN tokenizer_vocabulary.token_role = 'encoding' THEN 'both'
-                                    ELSE COALESCE(tokenizer_vocabulary.token_role, 'generation')
+                                    WHEN coordizer_vocabulary.token_role = 'encoding' THEN 'both'
+                                    ELSE COALESCE(coordizer_vocabulary.token_role, 'generation')
                                 END,
                                 is_real_word = TRUE,
                                 updated_at = NOW()

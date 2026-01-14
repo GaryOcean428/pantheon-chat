@@ -179,7 +179,7 @@ class TrainingLoopIntegrator:
             self._outcome_count += 1
             
             # WIRE: Record episode to LearnedManifold for persistence
-            # This populates learned_manifold_attractors table
+            # This populates manifold_attractors table
             if basin_trajectory and len(basin_trajectory) > 0:
                 try:
                     manifold = get_learned_manifold()

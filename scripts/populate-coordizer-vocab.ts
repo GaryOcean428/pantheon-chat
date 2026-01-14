@@ -1,6 +1,6 @@
 #!/usr/bin/env npx tsx
 /**
- * Populate tokenizer_vocabulary with real English words.
+ * Populate coordizer_vocabulary with real English words.
  * 
  * This adds BIP39 words and common English words with 64D basin embeddings
  * to fix the BPE garble issue in kernel generation.
@@ -142,7 +142,7 @@ async function loadBip39Words(): Promise<string[]> {
 }
 
 async function main() {
-  console.log('Populating tokenizer_vocabulary with real English words...\n');
+  console.log('Populating coordizer_vocabulary with real English words...\n');
   
   // Load BIP39 words
   const bip39Words = await loadBip39Words();
@@ -199,7 +199,7 @@ async function main() {
     for (const word of batch) {
       try {
         await db.execute(sql`
-          INSERT INTO tokenizer_vocabulary 
+          INSERT INTO coordizer_vocabulary 
             (token, token_id, weight, frequency, phi_score, basin_embedding, source_type)
           VALUES 
             (${word.token}, ${word.tokenId}, ${word.weight}, ${word.frequency}, 
@@ -226,7 +226,7 @@ async function main() {
   // Verify
   const result = await db.execute(sql`
     SELECT source_type, COUNT(*) as count, AVG(phi_score)::numeric(5,3) as avg_phi 
-    FROM tokenizer_vocabulary 
+    FROM coordizer_vocabulary 
     GROUP BY source_type
   `);
   
@@ -238,7 +238,7 @@ async function main() {
   // Sample high-phi words
   const sampleResult = await db.execute(sql`
     SELECT token, phi_score, source_type 
-    FROM tokenizer_vocabulary 
+    FROM coordizer_vocabulary 
     WHERE source_type IN ('bip39', 'base')
     ORDER BY phi_score DESC 
     LIMIT 10

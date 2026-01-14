@@ -50,14 +50,14 @@ def _get_db_connection():
 
 
 def _ensure_attractors_table():
-    """Create learned_manifold_attractors table if not exists."""
+    """Create manifold_attractors table if not exists."""
     conn = _get_db_connection()
     if not conn:
         return False
     try:
         with conn.cursor() as cur:
             cur.execute("""
-                CREATE TABLE IF NOT EXISTS learned_manifold_attractors (
+                CREATE TABLE IF NOT EXISTS manifold_attractors (
                     id VARCHAR(128) PRIMARY KEY,
                     center vector(64) NOT NULL,
                     depth DOUBLE PRECISION NOT NULL,
@@ -69,7 +69,7 @@ def _ensure_attractors_table():
             """)
             cur.execute("""
                 CREATE INDEX IF NOT EXISTS idx_learned_manifold_attractors_depth
-                ON learned_manifold_attractors(depth)
+                ON manifold_attractors(depth)
             """)
             conn.commit()
         return True
@@ -113,7 +113,7 @@ class LearnedManifold:
     This IS the learned knowledge - encoded as manifold geometry.
     Chain/Graph/4D/Lightning navigate through THIS structure.
 
-    PERSISTENCE: Attractors are persisted to PostgreSQL (learned_manifold_attractors).
+    PERSISTENCE: Attractors are persisted to PostgreSQL (manifold_attractors).
     """
 
     def __init__(self, basin_dim: int = 64, load_from_db: bool = True):
@@ -445,7 +445,7 @@ class LearnedManifold:
                 cur.execute("""
                     SELECT id, center, depth, success_count, strategy,
                            created_at, last_accessed
-                    FROM learned_manifold_attractors
+                    FROM manifold_attractors
                     ORDER BY depth DESC
                     LIMIT 1000
                 """)
@@ -497,7 +497,7 @@ class LearnedManifold:
                 center_str = '[' + ','.join(str(x) for x in attractor.center.tolist()) + ']'
 
                 cur.execute("""
-                    INSERT INTO learned_manifold_attractors
+                    INSERT INTO manifold_attractors
                     (id, center, depth, success_count, strategy, created_at, last_accessed)
                     VALUES (%s, %s::vector, %s, %s, %s, %s, %s)
                     ON CONFLICT (id) DO UPDATE SET
@@ -532,7 +532,7 @@ class LearnedManifold:
         try:
             with conn.cursor() as cur:
                 cur.execute(
-                    "DELETE FROM learned_manifold_attractors WHERE id = %s",
+                    "DELETE FROM manifold_attractors WHERE id = %s",
                     (basin_id,)
                 )
                 conn.commit()

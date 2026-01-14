@@ -90,10 +90,10 @@ def get_words_needing_backfill(conn, limit: int = 1000) -> List[Tuple[str, Optio
 
 
 def get_basin_from_tokenizer(conn, word: str) -> Optional[np.ndarray]:
-    """Try to get basin from tokenizer_vocabulary first."""
+    """Try to get basin from coordizer_vocabulary first."""
     with conn.cursor() as cur:
         cur.execute("""
-            SELECT basin_embedding FROM tokenizer_vocabulary
+            SELECT basin_embedding FROM coordizer_vocabulary
             WHERE token = %s AND basin_embedding IS NOT NULL
             LIMIT 1
         """, (word,))

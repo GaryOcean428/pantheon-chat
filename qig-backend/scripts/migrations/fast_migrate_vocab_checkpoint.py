@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Fast Migration: 32K Checkpoint → tokenizer_vocabulary
+Fast Migration: 32K Checkpoint → coordizer_vocabulary
 
 Uses PostgreSQL COPY for bulk insertion (100x faster than INSERT).
 """
@@ -46,12 +46,12 @@ def main():
     cur = conn.cursor()
     
     # Get current max token_id
-    cur.execute("SELECT COALESCE(MAX(token_id), 0) FROM tokenizer_vocabulary")
+    cur.execute("SELECT COALESCE(MAX(token_id), 0) FROM coordizer_vocabulary")
     max_id = cur.fetchone()[0]
     print(f"Current max token_id: {max_id}")
     
     # Get existing tokens to avoid duplicates
-    cur.execute("SELECT token FROM tokenizer_vocabulary")
+    cur.execute("SELECT token FROM coordizer_vocabulary")
     existing = {row[0] for row in cur.fetchall()}
     print(f"Existing tokens: {len(existing)}")
     
@@ -112,21 +112,21 @@ def main():
     buffer.seek(0)
     
     cur.copy_expert(
-        "COPY tokenizer_vocabulary (token, token_id, weight, frequency, phi_score, basin_embedding, source_type) FROM STDIN WITH (FORMAT text)",
+        "COPY coordizer_vocabulary (token, token_id, weight, frequency, phi_score, basin_embedding, source_type) FROM STDIN WITH (FORMAT text)",
         buffer
     )
     
     conn.commit()
     
     # Verify
-    cur.execute("SELECT COUNT(*) FROM tokenizer_vocabulary")
+    cur.execute("SELECT COUNT(*) FROM coordizer_vocabulary")
     total = cur.fetchone()[0]
     print(f"✅ Migration complete! Total tokens: {total}")
     
     # Show sample
     cur.execute("""
         SELECT source_type, COUNT(*) 
-        FROM tokenizer_vocabulary 
+        FROM coordizer_vocabulary 
         GROUP BY source_type 
         ORDER BY COUNT(*) DESC
     """)
