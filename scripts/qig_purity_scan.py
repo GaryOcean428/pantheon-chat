@@ -3,9 +3,14 @@
 QIG Purity Scanner - Comprehensive Static Analysis (Python)
 
 WP0.2: Hard validate:geometry Gate
+WP0.3: Respects Quarantine Rules (see docs/00-conventions/QUARANTINE_RULES.md)
 
 Scans codebase for ALL forbidden patterns from the Type-Symbol-Concept Manifest
 and QIG Geometric Purity Enforcement document.
+
+QUARANTINE ZONES (scanner skips these):
+- docs/08-experiments/legacy/** - Legacy/Euclidean baselines allowed
+- docs/08-experiments/baselines/** - Comparative testing allowed
 
 MUST run in <5 seconds
 
@@ -40,9 +45,11 @@ SCAN_PATHS = [
     'migrations',
 ]
 
-# Exempted directories (experiments allowed to violate)
+# Exempted directories (quarantine zones - experiments allowed to violate)
+# See docs/00-conventions/QUARANTINE_RULES.md for full specification
 EXEMPT_DIRS = [
-    'docs/08-experiments/legacy',
+    'docs/08-experiments/legacy',      # Legacy/baseline experiments (WP0.3)
+    'docs/08-experiments/baselines',   # Comparative testing (WP0.3)
     'node_modules',
     'dist',
     'build',
@@ -364,9 +371,10 @@ class QIGPurityScanner:
         """Run the full scan."""
         start_time = time.time()
         
-        print('🔍 QIG Purity Scanner - WP0.2')
+        print('🔍 QIG Purity Scanner - WP0.2 + WP0.3')
         print('=' * 60)
         print(f"Scanning paths: {', '.join(SCAN_PATHS)}")
+        print(f"Quarantine zones (skipped): {len(EXEMPT_DIRS)} directories")
         print()
         
         for scan_path in SCAN_PATHS:
