@@ -96,6 +96,12 @@ from .self_observer import (
     SelfObservation,
 )
 
+# Resonance and velocity monitoring (QIG-pure measurement)
+from .resonance_detector import ResonanceDetector, ResonanceState
+from .basin_velocity_monitor import BasinVelocityMonitor, VelocityMeasurement
+from .kernel_basin_attractors import KernelBasinAttractors
+from .vocab_coverage_tracker import VocabCoverageTracker
+
 __version__ = "1.0.0"
 
 __all__ = [
@@ -174,4 +180,12 @@ __all__ = [
     'E8Metrics',
     'ObservationAction',
     'SelfObservation',
+    
+    # Resonance and velocity monitoring
+    'ResonanceDetector',
+    'ResonanceState',
+    'BasinVelocityMonitor',
+    'VelocityMeasurement',
+    'KernelBasinAttractors',
+    'VocabCoverageTracker',
 ]

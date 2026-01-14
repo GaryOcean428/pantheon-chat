@@ -1,0 +1,61 @@
+~/workspace$ python scripts/db_validate.py
+============================================================
+DATABASE VALIDATION
+============================================================
+
+--- Singleton Table Cardinality ---
+✓ ocean_quantum_state: 1 row (OK)
+✓ near_miss_adaptive_state: 1 row (OK)
+✓ auto_cycle_state: 1 row (OK)
+
+--- Core Table Minimums ---
+⚠ WARNING: coordizer_vocabulary: table does not exist
+✓ learned_words: 17,229 rows (minimum: 5,000)
+
+--- Excessive NULL Detection (>50%) ---
+⚠ WARNING: ocean_quantum_state.last_measurement_at: 100% NULL
+⚠ WARNING: auto_cycle_state.last_cycle_time: 100% NULL
+⚠ WARNING: auto_cycle_state.current_address_id: 100% NULL
+⚠ WARNING: auto_cycle_state.paused_until: 100% NULL
+⚠ WARNING: auto_cycle_state.rate_limit_backoff_until: 100% NULL
+⚠ WARNING: learned_words.integrated_at: 57% NULL
+⚠ WARNING: learned_words.learned_from: 100% NULL
+⚠ WARNING: learned_words.contexts: 94% NULL
+⚠ WARNING: learned_words.last_used_in_generation: 100% NULL
+⚠ WARNING: learned_words.qfi_score: 57% NULL
+⚠ WARNING: learned_words.basin_distance: 57% NULL
+⚠ WARNING: learned_words.curvature_std: 57% NULL
+⚠ WARNING: learned_words.entropy_score: 57% NULL
+⚠ WARNING: learned_words.is_geometrically_valid: 57% NULL
+⚠ WARNING: learned_words.validation_reason: 100% NULL
+⚠ WARNING: learned_words.phrase_category: 57% NULL
+⚠ WARNING: vocabulary_observations.integrated_at: 75% NULL
+⚠ WARNING: synthesis_consensus.consensus_basin: 100% NULL
+
+--- Default Value Detection (>80%) ---
+ℹ INFO: ocean_quantum_state.entropy: 100% at default
+ℹ INFO: ocean_quantum_state.initial_entropy: 100% at default
+ℹ INFO: ocean_quantum_state.total_probability: 100% at default
+ℹ INFO: ocean_quantum_state.measurement_count: 100% at default
+ℹ INFO: ocean_quantum_state.successful_measurements: 100% at default
+ℹ INFO: ocean_quantum_state.status: 100% at default
+ℹ INFO: near_miss_adaptive_state.hot_threshold: 100% at default
+ℹ INFO: near_miss_adaptive_state.warm_threshold: 100% at default
+ℹ INFO: near_miss_adaptive_state.cool_threshold: 100% at default
+ℹ INFO: near_miss_adaptive_state.distribution_size: 100% at default
+ℹ INFO: auto_cycle_state.enabled: 100% at default
+ℹ INFO: auto_cycle_state.current_index: 100% at default
+ℹ INFO: auto_cycle_state.total_cycles: 100% at default
+ℹ INFO: auto_cycle_state.consecutive_zero_pass_sessions: 100% at default
+ℹ INFO: vocabulary_observations.is_bip39_word: 100% at default
+
+============================================================
+SUMMARY
+============================================================
+  ✓ OK:       4
+  ℹ INFO:     15
+  ⚠ WARNING:  19
+  ✗ CRITICAL: 0
+
+⚠️ Validation completed with warnings
+~/workspace$ 

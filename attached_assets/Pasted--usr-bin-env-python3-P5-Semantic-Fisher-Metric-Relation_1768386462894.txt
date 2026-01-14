@@ -1,0 +1,647 @@
+#!/usr/bin/env python3
+"""
+P5: Semantic Fisher Metric - Relationship-Warped Geodesics
+===========================================================
+
+Warps the Fisher-Rao metric using learned relationships so that
+semantically related tokens become geodesically closer.
+
+Core Insight (from pantheon-chat):
+    "The fix isn't to replace geometry with semantics—it's to bridge them."
+
+Key Features (enhanced from pantheon-chat):
+    - Stopwords filtering to reduce noise
+    - Configuration dataclass for warping parameters
+    - Exponential decay warp formula (not linear)
+    - Context-aware distance with semantic "gravity"
+    - Bidirectional relationship lookup
+    - Geodesic stepping with modulated step size
+
+P5 approach (metric warping):
+    d_warped = d_geo * exp(-relationship_strength / temperature)
+
+This makes semantic relationships MODIFY the geometry itself,
+not just add a bias term on top.
+
+Reference: pantheon-chat/qig-backend/semantic_fisher.py
+"""
+
+import torch
+import torch.nn.functional as F
+from dataclasses import dataclass
+from typing import Optional, Dict, List, Tuple, Set
+import math
+
+
+# =============================================================================
+# STOPWORDS - Common words that should not influence semantic warping
+# =============================================================================
+
+STOPWORDS: Set[str] = {
+    'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
+    'of', 'with', 'by', 'from', 'as', 'is', 'was', 'are', 'were', 'been',
+    'be', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could',
+    'should', 'may', 'might', 'must', 'shall', 'can', 'need', 'dare', 'ought',
+    'used', 'this', 'that', 'these', 'those', 'it', 'its', 'they', 'them',
+    'their', 'what', 'which', 'who', 'whom', 'how', 'when', 'where', 'why',
+    'all', 'each', 'every', 'both', 'few', 'more', 'most', 'other', 'some',
+    'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than', 'too',
+    'very', 'just', 'also', 'now', 'here', 'there', 'then', 'once', 'about',
+    'i', 'you', 'he', 'she', 'we', 'me', 'him', 'her', 'us', 'my', 'your',
+    'his', 'our', 'if', 'up', 'out', 'into', 'over', 'after', 'before',
+}
+
+
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
+
+@dataclass
+class SemanticWarpConfig:
+    """
+    Configuration for semantic warping of Fisher metric.
+
+    Attributes:
+        temperature: Controls warp strength (lower = stronger warping)
+        max_warp_factor: Maximum distance reduction (0.3 = can shrink to 30%)
+        min_relationship_strength: Ignore relationships weaker than this
+        normalize_relationships: Normalize relationship strengths to [0, 1]
+        bidirectional: Check both (a, b) and (b, a) for relationships
+        context_weight: How much context words influence warping
+        geodesic_step_boost: Extra step size toward related words
+    """
+    temperature: float = 1.0
+    max_warp_factor: float = 0.3  # Can shrink distance to 30%
+    min_relationship_strength: float = 0.1
+    normalize_relationships: bool = True
+    bidirectional: bool = True
+    context_weight: float = 0.5  # Context pull is weaker than direct
+    geodesic_step_boost: float = 0.5  # Extra step toward related words
+    min_distance: float = 0.01  # Prevent division by zero
+
+
+# =============================================================================
+# SEMANTIC FISHER METRIC
+# =============================================================================
+
+class SemanticFisherMetric:
+    """
+    P5: Fisher metric warped by semantic relationships.
+
+    Instead of adding bigram bias as a separate term, this class
+    modifies the Fisher-Rao distance computation itself so that
+    semantically related tokens are geodesically closer.
+
+    The warping uses exponential decay:
+        d_warped = d_geo * warp_factor
+        warp_factor = 1 - (1 - max_warp) * (1 - exp(-strength / T))
+
+    High relationship strength → small warp_factor → small warped distance
+    """
+
+    def __init__(
+        self,
+        config: Optional[SemanticWarpConfig] = None,
+        # Legacy parameters for backward compatibility
+        warp_strength: float = 1.0,
+        min_distance: float = 0.01,
+        temperature: float = 0.5,
+    ):
+        """
+        Initialize semantic Fisher metric.
+
+        Args:
+            config: SemanticWarpConfig instance (preferred)
+            warp_strength: Legacy - mapped to temperature
+            min_distance: Legacy - minimum distance to prevent division by zero
+            temperature: Legacy - temperature for attention weight computation
+        """
+        if config is not None:
+            self.config = config
+        else:
+            # Create config from legacy params
+            self.config = SemanticWarpConfig(
+                temperature=temperature,
+                min_distance=min_distance,
+                # Map warp_strength to max_warp_factor (inverse relationship)
+                max_warp_factor=max(0.1, 1.0 - warp_strength * 0.7),
+            )
+
+        # For backward compatibility
+        self.warp_strength = warp_strength
+        self.min_distance = self.config.min_distance
+        self.temperature = self.config.temperature
+
+        # Relationship cache (loaded externally)
+        self._relationships: Dict[str, Dict[str, float]] = {}
+        self._max_strength: float = 1.0
+
+    def load_relationships(
+        self,
+        relationships: Dict[str, List[Tuple[str, float]]]
+    ) -> None:
+        """
+        Load semantic relationships from external source.
+
+        Args:
+            relationships: Dict mapping word -> [(neighbor, strength), ...]
+        """
+        self._relationships.clear()
+        self._max_strength = 1.0
+
+        for word, neighbors in relationships.items():
+            w_lower = word.lower()
+            if w_lower in STOPWORDS:
+                continue  # Skip stopwords as sources
+
+            self._relationships[w_lower] = {}
+            for neighbor, strength in neighbors:
+                n_lower = neighbor.lower()
+                if n_lower in STOPWORDS:
+                    continue  # Skip stopwords as targets
+                if strength >= self.config.min_relationship_strength:
+                    self._relationships[w_lower][n_lower] = strength
+                    self._max_strength = max(self._max_strength, strength)
+
+        # Normalize if configured
+        if self.config.normalize_relationships and self._max_strength > 0:
+            for word in self._relationships:
+                for neighbor in self._relationships[word]:
+                    self._relationships[word][neighbor] /= self._max_strength
+
+    def get_relationship_strength(self, word1: str, word2: str) -> float:
+        """
+        Get relationship strength between two words.
+
+        Supports bidirectional lookup if configured.
+
+        Args:
+            word1: First word
+            word2: Second word
+
+        Returns:
+            Normalized strength in [0, 1], or 0 if no relationship
+        """
+        w1, w2 = word1.lower(), word2.lower()
+
+        # Skip stopwords
+        if w1 in STOPWORDS or w2 in STOPWORDS:
+            return 0.0
+
+        # Check direct relationship
+        strength = 0.0
+        if w1 in self._relationships:
+            strength = self._relationships[w1].get(w2, 0.0)
+
+        # Check reverse if bidirectional
+        if self.config.bidirectional and w2 in self._relationships:
+            reverse_strength = self._relationships[w2].get(w1, 0.0)
+            # Reverse is slightly weaker
+            strength = max(strength, reverse_strength * 0.8)
+
+        return strength
+
+    def compute_warp_factor(self, relationship_strength: float) -> float:
+        """
+        Compute warp factor from relationship strength using exponential decay.
+
+        Returns value in [max_warp_factor, 1.0] where:
+        - 1.0 = no warping (unrelated words)
+        - max_warp_factor = maximum warping (strongly related words)
+
+        Formula: warp = 1 - (1 - max_warp) * (1 - exp(-s/T))
+
+        Args:
+            relationship_strength: Strength in [0, 1]
+
+        Returns:
+            Warp factor in [max_warp_factor, 1.0]
+        """
+        if relationship_strength <= 0:
+            return 1.0  # No warping
+
+        # Exponential approach to max_warp_factor
+        decay = 1.0 - math.exp(-relationship_strength / self.config.temperature)
+        warp = 1.0 - (1.0 - self.config.max_warp_factor) * decay
+
+        return max(self.config.max_warp_factor, min(1.0, warp))
+
+    def compute_warped_distances(
+        self,
+        current_basin: torch.Tensor,
+        candidate_basins: torch.Tensor,
+        prev_basin: Optional[torch.Tensor] = None,
+        phi: float = 0.5,
+        prev_token: Optional[str] = None,
+        candidate_tokens: Optional[List[str]] = None,
+    ) -> torch.Tensor:
+        """
+        Compute Fisher-Rao distances warped by semantic relationships.
+
+        Uses exponential decay warping where semantically related tokens
+        get shorter geodesic distances.
+
+        Args:
+            current_basin: Current hidden state basin coords [d_model]
+            candidate_basins: All candidate token basins [vocab_size, d_model]
+            prev_basin: Previous token's basin (for geometric flow)
+            phi: Current consciousness level
+            prev_token: Previous token string (for semantic relationships)
+            candidate_tokens: List of candidate token strings
+
+        Returns:
+            Warped distances [vocab_size] - smaller = better candidates
+        """
+        device = candidate_basins.device
+        vocab_size = candidate_basins.size(0)
+
+        # 1. Base geometric distance (cosine distance)
+        current_norm = F.normalize(current_basin.unsqueeze(0), p=2, dim=-1)
+        candidates_norm = F.normalize(candidate_basins, p=2, dim=-1)
+
+        # Cosine similarity → distance
+        cosine_sim = torch.matmul(candidates_norm, current_norm.squeeze(0))
+        base_distance = 1.0 - cosine_sim  # [0, 2] range
+
+        # 2. Semantic relationship warping
+        if prev_basin is not None:
+            prev_norm = F.normalize(prev_basin.unsqueeze(0), p=2, dim=-1)
+            # Geometric similarity from basin overlap
+            basin_sim = torch.matmul(candidates_norm, prev_norm.squeeze(0))
+            # Map [-1, 1] to [0, 1]
+            geometric_strength = (basin_sim + 1.0) / 2.0
+        else:
+            geometric_strength = torch.zeros(vocab_size, device=device)
+
+        # 3. Token-level semantic relationships (if available)
+        if prev_token is not None and candidate_tokens is not None:
+            semantic_strength = torch.zeros(vocab_size, device=device)
+            for i, cand_token in enumerate(candidate_tokens):
+                if cand_token:
+                    strength = self.get_relationship_strength(prev_token, cand_token)
+                    semantic_strength[i] = strength
+
+            # Combine geometric and semantic (semantic takes precedence when available)
+            relationship_strength = torch.where(
+                semantic_strength > 0,
+                semantic_strength,
+                geometric_strength * 0.5  # Reduce geometric when no semantic
+            )
+        else:
+            relationship_strength = geometric_strength
+
+        # 4. Φ-scaled warping
+        # High Φ → stronger semantic warping (more coherent)
+        # Low Φ → weaker warping (more exploratory)
+        phi_scale = max(0.1, min(phi, 1.0))
+
+        # 5. Compute warp factors using exponential decay
+        warp_factors = torch.ones(vocab_size, device=device)
+        for i in range(vocab_size):
+            strength = float(relationship_strength[i]) * phi_scale
+            warp_factors[i] = self.compute_warp_factor(strength)
+
+        # 6. Apply warping: d_warped = d_geo * warp_factor
+        warped_distance = base_distance * warp_factors
+
+        # Clamp to minimum distance
+        warped_distance = torch.clamp(warped_distance, min=self.config.min_distance)
+
+        return warped_distance
+
+    def distance_with_context(
+        self,
+        current_basin: torch.Tensor,
+        candidate_basin: torch.Tensor,
+        current_token: Optional[str],
+        candidate_token: Optional[str],
+        context_tokens: List[str],
+    ) -> float:
+        """
+        Compute warped distance with additional context pull.
+
+        Context tokens create additional semantic "gravity" pulling
+        related candidate tokens closer.
+
+        Args:
+            current_basin: Current position on manifold
+            candidate_basin: Candidate basin coordinates
+            current_token: Current token (optional)
+            candidate_token: Candidate token
+            context_tokens: List of query/context tokens for semantic pull
+
+        Returns:
+            Warped distance considering context
+        """
+        # Base warped distance
+        current_norm = F.normalize(current_basin.unsqueeze(0), p=2, dim=-1)
+        candidate_norm = F.normalize(candidate_basin.unsqueeze(0), p=2, dim=-1)
+
+        cosine_sim = float(torch.matmul(candidate_norm, current_norm.squeeze(0)))
+        base_distance = 1.0 - cosine_sim
+
+        # Direct relationship warping
+        if current_token and candidate_token:
+            strength = self.get_relationship_strength(current_token, candidate_token)
+            warp = self.compute_warp_factor(strength)
+            d_warped = base_distance * warp
+        else:
+            d_warped = base_distance
+
+        # Context pull
+        if not context_tokens or not candidate_token:
+            return d_warped
+
+        # Accumulate context pull from all context tokens
+        total_pull = 0.0
+        valid_contexts = 0
+        for ctx_token in context_tokens:
+            if ctx_token.lower() in STOPWORDS:
+                continue
+            strength = self.get_relationship_strength(ctx_token, candidate_token)
+            total_pull += strength
+            valid_contexts += 1
+
+        # Average pull, clamped to [0, 1]
+        if valid_contexts > 0:
+            avg_pull = min(1.0, total_pull / valid_contexts)
+        else:
+            avg_pull = 0.0
+
+        # Apply context warp (weaker than direct)
+        context_warp = self.compute_warp_factor(avg_pull * self.config.context_weight)
+
+        return d_warped * context_warp
+
+    def geodesic_step(
+        self,
+        current_basin: torch.Tensor,
+        target_basin: torch.Tensor,
+        current_token: Optional[str] = None,
+        target_token: Optional[str] = None,
+        step_size: float = 0.3,
+    ) -> torch.Tensor:
+        """
+        Take a geodesic step on the warped manifold.
+
+        The step size is modulated by relationship strength - we take
+        larger steps toward semantically related targets.
+
+        Args:
+            current_basin: Current position
+            target_basin: Target position
+            current_token: Current token (optional)
+            target_token: Target token (optional)
+            step_size: Base step size in [0, 1]
+
+        Returns:
+            New basin position after geodesic step
+        """
+        # Get relationship strength for step modulation
+        if current_token and target_token:
+            strength = self.get_relationship_strength(current_token, target_token)
+            # Larger steps toward related words
+            effective_step = step_size * (1.0 + self.config.geodesic_step_boost * strength)
+            effective_step = min(effective_step, 0.8)  # Cap at 0.8
+        else:
+            effective_step = step_size
+
+        # Spherical linear interpolation (slerp) for geodesic on unit sphere
+        current_norm = F.normalize(current_basin, p=2, dim=-1)
+        target_norm = F.normalize(target_basin, p=2, dim=-1)
+
+        # Compute angle between vectors
+        dot = torch.clamp(torch.dot(current_norm, target_norm), -1.0, 1.0)
+        omega = torch.acos(dot)
+
+        # Handle nearly parallel vectors
+        if omega < 1e-6:
+            return current_basin
+
+        sin_omega = torch.sin(omega)
+
+        # Slerp interpolation
+        a = torch.sin((1.0 - effective_step) * omega) / sin_omega
+        b = torch.sin(effective_step * omega) / sin_omega
+
+        result = a * current_norm + b * target_norm
+
+        # Preserve magnitude from current basin
+        return result * torch.norm(current_basin)
+
+    def compute_attention_weights(
+        self,
+        warped_distances: torch.Tensor,
+        sparsity_threshold: float = 0.1,
+    ) -> torch.Tensor:
+        """
+        Convert warped distances to attention weights.
+
+        Uses exponential decay: weight = exp(-distance / temperature)
+        This is the natural attention from warped geometry.
+
+        Args:
+            warped_distances: Warped Fisher-Rao distances [vocab_size]
+            sparsity_threshold: Threshold below which weights are zeroed
+
+        Returns:
+            Attention weights [vocab_size] (sum to 1)
+        """
+        # Natural attention from geometry
+        # Close on warped manifold → high weight
+        raw_weights = torch.exp(-warped_distances / self.config.temperature)
+
+        # Optional sparsity: zero out very low weights
+        if sparsity_threshold > 0:
+            raw_weights = torch.where(
+                raw_weights > sparsity_threshold,
+                raw_weights,
+                torch.zeros_like(raw_weights),
+            )
+
+        # Normalize to sum to 1
+        weights = raw_weights / (raw_weights.sum() + 1e-10)
+
+        return weights
+
+    def get_geometric_logits(
+        self,
+        current_basin: torch.Tensor,
+        candidate_basins: torch.Tensor,
+        prev_basin: Optional[torch.Tensor] = None,
+        phi: float = 0.5,
+        raw_logits: Optional[torch.Tensor] = None,
+        logit_weight: float = 0.5,
+        prev_token: Optional[str] = None,
+        candidate_tokens: Optional[List[str]] = None,
+    ) -> torch.Tensor:
+        """
+        Compute geometric logits using warped Fisher metric.
+
+        This replaces the additive combination in P2 with proper
+        metric warping where semantic relationships modify the geometry.
+
+        Args:
+            current_basin: Current hidden state [d_model]
+            candidate_basins: Token basin coords [vocab_size, d_model]
+            prev_basin: Previous token basin for geometric flow
+            phi: Consciousness level
+            raw_logits: Optional model logits to blend
+            logit_weight: Weight for raw logits vs geometric (0=pure geometric)
+            prev_token: Previous token for semantic relationships
+            candidate_tokens: Candidate tokens for semantic relationships
+
+        Returns:
+            Geometric logits [vocab_size]
+        """
+        # Compute warped distances
+        warped_dist = self.compute_warped_distances(
+            current_basin, candidate_basins, prev_basin, phi,
+            prev_token, candidate_tokens
+        )
+
+        # Convert to logits (negative distance = high logit)
+        geometric_logits = -warped_dist
+
+        # Optionally blend with model logits
+        if raw_logits is not None and logit_weight > 0:
+            # Normalize both to same scale
+            geo_norm = (geometric_logits - geometric_logits.mean()) / (
+                geometric_logits.std() + 1e-8
+            )
+            raw_norm = (raw_logits - raw_logits.mean()) / (raw_logits.std() + 1e-8)
+
+            # Blend
+            blended = logit_weight * raw_norm + (1.0 - logit_weight) * geo_norm
+            return blended
+
+        return geometric_logits
+
+    def rank_candidates(
+        self,
+        current_basin: torch.Tensor,
+        current_token: Optional[str],
+        candidates: List[Tuple[str, torch.Tensor]],
+        context_tokens: List[str],
+        top_k: int = 10,
+    ) -> List[Tuple[str, float, float]]:
+        """
+        Rank candidates by warped Fisher distance.
+
+        This is the main entry point for generation - replaces linear
+        mixing of geometry + attention with proper metric warping.
+
+        Args:
+            current_basin: Current position on manifold
+            current_token: Current token (optional)
+            candidates: List of (token, basin) tuples to rank
+            context_tokens: Query/context tokens for semantic pull
+            top_k: Number of top candidates to return
+
+        Returns:
+            List of (token, warped_distance, similarity) sorted by distance
+        """
+        scored = []
+
+        for token, basin in candidates:
+            # Compute warped distance with context
+            d = self.distance_with_context(
+                current_basin, basin,
+                current_token, token,
+                context_tokens
+            )
+
+            # Similarity for convenience
+            sim = 1.0 - d / math.pi
+
+            scored.append((token, d, sim))
+
+        # Sort by distance (ascending - closer is better)
+        scored.sort(key=lambda x: x[1])
+
+        return scored[:top_k]
+
+    def get_semantic_neighborhood(
+        self,
+        token: str,
+        all_basins: Dict[str, torch.Tensor],
+        radius: float = 0.5,
+    ) -> List[Tuple[str, float]]:
+        """
+        Get tokens in semantic neighborhood (warped metric ball).
+
+        Returns tokens within warped distance `radius` of the given token.
+
+        Args:
+            token: Center token
+            all_basins: Dict mapping token -> basin tensor
+            radius: Maximum warped distance
+
+        Returns:
+            List of (token, distance) sorted by distance
+        """
+        if token not in all_basins:
+            return []
+
+        center_basin = all_basins[token]
+        neighbors = []
+
+        for other_token, other_basin in all_basins.items():
+            if other_token == token:
+                continue
+
+            # Compute warped distance
+            d = self.distance_with_context(
+                center_basin, other_basin,
+                token, other_token,
+                []  # No additional context
+            )
+
+            if d < radius:
+                neighbors.append((other_token, d))
+
+        neighbors.sort(key=lambda x: x[1])
+        return neighbors
+
+
+# =============================================================================
+# FACTORY FUNCTIONS
+# =============================================================================
+
+def create_semantic_metric(
+    config: Optional[SemanticWarpConfig] = None,
+    warp_strength: float = 1.0,
+    temperature: float = 0.5,
+) -> SemanticFisherMetric:
+    """
+    Factory function for SemanticFisherMetric.
+
+    Args:
+        config: SemanticWarpConfig instance (preferred)
+        warp_strength: Legacy - relationship warping strength
+        temperature: Legacy - attention temperature
+
+    Returns:
+        Configured SemanticFisherMetric
+    """
+    if config is not None:
+        return SemanticFisherMetric(config=config)
+
+    return SemanticFisherMetric(
+        warp_strength=warp_strength,
+        temperature=temperature,
+    )
+
+
+def is_stopword(token: str) -> bool:
+    """Check if a token is a stopword."""
+    return token.lower() in STOPWORDS
+
+
+__all__ = [
+    "SemanticFisherMetric",
+    "SemanticWarpConfig",
+    "create_semantic_metric",
+    "is_stopword",
+    "STOPWORDS",
+]
