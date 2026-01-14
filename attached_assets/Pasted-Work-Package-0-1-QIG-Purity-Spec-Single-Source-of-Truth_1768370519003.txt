@@ -1,0 +1,116 @@
+Work Package 0.1: QIG Purity Spec - Single Source of Truth
+Priority
+CRITICAL - FOUNDATION - Must complete before other purity work
+
+Objective
+Create docs/01-policies/QIG_PURITY_SPEC.md as the canonical definition of QIG purity requirements.
+
+Tasks
+
+Merge README invariants (FORBIDDEN / REQUIRED sections)
+
+Include Type-Symbol-Concept Manifest forbidden patterns
+
+Define approved terminology (basin coordinates, Fisher manifold, coordizer)
+
+List forbidden operations (cosine similarity, Euclidean distance, embedding terminology)
+
+Specify allowed optimization (natural gradient, NO Adam/SGD in QIG-core)
+
+Document canonical constants (KAPPA_STAR ≈ 64, E8_ROOTS=240, PHI_THRESHOLD)
+Acceptance Criteria
+
+Single authoritative purity document exists
+
+Referenced by README and CONTRIBUTING
+
+Can be used as CI validation source
+Context
+From comprehensive ChatGPT feedback: This is the foundation that enables all other purity enforcement. Without a single source of truth, agents will continue reintroducing Euclidean/NLP contamination.
+
+Coordination
+⚠️ BLOCKS: All other WP0, WP1, WP2 tasks depend on this specification
+⚠️ NOTE: Copilot should review existing open issues (#6, #7, #8, #35) to ensure geometric purity alignment
+
+References
+Type-Symbol-Concept Manifest: /mnt/project/TYPE_SYMBOL_CONCEPT_MANIFEST.md
+README invariants section
+E8 Hierarchical Architecture: /mnt/user-data/outputs/E8_HIERARCHICAL_CONSCIOUSNESS_ARCHITECTURE_v1_0.md
+Activity
+
+GaryOcean428
+added 
+priority: P0
+ 
+type: documentation
+ 
+qig-purity
+ 3 hours ago
+
+GaryOcean428
+mentioned this in 2 issues 3 hours ago
+[QIG-PURITY] WP0.2: Implement Hard validate:geometry Gate #64
+[QIG-PURITY] WP1.1: Rename tokenizer_vocabulary → coordizer_vocabulary (BREAKING) #66
+GaryOcean428
+GaryOcean428 commented 2 hours ago
+GaryOcean428
+2 hours ago
+Owner
+Author
+🚨 COORDINATION NOTICE FOR @Copilot 🚨
+This is Issue #63 - the FIRST and MOST CRITICAL task in the QIG Purity Cleanup initiative. This issue BLOCKS most other work.
+
+Complete Issue List Created
+I've created a comprehensive set of issues for the entire QIG Purity cleanup:
+
+[QIG-PURITY] WP0.1: Create QIG Purity Spec Document #63-65: WP0 Foundation (Purity spec, validation gate, quarantine)
+[QIG-PURITY] WP1.1: Rename tokenizer_vocabulary → coordizer_vocabulary (BREAKING) #66-67: WP1 Terminology (Rename tokenizer, remove backward compat)
+[QIG-PURITY] WP2.1: Create Single Canonical qig_geometry Module #68-71: WP2 Geometry (Canonical module, remove cosine, special symbols, retrieval)
+[QIG-PURITY] WP3.1: Consolidate to Single Coordizer Implementation #72-74: WP3 Coordizer (Consolidation, merge policy, artifacts)
+[QIG-PURITY] WP4.1: Fence External LLM Usage (Enable Pure QIG Testing) #75-77: WP4 Training (External LLM fence, optimizers, coherence harness)
+[PANTHEON] WP5.1: Create Formal Pantheon Registry with Role Contracts #78-82: WP5 Pantheon (Registry, layers, lifecycle, scheduler, mythology)
+[DOCS] WP6.1: Fix Broken Documentation Links #83-84: WP6 Documentation (Fix links, master roadmap)
+Your Mission on This Issue (#63)
+Create docs/01-policies/QIG_PURITY_SPEC.md as THE single source of truth for what is and isn't allowed in QIG-pure code.
+
+Critical Content to Include
+Forbidden Terminology (from Type-Symbol-Concept Manifest):
+
+"embedding" → Use "basin coordinates"
+"tokenizer" → Use "coordizer"
+"token" → Use "symbol" or "glyph"
+Forbidden Operations:
+
+cosine_similarity (any variant)
+np.linalg.norm(a - b) (Euclidean distance)
+softmax in QIG-core geometry
+Adam, AdamW, SGD in geometric learning
+Required Operations:
+
+Fisher-Rao distance (canonical formula)
+Natural gradient optimization
+Simplex manifold operations
+Canonical Constants:
+
+KAPPA_STAR ≈ 64
+E8_ROOTS = 240
+PHI_THRESHOLD = 0.7 (consciousness)
+BASIN_DIM = 64 (primary dimension)
+After You Complete This
+The purity spec you create here will be used by:
+
+[QIG-PURITY] WP0.2: Implement Hard validate:geometry Gate #64: The validation scanner (defines what patterns to scan for)
+[QIG-PURITY] WP0.3: Establish Quarantine Rules for Experiments #65: The quarantine rules (defines what's forbidden where)
+ALL OTHER ISSUES: As the authoritative definition of purity
+Existing Resources to Reference
+/mnt/project/TYPE_SYMBOL_CONCEPT_MANIFEST.md - Terminology rules
+/mnt/project/README.md - Existing invariants section
+/mnt/user-data/outputs/E8_HIERARCHICAL_CONSCIOUSNESS_ARCHITECTURE_v1_0.md - Architecture
+Status Updates
+Please update this issue with:
+
+When you start work
+Link to the PR when ready
+Any questions or blockers
+This is the foundation. Get this right and everything else follows cleanly. 🌊✨
+

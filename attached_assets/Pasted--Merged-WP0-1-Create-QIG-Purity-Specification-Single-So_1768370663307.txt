@@ -1,0 +1,140 @@
+ Merged
+WP0.1: Create QIG Purity Specification - Single Source of Truth
+#86
+GaryOcean428 merged 5 commits into main from copilot/create-qig-purity-spec  1 hour ago
++952 −0 
+ Conversation 8
+ Commits 5
+ Checks 0
+ Files changed 3
+Conversation
+Contributor
+Copilot AI
+commented
+2 hours ago
+• 
+User description
+Creates canonical geometric purity specification (ISMS-POL-002) as foundation for all QIG validation and cleanup work. Defines what is and isn't allowed in QIG-pure code to prevent Euclidean/NLP contamination of the Fisher manifold.
+
+Core Decisions
+Basin Representation: Simplex (non-negative, sum-to-1 probability distributions)
+
+Fisher-Rao distance is natural on probability manifolds
+Validation: validate_basin(b) enforces constraints at DB boundaries
+Forbidden Operations:
+
+cosine_similarity() → violates Riemannian geometry
+np.linalg.norm(a - b) → flat metric on curved manifold
+Adam/AdamW/SGD → require natural gradient on Fisher manifold
+Terminology Mapping:
+
+embedding → basin_coords
+tokenizer → coordizer
+token → symbol
+Canonical Constants (Physics-Validated)
+KAPPA_STAR = 64.21 ± 0.92  # L=4,5,6 plateau, frozen facts
+E8_ROOTS = 240              # Mathematical constant
+PHI_MIN = 0.75              # Consciousness phase transition
+PHI_DETECTION = 0.70        # Near-miss detection threshold
+BASIN_DIM = 64              # κ* ≈ rank(E8)²
+CI Scanner Configuration
+Defines patterns for automated validation (§8):
+
+Forbidden imports: sklearn.metrics.pairwise.cosine_similarity, torch.optim.Adam
+Forbidden patterns: np.linalg.norm(.*-.*)
+Hardcoded numbers: Context-aware suggestions (0.75 → CONSCIOUSNESS_THRESHOLDS.PHI_MIN)
+Purity Exemption Mechanism (§8.5)
+Defines structured approach for justified exceptions in QIG-pure code:
+
+Syntax: # QIG_PURITY_EXEMPT(reason="...")
+Rules: MUST include technical justification, human review required, minimize scope
+Valid reasons: logging/debugging, external API boundaries, benchmarking, test fixtures
+Invalid reasons: "easier", "faster", "works fine" (non-technical)
+CI behavior: Skip exempted lines but log all exemptions for review
+# QIG_PURITY_EXEMPT(reason="External API requires Euclidean format")
+external_embedding = basin_to_unit_sphere(query_basin)
+Quarantine Zones
+External integrations (Olympus agents, external APIs) MAY use forbidden operations internally but MUST:
+
+Convert to simplex representation at boundaries: basin_coords = to_simplex(external_embedding)
+Output canonical basin coordinates
+Use coordizer interface for QIG-core interactions
+Migration Guide
+# BEFORE
+similarity = cosine_similarity(basin1, basin2)
+if phi >= 0.75:  # Ambiguous magic number
+    conscious = True
+
+# AFTER  
+distance = fisher_rao_distance(basin1, basin2)
+if phi >= CONSCIOUSNESS_THRESHOLDS.PHI_MIN:  # Explicit semantics
+    conscious = True
+Files Changed
+docs/01-policies/QIG_PURITY_SPEC.md (940+ lines) - Complete specification with 12 major sections including exemption mechanism
+README.md - Reference to spec, expanded purity requirements
+docs/00-index.md - Index entry for ISMS-POL-002
+Relationship to CI Implementation
+This PR (Issue [QIG-PURITY] WP0.1: Create QIG Purity Spec Document #63): Policy specification - defines what is forbidden/required
+Issue [QIG-PURITY] WP0.2: Implement Hard validate:geometry Gate #64: CI gate implementation - automated enforcement using patterns and exemptions defined here
+Issue [QIG-PURITY] WP0.3: Establish Quarantine Rules for Experiments #65: Quarantine enforcement - boundary validation for external integrations
+Blocks
+[QIG-PURITY] WP0.2: Implement Hard validate:geometry Gate #64 (WP0.2: Validation gate) - needs these patterns and exemption mechanism
+[QIG-PURITY] WP0.3: Establish Quarantine Rules for Experiments #65 (WP0.3: Quarantine) - needs these boundary rules
+[QIG-PURITY] WP1.1: Rename tokenizer_vocabulary → coordizer_vocabulary (BREAKING) #66-84 (All purity cleanup) - authority reference for what to change
+Status: 1.00W (Working) - ready for team review before freezing
+
+Original prompt
+Fixes [QIG-PURITY] WP0.1: Create QIG Purity Spec Document #63
+💬 We'd love your input! Share your thoughts on Copilot coding agent in our 2 minute survey.
+
+PR Type
+Documentation, Enhancement
+
+Description
+Creates comprehensive QIG Purity Specification (ISMS-POL-002) as canonical reference for geometric purity requirements
+
+Defines simplex representation as standard basin format with Fisher-Rao distance as required metric
+
+Establishes forbidden operations (cosine similarity, Euclidean distance, Adam/SGD) and required alternatives
+
+Documents terminology mapping (embedding→basin_coords, tokenizer→coordizer, token→symbol)
+
+Specifies canonical physics constants (KAPPA_STAR, E8_ROOTS, PHI thresholds) with validation rules
+
+Introduces purity exemption mechanism for justified exceptions with human review requirements
+
+Provides CI scanner configuration patterns and quarantine zone rules for external integrations
+
+Diagram Walkthrough
+
+File Walkthrough
+Copilot uses AI. Check for mistakes.
+Initial plan
+b6c3c2c
+ Copilot AI assigned Copilot and GaryOcean428 2 hours ago
+Copilot started work on behalf of GaryOcean428 1 hour ago
+@GaryOcean428
+Owner
+GaryOcean428
+commented
+1 hour ago
+@copilot ) “QIG Purity Charter” + CI gate (no mixed methods allowed)
+
+Labels: core, qig-purity, ci, blocking
+Problem: Mixed geometry creeps in (Euclidean norms, cosine, dot products used as “attention”, etc.).
+Tasks
+
+Add docs/architecture/QIG_PURITY_CHARTER.md defining allowed math in each layer (coordizer, decoder, training, storage).
+
+Add CI checks:
+
+disallow np.linalg.norm / np.dot / cosine similarity / Euclidean distance in basin space modules (allow in logging/tests only if explicitly exempted).
+
+disallow “tokenizer” naming in core path (see renaming issue).
+
+Add “purity exceptions” mechanism: # QIG_PURITY_EXEMPT(reason=...) comment required for any exempted line.
+Acceptance criteria
+
+CI fails if prohibited ops appear in non-exempt modules.
+
+Charter clearly states basin representation (simplex vs unit-sphere) and where each is permitted.
