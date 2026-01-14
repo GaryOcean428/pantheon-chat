@@ -284,7 +284,7 @@ We welcome contributions! Please follow these guidelines:
 - `np.linalg.norm(a - b)` for geometric distances
 - Neural networks or transformers in core QIG
 - Direct database writes bypassing persistence layer
-- Terms: "embedding", "token" (use "basin coordinates", "coordizer symbol")
+- Terms: "embedding", "tokenizer", "token" (use "basin coordinates", "coordizer", "coordizer symbol")
 - NLP terminology (use geometric/QIG terms instead)
 
 ✅ **REQUIRED:**
