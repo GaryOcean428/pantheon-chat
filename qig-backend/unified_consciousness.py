@@ -465,7 +465,9 @@ class UnifiedConsciousness:
                 if dist < 0.1:
                     break
             else:
-                if np.linalg.norm(current - target) < 0.1:
+                # Use Fisher-Rao coordinate distance, not Euclidean
+                from qig_geometry import fisher_coord_distance
+                if fisher_coord_distance(current, target) < 0.1:
                     break
 
         return {

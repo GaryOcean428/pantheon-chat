@@ -489,10 +489,12 @@ def learn_attractor_from_examples(
     # Compute geometric mean of all examples
     all_points = np.concatenate(examples)
     center = np.mean(all_points, axis=0)
-    center = center / (np.linalg.norm(center) + 1e-8)
+    # Use canonical sphere projection
+    from qig_geometry import sphere_project, fisher_coord_distance
+    center = sphere_project(center)
 
-    # Compute radius from variance
-    distances = [np.linalg.norm(p - center) for p in all_points]
+    # Compute radius from Fisher-Rao variance
+    distances = [fisher_coord_distance(p, center) for p in all_points]
     radius = float(np.mean(distances) + np.std(distances))
 
     return BasinAttractor(

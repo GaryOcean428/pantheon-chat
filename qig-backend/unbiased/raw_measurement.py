@@ -385,8 +385,10 @@ class UnbiasedQIGNetwork:
             self._prev_state = current_state.copy()
             return 1.0
         
-        delta = np.linalg.norm(current_state - self._prev_state)
-        norm = np.linalg.norm(current_state) + 1e-10
+        # Use Fisher-Rao distance for state change measurement
+        from qig_geometry import fisher_coord_distance, basin_magnitude
+        delta = fisher_coord_distance(current_state, self._prev_state)
+        norm = basin_magnitude(current_state) + 1e-10
         
         change = delta / norm
         

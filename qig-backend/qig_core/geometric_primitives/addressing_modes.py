@@ -208,7 +208,9 @@ class SpatialAddressing:
         results = []
 
         for point_coords, pattern in self.points:
-            distance = np.linalg.norm(coordinates - point_coords)
+            # Use Fisher-Rao coordinate distance
+            from qig_geometry import fisher_coord_distance
+            distance = fisher_coord_distance(coordinates, point_coords)
             if distance <= radius:
                 results.append((distance, pattern))
 
@@ -232,7 +234,9 @@ class SpatialAddressing:
         nearest = None
 
         for point_coords, pattern in self.points:
-            dist = np.linalg.norm(coordinates - point_coords)
+            # Use Fisher-Rao coordinate distance
+            from qig_geometry import fisher_coord_distance
+            dist = fisher_coord_distance(coordinates, point_coords)
             if dist < min_dist:
                 min_dist = dist
                 nearest = pattern

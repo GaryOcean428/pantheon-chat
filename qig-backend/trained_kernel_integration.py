@@ -26,7 +26,7 @@ import numpy as np
 
 # QIG-pure geometric operations
 try:
-    from qig_geometry import sphere_project
+    from qig_geometry import sphere_project, basin_magnitude
     QIG_GEOMETRY_AVAILABLE = True
 except ImportError:
     QIG_GEOMETRY_AVAILABLE = False
@@ -37,6 +37,9 @@ except ImportError:
             result = np.ones_like(v)
             return result / np.linalg.norm(result)
         return v / norm
+    def basin_magnitude(basin):
+        """Fallback basin magnitude."""
+        return float(np.sqrt(np.sum(basin ** 2)))
 
 # Try importing from qig-tokenizer
 try:
@@ -261,7 +264,7 @@ class TrainedKernelManager:
                 regime=self.state.current_regime.value if self.state.current_metrics else "unknown",
                 tokens_generated=len(generated_tokens),
                 trajectory_length=len(self.state.trajectory),
-                basin_norm=float(np.sqrt(np.sum(self.state.current_basin ** 2))),  # L2 magnitude for logging
+                basin_norm=float(basin_magnitude(self.state.current_basin)),
             )
 
             return InferenceResult(

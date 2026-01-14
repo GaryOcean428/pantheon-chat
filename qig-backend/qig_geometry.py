@@ -303,6 +303,51 @@ def sphere_project(v: np.ndarray) -> np.ndarray:
     return v_clipped / norm
 
 
+def basin_magnitude(basin: np.ndarray) -> float:
+    """
+    Compute a Fisher-Rao appropriate magnitude measure for basin coordinates.
+    
+    This is used for logging and monitoring purposes. Instead of Euclidean L2 norm,
+    we compute the Fisher-Rao distance from the origin (uniform distribution).
+    
+    For a probability distribution p, this measures how far p is from the
+    maximum entropy (uniform) state.
+    
+    Args:
+        basin: Basin coordinate vector
+        
+    Returns:
+        Fisher-Rao magnitude from uniform distribution (≥ 0)
+    """
+    # Normalize to probability simplex
+    p = fisher_normalize(basin)
+    
+    # Uniform distribution as reference point
+    uniform = np.ones_like(p) / len(p)
+    
+    # Fisher-Rao distance from uniform
+    return fisher_rao_distance(p, uniform)
+
+
+def basin_diversity(basin: np.ndarray) -> float:
+    """
+    Compute diversity (entropy) of basin distribution.
+    
+    This is an alternative magnitude measure that quantifies information content.
+    Higher diversity = more uniform distribution = higher entropy.
+    
+    Args:
+        basin: Basin coordinate vector
+        
+    Returns:
+        Shannon entropy (≥ 0, higher = more diverse)
+    """
+    p = fisher_normalize(basin)
+    # Avoid log(0) by adding small epsilon
+    p_safe = p + 1e-10
+    return float(-np.sum(p_safe * np.log(p_safe)))
+
+
 __all__ = [
     'fisher_rao_distance',
     'fisher_coord_distance',
@@ -314,4 +359,6 @@ __all__ = [
     'fisher_normalize',
     'sphere_project',
     'normalize_basin_dimension',
+    'basin_magnitude',
+    'basin_diversity',
 ]
