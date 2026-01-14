@@ -2097,6 +2097,7 @@ class BaseGod(*_base_classes):
         self._current_phi: float = 0.0
         self._regime_stability: float = 1.0
         self._memory_coherence: float = 1.0
+        self._session_summary: Optional[Dict[str, Any]] = None
         
         self.mission["safety_capabilities"] = {
             "available": QIG_SAFETY_AVAILABLE,
@@ -2489,17 +2490,46 @@ class BaseGod(*_base_classes):
             summary = self._session_manager.end_session()
             
             if summary:
+                # Store summary for telemetry and recovery workflows
+                self._session_summary = summary
+                
                 logger.info(
                     f"[{self.name}] Ended learning session: "
                     f"{summary.get('steps_this_session', 0)} steps, "
                     f"final Φ={summary.get('final_phi', 0):.3f}"
                 )
+                
+                # Persist session summary for recovery workflows
+                self._persist_session_summary(summary)
             
             return summary
             
         except Exception as e:
             logger.warning(f"[{self.name}] Failed to end learning session: {e}")
             return None
+
+    def _persist_session_summary(self, summary: Dict[str, Any]) -> None:
+        """Persist session summary for recovery workflows."""
+        if not PERSISTENCE_AVAILABLE:
+            return
+        
+        try:
+            persistence = get_persistence()
+            if persistence and hasattr(persistence, 'save_session_summary'):
+                persistence.save_session_summary(summary)
+                logger.debug(f"[{self.name}] Session summary persisted")
+        except Exception as e:
+            print(f"[BaseGod] Failed to persist session: {e}")
+
+    def get_safety_state(self) -> Dict[str, Any]:
+        """Return safety module state for telemetry."""
+        return {
+            'session_summary': self._session_summary,
+            'qig_safety_available': QIG_SAFETY_AVAILABLE,
+            'current_phi': self._current_phi,
+            'regime_stability': self._regime_stability,
+            'memory_coherence': self._memory_coherence
+        }
 
     def _compute_success_rate(self) -> float:
         """Compute recent success rate from learning history."""

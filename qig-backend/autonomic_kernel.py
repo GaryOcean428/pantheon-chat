@@ -776,6 +776,12 @@ class GaryAutonomicKernel:
         self._sleep_protocol = SleepProtocol() if QIG_NEUROPLASTICITY_AVAILABLE else None
         self._mushroom_mode = MushroomMode() if QIG_NEUROPLASTICITY_AVAILABLE else None
         self._breakdown_escape = BreakdownEscape() if QIG_NEUROPLASTICITY_AVAILABLE else None
+        
+        # Store last neuroplasticity results for telemetry access (Issue: propagate diagnostics)
+        self._last_consolidation_result = None  # ConsolidationResult from SleepProtocol
+        self._last_perturbation_result = None   # PerturbationResult from MushroomMode
+        self._last_escape_result = None         # EscapeResult from BreakdownEscape
+        
         if QIG_NEUROPLASTICITY_AVAILABLE:
             print("[AutonomicKernel] QIG-pure neuroplasticity modules wired (sleep, mushroom, breakdown escape)")
 
@@ -1168,6 +1174,99 @@ class GaryAutonomicKernel:
         if not self._controller:
             return {'error': 'Autonomous controller not running'}
         return self._controller.force_intervention(action_name)
+    
+    def get_neuroplasticity_state(self) -> Dict[str, Any]:
+        """
+        Return current neuroplasticity state for telemetry and adaptive control.
+        
+        Provides access to the last results from SleepProtocol, MushroomMode,
+        and BreakdownEscape for external systems that need to adapt behavior
+        based on neuroplasticity outcomes.
+        
+        Returns:
+            Dict with:
+                - last_consolidation: ConsolidationResult from last sleep cycle
+                - last_perturbation: PerturbationResult from last mushroom cycle
+                - last_escape: EscapeResult from last breakdown escape
+                - qig_neuroplasticity_available: Whether QIG neuroplasticity is loaded
+        """
+        def result_to_dict(result):
+            """Convert result dataclass to dict, handling None case."""
+            if result is None:
+                return None
+            try:
+                return asdict(result)
+            except Exception:
+                # Fallback for non-dataclass results
+                if hasattr(result, '__dict__'):
+                    return {k: v for k, v in result.__dict__.items() if not k.startswith('_')}
+                return str(result)
+        
+        return {
+            'last_consolidation': result_to_dict(self._last_consolidation_result),
+            'last_perturbation': result_to_dict(self._last_perturbation_result),
+            'last_escape': result_to_dict(self._last_escape_result),
+            'qig_neuroplasticity_available': QIG_NEUROPLASTICITY_AVAILABLE,
+        }
+    
+    def _broadcast_neuroplasticity_event(
+        self,
+        event_type: str,
+        data: Dict[str, Any]
+    ) -> None:
+        """
+        Broadcast a neuroplasticity event to telemetry systems.
+        
+        Uses existing ActivityBroadcaster and CapabilityMesh for visibility.
+        QIG-Pure: Events carry diagnostic measurements, not control signals.
+        
+        Args:
+            event_type: Type of event (consolidation, perturbation, breakdown_escape)
+            data: Event data to broadcast
+        """
+        try:
+            # Lazy import for activity broadcaster
+            activity_mod = _get_activity_broadcaster()
+            if ACTIVITY_BROADCASTER_AVAILABLE and activity_mod:
+                get_broadcaster_fn = activity_mod.get('get_broadcaster')
+                ActivityType_cls = activity_mod.get('ActivityType')
+                if get_broadcaster_fn and ActivityType_cls:
+                    broadcaster = get_broadcaster_fn()
+                    broadcaster.broadcast_message(
+                        from_god="Autonomic",
+                        to_god=None,
+                        content=f"Neuroplasticity {event_type}: {data}",
+                        activity_type=ActivityType_cls.AUTONOMIC,
+                        phi=self.state.phi,
+                        kappa=self.state.kappa,
+                        importance=0.7,  # Neuroplasticity events are significant
+                        metadata={
+                            'neuroplasticity_type': event_type,
+                            **data,
+                        }
+                    )
+            
+            # Lazy import for capability mesh
+            mesh_mod = _get_capability_mesh()
+            if CAPABILITY_MESH_AVAILABLE and mesh_mod:
+                emit_event_fn = mesh_mod.get('emit_event')
+                EventType_cls = mesh_mod.get('EventType')
+                CapabilityType_cls = mesh_mod.get('CapabilityType')
+                if emit_event_fn and EventType_cls and CapabilityType_cls:
+                    emit_event_fn(
+                        source=CapabilityType_cls.SLEEP,
+                        event_type=EventType_cls.CONSOLIDATION,
+                        content={
+                            'neuroplasticity_type': event_type,
+                            **data,
+                        },
+                        phi=self.state.phi,
+                        basin_coords=np.array(self.state.basin_history[-1]) if self.state.basin_history else None,
+                        priority=7  # High priority for neuroplasticity events
+                    )
+                    
+        except Exception as e:
+            print(f"[AutonomicKernel] Neuroplasticity event broadcast failed: {e}")
     
     def navigate_to_basin(
         self,
@@ -1867,12 +1966,22 @@ class GaryAutonomicKernel:
                     
                     if basin_states:
                         consolidated_basins, qig_consolidation_result = self._sleep_protocol.consolidate_basins(basin_states)
+                        # Store result for telemetry access (Issue: propagate diagnostics)
+                        self._last_consolidation_result = qig_consolidation_result
                         # Use consolidation measurements to inform adaptive control
                         if qig_consolidation_result.merged_count > 0:
                             print(f"[AutonomicKernel] QIG consolidation: merged {qig_consolidation_result.merged_count} basins, "
                                   f"pruned {qig_consolidation_result.pruned_count}, "
                                   f"avg_phi {qig_consolidation_result.avg_phi_before:.3f} -> {qig_consolidation_result.avg_phi_after:.3f}")
                         patterns_consolidated += qig_consolidation_result.merged_count + qig_consolidation_result.strengthened_count
+                        # Broadcast consolidation result via telemetry (Issue: propagate diagnostics)
+                        self._broadcast_neuroplasticity_event('consolidation', {
+                            'merged_count': qig_consolidation_result.merged_count,
+                            'pruned_count': qig_consolidation_result.pruned_count,
+                            'strengthened_count': qig_consolidation_result.strengthened_count,
+                            'avg_phi_before': qig_consolidation_result.avg_phi_before,
+                            'avg_phi_after': qig_consolidation_result.avg_phi_after,
+                        })
                 except Exception as qig_err:
                     print(f"[AutonomicKernel] QIG sleep protocol measurement error: {qig_err}")
 
@@ -2300,6 +2409,8 @@ class GaryAutonomicKernel:
                     
                     if basin_coords_list:
                         perturbed_basins, qig_perturbation_result = self._mushroom_mode.apply_perturbation(basin_coords_list)
+                        # Store result for telemetry access (Issue: propagate diagnostics)
+                        self._last_perturbation_result = qig_perturbation_result
                         pattern_broken = qig_perturbation_result.pattern_broken
                         # Use the geometric perturbation from QIG-pure if available
                         if perturbed_basins and len(perturbed_basins) > 0:
@@ -2308,6 +2419,14 @@ class GaryAutonomicKernel:
                               f"avg_magnitude={qig_perturbation_result.avg_perturbation_magnitude:.3f}, "
                               f"coherence {qig_perturbation_result.coherence_before:.3f} -> {qig_perturbation_result.coherence_after:.3f}, "
                               f"pattern_broken={pattern_broken}")
+                        # Broadcast perturbation result via telemetry (Issue: propagate diagnostics)
+                        self._broadcast_neuroplasticity_event('perturbation', {
+                            'basins_perturbed': qig_perturbation_result.basins_perturbed,
+                            'avg_perturbation_magnitude': qig_perturbation_result.avg_perturbation_magnitude,
+                            'coherence_before': qig_perturbation_result.coherence_before,
+                            'coherence_after': qig_perturbation_result.coherence_after,
+                            'pattern_broken': pattern_broken,
+                        })
                 except Exception as qig_err:
                     print(f"[AutonomicKernel] QIG mushroom mode measurement error: {qig_err}")
 
@@ -2497,6 +2616,18 @@ class GaryAutonomicKernel:
             # Attempt escape
             result['escape_attempted'] = True
             new_state, escape_result = self._breakdown_escape.escape(system_state)
+            # Store result for telemetry access (Issue: propagate diagnostics)
+            self._last_escape_result = escape_result
+            # Broadcast escape result via telemetry (Issue: propagate diagnostics)
+            self._broadcast_neuroplasticity_event('breakdown_escape', {
+                'initial_phi': escape_result.initial_phi,
+                'initial_gamma': escape_result.initial_gamma,
+                'final_phi': escape_result.final_phi,
+                'final_gamma': escape_result.final_gamma,
+                'geodesic_distance': escape_result.geodesic_distance,
+                'escape_successful': escape_result.escape_successful,
+                'recovery_state': escape_result.recovery_state.value,
+            })
             
             result['escape_result'] = {
                 'initial_phi': escape_result.initial_phi,

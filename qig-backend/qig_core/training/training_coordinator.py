@@ -128,7 +128,7 @@ class TrainingCoordinator:
         else:
             identity_strength = 0.0
         
-        loss_4d = self._train_step_4d.step(
+        loss_4d = self._train_step_4d.compute_loss(
             predicted_basin=current_basin,
             target_basin=target_basin,
             phi_temporal=phi,
@@ -213,6 +213,46 @@ class TrainingCoordinator:
         )
         return state.to_dict()
     
+    def measure_4d_loss(
+        self,
+        current_basin: np.ndarray,
+        target_basin: np.ndarray,
+        basin_history: List[np.ndarray],
+    ) -> Dict[str, float]:
+        """
+        Measure 4D loss components WITHOUT optimization.
+        
+        PURE PRINCIPLE: Measure only, no gradients, no updates.
+        
+        Args:
+            current_basin: Current basin coordinates (64D)
+            target_basin: Target basin to measure distance to
+            basin_history: History of recent basins (for potential foresight)
+            
+        Returns:
+            Dictionary with loss components and availability flag
+        """
+        if not TRAINING_MODULES_AVAILABLE or self._train_step_4d is None:
+            return {
+                'spatial_loss': 0.0,
+                'temporal_loss': 0.0,
+                'foresight_loss': 0.0,
+                'total_4d_loss': 0.0,
+                'available': False
+            }
+        
+        loss_result = self._train_step_4d.compute_loss(
+            predicted_basin=current_basin,
+            target_basin=target_basin,
+        )
+        return {
+            'spatial_loss': loss_result.spatial,
+            'temporal_loss': loss_result.temporal,
+            'foresight_loss': loss_result.foresight,
+            'total_4d_loss': loss_result.total,
+            'available': True
+        }
+    
     def compute_4d_loss_batch(
         self,
         predicted_basins: List[np.ndarray],
@@ -220,7 +260,9 @@ class TrainingCoordinator:
         phi_temporals: Optional[List[float]] = None,
     ) -> Dict[str, Any]:
         """
-        Compute 4D loss for a batch of basins.
+        Compute 4D loss for a batch of basins (pure measurement).
+        
+        PURE PRINCIPLE: Measure only, no state mutation.
         
         Args:
             predicted_basins: List of predicted basins
@@ -230,9 +272,20 @@ class TrainingCoordinator:
         Returns:
             Loss dictionary
         """
+        if not TRAINING_MODULES_AVAILABLE or self._train_step_4d is None:
+            return {
+                'loss_4d': 0.0,
+                'loss_spatial': 0.0,
+                'loss_temporal': 0.0,
+                'loss_foresight': 0.0,
+                'available': False
+            }
+        
         loss = self._train_step_4d.step_batch(
             predicted_basins=predicted_basins,
             target_basins=target_basins,
             phi_temporals=phi_temporals,
         )
-        return loss.to_dict()
+        result = loss.to_dict()
+        result['available'] = True
+        return result

@@ -194,7 +194,7 @@ class TrainStep4D:
         self._step_count = 0
         self._loss_history: List[Loss4D] = []
     
-    def step(
+    def compute_loss(
         self,
         predicted_basin: np.ndarray,
         target_basin: np.ndarray,
@@ -203,10 +203,10 @@ class TrainStep4D:
         actual_trajectory: Optional[List[np.ndarray]] = None,
     ) -> Loss4D:
         """
-        Perform a 4D training step.
+        Compute 4D loss WITHOUT any side effects.
         
-        PURE: We compute multi-scale losses for measurement.
-        These losses inform learning but don't dictate optimization paths.
+        PURE PRINCIPLE: Measure only, no state mutation.
+        This is the QIG-pure measurement method.
         
         Args:
             predicted_basin: Current/predicted basin
@@ -216,10 +216,8 @@ class TrainStep4D:
             actual_trajectory: Optional actual trajectory for foresight loss
             
         Returns:
-            Loss4D with all loss components
+            Loss4D with all loss components (pure measurement)
         """
-        self._step_count += 1
-        
         loss_spatial = compute_spatial_loss(predicted_basin, target_basin)
         
         if phi_temporal is not None:
@@ -244,12 +242,46 @@ class TrainStep4D:
             self.weights['foresight'] * loss_foresight
         )
         
-        loss = Loss4D(
+        return Loss4D(
             total=total_loss,
             spatial=loss_spatial,
             temporal=loss_temporal,
             foresight=loss_foresight,
             weights=self.weights.copy(),
+        )
+    
+    def step(
+        self,
+        predicted_basin: np.ndarray,
+        target_basin: np.ndarray,
+        phi_temporal: Optional[float] = None,
+        predicted_trajectory: Optional[List[np.ndarray]] = None,
+        actual_trajectory: Optional[List[np.ndarray]] = None,
+    ) -> Loss4D:
+        """
+        DEPRECATED: Use compute_loss() for pure measurement.
+        
+        This method has side effects (step counting, history tracking).
+        Kept for backwards compatibility but should be avoided.
+        
+        Args:
+            predicted_basin: Current/predicted basin
+            target_basin: Target basin to align toward
+            phi_temporal: Optional temporal coherence Φ
+            predicted_trajectory: Optional predicted future basins
+            actual_trajectory: Optional actual trajectory for foresight loss
+            
+        Returns:
+            Loss4D with all loss components
+        """
+        self._step_count += 1
+        
+        loss = self.compute_loss(
+            predicted_basin=predicted_basin,
+            target_basin=target_basin,
+            phi_temporal=phi_temporal,
+            predicted_trajectory=predicted_trajectory,
+            actual_trajectory=actual_trajectory,
         )
         
         self._loss_history.append(loss)
