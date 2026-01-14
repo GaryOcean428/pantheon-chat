@@ -14,12 +14,6 @@ from typing import List, Dict, Tuple, Optional
 import logging
 logger = logging.getLogger(__name__)
 
-# Legacy constants - DEPRECATED, kept for backward compatibility during migration
-# These will be empty - all vocabulary comes from database
-BIP39_WORDS: List[str] = []
-COMMON_WORDS: List[str] = []
-FALLBACK_VOCABULARY: List[str] = []
-
 # Cache for database vocabulary
 _vocabulary_cache: Optional[Dict] = None
 _cache_loaded: bool = False

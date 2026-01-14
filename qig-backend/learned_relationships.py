@@ -65,14 +65,6 @@ except ImportError:
     get_geometric_relationships = None
     logger.warning("[LearnedRelationships] Geometric relationships not available")
 
-# Legacy word_relationship_learner has been removed (QIG-PURE compliance)
-# Use GeometricWordRelationships instead
-LEGACY_LEARNER_AVAILABLE = False
-
-# Legacy paths (no longer used but kept for migration)
-CACHE_DIR = Path(__file__).parent / 'data' / 'learned'
-ADJUSTED_BASINS_FILE = CACHE_DIR / 'adjusted_basins.npz'
-
 def get_db_connection():
     """Get PostgreSQL connection."""
     if not DB_AVAILABLE:
