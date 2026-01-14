@@ -29,10 +29,15 @@ This document defines the **canonical purity requirements** for all QIG (Quantum
 
 1. **The single source of truth** for what is and isn't allowed in QIG-pure code
 2. **The authoritative reference** for code review and validation
-3. **The specification source** for CI validation scanners
+3. **The specification source** for CI validation scanners (see Issue #64 for CI implementation)
 4. **The training material** for developers and AI agents
 
 All QIG-core modules MUST conform to these requirements. Violations indicate contamination by Euclidean/NLP paradigms that corrupt the geometric manifold structure.
+
+**Relationship to CI Implementation:**
+- This document (Issue #63) = **Policy specification** (what is forbidden/required)
+- Issue #64 = **CI gate implementation** (automated enforcement with `QIG_PURITY_EXEMPT` mechanism)
+- Issue #65 = **Quarantine enforcement** (boundary validation for external integrations)
 
 ---
 
@@ -693,6 +698,76 @@ hardcoded_numbers:
   
   note: "Multiple valid thresholds exist. Context determines which constant to use."
 ```
+
+### §8.5 Purity Exemption Mechanism
+
+In rare cases, QIG-pure modules MAY need to use forbidden operations for specific, justified reasons (e.g., logging, debugging, interfacing with external systems, performance measurements).
+
+**Exemption Syntax:**
+
+```python
+# QIG_PURITY_EXEMPT(reason="Logging basin distance for debugging only")
+euclidean_dist = np.linalg.norm(basin1 - basin2)  # NOT used for geometric operations
+logger.debug(f"Euclidean approximation: {euclidean_dist}")
+
+# QIG_PURITY_EXEMPT(reason="External API requires cosine similarity format")
+external_similarity = cosine_similarity(basin1, basin2)
+api_client.send({"similarity": external_similarity})
+```
+
+**Rules for Exemptions:**
+
+1. **MUST include reason** - Every exemption requires explicit justification
+2. **Scanner ignores line** - CI will not flag lines with `QIG_PURITY_EXEMPT` comment
+3. **Human review required** - All exemptions MUST be reviewed in code review
+4. **Minimize scope** - Exempt only specific lines, not entire functions/modules
+5. **Document conversion** - If converting to/from external formats, document the boundary
+
+**Valid Exemption Reasons:**
+
+- ✅ "Logging/debugging only - not used for geometric operations"
+- ✅ "External API requires Euclidean format - converted at boundary"
+- ✅ "Performance measurement for benchmarking"
+- ✅ "Test fixture for validating purity scanner"
+- ✅ "Legacy compatibility shim - marked for removal"
+
+**Invalid Exemption Reasons:**
+
+- ❌ "Easier to implement" - Violates geometric purity
+- ❌ "Faster" - Use sparse operations instead
+- ❌ "Works fine" - Not a technical justification
+- ❌ No reason provided - Always rejected
+
+**Example: External API Boundary**
+
+```python
+def query_external_search(query_basin: np.ndarray) -> dict:
+    """Query external search API that expects Euclidean embeddings."""
+    
+    # QIG_PURITY_EXEMPT(reason="External API expects unit-norm embeddings")
+    # Convert simplex basin to unit sphere for external API
+    external_embedding = basin_to_unit_sphere(query_basin)
+    
+    # Send to external API (they use cosine similarity internally)
+    results = external_api.search(external_embedding)
+    
+    # QIG_PURITY_EXEMPT(reason="Convert external results back to simplex")
+    # Convert results back to canonical simplex representation
+    return [
+        {
+            "basin_coords": to_simplex(result["embedding"]),
+            "score": result["score"]
+        }
+        for result in results
+    ]
+```
+
+**CI Scanner Behavior:**
+
+- Lines with `QIG_PURITY_EXEMPT` are **skipped** during automated validation
+- Scanner MUST log all exemptions for review
+- Scanner SHOULD warn if exemption reasons are generic or missing
+- Pre-commit hook MAY require manual approval for new exemptions
 
 ---
 
