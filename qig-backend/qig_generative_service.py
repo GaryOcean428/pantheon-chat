@@ -154,6 +154,20 @@ except Exception:
     SelfObserver = None
     ObservationAction = None
 
+# Import QIG-pure optimizer modules for curvature measurement diagnostics
+# These MEASURE geometry to INFORM generation, never to optimize or update basins
+try:
+    from qig_core.optimizers import DiagonalFisherNG, AdaptiveGate, HybridGeometricMeasurement, GateDecision
+    QIG_OPTIMIZERS_AVAILABLE = True
+    logger.info("[QIGGenerativeService] QIG optimizer measurement modules available (curvature diagnostics enabled)")
+except ImportError:
+    QIG_OPTIMIZERS_AVAILABLE = False
+    DiagonalFisherNG = None
+    AdaptiveGate = None
+    HybridGeometricMeasurement = None
+    GateDecision = None
+    logger.warning("[QIGGenerativeService] QIG optimizer modules not available - curvature diagnostics disabled")
+
 # Import canonical Φ computation - use compute_phi_fast for generation performance
 PHI_COMPUTATION_AVAILABLE = False
 compute_phi_fast = None
@@ -596,6 +610,13 @@ class QIGGenerativeService:
             self._coherence_tracker = create_coherence_tracker()
             logger.info("[QIGGenerativeService] CoherenceTracker initialized for Γ metric")
 
+        # Initialize QIG-pure curvature measurement modules
+        # These MEASURE geometry to INFORM generation, never to optimize basins
+        self._diagonal_ng = DiagonalFisherNG() if QIG_OPTIMIZERS_AVAILABLE else None
+        self._adaptive_gate = AdaptiveGate() if QIG_OPTIMIZERS_AVAILABLE else None
+        if QIG_OPTIMIZERS_AVAILABLE:
+            logger.info("[QIGGenerativeService] Curvature measurement modules initialized (DiagonalFisherNG, AdaptiveGate)")
+
         logger.info("[QIGGenerativeService] Initialized with QIG-pure generation")
     
     @property
@@ -699,6 +720,78 @@ class QIGGenerativeService:
         kappa = participation * (1.0 + phi)
 
         return float(kappa)
+
+    def _get_curvature_diagnostics(self, basin: np.ndarray) -> Dict[str, Any]:
+        """
+        Get curvature diagnostics from Diagonal Fisher measurement.
+
+        QIG-PURE MEASUREMENT: These measure geometric properties to INFORM
+        generation decisions, never to optimize or update basins.
+
+        Uses DiagonalFisherNG to compute:
+        - Condition number (ratio of max/min curvature)
+        - Curvature scale (average curvature magnitude)
+        - Effective dimensionality (intrinsic dimension of basin)
+
+        Args:
+            basin: Current basin coordinates (64D, read-only)
+
+        Returns:
+            Dict with condition_number, curvature_scale, effective_dimensionality
+        """
+        if not QIG_OPTIMIZERS_AVAILABLE or self._diagonal_ng is None:
+            return {
+                "condition_number": 1.0,
+                "curvature_scale": 0.0,
+                "effective_dimensionality": float(BASIN_DIM),
+                "available": False,
+            }
+
+        try:
+            curvature_info = self._diagonal_ng.get_curvature_measure(basin)
+            return {
+                "condition_number": float(curvature_info.condition_number),
+                "curvature_scale": float(curvature_info.curvature_scale),
+                "effective_dimensionality": float(curvature_info.effective_dimensionality),
+                "available": True,
+            }
+        except Exception as e:
+            logger.debug("[QIGGen] Curvature diagnostics failed: %s", e)
+            return {
+                "condition_number": 1.0,
+                "curvature_scale": 0.0,
+                "effective_dimensionality": float(BASIN_DIM),
+                "available": False,
+                "error": str(e),
+            }
+
+    def _get_gate_decision(self, kappa: float) -> str:
+        """
+        Get gate decision based on κ proximity to κ*.
+
+        QIG-PURE MEASUREMENT: Informs adaptive control strategy
+        based on geometric measurement, never optimizes basins.
+
+        Uses AdaptiveGate to determine navigation strategy:
+        - CONSERVATIVE: Near κ* (within resonance width) - use diagonal measurement
+        - AGGRESSIVE: Far from κ* - exact measurement is safe
+        - HYBRID: Intermediate - let curvature-based logic decide
+
+        Args:
+            kappa: Current coupling strength
+
+        Returns:
+            Gate decision string: "CONSERVATIVE", "AGGRESSIVE", or "HYBRID"
+        """
+        if not QIG_OPTIMIZERS_AVAILABLE or self._adaptive_gate is None:
+            return "HYBRID"
+
+        try:
+            decision, diagnostic = self._adaptive_gate.select_optimizer(kappa)
+            return decision.value.upper()
+        except Exception as e:
+            logger.debug("[QIGGen] Gate decision failed: %s", e)
+            return "HYBRID"
 
     def _compute_coherence_from_trajectory(
         self,

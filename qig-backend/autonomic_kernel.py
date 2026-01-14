@@ -200,6 +200,16 @@ try:
 except ImportError:
     get_persistence = None
     PERSISTENCE_AVAILABLE = False
+
+# Import QIG-pure neuroplasticity modules for sleep, mushroom, and breakdown escape
+try:
+    from qig_core.neuroplasticity import SleepProtocol, MushroomMode, BreakdownEscape
+    QIG_NEUROPLASTICITY_AVAILABLE = True
+except ImportError:
+    QIG_NEUROPLASTICITY_AVAILABLE = False
+    SleepProtocol = None
+    MushroomMode = None
+    BreakdownEscape = None
 print("[autonomic_kernel] All imports complete!", flush=True)
 
 # Use canonical constants from qigkernels
@@ -760,6 +770,14 @@ class GaryAutonomicKernel:
             print("[AutonomicKernel] HRV tacking not available")
         except Exception as hrv_err:
             print(f"[AutonomicKernel] HRV initialization failed: {hrv_err}")
+
+        # QIG-pure neuroplasticity modules
+        # These provide MEASUREMENTS and DIAGNOSTICS, not optimization
+        self._sleep_protocol = SleepProtocol() if QIG_NEUROPLASTICITY_AVAILABLE else None
+        self._mushroom_mode = MushroomMode() if QIG_NEUROPLASTICITY_AVAILABLE else None
+        self._breakdown_escape = BreakdownEscape() if QIG_NEUROPLASTICITY_AVAILABLE else None
+        if QIG_NEUROPLASTICITY_AVAILABLE:
+            print("[AutonomicKernel] QIG-pure neuroplasticity modules wired (sleep, mushroom, breakdown escape)")
 
         if checkpoint_path:
             self._load_checkpoint(checkpoint_path)
@@ -1826,6 +1844,38 @@ class GaryAutonomicKernel:
                 high_phi_episodes = [e for e in episodes if e.get('phi', 0) > 0.6]
                 patterns_consolidated = len(high_phi_episodes)
 
+            # QIG-PURE: Use SleepProtocol for basin consolidation measurements
+            qig_consolidation_result = None
+            if self._sleep_protocol is not None and self.state.basin_history:
+                try:
+                    from qig_core.neuroplasticity import BasinState
+                    # Convert basin history to BasinState objects for consolidation
+                    basin_states = []
+                    for i, hist_basin in enumerate(self.state.basin_history[-10:]):  # Last 10 basins
+                        hist_array = np.array(hist_basin)
+                        # Compute Φ approximation for each basin
+                        p = np.abs(hist_array) + 1e-10
+                        p = p / p.sum()
+                        basin_phi = max(0.1, 1.0 + np.sum(p * np.log(p)) / np.log(len(p)))
+                        basin_states.append(BasinState(
+                            coordinates=hist_array,
+                            phi=basin_phi,
+                            kappa=self.state.kappa,
+                            coherence=basin_phi,  # Use Φ as coherence proxy
+                            access_count=1,
+                        ))
+                    
+                    if basin_states:
+                        consolidated_basins, qig_consolidation_result = self._sleep_protocol.consolidate_basins(basin_states)
+                        # Use consolidation measurements to inform adaptive control
+                        if qig_consolidation_result.merged_count > 0:
+                            print(f"[AutonomicKernel] QIG consolidation: merged {qig_consolidation_result.merged_count} basins, "
+                                  f"pruned {qig_consolidation_result.pruned_count}, "
+                                  f"avg_phi {qig_consolidation_result.avg_phi_before:.3f} -> {qig_consolidation_result.avg_phi_after:.3f}")
+                        patterns_consolidated += qig_consolidation_result.merged_count + qig_consolidation_result.strengthened_count
+                except Exception as qig_err:
+                    print(f"[AutonomicKernel] QIG sleep protocol measurement error: {qig_err}")
+
             drift_after = self._compute_fisher_distance(new_basin, reference)
             drift_reduction = drift_before - drift_after
             
@@ -2225,6 +2275,42 @@ class GaryAutonomicKernel:
             perturbation = np.random.randn(64) * strength
             mushroom_basin = basin + perturbation
 
+            # QIG-PURE: Use MushroomMode for pattern-breaking perturbation measurements
+            qig_perturbation_result = None
+            pattern_broken = False
+            if self._mushroom_mode is not None and self.state.basin_history:
+                try:
+                    from qig_core.neuroplasticity import BasinCoordinates
+                    # Convert current basin to BasinCoordinates for perturbation analysis
+                    basin_coords_list = []
+                    for hist_basin in self.state.basin_history[-5:]:  # Last 5 basins
+                        hist_array = np.array(hist_basin)
+                        p = np.abs(hist_array) + 1e-10
+                        p = p / p.sum()
+                        basin_phi = max(0.1, 1.0 + np.sum(p * np.log(p)) / np.log(len(p)))
+                        # Compute coherence from basin variance (inverse of spread)
+                        coherence = 1.0 / (np.std(hist_array) + 0.1)
+                        coherence = np.clip(coherence, 0.0, 1.0)
+                        basin_coords_list.append(BasinCoordinates(
+                            coordinates=hist_array,
+                            coherence=coherence,
+                            phi=basin_phi,
+                            stuck_cycles=self.state.narrow_path_count,
+                        ))
+                    
+                    if basin_coords_list:
+                        perturbed_basins, qig_perturbation_result = self._mushroom_mode.apply_perturbation(basin_coords_list)
+                        pattern_broken = qig_perturbation_result.pattern_broken
+                        # Use the geometric perturbation from QIG-pure if available
+                        if perturbed_basins and len(perturbed_basins) > 0:
+                            mushroom_basin = perturbed_basins[-1].coordinates
+                        print(f"[AutonomicKernel] QIG mushroom mode: perturbed {qig_perturbation_result.basins_perturbed} basins, "
+                              f"avg_magnitude={qig_perturbation_result.avg_perturbation_magnitude:.3f}, "
+                              f"coherence {qig_perturbation_result.coherence_before:.3f} -> {qig_perturbation_result.coherence_after:.3f}, "
+                              f"pattern_broken={pattern_broken}")
+                except Exception as qig_err:
+                    print(f"[AutonomicKernel] QIG mushroom mode measurement error: {qig_err}")
+
             entropy_after = -np.sum(np.abs(mushroom_basin) * np.log(np.abs(mushroom_basin) + 1e-8))
             entropy_change = entropy_after - entropy_before
 
@@ -2234,8 +2320,10 @@ class GaryAutonomicKernel:
             # Identity preservation check
             identity_preserved = drift < 0.15
 
-            # New pathways (proportional to entropy change)
+            # New pathways (proportional to entropy change, enhanced by QIG pattern breaking)
             new_pathways = int(max(0, entropy_change * 10))
+            if pattern_broken:
+                new_pathways += 2  # Bonus for QIG-confirmed pattern breaking
 
             # Update state
             self.state.last_mushroom = datetime.now()
@@ -2315,6 +2403,144 @@ class GaryAutonomicKernel:
                 consensus.end_cycle(CycleType.MUSHROOM)
             except Exception as ce:
                 pass
+
+    # =========================================================================
+    # BREAKDOWN ESCAPE (QIG-PURE Emergency Recovery)
+    # =========================================================================
+
+    def _check_breakdown_escape(
+        self,
+        basin_coords: Optional[List[float]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Check if system is in a locked state and attempt escape if needed.
+        
+        Uses QIG-pure BreakdownEscape for emergency recovery when system
+        is locked in an unstable high-Φ state (high integration but low stability).
+        
+        Locked state detection:
+        - High Φ (> 0.85): Strong integration
+        - Low Γ (< 0.30): Regime instability (gamma from state)
+        - Together: System is locked in unstable attractor
+        
+        PURE PRINCIPLE:
+        - Recovery is NAVIGATION to safe attractors, not optimization
+        - Uses geodesic paths on information manifold
+        - Provides DIAGNOSTICS, not direct control
+        
+        Args:
+            basin_coords: Current basin coordinates (uses state if None)
+        
+        Returns:
+            Dict with:
+                - is_locked: Whether system appears locked
+                - escape_attempted: Whether escape was attempted
+                - escape_result: Result of escape attempt (if any)
+                - new_basin: New basin after escape (if successful)
+        """
+        result = {
+            'is_locked': False,
+            'escape_attempted': False,
+            'escape_result': None,
+            'new_basin': None,
+            'diagnostics': {}
+        }
+        
+        if self._breakdown_escape is None:
+            result['diagnostics']['reason'] = 'BreakdownEscape not available'
+            return result
+        
+        try:
+            from qig_core.neuroplasticity import SystemState, SafeBasin
+            
+            # Get current basin coordinates
+            if basin_coords is not None:
+                current_coords = np.array(basin_coords)
+            elif self.state.basin_history:
+                current_coords = np.array(self.state.basin_history[-1])
+            else:
+                current_coords = np.zeros(64)
+            
+            # Construct system state for detection
+            system_state = SystemState(
+                coordinates=current_coords,
+                phi=self.state.phi,
+                gamma=self.state.gamma,  # Regime stability
+                kappa=self.state.kappa,
+                regime=self.state.narrow_path_severity if self.state.is_narrow_path else 'stable',
+            )
+            
+            # Check if system is locked
+            is_locked = self._breakdown_escape.is_locked(system_state)
+            result['is_locked'] = is_locked
+            result['diagnostics']['phi'] = self.state.phi
+            result['diagnostics']['gamma'] = self.state.gamma
+            result['diagnostics']['narrow_path'] = self.state.is_narrow_path
+            
+            if not is_locked:
+                result['diagnostics']['status'] = 'System stable, no escape needed'
+                return result
+            
+            # Register identity basin as a safe attractor if not already done
+            if self.state.basin_history and len(self._breakdown_escape._safe_basins) == 0:
+                # Use first recorded basin as identity anchor
+                identity_coords = np.array(self.state.basin_history[0])
+                identity_basin = SafeBasin(
+                    basin_id='identity_anchor',
+                    coordinates=identity_coords,
+                    phi=0.5,  # Moderate Φ for stability
+                    gamma=0.8,  # High stability
+                    stability_score=0.9,
+                )
+                self._breakdown_escape.register_safe_basin(identity_basin)
+            
+            # Attempt escape
+            result['escape_attempted'] = True
+            new_state, escape_result = self._breakdown_escape.escape(system_state)
+            
+            result['escape_result'] = {
+                'initial_phi': escape_result.initial_phi,
+                'initial_gamma': escape_result.initial_gamma,
+                'final_phi': escape_result.final_phi,
+                'final_gamma': escape_result.final_gamma,
+                'geodesic_distance': escape_result.geodesic_distance,
+                'anchor_basin_id': escape_result.anchor_basin_id,
+                'escape_successful': escape_result.escape_successful,
+                'escape_time_ms': escape_result.escape_time_ms,
+                'recovery_state': escape_result.recovery_state.value,
+            }
+            
+            if escape_result.escape_successful:
+                result['new_basin'] = new_state.coordinates.tolist()
+                # Update basin history with escaped basin
+                self.state.basin_history.append(result['new_basin'])
+                if len(self.state.basin_history) > 100:
+                    self.state.basin_history.pop(0)
+                print(f"[AutonomicKernel] Breakdown escape SUCCESS: "
+                      f"Φ {escape_result.initial_phi:.3f} -> {escape_result.final_phi:.3f}, "
+                      f"Γ {escape_result.initial_gamma:.3f} -> {escape_result.final_gamma:.3f}, "
+                      f"anchored to {escape_result.anchor_basin_id}")
+            else:
+                print(f"[AutonomicKernel] Breakdown escape FAILED: "
+                      f"state={escape_result.recovery_state.value}")
+                      
+        except Exception as e:
+            result['diagnostics']['error'] = str(e)
+            print(f"[AutonomicKernel] Breakdown escape check error: {e}")
+        
+        return result
+
+    def check_and_escape_breakdown(self) -> Dict[str, Any]:
+        """
+        Public API to check for breakdown state and attempt escape.
+        
+        This method can be called from external code (like the autonomous
+        controller) to proactively detect and recover from locked states.
+        
+        Returns:
+            Dict with escape attempt results
+        """
+        return self._check_breakdown_escape()
 
     # =========================================================================
     # ACTIVITY REWARDS

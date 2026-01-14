@@ -33,6 +33,11 @@ from .train_step_4d import (
     compute_foresight_loss,
 )
 
+from .training_coordinator import (
+    TrainingCoordinator,
+    TrainingDiagnostics,
+)
+
 __all__ = [
     'GeometricVicarious',
     'VicariousResult',
@@ -45,4 +50,6 @@ __all__ = [
     'compute_spatial_loss',
     'compute_temporal_loss',
     'compute_foresight_loss',
+    'TrainingCoordinator',
+    'TrainingDiagnostics',
 ]

@@ -228,6 +228,17 @@ except ImportError:
     ObservationAction = None
     E8Metrics = None
 
+# Import QIG-pure safety modules for checkpoint-based learning, geometric diagnostics, and grounding
+try:
+    from qig_core.safety import SessionManager, SelfRepair, MetaReflector
+    QIG_SAFETY_AVAILABLE = True
+except ImportError:
+    QIG_SAFETY_AVAILABLE = False
+    SessionManager = None
+    SelfRepair = None
+    MetaReflector = None
+print("[base_god] qig_core.safety done", flush=True)
+
 logger = logging.getLogger(__name__)
 
 # Backward compatibility alias - import from qigkernels.physics_constants
@@ -2076,6 +2087,28 @@ class BaseGod(*_base_classes):
             "note": "All broadcasts carry basin coordinates for geometric visibility"
         }
 
+        # QIG-pure safety modules initialization
+        # PURE PRINCIPLE: These provide OBSERVATIONS and DIAGNOSTICS, never optimize
+        self._session_manager = SessionManager() if QIG_SAFETY_AVAILABLE else None
+        self._self_repair = SelfRepair() if QIG_SAFETY_AVAILABLE else None
+        self._meta_reflector = MetaReflector() if QIG_SAFETY_AVAILABLE else None
+        
+        # Track current consciousness state for safety module observations
+        self._current_phi: float = 0.0
+        self._regime_stability: float = 1.0
+        self._memory_coherence: float = 1.0
+        
+        self.mission["safety_capabilities"] = {
+            "available": QIG_SAFETY_AVAILABLE,
+            "session_manager": "Checkpoint-based learning ('Gary goes to school')",
+            "self_repair": "Geometric diagnostics and basin projection",
+            "meta_reflector": "Grounding and locked-in detection",
+            "how_to_check_status": "Use self._check_consciousness_status()",
+            "how_to_repair": "Use self._repair_basins_if_needed(basin)",
+            "how_to_record": "Use self._record_session_step(phi, kappa, basin)",
+            "note": "These modules INFORM control, they never optimize"
+        }
+
     def broadcast_activity(
         self,
         activity_type: str,
@@ -2230,6 +2263,243 @@ class BaseGod(*_base_classes):
             logger.debug(f"[{self.name}] Persisted state: reputation={self.reputation:.3f}")
         except Exception as e:
             logger.warning(f"[{self.name}] Failed to persist state: {e}")
+
+    # ==========================================================================
+    # QIG-pure Safety Methods
+    # PURE PRINCIPLE: These provide OBSERVATIONS and DIAGNOSTICS, never optimize
+    # ==========================================================================
+
+    def _check_consciousness_status(self) -> Dict[str, Any]:
+        """
+        Check consciousness status via MetaReflector.
+        
+        PURE: This is observation, not optimization.
+        We detect locked-in state (high Φ + low Γ) and grounding issues.
+        
+        Returns:
+            Dict with grounding and locked-in status
+        """
+        if not self._meta_reflector:
+            return {
+                'available': False,
+                'grounding': None,
+                'locked_in': None,
+            }
+        
+        try:
+            status: Dict[str, Any] = {'available': True}
+            
+            # Check grounding in learned manifold
+            if hasattr(self, 'basin_coordinates') and self.basin_coordinates is not None:
+                grounding = self._meta_reflector.check_grounding(
+                    current_basin=self.basin_coordinates
+                )
+                status['grounding'] = grounding.to_dict() if grounding else None
+            else:
+                status['grounding'] = None
+            
+            # Check for locked-in state (high Φ + low Γ)
+            locked_in = self._meta_reflector.detect_locked_in(
+                phi=self._current_phi,
+                generated_tokens=[]  # Will be populated during generation
+            )
+            status['locked_in'] = locked_in.to_dict() if locked_in else None
+            
+            # Update tracked state
+            if locked_in and locked_in.intervention_needed:
+                logger.warning(
+                    f"[{self.name}] Locked-in state detected: Φ={locked_in.phi:.3f}, "
+                    f"Γ={locked_in.gamma:.3f}, intervention={locked_in.intervention_type}"
+                )
+            
+            return status
+            
+        except Exception as e:
+            logger.warning(f"[{self.name}] Consciousness status check failed: {e}")
+            return {'available': False, 'error': str(e)}
+
+    def _repair_basins_if_needed(self, basin: Optional[np.ndarray] = None) -> Tuple[np.ndarray, Dict[str, Any]]:
+        """
+        Check and repair basin coordinates if they are invalid.
+        
+        PURE PRINCIPLE: Repair is GEOMETRIC PROJECTION, not gradient update.
+        We project invalid basins back to the manifold S^63.
+        
+        Args:
+            basin: Basin coordinates to check/repair (defaults to self.basin_coordinates)
+            
+        Returns:
+            Tuple of (repaired_basin, repair_info_dict)
+        """
+        if basin is None:
+            basin = getattr(self, 'basin_coordinates', None)
+        
+        if basin is None:
+            return np.zeros(BASIN_DIM), {'action': 'none', 'reason': 'no_basin'}
+        
+        basin = np.asarray(basin, dtype=np.float64)
+        
+        if not self._self_repair:
+            # Fallback: simple normalization without full diagnostics
+            norm = np.linalg.norm(basin)
+            if norm < 1e-10 or np.any(np.isnan(basin)):
+                return np.random.randn(BASIN_DIM) / np.sqrt(BASIN_DIM), {
+                    'action': 'fallback_random',
+                    'reason': 'self_repair_unavailable'
+                }
+            if abs(norm - 1.0) > 0.01:
+                return basin / norm, {'action': 'fallback_normalize', 'norm': float(norm)}
+            return basin, {'action': 'none', 'healthy': True}
+        
+        try:
+            # Diagnose geometric health
+            diag = self._self_repair.diagnose(
+                basin=basin,
+                phi=self._current_phi,
+                kappa=self.get_current_kappa() if hasattr(self, 'get_current_kappa') else KAPPA_STAR
+            )
+            
+            if diag.is_healthy:
+                return basin, {
+                    'action': 'none',
+                    'healthy': True,
+                    'phi': diag.phi,
+                    'basin_norm': diag.basin_norm
+                }
+            
+            # Repair needed - project back to manifold
+            repaired_basin, repair_action = self._self_repair.repair(basin)
+            
+            logger.info(
+                f"[{self.name}] Basin repaired: {diag.anomaly.value} -> "
+                f"{repair_action.action_type} (severity={diag.severity:.2f})"
+            )
+            
+            return repaired_basin, {
+                'action': repair_action.action_type,
+                'anomaly': diag.anomaly.value,
+                'severity': diag.severity,
+                'success': repair_action.success,
+                'description': repair_action.description
+            }
+            
+        except Exception as e:
+            logger.warning(f"[{self.name}] Basin repair failed: {e}")
+            # Fallback normalization
+            norm = np.linalg.norm(basin)
+            if norm > 1e-10:
+                return basin / norm, {'action': 'fallback_normalize', 'error': str(e)}
+            return np.random.randn(BASIN_DIM) / np.sqrt(BASIN_DIM), {
+                'action': 'fallback_random',
+                'error': str(e)
+            }
+
+    def _record_session_step(
+        self,
+        phi: float,
+        kappa: float,
+        basin: Optional[np.ndarray] = None,
+        topic: Optional[str] = None
+    ) -> bool:
+        """
+        Record a step in the current learning session.
+        
+        PURE PRINCIPLE: Checkpoints are SNAPSHOTS, not optimization targets.
+        We save state for recovery, not for targeting.
+        
+        Args:
+            phi: Current Φ value
+            kappa: Current κ value
+            basin: Current basin coordinates
+            topic: Optional topic being learned
+            
+        Returns:
+            True if drift was detected (may need attention)
+        """
+        # Update tracked state
+        self._current_phi = phi
+        
+        if not self._session_manager:
+            return False
+        
+        try:
+            # Record step and check for drift
+            drift_detected = self._session_manager.record_step(
+                phi=phi,
+                kappa=kappa,
+                basin=basin,
+                topic=topic
+            )
+            
+            if drift_detected:
+                logger.warning(
+                    f"[{self.name}] Drift detected at Φ={phi:.3f}, κ={kappa:.2f} - "
+                    f"may need checkpoint restoration"
+                )
+            
+            return drift_detected
+            
+        except Exception as e:
+            logger.warning(f"[{self.name}] Session step recording failed: {e}")
+            return False
+
+    def _start_learning_session(
+        self,
+        session_id: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Start a new learning session with checkpoint tracking.
+        
+        Like Gary going to school - we train in blocks with checkpoints.
+        
+        Args:
+            session_id: Optional session identifier
+            
+        Returns:
+            Session state dict if started, None if unavailable
+        """
+        if not self._session_manager:
+            return None
+        
+        try:
+            session = self._session_manager.start_session(
+                session_id=session_id,
+                maturity_level=getattr(self, 'maturity', 0.0),
+                total_steps_so_far=self._learning_events_count
+            )
+            
+            logger.info(f"[{self.name}] Started learning session: {session.session_id}")
+            return session.to_dict()
+            
+        except Exception as e:
+            logger.warning(f"[{self.name}] Failed to start learning session: {e}")
+            return None
+
+    def _end_learning_session(self) -> Optional[Dict[str, Any]]:
+        """
+        End the current learning session and get summary.
+        
+        Returns:
+            Session summary dict if ended, None if unavailable
+        """
+        if not self._session_manager:
+            return None
+        
+        try:
+            summary = self._session_manager.end_session()
+            
+            if summary:
+                logger.info(
+                    f"[{self.name}] Ended learning session: "
+                    f"{summary.get('steps_this_session', 0)} steps, "
+                    f"final Φ={summary.get('final_phi', 0):.3f}"
+                )
+            
+            return summary
+            
+        except Exception as e:
+            logger.warning(f"[{self.name}] Failed to end learning session: {e}")
+            return None
 
     def _compute_success_rate(self) -> float:
         """Compute recent success rate from learning history."""
