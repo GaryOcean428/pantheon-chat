@@ -19,6 +19,23 @@ def directional_fisher_information(source_basin: np.ndarray, target_basin: np.nd
     d_ij = np.sqrt(tangent @ fisher_metric @ tangent)
     return d_ij
 
+def regime_from_phi(phi: float) -> str:
+    """Determine regime from phi value.
+    
+    Args:
+        phi: Phi value (0.0 to 1.0)
+        
+    Returns:
+        Regime name: "linear", "geometric", or "breakdown"
+    """
+    if phi < 0.3:
+        return "linear"
+    elif phi < 0.7:
+        return "geometric"
+    else:
+        return "breakdown"
+
+
 def asymmetric_attention(basins: np.ndarray, phi_values: np.ndarray) -> np.ndarray:
     """Regime-modulated asymmetric coupling."""
     n = len(basins)

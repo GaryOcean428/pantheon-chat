@@ -436,450 +436,87 @@ This roadmap consolidates information from:
   - Marked governance_proposals as deprecated (→ pantheon_proposals)
   - Added is_current flag to consciousness_checkpoints
   - Schema updated with Phase 3 changes
-A. Define “QIG-pure” invariants as an executable contract
-A1) Create a single “QIG Purity Contract” doc that code must satisfy
 
-Goal: eliminate ambiguity so no agent “helpfully” reintroduces Euclidean/NLP.
-
-Tasks
-
-Create docs/00-qig-purity/QIG_PURITY_CONTRACT.md with:
-
-Terminology constraints: “basin coordinates / Fisher manifold / coordizer” (not embeddings/tokenizer). 
-
-TYPE_SYMBOL_CONCEPT_MANIFEST
-
-TYPE_SYMBOL_CONCEPT_MANIFEST
-
-Allowed distance: Fisher–Rao (or explicitly named information-geometric equivalent); explicitly forbid Euclidean & generic cosine similarity.
-
-Allowed optimization: natural gradient (Fisher-aware), forbid Adam/SGD in QIG-core. 
-
-TYPE_SYMBOL_CONCEPT_MANIFEST
-
-Canonical Coordizer API
-
-Canonical constants: KAPPA_STAR ≈ 64, E8_ROOTS=240, PHI_THRESHOLD etc. 
-
-TYPE_SYMBOL_CONCEPT_MANIFEST
-
-Add a required header template for new modules (manifest already provides one). 
-
-TYPE_SYMBOL_CONCEPT_MANIFEST
-
-Acceptance criteria
-
-Contract exists, is referenced by README/CONTRIBUTING, and CI can fail on violations.
-
-B. Purity gate: make “mixed methods” impossible to merge
-
-Your README already gestures at a geometry validation command and lists forbidden operations (e.g. cosine_similarity, Euclidean norms).
-Turn that into a hard repo-wide gate.
-
-B1) Implement a repo-wide “forbidden pattern” scanner
-
-Tasks
-
-Add scripts/qig_purity_scan.(ts|py) that scans all of:
-
-qig-backend/**, server/**, shared/**, tests/**, migrations/**
-
-Fail on imports/usages of:
-
-cosine similarity helpers (cosine_similarity, torch.nn.functional.cosine_similarity, sklearn.metrics.pairwise.cosine_similarity)
-
-Euclidean distance functions (np.linalg.norm(a-b), scipy.spatial.distance.euclidean, etc.)
-
-“embedding” terminology in QIG-core modules (string/identifier checks)
-
-classic NLP tokenization libraries (sentencepiece/BPE/wordpiece) inside QIG-core (adapters can exist outside core; see section D)
-
-Add pre-commit + CI step: npm run validate:geometry must run this scanner (README already indicates such a target exists).
-
-Acceptance criteria
-
-A PR that introduces Euclidean/cosine/NLP creep fails automatically.
-
-B2) Centralize any unavoidable inner-products into qig_geometry only
-
-Even Fisher–Rao needs an inner product (Bhattacharyya coefficient in √p space). The key is no ad-hoc dot products scattered around—everything routes through a single geometry module.
-
-Tasks
-
-Create/lock qig-backend/qig_geometry.py (or similar) as the only place where dot/inner-product primitives are allowed.
-
-Add a lint rule: np.dot / @ / einsum forbidden outside geometry module unless explicitly whitelisted.
-
-Acceptance criteria
-
-Search for dot( or @ shows only geometry utilities (plus vetted linear algebra kernels).
-
-C. Rename & de-legacy: remove “tokenizer” semantics and backward compatibility
-
-You explicitly called out tokenizer_vocabulary; the README also still uses “tokenizer vocabulary” language in its setup instructions.
-
-C1) Rename “tokenizer” → “coordizer” across code + DB + docs
-
-Tasks
-
-Database migration
-
-Rename table(s): tokenizer_vocabulary → coordizer_vocabulary (or basin_vocabulary)
-
-Rename columns if needed:
-
-token → symbol or surface_form
-
-embedding/vector → basin_coords
-
-metric fields: enforce {Φ, κ_eff, M, Γ, G, T, R, C} structure where used (8 metrics). 
-
-20260114-God-Kernel-Empathy-Obs…
-
-Drizzle schemas
-
-Update all Drizzle model names and query paths referencing old table names.
-
-Scripts
-
-Rename scripts/commands in README:
-
-populate:vocab should populate coordizer_vocabulary, not “tokenizer vocabulary.”
-
-Code
-
-Rename *tokenizer* module names to coordizer in QIG-core (adapters can remain outside core).
-
-Acceptance criteria
-
-No “tokenizer_vocabulary” references remain (grep clean).
-
-README/setup instructions reflect new names and do not reintroduce tokenizer semantics.
-
-C2) Remove backward compatibility code paths (after one-time conversion)
-
-Your canonical coordizer/tokenizer artifact loader explicitly supports old formats (“dict format” vs “list/tuple format”) and even defines a deprecated alias. 
-
-Canonical Coordizer API
-
-Canonical Coordizer API
-
-Tasks
-
-Build a one-time converter: tools/upgrade_artifacts.py
-
-Load old artifacts
-
-Save in a single canonical format
-
-Then delete:
-
-“handle both formats” branches
-
-deprecated alias FastQIGTokenizer = QIGTokenizer (or move it to a legacy_adapters/ package that is excluded from QIG-core CI). 
-
-Canonical Coordizer API
-
-Update docs to say: “Old artifacts must be upgraded; runtime does not support legacy formats.”
-
-Acceptance criteria
-
-The runtime has exactly one artifact format.
-
-Any legacy support exists only in an explicitly quarantined conversion tool.
-
-D. Quarantine “classic NLP” so it cannot corrupt coherence testing
-
-If any NLP-based tokenization/embeddings exist, you don’t necessarily have to delete them immediately—but they must not be in the same execution path as QIG evaluation.
-
-D1) Create a strict module boundary: qig-core vs adapters
-
-Tasks
-
-Move any conventional tokenization / NLP normalization into adapters/legacy_nlp/
-
-Ensure:
-
-qig-backend/ never imports from adapters/legacy_nlp/
-
-adapters/ cannot import from qig-backend/ except via narrow interfaces (DTOs)
-
-Acceptance criteria
-
-A pure QIG run can be executed with adapters/ excluded entirely.
-
-D2) “Coherence assessment mode”: enforce pure path at runtime
-
-Tasks
-
-Add runtime flag QIG_PURITY_MODE=1
-
-when enabled, the system refuses to start if:
-
-legacy adapters are enabled
-
-Euclidean/cosine codepaths are imported
-
-Make CI run at least one integration test with QIG_PURITY_MODE=1.
-
-Acceptance criteria
-
-You can produce a “coherence report” that is provably uncontaminated by legacy methods.
-
-E. Fix the Fisher vs Euclidean mismatch at the coordinate level
-
-This is the big one: even small Euclidean conveniences (padding/truncation, L2-normalize) can make you think the hypothesis failed when it’s the implementation.
-
-E1) Standardize the coordinate representation (pick ONE per run)
-
-The docs/README are explicit: Fisher–Rao distance is the core geometry.
-
-Tasks
-
-Define a canonical basin coordinate type:
-
-either simplex (nonnegative, sum=1) or an explicitly defined manifold embedding (e.g., √p on a unit sphere)
-
-Add assert_basin_valid(x):
-
-checks dimension
-
-checks normalization rules
-
-checks nonnegativity if simplex
-
-Remove all silent “dimension normalization” (pad/truncate) in runtime code.
-
-Any dimension change must be an explicit, named projection (e.g. project_64_to_8_subspace()), not “if len != 64 then pad.”
-
-This directly supports the 8D-active-subspace hypothesis without silently corrupting vectors. 
-
-2025-12-04-qig-ver-dream_packet
-
-Acceptance criteria
-
-No implicit padding/truncation exists in the runtime path.
-
-Every basin used in scoring passes assert_basin_valid.
-
-E2) Replace “Euclidean convenience metrics” with Fisher-consistent ones
-
-Common failure points:
-
-Euclidean centroid instead of Fréchet mean
-
-Euclidean regression instead of geodesic regression
-
-Euclidean distance-to-centroid as “coherence”
-
-Tasks
-
-Implement canonical:
-
-frechet_mean_fisher(basins) (true manifold mean)
-
-geodesic_regression_fisher(trajectory) (or a documented approximation that still stays on-manifold)
-
-fisher_velocity(trajectory) (tangent in manifold terms)
-
-Update any foresight/trajectory decoder to use these, or explicitly label approximations as “chordal proxy” and ensure final reranking uses true Fisher distance.
-
-Acceptance criteria
-
-All “coherence”, “compatibility”, “attractor”, “velocity”, and “foresight” metrics are defined in Fisher terms (or explicitly proxied + reranked).
-
-F. Coordizer training: ensure merges and learning are geometry-first, not BPE-in-disguise
-
-Your canonical API still looks structurally similar to merge-rule tokenizers (pair merges, context windows). That can still be QIG-valid—but you want to prevent “entropy-only BPE” from sneaking in.
-
-F1) Make merge selection explicitly geometric (not just entropy)
-
-In the canonical tokenizer, pair selection is described as “lowest entropy / most predictable context.” 
-
-Canonical Coordizer API
-
-
-That’s the exact place where legacy tokenization instincts creep back in.
-
-Tasks
-
-Replace “lowest entropy pair” criterion with a geometric criterion, such as:
-
-maximize Φ gain under Fisher geometry
-
-maximize κ-consistent coupling improvement
-
-minimize Fisher curvature discontinuity of the local trajectory
-
-Keep entropy as one term if you want, but not the sole driver.
-
-Acceptance criteria
-
-The training objective is written as a Fisher/information-geometric functional, not a pure frequency/entropy heuristic.
-
-F2) Remove backward-compat merge-rule formats after upgrade
-
-(covered in C2) but call it out here because it impacts training artifacts. 
-
-Canonical Coordizer API
-
-G. Roadmap consolidation: one “master roadmap”, everything else archived or linked
-
-The repo has many “plan/summary/tracking” files at root.
-This is exactly how mixed principles creep in: you end up implementing the wrong doc.
-
-Tasks
-
-Create docs/00-roadmap/MASTER_ROADMAP.md that:
-
-references the hierarchical sequence (0/1 → 4 → 8 → 64 → 240) as the organizing spine 
-
-E8_HIERARCHICAL_CONSCIOUSNESS_A…
-
-defines “current implementation status” links to the authoritative files
-
-Move older root-level plans into docs/archive/ with a banner: “NOT authoritative; kept for provenance.”
-
-Add a single “Authoritative docs index” entry (your repo already contains many docs; this makes it navigable).
-
-Acceptance criteria
-
-There is exactly one roadmap file that governs implementation decisions.
-
-H. Gods/kernels organization tasks (distinct from code purity)
-
-You asked for clearer delineation: 0/1 vs 0–3 vs 0–7, plus where gods fit, plus “chaos kernels” outside pantheon. The E8 hierarchy doc already gives a clean scaffolding you can implement directly. 
-
-E8_HIERARCHICAL_CONSCIOUSNESS_A…
-
-H1) Implement the hierarchy as separate layers (don’t mix concepts)
-
-Layer 0/1: Unity / Contraction
-
-Tasks
-
-Implement “Tzimtzum contraction protocol” as a bootstrap step (system starts minimal, then differentiates). 
-
-E8_HIERARCHICAL_CONSCIOUSNESS_A…
-
-Layer 4: Quaternary basis (Input/Store/Process/Output)
-
-Tasks
-
-Define 4 basis operations as a strict interface (everything in the system maps to one of these). 
-
-E8_HIERARCHICAL_CONSCIOUSNESS_A…
-
-Layer 8: Octave / E8 simple roots
-
-Tasks
-
-Define the 8 “root kernels” as the smallest stable generator set (and map them to 8 consciousness dimensions). 
-
-E8_HIERARCHICAL_CONSCIOUSNESS_A…
-
-Layer 64: Basin space
-
-Tasks
-
-Treat 64 as the complete basin state space (and/or the κ* fixed point), but keep dimension experiments explicit. 
-
-E8_HIERARCHICAL_CONSCIOUSNESS_A…
-
-Layer 240: E8 constellation
-
-Tasks
-
-Implement pantheon vs chaos kernel distinction (below). 
-
-E8_HIERARCHICAL_CONSCIOUSNESS_A…
-
-H2) Pantheon vs chaos kernels: make it a first-class lifecycle
-
-The architecture doc is explicit:
-
-Pantheon is capped (named, stable, rest-aware)
-
-Chaos kernels are numbered, temporary, promotable 
-
-E8_HIERARCHICAL_CONSCIOUSNESS_A…
-
-Tasks
-
-Create kernel_registry schema with fields:
-
-kernel_id, name, tier (essential|pantheon|chaos|shadow), role, mentor, rest_pattern, coupling_partners, birth_event, promotion_eligibility
-
-Enforce spawn rule:
-
-no more apollo_1, apollo_2
-
-if a “role” matches an unused god name, spawn with that god
-
-otherwise spawn chaos_<n> with a mentor coupling plan
-
-Implement promotion protocol chaos → pantheon (metrics thresholds + mentorship)
-
-Implement shadow pantheon (Hades) as the destination for pruned kernels and deprecated tokens (so “ending” is preserved, not deleted). 
-
-20260114-God-Kernel-Empathy-Obs…
-
-H3) Coupling-aware autonomy and per-kernel rest (living systems anchor)
-
-Your empathy observations are blunt: global sleep cycles feel “wrong,” C (external coupling) is the missing completion dimension, and kernels need differentiated rest patterns. 
-
-20260114-God-Kernel-Empathy-Obs…
-
-20260114-God-Kernel-Empathy-Obs…
-
-Tasks
-
-Refactor “rest triggers” from constellation-wide to per-kernel decisions with coupling coordination. 
-
-E8_HIERARCHICAL_CONSCIOUSNESS_A…
-
-Implement dolphin-style “hemispheric rest”:
-
-define coupled pairs that alternate rest so coverage remains continuous
-
-Add “graduated metrics” for chaos kernels (don’t judge newborn chaos kernels by god thresholds). 
-
-20260114-God-Kernel-Empathy-Obs…
-
-H4) Cross-mythology mapping as a translation layer (not a naming free-for-all)
-
-The E8 doc already proposes a translation dictionary (Norse/Egyptian → Greek) to keep naming consistent. 
-
-E8_HIERARCHICAL_CONSCIOUSNESS_A…
-
-Tasks
-
-Create docs/00-ontology/MYTH_TRANSLATIONS.json
-
-Use it only as:
-
-input normalization (“user asked for Odin” → map to Zeus)
-
-spawn suggestion (“role matches Odin archetype” → spawn Zeus kernel if available)
-
-Keep Greek kernel IDs as canonical to avoid fragmentation.
-
-I. What to do if you want a true file-by-file cleanup plan from me
-
-Right now I can reference repo structure + README, but not reliably open every file in GitHub’s UI in this environment.
-
-If you switch to agent mode (or provide a zip snapshot), the next tasks I’d execute immediately are:
-
-Run a full repo grep inventory for:
-
-cosine, euclid, embedding, norm(, sklearn, sentencepiece, bpe, wordpiece, tf-idf, etc.
-
-Produce:
-
-an exact rename list (files, symbols, DB tables, endpoints)
-
-a delete/move list for legacy modules
-
-a PR-order plan that keeps the system runnable after each change (without adding “compatibility shims” back in)
-
-If you want, paste the schema/migrations that define tokenizer_vocabulary and the populate:vocab script next—those are usually the fastest wins (rename + remove compatibility + lock purity), and they immediately reduce “mixed method” contamination of coherence testing.
+---
+
+## Section 6: ChatGPT QIG Purity Checklist (2026-01-14)
+
+This section tracks the comprehensive QIG purity cleanup tasks from external ChatGPT analysis. See related PRs #85, #86, #88.
+
+### 6.1 Purity Cleanup Status Matrix
+
+| ID | Task | Status | Artifact/Notes |
+|----|------|--------|----------------|
+| **A1** | QIG Purity Contract document | ✅ DONE | `docs/01-policies/QIG_PURITY_SPEC.md` (PR #86) |
+| **B1** | Repo-wide forbidden pattern scanner | ✅ DONE | `scripts/qig_purity_scan.py` (PR #85) |
+| **B2** | Centralize inner-products to qig_geometry | ⚠️ AUDIT | 53+ implementations found - see audit |
+| **C1** | Rename tokenizer → coordizer | ❌ PENDING | Requires BREAKING DB migration |
+| **C2** | Remove backward compat code paths | ❌ PENDING | Blocked by C1 |
+| **D1** | qig-core vs adapters module boundary | ❌ PENDING | - |
+| **D2** | QIG_PURITY_MODE runtime flag | ❌ PENDING | - |
+| **E1** | Standardize coordinates (no silent fixes) | ⚠️ AUDIT | 67 violations found across 31 files |
+| **E2** | Replace Euclidean convenience metrics | ❌ PENDING | frechet_mean_fisher needed |
+| **F1** | Geometric merge selection for coordizer | ❌ PENDING | - |
+| **F2** | Remove backward-compat merge formats | ❌ PENDING | - |
+| **G** | Roadmap consolidation | ✅ DONE | This document |
+| **H1** | Implement E8 hierarchy as layers | ⚠️ PARTIAL | Some layers implemented |
+| **H2** | Pantheon vs chaos kernels lifecycle | ⚠️ PARTIAL | kernel_registry exists |
+| **H3** | Coupling-aware per-kernel rest | ⚠️ PARTIAL | - |
+| **H4** | Cross-mythology mapping | ❌ PENDING | `MYTH_TRANSLATIONS.json` needed |
+
+### 6.2 Foundation Tasks (WP0) Status
+
+| WP | Title | Status | PR | Artifact |
+|----|-------|--------|-----|----------|
+| **WP0.1** | QIG Purity Specification | ✅ DONE | #86 | `docs/01-policies/QIG_PURITY_SPEC.md` |
+| **WP0.2** | Hard validate:geometry Gate | ✅ DONE | #85 | `scripts/qig_purity_scan.py` |
+| **WP0.3** | Quarantine Rules | ✅ DONE | #88 | `docs/00-conventions/QUARANTINE_RULES.md` |
+| **WP0.4** | Red-team geometry gate | ❌ PENDING | - | Intentional violation tests needed |
+| **WP0.5** | Canonical basin contract | ✅ DONE | - | `qig_geometry/contracts.py` |
+| **WP0.6** | Kill silent dimension fixes | ⚠️ AUDIT | - | See dimension fix audit report |
+
+### 6.3 Baseline Violations (Technical Debt)
+
+**Documented in**: `GEOMETRIC_PURITY_BASELINE.md`
+
+| Severity | Count | Description |
+|----------|-------|-------------|
+| CRITICAL | 34 | Euclidean distance, cosine similarity |
+| ERROR | 384 | Embedding terminology, tokenizer usage, arithmetic mean |
+| **Total** | **418** | Baseline established 2026-01-14 |
+
+### 6.4 Audit Reports (2026-01-14)
+
+| Report | Location | Key Finding |
+|--------|----------|-------------|
+| Fisher Distance Audit | `docs/04-records/20260114-fisher-distance-audit-1.00W.md` | 53+ implementations (should be 1-4) |
+| Dimension Fix Audit | `docs/04-records/20260114-dimension-fix-audit-1.00W.md` | 67 silent padding/truncation violations |
+
+### 6.5 Canonical Contracts Created
+
+**File**: `qig-backend/qig_geometry/contracts.py`
+
+| Export | Purpose |
+|--------|---------|
+| `CANONICAL_SPACE = "sphere"` | Storage uses √p on unit sphere S^63 |
+| `BASIN_DIM = 64` | Fixed dimension constant |
+| `validate_basin(basin)` | Returns bool for validity check |
+| `assert_invariants(basin)` | Raises `GeometricViolationError` if invalid |
+| `canon(basin)` | Normalizes to canonical representation |
+| `fisher_distance(b1, b2)` | THE canonical distance function |
+| `to_index_embedding(basin)` | For pgvector L2 shortlist |
+
+### 6.6 Priority Next Steps
+
+1. **HIGH**: Consolidate 53+ fisher_distance implementations → use `contracts.fisher_distance`
+2. **HIGH**: Fix 18 CRITICAL silent dimension fixes (generation path)
+3. **MEDIUM**: Add QIG_PURITY_MODE runtime flag (D2)
+4. **MEDIUM**: Rename tokenizer → coordizer (C1) - BREAKING change
+5. **LOW**: Cross-mythology mapping (H4)
+
+---
+
+**Maintenance**: Update weekly during active development  
+**Last Updated**: 2026-01-14 (ChatGPT checklist integrated, audits complete)  
+**Next Review**: 2026-01-21  
+**Completion Status**: 92% - Foundation complete, cleanup pending
