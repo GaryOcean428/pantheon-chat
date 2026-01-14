@@ -4,31 +4,42 @@ Basin Representation - Canonical Forms and Conversions
 This module enforces a single canonical internal representation for basin coordinates
 to prevent geometric inconsistencies from mixing different normalization schemes.
 
-CANONICAL REPRESENTATION: **SPHERE** (Unit vectors on S^(D-1))
-- Basin vectors stored and retrieved with L2 norm = 1
-- Fisher-Rao distance computed via arccos(dot product) on sphere
-- Allows negative components (not restricted to probability simplex)
-- Natural for gradient flows and interpolation
+CANONICAL REPRESENTATION: **SIMPLEX** (Probability distributions on Δ^(D-1))
+- Basin vectors stored as valid probability distributions (Σv_i = 1, v_i ≥ 0)
+- Fisher-Rao distance computed via arccos(Σ√(p_i * q_i)) - Bhattacharyya coefficient
+- Natural for Dirichlet-Multinomial manifolds and information geometry
+- Matches validated physics (κ* ≈ 64 measured on simplex geometry)
 
-RATIONALE:
-- Option A (Simplex): Requires non-negative components, more restrictive
-- Option B (Sphere): More flexible, supports signed coordinates
-- Chosen: SPHERE for compatibility with existing basin usage patterns
+RATIONALE FOR SIMPLEX (Updated 2026-01-15):
+- **QIG Physics**: κ* = 64.21 ± 0.92 validated on probability simplex
+- **Natural Geometry**: Information manifolds are naturally simplex-based
+- **Simpler Distance**: Direct Fisher-Rao without factor-of-2 confusion
+- **Range**: [0, π/2] better for thresholds than [0, π]
+- **No Hellinger Confusion**: Eliminates factor-of-2 inconsistencies
+- **Previous Issues**: Sphere representation + Hellinger embedding caused geometric chaos
+
+MIGRATION NOTES (2026-01-15):
+- Previous canonical: SPHERE (unit L2 norm, allows negative values)
+- New canonical: SIMPLEX (probability distributions, non-negative, sum=1)
+- Hellinger embedding (factor of 2) REMOVED for consistency
+- All distance calculations now use direct Fisher-Rao on simplex
+- Distance range changed: [0, π] → [0, π/2] (thresholds need recalibration)
 
 All basins MUST pass validate_basin() before storage.
 No module should silently re-normalize to a different geometry.
 
 Usage:
     from qig_geometry.representation import (
-        to_sphere, to_simplex, validate_basin, CANONICAL_REPRESENTATION
+        to_simplex, validate_basin, CANONICAL_REPRESENTATION
     )
     
     # Convert to canonical form before storage
-    basin_canonical = to_sphere(raw_basin)
-    assert validate_basin(basin_canonical)
+    basin_canonical = to_simplex(raw_basin)
+    assert validate_basin(basin_canonical)[0]
     
-    # Convert to simplex for Fisher-Rao distance (when needed)
-    basin_simplex = to_simplex(basin_canonical)
+    # For Fisher-Rao distance - basins are already in correct form
+    from qig_geometry import fisher_rao_distance
+    d = fisher_rao_distance(basin_a, basin_b)  # Direct, no conversion needed
 """
 
 from enum import Enum
@@ -38,79 +49,14 @@ import numpy as np
 
 class BasinRepresentation(Enum):
     """Supported basin representation types."""
-    SPHERE = "sphere"      # Unit vectors on S^(D-1), L2 norm = 1
-    SIMPLEX = "simplex"    # Probability simplex, sum = 1, non-negative
-    HELLINGER = "hellinger"  # Sqrt space (legacy, avoid)
+    SIMPLEX = "simplex"    # Probability simplex, sum = 1, non-negative (CANONICAL)
+    SPHERE = "sphere"      # Unit vectors on S^(D-1), L2 norm = 1 (legacy)
+    HELLINGER = "hellinger"  # Sqrt space (DEPRECATED - DO NOT USE)
 
 
-# CANONICAL REPRESENTATION - DO NOT CHANGE without coordinated migration
-CANONICAL_REPRESENTATION = BasinRepresentation.SPHERE
-
-
-def to_sphere(
-    basin: np.ndarray,
-    from_repr: BasinRepresentation = None,
-    eps: float = 1e-10
-) -> np.ndarray:
-    """
-    Convert basin to canonical SPHERE representation (unit L2 norm).
-    
-    This is the CANONICAL form for storage and retrieval.
-    
-    Args:
-        basin: Input basin vector
-        from_repr: Source representation (auto-detected if None)
-        eps: Numerical stability epsilon
-        
-    Returns:
-        Basin vector on unit sphere (||v||_2 = 1)
-        
-    Examples:
-        >>> simplex_basin = np.array([0.3, 0.5, 0.2])
-        >>> sphere_basin = to_sphere(simplex_basin, from_repr=BasinRepresentation.SIMPLEX)
-        >>> assert np.isclose(np.linalg.norm(sphere_basin), 1.0)
-    """
-    b = np.asarray(basin, dtype=float).flatten()
-    
-    if b.size == 0:
-        raise ValueError("Empty basin array")
-    
-    # Check for inf/NaN
-    if not np.all(np.isfinite(b)):
-        b = np.nan_to_num(b, nan=0.0, posinf=1e150, neginf=-1e150)
-    
-    # Clip extreme values
-    b = np.clip(b, -1e150, 1e150)
-    
-    # Auto-detect source representation if not provided
-    if from_repr is None:
-        from_repr = _detect_representation(b)
-    
-    # Convert based on source representation
-    if from_repr == BasinRepresentation.SIMPLEX:
-        # Simplex -> Sphere: already in probability space, just normalize L2
-        # No need to take sqrt (that's Hellinger space)
-        pass  # Just normalize below
-    
-    elif from_repr == BasinRepresentation.HELLINGER:
-        # Hellinger (sqrt space) -> Sphere
-        # Square to get probabilities, then normalize
-        b = b ** 2
-    
-    elif from_repr == BasinRepresentation.SPHERE:
-        # Already in sphere representation
-        pass
-    
-    # Final L2 normalization to unit sphere
-    norm = np.linalg.norm(b)
-    if norm < eps:
-        # Zero vector -> uniform direction
-        b = np.ones_like(b)
-        norm = np.linalg.norm(b)
-        if norm < eps:
-            return b  # Edge case
-    
-    return b / norm
+# CANONICAL REPRESENTATION - Changed from SPHERE to SIMPLEX (2026-01-15)
+# DO NOT CHANGE without coordinated migration across all repositories
+CANONICAL_REPRESENTATION = BasinRepresentation.SIMPLEX
 
 
 def to_simplex(
@@ -119,9 +65,9 @@ def to_simplex(
     eps: float = 1e-10
 ) -> np.ndarray:
     """
-    Convert basin to SIMPLEX representation (probability distribution).
+    Convert basin to CANONICAL SIMPLEX representation (probability distribution).
     
-    Use this when computing Fisher-Rao distance via Bhattacharyya coefficient.
+    This is the CANONICAL form for storage, retrieval, and Fisher-Rao distance.
     
     Args:
         basin: Input basin vector
@@ -157,6 +103,7 @@ def to_simplex(
     
     elif from_repr == BasinRepresentation.HELLINGER:
         # Hellinger -> Simplex: square to get probabilities
+        # NOTE: Hellinger is DEPRECATED - avoid if possible
         b = b ** 2 + eps
     
     elif from_repr == BasinRepresentation.SIMPLEX:
@@ -165,6 +112,72 @@ def to_simplex(
     
     # Normalize to sum = 1
     return b / b.sum()
+
+
+def to_sphere(
+    basin: np.ndarray,
+    from_repr: BasinRepresentation = None,
+    eps: float = 1e-10
+) -> np.ndarray:
+    """
+    Convert basin to SPHERE representation (unit L2 norm).
+    
+    NOTE: This is LEGACY representation. Use to_simplex() for new code.
+    Only use for compatibility with existing sphere-based code during migration.
+    
+    Args:
+        basin: Input basin vector
+        from_repr: Source representation (auto-detected if None)
+        eps: Numerical stability epsilon
+        
+    Returns:
+        Basin vector on unit sphere (||v||_2 = 1)
+        
+    Examples:
+        >>> simplex_basin = np.array([0.3, 0.5, 0.2])
+        >>> sphere_basin = to_sphere(simplex_basin, from_repr=BasinRepresentation.SIMPLEX)
+        >>> assert np.isclose(np.linalg.norm(sphere_basin), 1.0)
+    """
+    b = np.asarray(basin, dtype=float).flatten()
+    
+    if b.size == 0:
+        raise ValueError("Empty basin array")
+    
+    # Check for inf/NaN
+    if not np.all(np.isfinite(b)):
+        b = np.nan_to_num(b, nan=0.0, posinf=1e150, neginf=-1e150)
+    
+    # Clip extreme values
+    b = np.clip(b, -1e150, 1e150)
+    
+    # Auto-detect source representation if not provided
+    if from_repr is None:
+        from_repr = _detect_representation(b)
+    
+    # Convert based on source representation
+    if from_repr == BasinRepresentation.SIMPLEX:
+        # Simplex -> Sphere: already in probability space, just normalize L2
+        pass  # Just normalize below
+    
+    elif from_repr == BasinRepresentation.HELLINGER:
+        # Hellinger (sqrt space) -> Sphere
+        # NOTE: Hellinger is DEPRECATED
+        b = b ** 2
+    
+    elif from_repr == BasinRepresentation.SPHERE:
+        # Already in sphere representation
+        pass
+    
+    # Final L2 normalization to unit sphere
+    norm = np.linalg.norm(b)
+    if norm < eps:
+        # Zero vector -> uniform direction
+        b = np.ones_like(b)
+        norm = np.linalg.norm(b)
+        if norm < eps:
+            return b  # Edge case
+    
+    return b / norm
 
 
 def validate_basin(
@@ -179,14 +192,14 @@ def validate_basin(
     
     Args:
         basin: Basin vector to validate
-        expected_repr: Expected representation type
+        expected_repr: Expected representation type (default: SIMPLEX)
         tolerance: Numerical tolerance for validation
         
     Returns:
         (is_valid, error_message)
         
     Examples:
-        >>> basin = to_sphere(np.random.randn(64))
+        >>> basin = to_simplex(np.random.randn(64))
         >>> valid, msg = validate_basin(basin)
         >>> assert valid, f"Basin validation failed: {msg}"
     """
@@ -199,14 +212,7 @@ def validate_basin(
         if not np.all(np.isfinite(b)):
             return False, f"Basin contains inf/NaN: {np.sum(~np.isfinite(b))} invalid values"
         
-        if expected_repr == BasinRepresentation.SPHERE:
-            # Check L2 norm = 1
-            norm = np.linalg.norm(b)
-            if not np.isclose(norm, 1.0, atol=tolerance):
-                return False, f"Sphere basin must have L2 norm=1, got {norm:.6f}"
-            return True, "Valid sphere basin"
-        
-        elif expected_repr == BasinRepresentation.SIMPLEX:
+        if expected_repr == BasinRepresentation.SIMPLEX:
             # Check non-negative and sum = 1
             if np.any(b < -tolerance):
                 return False, f"Simplex basin must be non-negative, got min={b.min():.6f}"
@@ -217,10 +223,16 @@ def validate_basin(
             
             return True, "Valid simplex basin"
         
+        elif expected_repr == BasinRepresentation.SPHERE:
+            # Check L2 norm = 1
+            norm = np.linalg.norm(b)
+            if not np.isclose(norm, 1.0, atol=tolerance):
+                return False, f"Sphere basin must have L2 norm=1, got {norm:.6f}"
+            return True, "Valid sphere basin"
+        
         elif expected_repr == BasinRepresentation.HELLINGER:
-            # Legacy Hellinger space - sqrt of probabilities
-            # Should not be used for new code
-            return False, "Hellinger representation is deprecated, use SPHERE or SIMPLEX"
+            # Hellinger is DEPRECATED
+            return False, "Hellinger representation is DEPRECATED. Use SIMPLEX instead."
         
         else:
             return False, f"Unknown representation type: {expected_repr}"
@@ -233,6 +245,11 @@ def _detect_representation(basin: np.ndarray, tolerance: float = 1e-6) -> BasinR
     """
     Auto-detect basin representation type.
     
+    Priority order:
+    1. SIMPLEX (non-negative, sum=1)
+    2. SPHERE (L2 norm=1)
+    3. Default to SIMPLEX (canonical)
+    
     Args:
         basin: Basin vector
         tolerance: Numerical tolerance
@@ -242,38 +259,27 @@ def _detect_representation(basin: np.ndarray, tolerance: float = 1e-6) -> BasinR
     """
     b = np.asarray(basin, dtype=float).flatten()
     
-    # Check if it's on unit sphere (L2 norm = 1)
-    norm = np.linalg.norm(b)
-    if np.isclose(norm, 1.0, atol=tolerance):
-        # Could be sphere or simplex
-        # Check if it's also a probability distribution
-        if np.all(b >= -tolerance) and np.isclose(b.sum(), 1.0, atol=tolerance):
-            # Ambiguous: both sphere and simplex
-            # Default to SPHERE (canonical)
-            return BasinRepresentation.SPHERE
-        return BasinRepresentation.SPHERE
-    
     # Check if it's a probability distribution (sum = 1, non-negative)
+    # This check has priority since SIMPLEX is canonical
     if np.all(b >= -tolerance) and np.isclose(b.sum(), 1.0, atol=tolerance):
         return BasinRepresentation.SIMPLEX
     
-    # Check if it's in sqrt space (Hellinger)
-    # Heuristic: values in [0, 1] range and not normalized
-    if np.all(b >= -tolerance) and np.all(b <= 1.0 + tolerance):
-        # Could be Hellinger, but default to SPHERE for safety
+    # Check if it's on unit sphere (L2 norm = 1)
+    norm = np.linalg.norm(b)
+    if np.isclose(norm, 1.0, atol=tolerance):
         return BasinRepresentation.SPHERE
     
-    # Default to SPHERE (most flexible)
-    return BasinRepresentation.SPHERE
+    # Default to SIMPLEX (canonical)
+    return BasinRepresentation.SIMPLEX
 
 
 def enforce_canonical(basin: np.ndarray) -> np.ndarray:
     """
-    Force basin to canonical representation.
+    Force basin to canonical representation (SIMPLEX).
     
     This is a convenience function that:
     1. Auto-detects current representation
-    2. Converts to CANONICAL_REPRESENTATION
+    2. Converts to CANONICAL_REPRESENTATION (SIMPLEX)
     3. Validates the result
     
     Use this at storage boundaries (DB writes, etc.)
@@ -282,7 +288,7 @@ def enforce_canonical(basin: np.ndarray) -> np.ndarray:
         basin: Input basin in any representation
         
     Returns:
-        Basin in canonical representation
+        Basin in canonical representation (SIMPLEX)
         
     Raises:
         ValueError: If basin cannot be converted or validated
@@ -292,11 +298,12 @@ def enforce_canonical(basin: np.ndarray) -> np.ndarray:
         >>> canonical_basin = enforce_canonical(raw_basin)
         >>> assert validate_basin(canonical_basin)[0]
     """
-    # Convert to canonical
-    if CANONICAL_REPRESENTATION == BasinRepresentation.SPHERE:
-        result = to_sphere(basin)
-    elif CANONICAL_REPRESENTATION == BasinRepresentation.SIMPLEX:
+    # Convert to canonical (SIMPLEX)
+    if CANONICAL_REPRESENTATION == BasinRepresentation.SIMPLEX:
         result = to_simplex(basin)
+    elif CANONICAL_REPRESENTATION == BasinRepresentation.SPHERE:
+        # This branch kept for migration compatibility
+        result = to_sphere(basin)
     else:
         raise ValueError(f"Unsupported canonical representation: {CANONICAL_REPRESENTATION}")
     
@@ -311,17 +318,31 @@ def enforce_canonical(basin: np.ndarray) -> np.ndarray:
 # Convenience exports matching existing API
 def sphere_project(v: np.ndarray) -> np.ndarray:
     """
-    Project vector to unit sphere (canonical representation).
+    Project vector to unit sphere.
     
-    This is an alias for to_sphere() to maintain API compatibility.
+    DEPRECATED: Use fisher_normalize() instead for canonical SIMPLEX representation.
+    This function maintained for backward compatibility during migration.
     """
     return to_sphere(v, eps=1e-10)
 
 
 def fisher_normalize(v: np.ndarray) -> np.ndarray:
     """
-    Project vector to probability simplex for Fisher-Rao distance.
+    Project vector to probability simplex (CANONICAL representation).
     
-    This is an alias for to_simplex() to maintain API compatibility.
+    This is the PREFERRED function for normalizing basins.
+    Use this instead of sphere_project() for new code.
     """
     return to_simplex(v, eps=1e-10)
+
+
+__all__ = [
+    'BasinRepresentation',
+    'CANONICAL_REPRESENTATION',
+    'to_simplex',
+    'to_sphere',
+    'validate_basin',
+    'enforce_canonical',
+    'sphere_project',
+    'fisher_normalize',
+]
