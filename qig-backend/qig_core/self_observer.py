@@ -323,11 +323,19 @@ class SelfObserver:
         """
         Compute velocity in (Φ, κ) space - rate of state change.
         
+        Uses proper normalization for Fisher-Rao geometry:
+        - Φ is already in [0, 1], normalized by PHI_BREAKDOWN
+        - κ is normalized by κ range [KAPPA_MIN, KAPPA_MAX]
+        
         Higher velocity indicates rapid state evolution.
         Used for loop boundary detection.
         """
-        delta_phi = phi - self._last_phi
-        delta_kappa = (kappa - self._last_kappa) / 100.0
+        phi_normalized = phi / self.PHI_BREAKDOWN
+        kappa_normalized = (kappa - self.KAPPA_MIN) / (self.KAPPA_MAX - self.KAPPA_MIN)
+        
+        delta_phi = phi_normalized - (self._last_phi / self.PHI_BREAKDOWN)
+        delta_kappa = kappa_normalized - ((self._last_kappa - self.KAPPA_MIN) / (self.KAPPA_MAX - self.KAPPA_MIN))
+        
         velocity = np.sqrt(delta_phi**2 + delta_kappa**2)
         return float(velocity)
     

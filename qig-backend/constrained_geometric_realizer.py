@@ -11,6 +11,7 @@ All operations are purely geometric on S^63.
 """
 
 import logging
+import time
 from typing import Dict, List, Optional, Tuple
 import numpy as np
 
@@ -22,58 +23,61 @@ logger = logging.getLogger(__name__)
 
 class ExplorationMap:
     """
-    Tracks exploration coverage across vocabulary for attraction-based diversity.
+    Tracks exploration coverage via sparse per-word timestamps.
     
-    Creates "seek" signals toward unexplored regions rather than just 
-    "avoid" signals for recently used words. This produces genuine
-    manifold exploration rather than random drift.
+    Creates "seek" signals toward unexplored regions:
+    - O(1) per-word lookup (no global O(|V|) decay)
+    - Time-based decay: attraction recovers as time passes
+    - Fresh words have attraction = 1.0
+    - Recently used words have lower attraction that recovers over time
     """
     
-    def __init__(self, vocab_size: int, decay: float = 0.92):
+    DECAY_HALF_LIFE: float = 10.0  # Seconds for attraction to recover 50%
+    MAX_HISTORY: int = 5  # Track last N usages per word
+    
+    def __init__(self, vocab_size: int = 0, decay: float = 0.92):
         """
         Initialize exploration map.
         
         Args:
-            vocab_size: Size of vocabulary being explored
-            decay: Temporal decay factor (0.92 means ~8 tokens half-life)
+            vocab_size: IGNORED - kept for API compatibility
+            decay: IGNORED - uses time-based decay instead
         """
-        self.coverage = np.zeros(vocab_size, dtype=np.float32)
-        self.decay = decay
-        self._word_to_idx: Dict[str, int] = {}
-        self._idx = 0
-    
-    def get_or_create_idx(self, word: str) -> int:
-        """Get index for word, creating if new."""
-        if word not in self._word_to_idx:
-            if self._idx >= len(self.coverage):
-                self.coverage = np.append(self.coverage, np.zeros(1000, dtype=np.float32))
-            self._word_to_idx[word] = self._idx
-            self._idx += 1
-        return self._word_to_idx[word]
+        self._usage_times: Dict[str, List[float]] = {}
     
     def update(self, word: str) -> None:
-        """Update coverage after selecting a word."""
-        self.coverage *= self.decay
-        idx = self.get_or_create_idx(word)
-        self.coverage[idx] += 1.0
+        """Record word usage timestamp (sparse, O(1))."""
+        now = time.time()
+        if word not in self._usage_times:
+            self._usage_times[word] = []
+        self._usage_times[word].append(now)
+        if len(self._usage_times[word]) > self.MAX_HISTORY:
+            self._usage_times[word] = self._usage_times[word][-self.MAX_HISTORY:]
     
     def attraction_score(self, word: str) -> float:
         """
         Compute attraction toward unexplored regions.
         
         Higher score = less explored = more attractive.
+        Uses time-based exponential decay so attraction recovers.
         """
-        idx = self.get_or_create_idx(word)
-        max_coverage = self.coverage.max() + 1e-8
-        return float(1.0 - (self.coverage[idx] / max_coverage))
+        if word not in self._usage_times or not self._usage_times[word]:
+            return 1.0
+        
+        now = time.time()
+        total_penalty = 0.0
+        
+        for usage_time in self._usage_times[word]:
+            age = now - usage_time
+            penalty = 0.5 ** (age / self.DECAY_HALF_LIFE)
+            total_penalty += penalty
+        
+        attraction = max(0.0, 1.0 - min(total_penalty, 1.0))
+        return attraction
     
-    def stem_coverage(self, stem: str, all_words: List[str]) -> float:
-        """Get average coverage for words sharing a stem."""
-        matching = [w for w in all_words if w.startswith(stem)]
-        if not matching:
-            return 0.0
-        total = sum(self.coverage[self.get_or_create_idx(w)] for w in matching)
-        return total / len(matching)
+    def reset(self) -> None:
+        """Reset exploration state for new generation."""
+        self._usage_times.clear()
 
 
 class ConstrainedGeometricRealizer:
