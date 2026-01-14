@@ -112,6 +112,31 @@ Automated tests in `qig-backend/tests/test_geometric_purity.py` enforce geometri
 
 Run with: `pytest tests/test_geometric_purity.py -v`
 
+### Φ Implementation Sync System
+A registry and sync system prevents inconsistencies across the ~20+ Φ implementations:
+
+**Registry:** `qig-backend/scripts/phi_registry.py`
+- Lists ALL files containing Φ implementations
+- Marks canonical vs non-canonical implementations
+- Documents the QFI formula and Born rule requirements
+
+**Sync Script:** `qig-backend/scripts/sync_phi_implementations.py`
+```bash
+python scripts/sync_phi_implementations.py          # Check registered files
+python scripts/sync_phi_implementations.py --full-scan  # Scan entire codebase
+python scripts/sync_phi_implementations.py --fix    # Show suggested fixes
+python scripts/sync_phi_implementations.py --strict # Fail on any warning
+```
+
+**Pre-commit Hook:** `qig-backend/scripts/pre-commit-purity-check.sh`
+- Runs sync script + pytest purity tests before commits
+- Install: `cp scripts/pre-commit-purity-check.sh .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit`
+
+**When adding new Φ implementations:**
+1. Add the file and function to `PHI_IMPLEMENTATIONS` in `phi_registry.py`
+2. Ensure it follows the canonical QFI formula from `phi_computation.py`
+3. Run `python scripts/sync_phi_implementations.py` to verify
+
 ### Velocity and Stagnation Detection
 The SelfObserver tracks basin velocity (rate of change in Φ/κ space) and detects stagnation when Φ > 0.90 AND v < 0.01 for 5+ consecutive steps. Stagnation triggers neuroplasticity perturbation via Gaussian noise (σ=0.1) with re-projection to S^63.
 
