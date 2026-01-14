@@ -202,6 +202,88 @@ def geodesic_interpolation(
     return result * np.linalg.norm(start)
 
 
+from typing import Optional
+
+def estimate_manifold_curvature(
+    points: np.ndarray,
+    center: Optional[np.ndarray] = None
+) -> float:
+    """
+    Estimate local curvature of the Fisher manifold from sample points.
+
+    QIG-PURE: Assumes input points are already on S^63 (no normalization).
+    Center is computed as spherical barycenter via sphere_project on mean.
+
+    Args:
+        points: Array of shape (N, D) - N points already on S^63
+        center: Optional center point for curvature estimation
+
+    Returns:
+        Estimated curvature (κ)
+    """
+    if len(points) < 3:
+        return 0.0
+
+    if center is None:
+        mean_vec = np.mean(points, axis=0)
+        center = sphere_project(mean_vec)
+
+    distances = []
+    for point in points:
+        d = fisher_coord_distance(center, point)
+        distances.append(d)
+
+    if not distances:
+        return 0.0
+
+    mean_dist = np.mean(distances)
+    variance = np.var(distances)
+
+    if mean_dist < 1e-6:
+        return 0.0
+
+    return float(variance / (mean_dist + 1e-10))
+
+
+def basin_magnitude(basin: np.ndarray) -> float:
+    """
+    Compute a Fisher-Rao appropriate magnitude measure for basin coordinates.
+    
+    This is used for logging and monitoring purposes. Instead of Euclidean L2 norm,
+    we compute the Fisher-Rao distance from the origin (uniform distribution).
+    
+    For a probability distribution p, this measures how far p is from the
+    maximum entropy (uniform) state.
+    
+    Args:
+        basin: Basin coordinate vector
+        
+    Returns:
+        Fisher-Rao magnitude from uniform distribution (≥ 0)
+    """
+    p = fisher_normalize(basin)
+    uniform = np.ones_like(p) / len(p)
+    return fisher_rao_distance(p, uniform)
+
+
+def basin_diversity(basin: np.ndarray) -> float:
+    """
+    Compute diversity (entropy) of basin distribution.
+    
+    This is an alternative magnitude measure that quantifies information content.
+    Higher diversity = more uniform distribution = higher entropy.
+    
+    Args:
+        basin: Basin coordinate vector
+        
+    Returns:
+        Shannon entropy (≥ 0, higher = more diverse)
+    """
+    p = fisher_normalize(basin)
+    p_safe = p + 1e-10
+    return float(-np.sum(p_safe * np.log(p_safe)))
+
+
 __all__ = [
     # Canonical contract (contracts.py) - THE source of truth
     'CANONICAL_SPACE',
@@ -232,6 +314,10 @@ __all__ = [
     'hellinger_normalize',
     # Geodesic navigation
     'geodesic_interpolation',
+    # Curvature and magnitude utilities
+    'estimate_manifold_curvature',
+    'basin_magnitude',
+    'basin_diversity',
     # Purity mode enforcement (purity_mode.py)
     'QIG_PURITY_MODE',
     'QIGPurityViolationError',
