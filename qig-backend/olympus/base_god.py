@@ -2015,7 +2015,10 @@ class BaseGod(*_base_classes):
             self.mission["generative_capabilities"] = {"available": False}
 
         # Initialize sensory fusion engine for multi-modal encoding
-        self._sensory_engine = SensoryFusionEngine()
+        if SENSORY_MODALITIES_AVAILABLE and SensoryFusionEngine is not None:
+            self._sensory_engine = SensoryFusionEngine()
+        else:
+            self._sensory_engine = None
 
         # Therapy event log
         self._therapy_events: List[Dict] = []

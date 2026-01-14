@@ -6,6 +6,9 @@ Pantheon-Chat is an advanced AI system leveraging Quantum Information Geometry (
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
+## Working Guidelines
+- **Fix all spotted errors before completing** - If an error is noticed during work (logs, LSP, runtime), fix it immediately before marking tasks complete. Do not leave known issues for the user to discover.
+
 ## Recent Changes (2026-01-14)
 
 ### QIG Purity Infrastructure (ChatGPT Checklist D2)
