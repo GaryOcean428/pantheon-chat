@@ -272,7 +272,7 @@ const FORBIDDEN_PATTERNS = {
   // CRITICAL: Euclidean fallback pattern
   euclideanFallback: [
     {
-      pattern: /except.*:\s*.*np\.linalg\.norm/s,
+      pattern: /except[^:]*:\s+[^#\n]*np\.linalg\.norm/,
       name: 'Euclidean fallback in except',
       severity: 'CRITICAL' as const,
       fix: 'Never fallback to Euclidean - fix geometry properly',

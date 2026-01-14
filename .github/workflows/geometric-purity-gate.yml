@@ -73,7 +73,7 @@ jobs:
         run: |
           echo "🧪 Running existing geometric purity tests..."
           cd qig-backend
-          python -m pytest tests/test_geometric_purity.py -v --tb=short || true
+          python -m pytest tests/test_geometric_purity.py -v --tb=short
           
       - name: Summary
         if: success()

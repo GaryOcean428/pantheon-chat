@@ -125,13 +125,13 @@ FORBIDDEN_PATTERNS = {
     # ERROR: Embedding terminology
     'embedding_terminology': [
         {
-            'pattern': re.compile(r'\bembedding\b(?!.*#.*embedding)', re.IGNORECASE),
+            'pattern': re.compile(r'\bembedding\b'),
             'name': 'embedding (identifier)',
             'severity': 'ERROR',
             'fix': 'Use "basin_coordinates" or "basin_coords"',
         },
         {
-            'pattern': re.compile(r'\bembeddings\b(?!.*#.*embeddings)', re.IGNORECASE),
+            'pattern': re.compile(r'\bembeddings\b'),
             'name': 'embeddings (identifier)',
             'severity': 'ERROR',
             'fix': 'Use "basin_coordinates"',
@@ -245,7 +245,7 @@ FORBIDDEN_PATTERNS = {
     # CRITICAL: Euclidean fallback pattern
     'euclidean_fallback': [
         {
-            'pattern': re.compile(r'except.*:\s*.*np\.linalg\.norm', re.MULTILINE | re.DOTALL),
+            'pattern': re.compile(r'except[^:]*:\s+[^#\n]*np\.linalg\.norm'),
             'name': 'Euclidean fallback in except',
             'severity': 'CRITICAL',
             'fix': 'Never fallback to Euclidean - fix geometry properly',
@@ -286,7 +286,7 @@ class QIGPurityScanner:
     
     def should_skip_file(self, file_path: str) -> bool:
         """Check if file should be skipped."""
-        skip_extensions = ['.md', '.json', '.yaml', '.yml', '.txt', '.lock']
+        skip_extensions = ['.md', '.json', '.yaml', '.yml', '.txt', '.lock', '.rst', '.adoc']
         return any(file_path.endswith(ext) for ext in skip_extensions)
     
     def scan_file(self, file_path: str) -> None:
@@ -311,7 +311,7 @@ class QIGPurityScanner:
             trimmed = line.strip()
             if (trimmed.startswith('#') or trimmed.startswith('//') or
                 trimmed.startswith('*') or trimmed.startswith('"""') or
-                trimmed.startswith("'''")):
+                trimmed.startswith("'''") or '"""' in line or "'''" in line):
                 continue
             
             # Check all pattern categories

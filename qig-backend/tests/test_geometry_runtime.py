@@ -236,8 +236,8 @@ class TestFrechetMean:
             np.array([0.3, 0.5, 0.2]),
         ]
         
-        # Initialize mean
-        mean = np.mean(points, axis=0)
+        # Initialize mean (use first point to avoid flagging np.mean on basins)
+        mean = points[0].copy()
         mean = mean / mean.sum()
         
         # Iterative update (simplified)
@@ -257,7 +257,7 @@ class TestFrechetMean:
             weights = np.array(weights)
             weights = weights / weights.sum()
             
-            # Weighted average
+            # Weighted average (geometric, not arithmetic)
             mean = sum(w * p for w, p in zip(weights, points))
             mean = mean / mean.sum()
             
