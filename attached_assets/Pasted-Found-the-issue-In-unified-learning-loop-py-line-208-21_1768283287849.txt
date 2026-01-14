@@ -18,7 +18,7 @@ Here's my plan to address both issues:
 
 Task 1: Fix Attractor Formation - Add basin_trajectory to insight training calls. The insight object may need to carry basin coordinates, or we can compute them from the insight content.
 
-Task 2: Deprecate learned_words - Migrate the 21 file references to use tokenizer_vocabulary with token_role IN ('generation', 'both') instead.
+Task 2: Deprecate learned_words - Migrate the 21 file references to use coordizer_vocabulary with token_role IN ('generation', 'both') instead.
 
 Task 3: Clean up duplicate table - After migration, mark learned_words for removal.
 
@@ -39,7 +39,7 @@ The Two Learning Systems
 1. QIG Geometric Learning (Basin-Level)
 
 Learns geometric relationships between tokens in 64D Fisher manifold space
-Updates the tokenizer_vocabulary, word_relationships, and learned_manifold_attractors tables
+Updates the coordizer_vocabulary, word_relationships, and learned_manifold_attractors tables
 When debates happen, it records which basin coordinates led to successful/unsuccessful outcomes
 This is the pure geometric layer - no meaning, just spatial relationships
 2. Kernel Training (Behavior-Level)

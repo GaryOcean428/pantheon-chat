@@ -212,10 +212,10 @@ from generative_capability import GenerativeCapability
 ### Database Schema ✓
 
 Vocabulary tables properly defined:
-- `tokenizer_vocabulary` - Token encoding vocabulary
+- `coordizer_vocabulary` - Token encoding vocabulary
 - `learned_words` - Generation vocabulary (Φ-weighted)
 - `vocabulary_observations` - Learning history
-- `word_relationships` - Geometric word relationships
+- `basin_relationships` - Geometric word relationships
 
 ### API Endpoints ✓
 

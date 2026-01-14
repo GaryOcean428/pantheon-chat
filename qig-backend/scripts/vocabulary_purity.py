@@ -34,7 +34,7 @@ def get_vocabulary_stats():
         
         stats = {}
         
-        cur.execute("SELECT COUNT(*) FROM tokenizer_vocabulary")
+        cur.execute("SELECT COUNT(*) FROM coordizer_vocabulary")
         stats['tokenizer_total'] = cur.fetchone()[0]
         
         cur.execute("SELECT COUNT(*) FROM learned_words")
@@ -52,15 +52,15 @@ def get_vocabulary_stats():
         conn.close()
 
 
-def check_tokenizer_vocabulary(limit: int = 100):
-    """Check tokenizer_vocabulary for invalid words."""
+def check_coordizer_vocabulary(limit: int = 100):
+    """Check coordizer_vocabulary for invalid words."""
     conn = get_db_connection()
     if not conn:
         return []
     
     try:
         cur = conn.cursor()
-        cur.execute("SELECT id, token, frequency, phi_score FROM tokenizer_vocabulary")
+        cur.execute("SELECT id, token, frequency, phi_score FROM coordizer_vocabulary")
         rows = cur.fetchall()
         
         invalid = []
@@ -137,15 +137,15 @@ def check_learned_words():
         conn.close()
 
 
-def clean_tokenizer_vocabulary(dry_run: bool = True):
-    """Clean invalid entries from tokenizer_vocabulary."""
-    invalid = check_tokenizer_vocabulary()
+def clean_coordizer_vocabulary(dry_run: bool = True):
+    """Clean invalid entries from coordizer_vocabulary."""
+    invalid = check_coordizer_vocabulary()
     
     if not invalid:
-        print("[OK] No invalid entries found in tokenizer_vocabulary")
+        print("[OK] No invalid entries found in coordizer_vocabulary")
         return 0
     
-    print(f"[FOUND] {len(invalid)} invalid entries in tokenizer_vocabulary")
+    print(f"[FOUND] {len(invalid)} invalid entries in coordizer_vocabulary")
     
     if dry_run:
         print("\n[DRY RUN] Would delete:")
@@ -168,11 +168,11 @@ def clean_tokenizer_vocabulary(dry_run: bool = True):
         for i in range(0, len(ids_to_delete), batch_size):
             batch = ids_to_delete[i:i + batch_size]
             placeholders = ','.join(['%s'] * len(batch))
-            cur.execute(f"DELETE FROM tokenizer_vocabulary WHERE id IN ({placeholders})", batch)
+            cur.execute(f"DELETE FROM coordizer_vocabulary WHERE id IN ({placeholders})", batch)
             deleted += cur.rowcount
         
         conn.commit()
-        print(f"[CLEANED] Deleted {deleted} invalid entries from tokenizer_vocabulary")
+        print(f"[CLEANED] Deleted {deleted} invalid entries from coordizer_vocabulary")
         return deleted
         
     except Exception as e:
@@ -245,8 +245,8 @@ def main():
         return
     
     print("\n" + "-" * 60)
-    print("Checking tokenizer_vocabulary...")
-    tokenizer_invalid = check_tokenizer_vocabulary()
+    print("Checking coordizer_vocabulary...")
+    tokenizer_invalid = check_coordizer_vocabulary()
     print(f"  Invalid entries: {len(tokenizer_invalid)}")
     
     print("\nChecking learned_words...")
@@ -256,12 +256,12 @@ def main():
     if args.clean:
         print("\n" + "-" * 60)
         print("CLEANING (not dry run)")
-        clean_tokenizer_vocabulary(dry_run=False)
+        clean_coordizer_vocabulary(dry_run=False)
         clean_learned_words(dry_run=False)
     elif args.check:
         print("\n" + "-" * 60)
         print("DRY RUN - showing what would be cleaned")
-        clean_tokenizer_vocabulary(dry_run=True)
+        clean_coordizer_vocabulary(dry_run=True)
         clean_learned_words(dry_run=True)
     
     print("\n" + "=" * 60)

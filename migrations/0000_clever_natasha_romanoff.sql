@@ -969,13 +969,13 @@ CREATE TABLE "tokenizer_merge_rules" (
         "updated_at" timestamp DEFAULT now()
 );
 --> statement-breakpoint
-CREATE TABLE "tokenizer_metadata" (
+CREATE TABLE "coordizer_metadata" (
         "config_key" text PRIMARY KEY NOT NULL,
         "value" text NOT NULL,
         "updated_at" timestamp DEFAULT now()
 );
 --> statement-breakpoint
-CREATE TABLE "tokenizer_vocabulary" (
+CREATE TABLE "coordizer_vocabulary" (
         "id" serial PRIMARY KEY NOT NULL,
         "token" text NOT NULL,
         "token_id" integer NOT NULL,
@@ -986,8 +986,8 @@ CREATE TABLE "tokenizer_vocabulary" (
         "source_type" varchar(32) DEFAULT 'base',
         "created_at" timestamp DEFAULT now(),
         "updated_at" timestamp DEFAULT now(),
-        CONSTRAINT "tokenizer_vocabulary_token_unique" UNIQUE("token"),
-        CONSTRAINT "tokenizer_vocabulary_token_id_unique" UNIQUE("token_id")
+        CONSTRAINT "coordizer_vocabulary_token_unique" UNIQUE("token"),
+        CONSTRAINT "coordizer_vocabulary_token_id_unique" UNIQUE("token_id")
 );
 --> statement-breakpoint
 CREATE TABLE "tool_observations" (
@@ -1334,9 +1334,9 @@ CREATE INDEX "idx_tested_phrases_date" ON "tested_phrases_index" USING btree ("t
 CREATE UNIQUE INDEX "idx_tokenizer_merge_rules_pair" ON "tokenizer_merge_rules" USING btree ("token_a","token_b");--> statement-breakpoint
 CREATE INDEX "idx_tokenizer_merge_rules_phi" ON "tokenizer_merge_rules" USING btree ("phi_score");--> statement-breakpoint
 CREATE INDEX "idx_tokenizer_merge_rules_merged" ON "tokenizer_merge_rules" USING btree ("merged_token");--> statement-breakpoint
-CREATE INDEX "idx_tokenizer_vocab_token_id" ON "tokenizer_vocabulary" USING btree ("token_id");--> statement-breakpoint
-CREATE INDEX "idx_tokenizer_vocab_phi" ON "tokenizer_vocabulary" USING btree ("phi_score");--> statement-breakpoint
-CREATE INDEX "idx_tokenizer_vocab_weight" ON "tokenizer_vocabulary" USING btree ("weight");--> statement-breakpoint
+CREATE INDEX "idx_tokenizer_vocab_token_id" ON "coordizer_vocabulary" USING btree ("token_id");--> statement-breakpoint
+CREATE INDEX "idx_tokenizer_vocab_phi" ON "coordizer_vocabulary" USING btree ("phi_score");--> statement-breakpoint
+CREATE INDEX "idx_tokenizer_vocab_weight" ON "coordizer_vocabulary" USING btree ("weight");--> statement-breakpoint
 CREATE INDEX "idx_tool_observations_timestamp" ON "tool_observations" USING btree ("timestamp");--> statement-breakpoint
 CREATE INDEX "idx_tool_observations_cluster" ON "tool_observations" USING btree ("cluster_assigned");--> statement-breakpoint
 CREATE INDEX "idx_tool_patterns_pattern_id" ON "tool_patterns" USING btree ("pattern_id");--> statement-breakpoint

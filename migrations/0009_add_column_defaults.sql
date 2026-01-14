@@ -31,8 +31,8 @@ ALTER COLUMN last_session_metrics SET DEFAULT '{}';
 -- SECTION 2: CORE VOCABULARY TABLES
 -- ============================================================================
 
--- tokenizer_vocabulary
-ALTER TABLE tokenizer_vocabulary
+-- coordizer_vocabulary
+ALTER TABLE coordizer_vocabulary
 ALTER COLUMN embedding SET DEFAULT '{}';
 
 -- learned_words
@@ -661,7 +661,7 @@ BEGIN
         AND is_nullable = 'YES'
         AND table_name IN (
             'ocean_quantum_state', 'near_miss_adaptive_state', 'auto_cycle_state',
-            'tokenizer_vocabulary', 'learned_words', 'vocabulary_observations',
+            'coordizer_vocabulary', 'learned_words', 'vocabulary_observations',
             'kernel_training_history', 'learning_events',
             'consciousness_checkpoints'
         )

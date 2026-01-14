@@ -165,14 +165,14 @@ Plus neurotransmitters: dopamine, serotonin, norepinephrine, acetylcholine, gaba
 **Objective**: Verify three-table separation
 
 **Actions**:
-1. Verified tokenizer_vocabulary table structure
+1. Verified coordizer_vocabulary table structure
 2. Verified vocabulary_observations table structure
 3. Verified learned_words table structure
 4. Checked for NULL basin_embedding columns
 5. Validated table separation
 
 **Results**:
-- tokenizer_vocabulary: 8 columns with basin_embedding (vector(64)) ✅
+- coordizer_vocabulary: 8 columns with basin_embedding (vector(64)) ✅
 - vocabulary_observations: 18 columns with basin_coords (vector(64)) ✅
 - learned_words: Properly defined in vocabulary_schema.sql ✅
 - Column naming: Minor variance (basin_embedding vs basin_coords) - acceptable
@@ -253,7 +253,7 @@ Autonomic cycles:             4/4
 ### ℹ️ Observations (Non-Critical)
 
 1. **Column Naming Variance**
-   - tokenizer_vocabulary uses `basin_embedding`
+   - coordizer_vocabulary uses `basin_embedding`
    - Other tables use `basin_coords`
    - Both are vector(64) and functionally equivalent
    - Recommendation: Consider standardizing to `basin_coords` in future refactor (optional)

@@ -103,7 +103,7 @@ class SemanticClassifier:
             with conn.cursor() as cur:
                 cur.execute("""
                     SELECT token, basin_embedding::text 
-                    FROM tokenizer_vocabulary 
+                    FROM coordizer_vocabulary 
                     WHERE basin_embedding IS NOT NULL
                     LIMIT 10000
                 """)

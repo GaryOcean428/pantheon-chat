@@ -65,7 +65,7 @@ jobs:
       - name: Install Python dependencies
         run: |
           cd qig-backend
-          pip install pytest numpy
+          pip install pytest numpy scipy
           
       - name: Run geometry runtime tests
         run: |

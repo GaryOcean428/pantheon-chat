@@ -126,7 +126,7 @@ From log pastes and error reports, the following recurring issues were identifie
 - **Status**: Appears to be resolved based on later docs
 
 ### Issue 2: Schema Duplication
-- **Pattern**: Duplicate vocabulary tables, word_relationships across repos
+- **Pattern**: Duplicate vocabulary tables, basin_relationships across repos
 - **Files**: Schema-Duplication-Analysis
 - **Status**: Documented, cleanup instructions provided
 

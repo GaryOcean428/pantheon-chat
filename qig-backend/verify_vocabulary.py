@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify tokenizer_vocabulary has real words."""
+"""Verify coordizer_vocabulary has real words."""
 
 import os
 from pathlib import Path
@@ -22,7 +22,7 @@ def verify():
     print("=== Vocabulary Distribution ===")
     cur.execute("""
         SELECT source_type, COUNT(*) as count
-        FROM tokenizer_vocabulary
+        FROM coordizer_vocabulary
         GROUP BY source_type
         ORDER BY count DESC
     """)
@@ -33,7 +33,7 @@ def verify():
     print("\n=== Real Words ===")
     cur.execute("""
         SELECT COUNT(*) 
-        FROM tokenizer_vocabulary 
+        FROM coordizer_vocabulary 
         WHERE source_type IN ('bip39', 'common', 'learned')
           AND LENGTH(token) >= 3
           AND token ~ '^[a-zA-Z]+$'
@@ -45,7 +45,7 @@ def verify():
     print("\n=== Sample Words ===")
     cur.execute("""
         SELECT token, source_type, phi_score, basin_embedding IS NOT NULL as has_embedding
-        FROM tokenizer_vocabulary
+        FROM coordizer_vocabulary
         WHERE source_type IN ('bip39', 'common')
           AND LENGTH(token) >= 3
         ORDER BY phi_score DESC
@@ -58,7 +58,7 @@ def verify():
     print("\n=== BPE Fragment Check ===")
     cur.execute("""
         SELECT COUNT(*) 
-        FROM tokenizer_vocabulary 
+        FROM coordizer_vocabulary 
         WHERE source_type IN ('byte_level', 'checkpoint_byte')
            OR token LIKE '<%'
            OR token LIKE '%+%'

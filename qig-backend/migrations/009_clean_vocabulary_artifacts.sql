@@ -1,7 +1,7 @@
 -- ============================================================================
 -- VOCABULARY CLEANUP MIGRATION
 -- Date: 2026-01-09
--- Purpose: Remove curriculum artifacts and stop words from tokenizer_vocabulary
+-- Purpose: Remove curriculum artifacts and stop words from coordizer_vocabulary
 --
 -- Fixes:
 -- - Removes training document artifacts (docusaurus, mihalcea, howsearchworks, etc.)
@@ -10,7 +10,7 @@
 -- ============================================================================
 
 -- 1. Remove known training artifacts that shouldn't be in vocabulary
-DELETE FROM tokenizer_vocabulary
+DELETE FROM coordizer_vocabulary
 WHERE token IN (
     'docusaurus', 'mihalcea', 'howsearchworks', 'arxiv', 'github',
     'stackoverflow', 'wikipedia', 'readme', 'changelog', 'dockerfile'
@@ -25,7 +25,7 @@ WHERE token IN (
 
 -- 2. Mark stop words for exclusion from generation (don't delete, just mark)
 -- These are high-frequency but low-semantic-value tokens
-UPDATE tokenizer_vocabulary
+UPDATE coordizer_vocabulary
 SET source_type = 'stop_word'
 WHERE token IN (
     'the', 'and', 'for', 'that', 'this', 'with', 'was', 'are', 'but', 'not',
@@ -40,7 +40,7 @@ WHERE token IN (
 AND source_type NOT IN ('bip39', 'special');
 
 -- 3. Lower phi scores for pronouns that remain (reduce their generation probability)
-UPDATE tokenizer_vocabulary
+UPDATE coordizer_vocabulary
 SET phi_score = LEAST(phi_score, 0.3)
 WHERE token IN ('her', 'his', 'our', 'my', 'she', 'they', 'them', 'him', 'i', 'we')
 AND source_type = 'stop_word';
@@ -53,10 +53,10 @@ DECLARE
     total_remaining INTEGER;
 BEGIN
     SELECT COUNT(*) INTO stop_word_count
-    FROM tokenizer_vocabulary WHERE source_type = 'stop_word';
+    FROM coordizer_vocabulary WHERE source_type = 'stop_word';
 
     SELECT COUNT(*) INTO total_remaining
-    FROM tokenizer_vocabulary WHERE source_type NOT IN ('stop_word', 'special');
+    FROM coordizer_vocabulary WHERE source_type NOT IN ('stop_word', 'special');
 
     RAISE NOTICE 'Vocabulary cleanup complete:';
     RAISE NOTICE '  - Stop words marked: %', stop_word_count;

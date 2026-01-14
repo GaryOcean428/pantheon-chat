@@ -40,7 +40,7 @@ def get_topic_basin(conn, topic: str) -> Optional[list]:
     
     Sources checked:
     1. shadow_knowledge (research results)
-    2. tokenizer_vocabulary (if topic is a word)
+    2. coordizer_vocabulary (if topic is a word)
     3. vocabulary_observations (learned vocabulary)
     """
     with conn.cursor(cursor_factory=RealDictCursor) as cur:
@@ -56,11 +56,11 @@ def get_topic_basin(conn, topic: str) -> Optional[list]:
         if row and row['basin_coords']:
             return row['basin_coords']
         
-        # Try tokenizer_vocabulary for single-word topics
+        # Try coordizer_vocabulary for single-word topics
         if ' ' not in topic.strip():
             cur.execute("""
                 SELECT basin_embedding::float8[] as coords
-                FROM tokenizer_vocabulary 
+                FROM coordizer_vocabulary 
                 WHERE LOWER(token) = LOWER(%s)
                 AND basin_embedding IS NOT NULL
                 LIMIT 1

@@ -111,10 +111,10 @@ Multiple entry points to coordizer functionality:
 
 **Problem:**
 Overlapping responsibilities between:
-- `tokenizer_vocabulary` table (28K tokens)
+- `coordizer_vocabulary` table (28K tokens)
 - `learned_words` table (vocabulary learning)
 - `vocabulary_learning` table (learning events)
-- `word_relationships` table (160K relationships)
+- `basin_relationships` table (160K relationships)
 
 **Questions:**
 - Which is the source of truth?
@@ -179,7 +179,7 @@ Analysis reveals significant data quality issues in vocabulary tables from web s
 
 2. **Clean existing bad vocabulary entries** from database:
    - Identify and remove ~9,000+ garbled entries
-   - Update word_relationships to remove invalid connections
+   - Update basin_relationships to remove invalid connections
    - Recalculate Fisher-Rao distances for affected entries
 
 3. **Improve text extraction pipeline**:
@@ -199,7 +199,7 @@ Analysis reveals significant data quality issues in vocabulary tables from web s
    - Tested with PR 28 examples (all contaminated words correctly identified)
 
 2. Created cleanup script (`scripts/clean_vocabulary_pr28.py`)
-   - Scans all vocabulary tables (tokenizer_vocabulary, learned_words, bip39_words)
+   - Scans all vocabulary tables (coordizer_vocabulary, learned_words, bip39_words)
    - Identifies contaminated entries by type (URL, garbled, truncated, artifacts)
    - Removes contaminated words and their relationships
    - Generates comprehensive cleanup report
@@ -264,7 +264,7 @@ Multiple generation pipelines exist but aren't fully documented:
 **Problem:**
 Schema columns exist but are never populated:
 - `kernel_training_history.phi_variance` - Always NULL
-- `learned_manifold_attractors.emergence_context` - Never set
+- `manifold_attractors.emergence_context` - Never set
 - `basin_history.regime` - Not consistently populated
 
 **Solution:**

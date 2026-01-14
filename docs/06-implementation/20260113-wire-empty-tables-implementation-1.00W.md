@@ -109,7 +109,7 @@ async def test_save_geodesic_path():
 
 ### 1.2 Learned Manifold Attractors
 
-**Table:** `learned_manifold_attractors` (0 rows → target 50+ rows)  
+**Table:** `manifold_attractors` (0 rows → target 50+ rows)  
 **Backend:** `qig-backend/qig_core/attractor_finding.py`  
 **Status:** ✅ CODE COMPLETE (Issue #7)
 
@@ -905,7 +905,7 @@ async def update_training_stats(
 | Priority | Tables | Backend Ready | Rows Expected | Effort |
 |----------|--------|---------------|---------------|--------|
 | 🔴 **CRITICAL** | geodesic_paths | ✅ Yes | 100+ | 2 hours |
-| 🔴 **CRITICAL** | learned_manifold_attractors | ✅ Yes | 50+ | 2 hours |
+| 🔴 **CRITICAL** | manifold_attractors | ✅ Yes | 50+ | 2 hours |
 | 🔴 **CRITICAL** | geometric_barriers | ✅ Yes | 20+ | 2 hours |
 | 🟠 **HIGH** | ocean_trajectories | ✅ Yes | 500+ | 3 hours |
 | 🟠 **HIGH** | ocean_waypoints | ✅ Yes | 500+ | 3 hours |

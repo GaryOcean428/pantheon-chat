@@ -1064,7 +1064,7 @@ class ZeusConversationHandler(GeometricGenerationMixin):
         except Exception as e:
             print(f"[ZeusChat] Basin encoding for persistence failed: {e}")
 
-        # WIRE: Pass basin_trajectory to TrainingLoopIntegrator for learned_manifold_attractors
+        # WIRE: Pass basin_trajectory to TrainingLoopIntegrator for manifold_attractors
         # This is the critical wiring that populates the attractors table
         if TRAINING_LOOP_AVAILABLE and get_training_integrator is not None and _message_basin_for_meta is not None:
             try:
@@ -1099,7 +1099,7 @@ class ZeusConversationHandler(GeometricGenerationMixin):
                 )
                 
                 if training_result.get('status') != 'training_disabled':
-                    print(f"[ZeusChat] TrainingLoop: wired basin_trajectory ({len(basin_trajectory)} basins) to learned_manifold_attractors")
+                    print(f"[ZeusChat] TrainingLoop: wired basin_trajectory ({len(basin_trajectory)} basins) to manifold_attractors")
             except Exception as e:
                 print(f"[ZeusChat] TrainingLoopIntegrator wiring failed: {e}")
 

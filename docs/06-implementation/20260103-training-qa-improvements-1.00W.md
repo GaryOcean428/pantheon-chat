@@ -177,7 +177,7 @@ cd qig-backend && python -m pytest tests/ -v
 
 ### JSON Memory Files
 **Location:** `qig-backend/data/`
-- `learned/word_relationships.json` - Used by `learned_relationships.py`
+- `learned/basin_relationships.json` - Used by `learned_relationships.py`
 - `qig_training/patterns.json` - Used by `QIGRAG`
 - `qig_training/training_stats.json` - Used by `document_trainer.py`
 

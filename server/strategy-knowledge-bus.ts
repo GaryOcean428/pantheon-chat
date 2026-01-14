@@ -726,7 +726,7 @@ export class StrategyKnowledgeBus {
       const existingSet = new Set((existingPatterns.rows || []).map(r => r.pattern));
       
       const learnedWords = await db.execute<{ word: string; avg_phi: number; frequency: number }>(
-        `SELECT token as word, phi_score as avg_phi, frequency FROM tokenizer_vocabulary 
+        `SELECT token as word, phi_score as avg_phi, frequency FROM coordizer_vocabulary 
          WHERE phi_score > 0.4 AND frequency > 5
            AND token_role IN ('generation', 'both')
            AND (phrase_category IS NULL OR phrase_category NOT IN ('PROPER_NOUN', 'BRAND'))

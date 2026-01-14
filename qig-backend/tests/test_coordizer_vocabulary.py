@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Test script to verify tokenizer_vocabulary is populated and working.
+Test script to verify coordizer_vocabulary is populated and working.
 
-Run after: python initialize_tokenizer_vocabulary.py
+Run after: python initialize_coordizer_vocabulary.py
 """
 
 import os
@@ -31,26 +31,26 @@ def main():
         sys.exit(1)
     
     print("=" * 60)
-    print("Testing tokenizer_vocabulary")
+    print("Testing coordizer_vocabulary")
     print("=" * 60)
     
     # Check database
     conn = psycopg2.connect(db_url)
     cur = conn.cursor()
     
-    cur.execute("SELECT COUNT(*) FROM tokenizer_vocabulary")
+    cur.execute("SELECT COUNT(*) FROM coordizer_vocabulary")
     total = cur.fetchone()[0]
-    print(f"\nTotal tokens in tokenizer_vocabulary: {total}")
+    print(f"\nTotal tokens in coordizer_vocabulary: {total}")
     
     if total == 0:
-        print("\nERROR: tokenizer_vocabulary is empty!")
-        print("Run: python initialize_tokenizer_vocabulary.py")
+        print("\nERROR: coordizer_vocabulary is empty!")
+        print("Run: python initialize_coordizer_vocabulary.py")
         sys.exit(1)
     
     # Check by source type
     cur.execute("""
         SELECT source_type, COUNT(*) 
-        FROM tokenizer_vocabulary 
+        FROM coordizer_vocabulary 
         GROUP BY source_type 
         ORDER BY COUNT(*) DESC
     """)
@@ -61,7 +61,7 @@ def main():
     # Sample real words
     cur.execute("""
         SELECT token, phi_score, source_type 
-        FROM tokenizer_vocabulary 
+        FROM coordizer_vocabulary 
         WHERE source_type IN ('bip39', 'base', 'learned')
           AND LENGTH(token) >= 3
         ORDER BY phi_score DESC 

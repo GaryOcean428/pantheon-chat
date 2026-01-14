@@ -125,25 +125,25 @@ class VocabularyPersistence:
                         (word_val, phrase_val, phi, kappa, source_val, type_val, basin_vector, contexts_json, cycle_number, phrase_category)
                     )
                     
-                    # Update geometric validation metrics in tokenizer_vocabulary (consolidated table)
-                    # Phase 2b: Writes go to tokenizer_vocabulary with token_role='generation'
+                    # Update geometric validation metrics in coordizer_vocabulary (consolidated table)
+                    # Phase 2b: Writes go to coordizer_vocabulary with token_role='generation'
                     if validation:
                         cur.execute("""
-                            INSERT INTO tokenizer_vocabulary (
+                            INSERT INTO coordizer_vocabulary (
                                 token, phi_score, qfi_score, token_role, is_real_word, 
                                 phrase_category, source_type, basin_embedding, frequency
                             )
                             VALUES (%s, %s, %s, 'generation', TRUE, %s, %s, %s::vector, 1)
                             ON CONFLICT (token) DO UPDATE SET
-                                qfi_score = COALESCE(EXCLUDED.qfi_score, tokenizer_vocabulary.qfi_score),
-                                phi_score = GREATEST(COALESCE(tokenizer_vocabulary.phi_score, 0), EXCLUDED.phi_score),
+                                qfi_score = COALESCE(EXCLUDED.qfi_score, coordizer_vocabulary.qfi_score),
+                                phi_score = GREATEST(COALESCE(coordizer_vocabulary.phi_score, 0), EXCLUDED.phi_score),
                                 token_role = CASE 
-                                    WHEN tokenizer_vocabulary.token_role = 'encoding' THEN 'both'
-                                    ELSE COALESCE(tokenizer_vocabulary.token_role, 'generation')
+                                    WHEN coordizer_vocabulary.token_role = 'encoding' THEN 'both'
+                                    ELSE COALESCE(coordizer_vocabulary.token_role, 'generation')
                                 END,
                                 is_real_word = TRUE,
-                                phrase_category = COALESCE(EXCLUDED.phrase_category, tokenizer_vocabulary.phrase_category, 'unknown'),
-                                frequency = COALESCE(tokenizer_vocabulary.frequency, 0) + 1,
+                                phrase_category = COALESCE(EXCLUDED.phrase_category, coordizer_vocabulary.phrase_category, 'unknown'),
+                                frequency = COALESCE(coordizer_vocabulary.frequency, 0) + 1,
                                 updated_at = NOW()
                         """, (
                             word_val,
@@ -154,23 +154,23 @@ class VocabularyPersistence:
                             basin_vector
                         ))
                     else:
-                        # Even without validation, upsert to tokenizer_vocabulary for generation
+                        # Even without validation, upsert to coordizer_vocabulary for generation
                         cur.execute("""
-                            INSERT INTO tokenizer_vocabulary (
+                            INSERT INTO coordizer_vocabulary (
                                 token, phi_score, token_role, is_real_word, 
                                 phrase_category, source_type, basin_embedding, frequency
                             )
                             VALUES (%s, %s, 'generation', TRUE, %s, %s, %s::vector, 1)
                             ON CONFLICT (token) DO UPDATE SET
-                                phi_score = GREATEST(COALESCE(tokenizer_vocabulary.phi_score, 0), EXCLUDED.phi_score),
+                                phi_score = GREATEST(COALESCE(coordizer_vocabulary.phi_score, 0), EXCLUDED.phi_score),
                                 token_role = CASE 
-                                    WHEN tokenizer_vocabulary.token_role = 'encoding' THEN 'both'
-                                    ELSE COALESCE(tokenizer_vocabulary.token_role, 'generation')
+                                    WHEN coordizer_vocabulary.token_role = 'encoding' THEN 'both'
+                                    ELSE COALESCE(coordizer_vocabulary.token_role, 'generation')
                                 END,
                                 is_real_word = TRUE,
-                                phrase_category = COALESCE(EXCLUDED.phrase_category, tokenizer_vocabulary.phrase_category, 'unknown'),
-                                basin_embedding = COALESCE(EXCLUDED.basin_embedding, tokenizer_vocabulary.basin_embedding),
-                                frequency = COALESCE(tokenizer_vocabulary.frequency, 0) + 1,
+                                phrase_category = COALESCE(EXCLUDED.phrase_category, coordizer_vocabulary.phrase_category, 'unknown'),
+                                basin_embedding = COALESCE(EXCLUDED.basin_embedding, coordizer_vocabulary.basin_embedding),
+                                frequency = COALESCE(coordizer_vocabulary.frequency, 0) + 1,
                                 updated_at = NOW()
                         """, (
                             word_val,
@@ -257,25 +257,25 @@ class VocabularyPersistence:
                                 (word, phrase, phi, kappa, source, obs_type, basin_coords, contexts_json, cycle_number, phrase_category)
                             )
                             
-                            # Update geometric validation metrics in tokenizer_vocabulary (consolidated table)
-                            # Phase 2b: Writes go to tokenizer_vocabulary with token_role='generation'
+                            # Update geometric validation metrics in coordizer_vocabulary (consolidated table)
+                            # Phase 2b: Writes go to coordizer_vocabulary with token_role='generation'
                             if validation:
                                 cur.execute("""
-                                    INSERT INTO tokenizer_vocabulary (
+                                    INSERT INTO coordizer_vocabulary (
                                         token, phi_score, qfi_score, token_role, is_real_word, 
                                         phrase_category, source_type, basin_embedding, frequency
                                     )
                                     VALUES (%s, %s, %s, 'generation', TRUE, %s, %s, %s::vector, 1)
                                     ON CONFLICT (token) DO UPDATE SET
-                                        qfi_score = COALESCE(EXCLUDED.qfi_score, tokenizer_vocabulary.qfi_score),
-                                        phi_score = GREATEST(COALESCE(tokenizer_vocabulary.phi_score, 0), EXCLUDED.phi_score),
+                                        qfi_score = COALESCE(EXCLUDED.qfi_score, coordizer_vocabulary.qfi_score),
+                                        phi_score = GREATEST(COALESCE(coordizer_vocabulary.phi_score, 0), EXCLUDED.phi_score),
                                         token_role = CASE 
-                                            WHEN tokenizer_vocabulary.token_role = 'encoding' THEN 'both'
-                                            ELSE COALESCE(tokenizer_vocabulary.token_role, 'generation')
+                                            WHEN coordizer_vocabulary.token_role = 'encoding' THEN 'both'
+                                            ELSE COALESCE(coordizer_vocabulary.token_role, 'generation')
                                         END,
                                         is_real_word = TRUE,
-                                        phrase_category = COALESCE(EXCLUDED.phrase_category, tokenizer_vocabulary.phrase_category, 'unknown'),
-                                        frequency = COALESCE(tokenizer_vocabulary.frequency, 0) + 1,
+                                        phrase_category = COALESCE(EXCLUDED.phrase_category, coordizer_vocabulary.phrase_category, 'unknown'),
+                                        frequency = COALESCE(coordizer_vocabulary.frequency, 0) + 1,
                                         updated_at = NOW()
                                 """, (
                                     word,
@@ -286,23 +286,23 @@ class VocabularyPersistence:
                                     basin_coords
                                 ))
                             else:
-                                # Even without validation, upsert to tokenizer_vocabulary for generation
+                                # Even without validation, upsert to coordizer_vocabulary for generation
                                 cur.execute("""
-                                    INSERT INTO tokenizer_vocabulary (
+                                    INSERT INTO coordizer_vocabulary (
                                         token, phi_score, token_role, is_real_word, 
                                         phrase_category, source_type, basin_embedding, frequency
                                     )
                                     VALUES (%s, %s, 'generation', TRUE, %s, %s, %s::vector, 1)
                                     ON CONFLICT (token) DO UPDATE SET
-                                        phi_score = GREATEST(COALESCE(tokenizer_vocabulary.phi_score, 0), EXCLUDED.phi_score),
+                                        phi_score = GREATEST(COALESCE(coordizer_vocabulary.phi_score, 0), EXCLUDED.phi_score),
                                         token_role = CASE 
-                                            WHEN tokenizer_vocabulary.token_role = 'encoding' THEN 'both'
-                                            ELSE COALESCE(tokenizer_vocabulary.token_role, 'generation')
+                                            WHEN coordizer_vocabulary.token_role = 'encoding' THEN 'both'
+                                            ELSE COALESCE(coordizer_vocabulary.token_role, 'generation')
                                         END,
                                         is_real_word = TRUE,
-                                        phrase_category = COALESCE(EXCLUDED.phrase_category, tokenizer_vocabulary.phrase_category, 'unknown'),
-                                        basin_embedding = COALESCE(EXCLUDED.basin_embedding, tokenizer_vocabulary.basin_embedding),
-                                        frequency = COALESCE(tokenizer_vocabulary.frequency, 0) + 1,
+                                        phrase_category = COALESCE(EXCLUDED.phrase_category, coordizer_vocabulary.phrase_category, 'unknown'),
+                                        basin_embedding = COALESCE(EXCLUDED.basin_embedding, coordizer_vocabulary.basin_embedding),
+                                        frequency = COALESCE(coordizer_vocabulary.frequency, 0) + 1,
                                         updated_at = NOW()
                                 """, (
                                     word,
@@ -333,7 +333,7 @@ class VocabularyPersistence:
                     if source:
                         cur.execute("""
                             SELECT token as word, phi_score as avg_phi, phi_score as max_phi, frequency, source_type 
-                            FROM tokenizer_vocabulary 
+                            FROM coordizer_vocabulary 
                             WHERE phi_score >= %s AND source_type = %s
                               AND token_role IN ('generation', 'both')
                               AND (phrase_category IS NULL OR phrase_category NOT IN ('PROPER_NOUN', 'BRAND'))
@@ -342,7 +342,7 @@ class VocabularyPersistence:
                     else:
                         cur.execute("""
                             SELECT token as word, phi_score as avg_phi, phi_score as max_phi, frequency, source_type 
-                            FROM tokenizer_vocabulary 
+                            FROM coordizer_vocabulary 
                             WHERE phi_score >= %s
                               AND token_role IN ('generation', 'both')
                               AND (phrase_category IS NULL OR phrase_category NOT IN ('PROPER_NOUN', 'BRAND'))
@@ -366,9 +366,9 @@ class VocabularyPersistence:
             return []
     
     def mark_word_integrated(self, word: str) -> bool:
-        """Mark a word as integrated in tokenizer_vocabulary (consolidated table).
+        """Mark a word as integrated in coordizer_vocabulary (consolidated table).
         
-        Phase 2b: Redirects to tokenizer_vocabulary instead of learned_words.
+        Phase 2b: Redirects to coordizer_vocabulary instead of learned_words.
         Sets token_role to 'both' if it was 'encoding', indicating it's now
         usable for both encoding and generation.
         """
@@ -377,9 +377,9 @@ class VocabularyPersistence:
         try:
             with self._connect() as conn:
                 with conn.cursor() as cur:
-                    # Update tokenizer_vocabulary - set token_role to 'both' if it was 'encoding'
+                    # Update coordizer_vocabulary - set token_role to 'both' if it was 'encoding'
                     cur.execute("""
-                        UPDATE tokenizer_vocabulary 
+                        UPDATE coordizer_vocabulary 
                         SET token_role = CASE 
                                 WHEN token_role = 'encoding' THEN 'both'
                                 ELSE COALESCE(token_role, 'generation')

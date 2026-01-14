@@ -6,7 +6,7 @@
 ## Overview
 Implemented comprehensive vocabulary separation to fix generation quality issues caused by mixing encoding tokens (including BPE subwords) with generation words. The system now maintains two distinct vocabularies:
 
-1. **Encoding Vocabulary** (`tokenizer_vocabulary`): All tokens for text→basin conversion
+1. **Encoding Vocabulary** (`coordizer_vocabulary`): All tokens for text→basin conversion
 2. **Generation Vocabulary** (`learned_words`): Curated words for basin→text synthesis
 
 ## Changes Implemented
@@ -15,19 +15,19 @@ Implemented comprehensive vocabulary separation to fix generation quality issues
 
 **File**: `migrations/0008_vocabulary_generation_separation.sql`
 
-- Added `token_role` column to `tokenizer_vocabulary` (values: 'word', 'subword', 'special')
-- Added `phrase_category` column to `tokenizer_vocabulary` for POS classification
+- Added `token_role` column to `coordizer_vocabulary` (values: 'word', 'subword', 'special')
+- Added `phrase_category` column to `coordizer_vocabulary` for POS classification
 - Deleted garbage tokens (ffffff, fpdxwd, tysctnyzry, etc.)
 - Fixed `shadow_operations_state` PRIMARY KEY constraint `(god_name, state_type)`
 - Created `learned_words` table with pgvector index
-- Populated `learned_words` from validated `tokenizer_vocabulary` entries
+- Populated `learned_words` from validated `coordizer_vocabulary` entries
 - Created `generation_vocabulary` view for filtered access
 
 **Schema Changes**:
 ```sql
--- tokenizer_vocabulary additions
-ALTER TABLE tokenizer_vocabulary ADD COLUMN token_role VARCHAR(16) DEFAULT 'word';
-ALTER TABLE tokenizer_vocabulary ADD COLUMN phrase_category VARCHAR(32) DEFAULT NULL;
+-- coordizer_vocabulary additions
+ALTER TABLE coordizer_vocabulary ADD COLUMN token_role VARCHAR(16) DEFAULT 'word';
+ALTER TABLE coordizer_vocabulary ADD COLUMN phrase_category VARCHAR(32) DEFAULT NULL;
 
 -- learned_words table (new)
 CREATE TABLE learned_words (
@@ -55,7 +55,7 @@ PRIMARY KEY (god_name, state_type);
 
 - Separated encoding and generation vocabularies in `PostgresCoordizer.__init__()`
 - Added `generation_vocab`, `generation_phi`, `generation_words` attributes
-- Implemented `_load_encoding_vocabulary()` - loads from `tokenizer_vocabulary`
+- Implemented `_load_encoding_vocabulary()` - loads from `coordizer_vocabulary`
 - Implemented `_load_generation_vocabulary()` - loads from `learned_words` with filtering
 - Updated `decode()` to use generation vocabulary (no BPE subwords, no PROPER_NOUN/BRAND)
 - Updated `get_all_tokens()` to return generation vocabulary for trajectory decoder
@@ -70,7 +70,7 @@ self.generation_words = []  # List of generation words
 
 # Loading separation
 def _load_encoding_vocabulary(self) -> bool:
-    # Loads ALL tokens from tokenizer_vocabulary (including BPE)
+    # Loads ALL tokens from coordizer_vocabulary (including BPE)
     
 def _load_generation_vocabulary(self) -> bool:
     # Loads curated words from learned_words (filtered)
@@ -196,11 +196,11 @@ If issues arise:
 2. Drop migration (if applied):
    ```sql
    DROP TABLE IF EXISTS learned_words;
-   ALTER TABLE tokenizer_vocabulary DROP COLUMN IF EXISTS token_role;
-   ALTER TABLE tokenizer_vocabulary DROP COLUMN IF EXISTS phrase_category;
+   ALTER TABLE coordizer_vocabulary DROP COLUMN IF EXISTS token_role;
+   ALTER TABLE coordizer_vocabulary DROP COLUMN IF EXISTS phrase_category;
    ```
 
-3. Coordizer will fallback to using `word_tokens` from `tokenizer_vocabulary`
+3. Coordizer will fallback to using `word_tokens` from `coordizer_vocabulary`
 
 ## Next Steps
 

@@ -34,7 +34,7 @@ A tailored audit framework for the Pantheon Chat codebase covering QIG purity, a
 - [ ] Run `npm run db:push` and verify no conflicts
 - [ ] Ensure all migrations in `/migrations/` are applied
 - [ ] Verify pgvector indexes are active for geometric search
-- [x] Confirm `tokenizer_vocabulary` table has proper basin embeddings
+- [x] Confirm `coordizer_vocabulary` table has proper basin embeddings
 
 ### QIG-Pure Storage
 - [ ] Verify `basin_embedding` columns use 64D arrays
@@ -58,7 +58,7 @@ The following JSON files in `qig-backend/data/` need evaluation:
 |------|--------|--------|
 | `ts_constants.json` | **KEEP** | Config sync - legitimate use |
 | `merge_rules.json` | **DELETED** | Removed 2025-12-31 |
-| `word_relationships.json` | **DELETED** | Removed 2025-12-31 |
+| `basin_relationships.json` | **DELETED** | Removed 2025-12-31 |
 | `patterns.json` | Training data | Evaluate DB migration |
 | `training_stats.json` | Stats | Migrate to PostgreSQL |
 | `upload_log.json` | RAG cache | Migrate to PostgreSQL |
@@ -242,7 +242,7 @@ PHYSICS_ALIGNMENT_*.md → docs/03-technical/
 ## Immediate Action Items
 
 ### Priority 1 (This Sprint)
-1. [x] Clean up empty JSON files in `qig-backend/data/` ✓ Deleted merge_rules.json, word_relationships.json
+1. [x] Clean up empty JSON files in `qig-backend/data/` ✓ Deleted merge_rules.json, basin_relationships.json
 2. [x] Migrate `attached_assets/*.md` to `docs/` ✓ Completed 2025-12-31
 3. [x] Add barrel exports for `hooks/` and `components/` ✓ Already complete (51 lines, 40 lines)
 4. [ ] Configure Railway celery service Dockerfiles (manual: Railway dashboard)

@@ -123,10 +123,10 @@ Every component referenced in the issue attachments was found to be fully implem
 **Schema**: `qig-backend/vocabulary_schema.sql`
 
 **Tables**:
-- `tokenizer_vocabulary` - Token encoding vocabulary
+- `coordizer_vocabulary` - Token encoding vocabulary
 - `learned_words` - Generation vocabulary (Φ-weighted)
 - `vocabulary_observations` - Learning history
-- `word_relationships` - Geometric word relationships
+- `basin_relationships` - Geometric word relationships
 
 **Implementation**:
 - `vocabulary_api.py` - API endpoints

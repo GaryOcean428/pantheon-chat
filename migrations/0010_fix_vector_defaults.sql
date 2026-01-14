@@ -36,10 +36,10 @@ BEGIN;
 -- Reset from '{}' to NULL for proper semantics
 -- ============================================================================
 
--- tokenizer_vocabulary.embedding
+-- coordizer_vocabulary.embedding
 -- Was: ALTER COLUMN embedding SET DEFAULT '{}'::real[]
 -- Fix: Reset to NULL (means "vector not computed yet")
-ALTER TABLE tokenizer_vocabulary
+ALTER TABLE coordizer_vocabulary
 ALTER COLUMN embedding DROP DEFAULT;
 
 -- learned_words.basin_coords (pgvector)
@@ -364,7 +364,7 @@ COMMIT;
 --
 -- AFFECTED TABLES (8 direct, 16 indirect):
 -- Direct (had explicit DEFAULT '{}' in 0009):
---   1. tokenizer_vocabulary.embedding
+--   1. coordizer_vocabulary.embedding
 --   2. kernel_training_history.basin_coords
 --   3. shadow_knowledge.basin_coords
 --   4. research_requests.basin_coords

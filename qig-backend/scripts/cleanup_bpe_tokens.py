@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Cleanup BPE Fragments from Tokenizer Vocabulary.
 
-This script removes BPE subword fragments from the tokenizer_vocabulary table,
+This script removes BPE subword fragments from the coordizer_vocabulary table,
 keeping only real English words. BPE fragments cause garbled text output
 when used with the PostgresCoordizer.
 
@@ -64,12 +64,12 @@ def get_db_connection():
 def analyze_vocabulary(conn):
     """Analyze the current vocabulary composition."""
     with conn.cursor() as cur:
-        cur.execute("SELECT COUNT(*) FROM tokenizer_vocabulary")
+        cur.execute("SELECT COUNT(*) FROM coordizer_vocabulary")
         total = cur.fetchone()[0]
         
         # Count real words (alphabetic, 2+ chars)
         cur.execute("""
-            SELECT COUNT(*) FROM tokenizer_vocabulary 
+            SELECT COUNT(*) FROM coordizer_vocabulary 
             WHERE LENGTH(token) >= 2 
               AND token ~ '^[a-zA-Z]+$'
               AND token NOT LIKE '%%+%%'
@@ -93,7 +93,7 @@ def get_bpe_fragments(conn, limit: int = None):
     with conn.cursor() as cur:
         # Get tokens that don't match the real word pattern
         query = """
-            SELECT id, token FROM tokenizer_vocabulary 
+            SELECT id, token FROM coordizer_vocabulary 
             WHERE LENGTH(token) < 2 
                OR token !~ '^[a-zA-Z]+$'
                OR token LIKE '%%+%%'
@@ -123,7 +123,7 @@ def delete_bpe_fragments(conn, fragment_ids: list, dry_run: bool = True):
         for i in range(0, len(fragment_ids), batch_size):
             batch = fragment_ids[i:i + batch_size]
             placeholders = ','.join(['%s'] * len(batch))
-            cur.execute(f"DELETE FROM tokenizer_vocabulary WHERE id IN ({placeholders})", batch)
+            cur.execute(f"DELETE FROM coordizer_vocabulary WHERE id IN ({placeholders})", batch)
             deleted += cur.rowcount
             logger.info(f"Deleted batch {i // batch_size + 1}: {cur.rowcount} tokens")
         
@@ -134,7 +134,7 @@ def delete_bpe_fragments(conn, fragment_ids: list, dry_run: bool = True):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Cleanup BPE fragments from tokenizer_vocabulary')
+    parser = argparse.ArgumentParser(description='Cleanup BPE fragments from coordizer_vocabulary')
     parser.add_argument('--dry-run', action='store_true', help='Preview without making changes')
     parser.add_argument('--show-samples', action='store_true', help='Show sample BPE fragments')
     args = parser.parse_args()

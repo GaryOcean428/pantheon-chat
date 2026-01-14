@@ -912,7 +912,7 @@ class QIGGenerator:
                         if candidates:
                             # FIX 3: Boost candidates using word relationships
                             if recent_words and self._vocabulary_integration_enabled:
-                                candidates = self._boost_via_word_relationships(
+                                candidates = self._boost_via_basin_relationships(
                                     candidates,
                                     recent_words
                                 )
@@ -958,24 +958,24 @@ class QIGGenerator:
         
         return f"{base_response}\n\n[Φ={final_phi:.3f} | {primary_kernel}]"
     
-    def _boost_via_word_relationships(
+    def _boost_via_basin_relationships(
         self,
         candidates: List[Tuple[str, float]],
         recent_words: List[str],
         max_relationships: int = 50
     ) -> List[Tuple[str, float]]:
-        """Re-rank candidates using learned word_relationships table."""
+        """Re-rank candidates using learned basin_relationships table."""
         if not recent_words or not self._db_url or not PSYCOPG2_AVAILABLE:
             return candidates
         
         try:
             conn = psycopg2.connect(self._db_url)
             with conn.cursor() as cur:
-                # Query word_relationships for context
+                # Query basin_relationships for context
                 # Uses existing column names: word, neighbor, cooccurrence_count
                 cur.execute("""
                     SELECT neighbor, cooccurrence_count, fisher_distance, COALESCE(avg_phi, 0.5)
-                    FROM word_relationships
+                    FROM basin_relationships
                     WHERE word = ANY(%s)
                     ORDER BY avg_phi DESC NULLS LAST, cooccurrence_count DESC NULLS LAST
                     LIMIT %s

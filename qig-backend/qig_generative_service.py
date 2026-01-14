@@ -1639,7 +1639,7 @@ class QIGGenerativeService:
                 for token in tokens:
                     if token not in self.coordizer.vocab and not token.startswith('['):
                         logger.warning(
-                            "[VOCAB_TRACE] Unexpected token '%s' not found in tokenizer_vocabulary (iteration=%d)",
+                            "[VOCAB_TRACE] Unexpected token '%s' not found in coordizer_vocabulary (iteration=%d)",
                             token, iterations
                         )
 

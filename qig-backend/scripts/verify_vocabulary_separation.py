@@ -4,7 +4,7 @@ Verification Script: Vocabulary Separation
 ==========================================
 
 Verifies that the vocabulary separation is working correctly:
-1. tokenizer_vocabulary is used for encoding only
+1. coordizer_vocabulary is used for encoding only
 2. learned_words is used for generation only
 3. No BPE subwords in generation output
 4. No proper nouns used incorrectly in generation
@@ -65,24 +65,24 @@ def check_database_schema():
     try:
         with psycopg2.connect(database_url) as conn:
             with conn.cursor() as cursor:
-                # Check tokenizer_vocabulary columns
+                # Check coordizer_vocabulary columns
                 cursor.execute("""
                     SELECT column_name FROM information_schema.columns 
-                    WHERE table_name = 'tokenizer_vocabulary'
+                    WHERE table_name = 'coordizer_vocabulary'
                     AND column_name IN ('token_role', 'phrase_category')
                 """)
                 columns = [row[0] for row in cursor.fetchall()]
                 
                 if 'token_role' in columns:
-                    print_success("token_role column exists in tokenizer_vocabulary")
+                    print_success("token_role column exists in coordizer_vocabulary")
                 else:
-                    print_error("token_role column missing from tokenizer_vocabulary")
+                    print_error("token_role column missing from coordizer_vocabulary")
                     return False
                 
                 if 'phrase_category' in columns:
-                    print_success("phrase_category column exists in tokenizer_vocabulary")
+                    print_success("phrase_category column exists in coordizer_vocabulary")
                 else:
-                    print_error("phrase_category column missing from tokenizer_vocabulary")
+                    print_error("phrase_category column missing from coordizer_vocabulary")
                     return False
                 
                 # Check learned_words table exists
@@ -123,10 +123,10 @@ def check_vocabulary_counts():
     try:
         with psycopg2.connect(database_url) as conn:
             with conn.cursor() as cursor:
-                # Count tokenizer_vocabulary entries
-                cursor.execute("SELECT COUNT(*) FROM tokenizer_vocabulary WHERE basin_embedding IS NOT NULL")
+                # Count coordizer_vocabulary entries
+                cursor.execute("SELECT COUNT(*) FROM coordizer_vocabulary WHERE basin_embedding IS NOT NULL")
                 tokenizer_count = cursor.fetchone()[0]
-                print_info(f"tokenizer_vocabulary: {tokenizer_count} tokens (encoding)")
+                print_info(f"coordizer_vocabulary: {tokenizer_count} tokens (encoding)")
                 
                 # Count learned_words entries
                 cursor.execute("SELECT COUNT(*) FROM learned_words WHERE basin_embedding IS NOT NULL")
@@ -161,13 +161,13 @@ def check_vocabulary_counts():
                     print_warning(f"Found {proper_noun_count} PROPER_NOUN/BRAND entries in learned_words")
                 
                 # Check average phi scores
-                cursor.execute("SELECT AVG(phi_score) FROM tokenizer_vocabulary WHERE phi_score IS NOT NULL")
+                cursor.execute("SELECT AVG(phi_score) FROM coordizer_vocabulary WHERE phi_score IS NOT NULL")
                 tokenizer_avg_phi = cursor.fetchone()[0] or 0
                 
                 cursor.execute("SELECT AVG(phi_score) FROM learned_words WHERE phi_score IS NOT NULL")
                 learned_avg_phi = cursor.fetchone()[0] or 0
                 
-                print_info(f"Average Φ - tokenizer_vocabulary: {tokenizer_avg_phi:.3f}, learned_words: {learned_avg_phi:.3f}")
+                print_info(f"Average Φ - coordizer_vocabulary: {tokenizer_avg_phi:.3f}, learned_words: {learned_avg_phi:.3f}")
                 
                 if learned_avg_phi > tokenizer_avg_phi:
                     print_success("Generation vocabulary has higher average Φ (better quality)")

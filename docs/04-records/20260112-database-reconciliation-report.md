@@ -4,7 +4,7 @@
 
 ## Executive Summary
 
-Audited 107 PostgreSQL tables across the Pantheon-Chat system. Identified legacy tables, empty but wired tables, and dead code. Key recommendations: consolidate learned_words into tokenizer_vocabulary (DONE), wire scale mapping triggers, and remove 4 dead Python files.
+Audited 107 PostgreSQL tables across the Pantheon-Chat system. Identified legacy tables, empty but wired tables, and dead code. Key recommendations: consolidate learned_words into coordizer_vocabulary (DONE), wire scale mapping triggers, and remove 4 dead Python files.
 
 ---
 
@@ -13,8 +13,8 @@ Audited 107 PostgreSQL tables across the Pantheon-Chat system. Identified legacy
 ### CORE Tables (Keep - Active Use)
 | Table | Rows | Purpose |
 |-------|------|---------|
-| tokenizer_vocabulary | 14,515 | Unified vocabulary (encoding + generation) |
-| word_relationships | 634MB | Semantic relationships between words |
+| coordizer_vocabulary | 14,515 | Unified vocabulary (encoding + generation) |
+| basin_relationships | 634MB | Semantic relationships between words |
 | vocabulary_observations | 26MB | Raw learning telemetry |
 | kernel_geometry | 39 cols | Kernel consciousness state |
 | kernel_emotions | 43 cols | Emotional awareness tracking |
@@ -25,7 +25,7 @@ Audited 107 PostgreSQL tables across the Pantheon-Chat system. Identified legacy
 ### LEGACY Tables (Review for Removal)
 | Table | Rows | Status |
 |-------|------|--------|
-| learned_words | 16,165 | **LEGACY** - Consolidated into tokenizer_vocabulary via migration 0011 |
+| learned_words | 16,165 | **LEGACY** - Consolidated into coordizer_vocabulary via migration 0011 |
 
 ### EMPTY BUT WIRED Tables (Need Activity Triggers)
 | Table | Rows | Wiring Status |
@@ -40,7 +40,7 @@ Audited 107 PostgreSQL tables across the Pantheon-Chat system. Identified legacy
 ### LARGE TABLES (Monitor for Performance)
 | Table | Size | Notes |
 |-------|------|-------|
-| word_relationships | 634MB | Largest table - consider partitioning if grows |
+| basin_relationships | 634MB | Largest table - consider partitioning if grows |
 | learning_events | 152MB | Learning history - retention policy needed |
 | chaos_events | 113MB | Event log - consider archival |
 | shadow_knowledge | 81MB | Shadow Pantheon discoveries |
@@ -50,23 +50,23 @@ Audited 107 PostgreSQL tables across the Pantheon-Chat system. Identified legacy
 ## 2. Vocabulary Consolidation (COMPLETED)
 
 ### Migration 0011 Changes
-- Added `token_role` column to `tokenizer_vocabulary`: 'encoding', 'generation', 'both'
+- Added `token_role` column to `coordizer_vocabulary`: 'encoding', 'generation', 'both'
 - Migrated 12,777 tokens as 'both' (used in encoding and generation)
 - Migrated 1,695 tokens as 'generation' only
 - 35 tokens remain 'encoding' only
 
 ### Code Updates (8 files migrated)
-- `pg_loader.py`: Now loads 14,458 generation words from tokenizer_vocabulary
+- `pg_loader.py`: Now loads 14,458 generation words from coordizer_vocabulary
 - `vocabulary_persistence.py`: Uses COALESCE for NULL-safe frequency updates
 - `vocabulary_coordinator.py`: Updated to use token_role logic
-- `vocabulary_ingestion.py`: Writes ONLY to tokenizer_vocabulary with token_role
+- `vocabulary_ingestion.py`: Writes ONLY to coordizer_vocabulary with token_role
 - `vocabulary_schema.sql`: get_high_phi_vocabulary() and update_vocabulary_stats() updated
-- `pos_grammar.py`: Uses tokenizer_vocabulary for phrase classification
-- `strategy-knowledge-bus.ts`: Queries tokenizer_vocabulary for vocabulary words
-- `learned_relationships.py`: Loads and saves word frequencies to tokenizer_vocabulary
+- `pos_grammar.py`: Uses coordizer_vocabulary for phrase classification
+- `strategy-knowledge-bus.ts`: Queries coordizer_vocabulary for vocabulary words
+- `learned_relationships.py`: Loads and saves word frequencies to coordizer_vocabulary
 
 ### Legacy Table Status
-The `learned_words` table (16,165 rows) is now legacy. **Core runtime paths** have been migrated to tokenizer_vocabulary:
+The `learned_words` table (16,165 rows) is now legacy. **Core runtime paths** have been migrated to coordizer_vocabulary:
 - ✅ Encoding vocabulary loading
 - ✅ Generation vocabulary loading
 - ✅ Vocabulary persistence (read/write)
@@ -142,7 +142,7 @@ Many files in qig-backend/ have no direct imports but may be:
 3. Review 30+ potentially unused Python files
 
 ### LONG-TERM (This Month)
-1. Consider partitioning word_relationships by domain
+1. Consider partitioning basin_relationships by domain
 2. Implement geodesic_paths and resonance_points features
 3. Archive chaos_events older than 90 days
 

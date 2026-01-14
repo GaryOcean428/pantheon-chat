@@ -416,11 +416,11 @@ DROP TABLE scrapy_seen_content CASCADE;
 ### 4.1 Vocabulary Tables ✅
 
 **Tables (5):**
-- `tokenizer_vocabulary`: 16,331 rows - Tokenizer
+- `coordizer_vocabulary`: 16,331 rows - Tokenizer
 - `vocabulary_observations`: 16,936 rows - Learning data
 - `vocabulary_learning`: 2,495 rows - Progress tracking
 - `learned_words`: 16,305 rows - Human vocabulary
-- `word_relationships`: 326,501 rows - Semantic graph
+- `basin_relationships`: 326,501 rows - Semantic graph
 
 **Recommendation:** ✅ **KEEP ALL - PROPER SEPARATION**
 

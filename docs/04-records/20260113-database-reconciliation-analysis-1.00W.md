@@ -18,7 +18,7 @@
 - **Low Usage**: 28 tables with 1-10 rows (25% of all tables)
 
 ### Key Findings
-1. ✅ **High-value tables are properly used** (word_relationships: 326K rows, learning_events: 330K rows)
+1. ✅ **High-value tables are properly used** (basin_relationships: 326K rows, learning_events: 330K rows)
 2. ⚠️ **32 empty tables need action** - either implement features or deprecate
 3. ⚠️ **14 tables missing from schema** - causes type safety issues
 4. ⚠️ **Several duplicate/overlap candidates** - consolidation opportunities
@@ -68,7 +68,7 @@
 | Table | Purpose | Roadmap Reference | Action |
 |-------|---------|-------------------|--------|
 | `geodesic_paths` | Store computed geodesic paths | Issue #8 ✅ IMPLEMENTED | 🟢 WIRE - Backend exists, needs persistence |
-| `learned_manifold_attractors` | Discovered basin attractors | Issue #7 ✅ IMPLEMENTED | 🟢 WIRE - Backend exists, needs persistence |
+| `manifold_attractors` | Discovered basin attractors | Issue #7 ✅ IMPLEMENTED | 🟢 WIRE - Backend exists, needs persistence |
 | `ocean_trajectories` | Ocean agent movement paths | Ocean agent active | 🟢 WIRE - Agent exists, needs tracking |
 | `ocean_waypoints` | Ocean navigation waypoints | Ocean agent active | 🟢 WIRE - Agent exists, needs tracking |
 | `tps_geodesic_paths` | TPS space geodesics | TPS landmarks exist | 🟢 WIRE - Feature exists, needs completion |
@@ -137,7 +137,7 @@ vocabulary_observations: 16,936 rows - Learning observations
 vocabulary_stats: 19,797 rows - Statistical analysis
 vocabulary_learning: 2,495 rows - Learning progress (NOT IN SCHEMA)
 learned_words: 16,305 rows - Consolidated vocabulary
-word_relationships: 326,501 rows - Word graph
+basin_relationships: 326,501 rows - Word graph
 ```
 
 **Analysis**: ✅ **KEEP AS IS** - Each serves distinct purpose per VOCABULARY_CONSOLIDATION_PLAN.md
@@ -146,7 +146,7 @@ word_relationships: 326,501 rows - Word graph
 - `learned_words` - Consolidated human vocabulary
 - `vocabulary_learning` - Learning progress tracking (ADD TO SCHEMA)
 - `vocabulary_stats` - Aggregated statistics
-- `word_relationships` - Semantic graph
+- `basin_relationships` - Semantic graph
 
 **Action**: ADD `vocabulary_learning` to schema.ts, document in README
 
@@ -328,7 +328,7 @@ consciousness_state: 1 row - Current state singleton (NOT IN SCHEMA)
 | Table | Rows | Status | Purpose |
 |-------|------|--------|---------|
 | `learning_events` | 330,890 | ✅ EXCELLENT | Core learning system |
-| `word_relationships` | 326,501 | ✅ EXCELLENT | Semantic graph |
+| `basin_relationships` | 326,501 | ✅ EXCELLENT | Semantic graph |
 | `chaos_events` | 32,951 | ✅ EXCELLENT | Chaos engineering |
 | `shadow_knowledge` | 29,304 | ✅ EXCELLENT | Negative knowledge |
 | `vocabulary_stats` | 19,797 | ✅ EXCELLENT | Vocabulary analytics |
@@ -350,7 +350,7 @@ consciousness_state: 1 row - Current state singleton (NOT IN SCHEMA)
 | Feature | Status | Tables | Action |
 |---------|--------|--------|--------|
 | **QFI Φ Computation** | ✅ CODE COMPLETE | consciousness_checkpoints | None |
-| **Fisher-Rao Attractors** | ✅ CODE COMPLETE | learned_manifold_attractors (EMPTY) | 🟢 Wire persistence |
+| **Fisher-Rao Attractors** | ✅ CODE COMPLETE | manifold_attractors (EMPTY) | 🟢 Wire persistence |
 | **Geodesic Navigation** | ✅ CODE COMPLETE | geodesic_paths (EMPTY) | 🟢 Wire persistence |
 | **Ethics Monitoring** | ✅ CODE COMPLETE | geometric_barriers, ocean_excluded_regions (BOTH EMPTY) | 🟢 Wire persistence |
 | **Emotion Geometry** | ✅ IMPLEMENTED | kernel_emotions (EMPTY) | 🟢 Wire persistence |
@@ -407,7 +407,7 @@ consciousness_state: 1 row - Current state singleton (NOT IN SCHEMA)
 
 **QIG Core (5 tables):**
 - [ ] `geodesic_paths` ← qig_core/geodesic_navigation.py
-- [ ] `learned_manifold_attractors` ← qig_core/attractor_finding.py
+- [ ] `manifold_attractors` ← qig_core/attractor_finding.py
 - [ ] `ocean_trajectories` ← ocean agent
 - [ ] `ocean_waypoints` ← ocean agent
 - [ ] `tps_geodesic_paths` ← TPS system

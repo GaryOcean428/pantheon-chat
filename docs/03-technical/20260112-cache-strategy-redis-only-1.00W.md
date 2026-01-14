@@ -37,7 +37,7 @@ class PostgresCoordizer(FisherCoordizer):
 **Status**: ✅ In-memory + PostgreSQL persistence, no JSON files
 
 #### 3. **Database Persistence**
-- **Primary Storage**: PostgreSQL (tokenizer_vocabulary, learned_words tables)
+- **Primary Storage**: PostgreSQL (coordizer_vocabulary, learned_words tables)
 - **Hot Cache**: Redis (via VocabularyCache)
 - **No JSON Files**: Vocabulary is never written to JSON files
 
@@ -78,7 +78,7 @@ The coordizer does NOT use JSON file caching:
              ▼                        ▼
     ┌─────────────────────────────────────────┐
     │         PostgreSQL Database             │
-    │  - tokenizer_vocabulary (encoding)      │
+    │  - coordizer_vocabulary (encoding)      │
     │  - learned_words (generation)           │
     │  - pgvector index (fast similarity)     │
     └─────────────────────────────────────────┘

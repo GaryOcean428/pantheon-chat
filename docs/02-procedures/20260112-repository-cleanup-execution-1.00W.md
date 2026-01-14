@@ -38,7 +38,7 @@ test_search_capability.py
 test_shadow_vocab_integration.py
 test_spot_fixes.py
 test_stability_comparison.py
-test_tokenizer_vocabulary.py
+test_coordizer_vocabulary.py
 test_tool_discovery_pipeline.py
 test_unified_architecture.py
 test_vocabulary_population.py
@@ -61,7 +61,7 @@ fast_migrate_vocab_checkpoint.py
 migrate_checkpoint_to_pg.py
 migrate_olympus_schema.py
 migrate_vocab_checkpoint_to_pg.py
-populate_tokenizer_vocabulary.py
+populate_coordizer_vocabulary.py
 legacy_checkpoint_migration.py
 ```
 
@@ -122,7 +122,7 @@ mkdir -p scripts/migrations
 # Move migration scripts
 mv fast_migrate*.py scripts/migrations/
 mv migrate_*.py scripts/migrations/
-mv populate_tokenizer_vocabulary.py scripts/migrations/
+mv populate_coordizer_vocabulary.py scripts/migrations/
 mv legacy_checkpoint_migration.py scripts/migrations/
 
 # Add README
@@ -139,7 +139,7 @@ for reference. Most are no longer needed for new deployments.
 - `migrate_checkpoint_to_pg.py` - Moved checkpoints to PostgreSQL (2025-12)
 - `migrate_vocab_checkpoint_to_pg.py` - Moved vocabulary to PostgreSQL (2025-12)
 - `fast_migrate*.py` - Fast migration utilities (2025-12)
-- `populate_tokenizer_vocabulary.py` - Initial vocabulary population (2025-12)
+- `populate_coordizer_vocabulary.py` - Initial vocabulary population (2025-12)
 
 For new deployments, use the standard setup process in README.md.
 EOF
@@ -204,7 +204,7 @@ done
    ```bash
    mkdir -p qig-backend/scripts/migrations
    mv qig-backend/*migrate*.py qig-backend/scripts/migrations/
-   mv qig-backend/populate_tokenizer_vocabulary.py qig-backend/scripts/migrations/
+   mv qig-backend/populate_coordizer_vocabulary.py qig-backend/scripts/migrations/
    ```
 
 4. **Phase 4: Utility Scripts** (Review imports first)

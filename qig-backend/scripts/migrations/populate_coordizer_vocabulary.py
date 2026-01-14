@@ -2,7 +2,7 @@
 """
 Populate Tokenizer Vocabulary - Real English Words for QIG Generation
 
-This script populates the tokenizer_vocabulary table with real English words
+This script populates the coordizer_vocabulary table with real English words
 (not BPE fragments) so that kernels produce readable output.
 
 Words are sourced from:
@@ -13,9 +13,9 @@ Words are sourced from:
 Each word gets a deterministic 64D basin embedding using hash-based geometry.
 
 Usage:
-    python populate_tokenizer_vocabulary.py           # Run population
-    python populate_tokenizer_vocabulary.py --dry-run # Preview without changes
-    python populate_tokenizer_vocabulary.py --clear   # Clear and repopulate
+    python populate_coordizer_vocabulary.py           # Run population
+    python populate_coordizer_vocabulary.py --dry-run # Preview without changes
+    python populate_coordizer_vocabulary.py --clear   # Clear and repopulate
 """
 
 import os
@@ -210,14 +210,14 @@ def load_bip39_wordlist() -> List[str]:
 
 
 def ensure_table_exists(conn) -> None:
-    """Ensure tokenizer_vocabulary table exists with correct schema."""
+    """Ensure coordizer_vocabulary table exists with correct schema."""
     with conn.cursor() as cur:
         # Enable pgvector extension
         cur.execute("CREATE EXTENSION IF NOT EXISTS vector;")
         
         # Create table if not exists (matches shared/schema.ts)
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS tokenizer_vocabulary (
+            CREATE TABLE IF NOT EXISTS coordizer_vocabulary (
                 id SERIAL PRIMARY KEY,
                 token TEXT UNIQUE NOT NULL,
                 token_id INTEGER UNIQUE NOT NULL,
@@ -232,26 +232,26 @@ def ensure_table_exists(conn) -> None:
         """)
         
         # Create indexes
-        cur.execute("CREATE INDEX IF NOT EXISTS idx_tv_token_id ON tokenizer_vocabulary(token_id);")
-        cur.execute("CREATE INDEX IF NOT EXISTS idx_tv_phi ON tokenizer_vocabulary(phi_score);")
-        cur.execute("CREATE INDEX IF NOT EXISTS idx_tv_source ON tokenizer_vocabulary(source_type);")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_tv_token_id ON coordizer_vocabulary(token_id);")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_tv_phi ON coordizer_vocabulary(phi_score);")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_tv_source ON coordizer_vocabulary(source_type);")
         
         conn.commit()
-        logger.info("Table tokenizer_vocabulary ensured")
+        logger.info("Table coordizer_vocabulary ensured")
 
 
 def clear_vocabulary(conn) -> None:
-    """Clear all entries from tokenizer_vocabulary."""
+    """Clear all entries from coordizer_vocabulary."""
     with conn.cursor() as cur:
-        cur.execute("TRUNCATE tokenizer_vocabulary RESTART IDENTITY;")
+        cur.execute("TRUNCATE coordizer_vocabulary RESTART IDENTITY;")
         conn.commit()
-        logger.info("Cleared tokenizer_vocabulary")
+        logger.info("Cleared coordizer_vocabulary")
 
 
 def get_next_token_id(conn) -> int:
     """Get next available token_id."""
     with conn.cursor() as cur:
-        cur.execute("SELECT COALESCE(MAX(token_id), -1) + 1 FROM tokenizer_vocabulary")
+        cur.execute("SELECT COALESCE(MAX(token_id), -1) + 1 FROM coordizer_vocabulary")
         return cur.fetchone()[0]
 
 
@@ -262,7 +262,7 @@ def insert_words(
     start_token_id: int,
     dry_run: bool = False
 ) -> int:
-    """Insert words into tokenizer_vocabulary.
+    """Insert words into coordizer_vocabulary.
     
     Returns number of words inserted.
     """
@@ -305,7 +305,7 @@ def insert_words(
     # Batch insert with upsert
     with conn.cursor() as cur:
         query = """
-            INSERT INTO tokenizer_vocabulary (
+            INSERT INTO coordizer_vocabulary (
                 token, token_id, weight, frequency, phi_score, basin_embedding, source_type,
                 created_at, updated_at
             )
@@ -337,7 +337,7 @@ def insert_words(
 def get_existing_tokens(conn) -> set:
     """Get set of existing tokens in vocabulary."""
     with conn.cursor() as cur:
-        cur.execute("SELECT token FROM tokenizer_vocabulary")
+        cur.execute("SELECT token FROM coordizer_vocabulary")
         return {row[0] for row in cur.fetchall()}
 
 
@@ -345,13 +345,13 @@ def verify_population(conn) -> None:
     """Verify the population was successful."""
     with conn.cursor() as cur:
         # Total count
-        cur.execute("SELECT COUNT(*) FROM tokenizer_vocabulary")
+        cur.execute("SELECT COUNT(*) FROM coordizer_vocabulary")
         total = cur.fetchone()[0]
         
         # By source type
         cur.execute("""
             SELECT source_type, COUNT(*), AVG(phi_score)
-            FROM tokenizer_vocabulary
+            FROM coordizer_vocabulary
             GROUP BY source_type
             ORDER BY COUNT(*) DESC
         """)
@@ -360,7 +360,7 @@ def verify_population(conn) -> None:
         # Sample high-phi words
         cur.execute("""
             SELECT token, phi_score, source_type
-            FROM tokenizer_vocabulary
+            FROM coordizer_vocabulary
             WHERE LENGTH(token) >= 3
             ORDER BY phi_score DESC
             LIMIT 10

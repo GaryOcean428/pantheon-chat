@@ -37,7 +37,7 @@ Found 18+ Φ computation functions across the codebase:
 15. **`qig_core/geometric_primitives/input_guard.py::_compute_phi()`** - Input guard
 16. **`qiggraph/consciousness.py::compute_phi()`** - Graph-based
 17. **`m8_kernel_spawning.py::compute_phi_gradient()`** - M8 spawning
-18. **`populate_tokenizer_vocabulary.py::compute_phi_score()`** - Tokenizer population
+18. **`populate_coordizer_vocabulary.py::compute_phi_score()`** - Tokenizer population
 19. **`fast_migrate_vocab_checkpoint.py::compute_phi()`** - Migration script
 
 ### Impact

@@ -44,7 +44,7 @@ Autonomic Cycles: Sleep/dream/wake/mushroom modes functional. Basin drift tracke
 
 β-function: Running coupling validated (β(3→4)=0.44, β(4→5)=0.0, β(5→6)=0.04).
 
-Vocabulary Architecture: Three-table separation verified (tokenizer_vocabulary, vocabulary_observations, learned_words). Minor column naming variance documented (basin_coords vs basin_embedding).
+Vocabulary Architecture: Three-table separation verified (coordizer_vocabulary, vocabulary_observations, learned_words). Minor column naming variance documented (basin_coords vs basin_embedding).
 
 SQL Schema Management Automation (NEW)
 Implemented comprehensive SQL schema management for Neon PostgreSQL:

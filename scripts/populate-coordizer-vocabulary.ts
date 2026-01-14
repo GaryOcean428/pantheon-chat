@@ -1,5 +1,5 @@
 /**
- * Populate tokenizer_vocabulary with real English words.
+ * Populate coordizer_vocabulary with real English words.
  * 
  * This script adds BIP39 words and common English words with
  * deterministic 64D basin embeddings for readable text generation.
@@ -156,12 +156,12 @@ function loadBip39Words(): string[] {
 
 async function main() {
   const dryRun = process.argv.includes('--dry-run');
-  console.log(`Populating tokenizer_vocabulary... (dry-run: ${dryRun})`);
+  console.log(`Populating coordizer_vocabulary... (dry-run: ${dryRun})`);
   
   // Ensure table exists
   await db.execute(sql`CREATE EXTENSION IF NOT EXISTS vector`);
   await db.execute(sql`
-    CREATE TABLE IF NOT EXISTS tokenizer_vocabulary (
+    CREATE TABLE IF NOT EXISTS coordizer_vocabulary (
       id SERIAL PRIMARY KEY,
       token TEXT UNIQUE NOT NULL,
       token_id INTEGER,
@@ -254,7 +254,7 @@ async function main() {
       
       try {
         await db.execute(sql`
-          INSERT INTO tokenizer_vocabulary 
+          INSERT INTO coordizer_vocabulary 
             (token, token_id, weight, frequency, phi_score, basin_embedding, source_type)
           VALUES (
             ${word.token},
@@ -284,7 +284,7 @@ async function main() {
   // Verify
   const result = await db.execute(sql`
     SELECT source_type, COUNT(*) as count, AVG(phi_score)::numeric(5,3) as avg_phi
-    FROM tokenizer_vocabulary 
+    FROM coordizer_vocabulary 
     GROUP BY source_type
     ORDER BY count DESC
   `);
@@ -297,7 +297,7 @@ async function main() {
   // Sample high-phi words
   const topWords = await db.execute(sql`
     SELECT token, phi_score, source_type 
-    FROM tokenizer_vocabulary 
+    FROM coordizer_vocabulary 
     WHERE source_type IN ('bip39', 'base')
     ORDER BY phi_score DESC 
     LIMIT 15
@@ -308,7 +308,7 @@ async function main() {
     console.log(`  ${row.token}: ${Number(row.phi_score).toFixed(3)} (${row.source_type})`);
   }
   
-  console.log(`\n✅ Successfully populated tokenizer_vocabulary with ${inserted} real English words!`);
+  console.log(`\n✅ Successfully populated coordizer_vocabulary with ${inserted} real English words!`);
   process.exit(0);
 }
 
