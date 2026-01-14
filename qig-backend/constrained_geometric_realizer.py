@@ -101,6 +101,7 @@ class ConstrainedGeometricRealizer:
         words = []
         word_basins = []
         trajectory = list(trajectory_history) if trajectory_history else []
+        recent_words: List[str] = []  # Track recently used words for diversity
         
         for i, waypoint in enumerate(waypoints):
             if not isinstance(waypoint, np.ndarray):
@@ -108,12 +109,14 @@ class ConstrainedGeometricRealizer:
             
             word, basin, distance = self.select_word_geometric(
                 target_basin=waypoint,
-                trajectory=trajectory
+                trajectory=trajectory,
+                recent_words=recent_words
             )
             
             words.append(word)
             word_basins.append(basin)
             trajectory.append(basin)
+            recent_words.append(word)
             
             logger.debug(
                 "[%s] slot %d: '%s' (d_FR=%.3f)",
@@ -130,19 +133,22 @@ class ConstrainedGeometricRealizer:
     def select_word_geometric(
         self,
         target_basin: np.ndarray,
-        trajectory: List[np.ndarray]
+        trajectory: List[np.ndarray],
+        recent_words: Optional[List[str]] = None
     ) -> Tuple[str, np.ndarray, float]:
         """
         Select best word for target basin using pure Fisher-Rao distance.
         
         Algorithm:
         1. Compute Fisher-Rao distance from target to all vocabulary words
-        2. Add trajectory coherence bonus for smooth generation
-        3. Return word with highest score
+        2. Apply diversity penalty for recently used words (stronger for exact matches)
+        3. Apply mild trajectory coherence bonus for smooth generation
+        4. Return word with highest score
         
         Args:
             target_basin: Target basin coordinates (64D on S^63)
             trajectory: List of previous word basins for coherence
+            recent_words: List of recently selected words for diversity penalty
         
         Returns:
             Tuple of (selected_word, word_basin, fisher_distance)
@@ -150,6 +156,9 @@ class ConstrainedGeometricRealizer:
         if not self._vocab_list:
             logger.error("[%s] No vocabulary available for selection", self.kernel_name)
             return ("unknown", np.zeros(BASIN_DIM), float('inf'))
+        
+        recent_set = set(recent_words[-20:]) if recent_words else set()
+        very_recent_set = set(recent_words[-5:]) if recent_words and len(recent_words) >= 1 else set()
         
         best_word, best_basin = self._vocab_list[0]
         best_score = float('-inf')
@@ -160,8 +169,21 @@ class ConstrainedGeometricRealizer:
             
             base_score = 1.0 - (distance / np.pi)
             
+            diversity_penalty = 0.0
+            if word in very_recent_set:
+                diversity_penalty = 0.8
+            elif word in recent_set:
+                diversity_penalty = 0.4
+            else:
+                word_stem = word[:4] if len(word) >= 4 else word
+                for recent in (recent_words[-10:] if recent_words else []):
+                    recent_stem = recent[:4] if len(recent) >= 4 else recent
+                    if word_stem == recent_stem:
+                        diversity_penalty = max(diversity_penalty, 0.3)
+                        break
+            
             coherence = self._trajectory_coherence(word_basin, trajectory)
-            score = base_score + 0.1 * coherence
+            score = base_score + 0.05 * coherence - diversity_penalty
             
             if score > best_score:
                 best_score = score
