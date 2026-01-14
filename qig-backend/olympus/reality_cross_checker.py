@@ -317,8 +317,9 @@ class RealityCrossChecker:
             step_size = 0.5
             new_mean = self._exp_map(mean, step_size * gradient)
 
-            # Check convergence
-            if np.linalg.norm(new_mean - mean) < tolerance:
+            # Check convergence using Fisher-Rao distance
+            from qig_geometry import fisher_coord_distance
+            if fisher_coord_distance(new_mean, mean) < tolerance:
                 break
 
             mean = new_mean

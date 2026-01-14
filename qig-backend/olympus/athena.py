@@ -123,7 +123,9 @@ class Athena(BaseGod):
         context: Optional[Dict] = None
     ) -> Dict:
         """Select optimal strategy based on target characteristics."""
-        target_norm = float(np.sqrt(np.sum(target_basin[:8] ** 2)))  # L2 magnitude for logging
+        # Use Fisher-Rao magnitude for logging
+        from qig_geometry import basin_magnitude
+        target_norm = float(basin_magnitude(target_basin[:8]))
         
         if similar:
             strategy_counts: Dict[str, int] = {}

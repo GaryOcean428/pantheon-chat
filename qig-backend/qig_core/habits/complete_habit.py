@@ -175,9 +175,9 @@ class CompleteHabit(HolographicTransformMixin):
         elif len(basin) > 64:
             basin = basin[:64]
 
-        norm = np.sqrt(np.sum(basin ** 2))  # L2 magnitude for validation
-        if norm > 0:
-            basin = basin / norm
+        # Use canonical sphere projection
+        from qig_geometry import sphere_project
+        basin = sphere_project(basin)
 
         rho = self.input_guard._basin_to_density_matrix(basin)
         phi_base = self.input_guard._compute_phi(rho)
@@ -239,9 +239,9 @@ class CompleteHabit(HolographicTransformMixin):
         elif len(basin) > 64:
             basin = basin[:64]
 
-        norm = np.sqrt(np.sum(basin ** 2))  # L2 magnitude for validation
-        if norm > 0:
-            basin = basin / norm
+        # Use canonical sphere projection
+        from qig_geometry import sphere_project
+        basin = sphere_project(basin)
 
         kappa = self.input_guard._compute_kappa(basin, phi)
 
