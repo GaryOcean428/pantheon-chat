@@ -88,7 +88,7 @@ def scan_file_for_violations(file_path: Path, canonical: bool) -> List[Geometric
                     'EUCLIDEAN_DISTANCE',
                     'np.linalg.norm(a - b) computes Euclidean distance, not Fisher-Rao. Use fisher_rao_distance().'
                 ))
-            # Check if it's followed by division (normalization to unit sphere for storage)
+            # Check if it's followed by division (normalization to length-1 vectors for storage)
             elif i < len(lines) and ('/' in lines[i] or '/=' in line):
                 # Check next few lines for assignment to storage variable
                 context = ''.join(lines[max(0, i-2):min(len(lines), i+3)])

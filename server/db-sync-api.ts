@@ -15,6 +15,8 @@ import { logger } from './lib/logger';
 import * as schema from '@shared/schema';
 import { sql, desc } from 'drizzle-orm';
 
+import { upsertToken } from './persistence/vocabulary';
+
 const router = Router();
 
 // Middleware to validate sync API key
@@ -138,19 +140,20 @@ router.post('/import/vocabulary', async (req: Request, res: Response) => {
       for (const item of batch) {
         try {
           // Upsert - insert or update on conflict
-          await withDbRetry(
-            async () => db!.insert(schema.coordizerVocabulary)
-              .values(item)
-              .onConflictDoUpdate({
-                target: schema.coordizerVocabulary.token,
-                set: {
-                  basinEmbedding: item.basinEmbedding,
-                  phiScore: item.phiScore,
-                  frequency: item.frequency
-                }
-              }),
-            `sync-import-vocab-${i}`
-          );
+          await upsertToken({
+            token: item.token,
+            tokenId: item.tokenId ?? item.token_id ?? 0,
+            weight: item.weight ?? 1,
+            frequency: item.frequency ?? 1,
+            phiScore: item.phiScore ?? item.phi_score ?? 0,
+            basinEmbedding: item.basinEmbedding ?? item.basin_embedding ?? null,
+            sourceType: item.sourceType ?? item.source_type ?? 'sync',
+            tokenRole: item.tokenRole ?? item.token_role ?? 'encoding',
+            phraseCategory: item.phraseCategory ?? item.phrase_category ?? 'unknown',
+            isRealWord: item.isRealWord ?? item.is_real_word ?? false,
+            tokenStatus: item.tokenStatus ?? item.token_status ?? 'active',
+            source: 'sync'
+          });
           imported++;
         } catch (err) {
           errors++;

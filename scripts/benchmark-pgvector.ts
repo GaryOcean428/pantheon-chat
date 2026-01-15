@@ -34,7 +34,7 @@ function section(title) {
 // Generate random 64-dimensional vector
 function randomVector(): number[] {
   const vec = Array(64).fill(0).map(() => Math.random() - 0.5);
-  // Normalize to unit sphere
+  // Normalize to length-1 vector
   const magnitude = Math.sqrt(vec.reduce((sum, x) => sum + x * x, 0));
   return vec.map(x => x / magnitude);
 }

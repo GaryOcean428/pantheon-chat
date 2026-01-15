@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { existsSync, readFileSync, writeFileSync } from "fs";
 import {
   CrossStrategyPattern,
@@ -22,6 +22,8 @@ import { db, withDbRetry } from "./db";
 import { knowledgeCompressionEngine } from "./knowledge-compression-engine";
 import { negativeKnowledgeUnified as negativeKnowledgeRegistry } from "./negative-knowledge-unified";
 import "./temporal-geometry";
+import { getCurriculumTokens, isCurriculumOnlyMode } from "./curriculum";
+import { isValidQfiScore } from "@shared/qfi";
 
 interface StrategyCapability {
   id: string;
@@ -725,13 +727,36 @@ export class StrategyKnowledgeBus {
       );
       const existingSet = new Set((existingPatterns.rows || []).map(r => r.pattern));
       
-      const learnedWords = await db.execute<{ word: string; avg_phi: number; frequency: number }>(
-        `SELECT token as word, phi_score as avg_phi, frequency FROM coordizer_vocabulary 
-         WHERE phi_score > 0.4 AND frequency > 5
-           AND token_role IN ('generation', 'both')
-         ORDER BY phi_score DESC 
-         LIMIT 100`
-      );
+      const curriculumTokens = isCurriculumOnlyMode() ? getCurriculumTokens() : []
+      const learnedWords = await db.execute<{
+        word: string
+        avg_phi: number
+        frequency: number
+        qfi_score: number | null
+        token_status: string | null
+      }>(sql`
+        SELECT token as word, phi_score as avg_phi, frequency, qfi_score, token_status
+        FROM coordizer_vocabulary
+        WHERE phi_score > 0.4
+          AND frequency > 5
+          AND token_role IN ('generation', 'both')
+          AND token_status = 'active'
+          AND qfi_score BETWEEN 0 AND 1
+          AND basin_embedding IS NOT NULL
+          ${curriculumTokens.length > 0 ? sql`AND token = ANY(${curriculumTokens})` : sql``}
+        ORDER BY phi_score DESC
+        LIMIT 100
+      `)
+
+      const enforceQfi = isCurriculumOnlyMode()
+        || process.env.QIG_ENV === 'purity'
+        || process.env.QIG_PURITY_MODE === 'true'
+      if (enforceQfi) {
+        const invalid = (learnedWords.rows || []).filter((row) => !isValidQfiScore(row.qfi_score))
+        if (invalid.length > 0) {
+          throw new Error(`Invalid QFI scores detected in generation candidates: ${invalid.length}`)
+        }
+      }
       
       let seeded = 0;
       for (const row of learnedWords.rows || []) {
