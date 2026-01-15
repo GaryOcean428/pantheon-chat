@@ -44,6 +44,57 @@ function normalizeBasin(basin: ArrayLike<number> | null): number[] | null {
   return toSimplexProbabilities(values)
 }
 
+/**
+ * Performs the database insert/update operation for a token record.
+ * Handles conflict resolution by updating all fields when a token already exists.
+ *
+ * @param record - The token record to upsert
+ * @throws Error if database is unavailable
+ */
+async function performTokenUpsert(record: {
+  token: string
+  tokenId: number
+  weight?: number
+  frequency?: number
+  phiScore?: number
+  basinEmbedding?: number[]
+  scale?: string
+  sourceType?: string
+  tokenRole?: 'encoding' | 'generation' | 'both'
+  phraseCategory?: string
+  isRealWord?: boolean
+  qfiScore: number | null
+  tokenStatus: TokenStatus
+}): Promise<void> {
+  if (!db) {
+    throw new Error('Database unavailable')
+  }
+  
+  await withDbRetry(
+    async () =>
+      db!.insert(coordizerVocabulary)
+        .values(record)
+        .onConflictDoUpdate({
+          target: coordizerVocabulary.token,
+          set: {
+            weight: record.weight,
+            frequency: record.frequency,
+            phiScore: record.phiScore,
+            basinEmbedding: record.basinEmbedding,
+            scale: record.scale,
+            sourceType: record.sourceType,
+            tokenRole: record.tokenRole,
+            phraseCategory: record.phraseCategory,
+            isRealWord: record.isRealWord,
+            qfiScore: record.qfiScore,
+            tokenStatus: record.tokenStatus,
+            updatedAt: new Date(),
+          },
+        }),
+    'upsert-token'
+  )
+}
+
 export async function upsertToken(input: UpsertTokenInput): Promise<UpsertTokenResult> {
   if (!db) {
     throw new Error('Database unavailable')
@@ -58,9 +109,11 @@ export async function upsertToken(input: UpsertTokenInput): Promise<UpsertTokenR
 
   if (input.basinEmbedding && Array.from(input.basinEmbedding).length > 0) {
     normalizedBasin = normalizeBasin(input.basinEmbedding)
-    qfiScore = compute_qfi_score_simplex(normalizedBasin)
-    if (!isValidQfiScore(qfiScore)) {
-      qfiScore = null
+    if (normalizedBasin) {
+      qfiScore = compute_qfi_score_simplex(normalizedBasin)
+      if (!isValidQfiScore(qfiScore)) {
+        qfiScore = null
+      }
     }
   }
 
@@ -82,29 +135,7 @@ export async function upsertToken(input: UpsertTokenInput): Promise<UpsertTokenR
     tokenStatus: status,
   }
 
-  await withDbRetry(
-    async () =>
-      db.insert(coordizerVocabulary)
-        .values(record)
-        .onConflictDoUpdate({
-          target: coordizerVocabulary.token,
-          set: {
-            weight: record.weight,
-            frequency: record.frequency,
-            phiScore: record.phiScore,
-            basinEmbedding: record.basinEmbedding,
-            scale: record.scale,
-            sourceType: record.sourceType,
-            tokenRole: record.tokenRole,
-            phraseCategory: record.phraseCategory,
-            isRealWord: record.isRealWord,
-            qfiScore: record.qfiScore,
-            tokenStatus: record.tokenStatus,
-            updatedAt: new Date(),
-          },
-        }),
-    'upsert-token'
-  )
+  await performTokenUpsert(record)
 
   return {
     status,
