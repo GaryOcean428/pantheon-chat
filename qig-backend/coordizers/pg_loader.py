@@ -202,18 +202,6 @@ class PostgresCoordizer(FisherCoordizer):
         
         logger.info(f"Loaded encoding vocabulary: {real_word_count} words, generation vocabulary: {generation_word_count} words")
 
-    def _use_encoding_as_generation_fallback(self):
-        """Fallback: Use word_tokens from encoding vocabulary for generation.
-        
-        This is used when coordizer_vocabulary has no token_role column or no generation tokens.
-        Filters out BPE garbage and uses only clean word tokens.
-        """
-        for word in self.word_tokens:
-            if word in self.basin_coords:
-                self.generation_vocab[word] = self.basin_coords[word]
-                self.generation_phi[word] = self.token_phi.get(word, 0.5)
-                self.generation_words.append(word)
-        logger.info(f"Using encoding vocabulary as generation fallback: {len(self.generation_words)} words")
 
     def _load_from_database(self) -> bool:
         """Load ENCODING vocabulary from coordizer_vocabulary table.
@@ -279,53 +267,36 @@ class PostgresCoordizer(FisherCoordizer):
         - Excludes BPE subwords and garbage tokens
         - Only real English words suitable for generation
         
-        Includes backward compatibility fallback if token_role column doesn't exist.
+        REQUIRES token_role column. No fallbacks.
         
         Returns True if loaded successfully, False otherwise.
         """
         conn = self._get_connection()
         
         try:
-            # First, check if token_role column exists (for backward compatibility)
-            token_role_exists = self._check_token_role_column_exists(conn)
-            
             with conn.cursor() as cur:
-                if token_role_exists:
-                    # P0 FIX: Add qfi_score IS NOT NULL filter to prevent incomplete records
-                    # NEW: Use consolidated coordizer_vocabulary with token_role filter
-                    cur.execute("""
-                        SELECT token, basin_embedding, phi_score, frequency, phrase_category
-                        FROM coordizer_vocabulary
-                        WHERE basin_embedding IS NOT NULL
-                          AND qfi_score IS NOT NULL
-                          AND LENGTH(token) >= 1
-                          AND COALESCE(phi_score, 0.0) > 0.0
-                          AND token_role IN ('generation', 'both')
-                          AND (phrase_category IS NULL OR phrase_category NOT IN %s)
-                        ORDER BY phi_score DESC, frequency DESC
-                    """, (self.GENERATION_EXCLUDED_CATEGORIES,))
-                else:
-                    # FALLBACK: token_role column doesn't exist yet - use word tokens from encoding
-                    # WARNING: This fallback should be addressed by running vocabulary consolidation migration
-                    logger.warning(
-                        "[pg_loader] token_role column missing from coordizer_vocabulary table. "
-                        "Using encoding vocabulary as generation fallback. "
-                        "Run migration 0011_vocabulary_consolidation.sql to add token_role column."
-                    )
-                    print(
-                        "[pg_loader] WARNING: token_role column missing - using encoding fallback for generation. "
-                        "Run vocabulary consolidation migration.",
-                        flush=True
-                    )
-                    self._use_encoding_as_generation_fallback()
-                    return len(self.generation_words) > 0
+                # P0 FIX: Add qfi_score IS NOT NULL filter to prevent incomplete records
+                # Use consolidated coordizer_vocabulary with token_role filter
+                cur.execute("""
+                    SELECT token, basin_embedding, phi_score, frequency, phrase_category
+                    FROM coordizer_vocabulary
+                    WHERE basin_embedding IS NOT NULL
+                      AND qfi_score IS NOT NULL
+                      AND LENGTH(token) >= 1
+                      AND COALESCE(phi_score, 0.0) > 0.0
+                      AND token_role IN ('generation', 'both')
+                      AND (phrase_category IS NULL OR phrase_category NOT IN %s)
+                    ORDER BY phi_score DESC, frequency DESC
+                """, (self.GENERATION_EXCLUDED_CATEGORIES,))
                 
                 rows = cur.fetchall()
             
             if not rows:
-                logger.warning("[pg_loader] No generation vocabulary found in coordizer_vocabulary (token_role filter) - using encoding fallback")
-                self._use_encoding_as_generation_fallback()
-                return len(self.generation_words) > 0
+                raise RuntimeError(
+                    "[pg_loader] No generation vocabulary found in coordizer_vocabulary. "
+                    "token_role column must exist with valid generation tokens. "
+                    "Run vocabulary consolidation migration and backfill QFI scores."
+                )
             
             for token, basin_embedding, phi_score, frequency, phrase_category in rows:
                 coords = self._parse_embedding(basin_embedding)
@@ -342,27 +313,12 @@ class PostgresCoordizer(FisherCoordizer):
             return len(self.generation_words) > 0
             
         except Exception as e:
-            logger.warning(f"Failed to load generation vocabulary from coordizer_vocabulary: {e}. Using encoding fallback.")
-            self._use_encoding_as_generation_fallback()
-            return len(self.generation_words) > 0
+            # No fallbacks - fail fast if generation vocabulary cannot be loaded
+            raise RuntimeError(
+                f"[pg_loader] FATAL: Failed to load generation vocabulary from coordizer_vocabulary: {e}. "
+                "Ensure token_role column exists and tokens have valid basin_embedding + qfi_score."
+            )
     
-    def _check_token_role_column_exists(self, conn) -> bool:
-        """Check if token_role column exists in coordizer_vocabulary table.
-        
-        Used for backward compatibility during migration period.
-        """
-        try:
-            with conn.cursor() as cur:
-                cur.execute("""
-                    SELECT column_name 
-                    FROM information_schema.columns 
-                    WHERE table_name = 'coordizer_vocabulary' 
-                      AND column_name = 'token_role'
-                """)
-                return cur.fetchone() is not None
-        except Exception as e:
-            logger.debug(f"Failed to check token_role column: {e}")
-            return False
 
     def _parse_embedding(self, basin_embedding) -> Optional[np.ndarray]:
         if basin_embedding is None:
