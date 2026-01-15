@@ -26,10 +26,9 @@ async function run() {
 
   const allowlist = loadAllowlist()
   const allowlistTokens = Array.from(allowlist)
-  const allowlistParams = allowlistTokens.map((token) => sql`${token}`)
   const allowlistCondition =
-    allowlistParams.length > 0
-      ? sql`AND token NOT IN (${sql.join(allowlistParams, sql`, `)})`
+    allowlistTokens.length > 0
+      ? sql`AND token <> ALL(${allowlistTokens})`
       : sql``
 
   const result = await withDbRetry(

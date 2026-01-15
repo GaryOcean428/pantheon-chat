@@ -42,6 +42,11 @@ DIRECT_SQL_PATTERN = re.compile(
 
 ALLOWED_SQL_PATHS = {
     Path("server/persistence/coordizer-vocabulary.ts"),
+    # Maintenance tools are allowed to perform direct SQL for bulk operations
+    Path("tools/quarantine_extremes.ts"),
+    Path("tools/recompute_qfi_scores.ts"),
+    # Migration scripts are allowed to perform direct SQL
+    Path("scripts/populate-coordizer-vocab.sql"),
 }
 
 
