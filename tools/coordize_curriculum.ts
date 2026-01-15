@@ -32,6 +32,11 @@ function extractBasinEmbedding(payload: Record<string, unknown>): number[] | nul
   return null
 }
 
+/**
+ * Coordize a token via backend API.
+ * Note: This is a backend-to-backend tool script, not client code.
+ * Direct fetch is acceptable here as this is not part of the client application.
+ */
 async function coordizeToken(token: string): Promise<number[]> {
   const response = await fetch(`${backendUrl}/api/coordize`, {
     method: 'POST',

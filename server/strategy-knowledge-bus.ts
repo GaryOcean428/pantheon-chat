@@ -727,7 +727,9 @@ export class StrategyKnowledgeBus {
       );
       const existingSet = new Set((existingPatterns.rows || []).map(r => r.pattern));
       
-      const curriculumTokens = isCurriculumOnlyMode() ? getCurriculumTokens() : []
+      // Only load curriculum tokens when in curriculum-only mode
+      const inCurriculumMode = isCurriculumOnlyMode()
+      const curriculumTokens = inCurriculumMode ? getCurriculumTokens() : []
       const learnedWords = await db.execute<{
         word: string
         avg_phi: number
