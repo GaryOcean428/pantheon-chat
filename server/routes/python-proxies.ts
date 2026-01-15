@@ -12,7 +12,7 @@
  * - /chaos/* - Experimental evolution
  */
 
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { logger } from '../lib/logger';
 import { assertCurriculumReady } from '../curriculum';
 
@@ -23,6 +23,29 @@ type ProxyOptions = {
   errorStatus?: number;
   passQuery?: boolean;
 };
+
+/**
+ * Middleware to gate generation endpoints based on curriculum readiness.
+ * Only enforces when QIG_CURRICULUM_ONLY is set to 'true'.
+ * 
+ * Usage:
+ *   router.post('/generate/text', requireCurriculumIfEnabled, handler);
+ */
+async function requireCurriculumIfEnabled(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  if (process.env.QIG_CURRICULUM_ONLY === 'true') {
+    try {
+      await assertCurriculumReady();
+    } catch (error: unknown) {
+      res.status(503).json({ error: 'Curriculum incomplete - generation disabled' });
+      return;
+    }
+  }
+  next();
+}
 
 async function proxyGet(
   req: Request,
@@ -254,38 +277,14 @@ router.get('/tokenizer/merges', (req, res) =>
 // GENERATE ENDPOINTS - Text generation
 // ============================================================================
 
-router.post('/generate/text', async (req, res) => {
-  if (process.env.QIG_CURRICULUM_ONLY === 'true') {
-    try {
-      await assertCurriculumReady();
-    } catch (error: unknown) {
-      return res.status(503).json({ error: 'Curriculum incomplete - generation disabled' });
-    }
-  }
-  return proxyPost(req, res, '/generate/text', 'Failed to generate text');
-});
+router.post('/generate/text', requireCurriculumIfEnabled, (req, res) =>
+  proxyPost(req, res, '/generate/text', 'Failed to generate text'));
 
-router.post('/generate/response', async (req, res) => {
-  if (process.env.QIG_CURRICULUM_ONLY === 'true') {
-    try {
-      await assertCurriculumReady();
-    } catch (error: unknown) {
-      return res.status(503).json({ error: 'Curriculum incomplete - generation disabled' });
-    }
-  }
-  return proxyPost(req, res, '/generate/response', 'Failed to generate response');
-});
+router.post('/generate/response', requireCurriculumIfEnabled, (req, res) =>
+  proxyPost(req, res, '/generate/response', 'Failed to generate response'));
 
-router.post('/generate/sample', async (req, res) => {
-  if (process.env.QIG_CURRICULUM_ONLY === 'true') {
-    try {
-      await assertCurriculumReady();
-    } catch (error: unknown) {
-      return res.status(503).json({ error: 'Curriculum incomplete - generation disabled' });
-    }
-  }
-  return proxyPost(req, res, '/generate/sample', 'Failed to generate sample');
-});
+router.post('/generate/sample', requireCurriculumIfEnabled, (req, res) =>
+  proxyPost(req, res, '/generate/sample', 'Failed to generate sample'));
 
 // ============================================================================
 // TRAINING ENDPOINTS - Training API
