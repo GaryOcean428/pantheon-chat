@@ -62,14 +62,9 @@ export async function getCurriculumStatus() {
     invalid: [],
   })
 
-  if (!db || tokens.length === 0) {
-    cachedStatus = createIncompleteStatus()
-    return cachedStatus
-  }
-
-  // Capture db reference before async callback
+  // Capture and validate db reference early
   const dbInstance = db
-  if (!dbInstance) {
+  if (!dbInstance || tokens.length === 0) {
     cachedStatus = createIncompleteStatus()
     return cachedStatus
   }

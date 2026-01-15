@@ -88,18 +88,14 @@ export function prepareUpsertTokenValues(
 export async function upsertToken(input: UpsertTokenInput) {
   enforceCurriculumOnly(input.source)
 
-  if (!db) {
+  // Capture and validate db reference early
+  const dbInstance = db
+  if (!dbInstance) {
     return null
   }
 
   const prepared = prepareUpsertTokenValues(input.basinEmbedding ?? null)
   const now = new Date()
-
-  // Capture db reference before async callback
-  const dbInstance = db
-  if (!dbInstance) {
-    throw new Error('Database not initialized')
-  }
 
   return withDbRetry(
     async () => {
