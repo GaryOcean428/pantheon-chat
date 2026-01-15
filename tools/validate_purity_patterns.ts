@@ -21,7 +21,7 @@ const bannedPatterns = [
   { regex: new RegExp(`unit\\s+sphere`, 'i'), label: 'unit-sphere' }
 ]
 
-const directSqlRegex = /(INSERT INTO|UPDATE\s+\w+\s+SET|DELETE FROM).*coordizer_vocabulary/i
+const directSqlRegex = /(INSERT INTO|UPDATE|DELETE FROM).*coordizer_vocabulary/i
 const allowedSqlWriters = new Set([
   path.join('server', 'persistence', 'vocabulary.ts')
 ])
