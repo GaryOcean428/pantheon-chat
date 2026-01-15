@@ -48,6 +48,18 @@ function formatVector(values: number[]): string {
   return `${vectorPrefix}${values.join(',')}${vectorSuffix}`
 }
 
+/**
+ * Normalizes basin embeddings to simplex probabilities before storage.
+ * 
+ * BREAKING CHANGE: All basin embeddings are now stored as simplex-normalized values
+ * using the canonical toSimplexProbabilities transformation. This ensures:
+ * - All coordinates are strictly positive (required for QFI computation)
+ * - Vector sums to 1 (simplex constraint)
+ * - Consistent geometric interpretation across the codebase
+ * 
+ * This differs from the previous storage format which stored raw basin coordinates.
+ * Historical data may need reprocessing via tools/recompute_qfi_scores.ts.
+ */
 function normalizeBasinEmbedding(basinEmbedding?: number[] | string | null): number[] | null {
   if (!basinEmbedding) {
     return null

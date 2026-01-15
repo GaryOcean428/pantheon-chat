@@ -743,7 +743,7 @@ export class StrategyKnowledgeBus {
           AND token_status = 'active'
           AND qfi_score BETWEEN 0 AND 1
           AND basin_embedding IS NOT NULL
-          ${curriculumTokens.length > 0 ? sql`AND token = ANY(${curriculumTokens})` : sql``}
+          ${isCurriculumOnlyMode() ? sql`AND token = ANY(${getCurriculumTokens()})` : sql``}
         ORDER BY phi_score DESC
         LIMIT 100
       `)
