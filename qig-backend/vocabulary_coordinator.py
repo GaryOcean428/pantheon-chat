@@ -225,7 +225,7 @@ class VocabularyCoordinator:
                 continue
             
             try:
-                # Get basin coords from tokenizer if available
+                # Get basin coords from coordizer if available
                 basin_coords = None
                 if hasattr(self._unified_coordizer, 'basin_coords') and word in self._unified_coordizer.basin_coords:
                     basin_coords = self._unified_coordizer.basin_coords[word]
@@ -295,7 +295,7 @@ class VocabularyCoordinator:
         if not self.learned_manifold:
             return False
         
-        if not self.tokenizer:
+        if not self.coordizer:
             return False
         
         try:
@@ -328,24 +328,24 @@ class VocabularyCoordinator:
     
     def _phrase_to_basin(self, phrase: str) -> Optional[np.ndarray]:
         """
-        Convert phrase to 64D basin coordinates using tokenizer.
+        Convert phrase to 64D basin coordinates using coordizer.
         
         QIG-PURE: Basin coordinates come from vocabulary geometry,
         not external embeddings.
         """
-        if not self.tokenizer:
+        if not self.coordizer:
             return None
         
         try:
-            coords = self.tokenizer.text_to_coordinates(phrase)
+            coords = self.coordizer.text_to_coordinates(phrase)
             if coords is not None and len(coords) == 64:
                 return np.array(coords)
             
             words = phrase.lower().strip().split()[:5]
             word_coords = []
             for word in words:
-                if word in self.tokenizer.vocab:
-                    wc = self.tokenizer.get_word_coordinates(word)
+                if word in self.coordizer.vocab:
+                    wc = self.coordizer.get_word_coordinates(word)
                     if wc is not None:
                         word_coords.append(np.array(wc))
             
@@ -430,15 +430,15 @@ class VocabularyCoordinator:
         return observations
     
     def _learn_merge_rules(self, phrase: str, phi: float, source: str) -> int:
-        if not self.tokenizer:
+        if not self.coordizer:
             return 0
         words = phrase.lower().strip().split()
         learned = 0
         for i in range(len(words) - 1):
             token_a = words[i]
             token_b = words[i + 1]
-            if token_a in self.tokenizer.vocab and token_b in self.tokenizer.vocab:
-                if self.tokenizer.learn_merge_rule(token_a, token_b, phi, source):
+            if token_a in self.coordizer.vocab and token_b in self.coordizer.vocab:
+                if self.coordizer.learn_merge_rule(token_a, token_b, phi, source):
                     learned += 1
         return learned
     
@@ -595,16 +595,16 @@ class VocabularyCoordinator:
                 logger.warning(f"Vocabulary DB query failed: {e}")
         
         # Use token_phi for PretrainedCoordizer compatibility (token_name -> phi score)
-        if self.tokenizer and hasattr(self.tokenizer, 'token_phi'):
+        if self.coordizer and hasattr(self.coordizer, 'token_phi'):
             try:
-                for vocab_word, phi in list(self.tokenizer.token_phi.items())[:500]:
+                for vocab_word, phi in list(self.coordizer.token_phi.items())[:500]:
                     if not isinstance(vocab_word, str) or vocab_word in query_words or len(vocab_word) < 4:
                         continue
 
                     if any(c['word'] == vocab_word for c in expansion_candidates):
                         continue
 
-                    source = 'tokenizer'
+                    source = 'coordizer'
 
                     if phi >= min_phi:
                         relevance = self._compute_term_relevance(vocab_word, query_words, phi, source, domain)
@@ -616,7 +616,7 @@ class VocabularyCoordinator:
                                 'relevance': relevance
                             })
             except Exception as e:
-                logger.warning(f"Tokenizer vocab query failed: {e}")
+                logger.warning(f"Coordizer vocab query failed: {e}")
         
         expansion_candidates.sort(key=lambda x: x['relevance'], reverse=True)
         top_terms = [c['word'] for c in expansion_candidates[:max_expansions]]
@@ -748,7 +748,7 @@ class VocabularyCoordinator:
             'observations_created': len(observations),
             'new_words_learned': new_tokens,
             'recorded_to_db': recorded,
-            'vocabulary_size': len(self.tokenizer.vocab) if self.tokenizer else 0,
+            'vocabulary_size': len(self.coordizer.vocab) if self.coordizer else 0,
             'domain': domain,
         }
 
@@ -793,14 +793,14 @@ class VocabularyCoordinator:
 
     def _find_nearby_tokens(self, basin: np.ndarray, radius: float, max_tokens: int) -> List:
         """Find tokens whose basins are within Fisher radius of target."""
-        if not hasattr(self, 'tokenizer') or self.tokenizer is None:
+        if not hasattr(self, 'coordizer') or self.coordizer is None:
             return []
 
         nearby = []
 
         # Try to get token basins from coordizer
-        if hasattr(self.tokenizer, 'basin_coords'):
-            basin_coords = self.tokenizer.basin_coords
+        if hasattr(self.coordizer, 'basin_coords'):
+            basin_coords = self.coordizer.basin_coords
             for token_id, token_basin in basin_coords.items():
                 token_basin_arr = np.array(token_basin) if not isinstance(token_basin, np.ndarray) else token_basin
                 if len(token_basin_arr) != 64:
@@ -814,14 +814,14 @@ class VocabularyCoordinator:
 
     def _boost_token_weight(self, token_id: str, boost_amount: float) -> None:
         """Boost a token's weight/phi in the vocabulary."""
-        if not hasattr(self, 'tokenizer') or self.tokenizer is None:
+        if not hasattr(self, 'coordizer') or self.coordizer is None:
             return
 
         # Update token_phi if available
-        if hasattr(self.tokenizer, 'token_phi'):
-            current = self.tokenizer.token_phi.get(token_id, 0.5)
+        if hasattr(self.coordizer, 'token_phi'):
+            current = self.coordizer.token_phi.get(token_id, 0.5)
             new_phi = min(1.0, current + boost_amount)
-            self.tokenizer.token_phi[token_id] = new_phi
+            self.coordizer.token_phi[token_id] = new_phi
 
     def _record_transition_target(self, basin: np.ndarray, phi: float) -> None:
         """Record basin as preferred transition target for generation."""
