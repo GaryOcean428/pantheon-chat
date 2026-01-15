@@ -166,7 +166,6 @@ export {
 
 // Schema - Drizzle schema and Zod validators (keep as wildcard - these don't conflict)
 export * from './schema';
-export { coordizerVocabulary } from './schema';
 export * from './types/geometric-completion';
 export * from './ethics';
 
