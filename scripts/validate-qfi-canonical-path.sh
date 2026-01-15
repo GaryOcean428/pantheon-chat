@@ -56,16 +56,20 @@ while IFS= read -r file; do
     continue
   fi
   
-  # Look for write patterns: .values({ ... qfiScore: ... }) or .set({ ... qfiScore: ... })
-  # This is more precise than just checking for qfiScore: which could be a read
-  if grep -Pzo '\.values\([^)]*qfiScore:' "$file" 2>/dev/null || \
-     grep -Pzo '\.set\([^)]*qfiScore:' "$file" 2>/dev/null || \
-     grep -E '(insert|update)\s*\([^)]*\)\.values\s*\(' "$file" | grep -q 'qfiScore:' 2>/dev/null; then
-    REL_PATH="${file#$ROOT_DIR/}"
-    echo "❌ Unauthorized qfiScore write detected in: $REL_PATH"
-    echo "   Only server/vocabulary-persistence.ts should write qfiScore values."
-    rm -f "$TMPFILE"
-    exit 1
+  # Look for write patterns in the context of database operations
+  # We check for lines containing 'qfiScore:' that are near .values() or .set() calls
+  # This detects patterns like: .values({ qfiScore: ... }) or .set({ qfiScore: ... })
+  if grep -n 'qfiScore:' "$file" > /dev/null 2>&1; then
+    # Get lines around qfiScore mentions and check for write operations
+    CONTEXT=$(grep -B 5 -A 5 'qfiScore:' "$file" 2>/dev/null || true)
+    if echo "$CONTEXT" | grep -E '\.(values|set)\s*\(' > /dev/null 2>&1; then
+      REL_PATH="${file#$ROOT_DIR/}"
+      echo "❌ Potential unauthorized qfiScore write detected in: $REL_PATH"
+      echo "   Only server/vocabulary-persistence.ts should write qfiScore values."
+      echo "   If this is a false positive (e.g., reading qfiScore), please review manually."
+      rm -f "$TMPFILE"
+      exit 1
+    fi
   fi
 done < "$TMPFILE"
 
