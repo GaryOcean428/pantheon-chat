@@ -121,6 +121,14 @@ def load_legacy_dict_format(data: Dict) -> Tuple[Dict, Dict, np.ndarray]:
     coords_matrix = np.array([basin_coords[t] for t in tokens], dtype=np.float64)
     
     # Validate dimensions
+    if coords_matrix.ndim != 2:
+        raise ValidationError(
+            f"Invalid coordinate array: expected 2D array, got {coords_matrix.ndim}D"
+        )
+    
+    if coords_matrix.shape[0] == 0:
+        raise ValidationError("No basin coordinates found in legacy artifact")
+    
     if coords_matrix.shape[1] != 64:
         raise ValidationError(
             f"Invalid coordinate dimension: {coords_matrix.shape[1]} (expected 64)"

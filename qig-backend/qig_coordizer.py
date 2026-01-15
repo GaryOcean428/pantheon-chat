@@ -36,8 +36,31 @@ The offline converter (tools/convert_legacy_artifacts.py) ensures legacy artifac
 can still be converted, while runtime enforces purity.
 """
 
+# List of deprecated names that will trigger the error
+_DEPRECATED_NAMES = {
+    'get_coordizer',
+    'get_tokenizer',
+    'get_learning_coordizer',
+    'QIGCoordizer',
+    'QIGTokenizer',
+    'FastQIGTokenizer',
+    'PostgresCoordizer',
+    'reset_coordizer',
+    'update_tokenizer_from_observations',
+    'get_coordizer_stats',
+    'COORDIZER_INSTANCE_ID',
+}
+
 def __getattr__(name):
-    """Raise clear error for any attempted import."""
+    """Raise clear error for deprecated imports only."""
+    # Allow internal Python attributes to pass through
+    if name.startswith('_'):
+        raise AttributeError(f"module 'qig_coordizer' has no attribute '{name}'")
+    
+    # Only raise custom error for known deprecated names
+    if name not in _DEPRECATED_NAMES:
+        raise AttributeError(f"module 'qig_coordizer' has no attribute '{name}'")
+    
     raise ImportError(
         f"\n"
         f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
@@ -64,15 +87,7 @@ def __getattr__(name):
         f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
     )
 
+# Note: Explicit None assignments removed to allow __getattr__ to handle all imports
+# Any import attempt will trigger the error message via __getattr__
 
-# Explicitly fail on common import attempts
-get_coordizer = None
-get_tokenizer = None
-QIGCoordizer = None
-QIGTokenizer = None
-FastQIGTokenizer = None
-reset_coordizer = None
-update_tokenizer_from_observations = None
-get_learning_coordizer = None
-get_coordizer_stats = None
 
