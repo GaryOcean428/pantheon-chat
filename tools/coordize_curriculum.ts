@@ -33,13 +33,9 @@ function extractBasinEmbedding(payload: Record<string, unknown>): number[] | nul
 }
 
 /**
- * Coordizes a single token by calling the Python QIG backend.
- * 
- * NOTE: Direct fetch call is used here as an exception to the centralized API client pattern.
- * This is a backend tool/script (not frontend code) that needs to call an external Python service.
- * The architectural pattern (§2 Centralized API Client) primarily applies to frontend components.
- * For backend-to-backend HTTP calls in tools, direct fetch is acceptable and simpler than
- * introducing a backend HTTP utility layer for a single coordize operation.
+ * Coordize a token via backend API.
+ * Note: This is a backend-to-backend tool script, not client code.
+ * Direct fetch is acceptable here as this is not part of the client application.
  */
 async function coordizeToken(token: string): Promise<number[]> {
   const response = await fetch(`${backendUrl}/api/coordize`, {
