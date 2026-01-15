@@ -4148,6 +4148,10 @@ export const vocabularyStats = pgTable("vocabulary_stats", {
   highPhiWords: integer("high_phi_words").notNull(),
   mergeRules: integer("merge_rules").notNull(),
   lastUpdated: timestamp("last_updated").defaultNow(),
+  validatedWords: integer("validated_words").default(0),
+  invalidWords: integer("invalid_words").default(0),
+  truncatedWords: integer("truncated_words").default(0),
+  garbledWords: integer("garbled_words").default(0),
 });
 
 export const federationPeers = pgTable("federation_peers", {
@@ -4180,26 +4184,13 @@ export const federationPeers = pgTable("federation_peers", {
   index("idx_federation_peers_last_sync").on(table.lastSyncAt),
 ]);
 
-export const passphraseVocabulary = pgTable("passphrase_vocabulary", {
-  id: varchar("id", { length: 64 }).primaryKey().default(sql`'pv_' || gen_random_uuid()::text`),
-  baseItem: varchar("base_item", { length: 100 }).notNull(),
-  itemType: varchar("item_type", { length: 20 }).notNull(),
-  source: varchar("source", { length: 50 }).default("manual").notNull(),
-  frequency: integer("frequency").default(0),
-  phiSum: doublePrecision("phi_sum").default(0),
-  phiAvg: doublePrecision("phi_avg"),
-  successCount: integer("success_count").default(0),
-  nearMissCount: integer("near_miss_count").default(0),
-  metadata: jsonb("metadata").default({}),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-}, (table) => [
-  index("idx_vocab_base_item").on(table.baseItem),
-  index("idx_vocab_type").on(table.itemType),
-  index("idx_vocab_source").on(table.source),
-  index("idx_vocab_phi_avg").on(table.phiAvg),
-  index("idx_vocab_frequency").on(table.frequency),
-]);
+/**
+ * @deprecated LEGACY TABLE - DO NOT CREATE
+ * passphraseVocabulary was part of the upstream searchspacecollapse bitcoin recovery system.
+ * This table should NOT be created in migrations. It is excluded from the schema.
+ * See: docs/04-records/legacy-table-exclusions.md
+ */
+// passphraseVocabulary table removed - legacy bitcoin recovery system
 
 /**
  * ============================================================================
@@ -4413,4 +4404,4 @@ export type ToolRequest = typeof toolRequests.$inferSelect;
 export type PatternDiscovery = typeof patternDiscoveries.$inferSelect;
 export type VocabularyStats = typeof vocabularyStats.$inferSelect;
 export type FederationPeer = typeof federationPeers.$inferSelect;
-export type PassphraseVocabulary = typeof passphraseVocabulary.$inferSelect;
+// PassphraseVocabulary type removed - legacy bitcoin recovery system
