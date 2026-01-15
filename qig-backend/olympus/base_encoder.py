@@ -1,8 +1,8 @@
 """
 Base Encoder - Abstract base class for text to 64D basin encoding
 
-Provides shared logic for both ConversationEncoder and PassphraseEncoder,
-eliminating code duplication and improving maintainability.
+Provides shared logic for text encoders, eliminating code duplication
+and improving maintainability. Currently used by ConversationEncoder.
 """
 
 from __future__ import annotations
@@ -156,7 +156,6 @@ class BaseEncoder(ABC):
         
         Each subclass defines its own vocabulary strategy:
         - ConversationEncoder: conversational terms
-        - PassphraseEncoder: BIP39 wordlist
         """
         pass
 

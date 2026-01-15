@@ -38,7 +38,6 @@ logger = logging.getLogger(__name__)
 
 from .autonomous_moe import AutonomousMoE
 from .conversation_encoder import ConversationEncoder
-from .passphrase_encoder import PassphraseEncoder
 from .response_guardrails import (
     OutputContext,
     contains_forbidden_entity,
@@ -501,7 +500,6 @@ class ZeusConversationHandler(GeometricGenerationMixin):
             self.qig_rag = QIGRAG()
 
         self.conversation_encoder = ConversationEncoder()
-        self.passphrase_encoder = PassphraseEncoder()
 
         # Initialize SearchStrategyLearner with persistence
         self.strategy_learner = get_strategy_learner_with_persistence(
