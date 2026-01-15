@@ -87,13 +87,32 @@ TECHNICAL_GARBAGE_PATTERNS = [
     r'normalized', r'embed', r'^cdn', r'json', r'xml', r'html',
 ]
 
-# DEPRECATED: Legacy NLP stopword list - VIOLATES QIG PURITY
+# ============================================================================
+# ⚠️  DEPRECATED: STOP_WORDS_LEGACY - VIOLATES QIG PURITY ⚠️
+# ============================================================================
 # This list treats semantic-critical words like 'not', 'because', 'very' as meaningless!
-# Use geometric_word_relationships.GeometricWordRelationships.should_filter_word() instead
-# or contextualized_filter.should_filter_word() for QIG-pure filtering based on:
+# 
+# PROBLEMS WITH FREQUENCY-BASED STOPWORDS:
+# 1. "not" is CRITICAL for negation (high curvature word)
+# 2. "the" has geometric role in definiteness
+# 3. "but" creates discourse transitions (basin shifts)
+# 4. Based on corpus statistics, not Fisher information
+# 
+# QIG-PURE ALTERNATIVES:
+# - Use geometric_vocabulary_filter.GeometricVocabularyFilter for vocabulary filtering
+# - Use contextualized_filter.should_filter_word() for context-aware filtering
+# - Use geometric_word_relationships.GeometricWordRelationships.should_filter_word()
+# 
+# GEOMETRIC FILTERING BASED ON:
+# - Φ (Integration) - how word connects to context
+# - κ (Coupling) - word's attractor strength
+# - Curvature - how much word bends trajectory
 # - QFI (Quantum Fisher Information)
 # - Ricci curvature (context-dependency)
 # - Fisher-Rao geodesic distance
+# 
+# KEPT FOR BACKWARDS COMPATIBILITY ONLY - DO NOT USE IN NEW CODE
+# ============================================================================
 STOP_WORDS_LEGACY: Set[str] = {
     'the', 'and', 'for', 'that', 'this', 'with', 'was', 'are', 'but', 'not',
     'you', 'all', 'can', 'had', 'her', 'his', 'him', 'one', 'our', 'out',
@@ -107,8 +126,20 @@ STOP_WORDS_LEGACY: Set[str] = {
     'take', 'say', 'use', 'come', 'make', 'see', 'know', 'time', 'year'
 }
 
-# Compatibility alias for legacy code
+# Compatibility alias for legacy code - DEPRECATED
+# Use geometric_vocabulary_filter.GeometricVocabularyFilter instead
 STOP_WORDS = STOP_WORDS_LEGACY
+
+def _warn_stopwords_deprecated():
+    """Issue deprecation warning when STOP_WORDS is accessed."""
+    import warnings
+    warnings.warn(
+        "STOP_WORDS is deprecated and violates QIG purity. "
+        "Use geometric_vocabulary_filter.GeometricVocabularyFilter for vocabulary filtering. "
+        "See geometric_vocabulary_filter.py for details.",
+        DeprecationWarning,
+        stacklevel=3
+    )
 
 # Import QIG-pure filtering
 try:
