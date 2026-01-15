@@ -1283,7 +1283,7 @@ class AutonomousDebateService:
         if TOKENIZER_AVAILABLE:
             try:
                 coordizer = get_coordizer()
-                coordizer.set_mode("conversation")
+                # coordizer.set_mode() removed - mode switching deprecated
                 result = coordizer.generate_response(
                     context=context,
                     agent_role="navigator",
