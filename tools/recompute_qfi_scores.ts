@@ -1,3 +1,19 @@
+/**
+ * Maintenance Tool: Recompute QFI Scores
+ * 
+ * This tool performs direct SQL writes to coordizer_vocabulary outside the canonical
+ * upsertToken path. This is intentional and acceptable because:
+ * 
+ * 1. This is a maintenance/repair tool for backfilling QFI scores, not application logic
+ * 2. It performs bulk operations (batch updates) that would be inefficient through upsertToken
+ * 3. It's run manually by administrators with explicit --dry-run or --apply flags
+ * 4. It uses the same canonical QFI computation (compute_qfi_score_simplex) as upsertToken
+ * 
+ * IMPORTANT: This tool should only be used for database maintenance and repair.
+ * Regular application code MUST use the canonical upsertToken function from
+ * server/persistence/coordizer-vocabulary.ts
+ */
+
 import { sql } from 'drizzle-orm'
 import { compute_qfi_score_simplex, to_simplex_probabilities } from '@shared'
 import { db, withDbRetry } from '../server/db'
