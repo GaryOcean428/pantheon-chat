@@ -10,7 +10,7 @@ from datetime import datetime
 from typing import Dict, List, Optional
 import numpy as np
 
-from word_validation import is_valid_english_word, validate_for_vocabulary, STOP_WORDS
+from word_validation import is_valid_english_word, validate_for_vocabulary
 from qig_geometry import fisher_coord_distance
 
 # Import QFI computation (for P0 fix - ensure QFI on basin insert)
