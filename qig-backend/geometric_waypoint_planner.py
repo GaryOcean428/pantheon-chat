@@ -258,25 +258,31 @@ class GeometricWaypointPlanner:
         """
         Compute Fréchet mean (geometric centroid) of basin collection.
         
-        On the unit sphere, this is the normalized arithmetic mean
-        (first-order approximation for close points).
+        UPDATED 2026-01-15: Now uses canonical geodesic_mean_simplex from geometry_simplex module.
+        This is the TRUE Karcher mean computed via iterative geodesic interpolation on the
+        probability simplex, NOT an Euclidean approximation.
+        
+        Previous implementation used normalized arithmetic mean (first-order approximation
+        for close points on unit sphere). New implementation is geometrically exact.
         
         Args:
             basins: List of basin vectors
             
         Returns:
-            Fréchet mean basin on unit sphere
+            Fréchet mean basin on probability simplex
         """
+        from qig_geometry.geometry_simplex import geodesic_mean_simplex, to_simplex_prob
+        
         if len(basins) == 0:
-            return np.zeros(self.basin_dim)
+            return to_simplex_prob(np.zeros(self.basin_dim))
         
-        mean = np.zeros(self.basin_dim, dtype=np.float64)
-        for basin in basins:
-            mean += np.asarray(basin, dtype=np.float64)
+        # Convert all basins to simplex (canonical representation)
+        simplex_basins = [to_simplex_prob(b) for b in basins]
         
-        mean = mean / len(basins)
+        # Compute true geodesic mean on simplex
+        mean_simplex = geodesic_mean_simplex(simplex_basins)
         
-        return sphere_project(mean)
+        return mean_simplex
     
     def _compute_phi_estimate(
         self,

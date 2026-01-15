@@ -845,24 +845,24 @@ class QIGGenerator:
         basins: List[np.ndarray],
         weights: List[float]
     ) -> np.ndarray:
-        """Compute Fisher-Rao weighted mean (Fréchet mean on simplex)."""
+        """
+        Compute Fisher-Rao weighted mean (Fréchet mean on simplex).
+        
+        UPDATED 2026-01-15: Now uses canonical geodesic_mean_simplex from geometry_simplex module.
+        This is the TRUE weighted Karcher mean, not a linear approximation in sqrt-space.
+        """
+        from qig_geometry.geometry_simplex import geodesic_mean_simplex, to_simplex_prob
+        
         if not basins:
             return np.ones(BASIN_DIMENSION) / BASIN_DIMENSION
         
         # Normalize weights
-        weights = np.array(weights)
-        weights = weights / np.sum(weights)
+        weights_array = np.array(weights)
+        weights_array = weights_array / np.sum(weights_array)
         
-        # Square-root space weighted mean
-        sqrt_basins = [np.sqrt(np.abs(b) + 1e-10) for b in basins]
-        weighted_sqrt = np.zeros(BASIN_DIMENSION)
-        
-        for sqrt_basin, weight in zip(sqrt_basins, weights):
-            weighted_sqrt += weight * sqrt_basin
-        
-        # Back to probability simplex
-        result = weighted_sqrt ** 2
-        return result / np.sum(result)
+        # Convert basins to simplex and compute geodesic mean
+        simplex_basins = [to_simplex_prob(b) for b in basins]
+        return geodesic_mean_simplex(simplex_basins, weights=weights_array)
     
     # =========================================================================
     # GEOMETRIC OPERATIONS
@@ -874,29 +874,30 @@ class QIGGenerator:
         end: np.ndarray,
         t: float
     ) -> np.ndarray:
-        """Interpolate along geodesic on probability simplex."""
-        sqrt_start = np.sqrt(np.abs(start) + 1e-10)
-        sqrt_end = np.sqrt(np.abs(end) + 1e-10)
+        """
+        Interpolate along geodesic on probability simplex.
         
-        interp = (1 - t) * sqrt_start + t * sqrt_end
+        UPDATED 2026-01-15: Now uses canonical geodesic_interpolation_simplex.
+        This is TRUE geodesic interpolation using SLERP in sqrt-space.
+        """
+        from qig_geometry.geometry_simplex import geodesic_interpolation_simplex
         
-        result = interp ** 2
-        result = result / np.sum(result)
-        
-        return result
+        return geodesic_interpolation_simplex(start, end, t)
     
     def _geodesic_combine(self, basins: List[np.ndarray]) -> np.ndarray:
-        """Combine multiple basins via Fréchet mean."""
+        """
+        Combine multiple basins via Fréchet mean.
+        
+        UPDATED 2026-01-15: Now uses canonical geodesic_mean_simplex.
+        This is the TRUE Fréchet mean, not a linear approximation.
+        """
+        from qig_geometry.geometry_simplex import geodesic_mean_simplex, to_simplex_prob
+        
         if not basins:
             return np.ones(BASIN_DIMENSION) / BASIN_DIMENSION
         
-        sqrt_basins = [np.sqrt(np.abs(b) + 1e-10) for b in basins]
-        mean_sqrt = np.mean(sqrt_basins, axis=0)
-        
-        result = mean_sqrt ** 2
-        result = result / np.sum(result)
-        
-        return result
+        simplex_basins = [to_simplex_prob(b) for b in basins]
+        return geodesic_mean_simplex(simplex_basins)
     
     # =========================================================================
     # VOCABULARY INTEGRATION (FIX 3: WORD RELATIONSHIPS)

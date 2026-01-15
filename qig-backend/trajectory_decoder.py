@@ -136,103 +136,51 @@ def hellinger_normalize_basin(basin: np.ndarray) -> np.ndarray:
 
 def frechet_mean(basins: List[np.ndarray], max_iter: int = 50, tolerance: float = 1e-5) -> np.ndarray:
     """
-    Compute approximate Fréchet mean (geometric centroid) of basins on Fisher manifold.
+    Compute Fréchet mean (geometric centroid) of basins on Fisher manifold.
     
-    IMPLEMENTATION NOTE: This is an APPROXIMATE centroid using Euclidean gradient descent
-    in Hellinger (sqrt) space, NOT a true Karcher mean with proper log/exp maps.
+    UPDATED 2026-01-15: Now uses canonical geodesic_mean_simplex from geometry_simplex module.
+    This is the TRUE Karcher mean computed via iterative geodesic interpolation on the
+    probability simplex, NOT an Euclidean approximation.
     
-    For a true Karcher mean, we would need:
-    1. Proper logarithmic map: log_μ(p) on the Fisher manifold
-    2. Proper exponential map: exp_μ(v) to project back
-    3. Riemannian gradient: sum of log maps
+    The new implementation:
+    1. Converts all basins to probability simplex (canonical storage)
+    2. Uses geodesic_interpolation_simplex (SLERP in sqrt-space)
+    3. Iteratively refines mean by geodesic steps toward each point
+    4. Returns result in Hellinger normalization for pgvector compatibility
     
-    This approximation is acceptable for trajectory prediction where:
-    - Points are typically close together (small geodesic distances)
-    - Computational efficiency matters
-    - Slight inaccuracy doesn't compromise prediction quality
-    
-    For canonical geometric operations (merge, comparison), use geodesic_interpolation()
-    or proper Karcher mean instead.
-    
-    CONVERGENCE FIX (2026-01-15):
-    - Increased max_iter from 20 to 50 (more time for convergence)
-    - Relaxed tolerance from 1e-6 to 1e-5 (acceptable approximation)
-    - Added variance-based fallback (weighted mean if points too spread)
+    This replaces the previous APPROXIMATE implementation that used Euclidean
+    gradient descent in Hellinger space. The new method is geometrically pure
+    and matches the SLEEP-PACKET simplex-as-storage contract.
 
     Args:
-        basins: List of basin coordinates (Hellinger or simplex)
+        basins: List of basin coordinates (any representation)
         max_iter: Maximum gradient descent iterations (default 50)
         tolerance: Convergence tolerance for mean update (default 1e-5)
 
     Returns:
-        Approximate Fréchet mean (Hellinger-normalized for pgvector compatibility)
+        Fréchet mean (Hellinger-normalized for pgvector compatibility)
     """
+    from qig_geometry.geometry_simplex import geodesic_mean_simplex, to_simplex_prob
+    
     if not basins:
         return hellinger_normalize_basin(np.zeros(64))
 
     if len(basins) == 1:
         return hellinger_normalize_basin(basins[0])
 
-    # Check if points are too spread out (high variance)
-    # If so, use simple weighted mean as fallback
-    pairwise_dists = []
-    for i in range(len(basins)):
-        for j in range(i+1, len(basins)):
-            dist = fisher_rao_distance(
-                hellinger_normalize_basin(basins[i]),
-                hellinger_normalize_basin(basins[j])
-            )
-            pairwise_dists.append(dist)
+    # Convert all basins to simplex (canonical representation)
+    simplex_basins = [to_simplex_prob(b) for b in basins]
     
-    if pairwise_dists:
-        max_dist = max(pairwise_dists)
-        # If points are very spread (max distance > π/4), use weighted mean fallback
-        if max_dist > np.pi / 4:
-            logger.debug(f"Fréchet mean: high variance ({max_dist:.4f} > π/4), using weighted mean fallback")
-            # Weighted by recency (more recent = higher weight)
-            weights = np.exp(np.linspace(-1, 0, len(basins)))
-            weights /= weights.sum()
-            mean = np.average(basins, axis=0, weights=weights)
-            return hellinger_normalize_basin(mean)
-
-    # Initialize with arithmetic mean (good starting point for small geodesic distances)
-    mean = np.mean(basins, axis=0)
-    mean = hellinger_normalize_basin(mean)
-
-    # APPROXIMATE gradient descent in Hellinger space
-    # This is NOT a true Karcher mean - it uses Euclidean approximations
-    for iteration in range(max_iter):
-        grad = np.zeros_like(mean)
-        
-        for basin in basins:
-            basin_norm = hellinger_normalize_basin(basin)
-            
-            # Fisher-Rao distance for weighting
-            dist = fisher_rao_distance(mean, basin_norm)
-            
-            if dist > 1e-6:
-                # APPROXIMATION: Euclidean direction as proxy for log map
-                # True Karcher mean would use: log_mean(basin) = proper tangent vector
-                # This works well for small distances but degrades for large separations
-                direction = basin_norm - mean
-                grad += direction / (dist + 1e-10)
-        
-        # Small step in tangent space (Euclidean approximation)
-        update = 0.1 * grad
-        mean_new = mean + update
-        mean_new = hellinger_normalize_basin(mean_new)
-        
-        # Check convergence using Fisher-Rao distance (geometric)
-        convergence_dist = fisher_rao_distance(mean_new, mean)
-        if convergence_dist < tolerance:
-            logger.debug(f"Fréchet mean converged after {iteration+1} iterations")
-            return mean_new
-        
-        mean = mean_new
-
-    # Return best estimate after max iterations (acceptable approximation)
-    logger.debug(f"Fréchet mean reached max iterations ({max_iter}), returning best estimate")
-    return mean
+    # Compute true geodesic mean on simplex
+    mean_simplex = geodesic_mean_simplex(
+        simplex_basins,
+        weights=None,  # Uniform weights
+        max_iter=max_iter,
+        tolerance=tolerance
+    )
+    
+    # Convert to Hellinger for pgvector compatibility
+    return hellinger_normalize_basin(mean_simplex)
 
 
 class TrajectoryDecoder:
