@@ -33,3 +33,11 @@ export {
   // Types
   type Result,
 } from './error-utils';
+
+// Configuration utilities
+export {
+  isCurriculumOnlyMode,
+  isPurityMode,
+  getPythonBackendUrl,
+  getConfigSummary,
+} from './config';

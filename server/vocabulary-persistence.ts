@@ -3,6 +3,7 @@ import { coordizerVocabulary } from '@shared/schema'
 import { BASIN_DIMENSION } from '@shared/constants'
 import { compute_qfi_score_simplex, isValidQfiScore, toSimplexProbabilities } from '@shared/qfi'
 import { db, withDbRetry } from './db'
+import { isCurriculumOnlyMode } from './lib/config'
 
 export type TokenStatus = 'active' | 'quarantined' | 'deprecated'
 
@@ -27,10 +28,6 @@ export interface UpsertTokenResult {
   basinEmbedding: number[] | null
 }
 
-function getCurriculumOnlyFlag(): boolean {
-  return process.env.QIG_CURRICULUM_ONLY === 'true'
-}
-
 function resolveTokenStatus(qfiScore: number | null): TokenStatus {
   return isValidQfiScore(qfiScore) ? 'active' : 'quarantined'
 }
@@ -49,7 +46,7 @@ export async function upsertToken(input: UpsertTokenInput): Promise<UpsertTokenR
     throw new Error('Database unavailable')
   }
 
-  if (getCurriculumOnlyFlag() && input.source !== 'curriculum') {
+  if (isCurriculumOnlyMode() && input.source !== 'curriculum') {
     throw new Error('Curriculum-only mode: token upsert requires source=curriculum')
   }
 
@@ -58,9 +55,11 @@ export async function upsertToken(input: UpsertTokenInput): Promise<UpsertTokenR
 
   if (input.basinEmbedding && Array.from(input.basinEmbedding).length > 0) {
     normalizedBasin = normalizeBasin(input.basinEmbedding)
-    qfiScore = compute_qfi_score_simplex(normalizedBasin)
-    if (!isValidQfiScore(qfiScore)) {
-      qfiScore = null
+    if (normalizedBasin) {
+      qfiScore = compute_qfi_score_simplex(normalizedBasin)
+      if (!isValidQfiScore(qfiScore)) {
+        qfiScore = null
+      }
     }
   }
 
@@ -83,8 +82,9 @@ export async function upsertToken(input: UpsertTokenInput): Promise<UpsertTokenR
   }
 
   await withDbRetry(
-    async () =>
-      db.insert(coordizerVocabulary)
+    async () => {
+      if (!db) throw new Error('Database unavailable')
+      return db.insert(coordizerVocabulary)
         .values(record)
         .onConflictDoUpdate({
           target: coordizerVocabulary.token,
@@ -102,7 +102,8 @@ export async function upsertToken(input: UpsertTokenInput): Promise<UpsertTokenR
             tokenStatus: record.tokenStatus,
             updatedAt: new Date(),
           },
-        }),
+        })
+    },
     'upsert-token'
   )
 

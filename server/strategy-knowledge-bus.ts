@@ -25,6 +25,7 @@ import { negativeKnowledgeUnified as negativeKnowledgeRegistry } from "./negativ
 import "./temporal-geometry";
 import { getCurriculumTokens } from "./curriculum";
 import { isValidQfiScore } from "@shared/qfi";
+import { isCurriculumOnlyMode, isPurityMode } from "./lib/config";
 
 interface StrategyCapability {
   id: string;
@@ -729,7 +730,7 @@ export class StrategyKnowledgeBus {
       const existingSet = new Set((existingPatterns.rows || []).map(r => r.pattern));
       
       const curriculumTokens = getCurriculumTokens();
-      const curriculumOnly = process.env.QIG_CURRICULUM_ONLY === "true";
+      const curriculumOnly = isCurriculumOnlyMode();
 
       if (curriculumOnly && curriculumTokens.length === 0) {
         console.warn("[KnowledgeBus] Curriculum-only mode enabled but no curriculum tokens loaded");
@@ -763,7 +764,7 @@ export class StrategyKnowledgeBus {
       
       let seeded = 0;
       for (const row of learnedWords || []) {
-        if (process.env.QIG_PURITY_MODE === "true" || curriculumOnly) {
+        if (isPurityMode() || curriculumOnly) {
           if (!isValidQfiScore(row.qfiScore ?? null)) {
             throw new Error(`[KnowledgeBus] Invalid qfi_score for token ${row.word}`);
           }

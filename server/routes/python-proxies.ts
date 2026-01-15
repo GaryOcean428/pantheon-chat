@@ -14,10 +14,11 @@
 
 import { Router, Request, Response, NextFunction } from 'express';
 import { logger } from '../lib/logger';
+import { isCurriculumOnlyMode, getPythonBackendUrl } from '../lib/config';
 import { assertCurriculumReady } from '../curriculum';
 
 const router = Router();
-const BACKEND_URL = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
+const BACKEND_URL = getPythonBackendUrl();
 
 type ProxyOptions = {
   errorStatus?: number;
