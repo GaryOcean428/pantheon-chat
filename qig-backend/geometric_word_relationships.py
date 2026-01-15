@@ -40,9 +40,12 @@ except ImportError:
     logger.warning("qig_geometry not available - using fallback")
     
     def fisher_coord_distance(a: np.ndarray, b: np.ndarray) -> float:
-        """Fisher-Rao distance (fallback, Hellinger embedding: factor of 2)."""
-        dot = np.clip(np.dot(a, b), -1.0, 1.0)
-        return float(2.0 * np.arccos(dot))
+        """
+        Fisher-Rao distance (fallback).
+        UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
+        """
+        dot = np.clip(np.dot(a, b), 0.0, 1.0)
+        return float(np.arccos(dot))
     
     def sphere_project(v: np.ndarray) -> np.ndarray:
         """Project to unit sphere (fallback)."""

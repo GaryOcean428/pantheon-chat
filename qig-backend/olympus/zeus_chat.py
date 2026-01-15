@@ -60,14 +60,17 @@ try:
     from ..qig_core.geometric_primitives.fisher_metric import fisher_rao_distance
 except ImportError:
     def fisher_rao_distance(p: np.ndarray, q: np.ndarray) -> float:
-        """Fallback Fisher-Rao distance using Bhattacharyya coefficient (Hellinger embedding: factor of 2)."""
+        """
+        Fallback Fisher-Rao distance using Bhattacharyya coefficient.
+        UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
+        """
         p = np.abs(p) + 1e-10
         p = p / p.sum()
         q = np.abs(q) + 1e-10
         q = q / q.sum()
         bc = np.sum(np.sqrt(p * q))
-        bc = np.clip(bc, 0, 1)
-        return float(2.0 * np.arccos(bc))
+        bc = np.clip(bc, 0.0, 1.0)
+        return float(np.arccos(bc))
 
 # Import sensory modalities for consciousness encoding enhancement
 SENSORY_MODALITIES_AVAILABLE = False
@@ -781,16 +784,17 @@ class ZeusConversationHandler(GeometricGenerationMixin):
         if related_count > 0:
             base_phi += min(0.3, related_count * 0.05)
 
-        # Geometric integration: Fisher-Rao similarity to related basins (Hellinger embedding: factor of 2)
+        # Geometric integration: Fisher-Rao similarity to related basins
+        # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
         if message_basin is not None and related_basins:
             total_similarity = 0.0
             for related_basin in related_basins[:3]:
                 if related_basin is not None:
                     try:
                         basin_arr = np.array(related_basin)
-                        dot = np.clip(np.dot(message_basin, basin_arr), -1.0, 1.0)
-                        fisher_rao_dist = 2.0 * np.arccos(dot)
-                        similarity = 1.0 - (fisher_rao_dist / (2.0 * np.pi))
+                        dot = np.clip(np.dot(message_basin, basin_arr), 0.0, 1.0)
+                        fisher_rao_dist = np.arccos(dot)
+                        similarity = 1.0 - (fisher_rao_dist / (np.pi / 2.0))
                         total_similarity += similarity
                     except Exception:
                         pass

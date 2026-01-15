@@ -49,11 +49,12 @@ def fisher_rao_distance(p: np.ndarray, q: np.ndarray, epsilon: float = 1e-10) ->
     # Bhattacharyya coefficient (Hellinger affinity)
     bc = np.sum(np.sqrt(p * q))
 
-    # Clamp to valid range for arccos
-    bc = np.clip(bc, -1.0, 1.0)
+    # Clamp to valid range for arccos (probability measure)
+    bc = np.clip(bc, 0.0, 1.0)
 
-    # Fisher-Rao distance (Hellinger embedding: factor of 2)
-    return 2.0 * np.arccos(bc)
+    # Fisher-Rao distance on probability simplex
+    # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
+    return np.arccos(bc)
 
 
 def geometric_loss(

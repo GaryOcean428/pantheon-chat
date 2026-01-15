@@ -591,10 +591,11 @@ class PostgresCoordizer(FisherCoordizer):
             else:
                 continue
 
-            # Fisher-Rao similarity (geodesic distance on sphere, Hellinger embedding: factor of 2)
-            dot = np.clip(np.dot(basin, coords), -1.0, 1.0)
-            dist = 2.0 * np.arccos(dot)
-            similarity = 1.0 - (dist / (2.0 * np.pi))
+            # Fisher-Rao similarity (geodesic distance on probability simplex)
+            # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
+            dot = np.clip(np.dot(basin, coords), 0.0, 1.0)
+            dist = np.arccos(dot)
+            similarity = 1.0 - (dist / (np.pi / 2.0))
 
             # Phi boost: prefer high-phi tokens
             phi_boost = phi * 0.1

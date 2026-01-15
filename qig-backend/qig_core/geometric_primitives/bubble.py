@@ -87,10 +87,10 @@ class Bubble:
         
         # Fisher-Rao distance
         inner_product = np.sum(np.sqrt(p * q))
-        inner_product = np.clip(inner_product, 0, 1)  # Numerical stability
+        inner_product = np.clip(inner_product, 0.0, 1.0)  # Numerical stability
         
-        # Hellinger embedding: factor of 2 for canonical formula d = 2 * arccos(BC)
-        distance = float(2.0 * np.arccos(inner_product))
+        # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
+        distance = float(np.arccos(inner_product))
         
         return distance
     

@@ -44,13 +44,16 @@ try:
     from qig_geometry import fisher_coord_distance, sphere_project
 except ImportError:
     def fisher_coord_distance(a: np.ndarray, b: np.ndarray) -> float:
-        """Fallback Fisher-Rao distance."""
+        """
+        Fallback Fisher-Rao distance.
+        
+        UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
+        """
         p = np.abs(a) / (np.sum(np.abs(a)) + 1e-10)
         q = np.abs(b) / (np.sum(np.abs(b)) + 1e-10)
         # More numerically stable: compute sqrt individually before multiplication
         bhattacharyya = np.sum(np.sqrt(p) * np.sqrt(q))
-        # Hellinger embedding: factor of 2 for canonical formula d = 2 * arccos(BC)
-        return float(2.0 * np.arccos(np.clip(bhattacharyya, -1.0, 1.0)))
+        return float(np.arccos(np.clip(bhattacharyya, 0.0, 1.0)))
 
     def sphere_project(v: np.ndarray) -> np.ndarray:
         """Project to unit sphere."""

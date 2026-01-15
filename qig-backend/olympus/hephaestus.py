@@ -186,13 +186,13 @@ class Hephaestus(BaseGod):
         word_scores = []
         for word, weight in self.vocabulary.items():
             word_basin = self.encode_to_basin(word)
-            # Fisher-Rao distance: d = arccos(p·q) for unit vectors
+            # Fisher-Rao distance: d = arccos(p·q) for probability distributions
             dot_product = float(np.dot(target_basin, word_basin))
-            dot_product = np.clip(dot_product, -1.0, 1.0)
-            # Hellinger embedding: factor of 2 for canonical formula d = 2 * arccos(BC)
-            fisher_distance = 2.0 * np.arccos(dot_product)
-            # Convert to similarity: s = 1 - d/π (range [0,1])
-            similarity = 1.0 - fisher_distance / np.pi
+            dot_product = np.clip(dot_product, 0.0, 1.0)
+            # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
+            fisher_distance = np.arccos(dot_product)
+            # Convert to similarity: s = 1 - d/(π/2) (range [0,1])
+            similarity = 1.0 - fisher_distance / (np.pi / 2.0)
             phi = self.word_phi_scores.get(word, 0.3)
             score = similarity * 0.5 + phi * 0.3 + weight * 0.2
             word_scores.append((word, score))

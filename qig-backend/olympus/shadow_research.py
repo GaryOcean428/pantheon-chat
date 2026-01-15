@@ -1047,8 +1047,9 @@ class KnowledgeBase:
         if len(b) < BASIN_DIMENSION:
             b = np.pad(b, (0, BASIN_DIMENSION - len(b)))
         
-        dot = np.clip(np.dot(a, b), -1.0, 1.0)
-        return float(2.0 * np.arccos(dot))
+        # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
+        dot = np.clip(np.dot(a, b), 0.0, 1.0)
+        return float(np.arccos(dot))
     
     def cluster_knowledge(self, n_clusters: int = 5) -> List[Dict]:
         """Cluster knowledge items by geodesic alignment."""
@@ -2544,8 +2545,9 @@ class ShadowReflectionProtocol:
         if len(b) < BASIN_DIMENSION:
             b = np.pad(b, (0, BASIN_DIMENSION - len(b)))
         
-        dot = np.clip(np.dot(a, b), -1.0, 1.0)
-        return float(2.0 * np.arccos(dot))
+        # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
+        dot = np.clip(np.dot(a, b), 0.0, 1.0)
+        return float(np.arccos(dot))
 
 
 class ShadowResearchAPI:

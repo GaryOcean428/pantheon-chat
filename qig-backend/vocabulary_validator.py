@@ -268,11 +268,12 @@ class GeometricVocabFilter:
         p_norm = np.abs(p) / (np.sum(np.abs(p)) + 1e-10)
         q_norm = np.abs(q) / (np.sum(np.abs(q)) + 1e-10)
         
-        # Fisher-Rao distance: 2 * arccos(sum(sqrt(p * q)))
+        # Fisher-Rao distance: arccos(sum(sqrt(p * q)))
+        # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
         inner = np.sum(np.sqrt(p_norm * q_norm))
         inner = np.clip(inner, 0.0, 1.0)  # Numerical stability
         
-        return float(2.0 * np.arccos(inner))
+        return float(np.arccos(inner))
     
     def _fisher_rao_distances(self, p: np.ndarray, Q: np.ndarray) -> np.ndarray:
         """Vectorized Fisher-Rao distances to multiple basins."""

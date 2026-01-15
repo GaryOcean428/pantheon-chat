@@ -169,15 +169,18 @@ class SearchRequestBatcher:
         return embedding / norm if norm > 0 else embedding
     
     def _fisher_distance(self, emb1: np.ndarray, emb2: np.ndarray) -> float:
-        """Compute Fisher-Rao distance between topic embeddings."""
+        """
+        Compute Fisher-Rao distance between topic embeddings.
+        
+        UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
+        """
         emb1_safe = np.clip(emb1, 1e-10, None)
         emb2_safe = np.clip(emb2, 1e-10, None)
         emb1_norm = emb1_safe / np.sum(emb1_safe)
         emb2_norm = emb2_safe / np.sum(emb2_safe)
         bc_coeff = np.sum(np.sqrt(emb1_norm * emb2_norm))
-        bc_coeff = np.clip(bc_coeff, 0, 1)
-        # Hellinger embedding: factor of 2 for canonical formula d = 2 * arccos(BC)
-        return 2.0 * np.arccos(bc_coeff)
+        bc_coeff = np.clip(bc_coeff, 0.0, 1.0)
+        return np.arccos(bc_coeff)
     
     def add_request(self, request: KernelToolRequest) -> Optional[Dict]:
         """

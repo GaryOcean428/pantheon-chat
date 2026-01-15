@@ -64,15 +64,17 @@ except ImportError:
     # QIG PURITY: Fisher-Rao distance ONLY - Euclidean is FORBIDDEN
     def _fisher_distance(a, b):
         """Fisher-Rao distance on statistical manifold - NEVER Euclidean.
-        Factor of 2 for Hellinger embedding consistency."""
+        Fisher-Rao geodesic distance on probability simplex.
+        UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
+        """
         a_arr = np.array(a, dtype=np.float64)
         b_arr = np.array(b, dtype=np.float64)
         # Normalize to probability simplex
         a_norm = a_arr / (np.linalg.norm(a_arr) + 1e-10)
         b_norm = b_arr / (np.linalg.norm(b_arr) + 1e-10)
-        # Fisher-Rao geodesic distance: 2 * arccos(dot product) for Hellinger embedding
-        dot = np.clip(np.dot(a_norm, b_norm), -1.0, 1.0)
-        return float(2.0 * np.arccos(dot))
+        # Fisher-Rao geodesic distance on simplex
+        dot = np.clip(np.dot(a_norm, b_norm), 0.0, 1.0)
+        return float(np.arccos(dot))
     def _normalize_to_manifold(basin):
         # Use sphere_project from module-level import
         from qig_geometry import sphere_project

@@ -67,9 +67,10 @@ def fisher_rao_distance(basin_a: np.ndarray, basin_b: np.ndarray) -> float:
     q = np.clip(q, 1e-10, 1.0)
     
     bhattacharyya = np.sum(np.sqrt(p * q))
-    bhattacharyya = np.clip(bhattacharyya, -1.0, 1.0)
+    bhattacharyya = np.clip(bhattacharyya, 0.0, 1.0)
     
-    return float(2.0 * np.arccos(bhattacharyya))  # Hellinger embedding: factor of 2
+    # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
+    return float(np.arccos(bhattacharyya))
 
 
 def geodesic_interpolate(start: np.ndarray, end: np.ndarray, t: float) -> np.ndarray:

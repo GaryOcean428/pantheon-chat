@@ -390,11 +390,11 @@ class GeometricHealthMonitor:
         """
         Fisher-Rao distance between basins.
 
-        Basins are unit-norm vectors on hypersphere.
-        Hellinger embedding: factor of 2 for canonical formula d = 2 * arccos(BC)
+        Basins are probability distributions on simplex.
+        UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
         """
-        dot_product = np.clip(np.dot(basin1, basin2), -1.0, 1.0)
-        return float(2.0 * np.arccos(dot_product))
+        dot_product = np.clip(np.dot(basin1, basin2), 0.0, 1.0)
+        return float(np.arccos(dot_product))
 
     def _classify_regime(self, phi: float) -> str:
         """Classify processing regime from Φ."""

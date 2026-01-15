@@ -102,11 +102,12 @@ def _fisher_rao_probability(p: np.ndarray, q: np.ndarray) -> float:
     # Bhattacharyya coefficient: BC = Σ√(p_i * q_i)
     bc = np.sum(np.sqrt(p * q))
     
-    # Clamp to valid range for arccos
-    bc = np.clip(bc, -1.0, 1.0)
+    # Clamp to valid range for arccos (probability measure)
+    bc = np.clip(bc, 0.0, 1.0)
     
-    # Fisher-Rao statistical distance (factor of 2 for Hellinger embedding)
-    return 2.0 * np.arccos(bc)
+    # Fisher-Rao statistical distance on probability simplex
+    # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
+    return np.arccos(bc)
 
 
 def _fisher_rao_metric(a: np.ndarray, b: np.ndarray, metric: np.ndarray) -> float:

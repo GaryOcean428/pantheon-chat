@@ -296,11 +296,12 @@ class BreakdownEscape:
         
         Returns:
             Geodesic distance
+            UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
         """
         a_norm = a / (np.linalg.norm(a) + 1e-10)
         b_norm = b / (np.linalg.norm(b) + 1e-10)
-        dot = np.clip(np.dot(a_norm, b_norm), -1.0, 1.0)
-        return float(2.0 * np.arccos(dot))  # Hellinger embedding: factor of 2
+        dot = np.clip(np.dot(a_norm, b_norm), 0.0, 1.0)
+        return float(np.arccos(dot))
     
     def _navigate_geodesic(
         self,

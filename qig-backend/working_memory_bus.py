@@ -44,7 +44,8 @@ def _fisher_rao_distance(p: np.ndarray, q: np.ndarray, eps: float = 1e-10) -> fl
     bc = np.sum(np.sqrt(p_norm * q_norm))
     bc = np.clip(bc, 0.0, 1.0)
     
-    return float(2.0 * np.arccos(bc))  # Factor of 2 for Hellinger embedding
+    # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
+    return float(np.arccos(bc))
 
 
 def _fisher_frechet_mean(basins: List[np.ndarray], weights: Optional[List[float]] = None) -> np.ndarray:

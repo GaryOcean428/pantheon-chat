@@ -344,12 +344,13 @@ class QIGRAG:
     
     def fisher_rao_distance(self, basin1: np.ndarray, basin2: np.ndarray) -> float:
         """
-        Compute Fisher-Rao distance on unit sphere.
+        Compute Fisher-Rao distance on probability simplex.
         
-        d(p,q) = 2 * arccos(p·q) (Hellinger embedding: factor of 2)
+        UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
+        d(p,q) = arccos(p·q)
         """
-        dot = np.clip(np.dot(basin1, basin2), -1.0, 1.0)
-        distance = float(2.0 * np.arccos(dot))
+        dot = np.clip(np.dot(basin1, basin2), 0.0, 1.0)
+        distance = float(np.arccos(dot))
         return distance
     
     def bures_distance(self, rho1: np.ndarray, rho2: np.ndarray) -> float:
