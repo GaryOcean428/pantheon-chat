@@ -62,8 +62,9 @@ describe('QFI regressions', () => {
   it('does not reference legacy compute_qfi helpers in canonical paths', () => {
     const targetDirs = ['server', 'shared', 'scripts', 'tools']
     const skipDirs = new Set(['node_modules', 'dist', 'docs'])
+    // Only check TypeScript/JavaScript files - Python files can't import TS functions
     const files = targetDirs.flatMap((dir) =>
-      collectFiles(path.join(repoRoot, dir), ['.ts', '.tsx', '.js', '.py'], skipDirs)
+      collectFiles(path.join(repoRoot, dir), ['.ts', '.tsx', '.js'], skipDirs)
     )
 
     const legacyPattern = /compute_qfi(_score)?/i
