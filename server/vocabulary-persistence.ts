@@ -3,6 +3,7 @@ import { coordizerVocabulary } from '@shared/schema'
 import { BASIN_DIMENSION } from '@shared/constants'
 import { compute_qfi_score_simplex, isValidQfiScore, toSimplexProbabilities } from '@shared/qfi'
 import { db, withDbRetry } from './db'
+import { isCurriculumOnlyMode } from './lib/config'
 
 export type TokenStatus = 'active' | 'quarantined' | 'deprecated'
 
@@ -27,10 +28,6 @@ export interface UpsertTokenResult {
   basinEmbedding: number[] | null
 }
 
-function getCurriculumOnlyFlag(): boolean {
-  return process.env.QIG_CURRICULUM_ONLY === 'true'
-}
-
 function resolveTokenStatus(qfiScore: number | null): TokenStatus {
   return isValidQfiScore(qfiScore) ? 'active' : 'quarantined'
 }
@@ -44,12 +41,63 @@ function normalizeBasin(basin: ArrayLike<number> | null): number[] | null {
   return toSimplexProbabilities(values)
 }
 
+/**
+ * Performs the database insert/update operation for a token record.
+ * Handles conflict resolution by updating all fields when a token already exists.
+ *
+ * @param record - The token record to upsert
+ * @throws Error if database is unavailable
+ */
+async function performTokenUpsert(record: {
+  token: string
+  tokenId: number
+  weight?: number
+  frequency?: number
+  phiScore?: number
+  basinEmbedding?: number[]
+  scale?: string
+  sourceType?: string
+  tokenRole?: 'encoding' | 'generation' | 'both'
+  phraseCategory?: string
+  isRealWord?: boolean
+  qfiScore: number | null
+  tokenStatus: TokenStatus
+}): Promise<void> {
+  if (!db) {
+    throw new Error('Database unavailable')
+  }
+  
+  await withDbRetry(
+    async () =>
+      db!.insert(coordizerVocabulary)
+        .values(record)
+        .onConflictDoUpdate({
+          target: coordizerVocabulary.token,
+          set: {
+            weight: record.weight,
+            frequency: record.frequency,
+            phiScore: record.phiScore,
+            basinEmbedding: record.basinEmbedding,
+            scale: record.scale,
+            sourceType: record.sourceType,
+            tokenRole: record.tokenRole,
+            phraseCategory: record.phraseCategory,
+            isRealWord: record.isRealWord,
+            qfiScore: record.qfiScore,
+            tokenStatus: record.tokenStatus,
+            updatedAt: new Date(),
+          },
+        }),
+    'upsert-token'
+  )
+}
+
 export async function upsertToken(input: UpsertTokenInput): Promise<UpsertTokenResult> {
   if (!db) {
     throw new Error('Database unavailable')
   }
 
-  if (getCurriculumOnlyFlag() && input.source !== 'curriculum') {
+  if (isCurriculumOnlyMode() && input.source !== 'curriculum') {
     throw new Error('Curriculum-only mode: token upsert requires source=curriculum')
   }
 
@@ -58,9 +106,11 @@ export async function upsertToken(input: UpsertTokenInput): Promise<UpsertTokenR
 
   if (input.basinEmbedding && Array.from(input.basinEmbedding).length > 0) {
     normalizedBasin = normalizeBasin(input.basinEmbedding)
-    qfiScore = compute_qfi_score_simplex(normalizedBasin)
-    if (!isValidQfiScore(qfiScore)) {
-      qfiScore = null
+    if (normalizedBasin) {
+      qfiScore = compute_qfi_score_simplex(normalizedBasin)
+      if (!isValidQfiScore(qfiScore)) {
+        qfiScore = null
+      }
     }
   }
 
@@ -82,29 +132,7 @@ export async function upsertToken(input: UpsertTokenInput): Promise<UpsertTokenR
     tokenStatus: status,
   }
 
-  await withDbRetry(
-    async () =>
-      db.insert(coordizerVocabulary)
-        .values(record)
-        .onConflictDoUpdate({
-          target: coordizerVocabulary.token,
-          set: {
-            weight: record.weight,
-            frequency: record.frequency,
-            phiScore: record.phiScore,
-            basinEmbedding: record.basinEmbedding,
-            scale: record.scale,
-            sourceType: record.sourceType,
-            tokenRole: record.tokenRole,
-            phraseCategory: record.phraseCategory,
-            isRealWord: record.isRealWord,
-            qfiScore: record.qfiScore,
-            tokenStatus: record.tokenStatus,
-            updatedAt: new Date(),
-          },
-        }),
-    'upsert-token'
-  )
+  await performTokenUpsert(record)
 
   return {
     status,
