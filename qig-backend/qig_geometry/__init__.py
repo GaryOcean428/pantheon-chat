@@ -362,6 +362,28 @@ def basin_diversity(basin: np.ndarray) -> float:
     return float(-np.sum(p_safe * np.log(p_safe)))
 
 
+# Constants for unknown basin generation (compute_unknown_basin)
+# These values are chosen to provide deterministic, QIG-pure basin construction
+# using golden ratio spiral in probability simplex space.
+
+# Maximum number of characters to use for product calculation
+# Limits the character product to prevent overflow while maintaining determinism
+_UNKNOWN_BASIN_CHAR_LIMIT = 8
+
+# Modulo value for character product to prevent overflow
+# Chosen to be large enough for variation but small enough to prevent numerical issues
+_UNKNOWN_BASIN_CHAR_MODULO = 10000
+
+# Scaling factor for character sum in phase offset
+# Small value provides subtle variation without dominating the spiral structure
+_UNKNOWN_BASIN_CHAR_SUM_SCALE = 0.001
+
+# Perturbation weight for second harmonic term
+# Adds controlled variation to the golden spiral while maintaining geometric purity
+# Value chosen empirically to balance determinism with distribution spread
+_UNKNOWN_BASIN_PERTURBATION_WEIGHT = 0.3
+
+
 def compute_unknown_basin(word: str, dimension: int = 64) -> np.ndarray:
     """
     Compute deterministic basin embedding for unknown word.
@@ -372,6 +394,18 @@ def compute_unknown_basin(word: str, dimension: int = 64) -> np.ndarray:
     This is the canonical way to generate basin coordinates for words not in
     the vocabulary. The embedding is derived from the word's character properties
     using golden ratio spiral, then projected to the CANONICAL SIMPLEX representation.
+    
+    Algorithm:
+    1. Compute character sum and product from word (deterministic hash)
+    2. Generate golden ratio spiral with character-derived phase offsets
+    3. Add second harmonic perturbation for distribution spread
+    4. Project to probability simplex via fisher_normalize()
+    
+    Constants (see module-level definitions above):
+    - _UNKNOWN_BASIN_CHAR_LIMIT: Max chars for product (8)
+    - _UNKNOWN_BASIN_CHAR_MODULO: Modulo for product (10000)
+    - _UNKNOWN_BASIN_CHAR_SUM_SCALE: Phase offset scale (0.001)
+    - _UNKNOWN_BASIN_PERTURBATION_WEIGHT: Harmonic weight (0.3)
     
     Args:
         word: Word to embed
@@ -386,16 +420,16 @@ def compute_unknown_basin(word: str, dimension: int = 64) -> np.ndarray:
     word_lower = word.lower()
     char_sum = sum(ord(c) for c in word_lower)
     char_prod = 1
-    for c in word_lower[:8]:  # Use first 8 chars for product
-        char_prod = (char_prod * ord(c)) % 10000
+    for c in word_lower[:_UNKNOWN_BASIN_CHAR_LIMIT]:
+        char_prod = (char_prod * ord(c)) % _UNKNOWN_BASIN_CHAR_MODULO
     
     embedding = np.zeros(dimension)
     for i in range(dimension):
         # Golden-angle spiral construction (Fisher-compliant)
         theta = 2 * np.pi * i * phi_golden
         # Position derived from word's character properties
-        r = np.cos(theta + char_sum * 0.001) * np.sin(i * phi_golden / dimension * np.pi)
-        embedding[i] = r + np.sin(char_prod * phi_golden * (i + 1) / dimension) * 0.3
+        r = np.cos(theta + char_sum * _UNKNOWN_BASIN_CHAR_SUM_SCALE) * np.sin(i * phi_golden / dimension * np.pi)
+        embedding[i] = r + np.sin(char_prod * phi_golden * (i + 1) / dimension) * _UNKNOWN_BASIN_PERTURBATION_WEIGHT
     
     # Project to CANONICAL SIMPLEX (not sphere!)
     # This is the KEY FIX: Use fisher_normalize instead of L2 norm
