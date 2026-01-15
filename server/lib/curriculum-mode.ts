@@ -65,8 +65,11 @@ export async function getCurriculumStatus() {
   }
 
   const result = await withDbRetry(
-    async () =>
-      db.execute<{
+    async () => {
+      if (!db) {
+        throw new Error('[getCurriculumStatus] Database not available')
+      }
+      return db.execute<{
         token: string
         token_status: string | null
         qfi_score: number | null
@@ -74,11 +77,12 @@ export async function getCurriculumStatus() {
         SELECT token, token_status, qfi_score
         FROM coordizer_vocabulary
         WHERE token = ANY(${tokens})
-      `),
+      `)
+    },
     'curriculum-status'
   )
 
-  const found = new Map(result.rows?.map((row) => [row.token, row]) ?? [])
+  const found = new Map(result?.rows?.map((row) => [row.token, row]) ?? [])
   const missing = tokens.filter((token) => !found.has(token))
   const invalid = Array.from(found.values())
     .filter(
