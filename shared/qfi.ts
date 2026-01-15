@@ -4,6 +4,9 @@ export const QFI_EPSILON = 1e-12
 export type BasinInput = number[] | Float64Array
 
 export function toSimplexProbabilities(basin: BasinInput, epsilon = QFI_EPSILON): number[] {
+  // Convert potentially negative basin coordinates to non-negative values and add a small epsilon
+  // so that all entries are strictly positive before normalization. This avoids zero probabilities
+  // (which would cause issues for log/entropy calculations) while preserving the relative geometry.
   const values = Array.from(basin).map((value) => Math.abs(value) + epsilon)
   const total = values.reduce((sum, value) => sum + value, 0)
 
