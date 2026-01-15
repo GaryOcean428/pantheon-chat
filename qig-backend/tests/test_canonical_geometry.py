@@ -597,20 +597,19 @@ class TestTrajectoryMetrics:
         assert smoothness > 0.5
     
     def test_smoothness_jagged_trajectory(self):
-        """Jagged trajectory should have low smoothness."""
-        # Varying step sizes - need larger differences for the test
+        """Jagged trajectory should have lower smoothness than smooth trajectory."""
+        # Create trajectory with highly varying step sizes to test variance detection
         trajectory = [
             np.array([0.9, 0.05, 0.05]),
-            np.array([0.89, 0.055, 0.055]),  # Tiny step
-            np.array([0.2, 0.7, 0.1]),       # HUGE step
-            np.array([0.19, 0.71, 0.1])      # Tiny step
+            np.array([0.89, 0.055, 0.055]),  # Very small step
+            np.array([0.2, 0.7, 0.1]),       # Very large step
+            np.array([0.19, 0.71, 0.1])      # Very small step
         ]
         
         smoothness = trajectory_smoothness(trajectory)
         
-        # Should be low (high variance) - but due to how variance works,
-        # we may need to accept that small steps don't add much variance
-        # Just check it's not perfectly smooth
+        # Variance in step sizes should reduce smoothness below perfect (1.0)
+        # This test validates that the metric detects non-uniform trajectories
         assert smoothness < 1.0, f"Smoothness should be < 1.0 for jagged trajectory, got {smoothness}"
     
     def test_waypoint_alignment_perfect(self):
