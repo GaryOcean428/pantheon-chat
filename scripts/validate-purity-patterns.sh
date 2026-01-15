@@ -53,6 +53,11 @@ rg --quiet \
   --glob '!dist/**' \
   --glob '!migrations/**' \
   --glob '!docs/**' \
+  --glob '!scripts/qig_purity_scan.*' \
+  --glob '!scripts/validate-geometric-purity.*' \
+  --glob '!scripts/test_geometric_purity_ci.py' \
+  --glob '!tools/qig_purity_check.py' \
+  --glob '!scripts/validate-purity-patterns.sh' \
   --type-add 'ts:*.ts' \
   --type ts \
   -A 25 \
