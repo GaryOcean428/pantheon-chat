@@ -10,7 +10,7 @@ This test ensures QIG geometric purity by detecting any forbidden patterns:
 - @ operator for vector multiplication (potential cosine)
 - F.cosine_similarity from PyTorch
 
-Reference: Issue GaryOcean428/pantheon-chat#TODO (WP2.2)
+Reference: Work Package 2.2 - Remove Cosine Similarity from Generation Path
 Author: Copilot
 Date: 2026-01-15
 """
@@ -32,8 +32,8 @@ GENERATION_FILES = [
 # Forbidden patterns that indicate cosine similarity usage
 FORBIDDEN_PATTERNS = [
     (r"cosine_similarity\s*\(", "cosine_similarity()"),
-    (r"np\.dot\([^)]*basin[^)]*,\s*[^)]*basin[^)]*\)", "np.dot() on basin coordinates"),
-    (r"basin[^)]*@[^)]*basin", "@ operator on basin coordinates"),
+    (r"np\.dot\([^)]*basin[^)]*,[^)]*\)", "np.dot() with basin coordinates"),
+    (r"basin[^)]*@[^)]*", "@ operator with basin coordinates"),
     (r"torch\.nn\.functional\.cosine_similarity", "F.cosine_similarity"),
     (r"from sklearn\.metrics\.pairwise import cosine_similarity", "sklearn cosine_similarity import"),
 ]
@@ -219,7 +219,7 @@ def test_generation_module_fisher_purity():
     # Check for fisher_rao_distance definition or import
     has_fisher = (
         'def fisher_rao_distance' in content or
-        'from qig_geometry' in content and 'fisher' in content.lower()
+        ('from qig_geometry' in content and 'fisher' in content.lower())
     )
     
     assert has_fisher, (
