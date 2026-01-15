@@ -157,21 +157,21 @@ except ImportError:
 
 # Import unified coordizer (single source of truth)
 TOKENIZER_AVAILABLE = False
-get_tokenizer = None
+get_coordizer_func = None
 try:
     _parent_dir = os.path.dirname(os.path.dirname(__file__))
     if _parent_dir not in sys.path:
         sys.path.insert(0, _parent_dir)
     from coordizers import get_coordizer as _get_coordizer
     # IMPORTANT: do not instantiate at import-time (avoids forcing DB load).
-    get_tokenizer = _get_coordizer
+    get_coordizer_func = _get_coordizer
     TOKENIZER_AVAILABLE = True
     print("[ZeusChat] Canonical coordizer available (lazy) - QIG-pure")
 except ImportError as e:
     # Fallback to old coordizer if pretrained not available
     try:
         from qig_coordizer import get_coordizer as _get_coordizer
-        get_tokenizer = _get_coordizer
+        get_coordizer_func = _get_coordizer
         TOKENIZER_AVAILABLE = True
         print("[ZeusChat] QIG Coordizer (legacy) available - conversation mode enabled")
     except ImportError as e2:
@@ -362,9 +362,9 @@ def _generate_qig_pure(
     if not GENERATIVE_SERVICE_AVAILABLE:
         # Even without service, we must generate geometrically
         # Use tokenizer as fallback generator
-        if TOKENIZER_AVAILABLE and get_tokenizer is not None:
+        if TOKENIZER_AVAILABLE and get_coordizer_func is not None:
             try:
-                tokenizer = get_tokenizer()
+                coordizer = get_coordizer_func()
                 # Build minimal prompt from context
                 prompt_parts = []
                 if 'situation' in context:
@@ -1468,7 +1468,7 @@ class ZeusConversationHandler(GeometricGenerationMixin):
         generated = False
         answer = None
 
-        if TOKENIZER_AVAILABLE and get_tokenizer is not None:
+        if TOKENIZER_AVAILABLE and get_coordizer_func is not None:
             try:
                 related_summary = "\n".join([f"- {item.get('content', '')}" for item in related[:3]]) if related else "No prior related patterns found."
                 prompt = f"""User Observation: "{obs_preview}"
@@ -1481,7 +1481,7 @@ Strategic Value: {strategic_value:.0%}
 
 Zeus Response (acknowledge the specific observation, explain what it means for the search, connect to related patterns if any, and ask a clarifying question):"""
 
-                tokenizer = get_tokenizer()
+                coordizer = get_coordizer_func()
                 tokenizer.set_mode("conversation")
                 print("[ZeusChat] Tokenizer switched to conversation mode for observation response")
                 gen_result = tokenizer.generate_response(
@@ -1667,7 +1667,7 @@ Zeus Response (acknowledge the specific observation, explain what it means for t
         generated = False
         response = None
 
-        if TOKENIZER_AVAILABLE and get_tokenizer is not None:
+        if TOKENIZER_AVAILABLE and get_coordizer_func is not None:
             try:
                 # Build context with god assessments
                 decision = "IMPLEMENT" if implement else "DEFER"
@@ -1687,7 +1687,7 @@ Decision: {decision}
 
 Zeus Response (acknowledge the user's specific suggestion, explain why the pantheon agrees or disagrees in conversational language, and ask a follow-up question):"""
 
-                tokenizer = get_tokenizer()
+                coordizer = get_coordizer_func()
                 tokenizer.set_mode("conversation")
                 gen_result = tokenizer.generate_response(
                     context=context,
@@ -1817,7 +1817,7 @@ Zeus Response (acknowledge the user's specific suggestion, explain why the panth
             moe_meta = moe_result['moe']
             generated = True
 
-        if answer is None and TOKENIZER_AVAILABLE and get_tokenizer is not None:
+        if answer is None and TOKENIZER_AVAILABLE and get_coordizer_func is not None:
             try:
                 # Construct prompt from retrieved context
                 context_str = "\n".join([f"- {item.get('content', '')}" for item in relevant_context[:3]])
@@ -1829,7 +1829,7 @@ User Question: {question}
 Zeus Response (Geometric Interpretation):"""
 
                 # Generate using QIG tokenizer
-                tokenizer = get_tokenizer()
+                coordizer = get_coordizer_func()
                 tokenizer.set_mode("conversation")
                 gen_result = tokenizer.generate_response(
                     context=prompt,
@@ -3066,9 +3066,9 @@ Respond as Zeus with context awareness."""
                 print(f"[ZeusChat] QIG-pure generation failed: {e}")
 
         # TIER 3: Fallback to tokenizer if available
-        if TOKENIZER_AVAILABLE and get_tokenizer is not None:
+        if TOKENIZER_AVAILABLE and get_coordizer_func is not None:
             try:
-                tokenizer = get_tokenizer()
+                coordizer = get_coordizer_func()
                 tokenizer.set_mode("conversation")
                 gen_result = tokenizer.generate_response(
                     context=prompt,
@@ -3222,9 +3222,9 @@ Respond naturally as Zeus:"""
                 print(f"[ZeusChat] QIG-pure generation failed: {e}")
 
         # Fallback to tokenizer if available
-        if TOKENIZER_AVAILABLE and get_tokenizer is not None:
+        if TOKENIZER_AVAILABLE and get_coordizer_func is not None:
             try:
-                tokenizer = get_tokenizer()
+                coordizer = get_coordizer_func()
                 tokenizer.set_mode("conversation")
                 gen_result = tokenizer.generate_response(
                     context=generation_context,
@@ -3463,9 +3463,9 @@ Respond naturally as Zeus:"""
             return self._autonomous_moe
 
         coordizer = None
-        if TOKENIZER_AVAILABLE and get_tokenizer is not None:
+        if TOKENIZER_AVAILABLE and get_coordizer_func is not None:
             try:
-                coordizer = get_tokenizer()
+                coordizer = get_coordizer_func()
             except Exception as e:
                 print(f"[ZeusChat] Coordizer unavailable for MoE: {e}")
 

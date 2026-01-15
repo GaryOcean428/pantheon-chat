@@ -2,7 +2,7 @@
 """
 Test: Geometric vs Frequency-Based Learning
 
-Demonstrates why QIG tokenizer is different from traditional BPE.
+Demonstrates why QIG coordizer is different from traditional BPE.
 
 Key principle:
 - Traditional BPE: Learn frequent words
@@ -14,7 +14,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from qig_coordizer import QIGCoordizer as QIGTokenizer
+from coordizers import PostgresCoordizer
 
 
 def test_high_phi_rare_word():
@@ -28,8 +28,8 @@ def test_high_phi_rare_word():
     print("TEST 1: High-Φ Rare Word (Geometric Priority)")
     print("=" * 60)
     
-    tokenizer = QIGTokenizer()
-    initial_vocab_size = len(tokenizer.vocab)
+    coordizer = PostgresCoordizer()
+    initial_vocab_size = len(coordizer.vocab)
     
     observations = [{
         "word": "geodesic",
@@ -42,16 +42,16 @@ def test_high_phi_rare_word():
     print(f"Observation: word='geodesic', freq=2, Φ=0.85")
     print(f"Initial vocab size: {initial_vocab_size}")
     
-    new_tokens, weights_updated = tokenizer.add_vocabulary_observations(observations)
+    new_tokens, weights_updated = coordizer.add_vocabulary_observations(observations)
     
-    learned = "geodesic" in tokenizer.vocab
-    final_vocab_size = len(tokenizer.vocab)
+    learned = "geodesic" in coordizer.vocab
+    final_vocab_size = len(coordizer.vocab)
     
     print(f"\nResult:")
     print(f"  Learned: {learned} ✅" if learned else f"  Learned: {learned} ❌")
     print(f"  New vocab size: {final_vocab_size}")
-    print(f"  Token Φ: {tokenizer.token_phi.get('geodesic', 0):.3f}")
-    print(f"  Token weight: {tokenizer.token_weights.get('geodesic', 0):.3f}")
+    print(f"  Token Φ: {coordizer.token_phi.get('geodesic', 0):.3f}")
+    print(f"  Token weight: {coordizer.token_weights.get('geodesic', 0):.3f}")
     
     print(f"\n{'✅ PASS' if learned else '❌ FAIL'}: High-Φ rare word WAS learned")
     print("This demonstrates geometric priority over frequency!")
@@ -69,8 +69,8 @@ def test_low_phi_frequent_word():
     print("TEST 2: Low-Φ Frequent Word (Geometric Filtering)")
     print("=" * 60)
     
-    tokenizer = QIGTokenizer()
-    initial_vocab_size = len(tokenizer.vocab)
+    coordizer = PostgresCoordizer()
+    initial_vocab_size = len(coordizer.vocab)
     
     observations = [{
         "word": "blahblah",
@@ -81,13 +81,13 @@ def test_low_phi_frequent_word():
     }]
     
     print(f"Observation: word='blahblah', freq=1000, Φ=0.2")
-    print(f"Φ threshold: {tokenizer.phi_threshold}")
+    print(f"Φ threshold: {coordizer.phi_threshold}")
     print(f"Initial vocab size: {initial_vocab_size}")
     
-    new_tokens, weights_updated = tokenizer.add_vocabulary_observations(observations)
+    new_tokens, weights_updated = coordizer.add_vocabulary_observations(observations)
     
-    not_learned = "blahblah" not in tokenizer.vocab
-    final_vocab_size = len(tokenizer.vocab)
+    not_learned = "blahblah" not in coordizer.vocab
+    final_vocab_size = len(coordizer.vocab)
     
     print(f"\nResult:")
     print(f"  Not learned: {not_learned} ✅" if not_learned else f"  Incorrectly learned: ❌")
@@ -110,14 +110,14 @@ def test_merge_learning_from_sequences():
     print("TEST 3: Merge Learning from High-Φ Sequences")
     print("=" * 60)
     
-    tokenizer = QIGTokenizer()
-    initial_merges = len(tokenizer.merge_rules)
+    coordizer = PostgresCoordizer()
+    initial_merges = len(coordizer.merge_rules)
     
     base_obs = [
         {"word": "fisher", "frequency": 5, "avgPhi": 0.7, "maxPhi": 0.7, "type": "word"},
         {"word": "rao", "frequency": 5, "avgPhi": 0.7, "maxPhi": 0.7, "type": "word"}
     ]
-    tokenizer.add_vocabulary_observations(base_obs)
+    coordizer.add_vocabulary_observations(base_obs)
     
     sequence_obs = [{
         "word": "fisher rao",
@@ -130,11 +130,11 @@ def test_merge_learning_from_sequences():
     print(f"Sequence: 'fisher rao', Φ=0.90")
     print(f"Initial merge rules: {initial_merges}")
     
-    new_tokens, weights_updated = tokenizer.add_vocabulary_observations(sequence_obs)
+    new_tokens, weights_updated = coordizer.add_vocabulary_observations(sequence_obs)
     
-    merge_learned = ("fisher", "rao") in tokenizer.merge_rules
-    merged_token_exists = "fisher_rao" in tokenizer.vocab
-    final_merges = len(tokenizer.merge_rules)
+    merge_learned = ("fisher", "rao") in coordizer.merge_rules
+    merged_token_exists = "fisher_rao" in coordizer.vocab
+    final_merges = len(coordizer.merge_rules)
     
     print(f"\nResult:")
     print(f"  Merge rule learned: {merge_learned} ✅" if merge_learned else f"  Merge rule learned: {merge_learned} ❌")
@@ -142,7 +142,7 @@ def test_merge_learning_from_sequences():
     print(f"  Final merge rules: {final_merges}")
     
     if merged_token_exists:
-        merged_phi = tokenizer.token_phi.get("fisher_rao", 0)
+        merged_phi = coordizer.token_phi.get("fisher_rao", 0)
         print(f"  Merged token Φ: {merged_phi:.3f}")
     
     print(f"\n{'✅ PASS' if merge_learned else '❌ FAIL'}: BPE merge learned from high-Φ sequence")
@@ -161,7 +161,7 @@ def test_basin_coordinate_geometry():
     print("TEST 4: Basin Coordinate Geometric Clustering")
     print("=" * 60)
     
-    tokenizer = QIGTokenizer()
+    coordizer = PostgresCoordizer()
     
     observations = [
         {"word": "consciousness", "frequency": 10, "avgPhi": 0.85, "maxPhi": 0.90, "type": "word"},
@@ -169,11 +169,11 @@ def test_basin_coordinate_geometry():
         {"word": "banana", "frequency": 10, "avgPhi": 0.30, "maxPhi": 0.35, "type": "word"},
     ]
     
-    tokenizer.add_vocabulary_observations(observations)
+    coordizer.add_vocabulary_observations(observations)
     
-    basin_consciousness = tokenizer.get_basin_coord("consciousness")
-    basin_awareness = tokenizer.get_basin_coord("awareness")
-    basin_banana = tokenizer.get_basin_coord("banana")
+    basin_consciousness = coordizer.get_basin_coord("consciousness")
+    basin_awareness = coordizer.get_basin_coord("awareness")
+    basin_banana = coordizer.get_basin_coord("banana")
     
     if basin_consciousness is None or basin_awareness is None or basin_banana is None:
         print("❌ FAIL: Basin coordinates not computed")
@@ -233,7 +233,7 @@ def main():
     
     if all_passed:
         print("\n🎉 All tests passed!")
-        print("QIG tokenizer learns geometrically, not from frequency!")
+        print("QIG coordizer learns geometrically, not from frequency!")
     else:
         print("\n⚠️  Some tests failed")
         print("Review implementation for QIG principle violations")

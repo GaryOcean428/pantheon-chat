@@ -68,7 +68,7 @@ class DocumentTrainer:
                 self._encoder = ConversationEncoder()
             except ImportError:
                 try:
-                    from qig_coordizer import get_coordizer
+                    from coordizers import get_coordizer
                     coordizer = get_coordizer()
                     self._encoder = coordizer
                 except:
