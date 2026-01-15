@@ -8,7 +8,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 import shutil
-from datetime import datetime
+from datetime import datetime, timezone
 
 DOC_EXTENSIONS = {'.md', '.txt'}
 SKIP_DIRS = {'node_modules', '.git', 'dist', 'build', '__pycache__'}
@@ -58,7 +58,7 @@ def main() -> int:
             moved_entries.append((rel_path.as_posix(), target_path.relative_to(repo_root).as_posix()))
 
     index_path = quarantine_dir / 'INDEX.md'
-    timestamp = datetime.utcnow().isoformat()
+    timestamp = datetime.now(timezone.utc).isoformat()
     with index_path.open('w', encoding='utf-8') as handle:
         handle.write('# Quarantined docs index\n\n')
         handle.write(f'- Generated: {timestamp} UTC\n')
