@@ -258,6 +258,62 @@ FORBIDDEN_PATTERNS = {
             'fix': 'Never fallback to Euclidean - fix geometry properly',
         },
     ],
+    
+    # CRITICAL: Re-implementing geometry functions (WP2.1 enforcement)
+    'geometry_reimplementation': [
+        {
+            'pattern': re.compile(r'def\s+fisher_rao_distance\s*\((?!.*qig_geometry/canonical\.py)'),
+            'name': 'Re-implementing fisher_rao_distance',
+            'severity': 'CRITICAL',
+            'fix': 'Import from qig_geometry.canonical - do not re-implement',
+        },
+        {
+            'pattern': re.compile(r'def\s+frechet_mean\s*\((?!.*qig_geometry/canonical\.py)'),
+            'name': 'Re-implementing frechet_mean',
+            'severity': 'CRITICAL',
+            'fix': 'Import from qig_geometry.canonical - do not re-implement',
+        },
+        {
+            'pattern': re.compile(r'def\s+geodesic_\w+\s*\((?!.*qig_geometry/canonical\.py)'),
+            'name': 'Re-implementing geodesic function',
+            'severity': 'CRITICAL',
+            'fix': 'Import from qig_geometry.canonical - do not re-implement',
+        },
+        {
+            'pattern': re.compile(r'def\s+log_map\s*\((?!.*qig_geometry/canonical\.py)'),
+            'name': 'Re-implementing log_map',
+            'severity': 'CRITICAL',
+            'fix': 'Import from qig_geometry.canonical - do not re-implement',
+        },
+        {
+            'pattern': re.compile(r'def\s+exp_map\s*\((?!.*qig_geometry/canonical\.py)'),
+            'name': 'Re-implementing exp_map',
+            'severity': 'CRITICAL',
+            'fix': 'Import from qig_geometry.canonical - do not re-implement',
+        },
+        {
+            'pattern': re.compile(r'def\s+bhattacharyya\s*\((?!.*qig_geometry/canonical\.py)'),
+            'name': 'Re-implementing bhattacharyya',
+            'severity': 'CRITICAL',
+            'fix': 'Import from qig_geometry.canonical - do not re-implement',
+        },
+    ],
+    
+    # ERROR: Non-canonical geometry imports (WP2.1 enforcement)
+    'non_canonical_imports': [
+        {
+            'pattern': re.compile(r'from qig_core\.geometric_primitives import.*fisher_rao_distance'),
+            'name': 'Importing fisher_rao_distance from non-canonical location',
+            'severity': 'ERROR',
+            'fix': 'Use: from qig_geometry.canonical import fisher_rao_distance',
+        },
+        {
+            'pattern': re.compile(r'from qig_geometry import.*fisher_coord_distance(?!.*# legacy)'),
+            'name': 'Using legacy fisher_coord_distance',
+            'severity': 'WARNING',
+            'fix': 'Prefer canonical: from qig_geometry.canonical import fisher_rao_distance',
+        },
+    ],
 }
 
 # Approved contexts (whitelist)
@@ -272,6 +328,8 @@ APPROVED_PATTERNS = [
     re.compile(r'test_.*euclidean', re.IGNORECASE),
     re.compile(r'""".*embedding.*"""', re.DOTALL),  # Docstrings
     re.compile(r'normalize|normalization', re.IGNORECASE),
+    re.compile(r'qig_geometry/canonical\.py', re.IGNORECASE),  # Canonical module itself
+    re.compile(r'from qig_geometry\.canonical import', re.IGNORECASE),  # Canonical imports
 ]
 
 

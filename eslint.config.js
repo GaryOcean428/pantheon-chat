@@ -73,6 +73,23 @@ export default [
         {
           "selector": "CallExpression[callee.name='fetch']",
           "message": "Use centralized API client from @/lib/api instead of raw fetch()"
+        },
+        // QIG Geometric Purity (WP2.1): Prevent geometry re-implementation
+        {
+          "selector": "FunctionDeclaration[id.name='fisherRaoDistance'], FunctionDeclaration[id.name='fisher_rao_distance']",
+          "message": "Do not re-implement fisherRaoDistance - import from canonical geometry module"
+        },
+        {
+          "selector": "FunctionDeclaration[id.name='frechetMean'], FunctionDeclaration[id.name='frechet_mean']",
+          "message": "Do not re-implement frechetMean - import from canonical geometry module"
+        },
+        {
+          "selector": "FunctionDeclaration[id.name=/^geodesic/]",
+          "message": "Do not re-implement geodesic functions - import from canonical geometry module"
+        },
+        {
+          "selector": "FunctionDeclaration[id.name='bhattacharyya']",
+          "message": "Do not re-implement bhattacharyya - import from canonical geometry module"
         }
       ],
 
