@@ -16,6 +16,12 @@ BREAKING CHANGE FROM HELLINGER EMBEDDING:
 - Thresholds must be recalibrated (divide previous thresholds by 2)
 - See representation.py for migration notes
 
+DISTANCE FUNCTION RELATIONSHIP:
+- fisher_rao_distance(): Direct Fisher-Rao on simplex (range [0, π/2])
+- fisher_distance(): From contracts.py, same formula, same result
+- Both compute: arccos(Σ√(p_i * q_i)) - Bhattacharyya coefficient
+- Prefer fisher_rao_distance() for clarity, but both are equivalent
+
 USAGE:
     from qig_geometry import fisher_rao_distance, fisher_normalize
     
@@ -162,6 +168,9 @@ def fisher_similarity(a: np.ndarray, b: np.ndarray) -> float:
     CHANGE FROM PREVIOUS VERSION:
     - Max distance is π/2 (was 2π with Hellinger)
     - Similarity formula adjusted accordingly
+    
+    NOTE: Result is clamped to [0, 1] to prevent floating-point errors
+    from causing out-of-range values.
 
     Args:
         a: First basin coordinate vector
@@ -177,7 +186,9 @@ def fisher_similarity(a: np.ndarray, b: np.ndarray) -> float:
         >>> assert np.isclose(s, 1.0)  # Identical
     """
     distance = fisher_coord_distance(a, b)
-    return 1.0 - (2.0 * distance / np.pi)
+    similarity = 1.0 - (2.0 * distance / np.pi)
+    # Guard against numerical spill-over
+    return float(np.clip(similarity, 0.0, 1.0))
 
 
 def normalize_basin_dimension(basin: np.ndarray, target_dim: int = 64) -> np.ndarray:
@@ -218,7 +229,23 @@ def geodesic_interpolation(
     """
     Spherical linear interpolation (slerp) along geodesic on simplex.
 
-    Uses SLERP in sqrt-space which gives geodesic on the simplex.
+    Uses SLERP in sqrt-space (Hellinger coordinates) which gives geodesic 
+    on the simplex. While Hellinger *embedding* (with factor-of-2) was removed 
+    for distance calculations, Hellinger *coordinates* (sqrt-space) are still 
+    the correct space for geodesic interpolation on the Fisher manifold.
+    
+    WHY SQRT-SPACE FOR GEODESICS:
+    The Fisher-Rao metric on the probability simplex induces a Riemannian 
+    geometry where geodesics are *not* straight lines in probability space, 
+    but rather straight lines in sqrt-space. This is because the pullback 
+    of the Fisher metric under the sqrt transformation becomes the Euclidean 
+    metric, making SLERP in sqrt-space exactly follow the Fisher geodesic.
+    
+    This is different from distance calculation:
+    - Distance: arccos(Σ√(p_i * q_i)) directly on simplex [no embedding]
+    - Geodesic: SLERP in sqrt-space, then square to return to simplex
+    
+    Both use the same underlying geometry, but serve different purposes.
 
     Args:
         start: Starting point (probability distribution)
@@ -238,7 +265,7 @@ def geodesic_interpolation(
     p_start = fisher_normalize(start)
     p_end = fisher_normalize(end)
     
-    # SLERP in sqrt space (geodesic on simplex)
+    # SLERP in sqrt space (Hellinger coordinates give geodesic on simplex)
     sqrt_start = np.sqrt(p_start)
     sqrt_end = np.sqrt(p_end)
     
@@ -336,7 +363,7 @@ def basin_diversity(basin: np.ndarray) -> float:
 
 
 __all__ = [
-    # Canonical contract (contracts.py) - THE source of truth
+    # Canonical contract (contracts.py) - THE source of truth for geometric constraints
     'CANONICAL_SPACE',
     'BASIN_DIM',
     'NORM_TOLERANCE',
@@ -345,7 +372,7 @@ __all__ = [
     'validate_basin_detailed',
     'assert_invariants',
     'canon',
-    'fisher_distance',
+    'fisher_distance',  # Same formula as fisher_rao_distance, from contracts.py
     'to_index_embedding',
     # Representation utilities (representation.py)
     'BasinRepresentation',
@@ -356,8 +383,8 @@ __all__ = [
     'enforce_canonical',
     'sphere_project',
     'fisher_normalize',
-    # Distance functions - CANONICAL IMPLEMENTATIONS
-    'fisher_rao_distance',
+    # Distance functions - CANONICAL IMPLEMENTATIONS (use fisher_rao_distance for clarity)
+    'fisher_rao_distance',  # Primary distance function (same as fisher_distance)
     'fisher_coord_distance',
     'fisher_similarity',
     # Dimension and normalization utilities
