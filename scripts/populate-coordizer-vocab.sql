@@ -20,8 +20,8 @@ CREATE TABLE IF NOT EXISTS coordizer_vocabulary (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Insert BIP39 words with deterministic embeddings based on word hash
--- Using a subset of common BIP39 words for immediate usability
+-- Insert a subset of common BIP39 words into coordizer_vocabulary
+-- All inserted tokens start in 'quarantined' status pending QFI computation and review
 INSERT INTO coordizer_vocabulary (token, token_id, weight, frequency, phi_score, source_type, token_status)
 SELECT token, token_id, weight, frequency, phi_score, source_type, 'quarantined'
 FROM (VALUES 

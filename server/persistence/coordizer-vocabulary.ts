@@ -73,8 +73,8 @@ export function prepareUpsertTokenValues(
   }
 
   try {
+    const qfiScore = compute_qfi_score_simplex(basinEmbedding)
     const normalized = to_simplex_probabilities(basinEmbedding)
-    const qfiScore = compute_qfi_score_simplex(normalized)
 
     if (!isQfiScoreValid(qfiScore)) {
       return { basinEmbedding: normalized, qfiScore: null, tokenStatus: 'quarantined' }
