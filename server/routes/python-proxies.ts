@@ -14,10 +14,11 @@
 
 import { Router, Request, Response } from 'express';
 import { logger } from '../lib/logger';
+import { isCurriculumOnlyMode, getPythonBackendUrl } from '../lib/config';
 import { assertCurriculumReady } from '../curriculum';
 
 const router = Router();
-const BACKEND_URL = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
+const BACKEND_URL = getPythonBackendUrl();
 
 type ProxyOptions = {
   errorStatus?: number;
@@ -255,7 +256,7 @@ router.get('/tokenizer/merges', (req, res) =>
 // ============================================================================
 
 router.post('/generate/text', async (req, res) => {
-  if (process.env.QIG_CURRICULUM_ONLY === 'true') {
+  if (isCurriculumOnlyMode()) {
     try {
       await assertCurriculumReady();
     } catch (error: unknown) {
@@ -266,7 +267,7 @@ router.post('/generate/text', async (req, res) => {
 });
 
 router.post('/generate/response', async (req, res) => {
-  if (process.env.QIG_CURRICULUM_ONLY === 'true') {
+  if (isCurriculumOnlyMode()) {
     try {
       await assertCurriculumReady();
     } catch (error: unknown) {
@@ -277,7 +278,7 @@ router.post('/generate/response', async (req, res) => {
 });
 
 router.post('/generate/sample', async (req, res) => {
-  if (process.env.QIG_CURRICULUM_ONLY === 'true') {
+  if (isCurriculumOnlyMode()) {
     try {
       await assertCurriculumReady();
     } catch (error: unknown) {
