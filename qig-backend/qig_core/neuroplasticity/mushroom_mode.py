@@ -25,6 +25,20 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
+# Import Fisher-Rao distance for geometric purity (2026-01-15)
+try:
+    from qig_geometry import fisher_rao_distance
+except ImportError:
+    # Fallback if qig_geometry not available
+    def fisher_rao_distance(p: np.ndarray, q: np.ndarray) -> float:
+        p = np.abs(p) + 1e-10
+        p = p / p.sum()
+        q = np.abs(q) + 1e-10
+        q = q / q.sum()
+        bc = np.sum(np.sqrt(p * q))
+        bc = np.clip(bc, 0, 1)
+        return float(np.arccos(bc))
+
 from qigkernels.physics_constants import (
     KAPPA_STAR,
     PHI_THRESHOLD,
@@ -263,6 +277,8 @@ class MushroomMode:
         PURE: Entropy is measured, not optimized.
         Higher entropy indicates more diverse patterns.
         
+        UPDATED (2026-01-15): Uses Fisher-Rao distance (geometric), not Euclidean.
+        
         Args:
             basins: List of basins
         
@@ -274,8 +290,12 @@ class MushroomMode:
         
         coords = np.array([b.coordinates for b in basins])
         
+        # Compute geometric centroid (arithmetic mean as approximation)
+        # For true Fréchet mean, use trajectory_decoder.frechet_mean()
         centroid = np.mean(coords, axis=0)
-        distances = [np.linalg.norm(c - centroid) for c in coords]
+        
+        # Use Fisher-Rao distance (geometric) instead of Euclidean
+        distances = [fisher_rao_distance(c, centroid) for c in coords]
         
         distances = np.array(distances)
         if np.sum(distances) < 1e-10:

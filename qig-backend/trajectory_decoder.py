@@ -134,21 +134,33 @@ def hellinger_normalize_basin(basin: np.ndarray) -> np.ndarray:
     return sqrt_p / norm
 
 
-def frechet_mean(basins: List[np.ndarray], max_iter: int = 20) -> np.ndarray:
+def frechet_mean(basins: List[np.ndarray], max_iter: int = 20, tolerance: float = 1e-6) -> np.ndarray:
     """
-    Compute Fréchet mean (geometric centroid) of basins on Fisher manifold.
-
-    This is the trajectory attractor - the "center of mass" in curved space.
-    NOT arithmetic mean (that would be Euclidean, not geometric).
+    Compute approximate Fréchet mean (geometric centroid) of basins on Fisher manifold.
     
-    Uses proper Riemannian gradient descent with logarithmic/exponential maps.
+    IMPLEMENTATION NOTE: This is an APPROXIMATE centroid using Euclidean gradient descent
+    in Hellinger (sqrt) space, NOT a true Karcher mean with proper log/exp maps.
+    
+    For a true Karcher mean, we would need:
+    1. Proper logarithmic map: log_μ(p) on the Fisher manifold
+    2. Proper exponential map: exp_μ(v) to project back
+    3. Riemannian gradient: sum of log maps
+    
+    This approximation is acceptable for trajectory prediction where:
+    - Points are typically close together (small geodesic distances)
+    - Computational efficiency matters
+    - Slight inaccuracy doesn't compromise prediction quality
+    
+    For canonical geometric operations (merge, comparison), use geodesic_interpolation()
+    or proper Karcher mean instead.
 
     Args:
-        basins: List of basin coordinates
+        basins: List of basin coordinates (Hellinger or simplex)
         max_iter: Maximum gradient descent iterations
+        tolerance: Convergence tolerance for mean update
 
     Returns:
-        Fréchet mean basin coordinate (Hellinger-normalized)
+        Approximate Fréchet mean (Hellinger-normalized for pgvector compatibility)
     """
     if not basins:
         return hellinger_normalize_basin(np.zeros(64))
@@ -156,34 +168,42 @@ def frechet_mean(basins: List[np.ndarray], max_iter: int = 20) -> np.ndarray:
     if len(basins) == 1:
         return hellinger_normalize_basin(basins[0])
 
-    # Initialize with arithmetic mean as starting point (good enough for initialization)
+    # Initialize with arithmetic mean (good starting point for small geodesic distances)
     mean = np.mean(basins, axis=0)
     mean = hellinger_normalize_basin(mean)
 
-    # Gradient descent on Fisher manifold using tangent space
-    for _ in range(max_iter):
-        # Compute Riemannian gradient in tangent space at mean
-        # For Fisher manifold, the log map is approximated by weighted direction
+    # APPROXIMATE gradient descent in Hellinger space
+    # This is NOT a true Karcher mean - it uses Euclidean approximations
+    for iteration in range(max_iter):
         grad = np.zeros_like(mean)
         
         for basin in basins:
             basin_norm = hellinger_normalize_basin(basin)
             
-            # Distance for weighting
+            # Fisher-Rao distance for weighting
             dist = fisher_rao_distance(mean, basin_norm)
             
             if dist > 1e-6:
-                # Approximate logarithmic map: log_mean(basin) ≈ (basin - mean) / dist
-                # This is the tangent vector pointing from mean to basin
-                # In sqrt space (Hellinger), this approximation is valid for small distances
+                # APPROXIMATION: Euclidean direction as proxy for log map
+                # True Karcher mean would use: log_mean(basin) = proper tangent vector
+                # This works well for small distances but degrades for large separations
                 direction = basin_norm - mean
                 grad += direction / (dist + 1e-10)
+        
+        # Small step in tangent space (Euclidean approximation)
+        update = 0.1 * grad
+        mean_new = mean + update
+        mean_new = hellinger_normalize_basin(mean_new)
+        
+        # Check convergence using Fisher-Rao distance (geometric)
+        convergence_dist = fisher_rao_distance(mean_new, mean)
+        if convergence_dist < tolerance:
+            logger.debug(f"Fréchet mean converged after {iteration+1} iterations")
+            return mean_new
+        
+        mean = mean_new
 
-        # Update along Riemannian gradient (small step in tangent space)
-        # Then project back to manifold via exponential map (implicit via normalization)
-        mean = mean + 0.1 * grad
-        mean = hellinger_normalize_basin(mean)
-
+    logger.debug(f"Fréchet mean reached max iterations ({max_iter})")
     return mean
 
 
