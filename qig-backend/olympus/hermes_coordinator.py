@@ -206,7 +206,7 @@ class HermesCoordinator(BaseGod):
         elif use_tokenizer and TOKENIZER_AVAILABLE and get_coordizer is not None:
             try:
                 coordizer = get_coordizer()
-                coordizer.set_mode("conversation")
+                # coordizer.set_mode() removed - mode switching deprecated
 
                 prompt = self._build_voice_prompt(category, context)
                 result = coordizer.generate_response(

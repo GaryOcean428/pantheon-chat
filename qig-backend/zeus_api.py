@@ -554,7 +554,7 @@ def coordizer_status():
     if not COORDIZER_AVAILABLE:
         return jsonify({
             'error': 'Coordizer not available',
-            'message': 'qig_coordizer module not imported'
+            'message': 'coordizers module not imported'
         }), 503
 
     try:
