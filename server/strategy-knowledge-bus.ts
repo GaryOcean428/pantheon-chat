@@ -20,6 +20,8 @@ import {
   coordizerVocabulary,
 } from "../shared/schema";
 import { db, withDbRetry } from "./db";
+import { assertCandidateTokensHaveValidQfi } from "./persistence/coordizer-vocabulary";
+import { isCurriculumOnlyEnabled, loadCurriculumManifest } from "./lib/curriculum-mode";
 import { knowledgeCompressionEngine } from "./knowledge-compression-engine";
 import { negativeKnowledgeUnified as negativeKnowledgeRegistry } from "./negative-knowledge-unified";
 import "./temporal-geometry";
