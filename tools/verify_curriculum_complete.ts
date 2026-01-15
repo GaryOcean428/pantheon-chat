@@ -1,22 +1,17 @@
-#!/usr/bin/env tsx
-import { checkCurriculumCompleteness } from '../server/curriculum'
+import { getCurriculumCoverage } from '../server/curriculum'
 
 async function main() {
-  const status = await checkCurriculumCompleteness()
+  const coverage = await getCurriculumCoverage()
 
-  if (status.complete) {
-    console.log('Curriculum completeness: OK')
-    return
-  }
+  console.log('Curriculum completeness')
+  console.log(`- total tokens: ${coverage.total}`)
+  console.log(`- active tokens: ${coverage.active}`)
+  console.log(`- missing tokens: ${coverage.missingTokens.length}`)
+  console.log(`- quarantined tokens: ${coverage.quarantinedTokens.length}`)
 
-  console.error('Curriculum completeness: FAILED')
-  if (status.missing.length > 0) {
-    console.error(`Missing tokens: ${status.missing.join(', ')}`)
+  if (coverage.total === 0 || coverage.missingTokens.length > 0 || coverage.quarantinedTokens.length > 0) {
+    process.exit(1)
   }
-  if (status.quarantined.length > 0) {
-    console.error(`Quarantined tokens: ${status.quarantined.join(', ')}`)
-  }
-  process.exit(1)
 }
 
 main().catch((error) => {

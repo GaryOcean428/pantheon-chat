@@ -14,8 +14,8 @@
 
 import { Router, Request, Response, NextFunction } from 'express';
 import { logger } from '../lib/logger';
-import { isCurriculumOnlyMode, getPythonBackendUrl } from '../lib/config';
-import { assertCurriculumReady } from '../curriculum';
+import { assertCurriculumReady, isCurriculumOnlyMode } from '../curriculum';
+import { getPythonBackendUrl } from '../lib/config';
 
 const router = Router();
 const BACKEND_URL = getPythonBackendUrl();
@@ -56,6 +56,10 @@ async function proxyGet(
   options: ProxyOptions = {}
 ) {
   try {
+    if (isCurriculumOnlyMode()) {
+      await assertCurriculumReady();
+    }
+
     let url = `${BACKEND_URL}${pythonPath}`;
     if (options.passQuery && Object.keys(req.query).length > 0) {
       const params = new URLSearchParams(req.query as Record<string, string>);
@@ -88,6 +92,10 @@ async function proxyPost(
   options: ProxyOptions = {}
 ) {
   try {
+    if (isCurriculumOnlyMode()) {
+      await assertCurriculumReady()
+    }
+
     const response = await fetch(`${BACKEND_URL}${pythonPath}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

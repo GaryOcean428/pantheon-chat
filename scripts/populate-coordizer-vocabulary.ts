@@ -14,9 +14,9 @@ import { sql } from 'drizzle-orm';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
-import { upsertToken } from '../server/vocabulary-persistence';
+import { upsertToken } from '../server/persistence/vocabulary';
 
-// Common English words to supplement BIP39
+// Common English words to supplement
 const COMMON_WORDS = [
   // Pronouns
   "i", "you", "he", "she", "it", "we", "they", "me", "him", "her", "us", "them",
@@ -111,7 +111,7 @@ function computeBasinEmbedding(word: string): number[] {
     embedding.push(z0, z1);
   }
   
-  // Normalize vector magnitude
+  // Normalize to length-1 vector
   const norm = Math.sqrt(embedding.reduce((sum, x) => sum + x * x, 0));
   return embedding.map(x => x / (norm + 1e-10));
 }
@@ -260,7 +260,10 @@ async function main() {
           phiScore: word.phiScore,
           basinEmbedding: word.embedding,
           sourceType: word.sourceType,
-          source: 'seed',
+          tokenRole: 'generation',
+          phraseCategory: 'common',
+          isRealWord: true,
+          source: 'seed'
         });
         inserted++;
       } catch (err) {

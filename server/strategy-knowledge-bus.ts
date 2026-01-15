@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, gte, inArray, isNotNull, lte } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { existsSync, readFileSync, writeFileSync } from "fs";
 import {
   CrossStrategyPattern,
@@ -23,9 +23,8 @@ import { db, withDbRetry } from "./db";
 import { knowledgeCompressionEngine } from "./knowledge-compression-engine";
 import { negativeKnowledgeUnified as negativeKnowledgeRegistry } from "./negative-knowledge-unified";
 import "./temporal-geometry";
-import { getCurriculumTokens } from "./curriculum";
+import { getCurriculumTokens, isCurriculumOnlyMode } from "./curriculum";
 import { isValidQfiScore } from "@shared/qfi";
-import { isCurriculumOnlyMode, isPurityMode } from "./lib/config";
 
 interface StrategyCapability {
   id: string;
@@ -729,56 +728,49 @@ export class StrategyKnowledgeBus {
       );
       const existingSet = new Set((existingPatterns.rows || []).map(r => r.pattern));
       
-      const curriculumTokens = getCurriculumTokens();
-      const curriculumOnly = isCurriculumOnlyMode();
+      // Load curriculum tokens only when needed (inside SQL condition) to avoid unnecessary file I/O
+      const learnedWords = await db.execute<{
+        word: string
+        avg_phi: number
+        frequency: number
+        qfi_score: number | null
+        token_status: string | null
+      }>(sql`
+        SELECT token as word, phi_score as avg_phi, frequency, qfi_score, token_status
+        FROM coordizer_vocabulary
+        WHERE phi_score > 0.4
+          AND frequency > 5
+          AND token_role IN ('generation', 'both')
+          AND token_status = 'active'
+          AND qfi_score BETWEEN 0 AND 1
+          AND basin_embedding IS NOT NULL
+          ${isCurriculumOnlyMode() ? sql`AND token = ANY(${getCurriculumTokens()})` : sql``}
+        ORDER BY phi_score DESC
+        LIMIT 100
+      `)
 
-      if (curriculumOnly && curriculumTokens.length === 0) {
-        console.warn("[KnowledgeBus] Curriculum-only mode enabled but no curriculum tokens loaded");
-        return 0;
+      const enforceQfi = isCurriculumOnlyMode()
+        || process.env.QIG_ENV === 'purity'
+        || process.env.QIG_PURITY_MODE === 'true'
+      if (enforceQfi) {
+        const invalid = (learnedWords.rows || []).filter((row) => !isValidQfiScore(row.qfi_score))
+        if (invalid.length > 0) {
+          throw new Error(`Invalid QFI scores detected in generation candidates: ${invalid.length}`)
+        }
       }
-
-      const conditions = [
-        gt(coordizerVocabulary.phiScore, 0.4),
-        gt(coordizerVocabulary.frequency, 5),
-        inArray(coordizerVocabulary.tokenRole, ["generation", "both"]),
-        eq(coordizerVocabulary.tokenStatus, "active"),
-        isNotNull(coordizerVocabulary.qfiScore),
-        gte(coordizerVocabulary.qfiScore, 0),
-        lte(coordizerVocabulary.qfiScore, 1),
-      ];
-
-      if (curriculumOnly) {
-        conditions.push(inArray(coordizerVocabulary.token, curriculumTokens));
-      }
-
-      const learnedWords = await db.select({
-        word: coordizerVocabulary.token,
-        avgPhi: coordizerVocabulary.phiScore,
-        frequency: coordizerVocabulary.frequency,
-        qfiScore: coordizerVocabulary.qfiScore,
-      })
-        .from(coordizerVocabulary)
-        .where(and(...conditions))
-        .orderBy(desc(coordizerVocabulary.phiScore))
-        .limit(100);
       
       let seeded = 0;
-      for (const row of learnedWords || []) {
-        if (isPurityMode() || curriculumOnly) {
-          if (!isValidQfiScore(row.qfiScore ?? null)) {
-            throw new Error(`[KnowledgeBus] Invalid qfi_score for token ${row.word}`);
-          }
-        }
-        if (row.word && row.avgPhi && !existingSet.has(row.word)) {
+      for (const row of learnedWords.rows || []) {
+        if (row.word && row.avg_phi && !existingSet.has(row.word)) {
           try {
             await this.publishKnowledge(
               "vocabulary_learning",
               `bootstrap_vocab_${row.word}`,
               row.word,
               {
-                phi: row.avgPhi,
+                phi: row.avg_phi,
                 kappaEff: Math.min(100, (row.frequency || 1) * 2),
-                regime: row.avgPhi > 0.7 ? "geometric" : "linear",
+                regime: row.avg_phi > 0.7 ? "geometric" : "linear",
               }
             );
             existingSet.add(row.word);

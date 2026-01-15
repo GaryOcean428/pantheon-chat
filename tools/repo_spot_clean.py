@@ -1,84 +1,80 @@
 #!/usr/bin/env python3
+"""
+Repo spot-cleaner: move docs-like files outside docs/ into docs/99-quarantine.
+"""
+
+from __future__ import annotations
+
 import os
+from pathlib import Path
 import shutil
-from datetime import datetime
+from datetime import datetime, timezone
+
+DOC_EXTENSIONS = {'.md', '.txt'}
+SKIP_DIRS = {'node_modules', '.git', 'dist', 'build', '__pycache__'}
 
 
-ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-DOCS_DIR = os.path.join(ROOT_DIR, 'docs')
-QUARANTINE_DIR = os.path.join(DOCS_DIR, '99-quarantine')
-INDEX_PATH = os.path.join(QUARANTINE_DIR, 'INDEX.md')
-
-DOC_EXTENSIONS = {'.md', '.markdown', '.mdx', '.txt', '.rst', '.adoc'}
-ALLOWLIST = {'README.md', 'LICENSE', 'AGENTS.md', 'CLAUDE.md'}
-SKIP_DIRS = {'node_modules', 'dist', '.git', '.cache', 'docs'}
+def is_doc_file(path: Path) -> bool:
+    return path.suffix.lower() in DOC_EXTENSIONS
 
 
-def ensure_dirs() -> None:
-    os.makedirs(QUARANTINE_DIR, exist_ok=True)
+def should_skip(path: Path) -> bool:
+    parts = set(path.parts)
+    return bool(parts & SKIP_DIRS)
 
 
-def is_doc_file(filename: str) -> bool:
-    return os.path.splitext(filename)[1].lower() in DOC_EXTENSIONS
+def sanitize_path(path: Path) -> str:
+    return '__'.join(path.parts)
 
 
-def find_docs_outside_docs() -> list[tuple[str, str]]:
-    moved = []
-    for root, dirs, files in os.walk(ROOT_DIR):
-        dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
-        if root.startswith(DOCS_DIR):
+def main() -> int:
+    repo_root = Path(__file__).resolve().parents[1]
+    quarantine_dir = repo_root / 'docs' / '99-quarantine'
+    quarantine_dir.mkdir(parents=True, exist_ok=True)
+
+    moved_entries = []
+
+    for root, _, files in os.walk(repo_root):
+        root_path = Path(root)
+
+        if should_skip(root_path):
             continue
+
+        if root_path.parts and 'docs' in root_path.parts:
+            continue
+
         for filename in files:
-            if filename in ALLOWLIST:
+            file_path = root_path / filename
+            if not is_doc_file(file_path):
                 continue
-            if not is_doc_file(filename):
-                continue
-            full_path = os.path.join(root, filename)
-            rel_path = os.path.relpath(full_path, ROOT_DIR)
-            moved.append((full_path, rel_path))
-    return moved
 
+            rel_path = file_path.relative_to(repo_root)
+            target_name = f"moved__{sanitize_path(rel_path)}"
+            target_path = quarantine_dir / target_name
 
-def quarantine_files(files: list[tuple[str, str]]) -> list[tuple[str, str]]:
-    moved_records = []
-    for full_path, rel_path in files:
-        safe_name = rel_path.replace(os.sep, '__')
-        destination = os.path.join(QUARANTINE_DIR, f'{safe_name}')
-        shutil.move(full_path, destination)
-        moved_records.append((rel_path, os.path.relpath(destination, ROOT_DIR)))
-    return moved_records
+            target_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(file_path), str(target_path))
 
+            moved_entries.append((rel_path.as_posix(), target_path.relative_to(repo_root).as_posix()))
 
-def write_index(moved_records: list[tuple[str, str]]) -> None:
-    timestamp = datetime.utcnow().isoformat(timespec='seconds') + 'Z'
-    lines = [
-        '# Quarantined Docs Index',
-        '',
-        f'Generated: {timestamp}',
-        '',
-        'Files moved here because they were documentation artifacts located outside the docs/ tree.',
-        '',
-        '| Original Path | Quarantined Path |',
-        '| --- | --- |',
-    ]
-    for original, quarantined in moved_records:
-        lines.append(f'| `{original}` | `{quarantined}` |')
-    lines.append('')
-    with open(INDEX_PATH, 'w', encoding='utf-8') as handle:
-        handle.write('\n'.join(lines))
+    index_path = quarantine_dir / 'INDEX.md'
+    timestamp = datetime.now(timezone.utc).isoformat()
+    with index_path.open('w', encoding='utf-8') as handle:
+        handle.write('# Quarantined docs index\n\n')
+        handle.write(f'- Generated: {timestamp} UTC\n')
+        handle.write('- Reason: Docs-like files found outside docs/ have been quarantined.\n\n')
 
+        if not moved_entries:
+            handle.write('No files moved.\n')
+        else:
+            handle.write('| Original Path | Quarantined Path |\n')
+            handle.write('| --- | --- |\n')
+            for original, moved in moved_entries:
+                handle.write(f'| {original} | {moved} |\n')
 
-def main() -> None:
-    ensure_dirs()
-    docs_to_move = find_docs_outside_docs()
-    if not docs_to_move:
-        print('No stray docs found.')
-        return
-
-    moved_records = quarantine_files(docs_to_move)
-    write_index(moved_records)
-    print(f'Moved {len(moved_records)} files to {QUARANTINE_DIR}.')
+    print(f'Moved {len(moved_entries)} files to {quarantine_dir}')
+    return 0
 
 
 if __name__ == '__main__':
-    main()
+    raise SystemExit(main())

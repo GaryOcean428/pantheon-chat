@@ -1,40 +1,48 @@
-#!/usr/bin/env tsx
 import { sql } from 'drizzle-orm'
-import { db } from '../server/db'
 
-async function getCount(query: string): Promise<number> {
-  const result = await db.execute(sql.raw(query))
-  const count = parseInt(result[0]?.count as string, 10)
-  return Number.isNaN(count) ? 0 : count
-}
+import { db } from '../server/db'
 
 async function main() {
   if (!db) {
-    console.error('Database unavailable')
+    console.error('Database not available')
     process.exit(1)
   }
 
-  const invalidQfi = await getCount(
-    `SELECT COUNT(*) as count FROM coordizer_vocabulary WHERE qfi_score < 0 OR qfi_score > 1`
-  )
-  const activeNullQfi = await getCount(
-    `SELECT COUNT(*) as count FROM coordizer_vocabulary WHERE token_status = 'active' AND qfi_score IS NULL`
-  )
-  const activeNullBasin = await getCount(
-    `SELECT COUNT(*) as count FROM coordizer_vocabulary WHERE token_status = 'active' AND basin_embedding IS NULL`
-  )
+  const invalidQfiResult = await db.execute<{ count: number }>(sql`
+    SELECT COUNT(*)::int AS count
+    FROM coordizer_vocabulary
+    WHERE qfi_score IS NOT NULL
+      AND (qfi_score < 0 OR qfi_score > 1)
+  `)
+  const invalidQfi = invalidQfiResult.rows?.[0]?.count ?? 0
 
-  console.log('DB integrity check:')
-  console.log(`- invalid qfi range: ${invalidQfi}`)
-  console.log(`- active tokens with NULL qfi: ${activeNullQfi}`)
-  console.log(`- active tokens with NULL basin: ${activeNullBasin}`)
+  const activeMissingQfiResult = await db.execute<{ count: number }>(sql`
+    SELECT COUNT(*)::int AS count
+    FROM coordizer_vocabulary
+    WHERE token_status = 'active'
+      AND qfi_score IS NULL
+  `)
+  const activeMissingQfi = activeMissingQfiResult.rows?.[0]?.count ?? 0
 
-  if (invalidQfi > 0 || activeNullQfi > 0 || activeNullBasin > 0) {
+  const activeMissingBasinResult = await db.execute<{ count: number }>(sql`
+    SELECT COUNT(*)::int AS count
+    FROM coordizer_vocabulary
+    WHERE token_status = 'active'
+      AND basin_embedding IS NULL
+  `)
+  const activeMissingBasin = activeMissingBasinResult.rows?.[0]?.count ?? 0
+
+  console.log('QFI integrity summary')
+  console.log(`- invalid qfi_score: ${invalidQfi}`)
+  console.log(`- active tokens missing qfi_score: ${activeMissingQfi}`)
+  console.log(`- active tokens missing basin_embedding: ${activeMissingBasin}`)
+
+  if (invalidQfi > 0 || activeMissingQfi > 0 || activeMissingBasin > 0) {
     process.exit(1)
   }
 }
 
 main().catch((error) => {
-  console.error('DB integrity check failed:', error)
+  console.error('Verification failed:', error)
   process.exit(1)
 })

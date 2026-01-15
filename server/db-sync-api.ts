@@ -14,7 +14,7 @@ import { db, withDbRetry } from './db';
 import { logger } from './lib/logger';
 import * as schema from '@shared/schema';
 import { sql, desc } from 'drizzle-orm';
-import { upsertToken } from './vocabulary-persistence';
+import { upsertToken } from './persistence/vocabulary';
 
 const router = Router();
 
@@ -138,25 +138,20 @@ router.post('/import/vocabulary', async (req: Request, res: Response) => {
       
       for (const item of batch) {
         try {
-          const tokenId = item.tokenId ?? item.token_id;
-          if (!item.token || tokenId === undefined) {
-            skipped++;
-            continue;
-          }
-
+          // Upsert - insert or update on conflict
           await upsertToken({
             token: item.token,
-            tokenId,
-            weight: item.weight ?? null,
-            frequency: item.frequency ?? null,
-            phiScore: item.phiScore ?? null,
-            basinEmbedding: item.basinEmbedding ?? null,
-            scale: item.scale ?? null,
-            sourceType: item.sourceType ?? item.source_type ?? null,
-            tokenRole: item.tokenRole ?? item.token_role ?? null,
-            phraseCategory: item.phraseCategory ?? item.phrase_category ?? null,
-            isRealWord: item.isRealWord ?? item.is_real_word ?? null,
-            source: 'sync',
+            tokenId: item.tokenId ?? item.token_id ?? 0,
+            weight: item.weight ?? 1,
+            frequency: item.frequency ?? 1,
+            phiScore: item.phiScore ?? item.phi_score ?? 0,
+            basinEmbedding: item.basinEmbedding ?? item.basin_embedding ?? null,
+            sourceType: item.sourceType ?? item.source_type ?? 'sync',
+            tokenRole: item.tokenRole ?? item.token_role ?? 'encoding',
+            phraseCategory: item.phraseCategory ?? item.phrase_category ?? 'unknown',
+            isRealWord: item.isRealWord ?? item.is_real_word ?? false,
+            tokenStatus: item.tokenStatus ?? item.token_status ?? 'active',
+            source: 'sync'
           });
           imported++;
         } catch (err) {

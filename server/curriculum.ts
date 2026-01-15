@@ -1,108 +1,162 @@
-import { readFileSync } from 'fs'
+import fs from 'fs'
 import path from 'path'
-import { inArray } from 'drizzle-orm'
-import { coordizerVocabulary } from '@shared/schema'
-import { isValidQfiScore } from '@shared/qfi'
-import { db } from './db'
 
-export interface CurriculumToken {
+import { sql } from 'drizzle-orm'
+
+import { isValidQfiScore } from '@shared/qfi'
+
+import { db, withDbRetry } from './db'
+
+export type CurriculumEntry = {
   token: string
-  role: string
-  is_real_word: boolean
+  role?: string
+  is_real_word?: boolean
   frequency?: number
   notes?: string
 }
 
-const curriculumPath = path.join(process.cwd(), 'data', 'curriculum', 'curriculum_tokens.jsonl')
-let cachedTokens: CurriculumToken[] | null = null
+const manifestPath = path.join(process.cwd(), 'data', 'curriculum', 'curriculum_tokens.jsonl')
+let cachedManifest: CurriculumEntry[] | null = null
+let cachedManifestMtime = 0
 
-export function loadCurriculumTokens(): CurriculumToken[] {
-  if (cachedTokens) return cachedTokens
+export function isCurriculumOnlyMode(): boolean {
+  return process.env.QIG_CURRICULUM_ONLY === 'true'
+}
 
-  const raw = readFileSync(curriculumPath, 'utf-8')
-  const tokens = raw
-    .split('\n')
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0)
-    .map((line) => JSON.parse(line) as CurriculumToken)
+export function loadCurriculumManifest(): CurriculumEntry[] {
+  try {
+    const stats = fs.statSync(manifestPath)
+    if (cachedManifest && stats.mtimeMs === cachedManifestMtime) {
+      return cachedManifest
+    }
 
-  cachedTokens = tokens
-  return tokens
+    const content = fs.readFileSync(manifestPath, 'utf-8')
+    const entries = content
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0)
+      .map((line) => JSON.parse(line) as CurriculumEntry)
+      .filter((entry) => entry.token && entry.token.length > 0)
+
+    cachedManifest = entries
+    cachedManifestMtime = stats.mtimeMs
+    return entries
+  } catch (error) {
+    if (isCurriculumOnlyMode()) {
+      throw new Error(`Curriculum manifest missing or unreadable: ${manifestPath}`)
+    }
+
+    return []
+  }
 }
 
 export function getCurriculumTokens(): string[] {
-  return loadCurriculumTokens().map((entry) => entry.token)
+  return loadCurriculumManifest().map((entry) => entry.token.toLowerCase())
 }
 
-export async function checkCurriculumCompleteness(): Promise<{
-  complete: boolean
-  missing: string[]
-  quarantined: string[]
-}> {
+export type CurriculumCoverage = {
+  total: number
+  active: number
+  missingTokens: string[]
+  quarantinedTokens: string[]
+}
+
+export async function getCurriculumCoverage(): Promise<CurriculumCoverage> {
   const tokens = getCurriculumTokens()
-  if (!db) {
-    throw new Error('Database unavailable')
-  }
-
   if (tokens.length === 0) {
-    return { complete: false, missing: [], quarantined: [] }
-  }
-
-  const rows = await db
-    .select({
-      token: coordizerVocabulary.token,
-      tokenStatus: coordizerVocabulary.tokenStatus,
-      qfiScore: coordizerVocabulary.qfiScore,
-      basinEmbedding: coordizerVocabulary.basinEmbedding,
-    })
-    .from(coordizerVocabulary)
-    .where(inArray(coordizerVocabulary.token, tokens))
-
-  const rowMap = new Map(rows.map((row) => [row.token, row]))
-  const missing: string[] = []
-  const quarantined: string[] = []
-
-  for (const token of tokens) {
-    const row = rowMap.get(token)
-    if (!row) {
-      missing.push(token)
-      continue
-    }
-
-    if (row.tokenStatus !== 'active') {
-      quarantined.push(token)
-      continue
-    }
-
-    if (!row.basinEmbedding || !isValidQfiScore(row.qfiScore ?? null)) {
-      quarantined.push(token)
+    return {
+      total: 0,
+      active: 0,
+      missingTokens: [],
+      quarantinedTokens: [],
     }
   }
+
+  if (!db) {
+    throw new Error('Database unavailable while checking curriculum coverage')
+  }
+
+  const result = await withDbRetry(
+    async () => db!.execute(sql`
+      SELECT token, token_status, qfi_score, basin_embedding
+      FROM coordizer_vocabulary
+      WHERE token = ANY(${tokens})
+    `),
+    'curriculum-coverage'
+  )
+
+  const rows = result?.rows ?? []
+  const foundTokens = new Set<string>()
+  const quarantinedTokens: string[] = []
+  let active = 0
+
+  for (const row of rows) {
+    const token = String(row.token)
+    foundTokens.add(token)
+
+    const status = row.token_status as string | null
+    const qfiScore = row.qfi_score as number | null
+    const hasBasin = !!row.basin_embedding
+
+    const isActive = status === 'active' && isValidQfiScore(qfiScore) && hasBasin
+    if (isActive) {
+      active += 1
+    } else {
+      quarantinedTokens.push(token)
+    }
+  }
+
+  const missingTokens = tokens.filter((token) => !foundTokens.has(token))
 
   return {
-    complete: missing.length === 0 && quarantined.length === 0,
-    missing,
-    quarantined,
+    total: tokens.length,
+    active,
+    missingTokens,
+    quarantinedTokens,
   }
 }
 
 export async function assertCurriculumReady(): Promise<void> {
-  const status = await checkCurriculumCompleteness()
-  if (!status.complete) {
-    const details = [
-      status.missing.length ? `missing=${status.missing.length}` : null,
-      status.quarantined.length ? `quarantined=${status.quarantined.length}` : null,
-    ]
-      .filter(Boolean)
-      .join(', ')
-    throw new Error(`Curriculum incomplete: ${details}`)
+  if (!isCurriculumOnlyMode()) {
+    return
+  }
+
+  const coverage = await getCurriculumCoverage()
+  if (coverage.total === 0) {
+    throw new Error('Curriculum-only mode requires a non-empty curriculum manifest')
+  }
+
+  if (coverage.missingTokens.length > 0 || coverage.quarantinedTokens.length > 0) {
+    const missingPreview = coverage.missingTokens.slice(0, 5).join(', ')
+    const quarantinedPreview = coverage.quarantinedTokens.slice(0, 5).join(', ')
+
+    throw new Error(
+      `Curriculum incomplete. Missing: ${missingPreview || 'none'}; ` +
+      `quarantined: ${quarantinedPreview || 'none'}.`
+    )
   }
 }
 
+/**
+ * Validates that all provided tokens are in the curriculum.
+ * Only enforces when curriculum-only mode is enabled.
+ * @param tokens - Array of tokens to validate
+ * @throws Error if any token is not in the curriculum when curriculum-only mode is enabled
+ */
 export function assertTokensInCurriculum(tokens: string[]): void {
-  const curriculumSet = new Set(getCurriculumTokens())
-  const invalid = tokens.filter((token) => !curriculumSet.has(token))
-  if (invalid.length > 0) {
-    throw new Error(`Curriculum-only mode: tokens not in manifest: ${invalid.join(', ')}`)
+  if (!isCurriculumOnlyMode() || tokens.length === 0) {
+    return
+  }
+
+  const curriculumTokens = new Set(getCurriculumTokens())
+  const invalidTokens = tokens.filter((token) => !curriculumTokens.has(token.toLowerCase()))
+
+  if (invalidTokens.length > 0) {
+    const preview = invalidTokens.slice(0, 5).join(', ')
+    throw new Error(
+      `Curriculum-only mode violation: Generated tokens not in curriculum: ${preview}${
+        invalidTokens.length > 5 ? ` and ${invalidTokens.length - 5} more` : ''
+      }`
+    )
   }
 }

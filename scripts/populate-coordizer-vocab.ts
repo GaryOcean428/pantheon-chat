@@ -9,12 +9,12 @@
  */
 
 import { db } from '../server/db';
-import { sql } from 'drizzle-orm';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
 import { upsertToken } from '../server/vocabulary-persistence';
 import { fileURLToPath } from 'url';
+import { upsertToken } from '../server/persistence/vocabulary';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -107,7 +107,7 @@ function computeBasinEmbedding(word: string): number[] {
     embedding.push(random());
   }
   
-  // Normalize vector magnitude
+  // Normalize to length-1 vector
   const norm = Math.sqrt(embedding.reduce((sum, x) => sum + x * x, 0));
   return embedding.map(x => x / norm);
 }
@@ -206,7 +206,10 @@ async function main() {
           phiScore: word.phiScore,
           basinEmbedding: word.basinEmbedding,
           sourceType: word.sourceType,
-          source: 'seed',
+          tokenRole: 'generation',
+          phraseCategory: 'common',
+          isRealWord: true,
+          source: 'seed'
         });
         inserted++;
       } catch (err) {
