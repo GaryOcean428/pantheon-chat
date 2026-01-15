@@ -136,3 +136,27 @@ export async function assertCurriculumReady(): Promise<void> {
     )
   }
 }
+
+/**
+ * Validates that all provided tokens are in the curriculum.
+ * Only enforces when curriculum-only mode is enabled.
+ * @param tokens - Array of tokens to validate
+ * @throws Error if any token is not in the curriculum when curriculum-only mode is enabled
+ */
+export function assertTokensInCurriculum(tokens: string[]): void {
+  if (!isCurriculumOnlyMode() || tokens.length === 0) {
+    return
+  }
+
+  const curriculumTokens = new Set(getCurriculumTokens())
+  const invalidTokens = tokens.filter((token) => !curriculumTokens.has(token.toLowerCase()))
+
+  if (invalidTokens.length > 0) {
+    const preview = invalidTokens.slice(0, 5).join(', ')
+    throw new Error(
+      `Curriculum-only mode violation: Generated tokens not in curriculum: ${preview}${
+        invalidTokens.length > 5 ? ` and ${invalidTokens.length - 5} more` : ''
+      }`
+    )
+  }
+}

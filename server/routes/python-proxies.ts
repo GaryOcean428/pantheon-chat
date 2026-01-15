@@ -15,6 +15,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { logger } from '../lib/logger';
 import { assertCurriculumReady, isCurriculumOnlyMode } from '../curriculum';
+import { getPythonBackendUrl } from '../lib/config';
 
 const router = Router();
 const BACKEND_URL = getPythonBackendUrl();

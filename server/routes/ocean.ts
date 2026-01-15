@@ -1,6 +1,5 @@
 import { Router, type Request, type Response } from "express";
 import { getErrorMessage, handleRouteError } from '../lib/error-utils';
-import { isCurriculumOnlyMode } from '../lib/config';
 import { logger } from '../lib/logger';
 import { generousLimiter, standardLimiter, strictLimiter } from "../rate-limiters";
 import { autoCycleManager } from "../auto-cycle-manager";
@@ -8,7 +7,7 @@ import { oceanAutonomicManager } from "../ocean-autonomic-manager";
 import { oceanSessionManager } from "../ocean-session-manager";
 import { isAuthenticated } from "../replitAuth";
 import { E8_CONSTANTS } from "../../shared/constants/index.js";
-import { assertCurriculumReady, isCurriculumOnlyMode } from "../curriculum";
+import { assertCurriculumReady, assertTokensInCurriculum, isCurriculumOnlyMode } from "../curriculum";
 
 export const oceanRouter = Router();
 
