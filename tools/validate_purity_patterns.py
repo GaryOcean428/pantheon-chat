@@ -26,6 +26,20 @@ SKIP_DIRS = {
     "docs",
 }
 
+# Skip files that define or check purity patterns (meta-files)
+SKIP_FILES = {
+    "validate_purity_patterns.py",  # This file defines banned patterns
+    "qig_purity_check.py",  # Purity checker that references patterns
+    "qig_purity_scan.py",  # Purity scanner
+    "qig_purity_scan.ts",  # Purity scanner
+    "test_geometric_purity_ci.py",  # Test that references patterns
+    "validate-geometric-purity.py",  # Validation script
+    "validate-geometric-purity.ts",  # Validation script
+    "benchmark-pgvector.ts",  # Benchmark script that may reference patterns
+    "convert_legacy_artifacts.py",  # Legacy conversion tool (validates unit norms in old data)
+    "populate_related_words.py",  # Legacy population script with cosine fallback
+}
+
 SCAN_EXTENSIONS = {".py", ".ts", ".tsx", ".js"}
 
 BANNED_PATTERNS = {
@@ -51,7 +65,11 @@ ALLOWED_SQL_PATHS = {
 
 
 def should_skip(path: Path) -> bool:
-    return any(part in SKIP_DIRS for part in path.parts)
+    if any(part in SKIP_DIRS for part in path.parts):
+        return True
+    if path.name in SKIP_FILES:
+        return True
+    return False
 
 
 def scan_file(path: Path) -> list[str]:
