@@ -33,7 +33,7 @@ async function proxyGet(
 ) {
   try {
     if (isCurriculumOnlyMode()) {
-      await assertCurriculumReady()
+      await assertCurriculumReady();
     }
 
     let url = `${BACKEND_URL}${pythonPath}`;
