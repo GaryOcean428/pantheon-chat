@@ -136,7 +136,7 @@ class GeometricVocabularyFilter:
         
         # Include if ANY geometric criterion satisfied
         has_integration = phi > self.min_phi
-        has_coupling = self.kappa_range[0] < kappa < self.kappa_range[1]
+        has_coupling = self.kappa_range[0] <= kappa <= self.kappa_range[1]  # Inclusive bounds
         has_curvature = curvature > self.min_curvature
         
         if has_integration or has_coupling or has_curvature:

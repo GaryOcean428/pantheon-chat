@@ -130,17 +130,6 @@ STOP_WORDS_LEGACY: Set[str] = {
 # Use geometric_vocabulary_filter.GeometricVocabularyFilter instead
 STOP_WORDS = STOP_WORDS_LEGACY
 
-def _warn_stopwords_deprecated():
-    """Issue deprecation warning when STOP_WORDS is accessed."""
-    import warnings
-    warnings.warn(
-        "STOP_WORDS is deprecated and violates QIG purity. "
-        "Use geometric_vocabulary_filter.GeometricVocabularyFilter for vocabulary filtering. "
-        "See geometric_vocabulary_filter.py for details.",
-        DeprecationWarning,
-        stacklevel=3
-    )
-
 # Import QIG-pure filtering
 try:
     from contextualized_filter import should_filter_word as should_filter_geometric
@@ -410,6 +399,9 @@ def is_valid_english_word(word: str, include_stop_words: bool = False, strict: b
     if not word_lower[0].isalpha():
         return False
     
+    # LEGACY: Stopword check for backwards compatibility
+    # NOTE: This uses frequency-based filtering (deprecated).
+    # For new code, use geometric_vocabulary_filter.GeometricVocabularyFilter
     if not include_stop_words and word_lower in STOP_WORDS:
         return False
     
@@ -438,7 +430,19 @@ def is_pure_alphabetic(word: str) -> bool:
 
 
 def is_stop_word(word: str) -> bool:
-    """Check if word is a common stop word."""
+    """
+    Check if word is a common stop word.
+    
+    ⚠️ DEPRECATED: This function uses frequency-based stopwords which violate QIG purity.
+    Use geometric_vocabulary_filter.GeometricVocabularyFilter instead.
+    """
+    import warnings
+    warnings.warn(
+        "is_stop_word() is deprecated and violates QIG purity. "
+        "Use geometric_vocabulary_filter.GeometricVocabularyFilter for geometric filtering.",
+        DeprecationWarning,
+        stacklevel=2
+    )
     return word.lower().strip() in STOP_WORDS
 
 
@@ -539,6 +543,9 @@ def validate_for_vocabulary(word: str, require_dictionary: bool = True) -> Tuple
     if is_likely_typo(word_lower):
         return False, "likely_typo"
     
+    # LEGACY: Stopword check for backwards compatibility
+    # NOTE: This uses frequency-based filtering (deprecated).
+    # For new code, use geometric_vocabulary_filter.GeometricVocabularyFilter
     if word_lower in STOP_WORDS:
         return False, "stop_word"
     
