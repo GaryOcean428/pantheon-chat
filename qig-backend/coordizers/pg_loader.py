@@ -291,11 +291,13 @@ class PostgresCoordizer(FisherCoordizer):
             
             with conn.cursor() as cur:
                 if token_role_exists:
+                    # P0 FIX: Add qfi_score IS NOT NULL filter to prevent incomplete records
                     # NEW: Use consolidated coordizer_vocabulary with token_role filter
                     cur.execute("""
                         SELECT token, basin_embedding, phi_score, frequency, phrase_category
                         FROM coordizer_vocabulary
                         WHERE basin_embedding IS NOT NULL
+                          AND qfi_score IS NOT NULL
                           AND LENGTH(token) >= 1
                           AND COALESCE(phi_score, 0.0) > 0.0
                           AND token_role IN ('generation', 'both')
