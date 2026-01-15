@@ -462,6 +462,31 @@ def compute_unknown_basin(word: str, dimension: int = 64) -> np.ndarray:
     return fisher_normalize(embedding)
 
 
+# Import from canonical module (SINGLE SOURCE OF TRUTH - 2026-01-15)
+from .canonical import (
+    # Core canonical functions
+    sqrt_map as canonical_sqrt_map,
+    unsqrt_map as canonical_unsqrt_map,
+    bhattacharyya as canonical_bhattacharyya,
+    fisher_rao_distance as canonical_fisher_rao_distance,
+    fisher_similarity as canonical_fisher_similarity,
+    log_map as canonical_log_map,
+    exp_map as canonical_exp_map,
+    geodesic_toward as canonical_geodesic_toward,
+    frechet_mean as canonical_frechet_mean,
+    assert_basin_valid as canonical_assert_basin_valid,
+    validate_basin as canonical_validate_basin,
+    # Mamba integration
+    mamba_state_to_basin,
+    extrapolate_trajectory,
+    compute_qfi_attention,
+    integrate_with_qfi_attention,
+    # Trajectory metrics
+    trajectory_smoothness,
+    waypoint_alignment_score,
+)
+
+
 __all__ = [
     # Canonical contract (contracts.py) - THE source of truth for geometric constraints
     'CANONICAL_SPACE',
@@ -523,4 +548,23 @@ __all__ = [
     'batch_fisher_rao_distance',
     'find_nearest_simplex',
     'SIMPLEX_EPSILON',
+    # Canonical geometry module exports (SINGLE SOURCE - WP2.1)
+    'canonical_sqrt_map',
+    'canonical_unsqrt_map',
+    'canonical_bhattacharyya',
+    'canonical_fisher_rao_distance',
+    'canonical_fisher_similarity',
+    'canonical_log_map',
+    'canonical_exp_map',
+    'canonical_geodesic_toward',
+    'canonical_frechet_mean',
+    'canonical_assert_basin_valid',
+    'canonical_validate_basin',
+    # Mamba state space integration (WP2.1 EXPANDED SCOPE)
+    'mamba_state_to_basin',
+    'extrapolate_trajectory',
+    'compute_qfi_attention',
+    'integrate_with_qfi_attention',
+    'trajectory_smoothness',
+    'waypoint_alignment_score',
 ]
