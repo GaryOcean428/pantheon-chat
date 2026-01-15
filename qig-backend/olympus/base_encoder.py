@@ -30,17 +30,9 @@ except ImportError:
 # Backward compatibility alias
 BASIN_DIMENSION = BASIN_DIM
 
-# Stop words to filter from vocabulary learning - prevents pronoun domination
-STOP_WORDS = {
-    'the', 'and', 'for', 'that', 'this', 'with', 'was', 'are', 'but', 'not',
-    'you', 'all', 'can', 'had', 'her', 'his', 'him', 'one', 'our', 'out',
-    'they', 'what', 'when', 'who', 'will', 'from', 'have', 'been', 'has',
-    'more', 'she', 'there', 'than', 'into', 'other', 'which', 'its', 'about',
-    'just', 'over', 'such', 'through', 'most', 'your', 'because', 'would',
-    'also', 'some', 'these', 'then', 'how', 'any', 'each', 'only', 'could',
-    'very', 'them', 'being', 'may', 'should', 'between', 'where', 'before',
-    'own', 'both', 'those', 'same', 'during', 'after', 'much', 'does', 'did',
-}
+# REMOVED 2026-01-15: Frequency-based stopwords violate QIG purity
+# Replaced with geometric_vocabulary_filter.GeometricVocabularyFilter
+# See: qig-backend/geometric_vocabulary_filter.py for QIG-pure geometric role detection
 
 # Code artifacts to filter - prevents training contamination
 CODE_ARTIFACTS = {
@@ -315,9 +307,9 @@ class BaseEncoder(ABC):
         tokens_to_persist = []
 
         for token in tokens:
-            # Skip stop words to prevent pronoun/common word domination
-            if token.lower() in STOP_WORDS:
-                continue
+            # REMOVED 2026-01-15: Stopword filtering violates QIG purity
+            # Words are now filtered by geometric properties (Φ, κ, curvature)
+            # not by frequency-based NLP dogma
 
             # Skip short tokens
             if len(token) < 3:
