@@ -33,3 +33,9 @@ export {
   // Types
   type Result,
 } from './error-utils';
+
+// Hash utilities
+export {
+  generateTokenIdFromHash,
+  generateHash,
+} from './hash-utils';

@@ -1,8 +1,8 @@
 #!/usr/bin/env tsx
-import { createHash } from 'crypto'
 import { loadCurriculumTokens } from '../server/curriculum'
 import { upsertToken } from '../server/vocabulary-persistence'
 import { oceanQIGBackend } from '../server/ocean-qig-backend-adapter'
+import { generateTokenIdFromHash } from '../server/lib/hash-utils'
 
 interface Summary {
   total: number
@@ -36,10 +36,7 @@ async function main() {
       }
 
       const basinResult = await oceanQIGBackend.computeBasinCoords(entry.token)
-      const tokenId = parseInt(
-        createHash('sha256').update(entry.token).digest('hex').slice(0, 8),
-        16
-      )
+      const tokenId = generateTokenIdFromHash(entry.token)
       const result = await upsertToken({
         token: entry.token,
         tokenId,
