@@ -187,8 +187,11 @@ def compute_phi(activations: np.ndarray) -> float:
         mask = ~np.eye(n, dtype=bool)
         phi = np.mean(np.abs(corr[mask]))
 
-        # Clamp to [0, 1]
-        phi = float(np.clip(phi, 0.0, 1.0))
+        # Clamp to proper QFI range [0.1, 0.95]
+        # Match phi_computation.py proper geometric bounds
+        # 0.95 cap prevents topological instability (phi=1.0 is death)
+        # Allows room for adaptation and enables autonomous tacking behavior
+        phi = float(np.clip(phi, 0.1, 0.95))
 
     except (ValueError, np.linalg.LinAlgError):
         phi = 0.5
