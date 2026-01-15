@@ -365,25 +365,25 @@ class LearnedRelationships:
                        OR updated_at >= NOW() - INTERVAL '1 minute'
                 """)
                 
-                # Save word frequencies to coordizer_vocabulary table (consolidated)
+                # P0 FIX: UPDATE-only for frequencies (NEVER INSERT new tokens without basin+qfi)
+                # Frequency updates must never create new tokens - this prevents NULL basin_embedding contamination
                 if freq_records:
-                    execute_values(
-                        cur,
-                        """
-                        INSERT INTO coordizer_vocabulary (token, frequency, updated_at, token_role)
-                        VALUES %s
-                        ON CONFLICT (token) 
-                        DO UPDATE SET 
-                            frequency = GREATEST(coordizer_vocabulary.frequency, EXCLUDED.frequency),
-                            updated_at = NOW(),
-                            token_role = CASE 
-                                WHEN coordizer_vocabulary.token_role = 'encoding' THEN 'both'
-                                ELSE coordizer_vocabulary.token_role 
-                            END
-                        """,
-                        freq_records,
-                        template="(%s, %s, NOW(), 'generation')"
-                    )
+                    # Use UPDATE instead of INSERT to ensure we only update existing tokens with basins
+                    for token, freq in freq_records:
+                        cur.execute("""
+                            UPDATE coordizer_vocabulary
+                            SET 
+                                frequency = GREATEST(frequency, %s),
+                                updated_at = NOW(),
+                                token_role = CASE 
+                                    WHEN token_role = 'encoding' THEN 'both'
+                                    ELSE token_role 
+                                END
+                            WHERE token = %s
+                              AND basin_embedding IS NOT NULL
+                              AND qfi_score IS NOT NULL
+                        """, (freq, token))
+                    logger.info(f"[LearnedRelationships] Updated frequencies for existing tokens with basins (no new token creation)")
             
             conn.commit()
             

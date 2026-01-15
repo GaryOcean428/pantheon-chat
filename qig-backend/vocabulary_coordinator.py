@@ -13,6 +13,9 @@ import numpy as np
 from word_validation import is_valid_english_word, validate_for_vocabulary, STOP_WORDS
 from qig_geometry import fisher_coord_distance
 
+# Import QFI computation (for P0 fix - ensure QFI on basin insert)
+FISHER_REGULARIZATION = 1e-6  # Numerical stability for Fisher metric determinant
+
 # Import comprehensive validator for web scraping contamination prevention (PR 27/28)
 try:
     from vocabulary_validator_comprehensive import validate_word_comprehensive
@@ -67,6 +70,31 @@ def get_learned_manifold() -> Optional['LearnedManifold']:
         _learned_manifold = LearnedManifold(basin_dim=64)
         print("[VocabularyCoordinator] LearnedManifold initialized for attractor formation")
     return _learned_manifold
+
+
+def compute_qfi_for_basin(basin: np.ndarray) -> float:
+    """
+    Compute Quantum Fisher Information score for a basin.
+    
+    P0 FIX: Enforce QFI computation whenever basin_embedding is present.
+    This prevents incomplete records in coordizer_vocabulary.
+    
+    Args:
+        basin: 64D basin coordinates
+    
+    Returns:
+        QFI score (float)
+    """
+    # Fisher metric: outer product + regularization
+    fisher_metric = np.outer(basin, basin)
+    
+    # Add small regularization for numerical stability
+    fisher_metric += np.eye(64) * FISHER_REGULARIZATION
+    
+    # Determinant as QFI score
+    qfi = np.linalg.det(fisher_metric)
+    
+    return float(qfi)
 
 
 class VocabularyCoordinator:
@@ -223,6 +251,7 @@ class VocabularyCoordinator:
                 print(f"[VocabularyCoordinator] Failed to persist '{word}': {e}")
         
         # Phase 2b: Update coordizer_vocabulary with basin_embedding for generation
+        # P0 FIX: Also compute and insert QFI score to prevent incomplete records
         # Also update learned_words for backward compatibility
         if words_with_basins:
             database_url = os.environ.get('DATABASE_URL')
@@ -232,21 +261,27 @@ class VocabularyCoordinator:
                     with conn.cursor() as cur:
                         for word, basin in words_with_basins:
                             basin_list = basin.tolist() if hasattr(basin, 'tolist') else list(basin)
+                            
+                            # P0 FIX: Compute QFI whenever basin is present
+                            qfi_score = compute_qfi_for_basin(basin)
+                            
                             # Primary: Update coordizer_vocabulary (consolidated table)
+                            # CRITICAL: Include qfi_score in INSERT to prevent NULL qfi_score
                             cur.execute("""
                                 INSERT INTO coordizer_vocabulary (
-                                    token, basin_embedding, token_role, is_real_word, frequency
+                                    token, basin_embedding, qfi_score, token_role, is_real_word, frequency
                                 )
-                                VALUES (%s, %s::vector, 'generation', TRUE, 1)
+                                VALUES (%s, %s::vector, %s, 'generation', TRUE, 1)
                                 ON CONFLICT (token) DO UPDATE SET
                                     basin_embedding = COALESCE(EXCLUDED.basin_embedding, coordizer_vocabulary.basin_embedding),
+                                    qfi_score = COALESCE(EXCLUDED.qfi_score, coordizer_vocabulary.qfi_score),
                                     token_role = CASE 
                                         WHEN coordizer_vocabulary.token_role = 'encoding' THEN 'both'
                                         ELSE COALESCE(coordizer_vocabulary.token_role, 'generation')
                                     END,
                                     is_real_word = TRUE,
                                     updated_at = NOW()
-                            """, (word, str(basin_list)))
+                            """, (word, str(basin_list), qfi_score))
                             # Backward compatibility: Also update learned_words if it exists
                             try:
                                 cur.execute("""
@@ -920,25 +955,32 @@ class VocabularyCoordinator:
                         errors.append(f"save_token_{w['word']}: {e}")
 
                 # Phase 2b: Update coordizer_vocabulary with basin_embedding and mark as generation-ready
+                # P0 FIX: Also compute and insert QFI score to prevent incomplete records
                 # Also update learned_words for backward compatibility
                 for word, basin in words_with_basins:
                     try:
                         basin_list = basin.tolist() if hasattr(basin, 'tolist') else list(basin)
+                        
+                        # P0 FIX: Compute QFI whenever basin is present
+                        qfi_score = compute_qfi_for_basin(basin)
+                        
                         # Primary: Update coordizer_vocabulary (consolidated table)
+                        # CRITICAL: Include qfi_score in INSERT to prevent NULL qfi_score
                         cur.execute("""
                             INSERT INTO coordizer_vocabulary (
-                                token, basin_embedding, token_role, is_real_word, frequency
+                                token, basin_embedding, qfi_score, token_role, is_real_word, frequency
                             )
-                            VALUES (%s, %s::vector, 'generation', TRUE, 1)
+                            VALUES (%s, %s::vector, %s, 'generation', TRUE, 1)
                             ON CONFLICT (token) DO UPDATE SET
                                 basin_embedding = COALESCE(EXCLUDED.basin_embedding, coordizer_vocabulary.basin_embedding),
+                                qfi_score = COALESCE(EXCLUDED.qfi_score, coordizer_vocabulary.qfi_score),
                                 token_role = CASE 
                                     WHEN coordizer_vocabulary.token_role = 'encoding' THEN 'both'
                                     ELSE COALESCE(coordizer_vocabulary.token_role, 'generation')
                                 END,
                                 is_real_word = TRUE,
                                 updated_at = NOW()
-                        """, (word, str(basin_list)))
+                        """, (word, str(basin_list), qfi_score))
                         # Backward compatibility: Update learned_words if it exists
                         try:
                             cur.execute("""

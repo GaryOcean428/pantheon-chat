@@ -146,14 +146,15 @@ def to_simplex(
     
     # Convert based on source representation
     if from_repr == BasinRepresentation.SPHERE:
-        # Sphere -> Simplex: take absolute value, normalize sum
+        # P1 FIX: Use clamp (maximum) instead of abs() for geometric purity
+        # Sphere -> Simplex: clamp to non-negative, normalize sum
         # In strict mode, check for negatives first
         if strict and np.any(b < -eps):
             raise GeometricViolationError(
                 f"SPHERE->SIMPLEX conversion in purity mode: found negative values "
                 f"(min={np.min(b):.6f}). This indicates off-manifold drift."
             )
-        b = np.abs(b) + eps
+        b = np.maximum(b, 0) + eps
     
     elif from_repr == BasinRepresentation.HELLINGER:
         # Hellinger -> Simplex: square to get probabilities
@@ -174,6 +175,7 @@ def to_simplex(
                     f"SIMPLEX input in purity mode has negative values "
                     f"(min={np.min(b):.6f}). Projection should not sanitize logic bugs."
                 )
+        # P1 FIX: Use clamp (maximum) instead of abs() for geometric purity
         # For non-strict or valid inputs, ensure non-negative
         b = np.maximum(b, 0) + eps
     
