@@ -38,10 +38,11 @@ def fisher_rao_distance(p: np.ndarray, q: np.ndarray) -> float:
     Returns:
         Fisher-Rao distance (≥ 0, max π/2)
     """
-    p = np.abs(p) + 1e-10
+    # P1 FIX: Use clamp (maximum) instead of abs() to avoid masking negative values
+    p = np.maximum(p, 0) + 1e-10
     p = p / p.sum()
 
-    q = np.abs(q) + 1e-10
+    q = np.maximum(q, 0) + 1e-10
     q = q / q.sum()
 
     bc = np.sum(np.sqrt(p * q))
@@ -67,11 +68,12 @@ def fisher_coord_distance(a: np.ndarray, b: np.ndarray) -> float:
     Returns:
         Fisher-Rao distance (0 to π/2)
     """
+    # P1 FIX: Use clamp (maximum) instead of abs() to avoid masking negative values
     # Ensure simplex normalization
-    a_simplex = np.abs(a) + 1e-10
+    a_simplex = np.maximum(a, 0) + 1e-10
     a_simplex = a_simplex / a_simplex.sum()
     
-    b_simplex = np.abs(b) + 1e-10
+    b_simplex = np.maximum(b, 0) + 1e-10
     b_simplex = b_simplex / b_simplex.sum()
 
     # Bhattacharyya coefficient
@@ -180,11 +182,12 @@ def geodesic_interpolation(
     Returns:
         Interpolated point along geodesic (simplex coordinates)
     """
+    # P1 FIX: Use clamp (maximum) instead of abs() to avoid masking negative values
     # Ensure simplex normalization
-    start_simplex = np.abs(start) + 1e-10
+    start_simplex = np.maximum(start, 0) + 1e-10
     start_simplex = start_simplex / start_simplex.sum()
     
-    end_simplex = np.abs(end) + 1e-10
+    end_simplex = np.maximum(end, 0) + 1e-10
     end_simplex = end_simplex / end_simplex.sum()
     
     # Map to sqrt-space (Hellinger embedding) for SLERP
@@ -306,7 +309,8 @@ def fisher_normalize(v: np.ndarray) -> np.ndarray:
     Returns:
         Probability distribution on the simplex
     """
-    p = np.abs(v) + 1e-10
+    # P1 FIX: Use clamp (maximum) instead of abs() to avoid masking negative values
+    p = np.maximum(v, 0) + 1e-10
     return p / p.sum()
 
 
