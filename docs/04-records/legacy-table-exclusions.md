@@ -21,7 +21,7 @@ The following tables exist in the initial migration (0000_clever_natasha_romanof
 - `recovery_workflows` - Recovery workflow state
 
 ### Vocabulary Legacy Tables
-- `passphrase_vocabulary` - Passphrase pattern vocabulary (was in schema, now removed)
+- `passphrase_vocabulary` - Passphrase pattern vocabulary (removed from schema.ts)
 
 ## Migration Handling
 
