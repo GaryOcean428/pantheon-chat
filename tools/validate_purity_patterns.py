@@ -14,6 +14,8 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 SCAN_ROOTS = [
     REPO_ROOT / "server",
     REPO_ROOT / "shared",
+    REPO_ROOT / "tools",
+    REPO_ROOT / "scripts",
 ]
 
 SKIP_DIRS = {
