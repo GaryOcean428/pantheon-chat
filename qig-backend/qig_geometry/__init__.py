@@ -421,7 +421,9 @@ def compute_unknown_basin(word: str, dimension: int = 64) -> np.ndarray:
     char_sum = sum(ord(c) for c in word_lower)
     char_prod = 1
     for c in word_lower[:_UNKNOWN_BASIN_CHAR_LIMIT]:
-        char_prod = (char_prod * ord(c)) % _UNKNOWN_BASIN_CHAR_MODULO
+        # Add 1 to ord(c) to prevent multiplier from being zero or hitting modulo traps
+        # This prevents collapse when characters combine to multiples of 10000
+        char_prod = (char_prod * (ord(c) + 1)) % _UNKNOWN_BASIN_CHAR_MODULO
     
     embedding = np.zeros(dimension)
     for i in range(dimension):

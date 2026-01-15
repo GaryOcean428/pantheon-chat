@@ -15,7 +15,7 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 
 from .base import FisherCoordizer
-from qig_geometry import compute_unknown_basin
+from qig_geometry import compute_unknown_basin, geodesic_interpolation, fisher_normalize
 
 # Import BPE garbage detection for vocabulary filtering
 try:
@@ -880,12 +880,13 @@ class PostgresCoordizer(FisherCoordizer):
         Learn a BPE-style merge rule: token_a + token_b -> merged_token.
         
         This creates a new token in the vocabulary that represents the merged pair.
-        The basin coordinates are computed by averaging the two source token basins.
+        The basin coordinates are computed using Fisher-Rao geodesic interpolation
+        between the two source token basins, then projected to the canonical simplex.
         
         Args:
             token_a: First token in the merge pair
             token_b: Second token in the merge pair
-            phi: Integration score for the merged token
+            phi: Integration score for the merged token (also used as interpolation parameter)
             source: Source of the merge rule
             
         Returns:
@@ -909,14 +910,13 @@ class PostgresCoordizer(FisherCoordizer):
             # One or both tokens not in vocabulary - compute fresh basin
             merged_coords = compute_unknown_basin(merged_token)
         else:
-            # Average the source basins (geometric interpolation)
+            # Use Fisher-Rao geodesic interpolation on the simplex
+            # phi parameter controls the interpolation (0.5 = midpoint)
             basin_a = np.array(basin_a)
             basin_b = np.array(basin_b)
-            merged_coords = (basin_a + basin_b) / 2.0
-            # Normalize to manifold
-            norm = np.linalg.norm(merged_coords)
-            if norm > 1e-6:
-                merged_coords = merged_coords / norm
+            merged_coords = geodesic_interpolation(basin_a, basin_b, phi)
+            # Ensure canonical simplex representation
+            merged_coords = fisher_normalize(merged_coords)
         
         # Save the merged token
         return self.save_learned_token(
