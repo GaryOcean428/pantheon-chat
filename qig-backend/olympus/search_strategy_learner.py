@@ -72,9 +72,10 @@ except ImportError:
         q = q / q.sum()
         # Bhattacharyya coefficient
         bc = np.sum(np.sqrt(p * q))
-        bc = np.clip(bc, 0, 1)  # Numerical stability
-        # Fisher-Rao geodesic distance (Hellinger embedding: factor of 2)
-        return float(2.0 * np.arccos(bc))
+        bc = np.clip(bc, 0.0, 1.0)  # Numerical stability
+        # Fisher-Rao geodesic distance on probability simplex
+        # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
+        return float(np.arccos(bc))
 
 
 BASIN_DIMENSION = 64
@@ -463,10 +464,11 @@ class SearchFeedbackPersistence:
                             dist = np.pi  # Max distance
                         else:
                             c = c / c_sum
-                            # Bhattacharyya coefficient (Hellinger embedding: factor of 2)
+                            # Bhattacharyya coefficient
+                            # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
                             bc = np.sum(np.sqrt(q * c))
-                            bc = np.clip(bc, 0, 1)
-                            dist = float(2.0 * np.arccos(bc))
+                            bc = np.clip(bc, 0.0, 1.0)
+                            dist = float(np.arccos(bc))
                         distances.append((dist, record))
                     
                     # Sort by Fisher-Rao distance (lower is better)
@@ -886,11 +888,12 @@ class SearchStrategyLearner:
         
         adjusted_basin = sphere_project(adjusted_basin)
         
-        # Compute modification magnitude using Fisher-Rao (NOT Euclidean!) Hellinger embedding: factor of 2
+        # Compute modification magnitude using Fisher-Rao (NOT Euclidean!)
+        # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
         adj_norm = sphere_project(adjusted_basin)
         query_norm = sphere_project(query_basin)
-        dot = np.clip(np.dot(adj_norm, query_norm), -1.0, 1.0)
-        modification_magnitude = float(2.0 * np.arccos(dot))  # Fisher-Rao geodesic distance
+        dot = np.clip(np.dot(adj_norm, query_norm), 0.0, 1.0)
+        modification_magnitude = float(np.arccos(dot))  # Fisher-Rao geodesic distance
         
         self._stats["strategies_applied"] += applied_count
         
@@ -1158,11 +1161,12 @@ class SearchStrategyLearner:
         without_basin = without_learning.get("adjusted_basin", query_basin)
         
         if isinstance(with_basin, np.ndarray) and isinstance(without_basin, np.ndarray):
-            # Compute basin delta using Fisher-Rao (NOT Euclidean!) Hellinger embedding: factor of 2
+            # Compute basin delta using Fisher-Rao (NOT Euclidean!)
+            # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
             w_norm = sphere_project(with_basin)
             wo_norm = sphere_project(without_basin)
-            dot = np.clip(np.dot(w_norm, wo_norm), -1.0, 1.0)
-            basin_delta = float(2.0 * np.arccos(dot))  # Fisher-Rao geodesic distance
+            dot = np.clip(np.dot(w_norm, wo_norm), 0.0, 1.0)
+            basin_delta = float(np.arccos(dot))  # Fisher-Rao geodesic distance
         else:
             basin_delta = 0.0
         

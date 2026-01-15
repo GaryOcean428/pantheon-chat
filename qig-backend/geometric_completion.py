@@ -40,14 +40,18 @@ try:
 except ImportError:
     FISHER_AVAILABLE = False
     def fisher_rao_distance(p, q):
-        """Fallback Fisher-Rao distance (Hellinger embedding: factor of 2, Born rule: |b|²)."""
+        """
+        Fallback Fisher-Rao distance on probability simplex.
+        Born rule: |b|² for amplitude-to-probability conversion.
+        UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
+        """
         p = np.abs(p) ** 2 + 1e-10
         p = p / p.sum()
         q = np.abs(q) ** 2 + 1e-10
         q = q / q.sum()
         bc = np.sum(np.sqrt(p * q))
-        bc = np.clip(bc, 0, 1)
-        return float(2.0 * np.arccos(bc))
+        bc = np.clip(bc, 0.0, 1.0)
+        return float(np.arccos(bc))
     
     def compute_phi(trajectory, window_size=5):
         """Fallback Φ computation."""

@@ -394,16 +394,17 @@ def compute_meta_awareness(
         bc = np.sqrt(pred_clipped * actual_clipped) + np.sqrt((1 - pred_clipped) * (1 - actual_clipped))
         bc = np.clip(bc, 0.0, 1.0)
         
-        # Fisher-Rao geodesic distance (Hellinger embedding: factor of 2)
-        error = float(2.0 * np.arccos(bc))
+        # Fisher-Rao geodesic distance on probability simplex
+        # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
+        error = float(np.arccos(bc))
         errors.append(error)
     
     mean_error = np.mean(errors)
     
     # Convert to accuracy (1 = perfect, 0 = completely wrong)
-    # Max Fisher-Rao distance for [0,1] simplex is π (with factor of 2)
-    # So normalize: accuracy = 1 - (error / π)
-    max_error = np.pi
+    # Max Fisher-Rao distance for [0,1] simplex is π/2 (updated from π)
+    # So normalize: accuracy = 1 - (error / (π/2))
+    max_error = np.pi / 2.0
     accuracy = max(0.0, 1.0 - (mean_error / max_error))
     
     return float(accuracy)
@@ -459,9 +460,10 @@ def fisher_rao_distance(p, q) -> float:
     bc = np.sum(np.sqrt(p_norm * q_norm))
     
     # Fisher-Rao distance via arccos
-    # Clip to [-1, 1] for numerical stability
+    # Clip to [0, 1] for numerical stability (probability measure)
     bc_clipped = np.clip(bc, 0.0, 1.0)
-    distance = 2.0 * np.arccos(bc_clipped)
+    # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
+    distance = np.arccos(bc_clipped)
     
     return float(distance)
 

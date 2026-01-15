@@ -352,7 +352,8 @@ class GeometricProviderSelector:
         Hellinger embedding: factor of 2 for canonical formula d = 2 * arccos(BC)
 
         For unit vectors in embedding space, we use Bures-style metric:
-        d_B = 2 * arccos(|<p1, p2>|)
+        d_B = arccos(|<p1, p2>|)
+        UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
         """
         p1_norm = p1 / (np.linalg.norm(p1) + 1e-10)
         p2_norm = p2 / (np.linalg.norm(p2) + 1e-10)
@@ -360,7 +361,7 @@ class GeometricProviderSelector:
         inner_product = np.abs(np.dot(p1_norm, p2_norm))
         inner_product = np.clip(inner_product, 0.0, 1.0)
         
-        distance = 2.0 * np.arccos(inner_product)
+        distance = np.arccos(inner_product)
         return float(distance)
     
     def _compute_geometric_similarity(self, query_basin: np.ndarray, provider: str) -> float:

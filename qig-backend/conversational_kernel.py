@@ -263,11 +263,12 @@ class ConversationalKernelMixin:
                 if QIG_GEOMETRY_AVAILABLE:
                     dist = fisher_coord_distance(basin, token_basin)
                 else:
-                    # Fallback: inline Fisher-Rao (Hellinger embedding: factor of 2)
+                    # Fallback: inline Fisher-Rao on probability simplex
+                    # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
                     basin_norm = sphere_project(basin)
                     token_norm = sphere_project(token_basin)
-                    dot = np.clip(np.dot(basin_norm, token_norm), -1.0, 1.0)
-                    dist = 2.0 * np.arccos(dot)
+                    dot = np.clip(np.dot(basin_norm, token_norm), 0.0, 1.0)
+                    dist = np.arccos(dot)
                 distances[token] = dist
         
         if not distances:

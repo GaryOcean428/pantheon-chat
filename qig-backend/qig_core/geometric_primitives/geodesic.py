@@ -69,10 +69,10 @@ class Geodesic:
             p2 = p2 / p2.sum()
 
             inner = np.sum(np.sqrt(p1 * p2))
-            inner = np.clip(inner, 0, 1)
+            inner = np.clip(inner, 0.0, 1.0)
 
-            # Factor of 2 for Hellinger embedding
-            length += float(2.0 * np.arccos(inner))
+            # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
+            length += float(np.arccos(inner))
 
         return length
 
@@ -208,15 +208,16 @@ def geodesic_between_bubbles(
         num_points=num_points
     )
 
-    # Compute length (factor of 2 for Hellinger embedding per contracts.py)
+    # Compute length on probability simplex
+    # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
     length = 0.0
     for i in range(len(path) - 1):
         p1 = path[i]
         p2 = path[i+1]
 
         inner = np.sum(np.sqrt(p1 * p2))
-        inner = np.clip(inner, 0, 1)
-        length += float(2.0 * np.arccos(inner))
+        inner = np.clip(inner, 0.0, 1.0)
+        length += float(np.arccos(inner))
 
     # Stability based on bubble energies
     stability = min(bubble1.stability, bubble2.stability)

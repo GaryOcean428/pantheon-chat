@@ -342,10 +342,11 @@ class RealityCrossChecker:
 
             # Bhattacharyya coefficient
             inner = np.sum(np.sqrt(p_norm * q_norm))
-            inner = np.clip(inner, -1.0, 1.0)
+            inner = np.clip(inner, 0.0, 1.0)
 
-            # Fisher-Rao distance
-            distance = 2.0 * np.arccos(inner)
+            # Fisher-Rao distance on probability simplex
+            # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
+            distance = np.arccos(inner)
             return float(distance)
 
         except Exception as e:

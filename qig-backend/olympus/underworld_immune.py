@@ -430,15 +430,16 @@ class UnderworldImmuneSystem:
         """
         try:
             # Fisher-Rao distance for categorical distributions
-            # d_FR = 2 * arccos(sum(sqrt(p_i * q_i)))
+            # d_FR = arccos(sum(sqrt(p_i * q_i)))
+            # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
             p = np.abs(content_basin) + 1e-10
             q = np.abs(safe_centroid) + 1e-10
             p = p / np.sum(p)
             q = q / np.sum(q)
 
             inner = np.sum(np.sqrt(p * q))
-            inner = np.clip(inner, -1.0, 1.0)
-            distance = 2.0 * np.arccos(inner)
+            inner = np.clip(inner, 0.0, 1.0)
+            distance = np.arccos(inner)
 
             # Determine threat level based on distance
             if distance >= self.BASIN_DISTANCE_CRITICAL:

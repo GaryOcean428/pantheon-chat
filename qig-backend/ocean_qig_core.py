@@ -1108,15 +1108,16 @@ class GroundingDetector:
                     return v / norm if norm > 1e-10 else np.ones_like(v) / np.sqrt(len(v))
             query_norm = sphere_project(query_basin)
             concept_norm = sphere_project(concept_basin)
-            dot = np.clip(np.dot(query_norm, concept_norm), -1.0, 1.0)
-            distance = 2.0 * np.arccos(dot)  # Hellinger embedding: factor of 2
+            dot = np.clip(np.dot(query_norm, concept_norm), 0.0, 1.0)
+            # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
+            distance = np.arccos(dot)
 
             if distance < min_distance:
                 min_distance = distance
                 nearest_concept = concept_id
 
-        # Grounding metric: Fisher-Rao similarity (1 - d/(2π) for Hellinger)
-        G = 1.0 - min_distance / (2.0 * np.pi)
+        # Grounding metric: Fisher-Rao similarity (1 - d/(π/2) for simplex)
+        G = 1.0 - min_distance / (np.pi / 2.0)
 
         return float(G), nearest_concept
 

@@ -213,9 +213,10 @@ class POSGrammar:
         for word in candidates:
             if word in embeddings:
                 word_basin = embeddings[word]
-                # Fisher-Rao distance (Hellinger embedding: factor of 2)
-                dot = np.clip(np.dot(basin, word_basin), -1.0, 1.0)
-                similarity = 1.0 - 2.0 * np.arccos(dot) / (2.0 * np.pi)
+                # Fisher-Rao distance on probability simplex
+                # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
+                dot = np.clip(np.dot(basin, word_basin), 0.0, 1.0)
+                similarity = 1.0 - np.arccos(dot) / (np.pi / 2.0)
                 scored.append((word, similarity))
         
         scored.sort(key=lambda x: x[1], reverse=True)

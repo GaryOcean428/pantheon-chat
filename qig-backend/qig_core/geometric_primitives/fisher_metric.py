@@ -73,10 +73,11 @@ def fisher_rao_distance(p: np.ndarray, q: np.ndarray) -> float:
 
     # Bhattacharyya coefficient = dot product in Hellinger space
     bc = np.sum(np.sqrt(p * q))
-    bc = np.clip(bc, 0, 1)  # Numerical stability
+    bc = np.clip(bc, 0.0, 1.0)  # Numerical stability
 
-    # Fisher-Rao statistical distance (factor of 2 for Hellinger embedding)
-    distance = float(2.0 * np.arccos(bc))
+    # Fisher-Rao statistical distance on probability simplex
+    # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
+    distance = float(np.arccos(bc))
 
     return distance
 
@@ -310,10 +311,11 @@ def fisher_rao_distance_batch(
     sqrt_q = np.sqrt(q)  # (D,)
     sqrt_c = np.sqrt(c)  # (N, D)
     bc = np.sum(sqrt_q * sqrt_c, axis=1)  # (N,)
-    bc = np.clip(bc, 0, 1)  # Numerical stability
+    bc = np.clip(bc, 0.0, 1.0)  # Numerical stability
     
-    # Fisher-Rao statistical distance (factor of 2 for Hellinger embedding)
-    distances = 2.0 * np.arccos(bc)
+    # Fisher-Rao statistical distance on probability simplex
+    # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
+    distances = np.arccos(bc)
     
     return distances
 

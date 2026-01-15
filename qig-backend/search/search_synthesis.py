@@ -94,17 +94,17 @@ class SearchSynthesizer:
         q = np.clip(q, 1e-10, 1.0)
         
         bhattacharyya = np.sum(np.sqrt(p * q))
-        bhattacharyya = np.clip(bhattacharyya, -1.0, 1.0)
+        bhattacharyya = np.clip(bhattacharyya, 0.0, 1.0)
         
-        # Hellinger embedding: factor of 2 for canonical formula d = 2 * arccos(BC)
-        return float(2.0 * np.arccos(bhattacharyya))
+        # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
+        return float(np.arccos(bhattacharyya))
     
     def _compute_relevance_score(self, distance: float) -> float:
         """
         Convert Fisher-Rao distance to relevance score [0, 1].
         Closer = more relevant.
         """
-        max_distance = np.pi
+        max_distance = np.pi / 2.0  # Updated for simplex
         return 1.0 - min(distance / max_distance, 1.0)
     
     def _apply_beta_attention(self, results: List[Dict], query_basin: np.ndarray) -> List[SynthesizedResult]:

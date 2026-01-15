@@ -178,12 +178,13 @@ class SleepProtocol:
             b: Second basin coordinates
         
         Returns:
-            Fisher-Rao distance (0 to 2π)
+            Fisher-Rao distance (0 to π/2)
+            UPDATED 2026-01-15: Factor-of-2 removed for simplex storage.
         """
         a_norm = a / (np.linalg.norm(a) + 1e-10)
         b_norm = b / (np.linalg.norm(b) + 1e-10)
-        dot = np.clip(np.dot(a_norm, b_norm), -1.0, 1.0)
-        return float(2.0 * np.arccos(dot))  # Hellinger embedding: factor of 2
+        dot = np.clip(np.dot(a_norm, b_norm), 0.0, 1.0)
+        return float(np.arccos(dot))
     
     def _geodesic_midpoint(self, a: np.ndarray, b: np.ndarray) -> np.ndarray:
         """

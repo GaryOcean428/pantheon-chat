@@ -102,10 +102,11 @@ def fisher_coord_distance(
 
     # Bhattacharyya coefficient
     bc = np.sum(np.sqrt(p * q))
-    bc = np.clip(bc, 0, 1)
+    bc = np.clip(bc, 0.0, 1.0)
 
-    # Fisher-Rao statistical distance (factor of 2 for Hellinger embedding)
-    return float(2.0 * np.arccos(bc))
+    # Fisher-Rao statistical distance on probability simplex
+    # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
+    return float(np.arccos(bc))
 
 
 # Alias for compatibility

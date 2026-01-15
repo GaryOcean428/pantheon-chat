@@ -134,9 +134,10 @@ class QIGPhraseClassifier:
         sqrt_p = np.sqrt(p_norm + 1e-10)
         sqrt_q = np.sqrt(q_norm + 1e-10)
         
-        inner_product = np.clip(np.sum(sqrt_p * sqrt_q), -1.0, 1.0)
+        inner_product = np.clip(np.sum(sqrt_p * sqrt_q), 0.0, 1.0)
         
-        return 2.0 * np.arccos(inner_product)
+        # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
+        return np.arccos(inner_product)
     
     def classify(self, text: str, basin_coords: Optional[np.ndarray] = None) -> Tuple[str, float]:
         """Classify text into a grammatical category using Fisher-Rao distance.
