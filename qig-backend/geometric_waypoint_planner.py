@@ -14,7 +14,18 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
-from qig_geometry import sphere_project, fisher_coord_distance, geodesic_interpolation
+# Import from canonical geometry module (SINGLE SOURCE OF TRUTH - WP2.1)
+from qig_geometry.canonical import (
+    fisher_rao_distance,
+    frechet_mean,
+    geodesic_toward,
+    extrapolate_trajectory,
+    compute_qfi_attention,
+    integrate_with_qfi_attention,
+    sqrt_map,
+    unsqrt_map,
+    assert_basin_valid,
+)
 
 try:
     from qigkernels.physics_constants import (
@@ -30,6 +41,13 @@ except ImportError:
     logger.warning("Using fallback physics constants")
 
 
+def _normalize_to_simplex(basin: np.ndarray) -> np.ndarray:
+    """Normalize basin to probability simplex (canonical storage)."""
+    basin = np.asarray(basin, dtype=np.float64).flatten()
+    basin = np.maximum(basin, 0) + 1e-12
+    return basin / basin.sum()
+
+
 class GeometricWaypointPlanner:
     """
     Plans geometric waypoints for QIG generation using trajectory foresight.
@@ -37,6 +55,9 @@ class GeometricWaypointPlanner:
     The PLAN phase predicts a sequence of target basins (waypoints) that
     the output should navigate toward, using geodesic tangent extrapolation
     and recursive integration.
+    
+    UPDATED 2026-01-15: Now uses canonical geometry module (WP2.1).
+    All geometric operations import from qig_geometry.canonical.
     """
     
     def __init__(
@@ -84,9 +105,9 @@ class GeometricWaypointPlanner:
         logger.info("[%s] ═══ PHASE 1: PLAN (Geometric Waypoints) ═══", self.kernel_name)
         
         query_basin = np.asarray(query_basin, dtype=np.float64)
-        query_basin = sphere_project(query_basin)
+        query_basin = _normalize_to_simplex(query_basin)
         
-        trajectory = [np.asarray(b, dtype=np.float64) for b in trajectory_history]
+        trajectory = [_normalize_to_simplex(b) for b in trajectory_history]
         if len(trajectory) == 0:
             trajectory = [query_basin]
         
@@ -94,15 +115,21 @@ class GeometricWaypointPlanner:
         current = query_basin.copy()
         
         for i in range(num_waypoints):
-            predicted = self._predict_next_basin(current, trajectory)
-            
-            integrated = self.integrate_with_trajectory(
-                predicted,
-                trajectory,
-                loops=MIN_INTEGRATION_DEPTH,
+            # Use canonical extrapolate_trajectory function (WP2.1)
+            predicted = extrapolate_trajectory(
+                trajectory + [current],
+                step_size=self.step_size
             )
             
-            waypoint = sphere_project(integrated)
+            # Use canonical integrate_with_qfi_attention function (WP2.1)
+            integrated = integrate_with_qfi_attention(
+                predicted,
+                trajectory,
+                num_loops=MIN_INTEGRATION_DEPTH,
+                temperature=0.5
+            )
+            
+            waypoint = _normalize_to_simplex(integrated)
             waypoints.append(waypoint)
             
             phi = self._compute_phi_estimate(waypoint, trajectory)

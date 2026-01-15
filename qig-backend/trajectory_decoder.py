@@ -52,11 +52,13 @@ from typing import List, Optional, Tuple
 
 import numpy as np
 
-# Import canonical geometric primitives (REQUIRED for geometric purity)
-from qig_core.geometric_primitives import (
+# Import canonical geometric primitives (SINGLE SOURCE OF TRUTH - WP2.1)
+from qig_geometry.canonical import (
     fisher_rao_distance,
-    geodesic_interpolate,
-    validate_basin,
+    frechet_mean,
+    geodesic_toward,
+    sqrt_map,
+    unsqrt_map,
 )
 
 # Import dimension normalizer for mixed-dimension trajectory handling
@@ -134,53 +136,8 @@ def hellinger_normalize_basin(basin: np.ndarray) -> np.ndarray:
     return sqrt_p / norm
 
 
-def frechet_mean(basins: List[np.ndarray], max_iter: int = 50, tolerance: float = 1e-5) -> np.ndarray:
-    """
-    Compute Fréchet mean (geometric centroid) of basins on Fisher manifold.
-    
-    UPDATED 2026-01-15: Now uses canonical geodesic_mean_simplex from geometry_simplex module.
-    This is the TRUE Karcher mean computed via iterative geodesic interpolation on the
-    probability simplex, NOT an Euclidean approximation.
-    
-    The new implementation:
-    1. Converts all basins to probability simplex (canonical storage)
-    2. Uses geodesic_interpolation_simplex (SLERP in sqrt-space)
-    3. Iteratively refines mean by geodesic steps toward each point
-    4. Returns result in Hellinger normalization for pgvector compatibility
-    
-    This replaces the previous APPROXIMATE implementation that used Euclidean
-    gradient descent in Hellinger space. The new method is geometrically pure
-    and matches the SLEEP-PACKET simplex-as-storage contract.
-
-    Args:
-        basins: List of basin coordinates (any representation)
-        max_iter: Maximum gradient descent iterations (default 50)
-        tolerance: Convergence tolerance for mean update (default 1e-5)
-
-    Returns:
-        Fréchet mean (Hellinger-normalized for pgvector compatibility)
-    """
-    from qig_geometry.geometry_simplex import geodesic_mean_simplex, to_simplex_prob
-    
-    if not basins:
-        return hellinger_normalize_basin(np.zeros(64))
-
-    if len(basins) == 1:
-        return hellinger_normalize_basin(basins[0])
-
-    # Convert all basins to simplex (canonical representation)
-    simplex_basins = [to_simplex_prob(b) for b in basins]
-    
-    # Compute true geodesic mean on simplex
-    mean_simplex = geodesic_mean_simplex(
-        simplex_basins,
-        weights=None,  # Uniform weights
-        max_iter=max_iter,
-        tolerance=tolerance
-    )
-    
-    # Convert to Hellinger for pgvector compatibility
-    return hellinger_normalize_basin(mean_simplex)
+# Note: frechet_mean is now imported from qig_geometry.canonical (WP2.1)
+# The canonical implementation uses the same algorithm but is the single source of truth
 
 
 class TrajectoryDecoder:
