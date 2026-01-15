@@ -14,6 +14,7 @@ if command -v rg &> /dev/null; then
     --glob '!docs/**' \
     --glob '!migrations/**' \
     --glob '!scripts/validate-qfi-canonical-path.sh' \
+    --glob '!scripts/validate-purity-patterns.sh' \
     -e 'compute_qfi_for_basin' \
     "$ROOT_DIR/server" "$ROOT_DIR/shared" "$ROOT_DIR/scripts" "$ROOT_DIR/tools" && {
       echo "❌ Deprecated compute_qfi_for_basin function found in canonical paths."
@@ -28,6 +29,7 @@ else
     --exclude-dir=docs \
     --exclude-dir=migrations \
     --exclude="validate-qfi-canonical-path.sh" \
+    --exclude="validate-purity-patterns.sh" \
     'compute_qfi_for_basin' \
     "$ROOT_DIR/server" "$ROOT_DIR/shared" "$ROOT_DIR/scripts" "$ROOT_DIR/tools" 2>/dev/null && {
       echo "❌ Deprecated compute_qfi_for_basin function found in canonical paths."
