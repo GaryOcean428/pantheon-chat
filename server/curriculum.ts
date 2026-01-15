@@ -77,7 +77,7 @@ export async function getCurriculumCoverage(): Promise<CurriculumCoverage> {
   }
 
   const result = await withDbRetry(
-    async () => db.execute(sql`
+    async () => db!.execute(sql`
       SELECT token, token_status, qfi_score, basin_embedding
       FROM coordizer_vocabulary
       WHERE token = ANY(${tokens})
@@ -85,7 +85,7 @@ export async function getCurriculumCoverage(): Promise<CurriculumCoverage> {
     'curriculum-coverage'
   )
 
-  const rows = result.rows ?? []
+  const rows = result?.rows ?? []
   const foundTokens = new Set<string>()
   const quarantinedTokens: string[] = []
   let active = 0
