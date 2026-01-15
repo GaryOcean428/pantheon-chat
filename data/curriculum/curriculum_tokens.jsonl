@@ -1,0 +1,3 @@
+{"token":"the","role":"core","is_real_word":true,"frequency":1000,"notes":"Baseline function word for curriculum seeding."}
+{"token":"and","role":"core","is_real_word":true,"frequency":900,"notes":"Conjunction for curriculum completeness checks."}
+{"token":"basin","role":"qig","is_real_word":true,"frequency":200,"notes":"QIG terminology baseline token."}

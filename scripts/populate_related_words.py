@@ -32,9 +32,11 @@ from psycopg2.extras import execute_values
 try:
     from qig_geometry import fisher_rao_distance
     print("✓ Loaded Fisher-Rao distance from qig_geometry")
-except ImportError:
-    print("⚠ Could not import qig_geometry, using cosine similarity fallback")
-    fisher_rao_distance = None
+except ImportError as exc:
+    raise RuntimeError(
+        "Fisher-Rao distance module (qig_geometry) is required. "
+        "Install with: pip install -r requirements.txt or verify qig-backend installation."
+    ) from exc
 
 
 def get_db_connection():
@@ -59,15 +61,6 @@ def fisher_similarity(basin_a: np.ndarray, basin_b: np.ndarray) -> float:
     Compute Fisher-Rao similarity (0-1) between two basins.
     Higher values = more similar.
     """
-    if fisher_rao_distance is None:
-        # Fallback: cosine similarity
-        dot_product = np.dot(basin_a, basin_b)
-        norm_a = np.linalg.norm(basin_a)
-        norm_b = np.linalg.norm(basin_b)
-        if norm_a == 0 or norm_b == 0:
-            return 0.0
-        return float((dot_product / (norm_a * norm_b) + 1.0) / 2.0)  # Scale to [0, 1]
-
     # Use proper Fisher-Rao distance
     distance = fisher_rao_distance(basin_a, basin_b)
     # Convert distance to similarity: closer = higher similarity
