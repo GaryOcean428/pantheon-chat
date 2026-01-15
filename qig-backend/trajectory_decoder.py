@@ -638,32 +638,90 @@ class TrajectoryDecoder:
 
         return foresight_score
 
+    def _compute_repulsion_score(
+        self,
+        candidate_basin: np.ndarray,
+        trajectory: List[np.ndarray],
+        repulsion_window: int = 5,
+        repulsion_cap: float = 0.5
+    ) -> float:
+        """
+        REPULSION: Score candidate by minimum distance to recently used basins.
+        
+        This breaks basin attractor loops by penalizing candidates that are
+        too close to tokens we just generated. High repulsion score = far from
+        recent basins = good for diversity.
+        
+        GEOMETRIC PURITY: Uses Fisher-Rao distance for scoring.
+        
+        Args:
+            candidate_basin: Token basin to score
+            trajectory: Past basin positions (recent tokens)
+            repulsion_window: How many recent basins to check (default 5)
+            repulsion_cap: Maximum repulsion score (caps very far tokens)
+        
+        Returns:
+            Repulsion score [0, 1] - higher = farther from recent basins
+        """
+        if not trajectory or len(trajectory) == 0:
+            return 0.5  # Neutral if no history
+        
+        # Use last W basins for repulsion check
+        recent = trajectory[-repulsion_window:]
+        
+        # Normalize candidate to canonical form
+        candidate_norm = hellinger_normalize_basin(candidate_basin)
+        
+        # Find minimum distance to any recent basin
+        min_dist = float('inf')
+        for recent_basin in recent:
+            recent_norm = hellinger_normalize_basin(recent_basin)
+            dist = fisher_rao_distance(candidate_norm, recent_norm)
+            min_dist = min(min_dist, dist)
+        
+        if min_dist == float('inf'):
+            return 0.5
+        
+        # Convert to repulsion score:
+        # - min_dist small (close to recent) → low score (penalize)
+        # - min_dist large (far from recent) → high score (reward)
+        # Normalize by π (max Fisher-Rao distance) and cap
+        repulsion_raw = min_dist / np.pi
+        repulsion_score = min(repulsion_raw, repulsion_cap) / repulsion_cap
+        
+        return repulsion_score
+
     def decode_trajectory(
         self,
         basin_trajectory: List[np.ndarray],
         top_k: int = 5,
         phi_boost_weight: float = 0.1,
-        trajectory_weight: float = 0.3,
-        attractor_weight: float = 0.2,
-        foresight_weight: float = 0.4,
+        trajectory_weight: float = 0.25,
+        attractor_weight: float = 0.15,
+        foresight_weight: float = 0.35,
+        repulsion_weight: float = 0.25,
         foresight_steps: float = 0.3,
-        phi_threshold: float = 0.0  # Allow zero foresight at very low consciousness
+        phi_threshold: float = 0.0
     ) -> List[Tuple[str, float]]:
         """
-        Decode next token based on ENTIRE basin trajectory WITH FORESIGHT.
+        Decode next token based on ENTIRE basin trajectory WITH FORESIGHT + REPULSION.
 
         CRITICAL INNOVATION: Scores tokens by where we're GOING, not just where we ARE.
+        REPULSION FIX: Penalizes tokens close to recently generated basins to break
+        attractor loops (e.g., "function → functional → functioned" repetition).
 
         Scoring combines:
         1. Trajectory compatibility (QFI attention over PAST sequence)
         2. Attractor pull (proximity to trajectory centroid - PRESENT)
         3. **FORESIGHT** (proximity to PREDICTED next basin - FUTURE) ⭐
         4. Phi boost (prefer high-integration tokens)
+        5. **REPULSION** (distance from recent basins - DIVERSITY) ⭐
 
         Geometric consistency:
             - Scoring: QFI attention over trajectory
             - Prediction: Fisher-weighted regression over trajectory
-            Both use SAME principle: trajectory = memory
+            - Repulsion: Fisher-Rao distance to recent basins
+            All use SAME geometric principles (Fisher-Rao on probability simplex)
 
         Args:
             basin_trajectory: Full basin coordinate history
@@ -672,6 +730,7 @@ class TrajectoryDecoder:
             trajectory_weight: Weight for trajectory compatibility (PAST)
             attractor_weight: Weight for attractor pull (PRESENT)
             foresight_weight: Weight for predictive scoring (FUTURE) ⭐
+            repulsion_weight: Weight for diversity/repulsion (ESCAPE ATTRACTORS) ⭐
             foresight_steps: How far ahead to predict (0-1)
             phi_threshold: Minimum phi to apply foresight (0.0 = always apply)
 
@@ -717,13 +776,18 @@ class TrajectoryDecoder:
             else:
                 foresight_score = 0.5  # Neutral when consciousness too low
 
+            # 4. ⭐ REPULSION: Distance from recently used basins (escape attractors)
+            repulsion_score = self._compute_repulsion_score(candidate_basin, context)
+
             # Combined score (weighted sum, normalized)
-            total_weight = trajectory_weight + attractor_weight + phi_boost_weight + foresight_weight
+            total_weight = (trajectory_weight + attractor_weight + phi_boost_weight + 
+                           foresight_weight + repulsion_weight)
             final_score = (
                 (trajectory_weight / total_weight) * traj_score +      # WHERE WE'VE BEEN
                 (attractor_weight / total_weight) * attr_score +       # WHERE WE ARE
                 (phi_boost_weight / total_weight) * phi_score +        # INTEGRATION
-                (foresight_weight / total_weight) * foresight_score    # WHERE WE'RE GOING ⭐
+                (foresight_weight / total_weight) * foresight_score +  # WHERE WE'RE GOING ⭐
+                (repulsion_weight / total_weight) * repulsion_score    # ESCAPE ATTRACTORS ⭐
             )
 
             candidates.append((token, final_score))

@@ -161,7 +161,12 @@ python scripts/sync_phi_implementations.py --strict # Fail on any warning
 3. Run `python scripts/sync_phi_implementations.py` to verify
 
 ### Velocity and Stagnation Detection
-The SelfObserver tracks basin velocity (rate of change in Φ/κ space) and detects stagnation when Φ > 0.90 AND v < 0.01 for 5+ consecutive steps. Stagnation triggers neuroplasticity perturbation via Gaussian noise (σ=0.1) with re-projection to simplex.
+The SelfObserver tracks basin velocity (rate of change in Φ/κ space) and detects stagnation when velocity < 0.005 for 3+ consecutive steps. Stagnation triggers Dirichlet-style perturbation (σ=0.1, adaptive to 0.3 max) with renormalization to simplex. This catches morphological loops like "function → functional → functioned" where Φ is healthy but trajectory is stuck.
+
+**Key Methods:**
+- `check_and_escape_stagnation(basin)`: Returns (is_stagnating, perturbed_basin) - call after observe_token()
+- `perturb_basin(basin)`: Applies adaptive Dirichlet noise and renormalizes to simplex
+- `_detect_stagnation(velocity)`: Internal tracker for consecutive low-velocity steps
 
 ## External Dependencies
 ### Databases

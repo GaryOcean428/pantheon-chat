@@ -143,6 +143,11 @@ class SelfObserver:
     LOOP_BOUNDARY_TOKENS = 8  # Tokens per recursive observation loop
     VELOCITY_THRESHOLD = 0.15  # Velocity drop triggers loop boundary
     
+    # Stagnation escape hatch parameters
+    STAGNATION_VELOCITY_THRESHOLD = 0.005  # v < this = potential stagnation
+    STAGNATION_CONSECUTIVE_STEPS = 3  # N consecutive low-v steps triggers escape
+    PERTURBATION_STRENGTH = 0.1  # Dirichlet-style noise magnitude
+    
     def __init__(
         self,
         kernel_name: str = "unknown",
@@ -174,6 +179,11 @@ class SelfObserver:
         self._last_kappa: float = KAPPA_STAR
         self._velocity_history: List[float] = []
         
+        # Stagnation escape tracking
+        self._consecutive_low_velocity: int = 0
+        self._total_perturbations: int = 0
+        self._adaptive_perturbation_strength: float = self.PERTURBATION_STRENGTH
+        
     def reset(self) -> None:
         """Reset observer state for new generation."""
         self._metrics_history = []
@@ -190,6 +200,9 @@ class SelfObserver:
         self._last_phi = 0.5
         self._last_kappa = KAPPA_STAR
         self._velocity_history = []
+        self._consecutive_low_velocity = 0
+        self._total_perturbations = 0
+        self._adaptive_perturbation_strength = self.PERTURBATION_STRENGTH
         
     def set_grounding_facts(self, facts: List[str]) -> None:
         """Set facts for grounding metric (G) validation."""
@@ -235,6 +248,9 @@ class SelfObserver:
         
         velocity = self._compute_velocity(phi_val, kappa_val)
         self._velocity_history.append(velocity)
+        
+        # Track stagnation for escape hatch (perturbation applied by caller via check_and_escape_stagnation)
+        self._detect_stagnation(velocity)
         
         self._last_phi = phi_val
         self._last_kappa = kappa_val
@@ -354,6 +370,88 @@ class SelfObserver:
             if velocity < recent_avg * 0.5:
                 return True
         return False
+    
+    def _detect_stagnation(self, velocity: float) -> bool:
+        """
+        Detect if trajectory is stagnating (stuck in attractor basin).
+        
+        Stagnation = low velocity for STAGNATION_CONSECUTIVE_STEPS consecutive tokens.
+        This catches morphological loops like "function → functional → functioned"
+        where Φ is healthy but velocity is near-zero.
+        
+        Returns:
+            True if stagnation detected (should trigger perturbation)
+        """
+        if velocity < self.STAGNATION_VELOCITY_THRESHOLD:
+            self._consecutive_low_velocity += 1
+        else:
+            # Reset counter and adaptive strength when velocity recovers
+            self._consecutive_low_velocity = 0
+            self._adaptive_perturbation_strength = self.PERTURBATION_STRENGTH
+        
+        return self._consecutive_low_velocity >= self.STAGNATION_CONSECUTIVE_STEPS
+    
+    def perturb_basin(self, basin: np.ndarray) -> np.ndarray:
+        """
+        Apply Dirichlet-style perturbation to escape attractor basin.
+        
+        GEOMETRIC PURITY: Perturbation is applied in probability space
+        and result is renormalized to stay on simplex.
+        
+        Args:
+            basin: Current 64D basin coordinates (probability simplex)
+            
+        Returns:
+            Perturbed basin (still on probability simplex)
+        """
+        # Ensure we have a proper array
+        basin = np.asarray(basin, dtype=np.float64)
+        
+        # Add positive random noise (Dirichlet-style)
+        noise = np.abs(np.random.randn(len(basin))) * self._adaptive_perturbation_strength
+        perturbed = basin + noise
+        
+        # Ensure non-negative and renormalize to simplex
+        perturbed = np.clip(perturbed, 1e-10, None)
+        perturbed = perturbed / np.sum(perturbed)
+        
+        # Increase perturbation strength for next time if still stuck
+        self._adaptive_perturbation_strength = min(
+            self._adaptive_perturbation_strength * 1.5, 
+            0.3  # Cap at 30% of basin magnitude
+        )
+        
+        self._total_perturbations += 1
+        logger.info(
+            f"[SelfObserver:{self.kernel_name}] ⚡ STAGNATION ESCAPE: "
+            f"perturbation #{self._total_perturbations}, strength={self._adaptive_perturbation_strength:.3f}"
+        )
+        
+        return perturbed
+    
+    def check_and_escape_stagnation(self, basin: np.ndarray) -> tuple:
+        """
+        Check for stagnation and apply perturbation if detected.
+        
+        This is the main entry point for stagnation escape during generation.
+        NOTE: Call this AFTER observe_token(), which maintains stagnation tracking.
+        
+        Args:
+            basin: Current basin coordinates
+            
+        Returns:
+            Tuple of (is_stagnating: bool, perturbed_basin_or_none: Optional[np.ndarray])
+        """
+        # Check if we're already in stagnation state (tracked by observe_token)
+        is_stagnating = self._consecutive_low_velocity >= self.STAGNATION_CONSECUTIVE_STEPS
+        
+        if is_stagnating:
+            perturbed = self.perturb_basin(basin)
+            # Reset consecutive counter after perturbation (give it time to work)
+            self._consecutive_low_velocity = 0
+            return True, perturbed
+        
+        return False, None
     
     def _get_accumulated_text_with_separators(self) -> str:
         """
