@@ -58,6 +58,10 @@ from .representation import (
     enforce_canonical,
     sphere_project,
     fisher_normalize,
+    # New explicit conversion functions (2026-01-15)
+    amplitude_to_simplex,
+    simplex_normalize,
+    hellinger_to_simplex,
 )
 
 from .purity_mode import (
@@ -459,6 +463,10 @@ __all__ = [
     'enforce_canonical',
     'sphere_project',
     'fisher_normalize',
+    # New explicit conversion functions (2026-01-15)
+    'amplitude_to_simplex',
+    'simplex_normalize',
+    'hellinger_to_simplex',
     # Distance functions - CANONICAL IMPLEMENTATIONS (use fisher_rao_distance for clarity)
     'fisher_rao_distance',  # Primary distance function (same as fisher_distance)
     'fisher_coord_distance',

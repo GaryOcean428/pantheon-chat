@@ -492,6 +492,110 @@ def validate_sqrt_simplex(
     return True, "Valid sqrt-simplex"
 
 
+def amplitude_to_simplex(amplitude: np.ndarray, eps: float = 1e-10) -> np.ndarray:
+    """
+    Convert quantum amplitude vector to simplex probability distribution.
+    
+    Applies Born rule: p_i = |ψ_i|^2, then normalizes to probability simplex.
+    
+    This is for when basins are stored as quantum amplitudes (NOT the canonical
+    SIMPLEX representation). Use this explicitly when converting from amplitude
+    representation.
+    
+    Args:
+        amplitude: Amplitude vector (may have complex or negative values)
+        eps: Numerical stability epsilon
+        
+    Returns:
+        Probability distribution on simplex (Σp_i = 1, p_i ≥ 0)
+        
+    Examples:
+        >>> amp = np.array([0.5+0.3j, -0.4, 0.7])
+        >>> prob = amplitude_to_simplex(amp)
+        >>> assert np.isclose(prob.sum(), 1.0)
+        >>> assert np.all(prob >= 0)
+    """
+    # Born rule: probability = |amplitude|^2
+    prob = np.abs(amplitude) ** 2 + eps
+    # Normalize to sum = 1
+    return prob / prob.sum()
+
+
+def simplex_normalize(p: np.ndarray, eps: float = 1e-10) -> np.ndarray:
+    """
+    Normalize a vector to the probability simplex (sum=1, non-negative).
+    
+    This assumes the input is already probability-like (non-negative values).
+    Use this for vectors that are already in simplex space but may need
+    renormalization due to numerical drift.
+    
+    For conversions from other representations, use:
+    - amplitude_to_simplex() for amplitude vectors
+    - hellinger_to_simplex() for sqrt-space vectors
+    - to_simplex() for general conversion with explicit from_repr
+    
+    Args:
+        p: Probability-like vector (should be non-negative)
+        eps: Numerical stability epsilon
+        
+    Returns:
+        Normalized probability distribution (Σp_i = 1, p_i ≥ 0)
+        
+    Raises:
+        ValueError: In purity mode, if input has negative values
+        
+    Examples:
+        >>> p = np.array([0.3, 0.5, 0.1, 0.05])  # Sums to 0.95
+        >>> p_norm = simplex_normalize(p)
+        >>> assert np.isclose(p_norm.sum(), 1.0)
+    """
+    from .purity_mode import check_purity_mode
+    from .contracts import GeometricViolationError
+    
+    # Clip negative values to zero with warning in purity mode
+    if check_purity_mode() and np.any(p < -eps):
+        raise GeometricViolationError(
+            f"simplex_normalize() in purity mode: negative values detected "
+            f"(min={np.min(p):.6f}). This indicates a representation leak."
+        )
+    
+    p_clean = np.maximum(p, 0.0) + eps
+    total = p_clean.sum()
+    
+    if total < 1e-10:
+        # Zero sum - return uniform distribution
+        return np.ones(p.size) / p.size
+    
+    return p_clean / total
+
+
+def hellinger_to_simplex(h: np.ndarray, eps: float = 1e-10) -> np.ndarray:
+    """
+    Convert Hellinger (sqrt-space) coordinates to simplex probabilities.
+    
+    Hellinger embedding: p_i = h_i^2, then normalize.
+    
+    NOTE: Hellinger is DEPRECATED for storage. Use this only when explicitly
+    converting from sqrt-space representation (e.g., internal computations).
+    
+    Args:
+        h: Hellinger (sqrt-space) coordinates
+        eps: Numerical stability epsilon
+        
+    Returns:
+        Probability distribution on simplex (Σp_i = 1, p_i ≥ 0)
+        
+    Examples:
+        >>> h = np.sqrt(np.array([0.25, 0.5, 0.25]))  # sqrt of probabilities
+        >>> p = hellinger_to_simplex(h)
+        >>> assert np.isclose(p.sum(), 1.0)
+    """
+    # Square to get probabilities
+    prob = (np.abs(h) ** 2) + eps
+    # Normalize to sum = 1
+    return prob / prob.sum()
+
+
 __all__ = [
     'BasinRepresentation',
     'CANONICAL_REPRESENTATION',
@@ -503,4 +607,8 @@ __all__ = [
     'enforce_canonical',
     'sphere_project',
     'fisher_normalize',
+    # New explicit conversion functions (2026-01-15)
+    'amplitude_to_simplex',
+    'simplex_normalize',
+    'hellinger_to_simplex',
 ]

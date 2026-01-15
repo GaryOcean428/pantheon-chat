@@ -912,11 +912,10 @@ class PostgresCoordizer(FisherCoordizer):
         else:
             # Use Fisher-Rao geodesic interpolation on the simplex
             # phi parameter controls the interpolation (0.5 = midpoint)
+            # geodesic_interpolation() already returns simplex-normalized result
             basin_a = np.array(basin_a)
             basin_b = np.array(basin_b)
             merged_coords = geodesic_interpolation(basin_a, basin_b, phi)
-            # Ensure canonical simplex representation
-            merged_coords = fisher_normalize(merged_coords)
         
         # Save the merged token
         return self.save_learned_token(
