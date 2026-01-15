@@ -265,7 +265,6 @@ class CheckpointManager:
         logger.warning("All checkpoints cleared")
 
 
-# Legacy migration support - import from dedicated module
 __all__ = [
     "CheckpointManager",
 ]
