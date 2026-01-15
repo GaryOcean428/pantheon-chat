@@ -264,7 +264,6 @@ def load_grammar_from_db():
               AND token ~ '^[a-zA-Z]+$'
               AND basin_embedding IS NOT NULL
               AND token_role IN ('generation', 'both')
-              AND (phrase_category IS NULL OR phrase_category NOT IN ('PROPER_NOUN', 'BRAND'))
             ORDER BY COALESCE(phi_score, 0.5) DESC
             LIMIT 5000
         """)
