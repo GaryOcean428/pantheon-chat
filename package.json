@@ -40,6 +40,8 @@
     "validate:sql": "python3 scripts/validate-sql-naming.py --check-all",
     "schema:drift": "tsx scripts/detect-schema-drift.ts",
     "schema:docs": "tsx scripts/generate-schema-docs.ts",
+    "validate:db-integrity": "tsx tools/verify_db_integrity.ts",
+    "validate:purity": "bash scripts/validate-purity-patterns.sh",
     "migrate:vocab": "cd qig-backend && python3 migrate_vocab_checkpoint_to_pg.py",
     "migrate:vocab:dry": "cd qig-backend && python3 migrate_vocab_checkpoint_to_pg.py --dry-run",
     "migrate:semantic": "cd qig-backend && source .venv/bin/activate && python3 migrate_to_semantic_embeddings.py",

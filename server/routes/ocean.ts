@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { getErrorMessage, handleRouteError } from '../lib/error-utils';
+import { isCurriculumOnlyMode } from '../lib/config';
 import { logger } from '../lib/logger';
 import { generousLimiter, standardLimiter, strictLimiter } from "../rate-limiters";
 import { autoCycleManager } from "../auto-cycle-manager";
@@ -591,6 +592,11 @@ oceanRouter.post(
       }
 
       const { oceanConstellation } = await import("../ocean-constellation");
+      const curriculumOnly = isCurriculumOnlyMode();
+
+      if (curriculumOnly) {
+        await assertCurriculumReady();
+      }
 
       const {
         context = "",
@@ -619,6 +625,10 @@ oceanRouter.post(
         allowSilence,
       });
 
+      if (curriculumOnly) {
+        assertTokensInCurriculum(result.tokens || []);
+      }
+
       res.json({
         success: true,
         ...result,
@@ -639,6 +649,11 @@ oceanRouter.post(
       }
 
       const { oceanConstellation } = await import("../ocean-constellation");
+      const curriculumOnly = isCurriculumOnlyMode();
+
+      if (curriculumOnly) {
+        await assertCurriculumReady();
+      }
 
       const {
         prompt = "",
@@ -656,6 +671,10 @@ oceanRouter.post(
         topP: Math.max(0.1, Math.min(1.0, topP)),
         allowSilence,
       });
+
+      if (curriculumOnly) {
+        assertTokensInCurriculum(result.tokens || []);
+      }
 
       res.json({
         success: true,
@@ -678,6 +697,16 @@ oceanRouter.get(
 
       const { oceanQIGBackend } = await import("../ocean-qig-backend-adapter");
       const { oceanConstellation } = await import("../ocean-constellation");
+      const curriculumOnly = isCurriculumOnlyMode();
+      let curriculumReady = true;
+
+      if (curriculumOnly) {
+        try {
+          await assertCurriculumReady();
+        } catch (error: unknown) {
+          curriculumReady = false;
+        }
+      }
 
       const backendAvailable = oceanQIGBackend.available();
       let tokenizerStatus = null;
@@ -693,7 +722,7 @@ oceanRouter.get(
       res.json({
         success: true,
         generation: {
-          available: true,
+          available: curriculumOnly ? curriculumReady : true,
           backendAvailable,
           fallbackAvailable: true,
         },

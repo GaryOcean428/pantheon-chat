@@ -17,6 +17,7 @@ import {
   knowledgeSharedEntries,
   knowledgeStrategies,
   knowledgeTransfers,
+  coordizerVocabulary,
 } from "../shared/schema";
 import { db, withDbRetry } from "./db";
 import { knowledgeCompressionEngine } from "./knowledge-compression-engine";
@@ -759,17 +760,22 @@ export class StrategyKnowledgeBus {
       }
       
       let seeded = 0;
-      for (const row of learnedWords.rows || []) {
-        if (row.word && row.avg_phi && !existingSet.has(row.word)) {
+      for (const row of learnedWords || []) {
+        if (isPurityMode() || curriculumOnly) {
+          if (!isValidQfiScore(row.qfiScore ?? null)) {
+            throw new Error(`[KnowledgeBus] Invalid qfi_score for token ${row.word}`);
+          }
+        }
+        if (row.word && row.avgPhi && !existingSet.has(row.word)) {
           try {
             await this.publishKnowledge(
               "vocabulary_learning",
               `bootstrap_vocab_${row.word}`,
               row.word,
               {
-                phi: row.avg_phi,
+                phi: row.avgPhi,
                 kappaEff: Math.min(100, (row.frequency || 1) * 2),
-                regime: row.avg_phi > 0.7 ? "geometric" : "linear",
+                regime: row.avgPhi > 0.7 ? "geometric" : "linear",
               }
             );
             existingSet.add(row.word);
