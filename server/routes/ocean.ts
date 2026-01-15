@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { getErrorMessage, handleRouteError } from '../lib/error-utils';
+import { isCurriculumOnlyMode } from '../lib/config';
 import { logger } from '../lib/logger';
 import { generousLimiter, standardLimiter, strictLimiter } from "../rate-limiters";
 import { autoCycleManager } from "../auto-cycle-manager";
@@ -587,7 +588,7 @@ oceanRouter.post(
   async (req: Request, res: Response) => {
     try {
       const { oceanConstellation } = await import("../ocean-constellation");
-      const curriculumOnly = process.env.QIG_CURRICULUM_ONLY === "true";
+      const curriculumOnly = isCurriculumOnlyMode();
 
       if (curriculumOnly) {
         await assertCurriculumReady();
@@ -640,7 +641,7 @@ oceanRouter.post(
   async (req: Request, res: Response) => {
     try {
       const { oceanConstellation } = await import("../ocean-constellation");
-      const curriculumOnly = process.env.QIG_CURRICULUM_ONLY === "true";
+      const curriculumOnly = isCurriculumOnlyMode();
 
       if (curriculumOnly) {
         await assertCurriculumReady();
@@ -684,7 +685,7 @@ oceanRouter.get(
     try {
       const { oceanQIGBackend } = await import("../ocean-qig-backend-adapter");
       const { oceanConstellation } = await import("../ocean-constellation");
-      const curriculumOnly = process.env.QIG_CURRICULUM_ONLY === "true";
+      const curriculumOnly = isCurriculumOnlyMode();
       let curriculumReady = true;
 
       if (curriculumOnly) {

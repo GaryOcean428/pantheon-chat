@@ -3,6 +3,7 @@ import { coordizerVocabulary } from '@shared/schema'
 import { BASIN_DIMENSION } from '@shared/constants'
 import { compute_qfi_score_simplex, isValidQfiScore, toSimplexProbabilities } from '@shared/qfi'
 import { db, withDbRetry } from './db'
+import { isCurriculumOnlyMode } from './lib/config'
 
 export type TokenStatus = 'active' | 'quarantined' | 'deprecated'
 
@@ -25,10 +26,6 @@ export interface UpsertTokenResult {
   status: TokenStatus
   qfiScore: number | null
   basinEmbedding: number[] | null
-}
-
-function getCurriculumOnlyFlag(): boolean {
-  return process.env.QIG_CURRICULUM_ONLY === 'true'
 }
 
 function resolveTokenStatus(qfiScore: number | null): TokenStatus {
@@ -100,7 +97,7 @@ export async function upsertToken(input: UpsertTokenInput): Promise<UpsertTokenR
     throw new Error('Database unavailable')
   }
 
-  if (getCurriculumOnlyFlag() && input.source !== 'curriculum') {
+  if (isCurriculumOnlyMode() && input.source !== 'curriculum') {
     throw new Error('Curriculum-only mode: token upsert requires source=curriculum')
   }
 
