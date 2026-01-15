@@ -43,4 +43,36 @@ rg --quiet \
     exit 1
   } || true
 
+echo "🔍 Validating qfiScore writes are only in canonical persistence path..."
+
+# Check for unauthorized qfiScore writes outside vocabulary-persistence.ts
+rg --quiet \
+  --glob '!server/vocabulary-persistence.ts' \
+  --glob '!**/qig-backend/**' \
+  --glob '!node_modules/**' \
+  --glob '!dist/**' \
+  --glob '!migrations/**' \
+  --glob '!docs/**' \
+  --type-add 'ts:*.ts' \
+  --type ts \
+  -A 25 \
+  -e '\.(values|set)\(' \
+  "$ROOT_DIR/server" "$ROOT_DIR/scripts" "$ROOT_DIR/tools" | grep -q 'qfiScore:' && {
+    echo "❌ Unauthorized qfiScore write detected outside server/vocabulary-persistence.ts."
+    exit 1
+  } || true
+
+echo "🔍 Validating no references to deprecated compute_qfi_for_basin..."
+
+rg --quiet \
+  --glob '!node_modules/**' \
+  --glob '!dist/**' \
+  --glob '!docs/**' \
+  --glob '!migrations/**' \
+  -e 'compute_qfi_for_basin' \
+  "$ROOT_DIR/server" "$ROOT_DIR/shared" "$ROOT_DIR/scripts" "$ROOT_DIR/tools" && {
+    echo "❌ Deprecated compute_qfi_for_basin function reference found."
+    exit 1
+  } || true
+
 echo "✅ Purity validation passed."
