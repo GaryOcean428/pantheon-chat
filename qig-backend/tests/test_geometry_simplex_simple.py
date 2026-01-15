@@ -4,9 +4,11 @@ Simple test runner for geometry_simplex module (no pytest required).
 
 import sys
 import numpy as np
+from pathlib import Path
 
-# Add parent directory to path for imports
-sys.path.insert(0, '/home/runner/work/pantheon-chat/pantheon-chat/qig-backend')
+# Add parent directory to path for imports (robust method)
+repo_root = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(repo_root / 'qig-backend'))
 
 from qig_geometry.geometry_simplex import (
     to_simplex_prob,

@@ -283,19 +283,19 @@ export function batchFisherRaoDistance(
  * @param query - Query probability distribution
  * @param candidates - Array of candidate distributions
  * @param k - Number of nearest neighbors to return
- * @returns Array of {index, distance} sorted by distance
+ * @returns Array of tuples [index, distance] sorted by distance (for cross-language consistency)
  */
 export function findNearestSimplex(
   query: number[],
   candidates: number[][],
   k: number = 10
-): Array<{ index: number; distance: number }> {
-  const distances = candidates.map((candidate, index) => ({
+): Array<[number, number]> {
+  const distances = candidates.map((candidate, index): [number, number] => [
     index,
-    distance: fisherRaoDistance(query, candidate),
-  }));
+    fisherRaoDistance(query, candidate),
+  ]);
 
-  distances.sort((a, b) => a.distance - b.distance);
+  distances.sort((a, b) => a[1] - b[1]);
   return distances.slice(0, k);
 }
 

@@ -177,9 +177,23 @@ def scan_repository(repo_root: Path) -> Tuple[List[GeometricViolation], List[Geo
 
 def main():
     """Run the CI guardrail test."""
-    # Find repo root (assumes script is in repo)
-    script_dir = Path(__file__).resolve().parent
-    repo_root = script_dir.parent.parent if 'qig-backend' in str(script_dir) else script_dir.parent
+    # Find repo root by looking for marker files (.git, package.json, etc.)
+    script_path = Path(__file__).resolve()
+    
+    # Search upward for .git directory
+    current = script_path.parent
+    repo_root = None
+    for _ in range(10):  # Limit search depth
+        if (current / '.git').exists() or (current / 'package.json').exists():
+            repo_root = current
+            break
+        if current.parent == current:  # Reached filesystem root
+            break
+        current = current.parent
+    
+    if repo_root is None:
+        print("Error: Could not find repository root (no .git or package.json)", file=sys.stderr)
+        return 1
     
     print("=" * 80)
     print("CI GUARDRAIL: Geometric Purity Check")
