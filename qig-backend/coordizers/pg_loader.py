@@ -15,7 +15,7 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 
 from .base import FisherCoordizer
-from qig_geometry import compute_unknown_basin, geodesic_interpolation, fisher_normalize
+from qig_geometry import compute_unknown_basin, geodesic_interpolation, fisher_normalize, compute_qfi_score
 
 # Import BPE garbage detection for vocabulary filtering
 try:
@@ -412,19 +412,24 @@ class PostgresCoordizer(FisherCoordizer):
         return new_tokens, weights_updated
 
     def _persist_token_to_db(self, token: str, coords: np.ndarray, phi: float, freq: int, token_id: int):
-        """Persist a new token to PostgreSQL database."""
+        """Persist a new token to PostgreSQL database.
+        
+        SLEEP-PACKET COMPLIANCE: Computes QFI when basin is present.
+        """
         conn = None
         try:
             conn = self._get_connection()
             with conn.cursor() as cur:
                 embedding_str = '[' + ','.join(str(x) for x in coords) + ']'
+                qfi_score = compute_qfi_score(coords) if coords is not None else None
                 cur.execute("""
-                    INSERT INTO coordizer_vocabulary (token, basin_embedding, phi_score, frequency, source_type, token_id)
-                    VALUES (%s, %s, %s, %s, %s, %s)
+                    INSERT INTO coordizer_vocabulary (token, basin_embedding, phi_score, qfi_score, frequency, source_type, token_id)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (token) DO UPDATE SET
                         phi_score = EXCLUDED.phi_score,
+                        qfi_score = COALESCE(EXCLUDED.qfi_score, coordizer_vocabulary.qfi_score),
                         frequency = EXCLUDED.frequency
-                """, (token, embedding_str, phi, freq, 'learned', token_id))
+                """, (token, embedding_str, phi, qfi_score, freq, 'learned', token_id))
             conn.commit()
         except Exception as e:
             logger.warning(f"Failed to persist token '{token}': {e}")
@@ -688,18 +693,22 @@ class PostgresCoordizer(FisherCoordizer):
             with conn.cursor() as cursor:
                 # Convert numpy array to list for JSON storage
                 coords_list = basin_coords.tolist() if isinstance(basin_coords, np.ndarray) else list(basin_coords)
+                
+                # SLEEP-PACKET COMPLIANCE: Compute QFI when basin is present
+                qfi_score = compute_qfi_score(basin_coords) if basin_coords is not None else None
 
                 # Upsert: insert or update if exists
                 cursor.execute("""
-                    INSERT INTO coordizer_vocabulary (token, token_id, basin_embedding, phi_score, frequency, source_type, created_at, updated_at)
-                    VALUES (%s, %s, %s, %s, %s, %s, NOW(), NOW())
+                    INSERT INTO coordizer_vocabulary (token, token_id, basin_embedding, phi_score, qfi_score, frequency, source_type, created_at, updated_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
                     ON CONFLICT (token) DO UPDATE SET
                         basin_embedding = EXCLUDED.basin_embedding,
                         phi_score = GREATEST(coordizer_vocabulary.phi_score, EXCLUDED.phi_score),
+                        qfi_score = COALESCE(EXCLUDED.qfi_score, coordizer_vocabulary.qfi_score),
                         frequency = coordizer_vocabulary.frequency + EXCLUDED.frequency,
                         updated_at = NOW()
                     RETURNING token_id
-                """, (token, len(self.vocab) + 50000, coords_list, phi, frequency, 'learned'))
+                """, (token, len(self.vocab) + 50000, coords_list, phi, qfi_score, frequency, 'learned'))
 
                 result = cursor.fetchone()
 
@@ -774,17 +783,21 @@ class PostgresCoordizer(FisherCoordizer):
                         continue
 
                     coords_list = basin_coords.tolist() if isinstance(basin_coords, np.ndarray) else list(basin_coords)
+                    
+                    # SLEEP-PACKET COMPLIANCE: Compute QFI when basin is present
+                    qfi_score = compute_qfi_score(basin_coords) if basin_coords is not None else None
 
                     try:
                         cursor.execute("""
-                            INSERT INTO coordizer_vocabulary (token, token_id, basin_embedding, phi_score, frequency, source_type, created_at, updated_at)
-                            VALUES (%s, %s, %s, %s, %s, %s, NOW(), NOW())
+                            INSERT INTO coordizer_vocabulary (token, token_id, basin_embedding, phi_score, qfi_score, frequency, source_type, created_at, updated_at)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
                             ON CONFLICT (token) DO UPDATE SET
                                 basin_embedding = EXCLUDED.basin_embedding,
                                 phi_score = GREATEST(coordizer_vocabulary.phi_score, EXCLUDED.phi_score),
+                                qfi_score = COALESCE(EXCLUDED.qfi_score, coordizer_vocabulary.qfi_score),
                                 frequency = coordizer_vocabulary.frequency + EXCLUDED.frequency,
                                 updated_at = NOW()
-                        """, (token, len(self.vocab) + 50000 + saved_count, coords_list, phi, frequency, 'learned'))
+                        """, (token, len(self.vocab) + 50000 + saved_count, coords_list, phi, qfi_score, frequency, 'learned'))
 
                         # Update local cache
                         if token not in self.vocab:

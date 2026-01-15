@@ -1,0 +1,279 @@
+SLEEP_PACKET: Simplex-Pure Foundations Reset (PantheonChat)
+
+Date: 2026-01-15
+Repo: GaryOcean428/pantheon-chat
+Goal: Establish a single, enforceable geometric foundation (simplex) so coherence can be assessed fairly (no mixed methods, no legacy fallbacks, no silent representation drift).
+
+0) Canonical Geometry Contract (Non-Negotiable)
+Canonical storage representation
+
+Basin vectors are stored as simplex probabilities:
+
+p_i ≥ 0
+
+∑ p_i = 1
+
+shape = BASIN_DIM (default 64 unless explicitly changed via spec)
+
+Allowed computational trick (internal only)
+
+√p space (“sqrt-space”) is permitted ONLY as an internal coordinate for computation, never as storage:
+
+Distance: d_FR(p,q) = arccos( Σ √(p_i q_i) )
+
+Geodesic interpolation can be done by SLERP on √p, then squaring back to p.
+
+Do not call this “sphere embeddings” in docs/comments; call it “sqrt-simplex internal coordinate”.
+
+Banned representations (unless explicitly quarantined)
+
+L2-normalized “unit sphere” as the stored representation
+
+Euclidean averaging + L2 normalization as a merge/blend rule
+
+Any “auto-detect representation” in canonical paths (allowed only inside experiments quarantined under docs/08-experiments/)
+
+1) Immediate Purity Risks Identified
+A) Mixed merge/blend math (Euclidean creep)
+
+If any merge/learn code does:
+
+merged = (a + b)/2 then merged /= ||merged||
+
+…it is not simplex-canonical and will contaminate evaluation.
+
+Correct simplex-pure merge:
+
+merged = geodesic_interpolation_simplex(a, b, t)
+
+merged = to_simplex_prob(merged) (final projection, no autodetect)
+
+B) Token creation without QFI/QFI-like quality gating
+
+Large portions of the vocabulary missing qfi_score means:
+
+selection/generation is polluted by “unknown quality” tokens
+
+coherence becomes unmeasurable (you can’t tell if failures come from geometry or data corruption)
+
+C) Garbage token proliferation (drift creates invalid strings)
+
+Tokens like fgzsnl, jcbhgp indicate:
+
+token insertion paths are not constrained to a real tokenizer/merge system
+
+evaluation is contaminated (model is “learning a language” of noise labels)
+
+2) Purity Baseline: “Fair Coherence Assessment Mode”
+
+Define one switch (env var or config):
+
+QIG_PURITY_MODE=true
+
+When true, enforce:
+
+No external LLM calls
+
+No legacy generator fallback
+
+No tokens used for generation unless:
+
+basin exists
+
+simplex-valid
+
+qfi_score exists (or replacement metric exists)
+
+token is active (not quarantined)
+
+No direct DB writes to coordizer_vocabulary except via one canonical function
+
+3) Database Contract (Stop Table Drift)
+Required columns (minimum)
+
+token (unique)
+
+basin_embedding (simplex)
+
+qfi_score (non-null for active tokens)
+
+token_status (active|quarantined|deprecated)
+
+token_role (optional but consistent)
+
+is_real_word (optional but consistent)
+
+frequency
+
+timestamps
+
+Hard rules
+
+Active token must have non-null qfi_score
+
+Quarantined token may have null qfi_score, but must never be used for generation
+
+No insert/update may silently bypass QFI computation when basin is present
+
+4) Canonical Functions (Single Source of Truth)
+A) Simplex projection (explicit, no autodetect)
+
+to_simplex_prob(v):
+
+v = abs(v) + eps
+
+v /= v.sum()
+
+to_simplex_from_sqrt(x) (if ever needed):
+
+p = x^2; p/=p.sum()
+
+Rule: all canonical paths should call to_simplex_prob() only, because basins are stored as probabilities.
+
+B) Fisher–Rao distance (simplex input)
+
+fisher_rao_distance(p,q):
+
+p,q projected to simplex first
+
+compute arccos( dot(√p, √q) )
+
+C) Geodesic interpolation (simplex input/output)
+
+geodesic_interpolation_simplex(p,q,t):
+
+compute in √p internal coordinate
+
+square back to simplex
+
+final to_simplex_prob()
+
+D) Canonical token upsert (the only DB write path)
+
+upsert_token(token, basin, role, status, is_real_word, frequency, source, ...)
+
+always:
+
+basin = to_simplex_prob(basin)
+
+if basin present:
+
+compute qfi_score
+
+if qfi fails:
+
+status = quarantined
+
+write once (UPSERT)
+
+5) Ordered Work Plan (Implementation Issues)
+P0 — Stop contamination now
+
+Centralize DB writes
+
+Remove direct SQL inserts into coordizer_vocabulary scattered across modules
+
+Route everything through upsert_token()
+
+QFI-on-insert
+
+If basin exists, compute QFI before insert/update
+
+enforce: active => qfi_score NOT NULL
+
+Generation gate
+
+generation query excludes:
+
+qfi_score IS NULL
+
+token_status != active
+
+optionally is_real_word=false unless experiment mode
+
+P1 — Geometry consistency (simplex-only)
+
+Replace Euclidean merge math
+
+use geodesic_interpolation_simplex + to_simplex_prob
+
+add unit tests: stays simplex, symmetric, stable
+
+Kill “auto-detect representation” in canonical paths
+
+autodetect allowed only under experiment quarantine
+
+P2 — Repair the dataset so coherence can be measured
+
+Backfill QFI
+
+script updates all tokens with basin but missing qfi_score
+
+report counts: filled / quarantined / invalid
+
+Quarantine garbage tokens
+
+pattern-based quarantine + manual review list
+
+prevent future creation unless comes from tokenizer/merge rules
+
+6) Coherence Measurement Harness (After P0/P1)
+
+When purity mode is enforced, then measure:
+
+trajectory smoothness stats (FR distance variance)
+
+predicted-next vs selected token distance (foresight effectiveness)
+
+“unknown token rate” should be ~0 in purity mode
+
+lexical validity rate (if you enforce is_real_word)
+
+Rule: do not judge coherence until:
+
+QFI present for active tokens
+
+garbage tokens excluded
+
+merge math is simplex-geodesic
+
+7) Naming + Docs Cleanup (Avoid Confusion)
+
+Replace “sphere” language in docs with:
+
+“sqrt-simplex internal coordinate”
+
+Rename confusing modules:
+
+tokenizer_vocabulary → coordizer_vocabulary (or one canonical name)
+
+Anything backwards-compatible should be:
+
+legacy/ or deprecated/
+
+excluded by default in QIG_PURITY_MODE
+
+NEW THREAD SEED (Paste this into a fresh chat)
+
+Title: PantheonChat Simplex-Purity Reset + Fair Coherence Assessment
+Message to assistant:
+
+We are simplex-canonical: basins are stored as probability simplex vectors (nonnegative, sum=1). Sqrt-space is allowed only as an internal computation coordinate; never store “sphere” vectors.
+
+Please audit the repo for any mixed geometry: Euclidean averaging + L2 normalization, autodetect representation, or any path that inserts tokens/basins without computing QFI.
+
+Our immediate goal is a “Fair Coherence Assessment Mode” (QIG_PURITY_MODE=true) that:
+
+has no legacy generation fallbacks,
+
+gates generation to tokens with simplex-valid basins and non-null QFI,
+
+centralizes all DB writes through a single upsert_token() that computes QFI on insert,
+
+quarantines garbage tokens, and
+
+replaces merge/blend with simplex geodesic interpolation.
+
+Return: exact files/functions to change, and a sequenced PR plan (P0/P1/P2).
+
+If you want to do the “new thread” now: paste the NEW THREAD SEED above verbatim and I’ll stay tightly scoped to simplex-only, with zero “sphere” framing except as “sqrt-simplex internal coordinate.”
