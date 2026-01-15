@@ -61,8 +61,7 @@ class CrossDomainInsight:
     """Assessment of a connection between two domains."""
     domain_a: str
     domain_b: str
-    fisher_distance: float          # FR: Fisher-Rao distance
-    basin_distance: float           # BD: Alternative distance metric
+    fisher_distance: float          # FR: Fisher-Rao distance (canonical geometric distance)
     quality: InsightQuality
     novelty_score: float           # How novel this connection is
     coherence_score: float         # How coherent the connection
@@ -76,7 +75,6 @@ class CrossDomainInsight:
             "domain_a": self.domain_a,
             "domain_b": self.domain_b,
             "fisher_distance": round(self.fisher_distance, 4),
-            "basin_distance": round(self.basin_distance, 4),
             "quality": self.quality.value,
             "novelty_score": round(self.novelty_score, 3),
             "coherence_score": round(self.coherence_score, 3),
@@ -90,7 +88,6 @@ class CrossDomainInsight:
         return (f"{self.domain_a}+{self.domain_b}|"
                 f"{self.domain_a}/{self.domain_b}|"
                 f"FR={self.fisher_distance:.4f},"
-                f"BD={self.basin_distance:.4f},"
                 f"{self.quality.value}:+{self.novelty_score:.3f}|"
                 f"{self.connection_id}|"
                 f"Φ={self.phi_context:.3f}")
@@ -187,11 +184,8 @@ class CrossDomainInsightAssessor:
         basin_a = self.domains[domain_a].basin_coords
         basin_b = self.domains[domain_b].basin_coords
         
-        # Compute geometric distances
+        # Compute geometric distance (canonical Fisher-Rao metric)
         fisher_dist = fisher_rao_distance(basin_a, basin_b)
-        
-        # Alternative distance metric (Euclidean on simplex)
-        basin_dist = float(np.linalg.norm(basin_a - basin_b))
         
         # Determine insight quality from Fisher-Rao distance
         quality = self._classify_quality(fisher_dist)
@@ -217,7 +211,6 @@ class CrossDomainInsightAssessor:
             domain_a=domain_a,
             domain_b=domain_b,
             fisher_distance=fisher_dist,
-            basin_distance=basin_dist,
             quality=quality,
             novelty_score=novelty_score,
             coherence_score=coherence_score,

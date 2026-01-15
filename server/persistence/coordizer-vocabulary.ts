@@ -97,6 +97,10 @@ export async function upsertToken(input: UpsertTokenInput) {
 
   // Capture db reference before async callback
   const dbInstance = db
+  if (!dbInstance) {
+    throw new Error('Database not initialized')
+  }
+
   return withDbRetry(
     async () => {
       const [result] = await dbInstance

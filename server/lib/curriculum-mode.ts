@@ -66,6 +66,16 @@ export async function getCurriculumStatus() {
 
   // Capture db reference before async callback
   const dbInstance = db
+  if (!dbInstance) {
+    cachedStatus = {
+      checkedAt: now,
+      complete: false,
+      missing: tokens,
+      invalid: [],
+    }
+    return cachedStatus
+  }
+
   const result = await withDbRetry(
     async () => {
       return dbInstance.execute<{
@@ -81,7 +91,17 @@ export async function getCurriculumStatus() {
     'curriculum-status'
   )
 
-  const found = new Map(result?.rows?.map((row) => [row.token, row]) ?? [])
+  if (!result) {
+    cachedStatus = {
+      checkedAt: now,
+      complete: false,
+      missing: tokens,
+      invalid: [],
+    }
+    return cachedStatus
+  }
+
+  const found = new Map(result.rows?.map((row) => [row.token, row]) ?? [])
   const missing = tokens.filter((token) => !found.has(token))
   const invalid = Array.from(found.values())
     .filter(
