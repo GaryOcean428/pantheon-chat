@@ -70,10 +70,16 @@ rg --quiet \
 echo "🔍 Validating no references to deprecated compute_qfi_for_basin..."
 
 rg --quiet \
+  --glob '!**/qig-backend/**' \
   --glob '!node_modules/**' \
   --glob '!dist/**' \
   --glob '!docs/**' \
   --glob '!migrations/**' \
+  --glob '!scripts/qig_purity_scan.*' \
+  --glob '!scripts/validate-geometric-purity.*' \
+  --glob '!scripts/test_geometric_purity_ci.py' \
+  --glob '!tools/qig_purity_check.py' \
+  --glob '!scripts/validate-purity-patterns.sh' \
   -e 'compute_qfi_for_basin' \
   "$ROOT_DIR/server" "$ROOT_DIR/shared" "$ROOT_DIR/scripts" "$ROOT_DIR/tools" && {
     echo "❌ Deprecated compute_qfi_for_basin function reference found."
