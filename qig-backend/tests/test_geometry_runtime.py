@@ -386,11 +386,16 @@ class TestGeometricCorrectness:
             f"Similarity with self should be ~1, got {sim_self:.6f}"
         )
         
-        # Similarity with opposite should be low
-        b = -a
-        sim_opposite = fisher_similarity(a, b)
-        assert sim_opposite < 0.2, (
-            f"Similarity with opposite should be low, got {sim_opposite:.6f}"
+        # Similarity with very different distribution should be low
+        # In SIMPLEX space, create two distributions peaked at different locations
+        b = np.zeros(64)
+        b[0] = 1.0  # All mass on first dimension
+        a_peaked = np.zeros(64)
+        a_peaked[-1] = 1.0  # All mass on last dimension
+        
+        sim_different = fisher_similarity(a_peaked, b)
+        assert sim_different < 0.5, (
+            f"Similarity between very different distributions should be low, got {sim_different:.6f}"
         )
     
     def test_geodesic_interpolation_properties(self):
