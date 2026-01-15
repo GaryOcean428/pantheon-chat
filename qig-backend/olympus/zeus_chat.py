@@ -168,14 +168,7 @@ try:
     TOKENIZER_AVAILABLE = True
     print("[ZeusChat] Canonical coordizer available (lazy) - QIG-pure")
 except ImportError as e:
-    # Fallback to old coordizer if pretrained not available
-    try:
-        from qig_coordizer import get_coordizer as _get_coordizer
-        get_coordizer_func = _get_coordizer
-        TOKENIZER_AVAILABLE = True
-        print("[ZeusChat] QIG Coordizer (legacy) available - conversation mode enabled")
-    except ImportError as e2:
-        print(f"[ZeusChat] No coordizer available - fallback responses enabled: {e}, {e2}")
+    print(f"[ZeusChat] No coordizer available - fallback responses enabled: {e}")
 
 # Import QIG-pure generative service (NO external LLMs)
 GENERATIVE_SERVICE_AVAILABLE = False
