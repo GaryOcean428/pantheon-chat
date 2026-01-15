@@ -95,7 +95,8 @@ def _prepare_basin_input(basin: np.ndarray) -> np.ndarray:
 def to_simplex(
     basin: np.ndarray,
     from_repr: BasinRepresentation = None,
-    eps: float = 1e-10
+    eps: float = 1e-10,
+    strict: bool = None
 ) -> np.ndarray:
     """
     Convert basin to CANONICAL SIMPLEX representation (probability distribution).
@@ -104,11 +105,17 @@ def to_simplex(
     
     Args:
         basin: Input basin vector
-        from_repr: Source representation (auto-detected if None)
+        from_repr: Source representation (REQUIRED in strict mode, else auto-detected)
         eps: Numerical stability epsilon
+        strict: If True, raise on invalid inputs instead of sanitizing.
+               If None, uses purity mode setting.
         
     Returns:
         Basin vector on probability simplex (Σv_i = 1, v_i ≥ 0)
+        
+    Raises:
+        GeometricViolationError: In strict mode, if input has negative values
+                                 or invalid state that can't be cleanly converted
         
     Examples:
         >>> sphere_basin = np.array([0.5, -0.3, 0.8])
@@ -116,16 +123,36 @@ def to_simplex(
         >>> assert np.isclose(simplex_basin.sum(), 1.0)
         >>> assert np.all(simplex_basin >= 0)
     """
+    from .purity_mode import check_purity_mode
+    from .contracts import GeometricViolationError
+    
     # Use shared preprocessing
     b = _prepare_basin_input(basin)
     
-    # Auto-detect source representation if not provided
+    # Determine strict mode
+    if strict is None:
+        strict = check_purity_mode()
+    
+    # In strict mode, require explicit representation
+    if strict and from_repr is None:
+        raise GeometricViolationError(
+            "to_simplex() requires explicit 'from_repr' in purity mode. "
+            "Auto-detection masks violations."
+        )
+    
+    # Auto-detect source representation if not provided (non-strict only)
     if from_repr is None:
         from_repr = _detect_representation(b)
     
     # Convert based on source representation
     if from_repr == BasinRepresentation.SPHERE:
         # Sphere -> Simplex: take absolute value, normalize sum
+        # In strict mode, check for negatives first
+        if strict and np.any(b < -eps):
+            raise GeometricViolationError(
+                f"SPHERE->SIMPLEX conversion in purity mode: found negative values "
+                f"(min={np.min(b):.6f}). This indicates off-manifold drift."
+            )
         b = np.abs(b) + eps
     
     elif from_repr == BasinRepresentation.HELLINGER:
@@ -134,13 +161,31 @@ def to_simplex(
         b = b ** 2 + eps
     
     elif from_repr == BasinRepresentation.SIMPLEX:
-        # Already in simplex, just ensure non-negative and normalized
-        b = np.abs(b) + eps
+        # Already in simplex format
+        # In strict mode, check for catastrophic states FIRST (before adding eps)
+        if strict:
+            if np.sum(np.abs(b)) < 1e-10:
+                raise GeometricViolationError(
+                    f"SIMPLEX input in purity mode has near-zero sum "
+                    f"(sum={np.sum(b):.2e}). This indicates catastrophic state."
+                )
+            if np.any(b < -eps):
+                raise GeometricViolationError(
+                    f"SIMPLEX input in purity mode has negative values "
+                    f"(min={np.min(b):.6f}). Projection should not sanitize logic bugs."
+                )
+        # For non-strict or valid inputs, ensure non-negative
+        b = np.maximum(b, 0) + eps
     
     # Guard against zero-sum (would cause division by zero)
     total = b.sum()
     if total < 1e-10:
-        # Return uniform distribution as fallback
+        if strict:
+            raise GeometricViolationError(
+                f"Basin sum near zero ({total:.2e}) in purity mode. "
+                "This indicates catastrophic state - cannot project to simplex."
+            )
+        # Return uniform distribution as fallback (non-strict only)
         return np.ones(b.size) / b.size
     
     # Normalize to sum = 1
@@ -349,14 +394,102 @@ def sphere_project(v: np.ndarray) -> np.ndarray:
     return to_sphere(v, eps=1e-10)
 
 
-def fisher_normalize(v: np.ndarray) -> np.ndarray:
+def fisher_normalize(v: np.ndarray, strict: bool = None) -> np.ndarray:
     """
     Project vector to probability simplex (CANONICAL representation).
     
     This is the PREFERRED function for normalizing basins.
     Use this instead of sphere_project() for new code.
+    
+    Args:
+        v: Input vector
+        strict: If True, raise on invalid inputs. If None, uses purity mode.
+        
+    Returns:
+        Basin vector on probability simplex
+        
+    Raises:
+        GeometricViolationError: In strict mode, if input violates simplex constraints
     """
-    return to_simplex(v, eps=1e-10)
+    return to_simplex(v, from_repr=BasinRepresentation.SIMPLEX, eps=1e-10, strict=strict)
+
+
+def validate_simplex(
+    basin: np.ndarray,
+    tolerance: float = 1e-6
+) -> Tuple[bool, str]:
+    """
+    Validate that basin is a valid probability simplex vector.
+    
+    Checks:
+    - All finite values
+    - All values >= -tolerance (allowing for numerical error)
+    - Sum equals 1.0 (within tolerance)
+    
+    Args:
+        basin: Basin vector to validate
+        tolerance: Numerical tolerance for checks
+        
+    Returns:
+        (is_valid, message) tuple
+        
+    Examples:
+        >>> valid_basin = np.array([0.3, 0.5, 0.2])
+        >>> is_valid, msg = validate_simplex(valid_basin)
+        >>> assert is_valid
+        
+        >>> invalid_basin = np.array([0.3, -0.1, 0.8])
+        >>> is_valid, msg = validate_simplex(invalid_basin)
+        >>> assert not is_valid
+    """
+    if not np.all(np.isfinite(basin)):
+        return False, "Basin contains non-finite values (NaN or Inf)"
+    
+    if np.any(basin < -tolerance):
+        min_val = np.min(basin)
+        return False, f"Basin has negative values (min={min_val:.6f}, tol={tolerance:.2e})"
+    
+    total = np.sum(basin)
+    if not np.isclose(total, 1.0, atol=tolerance):
+        return False, f"Basin sum={total:.6f} is not 1.0 (tol={tolerance:.2e})"
+    
+    return True, "Valid simplex"
+
+
+def validate_sqrt_simplex(
+    basin: np.ndarray,
+    tolerance: float = 1e-6
+) -> Tuple[bool, str]:
+    """
+    Validate that basin is valid in sqrt-simplex (Hellinger) space.
+    
+    This is for internal computational use only (e.g., geodesic_interpolation).
+    Stored basins should always be in SIMPLEX, not sqrt-simplex.
+    
+    Checks:
+    - All finite values
+    - All values >= -tolerance
+    - L2 norm equals 1.0 (within tolerance)
+    
+    Args:
+        basin: Basin vector to validate
+        tolerance: Numerical tolerance for checks
+        
+    Returns:
+        (is_valid, message) tuple
+    """
+    if not np.all(np.isfinite(basin)):
+        return False, "Basin contains non-finite values (NaN or Inf)"
+    
+    if np.any(basin < -tolerance):
+        min_val = np.min(basin)
+        return False, f"Basin has negative values (min={min_val:.6f}, tol={tolerance:.2e})"
+    
+    norm = np.linalg.norm(basin)
+    if not np.isclose(norm, 1.0, atol=tolerance):
+        return False, f"Basin L2 norm={norm:.6f} is not 1.0 (tol={tolerance:.2e})"
+    
+    return True, "Valid sqrt-simplex"
 
 
 __all__ = [
@@ -365,6 +498,8 @@ __all__ = [
     'to_simplex',
     'to_sphere',
     'validate_basin',
+    'validate_simplex',
+    'validate_sqrt_simplex',
     'enforce_canonical',
     'sphere_project',
     'fisher_normalize',

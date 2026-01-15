@@ -25,9 +25,9 @@ from qig_geometry.representation import (
 class TestBasinRepresentation:
     """Test basin representation conversions."""
     
-    def test_canonical_is_sphere(self):
-        """Verify canonical representation is SPHERE."""
-        assert CANONICAL_REPRESENTATION == BasinRepresentation.SPHERE
+    def test_canonical_is_simplex(self):
+        """Verify canonical representation is SIMPLEX."""
+        assert CANONICAL_REPRESENTATION == BasinRepresentation.SIMPLEX
     
     def test_to_sphere_from_simplex(self):
         """Convert simplex to sphere representation."""
@@ -142,17 +142,20 @@ class TestBasinRepresentation:
         valid, msg = validate_basin(canonical, CANONICAL_REPRESENTATION)
         assert valid, msg
     
-    def test_enforce_canonical_sphere(self):
-        """Enforce canonical (sphere) from various inputs."""
+    def test_enforce_canonical_simplex(self):
+        """Enforce canonical (simplex) from various inputs."""
         # From unnormalized vector
         raw1 = np.array([1.0, 2.0, 3.0])
         canon1 = enforce_canonical(raw1)
-        assert np.isclose(np.linalg.norm(canon1), 1.0)
+        assert np.isclose(np.sum(canon1), 1.0)
+        assert np.all(canon1 >= 0)
         
-        # From simplex
-        raw2 = np.array([0.2, 0.5, 0.3])
+        # From sphere
+        raw2 = np.array([0.6, 0.8, 0.0])
+        raw2 = raw2 / np.linalg.norm(raw2)
         canon2 = enforce_canonical(raw2)
-        assert np.isclose(np.linalg.norm(canon2), 1.0)
+        assert np.isclose(np.sum(canon2), 1.0)
+        assert np.all(canon2 >= 0)
     
     def test_handle_zero_vector(self):
         """Handle zero vector gracefully."""
@@ -201,7 +204,96 @@ class TestBasinRepresentation:
             result = enforce_canonical(basin)
             
             assert result.shape[0] == dim
-            assert np.isclose(np.linalg.norm(result), 1.0)
+            # Canonical is now SIMPLEX, so check sum=1
+            assert np.isclose(np.sum(result), 1.0)
+            assert np.all(result >= 0)
+
+
+class TestStrictMode:
+    """Test strict mode and purity enforcement."""
+    
+    def test_validate_simplex_valid(self):
+        """validate_simplex accepts valid simplex."""
+        from qig_geometry.representation import validate_simplex
+        
+        valid_basin = np.array([0.2, 0.3, 0.5])
+        is_valid, msg = validate_simplex(valid_basin)
+        assert is_valid, msg
+    
+    def test_validate_simplex_negative(self):
+        """validate_simplex rejects negative values."""
+        from qig_geometry.representation import validate_simplex
+        
+        invalid_basin = np.array([0.5, -0.1, 0.6])
+        is_valid, msg = validate_simplex(invalid_basin)
+        assert not is_valid
+        assert "negative" in msg.lower()
+    
+    def test_validate_simplex_wrong_sum(self):
+        """validate_simplex rejects wrong sum."""
+        from qig_geometry.representation import validate_simplex
+        
+        invalid_basin = np.array([0.2, 0.3, 0.3])  # sums to 0.8
+        is_valid, msg = validate_simplex(invalid_basin)
+        assert not is_valid
+        assert "sum" in msg.lower()
+    
+    def test_validate_sqrt_simplex_valid(self):
+        """validate_sqrt_simplex accepts valid sqrt-simplex."""
+        from qig_geometry.representation import validate_sqrt_simplex
+        
+        sqrt_basin = np.array([0.5, 0.5, 0.5, 0.5])
+        sqrt_basin = sqrt_basin / np.linalg.norm(sqrt_basin)
+        is_valid, msg = validate_sqrt_simplex(sqrt_basin)
+        assert is_valid, msg
+    
+    def test_to_simplex_strict_mode_rejects_negative(self):
+        """to_simplex in strict mode raises on negative SIMPLEX input."""
+        from qig_geometry.contracts import GeometricViolationError
+        
+        negative_basin = np.array([0.5, -0.2, 0.7])
+        
+        with pytest.raises(GeometricViolationError) as exc_info:
+            to_simplex(negative_basin, from_repr=BasinRepresentation.SIMPLEX, strict=True)
+        
+        assert "negative" in str(exc_info.value).lower()
+    
+    def test_to_simplex_strict_mode_requires_from_repr(self):
+        """to_simplex in strict mode requires explicit from_repr."""
+        from qig_geometry.contracts import GeometricViolationError
+        
+        basin = np.array([1.0, 2.0, 3.0])
+        
+        with pytest.raises(GeometricViolationError) as exc_info:
+            to_simplex(basin, from_repr=None, strict=True)
+        
+        assert "from_repr" in str(exc_info.value).lower()
+    
+    def test_to_simplex_strict_mode_rejects_zero_sum(self):
+        """to_simplex in strict mode raises on zero-sum basin."""
+        from qig_geometry.contracts import GeometricViolationError
+        
+        zero_basin = np.zeros(64)
+        
+        with pytest.raises(GeometricViolationError) as exc_info:
+            to_simplex(zero_basin, from_repr=BasinRepresentation.SIMPLEX, strict=True)
+        
+        assert "near-zero sum" in str(exc_info.value).lower()
+    
+    def test_fisher_normalize_strict_mode(self):
+        """fisher_normalize with strict=True enforces validation."""
+        from qig_geometry.representation import fisher_normalize
+        from qig_geometry.contracts import GeometricViolationError
+        
+        negative_basin = np.array([0.5, -0.2, 0.7])
+        
+        # Non-strict should work (silently fixes)
+        result = fisher_normalize(negative_basin, strict=False)
+        assert np.isclose(np.sum(result), 1.0)
+        
+        # Strict should raise
+        with pytest.raises(GeometricViolationError):
+            fisher_normalize(negative_basin, strict=True)
 
 
 class TestAPICompatibility:
