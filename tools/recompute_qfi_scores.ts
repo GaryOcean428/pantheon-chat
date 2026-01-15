@@ -94,6 +94,7 @@ async function main() {
           unchanged += 1
         }
       } catch (error) {
+        console.error(`Failed to process token ${row.token}:`, error)
         quarantined += 1
         errors += 1
       }
