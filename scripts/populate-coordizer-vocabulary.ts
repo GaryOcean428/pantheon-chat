@@ -14,6 +14,8 @@ import { sql } from 'drizzle-orm';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
+import { to_simplex_probabilities } from '@shared';
+import { upsertToken } from '../server/persistence/coordizer-vocabulary';
 import { upsertToken } from '../server/persistence/vocabulary';
 
 // Common English words to supplement
