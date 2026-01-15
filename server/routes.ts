@@ -81,6 +81,7 @@ import { autoCycleManager } from "./auto-cycle-manager";
 import { oceanSessionManager } from "./ocean-session-manager";
 import { isAuthenticated, setupAuth } from "./replitAuth";
 import { searchCoordinator } from "./search-coordinator";
+import { curriculumOnlyGuard } from "./middleware/curriculum-only";
 
 const strictLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -218,6 +219,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       version: process.env.npm_package_version || '1.0.0',
     });
   });
+
+  // Curriculum-only middleware: Restricts generation/persistence to curriculum tokens when enabled
+  // Placed AFTER health endpoints (which are explicitly allowlisted in the middleware itself)
+  // See server/middleware/curriculum-only.ts for allowlist configuration
+  app.use(curriculumOnlyGuard);
 
   const { db } = await import("./db");
   let authEnabled = !!db;

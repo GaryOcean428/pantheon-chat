@@ -14,6 +14,7 @@ import { db, withDbRetry } from './db';
 import { logger } from './lib/logger';
 import * as schema from '@shared/schema';
 import { sql, desc } from 'drizzle-orm';
+import { upsertToken } from './persistence/coordizer-vocabulary';
 import { upsertToken } from './persistence/vocabulary';
 
 const router = Router();

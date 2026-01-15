@@ -197,3 +197,6 @@ export {
 
 // Self-Healing System types
 export * from './self-healing-types';
+
+// QFI utilities
+export { compute_qfi_score_simplex, to_simplex_probabilities } from './qfi-score'
