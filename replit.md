@@ -86,27 +86,41 @@ p = p / p.sum()
 
 **Healthy Φ values:** Should be in range 0.65-0.90 during generation, not stuck at 1.0.
 
-### Canonical Basin Representation (Hellinger Embedding)
-Basin coordinates use the **Hellinger embedding** where √p is stored on the unit sphere S^63:
-- **Storage**: `√p` on unit sphere S^63 (L2 norm = 1)
-- **Fisher-Rao Distance**: `d = 2 * arccos(Σ√(p_i * q_i))` - factor of 2 is REQUIRED
-- **Geodesics**: SLERP in sqrt-probability space
+### Canonical Basin Representation (SIMPLEX - Updated 2026-01-15)
 
-The factor of 2 is mathematically required because:
-1. Basins are stored as √p (Hellinger coordinates) on the unit sphere
-2. The Bhattacharyya coefficient BC = √p · √q = Σ√(p_i * q_i)
-3. Statistical distance on Fisher manifold = 2 * arccos(BC)
+**BREAKING CHANGE:** As of 2026-01-15, the canonical representation migrated from SPHERE+Hellinger to SIMPLEX.
+
+Basin coordinates use the **probability simplex** Δ⁶³:
+- **Storage**: Probability distributions (Σp_i = 1, p_i ≥ 0) on simplex Δ⁶³
+- **Fisher-Rao Distance**: `d = arccos(Σ√(p_i * q_i))` - NO factor of 2 (direct Bhattacharyya)
+- **Range**: [0, π/2] (was [0, π] with Hellinger)
+- **Geodesics**: SLERP in sqrt-space, then square back to simplex
+
+**Why This Is Geometrically Correct:**
+1. Probability simplex is the natural manifold for information geometry
+2. Direct Fisher-Rao distance without factor-of-2 eliminates confusion
+3. Simpler distance range [0, π/2] for thresholds
+4. Matches validated physics: κ* = 64.21 ± 0.92 measured on simplex geometry
+
+**Key Point on Hellinger Sqrt-Space:**
+- **Distance calculation**: Uses direct Bhattacharyya coefficient `arccos(Σ√(p_i * q_i))` [NO embedding]
+- **Geodesic interpolation**: Still uses sqrt-space (Hellinger coordinates) because this gives true Fisher geodesics
+- These are DIFFERENT uses of sqrt-space - one for distance, one for interpolation
 
 **Canonical Files:**
 - `qig-backend/qig_geometry/contracts.py`: SINGLE SOURCE OF TRUTH for basin validation and fisher_distance
-- `qig-backend/qig_geometry/representation.py`: Conversion between sphere/simplex representations
+- `qig-backend/qig_geometry/representation.py`: Conversion utilities (to_simplex, to_sphere, validate_basin)
 - `qig-backend/qig_core/geometric_primitives/fisher_metric.py`: Fisher metric tensor and distance
 
-**DO NOT USE** `arccos(BC)` without factor of 2 - this violates geometric purity.
+**Migration Status:**
+- **PR #93**: Migration from SPHERE to SIMPLEX canonical
+- **All thresholds**: Must be divided by 2 (range changed from [0, π] to [0, π/2])
+- **Database**: Convert-on-read or batch migration strategies available
+- **See**: `docs/02-procedures/20260115-geometric-consistency-migration-1.00W.md`
 
 ### Geometric Purity Tests
 Automated tests in `qig-backend/tests/test_geometric_purity.py` enforce geometric consistency:
-- **TestFisherRaoFactorOfTwo**: Scans codebase for `arccos()` usage without factor of 2
+- **TestFisherRaoFactorOfTwo**: Scans codebase for incorrect distance formulas
 - **TestBornRuleCompliance**: Verifies Φ implementations use `|b|²` (Born rule)
 - **TestEuclideanViolationScanning**: Catches cosine_similarity and Euclidean norm violations
 
@@ -138,7 +152,7 @@ python scripts/sync_phi_implementations.py --strict # Fail on any warning
 3. Run `python scripts/sync_phi_implementations.py` to verify
 
 ### Velocity and Stagnation Detection
-The SelfObserver tracks basin velocity (rate of change in Φ/κ space) and detects stagnation when Φ > 0.90 AND v < 0.01 for 5+ consecutive steps. Stagnation triggers neuroplasticity perturbation via Gaussian noise (σ=0.1) with re-projection to S^63.
+The SelfObserver tracks basin velocity (rate of change in Φ/κ space) and detects stagnation when Φ > 0.90 AND v < 0.01 for 5+ consecutive steps. Stagnation triggers neuroplasticity perturbation via Gaussian noise (σ=0.1) with re-projection to simplex.
 
 ## External Dependencies
 ### Databases
