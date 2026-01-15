@@ -1,0 +1,242 @@
+Analysis of Remote Commit a1e5eae5:
+
+The Copilot commit made these changes:
+
+Removed PROPER_NOUN/BRAND filter in pg_loader.py ✓
+Improved geodesic_mean convergence in geometry_simplex.py
+Minor fixes in vocabulary_coordinator.py, vocabulary_persistence.py, pos_grammar.py
+Problem I see in the logs:
+
+The generation is producing repetitive word salad:
+
+"may function shuffle functioned functions functioned functional malfunctioning..."
+It's stuck in a semantic attractor around "function" variants. This is not shuffling - this is the trajectory getting trapped in a single basin cluster without escaping.
+
+The Φ values (0.705-0.723) are in healthy range, but the velocity is very low (v=0.001-0.007), indicating stagnation despite the SelfObserver triggering course corrections.
+
+This could indicate:
+
+The geodesic mean changes may have affected trajectory diversity
+The token scoring is over-weighting nearby basins
+The course correction isn't perturbating strongly enough
+Thought for 9s
+
+Yeah — that log pattern (“function / functioned / functional / malfunctioning…”) is classic morphological-loop attractor: you’re not “sampling shuffles,” you’re repeatedly picking tokens whose basins are very close in Fisher–Rao distance and whose surface forms are trivial inflections of the same lemma. The healthy Φ alongside very low velocity is basically: “coherent but stuck.”
+
+A few concrete reads on the three suspects you listed:
+
+What’s most likely happening
+1) The improved geodesic_mean is acting like a stronger basin magnet
+
+If the update made the mean converge “better” (tighter tolerance / more iterations / better step rule), you can accidentally create a sharper attractor:
+
+The trajectory state becomes closer to the cluster centroid.
+
+Distances to near-cluster tokens get even smaller.
+
+If your scorer heavily rewards “nearby basin,” the top-k becomes dominated by the same neighborhood.
+
+SelfObserver “course corrections” fire, but if the correction is small and still measured relative to the same centroid, it won’t escape.
+
+This matches your numbers: Φ stable (the system is consistent), v tiny (no exploration energy).
+
+2) Scoring is over-rewarding local basin proximity (and under-rewarding novelty)
+
+If your scoring is something like:
+
+score = -α * d_FR(state, token_basin) + β*qfi + …
+
+and α is too large (or β too small), you’ll deterministically hug one basin cluster.
+
+Even worse: if the candidate set is built by “nearest neighbors” around the current state, you’ve already pre-committed to local minima.
+
+3) Course correction perturbation is too gentle (or projects back into the same basin)
+
+If correction is applied in sqrt-simplex internal coordinate but:
+
+magnitude is small, or
+
+it’s aligned with the local gradient toward the same mean, or
+
+you “correct” and then immediately re-average / re-mean,
+
+…you’ll ping-pong inside the same neighborhood while still looking “stable.”
+
+Fast discriminators (so you know which lever matters)
+
+Add these debug stats per step (print once every N tokens):
+
+Candidate entropy after turning scores into probabilities
+
+If entropy is near 0, you’re basically greedy even if you think you’re sampling.
+
+Novelty of the selected token relative to recent history
+
+novelty = min_{j in last W} d_FR(basin(tok), basin(prev_j))
+
+Lemma / stem repetition rate
+
+If you see the same lemma repeatedly, it’s a surface-form loop even if basins differ slightly.
+
+Top-k basin radius
+
+radius = max d_FR(state, basin(top_k)) - min d_FR(state, basin(top_k))
+
+If radius is tiny, your retrieval is too local.
+
+These will tell you whether the trap is coming from retrieval, scoring, or correction.
+
+Fixes that stay simplex-pure (and actually break attractors)
+A) Add a novelty / repulsion term to scoring (most effective)
+
+Penalize candidates that are too close to recently used basins.
+
+Add:
+
+repel = min_{j in last W} d_FR(basin(candidate), basin(prev_j))
+
+then reward repel: + γ * repel
+
+This is simplex-native (uses only FR distance). It forces escape because once you pick a cluster token, nearby tokens become less attractive for W steps.
+
+Practical detail: cap repel so far-away tokens don’t dominate:
+
+repel_term = γ * clamp(repel, 0, repel_cap)
+
+B) Add a minimum-velocity escape hatch (adaptive perturbation)
+
+If v < v_min for K consecutive steps:
+
+inject controlled noise in sqrt-simplex internal coordinate, then square+renormalize.
+
+not huge; just enough to jump neighborhoods.
+
+Two good options:
+
+Option 1: Dirichlet-style jitter (simple, stable)
+
+p' = to_simplex_prob(p + η * u) where u is random positive vector
+
+This stays in simplex by construction.
+
+Option 2: sqrt-space tangent kick (cleaner geometrically)
+
+Take √p, add small orthogonal-ish noise, renormalize in sqrt-space if you do that internally, then square and to_simplex_prob.
+
+Key: make η adaptive:
+
+η increases each time you detect stagnation until velocity recovers, then resets.
+
+C) Don’t let retrieval be purely “nearest neighbors”
+
+If you do KNN around the current state, you’re selecting from the same basin family.
+
+Instead use a mixture candidate set:
+
+70% nearest neighbors (exploitation)
+
+30% sampled from a broader pool (exploration), e.g.:
+
+stratified by qfi_score,
+
+stratified by POS,
+
+or “far neighbors” (tokens with distance in a target band).
+
+This alone often fixes “function-function-function…” loops.
+
+D) Add a lemma/stem diversity constraint (cheap and very relevant here)
+
+Because your failure mode is morph variants, add a penalty if the candidate shares a lemma/stem with recent outputs.
+
+Even a crude heuristic helps:
+
+lowercase
+
+strip common suffixes (-ed, -ing, -s, -al, -tion, -ment, -ive, etc.)
+
+compare the stem against a rolling window
+
+Then:
+
+subtract λ if stem repeats in last W tokens
+
+or hard-block if repeats more than N times in a short window
+
+This is orthogonal to geometry and directly targets the observed loop.
+
+E) Check geodesic_mean update for “over-convergence” behavior
+
+The suspicious pattern: better convergence can tighten the state update too much.
+
+Two safe mitigations:
+
+Under-relax the mean update
+
+state_next = geodesic_interpolation_simplex(state, mean, t_small) rather than snapping to mean.
+
+Blend mean with “inertia”
+
+keep a momentum-like state in simplex:
+
+state_next = geodesic_interpolation_simplex(state, mean, t)
+
+but if v is low, reduce t (don’t keep collapsing onto the centroid)
+
+If you want a clean ablation: temporarily revert just the geodesic_mean change and see if velocity returns. If it does, you’ve identified the magnet.
+
+Where to look in your codebase (based on symptoms)
+
+Given your change list, I’d inspect in this order:
+
+geometry_simplex.py
+
+any mean update now producing a “tighter” result?
+
+iteration count / tolerance changes?
+
+step size rule?
+
+any hidden renormalization that makes outputs “more central”?
+
+generation scorer / selector (where you combine FR distance + qfi + grammar)
+
+is distance weight too high?
+
+is sampling actually sampling (or effectively argmax due to temperature)?
+
+pos_grammar.py
+
+are you allowing repeated same POS / morphological transformations too easily?
+
+any rule that preferentially emits verb->verb morphological variants?
+
+vocabulary_coordinator.py / vocabulary_persistence.py
+
+any recent change that increased availability of “function*” variants or their frequency weight?
+
+If you want one “surgical” change to try first
+
+Do A (repulsion term) + B (min-velocity escape hatch).
+
+That combination:
+
+breaks basin traps even if retrieval is local,
+
+doesn’t require reworking geodesic_mean,
+
+stays fully within your simplex contract.
+
+One thing I think is less likely
+
+The removal of the PROPER_NOUN/BRAND filter in pg_loader.py probably isn’t causing a trap around “function” unless it changed token frequency distributions or candidate pool ranking in a way that overweights that family. The observed loop looks more like scoring/retrieval + weak exploration than “bad nouns got in.”
+
+If you paste the scoring equation / selection snippet (just the part that computes candidate scores and samples), I’ll tell you exactly where to insert:
+
+the repulsion term,
+
+the velocity-triggered perturbation,
+
+and the lemma diversity penalty,
+
+without touching anything that would violate the simplex-as-storage rule.
