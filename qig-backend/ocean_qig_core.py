@@ -4054,7 +4054,7 @@ def update_tokenizer():
     }
     """
     try:
-        from qig_coordizer import get_coordizer as get_tokenizer, update_tokenizer_from_observations
+        from coordizers import get_coordizer
 
         data = request.json or {}
         observations = data.get('observations', [])
@@ -4065,15 +4065,15 @@ def update_tokenizer():
                 'error': 'No observations provided'
             }), 400
 
-        new_tokens, weights_updated = update_tokenizer_from_observations(observations)
-        tokenizer = get_tokenizer()
+        coordizer = get_coordizer()
+        new_tokens, weights_updated = coordizer.add_vocabulary_observations(observations)
 
         return jsonify({
             'success': True,
             'newTokens': new_tokens,
             'weightsUpdated': weights_updated,
-            'totalVocab': len(tokenizer.vocab),
-            'mergeRules': len(tokenizer.merge_rules)
+            'totalVocab': len(coordizer.vocab),
+            'mergeRules': len(coordizer.merge_rules)
         })
 
     except Exception as e:
@@ -4101,7 +4101,7 @@ def tokenizer_encode():
     }
     """
     try:
-        from qig_coordizer import get_coordizer as get_tokenizer
+        from coordizers import get_coordizer
 
         data = request.json or {}
         text = data.get('text', '')
@@ -4112,8 +4112,8 @@ def tokenizer_encode():
                 'error': 'No text provided'
             }), 400
 
-        tokenizer = get_tokenizer()
-        tokens = tokenizer.encode(text)
+        coordizer = get_coordizer()
+        tokens = coordizer.encode(text)
 
         return jsonify({
             'success': True,
@@ -4145,7 +4145,7 @@ def tokenizer_decode():
     }
     """
     try:
-        from qig_coordizer import get_coordizer as get_tokenizer
+        from coordizers import get_coordizer
 
         data = request.json or {}
         tokens = data.get('tokens', [])
@@ -4156,8 +4156,8 @@ def tokenizer_decode():
                 'error': 'No tokens provided'
             }), 400
 
-        tokenizer = get_tokenizer()
-        text = tokenizer.decode(tokens)
+        coordizer = get_coordizer()
+        text = coordizer.decode(tokens)
 
         return jsonify({
             'success': True,
@@ -4189,7 +4189,7 @@ def tokenizer_basin():
     }
     """
     try:
-        from qig_coordizer import get_coordizer as get_tokenizer
+        from coordizers import get_coordizer
 
         data = request.json or {}
         phrase = data.get('phrase', '')
@@ -4200,8 +4200,8 @@ def tokenizer_basin():
                 'error': 'No phrase provided'
             }), 400
 
-        tokenizer = get_tokenizer()
-        basin = tokenizer.compute_phrase_basin(phrase)
+        coordizer = get_coordizer()
+        basin = coordizer.compute_phrase_basin(phrase)
 
         return jsonify({
             'success': True,
@@ -4235,13 +4235,13 @@ def tokenizer_high_phi():
     }
     """
     try:
-        from qig_coordizer import get_coordizer as get_tokenizer
+        from coordizers import get_coordizer
 
         min_phi = float(request.args.get('min_phi', 0.5))
         top_k = int(request.args.get('top_k', 100))
 
-        tokenizer = get_tokenizer()
-        high_phi = tokenizer.get_high_phi_tokens(min_phi, top_k)
+        coordizer = get_coordizer()
+        high_phi = coordizer.get_high_phi_tokens(min_phi, top_k)
 
         return jsonify({
             'success': True,
@@ -4275,10 +4275,10 @@ def tokenizer_export():
     }
     """
     try:
-        from qig_coordizer import get_coordizer as get_tokenizer
+        from coordizers import get_coordizer
 
-        tokenizer = get_tokenizer()
-        export_data = tokenizer.export_for_training()
+        coordizer = get_coordizer()
+        export_data = coordizer.export_for_training()
 
         return jsonify({
             'success': True,
@@ -4306,12 +4306,12 @@ def tokenizer_status():
     }
     """
     try:
-        from qig_coordizer import get_coordizer as get_tokenizer
+        from coordizers import get_coordizer
 
-        tokenizer = get_tokenizer()
-        token_phi = getattr(tokenizer, 'token_phi', {})
-        token_weights = getattr(tokenizer, 'token_weights', {})
-        vocab = getattr(tokenizer, 'vocab', {})
+        coordizer = get_coordizer()
+        token_phi = getattr(coordizer, 'token_phi', {})
+        token_weights = getattr(coordizer, 'token_weights', {})
+        vocab = getattr(coordizer, 'vocab', {})
         
         high_phi = [p for p in token_phi.values() if p >= 0.5]
         avg_phi = sum(token_phi.values()) / max(len(token_phi), 1)
@@ -4347,12 +4347,12 @@ def tokenizer_merges():
     }
     """
     try:
-        from qig_coordizer import get_coordizer as get_tokenizer
+        from coordizers import get_coordizer
 
-        tokenizer = get_tokenizer()
+        coordizer = get_coordizer()
 
-        merge_rules = [[a, b] for a, b in tokenizer.merge_rules]
-        merge_scores = {f"{a}|{b}": score for (a, b), score in tokenizer.merge_scores.items()}
+        merge_rules = [[a, b] for a, b in coordizer.merge_rules]
+        merge_scores = {f"{a}|{b}": score for (a, b), score in coordizer.merge_scores.items()}
 
         return jsonify({
             'success': True,
@@ -4397,7 +4397,7 @@ def generate_text():
     }
     """
     try:
-        from qig_coordizer import get_coordizer as get_tokenizer
+        from coordizers import get_coordizer
 
         data = request.json or {}
         prompt = data.get('prompt', '')
@@ -4407,8 +4407,8 @@ def generate_text():
         top_p = data.get('top_p', 0.9)
         allow_silence = data.get('allow_silence', True)
 
-        tokenizer = get_tokenizer()
-        result = tokenizer.generate_text(
+        coordizer = get_coordizer()
+        result = coordizer.generate_text(
             prompt=prompt,
             max_tokens=max_tokens,
             temperature=temperature,
@@ -4453,7 +4453,7 @@ def generate_response():
     }
     """
     try:
-        from qig_coordizer import get_coordizer as get_tokenizer
+        from coordizers import get_coordizer
 
         data = request.json or {}
         context = data.get('context', '')
@@ -4461,8 +4461,8 @@ def generate_response():
         max_tokens = data.get('max_tokens', 4096)  # Large default - geometry determines completion
         allow_silence = data.get('allow_silence', True)
 
-        tokenizer = get_tokenizer()
-        result = tokenizer.generate_response(
+        coordizer = get_coordizer()
+        result = coordizer.generate_response(
             context=context,
             agent_role=agent_role,
             max_tokens=max_tokens,
@@ -4504,7 +4504,7 @@ def sample_next():
     """
     try:
         import numpy as np
-        from qig_coordizer import get_coordizer as get_tokenizer
+        from coordizers import get_coordizer
 
         data = request.json or {}
         context_ids = data.get('context_ids', [])
@@ -4513,17 +4513,17 @@ def sample_next():
         top_p = data.get('top_p', 0.9)
         include_probs = data.get('include_probabilities', False)
 
-        tokenizer = get_tokenizer()
+        coordizer = get_coordizer()
 
         # Sample next token
-        token_id = tokenizer.sample_next_token(
+        token_id = coordizer.sample_next_token(
             context=context_ids,
             temperature=temperature,
             top_k=top_k,
             top_p=top_p
         )
 
-        token = tokenizer.id_to_token.get(token_id, "<UNK>")
+        token = coordizer.id_to_token.get(token_id, "<UNK>")
 
         response = {
             'success': True,
@@ -4533,11 +4533,11 @@ def sample_next():
 
         # Optionally include top probabilities
         if include_probs:
-            probs = tokenizer.compute_token_probabilities(context_ids, temperature)
+            probs = coordizer.compute_token_probabilities(context_ids, temperature)
             top_indices = np.argsort(probs)[::-1][:10]
             top_probs = {}
             for idx in top_indices:
-                tok = tokenizer.id_to_token.get(int(idx), "<UNK>")
+                tok = coordizer.id_to_token.get(int(idx), "<UNK>")
                 top_probs[tok] = float(probs[idx])
             response['top_probabilities'] = top_probs
 

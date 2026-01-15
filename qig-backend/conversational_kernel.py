@@ -235,29 +235,29 @@ class ConversationalKernelMixin:
         
         This is where geometric position becomes linguistic output.
         """
-        tokenizer = None
+        coordizer = None
         
         if VOCAB_COORDINATOR_AVAILABLE:
             try:
                 coordinator = get_vocabulary_coordinator()
-                tokenizer = getattr(coordinator, 'tokenizer', None)
+                coordizer = getattr(coordinator, 'coordizer', None)
             except Exception:
                 pass
         
-        if tokenizer is None:
+        if coordizer is None:
             try:
-                from qig_coordizer import get_coordizer as get_tokenizer # get_tokenizer
-                tokenizer = get_tokenizer()
+                from coordizers import get_coordizer
+                coordizer = get_coordizer()
             except ImportError:
-                return self._generation_failed("tokenizer_unavailable")
+                return self._generation_failed("coordizer_unavailable")
         
-        if not hasattr(tokenizer, 'basin_coords') or not tokenizer.basin_coords:
+        if not hasattr(coordizer, 'basin_coords') or not coordizer.basin_coords:
             return self._generation_failed("no_basin_coords")
         
         distances = {}
-        special_tokens = getattr(tokenizer, 'special_tokens', ['<PAD>', '<UNK>', '<BOS>', '<EOS>'])
+        special_tokens = getattr(coordizer, 'special_tokens', ['<PAD>', '<UNK>', '<BOS>', '<EOS>'])
         
-        for token, token_basin in tokenizer.basin_coords.items():
+        for token, token_basin in coordizer.basin_coords.items():
             if token not in special_tokens:
                 # Use centralized Fisher-Rao distance (DRY)
                 if QIG_GEOMETRY_AVAILABLE:
@@ -277,7 +277,7 @@ class ConversationalKernelMixin:
         k = min(20, len(distances))
         nearest = sorted(distances.items(), key=lambda x: x[1])[:k]
         
-        token_phi = getattr(tokenizer, 'token_phi', {})
+        token_phi = getattr(coordizer, 'token_phi', {})
         weighted_tokens = []
         for token, dist in nearest:
             weight = (1.0 / (dist + 0.01)) * token_phi.get(token, 0.5)
@@ -335,18 +335,18 @@ class ConversationalKernelMixin:
         if not utterance:
             return 0.0
         
-        tokenizer = None
+        coordizer = None
         if VOCAB_COORDINATOR_AVAILABLE:
             try:
                 coordinator = get_vocabulary_coordinator()
-                tokenizer = getattr(coordinator, 'tokenizer', None)
+                coordizer = getattr(coordinator, 'coordizer', None)
             except Exception:
                 pass
         
-        if tokenizer is None:
+        if coordizer is None:
             try:
-                from qig_coordizer import get_coordizer as get_tokenizer # get_tokenizer
-                tokenizer = get_tokenizer()
+                from coordizers import get_coordizer
+                coordizer = get_coordizer()
             except ImportError:
                 return 0.5
         

@@ -29,7 +29,7 @@ except ImportError:
 
 # Import coordizer for vocabulary management
 try:
-    from qig_coordizer import get_coordizer, reset_coordizer, get_coordizer_stats
+    from coordizers import get_coordizer, reset_coordizer, get_coordizer_stats
     COORDIZER_AVAILABLE = True
 except ImportError:
     COORDIZER_AVAILABLE = False

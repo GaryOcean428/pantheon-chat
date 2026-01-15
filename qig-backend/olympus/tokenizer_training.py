@@ -22,7 +22,7 @@ import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from qig_coordizer import get_coordizer as get_tokenizer, update_tokenizer_from_observations
+from coordizers import get_coordizer
 from olympus.base_encoder import is_real_word
 
 
@@ -399,9 +399,9 @@ def persist_observations_to_db(
     
     Uses UPSERT to update existing entries.
     """
-    from qig_coordizer import get_coordizer as get_tokenizer
+    from coordizers import get_coordizer
     
-    tokenizer = get_tokenizer()
+    coordizer = get_coordizer()
     persisted = 0
     
     try:
@@ -528,8 +528,9 @@ def train_tokenizer_from_database(
     print(f"  Average Φ: {avg_phi:.3f}")
     print(f"  Max Φ: {max_phi:.3f}")
     
-    print(f"\n[Training] Applying observations to tokenizer...")
-    new_tokens, weights_updated = update_tokenizer_from_observations(filtered)
+    print(f"\n[Training] Applying observations to coordizer...")
+    coordizer = get_coordizer()
+    new_tokens, weights_updated = coordizer.add_vocabulary_observations(filtered)
     
     print(f"[Training] Results:")
     print(f"  New tokens learned: {new_tokens}")

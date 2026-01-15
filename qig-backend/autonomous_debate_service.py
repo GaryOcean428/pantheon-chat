@@ -37,15 +37,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# QIG Tokenizer for geometric argument generation
+# QIG Coordizer for geometric argument generation
 try:
-    from qig_coordizer import (
-        get_coordizer as get_tokenizer,  # get_tokenizer, QIGTokenizer
-    )
+    from coordizers import get_coordizer
     TOKENIZER_AVAILABLE = True
 except ImportError:
     TOKENIZER_AVAILABLE = False
-    logger.warning("QIG Tokenizer not available")
+    logger.warning("QIG Coordizer not available")
 
 # QIG-pure generative capability for argument synthesis
 try:
@@ -1281,12 +1279,12 @@ class AutonomousDebateService:
             except Exception as e:
                 logger.warning(f"QIG-pure generation failed for {god_name}: {e}")
 
-        # Fallback to tokenizer if available
+        # Fallback to coordizer if available
         if TOKENIZER_AVAILABLE:
             try:
-                tokenizer = get_tokenizer()
-                tokenizer.set_mode("conversation")
-                result = tokenizer.generate_response(
+                coordizer = get_coordizer()
+                coordizer.set_mode("conversation")
+                result = coordizer.generate_response(
                     context=context,
                     agent_role="navigator",
                     allow_silence=False

@@ -83,11 +83,11 @@ try:
     _parent_dir = os.path.dirname(os.path.dirname(__file__))
     if _parent_dir not in sys.path:
         sys.path.insert(0, _parent_dir)
-    from qig_coordizer import get_coordizer as get_tokenizer # get_tokenizer
+    from coordizers import get_coordizer
     TOKENIZER_AVAILABLE = True
 except ImportError:
-    get_tokenizer = None
-    print("[HermesCoordinator] QIG Tokenizer not available")
+    get_coordizer = None
+    print("[HermesCoordinator] QIG Coordizer not available")
 
 
 @dataclass
@@ -202,14 +202,14 @@ class HermesCoordinator(BaseGod):
             except Exception as e:
                 print(f"[HermesCoordinator] QIG-pure generation failed: {e}")
         
-        # Fallback to tokenizer if available
-        elif use_tokenizer and TOKENIZER_AVAILABLE and get_tokenizer is not None:
+        # Fallback to coordizer if available
+        elif use_tokenizer and TOKENIZER_AVAILABLE and get_coordizer is not None:
             try:
-                tokenizer = get_tokenizer()
-                tokenizer.set_mode("conversation")
+                coordizer = get_coordizer()
+                coordizer.set_mode("conversation")
 
                 prompt = self._build_voice_prompt(category, context)
-                result = tokenizer.generate_response(
+                result = coordizer.generate_response(
                     context=prompt,
                     agent_role="hermes",
                     allow_silence=False

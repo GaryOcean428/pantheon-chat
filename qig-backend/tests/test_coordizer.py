@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Test script for geometric coordizer system.
-Validates that the new coordizer works as a drop-in replacement for QIGTokenizer.
+Validates that the new coordizer works correctly.
 """
 
 import sys
@@ -9,7 +9,7 @@ import os
 sys.path.insert(0, os.path.dirname(__file__))
 
 import numpy as np
-from qig_coordizer import get_coordizer, update_tokenizer_from_observations
+from coordizers import get_coordizer
 
 
 def test_basic_coordization():
@@ -62,7 +62,7 @@ def test_vocabulary_observations():
         }
     ]
     
-    new_tokens, weights_updated = update_tokenizer_from_observations(observations)
+    new_tokens, weights_updated = coordizer.add_vocabulary_observations(observations)
     
     print(f"New tokens added: {new_tokens}")
     print(f"Weights updated: {weights_updated}")
