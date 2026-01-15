@@ -16,7 +16,7 @@ import * as path from 'path';
 import * as crypto from 'crypto';
 import { upsertToken } from '../server/persistence/vocabulary';
 
-// Common English words to supplement BIP39
+// Common English words to supplement
 const COMMON_WORDS = [
   // Pronouns
   "i", "you", "he", "she", "it", "we", "they", "me", "him", "her", "us", "them",

@@ -12,6 +12,7 @@ import { db } from '../server/db';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
+import { upsertToken } from '../server/vocabulary-persistence';
 import { fileURLToPath } from 'url';
 import { upsertToken } from '../server/persistence/vocabulary';
 

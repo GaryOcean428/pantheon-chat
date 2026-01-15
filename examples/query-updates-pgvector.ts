@@ -332,7 +332,7 @@ pgvector Distance Operators:
 <#>  Inner product (for specific ML applications)
      Range: [-∞, ∞] where higher = more similar
 
-For basin coordinates (normalized to unit sphere), use <-> (cosine).
+For basin coordinates (normalized manifold embedding), use <-> (cosine).
 
 Performance:
 - All operators use HNSW index

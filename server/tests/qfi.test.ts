@@ -105,7 +105,10 @@ describe('QFI enforcement guards', () => {
 
   it('only writes qfi_score via upsertToken', () => {
     const violations: string[] = []
-    const writePattern = /SET\s+qfi_score|qfi_score\s*=|INSERT INTO\s+coordizer_vocabulary|UPDATE\s+coordizer_vocabulary/i
+    // Match SQL write patterns but exclude WHERE/AND clauses
+    const writePattern = /SET\s+qfi_score|INSERT INTO\s+coordizer_vocabulary|UPDATE\s+coordizer_vocabulary/i
+    // Match assignments in code (e.g., obj.qfi_score = value) but not comparisons (e.g., qfi_score = 0 in WHERE)
+    const assignmentPattern = /qfi_score\s*=\s*(?!.*(?:WHERE|AND|OR))/i
 
     for (const dir of scanDirs) {
       const dirPath = path.join(repoRoot, dir)
@@ -125,8 +128,29 @@ describe('QFI enforcement guards', () => {
         }
 
         const content = fs.readFileSync(filePath, 'utf-8')
-        if (content.includes('qfi_score') && writePattern.test(content)) {
+        if (!content.includes('qfi_score')) {
+          continue
+        }
+
+        // Check for SQL write patterns
+        if (writePattern.test(content)) {
           violations.push(`${relative} writes qfi_score outside upsertToken`)
+          continue
+        }
+
+        // Check for assignments, excluding SQL WHERE clauses
+        const lines = content.split('\n')
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i].trim()
+          // Skip SQL WHERE/AND/OR clauses
+          if (/WHERE|AND|OR/.test(line) && /qfi_score\s*=/.test(line)) {
+            continue
+          }
+          // Check for object property assignments
+          if (/\.qfi_score\s*=/.test(line) || /\[\s*['"]qfi_score['"]\s*]\s*=/.test(line)) {
+            violations.push(`${relative} writes qfi_score outside upsertToken (line ${i + 1})`)
+            break
+          }
         }
       }
     }

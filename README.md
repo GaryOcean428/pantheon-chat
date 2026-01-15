@@ -171,6 +171,12 @@ npm run db:init
 npm run db:validate
 ```
 
+**Validate QFI Integrity:**
+```bash
+# Enforces qfi_score range and active token invariants
+npm run validate:db-integrity
+```
+
 **Complete Database Setup:**
 ```bash
 # Initialize and validate in one command
@@ -193,6 +199,15 @@ npm run db:init
 
 # Populate coordizer vocabulary
 npm run populate:coordizer
+```
+
+**Recompute QFI Scores:**
+```bash
+# Dry run by default
+tsx tools/recompute_qfi_scores.ts --dry-run
+
+# Apply canonical QFI recomputation
+tsx tools/recompute_qfi_scores.ts --apply
 ```
 
 For detailed database documentation, see:
