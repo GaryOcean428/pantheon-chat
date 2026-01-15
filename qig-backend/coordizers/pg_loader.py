@@ -16,6 +16,7 @@ import numpy as np
 
 from .base import FisherCoordizer
 from qig_geometry import compute_unknown_basin, geodesic_interpolation, fisher_normalize, compute_qfi_score
+from qig_geometry.canonical import fisher_rao_distance
 
 # Import BPE garbage detection for vocabulary filtering
 try:
@@ -554,9 +555,9 @@ class PostgresCoordizer(FisherCoordizer):
                 continue
 
             # Fisher-Rao similarity (geodesic distance on probability simplex)
-            # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
-            dot = np.clip(np.dot(basin, coords), 0.0, 1.0)
-            dist = np.arccos(dot)
+            # UPDATED 2026-01-15: Use canonical Fisher-Rao distance (WP2.2)
+            # Replaced cosine similarity with proper Fisher-Rao from canonical geometry
+            dist = fisher_rao_distance(basin, coords)
             similarity = 1.0 - (dist / (np.pi / 2.0))
 
             # Phi boost: prefer high-phi tokens
