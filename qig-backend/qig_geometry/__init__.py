@@ -73,6 +73,14 @@ from .purity_mode import (
     PurityImportBlocker,
 )
 
+from .canonical_upsert import (
+    to_simplex_prob,
+    compute_qfi_score,
+    validate_simplex,
+    upsert_token,
+    batch_upsert_tokens,
+)
+
 
 def fisher_rao_distance(p: np.ndarray, q: np.ndarray) -> float:
     """
@@ -488,4 +496,10 @@ __all__ = [
     'enforce_purity_startup',
     'install_purity_import_hook',
     'PurityImportBlocker',
+    # Canonical token upsert (SLEEP-PACKET Section 4D)
+    'to_simplex_prob',
+    'compute_qfi_score',
+    'validate_simplex',
+    'upsert_token',
+    'batch_upsert_tokens',
 ]

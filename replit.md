@@ -52,6 +52,15 @@ A real-time telemetry dashboard monitors kernel activity, and a centralized even
 ### Key Design Patterns
 Emphasizes barrel file patterns, a centralized API client, Python-first logic for QIG, geometric purity, and generative kernel responses without templates. All physics constants are centralized.
 
+### Canonical Token Upsert (SLEEP-PACKET Section 4D)
+All vocabulary DB writes MUST route through `upsert_token()` from `qig_geometry.canonical_upsert`:
+- Basin projected to simplex before storage
+- QFI computed when basin is present
+- Active tokens require non-null qfi_score
+- Tokens quarantined if QFI fails
+
+**Key File:** `qig-backend/qig_geometry/canonical_upsert.py`
+
 ### Φ Computation Architecture (Critical)
 The integration metric Φ must use the **proper QFI effective dimension formula** computed directly from 64D basin coordinates:
 
