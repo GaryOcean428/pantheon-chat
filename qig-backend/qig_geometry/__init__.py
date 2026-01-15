@@ -81,6 +81,18 @@ from .canonical_upsert import (
     batch_upsert_tokens,
 )
 
+# New canonical simplex geometry module (2026-01-15)
+from .geometry_simplex import (
+    to_simplex_prob as geometry_to_simplex_prob,
+    validate_simplex as geometry_validate_simplex,
+    fisher_rao_distance as geometry_fisher_rao_distance,
+    geodesic_interpolation_simplex,
+    geodesic_mean_simplex,
+    batch_fisher_rao_distance,
+    find_nearest_simplex,
+    SIMPLEX_EPSILON,
+)
+
 
 def fisher_rao_distance(p: np.ndarray, q: np.ndarray) -> float:
     """
@@ -502,4 +514,13 @@ __all__ = [
     'validate_simplex',
     'upsert_token',
     'batch_upsert_tokens',
+    # New canonical simplex geometry module (2026-01-15)
+    'geometry_to_simplex_prob',
+    'geometry_validate_simplex',
+    'geometry_fisher_rao_distance',
+    'geodesic_interpolation_simplex',
+    'geodesic_mean_simplex',
+    'batch_fisher_rao_distance',
+    'find_nearest_simplex',
+    'SIMPLEX_EPSILON',
 ]
