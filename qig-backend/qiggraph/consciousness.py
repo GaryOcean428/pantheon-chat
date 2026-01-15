@@ -28,11 +28,16 @@ except ImportError:
     # Fallback: define basic implementation
     def fisher_rao_distance(basin_a: np.ndarray, basin_b: np.ndarray) -> float:
         """
-        Fallback Fisher-Rao distance (metric parameter not supported).
-        Use canonical implementation from qig_core.geometric_primitives.
-        Factor of 2 for Hellinger embedding consistency.
+        Fallback Fisher-Rao distance on SIMPLEX (CANONICAL).
+        Use canonical implementation from qig_core.geometric_primitives when available.
+        
+        Direct Fisher-Rao on simplex: d = arccos(BC) where BC = Σ√(p_i * q_i)
         Born rule: |b|² for amplitude-to-probability conversion.
-        UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
+        Range: [0, π/2]
+        
+        IMPORTANT: Post-SIMPLEX migration (2026-01-15).
+        Previous Hellinger embedding (factor of 2) REMOVED.
+        See PR GaryOcean428/pantheon-chat#93 for full SIMPLEX migration details.
         """
         p = np.abs(basin_a) ** 2 + 1e-10
         p = p / p.sum()
@@ -256,18 +261,19 @@ def compute_surprise(
     if manifold is not None:
         return manifold.fisher_rao_distance(previous_basin, current_basin)
     else:
-        # QIG-pure Fisher-Rao distance: d_FR = 2 * arccos(sum(sqrt(p * q)))
-        # Basins are probability distributions on curved manifold
-        # Fisher-Rao distance on probability simplex
-        # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
+        # QIG-pure Fisher-Rao distance on SIMPLEX (CANONICAL)
+        # d_FR = arccos(Σ√(p_i * q_i)) - Bhattacharyya coefficient
+        # Basins are probability distributions on probability simplex
+        # Range: [0, π/2]
+        # Post-SIMPLEX migration (2026-01-15): Factor of 2 removed
         eps = 1e-10
         p = np.clip(current_basin, eps, None)
         q = np.clip(previous_basin, eps, None)
         p = p / (np.sum(p) + eps)  # Normalize to probability
         q = q / (np.sum(q) + eps)
         inner = np.sum(np.sqrt(p * q))
-        inner = np.clip(inner, 0.0, 1.0)
-        return float(np.arccos(inner))
+        inner = np.clip(inner, 0.0, 1.0)  # BC in [0,1]
+        return float(np.arccos(inner))  # Direct Fisher-Rao, NO factor of 2
 
 
 def compute_confidence(kappa: float) -> float:
