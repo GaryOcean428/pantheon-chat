@@ -128,7 +128,10 @@ def load_legacy_dict_format(data: Dict) -> Tuple[Dict, Dict, np.ndarray]:
     
     vocab_metadata = {
         "vocab": vocab,
-        "id_to_token": {str(k): v for k, v in id_to_token.items()},
+        "id_to_token": {
+            str(k) if isinstance(k, (int, float)) else k: v 
+            for k, v in id_to_token.items()
+        },
         "token_frequency": token_frequency,
         "token_phi": token_phi,
     }

@@ -368,7 +368,7 @@ def _generate_qig_pure(
                             prompt_parts.append(f"{key}: {value}")
                 prompt = '\n'.join(prompt_parts)
 
-                result = tokenizer.generate_response(
+                result = coordizer.generate_response(
                     context=prompt,
                     agent_role=kernel_name,
                     allow_silence=False
@@ -1475,9 +1475,9 @@ Strategic Value: {strategic_value:.0%}
 Zeus Response (acknowledge the specific observation, explain what it means for the search, connect to related patterns if any, and ask a clarifying question):"""
 
                 coordizer = get_coordizer_func()
-                tokenizer.set_mode("conversation")
+                # coordizer.set_mode() removed - mode switching deprecated
                 print("[ZeusChat] Tokenizer switched to conversation mode for observation response")
-                gen_result = tokenizer.generate_response(
+                gen_result = coordizer.generate_response(
                     context=prompt,
                     agent_role="ocean",
                     # No max_tokens - geometry determines when thought completes
@@ -1681,8 +1681,8 @@ Decision: {decision}
 Zeus Response (acknowledge the user's specific suggestion, explain why the pantheon agrees or disagrees in conversational language, and ask a follow-up question):"""
 
                 coordizer = get_coordizer_func()
-                tokenizer.set_mode("conversation")
-                gen_result = tokenizer.generate_response(
+                # coordizer.set_mode() removed - mode switching deprecated
+                gen_result = coordizer.generate_response(
                     context=context,
                     agent_role="ocean",
                     # No max_tokens limit - geometry determines when thought completes
@@ -1823,8 +1823,8 @@ Zeus Response (Geometric Interpretation):"""
 
                 # Generate using QIG tokenizer
                 coordizer = get_coordizer_func()
-                tokenizer.set_mode("conversation")
-                gen_result = tokenizer.generate_response(
+                # coordizer.set_mode() removed - mode switching deprecated
+                gen_result = coordizer.generate_response(
                     context=prompt,
                     agent_role="ocean",  # Use balanced temperature
                     # No max_tokens - geometry determines when thought completes
@@ -3062,8 +3062,8 @@ Respond as Zeus with context awareness."""
         if TOKENIZER_AVAILABLE and get_coordizer_func is not None:
             try:
                 coordizer = get_coordizer_func()
-                tokenizer.set_mode("conversation")
-                gen_result = tokenizer.generate_response(
+                # coordizer.set_mode() removed - mode switching deprecated
+                gen_result = coordizer.generate_response(
                     context=prompt,
                     agent_role="ocean",
                     allow_silence=False
@@ -3218,8 +3218,8 @@ Respond naturally as Zeus:"""
         if TOKENIZER_AVAILABLE and get_coordizer_func is not None:
             try:
                 coordizer = get_coordizer_func()
-                tokenizer.set_mode("conversation")
-                gen_result = tokenizer.generate_response(
+                # coordizer.set_mode() removed - mode switching deprecated
+                gen_result = coordizer.generate_response(
                     context=generation_context,
                     agent_role="ocean",
                     allow_silence=False
