@@ -15,7 +15,7 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 
 from .base import FisherCoordizer
-from .fallback_vocabulary import compute_basin_embedding
+from qig_geometry import compute_unknown_basin
 
 # Import BPE garbage detection for vocabulary filtering
 try:
@@ -440,7 +440,7 @@ class PostgresCoordizer(FisherCoordizer):
                 continue
 
             new_id = 50000 + len(self.vocab)
-            coords = compute_basin_embedding(word)
+            coords = compute_unknown_basin(word)
 
             self._add_token(word, coords, avg_phi, frequency, new_id, 'learned')
             self.word_tokens.append(word)
@@ -520,11 +520,11 @@ class PostgresCoordizer(FisherCoordizer):
                 weights.append(self.token_phi.get(clean, 0.5))
             else:
                 # Use QIG-pure basin embedding for unknown tokens
-                coords_list.append(compute_basin_embedding(clean))
+                coords_list.append(compute_unknown_basin(clean))
                 weights.append(0.3)  # Lower weight for unknown
 
         if not coords_list:
-            return compute_basin_embedding(text)
+            return compute_unknown_basin(text)
 
         # QIG-pure: Geodesic weighted mean (iterative Fréchet mean approximation)
         weights = np.array(weights)
@@ -907,7 +907,7 @@ class PostgresCoordizer(FisherCoordizer):
         
         if basin_a is None or basin_b is None:
             # One or both tokens not in vocabulary - compute fresh basin
-            merged_coords = compute_basin_embedding(merged_token)
+            merged_coords = compute_unknown_basin(merged_token)
         else:
             # Average the source basins (geometric interpolation)
             basin_a = np.array(basin_a)

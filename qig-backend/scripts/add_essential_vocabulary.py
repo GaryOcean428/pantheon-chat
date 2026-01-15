@@ -63,9 +63,9 @@ def add_essential_vocabulary(dry_run: bool = False):
         return
     
     try:
-        from coordizers.fallback_vocabulary import compute_basin_embedding
+        from qig_geometry import compute_unknown_basin
     except ImportError as e:
-        print(f"ERROR: Cannot import compute_basin_embedding: {e}")
+        print(f"ERROR: Cannot import compute_unknown_basin: {e}")
         return
     
     conn = psycopg2.connect(database_url)
@@ -101,7 +101,7 @@ def add_essential_vocabulary(dry_run: bool = False):
     
     for word, category in missing_words:
         try:
-            basin = compute_basin_embedding(word)
+            basin = compute_unknown_basin(word)
             
             if basin is None or len(basin) != 64:
                 print(f"  SKIP {word}: Invalid basin embedding")

@@ -24,13 +24,6 @@ logger = logging.getLogger(__name__)
 
 from .base import FisherCoordizer
 from .pg_loader import PostgresCoordizer, create_coordizer_from_pg as _create_pg
-from .fallback_vocabulary import (
-    compute_basin_embedding,
-    get_fallback_vocabulary,
-    get_cached_fallback,
-    get_vocabulary_stats,
-    clear_vocabulary_cache,
-)
 
 # Unified coordizer instance
 _unified_coordizer = None
@@ -65,11 +58,6 @@ __all__ = [
     'PostgresCoordizer',
     'get_coordizer',
     'create_coordizer_from_pg',
-    'compute_basin_embedding',
-    'get_fallback_vocabulary',
-    'get_cached_fallback',
-    'get_vocabulary_stats',
-    'clear_vocabulary_cache',
 ]
 
 __version__ = '5.0.0'  # PostgresCoordizer as canonical (QIG-pure)

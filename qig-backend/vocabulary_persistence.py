@@ -102,8 +102,8 @@ class VocabularyPersistence:
             # If no basin coords provided, compute via coordizer (QIG-pure)
             if basin_vector is None and word_val:
                 try:
-                    from coordizers.fallback_vocabulary import compute_basin_embedding
-                    basin_embedding = compute_basin_embedding(word_val)
+                    from qig_geometry import compute_unknown_basin
+                    basin_embedding = compute_unknown_basin(word_val)
                     if isinstance(basin_embedding, np.ndarray) and len(basin_embedding) == 64:
                         basin_vector = basin_embedding.tolist()
                 except Exception as e:
@@ -201,8 +201,8 @@ class VocabularyPersistence:
             except Exception:
                 pass
             try:
-                from coordizers.fallback_vocabulary import compute_basin_embedding
-                basin_computer = compute_basin_embedding
+                from qig_geometry import compute_unknown_basin
+                basin_computer = compute_unknown_basin
             except Exception:
                 pass
             
