@@ -254,11 +254,6 @@ def validate_artifact(artifact_path: Path) -> None:
     
     print(f"  ✓ Basin coordinates shape: {coords_matrix.shape}")
     
-    # Validate coordinate geometry (unit norm, valid range)
-    norms = np.linalg.norm(coords_matrix, axis=1)
-    if not np.allclose(norms, 1.0, atol=1e-5):
-        print(f"  ⚠ Warning: Not all coordinates are unit norm (min={norms.min():.6f}, max={norms.max():.6f})")
-    
     # Check for NaN or inf
     if np.any(~np.isfinite(coords_matrix)):
         raise ValidationError("Basin coordinates contain NaN or inf values")

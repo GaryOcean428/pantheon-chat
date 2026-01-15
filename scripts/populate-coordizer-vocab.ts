@@ -13,6 +13,7 @@ import { sql } from 'drizzle-orm';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
+import { upsertToken } from '../server/vocabulary-persistence';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -106,7 +107,7 @@ function computeBasinEmbedding(word: string): number[] {
     embedding.push(random());
   }
   
-  // Normalize to unit sphere
+  // Normalize vector magnitude
   const norm = Math.sqrt(embedding.reduce((sum, x) => sum + x * x, 0));
   return embedding.map(x => x / norm);
 }
@@ -162,7 +163,7 @@ async function main() {
     weight: number;
     frequency: number;
     phiScore: number;
-    basinEmbedding: string;
+    basinEmbedding: number[];
     sourceType: string;
   }> = [];
   
@@ -173,7 +174,6 @@ async function main() {
     
     const phi = computePhiScore(word);
     const embedding = computeBasinEmbedding(word);
-    const embeddingStr = '[' + embedding.map(x => x.toFixed(6)).join(',') + ']';
     const sourceType = bip39Words.includes(word) ? 'bip39' : 'base';
     
     wordData.push({
@@ -182,7 +182,7 @@ async function main() {
       weight: 1.0 + phi,
       frequency: 1,
       phiScore: phi,
-      basinEmbedding: embeddingStr,
+      basinEmbedding: embedding,
       sourceType,
     });
   }
@@ -198,19 +198,16 @@ async function main() {
     
     for (const word of batch) {
       try {
-        await db.execute(sql`
-          INSERT INTO coordizer_vocabulary 
-            (token, token_id, weight, frequency, phi_score, basin_embedding, source_type)
-          VALUES 
-            (${word.token}, ${word.tokenId}, ${word.weight}, ${word.frequency}, 
-             ${word.phiScore}, ${word.basinEmbedding}::vector, ${word.sourceType})
-          ON CONFLICT (token) DO UPDATE SET
-            weight = EXCLUDED.weight,
-            phi_score = EXCLUDED.phi_score,
-            basin_embedding = EXCLUDED.basin_embedding,
-            source_type = EXCLUDED.source_type,
-            updated_at = CURRENT_TIMESTAMP
-        `);
+        await upsertToken({
+          token: word.token,
+          tokenId: word.tokenId,
+          weight: word.weight,
+          frequency: word.frequency,
+          phiScore: word.phiScore,
+          basinEmbedding: word.basinEmbedding,
+          sourceType: word.sourceType,
+          source: 'seed',
+        });
         inserted++;
       } catch (err) {
         // Skip duplicates or errors

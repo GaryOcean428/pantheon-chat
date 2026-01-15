@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, desc, eq, gt, gte, inArray, isNotNull, lte } from "drizzle-orm";
 import { existsSync, readFileSync, writeFileSync } from "fs";
 import {
   CrossStrategyPattern,
@@ -17,11 +17,14 @@ import {
   knowledgeSharedEntries,
   knowledgeStrategies,
   knowledgeTransfers,
+  coordizerVocabulary,
 } from "../shared/schema";
 import { db, withDbRetry } from "./db";
 import { knowledgeCompressionEngine } from "./knowledge-compression-engine";
 import { negativeKnowledgeUnified as negativeKnowledgeRegistry } from "./negative-knowledge-unified";
 import "./temporal-geometry";
+import { getCurriculumTokens } from "./curriculum";
+import { isValidQfiScore } from "@shared/qfi";
 
 interface StrategyCapability {
   id: string;
@@ -725,26 +728,56 @@ export class StrategyKnowledgeBus {
       );
       const existingSet = new Set((existingPatterns.rows || []).map(r => r.pattern));
       
-      const learnedWords = await db.execute<{ word: string; avg_phi: number; frequency: number }>(
-        `SELECT token as word, phi_score as avg_phi, frequency FROM coordizer_vocabulary 
-         WHERE phi_score > 0.4 AND frequency > 5
-           AND token_role IN ('generation', 'both')
-         ORDER BY phi_score DESC 
-         LIMIT 100`
-      );
+      const curriculumTokens = getCurriculumTokens();
+      const curriculumOnly = process.env.QIG_CURRICULUM_ONLY === "true";
+
+      if (curriculumOnly && curriculumTokens.length === 0) {
+        console.warn("[KnowledgeBus] Curriculum-only mode enabled but no curriculum tokens loaded");
+        return 0;
+      }
+
+      const conditions = [
+        gt(coordizerVocabulary.phiScore, 0.4),
+        gt(coordizerVocabulary.frequency, 5),
+        inArray(coordizerVocabulary.tokenRole, ["generation", "both"]),
+        eq(coordizerVocabulary.tokenStatus, "active"),
+        isNotNull(coordizerVocabulary.qfiScore),
+        gte(coordizerVocabulary.qfiScore, 0),
+        lte(coordizerVocabulary.qfiScore, 1),
+      ];
+
+      if (curriculumOnly) {
+        conditions.push(inArray(coordizerVocabulary.token, curriculumTokens));
+      }
+
+      const learnedWords = await db.select({
+        word: coordizerVocabulary.token,
+        avgPhi: coordizerVocabulary.phiScore,
+        frequency: coordizerVocabulary.frequency,
+        qfiScore: coordizerVocabulary.qfiScore,
+      })
+        .from(coordizerVocabulary)
+        .where(and(...conditions))
+        .orderBy(desc(coordizerVocabulary.phiScore))
+        .limit(100);
       
       let seeded = 0;
-      for (const row of learnedWords.rows || []) {
-        if (row.word && row.avg_phi && !existingSet.has(row.word)) {
+      for (const row of learnedWords || []) {
+        if (process.env.QIG_PURITY_MODE === "true" || curriculumOnly) {
+          if (!isValidQfiScore(row.qfiScore ?? null)) {
+            throw new Error(`[KnowledgeBus] Invalid qfi_score for token ${row.word}`);
+          }
+        }
+        if (row.word && row.avgPhi && !existingSet.has(row.word)) {
           try {
             await this.publishKnowledge(
               "vocabulary_learning",
               `bootstrap_vocab_${row.word}`,
               row.word,
               {
-                phi: row.avg_phi,
+                phi: row.avgPhi,
                 kappaEff: Math.min(100, (row.frequency || 1) * 2),
-                regime: row.avg_phi > 0.7 ? "geometric" : "linear",
+                regime: row.avgPhi > 0.7 ? "geometric" : "linear",
               }
             );
             existingSet.add(row.word);

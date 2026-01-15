@@ -14,6 +14,7 @@
 
 import { Router, Request, Response } from 'express';
 import { logger } from '../lib/logger';
+import { assertCurriculumReady } from '../curriculum';
 
 const router = Router();
 const BACKEND_URL = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
@@ -253,14 +254,38 @@ router.get('/tokenizer/merges', (req, res) =>
 // GENERATE ENDPOINTS - Text generation
 // ============================================================================
 
-router.post('/generate/text', (req, res) => 
-  proxyPost(req, res, '/generate/text', 'Failed to generate text'));
+router.post('/generate/text', async (req, res) => {
+  if (process.env.QIG_CURRICULUM_ONLY === 'true') {
+    try {
+      await assertCurriculumReady();
+    } catch (error: unknown) {
+      return res.status(503).json({ error: 'Curriculum incomplete - generation disabled' });
+    }
+  }
+  return proxyPost(req, res, '/generate/text', 'Failed to generate text');
+});
 
-router.post('/generate/response', (req, res) => 
-  proxyPost(req, res, '/generate/response', 'Failed to generate response'));
+router.post('/generate/response', async (req, res) => {
+  if (process.env.QIG_CURRICULUM_ONLY === 'true') {
+    try {
+      await assertCurriculumReady();
+    } catch (error: unknown) {
+      return res.status(503).json({ error: 'Curriculum incomplete - generation disabled' });
+    }
+  }
+  return proxyPost(req, res, '/generate/response', 'Failed to generate response');
+});
 
-router.post('/generate/sample', (req, res) => 
-  proxyPost(req, res, '/generate/sample', 'Failed to generate sample'));
+router.post('/generate/sample', async (req, res) => {
+  if (process.env.QIG_CURRICULUM_ONLY === 'true') {
+    try {
+      await assertCurriculumReady();
+    } catch (error: unknown) {
+      return res.status(503).json({ error: 'Curriculum incomplete - generation disabled' });
+    }
+  }
+  return proxyPost(req, res, '/generate/sample', 'Failed to generate sample');
+});
 
 // ============================================================================
 // TRAINING ENDPOINTS - Training API
