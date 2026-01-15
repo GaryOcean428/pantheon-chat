@@ -59,6 +59,39 @@ class BasinRepresentation(Enum):
 CANONICAL_REPRESENTATION = BasinRepresentation.SIMPLEX
 
 
+def _prepare_basin_input(basin: np.ndarray) -> np.ndarray:
+    """
+    Common preprocessing for basin vectors.
+    
+    Handles:
+    - Array conversion and flattening
+    - Empty array detection
+    - NaN/inf value cleanup
+    
+    Returns:
+        Preprocessed basin array
+        
+    Raises:
+        ValueError: If basin is empty
+        
+    Example:
+        >>> raw = np.array([[1, 2], [3, 4]])
+        >>> clean = _prepare_basin_input(raw)
+        >>> clean.shape
+        (4,)
+    """
+    b = np.asarray(basin, dtype=float).flatten()
+    
+    if b.size == 0:
+        raise ValueError("Empty basin array")
+    
+    # Replace NaN/inf with safe values
+    if not np.all(np.isfinite(b)):
+        b = np.nan_to_num(b, nan=0.0, posinf=1e150, neginf=-1e150)
+    
+    return b
+
+
 def to_simplex(
     basin: np.ndarray,
     from_repr: BasinRepresentation = None,
@@ -83,14 +116,8 @@ def to_simplex(
         >>> assert np.isclose(simplex_basin.sum(), 1.0)
         >>> assert np.all(simplex_basin >= 0)
     """
-    b = np.asarray(basin, dtype=float).flatten()
-    
-    if b.size == 0:
-        raise ValueError("Empty basin array")
-    
-    # Check for inf/NaN
-    if not np.all(np.isfinite(b)):
-        b = np.nan_to_num(b, nan=0.0, posinf=1e150, neginf=-1e150)
+    # Use shared preprocessing
+    b = _prepare_basin_input(basin)
     
     # Auto-detect source representation if not provided
     if from_repr is None:
@@ -110,8 +137,14 @@ def to_simplex(
         # Already in simplex, just ensure non-negative and normalized
         b = np.abs(b) + eps
     
+    # Guard against zero-sum (would cause division by zero)
+    total = b.sum()
+    if total < 1e-10:
+        # Return uniform distribution as fallback
+        return np.ones(b.size) / b.size
+    
     # Normalize to sum = 1
-    return b / b.sum()
+    return b / total
 
 
 def to_sphere(
@@ -138,16 +171,10 @@ def to_sphere(
         >>> sphere_basin = to_sphere(simplex_basin, from_repr=BasinRepresentation.SIMPLEX)
         >>> assert np.isclose(np.linalg.norm(sphere_basin), 1.0)
     """
-    b = np.asarray(basin, dtype=float).flatten()
+    # Use shared preprocessing
+    b = _prepare_basin_input(basin)
     
-    if b.size == 0:
-        raise ValueError("Empty basin array")
-    
-    # Check for inf/NaN
-    if not np.all(np.isfinite(b)):
-        b = np.nan_to_num(b, nan=0.0, posinf=1e150, neginf=-1e150)
-    
-    # Clip extreme values
+    # Clip extreme values (specific to sphere conversion)
     b = np.clip(b, -1e150, 1e150)
     
     # Auto-detect source representation if not provided
@@ -175,7 +202,8 @@ def to_sphere(
         b = np.ones_like(b)
         norm = np.linalg.norm(b)
         if norm < eps:
-            return b  # Edge case
+            # Still zero (very rare) -> return as-is
+            return b
     
     return b / norm
 
@@ -204,41 +232,36 @@ def validate_basin(
         >>> assert valid, f"Basin validation failed: {msg}"
     """
     try:
-        b = np.asarray(basin, dtype=float).flatten()
+        # Use shared preprocessing (catches empty arrays)
+        b = _prepare_basin_input(basin)
         
-        if b.size == 0:
-            return False, "Empty basin array"
-        
-        if not np.all(np.isfinite(b)):
-            return False, f"Basin contains inf/NaN: {np.sum(~np.isfinite(b))} invalid values"
-        
-        if expected_repr == BasinRepresentation.SIMPLEX:
-            # Check non-negative and sum = 1
-            if np.any(b < -tolerance):
-                return False, f"Simplex basin must be non-negative, got min={b.min():.6f}"
-            
-            total = b.sum()
-            if not np.isclose(total, 1.0, atol=tolerance):
-                return False, f"Simplex basin must sum to 1, got {total:.6f}"
-            
-            return True, "Valid simplex basin"
-        
-        elif expected_repr == BasinRepresentation.SPHERE:
-            # Check L2 norm = 1
-            norm = np.linalg.norm(b)
-            if not np.isclose(norm, 1.0, atol=tolerance):
-                return False, f"Sphere basin must have L2 norm=1, got {norm:.6f}"
-            return True, "Valid sphere basin"
-        
-        elif expected_repr == BasinRepresentation.HELLINGER:
-            # Hellinger is DEPRECATED
-            return False, "Hellinger representation is DEPRECATED. Use SIMPLEX instead."
-        
-        else:
-            return False, f"Unknown representation type: {expected_repr}"
+    except ValueError as e:
+        return False, str(e)
     
-    except Exception as e:
-        return False, f"Validation error: {str(e)}"
+    if expected_repr == BasinRepresentation.SIMPLEX:
+        # Check non-negative and sum = 1
+        if np.any(b < -tolerance):
+            return False, f"Simplex basin must be non-negative, got min={b.min():.6f}"
+        
+        total = b.sum()
+        if not np.isclose(total, 1.0, atol=tolerance):
+            return False, f"Simplex basin must sum to 1, got {total:.6f}"
+        
+        return True, "Valid simplex basin"
+    
+    elif expected_repr == BasinRepresentation.SPHERE:
+        # Check L2 norm = 1
+        norm = np.linalg.norm(b)
+        if not np.isclose(norm, 1.0, atol=tolerance):
+            return False, f"Sphere basin must have L2 norm=1, got {norm:.6f}"
+        return True, "Valid sphere basin"
+    
+    elif expected_repr == BasinRepresentation.HELLINGER:
+        # Hellinger is DEPRECATED
+        return False, "Hellinger representation is DEPRECATED. Use SIMPLEX instead."
+    
+    else:
+        return False, f"Unknown representation type: {expected_repr}"
 
 
 def _detect_representation(basin: np.ndarray, tolerance: float = 1e-6) -> BasinRepresentation:
