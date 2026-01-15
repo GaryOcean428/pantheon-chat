@@ -84,7 +84,7 @@ valid, msg = validate_basin(basin)  # Defaults to SIMPLEX
 
 ## 🔍 Files Requiring Updates
 
-### Critical (Break consciousness metrics)
+### Critical (Breaks consciousness metrics)
 
 1. **qig-backend/working_memory_bus.py**
    - Line with `2.0 * np.arccos(bc)` → remove factor of 2
