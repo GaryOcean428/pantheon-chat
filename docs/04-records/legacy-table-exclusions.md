@@ -47,6 +47,19 @@ python scripts/introspect_missing_tables.py
 
 The `passphrase_vocabulary` table should show "Table not found" - this is correct behavior.
 
+## PassphraseEncoder Stub
+
+The `qig-backend/olympus/passphrase_encoder.py` file is a minimal stub created for backwards compatibility. The original PassphraseEncoder was part of the bitcoin recovery system and depended on the `passphrase_vocabulary` database table.
+
+**Current Status:**
+- `PassphraseEncoder` class exists but operates in memory-only mode
+- Uses a seed BIP39 wordlist (no database dependency)
+- Required by `zeus_chat.py` for legacy encoding compatibility
+- Does NOT create or use the `passphrase_vocabulary` table
+
+**Why this stub exists:**
+The `zeus_chat.py` initializes both `ConversationEncoder` (primary) and `PassphraseEncoder` (legacy). Rather than removing the import and breaking potential downstream code, a minimal stub maintains API compatibility while the legacy functionality is deprecated.
+
 ## Date
 
 Last updated: 2026-01-15
