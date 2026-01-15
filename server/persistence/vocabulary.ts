@@ -106,8 +106,12 @@ export async function upsertToken(input: UpsertTokenInput): Promise<UpsertTokenR
   const vectorValue = simplexEmbedding ? formatVector(simplexEmbedding) : null
 
   if (!input.dryRun) {
+    if (!db) {
+      throw new Error('Database not available for token upsert')
+    }
+
     await withDbRetry(
-      async () => db.execute(sql`
+      async () => db!.execute(sql`
         INSERT INTO coordizer_vocabulary (
           token,
           token_id,

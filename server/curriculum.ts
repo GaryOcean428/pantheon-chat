@@ -77,7 +77,7 @@ export async function getCurriculumCoverage(): Promise<CurriculumCoverage> {
   }
 
   const result = await withDbRetry(
-    async () => db.execute(sql`
+    async () => db!.execute(sql`
       SELECT token, token_status, qfi_score, basin_embedding
       FROM coordizer_vocabulary
       WHERE token = ANY(${tokens})
@@ -85,7 +85,7 @@ export async function getCurriculumCoverage(): Promise<CurriculumCoverage> {
     'curriculum-coverage'
   )
 
-  const rows = result.rows ?? []
+  const rows = result?.rows ?? []
   const foundTokens = new Set<string>()
   const quarantinedTokens: string[] = []
   let active = 0
@@ -133,6 +133,30 @@ export async function assertCurriculumReady(): Promise<void> {
     throw new Error(
       `Curriculum incomplete. Missing: ${missingPreview || 'none'}; ` +
       `quarantined: ${quarantinedPreview || 'none'}.`
+    )
+  }
+}
+
+/**
+ * Validates that all provided tokens are in the curriculum.
+ * Only enforces when curriculum-only mode is enabled.
+ * @param tokens - Array of tokens to validate
+ * @throws Error if any token is not in the curriculum when curriculum-only mode is enabled
+ */
+export function assertTokensInCurriculum(tokens: string[]): void {
+  if (!isCurriculumOnlyMode() || tokens.length === 0) {
+    return
+  }
+
+  const curriculumTokens = new Set(getCurriculumTokens())
+  const invalidTokens = tokens.filter((token) => !curriculumTokens.has(token.toLowerCase()))
+
+  if (invalidTokens.length > 0) {
+    const preview = invalidTokens.slice(0, 5).join(', ')
+    throw new Error(
+      `Curriculum-only mode violation: Generated tokens not in curriculum: ${preview}${
+        invalidTokens.length > 5 ? ` and ${invalidTokens.length - 5} more` : ''
+      }`
     )
   }
 }
