@@ -220,6 +220,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
+  // Curriculum-only middleware: Restricts generation/persistence to curriculum tokens when enabled
+  // Placed AFTER health endpoints (which are explicitly allowlisted in the middleware itself)
+  // See server/middleware/curriculum-only.ts for allowlist configuration
   app.use(curriculumOnlyGuard);
 
   const { db } = await import("./db");
