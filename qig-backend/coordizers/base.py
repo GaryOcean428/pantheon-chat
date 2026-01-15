@@ -563,25 +563,79 @@ class FisherCoordizer:
     
     def load(self, path: str) -> None:
         """
-        Load coordizer state from disk.
+        Load coordizer state from disk in CoordizerArtifactV1 format ONLY.
         
         Args:
             path: Directory path containing saved state
+            
+        Raises:
+            RuntimeError: If artifact is not in CoordizerArtifactV1 format
         """
         import json
         
+        # Validate CoordizerArtifactV1 format before loading
+        required_files = ["vocab.json", "basin_coords.npy", "coord_tokens.json"]
+        missing_files = [f for f in required_files if not os.path.exists(os.path.join(path, f))]
+        
+        if missing_files:
+            raise RuntimeError(
+                f"Legacy format detected. Missing required files: {', '.join(missing_files)}. "
+                "Use tools/convert_legacy_artifacts.py to convert to CoordizerArtifactV1 format."
+            )
+        
         # Load vocabulary
-        with open(os.path.join(path, "vocab.json"), "r") as f:
-            data = json.load(f)
-            self.vocab = data["vocab"]
-            self.id_to_token = {int(k): v for k, v in data["id_to_token"].items()}
-            self.token_frequency = data["token_frequency"]
-            self.token_phi = data["token_phi"]
+        try:
+            with open(os.path.join(path, "vocab.json"), "r") as f:
+                data = json.load(f)
+                
+                # Validate required keys
+                required_keys = ["vocab", "id_to_token", "token_frequency", "token_phi"]
+                missing_keys = [k for k in required_keys if k not in data]
+                if missing_keys:
+                    raise RuntimeError(
+                        f"Legacy format detected. Missing required keys in vocab.json: {', '.join(missing_keys)}. "
+                        "Use tools/convert_legacy_artifacts.py to convert to CoordizerArtifactV1 format."
+                    )
+                
+                self.vocab = data["vocab"]
+                self.id_to_token = {int(k): v for k, v in data["id_to_token"].items()}
+                self.token_frequency = data["token_frequency"]
+                self.token_phi = data["token_phi"]
+        except (json.JSONDecodeError, KeyError) as e:
+            raise RuntimeError(
+                f"Legacy format detected. Invalid vocab.json: {e}. "
+                "Use tools/convert_legacy_artifacts.py to convert to CoordizerArtifactV1 format."
+            )
         
         # Load basin coordinates
-        coords_matrix = np.load(os.path.join(path, "basin_coords.npy"))
-        with open(os.path.join(path, "coord_tokens.json"), "r") as f:
-            tokens = json.load(f)
+        try:
+            coords_matrix = np.load(os.path.join(path, "basin_coords.npy"))
+            if coords_matrix.ndim != 2 or coords_matrix.shape[1] != 64:
+                raise RuntimeError(
+                    f"Legacy format detected. Invalid basin coordinates shape: {coords_matrix.shape}. "
+                    "Expected (n_tokens, 64). Use tools/convert_legacy_artifacts.py to convert."
+                )
+        except (ValueError, OSError) as e:
+            raise RuntimeError(
+                f"Legacy format detected. Cannot load basin_coords.npy: {e}. "
+                "Use tools/convert_legacy_artifacts.py to convert to CoordizerArtifactV1 format."
+            )
+        
+        # Load tokens
+        try:
+            with open(os.path.join(path, "coord_tokens.json"), "r") as f:
+                tokens = json.load(f)
+                
+                if len(tokens) != coords_matrix.shape[0]:
+                    raise RuntimeError(
+                        f"Legacy format detected. Token count mismatch: {len(tokens)} tokens vs "
+                        f"{coords_matrix.shape[0]} coordinates. Use tools/convert_legacy_artifacts.py to convert."
+                    )
+        except (json.JSONDecodeError, ValueError) as e:
+            raise RuntimeError(
+                f"Legacy format detected. Invalid coord_tokens.json: {e}. "
+                "Use tools/convert_legacy_artifacts.py to convert to CoordizerArtifactV1 format."
+            )
         
         self.basin_coords = {
             token: coords_matrix[i] for i, token in enumerate(tokens)

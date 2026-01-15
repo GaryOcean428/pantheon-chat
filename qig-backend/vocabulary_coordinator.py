@@ -32,20 +32,14 @@ try:
 except ImportError:
     VOCAB_PERSISTENCE_AVAILABLE = False
 
+# Use canonical coordizer import
 try:
-    from qig_coordizer import get_coordizer as get_tokenizer, update_tokenizer_from_observations
-    TOKENIZER_AVAILABLE = True
+    from coordizers import get_coordizer
+    COORDIZER_AVAILABLE = True
 except ImportError:
-    TOKENIZER_AVAILABLE = False
-    update_tokenizer_from_observations = None
-    print("[WARNING] qig_coordizer not available - running without tokenizer")
-
-try:
-    from coordizers import get_coordizer as get_unified_coordizer
-    UNIFIED_COORDIZER_AVAILABLE = True
-except ImportError:
-    UNIFIED_COORDIZER_AVAILABLE = False
-    get_unified_coordizer = None
+    COORDIZER_AVAILABLE = False
+    get_coordizer = None
+    print("[WARNING] coordizers not available - running without coordizer")
 
 # Legacy import for type checking only (deprecated)
 PG_COORDIZER_AVAILABLE = False
@@ -100,7 +94,8 @@ def compute_qfi_for_basin(basin: np.ndarray) -> float:
 class VocabularyCoordinator:
     def __init__(self):
         self.vocab_db = get_vocabulary_persistence() if VOCAB_PERSISTENCE_AVAILABLE else None
-        self.tokenizer = get_tokenizer() if TOKENIZER_AVAILABLE else None
+        # Use canonical coordizer (PostgresCoordizer)
+        self.coordizer = get_coordizer() if COORDIZER_AVAILABLE else None
         self.learned_manifold = get_learned_manifold()
         self.observations_recorded = 0
         self.words_learned = 0
@@ -113,15 +108,10 @@ class VocabularyCoordinator:
         self._observations_per_cycle = 100
         
         # Track coordizer for direct vocabulary persistence (unified 63K vocabulary)
-        self._unified_coordizer = None
-        self._using_pure_64d = False
-        if UNIFIED_COORDIZER_AVAILABLE and get_unified_coordizer:
-            try:
-                self._unified_coordizer = get_unified_coordizer()
-                self._using_pure_64d = True
-                print(f"[VocabularyCoordinator] Using unified coordizer: {type(self._unified_coordizer).__name__}")
-            except Exception as e:
-                print(f"[VocabularyCoordinator] WARNING: Failed to get unified coordizer: {e}")
+        self._unified_coordizer = self.coordizer  # Same instance
+        self._using_pure_64d = bool(self.coordizer)
+        if self.coordizer:
+            print(f"[VocabularyCoordinator] Using canonical coordizer: {type(self.coordizer).__name__}")
         
         features = []
         if self.learned_manifold:
@@ -163,12 +153,12 @@ class VocabularyCoordinator:
             self.observations_recorded += recorded
         new_tokens = 0
         weights_updated = False
-        if TOKENIZER_AVAILABLE and update_tokenizer_from_observations:
-            # Use safe wrapper that handles PretrainedCoordizer fallback
-            new_tokens, weights_updated = update_tokenizer_from_observations(observations)
+        if COORDIZER_AVAILABLE and self.coordizer:
+            # Use canonical coordizer for vocabulary updates
+            new_tokens, weights_updated = self.coordizer.add_vocabulary_observations(observations)
             self.words_learned += new_tokens
         merge_rules = 0
-        if self.tokenizer:
+        if self.coordizer:
             merge_rules = self._learn_merge_rules(phrase, phi, source)
             self.merge_rules_learned += merge_rules
         
@@ -489,8 +479,8 @@ class VocabularyCoordinator:
         if self.vocab_db and self.vocab_db.enabled:
             imported = self.vocab_db.record_vocabulary_batch(observations)
         new_tokens = 0
-        if TOKENIZER_AVAILABLE and update_tokenizer_from_observations:
-            new_tokens, _updated = update_tokenizer_from_observations(observations)
+        if COORDIZER_AVAILABLE and self.coordizer:
+            new_tokens, _updated = self.coordizer.add_vocabulary_observations(observations)
         return {'imported': imported, 'new_tokens': new_tokens}
     
     def get_stats(self) -> Dict:
@@ -501,8 +491,8 @@ class VocabularyCoordinator:
             'tokens_persisted': self.tokens_persisted,
             'continuous_learning_enabled': self._unified_coordizer is not None
         }}
-        if self.tokenizer:
-            stats['tokenizer'] = self.tokenizer.get_stats()
+        if self.coordizer:
+            stats['coordizer'] = self.coordizer.get_stats()
         if self.vocab_db and self.vocab_db.enabled:
             stats['database'] = self.vocab_db.get_vocabulary_stats()
         return stats
@@ -748,8 +738,8 @@ class VocabularyCoordinator:
                 recorded = self.vocab_db.record_vocabulary_batch(observations)
                 self.observations_recorded += recorded
             
-            if TOKENIZER_AVAILABLE and update_tokenizer_from_observations:
-                new_tokens, _updated = update_tokenizer_from_observations(observations)
+            if COORDIZER_AVAILABLE and self.coordizer:
+                new_tokens, _updated = self.coordizer.add_vocabulary_observations(observations)
                 self.words_learned += new_tokens
         
         return {
