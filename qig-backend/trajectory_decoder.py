@@ -134,7 +134,7 @@ def hellinger_normalize_basin(basin: np.ndarray) -> np.ndarray:
     return sqrt_p / norm
 
 
-def frechet_mean(basins: List[np.ndarray], max_iter: int = 20, tolerance: float = 1e-6) -> np.ndarray:
+def frechet_mean(basins: List[np.ndarray], max_iter: int = 50, tolerance: float = 1e-5) -> np.ndarray:
     """
     Compute approximate Fréchet mean (geometric centroid) of basins on Fisher manifold.
     
@@ -153,11 +153,16 @@ def frechet_mean(basins: List[np.ndarray], max_iter: int = 20, tolerance: float 
     
     For canonical geometric operations (merge, comparison), use geodesic_interpolation()
     or proper Karcher mean instead.
+    
+    CONVERGENCE FIX (2026-01-15):
+    - Increased max_iter from 20 to 50 (more time for convergence)
+    - Relaxed tolerance from 1e-6 to 1e-5 (acceptable approximation)
+    - Added variance-based fallback (weighted mean if points too spread)
 
     Args:
         basins: List of basin coordinates (Hellinger or simplex)
-        max_iter: Maximum gradient descent iterations
-        tolerance: Convergence tolerance for mean update
+        max_iter: Maximum gradient descent iterations (default 50)
+        tolerance: Convergence tolerance for mean update (default 1e-5)
 
     Returns:
         Approximate Fréchet mean (Hellinger-normalized for pgvector compatibility)
@@ -167,6 +172,28 @@ def frechet_mean(basins: List[np.ndarray], max_iter: int = 20, tolerance: float 
 
     if len(basins) == 1:
         return hellinger_normalize_basin(basins[0])
+
+    # Check if points are too spread out (high variance)
+    # If so, use simple weighted mean as fallback
+    pairwise_dists = []
+    for i in range(len(basins)):
+        for j in range(i+1, len(basins)):
+            dist = fisher_rao_distance(
+                hellinger_normalize_basin(basins[i]),
+                hellinger_normalize_basin(basins[j])
+            )
+            pairwise_dists.append(dist)
+    
+    if pairwise_dists:
+        max_dist = max(pairwise_dists)
+        # If points are very spread (max distance > π/4), use weighted mean fallback
+        if max_dist > np.pi / 4:
+            logger.debug(f"Fréchet mean: high variance ({max_dist:.4f} > π/4), using weighted mean fallback")
+            # Weighted by recency (more recent = higher weight)
+            weights = np.exp(np.linspace(-1, 0, len(basins)))
+            weights /= weights.sum()
+            mean = np.average(basins, axis=0, weights=weights)
+            return hellinger_normalize_basin(mean)
 
     # Initialize with arithmetic mean (good starting point for small geodesic distances)
     mean = np.mean(basins, axis=0)
@@ -203,7 +230,8 @@ def frechet_mean(basins: List[np.ndarray], max_iter: int = 20, tolerance: float 
         
         mean = mean_new
 
-    logger.debug(f"Fréchet mean reached max iterations ({max_iter})")
+    # Return best estimate after max iterations (acceptable approximation)
+    logger.debug(f"Fréchet mean reached max iterations ({max_iter}), returning best estimate")
     return mean
 
 

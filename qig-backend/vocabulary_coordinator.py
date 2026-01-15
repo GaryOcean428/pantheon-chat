@@ -252,7 +252,6 @@ class VocabularyCoordinator:
         
         # Phase 2b: Update coordizer_vocabulary with basin_embedding for generation
         # P0 FIX: Also compute and insert QFI score to prevent incomplete records
-        # Also update learned_words for backward compatibility
         if words_with_basins:
             database_url = os.environ.get('DATABASE_URL')
             if database_url:
@@ -265,7 +264,7 @@ class VocabularyCoordinator:
                             # P0 FIX: Compute QFI whenever basin is present
                             qfi_score = compute_qfi_for_basin(basin)
                             
-                            # Primary: Update coordizer_vocabulary (consolidated table)
+                            # Update coordizer_vocabulary (consolidated table - single source of truth)
                             # CRITICAL: Include qfi_score in INSERT to prevent NULL qfi_score
                             cur.execute("""
                                 INSERT INTO coordizer_vocabulary (
@@ -282,15 +281,6 @@ class VocabularyCoordinator:
                                     is_real_word = TRUE,
                                     updated_at = NOW()
                             """, (word, str(basin_list), qfi_score))
-                            # Backward compatibility: Also update learned_words if it exists
-                            try:
-                                cur.execute("""
-                                    UPDATE learned_words
-                                    SET basin_coords = %s::vector
-                                    WHERE word = %s AND basin_coords IS NULL
-                                """, (str(basin_list), word))
-                            except Exception:
-                                pass  # Table may not exist
                     conn.commit()
                     conn.close()
                 except Exception as e:
@@ -981,17 +971,6 @@ class VocabularyCoordinator:
                                 is_real_word = TRUE,
                                 updated_at = NOW()
                         """, (word, str(basin_list), qfi_score))
-                        # Backward compatibility: Update learned_words if it exists
-                        try:
-                            cur.execute("""
-                                UPDATE learned_words
-                                SET basin_coords = %s::vector,
-                                    is_integrated = TRUE,
-                                    integrated_at = NOW()
-                                WHERE word = %s
-                            """, (str(basin_list), word))
-                        except Exception:
-                            pass  # Table may not exist
                     except Exception as e:
                         errors.append(f"update_basin_{word}: {e}")
                 
