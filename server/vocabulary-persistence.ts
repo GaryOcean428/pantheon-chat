@@ -58,9 +58,11 @@ export async function upsertToken(input: UpsertTokenInput): Promise<UpsertTokenR
 
   if (input.basinEmbedding && Array.from(input.basinEmbedding).length > 0) {
     normalizedBasin = normalizeBasin(input.basinEmbedding)
-    qfiScore = compute_qfi_score_simplex(normalizedBasin)
-    if (!isValidQfiScore(qfiScore)) {
-      qfiScore = null
+    if (normalizedBasin) {
+      qfiScore = compute_qfi_score_simplex(normalizedBasin)
+      if (!isValidQfiScore(qfiScore)) {
+        qfiScore = null
+      }
     }
   }
 
@@ -83,8 +85,9 @@ export async function upsertToken(input: UpsertTokenInput): Promise<UpsertTokenR
   }
 
   await withDbRetry(
-    async () =>
-      db.insert(coordizerVocabulary)
+    async () => {
+      if (!db) throw new Error('Database unavailable')
+      return db.insert(coordizerVocabulary)
         .values(record)
         .onConflictDoUpdate({
           target: coordizerVocabulary.token,
@@ -102,7 +105,8 @@ export async function upsertToken(input: UpsertTokenInput): Promise<UpsertTokenR
             tokenStatus: record.tokenStatus,
             updatedAt: new Date(),
           },
-        }),
+        })
+    },
     'upsert-token'
   )
 
