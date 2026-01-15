@@ -105,7 +105,7 @@ describe('QFI enforcement guards', () => {
 
   it('only writes qfi_score via upsertToken', () => {
     const violations: string[] = []
-    const writePattern = /SET\\s+qfi_score|qfi_score\\s*=|INSERT INTO\\s+coordizer_vocabulary|UPDATE\\s+coordizer_vocabulary/i
+    const writePattern = /SET\s+qfi_score|qfi_score\s*=|INSERT INTO\s+coordizer_vocabulary|UPDATE\s+coordizer_vocabulary/i
 
     for (const dir of scanDirs) {
       const dirPath = path.join(repoRoot, dir)
