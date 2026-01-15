@@ -171,6 +171,16 @@ npm run db:init
 npm run db:validate
 ```
 
+**Validate QFI Integrity:**
+```bash
+# Ensure qfi_score ranges + active token requirements hold
+npm run validate:db-integrity
+```
+
+**QFI Constraints:**
+- `qfi_score` is constrained to `[0, 1]` or NULL for quarantined tokens.
+- Active tokens must have non-null `qfi_score` and `basin_embedding`.
+
 **Complete Database Setup:**
 ```bash
 # Initialize and validate in one command

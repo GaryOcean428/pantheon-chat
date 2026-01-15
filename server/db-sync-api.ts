@@ -14,6 +14,7 @@ import { db, withDbRetry } from './db';
 import { logger } from './lib/logger';
 import * as schema from '@shared/schema';
 import { sql, desc } from 'drizzle-orm';
+import { upsertToken } from './persistence/coordizer-vocabulary';
 
 const router = Router();
 
@@ -138,19 +139,19 @@ router.post('/import/vocabulary', async (req: Request, res: Response) => {
       for (const item of batch) {
         try {
           // Upsert - insert or update on conflict
-          await withDbRetry(
-            async () => db!.insert(schema.coordizerVocabulary)
-              .values(item)
-              .onConflictDoUpdate({
-                target: schema.coordizerVocabulary.token,
-                set: {
-                  basinEmbedding: item.basinEmbedding,
-                  phiScore: item.phiScore,
-                  frequency: item.frequency
-                }
-              }),
-            `sync-import-vocab-${i}`
-          );
+          await upsertToken({
+            token: item.token,
+            tokenId: item.tokenId,
+            basinEmbedding: item.basinEmbedding,
+            weight: item.weight,
+            frequency: item.frequency,
+            phiScore: item.phiScore,
+            sourceType: item.sourceType,
+            tokenRole: item.tokenRole,
+            phraseCategory: item.phraseCategory,
+            isRealWord: item.isRealWord,
+            source: 'sync'
+          });
           imported++;
         } catch (err) {
           errors++;

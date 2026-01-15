@@ -81,6 +81,7 @@ import { autoCycleManager } from "./auto-cycle-manager";
 import { oceanSessionManager } from "./ocean-session-manager";
 import { isAuthenticated, setupAuth } from "./replitAuth";
 import { searchCoordinator } from "./search-coordinator";
+import { curriculumOnlyGuard } from "./middleware/curriculum-only";
 
 const strictLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -218,6 +219,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       version: process.env.npm_package_version || '1.0.0',
     });
   });
+
+  app.use(curriculumOnlyGuard);
 
   const { db } = await import("./db");
   let authEnabled = !!db;

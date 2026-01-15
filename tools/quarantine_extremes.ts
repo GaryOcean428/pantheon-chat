@@ -1,0 +1,54 @@
+import { readFileSync } from 'fs'
+import { sql } from 'drizzle-orm'
+import { db, withDbRetry } from '../server/db'
+
+const ALLOWLIST_PATH = 'tools/allowlists/qfi_extremes_allowlist.txt'
+
+function loadAllowlist(): Set<string> {
+  try {
+    const content = readFileSync(ALLOWLIST_PATH, 'utf-8')
+    return new Set(
+      content
+        .split('\n')
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0 && !line.startsWith('#'))
+    )
+  } catch {
+    return new Set()
+  }
+}
+
+async function run() {
+  if (!db) {
+    console.error('[QFI Extremes] Database not configured')
+    process.exit(1)
+  }
+
+  const allowlist = loadAllowlist()
+  const allowlistTokens = Array.from(allowlist)
+  const allowlistCondition =
+    allowlistTokens.length > 0
+      ? sql`AND token NOT IN (${sql.join(allowlistTokens, sql`, `)})`
+      : sql``
+
+  const result = await withDbRetry(
+    async () =>
+      db.execute<{ count: number }>(sql`
+        UPDATE coordizer_vocabulary
+        SET token_status = 'quarantined'
+        WHERE (qfi_score = 0 OR qfi_score >= 0.99)
+          AND token_status = 'active'
+          ${allowlistCondition}
+        RETURNING 1
+      `),
+    'quarantine-extremes-update'
+  )
+
+  const quarantined = result.rows?.length ?? 0
+  console.log(`[QFI Extremes] Quarantined ${quarantined} tokens`)
+}
+
+run().catch((error) => {
+  console.error('[QFI Extremes] Failed:', error)
+  process.exit(1)
+})

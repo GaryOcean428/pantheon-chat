@@ -14,6 +14,8 @@ import { sql } from 'drizzle-orm';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
+import { to_simplex_probabilities } from '@shared';
+import { upsertToken } from '../server/persistence/coordizer-vocabulary';
 
 // Common English words to supplement BIP39
 const COMMON_WORDS = [
@@ -109,10 +111,8 @@ function computeBasinEmbedding(word: string): number[] {
     const z1 = Math.sqrt(-2 * Math.log(u1 + 1e-10)) * Math.sin(2 * Math.PI * u2);
     embedding.push(z0, z1);
   }
-  
-  // Normalize to unit sphere
-  const norm = Math.sqrt(embedding.reduce((sum, x) => sum + x * x, 0));
-  return embedding.map(x => x / (norm + 1e-10));
+
+  return to_simplex_probabilities(embedding);
 }
 
 /**
@@ -168,7 +168,12 @@ async function main() {
       weight DOUBLE PRECISION DEFAULT 1.0,
       frequency INTEGER DEFAULT 1,
       phi_score DOUBLE PRECISION DEFAULT 0.5,
+      qfi_score DOUBLE PRECISION,
       basin_embedding vector(64),
+      token_role VARCHAR(20) DEFAULT 'encoding',
+      phrase_category VARCHAR(32) DEFAULT 'unknown',
+      is_real_word BOOLEAN DEFAULT FALSE,
+      token_status VARCHAR(16) DEFAULT 'active',
       source_type VARCHAR(32) DEFAULT 'base',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -185,6 +190,7 @@ async function main() {
     token: string;
     tokenId: number;
     weight: number;
+    frequency: number;
     phiScore: number;
     embedding: number[];
     sourceType: string;
@@ -205,6 +211,7 @@ async function main() {
       token: lowerWord,
       tokenId: tokenId++,
       weight: 1.0 + phi,
+      frequency: 1,
       phiScore: phi,
       embedding,
       sourceType: 'bip39'
@@ -223,6 +230,7 @@ async function main() {
       token: lowerWord,
       tokenId: tokenId++,
       weight: 1.0 + phi,
+      frequency: 1,
       phiScore: phi,
       embedding,
       sourceType: 'base'
@@ -250,28 +258,20 @@ async function main() {
     const batch = words.slice(i, i + batchSize);
     
     for (const word of batch) {
-      const embeddingStr = '[' + word.embedding.map(x => x.toFixed(8)).join(',') + ']';
-      
       try {
-        await db.execute(sql`
-          INSERT INTO coordizer_vocabulary 
-            (token, token_id, weight, frequency, phi_score, basin_embedding, source_type)
-          VALUES (
-            ${word.token},
-            ${word.tokenId},
-            ${word.weight},
-            1,
-            ${word.phiScore},
-            ${embeddingStr}::vector,
-            ${word.sourceType}
-          )
-          ON CONFLICT (token) DO UPDATE SET
-            weight = EXCLUDED.weight,
-            phi_score = EXCLUDED.phi_score,
-            basin_embedding = EXCLUDED.basin_embedding,
-            source_type = EXCLUDED.source_type,
-            updated_at = CURRENT_TIMESTAMP
-        `);
+        await upsertToken({
+          token: word.token,
+          tokenId: word.tokenId,
+          weight: word.weight,
+          frequency: word.frequency,
+          phiScore: word.phiScore,
+          basinEmbedding: word.embedding,
+          sourceType: word.sourceType,
+          tokenRole: 'generation',
+          phraseCategory: 'unknown',
+          isRealWord: true,
+          source: 'seed'
+        });
         inserted++;
       } catch (err) {
         console.error(`Failed to insert ${word.token}:`, err);

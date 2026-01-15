@@ -12,7 +12,9 @@ CREATE TABLE IF NOT EXISTS coordizer_vocabulary (
     weight DOUBLE PRECISION DEFAULT 1.0,
     frequency INTEGER DEFAULT 1,
     phi_score DOUBLE PRECISION DEFAULT 0.65,
+    qfi_score DOUBLE PRECISION,
     basin_embedding vector(64),
+    token_status VARCHAR(16) DEFAULT 'active',
     source_type VARCHAR(32) DEFAULT 'bip39',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -20,8 +22,9 @@ CREATE TABLE IF NOT EXISTS coordizer_vocabulary (
 
 -- Insert BIP39 words with deterministic embeddings based on word hash
 -- Using a subset of common BIP39 words for immediate usability
-INSERT INTO coordizer_vocabulary (token, token_id, weight, frequency, phi_score, source_type)
-VALUES 
+INSERT INTO coordizer_vocabulary (token, token_id, weight, frequency, phi_score, source_type, token_status)
+SELECT token, token_id, weight, frequency, phi_score, source_type, 'quarantined'
+FROM (VALUES 
     ('abandon', 1, 1.0, 100, 0.70, 'bip39'),
     ('ability', 2, 1.0, 100, 0.70, 'bip39'),
     ('able', 3, 1.0, 100, 0.70, 'bip39'),
@@ -72,14 +75,16 @@ VALUES
     ('album', 48, 1.0, 100, 0.70, 'bip39'),
     ('alcohol', 49, 1.0, 100, 0.70, 'bip39'),
     ('alert', 50, 1.0, 100, 0.70, 'bip39')
+) AS v(token, token_id, weight, frequency, phi_score, source_type)
 ON CONFLICT (token) DO UPDATE SET
     phi_score = EXCLUDED.phi_score,
     source_type = EXCLUDED.source_type,
     updated_at = NOW();
 
 -- Add common English words for readable generation
-INSERT INTO coordizer_vocabulary (token, token_id, weight, frequency, phi_score, source_type)
-VALUES
+INSERT INTO coordizer_vocabulary (token, token_id, weight, frequency, phi_score, source_type, token_status)
+SELECT token, token_id, weight, frequency, phi_score, source_type, 'quarantined'
+FROM (VALUES
     ('the', 1001, 1.5, 1000, 0.80, 'base'),
     ('be', 1002, 1.5, 900, 0.80, 'base'),
     ('to', 1003, 1.5, 900, 0.80, 'base'),
@@ -130,6 +135,7 @@ VALUES
     ('information', 2008, 1.2, 200, 0.78, 'base'),
     ('knowledge', 2009, 1.2, 200, 0.78, 'base'),
     ('understanding', 2010, 1.2, 150, 0.78, 'base')
+) AS v(token, token_id, weight, frequency, phi_score, source_type)
 ON CONFLICT (token) DO UPDATE SET
     phi_score = EXCLUDED.phi_score,
     weight = EXCLUDED.weight,

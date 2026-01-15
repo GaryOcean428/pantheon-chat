@@ -36,6 +36,8 @@
     "validate:critical:fallback": "bash scripts/run-critical-enforcement.sh --fallback",
     "validate:all": "npm run validate:critical && npm run lint && npm run check",
     "validate:sql": "python3 scripts/validate-sql-naming.py --check-all",
+    "validate:db-integrity": "tsx tools/verify_db_integrity.ts",
+    "validate:purity": "python3 tools/validate_purity_patterns.py",
     "schema:drift": "tsx scripts/detect-schema-drift.ts",
     "schema:docs": "tsx scripts/generate-schema-docs.ts",
     "migrate:vocab": "cd qig-backend && python3 migrate_vocab_checkpoint_to_pg.py",
