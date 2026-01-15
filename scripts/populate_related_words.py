@@ -33,7 +33,10 @@ try:
     from qig_geometry import fisher_rao_distance
     print("✓ Loaded Fisher-Rao distance from qig_geometry")
 except ImportError as exc:
-    raise RuntimeError("Fisher-Rao distance is required for related words.") from exc
+    raise RuntimeError(
+        "Fisher-Rao distance module (qig_geometry) is required. "
+        "Install with: pip install -r requirements.txt or verify qig-backend installation."
+    ) from exc
 
 
 def get_db_connection():
