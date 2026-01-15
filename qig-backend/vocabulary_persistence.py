@@ -336,7 +336,6 @@ class VocabularyPersistence:
                             FROM coordizer_vocabulary 
                             WHERE phi_score >= %s AND source_type = %s
                               AND token_role IN ('generation', 'both')
-                              AND (phrase_category IS NULL OR phrase_category NOT IN ('PROPER_NOUN', 'BRAND'))
                             ORDER BY phi_score DESC, frequency DESC LIMIT %s
                         """, (min_phi, source, limit))
                     else:
@@ -345,7 +344,6 @@ class VocabularyPersistence:
                             FROM coordizer_vocabulary 
                             WHERE phi_score >= %s
                               AND token_role IN ('generation', 'both')
-                              AND (phrase_category IS NULL OR phrase_category NOT IN ('PROPER_NOUN', 'BRAND'))
                             ORDER BY phi_score DESC, frequency DESC LIMIT %s
                         """, (min_phi, limit))
                     return [{'word': row[0], 'avg_phi': float(row[1]), 'max_phi': float(row[2]), 'frequency': int(row[3] or 0), 'source': row[4] or 'unknown'} for row in cur.fetchall()]

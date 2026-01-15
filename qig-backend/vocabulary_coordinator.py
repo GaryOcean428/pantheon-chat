@@ -875,12 +875,12 @@ class VocabularyCoordinator:
             conn = psycopg2.connect(database_url)
             with conn.cursor() as cur:
                 # Get unintegrated high-phi words from coordizer_vocabulary
+                # NOTE: PROPER_NOUN and BRAND filters REMOVED per user request (2026-01-15)
                 cur.execute("""
                     SELECT token as word, phi_score as avg_phi, phi_score as max_phi, frequency, source
                     FROM coordizer_vocabulary
                     WHERE is_real_word = FALSE AND phi_score >= %s
                       AND token_role IN ('generation', 'both')
-                      AND (phrase_category IS NULL OR phrase_category NOT IN ('PROPER_NOUN', 'BRAND'))
                     ORDER BY phi_score DESC, frequency DESC
                     LIMIT %s
                 """, (min_phi, limit))

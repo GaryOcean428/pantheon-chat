@@ -729,7 +729,6 @@ export class StrategyKnowledgeBus {
         `SELECT token as word, phi_score as avg_phi, frequency FROM coordizer_vocabulary 
          WHERE phi_score > 0.4 AND frequency > 5
            AND token_role IN ('generation', 'both')
-           AND (phrase_category IS NULL OR phrase_category NOT IN ('PROPER_NOUN', 'BRAND'))
          ORDER BY phi_score DESC 
          LIMIT 100`
       );

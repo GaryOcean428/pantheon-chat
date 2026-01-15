@@ -100,8 +100,8 @@ class VocabularyCache:
 class PostgresCoordizer(FisherCoordizer):
     """Fisher-compliant coordizer backed by PostgreSQL (64D QIG-pure, no fallback)."""
     
-    # Excluded phrase categories for generation (centralized constant)
-    GENERATION_EXCLUDED_CATEGORIES = ('PROPER_NOUN', 'BRAND')
+    # NOTE: PROPER_NOUN and BRAND filters REMOVED per user request (2026-01-15)
+    # Allowing all word types for full learning capability
 
     def __init__(self, database_url: Optional[str] = None, min_phi: float = 0.0, use_fallback: bool = False):
         super().__init__()
@@ -263,9 +263,8 @@ class PostgresCoordizer(FisherCoordizer):
         
         This is a curated vocabulary for basin→text generation:
         - Uses token_role IN ('generation', 'both') filter
-        - Excludes PROPER_NOUN, BRAND phrase categories
         - Excludes BPE subwords and garbage tokens
-        - Only real English words suitable for generation
+        - All real English words suitable for generation (including proper nouns and brands)
         
         REQUIRES token_role column. No fallbacks.
         
@@ -277,6 +276,7 @@ class PostgresCoordizer(FisherCoordizer):
             with conn.cursor() as cur:
                 # P0 FIX: Add qfi_score IS NOT NULL filter to prevent incomplete records
                 # Use consolidated coordizer_vocabulary with token_role filter
+                # NOTE: PROPER_NOUN and BRAND filters REMOVED per user request (2026-01-15)
                 cur.execute("""
                     SELECT token, basin_embedding, phi_score, frequency, phrase_category
                     FROM coordizer_vocabulary
@@ -285,9 +285,8 @@ class PostgresCoordizer(FisherCoordizer):
                       AND LENGTH(token) >= 1
                       AND COALESCE(phi_score, 0.0) > 0.0
                       AND token_role IN ('generation', 'both')
-                      AND (phrase_category IS NULL OR phrase_category NOT IN %s)
                     ORDER BY phi_score DESC, frequency DESC
-                """, (self.GENERATION_EXCLUDED_CATEGORIES,))
+                """)
                 
                 rows = cur.fetchall()
             
@@ -307,7 +306,7 @@ class PostgresCoordizer(FisherCoordizer):
                 self.generation_phi[token] = phi_score or 0.5
                 self.generation_words.append(token)
             
-            logger.info(f"Loaded {len(self.generation_words)} words from coordizer_vocabulary for generation (token_role filter, no {'/'.join(self.GENERATION_EXCLUDED_CATEGORIES)})")
+            logger.info(f"Loaded {len(self.generation_words)} words from coordizer_vocabulary for generation (token_role filter, all word types)")
             print(f"[pg_loader] Loaded {len(self.generation_words)} generation words from coordizer_vocabulary", flush=True)
             
             return len(self.generation_words) > 0
@@ -990,10 +989,9 @@ class PostgresCoordizer(FisherCoordizer):
                         FROM coordizer_vocabulary
                         WHERE basin_embedding IS NOT NULL
                           AND token_role IN ('generation', 'both')
-                          AND (phrase_category IS NULL OR phrase_category NOT IN %s)
                         ORDER BY phi_score DESC
                         LIMIT 10000
-                    """, (self.GENERATION_EXCLUDED_CATEGORIES,))
+                    """)
                 else:
                     # Fallback: load all word tokens from coordizer_vocabulary
                     cursor.execute("""
