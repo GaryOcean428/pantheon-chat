@@ -1,7 +1,5 @@
 import { sql } from 'drizzle-orm'
-import { QIG_CONSTANTS } from '@shared/constants'
-import { compute_qfi_score_simplex, to_simplex_probabilities } from '@shared/qfi-score'
-import { coordizerVocabulary } from '@shared/schema'
+import { QIG_CONSTANTS, compute_qfi_score_simplex, to_simplex_probabilities, coordizerVocabulary } from '@shared'
 import { db, withDbRetry } from '../db'
 import { logger } from '../lib/logger'
 
@@ -97,12 +95,11 @@ export async function upsertToken(input: UpsertTokenInput) {
   const prepared = prepareUpsertTokenValues(input.basinEmbedding ?? null)
   const now = new Date()
 
+  // Capture db reference before async callback
+  const dbInstance = db
   return withDbRetry(
     async () => {
-      if (!db) {
-        throw new Error('[upsertToken] Database not available')
-      }
-      const [result] = await db
+      const [result] = await dbInstance
         .insert(coordizerVocabulary)
         .values({
           token: input.token,

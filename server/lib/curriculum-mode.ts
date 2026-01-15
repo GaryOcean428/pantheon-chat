@@ -64,12 +64,11 @@ export async function getCurriculumStatus() {
     return cachedStatus
   }
 
+  // Capture db reference before async callback
+  const dbInstance = db
   const result = await withDbRetry(
     async () => {
-      if (!db) {
-        throw new Error('[getCurriculumStatus] Database not available')
-      }
-      return db.execute<{
+      return dbInstance.execute<{
         token: string
         token_status: string | null
         qfi_score: number | null
