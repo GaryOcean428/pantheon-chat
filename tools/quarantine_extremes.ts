@@ -42,14 +42,13 @@ async function main() {
     return
   }
 
-  await db.execute(sql`
-    UPDATE coordizer_vocabulary
-    SET token_status = 'quarantined',
-        updated_at = CURRENT_TIMESTAMP
-    WHERE token = ANY(${toQuarantine})
-  `)
-
-  console.log(`Quarantined ${toQuarantine.length} tokens with extreme QFI scores`)
+  console.log(
+    `Identified ${toQuarantine.length} tokens with extreme QFI scores to quarantine (no direct DB updates performed by this tool).`,
+  )
+  console.log('Tokens to quarantine:')
+  for (const token of toQuarantine) {
+    console.log(`- ${token}`)
+  }
 }
 
 main().catch((error) => {
