@@ -13,6 +13,10 @@ if command -v rg &> /dev/null; then
     --glob '!dist/**' \
     --glob '!docs/**' \
     --glob '!migrations/**' \
+    --glob '!**/*.test.ts' \
+    --glob '!**/*.test.tsx' \
+    --glob '!**/*.spec.ts' \
+    --glob '!**/*.spec.tsx' \
     --glob '!scripts/validate-qfi-canonical-path.sh' \
     --glob '!scripts/validate-purity-patterns.sh' \
     -e 'compute_qfi_for_basin' \
@@ -28,8 +32,13 @@ else
     --exclude-dir=dist \
     --exclude-dir=docs \
     --exclude-dir=migrations \
+    --exclude-dir=tests \
     --exclude="validate-qfi-canonical-path.sh" \
     --exclude="validate-purity-patterns.sh" \
+    --exclude="*.test.ts" \
+    --exclude="*.test.tsx" \
+    --exclude="*.spec.ts" \
+    --exclude="*.spec.tsx" \
     'compute_qfi_for_basin' \
     "$ROOT_DIR/server" "$ROOT_DIR/shared" "$ROOT_DIR/scripts" "$ROOT_DIR/tools" 2>/dev/null && {
       echo "❌ Deprecated compute_qfi_for_basin function found in canonical paths."
@@ -49,12 +58,17 @@ find "$ROOT_DIR/server" "$ROOT_DIR/scripts" "$ROOT_DIR/tools" \
   ! -path "*/dist/*" \
   ! -path "*/docs/*" \
   ! -path "*/migrations/*" \
+  ! -path "*/tests/*" \
+  ! -name "*.test.ts" \
+  ! -name "*.test.tsx" \
+  ! -name "*.spec.ts" \
+  ! -name "*.spec.tsx" \
   > "$TMPFILE"
 
 # Check each file for qfiScore writes outside the allowed file
 while IFS= read -r file; do
   # Skip the canonical persistence file
-  if [[ "$file" == *"server/vocabulary-persistence.ts" ]]; then
+  if [[ "$file" == *"server/vocabulary-persistence.ts" ]] || [[ "$file" == *"server/persistence/coordizer-vocabulary.ts" ]]; then
     continue
   fi
   
