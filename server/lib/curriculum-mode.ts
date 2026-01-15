@@ -54,25 +54,23 @@ export async function getCurriculumStatus() {
   const entries = loadCurriculumManifest()
   const tokens = entries.map((entry) => entry.token)
 
+  // Helper to create incomplete status
+  const createIncompleteStatus = () => ({
+    checkedAt: now,
+    complete: false,
+    missing: tokens,
+    invalid: [],
+  })
+
   if (!db || tokens.length === 0) {
-    cachedStatus = {
-      checkedAt: now,
-      complete: false,
-      missing: tokens,
-      invalid: [],
-    }
+    cachedStatus = createIncompleteStatus()
     return cachedStatus
   }
 
   // Capture db reference before async callback
   const dbInstance = db
   if (!dbInstance) {
-    cachedStatus = {
-      checkedAt: now,
-      complete: false,
-      missing: tokens,
-      invalid: [],
-    }
+    cachedStatus = createIncompleteStatus()
     return cachedStatus
   }
 
@@ -92,12 +90,7 @@ export async function getCurriculumStatus() {
   )
 
   if (!result) {
-    cachedStatus = {
-      checkedAt: now,
-      complete: false,
-      missing: tokens,
-      invalid: [],
-    }
+    cachedStatus = createIncompleteStatus()
     return cachedStatus
   }
 
