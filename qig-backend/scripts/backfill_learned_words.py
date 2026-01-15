@@ -106,8 +106,8 @@ def get_basin_from_tokenizer(conn, word: str) -> Optional[np.ndarray]:
 def compute_basin_via_coordizer(word: str) -> Optional[np.ndarray]:
     """Compute basin via coordizer (QIG-pure)."""
     try:
-        from coordizers.fallback_vocabulary import compute_basin_embedding
-        basin = compute_basin_embedding(word)
+        from qig_geometry import compute_unknown_basin
+        basin = compute_unknown_basin(word)
         if isinstance(basin, np.ndarray) and basin.shape == (64,):
             return basin
     except Exception as e:

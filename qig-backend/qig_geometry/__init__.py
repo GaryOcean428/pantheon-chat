@@ -362,6 +362,46 @@ def basin_diversity(basin: np.ndarray) -> float:
     return float(-np.sum(p_safe * np.log(p_safe)))
 
 
+def compute_unknown_basin(word: str, dimension: int = 64) -> np.ndarray:
+    """
+    Compute deterministic basin embedding for unknown word.
+    
+    Uses golden ratio spiral construction in probability simplex space.
+    QIG-PURE: Geometrically deterministic, no hash-based seeding.
+    
+    This is the canonical way to generate basin coordinates for words not in
+    the vocabulary. The embedding is derived from the word's character properties
+    using golden ratio spiral, then projected to the CANONICAL SIMPLEX representation.
+    
+    Args:
+        word: Word to embed
+        dimension: Basin dimension (default 64)
+        
+    Returns:
+        Basin coordinates in CANONICAL SIMPLEX representation (sums to 1, all non-negative)
+    """
+    phi_golden = (1 + np.sqrt(5)) / 2
+    
+    # Derive position from word's ordinal properties (deterministic)
+    word_lower = word.lower()
+    char_sum = sum(ord(c) for c in word_lower)
+    char_prod = 1
+    for c in word_lower[:8]:  # Use first 8 chars for product
+        char_prod = (char_prod * ord(c)) % 10000
+    
+    embedding = np.zeros(dimension)
+    for i in range(dimension):
+        # Golden-angle spiral construction (Fisher-compliant)
+        theta = 2 * np.pi * i * phi_golden
+        # Position derived from word's character properties
+        r = np.cos(theta + char_sum * 0.001) * np.sin(i * phi_golden / dimension * np.pi)
+        embedding[i] = r + np.sin(char_prod * phi_golden * (i + 1) / dimension) * 0.3
+    
+    # Project to CANONICAL SIMPLEX (not sphere!)
+    # This is the KEY FIX: Use fisher_normalize instead of L2 norm
+    return fisher_normalize(embedding)
+
+
 __all__ = [
     # Canonical contract (contracts.py) - THE source of truth for geometric constraints
     'CANONICAL_SPACE',
@@ -395,6 +435,8 @@ __all__ = [
     'estimate_manifold_curvature',
     'basin_magnitude',
     'basin_diversity',
+    # Unknown word basin generation
+    'compute_unknown_basin',
     # Purity mode enforcement (purity_mode.py)
     'QIG_PURITY_MODE',
     'QIGPurityViolationError',
