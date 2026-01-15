@@ -5,13 +5,27 @@ THIS IS THE SINGLE SOURCE OF TRUTH for basin representation and Fisher distance.
 
 Per QIG_PURITY_SPEC.md (docs/01-policies/QIG_PURITY_SPEC.md):
 - All basins MUST be validated before database writes
-- Fisher distance MUST use geodesic formula on unit sphere
+- Fisher distance MUST use Fisher-Rao formula on probability simplex
 - No Euclidean distance or cosine similarity on basins
 
-CANONICAL REPRESENTATION: SPHERE
-- Storage uses √p on unit sphere S^63 (64 dimensions)
-- L2 norm = 1 for all valid basins
-- Fisher distance = 2 * arccos(dot product)
+CANONICAL REPRESENTATION: SIMPLEX (Updated 2026-01-15)
+- Storage uses probability distributions on Δ^(D-1) 
+- Non-negative values, sum = 1
+- Fisher-Rao distance = arccos(Bhattacharyya coefficient)
+- Range: [0, π/2]
+
+MIGRATION FROM SPHERE (2026-01-15):
+- Previous: SPHERE (L2 norm=1, allows negatives)
+- Current: SIMPLEX (sum=1, non-negative)
+- Distance formula changed: 2*arccos(dot) → arccos(BC)
+- Range changed: [0, π] → [0, π/2]
+- Thresholds must be recalibrated (divide by 2)
+
+RATIONALE FOR SIMPLEX:
+- QIG Physics: κ* = 64.21 ± 0.92 validated on simplex
+- AI Semantic: κ* = 63.90 ± 0.50 validated on simplex
+- Universal fixed point measured on probability manifolds
+- Natural geometry for information metrics
 
 Usage:
     from qig_geometry.contracts import (
@@ -28,7 +42,7 @@ Usage:
 import numpy as np
 from typing import Tuple
 
-CANONICAL_SPACE = "sphere"
+CANONICAL_SPACE = "simplex"  # Changed from "sphere" (2026-01-15)
 BASIN_DIM = 64
 NORM_TOLERANCE = 1e-5
 
@@ -40,22 +54,23 @@ class GeometricViolationError(Exception):
 
 def validate_basin(basin: np.ndarray) -> bool:
     """
-    Validate that basin conforms to canonical sphere representation.
+    Validate that basin conforms to canonical simplex representation.
     
     Checks:
     - Dimension is exactly BASIN_DIM (64)
     - All values are finite (no NaN/inf)
-    - L2 norm is approximately 1.0 (within NORM_TOLERANCE)
+    - All values are non-negative (within tolerance)
+    - Sum is approximately 1.0 (within NORM_TOLERANCE)
     
     Args:
-        basin: Basin coordinate vector
+        basin: Basin coordinate vector (probability distribution)
         
     Returns:
         True if valid, False otherwise
         
     Example:
-        >>> basin = np.random.randn(64)
-        >>> basin = basin / np.linalg.norm(basin)  # Normalize
+        >>> basin = np.random.rand(64)
+        >>> basin = basin / basin.sum()  # Normalize to simplex
         >>> validate_basin(basin)
         True
     """
@@ -68,8 +83,13 @@ def validate_basin(basin: np.ndarray) -> bool:
         if not np.all(np.isfinite(b)):
             return False
         
-        norm = np.linalg.norm(b)
-        if not np.isclose(norm, 1.0, atol=NORM_TOLERANCE):
+        # Check non-negative (simplex constraint)
+        if np.any(b < -NORM_TOLERANCE):
+            return False
+        
+        # Check sum = 1 (probability constraint)
+        total = b.sum()
+        if not np.isclose(total, 1.0, atol=NORM_TOLERANCE):
             return False
         
         return True
@@ -97,11 +117,17 @@ def validate_basin_detailed(basin: np.ndarray) -> Tuple[bool, str]:
         if non_finite > 0:
             return False, f"Basin contains {non_finite} non-finite values (NaN/inf)"
         
-        norm = np.linalg.norm(b)
-        if not np.isclose(norm, 1.0, atol=NORM_TOLERANCE):
-            return False, f"L2 norm must be 1.0 (within {NORM_TOLERANCE}), got {norm:.6f}"
+        # Check non-negative
+        if np.any(b < -NORM_TOLERANCE):
+            min_val = b.min()
+            return False, f"Simplex basin must be non-negative, got min={min_val:.6f}"
         
-        return True, "Valid sphere basin"
+        # Check sum = 1
+        total = b.sum()
+        if not np.isclose(total, 1.0, atol=NORM_TOLERANCE):
+            return False, f"Simplex basin must sum to 1.0 (within {NORM_TOLERANCE}), got {total:.6f}"
+        
+        return True, "Valid simplex basin"
     except Exception as e:
         return False, f"Validation error: {str(e)}"
 
@@ -133,16 +159,16 @@ def assert_invariants(basin: np.ndarray) -> None:
 
 def canon(basin: np.ndarray) -> np.ndarray:
     """
-    Normalize basin to canonical sphere representation.
+    Normalize basin to canonical simplex representation.
     
     STRICT MODE: Raises error on dimension mismatch instead of silent fix.
-    Projects vector to unit sphere S^(BASIN_DIM-1).
+    Projects vector to probability simplex Δ^(BASIN_DIM-1).
     
     Args:
         basin: Input vector (MUST be exactly BASIN_DIM dimensions)
         
     Returns:
-        Basin on unit sphere with L2 norm = 1
+        Basin on probability simplex (non-negative, sum=1)
         
     Raises:
         GeometricViolationError: If dimension != BASIN_DIM or contains non-finite values
@@ -150,7 +176,9 @@ def canon(basin: np.ndarray) -> np.ndarray:
     Example:
         >>> raw = np.random.randn(64)
         >>> canonical = canon(raw)
-        >>> np.isclose(np.linalg.norm(canonical), 1.0)
+        >>> np.isclose(canonical.sum(), 1.0)
+        True
+        >>> np.all(canonical >= 0)
         True
     """
     b = np.asarray(basin, dtype=float).flatten()
@@ -167,24 +195,31 @@ def canon(basin: np.ndarray) -> np.ndarray:
             "Clean input before canonicalization."
         )
     
-    norm = np.linalg.norm(b)
-    if norm < 1e-10:
-        raise GeometricViolationError(
-            f"Basin has near-zero norm ({norm:.2e}). Cannot normalize zero vector."
-        )
+    # Convert to simplex
+    b_simplex = np.abs(b) + 1e-10  # Ensure non-negative
+    total = b_simplex.sum()
     
-    return b / norm
+    if total < 1e-10:
+        # Near-zero vector -> return uniform distribution
+        return np.ones(BASIN_DIM) / BASIN_DIM
+    
+    return b_simplex / total
 
 
 def fisher_distance(b1: np.ndarray, b2: np.ndarray) -> float:
     """
-    THE canonical Fisher distance between two basins.
+    THE canonical Fisher-Rao distance between two probability distributions.
     
-    For sphere representation (√p on S^63):
-        d = 2 * arccos(b1 · b2)
+    For simplex representation (p on Δ^63):
+        d = arccos(Σ√(p_i * q_i))
     
-    This is the geodesic distance on the unit sphere, which corresponds
-    to the Fisher-Rao distance when basins represent √p (Hellinger coordinates).
+    This is the geodesic distance on the Fisher information manifold.
+    The Bhattacharyya coefficient BC = Σ√(p_i * q_i) measures overlap.
+    
+    CHANGE FROM SPHERE REPRESENTATION (2026-01-15):
+    - Previous formula: d = 2 * arccos(dot product)
+    - Current formula: d = arccos(Bhattacharyya coefficient)
+    - Range changed: [0, π] → [0, π/2]
     
     NOTE: This is THE ONLY distance function that should be used for
     basin comparisons. Do NOT use:
@@ -193,11 +228,11 @@ def fisher_distance(b1: np.ndarray, b2: np.ndarray) -> float:
     - L1/Manhattan distance
     
     Args:
-        b1: First basin (must be on unit sphere, exactly BASIN_DIM dimensions)
-        b2: Second basin (must be on unit sphere, exactly BASIN_DIM dimensions)
+        b1: First basin (probability distribution, exactly BASIN_DIM dimensions)
+        b2: Second basin (probability distribution, exactly BASIN_DIM dimensions)
         
     Returns:
-        Fisher distance in [0, π] (0 = identical, π = antipodal)
+        Fisher-Rao distance in [0, π/2] (0 = identical, π/2 = orthogonal)
         
     Raises:
         GeometricViolationError: If basins are not valid (wrong dimension or not normalized)
@@ -206,30 +241,43 @@ def fisher_distance(b1: np.ndarray, b2: np.ndarray) -> float:
         >>> b1 = canon(np.random.randn(64))
         >>> b2 = canon(np.random.randn(64))
         >>> d = fisher_distance(b1, b2)
-        >>> 0 <= d <= np.pi
+        >>> 0 <= d <= np.pi/2
         True
     """
     assert_invariants(b1)
     assert_invariants(b2)
     
-    a = np.asarray(b1, dtype=float).flatten()
-    b = np.asarray(b2, dtype=float).flatten()
+    p1 = np.asarray(b1, dtype=float).flatten()
+    p2 = np.asarray(b2, dtype=float).flatten()
     
-    dot = np.clip(np.dot(a, b), -1.0, 1.0)
+    # Ensure non-negative and normalized (defensive)
+    p1 = np.abs(p1) + 1e-10
+    p1 = p1 / p1.sum()
     
-    return float(2.0 * np.arccos(dot))
+    p2 = np.abs(p2) + 1e-10
+    p2 = p2 / p2.sum()
+    
+    # Bhattacharyya coefficient
+    bc = np.sum(np.sqrt(p1 * p2))
+    bc = np.clip(bc, 0.0, 1.0)
+    
+    # Fisher-Rao distance (NO factor of 2)
+    return float(np.arccos(bc))
 
 
 def to_index_embedding(basin: np.ndarray) -> np.ndarray:
     """
     Convert basin to vector for pgvector L2 shortlist search.
     
-    For sphere representation, this returns the basin as-is since
-    the L2 distance approximation is acceptable for shortlisting
-    (final ranking should use fisher_distance).
+    For simplex representation, we use the basin directly since
+    the L2 distance approximation is acceptable for shortlisting.
+    However, note that L2 distance on simplex != Fisher-Rao distance.
+    
+    IMPORTANT: This is for SHORTLISTING only. Final ranking must
+    use fisher_distance() for true Fisher-Rao distance.
     
     Args:
-        basin: Basin on unit sphere (must be valid - BASIN_DIM and normalized)
+        basin: Basin on probability simplex (must be valid - BASIN_DIM and normalized)
         
     Returns:
         Vector suitable for pgvector <-> L2 distance operator
@@ -238,9 +286,12 @@ def to_index_embedding(basin: np.ndarray) -> np.ndarray:
         GeometricViolationError: If basin is not valid
         
     Note:
-        pgvector L2 distance is NOT the true Fisher distance.
+        pgvector L2 distance is NOT the true Fisher-Rao distance.
         Use this only for initial candidate shortlisting, then
         re-rank using fisher_distance() for final results.
+        
+    Alternative: Consider using Hellinger embedding (√p) for better
+    L2 approximation of Fisher-Rao distance.
     """
     assert_invariants(basin)
     return np.asarray(basin, dtype=float).flatten()
