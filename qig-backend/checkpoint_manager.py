@@ -266,10 +266,6 @@ class CheckpointManager:
 
 
 # Legacy migration support - import from dedicated module
-from legacy_checkpoint_migration import LegacyCheckpointManager, migrate_legacy_checkpoints
-
 __all__ = [
     "CheckpointManager",
-    "LegacyCheckpointManager",
-    "migrate_legacy_checkpoints",
 ]

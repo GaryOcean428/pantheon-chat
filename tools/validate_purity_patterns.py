@@ -33,11 +33,6 @@ SKIP_FILES = {
     "qig_purity_scan.py",  # Purity scanner
     "qig_purity_scan.ts",  # Purity scanner
     "test_geometric_purity_ci.py",  # Test that references patterns
-    "validate-geometric-purity.py",  # Validation script
-    "validate-geometric-purity.ts",  # Validation script
-    "benchmark-pgvector.ts",  # Benchmark script that may reference patterns
-    "convert_legacy_artifacts.py",  # Legacy conversion tool (validates unit norms in old data)
-    "populate_related_words.py",  # Legacy population script with cosine fallback
 }
 
 SCAN_EXTENSIONS = {".py", ".ts", ".tsx", ".js"}
