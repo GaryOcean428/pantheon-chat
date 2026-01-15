@@ -17,7 +17,7 @@ import os
 import psycopg2
 from typing import List, Set, Tuple
 
-from word_validation import is_valid_english_word, is_pure_alphabetic, STOP_WORDS, validate_for_vocabulary
+from word_validation import is_valid_english_word, is_pure_alphabetic, validate_for_vocabulary
 from persistence.base_persistence import get_db_connection
 
 try:
