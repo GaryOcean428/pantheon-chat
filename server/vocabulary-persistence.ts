@@ -61,7 +61,6 @@ async function performTokenUpsert(record: {
   phraseCategory?: string
   isRealWord?: boolean
   qfiScore: number | null
-  tokenStatus: TokenStatus
 }): Promise<void> {
   if (!db) {
     throw new Error('Database unavailable')
@@ -84,7 +83,6 @@ async function performTokenUpsert(record: {
             phraseCategory: record.phraseCategory,
             isRealWord: record.isRealWord,
             qfiScore: record.qfiScore,
-            tokenStatus: record.tokenStatus,
             updatedAt: new Date(),
           },
         }),
@@ -129,7 +127,6 @@ export async function upsertToken(input: UpsertTokenInput): Promise<UpsertTokenR
     phraseCategory: input.phraseCategory ?? undefined,
     isRealWord: input.isRealWord ?? undefined,
     qfiScore,
-    tokenStatus: status,
   }
 
   await performTokenUpsert(record)
