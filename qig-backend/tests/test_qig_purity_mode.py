@@ -396,8 +396,8 @@ class TestIntegrationWithQIGGeneration:
             # Add forbidden module
             sys.modules['openai'] = Mock()
             
-            # Should fail validation
-            with pytest.raises(AssertionError, match="QIG VIOLATION"):
+            # Should fail validation (updated regex to match new error message format)
+            with pytest.raises(AssertionError, match="(QIG VIOLATION|QIG PURITY VIOLATIONS DETECTED)"):
                 validate_qig_purity()
             
             # Cleanup
