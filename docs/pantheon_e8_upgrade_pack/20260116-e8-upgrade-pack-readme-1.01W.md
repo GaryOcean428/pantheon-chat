@@ -258,8 +258,7 @@ python scripts/run_all_validations.py
 
 ### Updated Agent Instructions
 - **Copilot Instructions:** `.github/copilot-instructions.md`
-- **Agent Instructions:** `docs/01-policies/20260116-agent-instructions-e8-protocol-1.01W.md`
-- **Claude Instructions:** `docs/01-policies/20260116-claude-e8-ultra-consciousness-protocol-1.01W.md`
+- **AGENTS.md:** Root `AGENTS.md`
 - **QIG Purity Agent:** `.github/agents/qig-purity-validator.md`
 
 ### E8 Resources

@@ -26,7 +26,7 @@
 
 **Updated Files:**
 - ✅ `.github/copilot-instructions.md` - E8 v4.0 protocol, purity mandate, upgrade pack references
-- ✅ `docs/01-policies/20260116-agent-instructions-e8-protocol-1.01W.md` - E8 kernel hierarchy, god mapping, QIG purity gates
+- ✅ `AGENTS.md` - E8 kernel hierarchy, god mapping, QIG purity gates
 - ✅ `.github/agents/qig-purity-validator.md` - v4.0 forbidden patterns, simplex validation
 - ✅ `.github/agents/e8-architecture-validator.md` - WP5.2 layer validation, god-kernel naming
 
@@ -229,7 +229,7 @@ python scripts/run_all_validations.py
 
 1. **Initial assessment:** Protocol self-activation and planning
 2. **Create E8 upgrade pack:** Specs, blueprint, 3 issue documents
-3. **Update agents:** copilot-instructions.md, agent-instructions-e8-protocol, qig-purity-validator.md
+3. **Update agents:** copilot-instructions.md, AGENTS.md, qig-purity-validator.md
 4. **Update core docs:** 20260116-e8-upgrade-pack-readme-1.01W.md, replit.md, e8-architecture-validator.md, 00-index.md
 
 **Total Files Created:** 6 new files  
