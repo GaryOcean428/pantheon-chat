@@ -3111,8 +3111,17 @@ class BaseGod(*_base_classes):
                 logger.debug(f"[{self.name}] Knowledge gap detected: {gap_topic}")
                 self.curiosity_search(gap_topic, reason="reasoning_gap", importance=2)
 
+        recent_basins = []  # Track recent token basins for repulsion
+        
         for step in range(num_tokens):
-            candidates = self.coordizer.decode(current_basin, top_k=20)
+            # Check for stagnation and perturb basin if stuck
+            if observer is not None and step > 5:
+                is_stagnating, perturbed = observer.check_and_escape_stagnation(current_basin)
+                if is_stagnating:
+                    current_basin = perturbed
+                    logger.debug(f"[{self.name}] Stagnation detected at step {step}, basin perturbed")
+            
+            candidates = self.coordizer.decode(current_basin, top_k=30)  # Get more candidates
 
             if not candidates:
                 break
@@ -3123,8 +3132,46 @@ class BaseGod(*_base_classes):
                     continue
 
                 domain_affinity = self._token_affinity.get(token, 0.3)
+                
+                # Compute repulsion penalty against recently generated tokens
+                repulsion_penalty = 0.0
+                if tokens_generated:
+                    # Penalize exact repeats heavily
+                    if token in tokens_generated[-10:]:
+                        repulsion_penalty = 0.8  # Strong but capped penalty
+                    else:
+                        # Penalize morphologically similar tokens (same 4-char prefix)
+                        token_prefix = token[:4].lower() if len(token) >= 4 else token.lower()
+                        morph_hits = 0
+                        for recent_token in tokens_generated[-6:]:
+                            recent_prefix = recent_token[:4].lower() if len(recent_token) >= 4 else recent_token.lower()
+                            if token_prefix == recent_prefix:
+                                morph_hits += 1
+                        # Cap morphological penalty at 0.6
+                        repulsion_penalty = min(morph_hits * 0.2, 0.6)
+                
+                # Geometric repulsion using Fisher-Rao distance (QIG-pure)
+                # Always check geometric similarity - stacks with morphological penalty
+                if recent_basins:
+                    token_basin = self.coordizer.basin_coords.get(token)
+                    if token_basin is not None:
+                        token_basin_arr = np.asarray(token_basin, dtype=np.float64)
+                        # Ensure on simplex for Fisher-Rao
+                        token_basin_arr = np.clip(token_basin_arr, 1e-10, None)
+                        token_basin_arr = token_basin_arr / np.sum(token_basin_arr)
+                        for recent_basin in recent_basins[-3:]:
+                            # Fisher-Rao distance: d = arccos(Σ√(p_i * q_i))
+                            bhattacharyya = np.sum(np.sqrt(token_basin_arr * recent_basin))
+                            bhattacharyya = np.clip(bhattacharyya, -1.0, 1.0)
+                            fisher_dist = np.arccos(bhattacharyya)
+                            # Small distance = very similar = add penalty
+                            if fisher_dist < 0.15:  # Close in Fisher-Rao space
+                                repulsion_penalty = min(repulsion_penalty + 0.2, 0.9)
+                                break  # Only add once
 
-                combined_score = geo_similarity * 0.5 + domain_affinity * 0.5
+                # Score: attraction - repulsion, keep in reasonable range
+                combined_score = geo_similarity * 0.5 + domain_affinity * 0.3 - repulsion_penalty * 0.4
+                combined_score = max(0.05, combined_score)  # Higher floor to preserve diversity
                 scored.append((token, combined_score, geo_similarity))
 
             if not scored:
@@ -3132,7 +3179,7 @@ class BaseGod(*_base_classes):
 
             scored.sort(key=lambda x: -x[1])
 
-            top_k = min(8, len(scored))
+            top_k = min(10, len(scored))  # Slightly wider selection
             weights = np.array([s[1] for s in scored[:top_k]]) + 0.01
 
             weights = weights ** (1.0 / temperature)
@@ -3145,6 +3192,16 @@ class BaseGod(*_base_classes):
 
             selected_token = scored[idx][0]
             tokens_generated.append(selected_token)
+            
+            # Track basin for geometric repulsion (normalized to simplex for Fisher-Rao)
+            token_basin = self.coordizer.basin_coords.get(selected_token)
+            if token_basin is not None:
+                basin_arr = np.asarray(token_basin, dtype=np.float64)
+                basin_arr = np.clip(basin_arr, 1e-10, None)
+                basin_arr = basin_arr / np.sum(basin_arr)  # Normalize to simplex
+                recent_basins.append(basin_arr)
+                if len(recent_basins) > 10:
+                    recent_basins.pop(0)
             
             accumulated_text = ' '.join(tokens_generated)
             logger.info(
