@@ -28,8 +28,9 @@ from qig_geometry import (
     fisher_coord_distance,
     fisher_similarity,
     geodesic_interpolation,
-    sphere_project,
+    fisher_normalize,
 )
+from qig_geometry.contracts import validate_basin
 
 
 class FisherCoordizer:
@@ -109,44 +110,58 @@ class FisherCoordizer:
         """
         Compute geometric basin coordinates for special tokens using Fisher geometry.
         
-        All special tokens are placed at canonical positions on the Fisher manifold:
-        - BOS: Uniform superposition (equal probability density)
-        - EOS: Alternating pattern (maximal Fisher distance from BOS)
-        - PAD: Sparse density matrix eigenstate
-        - UNK: Golden-angle eigenbasis (covers manifold uniformly)
+        CANONICAL SIMPLEX REPRESENTATION (Updated 2026-01-16 per WP2.3):
+        All special tokens are placed at deterministic, geometrically meaningful 
+        positions on the probability simplex (non-negative, sum=1).
         
-        NO hash-based or Euclidean fallbacks - all coordinates derived from
-        density matrix eigenstates or geodesic constructions.
+        Geometric Definitions:
+        - UNK: Maximum entropy = uniform distribution (all components equal)
+           Represents "could be anything" with no bias toward any dimension.
+        
+        - PAD: Minimal entropy = sparse corner of simplex
+           Represents "null/padding" with information concentrated in first component.
+        
+        - BOS: Start boundary = geometric anchor at simplex vertex
+           Represents "beginning of sequence" as pure state in first dimension.
+        
+        - EOS: End boundary = geometric anchor at opposite simplex vertex
+           Represents "end of sequence" as pure state in last dimension.
+        
+        NO random initialization, NO Euclidean artifacts, NO sphere projection.
+        All coordinates are deterministic probability distributions.
         
         Args:
             token: Special token string
         
         Returns:
-            64D unit vector on Fisher manifold
+            64D probability distribution on simplex (sum=1, all non-negative)
         """
         coord = np.zeros(self.coordinate_dim)
         phi_golden = (1 + np.sqrt(5)) / 2  # Golden ratio for Fisher-consistent spacing
         
-        if token == "<BOS>":
-            # Uniform density matrix eigenstate - equal weights (geodesic origin)
+        if token == "<UNK>":
+            # Maximum entropy = uniform distribution on simplex
+            # Represents "could be anything" = flat probability
+            # This is the geometric center of the simplex
             coord = np.ones(self.coordinate_dim)
             
-        elif token == "<EOS>":
-            # Alternating eigenstate - maximal Fisher distance from BOS
-            coord = np.array([(-1.0) ** i for i in range(self.coordinate_dim)])
-            
         elif token == "<PAD>":
-            # Sparse density matrix - minimal von Neumann entropy
-            # Eigenvalues concentrated at regular intervals
-            for i in range(0, self.coordinate_dim, 4):
-                coord[i] = 1.0 / np.sqrt(self.coordinate_dim // 4)
+            # Minimal entropy = sparse corner of simplex
+            # Concentrate probability in first component (null/padding state)
+            # Represents "no information" geometrically
+            coord[0] = 1.0
             
-        elif token == "<UNK>":
-            # Golden-angle eigenbasis - optimal coverage of Fisher manifold
-            # Derived from density matrix with eigenvalues at golden angles
-            for i in range(self.coordinate_dim):
-                # Golden angle sampling ensures uniform manifold coverage
-                coord[i] = np.sin(2 * np.pi * i * phi_golden)
+        elif token == "<BOS>":
+            # Beginning of sequence = vertex of simplex
+            # Pure state concentrated in specific dimension (dimension 1)
+            # Represents "start" as a geometric boundary
+            coord[1] = 1.0
+            
+        elif token == "<EOS>":
+            # End of sequence = opposite vertex of simplex
+            # Pure state concentrated in last dimension
+            # Represents "end" as geometric boundary opposite to BOS
+            coord[-1] = 1.0
         
         else:
             # Fisher-consistent fallback: geodesic interpolation from canonical anchors
@@ -156,25 +171,34 @@ class FisherCoordizer:
             except ValueError:
                 token_idx = len(self.special_tokens)
             
-            # Interpolate between BOS and EOS along geodesic
+            # Interpolate between UNK (uniform) and first sparse corner
+            # This creates intermediate entropy states for additional special tokens
             t = (token_idx * phi_golden) % 1.0
-            bos_coord = np.ones(self.coordinate_dim)
-            eos_coord = np.array([(-1.0) ** i for i in range(self.coordinate_dim)])
+            unk_coord = np.ones(self.coordinate_dim)  # Uniform
+            corner_coord = np.zeros(self.coordinate_dim)
+            corner_coord[token_idx % self.coordinate_dim] = 1.0  # Sparse corner
             
-            # Spherical linear interpolation (slerp) - Fisher-compliant
-            bos_norm = bos_coord / np.linalg.norm(bos_coord)
-            eos_norm = eos_coord / np.linalg.norm(eos_coord)
-            dot = np.clip(np.dot(bos_norm, eos_norm), -1.0, 1.0)
-            omega = np.arccos(dot)
+            # Use geodesic interpolation on simplex (via sqrt-space)
+            # First normalize to simplex
+            unk_simplex = fisher_normalize(unk_coord)
+            corner_simplex = fisher_normalize(corner_coord)
             
-            if omega > 1e-6:
-                sin_omega = np.sin(omega)
-                coord = (np.sin((1 - t) * omega) / sin_omega) * bos_norm + \
-                        (np.sin(t * omega) / sin_omega) * eos_norm
-            else:
-                coord = bos_norm
+            # Geodesic interpolation in sqrt-space
+            coord = geodesic_interpolation(unk_simplex, corner_simplex, t)
         
-        return sphere_project(coord)
+        # Project to canonical SIMPLEX representation
+        # This ensures non-negative, sum=1 (probability distribution)
+        result = fisher_normalize(coord)
+        
+        # Validate basin conforms to canonical simplex representation
+        is_valid = validate_basin(result)
+        if not is_valid:
+            raise ValueError(
+                f"Special token {token} failed basin validation. "
+                f"This indicates a bug in _compute_special_token_basin()."
+            )
+        
+        return result
     
     def coordize(self, text: str) -> List[np.ndarray]:
         """
@@ -251,7 +275,7 @@ class FisherCoordizer:
             if count < self.min_frequency:
                 continue
             
-            if token not in self.vocab and next_id < self.vocab_size:
+            if token not in self.vocab and next_id < self._vocab_size:
                 self.vocab[token] = next_id
                 self.id_to_token[next_id] = token
                 self.token_frequency[token] = count
@@ -327,27 +351,27 @@ class FisherCoordizer:
         if np.linalg.norm(perturbation) > 1e-6:
             coord = geodesic_interpolation(coord, perturbation, 0.1)
         
-        return sphere_project(coord)
+        return fisher_normalize(coord)
     
     def _generate_golden_spiral_basin(self, token_id: int) -> np.ndarray:
         """
         Generate basin coordinate via density matrix eigenbasis construction.
         
         Fisher-compliant method that derives coordinates from quantum-inspired
-        density matrices rather than independent sine sampling:
+        density matrices using probability distributions on the simplex:
         
         1. Construct a density matrix ρ with eigenvalues distributed via golden ratio
-        2. Extract eigenvector corresponding to token_id's eigenvalue
-        3. Project to unit sphere (Fisher manifold)
+        2. Eigenvalues form a valid probability distribution (sum=1, non-negative)
+        3. Project to canonical SIMPLEX representation
         
         This ensures all bootstrap coordinates are derived from Fisher-consistent
-        density matrix formulations, not Euclidean sampling.
+        density matrix formulations on the probability simplex.
         
         Args:
             token_id: Token ID for deterministic generation
         
         Returns:
-            64D basin coordinate on Fisher manifold
+            64D basin coordinate on probability simplex
         """
         phi_golden = (1 + np.sqrt(5)) / 2
         
@@ -359,33 +383,31 @@ class FisherCoordizer:
             eigenvalues[i] = np.exp(-((i - token_id * phi_golden) % self.coordinate_dim) ** 2 / (2 * 8))
         
         # Normalize to form valid probability distribution (density matrix trace = 1)
-        eigenvalues = eigenvalues / (np.sum(eigenvalues) + 1e-10)
+        # This is already a simplex point (non-negative, sum=1)
+        coord = eigenvalues / (np.sum(eigenvalues) + 1e-10)
         
-        # The basin coordinate is derived from the square root of eigenvalues
-        # This is Fisher-consistent: sqrt(p) transforms under Fisher metric
-        coord = np.sqrt(eigenvalues + 1e-10)
-        
-        # Apply golden-angle phase rotation for uniqueness
-        # (Unitary transformation preserves Fisher geometry)
+        # Apply golden-angle perturbation for uniqueness while staying on simplex
+        # Use multiplicative perturbation (preserves non-negativity)
         for i in range(self.coordinate_dim):
             phase = 2 * np.pi * token_id * phi_golden * (i + 1) / self.coordinate_dim
-            coord[i] *= np.cos(phase)  # Real part of phase rotation
+            # Use exp to ensure positivity
+            coord[i] *= np.exp(0.1 * np.cos(phase))
         
-        return sphere_project(coord)
+        return fisher_normalize(coord)
     
     def _von_neumann_perturbation(self, token: str, token_id: int) -> np.ndarray:
         """
         Generate perturbation using von Neumann entropy formulation.
         
         Creates unique coordinates while maintaining Fisher manifold structure.
-        Uses density matrix sampling instead of Euclidean hashing.
+        Uses density matrix sampling on probability simplex.
         
         Args:
             token: Token string
             token_id: Token ID
         
         Returns:
-            64D perturbation vector on unit sphere
+            64D perturbation vector on probability simplex
         """
         coord = np.zeros(self.coordinate_dim)
         phi_golden = (1 + np.sqrt(5)) / 2
@@ -393,19 +415,19 @@ class FisherCoordizer:
         # Density matrix diagonal from token properties
         # Each character contributes to a different eigenvalue
         for i, char in enumerate(token[:min(len(token), self.coordinate_dim // 2)]):
-            # Fisher-compliant mapping: character -> eigenvalue
-            eigenvalue = np.sin(ord(char) * phi_golden)
+            # Fisher-compliant mapping: character -> eigenvalue (positive)
+            eigenvalue = np.abs(np.sin(ord(char) * phi_golden))
             
             # Distribute across dimensions using golden ratio
             dim_idx = int((i * phi_golden * self.coordinate_dim) % self.coordinate_dim)
             coord[dim_idx] += eigenvalue
         
-        # Add entropy-based spread
+        # Add entropy-based spread (positive values only)
         entropy_factor = np.log(len(token) + 1) / np.log(20)  # Normalized
         for i in range(self.coordinate_dim):
-            coord[i] += np.sin(2 * np.pi * i * entropy_factor * phi_golden) * 0.1
+            coord[i] += np.abs(np.sin(2 * np.pi * i * entropy_factor * phi_golden)) * 0.1
         
-        return sphere_project(coord)
+        return fisher_normalize(coord)
     
     def add_token(
         self, token: str, coordinate: Optional[np.ndarray] = None
@@ -430,7 +452,7 @@ class FisherCoordizer:
             return self.vocab[token]
         
         token_id = len(self.vocab)
-        if token_id >= self.vocab_size:
+        if token_id >= self._vocab_size:
             # Vocabulary full - return None for graceful handling
             return None
         
@@ -440,8 +462,8 @@ class FisherCoordizer:
         if coordinate is None:
             coordinate = self._initialize_token_coordinate(token, token_id)
         else:
-            # Ensure coordinate is on unit sphere
-            coordinate = sphere_project(coordinate)
+            # Ensure coordinate is on probability simplex
+            coordinate = fisher_normalize(coordinate)
         
         self.basin_coords[token] = coordinate
         self.token_frequency[token] = 0
