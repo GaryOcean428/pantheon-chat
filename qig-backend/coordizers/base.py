@@ -251,7 +251,7 @@ class FisherCoordizer:
             if count < self.min_frequency:
                 continue
             
-            if token not in self.vocab and next_id < self._vocab_size:  # Use private attr
+            if token not in self.vocab and next_id < self._vocab_size:
                 self.vocab[token] = next_id
                 self.id_to_token[next_id] = token
                 self.token_frequency[token] = count
@@ -430,7 +430,7 @@ class FisherCoordizer:
             return self.vocab[token]
         
         token_id = len(self.vocab)
-        if token_id >= self._vocab_size:  # Use private attr _vocab_size
+        if token_id >= self._vocab_size:
             # Vocabulary full - return None for graceful handling
             return None
         
