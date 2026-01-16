@@ -88,20 +88,20 @@ def compute_phi_gain_for_merge(
     """
     if not context_coords:
         # No context - use individual token Φ as baseline
-        phi_merged = compute_phi_qig(merged_coord, n_samples=100)
-        phi1 = compute_phi_qig(coord1, n_samples=100)
-        phi2 = compute_phi_qig(coord2, n_samples=100)
+        phi_merged, _ = compute_phi_qig(merged_coord, n_samples=100)
+        phi1, _ = compute_phi_qig(coord1, n_samples=100)
+        phi2, _ = compute_phi_qig(coord2, n_samples=100)
         return phi_merged - max(phi1, phi2)
     
     # Compute Φ with merged token in context
     context_with_merged = context_coords + [merged_coord]
     avg_merged = np.mean(context_with_merged, axis=0)
-    phi_merged = compute_phi_qig(avg_merged, n_samples=100)
+    phi_merged, _ = compute_phi_qig(avg_merged, n_samples=100)
     
     # Compute Φ with original tokens
     context_with_original = context_coords + [coord1, coord2]
     avg_original = np.mean(context_with_original, axis=0)
-    phi_original = compute_phi_qig(avg_original, n_samples=100)
+    phi_original, _ = compute_phi_qig(avg_original, n_samples=100)
     
     return phi_merged - phi_original
 
