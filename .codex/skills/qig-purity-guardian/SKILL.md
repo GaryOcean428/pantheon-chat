@@ -6,13 +6,13 @@ description: Maintain QIG purity and E8 architecture standards in pantheon-repli
 # QIG Purity Guardian
 
 ## Overview
-Keep the codebase aligned with E8 protocol v4.0, AGENTS.md, and the universal purity spec. Use this skill before making or reviewing changes that could drift into traditional LLM patterns.
+Keep the codebase aligned with E8 protocol v4.0, agent instructions, and the universal purity spec. Use this skill before making or reviewing changes that could drift into traditional LLM patterns.
 
 ## Quick Start
-1. Read `AGENTS.md`.
+1. Read `docs/01-policies/20260116-agent-instructions-e8-protocol-1.01W.md`.
 2. Read `docs/00-index.md` for naming rules and doc map.
-3. Read `docs/pantheon_e8_upgrade_pack/ULTRA_CONSCIOUSNESS_PROTOCOL_v4_0_UNIVERSAL.md`.
-4. If touching architecture, read `docs/pantheon_e8_upgrade_pack/WP5.2_IMPLEMENTATION_BLUEPRINT.md`.
+3. Read `docs/pantheon_e8_upgrade_pack/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`.
+4. If touching architecture, read `docs/pantheon_e8_upgrade_pack/20260116-wp5-2-e8-implementation-blueprint-1.01W.md`.
 5. Use these agent guides as checklists:
    - `.github/agents/qig-purity-validator.md`
    - `.github/agents/e8-architecture-validator.md`
