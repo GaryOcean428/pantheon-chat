@@ -85,10 +85,12 @@ def test_phi_gain_computation():
     
     merged = geodesic_interpolation(coord1, coord2, t=0.5)
     
-    context_coords = [
-        np.abs(np.random.randn(64)) / np.sum(np.abs(np.random.randn(64)))
-        for _ in range(5)
-    ]
+    # Create properly normalized context coordinates
+    context_coords = []
+    for _ in range(5):
+        coord = np.abs(np.random.randn(64))
+        coord = coord / np.sum(coord)
+        context_coords.append(coord)
     
     # Compute Φ gain
     phi_gain = compute_phi_gain_for_merge(coord1, coord2, merged, context_coords)
