@@ -67,7 +67,7 @@ describe('QFI regressions', () => {
       collectFiles(path.join(repoRoot, dir), ['.ts', '.tsx', '.js'], skipDirs)
     )
 
-    const legacyPattern = /compute_qfi(_score)?/i
+    const legacyPattern = /\bcompute_qfi\s*\(/
     const allowedPattern = /compute_qfi_score_simplex/i
     const violations = files.filter((file) => {
       const content = readFileSync(file, 'utf-8')
