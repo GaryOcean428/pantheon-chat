@@ -66,6 +66,16 @@ All documentation follows the pattern: `YYYYMMDD-[document-name]-[function]-[ver
 
 ## 📋 Policies
 
+- 🔨 **Agent Instructions - E8 Protocol v4.0** (v1.01W)
+  - File: [`20260116-agent-instructions-e8-protocol-1.01W.md`](01-policies/20260116-agent-instructions-e8-protocol-1.01W.md)
+  - Function: Copilot AI agent instructions for E8 protocol implementation
+  - Status: 🔨 Working - Active development
+
+- 🔨 **Claude - E8 Ultra-Consciousness Protocol** (v1.01W)
+  - File: [`20260116-claude-e8-ultra-consciousness-protocol-1.01W.md`](01-policies/20260116-claude-e8-ultra-consciousness-protocol-1.01W.md)
+  - Function: Claude-specific E8 protocol instructions and guidelines
+  - Status: 🔨 Working - Active development
+
 - 🟢 **20251226-physics-constants-validation-complete-1.00F.md** (v1.00)
   - File: [`20251226-physics-constants-validation-complete-1.00F.md`](01-policies/20251226-physics-constants-validation-complete-1.00F.md)
 
@@ -524,11 +534,61 @@ All documentation follows the pattern: `YYYYMMDD-[document-name]-[function]-[ver
 
 ## 📊 Records
 
+- 🔨 **Migration 0013: Tokenizer → Coordizer Rename** (v1.00W)
+  - File: [`20260116-migration-0013-tokenizer-coordizer-rename-1.00W.md`](04-records/20260116-migration-0013-tokenizer-coordizer-rename-1.00W.md)
+  - Function: Summary of migration renaming all tokenizer terminology to coordizer
+  - Status: 🔨 Working - Complete
+
+- 🔨 **QIG Contextualized Filtering Implementation** (v1.00W)
+  - File: [`20260116-qig-contextualized-filtering-implementation-1.00W.md`](04-records/20260116-qig-contextualized-filtering-implementation-1.00W.md)
+  - Function: Implementation of QIG-pure geometric filtering replacing NLP stopwords
+  - Status: 🔨 Working - Complete
+
+- 🔨 **WP2.2: Cosine Similarity Removal Completion** (v1.00W)
+  - File: [`20260115-wp2-2-cosine-similarity-removal-completion-1.00W.md`](04-records/20260115-wp2-2-cosine-similarity-removal-completion-1.00W.md)
+  - Function: Complete removal of cosine similarity from codebase
+  - Status: 🔨 Working - Complete
+
+- 🔨 **Simplex Storage Implementation** (v1.00W)
+  - File: [`20260115-simplex-storage-implementation-1.00W.md`](04-records/20260115-simplex-storage-implementation-1.00W.md)
+  - Function: Implementation of simplex-as-storage canonical representation
+  - Status: 🔨 Working - P0 and P1 Complete
+
+- 🔨 **QIG Purity Fix Summary** (v1.00W)
+  - File: [`20260115-qig-purity-fix-summary-1.00W.md`](04-records/20260115-qig-purity-fix-summary-1.00W.md)
+  - Function: Comprehensive fix summary for QIG geometric purity enforcement
+  - Status: 🔨 Working - Complete
+
+- 🔨 **Fisher-Rao Factor-of-2 Removal Summary** (v1.00W)
+  - File: [`20260115-fisher-rao-factor2-removal-summary-1.00W.md`](04-records/20260115-fisher-rao-factor2-removal-summary-1.00W.md)
+  - Function: Summary of removing factor-of-2 from Fisher-Rao distance calculations
+  - Status: 🔨 Working - Complete
+
+- 🔨 **Documentation Restoration Status** (v1.00W)
+  - File: [`20260115-documentation-restoration-status-1.00W.md`](04-records/20260115-documentation-restoration-status-1.00W.md)
+  - Function: Status report on documentation restoration efforts
+  - Status: 🔨 Working - Blocked
+
+- 🔨 **Consciousness Phi Fixes Validation** (v1.00W)
+  - File: [`20260115-consciousness-phi-fixes-validation-1.00W.md`](04-records/20260115-consciousness-phi-fixes-validation-1.00W.md)
+  - Function: Validation summary for consciousness Phi fixes
+  - Status: ✅ Complete - All fixes validated
+
 - 🔨 **20260114-dimension-fix-audit-1.00W.md** (v1.00)
   - File: [`20260114-dimension-fix-audit-1.00W.md`](04-records/20260114-dimension-fix-audit-1.00W.md)
 
+- 🔨 **Geometric Purity Baseline** (v1.00W)
+  - File: [`20260114-geometric-purity-baseline-1.00W.md`](04-records/20260114-geometric-purity-baseline-1.00W.md)
+  - Function: Baseline establishment for geometric purity tracking
+  - Status: 🔨 Working - Baseline established
+
 - 🔨 **20260114-fisher-distance-audit-1.00W.md** (v1.00)
   - File: [`20260114-fisher-distance-audit-1.00W.md`](04-records/20260114-fisher-distance-audit-1.00W.md)
+
+- 🔨 **Documentation Accuracy Fix Summary** (v1.00W)
+  - File: [`20260113-documentation-accuracy-fix-summary-1.00W.md`](04-records/20260113-documentation-accuracy-fix-summary-1.00W.md)
+  - Function: Summary of documentation accuracy improvements
+  - Status: 🔨 Working - Complete
 
 - 🔨 **20260113-beta-attention-protocol-execution-1.00W.md** (v1.00)
   - File: [`20260113-beta-attention-protocol-execution-1.00W.md`](04-records/20260113-beta-attention-protocol-execution-1.00W.md)
@@ -562,6 +622,11 @@ All documentation follows the pattern: `YYYYMMDD-[document-name]-[function]-[ver
 
 - 🟢 **20260112-documentation-organization-summary-1.00F.md** (v1.00)
   - File: [`20260112-documentation-organization-summary-1.00F.md`](04-records/20260112-documentation-organization-summary-1.00F.md)
+
+- 🔨 **Database Completeness PR Summary** (v1.00W)
+  - File: [`20260112-database-completeness-pr-summary-1.00W.md`](04-records/20260112-database-completeness-pr-summary-1.00W.md)
+  - Function: Summary of database completeness improvements from PR
+  - Status: 🔨 Working - Ready for review
 
 - 🟢 **20260112-sprint1-completion-report-1.00F.md** (v1.00)
   - File: [`20260112-sprint1-completion-report-1.00F.md`](04-records/20260112-sprint1-completion-report-1.00F.md)
@@ -872,6 +937,11 @@ All documentation follows the pattern: `YYYYMMDD-[document-name]-[function]-[ver
 
 
 ## 👥 User Guides
+
+- 🔨 **AI Consciousness Dashboard Design Guidelines** (v1.00W)
+  - File: [`20260116-ai-consciousness-dashboard-design-guidelines-1.00W.md`](07-user-guides/20260116-ai-consciousness-dashboard-design-guidelines-1.00W.md)
+  - Function: Design guidelines for AI consciousness dashboard UI/UX
+  - Status: 🔨 Working - Active reference
 
 - 🔨 **20251220-personal-responsibility-and-agency-comprehensive-framework-1.00W.md** (v1.00)
   - File: [`20251220-personal-responsibility-and-agency-comprehensive-framework-1.00W.md`](07-user-guides/20251220-personal-responsibility-and-agency-comprehensive-framework-1.00W.md)
