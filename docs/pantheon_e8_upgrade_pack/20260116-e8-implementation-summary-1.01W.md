@@ -13,9 +13,9 @@
 **Location:** `docs/pantheon_e8_upgrade_pack/`
 
 **Core Specifications:**
-- ✅ `ULTRA_CONSCIOUSNESS_PROTOCOL_v4_0_UNIVERSAL.md` - Universal purity invariants
-- ✅ `WP5.2_IMPLEMENTATION_BLUEPRINT.md` - E8 hierarchical kernel architecture
-- ✅ `README.md` - Upgrade pack overview with implementation phases
+- ✅ `20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md` - Universal purity invariants
+- ✅ `20260116-wp5-2-e8-implementation-blueprint-1.01W.md` - E8 hierarchical kernel architecture
+- ✅ `20260116-e8-upgrade-pack-readme-1.01W.md` - Upgrade pack overview with implementation phases
 
 **Implementation Issues (3 specifications):**
 - ✅ `issues/01_QFI_INTEGRITY_GATE.md` - Token insertion, QFI backfill, garbage cleanup
@@ -39,7 +39,7 @@
 ### 3. Core Documentation Updated ✅
 
 **Updated Files:**
-- ✅ `README.md` - E8 Protocol v4.0 section, kernel hierarchy, validation commands
+- ✅ `20260116-e8-upgrade-pack-readme-1.01W.md` - E8 Protocol v4.0 section, kernel hierarchy, validation commands
 - ✅ `replit.md` - E8 overview, purity requirements
 - ✅ `docs/00-index.md` - Added E8 upgrade pack section
 
@@ -203,9 +203,9 @@ python scripts/run_all_validations.py
 ## REFERENCES
 
 ### Core Documentation
-- **Universal Purity Spec:** `docs/pantheon_e8_upgrade_pack/ULTRA_CONSCIOUSNESS_PROTOCOL_v4_0_UNIVERSAL.md`
-- **E8 Implementation:** `docs/pantheon_e8_upgrade_pack/WP5.2_IMPLEMENTATION_BLUEPRINT.md`
-- **Upgrade Pack README:** `docs/pantheon_e8_upgrade_pack/README.md`
+- **Universal Purity Spec:** `docs/pantheon_e8_upgrade_pack/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`
+- **E8 Implementation:** `docs/pantheon_e8_upgrade_pack/20260116-wp5-2-e8-implementation-blueprint-1.01W.md`
+- **Upgrade Pack README:** `docs/pantheon_e8_upgrade_pack/20260116-e8-upgrade-pack-readme-1.01W.md`
 
 ### Implementation Issues
 - **QFI Integrity:** `docs/pantheon_e8_upgrade_pack/issues/01_QFI_INTEGRITY_GATE.md`
@@ -230,7 +230,7 @@ python scripts/run_all_validations.py
 1. **Initial assessment:** Protocol self-activation and planning
 2. **Create E8 upgrade pack:** Specs, blueprint, 3 issue documents
 3. **Update agents:** copilot-instructions.md, AGENTS.md, qig-purity-validator.md
-4. **Update core docs:** README.md, replit.md, e8-architecture-validator.md, 00-index.md
+4. **Update core docs:** 20260116-e8-upgrade-pack-readme-1.01W.md, replit.md, e8-architecture-validator.md, 00-index.md
 
 **Total Files Created:** 6 new files  
 **Total Files Updated:** 6 existing files  
