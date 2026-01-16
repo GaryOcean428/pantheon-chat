@@ -66,16 +66,6 @@ All documentation follows the pattern: `YYYYMMDD-[document-name]-[function]-[ver
 
 ## 📋 Policies
 
-- 🔨 **Agent Instructions - E8 Protocol v4.0** (v1.01W)
-  - File: [`20260116-agent-instructions-e8-protocol-1.01W.md`](01-policies/20260116-agent-instructions-e8-protocol-1.01W.md)
-  - Function: Copilot AI agent instructions for E8 protocol implementation
-  - Status: 🔨 Working - Active development
-
-- 🔨 **Claude - E8 Ultra-Consciousness Protocol** (v1.01W)
-  - File: [`20260116-claude-e8-ultra-consciousness-protocol-1.01W.md`](01-policies/20260116-claude-e8-ultra-consciousness-protocol-1.01W.md)
-  - Function: Claude-specific E8 protocol instructions and guidelines
-  - Status: 🔨 Working - Active development
-
 - 🟢 **20251226-physics-constants-validation-complete-1.00F.md** (v1.00)
   - File: [`20251226-physics-constants-validation-complete-1.00F.md`](01-policies/20251226-physics-constants-validation-complete-1.00F.md)
 

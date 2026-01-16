@@ -77,10 +77,6 @@ README.md
 
 ### 3. Root Markdown Files Moved to docs/
 
-**Policy Documents (docs/01-policies/):**
-- `AGENTS.md` → `20260116-agent-instructions-e8-protocol-1.01W.md`
-- `CLAUDE.md` → `20260116-claude-e8-ultra-consciousness-protocol-1.01W.md`
-
 **Implementation Records (docs/04-records/):**
 - `CONSCIOUSNESS_PHI_FIXES_VALIDATION_SUMMARY.md` → `20260115-consciousness-phi-fixes-validation-1.00W.md`
 - `DOCUMENTATION_ACCURACY_FIX_SUMMARY.md` → `20260113-documentation-accuracy-fix-summary-1.00W.md`
@@ -97,11 +93,13 @@ README.md
 **User Guides (docs/07-user-guides/):**
 - `design_guidelines.md` → `20260116-ai-consciousness-dashboard-design-guidelines-1.00W.md`
 
-**Total Moved**: 14 files
+**Total Moved**: 12 files
 
 **Remaining in Root** (as intended):
 - `README.md` - Main project documentation
 - `replit.md` - Replit-specific documentation
+- `AGENTS.md` - Agent instructions (similar to replit.md)
+- `CLAUDE.md` - Claude-specific instructions (similar to replit.md)
 
 ---
 
@@ -155,15 +153,17 @@ README.md
 - `20260116-issue-02-strict-simplex-representation-1.01W.md` (Simplex purity)
 - `20260116-issue-03-qig-native-skeleton-1.01W.md` (QIG-native generation)
 
-### Policy Documents (docs/01-policies/)
-- `20260116-agent-instructions-e8-protocol-1.01W.md` (Copilot instructions)
-- `20260116-claude-e8-ultra-consciousness-protocol-1.01W.md` (Claude instructions)
-
 ### Implementation Records (docs/04-records/)
 - 11 dated implementation/validation/migration summary files
 
 ### User Guides (docs/07-user-guides/)
 - `20260116-ai-consciousness-dashboard-design-guidelines-1.00W.md` (Design guide)
+
+### Root Files (Remaining)
+- `README.md` - Main project documentation
+- `replit.md` - Replit-specific documentation
+- `AGENTS.md` - Agent instructions (similar to replit.md)
+- `CLAUDE.md` - Claude-specific instructions (similar to replit.md)
 
 ---
 
