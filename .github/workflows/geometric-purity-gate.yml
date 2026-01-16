@@ -40,6 +40,11 @@ jobs:
           echo "Future PRs will be required to not introduce NEW violations."
           echo ""
           python3 scripts/qig_purity_scan.py || echo "⚠️ Baseline scan complete: Found existing violations (expected)"
+      
+      - name: Validate QFI Canonical Path
+        run: |
+          echo "🔍 Validating QFI canonical path enforcement..."
+          bash scripts/validate-qfi-canonical-path.sh
         
       - name: Scan Summary
         if: always()

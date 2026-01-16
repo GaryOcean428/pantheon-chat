@@ -1,10 +1,10 @@
 #!/usr/bin/env npx tsx
 /**
  * Populate coordizer_vocabulary with real English words.
- * 
+ *
  * This adds BIP39 words and common English words with 64D basin embeddings
  * to fix the BPE garble issue in kernel generation.
- * 
+ *
  * Usage: npx tsx scripts/populate-tokenizer-vocab.ts
  */
 
@@ -94,14 +94,14 @@ function computeBasinEmbedding(word: string): number[] {
   // Create deterministic 64D embedding from word hash
   const hash = crypto.createHash('sha256').update(word.toLowerCase()).digest('hex');
   const seed = parseInt(hash.substring(0, 8), 16);
-  
+
   // Simple seeded random for reproducibility
   let state = seed;
   const random = () => {
     state = (state * 1103515245 + 12345) & 0x7fffffff;
     return (state / 0x7fffffff) * 2 - 1; // Range [-1, 1]
   };
-  
+
   // Generate 64D vector
   const embedding: number[] = [];
   for (let i = 0; i < 64; i++) {
@@ -113,20 +113,20 @@ function computeBasinEmbedding(word: string): number[] {
 
 function computePhiScore(word: string): number {
   let phi = 0.5;
-  
+
   // Length bonus
   phi += Math.min(word.length / 10, 0.2);
-  
+
   // Alphabetic bonus
   if (/^[a-zA-Z]+$/.test(word)) {
     phi += 0.1;
   }
-  
+
   // Common word bonus
   if (COMMON_WORDS.slice(0, 100).includes(word.toLowerCase())) {
     phi += 0.15;
   }
-  
+
   return Math.min(phi, 0.95);
 }
 
@@ -143,18 +143,18 @@ async function loadBip39Words(): Promise<string[]> {
 
 async function main() {
   console.log('Populating coordizer_vocabulary with real English words...\n');
-  
+
   // Load BIP39 words
   const bip39Words = await loadBip39Words();
   console.log(`Loaded ${bip39Words.length} BIP39 words`);
-  
+
   // Combine all words (deduplicated)
   const allWords = new Set<string>();
   bip39Words.forEach(w => allWords.add(w.toLowerCase()));
   COMMON_WORDS.forEach(w => allWords.add(w.toLowerCase()));
-  
+
   console.log(`Total unique words: ${allWords.size}`);
-  
+
   // Prepare word data
   const wordData: Array<{
     token: string;
@@ -165,16 +165,16 @@ async function main() {
     basinEmbedding: number[];
     sourceType: string;
   }> = [];
-  
+
   let tokenId = 10000; // Start after any existing token IDs
-  
+
   for (const word of allWords) {
     if (word.length < 2) continue;
-    
+
     const phi = computePhiScore(word);
     const embedding = computeBasinEmbedding(word);
     const sourceType = bip39Words.includes(word) ? 'bip39' : 'base';
-    
+
     wordData.push({
       token: word,
       tokenId: tokenId++,
@@ -185,16 +185,16 @@ async function main() {
       sourceType,
     });
   }
-  
+
   console.log(`Prepared ${wordData.length} words for insertion`);
-  
+
   // Insert in batches
   const batchSize = 100;
   let inserted = 0;
-  
+
   for (let i = 0; i < wordData.length; i += batchSize) {
     const batch = wordData.slice(i, i + batchSize);
-    
+
     for (const word of batch) {
       try {
         await upsertToken({
@@ -206,48 +206,48 @@ async function main() {
           basinEmbedding: word.basinEmbedding,
           sourceType: word.sourceType,
           tokenRole: 'generation',
-          phraseCategory: 'unknown',
+          phraseCategory: 'common',
           isRealWord: true,
           source: 'seed'
         });
         inserted++;
-      } catch (err) {
+      } catch {
         // Skip duplicates or errors
       }
     }
-    
+
     console.log(`Inserted batch ${Math.floor(i / batchSize) + 1}: ${inserted} words so far`);
   }
-  
+
   console.log(`\n=== Summary ===`);
   console.log(`Total words inserted: ${inserted}`);
-  
+
   // Verify
   const result = await db.execute(sql`
-    SELECT source_type, COUNT(*) as count, AVG(phi_score)::numeric(5,3) as avg_phi 
-    FROM coordizer_vocabulary 
+    SELECT source_type, COUNT(*) as count, AVG(phi_score)::numeric(5,3) as avg_phi
+    FROM coordizer_vocabulary
     GROUP BY source_type
   `);
-  
+
   console.log('\nVerification:');
   for (const row of result.rows) {
     console.log(`  ${row.source_type}: ${row.count} words, avg_phi=${row.avg_phi}`);
   }
-  
+
   // Sample high-phi words
   const sampleResult = await db.execute(sql`
-    SELECT token, phi_score, source_type 
-    FROM coordizer_vocabulary 
+    SELECT token, phi_score, source_type
+    FROM coordizer_vocabulary
     WHERE source_type IN ('bip39', 'base')
-    ORDER BY phi_score DESC 
+    ORDER BY phi_score DESC
     LIMIT 10
   `);
-  
+
   console.log('\nTop 10 words by phi:');
   for (const row of sampleResult.rows) {
     console.log(`  ${row.token}: ${row.phi_score} (${row.source_type})`);
   }
-  
+
   console.log('\nDone!');
   process.exit(0);
 }

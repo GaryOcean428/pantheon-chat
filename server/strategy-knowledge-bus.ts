@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { existsSync, readFileSync, writeFileSync } from "fs";
 import {
   CrossStrategyPattern,
@@ -17,6 +17,7 @@ import {
   knowledgeSharedEntries,
   knowledgeStrategies,
   knowledgeTransfers,
+  coordizerVocabulary,
 } from "../shared/schema";
 import { db, withDbRetry } from "./db";
 import { assertCandidateTokensHaveValidQfi } from "./persistence/coordizer-vocabulary";
@@ -24,6 +25,8 @@ import { isCurriculumOnlyEnabled, loadCurriculumManifest } from "./lib/curriculu
 import { knowledgeCompressionEngine } from "./knowledge-compression-engine";
 import { negativeKnowledgeUnified as negativeKnowledgeRegistry } from "./negative-knowledge-unified";
 import "./temporal-geometry";
+import { getCurriculumTokens, isCurriculumOnlyMode } from "./curriculum";
+import { isValidQfiScore } from "@shared/qfi";
 
 interface StrategyCapability {
   id: string;
@@ -735,18 +738,19 @@ export class StrategyKnowledgeBus {
         tokenStatus: string | null;
       }>(
         `SELECT token as word, phi_score as avg_phi, frequency, qfi_score as "qfiScore", token_status as "tokenStatus"
-         FROM coordizer_vocabulary 
+         FROM coordizer_vocabulary
          WHERE phi_score > 0.4 AND frequency > 5
            AND token_role IN ('generation', 'both')
            AND token_status = 'active'
            AND qfi_score IS NOT NULL
            AND qfi_score BETWEEN 0 AND 1
-         ORDER BY phi_score DESC 
+           AND basin_embedding IS NOT NULL
+         ORDER BY phi_score DESC
          LIMIT 100`
       );
 
       const enforceQfiAssertions =
-        process.env.QIG_CURRICULUM_ONLY === 'true' || process.env.QIG_ENV === 'purity';
+        isCurriculumOnlyEnabled() || process.env.QIG_ENV === 'purity' || process.env.QIG_PURITY_MODE === 'true';
 
       if (enforceQfiAssertions) {
         assertCandidateTokensHaveValidQfi(learnedWords.rows || [], 'KnowledgeBus bootstrap');

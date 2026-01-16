@@ -12,16 +12,41 @@
  * - /chaos/* - Experimental evolution
  */
 
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { logger } from '../lib/logger';
+import { assertCurriculumReady, isCurriculumOnlyMode } from '../curriculum';
+import { getPythonBackendUrl } from '../lib/config';
 
 const router = Router();
-const BACKEND_URL = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
+const BACKEND_URL = getPythonBackendUrl();
 
 type ProxyOptions = {
   errorStatus?: number;
   passQuery?: boolean;
 };
+
+/**
+ * Middleware to gate generation endpoints based on curriculum readiness.
+ * Only enforces when QIG_CURRICULUM_ONLY is set to 'true'.
+ * 
+ * Usage:
+ *   router.post('/generate/text', requireCurriculumIfEnabled, handler);
+ */
+async function requireCurriculumIfEnabled(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  if (process.env.QIG_CURRICULUM_ONLY === 'true') {
+    try {
+      await assertCurriculumReady();
+    } catch (error: unknown) {
+      res.status(503).json({ error: 'Curriculum incomplete - generation disabled' });
+      return;
+    }
+  }
+  next();
+}
 
 async function proxyGet(
   req: Request,
@@ -31,6 +56,10 @@ async function proxyGet(
   options: ProxyOptions = {}
 ) {
   try {
+    if (isCurriculumOnlyMode()) {
+      await assertCurriculumReady();
+    }
+
     let url = `${BACKEND_URL}${pythonPath}`;
     if (options.passQuery && Object.keys(req.query).length > 0) {
       const params = new URLSearchParams(req.query as Record<string, string>);
@@ -63,6 +92,10 @@ async function proxyPost(
   options: ProxyOptions = {}
 ) {
   try {
+    if (isCurriculumOnlyMode()) {
+      await assertCurriculumReady()
+    }
+
     const response = await fetch(`${BACKEND_URL}${pythonPath}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -253,13 +286,13 @@ router.get('/tokenizer/merges', (req, res) =>
 // GENERATE ENDPOINTS - Text generation
 // ============================================================================
 
-router.post('/generate/text', (req, res) => 
+router.post('/generate/text', requireCurriculumIfEnabled, (req, res) =>
   proxyPost(req, res, '/generate/text', 'Failed to generate text'));
 
-router.post('/generate/response', (req, res) => 
+router.post('/generate/response', requireCurriculumIfEnabled, (req, res) =>
   proxyPost(req, res, '/generate/response', 'Failed to generate response'));
 
-router.post('/generate/sample', (req, res) => 
+router.post('/generate/sample', requireCurriculumIfEnabled, (req, res) =>
   proxyPost(req, res, '/generate/sample', 'Failed to generate sample'));
 
 // ============================================================================

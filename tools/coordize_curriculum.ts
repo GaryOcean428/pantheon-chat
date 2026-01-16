@@ -23,15 +23,15 @@ function loadManifest(): CurriculumEntry[] {
     .map((line) => JSON.parse(line) as CurriculumEntry)
 }
 
-function extractBasinCoords(payload: any): number[] | null {
+function extractBasinCoords(payload: Record<string, unknown>): number[] | null {
   const candidates = [
     payload?.basin_coords,
     payload?.basinCoordinates,
     payload?.basin_embedding,
     payload?.basin,
     payload?.coordinates,
-    payload?.data?.basin_coords,
-    payload?.data?.basinCoordinates,
+    (payload?.data as Record<string, unknown>)?.basin_coords,
+    (payload?.data as Record<string, unknown>)?.basinCoordinates,
   ]
 
   for (const candidate of candidates) {
@@ -55,7 +55,7 @@ async function coordizeToken(token: string): Promise<number[] | null> {
     throw new Error(`Coordizer error: ${response.status} ${text}`)
   }
 
-  const payload = await response.json()
+  const payload = await response.json() as Record<string, unknown>
   return extractBasinCoords(payload)
 }
 

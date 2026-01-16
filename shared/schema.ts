@@ -2576,7 +2576,7 @@ export const coordizerVocabulary = pgTable(
     tokenRole: varchar("token_role", { length: 20 }).default("encoding"),
     phraseCategory: varchar("phrase_category", { length: 32 }).default("unknown"),
     isRealWord: boolean("is_real_word").default(false),
-    tokenStatus: varchar("token_status", { length: 16 }).default("active"),
+    tokenStatus: varchar("token_status", { length: 20 }).default("active"),
     scale: varchar("scale", { length: 20 }).default("char"),
     sourceType: varchar("source_type", { length: 32 }).default("base"),
     createdAt: timestamp("created_at").defaultNow(),

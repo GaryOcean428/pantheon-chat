@@ -141,15 +141,16 @@ router.post('/import/vocabulary', async (req: Request, res: Response) => {
           // Upsert - insert or update on conflict
           await upsertToken({
             token: item.token,
-            tokenId: item.tokenId,
-            basinEmbedding: item.basinEmbedding,
-            weight: item.weight,
-            frequency: item.frequency,
-            phiScore: item.phiScore,
-            sourceType: item.sourceType,
-            tokenRole: item.tokenRole,
-            phraseCategory: item.phraseCategory,
-            isRealWord: item.isRealWord,
+            tokenId: item.tokenId ?? item.token_id ?? 0,
+            weight: item.weight ?? 1,
+            frequency: item.frequency ?? 1,
+            phiScore: item.phiScore ?? item.phi_score ?? 0,
+            basinEmbedding: item.basinEmbedding ?? item.basin_embedding ?? null,
+            sourceType: item.sourceType ?? item.source_type ?? 'sync',
+            tokenRole: item.tokenRole ?? item.token_role ?? 'encoding',
+            phraseCategory: item.phraseCategory ?? item.phrase_category ?? 'unknown',
+            isRealWord: item.isRealWord ?? item.is_real_word ?? false,
+            tokenStatus: item.tokenStatus ?? item.token_status ?? 'active',
             source: 'sync'
           });
           imported++;

@@ -33,3 +33,16 @@ export {
   // Types
   type Result,
 } from './error-utils';
+
+// Hash utilities
+export {
+  generateTokenIdFromHash,
+  generateHash,
+} from './hash-utils';
+// Configuration utilities
+export {
+  isCurriculumOnlyMode,
+  isPurityMode,
+  getPythonBackendUrl,
+  getConfigSummary,
+} from './config';

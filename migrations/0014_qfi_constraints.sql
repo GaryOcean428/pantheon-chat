@@ -21,7 +21,7 @@ BEGIN
         WHERE table_name = 'coordizer_vocabulary' AND column_name = 'token_status'
     ) THEN
         ALTER TABLE coordizer_vocabulary
-        ADD COLUMN token_status VARCHAR(16) DEFAULT 'active';
+        ADD COLUMN token_status VARCHAR(20) DEFAULT 'active';
         RAISE NOTICE 'Added token_status column to coordizer_vocabulary';
     END IF;
 END $$;
@@ -79,10 +79,10 @@ DO $$
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM pg_constraint
-        WHERE conname = 'coordizer_token_status_check'
+        WHERE conname = 'coordizer_vocabulary_token_status_check'
     ) THEN
         ALTER TABLE coordizer_vocabulary
-        ADD CONSTRAINT coordizer_token_status_check
+        ADD CONSTRAINT coordizer_vocabulary_token_status_check
         CHECK (token_status IN ('active', 'quarantined', 'deprecated'));
         RAISE NOTICE 'Added token_status CHECK constraint';
     END IF;

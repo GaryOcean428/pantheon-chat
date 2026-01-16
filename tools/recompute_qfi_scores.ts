@@ -1,14 +1,14 @@
 /**
  * Maintenance Tool: Recompute QFI Scores
- * 
+ *
  * This tool performs direct SQL writes to coordizer_vocabulary outside the canonical
  * upsertToken path. This is intentional and acceptable because:
- * 
+ *
  * 1. This is a maintenance/repair tool for backfilling QFI scores, not application logic
  * 2. It performs bulk operations (batch updates) that would be inefficient through upsertToken
  * 3. It's run manually by administrators with explicit --dry-run or --apply flags
  * 4. It uses the same canonical QFI computation (compute_qfi_score_simplex) as upsertToken
- * 
+ *
  * IMPORTANT: This tool should only be used for database maintenance and repair.
  * Regular application code MUST use the canonical upsertToken function from
  * server/persistence/coordizer-vocabulary.ts
@@ -32,7 +32,7 @@ function parseVector(raw: number[] | string | null): number[] | null {
   if (!raw) return null
   if (Array.isArray(raw)) return raw
 
-  const trimmed = raw.trim()
+  const trimmed = (raw as string).trim()
   const jsonLike = trimmed.startsWith('[') ? trimmed : trimmed.replace(/^\{/, '[').replace(/\}$/, ']')
 
   try {
@@ -107,7 +107,7 @@ async function run() {
 
         updates.push({ id: token.id, qfiScore, tokenStatus: nextStatus })
         updated++
-      } catch (error) {
+      } catch {
         errors++
         quarantined++
         updates.push({ id: token.id, qfiScore: null, tokenStatus: 'quarantined' })

@@ -226,6 +226,15 @@ npm run db:init
 npm run populate:coordizer
 ```
 
+**Recompute QFI Scores:**
+```bash
+# Dry run by default
+tsx tools/recompute_qfi_scores.ts --dry-run
+
+# Apply canonical QFI recomputation
+tsx tools/recompute_qfi_scores.ts --apply
+```
+
 For detailed database documentation, see:
 - `docs/03-technical/20260112-database-completeness-implementation-1.00W.md`
 - `migrations/0009_add_column_defaults.sql`
