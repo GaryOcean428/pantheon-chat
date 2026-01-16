@@ -81,15 +81,17 @@ export async function getCurriculumStatus() {
 
   const result = await withDbRetry(
     async () => {
-      const tokensArray = tokens as string[]
+      // Build a raw SQL array literal for proper PostgreSQL array syntax
+      const escapedTokens = tokens.map(t => `'${t.replace(/'/g, "''")}'`).join(',')
+      const arrayLiteral = `ARRAY[${escapedTokens}]::text[]`
       return dbInstance.execute<{
         token: string
         qfi_score: number | null
-      }>(sql`
+      }>(sql.raw(`
         SELECT token, qfi_score
         FROM coordizer_vocabulary
-        WHERE token = ANY(${tokensArray}::text[])
-      `)
+        WHERE token = ANY(${arrayLiteral})
+      `))
     },
     'curriculum-status'
   )
