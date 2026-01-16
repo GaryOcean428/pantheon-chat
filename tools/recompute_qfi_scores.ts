@@ -23,7 +23,6 @@ interface TokenRow {
   token: string
   basin_embedding: number[] | string | null
   qfi_score: number | null
-  token_status: string | null
 }
 
 const BATCH_SIZE = 200
@@ -69,7 +68,7 @@ async function run() {
   const rows = await withDbRetry(
     async () =>
       db.execute<TokenRow>(sql`
-        SELECT id, token, basin_embedding, qfi_score, token_status
+        SELECT id, token, basin_embedding, qfi_score
         FROM coordizer_vocabulary
         WHERE basin_embedding IS NOT NULL
       `),
@@ -84,33 +83,32 @@ async function run() {
 
   for (let i = 0; i < tokens.length; i += BATCH_SIZE) {
     const batch = tokens.slice(i, i + BATCH_SIZE)
-    const updates: Array<{ id: number; qfiScore: number | null; tokenStatus: string }> = []
+    const updates: Array<{ id: number; qfiScore: number | null }> = []
 
     for (const token of batch) {
       const basin = parseVector(token.basin_embedding)
 
       if (!basin) {
         quarantined++
-        updates.push({ id: token.id, qfiScore: null, tokenStatus: 'quarantined' })
+        updates.push({ id: token.id, qfiScore: null })
         continue
       }
 
       try {
         const simplex = to_simplex_probabilities(basin)
         const qfiScore = compute_qfi_score_simplex(simplex)
-        const nextStatus = token.token_status ?? 'active'
 
-        if (isSameQfi(token.qfi_score, qfiScore) && token.token_status === nextStatus) {
+        if (isSameQfi(token.qfi_score, qfiScore)) {
           unchanged++
           continue
         }
 
-        updates.push({ id: token.id, qfiScore, tokenStatus: nextStatus })
+        updates.push({ id: token.id, qfiScore })
         updated++
       } catch {
         errors++
         quarantined++
-        updates.push({ id: token.id, qfiScore: null, tokenStatus: 'quarantined' })
+        updates.push({ id: token.id, qfiScore: null })
       }
     }
 
@@ -118,14 +116,13 @@ async function run() {
       await withDbRetry(
         async () => {
           const values = updates.map((update) =>
-            sql`(${update.id}, ${update.qfiScore}, ${update.tokenStatus})`
+            sql`(${update.id}::integer, ${update.qfiScore}::double precision)`
           )
 
           await db.execute(sql`
             UPDATE coordizer_vocabulary AS cv
-            SET qfi_score = updates.qfi_score,
-                token_status = updates.token_status
-            FROM (VALUES ${sql.join(values, sql`, `)}) AS updates(id, qfi_score, token_status)
+            SET qfi_score = updates.qfi_score
+            FROM (VALUES ${sql.join(values, sql`, `)}) AS updates(id, qfi_score)
             WHERE cv.id = updates.id
           `)
         },
