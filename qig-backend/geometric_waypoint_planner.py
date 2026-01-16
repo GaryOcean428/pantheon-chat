@@ -27,6 +27,13 @@ from qig_geometry.canonical import (
     assert_basin_valid,
 )
 
+# Import additional geometry utilities
+from qig_geometry import (
+    fisher_coord_distance,
+    geodesic_interpolation,
+    sphere_project,
+)
+
 try:
     from qigkernels.physics_constants import (
         BASIN_DIM,

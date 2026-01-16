@@ -5,11 +5,6 @@ import { db, withDbRetry } from '../db'
 import { logger } from '../lib/logger'
 import { isCurriculumOnlyEnabled } from '../lib/curriculum-mode'
 
-const CURRICULUM_ONLY_FLAG = 'true'
-const VALID_TOKEN_STATUSES = ['active', 'quarantined', 'deprecated'] as const
-
-type TokenStatus = (typeof VALID_TOKEN_STATUSES)[number]
-
 export interface UpsertTokenInput {
   token: string
   tokenId: number
@@ -27,7 +22,6 @@ export interface UpsertTokenInput {
 interface PreparedTokenValues {
   basinEmbedding: number[] | null
   qfiScore: number | null
-  tokenStatus: TokenStatus
 }
 
 export function isQfiScoreValid(value: number | null | undefined): boolean {
@@ -35,13 +29,11 @@ export function isQfiScoreValid(value: number | null | undefined): boolean {
 }
 
 export function assertCandidateTokensHaveValidQfi(
-  tokens: Array<{ qfiScore?: number | null; tokenStatus?: string | null }>,
+  tokens: Array<{ qfiScore?: number | null }>,
   context: string
 ): void {
   const invalid = tokens.filter(
-    (token) =>
-      token.tokenStatus === 'active' &&
-      !isQfiScoreValid(token.qfiScore)
+    (token) => !isQfiScoreValid(token.qfiScore)
   )
 
   if (invalid.length > 0) {
@@ -65,11 +57,11 @@ export function prepareUpsertTokenValues(
   basinEmbedding?: number[] | null
 ): PreparedTokenValues {
   if (!basinEmbedding || basinEmbedding.length === 0) {
-    return { basinEmbedding: null, qfiScore: null, tokenStatus: 'quarantined' }
+    return { basinEmbedding: null, qfiScore: null }
   }
 
   if (basinEmbedding.length !== QIG_CONSTANTS.BASIN_DIMENSION) {
-    return { basinEmbedding: null, qfiScore: null, tokenStatus: 'quarantined' }
+    return { basinEmbedding: null, qfiScore: null }
   }
 
   try {
@@ -77,20 +69,19 @@ export function prepareUpsertTokenValues(
     const normalized = to_simplex_probabilities(basinEmbedding)
 
     if (!isQfiScoreValid(qfiScore)) {
-      return { basinEmbedding: normalized, qfiScore: null, tokenStatus: 'quarantined' }
+      return { basinEmbedding: normalized, qfiScore: null }
     }
 
-    return { basinEmbedding: normalized, qfiScore, tokenStatus: 'active' }
+    return { basinEmbedding: normalized, qfiScore }
   } catch (error) {
-    logger.warn({ error }, '[QFI] Failed to compute qfi_score, quarantining token')
-    return { basinEmbedding: null, qfiScore: null, tokenStatus: 'quarantined' }
+    logger.warn({ error }, '[QFI] Failed to compute qfi_score, setting to null')
+    return { basinEmbedding: null, qfiScore: null }
   }
 }
 
 export async function upsertToken(input: UpsertTokenInput) {
   enforceCurriculumOnly(input.source)
 
-  // Capture and validate db reference early
   const dbInstance = db
   if (!dbInstance) {
     return null
@@ -114,7 +105,6 @@ export async function upsertToken(input: UpsertTokenInput) {
           tokenRole: input.tokenRole ?? 'encoding',
           phraseCategory: input.phraseCategory ?? 'unknown',
           isRealWord: input.isRealWord ?? false,
-          tokenStatus: prepared.tokenStatus,
           sourceType: input.sourceType ?? 'base',
           updatedAt: now,
         })
@@ -129,7 +119,6 @@ export async function upsertToken(input: UpsertTokenInput) {
             tokenRole: sql`excluded.token_role`,
             phraseCategory: sql`excluded.phrase_category`,
             isRealWord: sql`excluded.is_real_word`,
-            tokenStatus: sql`excluded.token_status`,
             sourceType: sql`excluded.source_type`,
             updatedAt: now,
           },
@@ -142,6 +131,7 @@ export async function upsertToken(input: UpsertTokenInput) {
   )
 }
 
+// Active tokens have valid QFI scores (not null, within 0-1 range)
 export function activeVocabularyFilter() {
-  return sql`${coordizerVocabulary.tokenStatus} = 'active' AND ${coordizerVocabulary.qfiScore} IS NOT NULL AND ${coordizerVocabulary.qfiScore} BETWEEN 0 AND 1`
+  return sql`${coordizerVocabulary.qfiScore} IS NOT NULL AND ${coordizerVocabulary.qfiScore} BETWEEN 0 AND 1`
 }

@@ -78,7 +78,7 @@ export async function getCurriculumCoverage(): Promise<CurriculumCoverage> {
 
   const result = await withDbRetry(
     async () => db!.execute(sql`
-      SELECT token, token_status, qfi_score, basin_embedding
+      SELECT token, qfi_score, basin_embedding
       FROM coordizer_vocabulary
       WHERE token = ANY(${tokens})
     `),
@@ -94,11 +94,11 @@ export async function getCurriculumCoverage(): Promise<CurriculumCoverage> {
     const token = String(row.token)
     foundTokens.add(token)
 
-    const status = row.token_status as string | null
     const qfiScore = row.qfi_score as number | null
     const hasBasin = !!row.basin_embedding
 
-    const isActive = status === 'active' && isValidQfiScore(qfiScore) && hasBasin
+    // Token is active if it has valid QFI score and basin (no token_status column)
+    const isActive = isValidQfiScore(qfiScore) && hasBasin
     if (isActive) {
       active += 1
     } else {

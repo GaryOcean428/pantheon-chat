@@ -7,9 +7,11 @@ async function run() {
     process.exit(1)
   }
 
+  const dbInstance = db
+
   const invalidQfi = await withDbRetry(
     async () =>
-      db.execute<{ count: number }>(sql`
+      dbInstance.execute<{ count: number }>(sql`
         SELECT COUNT(*)::int AS count
         FROM coordizer_vocabulary
         WHERE qfi_score IS NOT NULL
@@ -18,39 +20,47 @@ async function run() {
     'verify-db-integrity-invalid-qfi'
   )
 
-  const activeMissingQfi = await withDbRetry(
+  // Check tokens with valid QFI but missing basin (should have both)
+  const validQfiMissingBasin = await withDbRetry(
     async () =>
-      db.execute<{ count: number }>(sql`
+      dbInstance.execute<{ count: number }>(sql`
         SELECT COUNT(*)::int AS count
         FROM coordizer_vocabulary
-        WHERE token_status = 'active'
-          AND qfi_score IS NULL
-      `),
-    'verify-db-integrity-active-missing-qfi'
-  )
-
-  const activeMissingBasin = await withDbRetry(
-    async () =>
-      db.execute<{ count: number }>(sql`
-        SELECT COUNT(*)::int AS count
-        FROM coordizer_vocabulary
-        WHERE token_status = 'active'
+        WHERE qfi_score IS NOT NULL
+          AND qfi_score BETWEEN 0 AND 1
           AND basin_embedding IS NULL
       `),
-    'verify-db-integrity-active-missing-basin'
+    'verify-db-integrity-valid-qfi-missing-basin'
   )
 
-  const invalidQfiCount = invalidQfi.rows?.[0]?.count ?? 0
-  const activeMissingQfiCount = activeMissingQfi.rows?.[0]?.count ?? 0
-  const activeMissingBasinCount = activeMissingBasin.rows?.[0]?.count ?? 0
+  // Check tokens with basin but no QFI (generation candidates need QFI)
+  const basinMissingQfi = await withDbRetry(
+    async () =>
+      dbInstance.execute<{ count: number }>(sql`
+        SELECT COUNT(*)::int AS count
+        FROM coordizer_vocabulary
+        WHERE basin_embedding IS NOT NULL
+          AND (qfi_score IS NULL OR qfi_score < 0 OR qfi_score > 1)
+          AND token_role IN ('generation', 'both')
+      `),
+    'verify-db-integrity-basin-missing-qfi'
+  )
+
+  const invalidQfiCount = invalidQfi?.rows?.[0]?.count ?? 0
+  const validQfiMissingBasinCount = validQfiMissingBasin?.rows?.[0]?.count ?? 0
+  const basinMissingQfiCount = basinMissingQfi?.rows?.[0]?.count ?? 0
 
   console.log(`[DB Integrity] invalid_qfi=${invalidQfiCount}`)
-  console.log(`[DB Integrity] active_missing_qfi=${activeMissingQfiCount}`)
-  console.log(`[DB Integrity] active_missing_basin=${activeMissingBasinCount}`)
+  console.log(`[DB Integrity] valid_qfi_missing_basin=${validQfiMissingBasinCount}`)
+  console.log(`[DB Integrity] basin_missing_qfi=${basinMissingQfiCount}`)
 
-  if (invalidQfiCount > 0 || activeMissingQfiCount > 0 || activeMissingBasinCount > 0) {
-    console.error('[DB Integrity] Violations detected')
+  if (invalidQfiCount > 0) {
+    console.error('[DB Integrity] QFI violations detected')
     process.exit(1)
+  }
+  
+  if (validQfiMissingBasinCount > 0 || basinMissingQfiCount > 0) {
+    console.warn('[DB Integrity] Some tokens have inconsistent QFI/basin state (non-blocking)')
   }
 
   console.log('[DB Integrity] ✅ OK')

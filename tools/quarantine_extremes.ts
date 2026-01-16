@@ -1,17 +1,10 @@
 /**
  * Maintenance Tool: Quarantine QFI Extremes
  *
- * This tool performs direct SQL writes to coordizer_vocabulary outside the canonical
- * upsertToken path. This is intentional and acceptable because:
- *
- * 1. This is a maintenance/repair tool, not application logic
- * 2. It performs bulk operations that would be inefficient through upsertToken
- * 3. It's run manually by administrators, not automatically by the application
- * 4. It uses the same validation logic (QFI range checks) as the canonical path
- *
- * IMPORTANT: This tool should only be used for database maintenance and repair.
- * Regular application code MUST use the canonical upsertToken function from
- * server/persistence/coordizer-vocabulary.ts
+ * This tool nullifies QFI scores for tokens with extreme values (0 or >= 0.99)
+ * which prevents them from being selected during generation.
+ * 
+ * Tokens are NOT deleted - just excluded from active generation by setting qfi_score = NULL.
  */
 
 import { readFileSync } from 'fs'
@@ -47,13 +40,14 @@ async function run() {
       ? sql`AND token <> ALL(ARRAY[${sql.join(allowlistTokens.map(t => sql`${t}`), sql`, `)}])`
       : sql``
 
+  // Nullify QFI for extreme values (this "quarantines" them from generation)
   const result = await withDbRetry(
     async () =>
       db.execute<{ count: number }>(sql`
         UPDATE coordizer_vocabulary
-        SET token_status = 'quarantined'
+        SET qfi_score = NULL
         WHERE (qfi_score = 0 OR qfi_score >= 0.99)
-          AND token_status = 'active'
+          AND qfi_score IS NOT NULL
           ${allowlistCondition}
         RETURNING 1
       `),
@@ -61,7 +55,7 @@ async function run() {
   )
 
   const quarantined = result.rows?.length ?? 0
-  console.log(`[QFI Extremes] Quarantined ${quarantined} tokens`)
+  console.log(`[QFI Extremes] Nullified QFI for ${quarantined} tokens with extreme values`)
 }
 
 run().catch((error) => {
