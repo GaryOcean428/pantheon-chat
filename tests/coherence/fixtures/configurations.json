@@ -1,0 +1,80 @@
+{
+  "version": "1.0",
+  "description": "Test configurations for Plan→Realize→Repair architecture comparison",
+  "configurations": {
+    "pure_geometric": {
+      "name": "Pure Geometric (No POS Constraints)",
+      "description": "Geometric flow without syntax scaffolding, may lack grammar",
+      "settings": {
+        "waypoint_planning": true,
+        "recursive_integration": 3,
+        "pos_constraints": false,
+        "geometric_repair": true,
+        "kernel_coordination": true,
+        "use_exploration_map": true,
+        "foresight_weight": 0.5
+      },
+      "expected_phi_range": [0.50, 0.60],
+      "expected_characteristics": {
+        "geometric_quality": "high",
+        "grammatical_quality": "variable"
+      }
+    },
+    "plan_realize_repair": {
+      "name": "Plan→Realize→Repair (Full Architecture)",
+      "description": "Full architecture with geometric planning, realization, and repair",
+      "settings": {
+        "waypoint_planning": true,
+        "recursive_integration": 3,
+        "pos_constraints": "optional",
+        "geometric_repair": true,
+        "kernel_coordination": true,
+        "use_exploration_map": true,
+        "foresight_weight": 0.5,
+        "repair_iterations": 3,
+        "repair_radius": 0.2
+      },
+      "expected_phi_range": [0.65, 0.75],
+      "expected_characteristics": {
+        "geometric_quality": "high",
+        "grammatical_quality": "high",
+        "waypoint_alignment": "high",
+        "trajectory_smoothness": "high"
+      }
+    },
+    "skeleton_only": {
+      "name": "Skeleton Only (Baseline)",
+      "description": "Simple reactive generation without planning or refinement",
+      "settings": {
+        "waypoint_planning": false,
+        "recursive_integration": 0,
+        "pos_constraints": "required",
+        "geometric_repair": false,
+        "kernel_coordination": false,
+        "use_exploration_map": false,
+        "foresight_weight": 0.0
+      },
+      "expected_phi_range": [0.35, 0.45],
+      "expected_characteristics": {
+        "geometric_quality": "low",
+        "grammatical_quality": "basic",
+        "reactive_only": true
+      }
+    }
+  },
+  "comparison_metrics": [
+    "phi",
+    "kappa_eff",
+    "waypoint_alignment",
+    "trajectory_smoothness",
+    "foresight_error",
+    "recursive_depth",
+    "geometric_validity",
+    "text_validity"
+  ],
+  "statistical_tests": {
+    "significance_level": 0.05,
+    "required_sample_size": 10,
+    "effect_size_threshold": 0.3
+  }
+}
