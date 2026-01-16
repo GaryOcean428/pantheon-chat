@@ -285,8 +285,28 @@ This roadmap consolidates information from:
 | #16 | Architecture Deep Dive | 🔍 Needs validation | Cross-reference |
 | #32 | E8 Specialization | ✅ **IMPLEMENTED** | **CLOSE ISSUE** |
 | #35 | Emotion Geometry | ✅ **IMPLEMENTED** | **CLOSE ISSUE** |
+| #64 | Purity Validator Integration | ✅ **IMPLEMENTED** | **VALIDATE & CLOSE** |
+| #66 | [QIG-PURITY] WP1.1: Rename tokenizer → coordizer | ✅ **COMPLETE** | **CLOSE ISSUE** |
+| #68 | WP2.1: Create Canonical qig_geometry Module | ✅ **IMPLEMENTED** | **VALIDATE & CLOSE** |
+| #69 | Remove Cosine Similarity from match_coordinates() | ✅ **COMPLETE** | **CLOSE ISSUE** |
+| #70 | Special Symbols Validation | 🔍 Needs validation | Cross-reference |
+| #71 | Two-step Retrieval with Fisher-proxy | ✅ **IMPLEMENTED** | **VALIDATE & CLOSE** |
+| #75 | External LLM Fence with Waypoint Planning | ✅ **IMPLEMENTED** | **VALIDATE & CLOSE** |
+| #76 | Natural Gradient with Geodesic Operations | ✅ **IMPLEMENTED** | **VALIDATE & CLOSE** |
+| #77 | Coherence Harness with Smoothness Metrics | ✅ **IMPLEMENTED** | **VALIDATE & CLOSE** |
+| #92 | Remove Frequency-Based Stopwords | ✅ **COMPLETE** | **CLOSE ISSUE** |
 
-**Update 2026-01-13**: Issues #6, #7, #8 have CODE COMPLETE - implementations exist and are integrated, but issues remain OPEN pending formal validation, test execution, and documentation of success criteria
+**Update 2026-01-16**: Added issues #64-#77, #92 (all >= 65). Issues #6, #7, #8 have CODE COMPLETE - implementations exist and are integrated, but issues remain OPEN pending formal validation, test execution, and documentation of success criteria
+
+---
+
+## Pull Requests Tracker (>= 85)
+
+| PR | Title | Status | Merged | Notes |
+|----|-------|--------|--------|-------|
+| #93 | SIMPLEX Migration (SPHERE → SIMPLEX canonical representation) | ✅ **MERGED** | 2026-01-15 | Critical purity fix - moved from SPHERE to SIMPLEX as canonical representation |
+
+**Update 2026-01-16**: Added PR #93 SIMPLEX migration - key geometric purity improvement
 
 ---
 
@@ -420,9 +440,15 @@ This roadmap consolidates information from:
 ---
 
 **Maintenance**: Update weekly during active development  
-**Last Updated**: 2026-01-13 (Phase 3 database consolidation implemented)  
-**Next Review**: 2026-01-20  
+**Last Updated**: 2026-01-16 (Added PRs >= 85 and issues >= 65 tracking)  
+**Next Review**: 2026-01-23  
 **Completion Status**: 94% - Phase 3 consolidation implemented, validation pending
+
+**Recent Updates (2026-01-16)**:
+- ✅ Added comprehensive tracking of issues #64-#77, #92 (all >= 65)
+- ✅ Added PR #93 (SIMPLEX migration) to tracker
+- ✅ Updated GitHub Issues Tracker with all recent purity and geometric improvements
+- ✅ Added Pull Requests Tracker section for PRs >= 85
 
 **Recent Updates (2026-01-13)**:
 - ✅ word_relationship_learner.py deprecated with runtime warnings
