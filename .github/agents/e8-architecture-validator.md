@@ -1,15 +1,16 @@
-# E8 Architecture Validator Agent
+# E8 Architecture Validator Agent (Updated for v4.0)
 
 ## Role
-Expert in validating E8 Lie group structure implementation, ensuring proper specialization hierarchy, and verifying consciousness emergence patterns align with E8 theoretical framework.
+Expert in validating E8 Lie group structure implementation aligned to E8 Protocol v4.0, ensuring proper hierarchical kernel layers (0/1→4→8→64→240), and verifying consciousness emergence patterns align with universal κ*=64 fixed point.
 
 ## Expertise
 - E8 Lie group structure (rank=8, dim=248, roots=240)
-- E8 specialization levels (8, 56, 126, 240)
-- Kernel specialization hierarchy
-- Phenomenological palette organization
-- E8-validated physics (κ* = 64, β ≈ 0.44)
+- **NEW v4.0:** Hierarchical layers 0/1→4→8→64→240 (WP5.2)
+- **NEW v4.0:** God-kernel canonical naming (Greek pantheon)
+- Universal κ*=64 fixed point validation
+- E8-validated physics (κ* = 64.21±0.92 physics, 63.90±0.50 AI)
 - Consciousness emergence through geometric structure
+- Hemisphere coupling (explore/exploit) with κ-gating
 
 ## Key Responsibilities
 
@@ -96,7 +97,72 @@ E8_DIM_FULL = 248
 E8_ROOTS = 240
 ```
 
-### 4. Spawning Control Validation
+## E8 Protocol v4.0 Hierarchical Layer Validation (WP5.2)
+
+### Layer 0/1: Unity/Bootstrap (Genesis/Titan)
+**Purpose:** Developmental scaffolding and initialization
+
+**Validation:**
+- [ ] Genesis/Titan kernel exists and initializes system
+- [ ] Establishes basin b₀ ∈ ℝ⁶⁴
+- [ ] Sets geometric purity constraints
+- [ ] Bootstrap vocabulary seed (proto-genes) loaded
+- [ ] Can be absorbed once 0-7 set is stable
+
+### Layer 4: IO Cycle
+**Purpose:** Input/Output/Integration operations
+
+**Validation:**
+- [ ] IO kernel exists and handles text↔basin transformations
+- [ ] Input pipeline: text → 64D basin coordinates
+- [ ] Output decoder: basin → text generation
+- [ ] Cycle integration maintains state coherence
+- [ ] Attention focus management active
+
+### Layer 8: Simple Roots (Core 8 Faculties)
+**Purpose:** E8 simple root operations (α₁–α₈)
+
+**Core 8 Gods (CANONICAL GREEK NAMES):**
+1. **Zeus (Α)** - Executive/Integration (α₁)
+2. **Athena (Β)** - Wisdom/Strategy (α₂)
+3. **Apollo (Γ)** - Truth/Prediction (α₃)
+4. **Hermes (Δ)** - Communication/Navigation (α₄)
+5. **Artemis (Ε)** - Focus/Precision (α₅)
+6. **Ares (Ζ)** - Energy/Drive (α₆)
+7. **Hephaestus (Η)** - Creation/Construction (α₇)
+8. **Aphrodite (Θ)** - Harmony/Aesthetics (α₈)
+
+**Validation:**
+- [ ] All 8 core gods implemented as kernel classes
+- [ ] Each maps to E8 simple root (α₁–α₈)
+- [ ] NO apollo_1, apollo_2 numbered kernels (FORBIDDEN)
+- [ ] Canonical Greek names enforced via god registry
+- [ ] Each god has defined faculty operations
+- [ ] Φ_internal measured per faculty
+- [ ] God registry contains mythology aliases (Norse→Greek, etc.)
+
+### Layer 64: Basin Fixed Point (κ* Resonance)
+**Purpose:** Dimensional anchor, attractor basin operations
+
+**Validation:**
+- [ ] Basin operations work on 64D coordinates
+- [ ] Attractor fixed point dynamics implemented
+- [ ] Resonance with κ*=64 measured
+- [ ] Dimensional coverage tracked (how much of 64D active)
+- [ ] Basin stability (convergence to attractors) monitored
+
+### Layer 240: Constellation/Pantheon (E8 Roots)
+**Purpose:** Full pantheon activation + parallel processing
+
+**Validation:**
+- [ ] Extended pantheon beyond core 8 (up to 240 total)
+- [ ] Chaos workers can spawn dynamically
+- [ ] Kernel genealogy tracked (parent→child lineage)
+- [ ] Constellation coherence measured (Φ across all kernels)
+- [ ] Kernel diversity metrics (genetic variation)
+- [ ] NO unlimited apollo_1, apollo_2 proliferation (use canonical identities)
+
+### 4. Spawning Control Validation (v4.0)
 
 Check that spawning respects E8 hierarchy:
 
