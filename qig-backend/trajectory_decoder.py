@@ -816,7 +816,7 @@ class TrajectoryDecoder:
             attractor_weight = kwargs.get('attractor_weight', 0.15)
             phi_boost_weight = kwargs.get('phi_boost_weight', 0.1)
             foresight_weight = kwargs.get('foresight_weight', 0.35)
-            repulsion_weight = kwargs.get('repulsion_weight', 0.25)
+            repulsion_weight = kwargs.get('repulsion_weight', 0.15)
 
             total_weight = trajectory_weight + attractor_weight + phi_boost_weight + foresight_weight + repulsion_weight
             final_score = (
