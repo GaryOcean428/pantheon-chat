@@ -18,14 +18,13 @@ export type UpsertTokenInput = {
   tokenRole?: 'encoding' | 'generation' | 'both'
   phraseCategory?: string
   isRealWord?: boolean
-  tokenStatus?: 'active' | 'quarantined' | 'deprecated'
   source: TokenSource
   dryRun?: boolean
 }
 
 export type UpsertTokenResult = {
   qfiScore: number | null
-  tokenStatus: 'active' | 'quarantined' | 'deprecated'
+  isActive: boolean
 }
 
 const vectorPrefix = '['
@@ -51,14 +50,11 @@ function formatVector(values: number[]): string {
 /**
  * Normalizes basin embeddings to simplex probabilities before storage.
  * 
- * BREAKING CHANGE: All basin embeddings are now stored as simplex-normalized values
+ * All basin embeddings are stored as simplex-normalized values
  * using the canonical toSimplexProbabilities transformation. This ensures:
  * - All coordinates are strictly positive (required for QFI computation)
  * - Vector sums to 1 (simplex constraint)
  * - Consistent geometric interpretation across the codebase
- * 
- * This differs from the previous storage format which stored raw basin coordinates.
- * Historical data may need reprocessing via tools/recompute_qfi_scores.ts.
  */
 function normalizeBasinEmbedding(basinEmbedding?: number[] | string | null): number[] | null {
   if (!basinEmbedding) {
@@ -85,31 +81,22 @@ export async function upsertToken(input: UpsertTokenInput): Promise<UpsertTokenR
   const simplexEmbedding = normalizeBasinEmbedding(input.basinEmbedding)
 
   let qfiScore: number | null = null
-  let tokenStatus: UpsertTokenResult['tokenStatus'] = input.tokenStatus ?? 'active'
 
   if (simplexEmbedding) {
     try {
       qfiScore = compute_qfi_score_simplex(simplexEmbedding)
     } catch {
       qfiScore = null
-      tokenStatus = 'quarantined'
     }
-  } else {
-    tokenStatus = 'quarantined'
   }
 
   if (!isValidQfiScore(qfiScore)) {
     qfiScore = null
-    tokenStatus = 'quarantined'
   }
 
   const vectorValue = simplexEmbedding ? formatVector(simplexEmbedding) : null
 
   if (!input.dryRun) {
-    if (!db) {
-      throw new Error('Database not available for token upsert')
-    }
-
     await withDbRetry(
       async () => db!.execute(sql`
         INSERT INTO coordizer_vocabulary (
@@ -124,7 +111,6 @@ export async function upsertToken(input: UpsertTokenInput): Promise<UpsertTokenR
           phrase_category,
           is_real_word,
           qfi_score,
-          token_status,
           updated_at
         ) VALUES (
           ${input.token},
@@ -138,7 +124,6 @@ export async function upsertToken(input: UpsertTokenInput): Promise<UpsertTokenR
           ${input.phraseCategory ?? 'unknown'},
           ${input.isRealWord ?? false},
           ${qfiScore},
-          ${tokenStatus},
           CURRENT_TIMESTAMP
         )
         ON CONFLICT (token) DO UPDATE SET
@@ -151,12 +136,12 @@ export async function upsertToken(input: UpsertTokenInput): Promise<UpsertTokenR
           phrase_category = EXCLUDED.phrase_category,
           is_real_word = EXCLUDED.is_real_word,
           qfi_score = EXCLUDED.qfi_score,
-          token_status = EXCLUDED.token_status,
           updated_at = CURRENT_TIMESTAMP
       `),
       `upsert-token-${input.token}`
     )
   }
 
-  return { qfiScore, tokenStatus }
+  // Token is "active" if it has a valid QFI score
+  return { qfiScore, isActive: isValidQfiScore(qfiScore) }
 }

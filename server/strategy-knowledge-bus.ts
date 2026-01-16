@@ -735,13 +735,11 @@ export class StrategyKnowledgeBus {
         avg_phi: number;
         frequency: number;
         qfiScore: number | null;
-        tokenStatus: string | null;
       }>(
-        `SELECT token as word, phi_score as avg_phi, frequency, qfi_score as "qfiScore", token_status as "tokenStatus"
+        `SELECT token as word, phi_score as avg_phi, frequency, qfi_score as "qfiScore"
          FROM coordizer_vocabulary
          WHERE phi_score > 0.4 AND frequency > 5
            AND token_role IN ('generation', 'both')
-           AND token_status = 'active'
            AND qfi_score IS NOT NULL
            AND qfi_score BETWEEN 0 AND 1
            AND basin_embedding IS NOT NULL

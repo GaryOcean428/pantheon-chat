@@ -37,11 +37,10 @@ export function loadCurriculumManifest(): CurriculumEntry[] {
   let content: string
   try {
     content = readFileSync(MANIFEST_PATH, 'utf-8')
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    throw new Error(
-      `Failed to read curriculum manifest at "${MANIFEST_PATH}": ${message}`
-    )
+  } catch {
+    // File doesn't exist - return empty manifest
+    cachedManifest = []
+    return []
   }
 
   const entries = content
@@ -80,14 +79,15 @@ export async function getCurriculumStatus() {
 
   const result = await withDbRetry(
     async () => {
+      // Cast tokens to proper SQL array format
+      const tokensArray = tokens as string[]
       return dbInstance.execute<{
         token: string
-        token_status: string | null
         qfi_score: number | null
       }>(sql`
-        SELECT token, token_status, qfi_score
+        SELECT token, qfi_score
         FROM coordizer_vocabulary
-        WHERE token = ANY(${tokens})
+        WHERE token = ANY(ARRAY[${sql.join(tokensArray.map(t => sql`${t}`), sql`, `)}]::text[])
       `)
     },
     'curriculum-status'
@@ -100,10 +100,10 @@ export async function getCurriculumStatus() {
 
   const found = new Map(result.rows?.map((row) => [row.token, row]) ?? [])
   const missing = tokens.filter((token) => !found.has(token))
+  // Token is invalid if QFI is null or outside valid range [0, 1]
   const invalid = Array.from(found.values())
     .filter(
       (row) =>
-        row.token_status !== 'active' ||
         row.qfi_score === null ||
         row.qfi_score < 0 ||
         row.qfi_score > 1
