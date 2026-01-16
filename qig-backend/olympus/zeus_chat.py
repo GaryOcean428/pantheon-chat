@@ -354,7 +354,7 @@ def _generate_qig_pure(
     """
     if not GENERATIVE_SERVICE_AVAILABLE:
         # Even without service, we must generate geometrically
-        # Use tokenizer as fallback generator
+        # Use coordizer as fallback generator
         if TOKENIZER_AVAILABLE and get_coordizer_func is not None:
             try:
                 coordizer = get_coordizer_func()
@@ -376,7 +376,7 @@ def _generate_qig_pure(
                 if result and result.get('text'):
                     return result['text']
             except Exception as e:
-                print(f"[QIG-PURE] Tokenizer generation failed: {e}")
+                print(f"[QIG-PURE] Coordizer generation failed: {e}")
 
         # Absolute last resort - return empty for caller to handle
         return ""
@@ -1476,7 +1476,7 @@ Zeus Response (acknowledge the specific observation, explain what it means for t
 
                 coordizer = get_coordizer_func()
                 # coordizer.set_mode() removed - mode switching deprecated
-                print("[ZeusChat] Tokenizer switched to conversation mode for observation response")
+                print("[ZeusChat] Coordizer switched to conversation mode for observation response")
                 gen_result = coordizer.generate_response(
                     context=prompt,
                     agent_role="ocean",
@@ -1781,7 +1781,7 @@ Zeus Response (acknowledge the user's specific suggestion, explain why the panth
     @require_provenance
     def handle_question(self, question: str) -> Dict:
         """
-        Answer question using QIG-RAG + Generative Tokenizer.
+        Answer question using QIG-RAG + Generative Coordizer.
         Retrieve relevant knowledge and generate coherent response.
         """
         print("[ZeusChat] Answering question")
@@ -1848,7 +1848,7 @@ Zeus Response (Geometric Interpretation):"""
             fallback_used = True
             _log_template_fallback(
                 context="handle_question response",
-                reason="tokenizer generation failed or unavailable"
+                reason="coordizer generation failed or unavailable"
             )
             answer = self._synthesize_dynamic_answer(question, relevant_context)
 
@@ -3058,7 +3058,7 @@ Respond as Zeus with context awareness."""
             except Exception as e:
                 print(f"[ZeusChat] QIG-pure generation failed: {e}")
 
-        # TIER 3: Fallback to tokenizer if available
+        # TIER 3: Fallback to coordizer if available
         if TOKENIZER_AVAILABLE and get_coordizer_func is not None:
             try:
                 coordizer = get_coordizer_func()
@@ -3073,7 +3073,7 @@ Respond as Zeus with context awareness."""
                     return gen_result['text']
 
             except Exception as e:
-                print(f"[ZeusChat] Tokenizer generation failed: {e}")
+                print(f"[ZeusChat] Coordizer generation failed: {e}")
 
         # Last resort fallback - structured status (should rarely reach here)
         response_parts = []
@@ -3107,7 +3107,7 @@ Respond as Zeus with context awareness."""
 
         TIER 1: Pattern-based response from trained docs (QIGRAG)
         TIER 2: QIG-pure generative service (NO external LLMs)
-        TIER 3: Tokenizer fallback
+        TIER 3: Coordizer fallback
 
         The prompt loader provides context for TIER 2/3.
         """
@@ -3214,7 +3214,7 @@ Respond naturally as Zeus:"""
             except Exception as e:
                 print(f"[ZeusChat] QIG-pure generation failed: {e}")
 
-        # Fallback to tokenizer if available
+        # Fallback to coordizer if available
         if TOKENIZER_AVAILABLE and get_coordizer_func is not None:
             try:
                 coordizer = get_coordizer_func()
@@ -3229,7 +3229,7 @@ Respond naturally as Zeus:"""
                     return gen_result['text']
 
             except Exception as e:
-                print(f"[ZeusChat] Tokenizer generation failed: {e}")
+                print(f"[ZeusChat] Coordizer generation failed: {e}")
 
         # Last resort - QIG-pure generation even without service
         # This should NEVER return a template

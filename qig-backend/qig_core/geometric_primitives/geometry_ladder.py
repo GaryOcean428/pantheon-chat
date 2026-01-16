@@ -280,8 +280,20 @@ class HabitCrystallizer:
         # Project to 2D plane
         reduced = U[:, :2] @ np.diag(s[:2])
 
-        center = np.zeros(2)
-        radius = np.linalg.norm(reduced - center, axis=1).mean()
+        def _to_simplex(vec: np.ndarray) -> np.ndarray:
+            vec = np.clip(np.abs(vec), 1e-10, None)
+            return vec / np.sum(vec)
+
+        simplex_points = [_to_simplex(row) for row in reduced]
+        try:
+            from qig_geometry.canonical import frechet_mean, fisher_rao_distance
+            center = frechet_mean(simplex_points)
+            distances = [fisher_rao_distance(p, center) for p in simplex_points]
+        except Exception:
+            center = np.sum(simplex_points, axis=0) / len(simplex_points)
+            center = _to_simplex(center)
+            distances = [float(np.arccos(np.clip(np.dot(p, center), 0.0, 1.0))) for p in simplex_points]
+        radius = sum(distances) / len(distances) if distances else 0.0
 
         return {
             'basin_center': trajectory.mean(axis=0),
@@ -371,7 +383,7 @@ class HabitCrystallizer:
             'basin_center': trajectory.mean(axis=0),
             'major_radius': float(R),
             'minor_radius': float(r),
-            'embedding': Vt[:n_comp],
+            'projection_axes': Vt[:n_comp],
             'stability': 0.65,
         }
 

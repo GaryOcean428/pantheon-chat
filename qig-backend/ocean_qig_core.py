@@ -767,7 +767,7 @@ try:
 except ImportError as e:
     print(f"[WARN] Could not import routes barrel: {e}")
 
-# Register QIGGraph integration blueprint (imports from qig-tokenizer)
+# Register QIGGraph integration blueprint (imports from qig-coordizer)
 try:
     from qiggraph_integration import create_qiggraph_blueprint, QIGGRAPH_AVAILABLE
     qiggraph_bp = create_qiggraph_blueprint()
@@ -775,7 +775,7 @@ try:
     if QIGGRAPH_AVAILABLE:
         print("[INFO] QIGGraph v2 integration registered at /api/qiggraph")
     else:
-        print("[INFO] QIGGraph blueprint registered (fallback mode - qig-tokenizer not installed)")
+        print("[INFO] QIGGraph blueprint registered (fallback mode - qig-coordizer not installed)")
 except ImportError as e:
     print(f"[WARN] Could not import QIGGraph integration: {e}")
 
@@ -4030,13 +4030,13 @@ def measure_beta_attention():
 
 
 # ===========================================================================
-# TOKENIZER ENDPOINTS
+# COORDIZER ENDPOINTS
 # ===========================================================================
 
-@app.route('/tokenizer/update', methods=['POST'])
+@app.route('/coordizer/update', methods=['POST'])
 def update_tokenizer():
     """
-    Update tokenizer with vocabulary observations from Node.js.
+    Update coordizer with vocabulary observations from Node.js.
 
     Request body:
     {
@@ -4083,7 +4083,7 @@ def update_tokenizer():
         }), 500
 
 
-@app.route('/tokenizer/encode', methods=['POST'])
+@app.route('/coordizer/encode', methods=['POST'])
 def tokenizer_encode():
     """
     Encode text to token ids.
@@ -4128,7 +4128,7 @@ def tokenizer_encode():
         }), 500
 
 
-@app.route('/tokenizer/decode', methods=['POST'])
+@app.route('/coordizer/decode', methods=['POST'])
 def tokenizer_decode():
     """
     Decode token ids to text.
@@ -4171,7 +4171,7 @@ def tokenizer_decode():
         }), 500
 
 
-@app.route('/tokenizer/basin', methods=['POST'])
+@app.route('/coordizer/basin', methods=['POST'])
 def tokenizer_basin():
     """
     Compute basin coordinates for phrase.
@@ -4216,7 +4216,7 @@ def tokenizer_basin():
         }), 500
 
 
-@app.route('/tokenizer/high-phi', methods=['GET'])
+@app.route('/coordizer/high-phi', methods=['GET'])
 def tokenizer_high_phi():
     """
     Get tokens with highest Φ scores.
@@ -4256,10 +4256,10 @@ def tokenizer_high_phi():
         }), 500
 
 
-@app.route('/tokenizer/export', methods=['GET'])
+@app.route('/coordizer/export', methods=['GET'])
 def tokenizer_export():
     """
-    Export tokenizer for training.
+    Export coordizer for training.
 
     Response:
     {
@@ -4292,10 +4292,10 @@ def tokenizer_export():
         }), 500
 
 
-@app.route('/tokenizer/status', methods=['GET'])
+@app.route('/coordizer/status', methods=['GET'])
 def tokenizer_status():
     """
-    Get tokenizer status.
+    Get coordizer status.
 
     Response:
     {
@@ -4331,10 +4331,10 @@ def tokenizer_status():
         }), 500
 
 
-@app.route('/tokenizer/merges', methods=['GET'])
+@app.route('/coordizer/merges', methods=['GET'])
 def tokenizer_merges():
     """
-    Get learned BPE merge rules from tokenizer.
+    Get learned BPE merge rules from coordizer.
 
     Used by TypeScript to sync merge rules from Python.
 
@@ -4779,42 +4779,42 @@ def manual_reward():
 # =============================================================================
 # QIG-PURE ENDPOINT ALIASES
 # These provide QIG-safe terminology for the vocabulary encoding system
-# (Routes to same handlers as /tokenizer/* but with pure geometric naming)
+# (Routes to same handlers as /coordizer/* but with pure geometric naming)
 # =============================================================================
 
 @app.route('/vocabulary/update', methods=['POST'])
 def vocabulary_update():
-    """QIG-pure alias for /tokenizer/update"""
+    """QIG-pure alias for /coordizer/update"""
     return update_tokenizer()
 
 @app.route('/vocabulary/encode', methods=['POST'])
 def vocabulary_encode():
-    """QIG-pure alias for /tokenizer/encode"""
+    """QIG-pure alias for /coordizer/encode"""
     return tokenizer_encode()
 
 @app.route('/vocabulary/decode', methods=['POST'])
 def vocabulary_decode():
-    """QIG-pure alias for /tokenizer/decode"""
+    """QIG-pure alias for /coordizer/decode"""
     return tokenizer_decode()
 
 @app.route('/vocabulary/basin', methods=['POST'])
 def vocabulary_basin():
-    """QIG-pure alias for /tokenizer/basin"""
+    """QIG-pure alias for /coordizer/basin"""
     return tokenizer_basin()
 
 @app.route('/vocabulary/high-phi', methods=['GET'])
 def vocabulary_high_phi():
-    """QIG-pure alias for /tokenizer/high-phi"""
+    """QIG-pure alias for /coordizer/high-phi"""
     return tokenizer_high_phi()
 
 @app.route('/vocabulary/export', methods=['GET'])
 def vocabulary_export():
-    """QIG-pure alias for /tokenizer/export"""
+    """QIG-pure alias for /coordizer/export"""
     return tokenizer_export()
 
 @app.route('/vocabulary/status', methods=['GET'])
 def vocabulary_status():
-    """QIG-pure alias for /tokenizer/status"""
+    """QIG-pure alias for /coordizer/status"""
     return tokenizer_status()
 
 
@@ -7714,7 +7714,7 @@ def cycle_complete():
     Called at the end of each Ocean search cycle.
     
     Performs post-cycle processing:
-    1. Train tokenizer from new observations
+    1. Train coordizer from new observations
     2. Evolve CHAOS kernels if active
     3. Consolidate geometric memory
     4. Update pantheon basin coordinates
@@ -7733,28 +7733,28 @@ def cycle_complete():
             'processing': []
         }
         
-        # 1. Train tokenizer from recent high-Φ observations
+        # 1. Train coordizer from recent high-Φ observations
         try:
-            from olympus.tokenizer_training import train_tokenizer_from_database
-            training_result = train_tokenizer_from_database(
+            from olympus.tokenizer_training import train_coordizer_from_database
+            training_result = train_coordizer_from_database(
                 persist=True,
                 min_phi=0.6,
                 limit_per_source=500
             )
             results['processing'].append({
-                'task': 'tokenizer_training',
+                'task': 'coordizer_training',
                 'success': True,
                 'new_tokens': training_result.get('new_tokens', 0),
                 'weights_updated': training_result.get('weights_updated', False)
             })
-            print(f"[CycleComplete] ✓ Tokenizer training complete")
+            print(f"[CycleComplete] ✓ Coordizer training complete")
         except Exception as e:
             results['processing'].append({
-                'task': 'tokenizer_training',
+                'task': 'coordizer_training',
                 'success': False,
                 'error': str(e)
             })
-            print(f"[CycleComplete] ✗ Tokenizer training failed: {e}")
+            print(f"[CycleComplete] ✗ Coordizer training failed: {e}")
         
         # 2. Evolve CHAOS kernels if active
         try:

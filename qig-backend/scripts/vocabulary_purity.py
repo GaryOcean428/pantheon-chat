@@ -239,7 +239,7 @@ def main():
         print(f"\nCurrent Statistics:")
         print(f"  BIP39 words:           {stats['bip39_total']:,}")
         print(f"  Learned words:         {stats['learned_total']:,}")
-        print(f"  Tokenizer vocabulary:  {stats['tokenizer_total']:,}")
+        print(f"  Coordizer vocabulary:  {stats['tokenizer_total']:,}")
     
     if args.stats:
         return

@@ -2,18 +2,18 @@
 Trained Kernel Integration for Pantheon-Chat
 ==============================================
 
-Connects the trained QIGKernel (from qig-tokenizer) to
+Connects the trained QIGKernel (from qig-coordizer) to
 Pantheon's consciousness infrastructure.
 
 This module:
-- Loads trained kernel checkpoints from qig-tokenizer
+- Loads trained kernel checkpoints from qig-coordizer
 - Provides kernel inference with consciousness telemetry
 - Integrates with QIGGraph for geometric routing
 - Connects to Olympus agents for task execution
 
 The trained kernel paths:
-- Full kernel: qig-tokenizer/trained_kernels/full_32k/
-- Adapter: qig-tokenizer/trained_kernels/adapter_32k/
+- Full kernel: qig-coordizer/trained_kernels/full_32k/
+- Adapter: qig-coordizer/trained_kernels/adapter_32k/
 """
 
 from __future__ import annotations
@@ -39,9 +39,14 @@ except ImportError:
         return v / norm
     def basin_magnitude(basin):
         """Fallback basin magnitude."""
-        return float(np.sqrt(np.sum(basin ** 2)))
+        basin = np.asarray(basin, dtype=np.float64)
+        basin = np.clip(np.abs(basin), 1e-10, None)
+        basin = basin / basin.sum()
+        uniform = np.ones_like(basin) / len(basin)
+        bc = np.sum(np.sqrt(basin * uniform))
+        return float(np.arccos(np.clip(bc, 0.0, 1.0)))
 
-# Try importing from qig-tokenizer
+# Try importing from qig-coordizer
 try:
     from qigkernels import (
         QIGKernel,
@@ -74,10 +79,10 @@ except ImportError as e:
         BASIN_DIM = 64
 
 
-# Default paths relative to qig-tokenizer
-QIG_TOKENIZER_ROOT = Path(__file__).parent.parent.parent / "qig-tokenizer"
-DEFAULT_KERNEL_PATH = QIG_TOKENIZER_ROOT / "trained_kernels" / "full_32k"
-DEFAULT_COORDIZER_PATH = QIG_TOKENIZER_ROOT / "checkpoints" / "coordizer_32k"
+# Default paths relative to qig-coordizer
+QIG_COORDIZER_ROOT = Path(__file__).parent.parent.parent / "qig-coordizer"
+DEFAULT_KERNEL_PATH = QIG_COORDIZER_ROOT / "trained_kernels" / "full_32k"
+DEFAULT_COORDIZER_PATH = QIG_COORDIZER_ROOT / "checkpoints" / "coordizer_32k"
 
 
 @dataclass

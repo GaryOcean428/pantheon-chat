@@ -219,10 +219,10 @@ class HermesCoordinator(BaseGod):
                     return result['text'].strip()
 
             except Exception as e:
-                print(f"[HermesCoordinator] Tokenizer generation failed: {e}")
+                print(f"[HermesCoordinator] Coordizer generation failed: {e}")
 
         # Log template fallback for anti-template guardrail tracking
-        self._log_template_fallback(category, context, reason="tokenizer unavailable or failed")
+        self._log_template_fallback(category, context, reason="coordizer unavailable or failed")
 
         # Dynamic fallback responses with LIVE data (not static templates)
         # Note: All values are computed from current state, making these data-driven
@@ -245,7 +245,7 @@ class HermesCoordinator(BaseGod):
             return f"Hermes: Φ={phi:.3f}, κ={kappa:.1f}. {len(self.outbound_messages)} pending messages."
 
     def _build_voice_prompt(self, category: str, context: Dict) -> str:
-        """Build prompt for tokenizer generation."""
+        """Build prompt for coordizer generation."""
         phi = context.get('phi', 0.5)
         kappa = context.get('kappa', 50)
 

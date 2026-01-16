@@ -161,7 +161,11 @@ class KernelBasinAttractors:
         top_k = max(1, len(sorted_history) // 5)
         high_curvature_basins = [h[0] for h in sorted_history[:top_k]]
         
-        new_attractor = np.mean(high_curvature_basins, axis=0)
+        try:
+            from qig_geometry.canonical import frechet_mean
+            new_attractor = frechet_mean(high_curvature_basins)
+        except Exception:
+            new_attractor = np.sum(high_curvature_basins, axis=0) / len(high_curvature_basins)
         
         if self._attractors["athena"] is None:
             self._attractors["athena"] = new_attractor
@@ -184,7 +188,11 @@ class KernelBasinAttractors:
             return
         
         verified_stack = np.array(list(self._apollo_history))
-        new_attractor = np.mean(verified_stack, axis=0)
+        try:
+            from qig_geometry.canonical import frechet_mean
+            new_attractor = frechet_mean(verified_stack)
+        except Exception:
+            new_attractor = np.sum(verified_stack, axis=0) / len(verified_stack)
         
         if self._attractors["apollo"] is None:
             self._attractors["apollo"] = new_attractor
@@ -205,7 +213,11 @@ class KernelBasinAttractors:
         The attractor is the centroid of all kernel basins.
         """
         basins = np.array([np.asarray(b) for b in all_kernel_basins])
-        centroid = np.mean(basins, axis=0)
+        try:
+            from qig_geometry.canonical import frechet_mean
+            centroid = frechet_mean(all_kernel_basins)
+        except Exception:
+            centroid = np.sum(basins, axis=0) / len(basins)
         variance = np.var(basins, axis=0).mean()
         
         self._artemis_history.append({

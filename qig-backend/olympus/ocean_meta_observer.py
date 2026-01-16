@@ -121,7 +121,11 @@ class MetaManifoldStatistics:
         n_kernels, d = basins.shape
 
         # Compute centroid
-        centroid = basins.mean(dim=0) if hasattr(basins, 'mean') else np.mean(basins, axis=0)
+        try:
+            from qig_geometry.canonical import frechet_mean
+            centroid = frechet_mean(kernel_basins)
+        except Exception:
+            centroid = np.sum(basins, axis=0) / len(basins)
 
         # Update running centroid with EMA
         if self.running_centroid is None:

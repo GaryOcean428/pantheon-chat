@@ -449,17 +449,17 @@ def compute_unknown_basin(word: str, dimension: int = 64) -> np.ndarray:
         # This prevents collapse when characters combine to multiples of 10000
         char_prod = (char_prod * (ord(c) + 1)) % _UNKNOWN_BASIN_CHAR_MODULO
     
-    embedding = np.zeros(dimension)
+    basin_coords = np.zeros(dimension)
     for i in range(dimension):
         # Golden-angle spiral construction (Fisher-compliant)
         theta = 2 * np.pi * i * phi_golden
         # Position derived from word's character properties
         r = np.cos(theta + char_sum * _UNKNOWN_BASIN_CHAR_SUM_SCALE) * np.sin(i * phi_golden / dimension * np.pi)
-        embedding[i] = r + np.sin(char_prod * phi_golden * (i + 1) / dimension) * _UNKNOWN_BASIN_PERTURBATION_WEIGHT
+        basin_coords[i] = r + np.sin(char_prod * phi_golden * (i + 1) / dimension) * _UNKNOWN_BASIN_PERTURBATION_WEIGHT
     
     # Project to CANONICAL SIMPLEX (not sphere!)
     # This is the KEY FIX: Use fisher_normalize instead of L2 norm
-    return fisher_normalize(embedding)
+    return fisher_normalize(basin_coords)
 
 
 # Import from canonical module (SINGLE SOURCE OF TRUTH - 2026-01-15)

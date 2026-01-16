@@ -81,7 +81,11 @@ class QIGPhraseClassifier:
                     continue
             
             if basins:
-                self._category_basins[category] = np.mean(basins, axis=0)
+                try:
+                    from qig_geometry.canonical import frechet_mean
+                    self._category_basins[category] = frechet_mean(basins)
+                except Exception:
+                    self._category_basins[category] = np.sum(basins, axis=0) / len(basins)
                 self._category_spreads[category] = np.std([
                     self._fisher_rao_distance(b, self._category_basins[category])
                     for b in basins

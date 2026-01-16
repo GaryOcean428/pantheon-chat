@@ -1192,7 +1192,7 @@ export class OceanQIGBackend {
   }
 
   /**
-   * Get learned BPE merge rules from Python tokenizer.
+   * Get learned BPE merge rules from Python coordizer.
    *
    * Used for syncing merge rules from Python to TypeScript for local processing.
    *
@@ -1209,7 +1209,7 @@ export class OceanQIGBackend {
 
     try {
       const response = await fetchWithRetry(
-        `${this.backendUrl}/tokenizer/merges`,
+        `${this.backendUrl}/coordizer/merges`,
         {
           method: "GET",
           headers: { "Content-Type": "application/json" },

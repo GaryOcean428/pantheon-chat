@@ -264,7 +264,11 @@ class QIGChainBuilder:
                         result_basins.append(np.array(getattr(r, 'basin_coords')))
                 
                 if result_basins:
-                    avg_basin: np.ndarray = np.mean(result_basins, axis=0)
+                    try:
+                        from qig_geometry.canonical import frechet_mean
+                        avg_basin = frechet_mean(result_basins)
+                    except Exception:
+                        avg_basin = np.sum(result_basins, axis=0) / len(result_basins)
                     return (basin + avg_basin) / 2
             
             return basin

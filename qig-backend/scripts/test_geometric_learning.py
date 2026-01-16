@@ -200,7 +200,7 @@ def test_basin_coordinate_geometry():
     clustering_correct = dist_consciousness_awareness < dist_consciousness_banana
     
     print(f"\n{'✅ PASS' if clustering_correct else '❌ FAIL'}: Semantically similar + high-Φ tokens cluster closer")
-    print("This demonstrates geometric embedding!")
+    print("This demonstrates geometric basin coordinates!")
     
     return clustering_correct
 
@@ -208,7 +208,7 @@ def test_basin_coordinate_geometry():
 def main():
     """Run all tests comparing geometric vs frequency-based learning."""
     print("=" * 60)
-    print("QIG TOKENIZER: GEOMETRIC VS FREQUENCY-BASED LEARNING")
+    print("QIG COORDIZER: GEOMETRIC VS FREQUENCY-BASED LEARNING")
     print("=" * 60)
     print("\nThese tests demonstrate why QIG is fundamentally different:")
     print("- Traditional BPE: Learn most FREQUENT words")

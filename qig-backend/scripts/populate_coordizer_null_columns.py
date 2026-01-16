@@ -149,7 +149,7 @@ def populate_null_columns(limit: int = 0, dry_run: bool = False):
     stats = cur.fetchone()
     print(f"\nFinal stats:")
     print(f"  Total rows: {stats[0]}")
-    print(f"  With embedding: {stats[1]}")
+    print(f"  With legacy basin column: {stats[1]}")
     print(f"  With metadata: {stats[2]}")
     print(f"  With scale: {stats[3]}")
 

@@ -49,7 +49,7 @@ export interface WordObservation {
   frequency: number;
   firstSeen: number;
   lastSeen: number;
-  contextEmbeddings: number[][]; // Basin coordinates for each context
+  contextBasins: number[][]; // Basin coordinates for each context
 }
 
 export interface GeometricValueScore {
@@ -139,8 +139,8 @@ function computeGeometricValue(
   const phiWeight = observations.avgPhi;
   
   // CONNECTIVITY: Does word bridge distant concepts?
-  // Measure spread of context embeddings in basin space
-  const connectivity = computeConceptConnectivity(observations.contextEmbeddings);
+  // Measure spread of context basins in basin space
+  const connectivity = computeConceptConnectivity(observations.contextBasins);
   
   // COMPRESSION: Value of treating as single unit
   // Longer words + multi-word sequences have higher compression value
@@ -165,20 +165,20 @@ function computeGeometricValue(
 }
 
 /**
- * Compute concept connectivity from context embeddings.
+ * Compute concept connectivity from context basins.
  * High connectivity = word bridges distant regions of manifold.
  */
-function computeConceptConnectivity(embeddings: number[][]): number {
-  if (embeddings.length < 2) return 0;
+function computeConceptConnectivity(basins: number[][]): number {
+  if (basins.length < 2) return 0;
   
   // Compute average pairwise Fisher distance
   let totalDistance = 0;
   let pairs = 0;
   
-  const limit = Math.min(embeddings.length, 20); // Limit for performance
+  const limit = Math.min(basins.length, 20); // Limit for performance
   for (let i = 0; i < limit; i++) {
     for (let j = i + 1; j < limit; j++) {
-      const dist = fisherCoordDistance(embeddings[i], embeddings[j]);
+      const dist = fisherCoordDistance(basins[i], basins[j]);
       totalDistance += dist;
       pairs++;
     }
@@ -212,7 +212,7 @@ function checkBasinStability(
   const currentDrift = fisherCoordDistance(currentBasin, referenceBasin);
   
   // Simulate adding word: basin would shift toward word's average context
-  const wordCenter = computeWordCenter(wordObservation.contextEmbeddings);
+  const wordCenter = computeWordCenter(wordObservation.contextBasins);
   
   if (wordCenter.length === 0) {
     return {
@@ -253,20 +253,20 @@ function checkBasinStability(
 /**
  * Compute center of word contexts in basin space.
  */
-function computeWordCenter(embeddings: number[][]): number[] {
-  if (embeddings.length === 0) return [];
+function computeWordCenter(basins: number[][]): number[] {
+  if (basins.length === 0) return [];
   
-  const dims = embeddings[0].length;
+  const dims = basins[0].length;
   const center = new Array(dims).fill(0);
   
-  for (const emb of embeddings) {
+  for (const basin of basins) {
     for (let i = 0; i < dims; i++) {
-      center[i] += emb[i] || 0;
+      center[i] += basin[i] || 0;
     }
   }
   
   for (let i = 0; i < dims; i++) {
-    center[i] /= embeddings.length;
+    center[i] /= basins.length;
   }
   
   return center;
@@ -285,13 +285,13 @@ function computeWordCenter(embeddings: number[][]): number[] {
 function computeInformationEntropy(observation: WordObservation): EntropyScore {
   
   // CONTEXT ENTROPY: How diverse are the contexts?
-  const contextEntropy = computeContextDiversity(observation.contextEmbeddings);
+  const contextEntropy = computeContextDiversity(observation.contextBasins);
   
   // REGIME ENTROPY: Distribution across regimes
   const regimeEntropy = computeRegimeEntropy(observation.contexts);
   
   // COORDINATE SPREAD: Variance in basin coordinates
-  const coordinateSpread = computeCoordinateSpread(observation.contextEmbeddings);
+  const coordinateSpread = computeCoordinateSpread(observation.contextBasins);
   
   // TOTAL: Combine entropy measures
   const total = (
@@ -309,13 +309,13 @@ function computeInformationEntropy(observation: WordObservation): EntropyScore {
 }
 
 /**
- * Compute context diversity using embedding spread.
+ * Compute context diversity using basin spread.
  */
-function computeContextDiversity(embeddings: number[][]): number {
-  if (embeddings.length < 2) return 0;
+function computeContextDiversity(basins: number[][]): number {
+  if (basins.length < 2) return 0;
   
   // Use average pairwise distance as diversity measure
-  const connectivity = computeConceptConnectivity(embeddings);
+  const connectivity = computeConceptConnectivity(basins);
   return connectivity; // Already normalized to [0,1]
 }
 
@@ -350,17 +350,17 @@ function computeRegimeEntropy(contexts: WordContext[]): number {
 /**
  * Compute variance/spread in basin coordinates.
  */
-function computeCoordinateSpread(embeddings: number[][]): number {
-  if (embeddings.length < 2) return 0;
+function computeCoordinateSpread(basins: number[][]): number {
+  if (basins.length < 2) return 0;
   
-  const dims = embeddings[0]?.length || 0;
+  const dims = basins[0]?.length || 0;
   if (dims === 0) return 0;
   
   // Compute variance in each dimension
   let totalVariance = 0;
   
   for (let d = 0; d < dims; d++) {
-    const values = embeddings.map(e => e[d] || 0);
+    const values = basins.map(e => e[d] || 0);
     const mean = values.reduce((a, b) => a + b, 0) / values.length;
     const variance = values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / values.length;
     totalVariance += variance;
@@ -560,12 +560,12 @@ export class VocabConsolidationCycle {
       existing.maxPhi = Math.max(existing.maxPhi, context.phi);
       existing.lastSeen = context.timestamp;
       
-      // Keep embedding for context diversity analysis
+      // Keep basin for context diversity analysis
       if (context.basinCoordinates.length > 0) {
-        existing.contextEmbeddings.push([...context.basinCoordinates]);
-        // Limit stored embeddings
-        if (existing.contextEmbeddings.length > 50) {
-          existing.contextEmbeddings.shift();
+        existing.contextBasins.push([...context.basinCoordinates]);
+        // Limit stored basins
+        if (existing.contextBasins.length > 50) {
+          existing.contextBasins.shift();
         }
       }
     } else {
@@ -577,7 +577,7 @@ export class VocabConsolidationCycle {
         frequency: 1,
         firstSeen: context.timestamp,
         lastSeen: context.timestamp,
-        contextEmbeddings: context.basinCoordinates.length > 0 
+        contextBasins: context.basinCoordinates.length > 0 
           ? [[...context.basinCoordinates]]
           : [],
       });
@@ -748,7 +748,7 @@ export class VocabConsolidationCycle {
         frequency: 0,
         firstSeen: now,
         lastSeen: now,
-        contextEmbeddings: [],
+        contextBasins: [],
       };
       this.observations.set(word, obs);
     }
@@ -855,7 +855,7 @@ export class VocabConsolidationCycle {
         frequency: candidate.frequency,
         firstSeen: now,
         lastSeen: now,
-        contextEmbeddings: [],
+        contextBasins: [],
       };
       
       this.observations.set(candidate.text, obs);

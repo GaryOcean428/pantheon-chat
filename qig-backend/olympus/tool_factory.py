@@ -1731,7 +1731,12 @@ class ToolFactory:
 
         for cluster in clusters:
             if len(cluster) >= 2:
-                cluster_basin = np.mean([o['request_basin'] for o in cluster], axis=0)
+                try:
+                    from qig_geometry.canonical import frechet_mean
+                    cluster_basin = frechet_mean([o['request_basin'] for o in cluster])
+                except Exception:
+                    basins = np.array([o['request_basin'] for o in cluster])
+                    cluster_basin = np.sum(basins, axis=0) / len(basins)
                 existing = self._find_similar_tool(cluster_basin)
 
                 if existing is None:

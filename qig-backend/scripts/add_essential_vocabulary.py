@@ -104,7 +104,7 @@ def add_essential_vocabulary(dry_run: bool = False):
             basin = compute_unknown_basin(word)
             
             if basin is None or len(basin) != 64:
-                print(f"  SKIP {word}: Invalid basin embedding")
+                print(f"  SKIP {word}: Invalid basin coordinates")
                 errors += 1
                 continue
             
