@@ -84,7 +84,8 @@ def from_sqrt_simplex(sqrt_basin: np.ndarray, eps: float = EPS) -> np.ndarray:
     """
     Convert sqrt-space coordinates back to simplex.
     
-    Inverse of to_sqrt_simplex. Use when retrieving stored basins.
+    This is an alias to unsqrt_map from canonical.py for API consistency.
+    Use when retrieving stored basins.
     
     Args:
         sqrt_basin: sqrt-space coordinates (√p)
@@ -98,14 +99,9 @@ def from_sqrt_simplex(sqrt_basin: np.ndarray, eps: float = EPS) -> np.ndarray:
         >>> basin = from_sqrt_simplex(sqrt_basin)
         >>> assert np.allclose(basin, [0.25, 0.25, 0.25, 0.25])
     """
-    x = np.asarray(sqrt_basin, dtype=np.float64).flatten()
-    
-    # Square to get back to probability space
-    p = x ** 2
-    
-    # Ensure valid simplex
-    p = np.maximum(p, 0) + eps
-    return p / p.sum()
+    # Use canonical implementation from qig_geometry.canonical
+    from qig_geometry.canonical import unsqrt_map
+    return unsqrt_map(sqrt_basin, eps=eps)
 
 
 def bhattacharyya_from_sqrt(
