@@ -61,7 +61,7 @@ class CrossDomainInsight:
     """Assessment of a connection between two domains."""
     domain_a: str
     domain_b: str
-    fisher_distance: float          # FR: Fisher-Rao distance
+    fisher_distance: float          # FR: Fisher-Rao distance (canonical geometric distance)
     quality: InsightQuality
     novelty_score: float           # How novel this connection is
     coherence_score: float         # How coherent the connection
@@ -184,7 +184,7 @@ class CrossDomainInsightAssessor:
         basin_a = self.domains[domain_a].basin_coords
         basin_b = self.domains[domain_b].basin_coords
         
-        # Compute geometric distances
+        # Compute geometric distance (canonical Fisher-Rao metric)
         fisher_dist = fisher_rao_distance(basin_a, basin_b)
         
         # Determine insight quality from Fisher-Rao distance

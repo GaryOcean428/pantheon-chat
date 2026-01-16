@@ -1,5 +1,5 @@
-# Tokens allowed to keep extreme QFI scores (0 or >=0.99)
-# One token per line
+# Tokens allowed to retain extreme QFI scores (0 or >= 0.99)
+# One token per line.
 [PAD]
 [UNK]
 [BOS]

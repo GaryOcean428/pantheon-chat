@@ -20,6 +20,8 @@ import {
   coordizerVocabulary,
 } from "../shared/schema";
 import { db, withDbRetry } from "./db";
+import { assertCandidateTokensHaveValidQfi } from "./persistence/coordizer-vocabulary";
+import { isCurriculumOnlyEnabled, loadCurriculumManifest } from "./lib/curriculum-mode";
 import { knowledgeCompressionEngine } from "./knowledge-compression-engine";
 import { negativeKnowledgeUnified as negativeKnowledgeRegistry } from "./negative-knowledge-unified";
 import "./temporal-geometry";
@@ -728,41 +730,43 @@ export class StrategyKnowledgeBus {
       );
       const existingSet = new Set((existingPatterns.rows || []).map(r => r.pattern));
       
-      // Only load curriculum tokens when in curriculum-only mode
-      const inCurriculumMode = isCurriculumOnlyMode()
-      const curriculumTokens = inCurriculumMode ? getCurriculumTokens() : []
       const learnedWords = await db.execute<{
-        word: string
-        avg_phi: number
-        frequency: number
-        qfi_score: number | null
-        token_status: string | null
-      }>(sql`
-        SELECT token as word, phi_score as avg_phi, frequency, qfi_score, token_status
-        FROM coordizer_vocabulary
-        WHERE phi_score > 0.4
-          AND frequency > 5
-          AND token_role IN ('generation', 'both')
-          AND token_status = 'active'
-          AND qfi_score BETWEEN 0 AND 1
-          AND basin_embedding IS NOT NULL
-          ${isCurriculumOnlyMode() ? sql`AND token = ANY(${getCurriculumTokens()})` : sql``}
-        ORDER BY phi_score DESC
-        LIMIT 100
-      `)
+        word: string;
+        avg_phi: number;
+        frequency: number;
+        qfiScore: number | null;
+        tokenStatus: string | null;
+      }>(
+        `SELECT token as word, phi_score as avg_phi, frequency, qfi_score as "qfiScore", token_status as "tokenStatus"
+         FROM coordizer_vocabulary
+         WHERE phi_score > 0.4 AND frequency > 5
+           AND token_role IN ('generation', 'both')
+           AND token_status = 'active'
+           AND qfi_score IS NOT NULL
+           AND qfi_score BETWEEN 0 AND 1
+           AND basin_embedding IS NOT NULL
+         ORDER BY phi_score DESC
+         LIMIT 100`
+      );
 
-      const enforceQfi = isCurriculumOnlyMode()
-        || process.env.QIG_ENV === 'purity'
-        || process.env.QIG_PURITY_MODE === 'true'
-      if (enforceQfi) {
-        const invalid = (learnedWords.rows || []).filter((row) => !isValidQfiScore(row.qfi_score))
-        if (invalid.length > 0) {
-          throw new Error(`Invalid QFI scores detected in generation candidates: ${invalid.length}`)
-        }
+      const enforceQfiAssertions =
+        isCurriculumOnlyEnabled() || process.env.QIG_ENV === 'purity' || process.env.QIG_PURITY_MODE === 'true';
+
+      if (enforceQfiAssertions) {
+        assertCandidateTokensHaveValidQfi(learnedWords.rows || [], 'KnowledgeBus bootstrap');
       }
+
+      const curriculumOnly = isCurriculumOnlyEnabled();
+      const curriculumTokens = curriculumOnly
+        ? new Set(loadCurriculumManifest().map((entry) => entry.token))
+        : null;
+
+      const candidateRows = (learnedWords.rows || []).filter((row) =>
+        curriculumTokens ? curriculumTokens.has(row.word) : true
+      );
       
       let seeded = 0;
-      for (const row of learnedWords.rows || []) {
+      for (const row of candidateRows) {
         if (row.word && row.avg_phi && !existingSet.has(row.word)) {
           try {
             await this.publishKnowledge(

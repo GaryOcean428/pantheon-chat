@@ -173,9 +173,34 @@ npm run db:validate
 
 **Validate QFI Integrity:**
 ```bash
-# Enforces qfi_score range and active token invariants
+# Ensure qfi_score ranges + active token requirements hold
 npm run validate:db-integrity
 ```
+
+**QFI Constraints:**
+- `qfi_score` is constrained to `[0, 1]` or NULL for quarantined tokens.
+- Active tokens must have non-null `qfi_score` and `basin_embedding`.
+
+**Maintenance Tools:**
+
+The `tools/` directory contains maintenance utilities for QFI backfilling, quarantine management, and data repair. These tools intentionally perform direct SQL operations outside the canonical `upsertToken` path for performance reasons:
+
+```bash
+# Recompute QFI scores from basin embeddings
+npx tsx tools/recompute_qfi_scores.ts --dry-run  # Preview changes
+npx tsx tools/recompute_qfi_scores.ts --apply    # Apply changes
+
+# Quarantine tokens with extreme QFI values (0 or ≥0.99)
+npx tsx tools/quarantine_extremes.ts
+
+# Verify database integrity
+npx tsx tools/verify_db_integrity.ts
+
+# Verify curriculum completeness
+npx tsx tools/verify_curriculum_complete.ts
+```
+
+**Important:** Maintenance tools use direct SQL for bulk operations and are intended for manual administrative use only. Regular application code MUST use the canonical persistence layer (`server/persistence/coordizer-vocabulary.ts` → `upsertToken`) to ensure QFI validation and proper quarantine handling.
 
 **Complete Database Setup:**
 ```bash

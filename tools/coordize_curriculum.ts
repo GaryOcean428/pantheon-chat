@@ -1,135 +1,142 @@
+import { readFileSync } from 'fs'
 import { sql } from 'drizzle-orm'
+import { db, withDbRetry } from '../server/db'
+import { upsertToken } from '../server/persistence/coordizer-vocabulary'
 
-import { upsertToken } from '../server/persistence/vocabulary'
-import { loadCurriculumManifest } from '../server/curriculum'
-import { db } from '../server/db'
+interface CurriculumEntry {
+  token: string
+  role: string
+  is_real_word: boolean
+  frequency?: number
+  notes?: string
+}
 
-const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001'
+const MANIFEST_PATH = 'data/curriculum/curriculum_tokens.jsonl'
+const BACKEND_URL = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001'
 
-function extractBasinEmbedding(payload: Record<string, unknown>): number[] | null {
-  const candidateKeys = [
-    'basin_embedding',
-    'basin',
-    'basin_coords',
-    'basin_coordinates',
-    'embedding',
-    'coordinates'
+function loadManifest(): CurriculumEntry[] {
+  const content = readFileSync(MANIFEST_PATH, 'utf-8')
+  return content
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => JSON.parse(line) as CurriculumEntry)
+}
+
+function extractBasinCoords(payload: Record<string, unknown>): number[] | null {
+  const candidates = [
+    payload?.basin_coords,
+    payload?.basinCoordinates,
+    payload?.basin_embedding,
+    payload?.basin,
+    payload?.coordinates,
+    (payload?.data as Record<string, unknown>)?.basin_coords,
+    (payload?.data as Record<string, unknown>)?.basinCoordinates,
   ]
 
-  for (const key of candidateKeys) {
-    const value = payload[key]
-    if (Array.isArray(value) && value.every((item) => typeof item === 'number')) {
-      return value as number[]
-    }
-  }
-
-  for (const value of Object.values(payload)) {
-    if (Array.isArray(value) && value.every((item) => typeof item === 'number')) {
-      return value as number[]
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate) && candidate.length === 64) {
+      return candidate.map((value) => Number(value))
     }
   }
 
   return null
 }
 
-/**
- * Coordize a token via backend API.
- * Note: This is a backend-to-backend tool script, not client code.
- * Direct fetch is acceptable here as this is not part of the client application.
- */
-async function coordizeToken(token: string): Promise<number[]> {
-  const response = await fetch(`${backendUrl}/api/coordize`, {
+async function coordizeToken(token: string): Promise<number[] | null> {
+  const response = await fetch(`${BACKEND_URL}/api/coordize`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text: token })
+    body: JSON.stringify({ text: token }),
   })
 
   if (!response.ok) {
-    const errorText = await response.text()
-    throw new Error(`Coordize failed: ${response.status} ${errorText}`)
+    const text = await response.text()
+    throw new Error(`Coordizer error: ${response.status} ${text}`)
   }
 
   const payload = await response.json() as Record<string, unknown>
-  const embedding = extractBasinEmbedding(payload)
-
-  if (!embedding) {
-    throw new Error('Coordize response missing basin embedding')
-  }
-
-  return embedding
+  return extractBasinCoords(payload)
 }
 
-async function main() {
+async function run() {
   if (!db) {
-    throw new Error('Database not available')
+    console.error('[Curriculum] Database not configured')
+    process.exit(1)
   }
 
-  const manifest = loadCurriculumManifest()
-  if (manifest.length === 0) {
-    throw new Error('Curriculum manifest is empty')
-  }
+  const entries = loadManifest()
+  const tokens = entries.map((entry) => entry.token)
 
-  const tokens = manifest.map((entry) => entry.token.toLowerCase())
+  const existing = await withDbRetry(
+    async () =>
+      db.execute<{ token: string; token_id: number }>(sql`
+        SELECT token, token_id
+        FROM coordizer_vocabulary
+        WHERE token = ANY(${tokens})
+      `),
+    'curriculum-existing-tokens'
+  )
 
-  const existingRows = await db.execute<{ token: string; token_id: number }>(sql`
-    SELECT token, token_id
-    FROM coordizer_vocabulary
-    WHERE token = ANY(${tokens})
-  `)
+  const existingMap = new Map(
+    (existing.rows ?? []).map((row) => [row.token, row.token_id])
+  )
 
-  const existingMap = new Map<string, number>()
-  for (const row of existingRows.rows ?? []) {
-    existingMap.set(row.token, row.token_id)
-  }
+  const maxTokenIdResult = await withDbRetry(
+    async () =>
+      db.execute<{ max_id: number }>(sql`
+        SELECT COALESCE(MAX(token_id), 0)::int AS max_id
+        FROM coordizer_vocabulary
+      `),
+    'curriculum-max-token-id'
+  )
 
-  const maxIdResult = await db.execute<{ max_id: number }>(sql`
-    SELECT COALESCE(MAX(token_id), 0)::int AS max_id
-    FROM coordizer_vocabulary
-  `)
-  let nextId = (maxIdResult.rows?.[0]?.max_id ?? 0) + 1
-
-  let success = 0
-  let failures = 0
+  let nextTokenId = (maxTokenIdResult.rows?.[0]?.max_id ?? 0) + 1
+  let updated = 0
   let quarantined = 0
+  let failures = 0
 
-  for (const entry of manifest) {
+  for (const entry of entries) {
     try {
-      const embedding = await coordizeToken(entry.token)
-      const tokenId = existingMap.get(entry.token) ?? nextId++
+      const basinEmbedding = await coordizeToken(entry.token)
+      if (!basinEmbedding) {
+        failures++
+        console.error(`[Curriculum] Missing basin for ${entry.token}`)
+        continue
+      }
 
+      const tokenId = existingMap.get(entry.token) ?? nextTokenId++
       const result = await upsertToken({
-        token: entry.token.toLowerCase(),
+        token: entry.token,
         tokenId,
-        weight: 1,
+        basinEmbedding,
         frequency: entry.frequency ?? 1,
-        phiScore: 0.5,
-        basinEmbedding: embedding,
         sourceType: 'curriculum',
         tokenRole: 'generation',
-        phraseCategory: entry.role ?? 'curriculum',
-        isRealWord: entry.is_real_word ?? true,
-        source: 'curriculum'
+        phraseCategory: entry.role,
+        isRealWord: entry.is_real_word,
+        source: 'curriculum',
       })
 
-      if (result.tokenStatus === 'quarantined') {
-        quarantined += 1
+      if (result?.tokenStatus === 'quarantined') {
+        quarantined++
       } else {
-        success += 1
+        updated++
       }
     } catch (error) {
-      console.error(`Failed to coordize ${entry.token}:`, error)
-      failures += 1
+      failures++
+      console.error(`[Curriculum] Failed to coordize ${entry.token}:`, error)
     }
   }
 
-  console.log('Curriculum coordization report')
-  console.log(`- total tokens: ${manifest.length}`)
-  console.log(`- inserted/updated: ${success}`)
-  console.log(`- quarantined: ${quarantined}`)
-  console.log(`- failures: ${failures}`)
+  console.log('[Curriculum] Completion report')
+  console.log(`  total tokens: ${entries.length}`)
+  console.log(`  successfully inserted/updated: ${updated}`)
+  console.log(`  quarantined: ${quarantined}`)
+  console.log(`  failures: ${failures}`)
 }
 
-main().catch((error) => {
-  console.error('Curriculum coordization failed:', error)
+run().catch((error) => {
+  console.error('[Curriculum] Failed:', error)
   process.exit(1)
 })

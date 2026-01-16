@@ -1,20 +1,25 @@
-import { getCurriculumCoverage } from '../server/curriculum'
+import { getCurriculumStatus } from '../server/lib/curriculum-mode'
 
-async function main() {
-  const coverage = await getCurriculumCoverage()
+async function run() {
+  const status = await getCurriculumStatus()
 
-  console.log('Curriculum completeness')
-  console.log(`- total tokens: ${coverage.total}`)
-  console.log(`- active tokens: ${coverage.active}`)
-  console.log(`- missing tokens: ${coverage.missingTokens.length}`)
-  console.log(`- quarantined tokens: ${coverage.quarantinedTokens.length}`)
-
-  if (coverage.total === 0 || coverage.missingTokens.length > 0 || coverage.quarantinedTokens.length > 0) {
+  if (!status.complete) {
+    console.error('[Curriculum] Curriculum incomplete')
+    console.error(`  missing: ${status.missing.length}`)
+    console.error(`  invalid: ${status.invalid.length}`)
+    if (status.missing.length > 0) {
+      console.error(`  missing tokens (sample): ${status.missing.slice(0, 20).join(', ')}`)
+    }
+    if (status.invalid.length > 0) {
+      console.error(`  invalid tokens (sample): ${status.invalid.slice(0, 20).join(', ')}`)
+    }
     process.exit(1)
   }
+
+  console.log('[Curriculum] ✅ Curriculum complete')
 }
 
-main().catch((error) => {
-  console.error('Curriculum verification failed:', error)
+run().catch((error) => {
+  console.error('[Curriculum] Failed:', error)
   process.exit(1)
 })

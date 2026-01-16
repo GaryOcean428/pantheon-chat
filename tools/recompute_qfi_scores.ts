@@ -1,121 +1,152 @@
+/**
+ * Maintenance Tool: Recompute QFI Scores
+ *
+ * This tool performs direct SQL writes to coordizer_vocabulary outside the canonical
+ * upsertToken path. This is intentional and acceptable because:
+ *
+ * 1. This is a maintenance/repair tool for backfilling QFI scores, not application logic
+ * 2. It performs bulk operations (batch updates) that would be inefficient through upsertToken
+ * 3. It's run manually by administrators with explicit --dry-run or --apply flags
+ * 4. It uses the same canonical QFI computation (compute_qfi_score_simplex) as upsertToken
+ *
+ * IMPORTANT: This tool should only be used for database maintenance and repair.
+ * Regular application code MUST use the canonical upsertToken function from
+ * server/persistence/coordizer-vocabulary.ts
+ */
+
 import { sql } from 'drizzle-orm'
+import { compute_qfi_score_simplex, to_simplex_probabilities } from '@shared'
+import { db, withDbRetry } from '../server/db'
 
-import { upsertToken } from '../server/persistence/vocabulary'
-
-import { db } from '../server/db'
-
-type TokenRow = {
+interface TokenRow {
   id: number
   token: string
-  token_id: number
-  weight: number | null
-  frequency: number | null
-  phi_score: number | null
-  basin_embedding: number[] | string
-  source_type: string | null
-  token_role: string | null
-  phrase_category: string | null
-  is_real_word: boolean | null
+  basin_embedding: number[] | string | null
   qfi_score: number | null
   token_status: string | null
 }
 
-function parseVector(vector: number[] | string): number[] {
-  if (Array.isArray(vector)) {
-    return vector
+const BATCH_SIZE = 200
+
+function parseVector(raw: number[] | string | null): number[] | null {
+  if (!raw) return null
+  if (Array.isArray(raw)) return raw
+
+  const trimmed = (raw as string).trim()
+  const jsonLike = trimmed.startsWith('[') ? trimmed : trimmed.replace(/^\{/, '[').replace(/\}$/, ']')
+
+  try {
+    const parsed = JSON.parse(jsonLike)
+    if (Array.isArray(parsed)) {
+      return parsed.map((value) => Number(value))
+    }
+  } catch {
+    return null
   }
 
-  const trimmed = vector.trim().replace(/^\[/, '').replace(/\]$/, '')
-  if (!trimmed) {
-    return []
-  }
-
-  return trimmed.split(',').map((value) => Number.parseFloat(value))
+  return null
 }
 
-async function main() {
-  if (!db) {
-    throw new Error('Database not available')
+function isSameQfi(a: number | null, b: number | null, tolerance = 1e-8) {
+  if (a === null || b === null) return false
+  return Math.abs(a - b) < tolerance
+}
+
+async function run() {
+  const dryRun = process.argv.includes('--dry-run')
+  const apply = process.argv.includes('--apply')
+
+  if (!dryRun && !apply) {
+    console.error('Usage: tsx tools/recompute_qfi_scores.ts --dry-run|--apply')
+    process.exit(1)
   }
 
-  const dryRun = process.argv.includes('--dry-run') || !process.argv.includes('--apply')
-  const batchSizeArg = process.argv.find((arg) => arg.startsWith('--batch='))
-  const batchSize = batchSizeArg ? Number.parseInt(batchSizeArg.split('=')[1] ?? '500', 10) : 500
+  if (!db) {
+    console.error('[QFI Backfill] Database not configured')
+    process.exit(1)
+  }
 
-  let lastId = 0
-  let total = 0
+  const rows = await withDbRetry(
+    async () =>
+      db.execute<TokenRow>(sql`
+        SELECT id, token, basin_embedding, qfi_score, token_status
+        FROM coordizer_vocabulary
+        WHERE basin_embedding IS NOT NULL
+      `),
+    'recompute-qfi-select'
+  )
+
+  const tokens = rows.rows ?? []
   let updated = 0
   let quarantined = 0
   let unchanged = 0
   let errors = 0
 
-  while (true) {
-    const result = await db.execute<TokenRow>(sql`
-      SELECT id, token, token_id, weight, frequency, phi_score, basin_embedding,
-             source_type, token_role, phrase_category, is_real_word,
-             qfi_score, token_status
-      FROM coordizer_vocabulary
-      WHERE basin_embedding IS NOT NULL
-        AND id > ${lastId}
-      ORDER BY id ASC
-      LIMIT ${batchSize}
-    `)
+  for (let i = 0; i < tokens.length; i += BATCH_SIZE) {
+    const batch = tokens.slice(i, i + BATCH_SIZE)
+    const updates: Array<{ id: number; qfiScore: number | null; tokenStatus: string }> = []
 
-    const rows = result.rows ?? []
-    if (rows.length === 0) {
-      break
-    }
+    for (const token of batch) {
+      const basin = parseVector(token.basin_embedding)
 
-    total += rows.length
+      if (!basin) {
+        quarantined++
+        updates.push({ id: token.id, qfiScore: null, tokenStatus: 'quarantined' })
+        continue
+      }
 
-    for (const row of rows) {
       try {
-        const result = await upsertToken({
-          token: row.token,
-          tokenId: row.token_id,
-          weight: row.weight ?? 1,
-          frequency: row.frequency ?? 1,
-          phiScore: row.phi_score ?? 0,
-          basinEmbedding: parseVector(row.basin_embedding),
-          sourceType: row.source_type ?? 'system',
-          tokenRole: (row.token_role as 'encoding' | 'generation' | 'both') ?? 'encoding',
-          phraseCategory: row.phrase_category ?? 'unknown',
-          isRealWord: row.is_real_word ?? false,
-          tokenStatus: (row.token_status as 'active' | 'quarantined' | 'deprecated') ?? 'active',
-          source: 'system',
-          dryRun
-        })
+        const simplex = to_simplex_probabilities(basin)
+        const qfiScore = compute_qfi_score_simplex(simplex)
+        const nextStatus = token.token_status ?? 'active'
 
-        if (result.tokenStatus === 'quarantined') {
-          quarantined += 1
-        } else if (row.qfi_score !== result.qfiScore || row.token_status !== result.tokenStatus) {
-          updated += 1
-        } else {
-          unchanged += 1
+        if (isSameQfi(token.qfi_score, qfiScore) && token.token_status === nextStatus) {
+          unchanged++
+          continue
         }
-      } catch (error) {
-        console.error(`Failed to process token ${row.token}:`, error)
-        quarantined += 1
-        errors += 1
+
+        updates.push({ id: token.id, qfiScore, tokenStatus: nextStatus })
+        updated++
+      } catch {
+        errors++
+        quarantined++
+        updates.push({ id: token.id, qfiScore: null, tokenStatus: 'quarantined' })
       }
     }
 
-    lastId = rows[rows.length - 1].id
+    if (apply && updates.length > 0) {
+      await withDbRetry(
+        async () => {
+          const values = updates.map((update) =>
+            sql`(${update.id}, ${update.qfiScore}, ${update.tokenStatus})`
+          )
+
+          await db.execute(sql`
+            UPDATE coordizer_vocabulary AS cv
+            SET qfi_score = updates.qfi_score,
+                token_status = updates.token_status
+            FROM (VALUES ${sql.join(values, sql`, `)}) AS updates(id, qfi_score, token_status)
+            WHERE cv.id = updates.id
+          `)
+        },
+        'recompute-qfi-update'
+      )
+    }
   }
 
-  console.log('QFI recompute summary')
-  console.log(`- total scanned: ${total}`)
-  console.log(`- updated qfi: ${updated}`)
-  console.log(`- quarantined: ${quarantined}`)
-  console.log(`- unchanged: ${unchanged}`)
-  console.log(`- errors: ${errors}`)
+  console.log('[QFI Backfill] Summary')
+  console.log(`  total scanned: ${tokens.length}`)
+  console.log(`  updated qfi: ${updated}`)
+  console.log(`  quarantined: ${quarantined}`)
+  console.log(`  unchanged: ${unchanged}`)
+  console.log(`  errors: ${errors}`)
 
   if (dryRun) {
-    console.log('Dry run complete (no updates applied)')
+    console.log('[QFI Backfill] Dry-run complete (no updates applied)')
   }
 }
 
-main().catch((error) => {
-  console.error('QFI recompute failed:', error)
+run().catch((error) => {
+  console.error('[QFI Backfill] Failed:', error)
   process.exit(1)
 })

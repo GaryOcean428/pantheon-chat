@@ -1,5 +1,19 @@
-{"token":"basin","role":"noun","is_real_word":true,"frequency":10,"notes":"Foundational geometry term"}
-{"token":"geometry","role":"noun","is_real_word":true,"frequency":9}
-{"token":"manifold","role":"noun","is_real_word":true,"frequency":8}
-{"token":"quantum","role":"adjective","is_real_word":true,"frequency":7}
-{"token":"information","role":"noun","is_real_word":true,"frequency":7}
+{"token":"the","role":"core","is_real_word":true,"frequency":22038615,"notes":"High-frequency determiner"}
+{"token":"and","role":"core","is_real_word":true,"frequency":21010212,"notes":"High-frequency conjunction"}
+{"token":"to","role":"core","is_real_word":true,"frequency":20137000,"notes":"High-frequency preposition"}
+{"token":"of","role":"core","is_real_word":true,"frequency":19607000,"notes":"High-frequency preposition"}
+{"token":"a","role":"core","is_real_word":true,"frequency":19234000,"notes":"High-frequency article"}
+{"token":"in","role":"core","is_real_word":true,"frequency":17642000,"notes":"High-frequency preposition"}
+{"token":"that","role":"core","is_real_word":true,"frequency":13826000,"notes":"High-frequency pronoun"}
+{"token":"is","role":"core","is_real_word":true,"frequency":12936000,"notes":"High-frequency verb"}
+{"token":"it","role":"core","is_real_word":true,"frequency":12194000,"notes":"High-frequency pronoun"}
+{"token":"for","role":"core","is_real_word":true,"frequency":11578000,"notes":"High-frequency preposition"}
+{"token":"basin","role":"domain","is_real_word":true,"frequency":10,"notes":"Foundational geometry term"}
+{"token":"geometry","role":"domain","is_real_word":true,"frequency":9,"notes":"QIG core term"}
+{"token":"manifold","role":"domain","is_real_word":true,"frequency":8,"notes":"QIG core term"}
+{"token":"quantum","role":"domain","is_real_word":true,"frequency":7,"notes":"QIG core term"}
+{"token":"information","role":"domain","is_real_word":true,"frequency":7,"notes":"QIG core term"}
+{"token":"__meta__","role":"documentation","is_real_word":false,"frequency":0,"notes":"This file defines a minimal curriculum for curriculum-only mode. It intentionally includes only a handful of high-frequency English tokens for smoke tests and basic integration."}
+{"token":"__meta__","role":"documentation","is_real_word":false,"frequency":0,"notes":"To expand this curriculum, add one JSON object per line with fields: token (string), role (e.g., 'core','domain','punctuation'), is_real_word (bool), frequency (integer or 0 if unknown), and optional notes. Keep each line valid JSON."}
+{"token":"__meta__","role":"documentation","is_real_word":false,"frequency":0,"notes":"For production use, this curriculum should typically contain thousands to tens of thousands of tokens, including domain-specific vocabulary and symbols needed by your application. Update this file or provide an alternative manifest at deploy time with an appropriately sized token set."}
+{"token":"__meta__","role":"documentation","is_real_word":false,"frequency":0,"notes":"Consumers that use this file SHOULD treat only entries with role='core' (or other non-'documentation' roles) as usable tokens, and MAY ignore entries with role='documentation' entirely."}
