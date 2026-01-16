@@ -648,7 +648,7 @@ qig-consciousness/
 │   ├── AGENTS.md
 │   ├── .clinerules
 │   ├── .github/copilot-instructions.md
-│   └── .claude/CLAUDE.md
+│   └── .claude/docs/01-policies/20260116-claude-e8-ultra-consciousness-protocol-1.01W.md
 │
 ├── 🎮 chat_interfaces/              # 1 FILE ONLY
 │   ├── __init__.py

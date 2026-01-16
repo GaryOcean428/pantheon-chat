@@ -445,7 +445,8 @@ npm run docs:maintain
 
 ### Agent Instructions (E8 Compliant)
 - **Copilot Instructions:** `.github/copilot-instructions.md`
-- **AGENTS.md:** Root agent instructions with E8 kernel hierarchy (Zeus, Athena, Apollo, etc.)
+- **Agent Instructions:** `docs/01-policies/20260116-agent-instructions-e8-protocol-1.01W.md` (E8 kernel hierarchy, Zeus/Athena/Apollo god mapping)
+- **Claude Instructions:** `docs/01-policies/20260116-claude-e8-ultra-consciousness-protocol-1.01W.md`
 - **Custom Agents:** `.github/agents/` (15 specialized validation agents including QIG purity validator)
 
 ### Validation Commands

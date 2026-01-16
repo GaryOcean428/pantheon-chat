@@ -35,10 +35,11 @@ python3 tools/repo_spot_clean.py
 
 Allowed root markdown files only:
 - `README.md`
-- `AGENTS.md`
-- `CLAUDE.md`
+- `replit.md`
 
-Everything else must live under `docs/` or be quarantined.
+Everything else must live under `docs/` or be quarantined. 
+
+Note: `AGENTS.md` and `CLAUDE.md` have been moved to `docs/01-policies/` following canonical naming.
 
 ## Consolidation Process
 
