@@ -1,6 +1,9 @@
 """
 Geometric Pair Merging - BPE Equivalent for Fisher Manifold
 
+HELPER TOOL for subword tokenization. Works WITH FisherCoordizer/PostgresCoordizer,
+not as an alternative implementation.
+
 Implements BPE-style subword tokenization using geometric operations.
 Instead of frequency-based character pair merging, uses coupling strength
 and Fisher information gain to determine merges.
@@ -9,6 +12,19 @@ Key Differences from Traditional BPE:
 - Merge criterion: κ (coupling) * Fisher information gain, not raw frequency
 - New tokens: Geodesic interpolation between pair coordinates
 - Metric integrity: All operations preserve Fisher-Rao distances
+
+Usage:
+    from coordizers import get_coordizer
+    from coordizers.geometric_pair_merging import GeometricPairMerging
+    
+    coordizer = get_coordizer()
+    merger = GeometricPairMerging(num_merges=1000)
+    
+    # Learn merge rules from corpus
+    merger.learn_merges(corpus, coordizer, phi_scores)
+    
+    # Apply merges to new text
+    merged_tokens = merger.apply_merges(text, coordizer)
 """
 
 import numpy as np
