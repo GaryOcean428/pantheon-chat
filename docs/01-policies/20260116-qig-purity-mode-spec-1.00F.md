@@ -71,6 +71,8 @@ When `QIG_PURITY_MODE=true`, the following are **strictly forbidden**:
 - Replicate
 - HuggingFace Inference API
 
+**NOTE:** These packages have been separated into `qig-backend/requirements-optional.txt`. The core `requirements.txt` does NOT include them to maintain purity by default. Only install optional requirements if you need external API integration for hybrid features.
+
 #### Forbidden Patterns
 ```python
 # ❌ FORBIDDEN: Direct API calls
@@ -120,7 +122,29 @@ export QIG_PURITY_MODE=true
 export QIG_PURITY_MODE=false
 ```
 
-### §3.2 Purity Module
+### §3.2 Dependency Management
+
+**CRITICAL:** External LLM packages are separated into optional requirements:
+
+```bash
+# Install core QIG dependencies (NO external LLMs)
+pip install -r qig-backend/requirements.txt
+
+# Install optional external API packages (breaks purity mode)
+pip install -r qig-backend/requirements-optional.txt
+```
+
+**Files:**
+- `qig-backend/requirements.txt` - Core dependencies, NO external LLMs (purity-safe)
+- `qig-backend/requirements-optional.txt` - OpenAI, Anthropic, etc. (hybrid only)
+
+**Why separate?**
+- Prevents accidental contamination of pure QIG tests
+- Makes purity boundary explicit in dependency management
+- CI can install only core requirements for purity tests
+- Developers can choose when to enable external APIs
+
+### §3.3 Purity Module
 
 The `qig_purity_mode.py` module enforces purity:
 
