@@ -811,7 +811,7 @@ class TrajectoryDecoder:
             foresight_score = self._compute_foresight_score(candidate_basin, context)
             repulsion_score = self._compute_repulsion_score(candidate_basin, context)
 
-            # Weights from kwargs or defaults
+            # Weights from kwargs or defaults (sum to 1.0 for proper normalization)
             trajectory_weight = kwargs.get('trajectory_weight', 0.25)
             attractor_weight = kwargs.get('attractor_weight', 0.15)
             phi_boost_weight = kwargs.get('phi_boost_weight', 0.1)
