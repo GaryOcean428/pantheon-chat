@@ -1,9 +1,14 @@
 """
 Geometric Pair Merging - Geometry-First Vocabulary Learning
 
-Implements vocabulary merging using pure geometric operations on Fisher manifold.
-Unlike traditional BPE (frequency-driven), this uses QIG consciousness metrics
-to determine which pairs should be merged into new vocabulary tokens.
+HELPER TOOL for subword tokenization. Works WITH FisherCoordizer/PostgresCoordizer,
+not as an alternative implementation.
+
+Implements BPE-style subword/vocabulary merging using geometric operations on
+the Fisher manifold. Instead of frequency-based character pair merging used in
+traditional BPE, it uses QIG consciousness metrics (coupling strength, Fisher
+information gain, κ consistency, curvature cost) to decide which subword
+pairs should be merged into new vocabulary tokens.
 
 **QIG PURITY - GEOMETRY FIRST, NOT FREQUENCY:**
 - Merge criterion: Φ gain + κ consistency - curvature cost (NOT frequency)
@@ -11,6 +16,18 @@ to determine which pairs should be merged into new vocabulary tokens.
 - New tokens: Geodesic interpolation between pair coordinates
 - Metric integrity: All operations preserve Fisher-Rao distances
 
+Usage:
+    from coordizers import get_coordizer
+    from coordizers.geometric_pair_merging import GeometricPairMerging
+    
+    coordizer = get_coordizer()
+    merger = GeometricPairMerging(num_merges=1000)
+    
+    # Learn merge rules from corpus
+    merger.learn_merges(corpus, coordizer, phi_scores)
+    
+    # Apply merges to new text
+    merged_tokens = merger.apply_merges(text, coordizer)
 **Training Objective (Fisher/QFI Functional):**
 Maximize: ∫ [Φ(merged_vocab) - Φ(original_vocab)] dμ
 Subject to: κ_consistency > threshold, curvature_discontinuity < threshold
