@@ -1768,8 +1768,8 @@ class GaryAutonomicKernel:
 
         # Compute basin variance across time (exploration measure)
         basin_array = np.array(recent_basins)
-        basin_variance = np.mean(np.var(basin_array, axis=0))
-        self.state.exploration_variance = float(basin_variance)
+        basin_variance = float(np.var(basin_array, axis=0).mean())
+        self.state.exploration_variance = basin_variance
 
         # Check Φ stagnation
         phi_recent = self.state.phi_history[-NARROW_PATH_WINDOW:] if len(self.state.phi_history) >= NARROW_PATH_WINDOW else self.state.phi_history

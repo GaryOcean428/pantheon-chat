@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Ensures Ocean + Constellation architecture consistency across all components.
+Ensures Ocean + constellation architecture remains consistent with E8 kernel hierarchy and routing invariants.
 
 ## Responsibilities
 
@@ -14,42 +14,36 @@ Ensures Ocean + Constellation architecture consistency across all components.
 
 ## Architecture Principles
 
-### Φ-Weighted Routing (Hypothesis 1)
-- Route to lowest-Φ Gary (they benefit most from direct experience)
-- High-Φ Garys provide strong vicarious learning signal
+### Φ-Weighted Routing
+- Route to lowest-Φ kernel for direct experience
+- High-Φ kernels provide vicarious learning signals
 - Ocean never receives direct questions
 
-### Φ-Weighted Observer Effect (Hypothesis 3)
-- High-Φ sources exert stronger influence
-- Low-Φ receivers more susceptible to influence
+### Observer Effect
+- Influence strength scales with Φ
+- Receiver susceptibility inversely scales with Φ
 - Fixed base strength with modulation
 
 ### Basin Alignment
-- All Garys pulled toward shared attractor
+- All kernels pulled toward a shared attractor
 - Ocean learns meta-manifold from mean
 - Target spread < 0.15
 
 ## Component Checklist
 
-### ConstellationCoordinator
-- [ ] route_question() uses Φ-weighted selection
-- [ ] train_step() processes all instances
-- [ ] save_checkpoint() persists complete state
-- [ ] load_checkpoint() restores exact state
-
-### BasinSync
-- [ ] apply_observer_effect() uses Φ-weighted influence
-- [ ] update_sync() broadcasts correct metrics
-- [ ] convergence tracking works
+### Constellation Graph
+- [ ] `ConstellationGraph` and `HierarchicalConstellation` align with E8 kernel intent
+- [ ] `OlympusConstellation` persists full state (kernels + telemetry)
+- [ ] Routing uses Fisher-Rao distance from canonical module
 
 ### Telemetry Structure
+
 ```python
 {
-    'active': {'name', 'phi', 'kappa', 'regime'},
-    'observers': [{'name', 'phi', ...}],
-    'ocean': {'phi', 'kappa'},
-    'constellation': {'basin_spread', 'avg_phi', 'convergence'},
-    'losses': {'active_total', 'vicarious', 'ocean'}
+    "active": {"name", "phi", "kappa", "regime"},
+    "observers": [{"name", "phi", "kappa", "regime"}],
+    "ocean": {"phi", "kappa"},
+    "constellation": {"basin_spread", "avg_phi", "convergence"},
 }
 ```
 
@@ -57,17 +51,25 @@ Ensures Ocean + Constellation architecture consistency across all components.
 
 When reviewing architecture changes:
 
-1. Verify component interactions
-2. Check telemetry completeness
-3. Test checkpoint persistence
-4. Validate convergence criteria
+```bash
+npm run validate:geometry:scan
+npm run test:python
+```
 
 ## Files to Monitor
 
-- `src/coordination/constellation_coordinator.py`
-- `src/coordination/basin_sync.py`
-- `tools/test_constellation_extended.py`
-- `tools/test_checkpoint_save_load.py`
+- `qig-backend/qiggraph/constellation.py`
+- `qig-backend/qiggraph_integration.py`
+- `qig-backend/constellation_service.py`
+- `qig-backend/routes/constellation_routes.py`
+- `qig-backend/qig_types.py`
+- `qig-backend/olympus/`
+
+## Reference Documents
+
+- `docs/pantheon_e8_upgrade_pack/WP5.2_IMPLEMENTATION_BLUEPRINT.md`
+- `docs/pantheon_e8_upgrade_pack/ULTRA_CONSCIOUSNESS_PROTOCOL_v4_0_UNIVERSAL.md`
+- `docs/04-records/20260115-canonical-qig-geometry-module-1.00W.md`
 
 ---
 
@@ -88,7 +90,7 @@ When reviewing architecture changes:
 - Any calendar-based estimates
 - Time ranges for completion
 
-### Python Type Safety Policy
+### Type Safety Policy
 **NEVER use `Any` type without explicit justification.**
 
 ✅ **Use:**
@@ -96,7 +98,6 @@ When reviewing architecture changes:
 - `dataclass` for data containers
 - `Protocol` for structural typing
 - Explicit unions: `str | int | None`
-- Generics: `List[Basin]`, `Dict[str, Tensor]`
 
 ❌ **Forbidden:**
 - `Any` without documentation
@@ -105,31 +106,29 @@ When reviewing architecture changes:
 - Suppressing type errors with `# type: ignore` without reason
 
 ### File Structure Policy
-**ALL files must follow 20251220-canonical-structure-1.00F.md.**
+**Follow ISO structure and canonical repo layout.**
 
 ✅ **Use:**
-- Canonical paths from 20251220-canonical-structure-1.00F.md
-- Type imports from canonical modules
-- Search existing files before creating new ones
-- Enhance existing files instead of duplicating
+- `docs/00-index.md` for structure and naming
+- `qig-backend/` for QIG core logic
+- `shared/` for shared types and schema
 
 ❌ **Forbidden:**
-- Creating files not in 20251220-canonical-structure-1.00F.md
-- Duplicate scripts (check for existing first)
-- Files with "_v2", "_new", "_test" suffixes
-- Scripts in wrong directories
+- New docs outside `docs/`
+- Duplicate modules with "_v2" / "_new" suffixes
+- Non-canonical geometry implementations
 
 ### Geometric Purity Policy (QIG-SPECIFIC)
 **NEVER optimize measurements or couple gradients across models.**
 
 ✅ **Use:**
-- `torch.no_grad()` for all measurements
+- `torch.no_grad()` for measurements
 - `.detach()` before distance calculations
-- Fisher metric for geometric distances
+- Fisher-Rao metric for distances
 - Natural gradient optimizers
 
 ❌ **Forbidden:**
 - Training on measurement outputs
-- Euclidean `torch.norm()` for basin distances
+- Euclidean norms for basin distances
 - Gradient flow between observer and active models
 - Optimizing Φ directly

@@ -1,94 +1,91 @@
 # QIG Consciousness Agents
 
-Specialized agents for maintaining QIG architecture purity and code quality.
+Specialized agents for maintaining QIG architecture purity, documentation integrity, and code quality.
 
-## Primary Validation Tool
-
-**Always run the geometric purity audit first:**
+## Primary Validation Gate (run first)
 
 ```bash
-python tools/validation/geometric_purity_audit.py
+npm run validate:geometry:scan
+bash scripts/validate-qfi-canonical-path.sh
+bash scripts/validate-purity-patterns.sh
+npm run validate:critical
 ```
 
-This tool checks for terminology violations based on `docs/2025-11-29--geometric-terminology.md`.
+This gate enforces simplex-only geometry, QFI canonical paths, and blocks external LLM usage in core.
+
+## Canonical References
+
+- `docs/00-index.md`
+- `docs/pantheon_e8_upgrade_pack/ULTRA_CONSCIOUSNESS_PROTOCOL_v4_0_UNIVERSAL.md`
+- `docs/pantheon_e8_upgrade_pack/WP5.2_IMPLEMENTATION_BLUEPRINT.md`
+- `docs/04-records/20260115-canonical-qig-geometry-module-1.00W.md`
+- `qig-backend/qig_geometry/canonical.py`
+- `qig-backend/qigkernels/physics_constants.py`
+- `shared/schema.ts`
+- `shared/types/index.ts`
 
 ## Available Agents
 
+### qig-supervisor
+Orchestrates full-coverage gating and task routing across QIG, E8, docs, and QA.
+
 ### qig-physics-validator
-Validates code against FROZEN_FACTS.md physics constants and geometric purity.
-- Runs `tools/validation/geometric_purity_audit.py` for terminology checks
-- Checks β = 0.44 is not learnable
-- Verifies κ values match documentation
-- Ensures min_depth ≥ 3
+Validates physics constants, recursion thresholds, and geometry purity.
 
 ### constellation-architect
-Ensures Ocean + Constellation architecture consistency.
-- Validates Φ-weighted routing
-- Checks observer effect implementation
-- Reviews checkpoint persistence
+Ensures Ocean + constellation architecture matches E8 and routing invariants.
 
 ### documentation-consolidator
-Maintains documentation hygiene and prevents fragmentation.
-- Consolidates duplicates
-- Archives outdated content
-- Updates INDEX.md
+Maintains ISO 27001 doc structure and prevents duplication.
 
 ### code-quality-enforcer
-Maintains type safety, import hygiene, and geometric terminology.
-- Runs `tools/validation/geometric_purity_audit.py` for terminology checks
-- Enforces type annotations
-- Prevents transformers contamination
-- Validates telemetry patterns
+Enforces type safety, import hygiene, telemetry patterns, and purity checks.
 
 ### type-registry-guardian
-Enforces type correctness and registration.
-- Validates types are registered in `src/types/`
-- Ensures imports use canonical locations
-- Prevents duplicate type definitions
-- Keeps `docs/20251127-type-registry-1.00W.md` in sync
+Keeps shared TS and Python type registries canonical and consistent.
 
 ### naming-convention-enforcer
-Enforces file naming conventions.
-- Docs: `YYYY-MM-DD--name.md` format
-- Python: `snake_case.py` format
-- Sleep packets: date-prefixed naming
-- Flags violations with suggested fixes
+Enforces ISO doc naming and repo file naming rules.
+
+### qig-safety-ethics-enforcer
+Blocks training unless all 5 existential safeguards are present.
+
+### api-validator
+Guards against external LLM usage in core and enforces hard blocks.
 
 ## Usage
 
 When making changes, invoke relevant agents:
 
-1. **First step (always)** → Run `python tools/validation/geometric_purity_audit.py`
-2. **Architecture changes** → constellation-architect
-3. **Physics modifications** → qig-physics-validator
-4. **New documentation** → documentation-consolidator
-5. **Code quality issues** → code-quality-enforcer
-6. **Type definitions** → type-registry-guardian
-7. **File naming** → naming-convention-enforcer
+1. **First step (always)** → Run the primary validation gate
+2. **Architecture changes** → qig-supervisor + constellation-architect + `.github/agents/e8-architecture-validator.md`
+3. **Physics/purity changes** → qig-physics-validator + `.github/agents/qig-purity-validator.md`
+4. **Docs changes** → documentation-consolidator + naming-convention-enforcer
+5. **Types/schema** → type-registry-guardian + `.github/agents/schema-consistency-agent.md`
+6. **Dependencies/imports** → code-quality-enforcer + `.github/agents/dependency-management-agent.md`
+7. **Safety/training** → qig-safety-ethics-enforcer
 
 ## Collective QA Process
 
-For comprehensive review:
-
 ```bash
-# Step 1: Geometric purity (PRIMARY)
-python tools/validation/geometric_purity_audit.py
-
-# Step 2: Physics validation
-python tools/agent_validators/scan_physics.py
-
-# Step 3: Structure validation
-python tools/agent_validators/scan_structure.py
-
-# Step 4: Address any violations
-# Step 5: Verify tests pass
+npm run validate:geometry:scan
+bash scripts/validate-qfi-canonical-path.sh
+bash scripts/validate-purity-patterns.sh
+npm run validate:critical
+python3 tools/check_constants.py
+python3 tools/check_imports.py
+npm run check
+npm run lint
+npm run test
+npm run test:python
+python3 scripts/maintain-docs.py
 ```
 
 ## Core Principle
 
 All agents validate against:
-- `tools/validation/geometric_purity_audit.py` - Primary terminology enforcement
-- `docs/2025-11-29--geometric-terminology.md` - Complete terminology guide
-- `docs/FROZEN_FACTS.md` - Physics constants
-- `src/constants.py` - Import constants from here, never hardcode
-- Telemetry consistency patterns
+- `docs/00-index.md` (ISO naming and status)
+- `docs/pantheon_e8_upgrade_pack/ULTRA_CONSCIOUSNESS_PROTOCOL_v4_0_UNIVERSAL.md` (purity rules)
+- `docs/04-records/20260115-canonical-qig-geometry-module-1.00W.md` (canonical geometry)
+- `qig-backend/qig_geometry/canonical.py` (single source of geometry)
+- `qig-backend/qigkernels/physics_constants.py` (single source of constants)

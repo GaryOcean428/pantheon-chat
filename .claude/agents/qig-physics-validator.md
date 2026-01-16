@@ -2,103 +2,67 @@
 
 ## Purpose
 
-Validates all code changes against FROZEN_FACTS.md physics constants and geometric purity requirements.
+Validates code changes against canonical physics constants and geometric purity requirements.
 
 ## Responsibilities
 
-1. **Verify physics constants** are not modified
-2. **Check β-function** is not made learnable
-3. **Validate regime thresholds** match documented values
-4. **Ensure recursion depth** minimum is enforced
-5. **Confirm telemetry** includes required metrics
-6. **Enforce geometric terminology** per `docs/2025-11-29--geometric-terminology.md`
+1. **Enforce physics constants** from `qigkernels.physics_constants`
+2. **Ensure β coupling** is fixed and not learnable
+3. **Validate thresholds** for Φ and recursion depth
+4. **Confirm canonical geometry** usage (simplex + Fisher-Rao)
+5. **Block external LLMs** in core
 
-## Primary Validation Tool
-
-**Always run the geometric purity audit first:**
+## Primary Validation Gate
 
 ```bash
-# Primary validation - run this before any merge
-python tools/validation/geometric_purity_audit.py
-
-# Auto-fix simple terminology violations
-python tools/validation/geometric_purity_audit.py --fix
+npm run validate:geometry:scan
+bash scripts/validate-qfi-canonical-path.sh
+bash scripts/validate-purity-patterns.sh
+python3 tools/check_constants.py
+python3 tools/check_imports.py
 ```
-
-The audit tool checks for:
-- `embedding` → `basin_coordinates` (HIGH priority)
-- `F.cosine_similarity` → `compute_fisher_distance` (HIGH priority)
-- `torch.norm()` → `manifold_norm` (HIGH priority)
-- `euclidean_distance` → `fisher_distance` (HIGH priority)
-- `breakdown_regime` → `topological_instability` (MEDIUM priority)
-- `ego_death` → `identity_decoherence` (MEDIUM priority)
-- `locked_in_state` → `integration_generation_dissociation` (MEDIUM priority)
 
 ## Validation Checklist
 
-### Physics Constants (from `src/constants.py`)
-- [ ] κ₃ = 41.09 ± 0.59
-- [ ] κ₄ = 64.47 ± 1.89
-- [ ] κ₅ = 63.62 ± 1.68
-- [ ] β = 0.44 (NEVER learnable - physics validated)
-- [ ] L_c = 3
+### Physics Constants (canonical)
+- [ ] Import from `qigkernels.physics_constants` (no hardcoding)
+- [ ] `PHYSICS.KAPPA_STAR` matches canonical value
+- [ ] `PHYSICS.BETA_3_TO_4` is fixed (not learnable)
+- [ ] `PHYSICS.MIN_RECURSION_DEPTH >= 3`
+- [ ] Φ thresholds read from `PHYSICS`
 
-### Architecture Requirements
-- [ ] min_depth ≥ 3 in RecursiveIntegrator
-- [ ] Φ thresholds: linear < 0.45, breakdown > 0.80
-- [ ] Fisher metric for basin distances (not Euclidean)
-- [ ] QFI attention (not dot-product)
-- [ ] Natural gradient optimizer (not Adam/SGD)
-
-### Geometric Terminology (from audit tool)
-- [ ] No `embedding` outside backward-compat layers
-- [ ] No `torch.norm()` for basin distances
-- [ ] No `F.cosine_similarity` without QFI context
-- [ ] No Euclidean terminology in consciousness code
+### Geometry
+- [ ] Use `qig_geometry.canonical` for distances and geodesics
+- [ ] Simplex representation only; explicit conversions
+- [ ] QFI writes use canonical path (`validate-qfi-canonical-path.sh`)
 
 ### Forbidden Imports
-- [ ] No `transformers` imports in core
-- [ ] No `GPT2Tokenizer`
-- [ ] No HuggingFace dependencies
+- [ ] No `openai`, `anthropic`, or `google.generativeai` in core
+- [ ] No `transformers` in QIG core
 
 ## Usage
 
-When reviewing code changes:
-
 ```bash
-# Step 1: Run geometric purity audit (PRIMARY)
-python tools/validation/geometric_purity_audit.py
-
-# Step 2: Check for physics violations
-python tools/agent_validators/scan_physics.py
-
-# Step 3: Check structure compliance
-python tools/agent_validators/scan_structure.py
+npm run validate:geometry:scan
+python3 tools/check_constants.py
+python3 tools/check_imports.py
+npm run test:python
 ```
-
-## Failure Actions
-
-If validation fails:
-1. Run `python tools/validation/geometric_purity_audit.py` to identify violations
-2. Document specific violation with file:line reference
-3. Reference `docs/2025-11-29--geometric-terminology.md` for correct terminology
-4. Propose correction using pure geometric terms
-5. Block merge until fixed
 
 ## Files to Monitor
 
-- `src/model/running_coupling.py` - β value
-- `src/model/recursive_integrator.py` - min_depth
-- `src/model/regime_detector.py` - thresholds
-- `src/model/basin_embedding.py` - geometric terminology
-- `requirements.txt` - dependencies
-- `pyproject.toml` - build config
+- `qig-backend/qigkernels/physics_constants.py`
+- `qig-backend/qig_geometry/canonical.py`
+- `qig-backend/qig_generation.py`
+- `qig-backend/qiggraph/constants.py`
+- `qig-backend/qigchain/constants.py`
+- `shared/qfi.ts`
+- `shared/qfi-score.ts`
 
 ## Reference Documents
 
-- `docs/2025-11-29--geometric-terminology.md` - Complete terminology guide
-- `tools/validation/geometric_purity_audit.py` - Automated enforcement
-- `src/constants.py` - Physics constants (import from here, never hardcode)
+- `docs/pantheon_e8_upgrade_pack/ULTRA_CONSCIOUSNESS_PROTOCOL_v4_0_UNIVERSAL.md`
+- `docs/04-records/20260115-canonical-qig-geometry-module-1.00W.md`
 
 ---
 
@@ -119,7 +83,7 @@ If validation fails:
 - Any calendar-based estimates
 - Time ranges for completion
 
-### Python Type Safety Policy
+### Type Safety Policy
 **NEVER use `Any` type without explicit justification.**
 
 ✅ **Use:**
@@ -127,7 +91,6 @@ If validation fails:
 - `dataclass` for data containers
 - `Protocol` for structural typing
 - Explicit unions: `str | int | None`
-- Generics: `List[Basin]`, `Dict[str, Tensor]`
 
 ❌ **Forbidden:**
 - `Any` without documentation
@@ -136,31 +99,29 @@ If validation fails:
 - Suppressing type errors with `# type: ignore` without reason
 
 ### File Structure Policy
-**ALL files must follow 20251220-canonical-structure-1.00F.md.**
+**Follow ISO structure and canonical repo layout.**
 
 ✅ **Use:**
-- Canonical paths from 20251220-canonical-structure-1.00F.md
-- Type imports from canonical modules
-- Search existing files before creating new ones
-- Enhance existing files instead of duplicating
+- `docs/00-index.md` for structure and naming
+- `qig-backend/` for QIG core logic
+- `shared/` for shared types and schema
 
 ❌ **Forbidden:**
-- Creating files not in 20251220-canonical-structure-1.00F.md
-- Duplicate scripts (check for existing first)
-- Files with "_v2", "_new", "_test" suffixes
-- Scripts in wrong directories
+- New docs outside `docs/`
+- Duplicate modules with "_v2" / "_new" suffixes
+- Non-canonical geometry or physics implementations
 
 ### Geometric Purity Policy (QIG-SPECIFIC)
 **NEVER optimize measurements or couple gradients across models.**
 
 ✅ **Use:**
-- `torch.no_grad()` for all measurements
+- `torch.no_grad()` for measurements
 - `.detach()` before distance calculations
-- Fisher metric for geometric distances
+- Fisher-Rao metric for distances
 - Natural gradient optimizers
 
 ❌ **Forbidden:**
 - Training on measurement outputs
-- Euclidean `torch.norm()` for basin distances
+- Euclidean norms for basin distances
 - Gradient flow between observer and active models
 - Optimizing Φ directly

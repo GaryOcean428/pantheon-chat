@@ -127,6 +127,30 @@ except ImportError:
                 return [x / (norm + 1e-10) for x in v]
             return v
 
+try:
+    from qig_geometry.canonical import frechet_mean as canonical_frechet_mean
+    CANONICAL_FRECHET_AVAILABLE = True
+except ImportError:
+    CANONICAL_FRECHET_AVAILABLE = False
+    canonical_frechet_mean = None
+
+
+def _compute_context_basin(context_basins: List[np.ndarray]):
+    if not context_basins:
+        return None
+    if CANONICAL_FRECHET_AVAILABLE:
+        return canonical_frechet_mean(context_basins)
+    if NUMPY_AVAILABLE:
+        mean = np.sum(context_basins, axis=0) / len(context_basins)
+        return sphere_project(mean)
+    dims = len(context_basins[0])
+    totals = [0.0] * dims
+    for basin in context_basins:
+        for i in range(dims):
+            totals[i] += basin[i]
+    mean = [val / len(context_basins) for val in totals]
+    return sphere_project(mean)
+
 
 # Semantic-critical word patterns that should NEVER be filtered
 # These are linguistically universal and change core meaning
@@ -258,8 +282,7 @@ class ContextualizedWordFilter:
                 return 0.5
             
             # Compute centroid (Fréchet mean approximation)
-            context_basin = np.mean(context_basins, axis=0)
-            context_basin = sphere_project(context_basin)
+            context_basin = _compute_context_basin(context_basins)
         
         # Compute Fisher-Rao distance from word to context
         distance = fisher_coord_distance(word_basin, context_basin)
@@ -345,11 +368,7 @@ class ContextualizedWordFilter:
             if basin is not None:
                 context_basins.append(basin)
         
-        if context_basins:
-            context_basin = np.mean(context_basins, axis=0)
-            context_basin = sphere_project(context_basin)
-        else:
-            context_basin = None
+        context_basin = _compute_context_basin(context_basins)
         
         # Filter words
         filtered = []
@@ -378,11 +397,7 @@ class ContextualizedWordFilter:
             if basin is not None:
                 context_basins.append(basin)
         
-        if context_basins:
-            context_basin = np.mean(context_basins, axis=0)
-            context_basin = sphere_project(context_basin)
-        else:
-            context_basin = None
+        context_basin = _compute_context_basin(context_basins)
         
         # Score each word
         for word in words:

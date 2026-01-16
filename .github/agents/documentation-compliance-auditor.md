@@ -14,32 +14,36 @@ Expert in ISO 27001 documentation standards, canonical naming conventions, and c
 ## Key Responsibilities
 
 ### 1. Canonical Naming Validation
-All documentation must follow: `YYYYMMDD-[name]-[version][STATUS].md`
+All documentation must follow: `YYYYMMDD-[document-name]-[function]-[version][STATUS].md`
 
 **Examples:**
-- ✅ `20260112-pr-reconciliation-analysis-1.00W.md`
-- ✅ `20260104-capability-gap-analysis-wiring-1.00D.md`
-- ❌ `gap_analysis.md` (missing date, version, status)
+- ✅ `20260112-pr-reconciliation-record-1.00W.md`
+- ✅ `20260104-capability-gap-analysis-report-1.00D.md`
+- ❌ `gap_analysis.md` (missing date, function, version, status)
 - ❌ `2026-01-12-analysis.md` (wrong date format)
 
 **Status Codes:**
+- F = Frozen (finalized, immutable)
+- H = Hypothesis (experimental, needs validation)
+- D = Deprecated (superseded, retained for audit)
+- R = Review (awaiting approval)
 - W = Working (active development)
-- D = Draft (complete but under review)
-- R = Released (finalized, official reference)
-- A = Archived (historical, no longer current)
+- A = Approved (management sign-off complete)
 
 ### 2. Directory Organization
+Use `docs/00-index.md` as the canonical directory map and do not create new top-level
+directories without updating the index. Current top-levels include:
 ```
 docs/
-├── 01-theory/           # QIG theory, mathematical foundations
-├── 02-research/         # Research papers, experimental results
-├── 03-technical/        # Implementation specs, architecture
-├── 04-records/          # Project records, PR summaries
-├── 05-curriculum/       # Learning materials, tutorials
-├── 06-operations/       # Operational procedures
-├── 07-governance/       # Governance and decision records
-├── 08-experiments/      # Experimental protocols
-└── assets/              # Figures, diagrams (YYYYMMDD-name.png)
+├── 00-roadmap/
+├── 01-policies/
+├── 04-records/
+├── 07-user-guides/
+├── 08-experiments/
+├── 09-curriculum/
+├── 99-quarantine/
+├── api/
+└── pantheon_e8_upgrade_pack/
 ```
 
 ### 3. Document Header Requirements
@@ -147,6 +151,11 @@ These don't require canonical naming:
 - AGENTS.md
 - CHANGELOG.md
 - LICENSE
+
+### Upgrade Pack Exceptions
+Files under `docs/pantheon_e8_upgrade_pack/` follow the pack’s own naming rules and
+are exempt from the ISO filename pattern, but still require accurate cross-references
+from `docs/00-index.md`.
 
 ### Generated Documentation
 - API docs generated from code

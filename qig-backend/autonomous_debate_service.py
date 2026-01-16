@@ -1254,7 +1254,11 @@ class AutonomousDebateService:
 
         # Compute counter-direction if previous arguments exist
         if prev_basins:
-            avg_prev = np.mean(prev_basins, axis=0)
+            try:
+                from qig_geometry.canonical import frechet_mean
+                avg_prev = frechet_mean(prev_basins)
+            except Exception:
+                avg_prev = np.sum(prev_basins, axis=0) / len(prev_basins)
             counter_direction = topic_basin - avg_prev
             counter_mag = np.linalg.norm(counter_direction)
             if counter_mag > 0.1:
@@ -1294,7 +1298,7 @@ class AutonomousDebateService:
                 if generated:
                     return f"{god_name.capitalize()}: {generated}"
             except Exception as e:
-                logger.warning(f"Tokenizer generation failed for {god_name}: {e}")
+                logger.warning(f"Coordizer generation failed for {god_name}: {e}")
 
         return None
 

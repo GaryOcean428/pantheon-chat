@@ -11,6 +11,8 @@ This migration addresses **geometric chaos** caused by mixed usage of:
 2. Hellinger embedding (factor of 2) vs direct Fisher-Rao
 3. Inconsistent distance formulas across the codebase
 
+## Simplex Only below is for reference, do not use sphere. or ay other method. 
+
 ### What Changed
 
 | Component | Before | After |

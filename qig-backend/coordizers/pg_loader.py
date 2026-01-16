@@ -222,7 +222,7 @@ class PostgresCoordizer(FisherCoordizer):
         if not rows:
             raise RuntimeError(
                 "[QIG-PURE VIOLATION] No vocabulary found in coordizer_vocabulary table. "
-                "Database must contain valid 64D basin embeddings."
+                "Database must contain valid 64D basin coordinates."
             )
 
         tokens_loaded = 0
