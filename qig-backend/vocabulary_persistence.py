@@ -170,7 +170,8 @@ class VocabularyPersistence:
                             basin_vector
                         ))
                     else:
-                        # No basin available - use existing phi_score if present, don't overwrite with 1.0
+                        # No basin available - sync phi_score from existing qfi_score to fix any stale 1.0 values
+                        # This ensures phi_score always derives from geometric computation
                         cur.execute("""
                             INSERT INTO coordizer_vocabulary (
                                 token, token_role, is_real_word, 
@@ -186,6 +187,11 @@ class VocabularyPersistence:
                                 phrase_category = COALESCE(EXCLUDED.phrase_category, coordizer_vocabulary.phrase_category, 'unknown'),
                                 basin_embedding = COALESCE(EXCLUDED.basin_embedding, coordizer_vocabulary.basin_embedding),
                                 frequency = COALESCE(coordizer_vocabulary.frequency, 0) + 1,
+                                phi_score = CASE
+                                    WHEN coordizer_vocabulary.phi_score >= 0.96 AND coordizer_vocabulary.qfi_score IS NOT NULL 
+                                    THEN coordizer_vocabulary.qfi_score
+                                    ELSE coordizer_vocabulary.phi_score
+                                END,
                                 updated_at = NOW()
                         """, (
                             word_val,
@@ -315,7 +321,7 @@ class VocabularyPersistence:
                                     basin_coords
                                 ))
                             else:
-                                # No basin available - don't set phi_score, preserve existing
+                                # No basin available - sync phi_score from existing qfi_score to fix any stale 1.0 values
                                 cur.execute("""
                                     INSERT INTO coordizer_vocabulary (
                                         token, token_role, is_real_word, 
@@ -331,6 +337,11 @@ class VocabularyPersistence:
                                         phrase_category = COALESCE(EXCLUDED.phrase_category, coordizer_vocabulary.phrase_category, 'unknown'),
                                         basin_embedding = COALESCE(EXCLUDED.basin_embedding, coordizer_vocabulary.basin_embedding),
                                         frequency = COALESCE(coordizer_vocabulary.frequency, 0) + 1,
+                                        phi_score = CASE
+                                            WHEN coordizer_vocabulary.phi_score >= 0.96 AND coordizer_vocabulary.qfi_score IS NOT NULL 
+                                            THEN coordizer_vocabulary.qfi_score
+                                            ELSE coordizer_vocabulary.phi_score
+                                        END,
                                         updated_at = NOW()
                                 """, (
                                     word,
