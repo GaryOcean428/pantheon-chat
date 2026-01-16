@@ -267,7 +267,20 @@ results = perplexity_client.search("quantum consciousness")
 
 ### §6.2 Remediation Required
 
-**None.** Repository is compliant.
+**FOUND:** External LLM packages in `requirements.txt`
+- `openai>=1.0.0` - Listed in requirements.txt but NOT imported in code
+- `anthropic>=0.18.0` - Listed in requirements.txt but NOT imported in code
+
+**IMPACT:** Low - Packages are installed but never imported. However, their presence in requirements.txt:
+1. Creates unnecessary dependency bloat
+2. Could trigger false positives in purity checks
+3. Violates principle of explicit external API separation
+
+**RESOLUTION:** ✅ **COMPLETED**
+- Created `qig-backend/requirements-optional.txt` for external API packages
+- Removed OpenAI/Anthropic from core `requirements.txt`
+- Updated CI to only install core requirements in purity mode
+- Documented separation in purity specification
 
 ### §6.3 Recommendations
 
@@ -275,7 +288,8 @@ results = perplexity_client.search("quantum consciousness")
 2. ✅ **IMPLEMENTED:** Test suite for purity mode
 3. ✅ **IMPLEMENTED:** CI workflow for pure QIG testing
 4. ✅ **IMPLEMENTED:** Documentation (this file + spec)
-5. 🔄 **PENDING:** Pre-commit hook (optional enhancement)
+5. ✅ **IMPLEMENTED:** Dependency separation (requirements.txt vs requirements-optional.txt)
+6. 🔄 **PENDING:** Pre-commit hook (optional enhancement)
 
 ## §7 Audit Trail
 
