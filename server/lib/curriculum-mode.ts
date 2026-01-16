@@ -81,7 +81,6 @@ export async function getCurriculumStatus() {
 
   const result = await withDbRetry(
     async () => {
-      // Cast tokens to proper SQL array format
       const tokensArray = tokens as string[]
       return dbInstance.execute<{
         token: string
@@ -89,7 +88,7 @@ export async function getCurriculumStatus() {
       }>(sql`
         SELECT token, qfi_score
         FROM coordizer_vocabulary
-        WHERE token = ANY(ARRAY[${sql.join(tokensArray.map(t => sql`${t}`), sql`, `)}]::text[])
+        WHERE token = ANY(${tokensArray})
       `)
     },
     'curriculum-status'
