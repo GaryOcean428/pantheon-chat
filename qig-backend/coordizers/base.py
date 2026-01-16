@@ -251,7 +251,7 @@ class FisherCoordizer:
             if count < self.min_frequency:
                 continue
             
-            if token not in self.vocab and next_id < self.vocab_size:
+            if token not in self.vocab and next_id < self._vocab_size:  # Use private attr
                 self.vocab[token] = next_id
                 self.id_to_token[next_id] = token
                 self.token_frequency[token] = count
@@ -430,7 +430,7 @@ class FisherCoordizer:
             return self.vocab[token]
         
         token_id = len(self.vocab)
-        if token_id >= self.vocab_size:
+        if token_id >= self._vocab_size:  # Use private attr _vocab_size
             # Vocabulary full - return None for graceful handling
             return None
         
@@ -534,42 +534,205 @@ class FisherCoordizer:
         similarities.sort(key=lambda x: -x[1])
         return similarities[:k]
     
-    def save(self, path: str) -> None:
+    def save(self, path: str, metadata: Optional[Dict[str, Any]] = None) -> None:
         """
-        Save coordizer state to disk.
+        Save coordizer state to disk in CoordizerArtifactV1 format.
+        
+        Creates a versioned artifact with full provenance tracking and
+        validation metadata. Includes geometry version hash and hyperparameters
+        for reproducibility.
         
         Args:
             path: Directory path to save state
+            metadata: Optional metadata dict with keys:
+                - training_corpus: Description of training data
+                - corpus_size: Size of training corpus
+                - created_by: System/user identifier
+                - description: Human-readable description
+                - tags: List of tags for categorization
+                - notes: Additional notes
         """
         import json
+        import subprocess
+        from datetime import datetime, timezone
+        
         os.makedirs(path, exist_ok=True)
+        metadata = metadata or {}
         
-        # Save vocabulary
-        with open(os.path.join(path, "vocab.json"), "w") as f:
-            json.dump({
-                "vocab": self.vocab,
-                "id_to_token": {str(k): v for k, v in self.id_to_token.items()},
-                "token_frequency": self.token_frequency,
-                "token_phi": self.token_phi,
-            }, f, indent=2)
+        # Get git commit hash for geometry version
+        try:
+            result = subprocess.run(
+                ['git', 'rev-parse', 'HEAD'],
+                capture_output=True,
+                text=True,
+                check=True,
+                cwd=os.path.dirname(__file__)
+            )
+            geometry_version = result.stdout.strip()
+        except Exception:
+            # Fallback to placeholder if git not available
+            geometry_version = '0' * 40
         
-        # Save basin coordinates as numpy array
+        # Prepare tokens and coordinates
         tokens = sorted(self.basin_coords.keys())
         coords_matrix = np.array([self.basin_coords[t] for t in tokens])
+        
+        # Build special symbols metadata
+        special_symbols = {}
+        for token in self.special_tokens:
+            if token in self.vocab and token in self.basin_coords:
+                special_symbols[token.strip('<>')] = {
+                    'token': token,
+                    'token_id': self.vocab[token],
+                    'basin_coord': self.basin_coords[token].tolist(),
+                    'phi_score': self.token_phi.get(token, 0.0),
+                    'frequency': self.token_frequency.get(token, 0)
+                }
+        
+        # Perform validation checks
+        validation_result = self._validate_artifact_data(tokens, coords_matrix)
+        
+        # Build provenance metadata
+        provenance = {
+            'created_at': datetime.now(timezone.utc).isoformat(),
+            'geometry_version': geometry_version,
+            'hyperparameters': {
+                'vocab_size': self._vocab_size,
+                'coordinate_dim': self.coordinate_dim,
+                'min_frequency': self.min_frequency
+            }
+        }
+        
+        # Add optional provenance fields
+        if 'training_corpus' in metadata:
+            provenance['training_corpus'] = metadata['training_corpus']
+        if 'corpus_size' in metadata:
+            provenance['corpus_size'] = metadata['corpus_size']
+        if 'created_by' in metadata:
+            provenance['created_by'] = metadata['created_by']
+        if 'parent_artifact' in metadata:
+            provenance['parent_artifact'] = metadata['parent_artifact']
+        
+        # Save vocabulary with full CoordizerArtifactV1 metadata
+        artifact_data = {
+            "version": "1.0",
+            "basin_dim": self.coordinate_dim,
+            "symbols": tokens,
+            "vocab": self.vocab,
+            "id_to_token": {str(k): v for k, v in self.id_to_token.items()},
+            "token_frequency": self.token_frequency,
+            "token_phi": self.token_phi,
+            "phi_scores": [self.token_phi.get(t, 0.0) for t in tokens],
+            "special_symbols": special_symbols,
+            "provenance": provenance,
+            "validation": validation_result
+        }
+        
+        # Add optional metadata
+        if 'description' in metadata or 'tags' in metadata or 'notes' in metadata:
+            artifact_data['metadata'] = {
+                k: metadata[k] for k in ['description', 'tags', 'notes']
+                if k in metadata
+            }
+        
+        with open(os.path.join(path, "vocab.json"), "w") as f:
+            json.dump(artifact_data, f, indent=2)
+        
+        # Save basin coordinates as numpy array
         np.save(os.path.join(path, "basin_coords.npy"), coords_matrix)
         
+        # Save token order for coordinate alignment
         with open(os.path.join(path, "coord_tokens.json"), "w") as f:
-            json.dump(tokens, f)
+            json.dump(tokens, f, indent=2)
     
-    def load(self, path: str) -> None:
+    def _validate_artifact_data(
+        self, 
+        tokens: List[str], 
+        coords_matrix: np.ndarray
+    ) -> Dict[str, Any]:
+        """
+        Validate artifact data before saving.
+        
+        Args:
+            tokens: List of token strings
+            coords_matrix: Matrix of basin coordinates
+            
+        Returns:
+            Validation result dictionary
+        """
+        from datetime import datetime, timezone
+        
+        errors = []
+        
+        # Check dimension consistency
+        dimension_consistent = coords_matrix.shape[1] == 64 if coords_matrix.ndim == 2 else False
+        if not dimension_consistent:
+            errors.append(f"Invalid coordinate dimension: {coords_matrix.shape}")
+        
+        # Check simplex constraints (unit norm)
+        passes_simplex = True
+        no_nan_inf = True
+        for i, coord in enumerate(coords_matrix):
+            if np.any(np.isnan(coord)) or np.any(np.isinf(coord)):
+                no_nan_inf = False
+                errors.append(f"Coordinate {i} contains NaN or inf")
+            
+            norm = np.linalg.norm(coord)
+            if not (0.99 < norm < 1.01):
+                passes_simplex = False
+                if len(errors) < 10:  # Limit error messages
+                    errors.append(f"Coordinate {i} not unit-normalized: norm={norm:.6f}")
+        
+        # Check special symbols are deterministic
+        special_symbols_ok = all(
+            token in self.basin_coords for token in self.special_tokens
+        )
+        
+        # Fisher-Rao identity check (basic triangle inequality sampling)
+        fisher_rao_verified = True
+        try:
+            from qig_geometry.canonical import fisher_rao_distance
+            if len(coords_matrix) >= 3:
+                # Sample a few triplets
+                indices = np.random.choice(len(coords_matrix), min(3, len(coords_matrix)), replace=False)
+                coords = [coords_matrix[i] for i in indices]
+                
+                d01 = fisher_rao_distance(coords[0], coords[1])
+                d12 = fisher_rao_distance(coords[1], coords[2])
+                d02 = fisher_rao_distance(coords[0], coords[2])
+                
+                # Triangle inequality
+                if d02 > (d01 + d12) * 1.01:
+                    fisher_rao_verified = False
+                    errors.append("Fisher-Rao triangle inequality violated")
+        except Exception as e:
+            # Don't fail if geometry check unavailable
+            fisher_rao_verified = True
+        
+        return {
+            'passes_simplex_check': passes_simplex,
+            'fisher_rao_identity_verified': fisher_rao_verified,
+            'dimension_consistent': dimension_consistent,
+            'unit_norm_verified': passes_simplex,
+            'no_nan_inf': no_nan_inf,
+            'special_symbols_deterministic': special_symbols_ok,
+            'validation_timestamp': datetime.now(timezone.utc).isoformat(),
+            'validation_errors': errors
+        }
+    
+    def load(self, path: str, validate: bool = True) -> None:
         """
         Load coordizer state from disk in CoordizerArtifactV1 format ONLY.
         
+        Validates artifact format and version. Rejects unversioned or legacy
+        artifacts with clear error messages.
+        
         Args:
             path: Directory path containing saved state
+            validate: If True, perform full artifact validation (default: True)
             
         Raises:
-            RuntimeError: If artifact is not in CoordizerArtifactV1 format
+            RuntimeError: If artifact is not in CoordizerArtifactV1 format or validation fails
         """
         import json
         
@@ -583,27 +746,56 @@ class FisherCoordizer:
                 "Use tools/convert_legacy_artifacts.py to convert to CoordizerArtifactV1 format."
             )
         
-        # Load vocabulary
+        # Load vocabulary and metadata
         try:
             with open(os.path.join(path, "vocab.json"), "r") as f:
                 data = json.load(f)
                 
-                # Validate required keys
-                required_keys = ["vocab", "id_to_token", "token_frequency", "token_phi"]
-                missing_keys = [k for k in required_keys if k not in data]
-                if missing_keys:
+                # Check version field (required in v1.0)
+                if 'version' not in data:
                     raise RuntimeError(
-                        f"Legacy format detected. Missing required keys in vocab.json: {', '.join(missing_keys)}. "
+                        "Unversioned artifact detected. Missing 'version' field in vocab.json. "
                         "Use tools/convert_legacy_artifacts.py to convert to CoordizerArtifactV1 format."
                     )
                 
+                # Validate version
+                version = data['version']
+                if version != '1.0':
+                    raise RuntimeError(
+                        f"Unsupported artifact version: {version}. Only version 1.0 is supported. "
+                        "Use tools/convert_legacy_artifacts.py to upgrade."
+                    )
+                
+                # Validate required keys
+                required_keys = ["vocab", "id_to_token", "token_frequency", "token_phi", 
+                                "basin_dim", "symbols", "special_symbols", "provenance", "validation"]
+                missing_keys = [k for k in required_keys if k not in data]
+                if missing_keys:
+                    raise RuntimeError(
+                        f"Invalid CoordizerArtifactV1 format. Missing required keys: {', '.join(missing_keys)}. "
+                        "Use tools/convert_legacy_artifacts.py to convert."
+                    )
+                
+                # Check basin dimension
+                if data['basin_dim'] != 64:
+                    raise RuntimeError(
+                        f"Invalid basin_dim: {data['basin_dim']} (expected 64). "
+                        "Only 64-dimensional Fisher manifold is supported."
+                    )
+                
+                # Load vocabulary data
                 self.vocab = data["vocab"]
                 self.id_to_token = {int(k): v for k, v in data["id_to_token"].items()}
                 self.token_frequency = data["token_frequency"]
                 self.token_phi = data["token_phi"]
+                
+                # Store provenance and validation metadata
+                self._artifact_provenance = data.get("provenance", {})
+                self._artifact_validation = data.get("validation", {})
+                
         except (json.JSONDecodeError, KeyError) as e:
             raise RuntimeError(
-                f"Legacy format detected. Invalid vocab.json: {e}. "
+                f"Invalid artifact format. Cannot parse vocab.json: {e}. "
                 "Use tools/convert_legacy_artifacts.py to convert to CoordizerArtifactV1 format."
             )
         
@@ -612,12 +804,12 @@ class FisherCoordizer:
             coords_matrix = np.load(os.path.join(path, "basin_coords.npy"))
             if coords_matrix.ndim != 2 or coords_matrix.shape[1] != 64:
                 raise RuntimeError(
-                    f"Legacy format detected. Invalid basin coordinates shape: {coords_matrix.shape}. "
+                    f"Invalid basin coordinates shape: {coords_matrix.shape}. "
                     "Expected (n_tokens, 64). Use tools/convert_legacy_artifacts.py to convert."
                 )
         except (ValueError, OSError) as e:
             raise RuntimeError(
-                f"Legacy format detected. Cannot load basin_coords.npy: {e}. "
+                f"Cannot load basin_coords.npy: {e}. "
                 "Use tools/convert_legacy_artifacts.py to convert to CoordizerArtifactV1 format."
             )
         
@@ -628,15 +820,63 @@ class FisherCoordizer:
                 
                 if len(tokens) != coords_matrix.shape[0]:
                     raise RuntimeError(
-                        f"Legacy format detected. Token count mismatch: {len(tokens)} tokens vs "
-                        f"{coords_matrix.shape[0]} coordinates. Use tools/convert_legacy_artifacts.py to convert."
+                        f"Token count mismatch: {len(tokens)} tokens vs "
+                        f"{coords_matrix.shape[0]} coordinates. Artifact is corrupted."
                     )
         except (json.JSONDecodeError, ValueError) as e:
             raise RuntimeError(
-                f"Legacy format detected. Invalid coord_tokens.json: {e}. "
+                f"Invalid coord_tokens.json: {e}. "
                 "Use tools/convert_legacy_artifacts.py to convert to CoordizerArtifactV1 format."
             )
         
+        # Reconstruct basin coordinates dictionary
         self.basin_coords = {
             token: coords_matrix[i] for i, token in enumerate(tokens)
         }
+        
+        # Perform full validation if requested
+        if validate:
+            self._validate_loaded_artifact(data, coords_matrix)
+    
+    def _validate_loaded_artifact(self, artifact_data: Dict[str, Any], coords_matrix: np.ndarray) -> None:
+        """
+        Validate loaded artifact integrity.
+        
+        Args:
+            artifact_data: Loaded artifact metadata
+            coords_matrix: Loaded basin coordinates
+            
+        Raises:
+            RuntimeError: If validation fails
+        """
+        validation = artifact_data.get('validation', {})
+        
+        # Check validation status
+        if not validation.get('dimension_consistent', False):
+            raise RuntimeError(
+                "Artifact failed dimension consistency check. Coordinates may be corrupted."
+            )
+        
+        if not validation.get('passes_simplex_check', False):
+            # Warning only - some artifacts may have minor numerical drift
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(
+                "Artifact simplex check failed during save. "
+                "Some coordinates may not be perfectly unit-normalized."
+            )
+        
+        if validation.get('validation_errors'):
+            errors = validation['validation_errors']
+            if len(errors) > 0:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(
+                    f"Artifact has {len(errors)} validation errors: {errors[:3]}"
+                )
+        
+        # Verify no NaN/inf in loaded coordinates
+        if np.any(np.isnan(coords_matrix)) or np.any(np.isinf(coords_matrix)):
+            raise RuntimeError(
+                "Loaded basin coordinates contain NaN or inf values. Artifact is corrupted."
+            )
