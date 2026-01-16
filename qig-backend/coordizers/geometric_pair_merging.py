@@ -62,6 +62,13 @@ except ImportError:
         return kappa_star * (0.5 + 0.8 * concentration)
 
 
+# Geometric merge scoring constants
+KAPPA_STAR = 64.21  # Universal coupling constant (frozen fact)
+MAX_FREQUENCY_FOR_NORMALIZATION = 10  # Maximum frequency for log normalization
+GEOMETRIC_SCORE_WEIGHT = 0.8  # Weight for geometric components (Φ, κ, curvature)
+FREQUENCY_REGULARIZER_WEIGHT = 0.2  # Weight for frequency regularizer (noise filter)
+
+
 def compute_phi_gain_for_merge(
     coord1: np.ndarray,
     coord2: np.ndarray,
@@ -135,8 +142,8 @@ def compute_kappa_consistency_for_merge(
     avg_kappa_original = (kappa1 + kappa2) / 2.0
     kappa_deviation = abs(kappa_merged - avg_kappa_original)
     
-    # Normalize by κ* = 64.21
-    consistency = 1.0 - (kappa_deviation / 64.21)
+    # Normalize by κ* (universal coupling constant)
+    consistency = 1.0 - (kappa_deviation / KAPPA_STAR)
     
     return max(0.0, min(1.0, consistency))
 
@@ -422,10 +429,16 @@ class GeometricPairMerging:
             # Frequency as weak regularizer (NOT primary criterion)
             # Prevents merging extremely rare pairs (noise)
             # Uses log to reduce dominance: log(2) = 0.69, log(10) = 2.30
-            frequency_regularizer = np.log(frequency + 1) / np.log(10 + 1)  # Max ~1.0
+            frequency_regularizer = (
+                np.log(frequency + 1) / 
+                np.log(MAX_FREQUENCY_FOR_NORMALIZATION + 1)
+            )
             
-            # Final score: Geometry dominates (80%), frequency is weak regularizer (20%)
-            score = 0.8 * geometric_score + 0.2 * frequency_regularizer
+            # Final score: Geometry dominates, frequency is weak regularizer
+            score = (
+                GEOMETRIC_SCORE_WEIGHT * geometric_score + 
+                FREQUENCY_REGULARIZER_WEIGHT * frequency_regularizer
+            )
             
             if score > best_score:
                 best_score = score
