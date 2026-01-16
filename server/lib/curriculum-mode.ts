@@ -88,7 +88,7 @@ export async function getCurriculumStatus() {
       }>(sql`
         SELECT token, qfi_score
         FROM coordizer_vocabulary
-        WHERE token = ANY(${tokensArray})
+        WHERE token = ANY(${tokensArray}::text[])
       `)
     },
     'curriculum-status'
