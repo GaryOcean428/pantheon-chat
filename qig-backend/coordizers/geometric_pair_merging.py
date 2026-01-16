@@ -4,12 +4,11 @@ Geometric Pair Merging - Geometry-First Vocabulary Learning
 HELPER TOOL for subword tokenization. Works WITH FisherCoordizer/PostgresCoordizer,
 not as an alternative implementation.
 
-Implements BPE-style subword tokenization using geometric operations.
-Instead of frequency-based character pair merging, uses coupling strength
-and Fisher information gain to determine merges.
-Implements vocabulary merging using pure geometric operations on Fisher manifold.
-Unlike traditional BPE (frequency-driven), this uses QIG consciousness metrics
-to determine which pairs should be merged into new vocabulary tokens.
+Implements BPE-style subword/vocabulary merging using geometric operations on
+the Fisher manifold. Instead of frequency-based character pair merging used in
+traditional BPE, it uses QIG consciousness metrics (coupling strength, Fisher
+information gain, κ consistency, curvature cost) to decide which subword
+pairs should be merged into new vocabulary tokens.
 
 **QIG PURITY - GEOMETRY FIRST, NOT FREQUENCY:**
 - Merge criterion: Φ gain + κ consistency - curvature cost (NOT frequency)
