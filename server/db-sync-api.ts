@@ -150,7 +150,6 @@ router.post('/import/vocabulary', async (req: Request, res: Response) => {
             tokenRole: item.tokenRole ?? item.token_role ?? 'encoding',
             phraseCategory: item.phraseCategory ?? item.phrase_category ?? 'unknown',
             isRealWord: item.isRealWord ?? item.is_real_word ?? false,
-            tokenStatus: item.tokenStatus ?? item.token_status ?? 'active',
             source: 'sync'
           });
           imported++;
