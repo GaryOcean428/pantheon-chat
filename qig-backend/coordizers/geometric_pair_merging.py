@@ -1,5 +1,5 @@
 """
-Geometric Pair Merging - BPE Equivalent for Fisher Manifold
+Geometric Pair Merging - Geometry-First Vocabulary Learning
 
 HELPER TOOL for subword tokenization. Works WITH FisherCoordizer/PostgresCoordizer,
 not as an alternative implementation.
@@ -7,9 +7,13 @@ not as an alternative implementation.
 Implements BPE-style subword tokenization using geometric operations.
 Instead of frequency-based character pair merging, uses coupling strength
 and Fisher information gain to determine merges.
+Implements vocabulary merging using pure geometric operations on Fisher manifold.
+Unlike traditional BPE (frequency-driven), this uses QIG consciousness metrics
+to determine which pairs should be merged into new vocabulary tokens.
 
-Key Differences from Traditional BPE:
-- Merge criterion: κ (coupling) * Fisher information gain, not raw frequency
+**QIG PURITY - GEOMETRY FIRST, NOT FREQUENCY:**
+- Merge criterion: Φ gain + κ consistency - curvature cost (NOT frequency)
+- Frequency is ONLY a weak regularizer (prevents rare-pair noise)
 - New tokens: Geodesic interpolation between pair coordinates
 - Metric integrity: All operations preserve Fisher-Rao distances
 
@@ -25,6 +29,11 @@ Usage:
     
     # Apply merges to new text
     merged_tokens = merger.apply_merges(text, coordizer)
+**Training Objective (Fisher/QFI Functional):**
+Maximize: ∫ [Φ(merged_vocab) - Φ(original_vocab)] dμ
+Subject to: κ_consistency > threshold, curvature_discontinuity < threshold
+
+This is consciousness-guided vocabulary learning, not statistical tokenization.
 """
 
 import numpy as np
@@ -39,20 +48,175 @@ from qig_geometry import (
     fisher_coord_distance,
     geodesic_interpolation,
     sphere_project,
+    estimate_manifold_curvature,
 )
+
+# Import consciousness metrics for geometric merge scoring
+try:
+    from qig_core.phi_computation import compute_phi_qig, compute_qfi_matrix
+    from qig_core.consciousness_metrics import compute_kappa_effective
+except ImportError:
+    # Fallback if qig_core not available
+    def compute_phi_qig(basin_coords, n_samples=100):
+        """Fallback phi computation."""
+        p = np.abs(basin_coords) + 1e-10
+        p = p / p.sum()
+        entropy = -np.sum(p * np.log(p + 1e-10))
+        return entropy / np.log(len(p))
+    
+    def compute_qfi_matrix(basin_coords):
+        """Fallback QFI computation."""
+        p = np.abs(basin_coords) ** 2 + 1e-10
+        p = p / p.sum()
+        return np.diag(1.0 / (p + 1e-10))
+    
+    def compute_kappa_effective(basin_coords, kappa_star=64.21):
+        """Fallback kappa computation."""
+        p = np.abs(basin_coords) + 1e-10
+        p = p / p.sum()
+        entropy = -np.sum(p * np.log(p + 1e-10))
+        max_entropy = np.log(len(p))
+        concentration = 1.0 - (entropy / max_entropy)
+        return kappa_star * (0.5 + 0.8 * concentration)
+
+
+# Geometric merge scoring constants
+KAPPA_STAR = 64.21  # Universal coupling constant (frozen fact)
+MAX_FREQUENCY_FOR_NORMALIZATION = 10  # Maximum frequency for log normalization
+GEOMETRIC_SCORE_WEIGHT = 0.8  # Weight for geometric components (Φ, κ, curvature)
+FREQUENCY_REGULARIZER_WEIGHT = 0.2  # Weight for frequency regularizer (noise filter)
+
+
+def compute_phi_gain_for_merge(
+    coord1: np.ndarray,
+    coord2: np.ndarray,
+    merged_coord: np.ndarray,
+    context_coords: List[np.ndarray]
+) -> float:
+    """
+    Compute Φ (integration) gain from merging two tokens.
+    
+    Measures how merging improves information integration in context.
+    Higher Φ gain = better merge (more consciousness integration).
+    
+    Formula:
+    Φ_gain = Φ(context + merged_token) - max(Φ(context + token1), Φ(context + token2))
+    
+    Args:
+        coord1: First token basin coordinate
+        coord2: Second token basin coordinate  
+        merged_coord: Merged token basin coordinate (geodesic midpoint)
+        context_coords: Surrounding context basins
+        
+    Returns:
+        Φ gain ∈ [-1, 1] (positive = merge improves integration)
+    """
+    if not context_coords:
+        # No context - use individual token Φ as baseline
+        phi_merged, _ = compute_phi_qig(merged_coord, n_samples=100)
+        phi1, _ = compute_phi_qig(coord1, n_samples=100)
+        phi2, _ = compute_phi_qig(coord2, n_samples=100)
+        return phi_merged - max(phi1, phi2)
+    
+    # Compute Φ with merged token in context
+    context_with_merged = context_coords + [merged_coord]
+    avg_merged = np.mean(context_with_merged, axis=0)
+    phi_merged, _ = compute_phi_qig(avg_merged, n_samples=100)
+    
+    # Compute Φ with original tokens
+    context_with_original = context_coords + [coord1, coord2]
+    avg_original = np.mean(context_with_original, axis=0)
+    phi_original, _ = compute_phi_qig(avg_original, n_samples=100)
+    
+    return phi_merged - phi_original
+
+
+def compute_kappa_consistency_for_merge(
+    coord1: np.ndarray,
+    coord2: np.ndarray,
+    merged_coord: np.ndarray
+) -> float:
+    """
+    Compute κ (coupling) consistency improvement from merging.
+    
+    Measures if merged token has stable κ value (not too different from components).
+    Higher consistency = better merge (more stable representation).
+    
+    Formula:
+    consistency = 1 - |κ(merged) - mean(κ(token1), κ(token2))| / κ*
+    
+    Args:
+        coord1: First token basin coordinate
+        coord2: Second token basin coordinate
+        merged_coord: Merged token basin coordinate
+        
+    Returns:
+        κ consistency ∈ [0, 1] (1 = perfectly consistent)
+    """
+    kappa1 = compute_kappa_effective(coord1)
+    kappa2 = compute_kappa_effective(coord2)
+    kappa_merged = compute_kappa_effective(merged_coord)
+    
+    avg_kappa_original = (kappa1 + kappa2) / 2.0
+    kappa_deviation = abs(kappa_merged - avg_kappa_original)
+    
+    # Normalize by κ* (universal coupling constant)
+    consistency = 1.0 - (kappa_deviation / KAPPA_STAR)
+    
+    return max(0.0, min(1.0, consistency))
+
+
+def compute_fisher_curvature_discontinuity(
+    coord1: np.ndarray,
+    coord2: np.ndarray,
+    merged_coord: np.ndarray
+) -> float:
+    """
+    Compute Fisher manifold curvature discontinuity from merging.
+    
+    Measures if the merge creates a geodesic discontinuity (jump).
+    Lower discontinuity = better merge (smoother manifold path).
+    
+    Formula:
+    discontinuity = d_FR(merged, geodesic_midpoint(token1, token2))
+    
+    Perfect geodesic merge = 0 discontinuity.
+    Large discontinuity = merge violates manifold geometry.
+    
+    Args:
+        coord1: First token basin coordinate
+        coord2: Second token basin coordinate
+        merged_coord: Merged token basin coordinate
+        
+    Returns:
+        Curvature cost ∈ [0, π/2] (0 = perfect geodesic)
+    """
+    # Compute geodesic midpoint (what merge SHOULD be geometrically)
+    geodesic_midpoint = geodesic_interpolation(coord1, coord2, t=0.5)
+    
+    # Measure deviation from geodesic
+    discontinuity = fisher_coord_distance(merged_coord, geodesic_midpoint)
+    
+    return discontinuity
 
 
 class GeometricPairMerging:
     """
-    BPE-equivalent using geometric operations on Fisher manifold.
+    Geometry-First Vocabulary Learning (QIG-Pure Merge Policy)
     
-    Traditional BPE merges character pairs by frequency. Geometric pair merging
-    selects pairs that:
-    1. Co-occur frequently in high-Φ contexts
-    2. Have strong κ (coupling) between coordinates
-    3. Maximize Fisher information when merged
+    **NOT Traditional BPE** - This is consciousness-guided vocabulary discovery.
     
-    Merged tokens initialized via geodesic interpolation, preserving manifold geometry.
+    Merge Selection Criteria (in priority order):
+    1. **Φ Gain**: Does merge improve information integration? (Consciousness)
+    2. **κ Consistency**: Does merged token have stable coupling? (Geometric stability)
+    3. **Curvature**: Does merge preserve Fisher manifold smoothness? (Geometric validity)
+    4. **Frequency**: Weak regularizer to avoid noise (NOT primary criterion)
+    
+    Training Objective:
+    maximize: Φ_gain + κ_consistency - curvature_cost
+    subject to: frequency > min_threshold (noise filter only)
+    
+    This replaces frequency-driven BPE with geometric consciousness optimization.
     """
     
     def __init__(
@@ -60,21 +224,30 @@ class GeometricPairMerging:
         num_merges: int = 1000,
         min_frequency: int = 2,
         phi_threshold: float = 0.5,
-        kappa_weight: float = 0.5,
+        phi_weight: float = 0.5,
+        kappa_weight: float = 0.3,
+        curvature_weight: float = 0.2,
     ):
         """
-        Initialize GeometricPairMerging.
+        Initialize GeometricPairMerging with geometry-first scoring.
         
         Args:
             num_merges: Number of merge operations to perform
-            min_frequency: Minimum co-occurrence frequency for merge candidates
-            phi_threshold: Minimum Φ score for context quality
-            kappa_weight: Weight of κ (coupling) in merge scoring
+            min_frequency: Minimum co-occurrence (noise filter, NOT primary criterion)
+            phi_threshold: Minimum Φ score for high-quality contexts
+            phi_weight: Weight for Φ gain in geometric score (default 0.5)
+            kappa_weight: Weight for κ consistency in geometric score (default 0.3)
+            curvature_weight: Weight for curvature cost in geometric score (default 0.2)
+            
+        Note: Weights should sum to 1.0 for interpretability.
+        Score = phi_weight * Φ_gain + kappa_weight * κ_consistency - curvature_weight * curvature
         """
         self.num_merges = num_merges
         self.min_frequency = min_frequency
         self.phi_threshold = phi_threshold
+        self.phi_weight = phi_weight
         self.kappa_weight = kappa_weight
+        self.curvature_weight = curvature_weight
         
         # Merge vocabulary: (token1, token2) -> merged_token
         self.merges: List[Tuple[str, str, str]] = []
@@ -90,12 +263,34 @@ class GeometricPairMerging:
         phi_scores: Optional[Dict[str, float]] = None,
     ) -> None:
         """
-        Learn merge rules from corpus using geometric criteria.
+        Learn merge rules from corpus using GEOMETRY-FIRST criteria (QIG-Pure).
+        
+        **Training Objective (Fisher/QFI Functional):**
+        
+        Maximize: ∫ [Φ(V_merged) - Φ(V_original)] dμ + κ_consistency - curvature_cost
+        
+        Where:
+        - V_merged: Vocabulary with merged tokens
+        - V_original: Original vocabulary
+        - Φ: Integrated information (consciousness metric)
+        - κ_consistency: Coupling stability (geometric stability)
+        - curvature_cost: Fisher manifold discontinuity (geometric validity)
+        
+        This is NOT traditional BPE (frequency-driven). This is consciousness-guided
+        vocabulary learning that optimizes geometric properties on Fisher manifold.
+        
+        Frequency serves ONLY as noise filter (min_frequency threshold).
+        
+        **Geometric Rationale:**
+        Each criterion is expressed in information geometry terms:
+        - Φ gain: QFI-based integration functional (NOT entropy alone)
+        - κ consistency: Fisher metric stability (NOT coupling strength alone)
+        - Curvature: Geodesic deviation (NOT Euclidean distance)
         
         Args:
             corpus: Training corpus (list of text samples)
             base_coordizer: Base coordizer for token coordinates
-            phi_scores: Optional Φ scores for each sample
+            phi_scores: Optional Φ scores for each sample (high-Φ contexts prioritized)
         """
         phi_scores = phi_scores or {}
         
@@ -180,9 +375,20 @@ class GeometricPairMerging:
         base_coordizer,
     ) -> Tuple[Optional[Tuple[str, str]], float]:
         """
-        Find best pair to merge based on geometric score.
+        Find best pair to merge based on GEOMETRIC score (QIG-Pure, NOT frequency-driven).
         
-        Score = frequency * avg_phi * κ(coord1, coord2) * fisher_info_gain
+        **GEOMETRY-FIRST SCORING:**
+        score = phi_weight * Φ_gain + kappa_weight * κ_consistency - curvature_weight * curvature_cost
+        
+        Where:
+        - Φ_gain: Information integration improvement (consciousness metric)
+        - κ_consistency: Coupling stability after merge (geometric stability)
+        - curvature_cost: Fisher manifold discontinuity (geometric validity)
+        
+        Frequency is ONLY used as a noise filter (min_frequency threshold).
+        It does NOT dominate the scoring like in traditional BPE.
+        
+        This implements Work Package 3.2: Geometry-First Merge Policy.
         """
         best_pair = None
         best_score = -np.inf
@@ -190,25 +396,66 @@ class GeometricPairMerging:
         for pair, stats in pair_stats.items():
             token1, token2 = pair
             frequency = stats['frequency']
-            avg_phi = stats['phi_sum'] / frequency
             
             # Get coordinates
             coord1 = base_coordizer.get_coordinate(token1)
             coord2 = base_coordizer.get_coordinate(token2)
             
-            # Compute κ (coupling strength) - inverse of distance
-            distance = fisher_coord_distance(coord1, coord2)
-            kappa = 1.0 / (1.0 + distance)  # Normalize to [0, 1]
+            # Compute merged coordinate via geodesic interpolation
+            merged_coord = geodesic_interpolation(coord1, coord2, t=0.5)
             
-            # Compute Fisher information gain
-            # Approximation: gain = κ * sqrt(frequency) * avg_phi
-            fisher_gain = kappa * np.sqrt(frequency) * avg_phi
+            # Extract context coordinates from sample contexts
+            context_coords = []
+            for context_text in stats['contexts'][:5]:  # Sample up to 5 contexts
+                context_tokens = context_text.lower().split()
+                for token in context_tokens:
+                    if token not in [token1, token2]:
+                        try:
+                            context_coords.append(base_coordizer.get_coordinate(token))
+                        except (KeyError, AttributeError):
+                            continue
+                if len(context_coords) >= 10:  # Limit context size
+                    break
             
-            # Combined score
+            # === GEOMETRIC SCORING (QIG-Pure) ===
+            
+            # 1. Φ Gain: Does merge improve consciousness integration?
+            phi_gain = compute_phi_gain_for_merge(
+                coord1, coord2, merged_coord, context_coords
+            )
+            
+            # 2. κ Consistency: Does merged token have stable coupling?
+            kappa_consistency = compute_kappa_consistency_for_merge(
+                coord1, coord2, merged_coord
+            )
+            
+            # 3. Curvature: Does merge preserve Fisher manifold smoothness?
+            curvature_cost = compute_fisher_curvature_discontinuity(
+                coord1, coord2, merged_coord
+            )
+            
+            # Normalize curvature to [0, 1] range (max distance is π/2)
+            curvature_normalized = curvature_cost / (np.pi / 2.0)
+            
+            # === GEOMETRIC SCORE (Primary Criterion) ===
+            geometric_score = (
+                self.phi_weight * phi_gain +
+                self.kappa_weight * kappa_consistency -
+                self.curvature_weight * curvature_normalized
+            )
+            
+            # Frequency as weak regularizer (NOT primary criterion)
+            # Prevents merging extremely rare pairs (noise)
+            # Uses log to reduce dominance: log(2) = 0.69, log(10) = 2.30
+            frequency_regularizer = (
+                np.log(frequency + 1) / 
+                np.log(MAX_FREQUENCY_FOR_NORMALIZATION + 1)
+            )
+            
+            # Final score: Geometry dominates, frequency is weak regularizer
             score = (
-                frequency * avg_phi * 
-                (self.kappa_weight * kappa + (1 - self.kappa_weight)) *
-                fisher_gain
+                GEOMETRIC_SCORE_WEIGHT * geometric_score + 
+                FREQUENCY_REGULARIZER_WEIGHT * frequency_regularizer
             )
             
             if score > best_score:
