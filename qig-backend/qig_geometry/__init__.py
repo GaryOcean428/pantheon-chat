@@ -568,3 +568,28 @@ __all__ = [
     'trajectory_smoothness',
     'waypoint_alignment_score',
 ]
+
+# Two-step retrieval (WP2.4 - 2026-01-16)
+try:
+    from .two_step_retrieval import (
+        to_sqrt_simplex,
+        from_sqrt_simplex,
+        bhattacharyya_from_sqrt,
+        proxy_distance_from_bc,
+        TwoStepRetriever,
+        validate_proxy_ordering,
+        measure_proxy_correlation,
+    )
+    
+    __all__.extend([
+        'to_sqrt_simplex',
+        'from_sqrt_simplex',
+        'bhattacharyya_from_sqrt',
+        'proxy_distance_from_bc',
+        'TwoStepRetriever',
+        'validate_proxy_ordering',
+        'measure_proxy_correlation',
+    ])
+except ImportError:
+    # Two-step retrieval module not yet available
+    pass
