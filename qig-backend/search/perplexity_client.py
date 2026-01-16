@@ -15,6 +15,9 @@ Uses the OpenAI-compatible API with Perplexity's specialized models:
 - sonar-deep-research: Deep multi-step research (when available)
 
 All results include citations for verification and learning.
+
+BUDGET ENFORCEMENT: All paid API calls check the budget orchestrator
+before execution. If the daily cost cap is exceeded, calls will be blocked.
 """
 
 import os
@@ -25,6 +28,31 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
+
+# Budget orchestrator for cost control
+_budget_orchestrator = None
+
+def _get_budget_orchestrator():
+    """Lazy import budget orchestrator to avoid circular imports."""
+    global _budget_orchestrator
+    if _budget_orchestrator is None:
+        try:
+            from search.search_budget_orchestrator import get_budget_orchestrator
+            _budget_orchestrator = get_budget_orchestrator()
+        except ImportError:
+            logger.warning("[PerplexityClient] Budget orchestrator not available - no cost limits")
+    return _budget_orchestrator
+
+def _check_budget(provider: str = 'perplexity') -> bool:
+    """Check if budget allows this API call. Returns False if blocked."""
+    orchestrator = _get_budget_orchestrator()
+    if not orchestrator:
+        return True  # Allow if orchestrator not available
+
+    if not orchestrator.consume_quota(provider):
+        logger.warning(f"[PerplexityClient] BLOCKED by budget orchestrator (provider={provider})")
+        return False
+    return True
 
 
 @dataclass
@@ -137,11 +165,16 @@ class PerplexityClient:
             search_recency_filter: Time filter ("hour", "day", "week", "month", "year")
             
         Returns:
-            PerplexityResponse or None on error
+            PerplexityResponse or None on error or budget exceeded
         """
         if not self.available:
             return None
-        
+
+        # BUDGET CHECK: Consume quota before making API call
+        if not _check_budget('perplexity'):
+            logger.warning("[PerplexityClient] Request blocked by budget cap")
+            return None
+
         try:
             import time
             start_time = time.time()

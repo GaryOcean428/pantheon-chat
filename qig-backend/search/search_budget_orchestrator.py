@@ -223,7 +223,7 @@ class SearchOutcome:
 class SearchBudgetOrchestrator:
     """
     Orchestrates search budget across providers with strategic allocation.
-    
+
     Features:
     - Daily limits with Redis persistence
     - Strategic provider selection based on importance
@@ -232,46 +232,55 @@ class SearchBudgetOrchestrator:
     - Per-kernel quota tracking
     - Time-bound override with expiry
     - Broadcast notifications for limit changes
+    - HARD USD CAP: Blocks all paid searches when daily cost limit exceeded
     """
-    
+
     DEFAULT_LIMITS = {
         'duckduckgo': -1,   # Unlimited (free)
         'google': 100,      # 100/day
         'perplexity': 100,  # 100/day
         'tavily': 100,      # 100/day (auto-enabled if API key present)
     }
-    
+
     COST_PER_QUERY = {
         'duckduckgo': 0.0,
         'google': 0.005,
         'perplexity': 0.005,
         'tavily': 0.01,
     }
-    
-    def __init__(self, redis_client=None):
+
+    # HARD DAILY USD CAP - blocks all paid searches when exceeded
+    DEFAULT_MAX_DAILY_COST_USD = 5.0
+
+    def __init__(self, redis_client=None, max_daily_cost_usd: Optional[float] = None):
         self.redis = redis_client
         self.budgets: Dict[str, ProviderBudget] = {}
         self.allow_overage = False
         self.outcomes: List[SearchOutcome] = []
         self._provider_efficacy: Dict[str, float] = {}
-        
+
         self.kernel_allocations: Dict[str, Dict[str, int]] = {}
         self._kernel_usage: Dict[str, Dict[str, int]] = {}
-        
+
         self.override_expires_at: Optional[datetime] = None
         self.override_approved_by: Optional[str] = None
-        
+
+        # HARD USD CAP - immutable safety limit
+        self.max_daily_cost_usd = max_daily_cost_usd if max_daily_cost_usd is not None else self.DEFAULT_MAX_DAILY_COST_USD
+        self._daily_cost_usd = 0.0
+        self._cost_cap_date = date.today().isoformat()
+
         self._event_bus: Optional[Any] = None
         if EVENT_BUS_AVAILABLE:
             try:
                 self._event_bus = CapabilityEventBus()
             except Exception:
                 pass
-        
+
         self._init_budgets()
         self._load_state()
-        
-        logger.info("[SearchBudget] Orchestrator initialized")
+
+        logger.info(f"[SearchBudget] Orchestrator initialized (max_daily_cost=${self.max_daily_cost_usd:.2f})")
     
     def _init_budgets(self):
         """Initialize provider budgets with auto-enable for available API keys."""
@@ -633,12 +642,19 @@ class SearchBudgetOrchestrator:
         """
         override_active = self._is_override_active()
         premium_providers = {'tavily', 'perplexity', 'google'}
-        
+
+        # Check hard USD cap first
+        self._check_reset_daily_cost()
+        cost_cap_exceeded = self._daily_cost_usd >= self.max_daily_cost_usd
+
         def _can_use_provider(name: str, budget: ProviderBudget) -> bool:
-            """Check if a provider can actually be used (considering quota)."""
+            """Check if a provider can actually be used (considering quota and USD cap)."""
             if not budget.enabled:
                 return False
             if budget.daily_limit == 0:
+                return False
+            # Block paid providers if USD cap exceeded
+            if budget.cost_per_query > 0 and cost_cap_exceeded:
                 return False
             if budget.daily_limit == -1:
                 return True
@@ -696,42 +712,84 @@ class SearchBudgetOrchestrator:
                     return name, "budget_conscious_free"
         
         return available[0][0], "default_first_available"
-    
+
+    def _check_reset_daily_cost(self):
+        """Reset daily cost if date has changed."""
+        today = date.today().isoformat()
+        if self._cost_cap_date != today:
+            self._daily_cost_usd = 0.0
+            self._cost_cap_date = today
+            logger.info(f"[SearchBudget] Daily cost reset for {today}")
+
+    def is_cost_cap_exceeded(self) -> bool:
+        """Check if the hard USD cap has been exceeded for today.
+
+        This is a SAFETY CHECK that blocks all paid searches when the
+        daily cost limit is reached. Returns True if cap exceeded.
+        """
+        self._check_reset_daily_cost()
+        return self._daily_cost_usd >= self.max_daily_cost_usd
+
+    def get_remaining_budget_usd(self) -> float:
+        """Get remaining USD budget for today."""
+        self._check_reset_daily_cost()
+        return max(0.0, self.max_daily_cost_usd - self._daily_cost_usd)
+
     def consume_quota(self, provider: str, kernel_id: Optional[str] = None) -> bool:
         """
         Consume quota BEFORE executing a search.
-        
+
         This ensures failed premium requests count against the limit.
         Call this BEFORE dispatching the search, not after.
-        
+
+        HARD USD CAP: Will block paid providers if daily cost cap exceeded.
+
         Args:
             provider: The provider to consume quota for
             kernel_id: Optional kernel ID to track per-kernel usage
-            
+
         Returns:
             True if quota was consumed successfully, False if no quota available
         """
         if provider not in self.budgets:
             return False
-        
+
         budget = self.budgets[provider]
         override_active = self._is_override_active()
-        
+
+        # Check hard USD cap FIRST for paid providers
+        if budget.cost_per_query > 0:
+            self._check_reset_daily_cost()
+            if self._daily_cost_usd >= self.max_daily_cost_usd:
+                logger.warning(
+                    f"[SearchBudget] HARD CAP EXCEEDED: Cannot use {provider} "
+                    f"(daily_cost=${self._daily_cost_usd:.2f} >= max=${self.max_daily_cost_usd:.2f})"
+                )
+                return False
+
         if budget.daily_limit == -1:
             return True
-        
+
         if budget.remaining <= 0 and not override_active:
             logger.warning(f"[SearchBudget] Cannot consume quota: {provider} exhausted (remaining=0, override={override_active})")
             return False
-        
+
         budget.used_today += 1
-        
+
+        # Track USD cost for paid providers
+        if budget.cost_per_query > 0:
+            self._daily_cost_usd += budget.cost_per_query
+            logger.info(
+                f"[SearchBudget] Cost tracked: +${budget.cost_per_query:.3f} "
+                f"(daily_total=${self._daily_cost_usd:.2f}/{self.max_daily_cost_usd:.2f})"
+            )
+
         if kernel_id:
             if kernel_id not in self._kernel_usage:
                 self._kernel_usage[kernel_id] = {}
             current = self._kernel_usage[kernel_id].get(provider, 0)
             self._kernel_usage[kernel_id][provider] = current + 1
-            
+
             if self.redis:
                 try:
                     kernel_key = self._get_redis_key(provider, kernel_id)
@@ -739,7 +797,7 @@ class SearchBudgetOrchestrator:
                     self.redis.expire(kernel_key, 86400 * 2)
                 except Exception as e:
                     logger.debug(f"[SearchBudget] Failed to update kernel usage in Redis: {e}")
-        
+
         self._save_state()
         logger.debug(f"[SearchBudget] Consumed quota: {provider}: {budget.used_today}/{budget.daily_limit}" + (f" (kernel: {kernel_id})" if kernel_id else ""))
         return True
@@ -993,10 +1051,11 @@ class SearchBudgetOrchestrator:
             logger.debug(f"[SearchBudget] Failed to persist preferences: {e}")
     
     def get_status(self) -> Dict[str, Any]:
-        """Get full budget status."""
+        """Get full budget status including USD cost tracking."""
         ctx = self.get_budget_context()
         override_status = self.get_override_status()
-        
+        self._check_reset_daily_cost()
+
         return {
             'date': ctx.date,
             'providers': ctx.providers,
@@ -1010,6 +1069,13 @@ class SearchBudgetOrchestrator:
             'kernel_usage': self._kernel_usage,
             'efficacy': self._provider_efficacy,
             'recent_outcomes': len(self.outcomes),
+            # USD cost tracking
+            'cost_tracking': {
+                'daily_cost_usd': round(self._daily_cost_usd, 2),
+                'max_daily_cost_usd': self.max_daily_cost_usd,
+                'remaining_budget_usd': round(self.get_remaining_budget_usd(), 2),
+                'cost_cap_exceeded': self.is_cost_cap_exceeded(),
+            },
         }
     
     def get_learning_metrics(self) -> Dict[str, Any]:
@@ -1046,11 +1112,14 @@ class SearchBudgetOrchestrator:
         }
     
     def reset_daily(self):
-        """Reset daily counters (called at midnight)."""
+        """Reset daily counters and cost tracking (called at midnight)."""
         for budget in self.budgets.values():
             budget.used_today = 0
+        # Reset USD cost tracking
+        self._daily_cost_usd = 0.0
+        self._cost_cap_date = date.today().isoformat()
         self._save_state()
-        logger.info("[SearchBudget] Daily counters reset")
+        logger.info(f"[SearchBudget] Daily counters and cost reset (max=${self.max_daily_cost_usd:.2f})")
 
 
 _orchestrator: Optional[SearchBudgetOrchestrator] = None

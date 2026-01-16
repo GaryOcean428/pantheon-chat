@@ -27,33 +27,38 @@ from psycopg2.extras import execute_values
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
 logger = logging.getLogger(__name__)
 
-# QFI Computation Constants
-FISHER_REGULARIZATION = 1e-6  # Numerical stability for Fisher metric determinant
-
-
 def compute_qfi(basin: np.ndarray) -> float:
     """
     Compute Quantum Fisher Information score for a basin.
-    
-    Uses Fisher metric determinant as a measure of geometric distinguishability.
-    Higher QFI = more geometrically distinct = better vocabulary quality.
-    
+
+    Uses participation ratio (effective dimension) which is geometrically proper:
+    QFI = exp(H(p)) / n where H(p) is Shannon entropy.
+
+    This is the CANONICAL QFI formula - produces values in [0, 1].
+
     Args:
         basin: 64D basin coordinates
-    
+
     Returns:
-        QFI score (float)
+        QFI score in [0, 1]
     """
-    # Fisher metric: outer product + regularization
-    fisher_metric = np.outer(basin, basin)
-    
-    # Add small regularization for numerical stability
-    fisher_metric += np.eye(64) * FISHER_REGULARIZATION
-    
-    # Determinant as QFI score
-    qfi = np.linalg.det(fisher_metric)
-    
-    return float(qfi)
+    # Project to simplex probabilities
+    v = np.abs(basin) + 1e-10
+    p = v / v.sum()
+
+    # Compute Shannon entropy
+    positive_probs = p[p > 1e-10]
+    if len(positive_probs) == 0:
+        return 0.0
+
+    entropy = -np.sum(positive_probs * np.log(positive_probs + 1e-10))
+
+    # Participation ratio = exp(entropy) / dimension
+    n_dim = len(basin)
+    effective_dim = np.exp(entropy)
+    qfi_score = effective_dim / n_dim
+
+    return float(np.clip(qfi_score, 0.0, 1.0))
 
 
 def parse_embedding(embedding_str: str) -> Optional[np.ndarray]:

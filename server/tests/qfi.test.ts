@@ -107,8 +107,13 @@ describe('QFI enforcement guards', () => {
     const violations: string[] = []
     // Match SQL write patterns but exclude WHERE/AND clauses
     const writePattern = /SET\s+qfi_score|INSERT INTO\s+coordizer_vocabulary|UPDATE\s+coordizer_vocabulary/i
-    // Match assignments in code (e.g., obj.qfi_score = value) but not comparisons (e.g., qfi_score = 0 in WHERE)
-    const assignmentPattern = /qfi_score\s*=\s*(?!.*(?:WHERE|AND|OR))/i
+
+    // Admin tools that legitimately write qfi_score directly for bulk operations
+    const allowedAdminTools = [
+      'tools/recompute_qfi_scores.ts',
+      'tools/quarantine_extremes.ts',
+      'server/persistence/coordizer-vocabulary.ts'
+    ]
 
     for (const dir of scanDirs) {
       const dirPath = path.join(repoRoot, dir)
@@ -123,7 +128,17 @@ describe('QFI enforcement guards', () => {
           continue
         }
 
+        // Skip test files - they contain regex patterns that would match themselves
+        if (relative.includes('.test.') || relative.includes('.spec.')) {
+          continue
+        }
+
         if (relative === allowedWriter) {
+          continue
+        }
+
+        // Allow admin tools that need bulk qfi_score writes
+        if (allowedAdminTools.includes(relative)) {
           continue
         }
 
@@ -138,7 +153,7 @@ describe('QFI enforcement guards', () => {
           continue
         }
 
-        // Check for assignments, excluding SQL WHERE clauses
+        // Check for assignments, excluding SQL WHERE clauses and comparisons
         const lines = content.split('\n')
         for (let i = 0; i < lines.length; i++) {
           const line = lines[i].trim()
@@ -146,8 +161,9 @@ describe('QFI enforcement guards', () => {
           if (/WHERE|AND|OR/.test(line) && /qfi_score\s*=/.test(line)) {
             continue
           }
-          // Check for object property assignments
-          if (/\.qfi_score\s*=/.test(line) || /\[\s*['"]qfi_score['"]\s*]\s*=/.test(line)) {
+          // Check for object property assignments (single = not ==, ===, !=, !==, <=, >=)
+          // Match .qfi_score = but not .qfi_score == or .qfi_score ===
+          if (/\.qfi_score\s*=[^=]/.test(line) || /\[\s*['"]qfi_score['"]\s*]\s*=[^=]/.test(line)) {
             violations.push(`${relative} writes qfi_score outside upsertToken (line ${i + 1})`)
             break
           }

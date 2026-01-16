@@ -11,6 +11,9 @@ Capabilities:
 - map: Website structure mapping
 
 All results are returned in QIG-compatible formats for geometric learning.
+
+BUDGET ENFORCEMENT: All paid API calls check the budget orchestrator
+before execution. If the daily cost cap is exceeded, calls will be blocked.
 """
 
 import os
@@ -20,6 +23,31 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
+
+# Budget orchestrator for cost control
+_budget_orchestrator = None
+
+def _get_budget_orchestrator():
+    """Lazy import budget orchestrator to avoid circular imports."""
+    global _budget_orchestrator
+    if _budget_orchestrator is None:
+        try:
+            from search.search_budget_orchestrator import get_budget_orchestrator
+            _budget_orchestrator = get_budget_orchestrator()
+        except ImportError:
+            logger.warning("[TavilyClient] Budget orchestrator not available - no cost limits")
+    return _budget_orchestrator
+
+def _check_budget(provider: str = 'tavily') -> bool:
+    """Check if budget allows this API call. Returns False if blocked."""
+    orchestrator = _get_budget_orchestrator()
+    if not orchestrator:
+        return True  # Allow if orchestrator not available
+
+    if not orchestrator.consume_quota(provider):
+        logger.warning(f"[TavilyClient] BLOCKED by budget orchestrator (provider={provider})")
+        return False
+    return True
 
 
 @dataclass
@@ -154,12 +182,17 @@ class TavilySearchClient:
             days: Limit to recent days (for news topic)
             
         Returns:
-            TavilySearchResponse or None if unavailable
+            TavilySearchResponse or None if unavailable or budget exceeded
         """
         if not self.available:
             logger.warning("[TavilyClient] Search unavailable - client not initialized")
             return None
-        
+
+        # BUDGET CHECK: Consume quota before making API call
+        if not _check_budget('tavily'):
+            logger.warning("[TavilyClient] Search blocked by budget cap")
+            return None
+
         try:
             logger.info(f"[TavilyClient] Searching: '{query[:50]}...' (depth={search_depth})")
             
@@ -223,15 +256,20 @@ class TavilySearchClient:
             extract_depth: "basic" or "advanced" (more thorough extraction)
             
         Returns:
-            List of TavilyExtractResult
+            List of TavilyExtractResult (empty if budget exceeded)
         """
         if not self.available:
             logger.warning("[TavilyClient] Extract unavailable - client not initialized")
             return []
-        
+
+        # BUDGET CHECK: Consume quota before making API call
+        if not _check_budget('tavily'):
+            logger.warning("[TavilyClient] Extract blocked by budget cap")
+            return []
+
         if isinstance(urls, str):
             urls = [urls]
-        
+
         try:
             logger.info(f"[TavilyClient] Extracting from {len(urls)} URLs")
             
@@ -282,12 +320,17 @@ class TavilySearchClient:
             exclude_paths: Path patterns to exclude
             
         Returns:
-            TavilyCrawlResult or None if unavailable
+            TavilyCrawlResult or None if unavailable or budget exceeded
         """
         if not self.available:
             logger.warning("[TavilyClient] Crawl unavailable - client not initialized")
             return None
-        
+
+        # BUDGET CHECK: Consume quota before making API call
+        if not _check_budget('tavily'):
+            logger.warning("[TavilyClient] Crawl blocked by budget cap")
+            return None
+
         try:
             logger.info(f"[TavilyClient] Crawling: {url} (max_pages={max_pages})")
             
@@ -343,12 +386,17 @@ class TavilySearchClient:
             limit: Maximum URLs to return
             
         Returns:
-            TavilyMapResult or None if unavailable
+            TavilyMapResult or None if unavailable or budget exceeded
         """
         if not self.available:
             logger.warning("[TavilyClient] Map unavailable - client not initialized")
             return None
-        
+
+        # BUDGET CHECK: Consume quota before making API call
+        if not _check_budget('tavily'):
+            logger.warning("[TavilyClient] Map blocked by budget cap")
+            return None
+
         try:
             logger.info(f"[TavilyClient] Mapping: {url} (depth={max_depth}, limit={limit})")
             

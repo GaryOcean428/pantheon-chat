@@ -13,8 +13,13 @@ import numpy as np
 from word_validation import is_valid_english_word, validate_for_vocabulary
 from qig_geometry import fisher_coord_distance
 
-# Import QFI computation (for P0 fix - ensure QFI on basin insert)
-FISHER_REGULARIZATION = 1e-6  # Numerical stability for Fisher metric determinant
+# Import canonical QFI computation from qig_geometry
+try:
+    from qig_geometry.canonical_upsert import compute_qfi_score as _canonical_qfi
+    CANONICAL_QFI_AVAILABLE = True
+except ImportError:
+    CANONICAL_QFI_AVAILABLE = False
+    _canonical_qfi = None
 
 # Import comprehensive validator for web scraping contamination prevention (PR 27/28)
 try:
@@ -69,26 +74,40 @@ def get_learned_manifold() -> Optional['LearnedManifold']:
 def compute_qfi_for_basin(basin: np.ndarray) -> float:
     """
     Compute Quantum Fisher Information score for a basin.
-    
-    P0 FIX: Enforce QFI computation whenever basin_embedding is present.
-    This prevents incomplete records in coordizer_vocabulary.
-    
+
+    Uses participation ratio (effective dimension) which is geometrically proper:
+    QFI = exp(H(p)) / n where H(p) is Shannon entropy.
+
+    This is the CANONICAL QFI formula - produces values in [0, 1].
+
     Args:
         basin: 64D basin coordinates
-    
+
     Returns:
-        QFI score (float)
+        QFI score in [0, 1]
     """
-    # Fisher metric: outer product + regularization
-    fisher_metric = np.outer(basin, basin)
-    
-    # Add small regularization for numerical stability
-    fisher_metric += np.eye(64) * FISHER_REGULARIZATION
-    
-    # Determinant as QFI score
-    qfi = np.linalg.det(fisher_metric)
-    
-    return float(qfi)
+    # Use canonical implementation if available
+    if CANONICAL_QFI_AVAILABLE and _canonical_qfi is not None:
+        return _canonical_qfi(basin)
+
+    # Fallback: inline canonical formula
+    # Project to simplex probabilities
+    v = np.abs(basin) + 1e-10
+    p = v / v.sum()
+
+    # Compute Shannon entropy
+    positive_probs = p[p > 1e-10]
+    if len(positive_probs) == 0:
+        return 0.0
+
+    entropy = -np.sum(positive_probs * np.log(positive_probs + 1e-10))
+
+    # Participation ratio = exp(entropy) / dimension
+    n_dim = len(basin)
+    effective_dim = np.exp(entropy)
+    qfi_score = effective_dim / n_dim
+
+    return float(np.clip(qfi_score, 0.0, 1.0))
 
 
 class VocabularyCoordinator:

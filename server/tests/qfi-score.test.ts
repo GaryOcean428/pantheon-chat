@@ -81,10 +81,14 @@ describe('QFI regressions', () => {
     const serverDir = path.join(repoRoot, 'server')
     const serverFiles = collectFiles(serverDir, ['.ts', '.tsx', '.js'], new Set(['node_modules', 'dist']))
     const writePattern = /(INSERT INTO|UPDATE\s+\w+\s+SET|DELETE FROM)\s+coordizer_vocabulary/i
-    const allowedPath = path.join(repoRoot, 'server', 'persistence', 'coordizer-vocabulary.ts')
+    // Allow both persistence files that handle canonical vocabulary writes
+    const allowedPaths = new Set([
+      path.join(repoRoot, 'server', 'persistence', 'coordizer-vocabulary.ts'),
+      path.join(repoRoot, 'server', 'persistence', 'vocabulary.ts')
+    ])
 
     const violations = serverFiles.filter((file) => {
-      if (file === allowedPath) {
+      if (allowedPaths.has(file)) {
         return false
       }
       return writePattern.test(readFileSync(file, 'utf-8'))
