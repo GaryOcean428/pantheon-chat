@@ -1,7 +1,9 @@
 import { sql } from 'drizzle-orm'
-import { QIG_CONSTANTS, compute_qfi_score_simplex, to_simplex_probabilities, coordizerVocabulary } from '@shared'
+import { coordizerVocabulary } from '@shared/schema'
+import { QIG_CONSTANTS, compute_qfi_score_simplex, to_simplex_probabilities } from '@shared'
 import { db, withDbRetry } from '../db'
 import { logger } from '../lib/logger'
+import { isCurriculumOnlyEnabled } from '../lib/curriculum-mode'
 
 const CURRICULUM_ONLY_FLAG = 'true'
 const VALID_TOKEN_STATUSES = ['active', 'quarantined', 'deprecated'] as const
@@ -50,7 +52,7 @@ export function assertCandidateTokensHaveValidQfi(
 }
 
 function enforceCurriculumOnly(source?: string) {
-  if (process.env.QIG_CURRICULUM_ONLY !== CURRICULUM_ONLY_FLAG) {
+  if (!isCurriculumOnlyEnabled()) {
     return
   }
 

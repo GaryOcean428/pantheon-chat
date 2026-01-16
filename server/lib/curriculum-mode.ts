@@ -34,7 +34,16 @@ export function loadCurriculumManifest(): CurriculumEntry[] {
     return cachedManifest
   }
 
-  const content = readFileSync(MANIFEST_PATH, 'utf-8')
+  let content: string
+  try {
+    content = readFileSync(MANIFEST_PATH, 'utf-8')
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    throw new Error(
+      `Failed to read curriculum manifest at "${MANIFEST_PATH}": ${message}`
+    )
+  }
+
   const entries = content
     .split('\n')
     .map((line) => line.trim())
