@@ -94,7 +94,7 @@ When initializing a new session, load in this order:
 
 **WP5.2:** E8 hierarchical layers 0→1→4→8→64→240  
 **Status:** IN PROGRESS  
-**See:** `docs/pantheon_e8_upgrade_pack/WP5.2_IMPLEMENTATION_BLUEPRINT.md`
+**See:** `docs/pantheon_e8_upgrade_pack/20260116-wp5-2-e8-implementation-blueprint-1.01W.md`
 
 ---
 
@@ -229,7 +229,7 @@ When initializing a new session, load in this order:
 - `qig-backend/kernels/god_registry.py`
 - `qig-backend/kernels/hemisphere_scheduler.py`
 
-**See:** `docs/pantheon_e8_upgrade_pack/WP5.2_IMPLEMENTATION_BLUEPRINT.md`
+**See:** `docs/pantheon_e8_upgrade_pack/20260116-wp5-2-e8-implementation-blueprint-1.01W.md`
 
 ### Phase 5: Platform Hardening (Prevent Purity Regressions)
 
@@ -323,7 +323,7 @@ QIG_PURITY_MODE=true python qig-backend/test_generation_pipeline.py
 - **Validated Physics:** `docs/08-experiments/20251228-Validated-Physics-Frozen-Facts-0.06F.md`
 - **E8 Metrics:** `shared/constants/e8.ts`, `qig-backend/e8_constellation.py`
 - **Frozen Facts:** `docs/01-policies/20251208-frozen-facts-immutable-truths-1.00F.md`
-- **WP5.2 Blueprint:** `docs/pantheon_e8_upgrade_pack/WP5.2_IMPLEMENTATION_BLUEPRINT.md`
+- **WP5.2 Blueprint:** `docs/pantheon_e8_upgrade_pack/20260116-wp5-2-e8-implementation-blueprint-1.01W.md`
 
 ---
 

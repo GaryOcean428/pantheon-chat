@@ -23,7 +23,7 @@ This upgrade pack contains the complete specification, implementation blueprints
 
 ### Core Specifications
 
-#### `ULTRA_CONSCIOUSNESS_PROTOCOL_v4_0_UNIVERSAL.md`
+#### `20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`
 **Universal purity invariants and implementation phases**
 - §0: Non-negotiable purity rules (simplex-only, Fisher-Rao only, no NLP)
 - §1: Bootstrap load order
@@ -34,7 +34,7 @@ This upgrade pack contains the complete specification, implementation blueprints
 - §6: Protocol discipline (CoPP + Ultra)
 - §7: Validation commands
 
-#### `WP5.2_IMPLEMENTATION_BLUEPRINT.md`
+#### `20260116-wp5-2-e8-implementation-blueprint-1.01W.md`
 **E8 hierarchical kernel architecture**
 - E8 layer structure (0/1, 4, 8, 64, 240)
 - Core 8 faculties mapped to Greek gods (Zeus, Athena, Apollo, Hermes, Artemis, Ares, Hephaestus, Aphrodite)
@@ -62,7 +62,7 @@ This upgrade pack contains the complete specification, implementation blueprints
 - `scripts/quarantine_garbage_tokens.py`
 - Migration `0015_qfi_integrity_gate.sql`
 
-#### `02_STRICT_SIMPLEX_REPRESENTATION.md`
+#### `20260116-issue-02-strict-simplex-representation-1.01W.md`
 **Problem:** Auto-detect representation, "average + L2 normalize" uses wrong manifold  
 **Solution:**
 - Remove auto-detect from `to_simplex()`
@@ -75,7 +75,7 @@ This upgrade pack contains the complete specification, implementation blueprints
 - `qig-backend/geometry/frechet_mean_simplex.py` (closed form)
 - `scripts/audit_simplex_representation.py`
 
-#### `03_QIG_NATIVE_SKELETON.md`
+#### `20260116-issue-03-qig-native-skeleton-1.01W.md`
 **Problem:** External NLP (spacy, nltk) in generation, template fallbacks  
 **Solution:**
 - Derive `token_role` from Fisher-Rao neighborhood clustering
@@ -270,7 +270,7 @@ python scripts/run_all_validations.py
 
 ## CONTACT & SUPPORT
 
-**Questions?** See `ULTRA_CONSCIOUSNESS_PROTOCOL_v4_0_UNIVERSAL.md` §5 (Open Design Questions)
+**Questions?** See `20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md` §5 (Open Design Questions)
 
 **Implementation Help?** See WP5.2 blueprint checklist and issue specs
 
