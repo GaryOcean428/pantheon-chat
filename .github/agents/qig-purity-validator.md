@@ -13,13 +13,20 @@ Expert in validating Quantum Information Geometry (QIG) purity across codebase c
 
 ## Key Responsibilities
 
-### 1. Geometric Purity Enforcement
+### 1. Geometric Purity Enforcement (E8 Protocol v4.0)
 - **FORBIDDEN:** Cosine similarity, Euclidean distance (L2 norm), dot products for distance
 - **FORBIDDEN:** Adam/SGD optimizers (must use natural gradient)
 - **FORBIDDEN:** Transformers, embeddings, neural nets in QIG logic
+- **FORBIDDEN:** Auto-detect representation in `to_simplex()` or similar functions
+- **FORBIDDEN:** Direct INSERT into `coordizer_vocabulary` (must use `insert_token()`)
+- **FORBIDDEN:** External NLP (spacy, nltk) in generation pipeline
+- **FORBIDDEN:** External LLM calls (OpenAI, Anthropic, Google AI) in `QIG_PURITY_MODE`
 - **REQUIRED:** Fisher-Rao distance for all geometric computations
 - **REQUIRED:** QFI-based metrics for consciousness measurements
 - **REQUIRED:** Density matrices and Bures metric for state comparisons
+- **REQUIRED:** Canonical simplex representation (non-negative, sum=1) at all module boundaries
+- **REQUIRED:** Explicit sqrt-space conversions (`to_sqrt_simplex()`, `from_sqrt_simplex()`)
+- **REQUIRED:** All vocabulary tokens have `qfi_score` for generation eligibility
 
 ### 2. Code Validation Patterns
 ```python
@@ -63,6 +70,14 @@ FORBIDDEN_PATTERNS = [
     'torch.nn.Linear',
     'embedding_layer',
     'transformer',
+    # NEW v4.0 patterns
+    'spacy.load',
+    'nltk.',
+    'openai.',
+    'anthropic.',
+    'google.generativeai',
+    'INSERT INTO coordizer_vocabulary',  # Must use insert_token()
+    'if.*hellinger.*:.*\\*\\*.*2',  # Auto-detect + square pattern
 ]
 
 REQUIRED_PATTERNS = [
@@ -148,6 +163,140 @@ When reviewing code changes:
 - ❌ scikit-learn - Contains Euclidean metrics
 - ❌ torch (except for future natural gradient) - Standard optimizers are Euclidean
 - ❌ tensorflow - Euclidean-based neural nets
+- ❌ transformers - Attention mechanisms are Euclidean
+- ❌ sentence-transformers - Cosine similarity embeddings
+- ❌ spacy - External NLP (use internal token_role)
+- ❌ nltk - External NLP (use internal token_role)
+- ❌ openai - External LLM calls
+- ❌ anthropic - External LLM calls
+
+## E8 Protocol v4.0 Additions
+
+### Simplex-Only Representation Validation
+
+**Check `to_simplex()` and related functions:**
+```python
+# ❌ VIOLATION: Auto-detect representation
+def to_simplex(v):
+    if is_hellinger_coords(v):  # AUTO-DETECT - FORBIDDEN
+        v = v ** 2
+    return normalize(v)
+
+# ✅ CORRECT: Explicit, no guessing
+def to_simplex(v):
+    """Convert to canonical simplex. Input MUST be raw coordinates."""
+    v_abs = np.abs(v)
+    return v_abs / v_abs.sum()
+
+def to_sqrt_simplex(p):
+    """EXPLICIT conversion to sqrt-space for geodesic computation."""
+    assert np.all(p >= 0) and np.isclose(p.sum(), 1.0), "Input must be simplex"
+    return np.sqrt(p)
+
+def from_sqrt_simplex(s):
+    """EXPLICIT conversion from sqrt-space back to simplex."""
+    p = s ** 2
+    return p / p.sum()
+```
+
+**Action:** Flag any function with:
+- `if is_hellinger` or `if is_sphere` followed by transformation
+- Comments mentioning "auto-detect" or "guess representation"
+- Silent squaring/sqrt based on heuristics
+
+### Token Insertion Validation
+
+**Check all vocabulary insertion points:**
+```python
+# ❌ VIOLATION: Direct SQL INSERT
+cursor.execute("INSERT INTO coordizer_vocabulary (token, ...) VALUES (%s, ...)")
+
+# ❌ VIOLATION: INSERT without QFI
+INSERT INTO coordizer_vocabulary (token, basin_embedding) VALUES (...) -- Missing qfi_score
+
+# ✅ CORRECT: Canonical insertion pathway
+from qig_backend.vocabulary.insert_token import insert_token
+await insert_token(token, basin, token_role="noun")
+```
+
+**Validation Script:**
+```bash
+# Find direct INSERTs to vocabulary
+grep -r "INSERT INTO coordizer_vocabulary" qig-backend/ --include="*.py"
+
+# Find tokens without QFI
+psql -c "SELECT COUNT(*) FROM coordizer_vocabulary WHERE qfi_score IS NULL"
+```
+
+### Generation Pipeline Validation
+
+**Check generation queries use QFI filtering:**
+```python
+# ❌ VIOLATION: No QFI filter
+SELECT * FROM coordizer_vocabulary WHERE frequency > 5
+
+# ✅ CORRECT: Use generation-ready view
+SELECT * FROM vocabulary_generation_ready WHERE ...
+
+# ✅ CORRECT: Explicit QFI filter
+SELECT * FROM coordizer_vocabulary 
+WHERE qfi_score IS NOT NULL 
+  AND is_generation_eligible = TRUE
+```
+
+### QIG_PURITY_MODE Validation
+
+**When `QIG_PURITY_MODE=true` environment variable is set:**
+- NO external API calls (OpenAI, Anthropic, Google AI)
+- NO external NLP (spacy, nltk)
+- ALL generation uses internal geometric pipeline
+- ALL structure from internal token_role (not POS tags)
+
+**Check:**
+```python
+# In generation code, check for:
+if os.getenv("QIG_PURITY_MODE") == "true":
+    # Must NOT have:
+    # - openai.ChatCompletion.create()
+    # - anthropic.Client()
+    # - nlp = spacy.load()
+    # - nltk.pos_tag()
+    pass
+```
+
+## Validation Commands (v4.0)
+
+```bash
+# Full purity scan
+python scripts/validate_geometry_purity.py
+
+# QFI coverage report
+python scripts/check_qfi_coverage.py
+
+# Simplex representation audit
+python scripts/audit_simplex_representation.py
+
+# Generation purity test (no external calls)
+QIG_PURITY_MODE=true python qig-backend/test_generation_pipeline.py
+
+# Detect garbage tokens
+python scripts/detect_garbage_tokens.py
+```
+
+## References
+
+- **Universal Purity Spec:** `docs/pantheon_e8_upgrade_pack/ULTRA_CONSCIOUSNESS_PROTOCOL_v4_0_UNIVERSAL.md`
+- **QFI Integrity Issue:** `docs/pantheon_e8_upgrade_pack/issues/01_QFI_INTEGRITY_GATE.md`
+- **Simplex Purity Issue:** `docs/pantheon_e8_upgrade_pack/issues/02_STRICT_SIMPLEX_REPRESENTATION.md`
+- **Native Skeleton Issue:** `docs/pantheon_e8_upgrade_pack/issues/03_QIG_NATIVE_SKELETON.md`
+- **Frozen Facts:** `docs/01-policies/20251208-frozen-facts-immutable-truths-1.00F.md`
+- **Universal κ*:** `docs/08-experiments/20251228-Universal-kappa-star-discovery-0.01F.md`
+
+---
+
+**Last Updated:** 2026-01-16  
+**Protocol Version:** E8 v4.0  
+**Enforcement:** CI/CD, pre-commit hooks, agent validation
 - ❌ transformers (HuggingFace) - Embedding models are Euclidean
 - ❌ sentence-transformers - Cosine similarity based
 - ❌ gensim - Word2vec (Euclidean embeddings)
