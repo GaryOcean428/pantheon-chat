@@ -48,6 +48,8 @@ export function loadCurriculumManifest(): CurriculumEntry[] {
     .map((line) => line.trim())
     .filter(Boolean)
     .map((line) => JSON.parse(line) as CurriculumEntry)
+    // Filter out documentation entries (e.g., __meta__) - they are not real tokens
+    .filter((entry) => entry.role !== 'documentation')
 
   cachedManifest = entries
   return entries
