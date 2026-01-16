@@ -809,19 +809,22 @@ class TrajectoryDecoder:
             traj_score = self._compute_trajectory_compatibility(candidate_basin, context)
             attr_score = self._compute_attractor_pull(candidate_basin, context)
             foresight_score = self._compute_foresight_score(candidate_basin, context)
+            repulsion_score = self._compute_repulsion_score(candidate_basin, context)
 
             # Weights from kwargs or defaults
-            trajectory_weight = kwargs.get('trajectory_weight', 0.3)
-            attractor_weight = kwargs.get('attractor_weight', 0.2)
+            trajectory_weight = kwargs.get('trajectory_weight', 0.25)
+            attractor_weight = kwargs.get('attractor_weight', 0.15)
             phi_boost_weight = kwargs.get('phi_boost_weight', 0.1)
-            foresight_weight = kwargs.get('foresight_weight', 0.4)
+            foresight_weight = kwargs.get('foresight_weight', 0.35)
+            repulsion_weight = kwargs.get('repulsion_weight', 0.25)
 
-            total_weight = trajectory_weight + attractor_weight + phi_boost_weight + foresight_weight
+            total_weight = trajectory_weight + attractor_weight + phi_boost_weight + foresight_weight + repulsion_weight
             final_score = (
                 (trajectory_weight / total_weight) * traj_score +
                 (attractor_weight / total_weight) * attr_score +
                 (phi_boost_weight / total_weight) * phi_score +
-                (foresight_weight / total_weight) * foresight_score
+                (foresight_weight / total_weight) * foresight_score +
+                (repulsion_weight / total_weight) * repulsion_score
             )
 
             candidates.append((token, final_score))
