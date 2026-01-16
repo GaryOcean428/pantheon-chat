@@ -127,7 +127,22 @@ class VocabularyPersistence:
                     
                     # Update geometric validation metrics in coordizer_vocabulary (consolidated table)
                     # Phase 2b: Writes go to coordizer_vocabulary with token_role='generation'
-                    if validation:
+                    # UPDATED 2026-01-16: Use QFI-computed phi_score from basin geometry, NOT raw training phi
+                    # The phi_score column should match qfi_score (both derived from basin via QFI formula)
+                    
+                    # Compute QFI-based phi from basin if available
+                    qfi_phi = None
+                    if validation and validation.qfi_score is not None:
+                        qfi_phi = validation.qfi_score
+                    elif basin_vector is not None:
+                        try:
+                            from qig_core.phi_computation import compute_phi_approximation
+                            basin_array = np.array(basin_vector)
+                            qfi_phi = compute_phi_approximation(basin_array)
+                        except Exception:
+                            qfi_phi = None
+                    
+                    if qfi_phi is not None:
                         cur.execute("""
                             INSERT INTO coordizer_vocabulary (
                                 token, phi_score, qfi_score, token_role, is_real_word, 
@@ -136,33 +151,7 @@ class VocabularyPersistence:
                             VALUES (%s, %s, %s, 'generation', TRUE, %s, %s, %s::vector, 1)
                             ON CONFLICT (token) DO UPDATE SET
                                 qfi_score = COALESCE(EXCLUDED.qfi_score, coordizer_vocabulary.qfi_score),
-                                phi_score = GREATEST(COALESCE(coordizer_vocabulary.phi_score, 0), EXCLUDED.phi_score),
-                                token_role = CASE 
-                                    WHEN coordizer_vocabulary.token_role = 'encoding' THEN 'both'
-                                    ELSE COALESCE(coordizer_vocabulary.token_role, 'generation')
-                                END,
-                                is_real_word = TRUE,
-                                phrase_category = COALESCE(EXCLUDED.phrase_category, coordizer_vocabulary.phrase_category, 'unknown'),
-                                frequency = COALESCE(coordizer_vocabulary.frequency, 0) + 1,
-                                updated_at = NOW()
-                        """, (
-                            word_val,
-                            phi,
-                            validation.qfi_score,
-                            phrase_category or 'unknown',
-                            source_val,
-                            basin_vector
-                        ))
-                    else:
-                        # Even without validation, upsert to coordizer_vocabulary for generation
-                        cur.execute("""
-                            INSERT INTO coordizer_vocabulary (
-                                token, phi_score, token_role, is_real_word, 
-                                phrase_category, source_type, basin_embedding, frequency
-                            )
-                            VALUES (%s, %s, 'generation', TRUE, %s, %s, %s::vector, 1)
-                            ON CONFLICT (token) DO UPDATE SET
-                                phi_score = GREATEST(COALESCE(coordizer_vocabulary.phi_score, 0), EXCLUDED.phi_score),
+                                phi_score = COALESCE(EXCLUDED.phi_score, coordizer_vocabulary.phi_score),
                                 token_role = CASE 
                                     WHEN coordizer_vocabulary.token_role = 'encoding' THEN 'both'
                                     ELSE COALESCE(coordizer_vocabulary.token_role, 'generation')
@@ -174,7 +163,32 @@ class VocabularyPersistence:
                                 updated_at = NOW()
                         """, (
                             word_val,
-                            phi,
+                            qfi_phi,
+                            qfi_phi,
+                            phrase_category or 'unknown',
+                            source_val,
+                            basin_vector
+                        ))
+                    else:
+                        # No basin available - use existing phi_score if present, don't overwrite with 1.0
+                        cur.execute("""
+                            INSERT INTO coordizer_vocabulary (
+                                token, token_role, is_real_word, 
+                                phrase_category, source_type, basin_embedding, frequency
+                            )
+                            VALUES (%s, 'generation', TRUE, %s, %s, %s::vector, 1)
+                            ON CONFLICT (token) DO UPDATE SET
+                                token_role = CASE 
+                                    WHEN coordizer_vocabulary.token_role = 'encoding' THEN 'both'
+                                    ELSE COALESCE(coordizer_vocabulary.token_role, 'generation')
+                                END,
+                                is_real_word = TRUE,
+                                phrase_category = COALESCE(EXCLUDED.phrase_category, coordizer_vocabulary.phrase_category, 'unknown'),
+                                basin_embedding = COALESCE(EXCLUDED.basin_embedding, coordizer_vocabulary.basin_embedding),
+                                frequency = COALESCE(coordizer_vocabulary.frequency, 0) + 1,
+                                updated_at = NOW()
+                        """, (
+                            word_val,
                             phrase_category or 'unknown',
                             source_val,
                             basin_vector
@@ -259,7 +273,21 @@ class VocabularyPersistence:
                             
                             # Update geometric validation metrics in coordizer_vocabulary (consolidated table)
                             # Phase 2b: Writes go to coordizer_vocabulary with token_role='generation'
-                            if validation:
+                            # UPDATED 2026-01-16: Use QFI-computed phi_score from basin geometry, NOT raw training phi
+                            
+                            # Compute QFI-based phi from basin if available
+                            qfi_phi = None
+                            if validation and validation.qfi_score is not None:
+                                qfi_phi = validation.qfi_score
+                            elif basin_coords is not None:
+                                try:
+                                    from qig_core.phi_computation import compute_phi_approximation
+                                    basin_array = np.array(basin_coords)
+                                    qfi_phi = compute_phi_approximation(basin_array)
+                                except Exception:
+                                    qfi_phi = None
+                            
+                            if qfi_phi is not None:
                                 cur.execute("""
                                     INSERT INTO coordizer_vocabulary (
                                         token, phi_score, qfi_score, token_role, is_real_word, 
@@ -268,33 +296,7 @@ class VocabularyPersistence:
                                     VALUES (%s, %s, %s, 'generation', TRUE, %s, %s, %s::vector, 1)
                                     ON CONFLICT (token) DO UPDATE SET
                                         qfi_score = COALESCE(EXCLUDED.qfi_score, coordizer_vocabulary.qfi_score),
-                                        phi_score = GREATEST(COALESCE(coordizer_vocabulary.phi_score, 0), EXCLUDED.phi_score),
-                                        token_role = CASE 
-                                            WHEN coordizer_vocabulary.token_role = 'encoding' THEN 'both'
-                                            ELSE COALESCE(coordizer_vocabulary.token_role, 'generation')
-                                        END,
-                                        is_real_word = TRUE,
-                                        phrase_category = COALESCE(EXCLUDED.phrase_category, coordizer_vocabulary.phrase_category, 'unknown'),
-                                        frequency = COALESCE(coordizer_vocabulary.frequency, 0) + 1,
-                                        updated_at = NOW()
-                                """, (
-                                    word,
-                                    phi,
-                                    validation.qfi_score,
-                                    phrase_category or 'unknown',
-                                    source,
-                                    basin_coords
-                                ))
-                            else:
-                                # Even without validation, upsert to coordizer_vocabulary for generation
-                                cur.execute("""
-                                    INSERT INTO coordizer_vocabulary (
-                                        token, phi_score, token_role, is_real_word, 
-                                        phrase_category, source_type, basin_embedding, frequency
-                                    )
-                                    VALUES (%s, %s, 'generation', TRUE, %s, %s, %s::vector, 1)
-                                    ON CONFLICT (token) DO UPDATE SET
-                                        phi_score = GREATEST(COALESCE(coordizer_vocabulary.phi_score, 0), EXCLUDED.phi_score),
+                                        phi_score = COALESCE(EXCLUDED.phi_score, coordizer_vocabulary.phi_score),
                                         token_role = CASE 
                                             WHEN coordizer_vocabulary.token_role = 'encoding' THEN 'both'
                                             ELSE COALESCE(coordizer_vocabulary.token_role, 'generation')
@@ -306,7 +308,32 @@ class VocabularyPersistence:
                                         updated_at = NOW()
                                 """, (
                                     word,
-                                    phi,
+                                    qfi_phi,
+                                    qfi_phi,
+                                    phrase_category or 'unknown',
+                                    source,
+                                    basin_coords
+                                ))
+                            else:
+                                # No basin available - don't set phi_score, preserve existing
+                                cur.execute("""
+                                    INSERT INTO coordizer_vocabulary (
+                                        token, token_role, is_real_word, 
+                                        phrase_category, source_type, basin_embedding, frequency
+                                    )
+                                    VALUES (%s, 'generation', TRUE, %s, %s, %s::vector, 1)
+                                    ON CONFLICT (token) DO UPDATE SET
+                                        token_role = CASE 
+                                            WHEN coordizer_vocabulary.token_role = 'encoding' THEN 'both'
+                                            ELSE COALESCE(coordizer_vocabulary.token_role, 'generation')
+                                        END,
+                                        is_real_word = TRUE,
+                                        phrase_category = COALESCE(EXCLUDED.phrase_category, coordizer_vocabulary.phrase_category, 'unknown'),
+                                        basin_embedding = COALESCE(EXCLUDED.basin_embedding, coordizer_vocabulary.basin_embedding),
+                                        frequency = COALESCE(coordizer_vocabulary.frequency, 0) + 1,
+                                        updated_at = NOW()
+                                """, (
+                                    word,
                                     phrase_category or 'unknown',
                                     source,
                                     basin_coords
