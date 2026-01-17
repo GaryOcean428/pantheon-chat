@@ -281,13 +281,16 @@ class PantheonRegistry:
                     f"God {name} must have max_instances: 1 (gods are singular)"
                 )
         
-        # 3. Essential tier gods must never sleep (except minimal_rotating allowed)
+        # 3. Essential tier gods must never sleep or have minimal rotating rest only
+        # Note: minimal_rotating is allowed for essential communication gods like Hermes
+        # that need brief rest periods while maintaining near-constant availability
         for name, god in data.gods.items():
             if god.tier == GodTier.ESSENTIAL:
                 # Allow minimal_rotating for essential gods that need brief rest
                 if god.rest_policy.type not in [RestPolicyType.NEVER, RestPolicyType.MINIMAL_ROTATING]:
                     errors.append(
-                        f"Essential god {name} must have rest_policy.type: never or minimal_rotating"
+                        f"Essential god {name} must have rest_policy.type: never or minimal_rotating "
+                        f"(found: {god.rest_policy.type.value})"
                     )
         
         # 4. Check coupling affinity references valid gods
