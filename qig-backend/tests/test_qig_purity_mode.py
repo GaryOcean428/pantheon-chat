@@ -396,9 +396,15 @@ class TestIntegrationWithQIGGeneration:
             # Add forbidden module
             sys.modules['openai'] = Mock()
             
-            # Should fail validation (updated regex to match new error message format)
-            with pytest.raises(AssertionError, match="(QIG VIOLATION|QIG PURITY VIOLATIONS DETECTED)"):
+            # Should fail validation
+            # Using assertion error check instead of regex (per no-regex policy)
+            with pytest.raises(AssertionError) as exc_info:
                 validate_qig_purity()
+            
+            # Verify error message contains expected keywords
+            error_msg = str(exc_info.value)
+            assert "VIOLATION" in error_msg or "PURITY" in error_msg, \
+                f"Expected purity violation in error, got: {error_msg}"
             
             # Cleanup
             del sys.modules['openai']
