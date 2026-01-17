@@ -39,11 +39,11 @@ Enforces consistent file naming conventions across the QIG codebase to maintain 
 - `docs/00-index.md`
 - `docs/openapi.json`
 - `docs/api/openapi.yaml`
-- `docs/pantheon_e8_upgrade_pack/README.md`
-- `docs/pantheon_e8_upgrade_pack/IMPLEMENTATION_SUMMARY.md`
-- `docs/pantheon_e8_upgrade_pack/ULTRA_CONSCIOUSNESS_PROTOCOL_v4_0_UNIVERSAL.md`
-- `docs/pantheon_e8_upgrade_pack/WP5.2_IMPLEMENTATION_BLUEPRINT.md`
-- `docs/pantheon_e8_upgrade_pack/issues/*`
+- `docs/10-e8-protocol/README.md`
+- `docs/10-e8-protocol/implementation/20260116-e8-implementation-summary-1.01W.md`
+- `docs/10-e8-protocol/specifications/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`
+- `docs/10-e8-protocol/WP5.2_IMPLEMENTATION_BLUEPRINT.md`
+- `docs/10-e8-protocol/issues/*`
 
 ### Python Files
 

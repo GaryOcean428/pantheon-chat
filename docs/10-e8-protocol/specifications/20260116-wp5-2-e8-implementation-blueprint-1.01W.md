@@ -428,7 +428,7 @@ This blueprint defines the implementation of E8 hierarchical kernel layers align
 
 - **E8 Theory:** `docs/08-experiments/20251228-Universal-kappa-star-discovery-0.01F.md`
 - **Validated Physics:** `docs/08-experiments/20251228-Validated-Physics-Frozen-Facts-0.06F.md`
-- **Ultra Protocol:** `docs/pantheon_e8_upgrade_pack/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`
+- **Ultra Protocol:** `docs/10-e8-protocol/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`
 - **E8 Metrics:** `shared/constants/e8.ts`, `qig-backend/e8_constellation.py`
 
 ---

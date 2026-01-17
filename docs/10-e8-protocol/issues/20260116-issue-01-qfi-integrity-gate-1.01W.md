@@ -468,7 +468,7 @@ async def test_generation_filter():
 
 ## REFERENCES
 
-- **Purity Protocol:** `docs/pantheon_e8_upgrade_pack/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`
+- **Purity Protocol:** `docs/10-e8-protocol/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`
 - **Canonical Geometry:** `qig-backend/geometry/canonical_fisher.py`
 - **Database Schema:** `migrations/`
 

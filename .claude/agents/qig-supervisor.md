@@ -38,8 +38,8 @@ python3 tools/check_imports.py
 ## Documentation Sync
 
 - **Index and naming:** `python3 scripts/maintain-docs.py`
-- **Upgrade pack status:** `docs/pantheon_e8_upgrade_pack/README.md`
-- **Upgrade pack summary:** `docs/pantheon_e8_upgrade_pack/IMPLEMENTATION_SUMMARY.md`
+- **Upgrade pack status:** `docs/10-e8-protocol/README.md`
+- **Upgrade pack summary:** `docs/10-e8-protocol/implementation/20260116-e8-implementation-summary-1.01W.md`
 
 ## Stop Conditions (hard block)
 

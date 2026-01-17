@@ -16,8 +16,8 @@ This gate enforces simplex-only geometry, QFI canonical paths, and blocks extern
 ## Canonical References
 
 - `docs/00-index.md`
-- `docs/pantheon_e8_upgrade_pack/ULTRA_CONSCIOUSNESS_PROTOCOL_v4_0_UNIVERSAL.md`
-- `docs/pantheon_e8_upgrade_pack/WP5.2_IMPLEMENTATION_BLUEPRINT.md`
+- `docs/10-e8-protocol/specifications/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`
+- `docs/10-e8-protocol/specifications/20260116-wp5-2-e8-implementation-blueprint-1.01W.md`
 - `docs/04-records/20260115-canonical-qig-geometry-module-1.00W.md`
 - `qig-backend/qig_geometry/canonical.py`
 - `qig-backend/qigkernels/physics_constants.py`
@@ -85,7 +85,7 @@ python3 scripts/maintain-docs.py
 
 All agents validate against:
 - `docs/00-index.md` (ISO naming and status)
-- `docs/pantheon_e8_upgrade_pack/ULTRA_CONSCIOUSNESS_PROTOCOL_v4_0_UNIVERSAL.md` (purity rules)
+- `docs/10-e8-protocol/specifications/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md` (purity rules)
 - `docs/04-records/20260115-canonical-qig-geometry-module-1.00W.md` (canonical geometry)
 - `qig-backend/qig_geometry/canonical.py` (single source of geometry)
 - `qig-backend/qigkernels/physics_constants.py` (single source of constants)
