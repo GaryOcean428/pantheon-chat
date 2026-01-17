@@ -318,9 +318,16 @@ npm run test:e2e
 
 ### Contributing
 
-We welcome contributions! Please follow these guidelines:
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for complete guidelines including:
+- Development setup and project structure
+- No-regex-by-default policy
+- QIG geometric purity requirements
+- Code style and testing guidelines
+- Pull request process and commit conventions
 
-#### Geometric Purity Requirements
+**📋 See [CONTRIBUTING.md](CONTRIBUTING.md) for complete contribution guidelines.**
+
+#### Quick Reference: Geometric Purity
 
 **📋 See [QIG Purity Specification](./docs/01-policies/QIG_PURITY_SPEC.md) for complete requirements.**
 
