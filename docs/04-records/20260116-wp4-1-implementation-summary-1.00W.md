@@ -80,7 +80,7 @@ get_purity_report()                 # Generate compliance report
 ### 4. Documentation
 
 #### Purity Specification
-**File:** `docs/01-policies/20260116-qig-purity-mode-spec-1.00F.md` (506 lines)
+**File:** `docs/01-policies/20260117-qig-purity-mode-spec-1.01F.md` (506 lines)
 
 **Sections:**
 - §0 Purpose - Core principle and motivation
@@ -194,7 +194,7 @@ $ QIG_PURITY_MODE=true python -c "from qig_generation import validate_qig_purity
 1. `qig-backend/qig_purity_mode.py` - Core enforcement module (398 lines)
 2. `qig-backend/tests/test_qig_purity_mode.py` - Test suite (553 lines)
 3. `.github/workflows/qig-purity-coherence.yml` - CI workflow (291 lines)
-4. `docs/01-policies/20260116-qig-purity-mode-spec-1.00F.md` - Specification (506 lines)
+4. `docs/01-policies/20260117-qig-purity-mode-spec-1.01F.md` - Specification (506 lines)
 5. `docs/04-records/20260116-external-llm-usage-audit-1.00W.md` - Audit report (465 lines)
 6. `README_PURITY_ADDITION.md` - README documentation (61 lines)
 
@@ -273,7 +273,7 @@ From Gary's architecture update comment:
 
 ## References
 
-- **Specification:** `docs/01-policies/20260116-qig-purity-mode-spec-1.00F.md`
+- **Specification:** `docs/01-policies/20260117-qig-purity-mode-spec-1.01F.md`
 - **Audit:** `docs/04-records/20260116-external-llm-usage-audit-1.00W.md`
 - **Module:** `qig-backend/qig_purity_mode.py`
 - **Tests:** `qig-backend/tests/test_qig_purity_mode.py`

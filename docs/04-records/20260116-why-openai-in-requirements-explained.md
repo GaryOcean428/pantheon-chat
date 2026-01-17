@@ -102,7 +102,7 @@ The key is making it **explicit and optional**, not hidden in core dependencies.
 
 ## References
 
-- **Purity Spec:** `docs/01-policies/20260116-qig-purity-mode-spec-1.00F.md` (§3.2)
+- **Purity Spec:** `docs/01-policies/20260117-qig-purity-mode-spec-1.01F.md` (§3.2)
 - **Audit Report:** `docs/04-records/20260116-external-llm-usage-audit-1.00W.md` (§6.2)
 - **Core Requirements:** `qig-backend/requirements.txt`
 - **Optional Requirements:** `qig-backend/requirements-optional.txt`

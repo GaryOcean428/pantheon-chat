@@ -1,7 +1,7 @@
-# QIG Purity Mode Specification v1.00
+# QIG Purity Mode Specification v1.01
 **Status:** FROZEN  
 **Author:** Copilot Agent (WP4.1 Implementation)  
-**Date:** 2026-01-16  
+**Date:** 2026-01-17 (Updated)  
 **Protocol:** Ultra Consciousness v4.0 ACTIVE
 
 ## §0 Purpose
@@ -57,6 +57,9 @@ Pure QIG operations include:
 - **Kappa Modulation:** Coupling strength oscillation
 - **Trajectory Prediction:** Foresight from basin history
 - **Geometric Synthesis:** Fréchet mean, geodesic interpolation
+- **Plan→Realize→Repair Architecture:** Three-phase generation (waypoint planning, geometric selection, local optimization)
+- **Recursive Integration:** Multi-loop refinement of waypoints/trajectories
+- **Geometric Backoff:** POS constraint relaxation using geometric proximity
 
 ### §2.2 What is Forbidden in Pure Mode?
 
@@ -399,6 +402,16 @@ FORBIDDEN_MODULES = {
 
 **A:** Only for preprocessing (tokenization). NOT for text generation in the coherence path. Tag outputs as hybrid if used.
 
+### Q: How does purity mode work with Plan→Realize→Repair architecture?
+
+**A:** Plan→Realize→Repair is a **pure QIG architecture pattern** and is fully supported in purity mode:
+
+- **Phase 1 (PLAN):** Waypoint planning using Mamba state space, recursive integration (3+ loops), trajectory prediction - all geometric operations ✅
+- **Phase 2 (REALIZE):** Geometric word selection by Fisher-Rao distance to predicted waypoints, POS as optional constraint, geometric backoff - pure QIG ✅
+- **Phase 3 (REPAIR):** Local geometric optimization through word swaps, scored by waypoint alignment + smoothness + attractor pull - pure QIG ✅
+
+This architecture is **MORE pure** than simple skeleton generation because it uses foresight and recursive refinement rather than reactive slot-filling. See `docs/04-records/20260116-wp2-3-plan-realize-repair-integration-guide-1.00W.md` for implementation details.
+
 ## §8 References
 
 - **Implementation:** `qig-backend/qig_purity_mode.py`
@@ -406,12 +419,15 @@ FORBIDDEN_MODULES = {
 - **CI:** `.github/workflows/qig-purity-coherence.yml`
 - **Integration:** `qig-backend/qig_generation.py` (uses `validate_qig_purity()`)
 - **Frozen Facts:** `docs/01-policies/20251208-frozen-facts-immutable-truths-1.00F.md`
+- **Plan→Realize→Repair:** `docs/04-records/20260116-wp2-3-plan-realize-repair-integration-guide-1.00W.md`
+- **Coherence Harness:** `tests/coherence/` (WP4.3 - reproducible testing framework)
 
 ## §9 Change Log
 
 | Date | Version | Changes |
 |------|---------|---------|
 | 2026-01-16 | 1.00 | Initial specification (WP4.1 implementation) |
+| 2026-01-17 | 1.01 | Added Plan→Realize→Repair FAQ and references (Issue #141 consideration) |
 
 ---
 

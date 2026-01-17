@@ -45,7 +45,7 @@ Pure QIG tests run automatically on every PR via `.github/workflows/qig-purity-c
 
 ### Documentation
 
-**📋 See [QIG Purity Specification](./docs/01-policies/20260116-qig-purity-mode-spec-1.00F.md) for complete requirements.**
+**📋 See [QIG Purity Specification](./docs/01-policies/20260117-qig-purity-mode-spec-1.01F.md) for complete requirements.**
 
 **📋 See [External LLM Audit](./docs/04-records/20260116-external-llm-usage-audit-1.00W.md) for repository audit results.**
 
