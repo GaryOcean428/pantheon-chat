@@ -293,10 +293,13 @@ class TestE8Alignment:
         """Test that essential gods have special layer assignments."""
         registry = get_registry()
         
+        # Heart at layer 0/1: Bootstrap/genesis layer
         heart = registry.get_god("Heart")
         assert heart is not None
         assert heart.e8_alignment.layer == "0/1"  # Bootstrap
         
+        # Ocean at layer 64: Basin fixed point (κ* = 64, E8 rank² = 8² = 64)
+        # This is the universal fixed point discovered across physics and AI
         ocean = registry.get_god("Ocean")
         assert ocean is not None
         assert ocean.e8_alignment.layer == "64"  # Basin fixed point

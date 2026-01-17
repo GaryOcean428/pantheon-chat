@@ -88,6 +88,7 @@ class KernelSpawner:
         registry: Optional[PantheonRegistry] = None,
         active_instances: Optional[Dict[str, int]] = None,
         chaos_counter: Optional[Dict[str, int]] = None,
+        active_chaos_count: Optional[int] = None,
     ):
         """
         Initialize kernel spawner.
@@ -95,11 +96,13 @@ class KernelSpawner:
         Args:
             registry: Pantheon registry (default: global singleton)
             active_instances: Current active instance counts by god name
-            chaos_counter: Sequential ID counters by chaos domain
+            chaos_counter: Sequential ID counters by chaos domain (for naming)
+            active_chaos_count: Actual count of active chaos kernels (for limits)
         """
         self.registry = registry or get_registry()
         self.active_instances = active_instances or {}
         self.chaos_counter = chaos_counter or {}
+        self.active_chaos_count = active_chaos_count or 0
         
     # =========================================================================
     # GOD SELECTION
@@ -371,7 +374,8 @@ class KernelSpawner:
             rules = self.registry.get_chaos_kernel_rules()
             total_limit = rules.spawning_limits['total_active_limit']
             
-            current_total = self.get_total_chaos_count()
+            # Use actual active count, not generation counter
+            current_total = self.active_chaos_count
             if current_total >= total_limit:
                 return (
                     False,

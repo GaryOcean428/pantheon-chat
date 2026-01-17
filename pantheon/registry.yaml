@@ -533,9 +533,9 @@ chaos_kernel_rules:
       - "NOT permanent death - can be revived"
       
   spawning_limits:
-    max_chaos_kernels: 240  # E8 root system limit
-    per_domain_limit: 30
-    total_active_limit: 200  # Reserve 40 for gods
+    max_chaos_kernels: 240  # E8 root system limit (total capacity)
+    per_domain_limit: 30    # Max per single domain to ensure diversity
+    total_active_limit: 200  # Reserve 40 slots: 16 defined gods + 24 for future gods
     
   genetic_lineage:
     parent_tracking: true

@@ -349,10 +349,10 @@ export function validatePantheonRegistry(registry: unknown): {
     }
   }
 
-  // 7. Validate chaos kernel naming pattern
-  const chaosPattern = /^chaos_\{domain\}_\{id\}$/;
-  if (!chaosPattern.test(data.chaos_kernel_rules.naming_pattern)) {
-    warnings.push('Chaos kernel naming pattern should be: chaos_{domain}_{id}');
+  // 7. Validate chaos kernel naming pattern (check template string, not regex)
+  const expectedPattern = 'chaos_{domain}_{id}';
+  if (data.chaos_kernel_rules.naming_pattern !== expectedPattern) {
+    warnings.push(`Chaos kernel naming pattern should be: ${expectedPattern}`);
   }
 
   // 8. Check total active limit <= E8 roots (240)
