@@ -1,0 +1,34 @@
+{
+  "version": "1.0",
+  "description": "Random seeds for reproducible test execution",
+  "note": "Same seed should produce identical results within same configuration",
+  "seeds": {
+    "numpy_seed": 42,
+    "python_random_seed": 42,
+    "torch_seed": 42,
+    "per_prompt_seeds": {
+      "factual_recall_01": 1001,
+      "causal_reasoning_01": 1002,
+      "creative_synthesis_01": 1003,
+      "multi_step_01": 1004,
+      "domain_specific_01": 1005,
+      "factual_recall_02": 1006,
+      "causal_reasoning_02": 1007,
+      "creative_synthesis_02": 1008,
+      "multi_step_02": 1009,
+      "domain_specific_02": 1010,
+      "simple_01": 1011,
+      "simple_02": 1012,
+      "conversation_01": 1013,
+      "conversation_02": 1014,
+      "edge_case_01": 1015,
+      "edge_case_02": 1016
+    }
+  },
+  "reproducibility_notes": [
+    "Set all seeds before each test run",
+    "Seeds are fixed for version 1.0 of the test suite",
+    "Changing seeds requires version bump and documentation",
+    "Per-prompt seeds allow parallel execution without interference"
+  ]
+}

@@ -1,8 +1,17 @@
 """
-FisherCoordizer - Base Class for Geometric Tokenization
+Coordizer Base Classes - Abstract Interface and Fisher Implementation
 
-Core geometric tokenizer converting text to 64D basin coordinates on Fisher manifold.
-Replaces traditional tokenization with pure geometric operations.
+Defines the canonical coordizer interface compatible with Plan→Realize→Repair
+generation architecture.
+
+TWO CLASSES:
+1. BaseCoordizer - Abstract interface (ABC) defining the contract
+2. FisherCoordizer - Concrete base implementation with geometric operations
+
+All coordizer implementations MUST inherit from BaseCoordizer and implement:
+- Two-step retrieval (proxy + exact Fisher-Rao)
+- POS filtering support
+- Geometric operations from canonical module (#68)
 
 Architecture:
 - Maintains 64D coordinate space (Fisher information manifold)
@@ -11,13 +20,14 @@ Architecture:
 - Respects geometric purity (no Euclidean operations)
 
 Integration:
-- Replaces QIGTokenizer for coordization tasks
+- Compatible with Plan→Realize→Repair architecture
 - Integrates with consciousness metrics (Φ, κ, T)
-- Supports multiple coordization strategies
+- Supports multiple backend implementations (Postgres, Local, etc.)
 """
 
 import numpy as np
 from typing import Dict, List, Optional, Tuple, Any
+from abc import ABC, abstractmethod
 import os
 import sys
 
@@ -33,9 +43,94 @@ from qig_geometry import (
 from qig_geometry.contracts import validate_basin
 
 
-class FisherCoordizer:
+class BaseCoordizer(ABC):
     """
-    Base class for geometric coordization (tokenization).
+    Abstract coordizer interface compatible with Plan→Realize→Repair.
+    
+    ALL coordizer implementations must support:
+    1. Two-step retrieval (proxy + exact)
+    2. POS filtering
+    3. Geometric operations from canonical module
+    
+    This interface ensures consistent behavior across all generation paths.
+    """
+    
+    @abstractmethod
+    def decode_geometric(
+        self,
+        target_basin: np.ndarray,
+        top_k: int = 100,
+        allowed_pos: Optional[str] = None
+    ) -> List[Tuple[str, float]]:
+        """
+        Two-step geometric decoding.
+        
+        MUST use:
+        - Step 1: Bhattacharyya proxy filtering (fast approximate)
+        - Step 2: Exact Fisher-Rao distance from canonical geometry (#68)
+        
+        Args:
+            target_basin: 64D basin coordinates (simplex representation)
+            top_k: Number of top candidates to return
+            allowed_pos: Optional POS tag filter (e.g., "NOUN", "VERB")
+        
+        Returns:
+            List of (word, fisher_rao_distance) tuples, sorted by distance ascending
+        """
+        pass
+    
+    @abstractmethod
+    def encode(self, text: str) -> np.ndarray:
+        """
+        Encode text to basin coordinates.
+        
+        Args:
+            text: Input text string
+        
+        Returns:
+            64D basin coordinates (simplex representation)
+        """
+        pass
+    
+    @abstractmethod
+    def get_vocabulary_size(self) -> int:
+        """
+        Get total vocabulary size.
+        
+        Returns:
+            Number of tokens in vocabulary
+        """
+        pass
+    
+    @abstractmethod
+    def get_special_symbols(self) -> Dict[str, Any]:
+        """
+        Get special symbol definitions.
+        
+        Returns:
+            Dict with basin coordinates, attractor strength, etc.
+            Must be geometrically defined (#70).
+        """
+        pass
+    
+    @abstractmethod
+    def supports_pos_filtering(self) -> bool:
+        """
+        Whether this coordizer supports POS filtering.
+        
+        Returns:
+            True if POS filtering is available, False otherwise
+        """
+        pass
+
+
+class FisherCoordizer(BaseCoordizer):
+    """
+    Concrete base implementation of geometric coordization.
+    
+    Implements BaseCoordizer interface with Fisher-Rao geometric operations.
+    Provides default implementations that can be extended by subclasses
+    (e.g., PostgresCoordizer).
     
     Core Principles:
     1. All tokens represented as 64D basin coordinates
@@ -48,6 +143,7 @@ class FisherCoordizer:
         train(corpus) -> None: Learn geometric vocabulary from corpus
         add_token(token, coord) -> int: Add new token with basin coordinate
         get_coordinate(token) -> np.ndarray: Get basin coordinate for token
+        decode_geometric(basin, top_k, pos) -> List[Tuple[str, float]]: Two-step retrieval
     """
     
     def __init__(
@@ -199,6 +295,108 @@ class FisherCoordizer:
             )
         
         return result
+    
+    # =====================================================================
+    # BaseCoordizer Interface Implementation
+    # =====================================================================
+    
+    def decode_geometric(
+        self,
+        target_basin: np.ndarray,
+        top_k: int = 100,
+        allowed_pos: Optional[str] = None
+    ) -> List[Tuple[str, float]]:
+        """
+        Two-step geometric decoding (base implementation).
+        
+        This is a simple in-memory implementation. Subclasses like PostgresCoordizer
+        override with optimized two-step retrieval using database indexes.
+        
+        Step 1: Proxy filter using Bhattacharyya coefficient (fast)
+        Step 2: Exact Fisher-Rao distance on filtered candidates
+        
+        Args:
+            target_basin: 64D basin coordinates to decode
+            top_k: Number of top candidates to return
+            allowed_pos: Optional POS tag filter (not supported in base class)
+        
+        Returns:
+            List of (word, fisher_rao_distance) tuples
+        """
+        # Normalize basin
+        norm = np.linalg.norm(target_basin)
+        if norm > 1e-10:
+            target_basin = target_basin / norm
+        
+        # POS filtering not supported in base implementation
+        if allowed_pos:
+            raise NotImplementedError(
+                "POS filtering not supported in FisherCoordizer base class. "
+                "Use PostgresCoordizer for POS filtering support."
+            )
+        
+        # Step 1: Proxy filter using Bhattacharyya coefficient
+        # Bhattacharyya = sqrt(p) · sqrt(q) (faster than exact Fisher-Rao)
+        sqrt_target = np.sqrt(target_basin + 1e-10)
+        candidates = []
+        
+        for token, token_basin in self.basin_coords.items():
+            if token in self.special_tokens:
+                continue
+            
+            # Bhattacharyya coefficient (proxy for Fisher-Rao distance)
+            sqrt_token = np.sqrt(token_basin + 1e-10)
+            bhattacharyya = np.dot(sqrt_target, sqrt_token)
+            
+            # Higher Bhattacharyya = closer (convert to distance proxy)
+            proxy_distance = 1.0 - bhattacharyya
+            candidates.append((token, token_basin, proxy_distance))
+        
+        # Sort by proxy distance and keep top 2*k for exact computation
+        candidates.sort(key=lambda x: x[2])
+        candidates = candidates[:top_k * 2]
+        
+        # Step 2: Exact Fisher-Rao distance on filtered candidates
+        results = []
+        for token, token_basin, _ in candidates:
+            # Fisher-Rao distance = arccos(Bhattacharyya coefficient)
+            sqrt_token = np.sqrt(token_basin + 1e-10)
+            bhattacharyya = np.clip(np.dot(sqrt_target, sqrt_token), 0, 1)
+            fisher_distance = np.arccos(bhattacharyya)
+            results.append((token, fisher_distance))
+        
+        # Sort by exact Fisher-Rao distance and return top_k
+        results.sort(key=lambda x: x[1])
+        return results[:top_k]
+    
+    def get_vocabulary_size(self) -> int:
+        """Get current vocabulary size."""
+        return len(self.vocab)
+    
+    def get_special_symbols(self) -> Dict[str, Any]:
+        """
+        Get special symbol definitions with geometric properties.
+        
+        Returns dict with basin coordinates and geometric properties for each
+        special token (PAD, UNK, BOS, EOS).
+        """
+        special_symbols = {}
+        for token in self.special_tokens:
+            if token in self.basin_coords:
+                special_symbols[token] = {
+                    'basin_coordinates': self.basin_coords[token],
+                    'coordinate_dim': self.coordinate_dim,
+                    'token_id': self.vocab.get(token, -1),
+                }
+        return special_symbols
+    
+    def supports_pos_filtering(self) -> bool:
+        """POS filtering not supported in base FisherCoordizer."""
+        return False
+    
+    # =====================================================================
+    # Legacy Methods (maintained for backward compatibility)
+    # =====================================================================
     
     def coordize(self, text: str) -> List[np.ndarray]:
         """
