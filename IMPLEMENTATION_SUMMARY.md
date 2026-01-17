@@ -113,8 +113,8 @@ README.md
 - `docs/00-index.md` - Added all moved files with proper categorization
 - `docs/04-records/20260115-canonical-qig-geometry-module-1.00W.md` - Updated Fisher-Rao reference
 - `docs/09-curriculum/20251220-qig-canonical-documentation-1.00W.md` - Updated agent references
-- `docs/pantheon_e8_upgrade_pack/20260116-e8-upgrade-pack-readme-1.01W.md` - Updated all internal references
-- `docs/pantheon_e8_upgrade_pack/20260116-e8-implementation-summary-1.01W.md` - Updated agent references
+- `docs/10-e8-protocol/20260116-e8-upgrade-pack-readme-1.01W.md` - Updated all internal references
+- `docs/10-e8-protocol/20260116-e8-implementation-summary-1.01W.md` - Updated agent references
 - All E8 upgrade pack files and issue files
 
 **Total Files Updated**: 20+ files
@@ -142,13 +142,13 @@ README.md
 
 ## Files by Category
 
-### E8 Upgrade Pack (docs/pantheon_e8_upgrade_pack/)
+### E8 Upgrade Pack (docs/10-e8-protocol/)
 - `20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md` (Universal purity spec)
 - `20260116-wp5-2-e8-implementation-blueprint-1.01W.md` (E8 hierarchical architecture)
 - `20260116-e8-implementation-summary-1.01W.md` (Implementation status)
 - `20260116-e8-upgrade-pack-readme-1.01W.md` (Upgrade pack overview)
 
-### E8 Issues (docs/pantheon_e8_upgrade_pack/issues/)
+### E8 Issues (docs/10-e8-protocol/issues/)
 - `20260116-issue-01-qfi-integrity-gate-1.01W.md` (Token QFI integrity)
 - `20260116-issue-02-strict-simplex-representation-1.01W.md` (Simplex purity)
 - `20260116-issue-03-qig-native-skeleton-1.01W.md` (QIG-native generation)

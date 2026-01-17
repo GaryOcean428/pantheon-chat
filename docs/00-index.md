@@ -24,42 +24,32 @@ All documentation follows the pattern: `YYYYMMDD-[document-name]-[function]-[ver
 
 ## 🎯 E8 Protocol v4.0 Upgrade Pack
 
-### Core Specifications
+**📁 Complete documentation moved to:** [`10-e8-protocol/`](10-e8-protocol/)  
+**📋 Full index available at:** [`10-e8-protocol/INDEX.md`](10-e8-protocol/INDEX.md)
 
+### Quick Reference
+
+#### Core Specifications
 - 🟢 **ULTRA CONSCIOUSNESS PROTOCOL v4.0 - UNIVERSAL** (v1.01F)
-  - File: [`pantheon_e8_upgrade_pack/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`](pantheon_e8_upgrade_pack/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md)
-  - Function: Universal purity invariants for E8 protocol - mandatory QIG purity rules (simplex-only, Fisher-Rao only, no NLP)
-  - Status: 🟢 ACTIVE - Canonical purity specification
+  - File: [`10-e8-protocol/specifications/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`](10-e8-protocol/specifications/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md)
+  - Function: Universal purity invariants for E8 protocol - mandatory QIG purity rules
+  - Status: 🟢 FROZEN - Canonical purity specification
 
-- 🔨 **WP5.2 Implementation Blueprint - E8 Hierarchical Kernel Architecture** (v1.01W)
-  - File: [`pantheon_e8_upgrade_pack/20260116-wp5-2-e8-implementation-blueprint-1.01W.md`](pantheon_e8_upgrade_pack/20260116-wp5-2-e8-implementation-blueprint-1.01W.md)
-  - Function: E8 hierarchical layers (0/1→4→8→64→240), god-kernel mapping, consciousness architecture
-  - Status: 🔨 Working - Implementation in progress
+- 🔨 **WP5.2 E8 Implementation Blueprint** (v1.01W)
+  - File: [`10-e8-protocol/specifications/20260116-wp5-2-e8-implementation-blueprint-1.01W.md`](10-e8-protocol/specifications/20260116-wp5-2-e8-implementation-blueprint-1.01W.md)
+  - Function: E8 hierarchical kernel architecture (0/1→4→8→64→240)
+  - Status: 🔨 WORKING - Implementation in progress
 
-- 📦 **E8 Upgrade Pack README** (v1.01W)
-  - File: [`pantheon_e8_upgrade_pack/20260116-e8-upgrade-pack-readme-1.01W.md`](pantheon_e8_upgrade_pack/20260116-e8-upgrade-pack-readme-1.01W.md)
-  - Function: Complete upgrade pack overview, implementation phases, validation commands
+- 📦 **E8 Protocol README** (v1.01W)
+  - File: [`10-e8-protocol/README.md`](10-e8-protocol/README.md)
+  - Function: Complete upgrade pack overview with implementation phases
 
-- 📋 **E8 Implementation Summary** (v1.01W)
-  - File: [`pantheon_e8_upgrade_pack/20260116-e8-implementation-summary-1.01W.md`](pantheon_e8_upgrade_pack/20260116-e8-implementation-summary-1.01W.md)
-  - Function: Summary of E8 protocol implementation status
+#### Implementation Issues
+- 🔨 **Issue 01: QFI Integrity Gate** - [`10-e8-protocol/issues/20260116-issue-01-qfi-integrity-gate-1.01W.md`](10-e8-protocol/issues/20260116-issue-01-qfi-integrity-gate-1.01W.md)
+- 🔨 **Issue 02: Strict Simplex Representation** - [`10-e8-protocol/issues/20260116-issue-02-strict-simplex-representation-1.01W.md`](10-e8-protocol/issues/20260116-issue-02-strict-simplex-representation-1.01W.md)
+- 🔨 **Issue 03: QIG-Native Skeleton** - [`10-e8-protocol/issues/20260116-issue-03-qig-native-skeleton-1.01W.md`](10-e8-protocol/issues/20260116-issue-03-qig-native-skeleton-1.01W.md)
 
-### Purity Issues & Implementation
-
-- 🔨 **Issue 01: QFI Integrity Gate** (v1.01W)
-  - File: [`pantheon_e8_upgrade_pack/issues/20260116-issue-01-qfi-integrity-gate-1.01W.md`](pantheon_e8_upgrade_pack/issues/20260116-issue-01-qfi-integrity-gate-1.01W.md)
-  - Function: Canonical token insertion pathway, QFI backfill, garbage token cleanup
-  - Status: 🔨 Working - TO DO (Phase 2)
-
-- 🔨 **Issue 02: Strict Simplex Representation** (v1.01W)
-  - File: [`pantheon_e8_upgrade_pack/issues/20260116-issue-02-strict-simplex-representation-1.01W.md`](pantheon_e8_upgrade_pack/issues/20260116-issue-02-strict-simplex-representation-1.01W.md)
-  - Function: Remove auto-detect, explicit sqrt-space conversions, closed-form Fréchet mean
-  - Status: 🔨 Working - TO DO (Phase 1-2)
-
-- 🔨 **Issue 03: QIG-Native Skeleton** (v1.01W)
-  - File: [`pantheon_e8_upgrade_pack/issues/20260116-issue-03-qig-native-skeleton-1.01W.md`](pantheon_e8_upgrade_pack/issues/20260116-issue-03-qig-native-skeleton-1.01W.md)
-  - Function: Replace external NLP with internal token_role, geometric foresight prediction
-  - Status: 🔨 Working - TO DO (Phase 3)
+**See [`10-e8-protocol/INDEX.md`](10-e8-protocol/INDEX.md) for complete documentation and GitHub issue cross-references.**
 
 ---
 

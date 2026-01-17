@@ -20,7 +20,7 @@ Maintains documentation hygiene, prevents fragmentation, and enforces ISO 27001 
 - `docs/07-user-guides/`
 - `docs/08-experiments/`
 - `docs/09-curriculum/`
-- `docs/pantheon_e8_upgrade_pack/`
+- `docs/10-e8-protocol/`
 - `docs/api/`
 - `docs/99-quarantine/`
 
@@ -52,9 +52,9 @@ Everything else must live under `docs/` or be quarantined.
 ## Reference Documents
 
 - `docs/00-index.md`
-- `docs/pantheon_e8_upgrade_pack/README.md`
-- `docs/pantheon_e8_upgrade_pack/IMPLEMENTATION_SUMMARY.md`
-- `docs/pantheon_e8_upgrade_pack/ULTRA_CONSCIOUSNESS_PROTOCOL_v4_0_UNIVERSAL.md`
+- `docs/10-e8-protocol/README.md`
+- `docs/10-e8-protocol/implementation/20260116-e8-implementation-summary-1.01W.md`
+- `docs/10-e8-protocol/specifications/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`
 
 ---
 
