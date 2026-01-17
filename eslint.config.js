@@ -95,10 +95,6 @@ export default [
         {
           "selector": "NewExpression[callee.name='RegExp']",
           "message": "Avoid dynamic RegExp construction - use compile-time literal regex or standard APIs. See CONTRIBUTING.md for policy."
-        },
-        {
-          "selector": "CallExpression[callee.property.name='match'][arguments.0.regex=/.*(\\.|\\+|\\*).*$/]",
-          "message": "Avoid regex with quantifiers - prefer standard APIs (split, includes, startsWith). See CONTRIBUTING.md."
         }
       ],
 

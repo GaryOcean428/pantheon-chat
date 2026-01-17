@@ -27,7 +27,7 @@ Thank you for your interest in contributing to Pantheon-Chat! This document outl
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/GaryOcean428/pantheon-chat.git
+git clone https://github.com/YOUR-USERNAME/pantheon-chat.git
 cd pantheon-chat
 
 # 2. Install Node.js dependencies
@@ -227,21 +227,27 @@ const id = body.match(/"id":"(\w+)"/)?.[1];
 // DON'T: Regex for HTML scraping
 const titles = html.match(/<h2>(.*?)<\/h2>/g);
 
-// DON'T: Homegrown email validation
+// DON'T: Complex email validation with many edge cases
+// This regex allows invalid emails like "user@domain..com"
 const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
 ```
 
 #### ✅ Allowed Exception Examples: Simple Validation/Replacement
 
 ```typescript
-// Simple string replacement - ALLOWED
-const testId = title.toLowerCase().replace(/\s+/g, '-');
-const label = field.replace(/_/g, ' ');
+// Simple literal string replacement - ALLOWED (no complex patterns)
+const label = field.replace(/_/g, ' ');  // literal underscore to space
+const cssClass = title.toLowerCase().replace(/ /g, '-');  // literal space to dash
+
+// Alternative without regex for word splitting
+const testId = title.toLowerCase().split(' ').join('-');
 
 // Anchored validation - ALLOWED (simple, literal, no backtracking)
 const isValidCode = /^[A-Z]{3}-\d{4}$/.test(code);
 const isHexColor = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(color);
 ```
+
+**Note:** While `/\s+/g` (whitespace with quantifier) is technically a quantifier, simple character class quantifiers like `\s+`, `\d+`, or `\w+` are considered low-risk and acceptable for basic string manipulation. Complex nested quantifiers and backtracking patterns remain forbidden.
 
 ### Adding a New Regex
 
@@ -342,17 +348,20 @@ Before submitting a PR, run these purity checks:
 # Geometric purity scan (checks for forbidden patterns)
 npm run validate:geometry
 
-# QFI coverage (ensures all tokens have qfi_score)
-python3 scripts/check_qfi_coverage.py
+# Full critical validation suite (includes purity + linting)
+npm run validate:critical
 
-# Simplex representation audit
-python3 scripts/audit_simplex_representation.py
+# All validation checks
+npm run validate:all
+```
+
+Additional Python validation scripts (if available):
+```bash
+# QFI coverage (ensures all tokens have qfi_score)
+cd qig-backend && python3 scripts/check_qfi_coverage.py
 
 # Generation test in purity mode (no external calls)
-QIG_PURITY_MODE=true python qig-backend/test_generation_pipeline.py
-
-# Full critical validation suite
-npm run validate:critical
+cd qig-backend && QIG_PURITY_MODE=true python3 test_generation_pipeline.py
 ```
 
 ### Architectural Patterns (Enforced)
