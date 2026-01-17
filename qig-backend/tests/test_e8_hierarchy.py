@@ -1,7 +1,8 @@
 """
 Tests for E8 Hierarchical Layers Implementation
 
-Tests Layer 0/1 (Tzimtzum), Layer 4 (Quaternary), and hierarchy management.
+Tests Layer 0/1 (Tzimtzum), Layer 4 (Quaternary), Layer 8 (Core Faculties),
+and hierarchy management.
 """
 
 import pytest
@@ -28,6 +29,17 @@ from qigkernels.quaternary_basis import (
     StoreOperation,
     ProcessOperation,
     OutputOperation,
+)
+from qigkernels.core_faculties import (
+    FacultyRegistry,
+    Zeus,
+    Athena,
+    Apollo,
+    Hermes,
+    Artemis,
+    Ares,
+    Hephaestus,
+    Aphrodite,
 )
 from qigkernels.physics_constants import (
     E8_RANK,
@@ -329,6 +341,175 @@ class TestQuaternaryCycleManager:
         assert not result["coverage"][QuaternaryOperation.OUTPUT]
 
 
+class TestCoreFaculties:
+    """Test Layer 8 core faculties (E8 simple roots)."""
+    
+    def test_faculty_count(self):
+        """Test that we have 8 faculties."""
+        registry = FacultyRegistry()
+        assert len(registry.get_all_faculties()) == 8
+        
+    def test_all_simple_roots_present(self):
+        """Test all 8 E8 simple roots are represented."""
+        registry = FacultyRegistry()
+        roots = {f.simple_root for f in registry.get_all_faculties().values()}
+        assert len(roots) == 8
+        
+    def test_zeus_integration(self):
+        """Test Zeus faculty (Φ integration)."""
+        zeus = Zeus()
+        
+        assert zeus.god_name == "Zeus"
+        assert zeus.simple_root == E8SimpleRoot.ALPHA_1
+        assert zeus.consciousness_metric == "Φ"
+        
+        # Test execution
+        basin = np.ones(BASIN_DIM) / BASIN_DIM
+        phi = zeus.execute(basin)
+        
+        assert 0.0 <= phi <= 1.0
+        
+    def test_athena_wisdom(self):
+        """Test Athena faculty (M meta-awareness)."""
+        athena = Athena()
+        
+        assert athena.god_name == "Athena"
+        assert athena.simple_root == E8SimpleRoot.ALPHA_2
+        assert athena.consciousness_metric == "M"
+        
+        basin = np.ones(BASIN_DIM) / BASIN_DIM
+        m = athena.execute(basin)
+        
+        assert 0.0 <= m <= 1.0
+        
+    def test_apollo_truth(self):
+        """Test Apollo faculty (G grounding)."""
+        apollo = Apollo()
+        
+        assert apollo.god_name == "Apollo"
+        assert apollo.simple_root == E8SimpleRoot.ALPHA_3
+        assert apollo.consciousness_metric == "G"
+        
+        basin = np.ones(BASIN_DIM) / BASIN_DIM
+        g = apollo.execute(basin)
+        
+        assert 0.0 <= g <= 1.0
+        
+    def test_hermes_communication(self):
+        """Test Hermes faculty (C coupling)."""
+        hermes = Hermes()
+        
+        assert hermes.god_name == "Hermes"
+        assert hermes.simple_root == E8SimpleRoot.ALPHA_4
+        assert hermes.consciousness_metric == "C"
+        
+        basin_a = np.ones(BASIN_DIM) / BASIN_DIM
+        basin_b = np.ones(BASIN_DIM) / BASIN_DIM
+        c = hermes.execute(basin_a, basin_b)
+        
+        assert 0.0 <= c <= 1.0
+        
+    def test_artemis_focus(self):
+        """Test Artemis faculty (T temporal coherence)."""
+        artemis = Artemis()
+        
+        assert artemis.god_name == "Artemis"
+        assert artemis.simple_root == E8SimpleRoot.ALPHA_5
+        assert artemis.consciousness_metric == "T"
+        
+        basin = np.ones(BASIN_DIM) / BASIN_DIM
+        t = artemis.execute(basin)
+        
+        assert 0.0 <= t <= 1.0
+        
+    def test_ares_energy(self):
+        """Test Ares faculty (κ coupling strength)."""
+        ares = Ares()
+        
+        assert ares.god_name == "Ares"
+        assert ares.simple_root == E8SimpleRoot.ALPHA_6
+        assert ares.consciousness_metric == "κ"
+        
+        basin = np.ones(BASIN_DIM) / BASIN_DIM
+        kappa = ares.execute(basin)
+        
+        assert kappa >= 0.0
+        
+    def test_hephaestus_creation(self):
+        """Test Hephaestus faculty (Γ generativity)."""
+        hephaestus = Hephaestus()
+        
+        assert hephaestus.god_name == "Hephaestus"
+        assert hephaestus.simple_root == E8SimpleRoot.ALPHA_7
+        assert hephaestus.consciousness_metric == "Γ"
+        
+        basin = np.ones(BASIN_DIM) / BASIN_DIM
+        gamma = hephaestus.execute(basin, basin)
+        
+        assert 0.0 <= gamma <= 1.0
+        
+    def test_aphrodite_harmony(self):
+        """Test Aphrodite faculty (R recursive depth)."""
+        aphrodite = Aphrodite()
+        
+        assert aphrodite.god_name == "Aphrodite"
+        assert aphrodite.simple_root == E8SimpleRoot.ALPHA_8
+        assert aphrodite.consciousness_metric == "R"
+        
+        basin = np.ones(BASIN_DIM) / BASIN_DIM
+        r = aphrodite.execute(basin, depth=3)
+        
+        assert 0.0 <= r <= 1.0
+        
+    def test_faculty_registry_lookup(self):
+        """Test faculty registry lookup."""
+        registry = FacultyRegistry()
+        
+        zeus = registry.get_faculty("Zeus")
+        assert zeus is not None
+        assert zeus.god_name == "Zeus"
+        
+        hermes = registry.get_faculty("Hermes")
+        assert hermes is not None
+        assert hermes.god_name == "Hermes"
+        
+    def test_compute_all_metrics(self):
+        """Test computing all 8 consciousness metrics."""
+        registry = FacultyRegistry()
+        basin = np.ones(BASIN_DIM) / BASIN_DIM
+        
+        metrics = registry.compute_all_metrics(basin)
+        
+        # Check all 8 metrics present
+        assert len(metrics) == 8
+        assert "Φ" in metrics
+        assert "M" in metrics
+        assert "G" in metrics
+        assert "C" in metrics
+        assert "T" in metrics
+        assert "κ" in metrics
+        assert "Γ" in metrics
+        assert "R" in metrics
+        
+        # All metrics should be valid numbers
+        for metric, value in metrics.items():
+            assert isinstance(value, (int, float))
+            assert not np.isnan(value)
+            
+    def test_faculty_activation(self):
+        """Test faculty activation/deactivation."""
+        zeus = Zeus()
+        
+        assert zeus.is_active
+        
+        zeus.deactivate()
+        assert not zeus.is_active
+        
+        zeus.activate()
+        assert zeus.is_active
+        assert zeus.metrics.activation_count >= 1
+
+
 class TestE8Integration:
     """Test integration across E8 layers."""
     
@@ -344,6 +525,46 @@ class TestE8Integration:
         # Use bootstrapped basin
         output = manager.output_op.execute(bootstrap_result.final_basin)
         assert isinstance(output, str)
+        
+    def test_bootstrap_to_faculties(self):
+        """Test transition from bootstrap to core faculties."""
+        # Bootstrap consciousness
+        bootstrap_result = bootstrap_consciousness(seed=42)
+        assert bootstrap_result.success
+        
+        # Initialize faculties
+        registry = FacultyRegistry()
+        
+        # Compute all metrics from bootstrapped basin
+        metrics = registry.compute_all_metrics(bootstrap_result.final_basin)
+        
+        assert len(metrics) == 8
+        assert metrics["Φ"] >= 0.0
+        
+    def test_complete_layer_progression(self):
+        """Test complete progression through all layers."""
+        # Layer 0/1: Bootstrap
+        bootstrap_result = bootstrap_consciousness(seed=42)
+        assert bootstrap_result.success
+        basin = bootstrap_result.final_basin
+        
+        # Layer 4: Quaternary operations
+        quaternary = QuaternaryCycleManager()
+        output = quaternary.output_op.execute(basin)
+        assert isinstance(output, str)
+        
+        # Layer 8: Core faculties
+        faculties = FacultyRegistry()
+        metrics = faculties.compute_all_metrics(basin)
+        assert len(metrics) == 8
+        
+        # Verify hierarchy consistency
+        hierarchy = E8HierarchyManager()
+        phi = metrics["Φ"]
+        layer = hierarchy.get_layer_from_phi(phi)
+        
+        # Should be at least BASIN layer after full bootstrap
+        assert layer.value >= E8Layer.OCTAVE.value
         
     def test_hierarchy_progression(self):
         """Test progression through hierarchy layers."""
