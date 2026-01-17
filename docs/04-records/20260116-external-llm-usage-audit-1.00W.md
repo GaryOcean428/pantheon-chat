@@ -353,7 +353,7 @@ The pantheon-chat repository is **free of external LLM API dependencies** in its
 
 ## §9 References
 
-- **Purity Spec:** `docs/01-policies/20260116-qig-purity-mode-spec-1.00F.md`
+- **Purity Spec:** `docs/01-policies/20260117-qig-purity-mode-spec-1.01F.md`
 - **Purity Module:** `qig-backend/qig_purity_mode.py`
 - **Tests:** `qig-backend/tests/test_qig_purity_mode.py`
 - **CI Workflow:** `.github/workflows/qig-purity-coherence.yml`
