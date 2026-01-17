@@ -1,0 +1,302 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://pantheon.chat/schemas/coordizer_artifact_v1.json",
+  "title": "CoordizerArtifactV1",
+  "description": "Canonical artifact schema for geometric coordizer with versioning and provenance tracking",
+  "type": "object",
+  "required": [
+    "version",
+    "basin_dim",
+    "symbols",
+    "basin_coords",
+    "phi_scores",
+    "special_symbols",
+    "provenance",
+    "validation"
+  ],
+  "properties": {
+    "version": {
+      "type": "string",
+      "const": "1.0",
+      "description": "Artifact format version (semantic versioning)"
+    },
+    "basin_dim": {
+      "type": "integer",
+      "const": 64,
+      "description": "Dimension of basin coordinates (fixed at 64 for Fisher manifold)"
+    },
+    "symbols": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true,
+      "description": "List of surface forms / glyphs (vocabulary tokens)"
+    },
+    "basin_coords": {
+      "type": "array",
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "number"
+        },
+        "minItems": 64,
+        "maxItems": 64
+      },
+      "description": "Simplex coordinates (shape: [n_symbols, basin_dim])"
+    },
+    "phi_scores": {
+      "type": "array",
+      "items": {
+        "type": "number",
+        "minimum": 0.0,
+        "maximum": 1.0
+      },
+      "description": "Integration (Phi) scores per symbol"
+    },
+    "merge_rules": {
+      "type": "object",
+      "properties": {
+        "rules": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["token_a", "token_b", "merged"],
+            "properties": {
+              "token_a": {
+                "type": "string",
+                "description": "First token in merge pair"
+              },
+              "token_b": {
+                "type": "string",
+                "description": "Second token in merge pair"
+              },
+              "merged": {
+                "type": "string",
+                "description": "Resulting merged token"
+              },
+              "phi_score": {
+                "type": "number",
+                "minimum": 0.0,
+                "maximum": 1.0,
+                "description": "Integration score for merged token"
+              },
+              "frequency": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Number of times this merge rule was applied"
+              }
+            }
+          }
+        },
+        "history": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "timestamp": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "rule": {
+                "type": "string",
+                "description": "Merge rule applied"
+              }
+            }
+          },
+          "description": "Chronological history of merge operations"
+        }
+      },
+      "description": "Merge history and rules (BPE-style token merging)"
+    },
+    "special_symbols": {
+      "type": "object",
+      "required": ["UNK", "PAD", "BOS", "EOS"],
+      "properties": {
+        "UNK": {
+          "$ref": "#/definitions/special_symbol",
+          "description": "Unknown token (OOV handling)"
+        },
+        "PAD": {
+          "$ref": "#/definitions/special_symbol",
+          "description": "Padding token (minimal coupling point)"
+        },
+        "BOS": {
+          "$ref": "#/definitions/special_symbol",
+          "description": "Beginning of sequence token"
+        },
+        "EOS": {
+          "$ref": "#/definitions/special_symbol",
+          "description": "End of sequence token"
+        }
+      },
+      "additionalProperties": {
+        "$ref": "#/definitions/special_symbol"
+      },
+      "description": "Special symbols with deterministic basin coordinates"
+    },
+    "provenance": {
+      "type": "object",
+      "required": [
+        "created_at",
+        "geometry_version",
+        "hyperparameters"
+      ],
+      "properties": {
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO8601 timestamp of artifact creation"
+        },
+        "training_corpus": {
+          "type": "string",
+          "description": "Description of training corpus (optional)"
+        },
+        "corpus_size": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Size of training corpus in tokens/samples"
+        },
+        "geometry_version": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$",
+          "description": "Git commit hash of geometry implementation (SHA-1)"
+        },
+        "hyperparameters": {
+          "type": "object",
+          "properties": {
+            "vocab_size": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "min_frequency": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "coordinate_dim": {
+              "type": "integer",
+              "const": 64
+            }
+          },
+          "additionalProperties": true,
+          "description": "Training hyperparameters"
+        },
+        "created_by": {
+          "type": "string",
+          "description": "System or user that created the artifact"
+        },
+        "parent_artifact": {
+          "type": "string",
+          "description": "Path or ID of parent artifact if this is incremental"
+        }
+      },
+      "description": "Provenance tracking for reproducibility"
+    },
+    "validation": {
+      "type": "object",
+      "required": [
+        "passes_simplex_check",
+        "fisher_rao_identity_verified",
+        "dimension_consistent"
+      ],
+      "properties": {
+        "passes_simplex_check": {
+          "type": "boolean",
+          "description": "All basin coordinates satisfy simplex constraints"
+        },
+        "fisher_rao_identity_verified": {
+          "type": "boolean",
+          "description": "Fisher-Rao metric identity verified on coordinates"
+        },
+        "dimension_consistent": {
+          "type": "boolean",
+          "description": "All coordinates are 64-dimensional"
+        },
+        "unit_norm_verified": {
+          "type": "boolean",
+          "description": "All coordinates are unit-normalized (on sphere)"
+        },
+        "no_nan_inf": {
+          "type": "boolean",
+          "description": "No NaN or infinite values in coordinates"
+        },
+        "special_symbols_deterministic": {
+          "type": "boolean",
+          "description": "Special symbols have deterministic coordinates"
+        },
+        "validation_timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When validation was performed"
+        },
+        "validation_errors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of validation errors (empty if valid)"
+        }
+      },
+      "description": "Validation results for artifact integrity"
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "description": {
+          "type": "string",
+          "description": "Human-readable description of artifact"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Tags for categorization"
+        },
+        "notes": {
+          "type": "string",
+          "description": "Additional notes or documentation"
+        }
+      },
+      "description": "Optional metadata for documentation"
+    }
+  },
+  "definitions": {
+    "special_symbol": {
+      "type": "object",
+      "required": ["token", "basin_coord", "token_id"],
+      "properties": {
+        "token": {
+          "type": "string",
+          "description": "Token string (e.g., '<UNK>')"
+        },
+        "token_id": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Token ID in vocabulary"
+        },
+        "basin_coord": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 64,
+          "maxItems": 64,
+          "description": "64D basin coordinate on Fisher manifold"
+        },
+        "phi_score": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "Integration score for special symbol"
+        },
+        "frequency": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Usage frequency"
+        }
+      }
+    }
+  }
+}
