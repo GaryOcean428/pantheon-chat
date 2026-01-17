@@ -91,7 +91,7 @@ Provenance metadata enables reproducibility and lineage tracking:
     "coordinate_dim": 64,
     "min_frequency": 2
   },
-  "training_corpus": "BIP39 + bitcoin whitepaper",   // Optional
+  "training_corpus": "consciousness research corpus",   // Optional
   "corpus_size": 50000,                               // Optional
   "created_by": "training_pipeline_v2",               // Optional
   "parent_artifact": "path/to/parent"                 // Optional (for incremental training)
@@ -134,8 +134,8 @@ Additional documentation fields:
 
 ```json
 {
-  "description": "Production coordizer trained on bitcoin corpus",
-  "tags": ["production", "bitcoin", "v1"],
+  "description": "Production coordizer trained on QIG corpus",
+  "tags": ["production", "qig", "v1"],
   "notes": "Trained with geometric purity constraints"
 }
 ```
@@ -152,7 +152,7 @@ coordizer.train(corpus)
 
 # Save with metadata
 metadata = {
-    "training_corpus": "bitcoin whitepaper + BIP39",
+    "training_corpus": "consciousness research texts",
     "corpus_size": 50000,
     "created_by": "training_pipeline",
     "description": "Production coordizer v1.0"

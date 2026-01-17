@@ -270,7 +270,7 @@ Update all code that references artifacts:
    
    # NEW (with metadata)
    metadata = {
-       "training_corpus": "bitcoin whitepaper",
+       "training_corpus": "consciousness research corpus",
        "corpus_size": 50000,
        "created_by": "training_pipeline_v2"
    }
