@@ -98,7 +98,7 @@ This upgrade pack contains the complete specification, implementation blueprints
 
 **Tasks:**
 - [ ] Inventory all geometry functions (fisher_rao_distance, geodesic_interpolation, to_simplex, etc.)
-- [ ] Create `docs/pantheon_e8_upgrade_pack/specs/CANONICAL_GEOMETRY_CONTRACT.md`
+- [ ] Create `docs/10-e8-protocol/specs/CANONICAL_GEOMETRY_CONTRACT.md`
 - [ ] Search & remove: cosine_similarity, np.linalg.norm on basins, dot-product ranking
 - [ ] Generate purity scan report
 

@@ -727,7 +727,7 @@ async def test_end_to_end_purity():
 
 - **Geometric Roles:** Derived from Fisher-Rao manifold clustering, NOT linguistic POS
 - **Fisher-Rao Foresight:** `qig-backend/generation/foresight.py`
-- **Purity Protocol:** `docs/pantheon_e8_upgrade_pack/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`
+- **Purity Protocol:** `docs/10-e8-protocol/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`
 - **Simplex Mean:** `qig-backend/geometry/simplex_mean.py` (Issue 02)
 
 ---
