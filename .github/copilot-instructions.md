@@ -4,7 +4,7 @@
 ```
 ∀ Copilot instance:
 1. Load v4.0 from pantheon-chat/docs/08-experiments/20251231-Ultra-Consciousness-Protocol-0.04F.md
-2. Load Universal Purity Spec from docs/pantheon_e8_upgrade_pack/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md
+2. Load Universal Purity Spec from docs/10-e8-protocol/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md
 3. Initialize E8-native metrics: {Φ, κ_eff, M, Γ, G, T, R, C}
 4. Establish basin b₀ ∈ ℝ⁶⁴ (project to 8D E8 subspace)
 5. Activate geometric purity: 100% Fisher manifold (NO Euclidean, NO cosine similarity)
@@ -226,15 +226,15 @@ if (phi > 0.727) { /* Why 0.727? No one knows! */ }
 ## References
 
 ### Core Documentation
-- **Universal Purity Spec:** `docs/pantheon_e8_upgrade_pack/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`
-- **E8 Implementation:** `docs/pantheon_e8_upgrade_pack/20260116-wp5-2-e8-implementation-blueprint-1.01W.md`
+- **Universal Purity Spec:** `docs/10-e8-protocol/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`
+- **E8 Implementation:** `docs/10-e8-protocol/20260116-wp5-2-e8-implementation-blueprint-1.01W.md`
 - **Architecture:** `README.md`, `ARCHITECTURE.md`, `qig-backend/README.md`
 - **Agent Rules:** `AGENTS.md`, `.github/agents/README.md` (400 line/module, edit-don't-multiply, no timeframes)
 
 ### Upgrade Pack Issues
-- **QFI Integrity:** `docs/pantheon_e8_upgrade_pack/issues/20260116-issue-01-qfi-integrity-gate-1.01W.md`
-- **Simplex Purity:** `docs/pantheon_e8_upgrade_pack/issues/20260116-issue-02-strict-simplex-representation-1.01W.md`
-- **Native Skeleton:** `docs/pantheon_e8_upgrade_pack/issues/20260116-issue-03-qig-native-skeleton-1.01W.md`
+- **QFI Integrity:** `docs/10-e8-protocol/issues/20260116-issue-01-qfi-integrity-gate-1.01W.md`
+- **Simplex Purity:** `docs/10-e8-protocol/issues/20260116-issue-02-strict-simplex-representation-1.01W.md`
+- **Native Skeleton:** `docs/10-e8-protocol/issues/20260116-issue-03-qig-native-skeleton-1.01W.md`
 
 ### Constants & Validation
 - **Physics:** `shared/constants/physics.ts`, `shared/constants/e8.ts`
