@@ -27,7 +27,7 @@ Thank you for your interest in contributing to Pantheon-Chat! This document outl
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/YOUR-USERNAME/pantheon-chat.git
+git clone https://github.com/OWNER/pantheon-chat.git
 cd pantheon-chat
 
 # 2. Install Node.js dependencies
@@ -122,7 +122,7 @@ pantheon-chat/
 
 ## No-Regex-by-Default Policy
 
-**Use parsers and typed APIs. Regex only for tiny, anchored literals with no quantifiers.**
+**Use parsers and typed APIs. Regex only for simple validation and literal string manipulation.**
 
 ### Why This Policy?
 
@@ -148,21 +148,24 @@ We standardize on **parsers and typed APIs** for all structured data.
 
 Regex is permitted **only** for:
 
-1. **Trivial, fully-anchored literals** (max length 30, no quantifiers)
+1. **Trivial, fully-anchored literals** (max length 30)
    - Examples:
      - `const STATUS = /^(OK|FAIL)$/;` ✓
-     - `const CODE = /^[A-Z]{3}-\d{4}$/;` ✓ (exact length, no `+` or `*`)
+     - `const CODE = /^[A-Z]{3}-\d{4}$/;` ✓ (exact length with quantifiers)
      - `const HEX_COLOR = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;` ✓
 
 2. **Simple string replacement** (no complex patterns)
    - `.replace(/_/g, ' ')` ✓ (literal underscore to space)
-   - `.replace(/\s+/g, '-')` ✓ (whitespace to dash for IDs)
+   - `.replace(/\s+/g, '-')` ✓ (simple character class with quantifier)
+   - **Note:** Simple character class quantifiers (`\s+`, `\d+`, `\w+`) are allowed as pragmatic exceptions
 
 3. **Validation only** (not parsing) where no standard library exists
 
 4. **Compile-time constants only** (never dynamic construction)
 
 5. **Must be documented** in PR description with justification
+
+**Policy Clarification:** While complex nested quantifiers and backtracking patterns are forbidden, simple character class quantifiers (`\s+`, `\d+`, `\w+`) used in basic string manipulation are allowed as pragmatic exceptions. Always prefer standard APIs when available.
 
 ### Preferred Replacements
 
@@ -227,8 +230,8 @@ const id = body.match(/"id":"(\w+)"/)?.[1];
 // DON'T: Regex for HTML scraping
 const titles = html.match(/<h2>(.*?)<\/h2>/g);
 
-// DON'T: Complex email validation with many edge cases
-// This regex allows invalid emails like "user@domain..com"
+// DON'T: Homegrown email validation has many limitations
+// This regex has issues: doesn't validate TLD properly, allows unusual formats
 const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
 ```
 
@@ -247,7 +250,7 @@ const isValidCode = /^[A-Z]{3}-\d{4}$/.test(code);
 const isHexColor = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(color);
 ```
 
-**Note:** While `/\s+/g` (whitespace with quantifier) is technically a quantifier, simple character class quantifiers like `\s+`, `\d+`, or `\w+` are considered low-risk and acceptable for basic string manipulation. Complex nested quantifiers and backtracking patterns remain forbidden.
+**Note:** The policy prioritizes **standard APIs over regex**. Simple character class quantifiers (`\s+`, `\d+`, `\w+`) are considered low-risk for basic string manipulation and are **allowed as pragmatic exceptions**. However, complex nested quantifiers, backtracking patterns, and parsing structured data with regex remain **forbidden**. When in doubt, prefer standard APIs.
 
 ### Adding a New Regex
 
@@ -353,15 +356,6 @@ npm run validate:critical
 
 # All validation checks
 npm run validate:all
-```
-
-Additional Python validation scripts (if available):
-```bash
-# QFI coverage (ensures all tokens have qfi_score)
-cd qig-backend && python3 scripts/check_qfi_coverage.py
-
-# Generation test in purity mode (no external calls)
-cd qig-backend && QIG_PURITY_MODE=true python3 test_generation_pipeline.py
 ```
 
 ### Architectural Patterns (Enforced)
