@@ -90,8 +90,16 @@ export default [
         {
           "selector": "FunctionDeclaration[id.name='bhattacharyya']",
           "message": "Do not re-implement bhattacharyya - import from canonical geometry module"
+        },
+        // No-Regex-by-Default Policy: Warn on risky regex patterns
+        {
+          "selector": "NewExpression[callee.name='RegExp']",
+          "message": "Avoid dynamic RegExp construction - use compile-time literal regex or standard APIs. See CONTRIBUTING.md for policy."
         }
       ],
+
+      // No-Regex-by-Default Policy: Prefer standard APIs
+      "prefer-regex-literals": ["warn", { "disallowRedundantWrapping": true }],
 
       // 7. Configuration as Code: No magic numbers (except -1, 0, 1, 2)
       "no-magic-numbers": ["warn", {

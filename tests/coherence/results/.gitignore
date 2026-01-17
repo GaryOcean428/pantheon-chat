@@ -1,0 +1,9 @@
+# Coherence test results (generated at runtime)
+*.json
+*.html
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
