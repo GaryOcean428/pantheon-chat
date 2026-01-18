@@ -163,11 +163,17 @@ def test_merge():
     manager = KernelLifecycleManager()
     
     # Create two kernels to merge
+    basin1 = np.ones(64) * 0.9
+    basin1 = basin1 / np.sum(basin1)  # Normalize to simplex
+    
+    basin2 = np.ones(64) * 1.1
+    basin2 = basin2 / np.sum(basin2)  # Normalize to simplex
+    
     kernel1 = Kernel(
         kernel_id="test_kernel1",
         name="TestKernel1",
         kernel_type="god",
-        basin_coords=np.ones(64) / 64 * 0.9,
+        basin_coords=basin1,
         lifecycle_stage="active",
         domains=["synthesis"],
         total_cycles=100,
@@ -177,7 +183,7 @@ def test_merge():
         kernel_id="test_kernel2",
         name="TestKernel2",
         kernel_type="god",
-        basin_coords=np.ones(64) / 64 * 1.1,
+        basin_coords=basin2,
         lifecycle_stage="active",
         domains=["foresight"],
         total_cycles=50,

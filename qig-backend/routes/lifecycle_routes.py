@@ -651,9 +651,11 @@ def execute_action():
         success = engine.execute_action(action)
         
         if success:
+            # policy_type is already a LifecycleEvent enum in the action dict
+            policy_type_str = action['policy_type'].value if hasattr(action['policy_type'], 'value') else str(action['policy_type'])
             return jsonify({
                 'success': True,
-                'message': f"Executed {action['policy_type'].value} action",
+                'message': f"Executed {policy_type_str} action",
             })
         else:
             return jsonify({

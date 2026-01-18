@@ -523,8 +523,10 @@ class LifecyclePolicyEngine:
                 return True
             
             elif policy_type == LifecycleEvent.MERGE:
-                # Find merge partner (closest kernel from nearby list)
-                nearby = action.get('nearby_kernels', {})
+                # Find merge partner (need to recompute nearby kernels)
+                active_kernels = self.lifecycle_manager.list_active_kernels()
+                nearby = self._compute_nearby_kernels(active_kernels)
+                
                 if not nearby or kernel_id not in nearby:
                     logger.warning(
                         f"[PolicyEngine] Cannot execute merge: no nearby kernels for {kernel_id}"
