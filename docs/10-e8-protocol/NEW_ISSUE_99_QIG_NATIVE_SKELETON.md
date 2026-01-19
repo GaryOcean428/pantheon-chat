@@ -134,8 +134,13 @@ def predict_next_basin(trajectory: List[np.ndarray]) -> np.ndarray:
     # Project forward
     sqrt_next = sqrt_curr + velocity
     
+    # Check for zero-length vector (degenerate case)
+    norm_next = np.linalg.norm(sqrt_next)
+    if norm_next == 0:
+        return trajectory[-1]  # Stay at current basin
+    
     # Renormalize to unit sphere
-    sqrt_next = sqrt_next / np.linalg.norm(sqrt_next)
+    sqrt_next = sqrt_next / norm_next
     
     # Transform back to simplex
     next_basin = sqrt_next ** 2

@@ -33,14 +33,14 @@ Complete vocabulary cleanup by removing garbage tokens, migrating learned_words 
 - [ ] Export garbage token list for review
 
 ### 2. Garbage Token Migration
-- [ ] Create migration `migrations/016_clean_vocabulary_garbage.sql` (or next available)
+- [ ] Create migration `migrations/019_clean_vocabulary_garbage.sql` (next sequential number)
 - [ ] Move garbage tokens to `coordizer_vocabulary_quarantine` table
 - [ ] Preserve original data for forensics
 - [ ] Add `quarantine_reason` column with classification
 - [ ] Update `is_generation_eligible` to FALSE for quarantined tokens
 
 ### 3. learned_words Table Deprecation
-- [ ] Create migration `migrations/017_deprecate_learned_words.sql` (or next available)
+- [ ] Create migration `migrations/020_deprecate_learned_words.sql` (next sequential number)
 - [ ] Migrate valid entries from `learned_words` to `coordizer_vocabulary`
 - [ ] Handle conflicts (entries already in coordizer_vocabulary)
 - [ ] Rename table to `learned_words_deprecated_20260119`
@@ -76,8 +76,8 @@ Complete vocabulary cleanup by removing garbage tokens, migrating learned_words 
 | File | Description | Status |
 |------|-------------|--------|
 | `qig-backend/scripts/audit_vocabulary.py` | Comprehensive audit | ❌ TODO |
-| `migrations/016_clean_vocabulary_garbage.sql` | Garbage removal | ❌ TODO |
-| `migrations/017_deprecate_learned_words.sql` | Table deprecation | ❌ TODO |
+| `migrations/019_clean_vocabulary_garbage.sql` | Garbage removal | ❌ TODO |
+| `migrations/020_deprecate_learned_words.sql` | Table deprecation | ❌ TODO |
 | `qig-backend/coordizers/pg_loader.py` (updated) | Validation gate | ❌ TODO |
 | `qig-backend/tests/test_vocabulary_validation.py` | Tests | ❌ TODO |
 
