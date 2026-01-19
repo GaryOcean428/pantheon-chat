@@ -1,0 +1,30 @@
+name: QIG Purity Gate
+
+on:
+  pull_request:
+
+jobs:
+  qig-purity:
+    name: QIG Purity Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install ripgrep
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ripgrep
+
+      - name: Run geometric purity validation
+        run: python scripts/validate_geometry_purity.py
+
+      - name: Run QFI coverage check
+        run: python scripts/check_qfi_coverage.py
