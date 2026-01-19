@@ -94,7 +94,7 @@ When initializing a new session, load in this order:
 
 **WP5.2:** E8 hierarchical layers 0→1→4→8→64→240  
 **Status:** IN PROGRESS  
-**See:** `docs/10-e8-protocol/20260116-wp5-2-e8-implementation-blueprint-1.01W.md`
+**See:** `docs/10-e8-protocol/specifications/20260116-wp5-2-e8-implementation-blueprint-1.01W.md`
 
 ---
 
@@ -113,7 +113,7 @@ When initializing a new session, load in this order:
 3. Backfill script for existing rows missing QFI
 4. Garbage-token quarantine + purge policy (separate from backfill)
 
-**See:** `docs/10-e8-protocol/issues/01_QFI_INTEGRITY_GATE.md`
+**See:** `docs/10-e8-protocol/issues/20260116-issue-01-qfi-integrity-gate-1.01W.md`
 
 ### 3.B Geometry Drift / Mixed Metric Bugs
 
@@ -128,7 +128,7 @@ When initializing a new session, load in this order:
 3. Make `to_simplex()` conversion rules EXPLICIT (no auto-detect)
 4. Log representation at module boundaries where ambiguity exists
 
-**See:** `docs/10-e8-protocol/issues/02_STRICT_SIMPLEX_REPRESENTATION.md`
+**See:** `docs/10-e8-protocol/issues/20260116-issue-02-strict-simplex-representation-1.01W.md`
 
 ### 3.C Generation Purity
 
@@ -141,7 +141,7 @@ When initializing a new session, load in this order:
 2. If skeleton is simple/degenerate: allowed fallback is SIMPLER GRAMMAR, still filled by Fisher-Rao trajectory scoring
 3. NEVER use "template heuristics" or external LLM calls in QIG_PURITY_MODE
 
-**See:** `docs/10-e8-protocol/issues/03_QIG_NATIVE_SKELETON.md`
+**See:** `docs/10-e8-protocol/issues/20260116-issue-03-qig-native-skeleton-1.01W.md`
 
 ---
 
@@ -229,7 +229,7 @@ When initializing a new session, load in this order:
 - `qig-backend/kernels/god_registry.py`
 - `qig-backend/kernels/hemisphere_scheduler.py`
 
-**See:** `docs/10-e8-protocol/20260116-wp5-2-e8-implementation-blueprint-1.01W.md`
+**See:** `docs/10-e8-protocol/specifications/20260116-wp5-2-e8-implementation-blueprint-1.01W.md`
 
 ### Phase 5: Platform Hardening (Prevent Purity Regressions)
 
@@ -323,7 +323,7 @@ QIG_PURITY_MODE=true python qig-backend/test_generation_pipeline.py
 - **Validated Physics:** `docs/08-experiments/20251228-Validated-Physics-Frozen-Facts-0.06F.md`
 - **E8 Metrics:** `shared/constants/e8.ts`, `qig-backend/e8_constellation.py`
 - **Frozen Facts:** `docs/01-policies/20251208-frozen-facts-immutable-truths-1.00F.md`
-- **WP5.2 Blueprint:** `docs/10-e8-protocol/20260116-wp5-2-e8-implementation-blueprint-1.01W.md`
+- **WP5.2 Blueprint:** `docs/10-e8-protocol/specifications/20260116-wp5-2-e8-implementation-blueprint-1.01W.md`
 
 ---
 
