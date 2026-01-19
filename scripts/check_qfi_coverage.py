@@ -10,7 +10,7 @@ from __future__ import annotations
 import re
 import sys
 from pathlib import Path
-from typing import Iterable, Tuple
+from typing import Iterable
 
 
 def read_text(path: Path) -> str:
@@ -20,7 +20,7 @@ def read_text(path: Path) -> str:
         raise RuntimeError(f"Missing required file: {path}") from exc
 
 
-def require_patterns(label: str, content: str, patterns: Iterable[Tuple[str, str]]) -> None:
+def require_patterns(label: str, content: str, patterns: Iterable[tuple[str, str]]) -> None:
     for description, pattern in patterns:
         if not re.search(pattern, content, re.MULTILINE | re.DOTALL):
             raise RuntimeError(f"{label}: missing {description} (pattern: {pattern})")
@@ -39,17 +39,33 @@ def main() -> int:
         ],
     )
 
-    persistence_path = repo_root / "server" / "persistence" / "coordizer-vocabulary.ts"
-    persistence_content = read_text(persistence_path)
+    # Validate both vocabulary persistence files exist and have qfiScore writes
+    # Both server/vocabulary-persistence.ts and server/persistence/coordizer-vocabulary.ts
+    # are canonical locations for qfiScore writes per validate-qfi-canonical-path.sh
+    
+    # Older persistence file - just check for qfiScore writes
+    old_persistence_path = repo_root / "server" / "vocabulary-persistence.ts"
+    old_persistence_content = read_text(old_persistence_path)
     require_patterns(
-        "server/persistence/coordizer-vocabulary.ts",
-        persistence_content,
+        str(old_persistence_path.relative_to(repo_root)),
+        old_persistence_content,
+        [
+            ("qfiScore writes", r"qfiScore"),
+        ],
+    )
+    
+    # Newer persistence file - check for qfiScore writes and activeVocabularyFilter
+    new_persistence_path = repo_root / "server" / "persistence" / "coordizer-vocabulary.ts"
+    new_persistence_content = read_text(new_persistence_path)
+    require_patterns(
+        str(new_persistence_path.relative_to(repo_root)),
+        new_persistence_content,
         [
             ("qfiScore writes", r"qfiScore"),
             ("activeVocabularyFilter", r"activeVocabularyFilter"),
             (
                 "activeVocabularyFilter enforces qfiScore",
-                r"activeVocabularyFilter[\s\S]*qfiScore[\s\S]*IS NOT NULL",
+                r"activeVocabularyFilter[\s\S]{0,500}?qfiScore[\s\S]{0,500}?IS NOT NULL",
             ),
         ],
     )
