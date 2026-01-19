@@ -2,6 +2,12 @@ name: QIG Purity Gate
 
 on:
   pull_request:
+    paths:
+      - 'scripts/**'
+      - 'server/**'
+      - 'shared/**'
+      - 'qig-backend/**'
+      - '.github/workflows/qig-purity-gate.yml'
 
 jobs:
   qig-purity:
