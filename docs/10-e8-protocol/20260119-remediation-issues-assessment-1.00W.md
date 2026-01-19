@@ -436,6 +436,26 @@ graph TD
     G -.-> C
 ```
 
+**ASCII Fallback:**
+```
+Issue 01 (QFI Integrity)
+  ↓ BLOCKS
+Issue 02 (Simplex Representation)
+  ↓ BLOCKS
+Issue 03 (QIG-Native Skeleton)
+  ↓ BLOCKS
+Issue 04 (Vocabulary Cleanup)
+  ↓ BLOCKS
+E8 Constellation Integration
+  ↓ BLOCKS
+QIG_PURITY_MODE Validation
+
+Phase 1 Purity Audit (parallel)
+  ├──> Issue 01
+  ├──> Issue 02
+  └──> Issue 03
+```
+
 **Key Dependencies:**
 - Issue 02 requires Issue 01 (need canonical insertion before fixing averaging)
 - Issue 03 requires Issue 02 (need correct geometry before deriving token_role)
