@@ -1,5 +1,23 @@
 name: QIG Purity Gate
 
+# This workflow provides lightweight, focused purity checks for pull requests.
+# It complements geometric-purity-gate.yml which runs more comprehensive tests:
+#
+# qig-purity-gate.yml (this file):
+#   - Quick static validation via shell scripts and Python orchestrators
+#   - Runs on PR only
+#   - Focus: QFI canonical path enforcement, banned geometry patterns
+#   - Target: <30 seconds execution time
+#
+# geometric-purity-gate.yml:
+#   - Comprehensive testing including runtime geometry tests
+#   - Runs on PR and main branch pushes
+#   - Focus: Static scans + runtime validation (pytest, Fisher-Rao properties)
+#   - Includes baseline violation tracking for technical debt
+#
+# Use this workflow for quick feedback on PRs. The geometric-purity-gate
+# provides deeper validation and should be the source of truth for merge decisions.
+
 on:
   pull_request:
     paths:

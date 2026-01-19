@@ -1,5 +1,17 @@
 name: Geometric Purity Gate
 
+# This workflow provides comprehensive geometric purity validation including
+# both static analysis and runtime testing. For quick PR feedback, see
+# qig-purity-gate.yml which runs lightweight static checks only.
+#
+# This workflow:
+#   - Runs comprehensive static scans with baseline violation tracking
+#   - Executes runtime geometry tests (Fisher-Rao properties, simplex invariants)
+#   - Validates QFI canonical path enforcement
+#   - Runs on both PR and main branch pushes for continuous monitoring
+#
+# See qig-purity-gate.yml for faster, lighter-weight PR validation.
+
 on:
   pull_request:
     paths:
