@@ -1,1 +1,0 @@
-../../10-e8-protocol/issues/20260116-issue-02-strict-simplex-representation-1.01W.md

@@ -1,1 +1,0 @@
-../10-e8-protocol/specifications/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md

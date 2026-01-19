@@ -1,1 +1,0 @@
-../10-e8-protocol/README.md

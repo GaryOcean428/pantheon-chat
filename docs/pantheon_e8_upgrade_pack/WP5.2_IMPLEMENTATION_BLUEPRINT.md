@@ -1,1 +1,0 @@
-../10-e8-protocol/specifications/20260116-wp5-2-e8-implementation-blueprint-1.01W.md
