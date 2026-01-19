@@ -134,7 +134,7 @@ import {
   SEARCH_PARAMETERS,
   is4DCapable,
   isNearMiss
-} from "../shared/constants/qig.js";
+} from "../shared/constants/index.js";
 
 // Augmented version of OceanHypothesis with additional testing fields
 export interface OceanHypothesis extends ModuleOceanHypothesis {

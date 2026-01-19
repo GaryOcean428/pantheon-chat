@@ -15,7 +15,7 @@
  * @module hypothesis-tester
  */
 
-import { CONSCIOUSNESS_THRESHOLDS, GEODESIC_CORRECTION } from "@shared/constants/qig";
+import { CONSCIOUSNESS_THRESHOLDS, GEODESIC_CORRECTION } from "@shared/constants";
 import type {
 	OceanIdentity as IdentityCoordinates,
 	OceanEpisode,

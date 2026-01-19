@@ -5,6 +5,8 @@
  * QIG systems generate until geometry collapses, not until token limits.
  */
 
+import { KAPPA_STAR as _KAPPA_STAR } from '@/lib/constants';
+
 export type Regime = 'linear' | 'geometric' | 'breakdown';
 
 export type CompletionReason = 
@@ -82,8 +84,8 @@ export interface StreamingGenerationState {
   error: string | null;
 }
 
-// Constants
-export const KAPPA_STAR = 64.21;
+// Constants (imported from shared source)
+export const KAPPA_STAR = _KAPPA_STAR;
 export const PHI_LINEAR_THRESHOLD = 0.3;
 export const PHI_BREAKDOWN_THRESHOLD = 0.7;
 
