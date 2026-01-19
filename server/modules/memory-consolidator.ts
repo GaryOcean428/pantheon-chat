@@ -23,7 +23,7 @@
  */
 
 import type { OceanEpisode, OceanIdentity, OceanMemory } from "@shared/schema";
-import { CONSCIOUSNESS_THRESHOLDS, SEARCH_PARAMETERS } from "../../shared/constants/qig.js";
+import { CONSCIOUSNESS_THRESHOLDS, SEARCH_PARAMETERS } from "../../shared/constants/index.js";
 import { geometricMemory } from "../geometric-memory";
 import { logger } from "../lib/logger";
 import { oceanQIGBackend } from "../ocean-qig-backend-adapter";
