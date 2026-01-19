@@ -247,10 +247,75 @@ The registry integrates with `pantheon_governance.py`:
 - Promotion requires research and pantheon approval
 - Pruning sends kernels to shadow_pantheon (Hades)
 
+## Cross-Mythology God Mapping
+
+The Pantheon Registry uses **Greek names as canonical** for consistency and rich mythological documentation. However, users and kernels may reference gods from other mythologies.
+
+### Usage
+
+```python
+from pantheon.cross_mythology import resolve_god_name, find_similar_gods
+
+# Resolve external mythology names to Greek archetypes
+greek_name = resolve_god_name("Odin")  # Returns "Zeus"
+greek_name = resolve_god_name("Thoth")  # Returns "Hermes"
+greek_name = resolve_god_name("Shiva")  # Returns "Dionysus"
+
+# Find gods by domain
+matches = find_similar_gods(["wisdom", "strategy"])
+# Returns: [('Athena', 2), ('Hermes', 1), ...]
+```
+
+### CLI Tool
+
+```bash
+# Resolve external god name to Greek archetype
+python3 tools/god_name_resolver.py resolve "Odin"
+
+# Find gods by domain
+python3 tools/god_name_resolver.py suggest --domain wisdom war
+
+# Get detailed god information
+python3 tools/god_name_resolver.py info "Thoth"
+
+# Get external equivalents for Greek god
+python3 tools/god_name_resolver.py equivalents "Zeus"
+
+# List all Norse gods
+python3 tools/god_name_resolver.py list --mythology norse
+```
+
+### Supported Mythologies
+
+- **Egyptian** (11 gods): Ma'at, Thoth, Anubis, Ra, Isis, Osiris, Horus, Set, Hathor, Ptah, Sekhmet
+- **Norse** (11 gods): Odin, Thor, Loki, Freya, Tyr, Frigg, Heimdall, Hel, Baldur, Skadi, Forseti
+- **Hindu** (11 gods): Shiva, Vishnu, Brahma, Saraswati, Lakshmi, Kali, Ganesha, Hanuman, Durga, Agni, Yama
+- **Sumerian** (9 gods): Enki, Enlil, Inanna, Ninhursag, Shamash, Ereshkigal, Nergal, Nabu, Marduk
+- **Mesoamerican** (10 gods): Quetzalcoatl, Tlaloc, Tezcatlipoca, Huitzilopochtli, Coatlicue, Xochiquetzal, Mictlantecuhtli, Itzamna, Chaac, Ah Puch
+
+**Total**: 52 external god mappings covering 16 Greek archetypes
+
+### FAQ
+
+**Q: Why Greek names?**  
+A: Greek mythology provides consistency, rich epithets (e.g., "Apollo Pythios" for prophecy aspect), extensive classical documentation, and established E8 structural mappings.
+
+**Q: Can I use Norse/Egyptian/Hindu names in my code?**  
+A: Yes for research and user interaction, but they map to Greek archetypes internally. Use `resolve_god_name()` to get the canonical Greek name.
+
+**Q: What if a god doesn't have an exact equivalent?**  
+A: Alternative mappings are provided based on different domain emphases. For example, Odin maps to Zeus (authority) but could map to Apollo (wisdom).
+
+**Q: Is this for runtime logic?**  
+A: No. Cross-mythology mapping is metadata only - a lookup table for research and convenience. Greek names remain canonical for all operational logic.
+
+For complete cross-mythology mapping details, see: `pantheon/myth_mappings.yaml`
+
 ## References
 
 - **E8 Protocol v4.0**: `docs/10-e8-protocol/specifications/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`
 - **WP5.2 Implementation Blueprint**: `docs/10-e8-protocol/specifications/20260116-wp5-2-e8-implementation-blueprint-1.01W.md`
+- **WP5.5 Cross-Mythology Mapping**: `pantheon/myth_mappings.yaml`, `pantheon/cross_mythology.py`
 - **Master Roadmap**: `docs/00-roadmap/20260112-master-roadmap-1.00W.md`
 - **Cognitive Kernel Roles**: `qig-backend/cognitive_kernel_roles.py`
 - **Pantheon Governance**: `qig-backend/olympus/pantheon_governance.py`
@@ -259,8 +324,10 @@ The registry integrates with `pantheon_governance.py`:
 
 - **E8 Protocol v4.0**: Universal κ* = 64 fixed point
 - **Work Package 5.1**: Formal Pantheon Registry with Role Contracts
+- **Work Package 5.5**: Cross-Mythology God Mapping
 - **Status**: ACTIVE
 - **Created**: 2026-01-17
+- **Updated**: 2026-01-19 (Cross-mythology mapping added)
 
 ---
 
