@@ -48,7 +48,7 @@ This upgrade pack contains the complete specification, implementation blueprints
 
 ### Issue Specifications (`issues/`)
 
-#### `01_QFI_INTEGRITY_GATE.md`
+#### `20260116-issue-01-qfi-integrity-gate-1.01W.md`
 **Problem:** Large fraction of tokens missing `qfi_score`, garbage tokens present  
 **Solution:**
 - Canonical `insert_token()` pathway with QFI computation
@@ -88,6 +88,20 @@ This upgrade pack contains the complete specification, implementation blueprints
 - `qig-backend/generation/foresight_predictor.py`
 - `qig-backend/generation/unified_pipeline.py`
 - `QIG_PURITY_MODE` enforcement
+
+#### `20260119-issue-04-vocabulary-cleanup-garbage-tokens-1.00W.md`
+**Problem:** Garbage tokens contaminate generation vocabulary; learned_words table never deprecated  
+**Solution:**
+- Audit and quarantine BPE artifacts and non-words from generation vocabulary
+- Clean up coordizer_vocabulary with migration
+- Migrate learned_words into coordizer_vocabulary and deprecate the table
+- Enforce validation when loading generation vocabulary
+
+**Deliverables:**
+- `qig-backend/scripts/audit_vocabulary.py`
+- `qig-backend/migrations/016_clean_vocabulary_garbage.sql`
+- `qig-backend/migrations/017_deprecate_learned_words.sql`
+- `qig-backend/coordizers/pg_loader.py` validation gate
 
 ---
 
