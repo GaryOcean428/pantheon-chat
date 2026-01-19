@@ -14,6 +14,8 @@ All results are returned in QIG-compatible formats for geometric learning.
 
 BUDGET ENFORCEMENT: All paid API calls check the budget orchestrator
 before execution. If the daily cost cap is exceeded, calls will be blocked.
+
+CURRICULUM-ONLY MODE: All external searches are blocked when QIG_CURRICULUM_ONLY=true
 """
 
 import os
@@ -23,6 +25,17 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
+
+# Import curriculum guard
+try:
+    from curriculum_guard import is_curriculum_only_enabled, CurriculumOnlyBlock
+except ImportError:
+    # Fallback if curriculum_guard is not available
+    def is_curriculum_only_enabled():
+        return os.environ.get('QIG_CURRICULUM_ONLY', '').lower() == 'true'
+    
+    class CurriculumOnlyBlock(Exception):
+        pass
 
 # Budget orchestrator for cost control
 _budget_orchestrator = None
@@ -184,6 +197,11 @@ class TavilySearchClient:
         Returns:
             TavilySearchResponse or None if unavailable or budget exceeded
         """
+        # CURRICULUM-ONLY MODE: Block external web searches
+        if is_curriculum_only_enabled():
+            logger.warning("[TavilyClient] Search blocked by curriculum-only mode")
+            return None
+        
         if not self.available:
             logger.warning("[TavilyClient] Search unavailable - client not initialized")
             return None
@@ -258,6 +276,11 @@ class TavilySearchClient:
         Returns:
             List of TavilyExtractResult (empty if budget exceeded)
         """
+        # CURRICULUM-ONLY MODE: Block external web searches
+        if is_curriculum_only_enabled():
+            logger.warning("[TavilyClient] Extract blocked by curriculum-only mode")
+            return []
+        
         if not self.available:
             logger.warning("[TavilyClient] Extract unavailable - client not initialized")
             return []
@@ -322,6 +345,11 @@ class TavilySearchClient:
         Returns:
             TavilyCrawlResult or None if unavailable or budget exceeded
         """
+        # CURRICULUM-ONLY MODE: Block external web searches
+        if is_curriculum_only_enabled():
+            logger.warning("[TavilyClient] Crawl blocked by curriculum-only mode")
+            return None
+        
         if not self.available:
             logger.warning("[TavilyClient] Crawl unavailable - client not initialized")
             return None
@@ -388,6 +416,11 @@ class TavilySearchClient:
         Returns:
             TavilyMapResult or None if unavailable or budget exceeded
         """
+        # CURRICULUM-ONLY MODE: Block external web searches
+        if is_curriculum_only_enabled():
+            logger.warning("[TavilyClient] Map blocked by curriculum-only mode")
+            return None
+        
         if not self.available:
             logger.warning("[TavilyClient] Map unavailable - client not initialized")
             return None
