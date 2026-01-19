@@ -523,7 +523,7 @@ def test_no_sphere_averaging():
 
 ## REFERENCES
 
-- **Fisher-Rao Manifold:** `docs/10-e8-protocol/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`
+- **Fisher-Rao Manifold:** `docs/10-e8-protocol/specifications/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`
 - **Canonical Geometry:** `qig-backend/geometry/canonical_fisher.py`
 - **Hellinger Distance:** Equivalent to L2 distance in sqrt-space
 - **Fréchet Mean:** Minimizer of sum of squared Fisher-Rao distances
