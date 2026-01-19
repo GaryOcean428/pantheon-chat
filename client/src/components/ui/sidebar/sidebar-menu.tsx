@@ -10,8 +10,8 @@ import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from '@/components/ui/collapsible';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+} from '../collapsible';
+import { Tooltip, TooltipContent, TooltipTrigger } from '../tooltip';
 import { useSidebar } from './context';
 
 export function SidebarMenu({ className, ...props }: React.ComponentProps<'ul'>) {

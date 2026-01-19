@@ -63,6 +63,22 @@ export default [
           {
             "group": ["**/ui/*/**", "!**/ui/index"],
             "message": "Import UI components from @/components/ui barrel file"
+          },
+          {
+            "group": ["@/components/ui/*", "!@/components/ui/sidebar"],
+            "message": "Import UI components from @/components/ui barrel, not specific files"
+          },
+          {
+            "group": ["@/components/[A-Z]*"],
+            "message": "Import components from @/components barrel, not specific files (e.g., use '@/components' instead of '@/components/Button')"
+          },
+          {
+            "group": ["@/api/services/*"],
+            "message": "Import API services from @/api barrel, not specific service files"
+          },
+          {
+            "group": ["@/hooks/*", "!@/hooks/use-*"],
+            "message": "Import hooks from @/hooks barrel when possible"
           }
         ]
       }],

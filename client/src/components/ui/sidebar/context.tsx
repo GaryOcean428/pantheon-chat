@@ -4,7 +4,7 @@
 
 import * as React from 'react';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { TooltipProvider } from '@/components/ui/tooltip';
+import { TooltipProvider } from '../tooltip';
 
 const SIDEBAR_COOKIE_NAME = 'sidebar:state';
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
