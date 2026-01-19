@@ -119,6 +119,9 @@ def predict_next_basin(trajectory: List[np.ndarray]) -> np.ndarray:
     
     Uses last 3-5 basins to compute velocity, projects forward.
     """
+    if len(trajectory) == 0:
+        raise ValueError("Cannot predict from empty trajectory")
+    
     if len(trajectory) < 2:
         # No velocity available
         return trajectory[-1]  # Stay at current basin

@@ -114,7 +114,7 @@ Assessment of E8 Protocol v4.0 implementation reveals **partial completion** wit
 **Existing Related:**
 - `qig-backend/scripts/cleanup_bpe_tokens.py` - BPE cleanup EXISTS
 - `qig-backend/scripts/vocabulary_purity.py` - Purity check EXISTS
-- Migration `017_deprecate_learned_words.sql` MAY exist in migrations folder
+- Migration `017_deprecate_learned_words.sql` - NOT FOUND in migrations folder (needs creation)
 
 **Impact:** Garbage tokens may contaminate generation; learned_words table ambiguity.
 

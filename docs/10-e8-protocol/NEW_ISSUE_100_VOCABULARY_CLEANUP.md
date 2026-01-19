@@ -77,7 +77,7 @@ Complete vocabulary cleanup by removing garbage tokens, migrating learned_words 
 |------|-------------|--------|
 | `qig-backend/scripts/audit_vocabulary.py` | Comprehensive audit | ❌ TODO |
 | `migrations/016_clean_vocabulary_garbage.sql` | Garbage removal | ❌ TODO |
-| `migrations/017_deprecate_learned_words.sql` | Table deprecation | ⚠️  CHECK |
+| `migrations/017_deprecate_learned_words.sql` | Table deprecation | ❌ TODO |
 | `qig-backend/coordizers/pg_loader.py` (updated) | Validation gate | ❌ TODO |
 | `qig-backend/tests/test_vocabulary_validation.py` | Tests | ❌ TODO |
 

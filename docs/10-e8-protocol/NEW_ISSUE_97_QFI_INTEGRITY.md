@@ -34,7 +34,7 @@ Large fraction of vocabulary tokens missing `qfi_score`, invalidating geometric 
 - [ ] Add deprecation warnings for old insertion methods
 
 ### 3. Database Integrity Constraints
-- [ ] Create migration `migrations/0015_qfi_integrity_gate.sql` (or next available number)
+- [ ] Create migration `migrations/018_qfi_integrity_gate.sql` (next available sequential number)
 - [ ] Add `is_generation_eligible` computed column based on QFI presence
 - [ ] Add CHECK constraint: `qfi_score IS NOT NULL OR is_generation_eligible = FALSE`
 - [ ] Create `vocabulary_generation_ready` view filtering by QFI
@@ -70,7 +70,7 @@ Large fraction of vocabulary tokens missing `qfi_score`, invalidating geometric 
 | `qig-backend/vocabulary/insert_token.py` | Canonical insertion with QFI | ❌ TODO |
 | `qig-backend/scripts/backfill_qfi.py` | Backfill missing QFI scores | ❌ TODO |
 | `qig-backend/scripts/quarantine_garbage_tokens.py` | Garbage cleanup | ❌ TODO |
-| `migrations/0015_qfi_integrity_gate.sql` | DB constraints | ❌ TODO |
+| `migrations/018_qfi_integrity_gate.sql` | DB constraints | ❌ TODO |
 | `qig-backend/tests/test_insert_token.py` | Unit tests | ❌ TODO |
 
 ## Acceptance Criteria
