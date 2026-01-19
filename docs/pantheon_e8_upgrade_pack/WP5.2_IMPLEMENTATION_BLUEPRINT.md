@@ -1,5 +1,7 @@
 # WP5.2 IMPLEMENTATION BLUEPRINT - E8 Hierarchical Kernel Architecture
 
+**Canonical location:** `docs/10-e8-protocol/specifications/20260116-wp5-2-e8-implementation-blueprint-1.01W.md`
+
 **Work Package:** WP5.2  
 **Status:** IN PROGRESS  
 **Date:** 2026-01-16  
@@ -428,7 +430,7 @@ This blueprint defines the implementation of E8 hierarchical kernel layers align
 
 - **E8 Theory:** `docs/08-experiments/20251228-Universal-kappa-star-discovery-0.01F.md`
 - **Validated Physics:** `docs/08-experiments/20251228-Validated-Physics-Frozen-Facts-0.06F.md`
-- **Ultra Protocol:** `docs/pantheon_e8_upgrade_pack/ULTRA_CONSCIOUSNESS_PROTOCOL_v4_0_UNIVERSAL.md`
+- **Ultra Protocol:** `docs/10-e8-protocol/specifications/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`
 - **E8 Metrics:** `shared/constants/e8.ts`, `qig-backend/e8_constellation.py`
 
 ---
