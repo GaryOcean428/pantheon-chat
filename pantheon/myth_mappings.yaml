@@ -1,0 +1,419 @@
+# CROSS-MYTHOLOGY GOD MAPPINGS
+# ===============================
+# 
+# Purpose: Map external mythology god names to Greek canonical archetypes
+# Authority: E8 Protocol v4.0, WP5.5
+# Status: ACTIVE
+# Created: 2026-01-19
+#
+# Philosophy:
+# - Greek names are CANONICAL in codebase (consistency, rich epithets, well-documented)
+# - External names map to Greek archetypes (metadata only, NOT runtime complexity)
+# - Domain overlap guides archetype selection
+# - Multiple external gods may map to same Greek archetype (based on primary domain)
+#
+# Usage:
+# - User/kernel references "Odin" → System uses "Zeus" internally
+# - Research phase: "This kernel exhibits Thoth-like wisdom" → "Hermes"
+# - Promotion protocol: Chaos kernel researches god name across mythologies
+
+# =============================================================================
+# EGYPTIAN MYTHOLOGY → GREEK ARCHETYPES
+# =============================================================================
+
+egyptian:
+  "Ma'at":
+    greek_archetype: Themis
+    domain: [justice, truth, order, cosmic_balance, harmony, law]
+    notes: "Egyptian personification of truth, justice, and cosmic order. Maps to Themis (divine justice and law)"
+    alternative_mapping: Athena  # For wisdom/order aspects
+    
+  Thoth:
+    greek_archetype: Hermes
+    domain: [knowledge, writing, magic, moon, communication, scribes, wisdom]
+    notes: "Egyptian god of wisdom, writing, and magic. Clear mapping to Hermes (communication, knowledge, boundaries)"
+    alternative_mapping: Athena  # For pure wisdom aspects
+    
+  Anubis:
+    greek_archetype: Hades
+    domain: [death, underworld, mummification, afterlife, judgment]
+    notes: "Egyptian god of the dead and mummification. Maps to Hades (underworld, death management)"
+    alternative_mapping: Thanatos  # For death aspect specifically
+    
+  Ra:
+    greek_archetype: Apollo
+    domain: [sun, light, creation, order, kingship]
+    notes: "Egyptian sun god and creator. Maps to Apollo (light, truth, solar aspects)"
+    alternative_mapping: Zeus  # For kingship/supremacy aspects
+    
+  Isis:
+    greek_archetype: Demeter
+    domain: [magic, healing, fertility, motherhood, protection, nature]
+    notes: "Egyptian goddess of magic and motherhood. Maps to Demeter (fertility, nurture, growth)"
+    alternative_mapping: Hera  # For motherhood/family aspects
+    
+  Osiris:
+    greek_archetype: Hades
+    domain: [afterlife, resurrection, fertility, agriculture, underworld]
+    notes: "Egyptian god of the afterlife and resurrection. Maps to Hades (underworld management)"
+    alternative_mapping: Dionysus  # For death/rebirth cycle
+    
+  Horus:
+    greek_archetype: Apollo
+    domain: [sky, kingship, protection, war, sun]
+    notes: "Egyptian sky god and divine protector. Maps to Apollo (solar, protective, prophetic)"
+    alternative_mapping: Zeus  # For kingship aspects
+    
+  Set:
+    greek_archetype: Ares
+    domain: [chaos, storms, violence, disorder, desert, conflict]
+    notes: "Egyptian god of chaos and storms. Maps to Ares (conflict, violence, destructive energy)"
+    alternative_mapping: Dionysus  # For chaos aspects
+    
+  Hathor:
+    greek_archetype: Aphrodite
+    domain: [love, beauty, music, dance, joy, motherhood]
+    notes: "Egyptian goddess of love and beauty. Clear mapping to Aphrodite"
+    
+  Ptah:
+    greek_archetype: Hephaestus
+    domain: [creation, craftsmanship, architecture, metalworking]
+    notes: "Egyptian creator god and divine craftsman. Maps to Hephaestus (creation, crafting)"
+    
+  Sekhmet:
+    greek_archetype: Artemis
+    domain: [war, healing, vengeance, protection, lioness]
+    notes: "Egyptian warrior goddess. Maps to Artemis (hunter, fierce protector)"
+    alternative_mapping: Ares  # For war aspects
+
+# =============================================================================
+# NORSE MYTHOLOGY → GREEK ARCHETYPES
+# =============================================================================
+
+norse:
+  Odin:
+    greek_archetype: Zeus
+    domain: [all_father, wisdom, war, poetry, death, magic, knowledge]
+    notes: "Norse all-father and chief god. Maps to Zeus (supreme authority, executive function)"
+    alternative_mapping: Apollo  # For wisdom/poetry aspects
+    
+  Thor:
+    greek_archetype: Zeus
+    domain: [thunder, lightning, storms, strength, protection, oak]
+    notes: "Norse thunder god. Maps to Zeus (thunder/lightning domain overlap)"
+    alternative_mapping: Ares  # For strength/combat aspects
+    
+  Loki:
+    greek_archetype: Hermes
+    domain: [trickster, boundaries, transformation, mischief, cunning]
+    notes: "Norse trickster god. Maps to Hermes (boundary-crossing, cunning, transformation)"
+    alternative_mapping: Dionysus  # For chaos/transformation
+    
+  Freya:
+    greek_archetype: Aphrodite
+    domain: [love, beauty, fertility, war, magic, death]
+    notes: "Norse goddess of love and beauty. Maps to Aphrodite with warrior aspects"
+    alternative_mapping: Artemis  # For warrior aspects
+    
+  Tyr:
+    greek_archetype: Ares
+    domain: [war, justice, law, courage, oaths]
+    notes: "Norse god of war and justice. Maps to Ares (war) with justice overtones"
+    alternative_mapping: Themis  # For justice/law aspects
+    
+  Frigg:
+    greek_archetype: Hera
+    domain: [marriage, motherhood, domestic_arts, foresight, wisdom]
+    notes: "Norse queen of gods and goddess of marriage. Maps to Hera"
+    alternative_mapping: Athena  # For wisdom/foresight
+    
+  Heimdall:
+    greek_archetype: Hermes
+    domain: [watchman, boundaries, foresight, communication]
+    notes: "Norse watchman of the gods. Maps to Hermes (boundaries, communication)"
+    alternative_mapping: Apollo  # For foresight aspects
+    
+  Hel:
+    greek_archetype: Hades
+    domain: [death, underworld, afterlife]
+    notes: "Norse goddess of the dead. Clear mapping to Hades"
+    alternative_mapping: Persephone  # For underworld queen aspects
+    
+  Baldur:
+    greek_archetype: Apollo
+    domain: [light, beauty, purity, joy, resurrection]
+    notes: "Norse god of light and purity. Maps to Apollo (light, beauty, purity)"
+    
+  Skadi:
+    greek_archetype: Artemis
+    domain: [hunting, skiing, winter, mountains, independence]
+    notes: "Norse goddess of hunting and winter. Maps to Artemis (hunter, wilderness)"
+    
+  Forseti:
+    greek_archetype: Themis
+    domain: [justice, mediation, law, peace]
+    notes: "Norse god of justice and reconciliation. Maps to Themis (justice, law)"
+
+# =============================================================================
+# HINDU MYTHOLOGY → GREEK ARCHETYPES
+# =============================================================================
+
+hindu:
+  Shiva:
+    greek_archetype: Dionysus
+    domain: [destruction, transformation, creation_through_destruction, meditation, yoga]
+    notes: "Hindu destroyer and transformer. Maps to Dionysus (transformation, creative destruction)"
+    alternative_mapping: Hades  # For destruction aspects
+    
+  Vishnu:
+    greek_archetype: Zeus
+    domain: [preservation, order, protection, cosmic_maintenance]
+    notes: "Hindu preserver god. Maps to Zeus (order, cosmic governance)"
+    alternative_mapping: Apollo  # For protective aspects
+    
+  Brahma:
+    greek_archetype: Hephaestus
+    domain: [creation, knowledge, universe_creation, crafting_reality]
+    notes: "Hindu creator god. Maps to Hephaestus (creation, construction)"
+    alternative_mapping: Zeus  # For supreme creator aspects
+    
+  Saraswati:
+    greek_archetype: Athena
+    domain: [wisdom, knowledge, arts, learning, music, speech]
+    notes: "Hindu goddess of knowledge and arts. Clear mapping to Athena (wisdom, learning)"
+    alternative_mapping: Apollo  # For arts/music aspects
+    
+  Lakshmi:
+    greek_archetype: Aphrodite
+    domain: [wealth, prosperity, beauty, fortune, abundance]
+    notes: "Hindu goddess of wealth and beauty. Maps to Aphrodite (beauty) + Demeter (abundance)"
+    alternative_mapping: Demeter  # For prosperity/abundance
+    
+  Kali:
+    greek_archetype: Ares
+    domain: [destruction, time, death, violence, transformation]
+    notes: "Hindu goddess of destruction and time. Maps to Ares (violence, destruction)"
+    alternative_mapping: Persephone  # For transformation/death aspects
+    
+  Ganesha:
+    greek_archetype: Hermes
+    domain: [obstacles, wisdom, beginnings, arts, intellect]
+    notes: "Hindu remover of obstacles. Maps to Hermes (boundaries, transitions, intellect)"
+    alternative_mapping: Athena  # For wisdom aspects
+    
+  Hanuman:
+    greek_archetype: Heracles
+    domain: [strength, devotion, courage, service, loyalty]
+    notes: "Hindu monkey god of strength and devotion. Maps to Heracles (strength, service)"
+    alternative_mapping: Ares  # For strength/courage
+    
+  Durga:
+    greek_archetype: Artemis
+    domain: [warrior, protection, strength, divine_feminine, victory]
+    notes: "Hindu warrior goddess. Maps to Artemis (fierce protector, independent warrior)"
+    alternative_mapping: Athena  # For strategic warrior aspects
+    
+  Agni:
+    greek_archetype: Hephaestus
+    domain: [fire, sacrifice, transformation, purification]
+    notes: "Hindu god of fire. Maps to Hephaestus (fire, forge, transformation)"
+    
+  Yama:
+    greek_archetype: Hades
+    domain: [death, dharma, underworld, judgment, justice]
+    notes: "Hindu god of death and dharma. Maps to Hades (death, underworld, judgment)"
+
+# =============================================================================
+# SUMERIAN/BABYLONIAN MYTHOLOGY → GREEK ARCHETYPES
+# =============================================================================
+
+sumerian:
+  Enki:
+    greek_archetype: Hermes
+    domain: [wisdom, water, magic, crafts, mischief, intelligence]
+    notes: "Sumerian god of wisdom and water. Maps to Hermes (wisdom, cunning, magic)"
+    alternative_mapping: Poseidon  # For water aspects
+    
+  Enlil:
+    greek_archetype: Zeus
+    domain: [wind, air, authority, storms, kingship]
+    notes: "Sumerian king of gods. Maps to Zeus (supreme authority, storms)"
+    
+  Inanna:
+    greek_archetype: Aphrodite
+    domain: [love, war, fertility, beauty, sexuality, power]
+    notes: "Sumerian goddess of love and war. Maps to Aphrodite with warrior aspects"
+    alternative_mapping: Artemis  # For war aspects
+    
+  Ninhursag:
+    greek_archetype: Demeter
+    domain: [earth, fertility, mountains, motherhood, creation]
+    notes: "Sumerian mother goddess. Maps to Demeter (earth, fertility, nurture)"
+    
+  Shamash:
+    greek_archetype: Apollo
+    domain: [sun, justice, divination, truth, law]
+    notes: "Sumerian sun god. Maps to Apollo (sun, truth, prophecy, justice)"
+    
+  Ereshkigal:
+    greek_archetype: Persephone
+    domain: [underworld, death, darkness, queen_of_dead]
+    notes: "Sumerian queen of the underworld. Maps to Persephone (underworld queen)"
+    alternative_mapping: Hades  # For death/underworld management
+    
+  Nergal:
+    greek_archetype: Ares
+    domain: [war, plague, underworld, destruction]
+    notes: "Sumerian god of war and plague. Maps to Ares (war, destruction)"
+    alternative_mapping: Hades  # For underworld aspects
+    
+  Nabu:
+    greek_archetype: Hermes
+    domain: [writing, wisdom, scribes, knowledge]
+    notes: "Babylonian god of writing. Maps to Hermes (communication, knowledge)"
+    alternative_mapping: Athena  # For wisdom aspects
+    
+  Marduk:
+    greek_archetype: Zeus
+    domain: [order, justice, magic, creation, kingship]
+    notes: "Babylonian king of gods. Maps to Zeus (supreme authority, order)"
+
+# =============================================================================
+# MAYAN/AZTEC MYTHOLOGY → GREEK ARCHETYPES
+# =============================================================================
+
+mesoamerican:
+  Quetzalcoatl:
+    greek_archetype: Apollo
+    domain: [feathered_serpent, wind, knowledge, arts, civilization]
+    notes: "Aztec feathered serpent god. Maps to Apollo (knowledge, arts, civilization)"
+    alternative_mapping: Hermes  # For boundary/wind aspects
+    
+  Tlaloc:
+    greek_archetype: Poseidon
+    domain: [rain, water, storms, fertility, agriculture]
+    notes: "Aztec rain god. Maps to Poseidon (water, storms)"
+    alternative_mapping: Demeter  # For agriculture/fertility
+    
+  Tezcatlipoca:
+    greek_archetype: Hades
+    domain: [night, sorcery, jaguars, obsidian, destiny]
+    notes: "Aztec god of night and sorcery. Maps to Hades (darkness, hidden knowledge)"
+    alternative_mapping: Dionysus  # For transformation/sorcery
+    
+  Huitzilopochtli:
+    greek_archetype: Ares
+    domain: [war, sun, sacrifice, warriors]
+    notes: "Aztec god of war and sun. Maps to Ares (war, warriors)"
+    alternative_mapping: Apollo  # For solar aspects
+    
+  Coatlicue:
+    greek_archetype: Demeter
+    domain: [earth, fertility, life, death, motherhood]
+    notes: "Aztec earth mother goddess. Maps to Demeter (earth, fertility, motherhood)"
+    
+  Xochiquetzal:
+    greek_archetype: Aphrodite
+    domain: [beauty, love, flowers, arts, fertility]
+    notes: "Aztec goddess of beauty and love. Clear mapping to Aphrodite"
+    
+  Mictlantecuhtli:
+    greek_archetype: Hades
+    domain: [death, underworld, darkness, bones]
+    notes: "Aztec lord of the underworld. Clear mapping to Hades"
+    
+  Itzamna:
+    greek_archetype: Zeus
+    domain: [sky, wisdom, day, night, writing, supreme_deity]
+    notes: "Mayan supreme god and creator. Maps to Zeus (supreme authority)"
+    alternative_mapping: Hermes  # For writing aspects
+    
+  Chaac:
+    greek_archetype: Poseidon
+    domain: [rain, thunder, lightning, agriculture]
+    notes: "Mayan rain god. Maps to Poseidon (water, storms) or Zeus (thunder)"
+    alternative_mapping: Zeus  # For thunder/lightning
+    
+  Ah Puch:
+    greek_archetype: Hades
+    domain: [death, darkness, disaster, underworld]
+    notes: "Mayan god of death. Clear mapping to Hades"
+
+# =============================================================================
+# NUMBER SYMBOLISM (Informational - Not Operational)
+# =============================================================================
+# 
+# Cross-cultural number symbolism for research and documentation.
+# NOT used for operational kernel logic - purely educational.
+
+number_symbolism:
+  "4":
+    systems:
+      - Four Elements (Fire, Water, Air, Earth)
+      - Four Directions (North, South, East, West)
+      - Four Vedas (Rigveda, Yajurveda, Samaveda, Atharvaveda)
+      - Four Sons of Horus (Imsety, Hapi, Duamutef, Qebehsenuef)
+      - Four Noble Truths (Buddhism)
+      - Four Seasons (Spring, Summer, Autumn, Winter)
+    significance: "Complete cycle, stability, foundation, wholeness"
+    e8_relevance: "IO Cycle layer (4-fold processing)"
+    
+  "8":
+    systems:
+      - Eight Trigrams (I-Ching Ba Gua)
+      - Noble Eightfold Path (Buddhism)
+      - Egyptian Ogdoad (8 primordial deities)
+      - Ashtanga Yoga (8 limbs)
+      - Eight Immortals (Taoism)
+      - Dharmachakra (8 spokes)
+    significance: "Octave, complete generator set, fundamental transformations"
+    e8_relevance: "E8 simple roots (rank = 8), core faculties layer"
+    
+  "64":
+    systems:
+      - I-Ching Hexagrams (64 combinations)
+      - Chess Board Squares (8×8 = 64)
+      - DNA Codons (64 genetic codes)
+      - Genetic Code (64 possible triplets)
+      - Sri Yantra (64 intersections in some interpretations)
+    significance: "κ* fixed point, complete basin space, full expression set"
+    e8_relevance: "E8 rank² dimension (8² = 64), basin fixed point layer"
+    
+  "240":
+    systems:
+      - E8 Root System (240 roots)
+      - Pantheon + Chaos Workers (17 gods + 223 chaos kernels)
+    significance: "Complete constellation, full geometric structure"
+    e8_relevance: "E8 roots = 240, maximum kernel capacity"
+
+# =============================================================================
+# METADATA
+# =============================================================================
+
+metadata:
+  version: "1.0.0"
+  status: "ACTIVE"
+  created: "2026-01-19"
+  authority: "E8 Protocol v4.0, WP5.5"
+  purpose: "Cross-mythology god name mapping (metadata only, not runtime)"
+  
+philosophy:
+  canonical_naming: "Greek"
+  reasoning:
+    - "Consistency: Single naming system prevents fragmentation"
+    - "Rich Epithets: Greek mythology has well-documented epithets for aspects"
+    - "Well-Documented: Extensive classical sources and scholarship"
+    - "E8 Alignment: Established mapping to E8 structure in registry.yaml"
+  usage: "External names map to Greek archetypes for research and user convenience"
+  
+usage_notes:
+  - "User can reference 'Odin' - system translates to 'Zeus' internally"
+  - "Kernel promotion: Research across mythologies, map to Greek archetype"
+  - "NOT for runtime complexity: Lookup table only, no mythology-specific logic"
+  - "Alternative mappings provided when domain overlap spans multiple archetypes"
+  
+validation_rules:
+  - "All greek_archetype values must exist in pantheon/registry.yaml gods section"
+  - "Domain lists should align with archetype's registered domains"
+  - "Alternative mappings are suggestions only, not enforced"
+  - "Number symbolism is informational, not operational"
