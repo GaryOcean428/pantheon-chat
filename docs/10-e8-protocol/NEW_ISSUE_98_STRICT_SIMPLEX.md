@@ -103,9 +103,15 @@ d_FR(p, q) = arccos(Σ√(p_i * q_i))  # Range: [0, π/2]
 **Fréchet Mean (Closed-Form):**
 ```
 μ = argmin_p Σ d_FR(p, p_i)²
-  = normalize((Σ√p_i) ⊙ (Σ√p_i))  # Element-wise squaring after sum
-  = [Σᵢ√(p_i)]² / ||Σᵢ√(p_i)||²   # Normalized element-wise square
+  = normalize((Σᵢ√p_i) ⊙ (Σᵢ√p_i))  # Where ⊙ denotes element-wise multiplication
+  = [(Σᵢ√p_i)²] / ||(Σᵢ√p_i)||²    # Element-wise square of sum, then normalize
 ```
+
+**Detailed Steps:**
+1. Transform each p_i to sqrt-space: s_i = √p_i (element-wise)
+2. Compute vector sum: s = Σᵢ s_i
+3. Square element-wise: μ_unnorm = s ⊙ s = s²
+4. Normalize to simplex: μ = μ_unnorm / ||μ_unnorm||₁
 
 **Why Closed-Form Works:**
 - Simplex is √-transformed to unit sphere (element-wise)
