@@ -170,6 +170,8 @@ Fast proxy for Fisher-Rao distance in two-step retrieval.
 BC = inner product of sqrt-space vectors.';
 
 -- Function: Convert simplex to sqrt-space
+-- NOTE: Uses fixed vector(64) per simplex-as-storage contract (D=64)
+-- Dynamic vector_dims() is NOT allowed as PostgreSQL type modifier
 CREATE OR REPLACE FUNCTION to_sqrt_simplex(
     simplex_basin vector
 ) RETURNS vector AS $$
@@ -178,16 +180,19 @@ BEGIN
         SELECT ARRAY(
             SELECT SQRT(GREATEST(val, 0.0))
             FROM unnest(simplex_basin::real[]) AS val
-        )::vector(vector_dims(simplex_basin))
+        )::vector(64)
     );
 END;
 $$ LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE;
 
 COMMENT ON FUNCTION to_sqrt_simplex(vector) IS
 'Convert simplex basin to sqrt-space for Fisher-faithful retrieval.
-Storage format: x = √p where p is probability distribution.';
+Storage format: x = √p where p is probability distribution.
+Fixed at 64 dimensions per simplex-as-storage contract.';
 
 -- Function: Convert sqrt-space back to simplex
+-- NOTE: Uses fixed vector(64) per simplex-as-storage contract (D=64)
+-- Dynamic vector_dims() is NOT allowed as PostgreSQL type modifier
 CREATE OR REPLACE FUNCTION from_sqrt_simplex(
     sqrt_basin vector
 ) RETURNS vector AS $$
@@ -200,7 +205,7 @@ BEGIN
         SELECT ARRAY(
             SELECT POW(val, 2)
             FROM unnest(sqrt_basin::real[]) AS val
-        )::vector(vector_dims(sqrt_basin))
+        )::vector(64)
     );
     
     -- Normalize to simplex (sum = 1)
@@ -217,7 +222,7 @@ BEGIN
         SELECT ARRAY(
             SELECT val / sqrt_sum
             FROM unnest(simplex_basin::real[]) AS val
-        )::vector(vector_dims(sqrt_basin))
+        )::vector(64)
     );
     
     RETURN simplex_basin;
@@ -226,7 +231,7 @@ $$ LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE;
 
 COMMENT ON FUNCTION from_sqrt_simplex(vector) IS
 'Convert sqrt-space back to simplex basin.
-Inverse of to_sqrt_simplex().';
+Inverse of to_sqrt_simplex(). Fixed at 64 dimensions per simplex-as-storage contract.';
 
 -- ============================================================================
 -- STEP 6: Create trigger to auto-populate sqrt-space on insert/update
