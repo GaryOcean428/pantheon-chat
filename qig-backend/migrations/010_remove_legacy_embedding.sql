@@ -14,14 +14,14 @@
 -- Run migration 009 and backfill script before this migration.
 -- ============================================================================
 
--- Check if tokenizer_vocabulary exists
+-- Check if coordizer_vocabulary exists
 DO $$
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.tables 
-        WHERE table_name = 'tokenizer_vocabulary'
+        WHERE table_name = 'coordizer_vocabulary'
     ) THEN
-        RAISE EXCEPTION 'Migration 010 requires tokenizer_vocabulary table.';
+        RAISE EXCEPTION 'Migration 010 requires coordizer_vocabulary table.';
     END IF;
 END $$;
 
@@ -32,7 +32,7 @@ DECLARE
     empty_count INT;
 BEGIN
     SELECT COUNT(*) INTO empty_count 
-    FROM tokenizer_vocabulary 
+    FROM coordizer_vocabulary 
     WHERE array_length(basin_embedding, 1) = 0 
        OR array_length(basin_embedding, 1) IS NULL
        OR basin_embedding IS NULL;
@@ -49,7 +49,7 @@ END $$;
 
 -- Step 2: Drop legacy embedding column (if exists)
 -- This column stored 512D word2vec/BERT-style embeddings (NOT QIG-pure)
-ALTER TABLE tokenizer_vocabulary 
+ALTER TABLE coordizer_vocabulary 
   DROP COLUMN IF EXISTS embedding;
 
 -- Report
@@ -57,7 +57,7 @@ DO $$
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns 
-        WHERE table_name = 'tokenizer_vocabulary' 
+        WHERE table_name = 'coordizer_vocabulary' 
           AND column_name = 'embedding'
     ) THEN
         RAISE NOTICE '010: Legacy embedding column dropped';
@@ -68,11 +68,11 @@ END $$;
 
 -- Step 3: Rename basin_embedding to basin_coordinates
 -- More descriptive name emphasizing geometric coordinates vs embeddings
-ALTER TABLE tokenizer_vocabulary 
+ALTER TABLE coordizer_vocabulary 
   RENAME COLUMN basin_embedding TO basin_coordinates;
 
 -- Step 4: Add comprehensive column comment
-COMMENT ON COLUMN tokenizer_vocabulary.basin_coordinates IS 
+COMMENT ON COLUMN coordizer_vocabulary.basin_coordinates IS 
   'QIG-pure 64D Fisher manifold coordinates. NOT legacy word2vec/BERT embeddings. '
   'Computed via entropy_tokenizer → coordizer → basin_coordinates pipeline. '
   'NOT NULL enforced - all vocabulary must have valid basins. '
@@ -83,7 +83,7 @@ COMMENT ON COLUMN tokenizer_vocabulary.basin_coordinates IS
 -- Recreate indexes with new column name
 DROP INDEX IF EXISTS idx_tokenizer_vocab_basin_valid;
 CREATE INDEX idx_tokenizer_vocab_basin_valid 
-  ON tokenizer_vocabulary(token) 
+  ON coordizer_vocabulary(token) 
   WHERE array_length(basin_coordinates, 1) = 64;
 
 DROP INDEX IF EXISTS idx_tokenizer_vocab_basin_empty;
@@ -91,19 +91,19 @@ DROP INDEX IF EXISTS idx_tokenizer_vocab_basin_empty;
 
 -- Step 6: Update constraints to use new column name
 -- Drop old constraints
-ALTER TABLE tokenizer_vocabulary 
+ALTER TABLE coordizer_vocabulary 
   DROP CONSTRAINT IF EXISTS basin_dim_check;
 
-ALTER TABLE tokenizer_vocabulary 
+ALTER TABLE coordizer_vocabulary 
   DROP CONSTRAINT IF EXISTS basin_float_check;
 
 -- Recreate with new column name and stricter validation
 -- Now ONLY 64D allowed (no empty arrays)
-ALTER TABLE tokenizer_vocabulary 
+ALTER TABLE coordizer_vocabulary 
   ADD CONSTRAINT basin_coordinates_dim_check 
   CHECK (array_length(basin_coordinates, 1) = 64);
 
-ALTER TABLE tokenizer_vocabulary 
+ALTER TABLE coordizer_vocabulary 
   ADD CONSTRAINT basin_coordinates_float_check
   CHECK (
     NOT EXISTS (
@@ -115,7 +115,7 @@ ALTER TABLE tokenizer_vocabulary
   );
 
 -- Step 7: Add table comment
-COMMENT ON TABLE tokenizer_vocabulary IS 
+COMMENT ON TABLE coordizer_vocabulary IS 
   'QIG-pure vocabulary for text encoding. All tokens have 64D basin coordinates. '
   'Generated via coordizer (geometric tokenization). '
   'Separate from learned_words (generation vocabulary). '
@@ -132,21 +132,21 @@ BEGIN
     -- Check columns
     SELECT EXISTS (
         SELECT 1 FROM information_schema.columns 
-        WHERE table_name = 'tokenizer_vocabulary' 
+        WHERE table_name = 'coordizer_vocabulary' 
           AND column_name = 'embedding'
     ) INTO has_legacy_column;
     
     SELECT EXISTS (
         SELECT 1 FROM information_schema.columns 
-        WHERE table_name = 'tokenizer_vocabulary' 
+        WHERE table_name = 'coordizer_vocabulary' 
           AND column_name = 'basin_coordinates'
     ) INTO has_new_column;
     
     -- Check data
-    SELECT COUNT(*) INTO total_count FROM tokenizer_vocabulary;
+    SELECT COUNT(*) INTO total_count FROM coordizer_vocabulary;
     
     SELECT COUNT(*) INTO valid_count 
-    FROM tokenizer_vocabulary 
+    FROM coordizer_vocabulary 
     WHERE array_length(basin_coordinates, 1) = 64;
     
     RAISE NOTICE '============================================================================';

@@ -40,13 +40,17 @@ try:
 except ImportError:
     FISHER_AVAILABLE = False
     def fisher_rao_distance(p, q):
-        """Fallback Fisher-Rao distance."""
-        p = np.abs(p) + 1e-10
+        """
+        Fallback Fisher-Rao distance on probability simplex.
+        Born rule: |b|² for amplitude-to-probability conversion.
+        UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
+        """
+        p = np.abs(p) ** 2 + 1e-10
         p = p / p.sum()
-        q = np.abs(q) + 1e-10
+        q = np.abs(q) ** 2 + 1e-10
         q = q / q.sum()
         bc = np.sum(np.sqrt(p * q))
-        bc = np.clip(bc, 0, 1)
+        bc = np.clip(bc, 0.0, 1.0)
         return float(np.arccos(bc))
     
     def compute_phi(trajectory, window_size=5):
@@ -678,14 +682,15 @@ class GeometricCompletionEngine:
         """Create new generation state."""
         if initial_basin is None:
             initial_basin = np.random.randn(self.dimension)
-            # Use sphere_project for proper normalization
+            # Use fisher_normalize for proper normalization
             try:
-                from qig_geometry import sphere_project
+                from qig_geometry import fisher_normalize
             except ImportError:
-                def sphere_project(v):
-                    norm = np.linalg.norm(v)
-                    return v / norm if norm > 1e-10 else np.ones_like(v) / np.sqrt(len(v))
-            initial_basin = sphere_project(initial_basin)
+                def fisher_normalize(v):
+                    """Normalize to probability simplex."""
+                    p = np.maximum(np.asarray(v), 0) + 1e-10
+                    return p / p.sum()
+            initial_basin = fisher_normalize(initial_basin)
         
         state = GenerationState(basin=initial_basin)
         state.trajectory.append(initial_basin.copy())

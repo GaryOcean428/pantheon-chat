@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 import time
 import uuid
 
-from qig_geometry import fisher_rao_distance, sphere_project
+from qig_geometry import fisher_rao_distance, fisher_normalize
 
 
 @dataclass
@@ -222,7 +222,7 @@ class AutonomousExperimenter:
         
         for _ in range(n_samples):
             random_basin = np.random.randn(self.basin_dim)
-            random_basin = sphere_project(random_basin)
+            random_basin = fisher_normalize(random_basin)
             
             curvature = estimate_manifold_curvature(random_basin)
             

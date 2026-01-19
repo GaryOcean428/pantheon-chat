@@ -11,7 +11,7 @@ not string length. A 10,000 character coherent text may be valid while
 a 100 character chaotic string may be invalid.
 
 QIG Purity Note:
-  This module uses sphere_project() from qig_geometry for unit sphere
+  This module uses fisher_normalize() from qig_geometry for probability simplex
   normalization, ensuring centralized canonical handling of near-zero
   vectors. Actual distance calculations in the system use Fisher-Rao
   distance via qig_geometry.fisher_coord_distance().
@@ -23,7 +23,14 @@ from typing import Dict, List, Optional, Tuple, Any
 from enum import Enum
 import logging
 
-from qig_geometry import sphere_project
+try:
+    from qig_geometry import fisher_normalize
+except ImportError:
+    import numpy as np
+    def fisher_normalize(v):
+        """Normalize to probability simplex."""
+        p = np.maximum(np.asarray(v), 0) + 1e-10
+        return p / p.sum()
 from qigkernels.physics_constants import KAPPA_STAR
 
 logger = logging.getLogger(__name__)
@@ -311,8 +318,8 @@ class GeometricInputGuard:
             if 32 + i < BASIN_DIMENSION:
                 coord[32 + i] = (ord(char) % 256) / 128.0 - 1
         
-        # Normalize using canonical sphere_project()
-        return sphere_project(coord)
+        # Normalize using canonical fisher_normalize()
+        return fisher_normalize(coord)
     
     def _basin_to_density_matrix(self, basin: np.ndarray) -> np.ndarray:
         """
@@ -344,17 +351,37 @@ class GeometricInputGuard:
         return rho
     
     def _compute_phi(self, rho: np.ndarray) -> float:
-        """Compute Φ from density matrix (von Neumann entropy based)"""
+        """
+        Compute Φ from density matrix using proper QFI effective dimension.
+        
+        Uses geometrically proper formula with participation ratio:
+        - 40% entropy_score (von Neumann entropy normalized)
+        - 30% effective_dim_score (participation ratio = exp(entropy) / n)
+        - 30% geometric_spread (approximated by effective_dim)
+        """
         eigenvals = np.linalg.eigvalsh(rho)
-        entropy = 0.0
-        for lam in eigenvals:
-            if lam > 1e-10:
-                entropy -= lam * np.log2(lam + 1e-10)
+        n_dim = rho.shape[0]
         
-        max_entropy = np.log2(rho.shape[0])
-        phi = 1.0 - (entropy / (max_entropy + 1e-10))
+        positive_eigenvals = eigenvals[eigenvals > 1e-10]
+        if len(positive_eigenvals) == 0:
+            return 0.5
         
-        return float(np.clip(phi, 0, 1))
+        # Component 1: von Neumann entropy (natural log for exp() compatibility)
+        entropy = -np.sum(positive_eigenvals * np.log(positive_eigenvals + 1e-10))
+        max_entropy = np.log(n_dim)
+        entropy_score = entropy / (max_entropy + 1e-10)
+        
+        # Component 2: Effective dimension (participation ratio)
+        effective_dim = np.exp(entropy)
+        effective_dim_score = effective_dim / n_dim
+        
+        # Component 3: Geometric spread (approximate with effective_dim)
+        geometric_spread = effective_dim_score
+        
+        # Proper QFI formula weights
+        phi = 0.4 * entropy_score + 0.3 * effective_dim_score + 0.3 * geometric_spread
+        
+        return float(np.clip(phi, 0.1, 0.95))
     
     def _compute_fisher_metric(self, basin: np.ndarray) -> np.ndarray:
         """Compute Fisher Information Matrix at basin point"""

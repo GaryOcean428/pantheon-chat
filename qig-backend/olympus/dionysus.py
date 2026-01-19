@@ -9,17 +9,14 @@ import numpy as np
 
 # QIG-pure geometric operations
 try:
-    from qig_geometry import sphere_project
+    from qig_geometry import fisher_normalize
     QIG_GEOMETRY_AVAILABLE = True
 except ImportError:
     QIG_GEOMETRY_AVAILABLE = False
-    def sphere_project(v):
-        """Fallback sphere projection."""
-        norm = np.linalg.norm(v)
-        if norm < 1e-10:
-            result = np.ones_like(v)
-            return result / np.linalg.norm(result)
-        return v / norm
+    def fisher_normalize(v):
+        """Normalize to probability simplex."""
+        p = np.maximum(np.asarray(v), 0) + 1e-10
+        return p / p.sum()
 from typing import Dict, List, Optional
 from datetime import datetime
 from .base_god import BaseGod, KAPPA_STAR, BASIN_DIMENSION
@@ -145,7 +142,7 @@ class Dionysus(BaseGod):
         for i in range(3):
             noise = np.random.randn(BASIN_DIMENSION) * self.chaos_level
             mutated_basin = basin + noise
-            mutated_basin = sphere_project(mutated_basin)
+            mutated_basin = fisher_normalize(mutated_basin)
             
             mutation_seed = int(np.abs(np.sum(mutated_basin[:8])) * 1000)
             mutations.append(f"{target}_{mutation_seed}")

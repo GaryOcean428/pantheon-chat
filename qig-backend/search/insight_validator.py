@@ -93,39 +93,31 @@ class InsightValidator:
         """
         self.validation_threshold = validation_threshold
         
+        # Use ONLY budget-aware clients - no fallback to raw API clients
         self.tavily_client: Any = None
         if get_tavily_client:
             self.tavily_client = get_tavily_client()
             if self.tavily_client and self.tavily_client.available:
-                logger.info("[InsightValidator] Using Tavily SDK with full capabilities")
+                logger.info("[InsightValidator] Using Tavily SDK with budget controls")
             else:
                 logger.warning("[InsightValidator] Tavily client not available")
                 self.tavily_client = None
         else:
-            try:
-                from tavily import TavilyClient
-                tavily_key = os.getenv('TAVILY_API_KEY')
-                if tavily_key:
-                    self.tavily_client = TavilyClient(api_key=tavily_key)
-                    logger.info("[InsightValidator] Using basic Tavily client")
-            except ImportError:
-                logger.warning("[InsightValidator] tavily-python not installed")
+            # REMOVED: Raw TavilyClient fallback bypassed budget orchestrator
+            logger.warning("[InsightValidator] get_tavily_client not available - Tavily disabled")
         
-        # Initialize comprehensive Perplexity client
+        # Use ONLY budget-aware Perplexity client
         self.perplexity_client: Any = None
         if get_perplexity_client:
             self.perplexity_client = get_perplexity_client()
             if self.perplexity_client and self.perplexity_client.available:
-                logger.info("[InsightValidator] Using Perplexity API with full capabilities")
+                logger.info("[InsightValidator] Using Perplexity API with budget controls")
             else:
                 logger.warning("[InsightValidator] Perplexity client not available")
                 self.perplexity_client = None
         else:
-            # Fallback to requests-based client
-            perplexity_key = os.getenv('PERPLEXITY_API_KEY')
-            if perplexity_key:
-                self.perplexity_client = PerplexityRequestsClient(perplexity_key)
-                logger.info("[InsightValidator] Using Perplexity requests client")
+            # REMOVED: PerplexityRequestsClient fallback bypassed budget orchestrator
+            logger.warning("[InsightValidator] get_perplexity_client not available - Perplexity disabled")
     
     def validate(self, insight: CrossDomainInsight) -> ValidationResult:
         """

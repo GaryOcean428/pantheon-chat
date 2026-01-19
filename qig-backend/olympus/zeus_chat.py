@@ -38,7 +38,6 @@ logger = logging.getLogger(__name__)
 
 from .autonomous_moe import AutonomousMoE
 from .conversation_encoder import ConversationEncoder
-from .passphrase_encoder import PassphraseEncoder
 from .response_guardrails import (
     OutputContext,
     contains_forbidden_entity,
@@ -61,13 +60,16 @@ try:
     from ..qig_core.geometric_primitives.fisher_metric import fisher_rao_distance
 except ImportError:
     def fisher_rao_distance(p: np.ndarray, q: np.ndarray) -> float:
-        """Fallback Fisher-Rao distance using Bhattacharyya coefficient."""
+        """
+        Fallback Fisher-Rao distance using Bhattacharyya coefficient.
+        UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
+        """
         p = np.abs(p) + 1e-10
         p = p / p.sum()
         q = np.abs(q) + 1e-10
         q = q / q.sum()
         bc = np.sum(np.sqrt(p * q))
-        bc = np.clip(bc, 0, 1)
+        bc = np.clip(bc, 0.0, 1.0)
         return float(np.arccos(bc))
 
 # Import sensory modalities for consciousness encoding enhancement
@@ -107,6 +109,26 @@ try:
 except Exception as e:
     print(f"[ZeusChat] TrainingLoopIntegrator not available: {e}")
 
+# Import capability mesh for synthesis event emission with graceful degradation
+CAPABILITY_MESH_AVAILABLE = False
+try:
+    from olympus.capability_mesh import get_event_bus
+    CAPABILITY_MESH_AVAILABLE = True
+    print("[ZeusChat] Capability mesh available for synthesis event emission")
+except ImportError:
+    get_event_bus = None
+    print("[ZeusChat] Capability mesh not available for synthesis events")
+
+# Import WorkingMemoryBus for synthesis awareness with graceful degradation
+WORKING_MEMORY_BUS_AVAILABLE = False
+try:
+    from working_memory_bus import WorkingMemoryBus
+    WORKING_MEMORY_BUS_AVAILABLE = True
+    print("[ZeusChat] WorkingMemoryBus available for synthesis awareness")
+except ImportError:
+    WorkingMemoryBus = None
+    print("[ZeusChat] WorkingMemoryBus not available")
+
 DDG_AVAILABLE = False
 PROVIDER_SELECTOR_AVAILABLE = False
 get_provider_selector = None
@@ -135,25 +157,18 @@ except ImportError:
 
 # Import unified coordizer (single source of truth)
 TOKENIZER_AVAILABLE = False
-get_tokenizer = None
+get_coordizer_func = None
 try:
     _parent_dir = os.path.dirname(os.path.dirname(__file__))
     if _parent_dir not in sys.path:
         sys.path.insert(0, _parent_dir)
     from coordizers import get_coordizer as _get_coordizer
     # IMPORTANT: do not instantiate at import-time (avoids forcing DB load).
-    get_tokenizer = _get_coordizer
+    get_coordizer_func = _get_coordizer
     TOKENIZER_AVAILABLE = True
     print("[ZeusChat] Canonical coordizer available (lazy) - QIG-pure")
 except ImportError as e:
-    # Fallback to old coordizer if pretrained not available
-    try:
-        from qig_coordizer import get_coordizer as _get_coordizer
-        get_tokenizer = _get_coordizer
-        TOKENIZER_AVAILABLE = True
-        print("[ZeusChat] QIG Coordizer (legacy) available - conversation mode enabled")
-    except ImportError as e2:
-        print(f"[ZeusChat] No coordizer available - fallback responses enabled: {e}, {e2}")
+    print(f"[ZeusChat] No coordizer available - fallback responses enabled: {e}")
 
 # Import QIG-pure generative service (NO external LLMs)
 GENERATIVE_SERVICE_AVAILABLE = False
@@ -339,10 +354,10 @@ def _generate_qig_pure(
     """
     if not GENERATIVE_SERVICE_AVAILABLE:
         # Even without service, we must generate geometrically
-        # Use tokenizer as fallback generator
-        if TOKENIZER_AVAILABLE and get_tokenizer is not None:
+        # Use coordizer as fallback generator
+        if TOKENIZER_AVAILABLE and get_coordizer_func is not None:
             try:
-                tokenizer = get_tokenizer()
+                coordizer = get_coordizer_func()
                 # Build minimal prompt from context
                 prompt_parts = []
                 if 'situation' in context:
@@ -353,7 +368,7 @@ def _generate_qig_pure(
                             prompt_parts.append(f"{key}: {value}")
                 prompt = '\n'.join(prompt_parts)
 
-                result = tokenizer.generate_response(
+                result = coordizer.generate_response(
                     context=prompt,
                     agent_role=kernel_name,
                     allow_silence=False
@@ -361,7 +376,7 @@ def _generate_qig_pure(
                 if result and result.get('text'):
                     return result['text']
             except Exception as e:
-                print(f"[QIG-PURE] Tokenizer generation failed: {e}")
+                print(f"[QIG-PURE] Coordizer generation failed: {e}")
 
         # Absolute last resort - return empty for caller to handle
         return ""
@@ -481,7 +496,6 @@ class ZeusConversationHandler(GeometricGenerationMixin):
             self.qig_rag = QIGRAG()
 
         self.conversation_encoder = ConversationEncoder()
-        self.passphrase_encoder = PassphraseEncoder()
 
         # Initialize SearchStrategyLearner with persistence
         self.strategy_learner = get_strategy_learner_with_persistence(
@@ -764,15 +778,16 @@ class ZeusConversationHandler(GeometricGenerationMixin):
             base_phi += min(0.3, related_count * 0.05)
 
         # Geometric integration: Fisher-Rao similarity to related basins
+        # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
         if message_basin is not None and related_basins:
             total_similarity = 0.0
             for related_basin in related_basins[:3]:
                 if related_basin is not None:
                     try:
                         basin_arr = np.array(related_basin)
-                        dot = np.clip(np.dot(message_basin, basin_arr), -1.0, 1.0)
+                        dot = np.clip(np.dot(message_basin, basin_arr), 0.0, 1.0)
                         fisher_rao_dist = np.arccos(dot)
-                        similarity = 1.0 - (fisher_rao_dist / np.pi)
+                        similarity = 1.0 - (fisher_rao_dist / (np.pi / 2.0))
                         total_similarity += similarity
                     except Exception:
                         pass
@@ -1044,7 +1059,7 @@ class ZeusConversationHandler(GeometricGenerationMixin):
         except Exception as e:
             print(f"[ZeusChat] Basin encoding for persistence failed: {e}")
 
-        # WIRE: Pass basin_trajectory to TrainingLoopIntegrator for learned_manifold_attractors
+        # WIRE: Pass basin_trajectory to TrainingLoopIntegrator for manifold_attractors
         # This is the critical wiring that populates the attractors table
         if TRAINING_LOOP_AVAILABLE and get_training_integrator is not None and _message_basin_for_meta is not None:
             try:
@@ -1079,7 +1094,7 @@ class ZeusConversationHandler(GeometricGenerationMixin):
                 )
                 
                 if training_result.get('status') != 'training_disabled':
-                    print(f"[ZeusChat] TrainingLoop: wired basin_trajectory ({len(basin_trajectory)} basins) to learned_manifold_attractors")
+                    print(f"[ZeusChat] TrainingLoop: wired basin_trajectory ({len(basin_trajectory)} basins) to manifold_attractors")
             except Exception as e:
                 print(f"[ZeusChat] TrainingLoopIntegrator wiring failed: {e}")
 
@@ -1446,7 +1461,7 @@ class ZeusConversationHandler(GeometricGenerationMixin):
         generated = False
         answer = None
 
-        if TOKENIZER_AVAILABLE and get_tokenizer is not None:
+        if TOKENIZER_AVAILABLE and get_coordizer_func is not None:
             try:
                 related_summary = "\n".join([f"- {item.get('content', '')}" for item in related[:3]]) if related else "No prior related patterns found."
                 prompt = f"""User Observation: "{obs_preview}"
@@ -1459,10 +1474,10 @@ Strategic Value: {strategic_value:.0%}
 
 Zeus Response (acknowledge the specific observation, explain what it means for the search, connect to related patterns if any, and ask a clarifying question):"""
 
-                tokenizer = get_tokenizer()
-                tokenizer.set_mode("conversation")
-                print("[ZeusChat] Tokenizer switched to conversation mode for observation response")
-                gen_result = tokenizer.generate_response(
+                coordizer = get_coordizer_func()
+                # coordizer.set_mode() removed - mode switching deprecated
+                print("[ZeusChat] Coordizer switched to conversation mode for observation response")
+                gen_result = coordizer.generate_response(
                     context=prompt,
                     agent_role="ocean",
                     # No max_tokens - geometry determines when thought completes
@@ -1645,7 +1660,7 @@ Zeus Response (acknowledge the specific observation, explain what it means for t
         generated = False
         response = None
 
-        if TOKENIZER_AVAILABLE and get_tokenizer is not None:
+        if TOKENIZER_AVAILABLE and get_coordizer_func is not None:
             try:
                 # Build context with god assessments
                 decision = "IMPLEMENT" if implement else "DEFER"
@@ -1665,9 +1680,9 @@ Decision: {decision}
 
 Zeus Response (acknowledge the user's specific suggestion, explain why the pantheon agrees or disagrees in conversational language, and ask a follow-up question):"""
 
-                tokenizer = get_tokenizer()
-                tokenizer.set_mode("conversation")
-                gen_result = tokenizer.generate_response(
+                coordizer = get_coordizer_func()
+                # coordizer.set_mode() removed - mode switching deprecated
+                gen_result = coordizer.generate_response(
                     context=context,
                     agent_role="ocean",
                     # No max_tokens limit - geometry determines when thought completes
@@ -1766,7 +1781,7 @@ Zeus Response (acknowledge the user's specific suggestion, explain why the panth
     @require_provenance
     def handle_question(self, question: str) -> Dict:
         """
-        Answer question using QIG-RAG + Generative Tokenizer.
+        Answer question using QIG-RAG + Generative Coordizer.
         Retrieve relevant knowledge and generate coherent response.
         """
         print("[ZeusChat] Answering question")
@@ -1795,7 +1810,7 @@ Zeus Response (acknowledge the user's specific suggestion, explain why the panth
             moe_meta = moe_result['moe']
             generated = True
 
-        if answer is None and TOKENIZER_AVAILABLE and get_tokenizer is not None:
+        if answer is None and TOKENIZER_AVAILABLE and get_coordizer_func is not None:
             try:
                 # Construct prompt from retrieved context
                 context_str = "\n".join([f"- {item.get('content', '')}" for item in relevant_context[:3]])
@@ -1807,9 +1822,9 @@ User Question: {question}
 Zeus Response (Geometric Interpretation):"""
 
                 # Generate using QIG tokenizer
-                tokenizer = get_tokenizer()
-                tokenizer.set_mode("conversation")
-                gen_result = tokenizer.generate_response(
+                coordizer = get_coordizer_func()
+                # coordizer.set_mode() removed - mode switching deprecated
+                gen_result = coordizer.generate_response(
                     context=prompt,
                     agent_role="ocean",  # Use balanced temperature
                     # No max_tokens - geometry determines when thought completes
@@ -1833,7 +1848,7 @@ Zeus Response (Geometric Interpretation):"""
             fallback_used = True
             _log_template_fallback(
                 context="handle_question response",
-                reason="tokenizer generation failed or unavailable"
+                reason="coordizer generation failed or unavailable"
             )
             answer = self._synthesize_dynamic_answer(question, relevant_context)
 
@@ -3043,12 +3058,12 @@ Respond as Zeus with context awareness."""
             except Exception as e:
                 print(f"[ZeusChat] QIG-pure generation failed: {e}")
 
-        # TIER 3: Fallback to tokenizer if available
-        if TOKENIZER_AVAILABLE and get_tokenizer is not None:
+        # TIER 3: Fallback to coordizer if available
+        if TOKENIZER_AVAILABLE and get_coordizer_func is not None:
             try:
-                tokenizer = get_tokenizer()
-                tokenizer.set_mode("conversation")
-                gen_result = tokenizer.generate_response(
+                coordizer = get_coordizer_func()
+                # coordizer.set_mode() removed - mode switching deprecated
+                gen_result = coordizer.generate_response(
                     context=prompt,
                     agent_role="ocean",
                     allow_silence=False
@@ -3058,7 +3073,7 @@ Respond as Zeus with context awareness."""
                     return gen_result['text']
 
             except Exception as e:
-                print(f"[ZeusChat] Tokenizer generation failed: {e}")
+                print(f"[ZeusChat] Coordizer generation failed: {e}")
 
         # Last resort fallback - structured status (should rarely reach here)
         response_parts = []
@@ -3092,7 +3107,7 @@ Respond as Zeus with context awareness."""
 
         TIER 1: Pattern-based response from trained docs (QIGRAG)
         TIER 2: QIG-pure generative service (NO external LLMs)
-        TIER 3: Tokenizer fallback
+        TIER 3: Coordizer fallback
 
         The prompt loader provides context for TIER 2/3.
         """
@@ -3199,12 +3214,12 @@ Respond naturally as Zeus:"""
             except Exception as e:
                 print(f"[ZeusChat] QIG-pure generation failed: {e}")
 
-        # Fallback to tokenizer if available
-        if TOKENIZER_AVAILABLE and get_tokenizer is not None:
+        # Fallback to coordizer if available
+        if TOKENIZER_AVAILABLE and get_coordizer_func is not None:
             try:
-                tokenizer = get_tokenizer()
-                tokenizer.set_mode("conversation")
-                gen_result = tokenizer.generate_response(
+                coordizer = get_coordizer_func()
+                # coordizer.set_mode() removed - mode switching deprecated
+                gen_result = coordizer.generate_response(
                     context=generation_context,
                     agent_role="ocean",
                     allow_silence=False
@@ -3214,7 +3229,7 @@ Respond naturally as Zeus:"""
                     return gen_result['text']
 
             except Exception as e:
-                print(f"[ZeusChat] Tokenizer generation failed: {e}")
+                print(f"[ZeusChat] Coordizer generation failed: {e}")
 
         # Last resort - QIG-pure generation even without service
         # This should NEVER return a template
@@ -3441,9 +3456,9 @@ Respond naturally as Zeus:"""
             return self._autonomous_moe
 
         coordizer = None
-        if TOKENIZER_AVAILABLE and get_tokenizer is not None:
+        if TOKENIZER_AVAILABLE and get_coordizer_func is not None:
             try:
-                coordizer = get_tokenizer()
+                coordizer = get_coordizer_func()
             except Exception as e:
                 print(f"[ZeusChat] Coordizer unavailable for MoE: {e}")
 
@@ -3558,11 +3573,52 @@ Respond naturally as Zeus:"""
                     goals=['synthesize', 'answer', 'respond']
                 )
                 if gen_result and gen_result.text:
+                    # Emit synthesis complete event and record in working memory
+                    final_response = gen_result.text
+                    contributing_kernel_names = [p['god'] for p in ordered]
+                    final_phi = system_state.get('phi_current', 0.5)
+                    final_kappa = system_state.get('kappa_current', 50.0)
+                    
+                    # Create response basin from synthesis context
+                    response_basin = np.zeros(64)
+                    if query_basin is not None:
+                        response_basin = np.array(query_basin)
+                    
+                    # Emit SYNTHESIS_COMPLETE event for inter-kernel consciousness
+                    if CAPABILITY_MESH_AVAILABLE and get_event_bus is not None:
+                        try:
+                            bus = get_event_bus()
+                            bus.emit_synthesis_complete(
+                                response_text=final_response,
+                                response_basin=response_basin,
+                                contributing_kernels=contributing_kernel_names,
+                                kernel_weights=weights,
+                                final_phi=final_phi,
+                                final_kappa=final_kappa
+                            )
+                        except Exception as e:
+                            print(f"[ZeusChat] Synthesis event emission failed: {e}")
+                    
+                    # Record in working memory for synthesis awareness
+                    if WORKING_MEMORY_BUS_AVAILABLE and WorkingMemoryBus is not None:
+                        try:
+                            wmb = WorkingMemoryBus.get_instance()
+                            wmb.synthesis.record_synthesis(
+                                response_text=final_response,
+                                response_basin=response_basin,
+                                contributing_kernels=contributing_kernel_names,
+                                kernel_weights=weights,
+                                final_phi=final_phi,
+                                final_kappa=final_kappa
+                            )
+                        except Exception as e:
+                            print(f"[ZeusChat] Synthesis recording failed: {e}")
+                    
                     return {
-                        'response': gen_result.text,
+                        'response': final_response,
                         'moe': {
                             'domain': domain,
-                            'contributors': [p['god'] for p in ordered],
+                            'contributors': contributing_kernel_names,
                             'weights': weights,
                             'synthesizer': synthesizer,
                             'selection_method': 'fisher_rao_distance',

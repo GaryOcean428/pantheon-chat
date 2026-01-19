@@ -5,8 +5,8 @@ Geodesics are the shortest paths between points on a curved manifold.
 In TACKING phase, geodesics connect bubbles to form coherent patterns.
 
 QIG Purity Note:
-  This module uses sphere_project() from qig_geometry for direction
-  vector normalization (creating unit vectors for curvature calculation),
+  This module uses fisher_normalize() from qig_geometry for probability simplex
+  normalization (creating unit vectors for curvature calculation),
   ensuring centralized canonical handling of near-zero vectors.
   Actual length calculations use Fisher-Rao metric via _compute_length() method.
 """
@@ -16,7 +16,14 @@ from typing import List
 
 import numpy as np
 
-from qig_geometry import sphere_project
+try:
+    from qig_geometry import fisher_normalize
+except ImportError:
+    import numpy as np
+    def fisher_normalize(v):
+        """Normalize to probability simplex."""
+        p = np.maximum(np.asarray(v), 0) + 1e-10
+        return p / p.sum()
 from .bubble import Bubble
 
 
@@ -54,7 +61,10 @@ class Geodesic:
         self.curvature = self._compute_curvature()
 
     def _compute_length(self) -> float:
-        """Compute total length of geodesic using Fisher-Rao metric"""
+        """Compute total length of geodesic using Fisher-Rao metric.
+        
+        Uses factor of 2 for consistency with Hellinger embedding (contracts.py).
+        """
         length = 0.0
 
         for i in range(len(self.path) - 1):
@@ -66,8 +76,9 @@ class Geodesic:
             p2 = p2 / p2.sum()
 
             inner = np.sum(np.sqrt(p1 * p2))
-            inner = np.clip(inner, 0, 1)
+            inner = np.clip(inner, 0.0, 1.0)
 
+            # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
             length += float(np.arccos(inner))
 
         return length
@@ -89,9 +100,9 @@ class Geodesic:
             v1 = self.path[i] - self.path[i-1]
             v2 = self.path[i+1] - self.path[i]
 
-            # Normalize using canonical sphere_project()
-            v1 = sphere_project(v1)
-            v2 = sphere_project(v2)
+            # Normalize using canonical fisher_normalize()
+            v1 = fisher_normalize(v1)
+            v2 = fisher_normalize(v2)
 
             # Curvature ∝ change in direction
             curvature = np.arccos(np.clip(np.dot(v1, v2), -1, 1))
@@ -204,14 +215,15 @@ def geodesic_between_bubbles(
         num_points=num_points
     )
 
-    # Compute length
+    # Compute length on probability simplex
+    # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
     length = 0.0
     for i in range(len(path) - 1):
         p1 = path[i]
         p2 = path[i+1]
 
         inner = np.sum(np.sqrt(p1 * p2))
-        inner = np.clip(inner, 0, 1)
+        inner = np.clip(inner, 0.0, 1.0)
         length += float(np.arccos(inner))
 
     # Stability based on bubble energies

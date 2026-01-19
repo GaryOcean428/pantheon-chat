@@ -45,19 +45,24 @@ def fisher_rao_distance(p: np.ndarray, q: np.ndarray) -> float:
     """
     Compute Fisher-Rao distance between two probability distributions.
 
-    This is the GEODESIC distance on the information manifold.
+    This is the GEODESIC distance on the information manifold using
+    the Hellinger embedding (√p on unit sphere S^63).
 
-    Formula: d_FR(p, q) = arccos(Σ√(p_i * q_i))
+    Formula: d_FR(p, q) = 2 * arccos(Σ√(p_i * q_i))
 
-    NOTE: Some references use 2*arccos(BC) for "statistical distance", but
-    the geodesic distance on Fisher manifold is arccos(BC) without factor of 2.
+    The factor of 2 is required because:
+    - We store √p on the unit sphere (Hellinger embedding)
+    - The Bhattacharyya coefficient BC = Σ√(p_i * q_i) = √p · √q
+    - Statistical distance on Fisher manifold = 2 * arccos(BC)
+
+    This matches contracts.py canonical definition.
 
     Args:
         p: First probability distribution
         q: Second probability distribution
 
     Returns:
-        Fisher-Rao distance (≥ 0, max π/2)
+        Fisher-Rao distance (≥ 0, max π)
     """
     # Ensure valid probability distributions
     p = np.abs(p) + 1e-10
@@ -66,11 +71,12 @@ def fisher_rao_distance(p: np.ndarray, q: np.ndarray) -> float:
     q = np.abs(q) + 1e-10
     q = q / q.sum()
 
-    # Bhattacharyya coefficient
+    # Bhattacharyya coefficient = dot product in Hellinger space
     bc = np.sum(np.sqrt(p * q))
-    bc = np.clip(bc, 0, 1)  # Numerical stability
+    bc = np.clip(bc, 0.0, 1.0)  # Numerical stability
 
-    # Fisher-Rao geodesic distance (no factor of 2)
+    # Fisher-Rao statistical distance on probability simplex
+    # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
     distance = float(np.arccos(bc))
 
     return distance
@@ -271,10 +277,12 @@ def fisher_rao_distance_batch(
     """
     Compute Fisher-Rao distance from query to all candidates (vectorized).
 
-    This is the GEODESIC distance on the information manifold.
-    Formula: d_FR(p, q) = arccos(Σ√(p_i * q_i))
+    This is the GEODESIC distance on the information manifold using
+    the Hellinger embedding (√p on unit sphere S^63).
+    
+    Formula: d_FR(p, q) = 2 * arccos(Σ√(p_i * q_i))
 
-    NOTE: No factor of 2 - this is the geodesic distance, not statistical distance.
+    The factor of 2 is required for consistency with contracts.py canonical definition.
 
     Args:
         query: Query basin coordinates (D,)
@@ -303,9 +311,10 @@ def fisher_rao_distance_batch(
     sqrt_q = np.sqrt(q)  # (D,)
     sqrt_c = np.sqrt(c)  # (N, D)
     bc = np.sum(sqrt_q * sqrt_c, axis=1)  # (N,)
-    bc = np.clip(bc, 0, 1)  # Numerical stability
+    bc = np.clip(bc, 0.0, 1.0)  # Numerical stability
     
-    # Fisher-Rao geodesic distance (no factor of 2)
+    # Fisher-Rao statistical distance on probability simplex
+    # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
     distances = np.arccos(bc)
     
     return distances

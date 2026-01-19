@@ -139,11 +139,12 @@ def fisher_rao_distance(basin1: np.ndarray, basin2: np.ndarray, eps: float = EPS
     b1 = project_to_sphere(basin1, eps)
     b2 = project_to_sphere(basin2, eps)
     
-    # Dot product of unit vectors
+    # Dot product of unit vectors (Bhattacharyya coefficient for simplex)
     dot = np.sum(b1 * b2)
-    dot = np.clip(dot, -1.0, 1.0)
+    dot = np.clip(dot, 0.0, 1.0)
     
-    # Geodesic distance
+    # Fisher-Rao geodesic distance on probability simplex
+    # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
     return float(np.arccos(dot))
 
 

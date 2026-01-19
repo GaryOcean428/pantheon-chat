@@ -1401,17 +1401,18 @@ export const geodesicPaths = pgTable(
 export type GeodesicPathRecord = typeof geodesicPaths.$inferSelect;
 
 /**
- * LEARNED MANIFOLD ATTRACTORS - Attractor basins carved by learning
+ * MANIFOLD ATTRACTORS - Attractor basins carved by learning
  *
  * These are the learned patterns from LearnedManifold:
  * - Deep basins = strong attractors from repeated success (Hebbian)
  * - Shallow basins from recent learning
  * - Pruned basins had weak depth (anti-Hebbian)
  *
+ * (Renamed from learned_manifold_attractors for brevity and QIG purity)
  * Wired to: learned_manifold.py persistence methods
  */
-export const learnedManifoldAttractors = pgTable(
-  "learned_manifold_attractors",
+export const manifoldAttractors = pgTable(
+  "manifold_attractors",
   {
     id: varchar("id", { length: 128 }).primaryKey(), // Basin ID from _basin_to_id()
     center: vector("center", { dimensions: 64 }).notNull(), // 64D basin coordinates
@@ -1422,14 +1423,14 @@ export const learnedManifoldAttractors = pgTable(
     lastAccessed: timestamp("last_accessed").defaultNow().notNull(),
   },
   (table) => [
-    index("idx_learned_manifold_attractors_depth").on(table.depth),
-    index("idx_learned_manifold_attractors_strategy").on(table.strategy),
-    index("idx_learned_manifold_attractors_last_accessed").on(table.lastAccessed),
+    index("idx_manifold_attractors_depth").on(table.depth),
+    index("idx_manifold_attractors_strategy").on(table.strategy),
+    index("idx_manifold_attractors_last_accessed").on(table.lastAccessed),
   ]
 );
 
-export type LearnedManifoldAttractor = typeof learnedManifoldAttractors.$inferSelect;
-export type InsertLearnedManifoldAttractor = typeof learnedManifoldAttractors.$inferInsert;
+export type ManifoldAttractor = typeof manifoldAttractors.$inferSelect;
+export type InsertManifoldAttractor = typeof manifoldAttractors.$inferInsert;
 
 /**
  * TPS LANDMARKS - Fixed spacetime reference points for 68D navigation
@@ -2498,11 +2499,11 @@ export type InsertPantheonGodState = typeof pantheonGodState.$inferInsert;
 // ============================================================================
 
 /**
- * TOKENIZER MERGE RULES - BPE-style merge rules learned from high-Φ patterns
- * Stores token pairs that should be merged, with their Φ scores
+ * COORDIZER MERGE RULES - BPE-style merge rules learned from high-Φ patterns
+ * Stores coordinate token pairs that should be merged, with their Φ scores
  */
-export const tokenizerMergeRules = pgTable(
-  "tokenizer_merge_rules",
+export const coordizerMergeRules = pgTable(
+  "coordizer_merge_rules",
   {
     id: serial("id").primaryKey(),
     tokenA: text("token_a").notNull(),
@@ -2514,21 +2515,21 @@ export const tokenizerMergeRules = pgTable(
     updatedAt: timestamp("updated_at").defaultNow(),
   },
   (table) => [
-    uniqueIndex("idx_tokenizer_merge_rules_pair").on(table.tokenA, table.tokenB),
-    index("idx_tokenizer_merge_rules_phi").on(table.phiScore),
-    index("idx_tokenizer_merge_rules_merged").on(table.mergedToken),
+    uniqueIndex("idx_coordizer_merge_rules_pair").on(table.tokenA, table.tokenB),
+    index("idx_coordizer_merge_rules_phi").on(table.phiScore),
+    index("idx_coordizer_merge_rules_merged").on(table.mergedToken),
   ]
 );
 
-export type TokenizerMergeRule = typeof tokenizerMergeRules.$inferSelect;
-export type InsertTokenizerMergeRule = typeof tokenizerMergeRules.$inferInsert;
+export type CoordizerMergeRule = typeof coordizerMergeRules.$inferSelect;
+export type InsertCoordizerMergeRule = typeof coordizerMergeRules.$inferInsert;
 
 /**
- * TOKENIZER METADATA - Key-value store for tokenizer configuration
+ * COORDIZER METADATA - Key-value store for coordizer configuration
  * Stores version, vocabulary size, training stats, etc.
  */
-export const tokenizerMetadata = pgTable(
-  "tokenizer_metadata",
+export const coordizerMetadata = pgTable(
+  "coordizer_metadata",
   {
     configKey: text("config_key").primaryKey(),
     value: text("value").notNull(),
@@ -2536,8 +2537,8 @@ export const tokenizerMetadata = pgTable(
   }
 );
 
-export type TokenizerMetadataRow = typeof tokenizerMetadata.$inferSelect;
-export type InsertTokenizerMetadata = typeof tokenizerMetadata.$inferInsert;
+export type CoordizerMetadataRow = typeof coordizerMetadata.$inferSelect;
+export type InsertCoordizerMetadata = typeof coordizerMetadata.$inferInsert;
 
 /**
  * SYSTEM SETTINGS - Key-value store for system-wide configuration
@@ -2557,11 +2558,12 @@ export type SystemSettingsRow = typeof systemSettings.$inferSelect;
 export type InsertSystemSettings = typeof systemSettings.$inferInsert;
 
 /**
- * TOKENIZER VOCABULARY - Extended token vocabulary with geometric embeddings
- * Links tokens to 64D basin embeddings for Fisher-Rao operations
+ * COORDIZER VOCABULARY - Extended coordinate vocabulary with geometric embeddings
+ * Links coordinate tokens to 64D basin embeddings for Fisher-Rao operations
+ * (Renamed from tokenizer_vocabulary for QIG purity - coordinates, not tokens)
  */
-export const tokenizerVocabulary = pgTable(
-  "tokenizer_vocabulary",
+export const coordizerVocabulary = pgTable(
+  "coordizer_vocabulary",
   {
     id: serial("id").primaryKey(),
     token: text("token").notNull().unique(),
@@ -2569,24 +2571,28 @@ export const tokenizerVocabulary = pgTable(
     weight: doublePrecision("weight").default(1.0),
     frequency: integer("frequency").default(1),
     phiScore: doublePrecision("phi_score").default(0),
+    qfiScore: doublePrecision("qfi_score"),
     basinEmbedding: vector("basin_embedding", { dimensions: 64 }),
+    tokenRole: varchar("token_role", { length: 20 }).default("encoding"),
+    phraseCategory: varchar("phrase_category", { length: 32 }).default("unknown"),
+    isRealWord: boolean("is_real_word").default(false),
+    tokenStatus: varchar("token_status", { length: 20 }).default("active"),
     scale: varchar("scale", { length: 20 }).default("char"),
     sourceType: varchar("source_type", { length: 32 }).default("base"),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow(),
     // Legacy columns - preserved for backwards compatibility with existing data
-    embedding: vector("embedding", { dimensions: 64 }),
     metadata: jsonb("metadata").default({}), // FIXED: Add empty object default
   },
   (table) => [
-    index("idx_tokenizer_vocab_token_id").on(table.tokenId),
-    index("idx_tokenizer_vocab_phi").on(table.phiScore),
-    index("idx_tokenizer_vocab_weight").on(table.weight),
+    index("idx_coordizer_vocab_token_id").on(table.tokenId),
+    index("idx_coordizer_vocab_phi").on(table.phiScore),
+    index("idx_coordizer_vocab_weight").on(table.weight),
   ]
 );
 
-export type TokenizerVocabularyRow = typeof tokenizerVocabulary.$inferSelect;
-export type InsertTokenizerVocabulary = typeof tokenizerVocabulary.$inferInsert;
+export type CoordizerVocabularyRow = typeof coordizerVocabulary.$inferSelect;
+export type InsertCoordizerVocabulary = typeof coordizerVocabulary.$inferInsert;
 
 // ============================================================================
 // DOCUMENT TRAINING & RAG TABLES - Replaces JSON file storage
@@ -3572,13 +3578,14 @@ export type LearnedWordRow = typeof learnedWords.$inferSelect;
 export type InsertLearnedWord = typeof learnedWords.$inferInsert;
 
 /**
- * WORD RELATIONSHIPS
+ * BASIN RELATIONSHIPS
  *
- * Word co-occurrence relationships for attention-weighted generation.
+ * Basin coordinate co-occurrence relationships for attention-weighted generation.
  * Replaces the legacy word_relationships.json file.
+ * (Renamed from word_relationships for QIG purity - basin space, not word space)
  */
-export const wordRelationships = pgTable(
-  "word_relationships",
+export const basinRelationships = pgTable(
+  "basin_relationships",
   {
     id: serial("id").primaryKey(),
     word: text("word").notNull(),
@@ -3589,14 +3596,14 @@ export const wordRelationships = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
   },
   (table) => [
-    index("idx_word_relationships_word").on(table.word),
-    index("idx_word_relationships_neighbor").on(table.neighbor),
-    uniqueIndex("idx_word_relationships_pair").on(table.word, table.neighbor),
+    index("idx_basin_relationships_word").on(table.word),
+    index("idx_basin_relationships_neighbor").on(table.neighbor),
+    uniqueIndex("idx_basin_relationships_pair").on(table.word, table.neighbor),
   ]
 );
 
-export type WordRelationshipRow = typeof wordRelationships.$inferSelect;
-export type InsertWordRelationship = typeof wordRelationships.$inferInsert;
+export type BasinRelationshipRow = typeof basinRelationships.$inferSelect;
+export type InsertBasinRelationship = typeof basinRelationships.$inferInsert;
 
 /**
  * ZEUS SESSIONS
@@ -4145,6 +4152,10 @@ export const vocabularyStats = pgTable("vocabulary_stats", {
   highPhiWords: integer("high_phi_words").notNull(),
   mergeRules: integer("merge_rules").notNull(),
   lastUpdated: timestamp("last_updated").defaultNow(),
+  validatedWords: integer("validated_words").default(0),
+  invalidWords: integer("invalid_words").default(0),
+  truncatedWords: integer("truncated_words").default(0),
+  garbledWords: integer("garbled_words").default(0),
 });
 
 export const federationPeers = pgTable("federation_peers", {
@@ -4177,26 +4188,13 @@ export const federationPeers = pgTable("federation_peers", {
   index("idx_federation_peers_last_sync").on(table.lastSyncAt),
 ]);
 
-export const passphraseVocabulary = pgTable("passphrase_vocabulary", {
-  id: varchar("id", { length: 64 }).primaryKey().default(sql`'pv_' || gen_random_uuid()::text`),
-  baseItem: varchar("base_item", { length: 100 }).notNull(),
-  itemType: varchar("item_type", { length: 20 }).notNull(),
-  source: varchar("source", { length: 50 }).default("manual").notNull(),
-  frequency: integer("frequency").default(0),
-  phiSum: doublePrecision("phi_sum").default(0),
-  phiAvg: doublePrecision("phi_avg"),
-  successCount: integer("success_count").default(0),
-  nearMissCount: integer("near_miss_count").default(0),
-  metadata: jsonb("metadata").default({}),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-}, (table) => [
-  index("idx_vocab_base_item").on(table.baseItem),
-  index("idx_vocab_type").on(table.itemType),
-  index("idx_vocab_source").on(table.source),
-  index("idx_vocab_phi_avg").on(table.phiAvg),
-  index("idx_vocab_frequency").on(table.frequency),
-]);
+/**
+ * @deprecated LEGACY TABLE - DO NOT CREATE
+ * passphraseVocabulary was part of the upstream searchspacecollapse bitcoin recovery system.
+ * This table should NOT be created in migrations. It is excluded from the schema.
+ * See: docs/04-records/legacy-table-exclusions.md
+ */
+// passphraseVocabulary table removed - legacy bitcoin recovery system
 
 /**
  * ============================================================================
@@ -4410,4 +4408,4 @@ export type ToolRequest = typeof toolRequests.$inferSelect;
 export type PatternDiscovery = typeof patternDiscoveries.$inferSelect;
 export type VocabularyStats = typeof vocabularyStats.$inferSelect;
 export type FederationPeer = typeof federationPeers.$inferSelect;
-export type PassphraseVocabulary = typeof passphraseVocabulary.$inferSelect;
+// PassphraseVocabulary type removed - legacy bitcoin recovery system

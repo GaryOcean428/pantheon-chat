@@ -77,7 +77,9 @@ class CuriosityDrive:
         """
         if topic in self.interest_basins:
             basin = self.interest_basins[topic]
-            familiarity = float(np.sqrt(np.sum(basin ** 2)))  # L2 magnitude for familiarity score
+            # Use Fisher-Rao magnitude from uniform distribution
+            from qig_geometry import basin_magnitude
+            familiarity = float(basin_magnitude(basin))
             novelty = 1.0 - min(1.0, familiarity / 10.0)
         else:
             novelty = 1.0
@@ -151,29 +153,33 @@ class SearchRequestBatcher:
     
     def __init__(self):
         self._pending_requests: List[KernelToolRequest] = []
-        self._topic_embeddings: Dict[str, np.ndarray] = {}
+        self._topic_basins: Dict[str, np.ndarray] = {}
         self._result_cache: Dict[str, Dict] = {}
         self._cache_timestamps: Dict[str, float] = {}
         self._lock = threading.Lock()
     
-    def _compute_topic_embedding(self, query: str) -> np.ndarray:
-        """Compute simple topic embedding using word hash for similarity."""
+    def _compute_topic_basin(self, query: str) -> np.ndarray:
+        """Compute simple topic basin using word hash for similarity."""
         words = query.lower().split()[:20]
-        embedding = np.zeros(64)
+        basin_coords = np.zeros(64)
         for i, word in enumerate(words):
             idx = hash(word) % 64
-            embedding[idx] += 1.0 / (i + 1)
-        norm = np.linalg.norm(embedding)
-        return embedding / norm if norm > 0 else embedding
-    
-    def _fisher_distance(self, emb1: np.ndarray, emb2: np.ndarray) -> float:
-        """Compute Fisher-Rao distance between topic embeddings."""
-        emb1_safe = np.clip(emb1, 1e-10, None)
-        emb2_safe = np.clip(emb2, 1e-10, None)
-        emb1_norm = emb1_safe / np.sum(emb1_safe)
-        emb2_norm = emb2_safe / np.sum(emb2_safe)
-        bc_coeff = np.sum(np.sqrt(emb1_norm * emb2_norm))
-        bc_coeff = np.clip(bc_coeff, 0, 1)
+            basin_coords[idx] += 1.0 / (i + 1)
+        basin_sum = basin_coords.sum()
+        return basin_coords / basin_sum if basin_sum > 0 else basin_coords
+
+    def _fisher_distance(self, basin_a: np.ndarray, basin_b: np.ndarray) -> float:
+        """
+        Compute Fisher-Rao distance between topic basins.
+        
+        UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
+        """
+        basin_a_safe = np.clip(basin_a, 1e-10, None)
+        basin_b_safe = np.clip(basin_b, 1e-10, None)
+        basin_a_norm = basin_a_safe / np.sum(basin_a_safe)
+        basin_b_norm = basin_b_safe / np.sum(basin_b_safe)
+        bc_coeff = np.sum(np.sqrt(basin_a_norm * basin_b_norm))
+        bc_coeff = np.clip(bc_coeff, 0.0, 1.0)
         return np.arccos(bc_coeff)
     
     def add_request(self, request: KernelToolRequest) -> Optional[Dict]:
@@ -194,7 +200,7 @@ class SearchRequestBatcher:
             
             # Add to pending
             self._pending_requests.append(request)
-            self._topic_embeddings[request.query] = self._compute_topic_embedding(request.query)
+            self._topic_basins[request.query] = self._compute_topic_basin(request.query)
             return None
     
     def get_batch(self) -> List[List[KernelToolRequest]]:
@@ -216,16 +222,16 @@ class SearchRequestBatcher:
                 
                 batch = [req1]
                 processed.add(i)
-                emb1 = self._topic_embeddings.get(req1.query)
+                basin_a = self._topic_basins.get(req1.query)
                 
-                if emb1 is not None:
+                if basin_a is not None:
                     for j, req2 in enumerate(self._pending_requests):
                         if j in processed or j <= i:
                             continue
                         
-                        emb2 = self._topic_embeddings.get(req2.query)
-                        if emb2 is not None:
-                            dist = self._fisher_distance(emb1, emb2)
+                        basin_b = self._topic_basins.get(req2.query)
+                        if basin_b is not None:
+                            dist = self._fisher_distance(basin_a, basin_b)
                             if dist < self.FISHER_DISTANCE_THRESHOLD:
                                 batch.append(req2)
                                 processed.add(j)
@@ -273,7 +279,7 @@ class SearchRequestBatcher:
         with self._lock:
             flushed = list(self._pending_requests)
             self._pending_requests.clear()
-            self._topic_embeddings.clear()
+            self._topic_basins.clear()
             return flushed
     
     def cache_result(self, query: str, result: Dict):
@@ -297,7 +303,7 @@ class SearchRequestBatcher:
             return {
                 'pending_count': len(self._pending_requests),
                 'cache_size': len(self._result_cache),
-                'topic_embeddings': len(self._topic_embeddings)
+                'topic_basins': len(self._topic_basins)
             }
 
 

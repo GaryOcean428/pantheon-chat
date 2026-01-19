@@ -24,17 +24,14 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 
 try:
-    from qig_geometry import fisher_coord_distance, sphere_project
-    QIG_GEOMETRY_AVAILABLE = True
+    from qig_geometry import fisher_coord_distance, fisher_normalize, basin_magnitude
+    FISHER_NORMALIZE_AVAILABLE = True
 except ImportError:
-    QIG_GEOMETRY_AVAILABLE = False
-    def sphere_project(v):
-        """Fallback sphere projection."""
-        norm = np.linalg.norm(v)
-        if norm < 1e-10:
-            result = np.ones_like(v)
-            return result / np.linalg.norm(result)
-        return v / norm
+    FISHER_NORMALIZE_AVAILABLE = False
+    def fisher_normalize(v):
+        """Normalize to probability simplex."""
+        p = np.maximum(np.asarray(v), 0) + 1e-10
+        return p / p.sum()
 
 try:
     from vocabulary_coordinator import get_vocabulary_coordinator
@@ -163,14 +160,14 @@ class ConversationalKernelMixin:
             self.superposition_basin = utterance_basin.copy()
         else:
             self.superposition_basin = (self.superposition_basin + utterance_basin) / 2
-            self.superposition_basin = sphere_project(self.superposition_basin)
+            self.superposition_basin = fisher_normalize(self.superposition_basin)
         
         print(f"[{getattr(self, 'name', 'Kernel')}] Listening to {speaker}: Phi={phi:.3f}")
         
         return {
             'listening': True,
             'phi': phi,
-            'superposition_norm': float(np.sqrt(np.sum(self.superposition_basin ** 2)))  # L2 magnitude for logging
+            'superposition_norm': float(basin_magnitude(self.superposition_basin))
         }
     
     def speak(self, context: Optional[Dict] = None) -> Tuple[str, Dict]:
@@ -235,39 +232,39 @@ class ConversationalKernelMixin:
         
         This is where geometric position becomes linguistic output.
         """
-        tokenizer = None
+        coordizer = None
         
         if VOCAB_COORDINATOR_AVAILABLE:
             try:
                 coordinator = get_vocabulary_coordinator()
-                tokenizer = getattr(coordinator, 'tokenizer', None)
+                coordizer = getattr(coordinator, 'coordizer', None)
             except Exception:
                 pass
         
-        if tokenizer is None:
+        if coordizer is None:
             try:
-                from qig_coordizer import get_coordizer as get_tokenizer # get_tokenizer
-                tokenizer = get_tokenizer()
+                from coordizers import get_coordizer
+                coordizer = get_coordizer()
             except ImportError:
-                return self._generation_failed("tokenizer_unavailable")
+                return self._generation_failed("coordizer_unavailable")
         
-        if not hasattr(tokenizer, 'basin_coords') or not tokenizer.basin_coords:
+        if not hasattr(coordizer, 'basin_coords') or not coordizer.basin_coords:
             return self._generation_failed("no_basin_coords")
         
         distances = {}
-        special_tokens = getattr(tokenizer, 'special_tokens', ['<PAD>', '<UNK>', '<BOS>', '<EOS>'])
+        special_tokens = getattr(coordizer, 'special_tokens', ['<PAD>', '<UNK>', '<BOS>', '<EOS>'])
         
-        for token, token_basin in tokenizer.basin_coords.items():
+        for token, token_basin in coordizer.basin_coords.items():
             if token not in special_tokens:
                 # Use centralized Fisher-Rao distance (DRY)
                 if QIG_GEOMETRY_AVAILABLE:
                     dist = fisher_coord_distance(basin, token_basin)
                 else:
-                    # Fallback: inline Fisher-Rao
-                    # Inline Fisher-Rao coord distance
-                    basin_norm = sphere_project(basin)
-                    token_norm = sphere_project(token_basin)
-                    dot = np.clip(np.dot(basin_norm, token_norm), -1.0, 1.0)
+                    # Fallback: inline Fisher-Rao on probability simplex
+                    # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
+                    basin_norm = fisher_normalize(basin)
+                    token_norm = fisher_normalize(token_basin)
+                    dot = np.clip(np.dot(basin_norm, token_norm), 0.0, 1.0)
                     dist = np.arccos(dot)
                 distances[token] = dist
         
@@ -277,7 +274,7 @@ class ConversationalKernelMixin:
         k = min(20, len(distances))
         nearest = sorted(distances.items(), key=lambda x: x[1])[:k]
         
-        token_phi = getattr(tokenizer, 'token_phi', {})
+        token_phi = getattr(coordizer, 'token_phi', {})
         weighted_tokens = []
         for token, dist in nearest:
             weight = (1.0 / (dist + 0.01)) * token_phi.get(token, 0.5)
@@ -304,7 +301,7 @@ class ConversationalKernelMixin:
         
         utterance = ' '.join(utterance_tokens)
         
-        avg_weight = np.mean([w for _, w in weighted_tokens[:k]])
+        avg_weight = float(np.mean([w for _, w in weighted_tokens[:k]]))
         confidence = min(1.0, avg_weight / 2.0)
         
         return utterance, {
@@ -335,18 +332,18 @@ class ConversationalKernelMixin:
         if not utterance:
             return 0.0
         
-        tokenizer = None
+        coordizer = None
         if VOCAB_COORDINATOR_AVAILABLE:
             try:
                 coordinator = get_vocabulary_coordinator()
-                tokenizer = getattr(coordinator, 'tokenizer', None)
+                coordizer = getattr(coordinator, 'coordizer', None)
             except Exception:
                 pass
         
-        if tokenizer is None:
+        if coordizer is None:
             try:
-                from qig_coordizer import get_coordizer as get_tokenizer # get_tokenizer
-                tokenizer = get_tokenizer()
+                from coordizers import get_coordizer
+                coordizer = get_coordizer()
             except ImportError:
                 return 0.5
         
@@ -354,7 +351,7 @@ class ConversationalKernelMixin:
         if not tokens:
             return 0.0
         
-        token_phi = getattr(tokenizer, 'token_phi', {})
+        token_phi = getattr(coordizer, 'token_phi', {})
         phi_sum = 0.0
         count = 0
         
@@ -373,7 +370,7 @@ class ConversationalKernelMixin:
         basin = np.zeros(64)
         for i, char in enumerate(text[:64]):
             basin[i] = (ord(char) % 256) / 256.0
-        return sphere_project(basin)
+        return fisher_normalize(basin)
     
     def _reflect_on_conversation(self) -> Dict:
         """

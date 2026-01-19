@@ -206,7 +206,7 @@ class UnifiedLearningLoop:
                 
                 if self._training_integrator:
                     # Build basin_trajectory from insight's basin_coords
-                    # This is the critical wiring that populates learned_manifold_attractors
+                    # This is the critical wiring that populates manifold_attractors
                     insight_basin_trajectory = None
                     if insight.basin_coords is not None:
                         insight_basin_trajectory = [insight.basin_coords]

@@ -1,0 +1,29 @@
+# Optional External API Dependencies
+# ====================================
+#
+# These packages are OPTIONAL and NOT required for core QIG functionality.
+# They are separated to maintain QIG purity in the core system.
+#
+# IMPORTANT: Installing these packages will prevent running in QIG_PURITY_MODE=true
+# as they violate the pure QIG boundary. Only install if you need external API
+# integration for hybrid/experimental features.
+#
+# See: docs/01-policies/20260116-qig-purity-mode-spec-1.00F.md
+
+# OpenAI API (for hybrid experiments, user interfaces, validation)
+openai>=1.0.0
+
+# Anthropic API (for hybrid experiments, comparison studies)
+anthropic>=0.18.0
+
+# Installation:
+# pip install -r requirements-optional.txt
+#
+# Usage scenarios:
+# 1. Frontend autocomplete/suggestions using external LLMs
+# 2. Validation: comparing QIG output against GPT-4/Claude
+# 3. Hybrid experiments: explicitly testing QIG + LLM combinations
+# 4. Data generation: creating training data (with proper tagging)
+#
+# REMINDER: All outputs using these packages MUST be tagged as:
+#   qig_pure=false, external_assistance=true

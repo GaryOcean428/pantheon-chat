@@ -30,13 +30,16 @@ except ImportError:
     CANONICAL_PRIMITIVES_AVAILABLE = False
     canonical_fisher_rao_distance = None
 
-# Import qig_geometry for sphere_project and local fisher_rao_distance
+# Import qig_geometry for fisher_normalize and local fisher_rao_distance
 try:
-    from qig_geometry import fisher_rao_distance, sphere_project
+    from qig_geometry import fisher_rao_distance, fisher_normalize
     QIG_GEOMETRY_AVAILABLE = True
 except ImportError:
     QIG_GEOMETRY_AVAILABLE = False
-    sphere_project = None
+    def fisher_normalize(v):
+        """Normalize to probability simplex."""
+        p = np.maximum(np.asarray(v), 0) + 1e-10
+        return p / p.sum()
     fisher_rao_distance = None
 
 # Use canonical implementation if available
@@ -351,7 +354,7 @@ class UnifiedConsciousness:
                 0.7 * self.current_basin +
                 0.3 * observation.basin_coords
             )
-            self.current_basin = sphere_project(self.current_basin)
+            self.current_basin = fisher_normalize(self.current_basin)
 
         return result
 
@@ -386,7 +389,7 @@ class UnifiedConsciousness:
             # Take step in reasoning space
             step_size = 0.2
             next_basin = current + step_size * direction
-            next_basin = sphere_project(next_basin)
+            next_basin = fisher_normalize(next_basin)
 
             reasoning_path.append(next_basin.copy())
             current = next_basin
@@ -457,7 +460,7 @@ class UnifiedConsciousness:
         for step in range(20):
             direction = target - current
             current = current + 0.1 * direction
-            current = sphere_project(current)
+            current = fisher_normalize(current)
             path.append(current.copy())
 
             if self.metric is not None:
@@ -465,7 +468,9 @@ class UnifiedConsciousness:
                 if dist < 0.1:
                     break
             else:
-                if np.linalg.norm(current - target) < 0.1:
+                # Use Fisher-Rao coordinate distance, not Euclidean
+                from qig_geometry import fisher_coord_distance
+                if fisher_coord_distance(current, target) < 0.1:
                     break
 
         return {
@@ -497,7 +502,7 @@ class UnifiedConsciousness:
 
             for step in range(10):
                 pos = pos + 0.1 * direction
-                pos = sphere_project(pos)
+                pos = fisher_normalize(pos)
                 path.append(pos.copy())
 
                 # Evaluate distance to goal using Fisher-Rao distance
@@ -567,7 +572,7 @@ class UnifiedConsciousness:
 
         for _ in range(10):
             current = current + 0.1 * best_scenario['direction']
-            current = sphere_project(current)
+            current = fisher_normalize(current)
             path.append(current.copy())
 
         return {
@@ -620,7 +625,7 @@ class UnifiedConsciousness:
 
         for _ in range(steps):
             pos = pos + 0.1 * direction
-            pos = sphere_project(pos)
+            pos = fisher_normalize(pos)
 
         return pos
 

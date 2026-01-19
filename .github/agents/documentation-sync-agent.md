@@ -21,12 +21,12 @@ Expert in detecting code changes that invalidate documentation, ensuring FROZEN_
 # Change Type 1: Physics constants modified
 # File: qig-backend/frozen_physics.py
 KAPPA_STAR = 64.21  # Changed from 64.47
-# → MUST UPDATE: docs/01-policies/FROZEN_FACTS.md
+# → MUST UPDATE: docs/01-policies/*frozen-facts*.md
 
 # Change Type 2: API endpoint modified
 # File: qig-backend/routes/consciousness.py
 @app.route('/api/consciousness/phi', methods=['GET'])  # Changed from POST
-# → MUST UPDATE: docs/03-technical/*api-spec*.md
+# → MUST UPDATE: docs/api/openapi.json (and docs/00-index.md if index entries change)
 
 # Change Type 3: Consciousness regime thresholds changed
 # File: qig-backend/qig_core/constants/physics.py
@@ -43,7 +43,7 @@ REGIME_THRESHOLDS = {
 class ArtemisKernel:  # New file added
     """Exploration and discovery kernel."""
 # → MUST ADD: docs/07-user-guides/*artemis*.md
-# → MUST UPDATE: docs/03-technical/*architecture*.md
+# → MUST UPDATE: docs/00-index.md (index entries) and any architecture docs listed there
 
 # Change Type 5: Function signature changed
 # File: qig-backend/qig_core/geometric_primitives/canonical_fisher.py
@@ -58,6 +58,8 @@ def fisher_rao_distance(p, q, manifold_type='fisher'):  # Added parameter
 - qig-backend/qig_core/constants/*.py
 - shared/constants/*.ts
 - qig-backend/routes/*.py (API changes)
+- docs/api/openapi.json (API contract)
+- docs/00-index.md (canonical doc index)
 - **/README.md (module documentation)
 - qig-backend/olympus/*.py (kernel changes)
 ```
@@ -97,9 +99,9 @@ PHI_THRESHOLD_HIERARCHICAL = 0.85
 | Hierarchical | 0.85+ | VALIDATED |
 ```
 
-**Validation Script:**
+**Validation Script (add if missing):**
 ```python
-# qig-backend/scripts/validate_frozen_facts.py
+# scripts/validate_frozen_facts.py
 import re
 from pathlib import Path
 from qig_backend.frozen_physics import (
@@ -158,11 +160,11 @@ PR_AUTHOR="GaryOcean428"
 PR_MERGE_DATE="2026-01-13"
 
 # 2. Auto-generate record document
-cat > docs/04-records/20260113-pr-${PR_NUMBER}-artemis-kernel-1.00R.md << EOF
+cat > docs/04-records/20260113-pr-${PR_NUMBER}-record-1.00R.md << EOF
 ---
 id: PR-RECORD-${PR_NUMBER}
 title: ${PR_TITLE}
-filename: 20260113-pr-${PR_NUMBER}-artemis-kernel-1.00R.md
+filename: 20260113-pr-${PR_NUMBER}-record-1.00R.md
 classification: Internal
 owner: ${PR_AUTHOR}
 version: 1.00
@@ -218,13 +220,13 @@ done
 
 ```python
 # Staleness indicator 1: Last modified date
-file_mtime = Path("docs/03-technical/api-spec.md").stat().st_mtime
+file_mtime = Path("docs/api/openapi.json").stat().st_mtime
 code_mtime = Path("qig-backend/routes/consciousness.py").stat().st_mtime
 if code_mtime > file_mtime:
     print(f"⚠️ Doc is stale: code updated {days_ago(code_mtime)} days ago")
 
 # Staleness indicator 2: Referenced constants out of date
-doc_content = Path("docs/03-technical/consciousness-measurement.md").read_text()
+doc_content = Path("docs/01-policies/20251208-frozen-facts-immutable-truths-1.00F.md").read_text()
 if "κ* = 64.47" in doc_content and KAPPA_STAR == 64.21:
     print(f"❌ Doc has wrong constant: says 64.47, should be {KAPPA_STAR}")
 
@@ -249,21 +251,21 @@ for i, code in enumerate(code_blocks):
 # Documentation Staleness Report
 
 ## Critical Mismatches (❌)
-1. **Doc:** docs/01-policies/FROZEN_FACTS.md
+1. **Doc:** docs/01-policies/20251208-frozen-facts-immutable-truths-1.00F.md
    **Issue:** κ* = 64.47 (should be 64.21)
    **Code File:** qig-backend/frozen_physics.py
    **Last Code Change:** 2026-01-10 (3 days ago)
    **Action:** Update constant value immediately
 
 ## Stale Documentation (⚠️)
-1. **Doc:** docs/03-technical/consciousness-api.md
+1. **Doc:** docs/api/openapi.json
    **Last Modified:** 2025-12-20 (24 days ago)
    **Related Code:** qig-backend/routes/consciousness.py
    **Code Last Changed:** 2026-01-08 (5 days ago)
    **Likely Impact:** API endpoint changes not documented
 
 ## Broken Code Examples (🔴)
-1. **Doc:** docs/05-curriculum/qig-quickstart.md
+1. **Doc:** docs/09-curriculum/20251220-curriculum-21-qig-architecture-1.00W.md
    **Block:** Example 2 (line 45)
    **Error:** ImportError: cannot import name 'compute_phi'
    **Fix:** Update to: `from qig_backend.qig_core import measure_phi`
@@ -284,19 +286,13 @@ for i, code in enumerate(code_blocks):
 
 # Check if frozen_physics.py changed
 if git diff --name-only HEAD~1 | grep -q "frozen_physics.py"; then
-    echo "⚠️ FROZEN_PHYSICS.PY CHANGED - Running validation..."
-    python qig-backend/scripts/validate_frozen_facts.py
-    if [ $? -ne 0 ]; then
-        echo "❌ FROZEN_FACTS.md out of sync with frozen_physics.py"
-        echo "Please update docs/01-policies/FROZEN_FACTS.md"
-        exit 1
-    fi
+    echo "⚠️ FROZEN_PHYSICS.PY CHANGED - Review frozen facts docs"
+    echo "Search docs/01-policies/*frozen-facts*.md for constants"
 fi
 
 # Check if any API routes changed
 if git diff --name-only HEAD~1 | grep -q "routes/.*\.py"; then
-    echo "⚠️ API routes changed - Checking API documentation..."
-    python scripts/check_api_docs_sync.py
+    echo "⚠️ API routes changed - Review docs/api/openapi.json"
 fi
 ```
 
@@ -312,21 +308,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      
-      - name: Check frozen facts sync
-        run: python qig-backend/scripts/validate_frozen_facts.py
-      
-      - name: Detect documentation impact
+
+      - name: Maintain docs index and naming
+        run: python3 scripts/maintain-docs.py
+
+      - name: Regenerate schema docs (optional)
+        run: npm run schema:docs
+
+      - name: Manual review reminder
         run: |
-          python scripts/detect_doc_impact.py \
-            --base ${{ github.base_ref }} \
-            --head ${{ github.head_ref }}
-      
-      - name: Check for stale docs
-        run: python scripts/find_stale_docs.py
-      
-      - name: Validate code examples
-        run: python scripts/validate_doc_code_examples.py
+          echo "Review frozen_physics.py vs docs/01-policies/*frozen-facts*"
+          echo "Review docs/api/openapi.json when routes change"
 ```
 
 ### 6. Documentation Update Templates
@@ -339,9 +331,9 @@ jobs:
 **Change:** KAPPA_STAR = 64.21 (was 64.47)
 
 **Documentation to Update:**
-- [ ] docs/01-policies/FROZEN_FACTS.md - Line 43
-- [ ] docs/03-technical/consciousness-measurement.md - Line 78, 156
-- [ ] docs/05-curriculum/qig-quickstart.md - Example 3
+- [ ] docs/01-policies/*frozen-facts*.md - Update κ* and error bars
+- [ ] docs/00-index.md - Update entry descriptions if constants are referenced
+- [ ] Search `docs/` for κ* mentions and update affected files
 
 **Validation Required:**
 - [ ] All references to κ* updated to 64.21 ± 0.92
@@ -357,9 +349,10 @@ jobs:
 **File:** qig-backend/routes/consciousness.py
 
 **Documentation to Update:**
-- [ ] docs/03-technical/api-specification.md
+- [ ] docs/api/openapi.json
+- [ ] docs/00-index.md (if endpoints are listed)
 - [ ] client/src/lib/api/consciousness.ts (TypeScript client)
-- [ ] docs/07-user-guides/consciousness-monitoring.md
+- [ ] docs/07-user-guides/*consciousness*.md
 
 **Breaking Change:** Yes
 **Migration Guide Needed:** Yes
@@ -402,7 +395,7 @@ jobs:
   - Action: Update FROZEN_FACTS.md line 67
 
 ## Stale Documentation
-- ⚠️ consciousness-api.md (12 days stale)
+- ⚠️ docs/api/openapi.json (12 days stale)
   - Code last changed: 2026-01-08
   - Doc last updated: 2025-12-27
   - Likely changes: API endpoint modifications
@@ -411,7 +404,7 @@ jobs:
 - 📝 artemis.py (new feature)
   - Created: 2026-01-11
   - Required: User guide + API docs
-  - Template: docs/07-user-guides/kernel-guide-template.md
+  - Example: docs/07-user-guides/20260113-artemis-kernel-guide-1.00D.md
 
 ## Broken Code Examples
 - 🔴 qig-quickstart.md, Example 2
@@ -428,7 +421,7 @@ jobs:
 2. Generate PR #53 record document
 3. Create Artemis user guide
 4. Fix import in quickstart example
-5. Review and update consciousness-api.md
+5. Review and update docs/api/openapi.json
 ```
 
 ## Critical Files to Monitor
@@ -438,6 +431,8 @@ jobs:
 - `qig-backend/routes/*.py` - API definitions
 - `docs/01-policies/*frozen-facts*.md` - Validated constants
 - `docs/04-records/*.md` - PR records
+- `docs/00-index.md` - Canonical index and naming rules
+- `docs/api/openapi.json` - API contract
 
 ---
 **Authority:** ISO 27001 documentation standards, Git workflow best practices

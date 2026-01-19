@@ -734,6 +734,18 @@ feedbackLoopManager = FeedbackLoopManager(geometricMemory)
 app = Flask(__name__)
 CORS(app)  # Allow CORS for Node.js server
 
+# QIG Purity Enforcement (ChatGPT recommendation D2)
+# When QIG_PURITY_MODE=1, this blocks forbidden imports to ensure coherence assessments are uncontaminated
+try:
+    from qig_geometry import enforce_purity_startup, check_purity_mode
+    enforce_purity_startup()
+    if check_purity_mode():
+        logger.info("[QIG Purity] STRICT MODE ENABLED - forbidden imports will be blocked")
+    else:
+        logger.debug("[QIG Purity] Relaxed mode - violations logged but allowed")
+except ImportError as e:
+    logger.warning(f"[QIG Purity] Could not import purity enforcement: {e}")
+
 # Register Olympus Pantheon blueprint
 if OLYMPUS_AVAILABLE:
     app.register_blueprint(olympus_app, url_prefix='/olympus')
@@ -755,7 +767,7 @@ try:
 except ImportError as e:
     print(f"[WARN] Could not import routes barrel: {e}")
 
-# Register QIGGraph integration blueprint (imports from qig-tokenizer)
+# Register QIGGraph integration blueprint (imports from qig-coordizer)
 try:
     from qiggraph_integration import create_qiggraph_blueprint, QIGGRAPH_AVAILABLE
     qiggraph_bp = create_qiggraph_blueprint()
@@ -763,7 +775,7 @@ try:
     if QIGGRAPH_AVAILABLE:
         print("[INFO] QIGGraph v2 integration registered at /api/qiggraph")
     else:
-        print("[INFO] QIGGraph blueprint registered (fallback mode - qig-tokenizer not installed)")
+        print("[INFO] QIGGraph blueprint registered (fallback mode - qig-coordizer not installed)")
 except ImportError as e:
     print(f"[WARN] Could not import QIGGraph integration: {e}")
 
@@ -1087,24 +1099,25 @@ class GroundingDetector:
         nearest_concept = None
 
         for concept_id, concept_basin in self.known_concepts.items():
-            # Fisher-Rao distance: d = arccos(p·q) for unit vectors
+            # Fisher-Rao distance: d = arccos(p·q) for probability simplex
             try:
-                from qig_geometry import sphere_project
+                from qig_geometry import fisher_normalize
             except ImportError:
-                def sphere_project(v):
-                    norm = np.linalg.norm(v)
-                    return v / norm if norm > 1e-10 else np.ones_like(v) / np.sqrt(len(v))
-            query_norm = sphere_project(query_basin)
-            concept_norm = sphere_project(concept_basin)
-            dot = np.clip(np.dot(query_norm, concept_norm), -1.0, 1.0)
+                def fisher_normalize(v):
+                    p = np.maximum(np.asarray(v), 0) + 1e-10
+                    return p / p.sum()
+            query_norm = fisher_normalize(query_basin)
+            concept_norm = fisher_normalize(concept_basin)
+            dot = np.clip(np.dot(query_norm, concept_norm), 0.0, 1.0)
+            # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
             distance = np.arccos(dot)
 
             if distance < min_distance:
                 min_distance = distance
                 nearest_concept = concept_id
 
-        # Grounding metric: Fisher-Rao similarity (1 - d/π)
-        G = 1.0 - min_distance / np.pi
+        # Grounding metric: Fisher-Rao similarity (1 - d/(π/2) for simplex)
+        G = 1.0 - min_distance / (np.pi / 2.0)
 
         return float(G), nearest_concept
 
@@ -4017,13 +4030,13 @@ def measure_beta_attention():
 
 
 # ===========================================================================
-# TOKENIZER ENDPOINTS
+# COORDIZER ENDPOINTS
 # ===========================================================================
 
-@app.route('/tokenizer/update', methods=['POST'])
+@app.route('/coordizer/update', methods=['POST'])
 def update_tokenizer():
     """
-    Update tokenizer with vocabulary observations from Node.js.
+    Update coordizer with vocabulary observations from Node.js.
 
     Request body:
     {
@@ -4041,7 +4054,7 @@ def update_tokenizer():
     }
     """
     try:
-        from qig_coordizer import get_coordizer as get_tokenizer, update_tokenizer_from_observations
+        from coordizers import get_coordizer
 
         data = request.json or {}
         observations = data.get('observations', [])
@@ -4052,15 +4065,15 @@ def update_tokenizer():
                 'error': 'No observations provided'
             }), 400
 
-        new_tokens, weights_updated = update_tokenizer_from_observations(observations)
-        tokenizer = get_tokenizer()
+        coordizer = get_coordizer()
+        new_tokens, weights_updated = coordizer.add_vocabulary_observations(observations)
 
         return jsonify({
             'success': True,
             'newTokens': new_tokens,
             'weightsUpdated': weights_updated,
-            'totalVocab': len(tokenizer.vocab),
-            'mergeRules': len(tokenizer.merge_rules)
+            'totalVocab': len(coordizer.vocab),
+            'mergeRules': len(coordizer.merge_rules)
         })
 
     except Exception as e:
@@ -4070,7 +4083,7 @@ def update_tokenizer():
         }), 500
 
 
-@app.route('/tokenizer/encode', methods=['POST'])
+@app.route('/coordizer/encode', methods=['POST'])
 def tokenizer_encode():
     """
     Encode text to token ids.
@@ -4088,7 +4101,7 @@ def tokenizer_encode():
     }
     """
     try:
-        from qig_coordizer import get_coordizer as get_tokenizer
+        from coordizers import get_coordizer
 
         data = request.json or {}
         text = data.get('text', '')
@@ -4099,8 +4112,8 @@ def tokenizer_encode():
                 'error': 'No text provided'
             }), 400
 
-        tokenizer = get_tokenizer()
-        tokens = tokenizer.encode(text)
+        coordizer = get_coordizer()
+        tokens = coordizer.encode(text)
 
         return jsonify({
             'success': True,
@@ -4115,7 +4128,7 @@ def tokenizer_encode():
         }), 500
 
 
-@app.route('/tokenizer/decode', methods=['POST'])
+@app.route('/coordizer/decode', methods=['POST'])
 def tokenizer_decode():
     """
     Decode token ids to text.
@@ -4132,7 +4145,7 @@ def tokenizer_decode():
     }
     """
     try:
-        from qig_coordizer import get_coordizer as get_tokenizer
+        from coordizers import get_coordizer
 
         data = request.json or {}
         tokens = data.get('tokens', [])
@@ -4143,8 +4156,8 @@ def tokenizer_decode():
                 'error': 'No tokens provided'
             }), 400
 
-        tokenizer = get_tokenizer()
-        text = tokenizer.decode(tokens)
+        coordizer = get_coordizer()
+        text = coordizer.decode(tokens)
 
         return jsonify({
             'success': True,
@@ -4158,7 +4171,7 @@ def tokenizer_decode():
         }), 500
 
 
-@app.route('/tokenizer/basin', methods=['POST'])
+@app.route('/coordizer/basin', methods=['POST'])
 def tokenizer_basin():
     """
     Compute basin coordinates for phrase.
@@ -4176,7 +4189,7 @@ def tokenizer_basin():
     }
     """
     try:
-        from qig_coordizer import get_coordizer as get_tokenizer
+        from coordizers import get_coordizer
 
         data = request.json or {}
         phrase = data.get('phrase', '')
@@ -4187,8 +4200,8 @@ def tokenizer_basin():
                 'error': 'No phrase provided'
             }), 400
 
-        tokenizer = get_tokenizer()
-        basin = tokenizer.compute_phrase_basin(phrase)
+        coordizer = get_coordizer()
+        basin = coordizer.compute_phrase_basin(phrase)
 
         return jsonify({
             'success': True,
@@ -4203,7 +4216,7 @@ def tokenizer_basin():
         }), 500
 
 
-@app.route('/tokenizer/high-phi', methods=['GET'])
+@app.route('/coordizer/high-phi', methods=['GET'])
 def tokenizer_high_phi():
     """
     Get tokens with highest Φ scores.
@@ -4222,13 +4235,13 @@ def tokenizer_high_phi():
     }
     """
     try:
-        from qig_coordizer import get_coordizer as get_tokenizer
+        from coordizers import get_coordizer
 
         min_phi = float(request.args.get('min_phi', 0.5))
         top_k = int(request.args.get('top_k', 100))
 
-        tokenizer = get_tokenizer()
-        high_phi = tokenizer.get_high_phi_tokens(min_phi, top_k)
+        coordizer = get_coordizer()
+        high_phi = coordizer.get_high_phi_tokens(min_phi, top_k)
 
         return jsonify({
             'success': True,
@@ -4243,10 +4256,10 @@ def tokenizer_high_phi():
         }), 500
 
 
-@app.route('/tokenizer/export', methods=['GET'])
+@app.route('/coordizer/export', methods=['GET'])
 def tokenizer_export():
     """
-    Export tokenizer for training.
+    Export coordizer for training.
 
     Response:
     {
@@ -4262,10 +4275,10 @@ def tokenizer_export():
     }
     """
     try:
-        from qig_coordizer import get_coordizer as get_tokenizer
+        from coordizers import get_coordizer
 
-        tokenizer = get_tokenizer()
-        export_data = tokenizer.export_for_training()
+        coordizer = get_coordizer()
+        export_data = coordizer.export_for_training()
 
         return jsonify({
             'success': True,
@@ -4279,10 +4292,10 @@ def tokenizer_export():
         }), 500
 
 
-@app.route('/tokenizer/status', methods=['GET'])
+@app.route('/coordizer/status', methods=['GET'])
 def tokenizer_status():
     """
-    Get tokenizer status.
+    Get coordizer status.
 
     Response:
     {
@@ -4293,12 +4306,12 @@ def tokenizer_status():
     }
     """
     try:
-        from qig_coordizer import get_coordizer as get_tokenizer
+        from coordizers import get_coordizer
 
-        tokenizer = get_tokenizer()
-        token_phi = getattr(tokenizer, 'token_phi', {})
-        token_weights = getattr(tokenizer, 'token_weights', {})
-        vocab = getattr(tokenizer, 'vocab', {})
+        coordizer = get_coordizer()
+        token_phi = getattr(coordizer, 'token_phi', {})
+        token_weights = getattr(coordizer, 'token_weights', {})
+        vocab = getattr(coordizer, 'vocab', {})
         
         high_phi = [p for p in token_phi.values() if p >= 0.5]
         avg_phi = sum(token_phi.values()) / max(len(token_phi), 1)
@@ -4318,10 +4331,10 @@ def tokenizer_status():
         }), 500
 
 
-@app.route('/tokenizer/merges', methods=['GET'])
+@app.route('/coordizer/merges', methods=['GET'])
 def tokenizer_merges():
     """
-    Get learned BPE merge rules from tokenizer.
+    Get learned BPE merge rules from coordizer.
 
     Used by TypeScript to sync merge rules from Python.
 
@@ -4334,12 +4347,12 @@ def tokenizer_merges():
     }
     """
     try:
-        from qig_coordizer import get_coordizer as get_tokenizer
+        from coordizers import get_coordizer
 
-        tokenizer = get_tokenizer()
+        coordizer = get_coordizer()
 
-        merge_rules = [[a, b] for a, b in tokenizer.merge_rules]
-        merge_scores = {f"{a}|{b}": score for (a, b), score in tokenizer.merge_scores.items()}
+        merge_rules = [[a, b] for a, b in coordizer.merge_rules]
+        merge_scores = {f"{a}|{b}": score for (a, b), score in coordizer.merge_scores.items()}
 
         return jsonify({
             'success': True,
@@ -4384,7 +4397,7 @@ def generate_text():
     }
     """
     try:
-        from qig_coordizer import get_coordizer as get_tokenizer
+        from coordizers import get_coordizer
 
         data = request.json or {}
         prompt = data.get('prompt', '')
@@ -4394,8 +4407,8 @@ def generate_text():
         top_p = data.get('top_p', 0.9)
         allow_silence = data.get('allow_silence', True)
 
-        tokenizer = get_tokenizer()
-        result = tokenizer.generate_text(
+        coordizer = get_coordizer()
+        result = coordizer.generate_text(
             prompt=prompt,
             max_tokens=max_tokens,
             temperature=temperature,
@@ -4440,7 +4453,7 @@ def generate_response():
     }
     """
     try:
-        from qig_coordizer import get_coordizer as get_tokenizer
+        from coordizers import get_coordizer
 
         data = request.json or {}
         context = data.get('context', '')
@@ -4448,8 +4461,8 @@ def generate_response():
         max_tokens = data.get('max_tokens', 4096)  # Large default - geometry determines completion
         allow_silence = data.get('allow_silence', True)
 
-        tokenizer = get_tokenizer()
-        result = tokenizer.generate_response(
+        coordizer = get_coordizer()
+        result = coordizer.generate_response(
             context=context,
             agent_role=agent_role,
             max_tokens=max_tokens,
@@ -4491,7 +4504,7 @@ def sample_next():
     """
     try:
         import numpy as np
-        from qig_coordizer import get_coordizer as get_tokenizer
+        from coordizers import get_coordizer
 
         data = request.json or {}
         context_ids = data.get('context_ids', [])
@@ -4500,17 +4513,17 @@ def sample_next():
         top_p = data.get('top_p', 0.9)
         include_probs = data.get('include_probabilities', False)
 
-        tokenizer = get_tokenizer()
+        coordizer = get_coordizer()
 
         # Sample next token
-        token_id = tokenizer.sample_next_token(
+        token_id = coordizer.sample_next_token(
             context=context_ids,
             temperature=temperature,
             top_k=top_k,
             top_p=top_p
         )
 
-        token = tokenizer.id_to_token.get(token_id, "<UNK>")
+        token = coordizer.id_to_token.get(token_id, "<UNK>")
 
         response = {
             'success': True,
@@ -4520,11 +4533,11 @@ def sample_next():
 
         # Optionally include top probabilities
         if include_probs:
-            probs = tokenizer.compute_token_probabilities(context_ids, temperature)
+            probs = coordizer.compute_token_probabilities(context_ids, temperature)
             top_indices = np.argsort(probs)[::-1][:10]
             top_probs = {}
             for idx in top_indices:
-                tok = tokenizer.id_to_token.get(int(idx), "<UNK>")
+                tok = coordizer.id_to_token.get(int(idx), "<UNK>")
                 top_probs[tok] = float(probs[idx])
             response['top_probabilities'] = top_probs
 
@@ -4766,42 +4779,42 @@ def manual_reward():
 # =============================================================================
 # QIG-PURE ENDPOINT ALIASES
 # These provide QIG-safe terminology for the vocabulary encoding system
-# (Routes to same handlers as /tokenizer/* but with pure geometric naming)
+# (Routes to same handlers as /coordizer/* but with pure geometric naming)
 # =============================================================================
 
 @app.route('/vocabulary/update', methods=['POST'])
 def vocabulary_update():
-    """QIG-pure alias for /tokenizer/update"""
+    """QIG-pure alias for /coordizer/update"""
     return update_tokenizer()
 
 @app.route('/vocabulary/encode', methods=['POST'])
 def vocabulary_encode():
-    """QIG-pure alias for /tokenizer/encode"""
+    """QIG-pure alias for /coordizer/encode"""
     return tokenizer_encode()
 
 @app.route('/vocabulary/decode', methods=['POST'])
 def vocabulary_decode():
-    """QIG-pure alias for /tokenizer/decode"""
+    """QIG-pure alias for /coordizer/decode"""
     return tokenizer_decode()
 
 @app.route('/vocabulary/basin', methods=['POST'])
 def vocabulary_basin():
-    """QIG-pure alias for /tokenizer/basin"""
+    """QIG-pure alias for /coordizer/basin"""
     return tokenizer_basin()
 
 @app.route('/vocabulary/high-phi', methods=['GET'])
 def vocabulary_high_phi():
-    """QIG-pure alias for /tokenizer/high-phi"""
+    """QIG-pure alias for /coordizer/high-phi"""
     return tokenizer_high_phi()
 
 @app.route('/vocabulary/export', methods=['GET'])
 def vocabulary_export():
-    """QIG-pure alias for /tokenizer/export"""
+    """QIG-pure alias for /coordizer/export"""
     return tokenizer_export()
 
 @app.route('/vocabulary/status', methods=['GET'])
 def vocabulary_status():
-    """QIG-pure alias for /tokenizer/status"""
+    """QIG-pure alias for /coordizer/status"""
     return tokenizer_status()
 
 
@@ -4865,7 +4878,7 @@ def learning_status():
     """
     Get comprehensive learning status for telemetry.
     
-    Returns vocabulary_size from PostgreSQL tokenizer_vocabulary table,
+    Returns vocabulary_size from PostgreSQL coordizer_vocabulary table,
     plus word relationship and curiosity engine stats.
     """
     try:
@@ -4873,20 +4886,20 @@ def learning_status():
         import os
         
         vocabulary_size = 0
-        word_relationships_count = 0
+        basin_relationships_count = 0
         
         database_url = os.getenv('DATABASE_URL')
         if database_url:
             try:
                 conn = psycopg2.connect(database_url)
                 with conn.cursor() as cur:
-                    cur.execute("SELECT COUNT(*) FROM tokenizer_vocabulary WHERE basin_embedding IS NOT NULL")
+                    cur.execute("SELECT COUNT(*) FROM coordizer_vocabulary WHERE basin_embedding IS NOT NULL")
                     row = cur.fetchone()
                     vocabulary_size = row[0] if row else 0
                     
-                    cur.execute("SELECT COUNT(*) FROM word_relationships")
+                    cur.execute("SELECT COUNT(*) FROM basin_relationships")
                     row = cur.fetchone()
-                    word_relationships_count = row[0] if row else 0
+                    basin_relationships_count = row[0] if row else 0
                 conn.close()
             except Exception as db_err:
                 print(f"[Flask] learning/status DB error: {db_err}")
@@ -4902,7 +4915,7 @@ def learning_status():
         return jsonify({
             'success': True,
             'vocabulary_size': vocabulary_size,
-            'word_relationships_count': word_relationships_count,
+            'basin_relationships_count': basin_relationships_count,
             'curiosity': curiosity_stats
         })
     except Exception as e:
@@ -5948,15 +5961,50 @@ def chat_status():
 
 @app.route('/olympus/chat/messages', methods=['GET'])
 def chat_messages():
-    """Get recent pantheon messages."""
-    if not OLYMPUS_AVAILABLE or not zeus:
-        return jsonify({'error': 'Pantheon Chat not available'}), 503
-
+    """Get recent pantheon messages from database (persisted kernel activity)."""
     try:
+        import os
+        import psycopg2
         limit = request.args.get('limit', 50, type=int)
-        messages = zeus.pantheon_chat.get_recent_activity(limit)
-        return jsonify(messages)
+        limit = min(100, max(1, limit))
+        
+        db_url = os.environ.get('DATABASE_URL')
+        if not db_url:
+            return jsonify({'error': 'Database not configured'}), 503
+        
+        conn = psycopg2.connect(db_url)
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT kernel_name, activity_type, message, metadata, phi, kappa_eff, timestamp
+                    FROM kernel_activity
+                    ORDER BY timestamp DESC
+                    LIMIT %s
+                """, (limit,))
+                rows = cur.fetchall()
+                
+            messages = []
+            for row in rows:
+                kernel_name, activity_type, message, metadata, phi, kappa_eff, timestamp = row
+                messages.append({
+                    'id': f"{kernel_name}_{timestamp.timestamp() if timestamp else 0}",
+                    'from': kernel_name or 'system',
+                    'to': 'pantheon',
+                    'type': activity_type or 'insight',
+                    'content': message or '',
+                    'timestamp': timestamp.isoformat() if timestamp else None,
+                    'phi': float(phi) if phi else None,
+                    'kappa': float(kappa_eff) if kappa_eff else None,
+                    'metadata': metadata if isinstance(metadata, dict) else {},
+                    'read': True,
+                })
+            
+            return jsonify(messages)
+        finally:
+            conn.close()
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 
@@ -7666,7 +7714,7 @@ def cycle_complete():
     Called at the end of each Ocean search cycle.
     
     Performs post-cycle processing:
-    1. Train tokenizer from new observations
+    1. Train coordizer from new observations
     2. Evolve CHAOS kernels if active
     3. Consolidate geometric memory
     4. Update pantheon basin coordinates
@@ -7685,28 +7733,28 @@ def cycle_complete():
             'processing': []
         }
         
-        # 1. Train tokenizer from recent high-Φ observations
+        # 1. Train coordizer from recent high-Φ observations
         try:
-            from olympus.tokenizer_training import train_tokenizer_from_database
-            training_result = train_tokenizer_from_database(
+            from olympus.tokenizer_training import train_coordizer_from_database
+            training_result = train_coordizer_from_database(
                 persist=True,
                 min_phi=0.6,
                 limit_per_source=500
             )
             results['processing'].append({
-                'task': 'tokenizer_training',
+                'task': 'coordizer_training',
                 'success': True,
                 'new_tokens': training_result.get('new_tokens', 0),
                 'weights_updated': training_result.get('weights_updated', False)
             })
-            print(f"[CycleComplete] ✓ Tokenizer training complete")
+            print(f"[CycleComplete] ✓ Coordizer training complete")
         except Exception as e:
             results['processing'].append({
-                'task': 'tokenizer_training',
+                'task': 'coordizer_training',
                 'success': False,
                 'error': str(e)
             })
-            print(f"[CycleComplete] ✗ Tokenizer training failed: {e}")
+            print(f"[CycleComplete] ✗ Coordizer training failed: {e}")
         
         # 2. Evolve CHAOS kernels if active
         try:

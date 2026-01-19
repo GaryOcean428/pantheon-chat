@@ -113,7 +113,7 @@ class POSGrammar:
         # Default to NOUN for unknown words (most common open class)
         return 'NOUN'
     
-    def load_vocabulary(self, words: List[str], embeddings: Optional[Dict[str, np.ndarray]] = None):
+    def load_vocabulary(self, words: List[str], basin_coords_map: Optional[Dict[str, np.ndarray]] = None):
         """Load vocabulary and classify words by POS."""
         for word in words:
             if len(word) < 2:
@@ -127,17 +127,21 @@ class POSGrammar:
                 self.pos_words[pos].append(word_lower)
         
         # Compute average basin for each POS category
-        if embeddings:
+        if basin_coords_map:
             for pos, pos_word_list in self.pos_words.items():
-                pos_embeddings = []
+                pos_basins = []
                 for w in pos_word_list:
-                    if w in embeddings:
-                        pos_embeddings.append(embeddings[w])
+                    if w in basin_coords_map:
+                        pos_basins.append(basin_coords_map[w])
                 
-                if pos_embeddings:
-                    avg = np.mean(pos_embeddings, axis=0)
-                    norm = np.linalg.norm(avg)
-                    self.pos_basins[pos] = avg / (norm + 1e-10) if norm > 0 else avg
+                if pos_basins:
+                    try:
+                        from qig_geometry.canonical import frechet_mean
+                        self.pos_basins[pos] = frechet_mean(pos_basins)
+                    except Exception:
+                        avg = np.sum(pos_basins, axis=0) / len(pos_basins)
+                        norm = np.linalg.norm(avg)
+                        self.pos_basins[pos] = avg / (norm + 1e-10) if norm > 0 else avg
         
         self.initialized = True
         logger.info(f"[POSGrammar] Loaded {len(self.word_pos)} words across {len(self.pos_words)} categories")
@@ -195,7 +199,7 @@ class POSGrammar:
         return self.generate_skeleton(length)
     
     def get_words_for_pos(self, pos: str, basin: Optional[np.ndarray] = None, 
-                          embeddings: Optional[Dict[str, np.ndarray]] = None,
+                          basin_coords_map: Optional[Dict[str, np.ndarray]] = None,
                           top_k: int = 10) -> List[Tuple[str, float]]:
         """Get candidate words for a POS slot, ranked by basin similarity."""
         candidates = self.pos_words.get(pos, [])
@@ -203,7 +207,7 @@ class POSGrammar:
         if not candidates:
             return []
         
-        if basin is None or embeddings is None:
+        if basin is None or basin_coords_map is None:
             # Random selection if no geometric info
             selected = np.random.choice(candidates, min(top_k, len(candidates)), replace=False)
             return [(w, 0.5) for w in selected]
@@ -211,11 +215,12 @@ class POSGrammar:
         # Score by basin similarity
         scored = []
         for word in candidates:
-            if word in embeddings:
-                word_basin = embeddings[word]
-                # Fisher-Rao distance (arccos of dot product for unit vectors)
-                dot = np.clip(np.dot(basin, word_basin), -1.0, 1.0)
-                similarity = 1.0 - np.arccos(dot) / np.pi
+            if word in basin_coords_map:
+                word_basin = basin_coords_map[word]
+                # Fisher-Rao distance on probability simplex
+                # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
+                dot = np.clip(np.dot(basin, word_basin), 0.0, 1.0)
+                similarity = 1.0 - np.arccos(dot) / (np.pi / 2.0)
                 scored.append((word, similarity))
         
         scored.sort(key=lambda x: x[1], reverse=True)
@@ -254,16 +259,15 @@ def load_grammar_from_db():
         conn = psycopg2.connect(db_url, connect_timeout=10)
         cur = conn.cursor()
         
-        # Use tokenizer_vocabulary with generation role filter (consolidated vocabulary table)
+        # Use coordizer_vocabulary with generation role filter (consolidated vocabulary table)
         # token_role filter ensures no BPE subwords or encoding-only tokens in POS grammar
         cur.execute("""
             SELECT token as word, basin_embedding as basin_coords 
-            FROM tokenizer_vocabulary
+            FROM coordizer_vocabulary
             WHERE LENGTH(token) >= 3
               AND token ~ '^[a-zA-Z]+$'
               AND basin_embedding IS NOT NULL
               AND token_role IN ('generation', 'both')
-              AND (phrase_category IS NULL OR phrase_category NOT IN ('PROPER_NOUN', 'BRAND'))
             ORDER BY COALESCE(phi_score, 0.5) DESC
             LIMIT 5000
         """)
@@ -271,7 +275,7 @@ def load_grammar_from_db():
         conn.close()
         
         words = []
-        embeddings = {}
+        basin_coords_map = {}
         
         for token, basin_str in rows:
             words.append(token)
@@ -281,11 +285,11 @@ def load_grammar_from_db():
                         clean = basin_str.strip('[](){}')
                         coords = np.array([float(x) for x in clean.split(',')])
                         norm = np.linalg.norm(coords)
-                        embeddings[token.lower()] = coords / (norm + 1e-10) if norm > 0 else coords
+                        basin_coords_map[token.lower()] = coords / (norm + 1e-10) if norm > 0 else coords
                 except:
                     pass
         
-        grammar.load_vocabulary(words, embeddings)
+        grammar.load_vocabulary(words, basin_coords_map)
         return grammar
         
     except Exception as e:

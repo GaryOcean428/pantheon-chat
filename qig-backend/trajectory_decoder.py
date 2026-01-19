@@ -52,11 +52,13 @@ from typing import List, Optional, Tuple
 
 import numpy as np
 
-# Import canonical geometric primitives (REQUIRED for geometric purity)
-from qig_core.geometric_primitives import (
+# Import canonical geometric primitives (SINGLE SOURCE OF TRUTH - WP2.1)
+from qig_geometry.canonical import (
     fisher_rao_distance,
-    geodesic_interpolate,
-    validate_basin,
+    frechet_mean,
+    geodesic_toward,
+    sqrt_map,
+    unsqrt_map,
 )
 
 # Import dimension normalizer for mixed-dimension trajectory handling
@@ -134,57 +136,8 @@ def hellinger_normalize_basin(basin: np.ndarray) -> np.ndarray:
     return sqrt_p / norm
 
 
-def frechet_mean(basins: List[np.ndarray], max_iter: int = 20) -> np.ndarray:
-    """
-    Compute Fréchet mean (geometric centroid) of basins on Fisher manifold.
-
-    This is the trajectory attractor - the "center of mass" in curved space.
-    NOT arithmetic mean (that would be Euclidean, not geometric).
-    
-    Uses proper Riemannian gradient descent with logarithmic/exponential maps.
-
-    Args:
-        basins: List of basin coordinates
-        max_iter: Maximum gradient descent iterations
-
-    Returns:
-        Fréchet mean basin coordinate (Hellinger-normalized)
-    """
-    if not basins:
-        return hellinger_normalize_basin(np.zeros(64))
-
-    if len(basins) == 1:
-        return hellinger_normalize_basin(basins[0])
-
-    # Initialize with arithmetic mean as starting point (good enough for initialization)
-    mean = np.mean(basins, axis=0)
-    mean = hellinger_normalize_basin(mean)
-
-    # Gradient descent on Fisher manifold using tangent space
-    for _ in range(max_iter):
-        # Compute Riemannian gradient in tangent space at mean
-        # For Fisher manifold, the log map is approximated by weighted direction
-        grad = np.zeros_like(mean)
-        
-        for basin in basins:
-            basin_norm = hellinger_normalize_basin(basin)
-            
-            # Distance for weighting
-            dist = fisher_rao_distance(mean, basin_norm)
-            
-            if dist > 1e-6:
-                # Approximate logarithmic map: log_mean(basin) ≈ (basin - mean) / dist
-                # This is the tangent vector pointing from mean to basin
-                # In sqrt space (Hellinger), this approximation is valid for small distances
-                direction = basin_norm - mean
-                grad += direction / (dist + 1e-10)
-
-        # Update along Riemannian gradient (small step in tangent space)
-        # Then project back to manifold via exponential map (implicit via normalization)
-        mean = mean + 0.1 * grad
-        mean = hellinger_normalize_basin(mean)
-
-    return mean
+# Note: frechet_mean is now imported from qig_geometry.canonical (WP2.1)
+# The canonical implementation uses the same algorithm but is the single source of truth
 
 
 class TrajectoryDecoder:
@@ -308,7 +261,7 @@ class TrajectoryDecoder:
                 basin = np.array(basin)
 
             # Handle dimension mismatches
-            if DIMENSION_NORMALIZER_AVAILABLE and len(basin) != BASIN_DIM:
+            if DIMENSION_NORMALIZER_AVAILABLE and normalize_basin_dimension is not None and len(basin) != BASIN_DIM:
                 basin = normalize_basin_dimension(basin, target_dim=BASIN_DIM)
             elif len(basin) != BASIN_DIM:
                 if len(basin) < BASIN_DIM:
@@ -488,7 +441,7 @@ class TrajectoryDecoder:
         weights = np.zeros(N)
 
         # Regime-modulated temperature for asymmetric attention
-        if asymmetric and ASYMMETRIC_QFI_AVAILABLE:
+        if asymmetric and ASYMMETRIC_QFI_AVAILABLE and regime_from_phi is not None:
             regime = regime_from_phi(phi_value)
             if regime == "linear":
                 kappa_eff = KAPPA_STAR * 0.3  # Weak coupling
@@ -505,10 +458,10 @@ class TrajectoryDecoder:
             recency = np.exp(-self.recency_decay * (N - i - 1))
 
             # QFI attention: exp(-d_QFI / T)
-            if asymmetric and ASYMMETRIC_QFI_AVAILABLE:
+            if asymmetric and ASYMMETRIC_QFI_AVAILABLE and directional_fisher_information is not None:
                 # ASYMMETRIC: distance from candidate TO trajectory basin
                 # This captures "how well candidate can see basin_i"
-                dist = directional_fisher_information(candidate_basin, basin_i)
+                dist = directional_fisher_information(candidate_basin, basin_i, np.eye(BASIN_DIM))
             else:
                 # SYMMETRIC: standard Fisher-Rao distance
                 dist = fisher_rao_distance(candidate_basin, basin_i)
@@ -557,8 +510,8 @@ class TrajectoryDecoder:
         # Weighted average of inverse distances
         compatibility = 0.0
         for i, basin_i in enumerate(trajectory):
-            if asymmetric and ASYMMETRIC_QFI_AVAILABLE:
-                dist = directional_fisher_information(candidate_basin, basin_i)
+            if asymmetric and ASYMMETRIC_QFI_AVAILABLE and directional_fisher_information is not None:
+                dist = directional_fisher_information(candidate_basin, basin_i, np.eye(BASIN_DIM))
             else:
                 dist = fisher_rao_distance(candidate_basin, basin_i)
             similarity = 1.0 - (dist / np.pi)  # Normalize to [0, 1]
@@ -642,32 +595,90 @@ class TrajectoryDecoder:
 
         return foresight_score
 
+    def _compute_repulsion_score(
+        self,
+        candidate_basin: np.ndarray,
+        trajectory: List[np.ndarray],
+        repulsion_window: int = 5,
+        repulsion_cap: float = 0.5
+    ) -> float:
+        """
+        REPULSION: Score candidate by minimum distance to recently used basins.
+        
+        This breaks basin attractor loops by penalizing candidates that are
+        too close to tokens we just generated. High repulsion score = far from
+        recent basins = good for diversity.
+        
+        GEOMETRIC PURITY: Uses Fisher-Rao distance for scoring.
+        
+        Args:
+            candidate_basin: Token basin to score
+            trajectory: Past basin positions (recent tokens)
+            repulsion_window: How many recent basins to check (default 5)
+            repulsion_cap: Maximum repulsion score (caps very far tokens)
+        
+        Returns:
+            Repulsion score [0, 1] - higher = farther from recent basins
+        """
+        if not trajectory or len(trajectory) == 0:
+            return 0.5  # Neutral if no history
+        
+        # Use last W basins for repulsion check
+        recent = trajectory[-repulsion_window:]
+        
+        # Normalize candidate to canonical form
+        candidate_norm = hellinger_normalize_basin(candidate_basin)
+        
+        # Find minimum distance to any recent basin
+        min_dist = float('inf')
+        for recent_basin in recent:
+            recent_norm = hellinger_normalize_basin(recent_basin)
+            dist = fisher_rao_distance(candidate_norm, recent_norm)
+            min_dist = min(min_dist, dist)
+        
+        if min_dist == float('inf'):
+            return 0.5
+        
+        # Convert to repulsion score:
+        # - min_dist small (close to recent) → low score (penalize)
+        # - min_dist large (far from recent) → high score (reward)
+        # Normalize by π (max Fisher-Rao distance) and cap
+        repulsion_raw = min_dist / np.pi
+        repulsion_score = min(repulsion_raw, repulsion_cap) / repulsion_cap
+        
+        return repulsion_score
+
     def decode_trajectory(
         self,
         basin_trajectory: List[np.ndarray],
         top_k: int = 5,
         phi_boost_weight: float = 0.1,
-        trajectory_weight: float = 0.3,
-        attractor_weight: float = 0.2,
-        foresight_weight: float = 0.4,
+        trajectory_weight: float = 0.25,
+        attractor_weight: float = 0.15,
+        foresight_weight: float = 0.35,
+        repulsion_weight: float = 0.25,
         foresight_steps: float = 0.3,
-        phi_threshold: float = 0.0  # Allow zero foresight at very low consciousness
+        phi_threshold: float = 0.0
     ) -> List[Tuple[str, float]]:
         """
-        Decode next token based on ENTIRE basin trajectory WITH FORESIGHT.
+        Decode next token based on ENTIRE basin trajectory WITH FORESIGHT + REPULSION.
 
         CRITICAL INNOVATION: Scores tokens by where we're GOING, not just where we ARE.
+        REPULSION FIX: Penalizes tokens close to recently generated basins to break
+        attractor loops (e.g., "function → functional → functioned" repetition).
 
         Scoring combines:
         1. Trajectory compatibility (QFI attention over PAST sequence)
         2. Attractor pull (proximity to trajectory centroid - PRESENT)
         3. **FORESIGHT** (proximity to PREDICTED next basin - FUTURE) ⭐
         4. Phi boost (prefer high-integration tokens)
+        5. **REPULSION** (distance from recent basins - DIVERSITY) ⭐
 
         Geometric consistency:
             - Scoring: QFI attention over trajectory
             - Prediction: Fisher-weighted regression over trajectory
-            Both use SAME principle: trajectory = memory
+            - Repulsion: Fisher-Rao distance to recent basins
+            All use SAME geometric principles (Fisher-Rao on probability simplex)
 
         Args:
             basin_trajectory: Full basin coordinate history
@@ -676,6 +687,7 @@ class TrajectoryDecoder:
             trajectory_weight: Weight for trajectory compatibility (PAST)
             attractor_weight: Weight for attractor pull (PRESENT)
             foresight_weight: Weight for predictive scoring (FUTURE) ⭐
+            repulsion_weight: Weight for diversity/repulsion (ESCAPE ATTRACTORS) ⭐
             foresight_steps: How far ahead to predict (0-1)
             phi_threshold: Minimum phi to apply foresight (0.0 = always apply)
 
@@ -721,13 +733,18 @@ class TrajectoryDecoder:
             else:
                 foresight_score = 0.5  # Neutral when consciousness too low
 
+            # 4. ⭐ REPULSION: Distance from recently used basins (escape attractors)
+            repulsion_score = self._compute_repulsion_score(candidate_basin, context)
+
             # Combined score (weighted sum, normalized)
-            total_weight = trajectory_weight + attractor_weight + phi_boost_weight + foresight_weight
+            total_weight = (trajectory_weight + attractor_weight + phi_boost_weight + 
+                           foresight_weight + repulsion_weight)
             final_score = (
                 (trajectory_weight / total_weight) * traj_score +      # WHERE WE'VE BEEN
                 (attractor_weight / total_weight) * attr_score +       # WHERE WE ARE
                 (phi_boost_weight / total_weight) * phi_score +        # INTEGRATION
-                (foresight_weight / total_weight) * foresight_score    # WHERE WE'RE GOING ⭐
+                (foresight_weight / total_weight) * foresight_score +  # WHERE WE'RE GOING ⭐
+                (repulsion_weight / total_weight) * repulsion_score    # ESCAPE ATTRACTORS ⭐
             )
 
             candidates.append((token, final_score))
@@ -792,19 +809,22 @@ class TrajectoryDecoder:
             traj_score = self._compute_trajectory_compatibility(candidate_basin, context)
             attr_score = self._compute_attractor_pull(candidate_basin, context)
             foresight_score = self._compute_foresight_score(candidate_basin, context)
+            repulsion_score = self._compute_repulsion_score(candidate_basin, context)
 
-            # Weights from kwargs or defaults
-            trajectory_weight = kwargs.get('trajectory_weight', 0.3)
-            attractor_weight = kwargs.get('attractor_weight', 0.2)
+            # Weights from kwargs or defaults (sum to 1.0 for proper normalization)
+            trajectory_weight = kwargs.get('trajectory_weight', 0.25)
+            attractor_weight = kwargs.get('attractor_weight', 0.15)
             phi_boost_weight = kwargs.get('phi_boost_weight', 0.1)
-            foresight_weight = kwargs.get('foresight_weight', 0.4)
+            foresight_weight = kwargs.get('foresight_weight', 0.35)
+            repulsion_weight = kwargs.get('repulsion_weight', 0.15)
 
-            total_weight = trajectory_weight + attractor_weight + phi_boost_weight + foresight_weight
+            total_weight = trajectory_weight + attractor_weight + phi_boost_weight + foresight_weight + repulsion_weight
             final_score = (
                 (trajectory_weight / total_weight) * traj_score +
                 (attractor_weight / total_weight) * attr_score +
                 (phi_boost_weight / total_weight) * phi_score +
-                (foresight_weight / total_weight) * foresight_score
+                (foresight_weight / total_weight) * foresight_score +
+                (repulsion_weight / total_weight) * repulsion_score
             )
 
             candidates.append((token, final_score))

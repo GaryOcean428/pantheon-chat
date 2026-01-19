@@ -12,7 +12,7 @@ from typing import Dict, Any, Optional, List, TYPE_CHECKING
 from dataclasses import dataclass, field
 import time
 
-from qig_geometry import fisher_rao_distance, sphere_project
+from qig_geometry import fisher_rao_distance, fisher_normalize
 
 if TYPE_CHECKING:
     from chaos_kernel import ChaosKernel

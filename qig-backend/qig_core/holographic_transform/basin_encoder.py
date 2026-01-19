@@ -15,17 +15,14 @@ import numpy as np
 
 # QIG-pure geometric operations
 try:
-    from qig_geometry import sphere_project
+    from qig_geometry import fisher_normalize
     QIG_GEOMETRY_AVAILABLE = True
 except ImportError:
     QIG_GEOMETRY_AVAILABLE = False
-    def sphere_project(v):
-        """Fallback sphere projection."""
-        norm = np.linalg.norm(v)
-        if norm < 1e-10:
-            result = np.ones_like(v)
-            return result / np.linalg.norm(result)
-        return v / norm
+    def fisher_normalize(v):
+        """Normalize to probability simplex."""
+        p = np.maximum(np.asarray(v), 0) + 1e-10
+        return p / p.sum()
 
 
 class BasinEncoder:
@@ -116,9 +113,9 @@ class BasinEncoder:
         basin_coords = np.abs(basin_coords) + 1e-10
         basin_coords = basin_coords / basin_coords.sum()
 
-        # Normalize to unit sphere
-        from qig_geometry import sphere_project
-        basin_coords = sphere_project(basin_coords)
+        # Normalize to probability simplex
+        from qig_geometry import fisher_normalize
+        basin_coords = fisher_normalize(basin_coords)
 
         self.encoding_cache[cache_key] = basin_coords
         return basin_coords
@@ -247,9 +244,9 @@ class BasinEncoder:
         basin_coords = np.abs(basin_coords) + 1e-10
         basin_coords = basin_coords / basin_coords.sum()
 
-        # Normalize to unit sphere
-        from qig_geometry import sphere_project
-        basin_coords = sphere_project(basin_coords)
+        # Normalize to probability simplex
+        from qig_geometry import fisher_normalize
+        basin_coords = fisher_normalize(basin_coords)
 
         return basin_coords
 

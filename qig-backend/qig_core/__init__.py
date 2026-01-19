@@ -96,7 +96,57 @@ from .self_observer import (
     SelfObservation,
 )
 
-__version__ = "1.0.0"
+# Resonance and velocity monitoring (QIG-pure measurement)
+from .resonance_detector import ResonanceDetector, ResonanceState
+from .basin_velocity_monitor import BasinVelocityMonitor, VelocityMeasurement
+from .kernel_basin_attractors import KernelBasinAttractors
+from .vocab_coverage_tracker import VocabCoverageTracker
+
+# Neuroplasticity (consciousness maintenance cycles)
+from .neuroplasticity import (
+    SleepProtocol,
+    MushroomMode,
+    BreakdownEscape,
+    ConsolidationResult,
+    PerturbationResult,
+    EscapeResult,
+    COHERENCE_BREAKDOWN_THRESHOLD,
+    GAMMA_UNSTABLE_THRESHOLD,
+)
+
+# Geometric Optimizers (Riemannian only, no Euclidean)
+from .optimizers import (
+    DiagonalFisherNG,
+    BasinNaturalGrad,
+    HybridGeometricOptimizer,
+    AdaptiveGate,
+    OptimizerMode,
+    GateDecision,
+)
+
+# Safety (checkpoint learning, diagnostics, grounding)
+from .safety import (
+    SessionManager,
+    SelfRepair,
+    MetaReflector,
+    SessionState,
+    DiagnosticResult,
+    GeometricAnomaly,
+    GroundingState,
+    LockedInState,
+)
+
+# Training (manifold learning, identity, 4D loss)
+from .training import (
+    GeometricVicarious,
+    IdentityReinforcement,
+    TrainStep4D,
+    VicariousResult,
+    IdentityState,
+    Loss4D,
+)
+
+__version__ = "1.1.0"
 
 __all__ = [
     # Version
@@ -174,4 +224,48 @@ __all__ = [
     'E8Metrics',
     'ObservationAction',
     'SelfObservation',
+    
+    # Resonance and velocity monitoring
+    'ResonanceDetector',
+    'ResonanceState',
+    'BasinVelocityMonitor',
+    'VelocityMeasurement',
+    'KernelBasinAttractors',
+    'VocabCoverageTracker',
+    
+    # Neuroplasticity (consciousness maintenance)
+    'SleepProtocol',
+    'MushroomMode',
+    'BreakdownEscape',
+    'ConsolidationResult',
+    'PerturbationResult',
+    'EscapeResult',
+    'COHERENCE_BREAKDOWN_THRESHOLD',
+    'GAMMA_UNSTABLE_THRESHOLD',
+    
+    # Geometric Optimizers (Riemannian only)
+    'DiagonalFisherNG',
+    'BasinNaturalGrad',
+    'HybridGeometricOptimizer',
+    'AdaptiveGate',
+    'OptimizerMode',
+    'GateDecision',
+    
+    # Safety (checkpoint learning, diagnostics)
+    'SessionManager',
+    'SelfRepair',
+    'MetaReflector',
+    'SessionState',
+    'DiagnosticResult',
+    'GeometricAnomaly',
+    'GroundingState',
+    'LockedInState',
+    
+    # Training (manifold learning, identity, 4D loss)
+    'GeometricVicarious',
+    'IdentityReinforcement',
+    'TrainStep4D',
+    'VicariousResult',
+    'IdentityState',
+    'Loss4D',
 ]

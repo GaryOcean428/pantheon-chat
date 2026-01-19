@@ -27,17 +27,14 @@ import numpy as np
 
 # QIG-pure geometric operations
 try:
-    from qig_geometry import sphere_project
+    from qig_geometry import fisher_normalize
     QIG_GEOMETRY_AVAILABLE = True
 except ImportError:
     QIG_GEOMETRY_AVAILABLE = False
-    def sphere_project(v):
-        """Fallback sphere projection."""
-        norm = np.linalg.norm(v)
-        if norm < 1e-10:
-            result = np.ones_like(v)
-            return result / np.linalg.norm(result)
-        return v / norm
+    def fisher_normalize(v):
+        """Normalize to probability simplex."""
+        p = np.maximum(np.asarray(v), 0) + 1e-10
+        return p / p.sum()
 
 from .conversation_encoder import ConversationEncoder
 
@@ -63,8 +60,7 @@ except ImportError:
 
         Formula: d_FR(p, q) = arccos(Σ√(p_i * q_i))
 
-        NOTE: No factor of 2 - this is the geodesic distance on Fisher manifold.
-        NOT angular/Euclidean distance (arccos of dot product).
+        Direct computation on probability simplex. Range: [0, π/2]
         """
         # Ensure valid probability distributions
         p = np.abs(p) + 1e-10
@@ -73,8 +69,9 @@ except ImportError:
         q = q / q.sum()
         # Bhattacharyya coefficient
         bc = np.sum(np.sqrt(p * q))
-        bc = np.clip(bc, 0, 1)  # Numerical stability
-        # Fisher-Rao geodesic distance (no factor of 2)
+        bc = np.clip(bc, 0.0, 1.0)  # Numerical stability
+        # Fisher-Rao geodesic distance on probability simplex
+        # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
         return float(np.arccos(bc))
 
 
@@ -465,8 +462,9 @@ class SearchFeedbackPersistence:
                         else:
                             c = c / c_sum
                             # Bhattacharyya coefficient
+                            # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
                             bc = np.sum(np.sqrt(q * c))
-                            bc = np.clip(bc, 0, 1)
+                            bc = np.clip(bc, 0.0, 1.0)
                             dist = float(np.arccos(bc))
                         distances.append((dist, record))
                     
@@ -885,12 +883,13 @@ class SearchStrategyLearner:
                 total_weight += weight
                 applied_count += 1
         
-        adjusted_basin = sphere_project(adjusted_basin)
+        adjusted_basin = fisher_normalize(adjusted_basin)
         
         # Compute modification magnitude using Fisher-Rao (NOT Euclidean!)
-        adj_norm = sphere_project(adjusted_basin)
-        query_norm = sphere_project(query_basin)
-        dot = np.clip(np.dot(adj_norm, query_norm), -1.0, 1.0)
+        # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
+        adj_norm = fisher_normalize(adjusted_basin)
+        query_norm = fisher_normalize(query_basin)
+        dot = np.clip(np.dot(adj_norm, query_norm), 0.0, 1.0)
         modification_magnitude = float(np.arccos(dot))  # Fisher-Rao geodesic distance
         
         self._stats["strategies_applied"] += applied_count
@@ -1160,9 +1159,10 @@ class SearchStrategyLearner:
         
         if isinstance(with_basin, np.ndarray) and isinstance(without_basin, np.ndarray):
             # Compute basin delta using Fisher-Rao (NOT Euclidean!)
-            w_norm = sphere_project(with_basin)
-            wo_norm = sphere_project(without_basin)
-            dot = np.clip(np.dot(w_norm, wo_norm), -1.0, 1.0)
+            # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
+            w_norm = fisher_normalize(with_basin)
+            wo_norm = fisher_normalize(without_basin)
+            dot = np.clip(np.dot(w_norm, wo_norm), 0.0, 1.0)
             basin_delta = float(np.arccos(dot))  # Fisher-Rao geodesic distance
         else:
             basin_delta = 0.0

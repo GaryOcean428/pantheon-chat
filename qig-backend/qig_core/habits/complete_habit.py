@@ -175,9 +175,9 @@ class CompleteHabit(HolographicTransformMixin):
         elif len(basin) > 64:
             basin = basin[:64]
 
-        norm = np.sqrt(np.sum(basin ** 2))  # L2 magnitude for validation
-        if norm > 0:
-            basin = basin / norm
+        # Use canonical fisher normalization
+        from qig_geometry import fisher_normalize
+        basin = fisher_normalize(basin)
 
         rho = self.input_guard._basin_to_density_matrix(basin)
         phi_base = self.input_guard._compute_phi(rho)
@@ -239,9 +239,9 @@ class CompleteHabit(HolographicTransformMixin):
         elif len(basin) > 64:
             basin = basin[:64]
 
-        norm = np.sqrt(np.sum(basin ** 2))  # L2 magnitude for validation
-        if norm > 0:
-            basin = basin / norm
+        # Use canonical fisher normalization
+        from qig_geometry import fisher_normalize
+        basin = fisher_normalize(basin)
 
         kappa = self.input_guard._compute_kappa(basin, phi)
 

@@ -39,7 +39,7 @@ from typing import List, Dict, Tuple, Optional, Any
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from qig_geometry import fisher_coord_distance, geodesic_interpolation, sphere_project, fisher_normalize, geodesic_tangent
+from qig_geometry import fisher_coord_distance, geodesic_interpolation, fisher_normalize, geodesic_tangent
 
 BASIN_DIMENSION = 64
 DEFAULT_SYMMETRY_THRESHOLD = 0.95
@@ -59,7 +59,7 @@ class Agent:
     def __post_init__(self):
         # Ensure random initialization respects manifold
         if np.all(self.basin_coordinates == 0):
-            self.basin_coordinates = sphere_project(np.random.randn(BASIN_DIMENSION))
+            self.basin_coordinates = fisher_normalize(np.random.randn(BASIN_DIMENSION))
     
     def to_dict(self) -> Dict[str, Any]:
         return {

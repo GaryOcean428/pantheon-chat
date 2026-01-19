@@ -12,7 +12,7 @@ import sys
 
 sys.path.insert(0, '.')
 
-from qig_geometry import fisher_coord_distance, sphere_project
+from qig_geometry import fisher_coord_distance, fisher_normalize
 from qig_core.geodesic_navigation import navigate_to_target
 
 
@@ -23,7 +23,7 @@ def euclidean_navigation(current, target, step_size=0.05):
     if magnitude > 1e-8:
         direction = direction / magnitude
     next_basin = current + step_size * direction
-    return sphere_project(next_basin)
+    return fisher_normalize(next_basin)
 
 
 def measure_trajectory_stability(positions):

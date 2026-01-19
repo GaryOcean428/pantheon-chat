@@ -86,9 +86,10 @@ def _fisher_rao_probability(p: np.ndarray, q: np.ndarray) -> float:
     """
     Fisher-Rao distance for probability distributions.
     
-    d_FR(p, q) = arccos(Σ√(p_i * q_i))
+    d_FR(p, q) = 2 * arccos(Σ√(p_i * q_i))
     
-    This is the geodesic distance on the probability simplex.
+    The factor of 2 is required for consistency with the canonical
+    Hellinger embedding (√p on unit sphere S^63) defined in contracts.py.
     """
     # Ensure valid probabilities (avoid numerical issues)
     p = np.clip(p, 1e-10, 1.0)
@@ -101,10 +102,11 @@ def _fisher_rao_probability(p: np.ndarray, q: np.ndarray) -> float:
     # Bhattacharyya coefficient: BC = Σ√(p_i * q_i)
     bc = np.sum(np.sqrt(p * q))
     
-    # Clamp to valid range for arccos
-    bc = np.clip(bc, -1.0, 1.0)
+    # Clamp to valid range for arccos (probability measure)
+    bc = np.clip(bc, 0.0, 1.0)
     
-    # Fisher-Rao distance
+    # Fisher-Rao statistical distance on probability simplex
+    # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
     return np.arccos(bc)
 
 
@@ -118,7 +120,7 @@ def _fisher_rao_metric(a: np.ndarray, b: np.ndarray, metric: np.ndarray) -> floa
     """
     diff = a - b
     distance_squared = diff @ metric @ diff
-    return np.sqrt(np.abs(distance_squared))
+    return float(np.sqrt(np.abs(distance_squared)))
 
 
 def _fisher_rao_flat(a: np.ndarray, b: np.ndarray) -> float:

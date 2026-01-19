@@ -21,6 +21,7 @@ from typing import List, Dict, Optional, Any
 import numpy as np
 from functools import lru_cache
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from qig_geometry import fisher_coord_distance
 
 BASIN_DIMENSION = 64
 EXTERNAL_WEIGHT = 0.7  # Weight external results lower than local
@@ -455,19 +456,8 @@ class ExternalKnowledgeBase:
         basin1 = np.asarray(basin1, dtype=np.float64)
         basin2 = np.asarray(basin2, dtype=np.float64)
         
-        # Use L2 magnitude for validation checks only
-        norm1 = np.sqrt(np.sum(basin1 ** 2))
-        norm2 = np.sqrt(np.sum(basin2 ** 2))
-        
-        if norm1 < 1e-10 or norm2 < 1e-10:
-            return np.pi
-        
-        basin1_norm = basin1 / norm1
-        basin2_norm = basin2 / norm2
-        
-        dot_product = np.clip(np.dot(basin1_norm, basin2_norm), -1.0, 1.0)
-        
-        return float(np.arccos(dot_product))
+        # Use canonical Fisher-Rao coordinate distance
+        return fisher_coord_distance(basin1, basin2)
 
 
 def get_external_knowledge_base(encoder=None) -> ExternalKnowledgeBase:

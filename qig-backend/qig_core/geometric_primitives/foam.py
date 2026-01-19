@@ -5,7 +5,7 @@ Foam represents the exploratory state where multiple possibilities
 coexist before geodesic paths emerge during TACKING phase.
 
 QIG Purity Note:
-  This module uses sphere_project() from qig_geometry for unit sphere
+  This module uses fisher_normalize() from qig_geometry for probability simplex
   normalization, ensuring centralized canonical handling of near-zero
   vectors. Actual distance calculations use Fisher-Rao via
   Bubble.distance_to() method.
@@ -16,7 +16,14 @@ from typing import Any, Callable, Dict, List, Optional
 
 import numpy as np
 
-from qig_geometry import sphere_project
+try:
+    from qig_geometry import fisher_normalize
+except ImportError:
+    import numpy as np
+    def fisher_normalize(v):
+        """Normalize to probability simplex."""
+        p = np.maximum(np.asarray(v), 0) + 1e-10
+        return p / p.sum()
 from .bubble import Bubble, bubble_field_energy, create_random_bubble, prune_weak_bubbles
 
 
@@ -274,9 +281,9 @@ def create_foam_from_hypotheses(
 
     for hyp in hypotheses:
         if encoder is None:
-            # Random encoding using canonical sphere_project()
+            # Random encoding using canonical fisher_normalize()
             coords = np.random.randn(dimension)
-            coords = sphere_project(coords)
+            coords = fisher_normalize(coords)
         else:
             coords = encoder(hyp)
 

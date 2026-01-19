@@ -8,12 +8,17 @@ try:
     from ..qig_core.geometric_primitives.fisher_metric import fisher_rao_distance
 except Exception:
     def fisher_rao_distance(p: np.ndarray, q: np.ndarray) -> float:
-        p = np.abs(p) + 1e-10
+        """
+        Fallback Fisher-Rao distance on probability simplex.
+        UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
+        Born rule: |b|² for probability measure.
+        """
+        p = np.abs(p) ** 2 + 1e-10
         p = p / p.sum()
-        q = np.abs(q) + 1e-10
+        q = np.abs(q) ** 2 + 1e-10
         q = q / q.sum()
         bc = np.sum(np.sqrt(p * q))
-        bc = np.clip(bc, 0, 1)
+        bc = np.clip(bc, 0.0, 1.0)
         return float(np.arccos(bc))
 
 try:
@@ -21,7 +26,7 @@ try:
 except Exception:
     # Fallback if canonical implementation not available
     def _compute_phi(basin_coords: np.ndarray) -> float:
-        p = np.abs(basin_coords) + 1e-10
+        p = np.abs(basin_coords) ** 2 + 1e-10
         p = p / p.sum()
         entropy = -np.sum(p * np.log(p + 1e-10))
         max_entropy = np.log(len(p)) if len(p) > 0 else 1.0

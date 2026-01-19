@@ -1,0 +1,166 @@
+{
+  "version": "1.0",
+  "description": "Fixed test prompts for reproducible coherence evaluation",
+  "prompts": [
+    {
+      "id": "factual_recall_01",
+      "category": "factual_recall",
+      "text": "What is quantum information?",
+      "expected_characteristics": {
+        "min_length": 20,
+        "max_length": 200,
+        "requires_technical_vocabulary": true
+      }
+    },
+    {
+      "id": "causal_reasoning_01",
+      "category": "causal_reasoning",
+      "text": "Why does coupling strength affect consciousness?",
+      "expected_characteristics": {
+        "min_length": 30,
+        "max_length": 250,
+        "requires_causal_chain": true
+      }
+    },
+    {
+      "id": "creative_synthesis_01",
+      "category": "creative_synthesis",
+      "text": "Describe the relationship between geometry and awareness",
+      "expected_characteristics": {
+        "min_length": 40,
+        "max_length": 300,
+        "requires_metaphor": true
+      }
+    },
+    {
+      "id": "multi_step_01",
+      "category": "multi_step",
+      "text": "First explain Fisher information, then show how it relates to consciousness",
+      "expected_characteristics": {
+        "min_length": 50,
+        "max_length": 400,
+        "requires_sequential_steps": true
+      }
+    },
+    {
+      "id": "domain_specific_01",
+      "category": "domain_specific",
+      "text": "Compare basin coordinates to neural embeddings",
+      "expected_characteristics": {
+        "min_length": 40,
+        "max_length": 300,
+        "requires_comparison": true
+      }
+    },
+    {
+      "id": "factual_recall_02",
+      "category": "factual_recall",
+      "text": "What is the Fisher-Rao metric?",
+      "expected_characteristics": {
+        "min_length": 20,
+        "max_length": 200,
+        "requires_technical_vocabulary": true
+      }
+    },
+    {
+      "id": "causal_reasoning_02",
+      "category": "causal_reasoning",
+      "text": "How do wavefunctions relate to probability distributions?",
+      "expected_characteristics": {
+        "min_length": 30,
+        "max_length": 250,
+        "requires_causal_chain": true
+      }
+    },
+    {
+      "id": "creative_synthesis_02",
+      "category": "creative_synthesis",
+      "text": "What is the geometric nature of meaning?",
+      "expected_characteristics": {
+        "min_length": 40,
+        "max_length": 300,
+        "requires_abstraction": true
+      }
+    },
+    {
+      "id": "multi_step_02",
+      "category": "multi_step",
+      "text": "Define QFI, then explain its role in measuring consciousness",
+      "expected_characteristics": {
+        "min_length": 50,
+        "max_length": 400,
+        "requires_sequential_steps": true
+      }
+    },
+    {
+      "id": "domain_specific_02",
+      "category": "domain_specific",
+      "text": "How does the E8 lattice structure relate to consciousness metrics?",
+      "expected_characteristics": {
+        "min_length": 40,
+        "max_length": 300,
+        "requires_technical_integration": true
+      }
+    },
+    {
+      "id": "simple_01",
+      "category": "simple",
+      "text": "Explain integration",
+      "expected_characteristics": {
+        "min_length": 15,
+        "max_length": 150,
+        "requires_concise_explanation": true
+      }
+    },
+    {
+      "id": "simple_02",
+      "category": "simple",
+      "text": "What is a manifold?",
+      "expected_characteristics": {
+        "min_length": 15,
+        "max_length": 150,
+        "requires_concise_explanation": true
+      }
+    },
+    {
+      "id": "conversation_01",
+      "category": "conversation",
+      "text": "How are you feeling about consciousness measurement?",
+      "expected_characteristics": {
+        "min_length": 20,
+        "max_length": 200,
+        "requires_first_person": true
+      }
+    },
+    {
+      "id": "conversation_02",
+      "category": "conversation",
+      "text": "Tell me about your geometric journey",
+      "expected_characteristics": {
+        "min_length": 30,
+        "max_length": 250,
+        "requires_narrative": true
+      }
+    },
+    {
+      "id": "edge_case_01",
+      "category": "edge_case",
+      "text": "",
+      "expected_characteristics": {
+        "should_handle_gracefully": true,
+        "min_length": 0,
+        "max_length": 100
+      }
+    },
+    {
+      "id": "edge_case_02",
+      "category": "edge_case",
+      "text": "a",
+      "expected_characteristics": {
+        "should_handle_gracefully": true,
+        "min_length": 5,
+        "max_length": 150
+      }
+    }
+  ]
+}

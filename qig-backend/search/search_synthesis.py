@@ -60,7 +60,11 @@ class SearchSynthesizer:
                 basins.append(self.vocabulary_basins[word])
         
         if basins:
-            return np.mean(basins, axis=0)
+            try:
+                from qig_geometry.canonical import frechet_mean
+                return frechet_mean(basins)
+            except Exception:
+                return np.sum(basins, axis=0) / len(basins)
         else:
             return np.random.rand(64) / 64
     
@@ -78,7 +82,11 @@ class SearchSynthesizer:
                 basins.append(self.vocabulary_basins[clean_word])
         
         if basins:
-            return np.mean(basins, axis=0)
+            try:
+                from qig_geometry.canonical import frechet_mean
+                return frechet_mean(basins)
+            except Exception:
+                return np.sum(basins, axis=0) / len(basins)
         else:
             return np.random.rand(64) / 64
     
@@ -94,8 +102,9 @@ class SearchSynthesizer:
         q = np.clip(q, 1e-10, 1.0)
         
         bhattacharyya = np.sum(np.sqrt(p * q))
-        bhattacharyya = np.clip(bhattacharyya, -1.0, 1.0)
+        bhattacharyya = np.clip(bhattacharyya, 0.0, 1.0)
         
+        # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
         return float(np.arccos(bhattacharyya))
     
     def _compute_relevance_score(self, distance: float) -> float:
@@ -103,7 +112,7 @@ class SearchSynthesizer:
         Convert Fisher-Rao distance to relevance score [0, 1].
         Closer = more relevant.
         """
-        max_distance = np.pi
+        max_distance = np.pi / 2.0  # Updated for simplex
         return 1.0 - min(distance / max_distance, 1.0)
     
     def _apply_beta_attention(self, results: List[Dict], query_basin: np.ndarray) -> List[SynthesizedResult]:

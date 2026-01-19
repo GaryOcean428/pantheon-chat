@@ -111,7 +111,7 @@ def classify_regime(phi: float) -> Regime:
 def fisher_rao_distance(p: np.ndarray, q: np.ndarray) -> float:
     """
     Compute Fisher-Rao distance between probability distributions.
-    d_FR(p, q) = arccos(Σ√(p_i * q_i))
+    d_FR(p, q) = 2 * arccos(Σ√(p_i * q_i)) (Hellinger embedding: factor of 2)
     """
     # Ensure valid probability distributions
     p = np.abs(p) + 1e-10
@@ -121,9 +121,10 @@ def fisher_rao_distance(p: np.ndarray, q: np.ndarray) -> float:
     
     # Bhattacharyya coefficient
     bc = np.sum(np.sqrt(p * q))
-    bc = np.clip(bc, -1.0, 1.0)
+    bc = np.clip(bc, 0.0, 1.0)
     
-    # Fisher-Rao distance
+    # Fisher-Rao distance on probability simplex
+    # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
     return np.arccos(bc)
 
 

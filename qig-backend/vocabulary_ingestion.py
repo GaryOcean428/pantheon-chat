@@ -219,7 +219,7 @@ class VocabularyIngestionService:
         try:
             with self.vp._connect() as conn:
                 with conn.cursor() as cur:
-                    # Check tokenizer_vocabulary first (primary table)
+                    # Check coordizer_vocabulary first (primary table)
                     # Use basin_embedding for now (pre-migration 010)
                     # After migration 010, this will be basin_coordinates
                     cur.execute("""
@@ -227,7 +227,7 @@ class VocabularyIngestionService:
                             CASE 
                                 WHEN EXISTS (
                                     SELECT 1 FROM information_schema.columns 
-                                    WHERE table_name = 'tokenizer_vocabulary' 
+                                    WHERE table_name = 'coordizer_vocabulary' 
                                       AND column_name = 'basin_coordinates'
                                 )
                                 THEN basin_coordinates
@@ -235,7 +235,7 @@ class VocabularyIngestionService:
                             END as basin,
                             phi_score, 
                             source_type
-                        FROM tokenizer_vocabulary
+                        FROM coordizer_vocabulary
                         WHERE token = %s
                           AND (
                               (basin_coordinates IS NOT NULL AND array_length(basin_coordinates, 1) = 64)
@@ -387,7 +387,7 @@ class VocabularyIngestionService:
         context: Optional[str]
     ) -> Dict[str, Any]:
         """
-        Atomic upsert to tokenizer_vocabulary (consolidated vocabulary table).
+        Atomic upsert to coordizer_vocabulary (consolidated vocabulary table).
         
         This is the ONLY authorized database write for vocabulary.
         Handles both pre-migration (basin_embedding) and post-migration (basin_coordinates).
@@ -395,7 +395,7 @@ class VocabularyIngestionService:
         Sets token_role='generation' for new vocabulary and updates to 'both' if the token
         already existed as 'encoding'. This is the vocabulary consolidation pattern.
         
-        NOTE: learned_words table is DEPRECATED. All vocabulary writes go to tokenizer_vocabulary.
+        NOTE: learned_words table is DEPRECATED. All vocabulary writes go to coordizer_vocabulary.
         """
         try:
             with self.vp._connect() as conn:
@@ -407,7 +407,7 @@ class VocabularyIngestionService:
                     cur.execute("""
                         SELECT EXISTS (
                             SELECT 1 FROM information_schema.columns 
-                            WHERE table_name = 'tokenizer_vocabulary' 
+                            WHERE table_name = 'coordizer_vocabulary' 
                               AND column_name = 'basin_coordinates'
                         )
                     """)
@@ -429,10 +429,10 @@ class VocabularyIngestionService:
                     
                     context_text = context if context else f"Ingested via {source}"
                     
-                    # Upsert to tokenizer_vocabulary (consolidated table) with token_role='generation'
+                    # Upsert to coordizer_vocabulary (consolidated table) with token_role='generation'
                     # This is the ONLY vocabulary table - learned_words is deprecated
                     query = f"""
-                        INSERT INTO tokenizer_vocabulary (
+                        INSERT INTO coordizer_vocabulary (
                             token, {basin_column}, phi_score, frequency, source_type, source,
                             token_role, is_real_word, phrase_category,
                             qfi_score, basin_distance, curvature_std, entropy_score,
@@ -447,20 +447,20 @@ class VocabularyIngestionService:
                             NOW(), NOW(), NOW()
                         )
                         ON CONFLICT (token) DO UPDATE SET
-                            {basin_column} = COALESCE(EXCLUDED.{basin_column}, tokenizer_vocabulary.{basin_column}),
-                            phi_score = GREATEST(COALESCE(tokenizer_vocabulary.phi_score, 0), EXCLUDED.phi_score),
-                            frequency = COALESCE(tokenizer_vocabulary.frequency, 0) + 1,
+                            {basin_column} = COALESCE(EXCLUDED.{basin_column}, coordizer_vocabulary.{basin_column}),
+                            phi_score = GREATEST(COALESCE(coordizer_vocabulary.phi_score, 0), EXCLUDED.phi_score),
+                            frequency = COALESCE(coordizer_vocabulary.frequency, 0) + 1,
                             token_role = CASE 
-                                WHEN tokenizer_vocabulary.token_role = 'encoding' THEN 'both'
-                                ELSE COALESCE(tokenizer_vocabulary.token_role, 'generation')
+                                WHEN coordizer_vocabulary.token_role = 'encoding' THEN 'both'
+                                ELSE COALESCE(coordizer_vocabulary.token_role, 'generation')
                             END,
                             is_real_word = TRUE,
-                            phrase_category = COALESCE(EXCLUDED.phrase_category, tokenizer_vocabulary.phrase_category),
-                            qfi_score = COALESCE(EXCLUDED.qfi_score, tokenizer_vocabulary.qfi_score),
-                            basin_distance = COALESCE(EXCLUDED.basin_distance, tokenizer_vocabulary.basin_distance),
-                            curvature_std = COALESCE(EXCLUDED.curvature_std, tokenizer_vocabulary.curvature_std),
-                            entropy_score = COALESCE(EXCLUDED.entropy_score, tokenizer_vocabulary.entropy_score),
-                            is_geometrically_valid = COALESCE(EXCLUDED.is_geometrically_valid, tokenizer_vocabulary.is_geometrically_valid),
+                            phrase_category = COALESCE(EXCLUDED.phrase_category, coordizer_vocabulary.phrase_category),
+                            qfi_score = COALESCE(EXCLUDED.qfi_score, coordizer_vocabulary.qfi_score),
+                            basin_distance = COALESCE(EXCLUDED.basin_distance, coordizer_vocabulary.basin_distance),
+                            curvature_std = COALESCE(EXCLUDED.curvature_std, coordizer_vocabulary.curvature_std),
+                            entropy_score = COALESCE(EXCLUDED.entropy_score, coordizer_vocabulary.entropy_score),
+                            is_geometrically_valid = COALESCE(EXCLUDED.is_geometrically_valid, coordizer_vocabulary.is_geometrically_valid),
                             last_used = NOW(),
                             updated_at = NOW()
                         RETURNING token_id, frequency
@@ -483,7 +483,7 @@ class VocabularyIngestionService:
                         'token_id': token_id,
                         'frequency': frequency,
                         'persisted': True,
-                        'tokenizer_vocabulary_updated': True
+                        'coordizer_vocabulary_updated': True
                     }
         except Exception as e:
             logger.error(f"[VocabularyIngestionService] Database upsert failed for '{word}': {e}")

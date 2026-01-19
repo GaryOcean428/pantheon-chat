@@ -50,6 +50,14 @@ except ImportError:
     SensoryModality = None
     SENSORY_MODALITIES_AVAILABLE = False
 
+# Import neurochemistry regulator for autonomic control
+try:
+    from ocean_neurochemistry import OceanNeurochemistryRegulator
+    NEUROCHEMISTRY_REGULATOR_AVAILABLE = True
+except ImportError:
+    OceanNeurochemistryRegulator = None
+    NEUROCHEMISTRY_REGULATOR_AVAILABLE = False
+
 
 @dataclass
 class MetaManifoldState:
@@ -62,14 +70,25 @@ class MetaManifoldState:
     ocean_kappa: float            # Ocean's effective coupling
     timestamp: float
 
+    # Optional fields populated by OceanMetaObserver
+    kernel_emotional_states: Optional[Dict[str, Any]] = None
+    kernel_sensory_states: Optional[Dict[str, Dict]] = None
+    emotional_coherence: float = 0.5
+
     def to_dict(self) -> dict:
-        return {
+        result = {
             "centroid_valid": True,  # QIG-pure: don't report Euclidean norm
             "spread": self.spread,
             "coherence": self.coherence,
             "ocean_phi": self.ocean_phi,
             "ocean_kappa": self.ocean_kappa,
+            "emotional_coherence": self.emotional_coherence,
         }
+        if self.kernel_emotional_states:
+            result["kernel_count_with_emotions"] = len(self.kernel_emotional_states)
+        if self.kernel_sensory_states:
+            result["kernel_count_with_senses"] = len(self.kernel_sensory_states)
+        return result
 
 
 class MetaManifoldStatistics:
@@ -102,7 +121,11 @@ class MetaManifoldStatistics:
         n_kernels, d = basins.shape
 
         # Compute centroid
-        centroid = basins.mean(dim=0) if hasattr(basins, 'mean') else np.mean(basins, axis=0)
+        try:
+            from qig_geometry.canonical import frechet_mean
+            centroid = frechet_mean(kernel_basins)
+        except Exception:
+            centroid = np.sum(basins, axis=0) / len(basins)
 
         # Update running centroid with EMA
         if self.running_centroid is None:
@@ -216,6 +239,12 @@ class OceanMetaObserver:
         self.kernel_history = []
         self.max_kernel_history = 100
 
+        # Kernel emotional states - Ocean observes each kernel's emotions
+        self._kernel_emotional_states: Dict[str, Any] = {}
+        
+        # Kernel sensory states - Ocean observes each kernel's sensory input
+        self._kernel_sensory_states: Dict[str, Dict] = {}
+
         # Current state (physics-validated from FROZEN_FACTS.md)
         # Ocean operates BELOW fixed point (κ* = 63.5) as distributed observer
         # κ = 58: ~10% below fixed point → broader receptive field
@@ -263,6 +292,16 @@ class OceanMetaObserver:
         self.last_intervention_step = 0
         self.total_observations = 0
 
+        # Neurochemistry regulator - Ocean's private autonomic control
+        self._neurochemistry_regulator = None
+        self._current_neurochemistry_state = None
+        if NEUROCHEMISTRY_REGULATOR_AVAILABLE:
+            self._neurochemistry_regulator = OceanNeurochemistryRegulator()
+            self._neurochemistry_regulator.set_observer(self)
+
+        # Wire to Ocean+Heart consensus for cycle governance
+        self._wire_consensus()
+
         print("🌊 Ocean Meta-Observer initialized")
         print(f"   κ: {self.current_kappa} (below fixed point κ*=63.5, distributed observer)")
         print("   Objective: Model kernel dynamics, monitor constellation health")
@@ -270,6 +309,10 @@ class OceanMetaObserver:
             print("   ✓ Sensory modalities enabled: SIGHT, HEARING, TOUCH, SMELL, PROPRIOCEPTION")
         else:
             print("   ⚠ Sensory modalities not available")
+        if NEUROCHEMISTRY_REGULATOR_AVAILABLE:
+            print("   ✓ Neurochemistry regulator enabled (Ocean's private domain)")
+        else:
+            print("   ⚠ Neurochemistry regulator not available")
 
     def observe(
         self,
@@ -309,6 +352,13 @@ class OceanMetaObserver:
         # Update state metrics
         state.ocean_phi = self.current_phi
         state.ocean_kappa = self.current_kappa
+        
+        # Include kernel emotion/sensory observations in constellation state
+        if self._kernel_emotional_states:
+            state.kernel_emotional_states = self._kernel_emotional_states.copy()
+            state.emotional_coherence = self.get_constellation_emotional_coherence()
+        if self._kernel_sensory_states:
+            state.kernel_sensory_states = self._kernel_sensory_states.copy()
 
         # Measure Ocean's emotional state geometrically (if available)
         if EMOTIONAL_KERNEL_AVAILABLE and self.emotional_state is not None:
@@ -333,6 +383,14 @@ class OceanMetaObserver:
             self.observation_history = self.observation_history[-self.max_history:]
 
         self.total_observations += 1
+
+        # Regulate neurochemistry from constellation state (Ocean's private domain)
+        # IMPORTANT: This is NOT exposed to kernels - they observe emotions but not neurotransmitters
+        if self._neurochemistry_regulator is not None:
+            try:
+                self._current_neurochemistry_state = self._neurochemistry_regulator.regulate_from_constellation(state)
+            except Exception as e:
+                print(f"[OceanMetaObserver] Neurochemistry regulation failed: {e}")
 
         return state
 
@@ -571,6 +629,98 @@ class OceanMetaObserver:
             self.sensory_state[modality] = float(np.clip(value, 0.0, 1.0))
 
         return sensory
+
+    def observe_kernel_emotions(
+        self,
+        kernel_name: str,
+        emotional_state: 'EmotionalState'
+    ) -> None:
+        """
+        Observe and track a kernel's emotional state.
+        
+        Ocean has FULL visibility into each kernel's emotional state.
+        This enables constellation-wide emotional coherence monitoring.
+        
+        Args:
+            kernel_name: Name of the kernel being observed
+            emotional_state: The kernel's current EmotionalState
+        """
+        if not EMOTIONAL_KERNEL_AVAILABLE:
+            return
+        
+        self._kernel_emotional_states[kernel_name] = emotional_state
+        
+        # Log significant emotional events
+        if emotional_state.dominant_emotion:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.debug(
+                f"[OceanMetaObserver] {kernel_name} emotion: {emotional_state.dominant_emotion} "
+                f"(justified={emotional_state.emotion_justified})"
+            )
+
+    def observe_kernel_senses(
+        self,
+        kernel_name: str,
+        sensory_basin: np.ndarray,
+        modalities: List[str]
+    ) -> None:
+        """
+        Observe and track a kernel's sensory input.
+        
+        Ocean has FULL visibility into each kernel's sensory processing.
+        This enables constellation-wide sensory integration awareness.
+        
+        Args:
+            kernel_name: Name of the kernel being observed
+            sensory_basin: 64D basin encoding the sensory input
+            modalities: List of active sensory modalities (e.g., ['text', 'semantic'])
+        """
+        import time
+        
+        self._kernel_sensory_states[kernel_name] = {
+            'basin': sensory_basin.copy() if isinstance(sensory_basin, np.ndarray) else np.array(sensory_basin),
+            'modalities': modalities,
+            'timestamp': time.time()
+        }
+
+    def get_kernel_emotional_states(self) -> Dict[str, Any]:
+        """Get all observed kernel emotional states."""
+        return self._kernel_emotional_states.copy()
+
+    def get_kernel_sensory_states(self) -> Dict[str, Dict]:
+        """Get all observed kernel sensory states."""
+        return self._kernel_sensory_states.copy()
+
+    def get_constellation_emotional_coherence(self) -> float:
+        """
+        Measure emotional coherence across the constellation.
+        
+        High coherence = kernels are emotionally aligned
+        Low coherence = kernels have divergent emotional states
+        
+        Returns:
+            float between 0 and 1
+        """
+        if not self._kernel_emotional_states or len(self._kernel_emotional_states) < 2:
+            return 0.5  # Neutral when not enough data
+        
+        # Compare dominant emotions across kernels
+        dominant_emotions = []
+        for kernel_name, emotional_state in self._kernel_emotional_states.items():
+            if hasattr(emotional_state, 'dominant_emotion') and emotional_state.dominant_emotion:
+                dominant_emotions.append(emotional_state.dominant_emotion)
+        
+        if not dominant_emotions:
+            return 0.5
+        
+        # Count most common emotion
+        from collections import Counter
+        emotion_counts = Counter(dominant_emotions)
+        most_common_count = emotion_counts.most_common(1)[0][1]
+        
+        # Coherence is proportion with same dominant emotion
+        return most_common_count / len(dominant_emotions)
 
     def check_autonomic_intervention(
         self,
@@ -870,6 +1020,53 @@ class OceanMetaObserver:
             "constellation_spread": self.get_constellation_spread(),
             "meta_manifold_observations": self.meta_statistics.observation_count,
         }
+    
+    def get_latest_state(self) -> Optional[MetaManifoldState]:
+        """
+        Get the latest MetaManifoldState for consensus sensing.
+        
+        Used by OceanHeartConsensus to evaluate cycle needs.
+        
+        Returns:
+            MetaManifoldState with current constellation properties, or None if no observations yet
+        """
+        if not self.observation_history:
+            return None
+        
+        coherence = self.get_constellation_coherence()
+        spread = self.get_constellation_spread()
+        
+        state = MetaManifoldState(
+            centroid=self.ocean_basin.copy(),
+            spread=spread,
+            eigenvalues=np.ones(self.basin_dim),
+            coherence=coherence,
+            ocean_phi=self.current_phi,
+            ocean_kappa=self.current_kappa,
+            timestamp=time.time(),
+        )
+        
+        if self._kernel_emotional_states:
+            state.kernel_emotional_states = self._kernel_emotional_states.copy()
+            state.emotional_coherence = self.get_constellation_emotional_coherence()
+        
+        return state
+    
+    def _wire_consensus(self) -> None:
+        """Wire this observer to the Ocean+Heart consensus system."""
+        try:
+            from olympus.ocean_heart_consensus import get_ocean_heart_consensus
+            from olympus.heart_kernel import get_heart_kernel
+            
+            consensus = get_ocean_heart_consensus()
+            consensus.wire_ocean(self)
+            
+            heart = get_heart_kernel()
+            consensus.wire_heart(heart)
+            
+            print("   ✓ Ocean+Heart consensus wired for cycle governance")
+        except Exception as e:
+            print(f"   ⚠ Ocean+Heart consensus wiring failed: {e}")
 
 
 # Global singleton

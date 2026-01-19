@@ -32,14 +32,17 @@ except ImportError:
 
 
 def _fisher_rao_distance(p: np.ndarray, q: np.ndarray, eps: float = 1e-10) -> float:
-    """Compute Fisher-Rao distance between basin coordinates."""
+    """
+    Compute Fisher-Rao distance between basin coordinates.
+    UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
+    """
     p_safe = np.clip(np.abs(p), eps, None)
     q_safe = np.clip(np.abs(q), eps, None)
     p_norm = p_safe / np.sum(p_safe)
     q_norm = q_safe / np.sum(q_safe)
     # More numerically stable: compute sqrt individually before multiplication
     bc = np.sum(np.sqrt(p_norm) * np.sqrt(q_norm))
-    return float(np.arccos(np.clip(bc, -1.0, 1.0)))
+    return float(np.arccos(np.clip(bc, 0.0, 1.0)))
 
 
 def _geodesic_interpolate(start: np.ndarray, end: np.ndarray, t: float) -> np.ndarray:

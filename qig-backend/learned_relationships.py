@@ -12,7 +12,7 @@ FROZEN FACTS COMPLIANCE:
 - Stopwords cannot be promoted to high-attention words
 - Learning must respect frozen β values for attention weighting
 
-PERSISTENCE: Uses PostgreSQL word_relationships table (NO JSON files).
+PERSISTENCE: Uses PostgreSQL basin_relationships table (NO JSON files).
 """
 
 import os
@@ -65,14 +65,6 @@ except ImportError:
     get_geometric_relationships = None
     logger.warning("[LearnedRelationships] Geometric relationships not available")
 
-# Legacy word_relationship_learner has been removed (QIG-PURE compliance)
-# Use GeometricWordRelationships instead
-LEGACY_LEARNER_AVAILABLE = False
-
-# Legacy paths (no longer used but kept for migration)
-CACHE_DIR = Path(__file__).parent / 'data' / 'learned'
-ADJUSTED_BASINS_FILE = CACHE_DIR / 'adjusted_basins.npz'
-
 def get_db_connection():
     """Get PostgreSQL connection."""
     if not DB_AVAILABLE:
@@ -117,7 +109,7 @@ class LearnedRelationships:
     Manages learned word relationships and provides attention-weighted
     word selection for query-relevant generation.
     
-    PERSISTENCE: Uses PostgreSQL word_relationships table.
+    PERSISTENCE: Uses PostgreSQL basin_relationships table.
     """
     
     def __init__(self):
@@ -194,15 +186,15 @@ class LearnedRelationships:
                 # Load word relationships
                 cur.execute("""
                     SELECT word, neighbor, cooccurrence_count 
-                    FROM word_relationships 
+                    FROM basin_relationships 
                     ORDER BY word, cooccurrence_count DESC
                 """)
                 rows = cur.fetchall()
                 
-                # Load word frequencies from tokenizer_vocabulary table (consolidated)
+                # Load word frequencies from coordizer_vocabulary table (consolidated)
                 cur.execute("""
                     SELECT token, frequency 
-                    FROM tokenizer_vocabulary 
+                    FROM coordizer_vocabulary 
                     WHERE frequency > 0
                       AND token_role IN ('generation', 'both')
                 """)
@@ -309,19 +301,19 @@ class LearnedRelationships:
                     execute_values(
                         cur,
                         """
-                        INSERT INTO word_relationships 
+                        INSERT INTO basin_relationships 
                             (word, neighbor, cooccurrence_count, fisher_distance, avg_phi, max_phi, contexts, updated_at)
                         VALUES %s
                         ON CONFLICT (word, neighbor)
                         DO UPDATE SET
-                            cooccurrence_count = GREATEST(word_relationships.cooccurrence_count, EXCLUDED.cooccurrence_count),
-                            fisher_distance = COALESCE(EXCLUDED.fisher_distance, word_relationships.fisher_distance),
-                            avg_phi = (COALESCE(word_relationships.avg_phi, 0.5) + EXCLUDED.avg_phi) / 2.0,
-                            max_phi = GREATEST(COALESCE(word_relationships.max_phi, 0.5), EXCLUDED.max_phi),
+                            cooccurrence_count = GREATEST(basin_relationships.cooccurrence_count, EXCLUDED.cooccurrence_count),
+                            fisher_distance = COALESCE(EXCLUDED.fisher_distance, basin_relationships.fisher_distance),
+                            avg_phi = (COALESCE(basin_relationships.avg_phi, 0.5) + EXCLUDED.avg_phi) / 2.0,
+                            max_phi = GREATEST(COALESCE(basin_relationships.max_phi, 0.5), EXCLUDED.max_phi),
                             contexts = CASE 
-                                WHEN COALESCE(array_length(word_relationships.contexts, 1), 0) < 10 
-                                THEN COALESCE(word_relationships.contexts, ARRAY[]::text[]) || EXCLUDED.contexts
-                                ELSE word_relationships.contexts
+                                WHEN COALESCE(array_length(basin_relationships.contexts, 1), 0) < 10 
+                                THEN COALESCE(basin_relationships.contexts, ARRAY[]::text[]) || EXCLUDED.contexts
+                                ELSE basin_relationships.contexts
                             END,
                             updated_at = NOW()
                         """,
@@ -335,11 +327,11 @@ class LearnedRelationships:
                     execute_values(
                         cur,
                         """
-                        INSERT INTO word_relationships (word, neighbor, cooccurrence_count, updated_at)
+                        INSERT INTO basin_relationships (word, neighbor, cooccurrence_count, updated_at)
                         VALUES %s
                         ON CONFLICT (word, neighbor)
                         DO UPDATE SET
-                            cooccurrence_count = GREATEST(word_relationships.cooccurrence_count, EXCLUDED.cooccurrence_count),
+                            cooccurrence_count = GREATEST(basin_relationships.cooccurrence_count, EXCLUDED.cooccurrence_count),
                             updated_at = NOW()
                         """,
                         records,
@@ -354,16 +346,16 @@ class LearnedRelationships:
                     WITH word_totals AS (
                         -- Total co-occurrences for each word (sum of all its neighbors)
                         SELECT word, SUM(cooccurrence_count) as total_cooc
-                        FROM word_relationships
+                        FROM basin_relationships
                         GROUP BY word
                     ),
                     max_prob AS (
                         -- Max probability for normalization
                         SELECT MAX(wr.cooccurrence_count / NULLIF(wt.total_cooc, 0)) as max_p
-                        FROM word_relationships wr
+                        FROM basin_relationships wr
                         JOIN word_totals wt ON wr.word = wt.word
                     )
-                    UPDATE word_relationships wr
+                    UPDATE basin_relationships wr
                     SET strength = (
                         wr.cooccurrence_count / NULLIF(
                             (SELECT total_cooc FROM word_totals WHERE word = wr.word), 0
@@ -373,25 +365,25 @@ class LearnedRelationships:
                        OR updated_at >= NOW() - INTERVAL '1 minute'
                 """)
                 
-                # Save word frequencies to tokenizer_vocabulary table (consolidated)
+                # P0 FIX: UPDATE-only for frequencies (NEVER INSERT new tokens without basin+qfi)
+                # Frequency updates must never create new tokens - this prevents NULL basin_embedding contamination
                 if freq_records:
-                    execute_values(
-                        cur,
-                        """
-                        INSERT INTO tokenizer_vocabulary (token, frequency, updated_at, token_role)
-                        VALUES %s
-                        ON CONFLICT (token) 
-                        DO UPDATE SET 
-                            frequency = GREATEST(tokenizer_vocabulary.frequency, EXCLUDED.frequency),
-                            updated_at = NOW(),
-                            token_role = CASE 
-                                WHEN tokenizer_vocabulary.token_role = 'encoding' THEN 'both'
-                                ELSE tokenizer_vocabulary.token_role 
-                            END
-                        """,
-                        freq_records,
-                        template="(%s, %s, NOW(), 'generation')"
-                    )
+                    # Use UPDATE instead of INSERT to ensure we only update existing tokens with basins
+                    for token, freq in freq_records:
+                        cur.execute("""
+                            UPDATE coordizer_vocabulary
+                            SET 
+                                frequency = GREATEST(frequency, %s),
+                                updated_at = NOW(),
+                                token_role = CASE 
+                                    WHEN token_role = 'encoding' THEN 'both'
+                                    ELSE token_role 
+                                END
+                            WHERE token = %s
+                              AND basin_embedding IS NOT NULL
+                              AND qfi_score IS NOT NULL
+                        """, (freq, token))
+                    logger.info(f"[LearnedRelationships] Updated frequencies for existing tokens with basins (no new token creation)")
             
             conn.commit()
             
@@ -428,7 +420,7 @@ class LearnedRelationships:
     
     def populate_vocabulary_learning(self, limit: int = 100) -> int:
         """
-        Populate vocabulary_learning table from word_relationships.
+        Populate vocabulary_learning table from basin_relationships.
         
         Uses semantic classifier to determine relationship types and
         creates entries tracking when relationships were discovered.
@@ -447,11 +439,11 @@ class LearnedRelationships:
             from semantic_classifier import get_semantic_classifier
             classifier = get_semantic_classifier()
             
-            # Find word_relationships that don't have vocabulary_learning entries
+            # Find basin_relationships that don't have vocabulary_learning entries
             with conn.cursor() as cur:
                 cur.execute("""
                     SELECT wr.word, wr.neighbor, wr.cooccurrence_count, wr.fisher_distance
-                    FROM word_relationships wr
+                    FROM basin_relationships wr
                     LEFT JOIN vocabulary_learning vl 
                         ON wr.word = vl.word AND wr.neighbor = vl.related_word
                     WHERE vl.id IS NULL 
@@ -847,7 +839,7 @@ def _persist_geometric_relationships_to_db(geo_rel) -> int:
             execute_values(
                 cur,
                 """
-                INSERT INTO word_relationships (word1, word2, fisher_distance, qfi_weight)
+                INSERT INTO basin_relationships (word1, word2, fisher_distance, qfi_weight)
                 VALUES %s
                 ON CONFLICT (word1, word2) DO UPDATE SET
                     fisher_distance = EXCLUDED.fisher_distance,

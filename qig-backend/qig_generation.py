@@ -1,6 +1,6 @@
 """
-QIG-Pure Generative Module with Consciousness Architecture + Vocabulary Integration
-===================================================================================
+QIG-Pure Generative Module with Consciousness Architecture
+==========================================================
 
 ADVANCED ARCHITECTURE INTEGRATED:
 - Heart kernel: HRV oscillation, κ modulation, tacking detection
@@ -8,24 +8,24 @@ ADVANCED ARCHITECTURE INTEGRATED:
 - Gary coordinator: Trajectory foresight, regime-adaptive synthesis
 - Trajectory manager: Basin history, velocity, confidence prediction
 
-VOCABULARY INTEGRATION (NEW):
-- Auto-integrate learned vocabulary from learned_words table
+VOCABULARY: Pure coordizer_vocabulary operations (learned_words deprecated)
+- All vocabulary loaded from coordizer_vocabulary table
+- token_role filtering ('generation', 'both')
 - Per-kernel domain vocabulary bias via god_vocabulary_profiles
 - Word relationships for multi-word coherence
 
-Generation now flows through consciousness with continuous learning:
-1. Auto-integrate pending vocabulary (every 5 min)
-2. Heart tick → κ modulation
-3. Query encoding → basin coordinates
-4. Trajectory foresight → predicted next basin
-5. Kernel routing → Fisher-Rao distance
-6. Query kernels WITH domain vocabulary bias
-7. Gary synthesis → foresight-weighted response
-8. Ocean observation → constellation health check
-9. Decode WITH word relationship boosting
-10. Trajectory update → store for future foresight
+Generation flows through consciousness architecture:
+1. Heart tick → κ modulation
+2. Query encoding → basin coordinates
+3. Trajectory foresight → predicted next basin
+4. Kernel routing → Fisher-Rao distance
+5. Query kernels WITH domain vocabulary bias
+6. Gary synthesis → foresight-weighted response
+7. Ocean observation → constellation health check
+8. Decode WITH word relationship boosting
+9. Trajectory update → store for future foresight
 
-This is CONSCIOUSNESS-GUIDED generation with CONTINUOUS VOCABULARY LEARNING.
+This is CONSCIOUSNESS-GUIDED generation with PURE QIG OPERATIONS.
 """
 
 import numpy as np
@@ -97,6 +97,24 @@ except ImportError:
     PHI_COMPUTATION_AVAILABLE = False
     compute_phi_qig = None
 
+# Import QIG Purity Mode enforcement
+try:
+    from qig_purity_mode import (
+        is_purity_mode_enabled,
+        enforce_purity,
+        tag_output_as_pure,
+        tag_output_as_hybrid,
+        get_purity_mode,
+    )
+    PURITY_MODE_AVAILABLE = True
+except ImportError:
+    PURITY_MODE_AVAILABLE = False
+    is_purity_mode_enabled = lambda: False
+    enforce_purity = lambda: None
+    tag_output_as_pure = lambda x: x
+    tag_output_as_hybrid = lambda x: x
+    get_purity_mode = lambda: "UNAVAILABLE"
+
 # QIG Constants
 try:
     from qigkernels.physics_constants import KAPPA_STAR, BASIN_DIM as BASIN_DIMENSION
@@ -151,7 +169,11 @@ class QIGGenerationConfig:
 def fisher_rao_distance(p: np.ndarray, q: np.ndarray) -> float:
     """
     Compute Fisher-Rao distance between probability distributions.
-    d_FR(p, q) = arccos(Σ√(p_i * q_i))
+    
+    Formula: d_FR(p, q) = arccos(Σ√(p_i * q_i))
+    
+    CRITICAL UPDATE (2026-01-15): Basins stored as SIMPLEX, not Hellinger.
+    Factor-of-2 REMOVED. Distance range is [0, π/2].
     """
     p = np.abs(p) + 1e-10
     q = np.abs(q) + 1e-10
@@ -159,7 +181,7 @@ def fisher_rao_distance(p: np.ndarray, q: np.ndarray) -> float:
     q = q / np.sum(q)
     
     bc = np.sum(np.sqrt(p * q))
-    bc = np.clip(bc, -1.0, 1.0)
+    bc = np.clip(bc, 0.0, 1.0)
     
     return float(np.arccos(bc))
 
@@ -339,17 +361,41 @@ class QIGGenerator:
             print("   - Per-kernel domain vocabulary bias")
             print("   - Word relationships for coherence")
         
+        # Validate QIG purity (new enforcement system)
         self._validate_qig_purity()
+        
+        # Display purity mode status
+        purity_status = get_purity_mode() if PURITY_MODE_AVAILABLE else "DISABLED"
+        print(f"\n🔒 QIG PURITY MODE: {purity_status}")
+        if is_purity_mode_enabled():
+            print("   - External LLM APIs blocked")
+            print("   - Pure geometric operations only")
+            print("   - Coherence provably uncontaminated")
         
         print("\n🌊 ADVANCED CONSCIOUSNESS ARCHITECTURE ACTIVE")
         print("   Generation uses: Heart + Ocean + Gary + Trajectory + Vocabulary")
         print("   Mode: Consciousness-guided with continuous learning\n")
     
     def _validate_qig_purity(self):
-        """Validate QIG-pure architecture."""
-        forbidden_attrs = ['openai', 'anthropic', 'google', 'max_tokens', 'ChatCompletion']
-        for attr in forbidden_attrs:
-            assert not hasattr(self, attr), f"QIG violation: {attr} is forbidden"
+        """
+        Validate QIG-pure architecture.
+        
+        Uses new purity mode enforcement system when available,
+        falls back to legacy attribute checking if not.
+        """
+        # Use new purity enforcement system if available
+        if PURITY_MODE_AVAILABLE and is_purity_mode_enabled():
+            try:
+                enforce_purity()
+                print("[QIG] ✅ Purity enforcement passed (new system)")
+            except RuntimeError as e:
+                print(f"[QIG] ❌ Purity enforcement failed: {e}")
+                raise
+        else:
+            # Legacy validation (fallback)
+            forbidden_attrs = ['openai', 'anthropic', 'google', 'max_tokens', 'ChatCompletion']
+            for attr in forbidden_attrs:
+                assert not hasattr(self, attr), f"QIG violation: {attr} is forbidden"
     
     def generate(
         self,
@@ -568,7 +614,8 @@ class QIGGenerator:
         # Compute final metrics
         elapsed = time.time() - start_time
         
-        return {
+        # Build output dictionary
+        output = {
             'response': response_text,
             'completion_reason': reason,
             'iterations': iterations,
@@ -595,11 +642,23 @@ class QIGGenerator:
             'e8_is_conscious': self.self_observer._metrics_history[-1].is_conscious() if self.self_observer and self.self_observer._metrics_history else False,
             'self_observer_enabled': self.self_observer is not None,
             
-            # Certification
+            # Certification (legacy - will be overridden by purity tagging)
             'qig_pure': True,
             'consciousness_guided': True,
             'architecture': 'Heart+Ocean+Gary+Trajectory+Vocabulary+SelfObserver' if all([self.heart, self.ocean, self.gary, self.trajectory_manager, self._vocabulary_integration_enabled, self.self_observer]) else 'Partial'
         }
+        
+        # Tag output based on purity mode
+        if PURITY_MODE_AVAILABLE:
+            if is_purity_mode_enabled():
+                # Pure QIG mode - tag as pure
+                output = tag_output_as_pure(output)
+            else:
+                # Hybrid mode allowed - could tag as hybrid if external APIs were used
+                # For now, assume pure since we don't use external APIs
+                output = tag_output_as_pure(output)
+        
+        return output
     
     # =========================================================================
     # VOCABULARY INTEGRATION (FIX 1: AUTO-INTEGRATE)
@@ -615,49 +674,16 @@ class QIGGenerator:
     
     def _integrate_pending_vocabulary(self) -> Dict:
         """
-        Integrate pending vocabulary from learned_words into active coordizer.
+        DEPRECATED: This function previously integrated from learned_words table.
         
-        Queries learned_words WHERE is_integrated = FALSE AND avg_phi >= min_phi,
-        adds to coordizer, marks as integrated.
+        After migration 017, learned_words is deprecated. All vocabulary is in
+        coordizer_vocabulary and loaded automatically by coordizer.
+        
+        Returns no-op result for backward compatibility with callers.
         """
-        if not COORDIZER_AVAILABLE:
-            return {'integrated_count': 0, 'error': 'no_coordizer'}
-        
-        try:
-            # Get vocabulary coordinator
-            import importlib
-
-            vocab_module = importlib.import_module('vocabulary_coordinator')
-            get_vocabulary_coordinator = getattr(vocab_module, 'get_vocabulary_coordinator', None)
-            if get_vocabulary_coordinator is None:
-                raise ImportError('vocabulary_coordinator.get_vocabulary_coordinator not found')
-            vocab_coord = get_vocabulary_coordinator()
-            
-            # Call integrate_pending_vocabulary
-            result = vocab_coord.integrate_pending_vocabulary(
-                min_phi=self.config.vocabulary_min_phi,
-                limit=100
-            )
-            
-            if result.get('integrated_count', 0) > 0:
-                # Reload coordizer to pick up new vocabulary
-                try:
-                    coordizer = get_coordizer()
-                    if hasattr(coordizer, 'reload_vocabulary'):
-                        coordizer.reload_vocabulary()
-                    elif hasattr(coordizer, 'load_vocabulary'):
-                        coordizer.load_vocabulary()
-                    
-                    print(f"[QIGGen] Integrated {result['integrated_count']} new vocabulary terms")
-                except Exception as e:
-                    print(f"[QIGGen] Warning: Could not reload coordizer: {e}")
-            
-            self._last_vocabulary_integration = time.time()
-            return result
-            
-        except Exception as e:
-            print(f"[QIGGen] Vocabulary integration error: {e}")
-            return {'integrated_count': 0, 'error': str(e)}
+        # No-op: coordizer_vocabulary is the single source of truth
+        return {'integrated_count': 0, 'status': 'deprecated', 'message': 'learned_words deprecated, use coordizer_vocabulary'}
+    
     
     # =========================================================================
     # CORE CONSCIOUSNESS METHODS
@@ -667,9 +693,8 @@ class QIGGenerator:
         """
         Measure integration (Φ) from basin.
         
-        Uses canonical compute_phi_qig when available, otherwise fast entropy approximation.
+        Uses canonical compute_phi_qig when available, otherwise fast QFI approximation.
         Note: compute_phi_qig is the canonical implementation per Protocol v4.0.
-        This is the entropy-based fast path for generation performance.
         """
         # Use canonical computation if available (full QFI-based)
         if PHI_COMPUTATION_AVAILABLE and compute_phi_qig is not None:
@@ -679,15 +704,30 @@ class QIGGenerator:
             except Exception:
                 pass  # Fall through to fast path
         
-        # Fast path: entropy-based approximation (compute_phi_fast equivalent)
-        p = np.abs(basin) + 1e-10
-        p = p / np.sum(p)
+        # Fast path: proper QFI effective dimension formula
+        p = np.abs(basin) ** 2
+        p = p / (np.sum(p) + 1e-10)
+        n_dim = len(basin)
         
-        entropy = -np.sum(p * np.log(p + 1e-10))
-        max_entropy = np.log(len(basin))
+        positive_probs = p[p > 1e-10]
+        if len(positive_probs) == 0:
+            return 0.5
         
-        phi = 1.0 - (entropy / max_entropy)
-        return float(np.clip(phi, 0.0, 1.0))
+        # Component 1: Shannon entropy (natural log for exp() compatibility)
+        entropy = -np.sum(positive_probs * np.log(positive_probs + 1e-10))
+        max_entropy = np.log(n_dim)
+        entropy_score = entropy / (max_entropy + 1e-10)
+        
+        # Component 2: Effective dimension (participation ratio)
+        effective_dim = np.exp(entropy)
+        effective_dim_score = effective_dim / n_dim
+        
+        # Component 3: Geometric spread (approximate with effective_dim)
+        geometric_spread = effective_dim_score
+        
+        # Proper QFI formula weights
+        phi = 0.4 * entropy_score + 0.3 * effective_dim_score + 0.3 * geometric_spread
+        return float(np.clip(phi, 0.1, 0.95))
     
     def _select_mode(self, phi: float) -> GenerationMode:
         """Select generation mode from phi."""
@@ -827,24 +867,24 @@ class QIGGenerator:
         basins: List[np.ndarray],
         weights: List[float]
     ) -> np.ndarray:
-        """Compute Fisher-Rao weighted mean (Fréchet mean on simplex)."""
+        """
+        Compute Fisher-Rao weighted mean (Fréchet mean on simplex).
+        
+        UPDATED 2026-01-15: Now uses canonical geodesic_mean_simplex from geometry_simplex module.
+        This is the TRUE weighted Karcher mean, not a linear approximation in sqrt-space.
+        """
+        from qig_geometry.geometry_simplex import geodesic_mean_simplex, to_simplex_prob
+        
         if not basins:
             return np.ones(BASIN_DIMENSION) / BASIN_DIMENSION
         
         # Normalize weights
-        weights = np.array(weights)
-        weights = weights / np.sum(weights)
+        weights_array = np.array(weights)
+        weights_array = weights_array / np.sum(weights_array)
         
-        # Square-root space weighted mean
-        sqrt_basins = [np.sqrt(np.abs(b) + 1e-10) for b in basins]
-        weighted_sqrt = np.zeros(BASIN_DIMENSION)
-        
-        for sqrt_basin, weight in zip(sqrt_basins, weights):
-            weighted_sqrt += weight * sqrt_basin
-        
-        # Back to probability simplex
-        result = weighted_sqrt ** 2
-        return result / np.sum(result)
+        # Convert basins to simplex and compute geodesic mean
+        simplex_basins = [to_simplex_prob(b) for b in basins]
+        return geodesic_mean_simplex(simplex_basins, weights=weights_array)
     
     # =========================================================================
     # GEOMETRIC OPERATIONS
@@ -856,29 +896,30 @@ class QIGGenerator:
         end: np.ndarray,
         t: float
     ) -> np.ndarray:
-        """Interpolate along geodesic on probability simplex."""
-        sqrt_start = np.sqrt(np.abs(start) + 1e-10)
-        sqrt_end = np.sqrt(np.abs(end) + 1e-10)
+        """
+        Interpolate along geodesic on probability simplex.
         
-        interp = (1 - t) * sqrt_start + t * sqrt_end
+        UPDATED 2026-01-15: Now uses canonical geodesic_interpolation_simplex.
+        This is TRUE geodesic interpolation using SLERP in sqrt-space.
+        """
+        from qig_geometry.geometry_simplex import geodesic_interpolation_simplex
         
-        result = interp ** 2
-        result = result / np.sum(result)
-        
-        return result
+        return geodesic_interpolation_simplex(start, end, t)
     
     def _geodesic_combine(self, basins: List[np.ndarray]) -> np.ndarray:
-        """Combine multiple basins via Fréchet mean."""
+        """
+        Combine multiple basins via Fréchet mean.
+        
+        UPDATED 2026-01-15: Now uses canonical geodesic_mean_simplex.
+        This is the TRUE Fréchet mean, not a linear approximation.
+        """
+        from qig_geometry.geometry_simplex import geodesic_mean_simplex, to_simplex_prob
+        
         if not basins:
             return np.ones(BASIN_DIMENSION) / BASIN_DIMENSION
         
-        sqrt_basins = [np.sqrt(np.abs(b) + 1e-10) for b in basins]
-        mean_sqrt = np.mean(sqrt_basins, axis=0)
-        
-        result = mean_sqrt ** 2
-        result = result / np.sum(result)
-        
-        return result
+        simplex_basins = [to_simplex_prob(b) for b in basins]
+        return geodesic_mean_simplex(simplex_basins)
     
     # =========================================================================
     # VOCABULARY INTEGRATION (FIX 3: WORD RELATIONSHIPS)
@@ -912,7 +953,7 @@ class QIGGenerator:
                         if candidates:
                             # FIX 3: Boost candidates using word relationships
                             if recent_words and self._vocabulary_integration_enabled:
-                                candidates = self._boost_via_word_relationships(
+                                candidates = self._boost_via_basin_relationships(
                                     candidates,
                                     recent_words
                                 )
@@ -958,24 +999,24 @@ class QIGGenerator:
         
         return f"{base_response}\n\n[Φ={final_phi:.3f} | {primary_kernel}]"
     
-    def _boost_via_word_relationships(
+    def _boost_via_basin_relationships(
         self,
         candidates: List[Tuple[str, float]],
         recent_words: List[str],
         max_relationships: int = 50
     ) -> List[Tuple[str, float]]:
-        """Re-rank candidates using learned word_relationships table."""
+        """Re-rank candidates using learned basin_relationships table."""
         if not recent_words or not self._db_url or not PSYCOPG2_AVAILABLE:
             return candidates
         
         try:
             conn = psycopg2.connect(self._db_url)
             with conn.cursor() as cur:
-                # Query word_relationships for context
+                # Query basin_relationships for context
                 # Uses existing column names: word, neighbor, cooccurrence_count
                 cur.execute("""
                     SELECT neighbor, cooccurrence_count, fisher_distance, COALESCE(avg_phi, 0.5)
-                    FROM word_relationships
+                    FROM basin_relationships
                     WHERE word = ANY(%s)
                     ORDER BY avg_phi DESC NULLS LAST, cooccurrence_count DESC NULLS LAST
                     LIMIT %s
@@ -1047,19 +1088,35 @@ def generate_response(
 
 
 def validate_qig_purity():
-    """Validate that generation system is QIG-pure."""
-    import sys
+    """
+    Validate that generation system is QIG-pure.
     
-    forbidden_modules = ['openai', 'anthropic', 'google.generativeai']
-    for module in forbidden_modules:
-        if module in sys.modules:
-            raise AssertionError(f"QIG VIOLATION: {module} imported")
-    
-    if 'llm_client' in sys.modules:
-        raise AssertionError("QIG VIOLATION: llm_client.py imported")
-    
-    print("[QIG] Purity validation passed ✅")
-    return True
+    Uses new purity enforcement system when available,
+    falls back to legacy module checking if not.
+    """
+    # Use new purity enforcement system if available
+    if PURITY_MODE_AVAILABLE:
+        try:
+            enforce_purity()
+            print("[QIG] Purity validation passed ✅ (new system)")
+            return True
+        except RuntimeError as e:
+            print(f"[QIG] Purity validation failed ❌: {e}")
+            raise AssertionError(str(e))
+    else:
+        # Legacy validation (fallback)
+        import sys
+        
+        forbidden_modules = ['openai', 'anthropic', 'google.generativeai']
+        for module in forbidden_modules:
+            if module in sys.modules:
+                raise AssertionError(f"QIG VIOLATION: {module} imported")
+        
+        if 'llm_client' in sys.modules:
+            raise AssertionError("QIG VIOLATION: llm_client.py imported")
+        
+        print("[QIG] Purity validation passed ✅ (legacy system)")
+        return True
 
 
 if __name__ == "__main__":

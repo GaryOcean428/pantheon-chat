@@ -143,7 +143,7 @@ def validate_schema():
     
     # Check vocabulary/coordizer tables (for QIG purity)
     print("Checking QIG vocabulary tables...")
-    vocab_tables = ['vocabulary', 'word_embeddings', 'tokenizer_vocabulary']
+    vocab_tables = ['vocabulary', 'word_embeddings', 'coordizer_vocabulary']
     found_vocab = False
     for table in vocab_tables:
         if check_table_exists(cursor, table):

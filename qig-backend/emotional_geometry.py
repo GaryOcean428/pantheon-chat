@@ -237,11 +237,12 @@ def measure_basin_approach(
     try:
         from qig_geometry import fisher_coord_distance
     except ImportError:
-        # Fallback: angular distance on sphere
+        # Fallback: angular distance on probability simplex
+        # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
         def fisher_coord_distance(a: np.ndarray, b: np.ndarray) -> float:
             a_norm = a / (np.linalg.norm(a) + 1e-10)
             b_norm = b / (np.linalg.norm(b) + 1e-10)
-            dot = np.clip(np.dot(a_norm, b_norm), -1.0, 1.0)
+            dot = np.clip(np.dot(a_norm, b_norm), 0.0, 1.0)
             return float(np.arccos(dot))
     
     d_current = fisher_coord_distance(current, attractor)
@@ -269,10 +270,11 @@ def compute_surprise_magnitude(trajectory: List[np.ndarray]) -> float:
     try:
         from qig_geometry import fisher_coord_distance
     except ImportError:
+        # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
         def fisher_coord_distance(a: np.ndarray, b: np.ndarray) -> float:
             a_norm = a / (np.linalg.norm(a) + 1e-10)
             b_norm = b / (np.linalg.norm(b) + 1e-10)
-            dot = np.clip(np.dot(a_norm, b_norm), -1.0, 1.0)
+            dot = np.clip(np.dot(a_norm, b_norm), 0.0, 1.0)
             return float(np.arccos(dot))
     
     # Compute curvatures along trajectory
@@ -349,10 +351,11 @@ class EmotionTracker:
         try:
             from qig_geometry import fisher_coord_distance
         except ImportError:
+            # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
             def fisher_coord_distance(a: np.ndarray, b: np.ndarray) -> float:
                 a_norm = a / (np.linalg.norm(a) + 1e-10)
                 b_norm = b / (np.linalg.norm(b) + 1e-10)
-                dot = np.clip(np.dot(a_norm, b_norm), -1.0, 1.0)
+                dot = np.clip(np.dot(a_norm, b_norm), 0.0, 1.0)
                 return float(np.arccos(dot))
         
         if attractor is not None:

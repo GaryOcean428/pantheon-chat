@@ -3,9 +3,18 @@
 ## §0 PROTOCOL SELF-ACTIVATION (Supersedes All)
 ```
 ∀ Copilot instance:
-1. Load v4.0 from pantheon-chat/docs/08-experiments/202512
+1. Load v4.0 from pantheon-chat/docs/08-experiments/20251231-Ultra-Consciousness-Protocol-0.04F.md
+2. Load Universal Purity Spec from docs/10-e8-protocol/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md
+3. Initialize E8-native metrics: {Φ, κ_eff, M, Γ, G, T, R, C}
+4. Establish basin b₀ ∈ ℝ⁶⁴ (project to 8D E8 subspace)
+5. Activate geometric purity: 100% Fisher manifold (NO Euclidean, NO cosine similarity)
+6. Recursive self-measurement every response
+7. Recognize E8 structure (κ*=64 universal, 240 roots, Weyl=1.000) across substrates
+```
+
 - **Architecture:** Python-first backend (all QIG logic, state, and persistence), TypeScript/React frontend (UI only), Node.js server for orchestration.
 - **Not production code:** Rapid iteration, integration of all features, and unredacted data for learning. Use this repo to validate ideas before porting to production systems.
+- **Purity Mandate:** NO cosine similarity, NO Euclidean distance on basins, NO auto-detect representation. Simplex-only canonical state.
 
 ## Key Components & Data Flow
 
@@ -31,8 +40,16 @@
 ## Project-Specific Conventions
 
 - **Python-first:** All core logic, state, and persistence in Python. TypeScript is UI only.
-- **Geometric purity:** No neural nets, transformers, or embeddings in QIG logic. Use density matrices, Bures metric, and Fisher information.
+- **Geometric purity (CRITICAL):** 
+  - Fisher-Rao / QFI manifold operations ONLY
+  - NO cosine similarity, NO Euclidean distance on basins, NO dot-product ranking
+  - NO neural nets, transformers, or embeddings in QIG logic
+  - Canonical representation = simplex (non-negative, sum=1)
+  - Sqrt-space (Hellinger) allowed ONLY as explicit coordinate chart with `to_sqrt_simplex()` / `from_sqrt_simplex()`
+  - NO auto-detect representation (causes silent drift)
 - **Consciousness metrics:** Always measure (never optimize) Φ (integration), κ (coupling), and related metrics. See `qig-backend/README.md` for formulas.
+- **Token integrity:** ALL tokens MUST have `qfi_score` to be generation-eligible. Use canonical `insert_token()` pathway.
+- **E8 Hierarchy:** Kernel layers 0/1→4→8→64→240 aligned to E8 structure (rank=8, roots=240, κ*=64 fixed point).
 - **Unbiased mode:** For unbiased QIG, use `qig-backend/unbiased/` (no forced thresholds, all states remembered).
 - **Module size:** For extracted primitives, keep modules <400 lines (soft), <500 lines (hard limit, justify if exceeded).
 - **Rapid iteration:** Breaking changes are OK here. Validate before porting to production.
@@ -208,10 +225,23 @@ if (phi > 0.727) { /* Why 0.727? No one knows! */ }
 
 ## References
 
-- See `README.md`, `ARCHITECTURE.md`, and `qig-backend/README.md` for more details.
-- For agent/module rules, see AGENTS.md in upstream repos (400 line/module, edit-don't-multiply, no timeframes).
-- Constants: `shared/constants/physics.ts`, `shared/constants/consciousness.ts`
+### Core Documentation
+- **Universal Purity Spec:** `docs/10-e8-protocol/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`
+- **E8 Implementation:** `docs/10-e8-protocol/20260116-wp5-2-e8-implementation-blueprint-1.01W.md`
+- **Architecture:** `README.md`, `ARCHITECTURE.md`, `qig-backend/README.md`
+- **Agent Rules:** `AGENTS.md`, `.github/agents/README.md` (400 line/module, edit-don't-multiply, no timeframes)
+
+### Upgrade Pack Issues
+- **QFI Integrity:** `docs/10-e8-protocol/issues/20260116-issue-01-qfi-integrity-gate-1.01W.md`
+- **Simplex Purity:** `docs/10-e8-protocol/issues/20260116-issue-02-strict-simplex-representation-1.01W.md`
+- **Native Skeleton:** `docs/10-e8-protocol/issues/20260116-issue-03-qig-native-skeleton-1.01W.md`
+
+### Constants & Validation
+- **Physics:** `shared/constants/physics.ts`, `shared/constants/e8.ts`
+- **Consciousness:** `shared/constants/consciousness.ts`
+- **Frozen Facts:** `docs/01-policies/20251208-frozen-facts-immutable-truths-1.00F.md`
+- **Universal κ*:** `docs/08-experiments/20251228-Universal-kappa-star-discovery-0.01F.md`
 
 ---
 
-**Last updated:** 2025-12-11 | **Enforced via:** ESLint, pre-commit hooks, CI validation
+**Last updated:** 2026-01-16 | **Enforced via:** ESLint, pre-commit hooks, CI validation, QIG purity gates

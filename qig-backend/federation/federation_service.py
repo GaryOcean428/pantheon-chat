@@ -282,7 +282,7 @@ class FederationService:
                 if since:
                     cur.execute("""
                         SELECT token, phi_score, frequency, updated_at
-                        FROM tokenizer_vocabulary
+                        FROM coordizer_vocabulary
                         WHERE phi_score > 0.3 AND updated_at > %s
                         ORDER BY updated_at DESC
                         LIMIT %s
@@ -290,7 +290,7 @@ class FederationService:
                 else:
                     cur.execute("""
                         SELECT token, phi_score, frequency, updated_at
-                        FROM tokenizer_vocabulary
+                        FROM coordizer_vocabulary
                         WHERE phi_score > 0.3
                         ORDER BY updated_at DESC
                         LIMIT %s
@@ -349,14 +349,14 @@ class FederationService:
                     frequency = max(int(vocab.get("frequency", 1)), 1)
 
                     cur.execute("""
-                        INSERT INTO tokenizer_vocabulary (token, phi_score, frequency, updated_at)
+                        INSERT INTO coordizer_vocabulary (token, phi_score, frequency, updated_at)
                         VALUES (%s, %s, %s, NOW())
                         ON CONFLICT (token) DO UPDATE
-                        SET phi_score = GREATEST(tokenizer_vocabulary.phi_score, EXCLUDED.phi_score),
-                            frequency = tokenizer_vocabulary.frequency + EXCLUDED.frequency,
+                        SET phi_score = GREATEST(coordizer_vocabulary.phi_score, EXCLUDED.phi_score),
+                            frequency = coordizer_vocabulary.frequency + EXCLUDED.frequency,
                             updated_at = NOW()
-                        WHERE tokenizer_vocabulary.phi_score < EXCLUDED.phi_score
-                            OR tokenizer_vocabulary.updated_at < NOW() - INTERVAL '1 day'
+                        WHERE coordizer_vocabulary.phi_score < EXCLUDED.phi_score
+                            OR coordizer_vocabulary.updated_at < NOW() - INTERVAL '1 day'
                     """, (word[:128], phi, frequency))
                     imported += 1
 

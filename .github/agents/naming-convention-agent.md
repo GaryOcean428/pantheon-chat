@@ -337,15 +337,15 @@ CREATE INDEX i1 ON vocabulary (basin_coords);              -- Not descriptive
 
 ### 6. Documentation File Naming
 
-**ISO 27001 Canonical Format: YYYYMMDD-name-version-status.md**
+**ISO 27001 Canonical Format: YYYYMMDD-[document-name]-[function]-[version][STATUS].md**
 ```bash
 # ✅ CORRECT
-20260113-import-resolution-agent-1.00W.md
-20251208-frozen-facts-1.00F.md
-20260112-pr-reconciliation-1.00R.md
+20260113-import-resolution-agent-spec-1.00W.md
+20251208-frozen-facts-policy-1.00F.md
+20260112-pr-reconciliation-record-1.00R.md
 
 # ❌ WRONG
-import-resolution.md              # Missing date, version, status
+import-resolution.md              # Missing date, function, version, status
 2026-01-13-agent.md              # Wrong date format (need YYYYMMDD)
 20260113_import_agent_v1.md      # Underscores instead of hyphens
 ```

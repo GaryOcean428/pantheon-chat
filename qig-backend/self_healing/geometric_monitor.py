@@ -15,17 +15,14 @@ import numpy as np
 
 # QIG-pure geometric operations
 try:
-    from qig_geometry import sphere_project
+    from qig_geometry import fisher_normalize
     QIG_GEOMETRY_AVAILABLE = True
 except ImportError:
     QIG_GEOMETRY_AVAILABLE = False
-    def sphere_project(v):
-        """Fallback sphere projection."""
-        norm = np.linalg.norm(v)
-        if norm < 1e-10:
-            result = np.ones_like(v)
-            return result / np.linalg.norm(result)
-        return v / norm
+    def fisher_normalize(v):
+        """Normalize to probability simplex."""
+        p = np.maximum(np.asarray(v), 0) + 1e-10
+        return p / p.sum()
 import os
 import subprocess
 import sys
@@ -390,10 +387,10 @@ class GeometricHealthMonitor:
         """
         Fisher-Rao distance between basins.
 
-        Basins are unit-norm vectors on hypersphere.
-        Fisher distance = arccos(basin1 · basin2)
+        Basins are probability distributions on simplex.
+        UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
         """
-        dot_product = np.clip(np.dot(basin1, basin2), -1.0, 1.0)
+        dot_product = np.clip(np.dot(basin1, basin2), 0.0, 1.0)
         return float(np.arccos(dot_product))
 
     def _classify_regime(self, phi: float) -> str:
@@ -495,7 +492,7 @@ class GeometricHealthMonitor:
     def set_baseline(self, basin_coords: Optional[np.ndarray] = None):
         """Set baseline basin coordinates."""
         if basin_coords is not None:
-            self.baseline_basin = sphere_project(basin_coords)
+            self.baseline_basin = fisher_normalize(basin_coords)
         elif self.snapshots:
             self.baseline_basin = self.snapshots[-1].basin_coords.copy()
         print("[GeometricHealthMonitor] Baseline updated")

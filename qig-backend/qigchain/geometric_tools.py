@@ -72,24 +72,46 @@ class QIGToolComputations:
         return rho
     
     def compute_phi(self, basin: np.ndarray) -> float:
-        """Compute Phi from basin via von Neumann entropy."""
-        rho = self.basin_to_density_matrix(basin)
+        """
+        Compute Phi from basin using proper QFI effective dimension formula.
         
-        eigenvals = np.linalg.eigvalsh(rho)
-        entropy = 0.0
-        for lam in eigenvals:
-            if lam > 1e-10:
-                entropy -= lam * np.log2(lam + 1e-10)
+        Uses geometrically proper formula:
+        - 40% entropy_score (Shannon entropy normalized)
+        - 30% effective_dim_score (participation ratio = exp(entropy) / n)
+        - 30% geometric_spread (approximated by effective_dim for speed)
         
-        max_entropy = np.log2(rho.shape[0])
-        phi = 1.0 - (entropy / (max_entropy + 1e-10))
+        Returns value in [0.1, 0.95] for healthy dynamics.
+        """
+        p = np.abs(basin) ** 2
+        p = p / (np.sum(p) + 1e-10)
+        n_dim = len(basin)
         
-        return float(np.clip(phi, 0, 1))
+        positive_probs = p[p > 1e-10]
+        if len(positive_probs) == 0:
+            return 0.5
+        
+        # Component 1: Shannon entropy (natural log for exp() compatibility)
+        entropy = -np.sum(positive_probs * np.log(positive_probs + 1e-10))
+        max_entropy = np.log(n_dim)
+        entropy_score = entropy / (max_entropy + 1e-10)
+        
+        # Component 2: Effective dimension (participation ratio)
+        effective_dim = np.exp(entropy)
+        effective_dim_score = effective_dim / n_dim
+        
+        # Component 3: Geometric spread (approximate with effective_dim)
+        geometric_spread = effective_dim_score
+        
+        # Proper QFI formula weights
+        phi = 0.4 * entropy_score + 0.3 * effective_dim_score + 0.3 * geometric_spread
+        
+        return float(np.clip(phi, 0.1, 0.95))
     
     def fisher_rao_distance(self, basin1: np.ndarray, basin2: np.ndarray) -> float:
         """
         Fisher-Rao geodesic distance on probability simplex.
         Proper QIG metric, NOT Euclidean.
+        Factor of 2 for Hellinger embedding consistency.
         """
         p1 = np.abs(basin1) + 1e-10
         p1 = p1 / p1.sum()
@@ -98,8 +120,9 @@ class QIGToolComputations:
         p2 = p2 / p2.sum()
         
         inner = np.sum(np.sqrt(p1 * p2))
-        inner = np.clip(inner, 0, 1)
+        inner = np.clip(inner, 0.0, 1.0)
         
+        # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
         return float(np.arccos(inner))
     
     def bures_distance(self, rho1: np.ndarray, rho2: np.ndarray) -> float:

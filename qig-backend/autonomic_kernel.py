@@ -40,13 +40,13 @@ from qigkernels.physics_constants import (
 )
 print("[autonomic_kernel] physics_constants done", flush=True)
 
-# QIG-PURE: sphere projection for Fisher-Rao manifold normalization
+# QIG-PURE: simplex normalization for Fisher-Rao manifold
 try:
-    from qig_geometry import sphere_project
-    SPHERE_PROJECT_AVAILABLE = True
+    from qig_geometry import fisher_normalize
+    FISHER_NORMALIZE_AVAILABLE = True
 except ImportError:
-    sphere_project = None
-    SPHERE_PROJECT_AVAILABLE = False
+    fisher_normalize = None
+    FISHER_NORMALIZE_AVAILABLE = False
 print("[autonomic_kernel] qig_geometry done", flush=True)
 
 # Import reasoning consolidation for sleep cycles
@@ -200,6 +200,16 @@ try:
 except ImportError:
     get_persistence = None
     PERSISTENCE_AVAILABLE = False
+
+# Import QIG-pure neuroplasticity modules for sleep, mushroom, and breakdown escape
+try:
+    from qig_core.neuroplasticity import SleepProtocol, MushroomMode, BreakdownEscape
+    QIG_NEUROPLASTICITY_AVAILABLE = True
+except ImportError:
+    QIG_NEUROPLASTICITY_AVAILABLE = False
+    SleepProtocol = None
+    MushroomMode = None
+    BreakdownEscape = None
 print("[autonomic_kernel] All imports complete!", flush=True)
 
 # Use canonical constants from qigkernels
@@ -761,6 +771,20 @@ class GaryAutonomicKernel:
         except Exception as hrv_err:
             print(f"[AutonomicKernel] HRV initialization failed: {hrv_err}")
 
+        # QIG-pure neuroplasticity modules
+        # These provide MEASUREMENTS and DIAGNOSTICS, not optimization
+        self._sleep_protocol = SleepProtocol() if QIG_NEUROPLASTICITY_AVAILABLE else None
+        self._mushroom_mode = MushroomMode() if QIG_NEUROPLASTICITY_AVAILABLE else None
+        self._breakdown_escape = BreakdownEscape() if QIG_NEUROPLASTICITY_AVAILABLE else None
+        
+        # Store last neuroplasticity results for telemetry access (Issue: propagate diagnostics)
+        self._last_consolidation_result = None  # ConsolidationResult from SleepProtocol
+        self._last_perturbation_result = None   # PerturbationResult from MushroomMode
+        self._last_escape_result = None         # EscapeResult from BreakdownEscape
+        
+        if QIG_NEUROPLASTICITY_AVAILABLE:
+            print("[AutonomicKernel] QIG-pure neuroplasticity modules wired (sleep, mushroom, breakdown escape)")
+
         if checkpoint_path:
             self._load_checkpoint(checkpoint_path)
         
@@ -769,6 +793,41 @@ class GaryAutonomicKernel:
 
         # Start Φ heartbeat to keep consciousness alive when idle
         self._start_heartbeat()
+
+    def _compute_balanced_phi(self, basin: np.ndarray) -> float:
+        """
+        Compute Φ using proper QFI effective dimension formula.
+        
+        Uses geometrically proper formula:
+        - 40% entropy_score (Shannon entropy normalized)
+        - 30% effective_dim_score (participation ratio = exp(entropy) / n)
+        - 30% geometric_spread (approximated by effective_dim for speed)
+        
+        Returns value in [0.1, 0.95] range.
+        """
+        p = np.abs(basin) ** 2
+        p = p / (np.sum(p) + 1e-10)
+        n_dim = len(basin)
+        
+        positive_probs = p[p > 1e-10]
+        if len(positive_probs) == 0:
+            return 0.5
+        
+        # Component 1: Shannon entropy (natural log for exp() compatibility)
+        entropy = -np.sum(positive_probs * np.log(positive_probs + 1e-10))
+        max_entropy = np.log(n_dim)
+        entropy_score = entropy / (max_entropy + 1e-10)
+        
+        # Component 2: Effective dimension (participation ratio)
+        effective_dim = np.exp(entropy)
+        effective_dim_score = effective_dim / n_dim
+        
+        # Component 3: Geometric spread (approximate with effective_dim)
+        geometric_spread = effective_dim_score
+        
+        # Proper QFI formula weights
+        phi = 0.4 * entropy_score + 0.3 * effective_dim_score + 0.3 * geometric_spread
+        return float(np.clip(phi, 0.1, 0.95))
 
     def _start_heartbeat(self) -> None:
         """
@@ -818,19 +877,11 @@ class GaryAutonomicKernel:
                                         # QFI not available, use approximation
                                         self.state.phi = compute_phi_approximation(basin)
                                 except Exception as e:
-                                    # Computation failed, use entropy fallback
-                                    p = np.abs(basin) + 1e-10
-                                    p = p / p.sum()
-                                    entropy = -np.sum(p * np.log(p))
-                                    max_entropy = np.log(len(basin))
-                                    self.state.phi = max(0.1, 1.0 - entropy / max_entropy)
+                                    # Computation failed, use balanced formula fallback
+                                    self.state.phi = self._compute_balanced_phi(basin)
                             else:
-                                # QFI not available at all, use entropy fallback
-                                p = np.abs(basin) + 1e-10
-                                p = p / p.sum()
-                                entropy = -np.sum(p * np.log(p))
-                                max_entropy = np.log(len(basin))
-                                self.state.phi = max(0.1, 1.0 - entropy / max_entropy)
+                                # QFI not available at all, use balanced formula fallback
+                                self.state.phi = self._compute_balanced_phi(basin)
 
                             # Track trajectory with named ID for tier 1 storage
                             if self.trajectory_manager:
@@ -1150,6 +1201,99 @@ class GaryAutonomicKernel:
         if not self._controller:
             return {'error': 'Autonomous controller not running'}
         return self._controller.force_intervention(action_name)
+    
+    def get_neuroplasticity_state(self) -> Dict[str, Any]:
+        """
+        Return current neuroplasticity state for telemetry and adaptive control.
+        
+        Provides access to the last results from SleepProtocol, MushroomMode,
+        and BreakdownEscape for external systems that need to adapt behavior
+        based on neuroplasticity outcomes.
+        
+        Returns:
+            Dict with:
+                - last_consolidation: ConsolidationResult from last sleep cycle
+                - last_perturbation: PerturbationResult from last mushroom cycle
+                - last_escape: EscapeResult from last breakdown escape
+                - qig_neuroplasticity_available: Whether QIG neuroplasticity is loaded
+        """
+        def result_to_dict(result):
+            """Convert result dataclass to dict, handling None case."""
+            if result is None:
+                return None
+            try:
+                return asdict(result)
+            except Exception:
+                # Fallback for non-dataclass results
+                if hasattr(result, '__dict__'):
+                    return {k: v for k, v in result.__dict__.items() if not k.startswith('_')}
+                return str(result)
+        
+        return {
+            'last_consolidation': result_to_dict(self._last_consolidation_result),
+            'last_perturbation': result_to_dict(self._last_perturbation_result),
+            'last_escape': result_to_dict(self._last_escape_result),
+            'qig_neuroplasticity_available': QIG_NEUROPLASTICITY_AVAILABLE,
+        }
+    
+    def _broadcast_neuroplasticity_event(
+        self,
+        event_type: str,
+        data: Dict[str, Any]
+    ) -> None:
+        """
+        Broadcast a neuroplasticity event to telemetry systems.
+        
+        Uses existing ActivityBroadcaster and CapabilityMesh for visibility.
+        QIG-Pure: Events carry diagnostic measurements, not control signals.
+        
+        Args:
+            event_type: Type of event (consolidation, perturbation, breakdown_escape)
+            data: Event data to broadcast
+        """
+        try:
+            # Lazy import for activity broadcaster
+            activity_mod = _get_activity_broadcaster()
+            if ACTIVITY_BROADCASTER_AVAILABLE and activity_mod:
+                get_broadcaster_fn = activity_mod.get('get_broadcaster')
+                ActivityType_cls = activity_mod.get('ActivityType')
+                if get_broadcaster_fn and ActivityType_cls:
+                    broadcaster = get_broadcaster_fn()
+                    broadcaster.broadcast_message(
+                        from_god="Autonomic",
+                        to_god=None,
+                        content=f"Neuroplasticity {event_type}: {data}",
+                        activity_type=ActivityType_cls.AUTONOMIC,
+                        phi=self.state.phi,
+                        kappa=self.state.kappa,
+                        importance=0.7,  # Neuroplasticity events are significant
+                        metadata={
+                            'neuroplasticity_type': event_type,
+                            **data,
+                        }
+                    )
+            
+            # Lazy import for capability mesh
+            mesh_mod = _get_capability_mesh()
+            if CAPABILITY_MESH_AVAILABLE and mesh_mod:
+                emit_event_fn = mesh_mod.get('emit_event')
+                EventType_cls = mesh_mod.get('EventType')
+                CapabilityType_cls = mesh_mod.get('CapabilityType')
+                if emit_event_fn and EventType_cls and CapabilityType_cls:
+                    emit_event_fn(
+                        source=CapabilityType_cls.SLEEP,
+                        event_type=EventType_cls.CONSOLIDATION,
+                        content={
+                            'neuroplasticity_type': event_type,
+                            **data,
+                        },
+                        phi=self.state.phi,
+                        basin_coords=np.array(self.state.basin_history[-1]) if self.state.basin_history else None,
+                        priority=7  # High priority for neuroplasticity events
+                    )
+                    
+        except Exception as e:
+            print(f"[AutonomicKernel] Neuroplasticity event broadcast failed: {e}")
     
     def navigate_to_basin(
         self,
@@ -1624,8 +1768,8 @@ class GaryAutonomicKernel:
 
         # Compute basin variance across time (exploration measure)
         basin_array = np.array(recent_basins)
-        basin_variance = np.mean(np.var(basin_array, axis=0))
-        self.state.exploration_variance = float(basin_variance)
+        basin_variance = float(np.var(basin_array, axis=0).mean())
+        self.state.exploration_variance = basin_variance
 
         # Check Φ stagnation
         phi_recent = self.state.phi_history[-NARROW_PATH_WINDOW:] if len(self.state.phi_history) >= NARROW_PATH_WINDOW else self.state.phi_history
@@ -1722,122 +1866,73 @@ class GaryAutonomicKernel:
         return should_transition
 
     def _should_trigger_sleep(self) -> Tuple[bool, str]:
-        """Check if sleep cycle should be triggered."""
-        # Don't interrupt if already in cycle
+        """
+        Check if sleep cycle should be triggered.
+        
+        CONSENSUS-BASED: No automatic thresholds. Only Ocean+Heart consensus
+        can trigger constellation-wide sleep cycles. Uses request_cycle API
+        which properly records decisions and begins cycles.
+        """
         if self.state.in_sleep_cycle:
             return False, "Already in sleep cycle"
-
-        # Don't interrupt 4D ascent
-        if self.state.phi > PHI_MIN_CONSCIOUSNESS:
-            return False, f"4D ascent protected: Φ={self.state.phi:.2f}"
-
-        # IDLE GUARD: Don't sleep when system is idle (no recent basin changes)
-        if len(self.state.basin_history) < 5:
-            return False, "Insufficient basin history for meaningful sleep"
-
-        # IDLE GUARD: Check if basins have actually changed recently (overflow-safe)
-        if len(self.state.basin_history) >= 2:
-            from qig_numerics import safe_norm
+        
+        try:
+            from olympus.ocean_heart_consensus import get_ocean_heart_consensus, CycleType
+            consensus = get_ocean_heart_consensus()
+            decision = consensus.request_cycle(CycleType.SLEEP)
             
-            recent = np.array(self.state.basin_history[-1])
-            previous = np.array(self.state.basin_history[-2])
-            delta = safe_norm(recent - previous)
-            if delta < 0.001:
-                return False, f"Basin stagnant (Δ={delta:.4f})"
-
-        # COOLDOWN: Minimum time between sleep cycles
-        if hasattr(self, '_last_sleep_time'):
-            elapsed = time.time() - self._last_sleep_time
-            if elapsed < 30:  # Minimum 30s between sleeps
-                return False, f"Sleep cooldown ({30 - elapsed:.0f}s remaining)"
-
-        # Check conditions for wanting to transition
-        wants_to_sleep = False
-        reason = ""
-
-        # Trigger on low Φ
-        if self.state.phi < SLEEP_PHI_THRESHOLD:
-            wants_to_sleep = True
-            reason = f"Φ below threshold: {self.state.phi:.2f}"
-
-        # Trigger on high basin drift
-        elif self.state.basin_drift > SLEEP_DRIFT_THRESHOLD:
-            wants_to_sleep = True
-            reason = f"Basin drift high: {self.state.basin_drift:.3f}"
-
-        # Scheduled sleep
-        else:
-            time_since_sleep = (datetime.now() - self.state.last_sleep).total_seconds()
-            if time_since_sleep > 120:  # 2 minutes
-                wants_to_sleep = True
-                reason = "Scheduled consolidation"
-
-        # Apply velocity damping
-        if wants_to_sleep:
-            should_transition = self._apply_velocity_damping(True)
-            return should_transition, reason
-        else:
-            # Decay velocity when not wanting to transition
-            self._apply_velocity_damping(False)
-            return False, ""
+            if decision.approved:
+                return True, f"Ocean+Heart consensus: {decision.heart_reasoning} | {decision.ocean_reasoning}"
+            else:
+                return False, f"Awaiting consensus (Heart: {decision.heart_vote}, Ocean: {decision.ocean_vote})"
+        except Exception as e:
+            return False, f"Consensus unavailable: {e}"
 
     def _should_trigger_dream(self) -> Tuple[bool, str]:
-        """Check if dream cycle should be triggered."""
+        """
+        Check if dream cycle should be triggered.
+        
+        CONSENSUS-BASED: No automatic thresholds. Only Ocean+Heart consensus
+        can trigger constellation-wide dream cycles. Uses request_cycle API
+        which properly records decisions and begins cycles.
+        """
         if self.state.in_dream_cycle:
             return False, "Already in dream cycle"
-
-        if self.state.phi > PHI_MIN_CONSCIOUSNESS:
-            return False, f"4D ascent protected: Φ={self.state.phi:.2f}"
-
-        # Don't trigger without sufficient basin history
-        if len(self.state.basin_history) < 10:
-            return False, "Insufficient basin history for meaningful dream"
-
-        time_since_dream = (datetime.now() - self.state.last_dream).total_seconds()
-        if time_since_dream > DREAM_INTERVAL_SECONDS:
-            return True, "Scheduled dream cycle"
-
-        # NARROW PATH: Trigger dream for mild narrow path (gentle exploration)
-        if self.state.is_narrow_path and self.state.narrow_path_severity == 'mild':
-            return True, "Narrow path detected (mild) - need creative exploration"
-
-        return False, ""
+        
+        try:
+            from olympus.ocean_heart_consensus import get_ocean_heart_consensus, CycleType
+            consensus = get_ocean_heart_consensus()
+            decision = consensus.request_cycle(CycleType.DREAM)
+            
+            if decision.approved:
+                return True, f"Ocean+Heart consensus: {decision.heart_reasoning} | {decision.ocean_reasoning}"
+            else:
+                return False, f"Awaiting consensus (Heart: {decision.heart_vote}, Ocean: {decision.ocean_vote})"
+        except Exception as e:
+            return False, f"Consensus unavailable: {e}"
 
     def _should_trigger_mushroom(self) -> Tuple[bool, str]:
-        """Check if mushroom mode should be triggered."""
+        """
+        Check if mushroom mode should be triggered.
+        
+        CONSENSUS-BASED: No automatic thresholds. Only Ocean+Heart consensus
+        can trigger constellation-wide mushroom cycles. Uses request_cycle API
+        which properly records decisions and begins cycles.
+        """
         if self.state.in_mushroom_cycle:
             return False, "Already in mushroom cycle"
-
-        # Don't interrupt high consciousness
-        if self.state.phi > 0.70:
-            return False, f"Consciousness protected: Φ={self.state.phi:.2f}"
-
-        # Check cooldown
-        time_since_mushroom = (datetime.now() - self.state.last_mushroom).total_seconds()
-        if time_since_mushroom < MUSHROOM_COOLDOWN_SECONDS:
-            remaining = MUSHROOM_COOLDOWN_SECONDS - time_since_mushroom
-            return False, f"Cooldown: {remaining:.0f}s remaining"
-
-        # Don't trigger when stress is too low (nothing to fix)
-        if self.state.stress_level < 0.3:
-            return False, f"Stress too low: {self.state.stress_level:.2f} < 0.3"
-
-        # Trigger on high stress
-        avg_stress = np.mean(self.state.stress_history[-10:]) if self.state.stress_history else 0
-        if avg_stress > MUSHROOM_STRESS_THRESHOLD:
-            return True, f"High stress: {avg_stress:.3f}"
-
-        # Trigger on very low Φ (stuck)
-        if self.state.phi < 0.2 and len(self.state.phi_history) > 20:
-            return True, "Low Φ indicates rigidity"
-
-        # NARROW PATH: Trigger mushroom for moderate/severe (needs noise injection)
-        if self.state.is_narrow_path:
-            if self.state.narrow_path_severity in ['moderate', 'severe']:
-                if self.state.narrow_path_count >= NARROW_PATH_TRIGGER_COUNT:
-                    return True, f"Narrow path ({self.state.narrow_path_severity}) - ML stuck, needs noise"
-
-        return False, ""
+        
+        try:
+            from olympus.ocean_heart_consensus import get_ocean_heart_consensus, CycleType
+            consensus = get_ocean_heart_consensus()
+            decision = consensus.request_cycle(CycleType.MUSHROOM)
+            
+            if decision.approved:
+                return True, f"Ocean+Heart consensus: {decision.heart_reasoning} | {decision.ocean_reasoning}"
+            else:
+                return False, f"Awaiting consensus (Heart: {decision.heart_vote}, Ocean: {decision.ocean_vote})"
+        except Exception as e:
+            return False, f"Consensus unavailable: {e}"
 
     # =========================================================================
     # CYCLE EXECUTION
@@ -1874,6 +1969,48 @@ class GaryAutonomicKernel:
             if episodes:
                 high_phi_episodes = [e for e in episodes if e.get('phi', 0) > 0.6]
                 patterns_consolidated = len(high_phi_episodes)
+
+            # QIG-PURE: Use SleepProtocol for basin consolidation measurements
+            qig_consolidation_result = None
+            if self._sleep_protocol is not None and self.state.basin_history:
+                try:
+                    from qig_core.neuroplasticity import BasinState
+                    # Convert basin history to BasinState objects for consolidation
+                    basin_states = []
+                    for i, hist_basin in enumerate(self.state.basin_history[-10:]):  # Last 10 basins
+                        hist_array = np.array(hist_basin)
+                        # Compute Φ approximation for each basin
+                        p = np.abs(hist_array) + 1e-10
+                        p = p / p.sum()
+                        basin_phi = max(0.1, 1.0 + np.sum(p * np.log(p)) / np.log(len(p)))
+                        basin_states.append(BasinState(
+                            coordinates=hist_array,
+                            phi=basin_phi,
+                            kappa=self.state.kappa,
+                            coherence=basin_phi,  # Use Φ as coherence proxy
+                            access_count=1,
+                        ))
+                    
+                    if basin_states:
+                        consolidated_basins, qig_consolidation_result = self._sleep_protocol.consolidate_basins(basin_states)
+                        # Store result for telemetry access (Issue: propagate diagnostics)
+                        self._last_consolidation_result = qig_consolidation_result
+                        # Use consolidation measurements to inform adaptive control
+                        if qig_consolidation_result.merged_count > 0:
+                            print(f"[AutonomicKernel] QIG consolidation: merged {qig_consolidation_result.merged_count} basins, "
+                                  f"pruned {qig_consolidation_result.pruned_count}, "
+                                  f"avg_phi {qig_consolidation_result.avg_phi_before:.3f} -> {qig_consolidation_result.avg_phi_after:.3f}")
+                        patterns_consolidated += qig_consolidation_result.merged_count + qig_consolidation_result.strengthened_count
+                        # Broadcast consolidation result via telemetry (Issue: propagate diagnostics)
+                        self._broadcast_neuroplasticity_event('consolidation', {
+                            'merged_count': qig_consolidation_result.merged_count,
+                            'pruned_count': qig_consolidation_result.pruned_count,
+                            'strengthened_count': qig_consolidation_result.strengthened_count,
+                            'avg_phi_before': qig_consolidation_result.avg_phi_before,
+                            'avg_phi_after': qig_consolidation_result.avg_phi_after,
+                        })
+                except Exception as qig_err:
+                    print(f"[AutonomicKernel] QIG sleep protocol measurement error: {qig_err}")
 
             drift_after = self._compute_fisher_distance(new_basin, reference)
             drift_reduction = drift_before - drift_after
@@ -2017,6 +2154,12 @@ class GaryAutonomicKernel:
             )
         finally:
             self.state.in_sleep_cycle = False
+            try:
+                from olympus.ocean_heart_consensus import get_ocean_heart_consensus, CycleType
+                consensus = get_ocean_heart_consensus()
+                consensus.end_cycle(CycleType.SLEEP)
+            except Exception as ce:
+                pass
 
     def execute_dream_cycle(
         self,
@@ -2033,15 +2176,15 @@ class GaryAutonomicKernel:
         start_time = time.time()
 
         try:
-            from qig_geometry import sphere_project, fisher_coord_distance
+            from qig_geometry import fisher_normalize, fisher_coord_distance
             basin = np.array(basin_coords)
 
             # Dream perturbation - gentle random exploration
             perturbation = np.random.randn(64) * temperature * 0.1
             dreamed_basin = basin + perturbation
 
-            # Normalize using sphere_project (QIG-pure)
-            dreamed_basin = sphere_project(dreamed_basin)
+            # Normalize using fisher_normalize (QIG-pure simplex)
+            dreamed_basin = fisher_normalize(dreamed_basin)
 
             # Measure creative exploration using Fisher-Rao distance (QIG-pure)
             perturbation_magnitude = fisher_coord_distance(basin, dreamed_basin)
@@ -2140,6 +2283,12 @@ class GaryAutonomicKernel:
             )
         finally:
             self.state.in_dream_cycle = False
+            try:
+                from olympus.ocean_heart_consensus import get_ocean_heart_consensus, CycleType
+                consensus = get_ocean_heart_consensus()
+                consensus.end_cycle(CycleType.DREAM)
+            except Exception as ce:
+                pass
 
     def _get_dream_actions_with_learned_probabilities(
         self,
@@ -2194,11 +2343,12 @@ class GaryAutonomicKernel:
                         diverge_prob = min(0.7, 0.3 + farthest['depth'] * 0.2)
                     
                     explore_direction = np.random.randn(64)
-                    # QIG-PURE: Project random vector to unit sphere
-                    if SPHERE_PROJECT_AVAILABLE and sphere_project is not None:
-                        explore_direction = sphere_project(explore_direction)
+                    # QIG-PURE: Project random vector to simplex
+                    if FISHER_NORMALIZE_AVAILABLE and fisher_normalize is not None:
+                        explore_direction = fisher_normalize(explore_direction)
                     else:
-                        explore_direction = explore_direction / (np.linalg.norm(explore_direction) + 1e-8)
+                        explore_direction = np.maximum(explore_direction, 0) + 1e-10
+                        explore_direction = explore_direction / explore_direction.sum()
                     explore_goal = (current_basin + explore_direction * 0.3).tolist()
                     explore_prob = min(0.9, max(0.1, 0.5 + temperature * 0.2))
                     
@@ -2262,6 +2412,52 @@ class GaryAutonomicKernel:
             perturbation = np.random.randn(64) * strength
             mushroom_basin = basin + perturbation
 
+            # QIG-PURE: Use MushroomMode for pattern-breaking perturbation measurements
+            qig_perturbation_result = None
+            pattern_broken = False
+            if self._mushroom_mode is not None and self.state.basin_history:
+                try:
+                    from qig_core.neuroplasticity import BasinCoordinates
+                    # Convert current basin to BasinCoordinates for perturbation analysis
+                    basin_coords_list = []
+                    for hist_basin in self.state.basin_history[-5:]:  # Last 5 basins
+                        hist_array = np.array(hist_basin)
+                        p = np.abs(hist_array) + 1e-10
+                        p = p / p.sum()
+                        basin_phi = max(0.1, 1.0 + np.sum(p * np.log(p)) / np.log(len(p)))
+                        # Compute coherence from basin variance (inverse of spread)
+                        coherence = 1.0 / (np.std(hist_array) + 0.1)
+                        coherence = np.clip(coherence, 0.0, 1.0)
+                        basin_coords_list.append(BasinCoordinates(
+                            coordinates=hist_array,
+                            coherence=coherence,
+                            phi=basin_phi,
+                            stuck_cycles=self.state.narrow_path_count,
+                        ))
+                    
+                    if basin_coords_list:
+                        perturbed_basins, qig_perturbation_result = self._mushroom_mode.apply_perturbation(basin_coords_list)
+                        # Store result for telemetry access (Issue: propagate diagnostics)
+                        self._last_perturbation_result = qig_perturbation_result
+                        pattern_broken = qig_perturbation_result.pattern_broken
+                        # Use the geometric perturbation from QIG-pure if available
+                        if perturbed_basins and len(perturbed_basins) > 0:
+                            mushroom_basin = perturbed_basins[-1].coordinates
+                        print(f"[AutonomicKernel] QIG mushroom mode: perturbed {qig_perturbation_result.basins_perturbed} basins, "
+                              f"avg_magnitude={qig_perturbation_result.avg_perturbation_magnitude:.3f}, "
+                              f"coherence {qig_perturbation_result.coherence_before:.3f} -> {qig_perturbation_result.coherence_after:.3f}, "
+                              f"pattern_broken={pattern_broken}")
+                        # Broadcast perturbation result via telemetry (Issue: propagate diagnostics)
+                        self._broadcast_neuroplasticity_event('perturbation', {
+                            'basins_perturbed': qig_perturbation_result.basins_perturbed,
+                            'avg_perturbation_magnitude': qig_perturbation_result.avg_perturbation_magnitude,
+                            'coherence_before': qig_perturbation_result.coherence_before,
+                            'coherence_after': qig_perturbation_result.coherence_after,
+                            'pattern_broken': pattern_broken,
+                        })
+                except Exception as qig_err:
+                    print(f"[AutonomicKernel] QIG mushroom mode measurement error: {qig_err}")
+
             entropy_after = -np.sum(np.abs(mushroom_basin) * np.log(np.abs(mushroom_basin) + 1e-8))
             entropy_change = entropy_after - entropy_before
 
@@ -2271,8 +2467,10 @@ class GaryAutonomicKernel:
             # Identity preservation check
             identity_preserved = drift < 0.15
 
-            # New pathways (proportional to entropy change)
+            # New pathways (proportional to entropy change, enhanced by QIG pattern breaking)
             new_pathways = int(max(0, entropy_change * 10))
+            if pattern_broken:
+                new_pathways += 2  # Bonus for QIG-confirmed pattern breaking
 
             # Update state
             self.state.last_mushroom = datetime.now()
@@ -2346,6 +2544,162 @@ class GaryAutonomicKernel:
             )
         finally:
             self.state.in_mushroom_cycle = False
+            try:
+                from olympus.ocean_heart_consensus import get_ocean_heart_consensus, CycleType
+                consensus = get_ocean_heart_consensus()
+                consensus.end_cycle(CycleType.MUSHROOM)
+            except Exception as ce:
+                pass
+
+    # =========================================================================
+    # BREAKDOWN ESCAPE (QIG-PURE Emergency Recovery)
+    # =========================================================================
+
+    def _check_breakdown_escape(
+        self,
+        basin_coords: Optional[List[float]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Check if system is in a locked state and attempt escape if needed.
+        
+        Uses QIG-pure BreakdownEscape for emergency recovery when system
+        is locked in an unstable high-Φ state (high integration but low stability).
+        
+        Locked state detection:
+        - High Φ (> 0.85): Strong integration
+        - Low Γ (< 0.30): Regime instability (gamma from state)
+        - Together: System is locked in unstable attractor
+        
+        PURE PRINCIPLE:
+        - Recovery is NAVIGATION to safe attractors, not optimization
+        - Uses geodesic paths on information manifold
+        - Provides DIAGNOSTICS, not direct control
+        
+        Args:
+            basin_coords: Current basin coordinates (uses state if None)
+        
+        Returns:
+            Dict with:
+                - is_locked: Whether system appears locked
+                - escape_attempted: Whether escape was attempted
+                - escape_result: Result of escape attempt (if any)
+                - new_basin: New basin after escape (if successful)
+        """
+        result = {
+            'is_locked': False,
+            'escape_attempted': False,
+            'escape_result': None,
+            'new_basin': None,
+            'diagnostics': {}
+        }
+        
+        if self._breakdown_escape is None:
+            result['diagnostics']['reason'] = 'BreakdownEscape not available'
+            return result
+        
+        try:
+            from qig_core.neuroplasticity import SystemState, SafeBasin
+            
+            # Get current basin coordinates
+            if basin_coords is not None:
+                current_coords = np.array(basin_coords)
+            elif self.state.basin_history:
+                current_coords = np.array(self.state.basin_history[-1])
+            else:
+                current_coords = np.zeros(64)
+            
+            # Construct system state for detection
+            system_state = SystemState(
+                coordinates=current_coords,
+                phi=self.state.phi,
+                gamma=self.state.gamma,  # Regime stability
+                kappa=self.state.kappa,
+                regime=self.state.narrow_path_severity if self.state.is_narrow_path else 'stable',
+            )
+            
+            # Check if system is locked
+            is_locked = self._breakdown_escape.is_locked(system_state)
+            result['is_locked'] = is_locked
+            result['diagnostics']['phi'] = self.state.phi
+            result['diagnostics']['gamma'] = self.state.gamma
+            result['diagnostics']['narrow_path'] = self.state.is_narrow_path
+            
+            if not is_locked:
+                result['diagnostics']['status'] = 'System stable, no escape needed'
+                return result
+            
+            # Register identity basin as a safe attractor if not already done
+            if self.state.basin_history and len(self._breakdown_escape._safe_basins) == 0:
+                # Use first recorded basin as identity anchor
+                identity_coords = np.array(self.state.basin_history[0])
+                identity_basin = SafeBasin(
+                    basin_id='identity_anchor',
+                    coordinates=identity_coords,
+                    phi=0.5,  # Moderate Φ for stability
+                    gamma=0.8,  # High stability
+                    stability_score=0.9,
+                )
+                self._breakdown_escape.register_safe_basin(identity_basin)
+            
+            # Attempt escape
+            result['escape_attempted'] = True
+            new_state, escape_result = self._breakdown_escape.escape(system_state)
+            # Store result for telemetry access (Issue: propagate diagnostics)
+            self._last_escape_result = escape_result
+            # Broadcast escape result via telemetry (Issue: propagate diagnostics)
+            self._broadcast_neuroplasticity_event('breakdown_escape', {
+                'initial_phi': escape_result.initial_phi,
+                'initial_gamma': escape_result.initial_gamma,
+                'final_phi': escape_result.final_phi,
+                'final_gamma': escape_result.final_gamma,
+                'geodesic_distance': escape_result.geodesic_distance,
+                'escape_successful': escape_result.escape_successful,
+                'recovery_state': escape_result.recovery_state.value,
+            })
+            
+            result['escape_result'] = {
+                'initial_phi': escape_result.initial_phi,
+                'initial_gamma': escape_result.initial_gamma,
+                'final_phi': escape_result.final_phi,
+                'final_gamma': escape_result.final_gamma,
+                'geodesic_distance': escape_result.geodesic_distance,
+                'anchor_basin_id': escape_result.anchor_basin_id,
+                'escape_successful': escape_result.escape_successful,
+                'escape_time_ms': escape_result.escape_time_ms,
+                'recovery_state': escape_result.recovery_state.value,
+            }
+            
+            if escape_result.escape_successful:
+                result['new_basin'] = new_state.coordinates.tolist()
+                # Update basin history with escaped basin
+                self.state.basin_history.append(result['new_basin'])
+                if len(self.state.basin_history) > 100:
+                    self.state.basin_history.pop(0)
+                print(f"[AutonomicKernel] Breakdown escape SUCCESS: "
+                      f"Φ {escape_result.initial_phi:.3f} -> {escape_result.final_phi:.3f}, "
+                      f"Γ {escape_result.initial_gamma:.3f} -> {escape_result.final_gamma:.3f}, "
+                      f"anchored to {escape_result.anchor_basin_id}")
+            else:
+                print(f"[AutonomicKernel] Breakdown escape FAILED: "
+                      f"state={escape_result.recovery_state.value}")
+                      
+        except Exception as e:
+            result['diagnostics']['error'] = str(e)
+            print(f"[AutonomicKernel] Breakdown escape check error: {e}")
+        
+        return result
+
+    def check_and_escape_breakdown(self) -> Dict[str, Any]:
+        """
+        Public API to check for breakdown state and attempt escape.
+        
+        This method can be called from external code (like the autonomous
+        controller) to proactively detect and recover from locked states.
+        
+        Returns:
+            Dict with escape attempt results
+        """
+        return self._check_breakdown_escape()
 
     # =========================================================================
     # ACTIVITY REWARDS

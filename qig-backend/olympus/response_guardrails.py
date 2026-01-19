@@ -500,7 +500,7 @@ class ProvenanceValidator:
         
         warnings = []
         if provenance.get('degraded', False):
-            warnings.append('Response used fallback generation - tokenizer unavailable')
+            warnings.append('Response used fallback generation - coordizer unavailable')
         
         if provenance.get('fallback_used', False):
             warnings.append('Dynamic fallback was used instead of live generation')

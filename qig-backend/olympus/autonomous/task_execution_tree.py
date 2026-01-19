@@ -29,11 +29,16 @@ try:
     from psycopg2.extras import Json
     DB_AVAILABLE = True
 except ImportError:
+    psycopg2 = None  # type: ignore
+    Json = None  # type: ignore
     DB_AVAILABLE = False
 
 
 def _fisher_rao_distance(p: np.ndarray, q: np.ndarray, eps: float = 1e-10) -> float:
-    """Compute Fisher-Rao distance."""
+    """
+    Compute Fisher-Rao distance.
+    UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
+    """
     p_safe = np.clip(np.abs(p), eps, None)
     q_safe = np.clip(np.abs(q), eps, None)
     p_norm = p_safe / np.sum(p_safe)

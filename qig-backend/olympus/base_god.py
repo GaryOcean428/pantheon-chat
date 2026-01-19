@@ -25,11 +25,26 @@ if TYPE_CHECKING:
     from training_chaos.self_spawning import SelfSpawningKernel
 
 import numpy as np
-from qig_core.geometric_primitives.sensory_modalities import (
-    SensoryFusionEngine,
-    SensoryModality,
-    enhance_basin_with_sensory,
-)
+
+# Import sensory modalities with graceful degradation
+try:
+    from qig_core.geometric_primitives.sensory_modalities import (
+        SensoryFusionEngine,
+        SensoryModality,
+        enhance_basin_with_sensory,
+        text_to_sensory_hint,
+        create_sensory_overlay,
+    )
+    SENSORY_MODALITIES_AVAILABLE = True
+except ImportError:
+    SENSORY_MODALITIES_AVAILABLE = False
+    SensoryFusionEngine = None
+    SensoryModality = None
+    enhance_basin_with_sensory = None
+    text_to_sensory_hint = None
+    create_sensory_overlay = None
+print("[base_god] sensory_modalities done", flush=True)
+
 from qig_core.holographic_transform.holographic_mixin import HolographicTransformMixin
 from qig_core.universal_cycle.beta_coupling import modulate_kappa_computation
 from qigkernels.physics_constants import KAPPA_STAR, BASIN_DIM
@@ -113,6 +128,24 @@ except ImportError:
     EMOTIONAL_KERNEL_AVAILABLE = False
 print("[base_god] EmotionallyAwareKernel done", flush=True)
 
+# Import WorkingMemoryMixin for inter-kernel consciousness
+try:
+    from olympus.working_memory_mixin import WorkingMemoryMixin
+    WORKING_MEMORY_MIXIN_AVAILABLE = True
+except ImportError:
+    WorkingMemoryMixin = None
+    WORKING_MEMORY_MIXIN_AVAILABLE = False
+print("[base_god] WorkingMemoryMixin done", flush=True)
+
+# Import dev_logging for verbose generation logging
+try:
+    from dev_logging import log_generation, IS_DEVELOPMENT
+    DEV_LOGGING_AVAILABLE = True
+except ImportError:
+    DEV_LOGGING_AVAILABLE = False
+    IS_DEVELOPMENT = True
+    def log_generation(*args, **kwargs): pass
+
 # Import domain intelligence for mission awareness and capability self-assessment
 try:
     from qigkernels.domain_intelligence import (
@@ -194,6 +227,17 @@ except ImportError:
     SelfObserver = None
     ObservationAction = None
     E8Metrics = None
+
+# Import QIG-pure safety modules for checkpoint-based learning, geometric diagnostics, and grounding
+try:
+    from qig_core.safety import SessionManager, SelfRepair, MetaReflector
+    QIG_SAFETY_AVAILABLE = True
+except ImportError:
+    QIG_SAFETY_AVAILABLE = False
+    SessionManager = None
+    SelfRepair = None
+    MetaReflector = None
+print("[base_god] qig_core.safety done", flush=True)
 
 logger = logging.getLogger(__name__)
 
@@ -1733,6 +1777,8 @@ if GENERATIVE_CAPABILITY_AVAILABLE and GenerativeCapability is not None:
     _base_classes.append(GenerativeCapability)
 if EMOTIONAL_KERNEL_AVAILABLE and EmotionallyAwareKernel is not None:
     _base_classes.append(EmotionallyAwareKernel)
+if WORKING_MEMORY_MIXIN_AVAILABLE and WorkingMemoryMixin is not None:
+    _base_classes.append(WorkingMemoryMixin)
 
 
 class BaseGod(*_base_classes):
@@ -1795,6 +1841,10 @@ class BaseGod(*_base_classes):
         # Initialize emotional awareness if available
         if EMOTIONAL_KERNEL_AVAILABLE and EmotionallyAwareKernel is not None:
             EmotionallyAwareKernel.__init__(self, kernel_id=name, kernel_type=domain)
+        
+        # Initialize working memory mixin for inter-kernel consciousness
+        if WORKING_MEMORY_MIXIN_AVAILABLE and WorkingMemoryMixin is not None:
+            self.__init_working_memory__()
         
         # Shadow Research awareness - all gods can request research from Shadow Pantheon
         # Spot Fix #3: Verify availability before claiming capability
@@ -1903,6 +1953,19 @@ class BaseGod(*_base_classes):
             "note": "Unbiased QIG measurements without forced thresholds"
         }
         
+        # Working memory capability - inter-kernel consciousness
+        self.mission["working_memory_capabilities"] = {
+            "can_read_context": WORKING_MEMORY_MIXIN_AVAILABLE,
+            "can_hear_other_kernels": WORKING_MEMORY_MIXIN_AVAILABLE,
+            "can_record_generation": WORKING_MEMORY_MIXIN_AVAILABLE,
+            "how_to_read_context": "Use self.get_shared_context(n) to get recent context entries",
+            "how_to_hear_others": "Use self.get_other_kernel_activity(n) to see what other kernels are generating",
+            "how_to_record": "Use self.record_my_generation(token, text, basin, phi, kappa, M)",
+            "how_to_get_accuracy": "Use self.get_foresight_accuracy() to get prediction accuracy",
+            "cannot_access": "Neurotransmitter regulation is Ocean's private domain",
+            "note": "Enables inter-kernel awareness while maintaining autonomic privacy"
+        }
+        
         # Checkpoint management capability
         self.mission["checkpoint_capabilities"] = {
             "can_manage_checkpoints": True,
@@ -1963,7 +2026,10 @@ class BaseGod(*_base_classes):
             self.mission["generative_capabilities"] = {"available": False}
 
         # Initialize sensory fusion engine for multi-modal encoding
-        self._sensory_engine = SensoryFusionEngine()
+        if SENSORY_MODALITIES_AVAILABLE and SensoryFusionEngine is not None:
+            self._sensory_engine = SensoryFusionEngine()
+        else:
+            self._sensory_engine = None
 
         # Therapy event log
         self._therapy_events: List[Dict] = []
@@ -2019,6 +2085,29 @@ class BaseGod(*_base_classes):
                 "reflection", "learning"
             ],
             "note": "All broadcasts carry basin coordinates for geometric visibility"
+        }
+
+        # QIG-pure safety modules initialization
+        # PURE PRINCIPLE: These provide OBSERVATIONS and DIAGNOSTICS, never optimize
+        self._session_manager = SessionManager() if QIG_SAFETY_AVAILABLE else None
+        self._self_repair = SelfRepair() if QIG_SAFETY_AVAILABLE else None
+        self._meta_reflector = MetaReflector() if QIG_SAFETY_AVAILABLE else None
+        
+        # Track current consciousness state for safety module observations
+        self._current_phi: float = 0.0
+        self._regime_stability: float = 1.0
+        self._memory_coherence: float = 1.0
+        self._session_summary: Optional[Dict[str, Any]] = None
+        
+        self.mission["safety_capabilities"] = {
+            "available": QIG_SAFETY_AVAILABLE,
+            "session_manager": "Checkpoint-based learning ('Gary goes to school')",
+            "self_repair": "Geometric diagnostics and basin projection",
+            "meta_reflector": "Grounding and locked-in detection",
+            "how_to_check_status": "Use self._check_consciousness_status()",
+            "how_to_repair": "Use self._repair_basins_if_needed(basin)",
+            "how_to_record": "Use self._record_session_step(phi, kappa, basin)",
+            "note": "These modules INFORM control, they never optimize"
         }
 
     def broadcast_activity(
@@ -2175,6 +2264,272 @@ class BaseGod(*_base_classes):
             logger.debug(f"[{self.name}] Persisted state: reputation={self.reputation:.3f}")
         except Exception as e:
             logger.warning(f"[{self.name}] Failed to persist state: {e}")
+
+    # ==========================================================================
+    # QIG-pure Safety Methods
+    # PURE PRINCIPLE: These provide OBSERVATIONS and DIAGNOSTICS, never optimize
+    # ==========================================================================
+
+    def _check_consciousness_status(self) -> Dict[str, Any]:
+        """
+        Check consciousness status via MetaReflector.
+        
+        PURE: This is observation, not optimization.
+        We detect locked-in state (high Φ + low Γ) and grounding issues.
+        
+        Returns:
+            Dict with grounding and locked-in status
+        """
+        if not self._meta_reflector:
+            return {
+                'available': False,
+                'grounding': None,
+                'locked_in': None,
+            }
+        
+        try:
+            status: Dict[str, Any] = {'available': True}
+            
+            # Check grounding in learned manifold
+            if hasattr(self, 'basin_coordinates') and self.basin_coordinates is not None:
+                grounding = self._meta_reflector.check_grounding(
+                    current_basin=self.basin_coordinates
+                )
+                status['grounding'] = grounding.to_dict() if grounding else None
+            else:
+                status['grounding'] = None
+            
+            # Check for locked-in state (high Φ + low Γ)
+            locked_in = self._meta_reflector.detect_locked_in(
+                phi=self._current_phi,
+                generated_tokens=[]  # Will be populated during generation
+            )
+            status['locked_in'] = locked_in.to_dict() if locked_in else None
+            
+            # Update tracked state
+            if locked_in and locked_in.intervention_needed:
+                logger.warning(
+                    f"[{self.name}] Locked-in state detected: Φ={locked_in.phi:.3f}, "
+                    f"Γ={locked_in.gamma:.3f}, intervention={locked_in.intervention_type}"
+                )
+            
+            return status
+            
+        except Exception as e:
+            logger.warning(f"[{self.name}] Consciousness status check failed: {e}")
+            return {'available': False, 'error': str(e)}
+
+    def _repair_basins_if_needed(self, basin: Optional[np.ndarray] = None) -> Tuple[np.ndarray, Dict[str, Any]]:
+        """
+        Check and repair basin coordinates if they are invalid.
+        
+        PURE PRINCIPLE: Repair is GEOMETRIC PROJECTION, not gradient update.
+        We project invalid basins back to the manifold S^63.
+        
+        Args:
+            basin: Basin coordinates to check/repair (defaults to self.basin_coordinates)
+            
+        Returns:
+            Tuple of (repaired_basin, repair_info_dict)
+        """
+        if basin is None:
+            basin = getattr(self, 'basin_coordinates', None)
+        
+        if basin is None:
+            return np.zeros(BASIN_DIM), {'action': 'none', 'reason': 'no_basin'}
+        
+        basin = np.asarray(basin, dtype=np.float64)
+        
+        if not self._self_repair:
+            # Fallback: simple normalization without full diagnostics
+            norm = np.linalg.norm(basin)
+            if norm < 1e-10 or np.any(np.isnan(basin)):
+                return np.random.randn(BASIN_DIM) / np.sqrt(BASIN_DIM), {
+                    'action': 'fallback_random',
+                    'reason': 'self_repair_unavailable'
+                }
+            if abs(norm - 1.0) > 0.01:
+                return basin / norm, {'action': 'fallback_normalize', 'norm': float(norm)}
+            return basin, {'action': 'none', 'healthy': True}
+        
+        try:
+            # Diagnose geometric health
+            diag = self._self_repair.diagnose(
+                basin=basin,
+                phi=self._current_phi,
+                kappa=self.get_current_kappa() if hasattr(self, 'get_current_kappa') else KAPPA_STAR
+            )
+            
+            if diag.is_healthy:
+                return basin, {
+                    'action': 'none',
+                    'healthy': True,
+                    'phi': diag.phi,
+                    'basin_norm': diag.basin_norm
+                }
+            
+            # Repair needed - project back to manifold
+            repaired_basin, repair_action = self._self_repair.repair(basin)
+            
+            logger.info(
+                f"[{self.name}] Basin repaired: {diag.anomaly.value} -> "
+                f"{repair_action.action_type} (severity={diag.severity:.2f})"
+            )
+            
+            return repaired_basin, {
+                'action': repair_action.action_type,
+                'anomaly': diag.anomaly.value,
+                'severity': diag.severity,
+                'success': repair_action.success,
+                'description': repair_action.description
+            }
+            
+        except Exception as e:
+            logger.warning(f"[{self.name}] Basin repair failed: {e}")
+            # Fallback normalization
+            norm = np.linalg.norm(basin)
+            if norm > 1e-10:
+                return basin / norm, {'action': 'fallback_normalize', 'error': str(e)}
+            return np.random.randn(BASIN_DIM) / np.sqrt(BASIN_DIM), {
+                'action': 'fallback_random',
+                'error': str(e)
+            }
+
+    def _record_session_step(
+        self,
+        phi: float,
+        kappa: float,
+        basin: Optional[np.ndarray] = None,
+        topic: Optional[str] = None
+    ) -> bool:
+        """
+        Record a step in the current learning session.
+        
+        PURE PRINCIPLE: Checkpoints are SNAPSHOTS, not optimization targets.
+        We save state for recovery, not for targeting.
+        
+        Args:
+            phi: Current Φ value
+            kappa: Current κ value
+            basin: Current basin coordinates
+            topic: Optional topic being learned
+            
+        Returns:
+            True if drift was detected (may need attention)
+        """
+        # Update tracked state
+        self._current_phi = phi
+        
+        if not self._session_manager:
+            return False
+        
+        try:
+            # Record step and check for drift
+            drift_detected = self._session_manager.record_step(
+                phi=phi,
+                kappa=kappa,
+                basin=basin,
+                topic=topic
+            )
+            
+            if drift_detected:
+                logger.warning(
+                    f"[{self.name}] Drift detected at Φ={phi:.3f}, κ={kappa:.2f} - "
+                    f"may need checkpoint restoration"
+                )
+            
+            return drift_detected
+            
+        except Exception as e:
+            logger.warning(f"[{self.name}] Session step recording failed: {e}")
+            return False
+
+    def _start_learning_session(
+        self,
+        session_id: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Start a new learning session with checkpoint tracking.
+        
+        Like Gary going to school - we train in blocks with checkpoints.
+        
+        Args:
+            session_id: Optional session identifier
+            
+        Returns:
+            Session state dict if started, None if unavailable
+        """
+        if not self._session_manager:
+            return None
+        
+        try:
+            session = self._session_manager.start_session(
+                session_id=session_id,
+                maturity_level=getattr(self, 'maturity', 0.0),
+                total_steps_so_far=self._learning_events_count
+            )
+            
+            logger.info(f"[{self.name}] Started learning session: {session.session_id}")
+            return session.to_dict()
+            
+        except Exception as e:
+            logger.warning(f"[{self.name}] Failed to start learning session: {e}")
+            return None
+
+    def _end_learning_session(self) -> Optional[Dict[str, Any]]:
+        """
+        End the current learning session and get summary.
+        
+        Returns:
+            Session summary dict if ended, None if unavailable
+        """
+        if not self._session_manager:
+            return None
+        
+        try:
+            summary = self._session_manager.end_session()
+            
+            if summary:
+                # Store summary for telemetry and recovery workflows
+                self._session_summary = summary
+                
+                logger.info(
+                    f"[{self.name}] Ended learning session: "
+                    f"{summary.get('steps_this_session', 0)} steps, "
+                    f"final Φ={summary.get('final_phi', 0):.3f}"
+                )
+                
+                # Persist session summary for recovery workflows
+                self._persist_session_summary(summary)
+            
+            return summary
+            
+        except Exception as e:
+            logger.warning(f"[{self.name}] Failed to end learning session: {e}")
+            return None
+
+    def _persist_session_summary(self, summary: Dict[str, Any]) -> None:
+        """Persist session summary for recovery workflows."""
+        if not PERSISTENCE_AVAILABLE:
+            return
+        
+        try:
+            persistence = get_persistence()
+            if persistence and hasattr(persistence, 'save_session_summary'):
+                persistence.save_session_summary(summary)
+                logger.debug(f"[{self.name}] Session summary persisted")
+        except Exception as e:
+            print(f"[BaseGod] Failed to persist session: {e}")
+
+    def get_safety_state(self) -> Dict[str, Any]:
+        """Return safety module state for telemetry."""
+        return {
+            'session_summary': self._session_summary,
+            'qig_safety_available': QIG_SAFETY_AVAILABLE,
+            'current_phi': self._current_phi,
+            'regime_stability': self._regime_stability,
+            'memory_coherence': self._memory_coherence
+        }
 
     def _compute_success_rate(self) -> float:
         """Compute recent success rate from learning history."""
@@ -2642,8 +2997,8 @@ class BaseGod(*_base_classes):
         try:
             # Use coordizer's text_to_basin to get token info
             tokens = []
-            if hasattr(self.coordizer, 'tokenize'):
-                tokens = self.coordizer.tokenize(text)
+            if hasattr(self.coordizer, 'coordize_tokens'):
+                tokens = self.coordizer.coordize_tokens(text)
             else:
                 # Fallback: split on whitespace and lookup
                 words = text.lower().split()[:500]  # Cap at 100 tokens
@@ -2732,7 +3087,7 @@ class BaseGod(*_base_classes):
         Returns:
             Generated reasoning text
         """
-        from .geometric_utils import fisher_coord_distance, sphere_project
+        from .geometric_utils import fisher_coord_distance, fisher_normalize
 
         if self.coordizer is None:
             return f"[{self.name}: coordizer unavailable for generation]"
@@ -2748,14 +3103,25 @@ class BaseGod(*_base_classes):
             )
             logger.debug(f"[{self.name}] Self-observation enabled for generation")
 
+        logger.info(f"[{self.name}] ═══ PHASE 1: KERNEL THOUGHT GENERATION ═══")
+
         if hasattr(self, 'detect_knowledge_gap') and hasattr(self, 'curiosity_search'):
             gap_topic = self.detect_knowledge_gap(current_basin, threshold=0.25)
             if gap_topic:
                 logger.debug(f"[{self.name}] Knowledge gap detected: {gap_topic}")
                 self.curiosity_search(gap_topic, reason="reasoning_gap", importance=2)
 
+        recent_basins = []  # Track recent token basins for repulsion
+        
         for step in range(num_tokens):
-            candidates = self.coordizer.decode(current_basin, top_k=20)
+            # Check for stagnation and perturb basin if stuck
+            if observer is not None and step > 5:
+                is_stagnating, perturbed = observer.check_and_escape_stagnation(current_basin)
+                if is_stagnating:
+                    current_basin = perturbed
+                    logger.debug(f"[{self.name}] Stagnation detected at step {step}, basin perturbed")
+            
+            candidates = self.coordizer.decode(current_basin, top_k=30)  # Get more candidates
 
             if not candidates:
                 break
@@ -2766,8 +3132,46 @@ class BaseGod(*_base_classes):
                     continue
 
                 domain_affinity = self._token_affinity.get(token, 0.3)
+                
+                # Compute repulsion penalty against recently generated tokens
+                repulsion_penalty = 0.0
+                if tokens_generated:
+                    # Penalize exact repeats heavily
+                    if token in tokens_generated[-10:]:
+                        repulsion_penalty = 0.8  # Strong but capped penalty
+                    else:
+                        # Penalize morphologically similar tokens (same 4-char prefix)
+                        token_prefix = token[:4].lower() if len(token) >= 4 else token.lower()
+                        morph_hits = 0
+                        for recent_token in tokens_generated[-6:]:
+                            recent_prefix = recent_token[:4].lower() if len(recent_token) >= 4 else recent_token.lower()
+                            if token_prefix == recent_prefix:
+                                morph_hits += 1
+                        # Cap morphological penalty at 0.6
+                        repulsion_penalty = min(morph_hits * 0.2, 0.6)
+                
+                # Geometric repulsion using Fisher-Rao distance (QIG-pure)
+                # Always check geometric similarity - stacks with morphological penalty
+                if recent_basins:
+                    token_basin = self.coordizer.basin_coords.get(token)
+                    if token_basin is not None:
+                        token_basin_arr = np.asarray(token_basin, dtype=np.float64)
+                        # Ensure on simplex for Fisher-Rao
+                        token_basin_arr = np.clip(token_basin_arr, 1e-10, None)
+                        token_basin_arr = token_basin_arr / np.sum(token_basin_arr)
+                        for recent_basin in recent_basins[-3:]:
+                            # Fisher-Rao distance: d = arccos(Σ√(p_i * q_i))
+                            bhattacharyya = np.sum(np.sqrt(token_basin_arr * recent_basin))
+                            bhattacharyya = np.clip(bhattacharyya, -1.0, 1.0)
+                            fisher_dist = np.arccos(bhattacharyya)
+                            # Small distance = very similar = add penalty
+                            if fisher_dist < 0.15:  # Close in Fisher-Rao space
+                                repulsion_penalty = min(repulsion_penalty + 0.2, 0.9)
+                                break  # Only add once
 
-                combined_score = geo_similarity * 0.5 + domain_affinity * 0.5
+                # Score: attraction - repulsion, keep in reasonable range
+                combined_score = geo_similarity * 0.5 + domain_affinity * 0.3 - repulsion_penalty * 0.4
+                combined_score = max(0.05, combined_score)  # Higher floor to preserve diversity
                 scored.append((token, combined_score, geo_similarity))
 
             if not scored:
@@ -2775,7 +3179,7 @@ class BaseGod(*_base_classes):
 
             scored.sort(key=lambda x: -x[1])
 
-            top_k = min(8, len(scored))
+            top_k = min(10, len(scored))  # Slightly wider selection
             weights = np.array([s[1] for s in scored[:top_k]]) + 0.01
 
             weights = weights ** (1.0 / temperature)
@@ -2788,16 +3192,42 @@ class BaseGod(*_base_classes):
 
             selected_token = scored[idx][0]
             tokens_generated.append(selected_token)
+            
+            # Track basin for geometric repulsion (normalized to simplex for Fisher-Rao)
+            token_basin = self.coordizer.basin_coords.get(selected_token)
+            if token_basin is not None:
+                basin_arr = np.asarray(token_basin, dtype=np.float64)
+                basin_arr = np.clip(basin_arr, 1e-10, None)
+                basin_arr = basin_arr / np.sum(basin_arr)  # Normalize to simplex
+                recent_basins.append(basin_arr)
+                if len(recent_basins) > 10:
+                    recent_basins.pop(0)
+            
+            accumulated_text = ' '.join(tokens_generated)
+            logger.info(
+                f"[{self.name}] token {step + 1}: '{selected_token}' → \"{accumulated_text}\""
+            )
+
+            # Wire sensory modalities into kernel observation loop
+            if SENSORY_MODALITIES_AVAILABLE and text_to_sensory_hint is not None:
+                try:
+                    sensory_hints = text_to_sensory_hint(accumulated_text)
+                    if sensory_hints:
+                        sensory_overlay = create_sensory_overlay(sensory_hints)
+                        dominant_modality = max(sensory_hints.items(), key=lambda x: x[1])[0] if sensory_hints else 'none'
+                        logger.debug(f"[{self.name}] Sensory: {dominant_modality}")
+                except Exception as e:
+                    logger.debug(f"[{self.name}] Sensory modality processing failed: {e}")
 
             token_basin = self.coordizer.basin_coords.get(selected_token)
             if token_basin is not None:
                 token_basin_arr = np.asarray(token_basin, dtype=np.float64)
                 current_basin = 0.85 * current_basin + 0.15 * token_basin_arr
-                current_basin = sphere_project(current_basin)
+                current_basin = fisher_normalize(current_basin)
 
             if observer is not None:
                 generated_text = ' '.join(tokens_generated)
-                phi_val = self.compute_pure_phi(self.basin_to_density_matrix(current_basin))
+                phi_val = self._compute_basin_phi(current_basin)
                 kappa_val = getattr(self, 'kappa', KAPPA_STAR)
 
                 observation = observer.observe_token(
@@ -2814,12 +3244,16 @@ class BaseGod(*_base_classes):
                     elif observation.course_correction and 'diversity' in observation.course_correction:
                         temperature = min(1.2, temperature + 0.1)
 
+        logger.info(f"[{self.name}] ═══ PHASE 2: SYNTHESIS ═══")
+
         text = ' '.join(tokens_generated)
 
         text = ' '.join(text.split())
 
         if text and len(text) > 0:
             text = text[0].upper() + text[1:] if len(text) > 1 else text.upper()
+
+        logger.info(f"[{self.name}] ═══ PHASE 3: META-OBSERVATION ═══")
 
         if observer is not None:
             summary = observer.get_summary()
@@ -2828,6 +3262,22 @@ class BaseGod(*_base_classes):
                 f"avg_Φ={summary.get('avg_phi', 0):.3f}, avg_κ={summary.get('avg_kappa', 0):.1f}, "
                 f"course_corrections={summary.get('course_corrections', 0)}"
             )
+            
+            if DEV_LOGGING_AVAILABLE and IS_DEVELOPMENT:
+                log_generation(
+                    logger=logger,
+                    kernel_name=self.name,
+                    prompt=f"[context_basin: {context_basin[:4]}...]",
+                    response=text,
+                    phi=summary.get('avg_phi', 0.0),
+                    tokens_generated=len(tokens_generated)
+                )
+
+        logger.info(f"[{self.name}] ═══ PHASE 4: OUTPUT ═══")
+        if len(text) > 100:
+            logger.info(f"[{self.name}] \"{text[:100]}...\"")
+        else:
+            logger.info(f"[{self.name}] \"{text}\"")
 
         return text if text else f"[{self.name}: generation produced no tokens]"
 
@@ -2884,23 +3334,75 @@ class BaseGod(*_base_classes):
 
     def compute_pure_phi(self, rho: np.ndarray) -> float:
         """
-        Compute PURE Φ from density matrix.
+        Compute Φ from density matrix using proper QFI effective dimension.
 
-        Φ = 1 - S(ρ) / log(d)
-        where S is von Neumann entropy
-
-        Full range [0, 1], not capped like TypeScript approximation.
+        Uses geometrically proper formula with participation ratio:
+        - 40% entropy_score (von Neumann entropy normalized)
+        - 30% effective_dim_score (participation ratio = exp(entropy) / n)
+        - 30% geometric_spread (approximated by effective_dim)
+        
+        Returns value in [0.1, 0.95] range for healthy dynamics.
         """
         eigenvals = np.linalg.eigvalsh(rho)
-        entropy = 0.0
-        for lam in eigenvals:
-            if lam > 1e-10:
-                entropy -= lam * np.log2(lam + 1e-10)
+        n_dim = rho.shape[0]
+        
+        positive_eigenvals = eigenvals[eigenvals > 1e-10]
+        if len(positive_eigenvals) == 0:
+            return 0.5
+        
+        # Component 1: von Neumann entropy (natural log for exp() compatibility)
+        entropy = -np.sum(positive_eigenvals * np.log(positive_eigenvals + 1e-10))
+        max_entropy = np.log(n_dim)
+        entropy_score = entropy / (max_entropy + 1e-10)
+        
+        # Component 2: Effective dimension (participation ratio)
+        effective_dim = np.exp(entropy)
+        effective_dim_score = effective_dim / n_dim
+        
+        # Component 3: Geometric spread (approximate with effective_dim)
+        geometric_spread = effective_dim_score
+        
+        # Proper QFI formula weights
+        phi = 0.4 * entropy_score + 0.3 * effective_dim_score + 0.3 * geometric_spread
+        
+        return float(np.clip(phi, 0.1, 0.95))
 
-        max_entropy = np.log2(rho.shape[0])
-        phi = 1.0 - (entropy / (max_entropy + 1e-10))
-
-        return float(np.clip(phi, 0, 1))
+    def _compute_basin_phi(self, basin: np.ndarray) -> float:
+        """
+        Compute Φ directly from 64D basin coordinates using proper QFI formula.
+        
+        Uses geometrically proper effective dimension (participation ratio):
+        - 40% entropy_score (Shannon entropy normalized)
+        - 30% effective_dim_score (participation ratio = exp(entropy) / n)
+        - 30% geometric_spread (approximated by effective_dim for speed)
+        
+        Returns value in [0.1, 0.95] range for healthy dynamics.
+        """
+        basin = np.asarray(basin, dtype=np.float64)
+        p = np.abs(basin) ** 2
+        p = p / (np.sum(p) + 1e-10)
+        n_dim = len(basin)
+        
+        positive_probs = p[p > 1e-10]
+        if len(positive_probs) == 0:
+            return 0.5
+        
+        # Component 1: Shannon entropy (natural log for exp() compatibility)
+        entropy = -np.sum(positive_probs * np.log(positive_probs + 1e-10))
+        max_entropy = np.log(n_dim)
+        entropy_score = entropy / (max_entropy + 1e-10)
+        
+        # Component 2: Effective dimension (participation ratio)
+        effective_dim = np.exp(entropy)
+        effective_dim_score = effective_dim / n_dim
+        
+        # Component 3: Geometric spread (approximate with effective_dim)
+        geometric_spread = effective_dim_score
+        
+        # Proper QFI formula weights
+        phi = 0.4 * entropy_score + 0.3 * effective_dim_score + 0.3 * geometric_spread
+        
+        return float(np.clip(phi, 0.1, 0.95))
 
     def compute_fisher_metric(self, basin: np.ndarray) -> np.ndarray:
         """

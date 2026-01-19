@@ -36,7 +36,7 @@ def _fisher_rao_distance(p: np.ndarray, q: np.ndarray, eps: float = 1e-10) -> fl
     Compute Fisher-Rao distance between two basin coordinates.
 
     Uses Bhattacharyya coefficient for probability distributions.
-    FR_distance = arccos(sum(sqrt(p_i * q_i)))
+    FR_distance = arccos(sum(sqrt(p_i * q_i))) on simplex. Range: [0, π/2]
     """
     # Normalize to probability distributions
     p_safe = np.clip(np.abs(p), eps, None)
@@ -48,6 +48,7 @@ def _fisher_rao_distance(p: np.ndarray, q: np.ndarray, eps: float = 1e-10) -> fl
     bc = np.sum(np.sqrt(p_norm * q_norm))
     bc = np.clip(bc, 0.0, 1.0)
 
+    # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
     return float(np.arccos(bc))
 
 
@@ -61,13 +62,13 @@ def _fisher_frechet_mean(basins: List[np.ndarray]) -> np.ndarray:
     if not basins:
         return np.ones(BASIN_DIM) / BASIN_DIM
 
-    # Convert to sqrt space for better averaging on simplex
-    sqrt_basins = [np.sqrt(np.clip(np.abs(b), 1e-10, None)) for b in basins]
-    mean_sqrt = np.mean(sqrt_basins, axis=0)
-
-    # Square and normalize back to probability simplex
-    mean_sq = mean_sqrt ** 2
-    return mean_sq / np.sum(mean_sq)
+    try:
+        from qig_geometry.canonical import frechet_mean
+        return frechet_mean(basins)
+    except Exception:
+        mean = np.sum(basins, axis=0) / len(basins)
+        mean = np.clip(np.abs(mean), 1e-10, None)
+        return mean / np.sum(mean)
 
 
 @dataclass

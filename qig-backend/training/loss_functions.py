@@ -26,8 +26,11 @@ def fisher_rao_distance(p: np.ndarray, q: np.ndarray, epsilon: float = 1e-10) ->
     """
     Compute Fisher-Rao distance between two probability distributions.
 
-    This is the geodesic distance on the statistical manifold.
-    d_FR(p, q) = arccos(sum(sqrt(p_i * q_i)))
+    This is the geodesic distance on the statistical manifold using Hellinger embedding.
+    d_FR(p, q) = 2 * arccos(sum(sqrt(p_i * q_i)))
+
+    The factor of 2 comes from the Hellinger embedding: when we map p → √p,
+    the arc length on the sphere is 2*arccos(BC).
 
     Args:
         p: First distribution (will be normalized to simplex)
@@ -35,7 +38,7 @@ def fisher_rao_distance(p: np.ndarray, q: np.ndarray, epsilon: float = 1e-10) ->
         epsilon: Small value for numerical stability
 
     Returns:
-        Fisher-Rao distance in radians [0, pi/2]
+        Fisher-Rao distance in radians [0, π]
     """
     # Ensure positive and normalize to probability simplex
     p = np.abs(p) + epsilon
@@ -46,10 +49,11 @@ def fisher_rao_distance(p: np.ndarray, q: np.ndarray, epsilon: float = 1e-10) ->
     # Bhattacharyya coefficient (Hellinger affinity)
     bc = np.sum(np.sqrt(p * q))
 
-    # Clamp to valid range for arccos
-    bc = np.clip(bc, -1.0, 1.0)
+    # Clamp to valid range for arccos (probability measure)
+    bc = np.clip(bc, 0.0, 1.0)
 
-    # Fisher-Rao distance
+    # Fisher-Rao distance on probability simplex
+    # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
     return np.arccos(bc)
 
 

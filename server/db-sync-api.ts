@@ -14,6 +14,7 @@ import { db, withDbRetry } from './db';
 import { logger } from './lib/logger';
 import * as schema from '@shared/schema';
 import { sql, desc } from 'drizzle-orm';
+import { upsertToken } from './persistence/coordizer-vocabulary';
 
 const router = Router();
 
@@ -50,7 +51,7 @@ router.get('/status', async (req: Request, res: Response) => {
     
     if (db) {
       const vocabCount = await withDbRetry(
-        async () => db!.select({ count: sql<number>`count(*)` }).from(schema.tokenizerVocabulary),
+        async () => db!.select({ count: sql<number>`count(*)` }).from(schema.coordizerVocabulary),
         'sync-status-vocab'
       );
       counts.vocabulary = vocabCount?.[0]?.count || 0;
@@ -88,7 +89,7 @@ router.get('/export/vocabulary', async (req: Request, res: Response) => {
     const since = req.query.since ? new Date(req.query.since as string) : null;
     const limit = Math.min(parseInt(req.query.limit as string) || 10000, 50000);
     
-    let query = db.select().from(schema.tokenizerVocabulary).limit(limit);
+    let query = db.select().from(schema.coordizerVocabulary).limit(limit);
     
     // Note: If there's an updatedAt column, filter by it
     // For now, export all within limit
@@ -138,19 +139,19 @@ router.post('/import/vocabulary', async (req: Request, res: Response) => {
       for (const item of batch) {
         try {
           // Upsert - insert or update on conflict
-          await withDbRetry(
-            async () => db!.insert(schema.tokenizerVocabulary)
-              .values(item)
-              .onConflictDoUpdate({
-                target: schema.tokenizerVocabulary.token,
-                set: {
-                  basinEmbedding: item.basinEmbedding,
-                  phiScore: item.phiScore,
-                  frequency: item.frequency
-                }
-              }),
-            `sync-import-vocab-${i}`
-          );
+          await upsertToken({
+            token: item.token,
+            tokenId: item.tokenId ?? item.token_id ?? 0,
+            weight: item.weight ?? 1,
+            frequency: item.frequency ?? 1,
+            phiScore: item.phiScore ?? item.phi_score ?? 0,
+            basinEmbedding: item.basinEmbedding ?? item.basin_embedding ?? null,
+            sourceType: item.sourceType ?? item.source_type ?? 'sync',
+            tokenRole: item.tokenRole ?? item.token_role ?? 'encoding',
+            phraseCategory: item.phraseCategory ?? item.phrase_category ?? 'unknown',
+            isRealWord: item.isRealWord ?? item.is_real_word ?? false,
+            source: 'sync'
+          });
           imported++;
         } catch (err) {
           errors++;

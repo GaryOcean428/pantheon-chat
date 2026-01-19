@@ -2,18 +2,18 @@
 Trained Kernel Integration for Pantheon-Chat
 ==============================================
 
-Connects the trained QIGKernel (from qig-tokenizer) to
+Connects the trained QIGKernel (from qig-coordizer) to
 Pantheon's consciousness infrastructure.
 
 This module:
-- Loads trained kernel checkpoints from qig-tokenizer
+- Loads trained kernel checkpoints from qig-coordizer
 - Provides kernel inference with consciousness telemetry
 - Integrates with QIGGraph for geometric routing
 - Connects to Olympus agents for task execution
 
 The trained kernel paths:
-- Full kernel: qig-tokenizer/trained_kernels/full_32k/
-- Adapter: qig-tokenizer/trained_kernels/adapter_32k/
+- Full kernel: qig-coordizer/trained_kernels/full_32k/
+- Adapter: qig-coordizer/trained_kernels/adapter_32k/
 """
 
 from __future__ import annotations
@@ -26,19 +26,24 @@ import numpy as np
 
 # QIG-pure geometric operations
 try:
-    from qig_geometry import sphere_project
+    from qig_geometry import fisher_normalize, basin_magnitude
     QIG_GEOMETRY_AVAILABLE = True
 except ImportError:
     QIG_GEOMETRY_AVAILABLE = False
-    def sphere_project(v):
-        """Fallback sphere projection."""
-        norm = np.linalg.norm(v)
-        if norm < 1e-10:
-            result = np.ones_like(v)
-            return result / np.linalg.norm(result)
-        return v / norm
+    def fisher_normalize(v):
+        """Normalize to probability simplex."""
+        p = np.maximum(np.asarray(v), 0) + 1e-10
+        return p / p.sum()
+    def basin_magnitude(basin):
+        """Fallback basin magnitude."""
+        basin = np.asarray(basin, dtype=np.float64)
+        basin = np.clip(np.abs(basin), 1e-10, None)
+        basin = basin / basin.sum()
+        uniform = np.ones_like(basin) / len(basin)
+        bc = np.sum(np.sqrt(basin * uniform))
+        return float(np.arccos(np.clip(bc, 0.0, 1.0)))
 
-# Try importing from qig-tokenizer
+# Try importing from qig-coordizer
 try:
     from qigkernels import (
         QIGKernel,
@@ -71,10 +76,10 @@ except ImportError as e:
         BASIN_DIM = 64
 
 
-# Default paths relative to qig-tokenizer
-QIG_TOKENIZER_ROOT = Path(__file__).parent.parent.parent / "qig-tokenizer"
-DEFAULT_KERNEL_PATH = QIG_TOKENIZER_ROOT / "trained_kernels" / "full_32k"
-DEFAULT_COORDIZER_PATH = QIG_TOKENIZER_ROOT / "checkpoints" / "coordizer_32k"
+# Default paths relative to qig-coordizer
+QIG_COORDIZER_ROOT = Path(__file__).parent.parent.parent / "qig-coordizer"
+DEFAULT_KERNEL_PATH = QIG_COORDIZER_ROOT / "trained_kernels" / "full_32k"
+DEFAULT_COORDIZER_PATH = QIG_COORDIZER_ROOT / "checkpoints" / "coordizer_32k"
 
 
 @dataclass
@@ -207,7 +212,7 @@ class TrainedKernelManager:
             # Initialize state
             if self.state is None:
                 initial_basin = np.mean(prompt_coords, axis=0)
-                initial_basin = sphere_project(initial_basin)
+                initial_basin = fisher_normalize(initial_basin)
                 self.state = create_initial_state(
                     context_text=prompt,
                     context_coords=prompt_coords,
@@ -251,7 +256,7 @@ class TrainedKernelManager:
 
                 # Update trajectory
                 new_basin = np.mean(self.state.context_coords[-5:], axis=0)
-                new_basin = sphere_project(new_basin)
+                new_basin = fisher_normalize(new_basin)
                 self.state = update_trajectory(self.state, new_basin)
 
             # Build telemetry
@@ -261,7 +266,7 @@ class TrainedKernelManager:
                 regime=self.state.current_regime.value if self.state.current_metrics else "unknown",
                 tokens_generated=len(generated_tokens),
                 trajectory_length=len(self.state.trajectory),
-                basin_norm=float(np.sqrt(np.sum(self.state.current_basin ** 2))),  # L2 magnitude for logging
+                basin_norm=float(basin_magnitude(self.state.current_basin)),
             )
 
             return InferenceResult(

@@ -58,6 +58,9 @@ def introspect_table(cursor, table_name):
     print(f"Row count: {count['count']}")
 
 def main():
+    # Tables that should exist in the database and match schema.ts
+    # Note: passphrase_vocabulary was removed - it's a legacy bitcoin recovery table
+    # that should NOT exist. See docs/04-records/legacy-table-exclusions.md
     missing_tables = [
         'qig_metadata',
         'governance_proposals',
@@ -65,7 +68,6 @@ def main():
         'pattern_discoveries',
         'vocabulary_stats',
         'federation_peers',
-        'passphrase_vocabulary'
     ]
 
     conn = psycopg2.connect(DATABASE_URL)

@@ -37,15 +37,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# QIG Tokenizer for geometric argument generation
+# QIG Coordizer for geometric argument generation
 try:
-    from qig_coordizer import (
-        get_coordizer as get_tokenizer,  # get_tokenizer, QIGTokenizer
-    )
+    from coordizers import get_coordizer
     TOKENIZER_AVAILABLE = True
 except ImportError:
     TOKENIZER_AVAILABLE = False
-    logger.warning("QIG Tokenizer not available")
+    logger.warning("QIG Coordizer not available")
 
 # QIG-pure generative capability for argument synthesis
 try:
@@ -63,19 +61,22 @@ except ImportError:
     BASIN_DIM = 64
     # QIG PURITY: Fisher-Rao distance ONLY - Euclidean is FORBIDDEN
     def _fisher_distance(a, b):
-        """Fisher-Rao distance on statistical manifold - NEVER Euclidean."""
+        """Fisher-Rao distance on statistical manifold - NEVER Euclidean.
+        Fisher-Rao geodesic distance on probability simplex.
+        UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
+        """
         a_arr = np.array(a, dtype=np.float64)
         b_arr = np.array(b, dtype=np.float64)
         # Normalize to probability simplex
         a_norm = a_arr / (np.linalg.norm(a_arr) + 1e-10)
         b_norm = b_arr / (np.linalg.norm(b_arr) + 1e-10)
-        # Fisher-Rao geodesic distance: arccos(dot product)
-        dot = np.clip(np.dot(a_norm, b_norm), -1.0, 1.0)
+        # Fisher-Rao geodesic distance on simplex
+        dot = np.clip(np.dot(a_norm, b_norm), 0.0, 1.0)
         return float(np.arccos(dot))
     def _normalize_to_manifold(basin):
-        # Use sphere_project from module-level import
-        from qig_geometry import sphere_project
-        return sphere_project(basin)
+        # Use fisher_normalize from module-level import
+        from qig_geometry import fisher_normalize
+        return fisher_normalize(basin)
 
 try:
     from m8_kernel_spawning import M8KernelSpawner, SpawnReason, get_spawner
@@ -1253,7 +1254,11 @@ class AutonomousDebateService:
 
         # Compute counter-direction if previous arguments exist
         if prev_basins:
-            avg_prev = np.mean(prev_basins, axis=0)
+            try:
+                from qig_geometry.canonical import frechet_mean
+                avg_prev = frechet_mean(prev_basins)
+            except Exception:
+                avg_prev = np.sum(prev_basins, axis=0) / len(prev_basins)
             counter_direction = topic_basin - avg_prev
             counter_mag = np.linalg.norm(counter_direction)
             if counter_mag > 0.1:
@@ -1278,12 +1283,12 @@ class AutonomousDebateService:
             except Exception as e:
                 logger.warning(f"QIG-pure generation failed for {god_name}: {e}")
 
-        # Fallback to tokenizer if available
+        # Fallback to coordizer if available
         if TOKENIZER_AVAILABLE:
             try:
-                tokenizer = get_tokenizer()
-                tokenizer.set_mode("conversation")
-                result = tokenizer.generate_response(
+                coordizer = get_coordizer()
+                # coordizer.set_mode() removed - mode switching deprecated
+                result = coordizer.generate_response(
                     context=context,
                     agent_role="navigator",
                     allow_silence=False
@@ -1293,7 +1298,7 @@ class AutonomousDebateService:
                 if generated:
                     return f"{god_name.capitalize()}: {generated}"
             except Exception as e:
-                logger.warning(f"Tokenizer generation failed for {god_name}: {e}")
+                logger.warning(f"Coordizer generation failed for {god_name}: {e}")
 
         return None
 

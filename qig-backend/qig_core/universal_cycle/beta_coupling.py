@@ -336,7 +336,9 @@ class RunningCouplingManager:
         }
         
         if basin_coords is not None:
-            basin_norm = float(np.sqrt(np.sum(basin_coords ** 2)))  # L2 magnitude for logging
+            # Use Fisher-Rao magnitude for logging
+            from qig_geometry import basin_magnitude
+            basin_norm = float(basin_magnitude(basin_coords))
             geometric_factor = basin_norm / np.sqrt(len(basin_coords)) if len(basin_coords) > 0 else 1.0
             result['geometric_factor'] = geometric_factor
             result['modulated_phi'] = float(np.clip(

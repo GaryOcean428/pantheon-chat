@@ -10,8 +10,16 @@ from datetime import datetime
 from typing import Dict, List, Optional
 import numpy as np
 
-from word_validation import is_valid_english_word, validate_for_vocabulary, STOP_WORDS
+from word_validation import is_valid_english_word, validate_for_vocabulary
 from qig_geometry import fisher_coord_distance
+
+# Import canonical QFI computation from qig_geometry
+try:
+    from qig_geometry.canonical_upsert import compute_qfi_score as _canonical_qfi
+    CANONICAL_QFI_AVAILABLE = True
+except ImportError:
+    CANONICAL_QFI_AVAILABLE = False
+    _canonical_qfi = None
 
 # Import comprehensive validator for web scraping contamination prevention (PR 27/28)
 try:
@@ -29,20 +37,14 @@ try:
 except ImportError:
     VOCAB_PERSISTENCE_AVAILABLE = False
 
+# Use canonical coordizer import
 try:
-    from qig_coordizer import get_coordizer as get_tokenizer, update_tokenizer_from_observations
-    TOKENIZER_AVAILABLE = True
+    from coordizers import get_coordizer
+    COORDIZER_AVAILABLE = True
 except ImportError:
-    TOKENIZER_AVAILABLE = False
-    update_tokenizer_from_observations = None
-    print("[WARNING] qig_coordizer not available - running without tokenizer")
-
-try:
-    from coordizers import get_coordizer as get_unified_coordizer
-    UNIFIED_COORDIZER_AVAILABLE = True
-except ImportError:
-    UNIFIED_COORDIZER_AVAILABLE = False
-    get_unified_coordizer = None
+    COORDIZER_AVAILABLE = False
+    get_coordizer = None
+    print("[WARNING] coordizers not available - running without coordizer")
 
 # Legacy import for type checking only (deprecated)
 PG_COORDIZER_AVAILABLE = False
@@ -69,10 +71,50 @@ def get_learned_manifold() -> Optional['LearnedManifold']:
     return _learned_manifold
 
 
+def compute_qfi_for_basin(basin: np.ndarray) -> float:
+    """
+    Compute Quantum Fisher Information score for a basin.
+
+    Uses participation ratio (effective dimension) which is geometrically proper:
+    QFI = exp(H(p)) / n where H(p) is Shannon entropy.
+
+    This is the CANONICAL QFI formula - produces values in [0, 1].
+
+    Args:
+        basin: 64D basin coordinates
+
+    Returns:
+        QFI score in [0, 1]
+    """
+    # Use canonical implementation if available
+    if CANONICAL_QFI_AVAILABLE and _canonical_qfi is not None:
+        return _canonical_qfi(basin)
+
+    # Fallback: inline canonical formula
+    # Project to simplex probabilities
+    v = np.abs(basin) + 1e-10
+    p = v / v.sum()
+
+    # Compute Shannon entropy
+    positive_probs = p[p > 1e-10]
+    if len(positive_probs) == 0:
+        return 0.0
+
+    entropy = -np.sum(positive_probs * np.log(positive_probs + 1e-10))
+
+    # Participation ratio = exp(entropy) / dimension
+    n_dim = len(basin)
+    effective_dim = np.exp(entropy)
+    qfi_score = effective_dim / n_dim
+
+    return float(np.clip(qfi_score, 0.0, 1.0))
+
+
 class VocabularyCoordinator:
     def __init__(self):
         self.vocab_db = get_vocabulary_persistence() if VOCAB_PERSISTENCE_AVAILABLE else None
-        self.tokenizer = get_tokenizer() if TOKENIZER_AVAILABLE else None
+        # Use canonical coordizer (PostgresCoordizer)
+        self.coordizer = get_coordizer() if COORDIZER_AVAILABLE else None
         self.learned_manifold = get_learned_manifold()
         self.observations_recorded = 0
         self.words_learned = 0
@@ -85,15 +127,10 @@ class VocabularyCoordinator:
         self._observations_per_cycle = 100
         
         # Track coordizer for direct vocabulary persistence (unified 63K vocabulary)
-        self._unified_coordizer = None
-        self._using_pure_64d = False
-        if UNIFIED_COORDIZER_AVAILABLE and get_unified_coordizer:
-            try:
-                self._unified_coordizer = get_unified_coordizer()
-                self._using_pure_64d = True
-                print(f"[VocabularyCoordinator] Using unified coordizer: {type(self._unified_coordizer).__name__}")
-            except Exception as e:
-                print(f"[VocabularyCoordinator] WARNING: Failed to get unified coordizer: {e}")
+        self._unified_coordizer = self.coordizer  # Same instance
+        self._using_pure_64d = bool(self.coordizer)
+        if self.coordizer:
+            print(f"[VocabularyCoordinator] Using canonical coordizer: {type(self.coordizer).__name__}")
         
         features = []
         if self.learned_manifold:
@@ -135,12 +172,12 @@ class VocabularyCoordinator:
             self.observations_recorded += recorded
         new_tokens = 0
         weights_updated = False
-        if TOKENIZER_AVAILABLE and update_tokenizer_from_observations:
-            # Use safe wrapper that handles PretrainedCoordizer fallback
-            new_tokens, weights_updated = update_tokenizer_from_observations(observations)
+        if COORDIZER_AVAILABLE and self.coordizer:
+            # Use canonical coordizer for vocabulary updates
+            new_tokens, weights_updated = self.coordizer.add_vocabulary_observations(observations)
             self.words_learned += new_tokens
         merge_rules = 0
-        if self.tokenizer:
+        if self.coordizer:
             merge_rules = self._learn_merge_rules(phrase, phi, source)
             self.merge_rules_learned += merge_rules
         
@@ -173,10 +210,10 @@ class VocabularyCoordinator:
         Persist vocabulary observations to PostgresCoordizer for continuous learning.
         
         This solves the critical issue where vocabulary was learned during sessions
-        but lost on restart because it was never written back to the tokenizer_vocabulary table.
+        but lost on restart because it was never written back to the coordizer_vocabulary table.
         
         Also updates learned_words.basin_coords so integrate_pending_vocabulary can
-        push vectors into tokenizer_vocabulary and generation can use them.
+        push vectors into coordizer_vocabulary and generation can use them.
         
         Args:
             observations: List of vocabulary observation dicts with word, phi, etc.
@@ -207,7 +244,7 @@ class VocabularyCoordinator:
                 continue
             
             try:
-                # Get basin coords from tokenizer if available
+                # Get basin coords from coordizer if available
                 basin_coords = None
                 if hasattr(self._unified_coordizer, 'basin_coords') and word in self._unified_coordizer.basin_coords:
                     basin_coords = self._unified_coordizer.basin_coords[word]
@@ -222,8 +259,8 @@ class VocabularyCoordinator:
             except Exception as e:
                 print(f"[VocabularyCoordinator] Failed to persist '{word}': {e}")
         
-        # Phase 2b: Update tokenizer_vocabulary with basin_embedding for generation
-        # Also update learned_words for backward compatibility
+        # Phase 2b: Update coordizer_vocabulary with basin_embedding for generation
+        # P0 FIX: Also compute and insert QFI score to prevent incomplete records
         if words_with_basins:
             database_url = os.environ.get('DATABASE_URL')
             if database_url:
@@ -232,34 +269,31 @@ class VocabularyCoordinator:
                     with conn.cursor() as cur:
                         for word, basin in words_with_basins:
                             basin_list = basin.tolist() if hasattr(basin, 'tolist') else list(basin)
-                            # Primary: Update tokenizer_vocabulary (consolidated table)
+                            
+                            # P0 FIX: Compute QFI whenever basin is present
+                            qfi_score = compute_qfi_for_basin(basin)
+                            
+                            # Update coordizer_vocabulary (consolidated table - single source of truth)
+                            # CRITICAL: Include qfi_score in INSERT to prevent NULL qfi_score
                             cur.execute("""
-                                INSERT INTO tokenizer_vocabulary (
-                                    token, basin_embedding, token_role, is_real_word, frequency
+                                INSERT INTO coordizer_vocabulary (
+                                    token, basin_embedding, qfi_score, token_role, is_real_word, frequency
                                 )
-                                VALUES (%s, %s::vector, 'generation', TRUE, 1)
+                                VALUES (%s, %s::vector, %s, 'generation', TRUE, 1)
                                 ON CONFLICT (token) DO UPDATE SET
-                                    basin_embedding = COALESCE(EXCLUDED.basin_embedding, tokenizer_vocabulary.basin_embedding),
+                                    basin_embedding = COALESCE(EXCLUDED.basin_embedding, coordizer_vocabulary.basin_embedding),
+                                    qfi_score = COALESCE(EXCLUDED.qfi_score, coordizer_vocabulary.qfi_score),
                                     token_role = CASE 
-                                        WHEN tokenizer_vocabulary.token_role = 'encoding' THEN 'both'
-                                        ELSE COALESCE(tokenizer_vocabulary.token_role, 'generation')
+                                        WHEN coordizer_vocabulary.token_role = 'encoding' THEN 'both'
+                                        ELSE COALESCE(coordizer_vocabulary.token_role, 'generation')
                                     END,
                                     is_real_word = TRUE,
                                     updated_at = NOW()
-                            """, (word, str(basin_list)))
-                            # Backward compatibility: Also update learned_words if it exists
-                            try:
-                                cur.execute("""
-                                    UPDATE learned_words
-                                    SET basin_coords = %s::vector
-                                    WHERE word = %s AND basin_coords IS NULL
-                                """, (str(basin_list), word))
-                            except Exception:
-                                pass  # Table may not exist
+                            """, (word, str(basin_list), qfi_score))
                     conn.commit()
                     conn.close()
                 except Exception as e:
-                    print(f"[VocabularyCoordinator] Failed to update tokenizer_vocabulary basin_embedding: {e}")
+                    print(f"[VocabularyCoordinator] Failed to update coordizer_vocabulary basin_embedding: {e}")
         
         if persisted > 0:
             print(f"[VocabularyCoordinator] Persisted {persisted} tokens to coordizer DB")
@@ -280,7 +314,7 @@ class VocabularyCoordinator:
         if not self.learned_manifold:
             return False
         
-        if not self.tokenizer:
+        if not self.coordizer:
             return False
         
         try:
@@ -313,24 +347,24 @@ class VocabularyCoordinator:
     
     def _phrase_to_basin(self, phrase: str) -> Optional[np.ndarray]:
         """
-        Convert phrase to 64D basin coordinates using tokenizer.
+        Convert phrase to 64D basin coordinates using coordizer.
         
         QIG-PURE: Basin coordinates come from vocabulary geometry,
         not external embeddings.
         """
-        if not self.tokenizer:
+        if not self.coordizer:
             return None
         
         try:
-            coords = self.tokenizer.text_to_coordinates(phrase)
+            coords = self.coordizer.text_to_coordinates(phrase)
             if coords is not None and len(coords) == 64:
                 return np.array(coords)
             
             words = phrase.lower().strip().split()[:5]
             word_coords = []
             for word in words:
-                if word in self.tokenizer.vocab:
-                    wc = self.tokenizer.get_word_coordinates(word)
+                if word in self.coordizer.vocab:
+                    wc = self.coordizer.get_word_coordinates(word)
                     if wc is not None:
                         word_coords.append(np.array(wc))
             
@@ -415,15 +449,15 @@ class VocabularyCoordinator:
         return observations
     
     def _learn_merge_rules(self, phrase: str, phi: float, source: str) -> int:
-        if not self.tokenizer:
+        if not self.coordizer:
             return 0
         words = phrase.lower().strip().split()
         learned = 0
         for i in range(len(words) - 1):
             token_a = words[i]
             token_b = words[i + 1]
-            if token_a in self.tokenizer.vocab and token_b in self.tokenizer.vocab:
-                if self.tokenizer.learn_merge_rule(token_a, token_b, phi, source):
+            if token_a in self.coordizer.vocab and token_b in self.coordizer.vocab:
+                if self.coordizer.learn_merge_rule(token_a, token_b, phi, source):
                     learned += 1
         return learned
     
@@ -464,8 +498,8 @@ class VocabularyCoordinator:
         if self.vocab_db and self.vocab_db.enabled:
             imported = self.vocab_db.record_vocabulary_batch(observations)
         new_tokens = 0
-        if TOKENIZER_AVAILABLE and update_tokenizer_from_observations:
-            new_tokens, _updated = update_tokenizer_from_observations(observations)
+        if COORDIZER_AVAILABLE and self.coordizer:
+            new_tokens, _updated = self.coordizer.add_vocabulary_observations(observations)
         return {'imported': imported, 'new_tokens': new_tokens}
     
     def get_stats(self) -> Dict:
@@ -476,8 +510,8 @@ class VocabularyCoordinator:
             'tokens_persisted': self.tokens_persisted,
             'continuous_learning_enabled': self._unified_coordizer is not None
         }}
-        if self.tokenizer:
-            stats['tokenizer'] = self.tokenizer.get_stats()
+        if self.coordizer:
+            stats['coordizer'] = self.coordizer.get_stats()
         if self.vocab_db and self.vocab_db.enabled:
             stats['database'] = self.vocab_db.get_vocabulary_stats()
         return stats
@@ -580,16 +614,16 @@ class VocabularyCoordinator:
                 logger.warning(f"Vocabulary DB query failed: {e}")
         
         # Use token_phi for PretrainedCoordizer compatibility (token_name -> phi score)
-        if self.tokenizer and hasattr(self.tokenizer, 'token_phi'):
+        if self.coordizer and hasattr(self.coordizer, 'token_phi'):
             try:
-                for vocab_word, phi in list(self.tokenizer.token_phi.items())[:500]:
+                for vocab_word, phi in list(self.coordizer.token_phi.items())[:500]:
                     if not isinstance(vocab_word, str) or vocab_word in query_words or len(vocab_word) < 4:
                         continue
 
                     if any(c['word'] == vocab_word for c in expansion_candidates):
                         continue
 
-                    source = 'tokenizer'
+                    source = 'coordizer'
 
                     if phi >= min_phi:
                         relevance = self._compute_term_relevance(vocab_word, query_words, phi, source, domain)
@@ -601,7 +635,7 @@ class VocabularyCoordinator:
                                 'relevance': relevance
                             })
             except Exception as e:
-                logger.warning(f"Tokenizer vocab query failed: {e}")
+                logger.warning(f"Coordizer vocab query failed: {e}")
         
         expansion_candidates.sort(key=lambda x: x['relevance'], reverse=True)
         top_terms = [c['word'] for c in expansion_candidates[:max_expansions]]
@@ -723,8 +757,8 @@ class VocabularyCoordinator:
                 recorded = self.vocab_db.record_vocabulary_batch(observations)
                 self.observations_recorded += recorded
             
-            if TOKENIZER_AVAILABLE and update_tokenizer_from_observations:
-                new_tokens, _updated = update_tokenizer_from_observations(observations)
+            if COORDIZER_AVAILABLE and self.coordizer:
+                new_tokens, _updated = self.coordizer.add_vocabulary_observations(observations)
                 self.words_learned += new_tokens
         
         return {
@@ -733,7 +767,7 @@ class VocabularyCoordinator:
             'observations_created': len(observations),
             'new_words_learned': new_tokens,
             'recorded_to_db': recorded,
-            'vocabulary_size': len(self.tokenizer.vocab) if self.tokenizer else 0,
+            'vocabulary_size': len(self.coordizer.vocab) if self.coordizer else 0,
             'domain': domain,
         }
 
@@ -778,14 +812,14 @@ class VocabularyCoordinator:
 
     def _find_nearby_tokens(self, basin: np.ndarray, radius: float, max_tokens: int) -> List:
         """Find tokens whose basins are within Fisher radius of target."""
-        if not hasattr(self, 'tokenizer') or self.tokenizer is None:
+        if not hasattr(self, 'coordizer') or self.coordizer is None:
             return []
 
         nearby = []
 
         # Try to get token basins from coordizer
-        if hasattr(self.tokenizer, 'basin_coords'):
-            basin_coords = self.tokenizer.basin_coords
+        if hasattr(self.coordizer, 'basin_coords'):
+            basin_coords = self.coordizer.basin_coords
             for token_id, token_basin in basin_coords.items():
                 token_basin_arr = np.array(token_basin) if not isinstance(token_basin, np.ndarray) else token_basin
                 if len(token_basin_arr) != 64:
@@ -799,14 +833,14 @@ class VocabularyCoordinator:
 
     def _boost_token_weight(self, token_id: str, boost_amount: float) -> None:
         """Boost a token's weight/phi in the vocabulary."""
-        if not hasattr(self, 'tokenizer') or self.tokenizer is None:
+        if not hasattr(self, 'coordizer') or self.coordizer is None:
             return
 
         # Update token_phi if available
-        if hasattr(self.tokenizer, 'token_phi'):
-            current = self.tokenizer.token_phi.get(token_id, 0.5)
+        if hasattr(self.coordizer, 'token_phi'):
+            current = self.coordizer.token_phi.get(token_id, 0.5)
             new_phi = min(1.0, current + boost_amount)
-            self.tokenizer.token_phi[token_id] = new_phi
+            self.coordizer.token_phi[token_id] = new_phi
 
     def _record_transition_target(self, basin: np.ndarray, phi: float) -> None:
         """Record basin as preferred transition target for generation."""
@@ -859,13 +893,13 @@ class VocabularyCoordinator:
         try:
             conn = psycopg2.connect(database_url)
             with conn.cursor() as cur:
-                # Get unintegrated high-phi words from tokenizer_vocabulary
+                # Get unintegrated high-phi words from coordizer_vocabulary
+                # NOTE: PROPER_NOUN and BRAND filters REMOVED per user request (2026-01-15)
                 cur.execute("""
                     SELECT token as word, phi_score as avg_phi, phi_score as max_phi, frequency, source
-                    FROM tokenizer_vocabulary
+                    FROM coordizer_vocabulary
                     WHERE is_real_word = FALSE AND phi_score >= %s
                       AND token_role IN ('generation', 'both')
-                      AND (phrase_category IS NULL OR phrase_category NOT IN ('PROPER_NOUN', 'BRAND'))
                     ORDER BY phi_score DESC, frequency DESC
                     LIMIT %s
                 """, (min_phi, limit))
@@ -919,37 +953,33 @@ class VocabularyCoordinator:
                     except Exception as e:
                         errors.append(f"save_token_{w['word']}: {e}")
 
-                # Phase 2b: Update tokenizer_vocabulary with basin_embedding and mark as generation-ready
+                # Phase 2b: Update coordizer_vocabulary with basin_embedding and mark as generation-ready
+                # P0 FIX: Also compute and insert QFI score to prevent incomplete records
                 # Also update learned_words for backward compatibility
                 for word, basin in words_with_basins:
                     try:
                         basin_list = basin.tolist() if hasattr(basin, 'tolist') else list(basin)
-                        # Primary: Update tokenizer_vocabulary (consolidated table)
+                        
+                        # P0 FIX: Compute QFI whenever basin is present
+                        qfi_score = compute_qfi_for_basin(basin)
+                        
+                        # Primary: Update coordizer_vocabulary (consolidated table)
+                        # CRITICAL: Include qfi_score in INSERT to prevent NULL qfi_score
                         cur.execute("""
-                            INSERT INTO tokenizer_vocabulary (
-                                token, basin_embedding, token_role, is_real_word, frequency
+                            INSERT INTO coordizer_vocabulary (
+                                token, basin_embedding, qfi_score, token_role, is_real_word, frequency
                             )
-                            VALUES (%s, %s::vector, 'generation', TRUE, 1)
+                            VALUES (%s, %s::vector, %s, 'generation', TRUE, 1)
                             ON CONFLICT (token) DO UPDATE SET
-                                basin_embedding = COALESCE(EXCLUDED.basin_embedding, tokenizer_vocabulary.basin_embedding),
+                                basin_embedding = COALESCE(EXCLUDED.basin_embedding, coordizer_vocabulary.basin_embedding),
+                                qfi_score = COALESCE(EXCLUDED.qfi_score, coordizer_vocabulary.qfi_score),
                                 token_role = CASE 
-                                    WHEN tokenizer_vocabulary.token_role = 'encoding' THEN 'both'
-                                    ELSE COALESCE(tokenizer_vocabulary.token_role, 'generation')
+                                    WHEN coordizer_vocabulary.token_role = 'encoding' THEN 'both'
+                                    ELSE COALESCE(coordizer_vocabulary.token_role, 'generation')
                                 END,
                                 is_real_word = TRUE,
                                 updated_at = NOW()
-                        """, (word, str(basin_list)))
-                        # Backward compatibility: Update learned_words if it exists
-                        try:
-                            cur.execute("""
-                                UPDATE learned_words
-                                SET basin_coords = %s::vector,
-                                    is_integrated = TRUE,
-                                    integrated_at = NOW()
-                                WHERE word = %s
-                            """, (str(basin_list), word))
-                        except Exception:
-                            pass  # Table may not exist
+                        """, (word, str(basin_list), qfi_score))
                     except Exception as e:
                         errors.append(f"update_basin_{word}: {e}")
                 

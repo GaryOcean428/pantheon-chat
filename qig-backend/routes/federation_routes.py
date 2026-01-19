@@ -755,13 +755,13 @@ def _persist_vocabulary_to_db(vocabulary: List[Dict]) -> int:
 
                     # Upsert - only update if new phi is higher
                     cur.execute("""
-                        INSERT INTO tokenizer_vocabulary (token, phi_score, frequency, updated_at)
+                        INSERT INTO coordizer_vocabulary (token, phi_score, frequency, updated_at)
                         VALUES (%s, %s, %s, NOW())
                         ON CONFLICT (token) DO UPDATE
-                        SET phi_score = GREATEST(tokenizer_vocabulary.phi_score, EXCLUDED.phi_score),
-                            frequency = tokenizer_vocabulary.frequency + EXCLUDED.frequency,
+                        SET phi_score = GREATEST(coordizer_vocabulary.phi_score, EXCLUDED.phi_score),
+                            frequency = coordizer_vocabulary.frequency + EXCLUDED.frequency,
                             updated_at = NOW()
-                        WHERE tokenizer_vocabulary.phi_score < EXCLUDED.phi_score
+                        WHERE coordizer_vocabulary.phi_score < EXCLUDED.phi_score
                     """, (word, phi, frequency))
                     imported += 1
 

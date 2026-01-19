@@ -1,14 +1,14 @@
 -- ============================================================================
 -- VOCABULARY SYNC MIGRATION
 -- Date: 2026-01-08
--- Purpose: Sync learned_words → tokenizer_vocabulary (metadata only, no embeddings)
+-- Purpose: Sync learned_words → coordizer_vocabulary (metadata only, no embeddings)
 --
 -- NOTE: This function syncs TOKEN METADATA (phi, frequency, source_type) only.
 -- Basin embeddings must be computed by the coordizer from geometric relationships,
 -- NOT from hash functions. Hash-based embeddings are Euclidean contamination.
 -- ============================================================================
 
--- Function to sync high-phi learned words to tokenizer_vocabulary
+-- Function to sync high-phi learned words to coordizer_vocabulary
 CREATE OR REPLACE FUNCTION sync_learned_to_tokenizer(min_phi FLOAT DEFAULT 0.5, min_frequency INT DEFAULT 2)
 RETURNS TABLE(synced_count INT, new_count INT, updated_count INT) AS $$
 DECLARE
@@ -16,10 +16,10 @@ DECLARE
     v_new INT := 0;
     v_updated INT := 0;
 BEGIN
-    -- Insert or update learned words into tokenizer_vocabulary
+    -- Insert or update learned words into coordizer_vocabulary
     -- NOTE: Does NOT set basin_embedding - that must come from geometric computation
     WITH upserted AS (
-        INSERT INTO tokenizer_vocabulary (token, phi_score, frequency, source_type, updated_at)
+        INSERT INTO coordizer_vocabulary (token, phi_score, frequency, source_type, updated_at)
         SELECT
             word,
             avg_phi,
@@ -32,11 +32,11 @@ BEGIN
           AND LENGTH(word) >= 2
           AND word ~ '^[a-zA-Z]+$'  -- Only alphabetic words
         ON CONFLICT (token) DO UPDATE SET
-            phi_score = GREATEST(tokenizer_vocabulary.phi_score, EXCLUDED.phi_score),
-            frequency = tokenizer_vocabulary.frequency + EXCLUDED.frequency,
+            phi_score = GREATEST(coordizer_vocabulary.phi_score, EXCLUDED.phi_score),
+            frequency = coordizer_vocabulary.frequency + EXCLUDED.frequency,
             updated_at = NOW()
-        WHERE tokenizer_vocabulary.phi_score < EXCLUDED.phi_score
-           OR tokenizer_vocabulary.frequency < EXCLUDED.frequency
+        WHERE coordizer_vocabulary.phi_score < EXCLUDED.phi_score
+           OR coordizer_vocabulary.frequency < EXCLUDED.frequency
         RETURNING
             CASE WHEN xmax = 0 THEN 'insert' ELSE 'update' END AS op
     )

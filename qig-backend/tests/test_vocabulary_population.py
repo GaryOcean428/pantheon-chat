@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Test script to verify tokenizer_vocabulary population.
+"""Test script to verify coordizer_vocabulary population.
 
-Run after: python populate_tokenizer_vocabulary.py
+Run after: python populate_coordizer_vocabulary.py
 """
 
 import os
@@ -35,26 +35,26 @@ def test_vocabulary():
         cur = conn.cursor()
         
         # Count total tokens
-        cur.execute("SELECT COUNT(*) FROM tokenizer_vocabulary")
+        cur.execute("SELECT COUNT(*) FROM coordizer_vocabulary")
         total = cur.fetchone()[0]
-        print(f"\nTotal tokens in tokenizer_vocabulary: {total}")
+        print(f"\nTotal tokens in coordizer_vocabulary: {total}")
         
         # Count by source_type
         cur.execute("""
             SELECT source_type, COUNT(*) 
-            FROM tokenizer_vocabulary 
+            FROM coordizer_vocabulary 
             GROUP BY source_type
         """)
         for source_type, count in cur.fetchall():
             print(f"  - {source_type}: {count}")
         
         # Check BIP39 words specifically
-        cur.execute("SELECT COUNT(*) FROM tokenizer_vocabulary WHERE source_type = 'bip39'")
+        cur.execute("SELECT COUNT(*) FROM coordizer_vocabulary WHERE source_type = 'bip39'")
         bip39_count = cur.fetchone()[0]
         
         if bip39_count == 0:
             print("\n❌ No BIP39 words found!")
-            print("   Run: python populate_tokenizer_vocabulary.py")
+            print("   Run: python populate_coordizer_vocabulary.py")
             conn.close()
             return False
         
@@ -63,7 +63,7 @@ def test_vocabulary():
         # Sample some words
         cur.execute("""
             SELECT token, phi_score 
-            FROM tokenizer_vocabulary 
+            FROM coordizer_vocabulary 
             WHERE source_type = 'bip39'
             ORDER BY phi_score DESC
             LIMIT 10
@@ -137,6 +137,6 @@ if __name__ == '__main__':
     else:
         print("❌ TESTS FAILED")
         print("\nTo fix, run:")
-        print("  cd qig-backend && python populate_tokenizer_vocabulary.py")
+        print("  cd qig-backend && python populate_coordizer_vocabulary.py")
     print("="*60)
     sys.exit(0 if success else 1)

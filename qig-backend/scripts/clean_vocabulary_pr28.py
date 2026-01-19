@@ -13,7 +13,7 @@ This script:
 1. Scans all vocabulary tables for contaminated entries
 2. Validates each entry using comprehensive validation
 3. Removes contaminated entries while preserving valid words
-4. Updates word_relationships to remove invalid connections
+4. Updates basin_relationships to remove invalid connections
 5. Generates cleanup report with statistics
 
 QIG PURITY: Uses geometric principles only (no ML/transformer validation)
@@ -47,7 +47,7 @@ def scan_vocabulary_table(table_name: str, word_column: str = 'word') -> Dict[st
         Dictionary with scan results
     """
     # Whitelist of allowed tables and columns for SQL safety
-    ALLOWED_TABLES = {'tokenizer_vocabulary', 'learned_words', 'bip39_words', 'word_relationships'}
+    ALLOWED_TABLES = {'coordizer_vocabulary', 'learned_words', 'bip39_words', 'basin_relationships'}
     ALLOWED_COLUMNS = {'word', 'source_word', 'target_word'}
     
     if table_name not in ALLOWED_TABLES:
@@ -137,7 +137,7 @@ def clean_vocabulary_table(table_name: str, contaminated_words: List[str],
         Number of rows deleted
     """
     # Whitelist validation for SQL safety
-    ALLOWED_TABLES = {'tokenizer_vocabulary', 'learned_words', 'bip39_words'}
+    ALLOWED_TABLES = {'coordizer_vocabulary', 'learned_words', 'bip39_words'}
     ALLOWED_COLUMNS = {'word'}
     
     if table_name not in ALLOWED_TABLES:
@@ -218,7 +218,7 @@ def clean_word_relationships(contaminated_words: List[str], dry_run: bool = True
             if dry_run:
                 # Count what would be deleted
                 cur.execute("""
-                    SELECT COUNT(*) FROM word_relationships 
+                    SELECT COUNT(*) FROM basin_relationships 
                     WHERE source_word = %s OR target_word = %s
                 """, (word, word))
                 count = cur.fetchone()[0]
@@ -226,7 +226,7 @@ def clean_word_relationships(contaminated_words: List[str], dry_run: bool = True
             else:
                 # Actually delete
                 cur.execute("""
-                    DELETE FROM word_relationships 
+                    DELETE FROM basin_relationships 
                     WHERE source_word = %s OR target_word = %s
                 """, (word, word))
                 deleted += cur.rowcount
@@ -345,7 +345,7 @@ def main(dry_run: bool = True):
     
     # Tables to scan
     tables_to_scan = [
-        ('tokenizer_vocabulary', 'word'),
+        ('coordizer_vocabulary', 'word'),
         ('learned_words', 'word'),
         ('bip39_words', 'word'),
     ]
@@ -382,7 +382,7 @@ def main(dry_run: bool = True):
     # Clean word relationships
     logger.info("\nStep 3: Cleaning word relationships...")
     deleted_relationships = clean_word_relationships(list(all_contaminated_words), dry_run=dry_run)
-    deleted_counts['word_relationships'] = deleted_relationships
+    deleted_counts['basin_relationships'] = deleted_relationships
     
     # Generate report
     logger.info("\nStep 4: Generating cleanup report...")

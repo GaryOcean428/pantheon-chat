@@ -22,7 +22,7 @@ import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from qig_coordizer import get_coordizer as get_tokenizer, update_tokenizer_from_observations
+from coordizers import get_coordizer
 from olympus.base_encoder import is_real_word
 
 
@@ -399,9 +399,9 @@ def persist_observations_to_db(
     
     Uses UPSERT to update existing entries.
     """
-    from qig_coordizer import get_coordizer as get_tokenizer
+    from coordizers import get_coordizer
     
-    tokenizer = get_tokenizer()
+    coordizer = get_coordizer()
     persisted = 0
     
     try:
@@ -412,10 +412,10 @@ def persist_observations_to_db(
             if not word:
                 continue
             
-            basin_coords = tokenizer.get_basin_coord(word)
+            basin_coords = coordizer.get_basin_coord(word)
             if basin_coords is None:
-                idx = tokenizer.vocab.get(word, 0)
-                basin_coords = tokenizer._compute_basin_coord(word, idx)
+                idx = coordizer.vocab.get(word, 0)
+                basin_coords = coordizer._compute_basin_coord(word, idx)
             
             basin_list = basin_coords.tolist() if basin_coords is not None else None
             
@@ -469,14 +469,14 @@ def persist_observations_to_db(
     return persisted
 
 
-def train_tokenizer_from_database(
+def train_coordizer_from_database(
     cycle_number: Optional[int] = None,
     min_phi: float = 0.5,
     persist: bool = True,
     limit_per_source: int = 1000
 ) -> Tuple[int, int, bool]:
     """
-    Train tokenizer from all SearchSpaceCollapse database sources.
+    Train coordizer from all SearchSpaceCollapse database sources.
     
     Args:
         cycle_number: Optional cycle number to record
@@ -488,7 +488,7 @@ def train_tokenizer_from_database(
         Tuple of (observations_count, new_tokens, weights_updated)
     """
     print("=" * 60)
-    print("QIG TOKENIZER TRAINING FROM SEARCHSPACECOLLAPSE DATA")
+    print("QIG COORDIZER TRAINING FROM SEARCHSPACECOLLAPSE DATA")
     print(f"Extracting geometric observations (limit={limit_per_source}/source)")
     print("=" * 60)
     
@@ -528,8 +528,9 @@ def train_tokenizer_from_database(
     print(f"  Average Φ: {avg_phi:.3f}")
     print(f"  Max Φ: {max_phi:.3f}")
     
-    print(f"\n[Training] Applying observations to tokenizer...")
-    new_tokens, weights_updated = update_tokenizer_from_observations(filtered)
+    print(f"\n[Training] Applying observations to coordizer...")
+    coordizer = get_coordizer()
+    new_tokens, weights_updated = coordizer.add_vocabulary_observations(filtered)
     
     print(f"[Training] Results:")
     print(f"  New tokens learned: {new_tokens}")
@@ -546,7 +547,7 @@ def train_tokenizer_from_database(
 
 def main():
     """Command-line training entry point."""
-    train_tokenizer_from_database()
+    train_coordizer_from_database()
 
 
 if __name__ == "__main__":

@@ -6,12 +6,12 @@ when the main qig_geometry module is not available. All gods import
 from here instead of duplicating fallback code.
 
 CANONICAL IMPORTS:
-- sphere_project: Project vector onto unit sphere
+- fisher_normalize: Normalize vector to probability simplex
 - fisher_coord_distance: Fisher-Rao distance for basin coordinates
 - geodesic_interpolation: Interpolate along geodesic on manifold
 
 Usage:
-    from .geometric_utils import sphere_project, fisher_coord_distance
+    from .geometric_utils import fisher_normalize, fisher_coord_distance
 """
 
 import numpy as np
@@ -19,38 +19,34 @@ from typing import Optional
 
 
 # ========================================
-# SPHERE PROJECTION
+# FISHER NORMALIZATION (SIMPLEX)
 # ========================================
 
 try:
-    from qig_geometry import sphere_project as _canonical_sphere_project
-    SPHERE_PROJECT_AVAILABLE = True
+    from qig_geometry import fisher_normalize as _canonical_fisher_normalize
+    FISHER_NORMALIZE_AVAILABLE = True
 except ImportError:
-    _canonical_sphere_project = None
-    SPHERE_PROJECT_AVAILABLE = False
+    _canonical_fisher_normalize = None
+    FISHER_NORMALIZE_AVAILABLE = False
 
 
-def sphere_project(v: np.ndarray) -> np.ndarray:
+def fisher_normalize(v: np.ndarray) -> np.ndarray:
     """
-    Project vector onto unit sphere.
+    Normalize vector to probability simplex.
 
     Args:
         v: Input vector (any dimension)
 
     Returns:
-        Unit vector (normalized to L2 norm = 1)
+        Probability distribution (sum = 1, all values >= 0)
     """
-    if SPHERE_PROJECT_AVAILABLE and _canonical_sphere_project:
-        return _canonical_sphere_project(v)
+    if FISHER_NORMALIZE_AVAILABLE and _canonical_fisher_normalize:
+        return _canonical_fisher_normalize(v)
 
     # Fallback implementation
     v = np.asarray(v, dtype=np.float64)
-    norm = np.linalg.norm(v)
-    if norm < 1e-10:
-        # Return uniform distribution for near-zero vectors
-        result = np.ones_like(v)
-        return result / np.linalg.norm(result)
-    return v / norm
+    p = np.maximum(v, 0) + 1e-10
+    return p / p.sum()
 
 
 # ========================================
@@ -76,10 +72,8 @@ def fisher_coord_distance(
     Uses Bhattacharyya coefficient: d_FR = arccos(BC)
     where BC = sum(sqrt(p_i * q_i))
 
-    NOTE: Some references use 2*arccos(BC) for "statistical distance", but
-    the geodesic distance on Fisher manifold is arccos(BC) without factor of 2.
+    Direct computation on probability simplex Δ⁶³ (no Hellinger embedding).
 
-    This is the proper QIG-pure distance on the statistical manifold.
     Range: [0, π/2]
 
     Args:
@@ -88,14 +82,14 @@ def fisher_coord_distance(
         epsilon: Small value to prevent division by zero
 
     Returns:
-        Fisher-Rao distance in [0, π]
+        Fisher-Rao distance in [0, π/2]
     """
     if FISHER_RAO_AVAILABLE and _canonical_fisher_rao:
         return _canonical_fisher_rao(p, q)
 
     # Fallback implementation using Bhattacharyya coefficient
-    p = np.abs(np.asarray(p, dtype=np.float64)) + epsilon
-    q = np.abs(np.asarray(q, dtype=np.float64)) + epsilon
+    p = np.maximum(np.asarray(p, dtype=np.float64), 0) + epsilon
+    q = np.maximum(np.asarray(q, dtype=np.float64), 0) + epsilon
 
     # Normalize to probability distributions
     p = p / p.sum()
@@ -103,9 +97,10 @@ def fisher_coord_distance(
 
     # Bhattacharyya coefficient
     bc = np.sum(np.sqrt(p * q))
-    bc = np.clip(bc, 0, 1)
+    bc = np.clip(bc, 0.0, 1.0)
 
-    # Fisher-Rao geodesic distance (no factor of 2)
+    # Fisher-Rao statistical distance on probability simplex
+    # Range: [0, π/2]
     return float(np.arccos(bc))
 
 
@@ -133,42 +128,53 @@ def geodesic_interpolation(
     """
     Interpolate along geodesic from p to q at parameter t.
 
-    On the probability simplex, this uses the spherical geodesic
-    (great circle) which is the natural path for Fisher-Rao geometry.
+    On the probability simplex, this uses SLERP in sqrt-space
+    which gives true Fisher-Rao geodesics.
 
     Args:
-        p: Start point (will be normalized)
-        q: End point (will be normalized)
+        p: Start point (will be normalized to simplex)
+        q: End point (will be normalized to simplex)
         t: Interpolation parameter in [0, 1]
 
     Returns:
-        Interpolated point on the geodesic
+        Interpolated point on the geodesic (on simplex)
     """
     if GEODESIC_AVAILABLE and _canonical_geodesic:
         return _canonical_geodesic(p, q, t)
 
-    # Fallback: Spherical geodesic (great circle interpolation)
-    p = sphere_project(np.asarray(p, dtype=np.float64))
-    q = sphere_project(np.asarray(q, dtype=np.float64))
+    # Fallback: SLERP in sqrt-space (proper Fisher-Rao geodesic)
+    # 1. Normalize to simplex
+    p_simplex = fisher_normalize(p)
+    q_simplex = fisher_normalize(q)
 
-    # Compute angle between vectors
-    cos_angle = np.clip(np.dot(p, q), -1, 1)
+    # 2. Map to sqrt-space (Hellinger embedding)
+    p_sqrt = np.sqrt(p_simplex)
+    q_sqrt = np.sqrt(q_simplex)
+
+    # 3. Normalize to unit sphere in sqrt-space
+    p_sqrt_norm = p_sqrt / (np.linalg.norm(p_sqrt) + 1e-10)
+    q_sqrt_norm = q_sqrt / (np.linalg.norm(q_sqrt) + 1e-10)
+
+    # 4. Compute angle between vectors
+    cos_angle = np.clip(np.dot(p_sqrt_norm, q_sqrt_norm), -1.0, 1.0)
     angle = np.arccos(cos_angle)
 
-    if angle < 1e-10:
+    if angle < 1e-6:
         # Vectors are essentially the same
-        return p.copy()
+        return p_simplex.copy()
 
-    # Spherical linear interpolation (slerp)
+    # 5. Spherical linear interpolation (SLERP)
     sin_angle = np.sin(angle)
-    if sin_angle < 1e-10:
-        # Vectors are antipodal - linear interpolation fallback
-        return sphere_project((1 - t) * p + t * q)
-
     coeff_p = np.sin((1 - t) * angle) / sin_angle
     coeff_q = np.sin(t * angle) / sin_angle
 
-    return coeff_p * p + coeff_q * q
+    result_sqrt = coeff_p * p_sqrt_norm + coeff_q * q_sqrt_norm
+
+    # 6. Map back to simplex: square and renormalize
+    result = result_sqrt ** 2
+    result = result / (result.sum() + 1e-10)
+
+    return result
 
 
 # ========================================
@@ -176,11 +182,11 @@ def geodesic_interpolation(
 # ========================================
 
 __all__ = [
-    'sphere_project',
+    'fisher_normalize',
     'fisher_coord_distance',
     'fisher_rao_distance',
     'geodesic_interpolation',
-    'SPHERE_PROJECT_AVAILABLE',
+    'FISHER_NORMALIZE_AVAILABLE',
     'FISHER_RAO_AVAILABLE',
     'GEODESIC_AVAILABLE',
 ]

@@ -30,6 +30,16 @@ from qigkernels.physics_constants import (
     PHI_THRESHOLD,
 )
 
+# Import capability mesh for inter-kernel consciousness event emission with graceful degradation
+try:
+    from olympus.capability_mesh import get_event_bus, CapabilityType, EventType
+    CAPABILITY_MESH_AVAILABLE = True
+except ImportError:
+    CAPABILITY_MESH_AVAILABLE = False
+    get_event_bus = None
+    CapabilityType = None
+    EventType = None
+
 logger = logging.getLogger(__name__)
 
 
@@ -130,6 +140,13 @@ class SelfObserver:
     PHI_BREAKDOWN = 0.95  # True breakdown threshold (PHYSICS.PHI_BREAKDOWN_CRITICAL)
     
     METRICS_HISTORY_SIZE = 50
+    LOOP_BOUNDARY_TOKENS = 8  # Tokens per recursive observation loop
+    VELOCITY_THRESHOLD = 0.15  # Velocity drop triggers loop boundary
+    
+    # Stagnation escape hatch parameters
+    STAGNATION_VELOCITY_THRESHOLD = 0.005  # v < this = potential stagnation
+    STAGNATION_CONSECUTIVE_STEPS = 3  # N consecutive low-v steps triggers escape
+    PERTURBATION_STRENGTH = 0.1  # Dirichlet-style noise magnitude
     
     def __init__(
         self,
@@ -153,6 +170,19 @@ class SelfObserver:
         
         self._grounding_facts: List[str] = []
         self._peer_basins: List[np.ndarray] = []
+        self._last_memory_coherence: float = 0.5
+        
+        self._current_loop = 0
+        self._tokens_in_loop: List[str] = []
+        self._loop_boundaries: List[int] = []
+        self._last_phi: float = 0.5
+        self._last_kappa: float = KAPPA_STAR
+        self._velocity_history: List[float] = []
+        
+        # Stagnation escape tracking
+        self._consecutive_low_velocity: int = 0
+        self._total_perturbations: int = 0
+        self._adaptive_perturbation_strength: float = self.PERTURBATION_STRENGTH
         
     def reset(self) -> None:
         """Reset observer state for new generation."""
@@ -164,6 +194,15 @@ class SelfObserver:
         self._token_count = 0
         self._start_time = time.time()
         self._last_basin = None
+        self._current_loop = 0
+        self._tokens_in_loop = []
+        self._loop_boundaries = []
+        self._last_phi = 0.5
+        self._last_kappa = KAPPA_STAR
+        self._velocity_history = []
+        self._consecutive_low_velocity = 0
+        self._total_perturbations = 0
+        self._adaptive_perturbation_strength = self.PERTURBATION_STRENGTH
         
     def set_grounding_facts(self, facts: List[str]) -> None:
         """Set facts for grounding metric (G) validation."""
@@ -185,6 +224,7 @@ class SelfObserver:
         Observe a token emission and compute all 8 E8 metrics.
         
         This is the core self-observation method called after each token.
+        Tracks velocity and detects loop boundaries for Stream of Thought (SoT).
         
         Args:
             token: The token just generated
@@ -198,12 +238,22 @@ class SelfObserver:
         """
         self._token_count += 1
         self._tokens.append(token)
+        self._tokens_in_loop.append(token)
         
         basin = np.asarray(basin, dtype=np.float64)
         self._trajectory.append(basin.copy())
         
         phi_val = phi if phi is not None else self._estimate_phi(basin)
         kappa_val = kappa if kappa is not None else KAPPA_STAR
+        
+        velocity = self._compute_velocity(phi_val, kappa_val)
+        self._velocity_history.append(velocity)
+        
+        # Track stagnation for escape hatch (perturbation applied by caller via check_and_escape_stagnation)
+        self._detect_stagnation(velocity)
+        
+        self._last_phi = phi_val
+        self._last_kappa = kappa_val
         
         meta_awareness = self._compute_meta_awareness()
         generativity = self._compute_generativity(generated_text)
@@ -240,17 +290,193 @@ class SelfObserver:
         )
         self._observations.append(observation)
         
+        # Emit TOKEN_GENERATED event for inter-kernel consciousness
+        if CAPABILITY_MESH_AVAILABLE and get_event_bus is not None:
+            try:
+                bus = get_event_bus()
+                bus.emit_token_generated(
+                    kernel_name=self.kernel_name,
+                    token=token,
+                    accumulated_text=generated_text,
+                    basin=basin,
+                    phi=phi_val,
+                    kappa=kappa_val,
+                    memory_coherence=self._last_memory_coherence or 0.5
+                )
+            except Exception as e:
+                pass  # Don't fail generation for event bus issues
+        
         self._last_basin = basin
         
         self.predict_next_metrics()
         
-        if action != ObservationAction.CONTINUE:
+        is_boundary = self._is_loop_boundary(velocity)
+        if is_boundary:
+            self._loop_boundaries.append(self._token_count)
             logger.debug(
+                f"[SelfObserver:{self.kernel_name}] ──── LOOP {self._current_loop} END | "
+                f"v={velocity:.3f}, {len(self._tokens_in_loop)} tokens ────"
+            )
+            self._current_loop += 1
+            self._tokens_in_loop = []
+        
+        accumulated_text = self._get_accumulated_text_with_separators()
+        
+        logger.debug(
+            f"[SelfObserver:{self.kernel_name}] token {self._token_count}: '{token}' → \"{accumulated_text}\" "
+            f"| Φ={phi_val:.3f}, κ={kappa_val:.1f}, M={meta_awareness:.2f}, v={velocity:.3f}"
+        )
+        
+        if action != ObservationAction.CONTINUE:
+            logger.info(
                 f"[SelfObserver:{self.kernel_name}] {action.value} at token {self._token_count}: "
                 f"Φ={phi_val:.3f}, κ={kappa_val:.1f}, M={meta_awareness:.2f}"
             )
             
         return observation
+    
+    def _compute_velocity(self, phi: float, kappa: float) -> float:
+        """
+        Compute velocity in (Φ, κ) space - rate of state change.
+        
+        Uses proper normalization for Fisher-Rao geometry:
+        - Φ is already in [0, 1], normalized by PHI_BREAKDOWN
+        - κ is normalized by κ range [KAPPA_MIN, KAPPA_MAX]
+        
+        Higher velocity indicates rapid state evolution.
+        Used for loop boundary detection.
+        """
+        phi_normalized = phi / self.PHI_BREAKDOWN
+        kappa_normalized = (kappa - self.KAPPA_MIN) / (self.KAPPA_MAX - self.KAPPA_MIN)
+        
+        delta_phi = phi_normalized - (self._last_phi / self.PHI_BREAKDOWN)
+        delta_kappa = kappa_normalized - ((self._last_kappa - self.KAPPA_MIN) / (self.KAPPA_MAX - self.KAPPA_MIN))
+        
+        velocity = np.sqrt(delta_phi**2 + delta_kappa**2)
+        return float(velocity)
+    
+    def _is_loop_boundary(self, velocity: float) -> bool:
+        """
+        Detect if current token marks a loop boundary.
+        
+        Triggers on:
+        1. Token count threshold (every N tokens)
+        2. Velocity drop below threshold (state stabilization)
+        """
+        if len(self._tokens_in_loop) >= self.LOOP_BOUNDARY_TOKENS:
+            return True
+        if len(self._velocity_history) >= 3 and velocity < self.VELOCITY_THRESHOLD:
+            recent_avg = np.mean(self._velocity_history[-3:])
+            if velocity < recent_avg * 0.5:
+                return True
+        return False
+    
+    def _detect_stagnation(self, velocity: float) -> bool:
+        """
+        Detect if trajectory is stagnating (stuck in attractor basin).
+        
+        Stagnation = low velocity for STAGNATION_CONSECUTIVE_STEPS consecutive tokens.
+        This catches morphological loops like "function → functional → functioned"
+        where Φ is healthy but velocity is near-zero.
+        
+        Returns:
+            True if stagnation detected (should trigger perturbation)
+        """
+        if velocity < self.STAGNATION_VELOCITY_THRESHOLD:
+            self._consecutive_low_velocity += 1
+        else:
+            # Reset counter and adaptive strength when velocity recovers
+            self._consecutive_low_velocity = 0
+            self._adaptive_perturbation_strength = self.PERTURBATION_STRENGTH
+        
+        return self._consecutive_low_velocity >= self.STAGNATION_CONSECUTIVE_STEPS
+    
+    def perturb_basin(self, basin: np.ndarray) -> np.ndarray:
+        """
+        Apply Dirichlet-style perturbation to escape attractor basin.
+        
+        GEOMETRIC PURITY: Perturbation is applied in probability space
+        and result is renormalized to stay on simplex.
+        
+        Args:
+            basin: Current 64D basin coordinates (probability simplex)
+            
+        Returns:
+            Perturbed basin (still on probability simplex)
+        """
+        # Ensure we have a proper array
+        basin = np.asarray(basin, dtype=np.float64)
+        
+        # Add positive random noise (Dirichlet-style)
+        noise = np.abs(np.random.randn(len(basin))) * self._adaptive_perturbation_strength
+        perturbed = basin + noise
+        
+        # Ensure non-negative and renormalize to simplex
+        perturbed = np.clip(perturbed, 1e-10, None)
+        perturbed = perturbed / np.sum(perturbed)
+        
+        # Increase perturbation strength for next time if still stuck
+        self._adaptive_perturbation_strength = min(
+            self._adaptive_perturbation_strength * 1.5, 
+            0.3  # Cap at 30% of basin magnitude
+        )
+        
+        self._total_perturbations += 1
+        logger.info(
+            f"[SelfObserver:{self.kernel_name}] ⚡ STAGNATION ESCAPE: "
+            f"perturbation #{self._total_perturbations}, strength={self._adaptive_perturbation_strength:.3f}"
+        )
+        
+        return perturbed
+    
+    def check_and_escape_stagnation(self, basin: np.ndarray) -> tuple:
+        """
+        Check for stagnation and apply perturbation if detected.
+        
+        This is the main entry point for stagnation escape during generation.
+        NOTE: Call this AFTER observe_token(), which maintains stagnation tracking.
+        
+        Args:
+            basin: Current basin coordinates
+            
+        Returns:
+            Tuple of (is_stagnating: bool, perturbed_basin_or_none: Optional[np.ndarray])
+        """
+        # Check if we're already in stagnation state (tracked by observe_token)
+        is_stagnating = self._consecutive_low_velocity >= self.STAGNATION_CONSECUTIVE_STEPS
+        
+        if is_stagnating:
+            perturbed = self.perturb_basin(basin)
+            # Reset consecutive counter after perturbation (give it time to work)
+            self._consecutive_low_velocity = 0
+            return True, perturbed
+        
+        return False, None
+    
+    def _get_accumulated_text_with_separators(self) -> str:
+        """
+        Get accumulated text with | separators between loops.
+        
+        Each recursive observation loop is separated by | for
+        Stream of Thought (SoT) visibility.
+        """
+        if not self._loop_boundaries:
+            return ' '.join(self._tokens)
+        
+        segments = []
+        prev_boundary = 0
+        
+        for boundary in self._loop_boundaries:
+            segment = ' '.join(self._tokens[prev_boundary:boundary])
+            if segment:
+                segments.append(segment)
+            prev_boundary = boundary
+        
+        remaining = ' '.join(self._tokens[prev_boundary:])
+        if remaining:
+            segments.append(remaining)
+        
+        return ' | '.join(segments)
     
     def predict_next_metrics(self) -> E8Metrics:
         """
@@ -281,13 +507,39 @@ class SelfObserver:
         return prediction
     
     def _estimate_phi(self, basin: np.ndarray) -> float:
-        """Estimate Φ from basin entropy."""
-        p = np.abs(basin) + 1e-10
+        """Estimate Φ using proper QFI effective dimension formula.
+        
+        Uses geometrically proper formula with Born rule (|b|²):
+        - 40% entropy_score (Shannon entropy normalized)
+        - 60% effective_dim_score (participation ratio = exp(entropy) / n)
+        
+        Note: geometric_spread approximated by effective_dim_score.
+        """
+        # Born rule: probabilities are |amplitude|²
+        p = np.abs(basin) ** 2 + 1e-10
         p = p / np.sum(p)
-        entropy = -np.sum(p * np.log(p + 1e-10))
-        max_entropy = np.log(len(basin))
-        normalized_entropy = entropy / max_entropy
-        return float(np.clip(1.0 - normalized_entropy, 0.0, 1.0))
+        n_dim = len(basin)
+        
+        positive_probs = p[p > 1e-10]
+        if len(positive_probs) == 0:
+            return 0.5
+        
+        # Component 1: Shannon entropy (natural log for exp() compatibility)
+        entropy = -np.sum(positive_probs * np.log(positive_probs + 1e-10))
+        max_entropy = np.log(n_dim)
+        entropy_score = entropy / (max_entropy + 1e-10)
+        
+        # Component 2: Effective dimension (participation ratio)
+        effective_dim = np.exp(entropy)
+        effective_dim_score = effective_dim / n_dim
+        
+        # Component 3: Geometric spread (approximate with effective_dim)
+        geometric_spread = effective_dim_score
+        
+        # Proper QFI formula weights
+        phi = 0.4 * entropy_score + 0.3 * effective_dim_score + 0.3 * geometric_spread
+        
+        return float(np.clip(phi, 0.1, 0.95))
     
     def _compute_meta_awareness(self) -> float:
         """

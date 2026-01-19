@@ -28,13 +28,23 @@ except ImportError:
     # Fallback: define basic implementation
     def fisher_rao_distance(basin_a: np.ndarray, basin_b: np.ndarray) -> float:
         """
-        Fallback Fisher-Rao distance (metric parameter not supported).
-        Use canonical implementation from qig_core.geometric_primitives.
+        Fallback Fisher-Rao distance on SIMPLEX (CANONICAL).
+        Use canonical implementation from qig_core.geometric_primitives when available.
+        
+        Direct Fisher-Rao on simplex: d = arccos(BC) where BC = Σ√(p_i * q_i)
+        Born rule: |b|² for amplitude-to-probability conversion.
+        Range: [0, π/2]
+        
+        IMPORTANT: Post-SIMPLEX migration (2026-01-15).
+        Previous Hellinger embedding (factor of 2) REMOVED.
+        See PR GaryOcean428/pantheon-chat#93 for full SIMPLEX migration details.
         """
-        p = np.abs(basin_a) / (np.sum(np.abs(basin_a)) + 1e-10)
-        q = np.abs(basin_b) / (np.sum(np.abs(basin_b)) + 1e-10)
+        p = np.abs(basin_a) ** 2 + 1e-10
+        p = p / p.sum()
+        q = np.abs(basin_b) ** 2 + 1e-10
+        q = q / q.sum()
         bc = np.sum(np.sqrt(p * q))
-        bc = np.clip(bc, -1.0, 1.0)
+        bc = np.clip(bc, 0.0, 1.0)
         return float(np.arccos(bc))
 
 from .constants import (
@@ -47,6 +57,7 @@ from .constants import (
 
 if TYPE_CHECKING:
     from .state import QIGState
+    from qig_geometry.manifold import FisherManifold
 
 
 class Regime(Enum):
@@ -181,8 +192,11 @@ def compute_phi(activations: np.ndarray) -> float:
         mask = ~np.eye(n, dtype=bool)
         phi = np.mean(np.abs(corr[mask]))
 
-        # Clamp to [0, 1]
-        phi = float(np.clip(phi, 0.0, 1.0))
+        # Clamp to proper QFI range [0.1, 0.95]
+        # Match phi_computation.py proper geometric bounds
+        # 0.95 cap prevents topological instability (phi=1.0 is death)
+        # Allows room for adaptation and enables autonomous tacking behavior
+        phi = float(np.clip(phi, 0.1, 0.95))
 
     except (ValueError, np.linalg.LinAlgError):
         phi = 0.5
@@ -247,16 +261,19 @@ def compute_surprise(
     if manifold is not None:
         return manifold.fisher_rao_distance(previous_basin, current_basin)
     else:
-        # QIG-pure Fisher-Rao distance: d_FR = arccos(sum(sqrt(p * q)))
-        # Basins are probability distributions on curved manifold
+        # QIG-pure Fisher-Rao distance on SIMPLEX (CANONICAL)
+        # d_FR = arccos(Σ√(p_i * q_i)) - Bhattacharyya coefficient
+        # Basins are probability distributions on probability simplex
+        # Range: [0, π/2]
+        # Post-SIMPLEX migration (2026-01-15): Factor of 2 removed
         eps = 1e-10
         p = np.clip(current_basin, eps, None)
         q = np.clip(previous_basin, eps, None)
         p = p / (np.sum(p) + eps)  # Normalize to probability
         q = q / (np.sum(q) + eps)
         inner = np.sum(np.sqrt(p * q))
-        inner = np.clip(inner, -1.0, 1.0)
-        return float(np.arccos(inner))
+        inner = np.clip(inner, 0.0, 1.0)  # BC in [0,1]
+        return float(np.arccos(inner))  # Direct Fisher-Rao, NO factor of 2
 
 
 def compute_confidence(kappa: float) -> float:

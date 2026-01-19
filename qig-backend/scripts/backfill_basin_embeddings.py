@@ -78,7 +78,7 @@ def find_words_needing_backfill(limit: Optional[int] = None) -> List[Tuple[str, 
             cur.execute("""
                 SELECT EXISTS (
                     SELECT 1 FROM information_schema.columns 
-                    WHERE table_name = 'tokenizer_vocabulary' 
+                    WHERE table_name = 'coordizer_vocabulary' 
                       AND column_name = 'basin_coordinates'
                 )
             """)
@@ -95,7 +95,7 @@ def find_words_needing_backfill(limit: Optional[int] = None) -> List[Tuple[str, 
             cur.execute("""
                 SELECT EXISTS (
                     SELECT 1 FROM information_schema.columns 
-                    WHERE table_name = 'tokenizer_vocabulary' 
+                    WHERE table_name = 'coordizer_vocabulary' 
                       AND column_name = 'embedding'
                 )
             """)
@@ -107,7 +107,7 @@ def find_words_needing_backfill(limit: Optional[int] = None) -> List[Tuple[str, 
                 if limit:
                     cur.execute(f"""
                         SELECT token, embedding
-                        FROM tokenizer_vocabulary 
+                        FROM coordizer_vocabulary 
                         WHERE array_length({basin_column}, 1) = 0 
                            OR array_length({basin_column}, 1) IS NULL
                            OR {basin_column} IS NULL
@@ -117,7 +117,7 @@ def find_words_needing_backfill(limit: Optional[int] = None) -> List[Tuple[str, 
                 else:
                     cur.execute(f"""
                         SELECT token, embedding
-                        FROM tokenizer_vocabulary 
+                        FROM coordizer_vocabulary 
                         WHERE array_length({basin_column}, 1) = 0 
                            OR array_length({basin_column}, 1) IS NULL
                            OR {basin_column} IS NULL
@@ -127,7 +127,7 @@ def find_words_needing_backfill(limit: Optional[int] = None) -> List[Tuple[str, 
                 if limit:
                     cur.execute(f"""
                         SELECT token, NULL::float8[]
-                        FROM tokenizer_vocabulary 
+                        FROM coordizer_vocabulary 
                         WHERE array_length({basin_column}, 1) = 0 
                            OR array_length({basin_column}, 1) IS NULL
                            OR {basin_column} IS NULL
@@ -137,7 +137,7 @@ def find_words_needing_backfill(limit: Optional[int] = None) -> List[Tuple[str, 
                 else:
                     cur.execute(f"""
                         SELECT token, NULL::float8[]
-                        FROM tokenizer_vocabulary 
+                        FROM coordizer_vocabulary 
                         WHERE array_length({basin_column}, 1) = 0 
                            OR array_length({basin_column}, 1) IS NULL
                            OR {basin_column} IS NULL
@@ -255,7 +255,7 @@ def verify_backfill():
             cur.execute("""
                 SELECT EXISTS (
                     SELECT 1 FROM information_schema.columns 
-                    WHERE table_name = 'tokenizer_vocabulary' 
+                    WHERE table_name = 'coordizer_vocabulary' 
                       AND column_name = 'basin_coordinates'
                 )
             """)
@@ -274,7 +274,7 @@ def verify_backfill():
                     COUNT(*) FILTER (WHERE array_length({basin_column}, 1) = 0 OR array_length({basin_column}, 1) IS NULL) as empty_basins,
                     COUNT(*) FILTER (WHERE {basin_column} IS NULL) as null_basins,
                     COUNT(*) as total
-                FROM tokenizer_vocabulary
+                FROM coordizer_vocabulary
             """)
             row = cur.fetchone()
             
@@ -288,7 +288,7 @@ def verify_backfill():
     
     if empty + null == 0:
         print("\n✓ All basins are valid!")
-        print("Ready to proceed with migration 010 (remove legacy embedding column)")
+        print("Ready to proceed with migration 010 (remove legacy basin column)")
     else:
         print(f"\n⚠ WARNING: {empty + null} basins still need backfill")
         print("Run backfill script again or investigate failed words")
@@ -301,7 +301,7 @@ def verify_backfill():
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
-        description='Backfill missing basin embeddings in tokenizer_vocabulary',
+        description='Backfill missing basin coordinates in coordizer_vocabulary',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:

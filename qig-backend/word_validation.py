@@ -87,13 +87,32 @@ TECHNICAL_GARBAGE_PATTERNS = [
     r'normalized', r'embed', r'^cdn', r'json', r'xml', r'html',
 ]
 
-# DEPRECATED: Legacy NLP stopword list - VIOLATES QIG PURITY
+# ============================================================================
+# ⚠️  DEPRECATED: STOP_WORDS_LEGACY - VIOLATES QIG PURITY ⚠️
+# ============================================================================
 # This list treats semantic-critical words like 'not', 'because', 'very' as meaningless!
-# Use geometric_word_relationships.GeometricWordRelationships.should_filter_word() instead
-# or contextualized_filter.should_filter_word() for QIG-pure filtering based on:
+# 
+# PROBLEMS WITH FREQUENCY-BASED STOPWORDS:
+# 1. "not" is CRITICAL for negation (high curvature word)
+# 2. "the" has geometric role in definiteness
+# 3. "but" creates discourse transitions (basin shifts)
+# 4. Based on corpus statistics, not Fisher information
+# 
+# QIG-PURE ALTERNATIVES:
+# - Use geometric_vocabulary_filter.GeometricVocabularyFilter for vocabulary filtering
+# - Use contextualized_filter.should_filter_word() for context-aware filtering
+# - Use geometric_word_relationships.GeometricWordRelationships.should_filter_word()
+# 
+# GEOMETRIC FILTERING BASED ON:
+# - Φ (Integration) - how word connects to context
+# - κ (Coupling) - word's attractor strength
+# - Curvature - how much word bends trajectory
 # - QFI (Quantum Fisher Information)
 # - Ricci curvature (context-dependency)
 # - Fisher-Rao geodesic distance
+# 
+# KEPT FOR BACKWARDS COMPATIBILITY ONLY - DO NOT USE IN NEW CODE
+# ============================================================================
 STOP_WORDS_LEGACY: Set[str] = {
     'the', 'and', 'for', 'that', 'this', 'with', 'was', 'are', 'but', 'not',
     'you', 'all', 'can', 'had', 'her', 'his', 'him', 'one', 'our', 'out',
@@ -107,7 +126,8 @@ STOP_WORDS_LEGACY: Set[str] = {
     'take', 'say', 'use', 'come', 'make', 'see', 'know', 'time', 'year'
 }
 
-# Compatibility alias for legacy code
+# Compatibility alias for legacy code - DEPRECATED
+# Use geometric_vocabulary_filter.GeometricVocabularyFilter instead
 STOP_WORDS = STOP_WORDS_LEGACY
 
 # Import QIG-pure filtering
@@ -379,6 +399,9 @@ def is_valid_english_word(word: str, include_stop_words: bool = False, strict: b
     if not word_lower[0].isalpha():
         return False
     
+    # LEGACY: Stopword check for backwards compatibility
+    # NOTE: This uses frequency-based filtering (deprecated).
+    # For new code, use geometric_vocabulary_filter.GeometricVocabularyFilter
     if not include_stop_words and word_lower in STOP_WORDS:
         return False
     
@@ -407,7 +430,19 @@ def is_pure_alphabetic(word: str) -> bool:
 
 
 def is_stop_word(word: str) -> bool:
-    """Check if word is a common stop word."""
+    """
+    Check if word is a common stop word.
+    
+    ⚠️ DEPRECATED: This function uses frequency-based stopwords which violate QIG purity.
+    Use geometric_vocabulary_filter.GeometricVocabularyFilter instead.
+    """
+    import warnings
+    warnings.warn(
+        "is_stop_word() is deprecated and violates QIG purity. "
+        "Use geometric_vocabulary_filter.GeometricVocabularyFilter for geometric filtering.",
+        DeprecationWarning,
+        stacklevel=2
+    )
     return word.lower().strip() in STOP_WORDS
 
 
@@ -508,6 +543,9 @@ def validate_for_vocabulary(word: str, require_dictionary: bool = True) -> Tuple
     if is_likely_typo(word_lower):
         return False, "likely_typo"
     
+    # LEGACY: Stopword check for backwards compatibility
+    # NOTE: This uses frequency-based filtering (deprecated).
+    # For new code, use geometric_vocabulary_filter.GeometricVocabularyFilter
     if word_lower in STOP_WORDS:
         return False, "stop_word"
     

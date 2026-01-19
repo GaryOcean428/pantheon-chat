@@ -88,8 +88,9 @@ if not CANONICAL_PRIMITIVES_AVAILABLE:
         q = np.clip(q, 1e-10, 1.0)
         
         bhattacharyya = np.sum(np.sqrt(p * q))
-        bhattacharyya = np.clip(bhattacharyya, -1.0, 1.0)
+        bhattacharyya = np.clip(bhattacharyya, 0.0, 1.0)
         
+        # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
         return float(np.arccos(bhattacharyya))
 
     def geodesic_interpolate(start: np.ndarray, end: np.ndarray, t: float) -> np.ndarray:

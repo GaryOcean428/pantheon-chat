@@ -159,8 +159,8 @@ Generate brief actionable guidance for decision-making."""
         guidance_basin[2] = naturalness
         guidance_basin[3] = confidence * attractor_strength
         
-        from qig_geometry import sphere_project
-        guidance_basin = sphere_project(guidance_basin)
+        from qig_geometry import fisher_normalize
+        guidance_basin = fisher_normalize(guidance_basin)
         
         tokens = service._basin_to_tokens(guidance_basin, num_tokens=3)
         
@@ -286,8 +286,8 @@ Generate concise explanation of confidence level."""
                     reason_hash = hash(reason_val) % 1000
                     reason_basin[reason_hash % 64] = 0.5
                     reason_basin[(reason_hash + 1) % 64] = 0.3
-                    from qig_geometry import sphere_project
-                    reason_basin = sphere_project(reason_basin)
+                    from qig_geometry import fisher_normalize
+                    reason_basin = fisher_normalize(reason_basin)
                     tokens = service._basin_to_tokens(reason_basin, num_tokens=2)
                     reason_texts.append(' '.join(tokens))
                 else:
@@ -353,8 +353,8 @@ Generate concise explanation of confidence level."""
         reason_basin[(reason_hash + 7) % 64] = 0.3
         reason_basin[(reason_hash + 13) % 64] = percentage / 100.0
         
-        from qig_geometry import sphere_project
-        reason_basin = sphere_project(reason_basin)
+        from qig_geometry import fisher_normalize
+        reason_basin = fisher_normalize(reason_basin)
         
         action_tokens = service._basin_to_tokens(reason_basin, num_tokens=3)
         

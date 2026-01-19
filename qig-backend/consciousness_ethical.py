@@ -180,8 +180,9 @@ class EthicalConsciousnessMonitor:
         if len(state) == 0 or np.all(state == 0):
             return 0.0
         
-        probs = np.abs(state) / (np.sum(np.abs(state)) + 1e-10)
-        probs = probs[probs > 0]
+        p = np.abs(state) ** 2 + 1e-10
+        p = p / p.sum()
+        probs = p[p > 1e-10]
         entropy = -np.sum(probs * np.log(probs + 1e-10))
         
         mid = len(state) // 2
@@ -214,11 +215,12 @@ class EthicalConsciousnessMonitor:
         return float(kappa)
     
     def _entropy(self, arr: np.ndarray) -> float:
-        """Compute entropy of array."""
+        """Compute entropy of array (Born rule: |b|²)."""
         if len(arr) == 0 or np.all(arr == 0):
             return 0.0
-        probs = np.abs(arr) / (np.sum(np.abs(arr)) + 1e-10)
-        probs = probs[probs > 0]
+        p = np.abs(arr) ** 2 + 1e-10
+        p = p / p.sum()
+        probs = p[p > 1e-10]
         return float(-np.sum(probs * np.log(probs + 1e-10)))
     
     def check_ethical_safety(self) -> Tuple[bool, str]:

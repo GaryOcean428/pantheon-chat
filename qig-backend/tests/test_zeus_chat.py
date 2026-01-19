@@ -8,7 +8,6 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from olympus.conversation_encoder import ConversationEncoder
-from olympus.passphrase_encoder import PassphraseEncoder
 from olympus.qig_rag import QIGRAG
 from olympus.zeus_chat import ZeusConversationHandler
 from olympus.zeus import zeus
@@ -34,18 +33,6 @@ def test_conversation_encoder():
     print("✓ Conversation learning test passed")
 
     print("✓ Conversation encoder tests passed")
-
-
-def test_passphrase_encoder():
-    """Ensure passphrase encoder remains available for mnemonic work."""
-    print("\n=== Testing PassphraseEncoder (BIP39) ===")
-
-    encoder = PassphraseEncoder()
-    phrase = "abandon ability about above"
-    basin = encoder.encode(phrase)
-    print(f"BIP39 basin shape: {basin.shape}")
-    assert basin.shape[0] == 64
-    print("✓ Passphrase encoder tests passed")
 
 
 def test_qig_rag():
@@ -122,7 +109,6 @@ def test_zeus_chat():
 if __name__ == '__main__':
     try:
         test_conversation_encoder()
-        test_passphrase_encoder()
         test_qig_rag()
         test_zeus_chat()
         

@@ -83,21 +83,21 @@ def audit_vocabulary(dry_run: bool = True, limit: int = None):
         print(f"✓ Loaded {len(vocab_basins)} basins")
         print()
         
-        # Initialize coordizer and tokenizer
+        # Initialize coordizer and entropy coordizer
         # TODO: Load these from actual QIG system
         print("Initializing coordizer...")
         from coordizers.base import FisherCoordizer
         coordizer = FisherCoordizer(basin_dim=64)
         
-        print("Initializing tokenizer...")
+        print("Initializing entropy coordizer...")
         from qig_tokenizer import QIGTokenizer
-        tokenizer = QIGTokenizer()
+        entropy_coordizer = QIGTokenizer()
         
         print("✓ QIG components initialized")
         print()
         
         # Create validator
-        validator = GeometricVocabFilter(vocab_basins, coordizer, tokenizer)
+        validator = GeometricVocabFilter(vocab_basins, coordizer, entropy_coordizer)
         
         # Fetch all words
         with conn.cursor() as cur:

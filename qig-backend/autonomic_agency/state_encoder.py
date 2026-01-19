@@ -18,17 +18,14 @@ import numpy as np
 
 # QIG-pure geometric operations
 try:
-    from qig_geometry import sphere_project
+    from qig_geometry import fisher_normalize
     QIG_GEOMETRY_AVAILABLE = True
 except ImportError:
     QIG_GEOMETRY_AVAILABLE = False
-    def sphere_project(v):
-        """Fallback sphere projection."""
-        norm = np.linalg.norm(v)
-        if norm < 1e-10:
-            result = np.ones_like(v)
-            return result / np.linalg.norm(result)
-        return v / norm
+    def fisher_normalize(v):
+        """Normalize to probability simplex."""
+        p = np.maximum(np.asarray(v), 0) + 1e-10
+        return p / p.sum()
 
 from qigkernels.physics_constants import KAPPA_STAR, PHI_THRESHOLD
 
@@ -191,11 +188,13 @@ class StateEncoder:
         current = np.array(basin_coords)
         # Compute drift using Fisher-Rao distance (NOT Euclidean!)
         curr_norm = current / (np.linalg.norm(current) + 1e-10)
-        ref_norm = sphere_project(self._identity_basin)
-        dot = np.clip(np.dot(curr_norm, ref_norm), -1.0, 1.0)
-        drift = float(np.arccos(dot))  # Fisher-Rao geodesic distance
-        # Normalize drift to [0,1] range using max Fisher distance (π)
-        return max(0.0, 1.0 - drift / np.pi)
+        ref_norm = fisher_normalize(self._identity_basin)
+        dot = np.clip(np.dot(curr_norm, ref_norm), 0.0, 1.0)
+        # Fisher-Rao geodesic distance on probability simplex
+        # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
+        drift = float(np.arccos(dot))
+        # Normalize drift to [0,1] range using max Fisher distance (π/2 for simplex)
+        return max(0.0, 1.0 - drift / (np.pi / 2.0))
     
     def set_identity_basin(self, basin_coords: List[float]) -> None:
         """Set reference identity basin for grounding computation."""

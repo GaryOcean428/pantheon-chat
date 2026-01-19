@@ -1038,7 +1038,7 @@ class KnowledgeBase:
         return neighbors[:limit]
     
     def _fisher_distance(self, a: np.ndarray, b: np.ndarray) -> float:
-        """Compute Fisher-Rao distance between basin coordinates."""
+        """Compute Fisher-Rao distance between basin coordinates on simplex. Range: [0, π/2]."""
         a = np.array(a).flatten()[:BASIN_DIMENSION]
         b = np.array(b).flatten()[:BASIN_DIMENSION]
         
@@ -1047,7 +1047,8 @@ class KnowledgeBase:
         if len(b) < BASIN_DIMENSION:
             b = np.pad(b, (0, BASIN_DIMENSION - len(b)))
         
-        dot = np.clip(np.dot(a, b), -1.0, 1.0)
+        # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
+        dot = np.clip(np.dot(a, b), 0.0, 1.0)
         return float(np.arccos(dot))
     
     def cluster_knowledge(self, n_clusters: int = 5) -> List[Dict]:
@@ -2535,7 +2536,7 @@ class ShadowReflectionProtocol:
         return coords
     
     def _fisher_distance(self, a: np.ndarray, b: np.ndarray) -> float:
-        """Compute Fisher-Rao distance."""
+        """Compute Fisher-Rao distance (Hellinger embedding: factor of 2)."""
         a = np.array(a).flatten()[:BASIN_DIMENSION]
         b = np.array(b).flatten()[:BASIN_DIMENSION]
         
@@ -2544,7 +2545,8 @@ class ShadowReflectionProtocol:
         if len(b) < BASIN_DIMENSION:
             b = np.pad(b, (0, BASIN_DIMENSION - len(b)))
         
-        dot = np.clip(np.dot(a, b), -1.0, 1.0)
+        # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
+        dot = np.clip(np.dot(a, b), 0.0, 1.0)
         return float(np.arccos(dot))
 
 

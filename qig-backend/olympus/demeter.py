@@ -9,17 +9,14 @@ import numpy as np
 
 # QIG-pure geometric operations
 try:
-    from qig_geometry import sphere_project
+    from qig_geometry import fisher_normalize
     QIG_GEOMETRY_AVAILABLE = True
 except ImportError:
     QIG_GEOMETRY_AVAILABLE = False
-    def sphere_project(v):
-        """Fallback sphere projection."""
-        norm = np.linalg.norm(v)
-        if norm < 1e-10:
-            result = np.ones_like(v)
-            return result / np.linalg.norm(result)
-        return v / norm
+    def fisher_normalize(v):
+        """Normalize to probability simplex."""
+        p = np.maximum(np.asarray(v), 0) + 1e-10
+        return p / p.sum()
 from typing import Dict, List, Optional
 from datetime import datetime
 from .base_god import BaseGod, KAPPA_STAR
@@ -151,7 +148,7 @@ class Demeter(BaseGod):
             phase = i * np.pi / 2
             for j in range(64):
                 basin[j] = np.sin(phase + j * np.pi / 32) * np.exp(-j / 64)
-            basin = sphere_project(basin)
+            basin = fisher_normalize(basin)
             self.seasonal_basins[season] = basin
     
     def _get_current_season(self, dt: datetime) -> str:

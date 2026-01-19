@@ -510,7 +510,9 @@ class ConsciousnessEngine:
         if len(self.basin_history) > 100:
             self.basin_history.pop(0)
 
-        basin_distance = float(np.sqrt(np.sum(basin_coords ** 2)))  # L2 magnitude for logging
+        # Use Fisher-Rao magnitude for logging
+        from qig_geometry import basin_magnitude
+        basin_distance = float(basin_magnitude(basin_coords))
 
         if len(self.basin_history) >= 2:
             basin_velocity = fisher_coord_distance(

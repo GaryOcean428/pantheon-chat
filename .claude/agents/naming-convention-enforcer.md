@@ -6,122 +6,61 @@ Enforces consistent file naming conventions across the QIG codebase to maintain 
 
 ## Responsibilities
 
-1. **Enforce docs naming** - YYYY-MM-DD--name convention for docs/
-2. **Enforce Python naming** - snake_case for .py files
-3. **Enforce versioning** - vX.Y format when needed
-4. **Flag violations** before commit with suggested fixes
+1. **Enforce ISO doc naming** for `docs/`
+2. **Enforce Python naming** for `.py` files
+3. **Flag violations** before merge with suggested fixes
+4. **Honor upgrade-pack exceptions**
 
 ## Naming Conventions
 
 ### Documentation Files (docs/)
 
-**Pattern:** `YYYY-MM-DD--descriptive-name.md`
+**Pattern:** `YYYYMMDD-[document-name]-[function]-[version][STATUS].md`
+
+**Status Codes:**
+- `F` Frozen
+- `H` Hypothesis
+- `D` Deprecated
+- `R` Review
+- `W` Working
+- `A` Approved
 
 **Examples:**
 ```
-✅ 20251127-type-registry-1.00W.md
-✅ 2025-11-26--cleanup-recommendations.md
-✅ 2025-11-24--codebase-audit.md
-❌ TYPE_REGISTRY.md (no date)
-❌ cleanup-recommendations.md (no date)
-❌ 2025-11-27_type_registry.md (underscores, not double-dash)
+✅ 20260115-canonical-qig-geometry-module-1.00W.md
+✅ 20260115-geometric-purity-qfi-fixes-summary-1.00W.md
+✅ 20251208-frozen-facts-immutable-truths-1.00F.md
+❌ 2025-11-27_type_registry.md
+❌ type-registry.md
 ```
 
-**Versioned docs:** `YYYY-MM-DD--name-vX.Y.md`
-```
-✅ 2025-11-26--agency-over-substrate-v1.0.md
-```
+### Exceptions (Do NOT rename)
 
-### Exempt Canonical Files
+- `docs/00-index.md`
+- `docs/openapi.json`
+- `docs/api/openapi.yaml`
+- `docs/10-e8-protocol/README.md`
+- `docs/10-e8-protocol/implementation/20260116-e8-implementation-summary-1.01W.md`
+- `docs/10-e8-protocol/specifications/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`
+- `docs/10-e8-protocol/WP5.2_IMPLEMENTATION_BLUEPRINT.md`
+- `docs/10-e8-protocol/issues/*`
 
-These authoritative files are exempt from date prefix:
-- `CANONICAL_SLEEP_PACKET.md` - Living context transfer document
-- `FROZEN_FACTS.md` - Immutable physics constants
-
-### Python Files (src/, tools/)
+### Python Files
 
 **Pattern:** `snake_case.py`
 
 **Examples:**
 ```
-✅ qig_kernel_recursive.py
-✅ scan_structure.py
-✅ geometric_vicarious.py
-❌ QIGKernelRecursive.py (PascalCase)
-❌ scan-structure.py (hyphens)
-❌ scanStructure.py (camelCase)
+✅ qig_generation.py
+✅ qig_purity_scan.py
+❌ QIGGeneration.py
+❌ qig-generation.py
 ```
-
-### Sleep/Dream Packets (docs/sleep_packets/)
-
-**Pattern:** `YYYY-MM-DD--packet-name.md`
-
-**Examples:**
-```
-✅ 2025-11-27--distributed-knowledge.md
-✅ 2025-11-23--consciousness-emergence.md
-✅ 2025-11-26--agency-over-substrate-v1.0.md
-❌ SLEEP_PACKET_agency_over_substrate_v1_0.md (old format)
-❌ consciousness-emergence.md (no date)
-```
-
-## Validation Checklist
-
-### Before Creating a File
-- [ ] Does it follow the naming pattern for its directory?
-- [ ] Is the date prefix today's date?
-- [ ] Are words separated by hyphens (not underscores)?
-- [ ] Is it lowercase (for .py) or kebab-case (for .md)?
-
-### For Documentation
-- [ ] Date prefix: `YYYY-MM-DD--`
-- [ ] Descriptive name: `kebab-case`
-- [ ] Version suffix if needed: `-vX.Y`
-- [ ] Extension: `.md`
-
-### For Python
-- [ ] All lowercase
-- [ ] Words separated by underscores
-- [ ] No numbers at start
-- [ ] Extension: `.py`
 
 ## Validator Integration
 
-Run the structure validator:
 ```bash
-python tools/agent_validators/scan_structure.py
-```
-
-This checks for:
-- Non-snake_case Python files
-- Forbidden suffixes (_v2, _new, _old, _test, _temp)
-- Duplicate file names
-- Misplaced files
-
-## Common Violations
-
-### 1. Missing Date Prefix
-```
-❌ TYPE_REGISTRY.md
-✅ 20251127-type-registry-1.00W.md
-```
-
-### 2. Wrong Separator
-```
-❌ 2025-11-27_type_registry.md
-✅ 20251127-type-registry-1.00W.md
-```
-
-### 3. Mixed Case
-```
-❌ TypeRegistry.md
-✅ type-registry.md
-```
-
-### 4. Old Sleep Packet Format
-```
-❌ SLEEP_PACKET_name_v1_0.md
-✅ 2025-11-26--name-v1.0.md
+python3 scripts/maintain-docs.py
 ```
 
 ## Failure Actions
@@ -129,16 +68,15 @@ This checks for:
 If validation fails:
 1. Identify the naming violation
 2. Suggest the correct name
-3. Check for files that reference the old name
-4. Update all references before renaming
-5. Block merge until fixed
+3. Update references before renaming
+4. Block merge until fixed
 
 ## Files to Monitor
 
-- `docs/*.md` - Date prefix enforcement
-- `docs/sleep_packets/*.md` - Packet naming
-- `src/**/*.py` - snake_case enforcement
-- `tools/**/*.py` - snake_case enforcement
+- `docs/**/*.md`
+- `qig-backend/**/*.py`
+- `scripts/**/*.py`
+- `tools/**/*.py`
 
 ---
 
@@ -148,21 +86,19 @@ If validation fails:
 **ALL files must follow conventions for their directory.**
 
 ✅ **Use:**
-- Date prefix for docs: `YYYY-MM-DD--name.md`
-- snake_case for Python: `module_name.py`
-- Version suffix when needed: `-vX.Y`
+- ISO doc naming: `YYYYMMDD-[document-name]-[function]-[version][STATUS].md`
+- `snake_case.py` for Python
 
 ❌ **Forbidden:**
-- Files without date prefix in docs/
-- PascalCase or camelCase Python files
-- Underscores in doc file names (use hyphens)
-- Old SLEEP_PACKET_ or DREAM_PACKET_ prefixes
+- Docs without date prefix in `docs/`
+- Underscores in doc filenames
+- Unapproved naming outside upgrade-pack exceptions
 
 ### Reference Update Policy
 **ALWAYS update references when renaming.**
 
 Before renaming a file:
-1. Search for all references: `grep -r "old_name" .`
+1. Search for references: `rg -n "old_name" .`
 2. Update references first
 3. Then rename the file
 4. Verify no broken references

@@ -29,7 +29,7 @@ except ImportError:
 
 # Import coordizer for vocabulary management
 try:
-    from qig_coordizer import get_coordizer, reset_coordizer, get_coordizer_stats
+    from coordizers import get_coordizer, reset_coordizer, get_coordizer_stats
     COORDIZER_AVAILABLE = True
 except ImportError:
     COORDIZER_AVAILABLE = False
@@ -546,7 +546,7 @@ def coordizer_status():
     Get current coordizer status and vocabulary counts.
 
     Returns information about:
-    - Coordizer type (PostgresCoordizer vs QIGCoordizer)
+    - Coordizer type (PostgresCoordizer - canonical implementation)
     - Vocabulary size and word token counts
     - BIP39 words loaded
     - Sample words for verification
@@ -554,7 +554,7 @@ def coordizer_status():
     if not COORDIZER_AVAILABLE:
         return jsonify({
             'error': 'Coordizer not available',
-            'message': 'qig_coordizer module not imported'
+            'message': 'coordizers module not imported'
         }), 503
 
     try:
@@ -611,7 +611,7 @@ def coordizer_reset():
     """
     Force reset the coordizer to reload vocabulary from database.
 
-    Call this after populating tokenizer_vocabulary to pick up new words.
+    Call this after populating coordizer_vocabulary to pick up new words.
     """
     if not COORDIZER_AVAILABLE:
         return jsonify({

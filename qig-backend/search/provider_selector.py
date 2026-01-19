@@ -27,17 +27,14 @@ import numpy as np
 
 # QIG-pure geometric operations
 try:
-    from qig_geometry import sphere_project
+    from qig_geometry import fisher_normalize
     QIG_GEOMETRY_AVAILABLE = True
 except ImportError:
     QIG_GEOMETRY_AVAILABLE = False
-    def sphere_project(v):
-        """Fallback sphere projection."""
-        norm = np.linalg.norm(v)
-        if norm < 1e-10:
-            result = np.ones_like(v)
-            return result / np.linalg.norm(result)
-        return v / norm
+    def fisher_normalize(v):
+        """Normalize to probability simplex."""
+        p = np.maximum(np.asarray(v), 0) + 1e-10
+        return p / p.sum()
 from typing import Dict, List, Optional, Any, Tuple, TYPE_CHECKING
 from datetime import datetime
 
@@ -336,7 +333,7 @@ class GeometricProviderSelector:
             basin = np.pad(basin, (0, 64 - len(basin)))
         basin = basin[:64]
         
-        basin = sphere_project(basin)
+        basin = fisher_normalize(basin)
         return basin
     
     def _fisher_rao_distance(self, p1: np.ndarray, p2: np.ndarray) -> float:
@@ -347,12 +344,13 @@ class GeometricProviderSelector:
         the Fisher-Rao distance is related to the geodesic distance on the
         statistical manifold.
 
-        d_FR = arccos(sqrt(sum(sqrt(p1_i * p2_i))))
+        d_FR = 2 * arccos(sqrt(sum(sqrt(p1_i * p2_i))))
 
-        NOTE: No factor of 2 - this is the geodesic distance.
+        Hellinger embedding: factor of 2 for canonical formula d = 2 * arccos(BC)
 
         For unit vectors in embedding space, we use Bures-style metric:
         d_B = arccos(|<p1, p2>|)
+        UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
         """
         p1_norm = p1 / (np.linalg.norm(p1) + 1e-10)
         p2_norm = p2 / (np.linalg.norm(p2) + 1e-10)

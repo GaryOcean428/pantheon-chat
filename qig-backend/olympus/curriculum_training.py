@@ -85,7 +85,7 @@ def load_and_train_curriculum(shadow_loop):
 
 def update_geometric_relationships_cache(geo_rel):
     """
-    Update word_relationships in PostgreSQL using geometric data.
+    Update basin_relationships in PostgreSQL using geometric data.
     QIG-PURE: Uses Fisher-Rao distances instead of PMI.
     """
     conn = get_db_connection()
@@ -129,7 +129,7 @@ def update_geometric_relationships_cache(geo_rel):
             execute_values(
                 cur,
                 """
-                INSERT INTO word_relationships (word1, word2, fisher_distance, qfi_weight)
+                INSERT INTO basin_relationships (word1, word2, fisher_distance, qfi_weight)
                 VALUES %s
                 ON CONFLICT (word1, word2) DO UPDATE SET
                     fisher_distance = EXCLUDED.fisher_distance,

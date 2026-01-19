@@ -1,6 +1,9 @@
 """
 GeometricVocabBuilder - Vocabulary Discovery via Fisher Clustering
 
+HELPER TOOL for vocabulary learning. Works WITH FisherCoordizer/PostgresCoordizer,
+not as an alternative implementation.
+
 Discovers vocabulary through geometric clustering on Fisher manifold.
 Unlike frequency-based tokenization, uses distance and density in basin space.
 
@@ -11,9 +14,23 @@ Key Features:
 - Unsupervised geometric concept extraction
 
 Integration:
-- Works with FisherCoordizer for vocabulary learning
+- Works with FisherCoordizer/PostgresCoordizer for vocabulary learning
 - Uses Φ (integration) and κ (coupling) for quality assessment
 - Respects geometric purity (no Euclidean operations)
+
+Usage:
+    from coordizers import get_coordizer
+    from coordizers.vocab_builder import GeometricVocabBuilder
+    
+    coordizer = get_coordizer()
+    builder = GeometricVocabBuilder()
+    
+    # Discover new tokens from corpus
+    new_tokens = builder.discover_tokens(corpus_sequences, phi_scores)
+    
+    # Add to coordizer vocabulary
+    for token, coords, score in new_tokens:
+        coordizer.add_token(token, coords)
 """
 
 import numpy as np
@@ -29,7 +46,7 @@ from qig_geometry import (
     fisher_coord_distance,
     fisher_similarity,
     geodesic_interpolation,
-    sphere_project,
+    fisher_normalize,
 )
 
 
@@ -282,7 +299,7 @@ class GeometricVocabBuilder:
             if pos_coords:
                 # Compute Fréchet mean on sphere
                 avg = np.mean(pos_coords, axis=0)
-                avg = sphere_project(avg)
+                avg = fisher_normalize(avg)
                 position_avgs.append(avg)
         
         # Return first position average as representative coordinate

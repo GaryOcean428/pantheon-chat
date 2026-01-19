@@ -49,12 +49,18 @@ try:
 except ImportError as e:
     print(f"[WARNING] Document processor not found: {e}")
 
-# Register Zeus API routes
+# Register Zeus API routes (pass zeus singleton for conversation handler)
 ZEUS_API_AVAILABLE = False
 try:
     from zeus_api import register_zeus_routes
-
-    register_zeus_routes(app)
+    # Import zeus singleton from olympus module (same as ocean_qig_core uses)
+    try:
+        from olympus.zeus import zeus
+        zeus_instance = zeus
+    except ImportError:
+        zeus_instance = None
+    
+    register_zeus_routes(app, zeus_instance=zeus_instance)
     ZEUS_API_AVAILABLE = True
     print("[INFO] Zeus API registered at /api/zeus/*")
 except ImportError as e:

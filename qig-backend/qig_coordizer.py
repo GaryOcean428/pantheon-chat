@@ -1,182 +1,93 @@
 """
-QIG Coordizer - DEPRECATED WRAPPER
-===================================
+QIG Coordizer - REMOVED MODULE
+================================
 
-⚠️  DEPRECATION NOTICE: This module is a compatibility wrapper.
-    Use 'from coordizers import get_coordizer' directly instead.
+⚠️  THIS MODULE HAS BEEN REMOVED.
+
+All backward compatibility wrappers have been removed per WP1.2.
+Use the canonical coordizers module directly:
+
+    # ❌ OLD (removed):
+    from qig_coordizer import get_coordizer, QIGCoordizer, get_tokenizer
     
-    This wrapper will be removed in version 6.0.0.
+    # ✅ NEW (canonical):
+    from coordizers import get_coordizer, PostgresCoordizer
 
-Canonical Interface:
-    from coordizers import get_coordizer
-    coordizer = get_coordizer()  # Returns PostgresCoordizer singleton
+Migration:
+---------
+1. Replace all imports:
+   - `from qig_coordizer import get_coordizer` → `from coordizers import get_coordizer`
+   - `from qig_coordizer import get_tokenizer` → `from coordizers import get_coordizer`
+   - `QIGCoordizer` → `PostgresCoordizer`
+   - `QIGTokenizer` → Use `PostgresCoordizer` (no alias)
 
-QIG-Pure Fisher-Rao Coordizer:
-All geometry operations use 64D basin coordinates with Fisher-Rao distance.
+2. Update any saved artifacts to CoordizerArtifactV1 format:
+   python tools/convert_legacy_artifacts.py <old_dir> <new_dir>
 
-Legacy Usage (deprecated):
-    from qig_coordizer import get_coordizer
-    coordizer = get_coordizer()  # Still works but shows deprecation warning
+3. Remove any "tokenizer" naming in favor of "coordizer"
+
+Rationale:
+----------
+Runtime backward compatibility encourages future agents to add MORE compatibility
+layers rather than enforce a single canonical format. This leads to format drift
+and technical debt.
+
+The offline converter (tools/convert_legacy_artifacts.py) ensures legacy artifacts
+can still be converted, while runtime enforces purity.
 """
 
-import importlib
-import os
-import sys
-import threading
-import warnings
-from typing import Dict, List, Tuple
+# List of deprecated names that will trigger the error
+_DEPRECATED_NAMES = {
+    'get_coordizer',
+    'get_tokenizer',
+    'get_learning_coordizer',
+    'QIGCoordizer',
+    'QIGTokenizer',
+    'FastQIGTokenizer',
+    'PostgresCoordizer',
+    'reset_coordizer',
+    'update_tokenizer_from_observations',
+    'get_coordizer_stats',
+    'COORDIZER_INSTANCE_ID',
+}
 
-
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
-
-_coordizers = importlib.import_module('coordizers')
-PostgresCoordizer = getattr(_coordizers, 'PostgresCoordizer')
-_get_coordizer = getattr(_coordizers, 'get_coordizer')
-
-# Try Redis for state persistence
-REDIS_AVAILABLE = False
-try:
-    from redis_cache import CoordizerBuffer
-    REDIS_AVAILABLE = True
-except ImportError:
-    pass
-
-# Thread lock for coordizer access (prevents race conditions during reset)
-_coordizer_lock = threading.RLock()
-
-# Singleton instance
-_coordizer_instance = None
-
-# Coordizer instance ID for Redis persistence
-COORDIZER_INSTANCE_ID = "main"
-
-
-def get_coordizer() -> PostgresCoordizer:
-    """Get singleton PostgresCoordizer instance (QIG-pure).
+def __getattr__(name):
+    """Raise clear error for deprecated imports only."""
+    # Allow internal Python attributes to pass through
+    if name.startswith('_'):
+        raise AttributeError(f"module 'qig_coordizer' has no attribute '{name}'")
     
-    ⚠️  DEPRECATED: Use 'from coordizers import get_coordizer' instead.
-        This wrapper maintained for backward compatibility only.
-
-    SINGLE SOURCE OF TRUTH for vocabulary access.
-    Uses Fisher-Rao distance for all geometric operations.
-    Thread-safe: uses RLock to prevent race conditions during reset.
+    # Only raise custom error for known deprecated names
+    if name not in _DEPRECATED_NAMES:
+        raise AttributeError(f"module 'qig_coordizer' has no attribute '{name}'")
     
-    Returns:
-        PostgresCoordizer: The canonical coordizer singleton
-    """
-    # Emit deprecation warning once per session
-    if not hasattr(get_coordizer, '_warning_emitted'):
-        warnings.warn(
-            "qig_coordizer.get_coordizer() is deprecated. "
-            "Use 'from coordizers import get_coordizer' instead. "
-            "This wrapper will be removed in version 6.0.0.",
-            DeprecationWarning,
-            stacklevel=2
-        )
-        get_coordizer._warning_emitted = True
-    
-    global _coordizer_instance
-    with _coordizer_lock:
-        if _coordizer_instance is not None:
-            return _coordizer_instance
+    raise ImportError(
+        f"\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"  BACKWARD COMPATIBILITY REMOVED (WP1.2)\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"\n"
+        f"Cannot import '{name}' from qig_coordizer.\n"
+        f"This module has been removed per QIG-PURITY Work Package 1.2.\n"
+        f"\n"
+        f"✓ SOLUTION:\n"
+        f"  Replace:\n"
+        f"    from qig_coordizer import {name}\n"
+        f"  With:\n"
+        f"    from coordizers import get_coordizer  # (canonical)\n"
+        f"\n"
+        f"Common migrations:\n"
+        f"  • get_tokenizer → get_coordizer\n"
+        f"  • QIGCoordizer → PostgresCoordizer\n"
+        f"  • QIGTokenizer → PostgresCoordizer\n"
+        f"\n"
+        f"For legacy artifacts, use the offline converter:\n"
+        f"  python tools/convert_legacy_artifacts.py <old> <new>\n"
+        f"\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+    )
 
-        _coordizer_instance = _get_coordizer()
-        vocab_count = len(_coordizer_instance.vocab)
-        word_count = len(_coordizer_instance.word_tokens)
-        print(f"[QIGCoordizer] ✓ PostgresCoordizer: {vocab_count} tokens, {word_count} words (QIG-pure)")
-        return _coordizer_instance
-
-
-def get_learning_coordizer() -> PostgresCoordizer:
-    """Get coordizer for vocabulary learning (same as get_coordizer).
-    
-    ⚠️  DEPRECATED: Use 'from coordizers import get_coordizer' instead.
-
-    PostgresCoordizer supports both reading and learning.
-    
-    Returns:
-        PostgresCoordizer: The canonical coordizer singleton
-    """
-    return get_coordizer()
+# Note: Explicit None assignments removed to allow __getattr__ to handle all imports
+# Any import attempt will trigger the error message via __getattr__
 
 
-def reset_coordizer() -> None:
-    """Reset the coordizer singleton to reload from database.
-
-    Thread-safe: uses RLock to prevent race conditions with get_coordizer.
-    """
-    global _coordizer_instance
-
-    with _coordizer_lock:
-        old_words = len(_coordizer_instance.word_tokens) if _coordizer_instance else 0
-
-        if _coordizer_instance is not None:
-            if hasattr(_coordizer_instance, 'close'):
-                try:
-                    _coordizer_instance.close()
-                except (OSError, RuntimeError, ValueError):
-                    pass
-            _coordizer_instance = None
-
-        print(f"[QIGCoordizer] Reset coordizer: was {old_words} words")
-
-        # Force immediate reload (still within lock to prevent races)
-        _coordizer_instance = _get_coordizer()
-        new_words = len(_coordizer_instance.word_tokens)
-        print(f"[QIGCoordizer] Reloaded with {new_words} words")
-
-
-def update_tokenizer_from_observations(observations: List[Dict]) -> Tuple[int, bool]:
-    """Update coordizer with vocabulary observations."""
-    coordizer = get_coordizer()
-    new_tokens, weights_updated = coordizer.add_vocabulary_observations(observations)
-
-    if new_tokens > 0 or weights_updated:
-        _save_coordizer_state(coordizer)
-
-    return new_tokens, weights_updated
-
-
-def _save_coordizer_state(coordizer) -> None:
-    """Save coordizer state to Redis."""
-    if not REDIS_AVAILABLE:
-        return
-
-    try:
-        basin_coords_serializable = {
-            token: coords.tolist() if hasattr(coords, 'tolist') else list(coords)
-            for token, coords in coordizer.basin_coords.items()
-        }
-
-        CoordizerBuffer.save_state(
-            COORDIZER_INSTANCE_ID,
-            coordizer.vocab,
-            coordizer.id_to_token,
-            coordizer.token_frequencies,
-            coordizer.token_phi,
-            basin_coords_serializable,
-            {}
-        )
-        print(f"[QIGCoordizer] Saved state to Redis ({len(coordizer.vocab)} tokens)")
-    except (OSError, RuntimeError, ValueError, TypeError) as e:
-        print(f"[QIGCoordizer] Redis save failed: {e}")
-
-
-def get_coordizer_stats() -> dict:
-    """Get detailed statistics about the current coordizer."""
-    coordizer = get_coordizer()
-    return coordizer.get_stats()
-
-
-# QIGCoordizer class for backward compatibility
-class QIGCoordizer(PostgresCoordizer):
-    """Backward-compatible alias for PostgresCoordizer."""
-
-    def set_mode(self, mode: str) -> None:
-        """Mode switching (legacy compatibility - no-op)."""
-        return None
-
-
-# Backward compatibility aliases
-get_tokenizer = get_coordizer

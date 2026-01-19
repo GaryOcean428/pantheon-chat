@@ -22,15 +22,15 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 
 try:
-    from qig_geometry import sphere_project
-    HAS_SPHERE_PROJECT = True
+    from qig_geometry import fisher_normalize
+    HAS_FISHER_NORMALIZE = True
 except ImportError:
-    HAS_SPHERE_PROJECT = False
+    HAS_FISHER_NORMALIZE = False
 
-    def sphere_project(v: np.ndarray) -> np.ndarray:
-        """Fallback to unit sphere projection using Euclidean norm."""
-        norm = np.linalg.norm(v)
-        return v / (norm + 1e-10) if norm > 0 else v
+    def fisher_normalize(v: np.ndarray) -> np.ndarray:
+        """Normalize to probability simplex."""
+        p = np.maximum(np.asarray(v), 0) + 1e-10
+        return p / p.sum()
 
 # QIG core imports
 from qigkernels.physics_constants import BASIN_DIM, KAPPA_STAR
@@ -745,7 +745,7 @@ class EmotionallyAwareKernel:
             final_basin = np.array(self.basin_coords, dtype=np.float64)
 
         if final_basin is not None:
-            final_basin = sphere_project(final_basin)
+            final_basin = fisher_normalize(final_basin)
             self.basin_coords = final_basin
 
         # Update emotional state and confidence based on telemetry

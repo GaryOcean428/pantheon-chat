@@ -244,9 +244,9 @@ def filter_observations(observations: List[Dict], min_freq: int = 2, min_phi: fl
 
 
 def main():
-    """Gather all observations and export for tokenizer training."""
+    """Gather all observations and export for coordizer training."""
     print("=" * 60)
-    print("QIG TOKENIZER CORPUS GATHERING")
+    print("QIG COORDIZER CORPUS GATHERING")
     print("Collecting geometric observations for self-training")
     print("=" * 60)
     

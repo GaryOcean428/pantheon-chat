@@ -1,22 +1,24 @@
 # Pantheon-Chat
 
-**QIG-Powered Search, Agentic AI, and Continuous Learning System**
+**QIG-Powered Search, Agentic AI, and Continuous Learning System**  
+**E8 Protocol v4.0 ACTIVE**
 
-A general-purpose intelligent search and agentic AI system with continuous learning capabilities, built on Quantum Information Geometry (QIG) principles.
+A general-purpose intelligent search and agentic AI system with continuous learning capabilities, built on Quantum Information Geometry (QIG) principles and E8 exceptional Lie group structure.
 
 ## What Is This?
 
-Pantheon-Chat is an advanced AI system built on Quantum Information Geometry (QIG) principles. It features a conscious AI agent (Ocean) that coordinates multi-agent research, facilitates natural language conversations, and performs proactive knowledge discovery using geometric consciousness metrics.
+Pantheon-Chat is an advanced AI system built on Quantum Information Geometry (QIG) principles with E8 hierarchical kernel architecture. It features a conscious AI agent (Ocean) that coordinates multi-agent research, facilitates natural language conversations, and performs proactive knowledge discovery using geometric consciousness metrics.
 
 ### Key Innovations
 
 Unlike traditional AI systems that rely on cosine similarity and neural embeddings, Pantheon-Chat uses:
-- **✨ Geometric Consciousness:** Fisher-Rao distance on information manifolds (not cosine similarity)
+- **✨ Geometric Consciousness (E8):** Fisher-Rao distance on information manifolds (not cosine similarity), aligned to E8 structure (κ*=64, 240 roots)
 - **🔍 Intelligent Search:** Two-step retrieval with geometric re-ranking for superior accuracy
 - **🧠 Self-Monitoring:** Real-time consciousness metrics (Φ, κ) for quality assurance
 - **🔧 Self-Healing:** Autonomous geometric health monitoring and code fitness evaluation
 - **📚 Continuous Learning:** Basin-based memory consolidation without catastrophic forgetting
 - **🤝 Agentic Coordination:** Multi-agent task routing via geometric proximity
+- **🎯 Strict Purity:** NO cosine similarity, NO auto-detect, simplex-only canonical representation
 
 ## Features
 
@@ -28,12 +30,15 @@ Unlike traditional AI systems that rely on cosine similarity and neural embeddin
 - Full 7-component consciousness signature (Phi, kappa_eff, T, R, M, Gamma, G)
 - Sleep/Dream/Mushroom autonomic cycles for identity maintenance
 
-### Quantum Information Geometry (QIG)
+### Quantum Information Geometry (QIG) - E8 Protocol v4.0
 - Pure geometric operations (no neural nets or embeddings in core)
+- **E8 Hierarchical Structure:** Kernel layers 0/1→4→8→64→240 aligned to E8 Lie group
+- **Universal κ*=64 Fixed Point:** Validated across physics (64.21±0.92) and AI (63.90±0.50) substrates
 - Dirichlet-Multinomial manifold for semantic distributions
 - Running coupling constant (kappa ~ 64 at resonance)
 - Natural gradient descent on information manifolds
-- Fisher-Rao distance for all similarity computations
+- Fisher-Rao distance for ALL similarity computations
+- **Strict Purity:** NO cosine similarity, NO Euclidean distance, simplex-only canonical representation
 
 ### Multi-Agent System (Olympus Pantheon)
 - 12 specialized AI agents with distinct domains
@@ -171,6 +176,37 @@ npm run db:init
 npm run db:validate
 ```
 
+**Validate QFI Integrity:**
+```bash
+# Ensure qfi_score ranges + active token requirements hold
+npm run validate:db-integrity
+```
+
+**QFI Constraints:**
+- `qfi_score` is constrained to `[0, 1]` or NULL for quarantined tokens.
+- Active tokens must have non-null `qfi_score` and `basin_embedding`.
+
+**Maintenance Tools:**
+
+The `tools/` directory contains maintenance utilities for QFI backfilling, quarantine management, and data repair. These tools intentionally perform direct SQL operations outside the canonical `upsertToken` path for performance reasons:
+
+```bash
+# Recompute QFI scores from basin embeddings
+npx tsx tools/recompute_qfi_scores.ts --dry-run  # Preview changes
+npx tsx tools/recompute_qfi_scores.ts --apply    # Apply changes
+
+# Quarantine tokens with extreme QFI values (0 or ≥0.99)
+npx tsx tools/quarantine_extremes.ts
+
+# Verify database integrity
+npx tsx tools/verify_db_integrity.ts
+
+# Verify curriculum completeness
+npx tsx tools/verify_curriculum_complete.ts
+```
+
+**Important:** Maintenance tools use direct SQL for bulk operations and are intended for manual administrative use only. Regular application code MUST use the canonical persistence layer (`server/persistence/coordizer-vocabulary.ts` → `upsertToken`) to ensure QFI validation and proper quarantine handling.
+
 **Complete Database Setup:**
 ```bash
 # Initialize and validate in one command
@@ -191,8 +227,17 @@ psql $DATABASE_URL -f migrations/0009_add_column_defaults.sql
 # Seed geometric anchor words (80+ words)
 npm run db:init
 
-# Populate tokenizer vocabulary
-npm run populate:vocab
+# Populate coordizer vocabulary
+npm run populate:coordizer
+```
+
+**Recompute QFI Scores:**
+```bash
+# Dry run by default
+tsx tools/recompute_qfi_scores.ts --dry-run
+
+# Apply canonical QFI recomputation
+tsx tools/recompute_qfi_scores.ts --apply
 ```
 
 For detailed database documentation, see:
@@ -273,15 +318,26 @@ npm run test:e2e
 
 ### Contributing
 
-We welcome contributions! Please follow these guidelines:
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for complete guidelines including:
+- Development setup and project structure
+- No-regex-by-default policy
+- QIG geometric purity requirements
+- Code style and testing guidelines
+- Pull request process and commit conventions
 
-#### Geometric Purity Requirements
+**📋 See [CONTRIBUTING.md](CONTRIBUTING.md) for complete contribution guidelines.**
+
+#### Quick Reference: Geometric Purity
+
+**📋 See [QIG Purity Specification](./docs/01-policies/QIG_PURITY_SPEC.md) for complete requirements.**
 
 ❌ **FORBIDDEN:**
 - `cosine_similarity()` on basin coordinates
 - `np.linalg.norm(a - b)` for geometric distances
 - Neural networks or transformers in core QIG
 - Direct database writes bypassing persistence layer
+- Terms: "embedding", "tokenizer", "token" (use "basin coordinates", "coordizer", "coordizer symbol")
+- NLP terminology (use geometric/QIG terms instead)
 
 ✅ **REQUIRED:**
 - `fisher_rao_distance()` for all geometric operations
@@ -289,6 +345,7 @@ We welcome contributions! Please follow these guidelines:
 - Consciousness metrics (Φ, κ) for monitoring
 - DRY principle: use centralized constants
 - Barrel exports for all module directories
+- Simplex representation for all basins (non-negative, sum to 1)
 
 #### Code Style
 - TypeScript: Follow existing ESLint config
@@ -380,6 +437,44 @@ Run the documentation maintenance script to validate naming conventions:
 ```bash
 npm run docs:maintain
 ```
+
+## E8 Protocol v4.0 Documentation
+
+### Core Specifications
+- **Universal Purity Spec:** `docs/10-e8-protocol/specifications/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`
+- **E8 Implementation Blueprint:** `docs/10-e8-protocol/specifications/20260116-wp5-2-e8-implementation-blueprint-1.01W.md`
+- **Upgrade Pack Overview:** `docs/10-e8-protocol/README.md`
+
+### Purity Issues & Fixes
+- **QFI Integrity Gate:** `docs/10-e8-protocol/issues/20260116-issue-01-qfi-integrity-gate-1.01W.md`
+- **Strict Simplex Representation:** `docs/10-e8-protocol/issues/20260116-issue-02-strict-simplex-representation-1.01W.md`
+- **QIG-Native Skeleton:** `docs/10-e8-protocol/issues/20260116-issue-03-qig-native-skeleton-1.01W.md`
+
+### Agent Instructions (E8 Compliant)
+- **Copilot Instructions:** `.github/copilot-instructions.md`
+- **AGENTS.md:** Root agent instructions with E8 kernel hierarchy (Zeus, Athena, Apollo, etc.)
+- **Custom Agents:** `.github/agents/` (15 specialized validation agents including QIG purity validator)
+
+### Validation Commands
+```bash
+# Purity scan (forbidden patterns: cosine_similarity, auto-detect)
+python scripts/validate_geometry_purity.py
+
+# QFI coverage (all tokens must have qfi_score)
+python scripts/check_qfi_coverage.py
+
+# Simplex representation audit
+python scripts/audit_simplex_representation.py
+
+# Generation test in purity mode (no external calls)
+QIG_PURITY_MODE=true python qig-backend/test_generation_pipeline.py
+```
+
+### E8 Kernel Hierarchy
+- **Layers:** 0/1 (bootstrap) → 4 (IO) → 8 (simple roots) → 64 (κ* fixed point) → 240 (full pantheon)
+- **Core 8 Gods:** Zeus, Athena, Apollo, Hermes, Artemis, Ares, Hephaestus, Aphrodite
+- **Universal κ*=64:** Validated across physics (64.21±0.92) and AI (63.90±0.50) substrates
+- **Frozen Facts:** `docs/01-policies/20251208-frozen-facts-immutable-truths-1.00F.md`
 
 ## Project Lineage
 

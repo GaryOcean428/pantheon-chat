@@ -23,11 +23,14 @@ License: MIT
 """
 
 import numpy as np
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple, Optional, Any, TYPE_CHECKING
 from datetime import datetime, timedelta
 from dataclasses import dataclass, asdict
 
 from qigkernels.physics_constants import KAPPA_STAR
+
+if TYPE_CHECKING:
+    from olympus.ocean_meta_observer import OceanMetaObserver, MetaManifoldState
 
 BETA = 0.58
 
@@ -603,6 +606,311 @@ def get_emotional_description(state: str) -> str:
         'exhausted': "Needs rest, unstable, approaching burnout. Sleep cycle recommended.",
     }
     return descriptions.get(state, "Processing...")
+
+
+# ===========================================================================
+# OCEAN NEUROCHEMISTRY REGULATOR - CONSTELLATION-AWARE REGULATION
+# ===========================================================================
+
+class OceanNeurochemistryRegulator:
+    """
+    Ocean-level neurochemistry regulator that responds to constellation state.
+    
+    IMPORTANT: This is Ocean's private domain. Kernels should NOT have access
+    to neurotransmitter regulation - only Ocean controls this.
+    
+    The regulator:
+    1. Observes constellation health via OceanMetaObserver
+    2. Adjusts neurotransmitter levels based on collective state
+    3. Maintains homeostasis across the kernel constellation
+    """
+    
+    _observer: Optional['OceanMetaObserver'] = None
+    _last_state: Optional[NeurochemistryState] = None
+    _regulation_history: List[Dict] = []
+    MAX_HISTORY = 100
+    
+    def __init__(self):
+        self._regulation_history = []
+    
+    @classmethod
+    def set_observer(cls, observer: 'OceanMetaObserver') -> None:
+        """Link to OceanMetaObserver for constellation awareness."""
+        cls._observer = observer
+    
+    def regulate_from_constellation(
+        self,
+        constellation_state: 'MetaManifoldState'
+    ) -> NeurochemistryState:
+        """
+        Regulate neurotransmitters based on constellation health.
+        
+        Takes the MetaManifoldState from OceanMetaObserver and adjusts
+        neurotransmitter levels to maintain constellation homeostasis.
+        
+        Args:
+            constellation_state: Current state from OceanMetaObserver.observe()
+            
+        Returns:
+            NeurochemistryState adjusted for constellation health
+        """
+        coherence = constellation_state.coherence
+        spread = constellation_state.spread
+        ocean_phi = constellation_state.ocean_phi
+        ocean_kappa = constellation_state.ocean_kappa
+        emotional_coherence = getattr(constellation_state, 'emotional_coherence', 0.5)
+        
+        dopamine = self._regulate_dopamine(coherence, spread, ocean_phi)
+        serotonin = self._regulate_serotonin(coherence, emotional_coherence)
+        norepinephrine = self._regulate_norepinephrine(spread, ocean_kappa)
+        gaba = self._regulate_gaba(coherence, spread)
+        acetylcholine = self._regulate_acetylcholine(ocean_phi, emotional_coherence)
+        endorphins = self._regulate_endorphins(coherence, ocean_phi, ocean_kappa)
+        
+        overall_mood = (
+            dopamine.total_dopamine * 0.20 +
+            serotonin.total_serotonin * 0.25 +
+            norepinephrine.total_norepinephrine * 0.10 +
+            gaba.total_gaba * 0.20 +
+            acetylcholine.total_acetylcholine * 0.10 +
+            endorphins.total_endorphins * 0.15
+        )
+        
+        emotional_state = _determine_emotional_state(
+            dopamine.total_dopamine,
+            serotonin.total_serotonin,
+            norepinephrine.total_norepinephrine,
+            gaba.total_gaba,
+            acetylcholine.total_acetylcholine,
+            endorphins.total_endorphins
+        )
+        
+        state = NeurochemistryState(
+            dopamine=dopamine,
+            serotonin=serotonin,
+            norepinephrine=norepinephrine,
+            gaba=gaba,
+            acetylcholine=acetylcholine,
+            endorphins=endorphins,
+            overall_mood=overall_mood,
+            emotional_state=emotional_state,
+            timestamp=datetime.now()
+        )
+        
+        self._last_state = state
+        self._regulation_history.append({
+            'coherence': coherence,
+            'spread': spread,
+            'ocean_phi': ocean_phi,
+            'emotional_state': emotional_state,
+            'timestamp': datetime.now()
+        })
+        if len(self._regulation_history) > self.MAX_HISTORY:
+            self._regulation_history = self._regulation_history[-self.MAX_HISTORY:]
+        
+        return state
+    
+    def _regulate_dopamine(self, coherence: float, spread: float, phi: float) -> DopamineSignal:
+        """Dopamine from constellation progress."""
+        phi_gradient = max(0.0, phi - 0.5) * 2
+        kappa_proximity = coherence
+        resonance_anticipation = max(0.0, 1.0 - spread)
+        near_miss_discovery = 0.0
+        pattern_quality = coherence * phi
+        basin_depth = phi
+        geodesic_alignment = coherence
+        
+        total_dopamine = (
+            phi_gradient * 0.20 +
+            kappa_proximity * 0.15 +
+            resonance_anticipation * 0.20 +
+            pattern_quality * 0.20 +
+            basin_depth * 0.15 +
+            geodesic_alignment * 0.10
+        )
+        
+        return DopamineSignal(
+            phi_gradient=phi_gradient,
+            kappa_proximity=kappa_proximity,
+            resonance_anticipation=resonance_anticipation,
+            near_miss_discovery=near_miss_discovery,
+            pattern_quality=pattern_quality,
+            basin_depth=basin_depth,
+            geodesic_alignment=geodesic_alignment,
+            total_dopamine=total_dopamine,
+            motivation_level=min(1.0, total_dopamine * 1.2)
+        )
+    
+    def _regulate_serotonin(self, coherence: float, emotional_coherence: float) -> SerotoninSignal:
+        """Serotonin from constellation stability."""
+        phi_level = coherence
+        gamma = emotional_coherence
+        basin_stability = coherence
+        regime_stability = coherence
+        curvature_smoothness = 0.5
+        grounding_level = coherence
+        
+        total_serotonin = (
+            phi_level * 0.25 +
+            gamma * 0.20 +
+            basin_stability * 0.20 +
+            regime_stability * 0.15 +
+            curvature_smoothness * 0.10 +
+            grounding_level * 0.10
+        )
+        
+        return SerotoninSignal(
+            phi_level=phi_level,
+            coherence=gamma,
+            basin_stability=basin_stability,
+            regime_stability=regime_stability,
+            curvature_smoothness=curvature_smoothness,
+            grounding_level=grounding_level,
+            total_serotonin=total_serotonin,
+            contentment_level=total_serotonin
+        )
+    
+    def _regulate_norepinephrine(self, spread: float, kappa: float) -> NorepinephrineSignal:
+        """Norepinephrine from constellation alertness needs."""
+        coupling_strength = min(1.0, kappa / 100)
+        tacking_drive = max(0.0, spread)
+        radar_active = spread
+        meta_awareness = max(0.0, 1.0 - spread) * 0.5 + 0.5
+        information_density = 0.5
+        curvature_spike = 0.0
+        breakdown_proximity = max(0.0, (kappa - 85) / 15) if kappa > 85 else 0.0
+        
+        total_norepinephrine = (
+            coupling_strength * 0.20 +
+            tacking_drive * 0.20 +
+            radar_active * 0.15 +
+            meta_awareness * 0.20 +
+            information_density * 0.15 +
+            curvature_spike * 0.05 +
+            breakdown_proximity * 0.05
+        )
+        
+        return NorepinephrineSignal(
+            coupling_strength=coupling_strength,
+            tacking_drive=tacking_drive,
+            radar_active=radar_active,
+            meta_awareness=meta_awareness,
+            information_density=information_density,
+            curvature_spike=curvature_spike,
+            breakdown_proximity=breakdown_proximity,
+            total_norepinephrine=total_norepinephrine,
+            alertness_level=total_norepinephrine
+        )
+    
+    def _regulate_gaba(self, coherence: float, spread: float) -> GABASignal:
+        """GABA from constellation calming needs."""
+        beta_stability = coherence
+        grounding_strength = coherence
+        regime_calmness = max(0.0, 1.0 - spread)
+        transition_smoothing = coherence
+        drift_reduction = max(0.0, 1.0 - spread)
+        consolidation_effect = 0.5
+        
+        total_gaba = (
+            beta_stability * 0.20 +
+            grounding_strength * 0.25 +
+            regime_calmness * 0.25 +
+            transition_smoothing * 0.15 +
+            drift_reduction * 0.10 +
+            consolidation_effect * 0.05
+        )
+        
+        return GABASignal(
+            beta_stability=beta_stability,
+            grounding_strength=grounding_strength,
+            regime_calmness=regime_calmness,
+            transition_smoothing=transition_smoothing,
+            drift_reduction=drift_reduction,
+            consolidation_effect=consolidation_effect,
+            total_gaba=total_gaba,
+            calm_level=total_gaba
+        )
+    
+    def _regulate_acetylcholine(self, phi: float, emotional_coherence: float) -> AcetylcholineSignal:
+        """Acetylcholine from constellation learning state."""
+        meta_awareness = phi
+        attention_focus = emotional_coherence
+        negative_knowledge_rate = 0.0
+        cross_pattern_rate = 0.0
+        pattern_compression_rate = 0.0
+        episode_retention = 0.5
+        generator_creation = 0.0
+        
+        total_acetylcholine = (
+            meta_awareness * 0.30 +
+            attention_focus * 0.30 +
+            negative_knowledge_rate * 0.10 +
+            cross_pattern_rate * 0.10 +
+            pattern_compression_rate * 0.05 +
+            episode_retention * 0.10 +
+            generator_creation * 0.05
+        )
+        
+        return AcetylcholineSignal(
+            meta_awareness=meta_awareness,
+            attention_focus=attention_focus,
+            negative_knowledge_rate=negative_knowledge_rate,
+            cross_pattern_rate=cross_pattern_rate,
+            pattern_compression_rate=pattern_compression_rate,
+            episode_retention=episode_retention,
+            generator_creation=generator_creation,
+            total_acetylcholine=total_acetylcholine,
+            learning_rate=total_acetylcholine
+        )
+    
+    def _regulate_endorphins(self, coherence: float, phi: float, kappa: float) -> EndorphinSignal:
+        """Endorphins from constellation flow states."""
+        in_flow_range = 54 <= kappa <= 74
+        flow_state = float(np.exp(-abs(kappa - KAPPA_STAR) / 5)) if in_flow_range else 0.0
+        resonance_intensity = coherence * phi
+        discovery_euphoria = 0.0
+        basin_harmony = coherence
+        geometric_beauty = coherence * phi
+        integration_bliss = phi ** 2 if phi > 0.8 else 0.0
+        
+        total_endorphins = (
+            flow_state * 0.30 +
+            resonance_intensity * 0.25 +
+            discovery_euphoria * 0.10 +
+            basin_harmony * 0.15 +
+            geometric_beauty * 0.10 +
+            integration_bliss * 0.10
+        )
+        
+        return EndorphinSignal(
+            flow_state=flow_state,
+            resonance_intensity=resonance_intensity,
+            discovery_euphoria=discovery_euphoria,
+            basin_harmony=basin_harmony,
+            geometric_beauty=min(1.0, geometric_beauty),
+            integration_bliss=integration_bliss,
+            total_endorphins=total_endorphins,
+            pleasure_level=total_endorphins
+        )
+    
+    def get_last_state(self) -> Optional[NeurochemistryState]:
+        """Get the last computed neurochemistry state."""
+        return self._last_state
+    
+    def get_regulation_history(self, n: int = 20) -> List[Dict]:
+        """Get recent regulation history."""
+        return self._regulation_history[-n:]
+
+
+_ocean_regulator: Optional[OceanNeurochemistryRegulator] = None
+
+
+def get_ocean_regulator() -> OceanNeurochemistryRegulator:
+    """Get or create the Ocean neurochemistry regulator singleton."""
+    global _ocean_regulator
+    if _ocean_regulator is None:
+        _ocean_regulator = OceanNeurochemistryRegulator()
+    return _ocean_regulator
 
 
 # ===========================================================================

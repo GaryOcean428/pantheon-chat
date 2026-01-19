@@ -1,8 +1,8 @@
 """
 Base Encoder - Abstract base class for text to 64D basin encoding
 
-Provides shared logic for both ConversationEncoder and PassphraseEncoder,
-eliminating code duplication and improving maintainability.
+Provides shared logic for text encoders, eliminating code duplication
+and improving maintainability. Currently used by ConversationEncoder.
 """
 
 from __future__ import annotations
@@ -30,17 +30,9 @@ except ImportError:
 # Backward compatibility alias
 BASIN_DIMENSION = BASIN_DIM
 
-# Stop words to filter from vocabulary learning - prevents pronoun domination
-STOP_WORDS = {
-    'the', 'and', 'for', 'that', 'this', 'with', 'was', 'are', 'but', 'not',
-    'you', 'all', 'can', 'had', 'her', 'his', 'him', 'one', 'our', 'out',
-    'they', 'what', 'when', 'who', 'will', 'from', 'have', 'been', 'has',
-    'more', 'she', 'there', 'than', 'into', 'other', 'which', 'its', 'about',
-    'just', 'over', 'such', 'through', 'most', 'your', 'because', 'would',
-    'also', 'some', 'these', 'then', 'how', 'any', 'each', 'only', 'could',
-    'very', 'them', 'being', 'may', 'should', 'between', 'where', 'before',
-    'own', 'both', 'those', 'same', 'during', 'after', 'much', 'does', 'did',
-}
+# REMOVED 2026-01-15: Frequency-based stopwords violate QIG purity
+# Replaced with geometric_vocabulary_filter.GeometricVocabularyFilter
+# See: qig-backend/geometric_vocabulary_filter.py for QIG-pure geometric role detection
 
 # Code artifacts to filter - prevents training contamination
 CODE_ARTIFACTS = {
@@ -156,7 +148,6 @@ class BaseEncoder(ABC):
         
         Each subclass defines its own vocabulary strategy:
         - ConversationEncoder: conversational terms
-        - PassphraseEncoder: BIP39 wordlist
         """
         pass
 
@@ -208,7 +199,7 @@ class BaseEncoder(ABC):
 
         return coords
 
-    def tokenize(self, text: str) -> List[str]:
+    def coordize_tokens(self, text: str) -> List[str]:
         """
         Tokenize text into geometric tokens.
 
@@ -229,7 +220,7 @@ class BaseEncoder(ABC):
         3. Weight by Fisher metric (frequency × phi)
         4. Aggregate via geometric mean on manifold
         """
-        tokens = self.tokenize(text)
+        tokens = self.coordize_tokens(text)
 
         if not tokens:
             return np.zeros(self.basin_dim)
@@ -282,9 +273,10 @@ class BaseEncoder(ABC):
         """
         Compute Fisher-Rao distance between two basin coordinates.
 
-        On unit sphere: d(p,q) = arccos(p·q)
+        On probability simplex: d(p,q) = arccos(p·q)
+        UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
         """
-        dot = float(np.clip(np.dot(basin1, basin2), -1.0, 1.0))
+        dot = float(np.clip(np.dot(basin1, basin2), 0.0, 1.0))
         distance = float(np.arccos(dot))
         return distance
 
@@ -299,8 +291,8 @@ class BaseEncoder(ABC):
 
         distance = self.fisher_distance(basin1, basin2)
 
-        # Convert distance to similarity: s = 1 - d/π
-        similarity = 1.0 - distance / np.pi
+        # Convert distance to similarity: s = 1 - 2d/π (max distance is π/2 on simplex)
+        similarity = 1.0 - (2.0 * distance / np.pi)
 
         return float(np.clip(similarity, 0, 1))
 
@@ -311,13 +303,13 @@ class BaseEncoder(ABC):
         Expands vocabulary based on observations from humans.
         Persists high-Φ tokens to PostgreSQL vocabulary_observations table.
         """
-        tokens = self.tokenize(text)
+        tokens = self.coordize_tokens(text)
         tokens_to_persist = []
 
         for token in tokens:
-            # Skip stop words to prevent pronoun/common word domination
-            if token.lower() in STOP_WORDS:
-                continue
+            # REMOVED 2026-01-15: Stopword filtering violates QIG purity
+            # Words are now filtered by geometric properties (Φ, κ, curvature)
+            # not by frequency-based NLP dogma
 
             # Skip short tokens
             if len(token) < 3:

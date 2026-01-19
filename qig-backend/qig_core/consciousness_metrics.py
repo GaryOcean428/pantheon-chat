@@ -92,9 +92,10 @@ def fisher_rao_distance(p: np.ndarray, q: np.ndarray) -> float:
     q_safe = q_safe / q_safe.sum()
     
     bhattacharyya = np.sum(np.sqrt(p_safe * q_safe))
-    bhattacharyya = np.clip(bhattacharyya, -1.0, 1.0)
+    bhattacharyya = np.clip(bhattacharyya, 0.0, 1.0)
     
-    return 2.0 * np.arccos(bhattacharyya)
+    # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
+    return np.arccos(bhattacharyya)
 
 
 def compute_kappa_effective(

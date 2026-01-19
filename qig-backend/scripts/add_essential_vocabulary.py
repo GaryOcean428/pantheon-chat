@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Add missing essential words (pronouns, prepositions, articles) to tokenizer_vocabulary.
+"""Add missing essential words (pronouns, prepositions, articles) to coordizer_vocabulary.
 
 These fundamental function words are critical for proper phrase classification
 and Fisher-Rao distance computation.
@@ -53,7 +53,7 @@ def format_vector(basin) -> str:
 
 
 def add_essential_vocabulary(dry_run: bool = False):
-    """Add missing essential words to tokenizer_vocabulary."""
+    """Add missing essential words to coordizer_vocabulary."""
     import psycopg2
     import numpy as np
     
@@ -63,19 +63,19 @@ def add_essential_vocabulary(dry_run: bool = False):
         return
     
     try:
-        from coordizers.fallback_vocabulary import compute_basin_embedding
+        from qig_geometry import compute_unknown_basin
     except ImportError as e:
-        print(f"ERROR: Cannot import compute_basin_embedding: {e}")
+        print(f"ERROR: Cannot import compute_unknown_basin: {e}")
         return
     
     conn = psycopg2.connect(database_url)
     cur = conn.cursor()
     
-    cur.execute("SELECT token FROM tokenizer_vocabulary")
+    cur.execute("SELECT token FROM coordizer_vocabulary")
     existing_tokens = {row[0].lower() for row in cur.fetchall()}
     print(f"Existing vocabulary size: {len(existing_tokens)}")
     
-    cur.execute("SELECT COALESCE(MAX(token_id), 0) FROM tokenizer_vocabulary")
+    cur.execute("SELECT COALESCE(MAX(token_id), 0) FROM coordizer_vocabulary")
     max_token_id = cur.fetchone()[0]
     
     all_words = []
@@ -101,17 +101,17 @@ def add_essential_vocabulary(dry_run: bool = False):
     
     for word, category in missing_words:
         try:
-            basin = compute_basin_embedding(word)
+            basin = compute_unknown_basin(word)
             
             if basin is None or len(basin) != 64:
-                print(f"  SKIP {word}: Invalid basin embedding")
+                print(f"  SKIP {word}: Invalid basin coordinates")
                 errors += 1
                 continue
             
             basin_str = format_vector(basin)
             
             cur.execute("""
-                INSERT INTO tokenizer_vocabulary 
+                INSERT INTO coordizer_vocabulary 
                     (token, token_id, basin_embedding, phi_score, frequency, source_type)
                 VALUES (%s, %s, %s::vector, %s, %s, %s)
                 ON CONFLICT (token) DO NOTHING
@@ -132,7 +132,7 @@ def add_essential_vocabulary(dry_run: bool = False):
     
     print(f"\nCompleted: {added} added, {errors} errors")
     
-    cur.execute("SELECT COUNT(*) FROM tokenizer_vocabulary")
+    cur.execute("SELECT COUNT(*) FROM coordizer_vocabulary")
     new_count = cur.fetchone()[0]
     print(f"New vocabulary size: {new_count}")
     

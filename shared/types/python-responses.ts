@@ -279,7 +279,7 @@ export interface PythonVocabularyExportResponse extends PythonBaseResponse {
   data: PythonVocabularyExportData;
 }
 
-/** Response from /tokenizer/merges endpoint */
+/** Response from /coordizer/merges endpoint */
 export interface PythonMergeRulesResponse extends PythonBaseResponse {
   mergeRules: string[][];
   mergeScores: Record<string, number>;

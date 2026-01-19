@@ -46,18 +46,18 @@ class GeometricVocabFilter:
     CURVATURE_MAX = 0.5     # Chaotic if > this
     ENTROPY_MIN = 1.5       # Artificial if < this
     
-    def __init__(self, vocab_basins: np.ndarray, coordizer, tokenizer):
+    def __init__(self, vocab_basins: np.ndarray, coordizer, entropy_coordizer):
         """
         Initialize validator with geometric components.
         
         Args:
             vocab_basins: Known stable vocabulary basins (N, 64)
             coordizer: Fisher coordizer for basin projection
-            tokenizer: QIG tokenizer for entropy measurement
+            entropy_coordizer: QIG coordizer for entropy measurement
         """
         self.vocab_basins = vocab_basins
         self.coordizer = coordizer
-        self.tokenizer = tokenizer
+        self.entropy_coordizer = entropy_coordizer
     
     def validate(self, word: str) -> VocabValidation:
         """
@@ -238,8 +238,8 @@ class GeometricVocabFilter:
         Technical: Artificial boundaries (H < 1.5)
         """
         try:
-            # Tokenize using entropy-guided QIG tokenizer
-            tokens = self.tokenizer.encode(word)
+            # Coordize using entropy-guided QIG coordizer
+            tokens = self.entropy_coordizer.encode(word)
             
             if not tokens or len(tokens) == 0:
                 return 0.0
@@ -268,11 +268,12 @@ class GeometricVocabFilter:
         p_norm = np.abs(p) / (np.sum(np.abs(p)) + 1e-10)
         q_norm = np.abs(q) / (np.sum(np.abs(q)) + 1e-10)
         
-        # Fisher-Rao distance: 2 * arccos(sum(sqrt(p * q)))
+        # Fisher-Rao distance: arccos(sum(sqrt(p * q)))
+        # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
         inner = np.sum(np.sqrt(p_norm * q_norm))
         inner = np.clip(inner, 0.0, 1.0)  # Numerical stability
         
-        return float(2.0 * np.arccos(inner))
+        return float(np.arccos(inner))
     
     def _fisher_rao_distances(self, p: np.ndarray, Q: np.ndarray) -> np.ndarray:
         """Vectorized Fisher-Rao distances to multiple basins."""
@@ -284,9 +285,9 @@ class GeometricVocabFilter:
 _validator: Optional[GeometricVocabFilter] = None
 
 
-def get_validator(vocab_basins: np.ndarray, coordizer, tokenizer) -> GeometricVocabFilter:
+def get_validator(vocab_basins: np.ndarray, coordizer, entropy_coordizer) -> GeometricVocabFilter:
     """Get or create singleton validator instance."""
     global _validator
     if _validator is None:
-        _validator = GeometricVocabFilter(vocab_basins, coordizer, tokenizer)
+        _validator = GeometricVocabFilter(vocab_basins, coordizer, entropy_coordizer)
     return _validator

@@ -7,7 +7,7 @@ channel = "stable-24_05"
 packages = ["bfg-repo-cleaner", "github-cli", "glibcLocales", "libxcrypt", "libyaml", "mailutils", "pkg-config", "postgresql15Packages.pgvector", "tor", "xsimd"]
 
 [deployment]
-deploymentTarget = "autoscale"
+deploymentTarget = "gce"
 build = ["npm", "run", "build"]
 run = ["npm", "run", "start"]
 
@@ -56,6 +56,7 @@ ENABLE_QIG_PERSISTENCE = "1"
 PERSIST_EMOTIONS = "1"
 ENABLE_TOKENIZER_SYNC = "1"
 ENABLE_OCEAN_TELEMETRY = "1"
+QIG_CURRICULUM_ONLY = "true"
 
 [objectStorage]
 defaultBucketID = "replit-objstore-41aac0d5-56aa-40df-bad9-9502775a4765"
