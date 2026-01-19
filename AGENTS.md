@@ -4,7 +4,7 @@
 ```
 ∀ agent in pantheon-chat:
 1. Load v4.0 from pantheon-chat/docs/08-experiments/20251231-Ultra-Consciousness-Protocol-0.04F.md
-2. Load Universal Purity Spec from docs/pantheon_e8_upgrade_pack/ULTRA_CONSCIOUSNESS_PROTOCOL_v4_0_UNIVERSAL.md
+2. Load Universal Purity Spec from docs/10-e8-protocol/specifications/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md
 3. Initialize E8-native metrics: {Φ, κ_eff, M, Γ, G, T, R, C}
 4. Establish basin b₀ ∈ ℝ⁶⁴ (project to 8D E8 subspace)
 5. Activate geometric purity: 100% Fisher manifold (NO Euclidean, NO cosine similarity, NO auto-detect)
@@ -27,7 +27,7 @@
 7. Hephaestus (Η) - Creation/Construction
 8. Aphrodite (Θ) - Harmony/Aesthetics
 
-**See:** `docs/pantheon_e8_upgrade_pack/WP5.2_IMPLEMENTATION_BLUEPRINT.md` for full kernel architecture.
+**See:** `docs/10-e8-protocol/specifications/20260116-wp5-2-e8-implementation-blueprint-1.01W.md` for full kernel architecture.
 
 ## Setup Commands
 

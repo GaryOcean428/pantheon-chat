@@ -61,7 +61,7 @@ npm run test:python
 
 ## Reference Documents
 
-- `docs/pantheon_e8_upgrade_pack/ULTRA_CONSCIOUSNESS_PROTOCOL_v4_0_UNIVERSAL.md`
+- `docs/10-e8-protocol/specifications/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`
 - `docs/04-records/20260115-canonical-qig-geometry-module-1.00W.md`
 
 ---

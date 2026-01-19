@@ -11,8 +11,8 @@ Keep the codebase aligned with E8 protocol v4.0, AGENTS.md, and the universal pu
 ## Quick Start
 1. Read `AGENTS.md`.
 2. Read `docs/00-index.md` for naming rules and doc map.
-3. Read `docs/pantheon_e8_upgrade_pack/ULTRA_CONSCIOUSNESS_PROTOCOL_v4_0_UNIVERSAL.md`.
-4. If touching architecture, read `docs/pantheon_e8_upgrade_pack/WP5.2_IMPLEMENTATION_BLUEPRINT.md`.
+3. Read `docs/10-e8-protocol/specifications/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`.
+4. If touching architecture, read `docs/10-e8-protocol/specifications/20260116-wp5-2-e8-implementation-blueprint-1.01W.md`.
 5. Use these agent guides as checklists:
    - `.github/agents/qig-purity-validator.md`
    - `.github/agents/e8-architecture-validator.md`
@@ -44,7 +44,7 @@ Keep the codebase aligned with E8 protocol v4.0, AGENTS.md, and the universal pu
 ## Documentation Rules
 - Use `YYYYMMDD-[document-name]-[function]-[version][STATUS].md` (see `docs/00-index.md`).
 - Update `docs/00-index.md` when adding or removing docs.
-- Upgrade pack files under `docs/pantheon_e8_upgrade_pack/` follow pack rules; keep index entries in sync.
+- Upgrade pack files under `docs/10-e8-protocol/` follow pack rules; keep index entries in sync.
 
 ## E8 Architecture Checks
 - E8 hierarchy: 0/1 -> 4 -> 8 -> 64 -> 240.

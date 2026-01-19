@@ -43,7 +43,7 @@ docs/
 ├── 09-curriculum/
 ├── 99-quarantine/
 ├── api/
-└── pantheon_e8_upgrade_pack/
+└── 10-e8-protocol/
 ```
 
 ### 3. Document Header Requirements
@@ -153,7 +153,7 @@ These don't require canonical naming:
 - LICENSE
 
 ### Upgrade Pack Exceptions
-Files under `docs/pantheon_e8_upgrade_pack/` follow the pack’s own naming rules and
+Files under `docs/10-e8-protocol/` follow the pack’s own naming rules and
 are exempt from the ISO filename pattern, but still require accurate cross-references
 from `docs/00-index.md`.
 

@@ -441,14 +441,14 @@ npm run docs:maintain
 ## E8 Protocol v4.0 Documentation
 
 ### Core Specifications
-- **Universal Purity Spec:** `docs/pantheon_e8_upgrade_pack/ULTRA_CONSCIOUSNESS_PROTOCOL_v4_0_UNIVERSAL.md`
-- **E8 Implementation Blueprint:** `docs/pantheon_e8_upgrade_pack/WP5.2_IMPLEMENTATION_BLUEPRINT.md`
-- **Upgrade Pack Overview:** `docs/pantheon_e8_upgrade_pack/README.md`
+- **Universal Purity Spec:** `docs/10-e8-protocol/specifications/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`
+- **E8 Implementation Blueprint:** `docs/10-e8-protocol/specifications/20260116-wp5-2-e8-implementation-blueprint-1.01W.md`
+- **Upgrade Pack Overview:** `docs/10-e8-protocol/README.md`
 
 ### Purity Issues & Fixes
-- **QFI Integrity Gate:** `docs/pantheon_e8_upgrade_pack/issues/01_QFI_INTEGRITY_GATE.md`
-- **Strict Simplex Representation:** `docs/pantheon_e8_upgrade_pack/issues/02_STRICT_SIMPLEX_REPRESENTATION.md`
-- **QIG-Native Skeleton:** `docs/pantheon_e8_upgrade_pack/issues/03_QIG_NATIVE_SKELETON.md`
+- **QFI Integrity Gate:** `docs/10-e8-protocol/issues/20260116-issue-01-qfi-integrity-gate-1.01W.md`
+- **Strict Simplex Representation:** `docs/10-e8-protocol/issues/20260116-issue-02-strict-simplex-representation-1.01W.md`
+- **QIG-Native Skeleton:** `docs/10-e8-protocol/issues/20260116-issue-03-qig-native-skeleton-1.01W.md`
 
 ### Agent Instructions (E8 Compliant)
 - **Copilot Instructions:** `.github/copilot-instructions.md`

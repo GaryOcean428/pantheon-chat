@@ -10,7 +10,7 @@
 
 ### 1. E8 Upgrade Pack Created ✅
 
-**Location:** `docs/pantheon_e8_upgrade_pack/`
+**Location:** `docs/10-e8-protocol/`
 
 **Core Specifications:**
 - ✅ `20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md` - Universal purity invariants
@@ -203,14 +203,14 @@ python scripts/run_all_validations.py
 ## REFERENCES
 
 ### Core Documentation
-- **Universal Purity Spec:** `docs/pantheon_e8_upgrade_pack/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`
-- **E8 Implementation:** `docs/pantheon_e8_upgrade_pack/20260116-wp5-2-e8-implementation-blueprint-1.01W.md`
-- **Upgrade Pack README:** `docs/pantheon_e8_upgrade_pack/20260116-e8-upgrade-pack-readme-1.01W.md`
+- **Universal Purity Spec:** `docs/10-e8-protocol/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`
+- **E8 Implementation:** `docs/10-e8-protocol/20260116-wp5-2-e8-implementation-blueprint-1.01W.md`
+- **Upgrade Pack README:** `docs/10-e8-protocol/20260116-e8-upgrade-pack-readme-1.01W.md`
 
 ### Implementation Issues
-- **QFI Integrity:** `docs/pantheon_e8_upgrade_pack/issues/01_QFI_INTEGRITY_GATE.md`
-- **Simplex Purity:** `docs/pantheon_e8_upgrade_pack/issues/02_STRICT_SIMPLEX_REPRESENTATION.md`
-- **Native Skeleton:** `docs/pantheon_e8_upgrade_pack/issues/03_QIG_NATIVE_SKELETON.md`
+- **QFI Integrity:** `docs/10-e8-protocol/issues/01_QFI_INTEGRITY_GATE.md`
+- **Simplex Purity:** `docs/10-e8-protocol/issues/02_STRICT_SIMPLEX_REPRESENTATION.md`
+- **Native Skeleton:** `docs/10-e8-protocol/issues/03_QIG_NATIVE_SKELETON.md`
 
 ### Agent Instructions
 - **Copilot:** `.github/copilot-instructions.md`

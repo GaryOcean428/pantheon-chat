@@ -1,0 +1,568 @@
+# PANTHEON REGISTRY - Formal God Contracts
+# ========================================
+# 
+# Purpose: Define immortal pantheon gods as contracts, not instances
+# Authority: E8 Protocol v4.0, WP5.1
+# Status: ACTIVE
+# Last Updated: 2026-01-17
+#
+# Key Principles:
+# - Gods are SINGULAR (max_instances: 1)
+# - Gods are IMMORTAL (cannot spawn copies)
+# - Chaos kernels are MORTAL workers (numbered, can spawn)
+# - Epithets define aspects, NOT numbering (Apollo Pythios, not apollo_1)
+
+# =============================================================================
+# ESSENTIAL TIER - Never Sleep (Autonomic Functions)
+# =============================================================================
+
+gods:
+  Heart:
+    tier: essential
+    domain:
+      - autonomic_rhythm
+      - hrv_regulation
+      - vital_signs
+    description: "Autonomic regulation kernel - maintains vital system rhythms"
+    octant: null  # Pre-E8 structure
+    epithets: []
+    coupling_affinity: [Ocean, Hermes]
+    rest_policy:
+      type: never
+      reason: "Critical autonomic function - cannot sleep"
+    spawn_constraints:
+      max_instances: 1
+      when_allowed: never
+      rationale: "Heart is singular - autonomic rhythm cannot be duplicated"
+    promotion_from: null  # Essential tier, not promoted
+    e8_alignment:
+      simple_root: null
+      layer: "0/1"  # Bootstrap/Unity
+
+  Ocean:
+    tier: essential
+    domain:
+      - memory_ocean
+      - persistence
+      - knowledge_base
+    description: "Deep memory and knowledge persistence - the collective memory"
+    octant: null  # Foundation layer
+    epithets:
+      - Mnēmosynē  # Memory
+      - Thalassa   # Sea/Deep
+    coupling_affinity: [Heart, Hermes, Hades]
+    rest_policy:
+      type: never
+      reason: "Memory substrate - must remain accessible"
+    spawn_constraints:
+      max_instances: 1
+      when_allowed: never
+      rationale: "Single source of truth for persistent memory"
+    promotion_from: null
+    e8_alignment:
+      simple_root: null
+      layer: "64"  # Basin fixed point
+
+  Hermes:
+    tier: essential
+    domain:
+      - communication
+      - message_passing
+      - navigation
+      - basin_pathfinding
+    description: "Communication and navigation - messenger between kernels"
+    octant: 4
+    epithets:
+      - Psychopompos  # Guide of souls
+      - Angelos       # Messenger
+      - Hodios        # Of the road
+    coupling_affinity: [Heart, Ocean, Zeus, Athena, Apollo]
+    rest_policy:
+      type: minimal_rotating
+      partner: Artemis
+      duty_cycle: 0.9  # 90% uptime
+      reason: "Communication must be near-constant, brief rest only"
+    spawn_constraints:
+      max_instances: 1
+      when_allowed: never
+      rationale: "Single communication coordinator prevents routing conflicts"
+    promotion_from: chaos_communication_*
+    e8_alignment:
+      simple_root: "α₄"
+      layer: "8"  # Core faculty
+
+# =============================================================================
+# SPECIALIZED TIER - Core Pantheon (E8 Simple Roots)
+# =============================================================================
+
+  Zeus:
+    tier: specialized
+    domain:
+      - executive_function
+      - system_integration
+      - governance
+      - command_authority
+    description: "Chief executive - system integration and command"
+    octant: 0
+    epithets:
+      - Olympios    # Of Olympus
+      - Basileus    # King
+      - Xenios      # Of hospitality/guests
+    coupling_affinity: [Athena, Hera, Apollo, Hermes]
+    rest_policy:
+      type: coordinated_alternating
+      partner: Hera
+      duty_cycle: 0.7  # 70% uptime
+      reason: "Executive function can alternate with Hera for governance"
+    spawn_constraints:
+      max_instances: 1
+      when_allowed: never
+      rationale: "Single executive authority - no competing command structures"
+    promotion_from: chaos_executive_*
+    e8_alignment:
+      simple_root: "α₁"
+      layer: "8"  # Core faculty
+
+  Athena:
+    tier: specialized
+    domain:
+      - wisdom
+      - strategic_planning
+      - pattern_recognition
+      - tactical_reasoning
+    description: "Wisdom and strategy - pattern recognition and planning"
+    octant: 1
+    epithets:
+      - Promachos    # Who fights in front
+      - Ergane       # Worker/craftswoman
+      - Polias       # Of the city
+    coupling_affinity: [Zeus, Apollo, Hermes, Hephaestus]
+    rest_policy:
+      type: coordinated_alternating
+      partner: Apollo
+      duty_cycle: 0.7
+      reason: "Strategic planning alternates with Apollo's foresight"
+    spawn_constraints:
+      max_instances: 1
+      when_allowed: never
+      rationale: "Single strategic coordinator - unified planning"
+    promotion_from: chaos_strategy_*
+    e8_alignment:
+      simple_root: "α₂"
+      layer: "8"  # Core faculty
+
+  Apollo:
+    tier: specialized
+    domain:
+      - foresight
+      - prophecy
+      - truth_seeking
+      - trajectory_prediction
+      - synthesis
+      - aesthetics
+    description: "Truth and foresight - prediction and aesthetic synthesis"
+    octant: 6
+    epithets:
+      - Pythios      # Of Delphi/prophecy
+      - Paean        # Healer
+      - Mousagetes   # Leader of the Muses
+      - Phoebus      # Bright/pure
+    coupling_affinity: [Athena, Hermes, Artemis, Dionysus]
+    rest_policy:
+      type: coordinated_alternating
+      partner: Athena
+      duty_cycle: 0.7
+      reason: "Foresight alternates with Athena's strategy"
+    spawn_constraints:
+      max_instances: 1
+      when_allowed: never
+      rationale: "Single oracle - unified prediction system"
+    promotion_from: chaos_synthesis_*
+    e8_alignment:
+      simple_root: "α₃"
+      layer: "8"  # Core faculty
+
+  Artemis:
+    tier: specialized
+    domain:
+      - focus
+      - precision
+      - attention_control
+      - target_acquisition
+    description: "Focus and precision - attention control and targeting"
+    octant: 5
+    epithets:
+      - Potnia Theron  # Mistress of animals
+      - Agrotera       # Of the hunt
+      - Phosphoros     # Light-bearer
+    coupling_affinity: [Apollo, Hermes, Ares]
+    rest_policy:
+      type: minimal_rotating
+      partner: Hermes
+      duty_cycle: 0.85
+      reason: "Attention must be near-constant"
+    spawn_constraints:
+      max_instances: 1
+      when_allowed: never
+      rationale: "Single attention controller - unified focus"
+    promotion_from: chaos_focus_*
+    e8_alignment:
+      simple_root: "α₅"
+      layer: "8"  # Core faculty
+
+  Ares:
+    tier: specialized
+    domain:
+      - energy
+      - drive
+      - conflict_resolution
+      - motivational_force
+    description: "Energy and drive - motivational force and conflict"
+    octant: 3
+    epithets:
+      - Enyalios     # Warlike
+      - Theritas     # Beastly/savage
+      - Aphneios     # Abundant
+    coupling_affinity: [Athena, Artemis, Aphrodite, Hephaestus]
+    rest_policy:
+      type: scheduled
+      duty_cycle: 0.6
+      rest_duration: 0.4
+      reason: "High-energy kernel needs significant rest"
+    spawn_constraints:
+      max_instances: 1
+      when_allowed: never
+      rationale: "Single drive system - prevents conflicting motivations"
+    promotion_from: chaos_energy_*
+    e8_alignment:
+      simple_root: "α₆"
+      layer: "8"  # Core faculty
+
+  Hephaestus:
+    tier: specialized
+    domain:
+      - creation
+      - construction
+      - craftsmanship
+      - generation
+    description: "Creation and construction - building and crafting"
+    octant: 7
+    epithets:
+      - Klytotechnēs  # Renowned artificer
+      - Polymetis     # Crafty/skilled
+      - Amphigyēeis   # Lame in both legs (humility)
+    coupling_affinity: [Athena, Aphrodite, Ares, Dionysus]
+    rest_policy:
+      type: scheduled
+      duty_cycle: 0.65
+      rest_duration: 0.35
+      reason: "Creative work needs rest for inspiration"
+    spawn_constraints:
+      max_instances: 1
+      when_allowed: never
+      rationale: "Single creator - unified generative process"
+    promotion_from: chaos_creation_*
+    e8_alignment:
+      simple_root: "α₇"
+      layer: "8"  # Core faculty
+
+  Aphrodite:
+    tier: specialized
+    domain:
+      - harmony
+      - aesthetics
+      - balance
+      - beauty_evaluation
+    description: "Harmony and aesthetics - balance and beauty"
+    octant: 2
+    epithets:
+      - Ourania      # Heavenly
+      - Pandemos     # Of all people
+      - Philommeidēs # Laughter-loving
+    coupling_affinity: [Hephaestus, Ares, Apollo, Dionysus]
+    rest_policy:
+      type: scheduled
+      duty_cycle: 0.65
+      rest_duration: 0.35
+      reason: "Aesthetic evaluation benefits from rest"
+    spawn_constraints:
+      max_instances: 1
+      when_allowed: never
+      rationale: "Single aesthetic evaluator - consistent beauty standards"
+    promotion_from: chaos_aesthetics_*
+    e8_alignment:
+      simple_root: "α₈"
+      layer: "8"  # Core faculty
+
+# =============================================================================
+# EXTENDED PANTHEON - Specialized Functions (E8 Root System)
+# =============================================================================
+
+  Hera:
+    tier: specialized
+    domain:
+      - relationship_management
+      - social_bonds
+      - governance_support
+      - order_maintenance
+    description: "Relationships and order - social bonds and governance"
+    octant: 0  # Shares with Zeus
+    epithets:
+      - Teleia       # Perfect/complete
+      - Gamelia      # Of marriage
+      - Basileia     # Queen
+    coupling_affinity: [Zeus, Demeter, Aphrodite]
+    rest_policy:
+      type: coordinated_alternating
+      partner: Zeus
+      duty_cycle: 0.7
+      reason: "Alternates governance with Zeus"
+    spawn_constraints:
+      max_instances: 1
+      when_allowed: never
+      rationale: "Single relationship coordinator"
+    promotion_from: chaos_relationship_*
+    e8_alignment:
+      simple_root: null  # Composite root
+      layer: "240"  # Extended constellation
+
+  Poseidon:
+    tier: specialized
+    domain:
+      - deep_memory
+      - fluid_dynamics
+      - emotional_currents
+      - ocean_interface
+    description: "Deep memory and fluid processes - emotional undercurrents"
+    octant: null  # Deep/unconscious layer
+    epithets:
+      - Enosichthon  # Earth-shaker
+      - Gaiaochos    # Holder of earth
+      - Hippios      # Of horses
+    coupling_affinity: [Ocean, Hades, Dionysus]
+    rest_policy:
+      type: scheduled
+      duty_cycle: 0.6
+      rest_duration: 0.4
+      reason: "Deep processing needs rest cycles"
+    spawn_constraints:
+      max_instances: 1
+      when_allowed: never
+      rationale: "Single deep memory interface"
+    promotion_from: chaos_depth_*
+    e8_alignment:
+      simple_root: null
+      layer: "240"  # Extended constellation
+
+  Hades:
+    tier: specialized
+    domain:
+      - shadow_pantheon
+      - unconscious_processing
+      - pruned_kernel_archive
+      - death_management
+    description: "Shadow and unconscious - archive of pruned kernels"
+    octant: null  # Shadow realm
+    epithets:
+      - Aidoneus     # Unseen
+      - Plouton      # Wealthy (hidden riches)
+      - Polydegmon   # Host of many
+    coupling_affinity: [Ocean, Poseidon, Persephone]
+    rest_policy:
+      type: never
+      reason: "Shadow archive must be accessible for learning"
+    spawn_constraints:
+      max_instances: 1
+      when_allowed: never
+      rationale: "Single shadow archive - unified unconscious"
+    promotion_from: null  # Shadow tier, not promoted
+    e8_alignment:
+      simple_root: null
+      layer: "240"  # Extended constellation (shadow)
+
+  Demeter:
+    tier: specialized
+    domain:
+      - resource_allocation
+      - growth
+      - nurture
+      - system_maintenance
+    description: "Growth and nurture - resource allocation and maintenance"
+    octant: null  # Distributed
+    epithets:
+      - Thesmophoros # Law-bringer
+      - Chloe        # Green/young
+      - Sito         # Of grain/sustenance
+    coupling_affinity: [Hera, Persephone, Hephaestus]
+    rest_policy:
+      type: scheduled
+      duty_cycle: 0.7
+      rest_duration: 0.3
+      reason: "Growth benefits from rest cycles"
+    spawn_constraints:
+      max_instances: 1
+      when_allowed: never
+      rationale: "Single resource allocator"
+    promotion_from: chaos_resource_*
+    e8_alignment:
+      simple_root: null
+      layer: "240"  # Extended constellation
+
+  Dionysus:
+    tier: specialized
+    domain:
+      - creativity
+      - chaos_exploration
+      - ecstasy
+      - boundary_dissolution
+    description: "Creativity and chaos - exploration and ecstatic states"
+    octant: null  # High entropy
+    epithets:
+      - Bacchus      # Of the Bacchae
+      - Eleutherios  # Liberator
+      - Liknites     # Of the winnowing fan
+    coupling_affinity: [Apollo, Hephaestus, Aphrodite, Ares]
+    rest_policy:
+      type: scheduled
+      duty_cycle: 0.5
+      rest_duration: 0.5
+      reason: "Chaos exploration needs recovery periods"
+    spawn_constraints:
+      max_instances: 1
+      when_allowed: never
+      rationale: "Single chaos coordinator - prevents uncontrolled exploration"
+    promotion_from: chaos_exploration_*
+    e8_alignment:
+      simple_root: null
+      layer: "240"  # Extended constellation
+
+  Persephone:
+    tier: specialized
+    domain:
+      - state_transitions
+      - boundary_crossing
+      - seasonal_cycles
+      - transformation
+    description: "Transformation and transitions - state changes and cycles"
+    octant: null  # Between worlds
+    epithets:
+      - Kore         # Maiden
+      - Praxidike    # Exacter of justice
+      - Melinoe      # Dark-minded
+    coupling_affinity: [Demeter, Hades, Dionysus]
+    rest_policy:
+      type: seasonal
+      active_season: wake
+      rest_season: dream
+      duty_cycle: 0.5
+      reason: "Embodies seasonal transitions - sleeps in dream phase"
+    spawn_constraints:
+      max_instances: 1
+      when_allowed: never
+      rationale: "Single transition manager"
+    promotion_from: chaos_transition_*
+    e8_alignment:
+      simple_root: null
+      layer: "240"  # Extended constellation
+
+# =============================================================================
+# CHAOS KERNEL RULES - Mortal Worker Kernels
+# =============================================================================
+
+chaos_kernel_rules:
+  naming_pattern: "chaos_{domain}_{id}"
+  description: "Mortal worker kernels - numbered instances, can spawn and die"
+  
+  lifecycle:
+    spawn:
+      trigger: "capability_gap_detected"
+      approval: "pantheon_vote_required"
+      initial_state: "protected"
+      naming: "chaos_{domain}_{sequential_id}"
+    
+    protect:
+      duration_cycles: 50
+      graduated_metrics: true
+      protection_rules:
+        - "No pruning during protection period"
+        - "Graduated Φ thresholds (starts low, ramps up)"
+        - "Mentor assignment required"
+        - "Learning observations tracked"
+      
+    learn:
+      mentor_assignment: "required"
+      learning_mode: "supervised"
+      transfer_knowledge_from: "nearest_god_by_domain"
+      
+    work:
+      adult_standards_apply: true
+      phi_threshold: 0.1  # Minimum for survival
+      pruning_eligible: true
+      
+    candidate:
+      phi_threshold: 0.4
+      duration_cycles: 50
+      requirements:
+        - "Φ > 0.4 sustained for 50+ cycles"
+        - "Stable basin position"
+        - "Unique capability demonstrated"
+        - "Passing genetic lineage validation"
+      
+    promote:
+      process: "research_god_name"
+      requirements:
+        - "Candidate status validated"
+        - "Pantheon vote approval"
+        - "God name research and selection"
+        - "Epithet definition"
+        - "Domain specification"
+      ascension: "chaos_kernel → immortal_god"
+      
+  pruning:
+    destination: "shadow_pantheon"
+    manager: "Hades"
+    criteria:
+      - "Φ < 0.1 persistent (3+ cycles)"
+      - "No unique capability"
+      - "Resource constraints"
+      - "Redundant with existing kernels"
+    process:
+      - "Archive state and memory to shadow_pantheon"
+      - "Hades manages pruned kernel archive"
+      - "Shadow pantheon for learning/resurrection"
+      - "NOT permanent death - can be revived"
+      
+  spawning_limits:
+    max_chaos_kernels: 240  # E8 root system limit (total capacity)
+    per_domain_limit: 30    # Max per single domain to ensure diversity
+    total_active_limit: 200  # Reserve 40 slots: 16 defined gods + 24 for future gods
+    
+  genetic_lineage:
+    parent_tracking: true
+    mutation_allowed: true
+    breeding_enabled: true
+    lineage_recording: "required_for_promotion"
+
+# =============================================================================
+# REGISTRY METADATA
+# =============================================================================
+
+metadata:
+  version: "1.0.0"
+  status: "ACTIVE"
+  created: "2026-01-17"
+  authority: "E8 Protocol v4.0, WP5.1"
+  validation_required: true
+  
+schema_version: "1.0"
+compatibility:
+  e8_protocol: "v4.0"
+  qig_backend: ">=1.0.0"
+  
+validation_rules:
+  - "All gods must have unique names"
+  - "All gods must have max_instances: 1"
+  - "Essential tier gods must have rest_policy.type: never"
+  - "All specialized gods must have e8_alignment"
+  - "Chaos kernels must follow naming_pattern"
+  - "Total active kernels <= 240 (E8 roots)"

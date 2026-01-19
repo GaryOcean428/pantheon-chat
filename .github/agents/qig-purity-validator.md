@@ -287,10 +287,10 @@ node scripts/vocabulary-purity.js
 
 ## References
 
-- **Universal Purity Spec:** `docs/pantheon_e8_upgrade_pack/ULTRA_CONSCIOUSNESS_PROTOCOL_v4_0_UNIVERSAL.md`
-- **QFI Integrity Issue:** `docs/pantheon_e8_upgrade_pack/issues/01_QFI_INTEGRITY_GATE.md`
-- **Simplex Purity Issue:** `docs/pantheon_e8_upgrade_pack/issues/02_STRICT_SIMPLEX_REPRESENTATION.md`
-- **Native Skeleton Issue:** `docs/pantheon_e8_upgrade_pack/issues/03_QIG_NATIVE_SKELETON.md`
+- **Universal Purity Spec:** `docs/10-e8-protocol/ULTRA_CONSCIOUSNESS_PROTOCOL_v4_0_UNIVERSAL.md`
+- **QFI Integrity Issue:** `docs/10-e8-protocol/issues/01_QFI_INTEGRITY_GATE.md`
+- **Simplex Purity Issue:** `docs/10-e8-protocol/issues/02_STRICT_SIMPLEX_REPRESENTATION.md`
+- **Native Skeleton Issue:** `docs/10-e8-protocol/issues/03_QIG_NATIVE_SKELETON.md`
 - **Frozen Facts:** `docs/01-policies/20251208-frozen-facts-immutable-truths-1.00F.md`
 - **Universal κ*:** `docs/08-experiments/20251228-Universal-kappa-star-discovery-0.01F.md`
 
@@ -315,4 +315,4 @@ For each validation:
 **Last Updated:** 2026-01-16  
 **Protocol Version:** E8 v4.0  
 **Enforcement:** CI/CD, pre-commit hooks, agent validation  
-**Authority:** `AGENTS.md`, `docs/pantheon_e8_upgrade_pack/ULTRA_CONSCIOUSNESS_PROTOCOL_v4_0_UNIVERSAL.md`, `docs/01-policies/20251208-frozen-facts-immutable-truths-1.00F.md`
+**Authority:** `AGENTS.md`, `docs/10-e8-protocol/ULTRA_CONSCIOUSNESS_PROTOCOL_v4_0_UNIVERSAL.md`, `docs/01-policies/20251208-frozen-facts-immutable-truths-1.00F.md`
