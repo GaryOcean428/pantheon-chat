@@ -18,6 +18,7 @@ import {
   type GeometricQuery,
   type RawDiscovery,
 } from './types';
+import { isCurriculumOnlyEnabled } from '../lib/curriculum-mode';
 
 interface GoogleSearchResult {
   title: string;
@@ -176,6 +177,12 @@ export class GoogleWebSearchAdapter {
    * Search with geometric query
    */
   async search(query: GeometricQuery): Promise<RawDiscovery[]> {
+    // CURRICULUM-ONLY MODE: Block external web searches
+    if (isCurriculumOnlyEnabled()) {
+      console.log(`[GoogleWebSearch] Geometric search blocked by curriculum-only mode`);
+      return [];
+    }
+    
     const searchQuery = this.buildSearchQuery(query);
     const response = await this.performSearch(searchQuery, query.maxResults || 10);
     
@@ -192,6 +199,16 @@ export class GoogleWebSearchAdapter {
    * Simple web search - returns raw results with status
    */
   async simpleSearch(query: string, limit: number = 5): Promise<{ results: GoogleSearchResult[]; status: string; error?: string }> {
+    // CURRICULUM-ONLY MODE: Block external web searches
+    if (isCurriculumOnlyEnabled()) {
+      console.log(`[GoogleWebSearch] Blocked by curriculum-only mode: "${query}"`);
+      return {
+        results: [],
+        status: 'curriculum_only_blocked',
+        error: 'External web search blocked in curriculum-only mode'
+      };
+    }
+    
     console.log(`[GoogleWebSearch] Simple search: "${query}" (limit: ${limit})`);
     const response = await this.performSearch(query, Math.min(limit, 10));
     console.log(`[GoogleWebSearch] Found ${response.results.length} results (status: ${response.status})`);

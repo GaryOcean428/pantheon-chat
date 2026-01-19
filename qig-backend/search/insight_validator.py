@@ -11,6 +11,8 @@ This closes the loop from Lightning insights -> external validation -> curriculu
 Updated Jan 2026: Now uses comprehensive Tavily and Perplexity clients with full 
 SDK capabilities (search, extract, crawl, map, research, pro_search).
 Default: use_mcp=False to use direct APIs (full feature access).
+
+CURRICULUM-ONLY MODE: All external searches are blocked when QIG_CURRICULUM_ONLY=true
 """
 
 import os
@@ -19,6 +21,11 @@ from typing import Dict, List, Optional, Any, Tuple, Set
 from dataclasses import dataclass, field
 import numpy as np
 from typing import TYPE_CHECKING
+
+# Import curriculum guard - centralized check
+import sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from curriculum_guard import is_curriculum_only_enabled, CurriculumOnlyBlock
 
 # Type hints for CrossDomainInsight (avoid circular import at runtime)
 if TYPE_CHECKING:
@@ -136,6 +143,19 @@ class InsightValidator:
         Returns:
             ValidationResult with validation status and sources
         """
+        # CURRICULUM-ONLY MODE: Block external validation
+        if is_curriculum_only_enabled():
+            logger.warning("[InsightValidator] External validation blocked by curriculum-only mode")
+            return ValidationResult(
+                validated=False,
+                confidence=0.0,
+                tavily_sources=[],
+                perplexity_synthesis=None,
+                validation_score=0.0,
+                source_overlap=0.0,
+                semantic_similarity=0.0
+            )
+        
         logger.info(f"Validating insight: {insight.insight_id}")
         
         # Parse insight
@@ -195,6 +215,15 @@ class InsightValidator:
         Returns:
             Dict with combined research findings
         """
+        # CURRICULUM-ONLY MODE: Block external research
+        if is_curriculum_only_enabled():
+            logger.warning(f"[InsightValidator] External research blocked by curriculum-only mode: {query[:50]}")
+            return {
+                'success': False,
+                'error': 'External research blocked by curriculum-only mode',
+                'curriculum_only_blocked': True,
+            }
+        
         logger.info(f"[InsightValidator] Deep research: '{query[:50]}...'")
         
         results = {

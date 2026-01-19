@@ -8,6 +8,8 @@ Multiple search providers with cost control:
 - Google (API key required)
 
 Toggle providers on/off to control costs.
+
+CURRICULUM-ONLY MODE: All external searches are blocked when QIG_CURRICULUM_ONLY=true
 """
 
 import os
@@ -16,6 +18,9 @@ from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
+
+# Import curriculum guard - centralized check
+from curriculum_guard import is_curriculum_only_enabled, CurriculumOnlyBlock
 
 
 @dataclass
@@ -189,6 +194,16 @@ class SearchProviderManager:
         Returns:
             Combined results with provider info, budget context, and quota_info
         """
+        # CURRICULUM-ONLY MODE: Block external web searches
+        if is_curriculum_only_enabled():
+            logger.warning(f"[SearchProviderManager] Search blocked by curriculum-only mode: {query[:50]}")
+            return {
+                'success': False,
+                'error': 'External web search blocked by curriculum-only mode',
+                'results': [],
+                'curriculum_only_blocked': True,
+            }
+        
         orchestrator = _get_budget_orchestrator()
         SearchImportance = _get_search_importance()
         

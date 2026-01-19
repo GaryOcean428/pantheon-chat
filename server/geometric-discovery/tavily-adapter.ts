@@ -28,6 +28,7 @@ import {
 } from './types';
 import { tavilyUsageLimiter } from '../tavily-usage-limiter';
 import { isProviderEnabled } from '../routes/search';
+import { isCurriculumOnlyEnabled } from '../lib/curriculum-mode';
 
 const TAVILY_API_BASE = 'https://api.tavily.com';
 
@@ -145,6 +146,12 @@ export class TavilyGeometricAdapter {
    * PROTECTED: Uses rate limiting and respects Tavily toggle to prevent API cost overruns.
    */
   async search(query: GeometricQuery): Promise<RawDiscovery[]> {
+    // CURRICULUM-ONLY MODE: Block external web searches
+    if (isCurriculumOnlyEnabled()) {
+      console.log(`[TavilyAdapter] Search blocked by curriculum-only mode`);
+      return [];
+    }
+    
     // Check if Tavily is enabled via the Sources page toggle
     if (!isProviderEnabled('tavily')) {
       console.log(`[TavilyAdapter] Tavily disabled - skipping search`);

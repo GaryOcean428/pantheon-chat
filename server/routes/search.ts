@@ -23,6 +23,7 @@ import { scoreUniversalQIGAsync } from "../qig-universal";
 import { tavilyUsageLimiter } from "../tavily-usage-limiter";
 import { perplexityUsageLimiter } from "../perplexity-usage-limiter";
 import { learningDocumentStore } from "../learning-document-store";
+import { isCurriculumOnlyEnabled } from "../lib/curriculum-mode";
 
 // Stub functions for removed legacy Bitcoin code
 function getBIP39Wordlist(): string[] { return []; }
@@ -66,6 +67,16 @@ searchRouter.get("/web", generousLimiter, async (req: Request, res: Response) =>
       return res.status(400).json({ error: 'Query parameter "q" is required' });
     }
     
+    // CURRICULUM-ONLY MODE: Block external web searches
+    if (isCurriculumOnlyEnabled()) {
+      return res.status(403).json({
+        error: 'External web search blocked in curriculum-only mode',
+        status: 'curriculum_only_blocked',
+        message: 'System is in curriculum-only mode. External web searches are disabled.',
+        timestamp: new Date().toISOString(),
+      });
+    }
+    
     // Check if Google Free Search is enabled
     if (!searchProviderState.google_free.enabled) {
       return res.json({
@@ -107,6 +118,16 @@ searchRouter.post("/web", generousLimiter, async (req: Request, res: Response) =
     }
     
     const maxLimit = Math.min(limit, 10);
+    
+    // CURRICULUM-ONLY MODE: Block external web searches
+    if (isCurriculumOnlyEnabled()) {
+      return res.status(403).json({
+        error: 'External web search blocked in curriculum-only mode',
+        status: 'curriculum_only_blocked',
+        message: 'System is in curriculum-only mode. External web searches are disabled.',
+        timestamp: new Date().toISOString(),
+      });
+    }
     
     // Check if Google Free Search is enabled
     if (!searchProviderState.google_free.enabled) {
@@ -297,6 +318,23 @@ searchRouter.post("/zeus-web-search", generousLimiter, async (req: Request, res:
         success: false, 
         error: 'Query string is required',
         results: [],
+      });
+    }
+    
+    // CURRICULUM-ONLY MODE: Block external web searches
+    if (isCurriculumOnlyEnabled()) {
+      console.log('[ZeusWebSearch] Blocked by curriculum-only mode');
+      return res.status(403).json({
+        success: false,
+        error: 'External web search blocked in curriculum-only mode',
+        status: 'curriculum_only_blocked',
+        message: 'System is in curriculum-only mode. External web searches are disabled.',
+        results: [],
+        qig_metrics: {
+          provider_enabled: false,
+          curriculum_only_mode: true,
+        },
+        timestamp: new Date().toISOString(),
       });
     }
     

@@ -17,13 +17,20 @@ Providers:
 - wayback: Archive.org historical search
 - pastebin: Paste site scraping
 - rss: RSS feed monitoring
+
+CURRICULUM-ONLY MODE: All external searches are blocked when QIG_CURRICULUM_ONLY=true
 """
 
 import os
+import sys
 import time
 import json
 import hashlib
 import numpy as np
+
+# Import curriculum guard - centralized check
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from curriculum_guard import is_curriculum_only_enabled, CurriculumOnlyBlock
 
 # QIG-pure geometric operations
 try:
@@ -585,6 +592,14 @@ class GeometricProviderSelector:
         Returns:
             Tuple of (provider_name, selection_metadata)
         """
+        # CURRICULUM-ONLY MODE: Block external provider selection
+        if is_curriculum_only_enabled():
+            return ('curriculum_only_blocked', {
+                'error': 'External search blocked by curriculum-only mode',
+                'fitness': 0.0,
+                'curriculum_only_blocked': True
+            })
+        
         domain = self._detect_query_domain(query)
         query_basin = self._encode_query_basin(query)
         
@@ -647,6 +662,10 @@ class GeometricProviderSelector:
         Returns:
             List of (provider_name, fitness_score) tuples, sorted by fitness
         """
+        # CURRICULUM-ONLY MODE: Block external provider selection
+        if is_curriculum_only_enabled():
+            return [('curriculum_only_blocked', 0.0)]
+        
         domain = self._detect_query_domain(query)
         query_basin = self._encode_query_basin(query)
         

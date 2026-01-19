@@ -18,6 +18,8 @@ All results include citations for verification and learning.
 
 BUDGET ENFORCEMENT: All paid API calls check the budget orchestrator
 before execution. If the daily cost cap is exceeded, calls will be blocked.
+
+CURRICULUM-ONLY MODE: All external searches are blocked when QIG_CURRICULUM_ONLY=true
 """
 
 import os
@@ -28,6 +30,9 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
+
+# Import curriculum guard - centralized check
+from curriculum_guard import is_curriculum_only_enabled, CurriculumOnlyBlock
 
 # Budget orchestrator for cost control
 _budget_orchestrator = None
@@ -167,6 +172,11 @@ class PerplexityClient:
         Returns:
             PerplexityResponse or None on error or budget exceeded
         """
+        # CURRICULUM-ONLY MODE: Block external web searches
+        if is_curriculum_only_enabled():
+            logger.warning("[PerplexityClient] Request blocked by curriculum-only mode")
+            return None
+        
         if not self.available:
             return None
 

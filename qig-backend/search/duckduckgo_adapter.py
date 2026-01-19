@@ -11,6 +11,8 @@ Features:
 - Proxy support (including Tor) for shadow operations
 - QIG geometric scoring integration
 
+CURRICULUM-ONLY MODE: All external searches are blocked when QIG_CURRICULUM_ONLY=true
+
 Usage:
     from search.duckduckgo_adapter import DuckDuckGoSearch, get_ddg_search
     
@@ -24,6 +26,9 @@ import time
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 import hashlib
+
+# Import curriculum guard - centralized check
+from curriculum_guard import is_curriculum_only_enabled, CurriculumOnlyBlock
 
 try:
     # Use the renamed ddgs package
@@ -161,6 +166,15 @@ class DuckDuckGoSearch:
         Returns:
             Dict with results, metadata, and QIG scoring info
         """
+        # CURRICULUM-ONLY MODE: Block external web searches
+        if is_curriculum_only_enabled():
+            return {
+                'success': False,
+                'error': 'External web search blocked by curriculum-only mode',
+                'results': [],
+                'curriculum_only_blocked': True,
+            }
+        
         if not self.available:
             return {
                 'success': False,
@@ -272,6 +286,15 @@ class DuckDuckGoSearch:
         Returns:
             Dict with news results
         """
+        # CURRICULUM-ONLY MODE: Block external web searches
+        if is_curriculum_only_enabled():
+            return {
+                'success': False,
+                'error': 'External web search blocked by curriculum-only mode',
+                'results': [],
+                'curriculum_only_blocked': True,
+            }
+        
         if not self.available:
             return {
                 'success': False,
@@ -359,6 +382,15 @@ class DuckDuckGoSearch:
         Returns:
             Dict with image results
         """
+        # CURRICULUM-ONLY MODE: Block external web searches
+        if is_curriculum_only_enabled():
+            return {
+                'success': False,
+                'error': 'External web search blocked by curriculum-only mode',
+                'results': [],
+                'curriculum_only_blocked': True,
+            }
+        
         if not self.available:
             return {
                 'success': False,
