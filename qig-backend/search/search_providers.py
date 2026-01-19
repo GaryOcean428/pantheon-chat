@@ -19,16 +19,8 @@ from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
 
-# Import curriculum guard
-try:
-    from curriculum_guard import is_curriculum_only_enabled, CurriculumOnlyBlock
-except ImportError:
-    # Fallback if curriculum_guard is not available
-    def is_curriculum_only_enabled():
-        return os.environ.get('QIG_CURRICULUM_ONLY', '').lower() == 'true'
-    
-    class CurriculumOnlyBlock(Exception):
-        pass
+# Import curriculum guard - centralized check
+from curriculum_guard import is_curriculum_only_enabled, CurriculumOnlyBlock
 
 
 @dataclass

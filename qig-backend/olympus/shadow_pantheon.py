@@ -56,16 +56,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import numpy as np
 
-# Import curriculum guard
-try:
-    from curriculum_guard import is_curriculum_only_enabled, CurriculumOnlyBlock
-except ImportError:
-    # Fallback if curriculum_guard is not available
-    def is_curriculum_only_enabled():
-        return os.environ.get('QIG_CURRICULUM_ONLY', '').lower() == 'true'
-    
-    class CurriculumOnlyBlock(Exception):
-        pass
+# Import curriculum guard - centralized check
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from curriculum_guard import is_curriculum_only_enabled, CurriculumOnlyBlock
 
 # QIG-pure geometric operations
 try:
