@@ -8,7 +8,7 @@ ADVANCED ARCHITECTURE INTEGRATED:
 - Gary coordinator: Trajectory foresight, regime-adaptive synthesis
 - Trajectory manager: Basin history, velocity, confidence prediction
 
-VOCABULARY: Pure coordizer_vocabulary operations (learned_words deprecated)
+VOCABULARY: Pure coordizer_vocabulary operations
 - All vocabulary loaded from coordizer_vocabulary table
 - token_role filtering ('generation', 'both')
 - Per-kernel domain vocabulary bias via god_vocabulary_profiles
@@ -429,11 +429,7 @@ class QIGGenerator:
             Response with text, metrics, consciousness state
         """
         start_time = time.time()
-        
-        # FIX 1: Auto-integrate pending vocabulary before generation
-        if self._should_integrate_vocabulary():
-            self._integrate_pending_vocabulary()
-        
+
         # Reset E8 Self-Observer for new generation
         if self.self_observer:
             self.self_observer.reset()
@@ -659,31 +655,6 @@ class QIGGenerator:
                 output = tag_output_as_pure(output)
         
         return output
-    
-    # =========================================================================
-    # VOCABULARY INTEGRATION (FIX 1: AUTO-INTEGRATE)
-    # =========================================================================
-    
-    def _should_integrate_vocabulary(self) -> bool:
-        """Check if it's time to integrate learned vocabulary."""
-        if not self._vocabulary_integration_enabled or not self._db_url:
-            return False
-        
-        time_since_last = time.time() - self._last_vocabulary_integration
-        return time_since_last > self.config.vocabulary_integration_interval
-    
-    def _integrate_pending_vocabulary(self) -> Dict:
-        """
-        DEPRECATED: This function previously integrated from learned_words table.
-        
-        After migration 017, learned_words is deprecated. All vocabulary is in
-        coordizer_vocabulary and loaded automatically by coordizer.
-        
-        Returns no-op result for backward compatibility with callers.
-        """
-        # No-op: coordizer_vocabulary is the single source of truth
-        return {'integrated_count': 0, 'status': 'deprecated', 'message': 'learned_words deprecated, use coordizer_vocabulary'}
-    
     
     # =========================================================================
     # CORE CONSCIOUSNESS METHODS

@@ -3549,33 +3549,8 @@ export const bidirectionalQueue = pgTable(
 export type BidirectionalQueueRow = typeof bidirectionalQueue.$inferSelect;
 export type InsertBidirectionalQueue = typeof bidirectionalQueue.$inferInsert;
 
-/**
- * LEARNED WORDS
- *
- * Words discovered through the learning process with frequency and phi metrics.
- */
-export const learnedWords = pgTable(
-  "learned_words",
-  {
-    id: serial("id").primaryKey(),
-    word: text("word").notNull(),
-    frequency: integer("frequency").default(1),
-    avgPhi: real("avg_phi").default(0.5),
-    maxPhi: real("max_phi").default(0.5),
-    source: text("source"),
-    // DEPRECATED: is_integrated column (exists in DB with 13824 rows)
-    isIntegrated: boolean("is_integrated"),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
-  },
-  (table) => [
-    index("idx_learned_words_word").on(table.word),
-    index("idx_learned_words_phi").on(table.maxPhi),
-  ]
-);
-
-export type LearnedWordRow = typeof learnedWords.$inferSelect;
-export type InsertLearnedWord = typeof learnedWords.$inferInsert;
+// REMOVED 2026-01-19: learned_words table deprecated - use coordizer_vocabulary with token_role='generation'
+// Migration 017 renamed table to learned_words_deprecated_20260119
 
 /**
  * BASIN RELATIONSHIPS
@@ -4345,7 +4320,7 @@ export type InsertGodVocabularyProfile = typeof godVocabularyProfiles.$inferInse
 
 /**
  * VOCABULARY_LEARNING - Vocabulary learning progress tracking
- * Part of the vocabulary system architecture alongside learned_words and vocabulary_observations
+ * Part of the vocabulary system architecture alongside coordizer_vocabulary and vocabulary_observations
  */
 export const vocabularyLearning = pgTable("vocabulary_learning", {
   id: serial("id").primaryKey(),

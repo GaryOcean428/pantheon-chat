@@ -191,22 +191,22 @@ class LearnedRelationships:
                 """)
                 rows = cur.fetchall()
                 
-                # Load word frequencies from coordizer_vocabulary table (consolidated)
+                # Load word frequencies from coordizer_vocabulary table
                 cur.execute("""
-                    SELECT token, frequency 
-                    FROM coordizer_vocabulary 
+                    SELECT token, frequency
+                    FROM coordizer_vocabulary
                     WHERE frequency > 0
                       AND token_role IN ('generation', 'both')
                 """)
                 freq_rows = cur.fetchall()
-            
+
             # Group relationships by word
             for word, neighbor, count in rows:
                 if word not in self.word_neighbors:
                     self.word_neighbors[word] = []
                 self.word_neighbors[word].append((neighbor, float(count)))
-            
-            # Load word frequencies from learned_words table
+
+            # Load word frequencies from coordizer_vocabulary
             for word, freq in freq_rows:
                 self.word_frequency[word] = int(freq)
             
