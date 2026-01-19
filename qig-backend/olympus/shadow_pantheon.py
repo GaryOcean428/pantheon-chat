@@ -34,6 +34,8 @@ REAL DARKNET IMPLEMENTATION:
 - User agent rotation per request
 - Traffic obfuscation with random delays
 - Automatic fallback to clearnet if Tor unavailable
+
+CURRICULUM-ONLY MODE: All external searches are blocked when QIG_CURRICULUM_ONLY=true
 """
 
 import asyncio
@@ -53,6 +55,17 @@ from typing import Dict, List, Optional
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import numpy as np
+
+# Import curriculum guard
+try:
+    from curriculum_guard import is_curriculum_only_enabled, CurriculumOnlyBlock
+except ImportError:
+    # Fallback if curriculum_guard is not available
+    def is_curriculum_only_enabled():
+        return os.environ.get('QIG_CURRICULUM_ONLY', '').lower() == 'true'
+    
+    class CurriculumOnlyBlock(Exception):
+        pass
 
 # QIG-pure geometric operations
 try:
@@ -665,6 +678,11 @@ class ShadowGod(BaseGod):
         Returns:
             request_id if successful, None otherwise
         """
+        # CURRICULUM-ONLY MODE: Block external web searches
+        if is_curriculum_only_enabled():
+            print(f"[{self.name}] Shadow research blocked by curriculum-only mode: {topic[:50]}")
+            return None
+        
         if not SHADOW_RESEARCH_AVAILABLE:
             print(f"[{self.name}] Shadow research not available")
             return None
