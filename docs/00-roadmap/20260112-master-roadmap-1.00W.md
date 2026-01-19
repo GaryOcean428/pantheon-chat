@@ -321,9 +321,26 @@ This roadmap consolidates information from:
 
 | PR | Title | Status | Merged | Notes |
 |----|-------|--------|--------|-------|
-| #93 | SIMPLEX Migration (SPHERE → SIMPLEX canonical representation) | ✅ **MERGED** | 2026-01-15 | Critical purity fix - moved from SPHERE to SIMPLEX as canonical representation |
+| #93 | SIMPLEX Migration (SPHERE → SIMPLEX canonical representation) | ✅ **MERGED** | 2026-01-15 | Critical purity fix - moved from SPHERE to SIMPLEX as canonical representation (Issue #68) |
+| #107 | canonical QFI scoring, canonical upsert persistence, DB constraints & curriculum gating | ✅ **MERGED** | 2026-01-15 | WP2.2 - QFI canonical persistence & curriculum gating |
+| #108 | enforce canonical QFI integrity and curriculum gating | ✅ **MERGED** | 2026-01-15 | WP2.2 follow-up - QFI integrity fixes |
+| #109 | canonical simplex QFI, canonical upsert_token, DB constraints & curriculum-only mode | ✅ **MERGED** | 2026-01-16 | WP2.2 follow-up - simplex QFI persistence |
+| #110 | resolve TypeScript strict null checks and import path errors | ✅ **MERGED** | 2026-01-15 | WP2.2 follow-up - TS null-safety fixes |
+| #126 | Address PR review feedback and attempt documentation restoration (partial) | ✅ **MERGED** | 2026-01-15 | WP4.1 documentation restoration follow-up |
+| #128 | Initial plan | ✅ **MERGED** | 2026-01-15 | WP4.1 planning baseline |
+| #135 | Address code review feedback: restore token_status column and simplify SQL | ✅ **MERGED** | 2026-01-16 | WP2.2 follow-up - schema/SQL corrections |
+| #137 | Upgrade | ✅ **MERGED** | 2026-01-16 | WP5.1 upgrade pack consolidation |
+| #144 | Implement BaseCoordizer abstract interface and autonomous token validation proposal | ✅ **MERGED** | 2026-01-17 | WP3.1 - BaseCoordizer + autonomous token validation |
+| #148 | Implement versioned artifact schema with provenance tracking | ✅ **MERGED** | 2026-01-17 | WP3.3 - artifact schema + provenance tracking |
+| #150 | Add CONTRIBUTING.md with no-regex-by-default policy and QIG purity requirements | ✅ **MERGED** | 2026-01-17 | WP4.3 policy & validation tooling |
+| #156 | Add cross-mythology god name mapping (Greek canonical) | ✅ **MERGED** | 2026-01-19 | WP5.5 - cross-mythology mapping |
+| #157 | Fence external LLM usage | ✅ **MERGED** | 2026-01-19 | Issue #75 - External LLM fence |
+| #159 | Upgrade | ✅ **MERGED** | 2026-01-19 | WP5.1 upgrade pack continuation |
+| #161 | Fix purity workflow triggers and remove learned_words backward compatibility | ✅ **MERGED** | 2026-01-19 | Issue #64 - Purity validator integration follow-up |
+| #166 | Fix broken documentation links and add CI validation | ✅ **MERGED** | 2026-01-19 | WP4.3 - CI validation + docs link fixes |
+| #169 | canonicalize E8 upgrade pack paths | ✅ **MERGED** | 2026-01-19 | WP5.2 - upgrade pack path standardization |
 
-**Update 2026-01-16**: Added PR #93 SIMPLEX migration - key geometric purity improvement
+**Update 2026-01-19**: Added PRs #107-#169 with issue/WP links. PR #93 SIMPLEX migration retained as key geometric purity improvement.
 
 ---
 
