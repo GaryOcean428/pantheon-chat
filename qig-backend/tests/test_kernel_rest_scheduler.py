@@ -249,7 +249,16 @@ def test_minimal_rotating_rest(scheduler):
     """Test Hermes minimal rotating rest (brief frequent pauses)."""
     scheduler.register_kernel("hermes_1", "Hermes")
     
-    # Moderate fatigue after some time
+    # Establish baseline first
+    scheduler.update_fatigue(
+        kernel_id="hermes_1",
+        phi=0.7,
+        kappa=64.0,
+        load=0.5,
+        error_rate=0.0,
+    )
+    
+    # Second update with moderate fatigue and time passage
     scheduler.update_fatigue(
         kernel_id="hermes_1",
         phi=0.6,
@@ -258,14 +267,24 @@ def test_minimal_rotating_rest(scheduler):
         error_rate=0.05,
     )
     
-    # Simulate time passing (Hermes needs rest after 10 minutes)
+    # Test helper: simulate time passage by updating the time_since_rest
+    # This is preferable to direct state manipulation
     state = scheduler.kernel_states["hermes_1"]
-    if state.fatigue:
-        state.fatigue.time_since_rest = 650.0  # Just over 10 minutes
+    if state.fatigue and state.last_rest_end:
+        # Simulate time passing by setting last_rest_end to 11 minutes ago
+        state.last_rest_end = time.time() - 650.0
+        # Recalculate fatigue with updated time
+        scheduler.update_fatigue(
+            kernel_id="hermes_1",
+            phi=0.6,
+            kappa=62.0,
+            load=0.6,
+            error_rate=0.05,
+        )
     
-    # Should need rest (brief pause)
+    # Should need rest (brief pause) due to time since rest
     should_rest, reason = scheduler.should_rest("hermes_1")
-    assert should_rest
+    assert should_rest, f"Hermes should need rest but got: {reason}"
     assert "MINIMAL_ROTATING" in reason or "10min" in reason
 
 

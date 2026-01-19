@@ -296,7 +296,8 @@ class OceanHeartConsensus:
                 scheduler = get_rest_scheduler()
                 constellation_status = scheduler.get_constellation_status()
                 avg_fatigue = constellation_status.get('avg_fatigue', 0.0)
-            except:
+            except (ImportError, AttributeError, KeyError) as e:
+                logger.debug(f"[OceanHeartConsensus] Could not get constellation fatigue: {e}")
                 avg_fatigue = 0.0
             
             if cycle_type == CycleType.SLEEP:
