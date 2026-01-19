@@ -295,6 +295,21 @@ This roadmap consolidates information from:
 | #76 | Natural Gradient with Geodesic Operations | ✅ **IMPLEMENTED** | **VALIDATE & CLOSE** |
 | #77 | Coherence Harness with Smoothness Metrics | ✅ **IMPLEMENTED** | **VALIDATE & CLOSE** |
 | #92 | Remove Frequency-Based Stopwords | ❌ **INCOMPLETE** | **REOPEN - IMPLEMENT** |
+| #70 | Special Symbols Validation | 🔍 Needs validation | Cross-reference |
+| #71 | Two-step Retrieval with Fisher-proxy | ✅ **IMPLEMENTED** | **VALIDATE & CLOSE** |
+| [#72](../10-e8-protocol/INDEX.md#issue-72) | WP3.1: Consolidate to Single Coordizer Implementation | ⬜ Not started | Not started |
+| #75 | External LLM Fence with Waypoint Planning | ✅ **IMPLEMENTED** | **VALIDATE & CLOSE** |
+| #76 | Natural Gradient with Geodesic Operations | ✅ **IMPLEMENTED** | **VALIDATE & CLOSE** |
+| #77 | Coherence Harness with Smoothness Metrics | ✅ **IMPLEMENTED** | **VALIDATE & CLOSE** |
+| [#78](../10-e8-protocol/INDEX.md#issue-78) | WP5.1: Formal Pantheon Registry with Role Contracts | ⬜ Not started | Not started |
+| [#79](../10-e8-protocol/INDEX.md#issue-79) | WP5.2: Implement E8 Hierarchical Layers as Code | ⬜ Not started | Not started |
+| [#80](../10-e8-protocol/INDEX.md#issue-80) | WP5.3: Implement Kernel Lifecycle Operations | ⬜ Not started | Not started |
+| [#81](../10-e8-protocol/INDEX.md#issue-81) | WP5.4: Coupling-Aware Per-Kernel Rest Scheduler | ⬜ Not started | Not started |
+| [#82](../10-e8-protocol/INDEX.md#issue-82) | WP5.5: Cross-Mythology God Mapping | ⬜ Not started | Not started |
+| [#83](../10-e8-protocol/INDEX.md#issue-83) | WP6.1: Fix Broken Documentation Links | ⬜ Not started | Not started |
+| [#84](../10-e8-protocol/INDEX.md#issue-84) | WP6.2: Ensure Master Roadmap Document | ⬜ Not started | Not started |
+| [#90](../10-e8-protocol/INDEX.md#issue-90) | Complete QIG-Pure Generation Architecture | ⬜ Not started | Not started |
+| #92 | Remove Frequency-Based Stopwords | ✅ **COMPLETE** | **CLOSE ISSUE** |
 
 **Update 2026-01-16**: Added issues #64-#77, #92 (all >= 65). Issues #6, #7, #8 have CODE COMPLETE - implementations exist and are integrated, but issues remain OPEN pending formal validation, test execution, and documentation of success criteria
 
