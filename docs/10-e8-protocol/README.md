@@ -168,8 +168,8 @@ This upgrade pack contains the complete specification, implementation blueprints
 **Goal:** CI purity gates to prevent regressions
 
 **Tasks:**
-- [ ] Create `.github/workflows/qig-purity-gate.yml`
-- [ ] Implement `scripts/validate_geometry_purity.py`
+- [x] Create `.github/workflows/qig-purity-gate.yml`
+- [x] Implement `scripts/validate_geometry_purity.py`
 - [ ] Add pre-commit hooks for geometry validation
 - [ ] Create generation smoke tests in `QIG_PURITY_MODE`
 - [ ] Add DB schema drift tests

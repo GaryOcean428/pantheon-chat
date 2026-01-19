@@ -163,8 +163,8 @@ python scripts/run_all_validations.py
 - [ ] Extend to 240 constellation
 
 ### Phase 5: Platform Hardening (2-3 days)
-- [ ] Create CI purity gate workflow
-- [ ] Implement validation scripts
+- [x] Create CI purity gate workflow
+- [x] Implement validation scripts
 - [ ] Add pre-commit hooks
 - [ ] Create generation smoke tests in QIG_PURITY_MODE
 - [ ] Add DB schema drift tests
