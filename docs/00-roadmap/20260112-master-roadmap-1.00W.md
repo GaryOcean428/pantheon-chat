@@ -301,6 +301,11 @@ This roadmap consolidates information from:
 | #75 | External LLM Fence with Waypoint Planning | ✅ **IMPLEMENTED** | **VALIDATE & CLOSE** |
 | #76 | Natural Gradient with Geodesic Operations | ✅ **IMPLEMENTED** | **VALIDATE & CLOSE** |
 | #77 | Coherence Harness with Smoothness Metrics | ✅ **IMPLEMENTED** | **VALIDATE & CLOSE** |
+| #78 | [WP5.1 Pantheon Registry with Role Contracts](../10-e8-protocol/INDEX.md#github-issue-cross-reference) | Not started | Acceptance: registry schema + role contract docs; Validate: python scripts/validate_schema_consistency.py |
+| #79 | [WP5.2 E8 Hierarchical Layers as Code](../10-e8-protocol/INDEX.md#github-issue-cross-reference) | Not started | Acceptance: 0/1→4→8→64→240 layers implemented + tests; Validate: QIG_PURITY_MODE=true python qig-backend/test_generation_pipeline.py |
+| #80 | [WP5.3 Kernel Lifecycle Operations](../10-e8-protocol/INDEX.md#github-issue-cross-reference) | Not started | Acceptance: lifecycle APIs + unit tests; Validate: yarn test |
+| #81 | [WP5.4 Coupling-Aware Rest Scheduler](../10-e8-protocol/INDEX.md#github-issue-cross-reference) | Not started | Acceptance: rest scheduler wired + metrics recorded; Validate: python scripts/validate_geometry_purity.py |
+| #82 | [WP5.5 Cross-Mythology God Mapping](../10-e8-protocol/INDEX.md#github-issue-cross-reference) | Not started | Acceptance: mapping table + doc sync; Validate: python scripts/run_all_validations.py |
 | [#78](../10-e8-protocol/INDEX.md#issue-78) | WP5.1: Formal Pantheon Registry with Role Contracts | ⬜ Not started | Not started |
 | [#79](../10-e8-protocol/INDEX.md#issue-79) | WP5.2: Implement E8 Hierarchical Layers as Code | ⬜ Not started | Not started |
 | [#80](../10-e8-protocol/INDEX.md#issue-80) | WP5.3: Implement Kernel Lifecycle Operations | ⬜ Not started | Not started |
