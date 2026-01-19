@@ -2,9 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { API_ROUTES, QUERY_KEYS } from "@/api";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Button, Input, Skeleton, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Progress } from '@/components/ui';
-import { MarkdownUpload } from '@/components/MarkdownUpload';
-import { MemoryFragmentSearch } from '@/components/MemoryFragmentSearch';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Button, Input, Skeleton, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Progress, MarkdownUpload, MemoryFragmentSearch } from '@/components';
 import { 
   LineChart, 
   Line, 
