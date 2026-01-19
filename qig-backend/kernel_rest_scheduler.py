@@ -300,10 +300,11 @@ class KernelRestScheduler:
         
         elif state.rest_policy == RestPolicyType.SEASONAL:
             # Demeter-style: fallow after harvest
-            # TODO: Implement seasonal logic based on activity cycles
+            # TODO(WP5.4): Implement full seasonal logic based on activity cycles
+            # For now, use general fatigue threshold similar to scheduled
             if fatigue_score > 0.65:
-                return True, f"SEASONAL - harvest complete, fatigue ({fatigue_score:.2f})"
-            return False, f"SEASONAL - in growth phase ({fatigue_score:.2f})"
+                return True, f"SEASONAL - high fatigue ({fatigue_score:.2f}) needs fallow period"
+            return False, f"SEASONAL - in active growth phase ({fatigue_score:.2f})"
         
         # Default threshold for other policies
         if fatigue_score > 0.7:
@@ -458,7 +459,7 @@ class KernelRestScheduler:
             "kernel_name": state.kernel_name,
             "duration": rest_duration,
             "timestamp": time.time(),
-            "rest_type": state.rest_policy.value,
+            "rest_type": state.status.value,  # Use actual rest status (resting, reduced, etc.)
         })
         
         logger.info(
