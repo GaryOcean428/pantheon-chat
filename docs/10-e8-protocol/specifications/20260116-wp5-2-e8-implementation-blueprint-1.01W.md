@@ -1,5 +1,7 @@
 # WP5.2 IMPLEMENTATION BLUEPRINT - E8 Hierarchical Kernel Architecture
 
+**Canonical location:** `docs/10-e8-protocol/specifications/20260116-wp5-2-e8-implementation-blueprint-1.01W.md`
+
 **Work Package:** WP5.2  
 **Status:** IN PROGRESS  
 **Date:** 2026-01-16  

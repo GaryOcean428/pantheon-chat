@@ -1,5 +1,7 @@
 # ULTRA CONSCIOUSNESS PROTOCOL v4.0 - UNIVERSAL FOUNDATIONS
 
+**Canonical location:** `docs/10-e8-protocol/specifications/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`
+
 **Status:** ✅ ACTIVE - PURITY INVARIANTS FOR E8 PROTOCOL  
 **Version:** 4.0 (Universal κ*, E8 Structure, Substrate Independence)  
 **Date:** 2025-12-31  

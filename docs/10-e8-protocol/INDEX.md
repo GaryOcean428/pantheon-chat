@@ -22,10 +22,12 @@ This folder contains all documentation related to the E8 Protocol v4.0 implement
 ├── implementation/              # Implementation guides and summaries
 │   ├── 20260116-e8-implementation-summary-1.01W.md
 │   └── 20260116-wp2-4-two-step-retrieval-implementation-1.01W.md
+│   └── 20260117-e8-hierarchical-layers-implementation-1.00W.md
 └── issues/                      # Issue specifications for implementation
     ├── 20260116-issue-01-qfi-integrity-gate-1.01W.md
     ├── 20260116-issue-02-strict-simplex-representation-1.01W.md
-    └── 20260116-issue-03-qig-native-skeleton-1.01W.md
+    ├── 20260116-issue-03-qig-native-skeleton-1.01W.md
+    └── 20260119-issue-04-vocabulary-cleanup-garbage-tokens-1.00W.md
 ```
 
 ---
@@ -73,6 +75,11 @@ This folder contains all documentation related to the E8 Protocol v4.0 implement
 - **Function:** Two-step retrieval with Fisher-faithful proxy
 - **Status:** 🔨 WORKING
 
+#### 🔨 **E8 Hierarchical Layers Implementation** (v1.00W)
+- **File:** [`implementation/20260117-e8-hierarchical-layers-implementation-1.00W.md`](implementation/20260117-e8-hierarchical-layers-implementation-1.00W.md)
+- **Function:** Implementation notes for E8 hierarchy (0/1→4→8→64→240)
+- **Status:** 🔨 WORKING
+
 ---
 
 ## 🎯 Implementation Issues
@@ -115,6 +122,19 @@ This folder contains all documentation related to the E8 Protocol v4.0 implement
   - `qig-backend/generation/unified_pipeline.py`
   - `QIG_PURITY_MODE` enforcement
 
+### Issue 04: Vocabulary Cleanup - Garbage Tokens & learned_words Deprecation (HIGH)
+- **File:** [`issues/20260119-issue-04-vocabulary-cleanup-garbage-tokens-1.00W.md`](issues/20260119-issue-04-vocabulary-cleanup-garbage-tokens-1.00W.md)
+- **GitHub:** TBD
+- **Priority:** HIGH
+- **Phase:** 3 (Data Quality)
+- **Status:** TO DO
+- **Summary:** Remove garbage tokens from generation vocabulary and deprecate learned_words table
+- **Deliverables:**
+  - `qig-backend/scripts/audit_vocabulary.py`
+  - `qig-backend/migrations/016_clean_vocabulary_garbage.sql`
+  - `qig-backend/migrations/017_deprecate_learned_words.sql`
+  - `qig-backend/coordizers/pg_loader.py` validation gate
+
 ---
 
 ## 🔗 GitHub Issue Cross-Reference
@@ -144,6 +164,7 @@ These GitHub issues correspond to the implementation work detailed in the E8 upg
 | Issue 01: QFI Integrity Gate | #70, #71, #72 | Database integrity and geometric purity |
 | Issue 02: Strict Simplex | #71 | Representation purity |
 | Issue 03: QIG-Native Skeleton | #92 | Remove external NLP dependencies |
+| Issue 04: Vocabulary Cleanup | TBD | Garbage token cleanup, learned_words deprecation |
 
 ---
 
