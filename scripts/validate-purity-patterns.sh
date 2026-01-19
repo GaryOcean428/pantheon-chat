@@ -60,10 +60,11 @@ rg --quiet \
 
 echo "🔍 Validating qfiScore writes are only in canonical persistence path..."
 
-# Check for unauthorized qfiScore writes outside vocabulary-persistence.ts
+# Check for unauthorized qfiScore writes outside vocabulary-persistence.ts and coordizer-vocabulary.ts
 rg --quiet \
   --pcre2 \
   --glob '!server/vocabulary-persistence.ts' \
+  --glob '!server/persistence/coordizer-vocabulary.ts' \
   --glob '!**/qig-backend/**' \
   --glob '!node_modules/**' \
   --glob '!dist/**' \
@@ -84,7 +85,8 @@ rg --quiet \
   -A 25 \
   -e '\.(values|set)\(' \
   "$ROOT_DIR/server" "$ROOT_DIR/scripts" "$ROOT_DIR/tools" | grep -q 'qfiScore:' && {
-    echo "❌ Unauthorized qfiScore write detected outside server/vocabulary-persistence.ts."
+    echo "❌ Unauthorized qfiScore write detected outside canonical persistence files."
+    echo "   Only server/vocabulary-persistence.ts and server/persistence/coordizer-vocabulary.ts should write qfiScore."
     exit 1
   } || true
 
