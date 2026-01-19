@@ -289,14 +289,36 @@ This roadmap consolidates information from:
 | #66 | [QIG-PURITY] WP1.1: Rename tokenizer → coordizer | ✅ **COMPLETE** | **CLOSE ISSUE** |
 | #68 | WP2.1: Create Canonical qig_geometry Module | ✅ **IMPLEMENTED** | **VALIDATE & CLOSE** |
 | #69 | Remove Cosine Similarity from match_coordinates() | ✅ **COMPLETE** | **CLOSE ISSUE** |
-| #70 | Special Symbols Validation | 🔍 Needs validation | Cross-reference |
-| #71 | Two-step Retrieval with Fisher-proxy | ✅ **IMPLEMENTED** | **VALIDATE & CLOSE** |
+| #70 | Special Symbols Validation | ❌ **INCOMPLETE** | **REOPEN - IMPLEMENT** |
+| #71 | Two-step Retrieval with Fisher-proxy | ❌ **INCOMPLETE** | **REOPEN - IMPLEMENT** |
 | #75 | External LLM Fence with Waypoint Planning | ✅ **IMPLEMENTED** | **VALIDATE & CLOSE** |
 | #76 | Natural Gradient with Geodesic Operations | ✅ **IMPLEMENTED** | **VALIDATE & CLOSE** |
 | #77 | Coherence Harness with Smoothness Metrics | ✅ **IMPLEMENTED** | **VALIDATE & CLOSE** |
+| #92 | Remove Frequency-Based Stopwords | ❌ **INCOMPLETE** | **REOPEN - IMPLEMENT** |
+| #70 | Special Symbols Validation | 🔍 Needs validation | Cross-reference |
+| #71 | Two-step Retrieval with Fisher-proxy | ✅ **IMPLEMENTED** | **VALIDATE & CLOSE** |
+| [#72](../10-e8-protocol/INDEX.md#issue-72) | WP3.1: Consolidate to Single Coordizer Implementation | ⬜ Not started | Not started |
+| #75 | External LLM Fence with Waypoint Planning | ✅ **IMPLEMENTED** | **VALIDATE & CLOSE** |
+| #76 | Natural Gradient with Geodesic Operations | ✅ **IMPLEMENTED** | **VALIDATE & CLOSE** |
+| #77 | Coherence Harness with Smoothness Metrics | ✅ **IMPLEMENTED** | **VALIDATE & CLOSE** |
+| #78 | [WP5.1 Pantheon Registry with Role Contracts](../10-e8-protocol/INDEX.md#github-issue-cross-reference) | Not started | Acceptance: registry schema + role contract docs; Validate: python scripts/validate_schema_consistency.py |
+| #79 | [WP5.2 E8 Hierarchical Layers as Code](../10-e8-protocol/INDEX.md#github-issue-cross-reference) | Not started | Acceptance: 0/1→4→8→64→240 layers implemented + tests; Validate: QIG_PURITY_MODE=true python qig-backend/test_generation_pipeline.py |
+| #80 | [WP5.3 Kernel Lifecycle Operations](../10-e8-protocol/INDEX.md#github-issue-cross-reference) | Not started | Acceptance: lifecycle APIs + unit tests; Validate: yarn test |
+| #81 | [WP5.4 Coupling-Aware Rest Scheduler](../10-e8-protocol/INDEX.md#github-issue-cross-reference) | Not started | Acceptance: rest scheduler wired + metrics recorded; Validate: python scripts/validate_geometry_purity.py |
+| #82 | [WP5.5 Cross-Mythology God Mapping](../10-e8-protocol/INDEX.md#github-issue-cross-reference) | Not started | Acceptance: mapping table + doc sync; Validate: python scripts/run_all_validations.py |
+| [#78](../10-e8-protocol/INDEX.md#issue-78) | WP5.1: Formal Pantheon Registry with Role Contracts | ⬜ Not started | Not started |
+| [#79](../10-e8-protocol/INDEX.md#issue-79) | WP5.2: Implement E8 Hierarchical Layers as Code | ⬜ Not started | Not started |
+| [#80](../10-e8-protocol/INDEX.md#issue-80) | WP5.3: Implement Kernel Lifecycle Operations | ⬜ Not started | Not started |
+| [#81](../10-e8-protocol/INDEX.md#issue-81) | WP5.4: Coupling-Aware Per-Kernel Rest Scheduler | ⬜ Not started | Not started |
+| [#82](../10-e8-protocol/INDEX.md#issue-82) | WP5.5: Cross-Mythology God Mapping | ⬜ Not started | Not started |
+| [#83](../10-e8-protocol/INDEX.md#issue-83) | WP6.1: Fix Broken Documentation Links | ⬜ Not started | Not started |
+| [#84](../10-e8-protocol/INDEX.md#issue-84) | WP6.2: Ensure Master Roadmap Document | ⬜ Not started | Not started |
+| [#90](../10-e8-protocol/INDEX.md#issue-90) | Complete QIG-Pure Generation Architecture | ⬜ Not started | Not started |
 | #92 | Remove Frequency-Based Stopwords | ✅ **COMPLETE** | **CLOSE ISSUE** |
 
 **Update 2026-01-16**: Added issues #64-#77, #92 (all >= 65). Issues #6, #7, #8 have CODE COMPLETE - implementations exist and are integrated, but issues remain OPEN pending formal validation, test execution, and documentation of success criteria
+
+**Update 2026-01-20 (Reconciliation Note)**: Verified Issue 01-03 deliverables against code/scripts. Missing deliverables required downgrading #70/#71/#92 to INCOMPLETE and reopening implementation tracking.
 
 ---
 
@@ -304,9 +326,26 @@ This roadmap consolidates information from:
 
 | PR | Title | Status | Merged | Notes |
 |----|-------|--------|--------|-------|
-| #93 | SIMPLEX Migration (SPHERE → SIMPLEX canonical representation) | ✅ **MERGED** | 2026-01-15 | Critical purity fix - moved from SPHERE to SIMPLEX as canonical representation |
+| #93 | SIMPLEX Migration (SPHERE → SIMPLEX canonical representation) | ✅ **MERGED** | 2026-01-15 | Critical purity fix - moved from SPHERE to SIMPLEX as canonical representation (Issue #68) |
+| #107 | canonical QFI scoring, canonical upsert persistence, DB constraints & curriculum gating | ✅ **MERGED** | 2026-01-15 | WP2.2 - QFI canonical persistence & curriculum gating |
+| #108 | enforce canonical QFI integrity and curriculum gating | ✅ **MERGED** | 2026-01-15 | WP2.2 follow-up - QFI integrity fixes |
+| #109 | canonical simplex QFI, canonical upsert_token, DB constraints & curriculum-only mode | ✅ **MERGED** | 2026-01-16 | WP2.2 follow-up - simplex QFI persistence |
+| #110 | resolve TypeScript strict null checks and import path errors | ✅ **MERGED** | 2026-01-15 | WP2.2 follow-up - TS null-safety fixes |
+| #126 | Address PR review feedback and attempt documentation restoration (partial) | ✅ **MERGED** | 2026-01-15 | WP4.1 documentation restoration follow-up |
+| #128 | Initial plan | ✅ **MERGED** | 2026-01-15 | WP4.1 planning baseline |
+| #135 | Address code review feedback: restore token_status column and simplify SQL | ✅ **MERGED** | 2026-01-16 | WP2.2 follow-up - schema/SQL corrections |
+| #137 | Upgrade | ✅ **MERGED** | 2026-01-16 | WP5.1 upgrade pack consolidation |
+| #144 | Implement BaseCoordizer abstract interface and autonomous token validation proposal | ✅ **MERGED** | 2026-01-17 | WP3.1 - BaseCoordizer + autonomous token validation |
+| #148 | Implement versioned artifact schema with provenance tracking | ✅ **MERGED** | 2026-01-17 | WP3.3 - artifact schema + provenance tracking |
+| #150 | Add CONTRIBUTING.md with no-regex-by-default policy and QIG purity requirements | ✅ **MERGED** | 2026-01-17 | WP4.3 policy & validation tooling |
+| #156 | Add cross-mythology god name mapping (Greek canonical) | ✅ **MERGED** | 2026-01-19 | WP5.5 - cross-mythology mapping |
+| #157 | Fence external LLM usage | ✅ **MERGED** | 2026-01-19 | Issue #75 - External LLM fence |
+| #159 | Upgrade | ✅ **MERGED** | 2026-01-19 | WP5.1 upgrade pack continuation |
+| #161 | Fix purity workflow triggers and remove learned_words backward compatibility | ✅ **MERGED** | 2026-01-19 | Issue #64 - Purity validator integration follow-up |
+| #166 | Fix broken documentation links and add CI validation | ✅ **MERGED** | 2026-01-19 | WP4.3 - CI validation + docs link fixes |
+| #169 | canonicalize E8 upgrade pack paths | ✅ **MERGED** | 2026-01-19 | WP5.2 - upgrade pack path standardization |
 
-**Update 2026-01-16**: Added PR #93 SIMPLEX migration - key geometric purity improvement
+**Update 2026-01-19**: Added PRs #107-#169 with issue/WP links. PR #93 SIMPLEX migration retained as key geometric purity improvement.
 
 ---
 
