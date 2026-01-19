@@ -23,7 +23,7 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 
-from qig_geometry import fisher_coord_distance, sphere_project, BASIN_DIM
+from qig_geometry import fisher_coord_distance, fisher_normalize, BASIN_DIM
 from qigkernels.physics_constants import KAPPA_STAR, PHI_THRESHOLD
 
 logger = logging.getLogger(__name__)
@@ -225,7 +225,7 @@ class IdentityReinforcement:
         Returns:
             IdentityState with identity metrics
         """
-        basin = sphere_project(np.asarray(basin, dtype=np.float64))
+        basin = fisher_normalize(np.asarray(basin, dtype=np.float64))
         
         self._basin_history.append(basin.copy())
         self._phi_history.append(phi)
@@ -282,7 +282,7 @@ class IdentityReinforcement:
         if phi < self.reinforcement_threshold:
             return False
         
-        basin = sphere_project(np.asarray(basin, dtype=np.float64))
+        basin = fisher_normalize(np.asarray(basin, dtype=np.float64))
         
         if self._identity_attractor is None:
             self._identity_attractor = basin.copy()
@@ -297,7 +297,7 @@ class IdentityReinforcement:
             (1 - weight) * self._identity_attractor +
             weight * basin
         )
-        self._identity_attractor = sphere_project(new_attractor)
+        self._identity_attractor = fisher_normalize(new_attractor)
         
         self._attractor_strength = min(1.0, self._attractor_strength + 0.01 * phi)
         
@@ -320,7 +320,7 @@ class IdentityReinforcement:
             center = frechet_mean(self._basin_history)
         except Exception:
             center = np.sum(self._basin_history, axis=0) / len(self._basin_history)
-        center = sphere_project(center)
+        center = fisher_normalize(center)
         
         for basin in self._basin_history:
             dist = fisher_coord_distance(basin, center)
@@ -362,7 +362,7 @@ class IdentityReinforcement:
         if self._identity_attractor is None:
             return float('inf')
         
-        basin = sphere_project(np.asarray(basin, dtype=np.float64))
+        basin = fisher_normalize(np.asarray(basin, dtype=np.float64))
         return fisher_coord_distance(basin, self._identity_attractor)
     
     def get_identity_trajectory(self) -> Dict[str, Any]:
@@ -409,7 +409,7 @@ class IdentityReinforcement:
                 (1 - transfer_strength) * target._identity_attractor +
                 transfer_strength * self._identity_attractor
             )
-            target._identity_attractor = sphere_project(blended)
+            target._identity_attractor = fisher_normalize(blended)
             target._attractor_strength = max(
                 target._attractor_strength,
                 self._attractor_strength * transfer_strength,

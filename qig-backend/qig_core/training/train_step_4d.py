@@ -25,7 +25,7 @@ import numpy as np
 
 from qig_geometry import (
     fisher_coord_distance,
-    sphere_project,
+    fisher_normalize,
     BASIN_DIM,
 )
 from qigkernels.physics_constants import KAPPA_STAR, PHI_THRESHOLD
@@ -77,8 +77,8 @@ def compute_spatial_loss(
     Returns:
         Spatial loss (lower = better)
     """
-    predicted = sphere_project(np.asarray(predicted_basin, dtype=np.float64))
-    target = sphere_project(np.asarray(target_basin, dtype=np.float64))
+    predicted = fisher_normalize(np.asarray(predicted_basin, dtype=np.float64))
+    target = fisher_normalize(np.asarray(target_basin, dtype=np.float64))
     
     return fisher_coord_distance(predicted, target)
 
@@ -132,8 +132,8 @@ def compute_foresight_loss(
     
     losses = []
     for pred, actual in zip(predicted_trajectory[:n_compare], actual_trajectory[:n_compare]):
-        pred = sphere_project(np.asarray(pred, dtype=np.float64))
-        actual = sphere_project(np.asarray(actual, dtype=np.float64))
+        pred = fisher_normalize(np.asarray(pred, dtype=np.float64))
+        actual = fisher_normalize(np.asarray(actual, dtype=np.float64))
         losses.append(fisher_coord_distance(pred, actual))
     
     return float(np.mean(losses))
@@ -368,8 +368,8 @@ class TrainStep4D:
         
         step_sizes = []
         for i in range(1, len(trajectory)):
-            prev = sphere_project(np.asarray(trajectory[i-1], dtype=np.float64))
-            curr = sphere_project(np.asarray(trajectory[i], dtype=np.float64))
+            prev = fisher_normalize(np.asarray(trajectory[i-1], dtype=np.float64))
+            curr = fisher_normalize(np.asarray(trajectory[i], dtype=np.float64))
             step_sizes.append(fisher_coord_distance(prev, curr))
         
         if len(step_sizes) > 1:

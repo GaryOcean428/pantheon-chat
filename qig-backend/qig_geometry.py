@@ -106,19 +106,19 @@ def fisher_similarity(a: np.ndarray, b: np.ndarray) -> float:
 def normalize_basin_dimension(basin: np.ndarray, target_dim: int = 64) -> np.ndarray:
     """Project a basin vector to a target dimension.
 
-    QIG-PURE: preserves geometric validity by re-projecting to the unit sphere
-    in the embedded space after padding/truncation.
+    QIG-PURE: preserves geometric validity by re-normalizing to the probability
+    simplex after padding/truncation.
 
     Notes:
-    - If basin is lower-dimensional (e.g., 32D), we zero-pad then sphere-project.
-    - If basin is higher-dimensional, we truncate then sphere-project.
+    - If basin is lower-dimensional (e.g., 32D), we zero-pad then simplex-normalize.
+    - If basin is higher-dimensional, we truncate then simplex-normalize.
 
     Args:
         basin: 1D basin coordinate vector
         target_dim: desired output dimension (default 64)
 
     Returns:
-        1D basin vector of length target_dim on the unit sphere.
+        1D basin vector of length target_dim on the probability simplex.
     """
     b = np.asarray(basin, dtype=float)
     if b.ndim != 1:
@@ -126,16 +126,16 @@ def normalize_basin_dimension(basin: np.ndarray, target_dim: int = 64) -> np.nda
 
     current_dim = int(b.shape[0])
     if current_dim == int(target_dim):
-        return sphere_project(b)
+        return fisher_normalize(b)
 
     if current_dim < int(target_dim):
         result = np.zeros(int(target_dim), dtype=float)
         result[:current_dim] = b
-        return sphere_project(result)
+        return fisher_normalize(result)
 
     # current_dim > target_dim
     result = b[: int(target_dim)].copy()
-    return sphere_project(result)
+    return fisher_normalize(result)
 
 
 def fisher_coord_distance_flexible(p: np.ndarray, q: np.ndarray) -> float:
@@ -314,48 +314,6 @@ def fisher_normalize(v: np.ndarray) -> np.ndarray:
     return p / p.sum()
 
 
-def sphere_project(v: np.ndarray) -> np.ndarray:
-    """
-    Project vector to unit sphere for embedded Fisher geometry.
-
-    When representing probability distributions on the sphere via
-    the sqrt embedding (p → sqrt(p)), the geodesic distance on the
-    sphere (arc length) equals half the Fisher-Rao distance.
-
-    This is used for:
-    - Spherical linear interpolation (slerp)
-    - Angular distance computation on embedded manifold
-    - Direction finding (tangent vectors)
-
-    IMPORTANT: This uses Euclidean L2 norm which is CORRECT for
-    projecting to the unit sphere in the embedding space.
-
-    Args:
-        v: Input vector
-
-    Returns:
-        Unit vector on sphere (L2 norm = 1)
-    """
-    # Clip extreme values to prevent overflow in norm computation
-    v_clipped = np.clip(v, -1e150, 1e150)
-    
-    # Check for inf/NaN and replace with safe values
-    if not np.all(np.isfinite(v_clipped)):
-        # Replace inf with large finite values, NaN with zeros
-        v_clipped = np.nan_to_num(v_clipped, nan=0.0, posinf=1e150, neginf=-1e150)
-    
-    norm = np.linalg.norm(v_clipped)
-    if norm < 1e-10:
-        # Return uniform direction for zero vectors
-        result = np.ones_like(v_clipped)
-        result_norm = np.linalg.norm(result)
-        if result_norm < 1e-10:
-            # Edge case: if ones vector also has zero norm (shouldn't happen)
-            return result
-        return result / result_norm
-    return v_clipped / norm
-
-
 def basin_magnitude(basin: np.ndarray) -> float:
     """
     Compute a Fisher-Rao appropriate magnitude measure for basin coordinates.
@@ -410,7 +368,6 @@ __all__ = [
     'estimate_manifold_curvature',
     'bures_distance',
     'fisher_normalize',
-    'sphere_project',
     'normalize_basin_dimension',
     'basin_magnitude',
     'basin_diversity',

@@ -102,12 +102,12 @@ logger = logging.getLogger(__name__)
 
 # Import QIG geometry functions if available
 try:
-    from qig_geometry import fisher_coord_distance, sphere_project
+    from qig_geometry import fisher_coord_distance, fisher_normalize
     QIG_GEOMETRY_AVAILABLE = True
 except ImportError:
     QIG_GEOMETRY_AVAILABLE = False
     logger.debug("qig_geometry not available - using fallback distance")
-    
+
     def fisher_coord_distance(a, b) -> float:
         """
         Fisher-Rao distance for probability simplex (fallback).
@@ -115,17 +115,11 @@ except ImportError:
         """
         dot = np.clip(np.dot(a, b), 0.0, 1.0)
         return float(np.arccos(dot))
-    
-    def sphere_project(v):
-        """Project to unit sphere (fallback)."""
-        norm = np.linalg.norm(v)
-        if NUMPY_AVAILABLE:
-            return v / (norm + 1e-10) if norm > 0 else v
-        else:
-            # Without numpy, just return normalized list
-            if norm > 0:
-                return [x / (norm + 1e-10) for x in v]
-            return v
+
+    def fisher_normalize(v):
+        """Normalize to probability simplex."""
+        p = np.maximum(np.asarray(v), 0) + 1e-10
+        return p / p.sum()
 
 try:
     from qig_geometry.canonical import frechet_mean as canonical_frechet_mean
@@ -142,14 +136,14 @@ def _compute_context_basin(context_basins: List[np.ndarray]):
         return canonical_frechet_mean(context_basins)
     if NUMPY_AVAILABLE:
         mean = np.sum(context_basins, axis=0) / len(context_basins)
-        return sphere_project(mean)
+        return fisher_normalize(mean)
     dims = len(context_basins[0])
     totals = [0.0] * dims
     for basin in context_basins:
         for i in range(dims):
             totals[i] += basin[i]
     mean = [val / len(context_basins) for val in totals]
-    return sphere_project(mean)
+    return fisher_normalize(mean)
 
 
 # Semantic-critical word patterns that should NEVER be filtered

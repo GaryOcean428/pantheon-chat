@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 import time
 import uuid
 
-from qig_geometry import fisher_rao_distance, sphere_project, geodesic_interpolation
+from qig_geometry import fisher_rao_distance, fisher_normalize, geodesic_interpolation
 
 
 # Weight adjustment constants
@@ -214,7 +214,7 @@ class AutonomousReasoningLearner:
         for i in range(min(self.basin_dim, len(content_hash))):
             target[i] = (content_hash[i] - 128) / 256.0
         
-        target = sphere_project(target)
+        target = fisher_normalize(target)
         return target
     
     def measure_phi_at_basin(self, basin: np.ndarray) -> float:
@@ -249,7 +249,7 @@ class AutonomousReasoningLearner:
     
     def project_to_manifold(self, basin: np.ndarray) -> np.ndarray:
         """Project basin back onto the Fisher manifold."""
-        return sphere_project(basin)
+        return fisher_normalize(basin)
     
     def select_strategy(self, task: Dict, current_phi: float) -> ReasoningStrategy:
         """

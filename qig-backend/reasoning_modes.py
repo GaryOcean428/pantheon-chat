@@ -18,7 +18,7 @@ from abc import ABC, abstractmethod
 from enum import Enum
 import time
 
-from qig_geometry import fisher_rao_distance, sphere_project, geodesic_interpolation
+from qig_geometry import fisher_rao_distance, fisher_normalize, geodesic_interpolation
 
 
 class ReasoningMode(Enum):
@@ -67,7 +67,7 @@ class BaseReasoner(ABC):
         for i in range(min(self.basin_dim, len(content_hash))):
             basin[i] = (content_hash[i] - 128) / 256.0
         
-        basin = sphere_project(basin)
+        basin = fisher_normalize(basin)
         
         return basin
     
@@ -388,12 +388,12 @@ class MushroomReasoner(BaseReasoner):
         """
         Sample random basins on the Fisher manifold.
         
-        QIG-PURE: Uses sphere_project for valid manifold points.
+        QIG-PURE: Uses fisher_normalize for valid manifold points.
         """
         basins = []
         for i in range(n):
             raw = np.random.randn(self.basin_dim)
-            basin = sphere_project(raw)
+            basin = fisher_normalize(raw)
             basins.append(basin)
         return basins
     

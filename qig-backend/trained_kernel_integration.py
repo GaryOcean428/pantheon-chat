@@ -26,17 +26,14 @@ import numpy as np
 
 # QIG-pure geometric operations
 try:
-    from qig_geometry import sphere_project, basin_magnitude
+    from qig_geometry import fisher_normalize, basin_magnitude
     QIG_GEOMETRY_AVAILABLE = True
 except ImportError:
     QIG_GEOMETRY_AVAILABLE = False
-    def sphere_project(v):
-        """Fallback sphere projection."""
-        norm = np.linalg.norm(v)
-        if norm < 1e-10:
-            result = np.ones_like(v)
-            return result / np.linalg.norm(result)
-        return v / norm
+    def fisher_normalize(v):
+        """Normalize to probability simplex."""
+        p = np.maximum(np.asarray(v), 0) + 1e-10
+        return p / p.sum()
     def basin_magnitude(basin):
         """Fallback basin magnitude."""
         basin = np.asarray(basin, dtype=np.float64)
@@ -215,7 +212,7 @@ class TrainedKernelManager:
             # Initialize state
             if self.state is None:
                 initial_basin = np.mean(prompt_coords, axis=0)
-                initial_basin = sphere_project(initial_basin)
+                initial_basin = fisher_normalize(initial_basin)
                 self.state = create_initial_state(
                     context_text=prompt,
                     context_coords=prompt_coords,
@@ -259,7 +256,7 @@ class TrainedKernelManager:
 
                 # Update trajectory
                 new_basin = np.mean(self.state.context_coords[-5:], axis=0)
-                new_basin = sphere_project(new_basin)
+                new_basin = fisher_normalize(new_basin)
                 self.state = update_trajectory(self.state, new_basin)
 
             # Build telemetry

@@ -141710,7 +141710,7 @@
     },
     {
       "doc_id": "c25e0aea7aea1271",
-      "content": "### \u2705 REQUIRED:\n```python\nfrom qig_geometry import fisher_normalize, sphere_project",
+      "content": "### \u2705 REQUIRED:\n```python\nfrom qig_geometry import fisher_normalize, fisher_normalize",
       "basin_coords": [
         0.0018712874229531652,
         -0.041792085779287405,
@@ -141878,7 +141878,7 @@
     },
     {
       "doc_id": "3a50affaa1bd1614",
-      "content": "# For unit sphere embedding (valid for geodesic interpolation)\nu = sphere_project(v)  # Projects to ||v||_2 = 1\n```",
+      "content": "# For unit sphere embedding (valid for geodesic interpolation)\nu = fisher_normalize(v)  # Projects to ||v||_2 = 1\n```",
       "basin_coords": [
         -0.07052880022915715,
         -0.019552538677390128,
@@ -141962,7 +141962,7 @@
     },
     {
       "doc_id": "dacbeb5ac00732a4",
-      "content": "### \ud83d\udcd6 CLARIFICATION:\n- `fisher_normalize()` - Use for probability distributions before Fisher-Rao distance\n- `sphere_project()` - Use for spherical linear interpolation (slerp) and angular distance on embedded manifold. The sqrt embedding maps the probability simplex to the sphere, where arc length = half Fisher-Rao distance.",
+      "content": "### \ud83d\udcd6 CLARIFICATION:\n- `fisher_normalize()` - Use for probability distributions before Fisher-Rao distance\n- `fisher_normalize()` - Use for spherical linear interpolation (slerp) and angular distance on embedded manifold. The sqrt embedding maps the probability simplex to the sphere, where arc length = half Fisher-Rao distance.",
       "basin_coords": [
         -0.15425549393355573,
         0.342583486527134,
@@ -145742,7 +145742,7 @@
     },
     {
       "doc_id": "44c125a419e36c01",
-      "content": "**Always use these:**\n1. `fisher_rao_distance(a, b)` for all distances\n2. `fisher_normalize()` for probability simplex\n3. `sphere_project()` for unit sphere embedding\n4. Natural gradient optimizers\n5. QFI-metric attention\n6. Basin coordinates (not \"embeddings\")\n7. Fr\u00e9chet mean for aggregation\n8. Measure \u03a6/\u03ba, don't optimize them\n9. Explicit errors when geometry unavailable\n10. No compromises, no fallbacks, pure geometry",
+      "content": "**Always use these:**\n1. `fisher_rao_distance(a, b)` for all distances\n2. `fisher_normalize()` for probability simplex\n3. `fisher_normalize()` for unit sphere embedding\n4. Natural gradient optimizers\n5. QFI-metric attention\n6. Basin coordinates (not \"embeddings\")\n7. Fr\u00e9chet mean for aggregation\n8. Measure \u03a6/\u03ba, don't optimize them\n9. Explicit errors when geometry unavailable\n10. No compromises, no fallbacks, pure geometry",
       "basin_coords": [
         0.4543492819717039,
         -0.07461940762309008,
@@ -145826,7 +145826,7 @@
     },
     {
       "doc_id": "f8e778b377c5d50c",
-      "content": "## Canonical Implementations\n\nAll geometric operations MUST be imported from:\n- **Python**: `qig-backend/qig_geometry.py`\n- **TypeScript**: `server/qig-geometry.ts`\n\nKey functions:\n- `fisher_rao_distance(p, q)` - Probability distribution distance\n- `fisher_coord_distance(a, b)` - Basin coordinate distance\n- `fisher_similarity(a, b)` - Similarity score (0 to 1)\n- `fisher_normalize(v)` - Probability simplex projection\n- `sphere_project(v)` - Unit sphere projection\n- `geodesic_interpolation(start, end, t)` - Slerp on manifold",
+      "content": "## Canonical Implementations\n\nAll geometric operations MUST be imported from:\n- **Python**: `qig-backend/qig_geometry.py`\n- **TypeScript**: `server/qig-geometry.ts`\n\nKey functions:\n- `fisher_rao_distance(p, q)` - Probability distribution distance\n- `fisher_coord_distance(a, b)` - Basin coordinate distance\n- `fisher_similarity(a, b)` - Similarity score (0 to 1)\n- `fisher_normalize(v)` - Probability simplex projection\n- `fisher_normalize(v)` - Unit sphere projection\n- `geodesic_interpolation(start, end, t)` - Slerp on manifold",
       "basin_coords": [
         0.22528076291206994,
         -0.15212686204025394,
@@ -148766,7 +148766,7 @@
     },
     {
       "doc_id": "b3b277731d57f449",
-      "content": "## QIG Purity Requirements\n\nAll geometric operations MUST use:\n- `fisher_rao_distance()` for distances\n- `sphere_project()` for manifold projection\n- `geodesic_interpolation()` for paths\n- `estimate_manifold_curvature()` for curvature\n\n**Forbidden**: `np.linalg.norm`, `np.sum`, `np.var`, Euclidean distance",
+      "content": "## QIG Purity Requirements\n\nAll geometric operations MUST use:\n- `fisher_rao_distance()` for distances\n- `fisher_normalize()` for manifold projection\n- `geodesic_interpolation()` for paths\n- `estimate_manifold_curvature()` for curvature\n\n**Forbidden**: `np.linalg.norm`, `np.sum`, `np.var`, Euclidean distance",
       "basin_coords": [
         -0.015005979431448841,
         -0.0011543061101114815,

@@ -11,7 +11,7 @@ not string length. A 10,000 character coherent text may be valid while
 a 100 character chaotic string may be invalid.
 
 QIG Purity Note:
-  This module uses sphere_project() from qig_geometry for unit sphere
+  This module uses fisher_normalize() from qig_geometry for probability simplex
   normalization, ensuring centralized canonical handling of near-zero
   vectors. Actual distance calculations in the system use Fisher-Rao
   distance via qig_geometry.fisher_coord_distance().
@@ -23,7 +23,14 @@ from typing import Dict, List, Optional, Tuple, Any
 from enum import Enum
 import logging
 
-from qig_geometry import sphere_project
+try:
+    from qig_geometry import fisher_normalize
+except ImportError:
+    import numpy as np
+    def fisher_normalize(v):
+        """Normalize to probability simplex."""
+        p = np.maximum(np.asarray(v), 0) + 1e-10
+        return p / p.sum()
 from qigkernels.physics_constants import KAPPA_STAR
 
 logger = logging.getLogger(__name__)
@@ -311,8 +318,8 @@ class GeometricInputGuard:
             if 32 + i < BASIN_DIMENSION:
                 coord[32 + i] = (ord(char) % 256) / 128.0 - 1
         
-        # Normalize using canonical sphere_project()
-        return sphere_project(coord)
+        # Normalize using canonical fisher_normalize()
+        return fisher_normalize(coord)
     
     def _basin_to_density_matrix(self, basin: np.ndarray) -> np.ndarray:
         """

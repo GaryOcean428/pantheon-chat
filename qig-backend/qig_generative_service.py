@@ -68,7 +68,7 @@ except Exception as e:
 # Import from qig_geometry for canonical operations
 logger.debug("[QIGGenerativeService] About to import qig_geometry...")
 try:
-    from qig_geometry import fisher_coord_distance, sphere_project
+    from qig_geometry import fisher_coord_distance, fisher_normalize
     logger.debug("[QIGGenerativeService] qig_geometry imported")
 except ImportError:
     logger.warning("[QIGGenerativeService] qig_geometry ImportError, using fallback")
@@ -79,11 +79,11 @@ except ImportError:
         """
         dot = np.clip(np.dot(a, b), 0.0, 1.0)
         return float(np.arccos(dot))
-    
-    def sphere_project(v: np.ndarray) -> np.ndarray:
-        """Project to unit sphere."""
-        norm = np.linalg.norm(v)
-        return v / (norm + 1e-10) if norm > 0 else v
+
+    def fisher_normalize(v: np.ndarray) -> np.ndarray:
+        """Normalize to probability simplex."""
+        p = np.maximum(v, 0) + 1e-10
+        return p / p.sum()
 
 # Import POS grammar for structured generation (MANDATORY - no legacy fallback)
 logger.debug("[QIGGenerativeService] About to import pos_grammar...")
@@ -490,12 +490,12 @@ class BasinTrajectoryIntegrator:
                 mean_sqrt = np.mean(sqrt_kernels, axis=0)
                 kernel_center = mean_sqrt ** 2
                 # Project to sphere (not simplex) - consistent with stored basins
-                kernel_center = sphere_project(kernel_center)
+                kernel_center = fisher_normalize(kernel_center)
                 # Light blend with kernel center (t=0.1 for stability)
                 basin = self._geodesic_interpolate(basin, kernel_center, t=0.1)
 
         # Step 4: Project to unit sphere (manifold constraint)
-        result = sphere_project(basin)
+        result = fisher_normalize(basin)
 
         # Increment true integration depth
         self.integration_depth += 1
@@ -553,7 +553,7 @@ class BasinTrajectoryIntegrator:
         
         # Project to unit sphere (consistent with stored basins)
         result = next_sqrt ** 2
-        result = sphere_project(result)
+        result = fisher_normalize(result)
         
         return result
     
@@ -671,14 +671,14 @@ class QIGGenerativeService:
         for kernel_name in kernels:
             np.random.seed(hash(kernel_name) % (2**32))
             basin = np.random.dirichlet(np.ones(BASIN_DIM))
-            self._kernel_basins[kernel_name] = sphere_project(basin)
+            self._kernel_basins[kernel_name] = fisher_normalize(basin)
     
     def register_kernel(self, name: str, basin: Optional[np.ndarray] = None) -> None:
         """Register a kernel with its basin position."""
         if basin is None:
             np.random.seed(hash(name) % (2**32))
             basin = np.random.dirichlet(np.ones(BASIN_DIM))
-        self._kernel_basins[name] = sphere_project(basin)
+        self._kernel_basins[name] = fisher_normalize(basin)
     
     def _measure_phi(self, basin: np.ndarray) -> float:
         """Measure integration (Φ) using proper QFI computation with smoothing.
@@ -1270,7 +1270,7 @@ class QIGGenerativeService:
         if total_weight > 1e-10:
             combined = combined / total_weight
         
-        return sphere_project(combined)
+        return fisher_normalize(combined)
     
     def _synthesize_from_trajectory(
         self,
@@ -1457,7 +1457,7 @@ class QIGGenerativeService:
                 basin = generation_vocab[word_lower]
                 if not isinstance(basin, np.ndarray):
                     basin = np.array(basin, dtype=np.float64)
-                final_trajectory.append(sphere_project(basin))
+                final_trajectory.append(fisher_normalize(basin))
             elif word_basins:
                 # Use the planned basin if available
                 idx = min(len(word_basins) - 1, len(final_trajectory) - 1)
@@ -1522,7 +1522,7 @@ class QIGGenerativeService:
                     if word.lower() in basin_coords_map:
                         word_basin = basin_coords_map[word.lower()]
                         current_basin = 0.7 * current_basin + 0.3 * word_basin
-                        current_basin = sphere_project(current_basin)
+                        current_basin = fisher_normalize(current_basin)
                         trajectory.append(current_basin.copy())
                 
                 if len(all_tokens) >= num_tokens:
@@ -1572,7 +1572,7 @@ class QIGGenerativeService:
             np.random.seed(hash(prompt) % (2**32))
             query_basin = np.random.dirichlet(np.ones(BASIN_DIM))
         
-        query_basin = sphere_project(query_basin)
+        query_basin = fisher_normalize(query_basin)
         
         # 2. Route to kernels
         if kernel_name and kernel_name in self._kernel_basins:
@@ -1597,7 +1597,7 @@ class QIGGenerativeService:
                             expert_text = expert.get('response') if isinstance(expert, dict) else None
                             if not expert_text:
                                 continue
-                            peer_basins.append(sphere_project(self.coordizer.text_to_basin(str(expert_text))))
+                            peer_basins.append(fisher_normalize(self.coordizer.text_to_basin(str(expert_text))))
                         except Exception:
                             continue
                 if peer_basins:
@@ -1646,7 +1646,7 @@ class QIGGenerativeService:
                 while integrator.get_integration_depth() < target_depth and iterations < 50:
                     iterations += 1
                     next_basin = integrator._recursive_integration_step(integrator.trajectory[-1], context)
-                    next_basin = sphere_project(next_basin)
+                    next_basin = fisher_normalize(next_basin)
                     step_tokens = self._basin_to_tokens(next_basin, max(1, int(self.config.tokens_per_step / 2)), trajectory=integrator.trajectory)
                     all_tokens.extend(step_tokens)
                     phi = self._measure_phi(next_basin)
@@ -1701,7 +1701,7 @@ class QIGGenerativeService:
                                         expert_text = expert.get('response') if isinstance(expert, dict) else None
                                         if not expert_text:
                                             continue
-                                        expert_basins.append(sphere_project(self.coordizer.text_to_basin(str(expert_text))))
+                                        expert_basins.append(fisher_normalize(self.coordizer.text_to_basin(str(expert_text))))
                                     except Exception:
                                         continue
                             if expert_basins:
@@ -1712,7 +1712,7 @@ class QIGGenerativeService:
                                     mean = np.sum(expert_basins, axis=0) / len(expert_basins)
                                     mean = np.clip(np.abs(mean), 1e-10, None)
                                     synthesis_basin = mean / (np.sum(mean) + 1e-10)
-                                    synthesis_basin = sphere_project(synthesis_basin)
+                                    synthesis_basin = fisher_normalize(synthesis_basin)
 
                     synthesis_context = dict(context or {})
                     if synthesis_basin is not None:
@@ -1721,7 +1721,7 @@ class QIGGenerativeService:
                     for _ in range(synthesis_depth):
                         iterations += 1
                         next_basin = integrator._recursive_integration_step(integrator.trajectory[-1], synthesis_context)
-                        next_basin = sphere_project(next_basin)
+                        next_basin = fisher_normalize(next_basin)
                         step_tokens = self._basin_to_tokens(next_basin, max(1, int(self.config.tokens_per_step / 2)), trajectory=integrator.trajectory)
                         all_tokens.extend(step_tokens)
                         phi = self._measure_phi(next_basin)
@@ -1793,7 +1793,7 @@ class QIGGenerativeService:
             np.random.seed(hash(prompt) % (2**32))
             query_basin = np.random.dirichlet(np.ones(BASIN_DIM))
 
-        query_basin = sphere_project(query_basin)
+        query_basin = fisher_normalize(query_basin)
 
         # Route
         if kernel_name and kernel_name in self._kernel_basins:
@@ -1842,7 +1842,7 @@ class QIGGenerativeService:
                     mean = np.sum(kernel_basins, axis=0) / len(kernel_basins)
                     mean = np.clip(np.abs(mean), 1e-10, None)
                     next_basin = mean / (np.sum(mean) + 1e-10)
-                # NOTE: Skip simplex normalization - sphere_project below handles projection correctly
+                # NOTE: Skip simplex normalization here - fisher_normalize below handles projection correctly
             else:
                 next_basin = integrator.predict_next()
 
@@ -1851,7 +1851,7 @@ class QIGGenerativeService:
             next_basin = integrator._recursive_integration_step(next_basin, context)
 
             # Project to unit sphere (Fisher-Rao manifold) - canonical representation
-            next_basin = sphere_project(next_basin)
+            next_basin = fisher_normalize(next_basin)
 
             # Decode with foresight
             tokens = self._basin_to_tokens(

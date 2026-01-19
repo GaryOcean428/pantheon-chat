@@ -16,7 +16,7 @@ from enum import Enum
 import time
 import numpy as np
 
-from qig_geometry import fisher_coord_distance, sphere_project
+from qig_geometry import fisher_coord_distance, fisher_normalize
 
 # Event bus for publishing prediction events to other kernels
 try:
@@ -949,7 +949,7 @@ class PredictionSelfImprovement:
             sorted by distance (closest first)
         """
         # Ensure basin_coords is normalized for Fisher-Rao
-        basin_coords = sphere_project(basin_coords)
+        basin_coords = fisher_normalize(basin_coords)
 
         results_with_distance = []
         for record in self.predictions.values():

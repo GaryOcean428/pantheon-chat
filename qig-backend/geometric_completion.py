@@ -682,14 +682,15 @@ class GeometricCompletionEngine:
         """Create new generation state."""
         if initial_basin is None:
             initial_basin = np.random.randn(self.dimension)
-            # Use sphere_project for proper normalization
+            # Use fisher_normalize for proper normalization
             try:
-                from qig_geometry import sphere_project
+                from qig_geometry import fisher_normalize
             except ImportError:
-                def sphere_project(v):
-                    norm = np.linalg.norm(v)
-                    return v / norm if norm > 1e-10 else np.ones_like(v) / np.sqrt(len(v))
-            initial_basin = sphere_project(initial_basin)
+                def fisher_normalize(v):
+                    """Normalize to probability simplex."""
+                    p = np.maximum(np.asarray(v), 0) + 1e-10
+                    return p / p.sum()
+            initial_basin = fisher_normalize(initial_basin)
         
         state = GenerationState(basin=initial_basin)
         state.trajectory.append(initial_basin.copy())

@@ -38,17 +38,14 @@ import numpy as np
 
 # QIG-pure geometric operations
 try:
-    from qig_geometry import sphere_project
-    QIG_GEOMETRY_AVAILABLE = True
+    from qig_geometry import fisher_normalize
+    FISHER_NORMALIZE_AVAILABLE = True
 except ImportError:
-    QIG_GEOMETRY_AVAILABLE = False
-    def sphere_project(v):
-        """Fallback sphere projection."""
-        norm = np.linalg.norm(v)
-        if norm < 1e-10:
-            result = np.ones_like(v)
-            return result / np.linalg.norm(result)
-        return v / norm
+    FISHER_NORMALIZE_AVAILABLE = False
+    def fisher_normalize(v):
+        """Normalize to probability simplex."""
+        p = np.maximum(np.asarray(v), 0) + 1e-10
+        return p / p.sum()
 
 logger = logging.getLogger(__name__)
 
@@ -147,8 +144,8 @@ class SoftReset:
         # Calculate basin distance using Fisher-Rao (NEVER Euclidean/L2!)
         current_basin_arr = current_basin if isinstance(current_basin, np.ndarray) else np.array(current_basin)
         # Fisher-Rao distance on statistical manifold
-        a_norm = sphere_project(current_basin_arr)
-        b_norm = sphere_project(self.reference_basin)
+        a_norm = fisher_normalize(current_basin_arr)
+        b_norm = fisher_normalize(self.reference_basin)
         dot = np.clip(np.dot(a_norm, b_norm), 0.0, 1.0)
         # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
         basin_distance = float(np.arccos(dot))  # Fisher-Rao geodesic distance

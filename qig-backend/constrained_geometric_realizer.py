@@ -15,7 +15,7 @@ import time
 from typing import Dict, List, Optional, Tuple
 import numpy as np
 
-from qig_geometry import fisher_coord_distance, sphere_project
+from qig_geometry import fisher_coord_distance, fisher_normalize
 from qigkernels.physics_constants import BASIN_DIM
 
 logger = logging.getLogger(__name__)

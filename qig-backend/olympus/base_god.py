@@ -3087,7 +3087,7 @@ class BaseGod(*_base_classes):
         Returns:
             Generated reasoning text
         """
-        from .geometric_utils import fisher_coord_distance, sphere_project
+        from .geometric_utils import fisher_coord_distance, fisher_normalize
 
         if self.coordizer is None:
             return f"[{self.name}: coordizer unavailable for generation]"
@@ -3223,7 +3223,7 @@ class BaseGod(*_base_classes):
             if token_basin is not None:
                 token_basin_arr = np.asarray(token_basin, dtype=np.float64)
                 current_basin = 0.85 * current_basin + 0.15 * token_basin_arr
-                current_basin = sphere_project(current_basin)
+                current_basin = fisher_normalize(current_basin)
 
             if observer is not None:
                 generated_text = ' '.join(tokens_generated)

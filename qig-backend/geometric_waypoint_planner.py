@@ -31,7 +31,7 @@ from qig_geometry.canonical import (
 from qig_geometry import (
     fisher_coord_distance,
     geodesic_interpolation,
-    sphere_project,
+    fisher_normalize,
 )
 
 try:
@@ -187,8 +187,8 @@ class GeometricWaypointPlanner:
         predicted_sqrt = sqrt_last + self.step_size * velocity
         
         predicted = predicted_sqrt ** 2
-        
-        return sphere_project(predicted)
+
+        return fisher_normalize(predicted)
     
     def integrate_with_trajectory(
         self,
@@ -214,7 +214,7 @@ class GeometricWaypointPlanner:
         """
         loops = max(loops, MIN_INTEGRATION_DEPTH)
         target = np.asarray(target_basin, dtype=np.float64)
-        target = sphere_project(target)
+        target = fisher_normalize(target)
         
         if len(trajectory) == 0:
             return target
@@ -238,8 +238,8 @@ class GeometricWaypointPlanner:
             t_attractor = self.attractor_weight
             integrated = geodesic_interpolation(intermediate, attractor, t_attractor)
             
-            target = sphere_project(integrated)
-            
+            target = fisher_normalize(integrated)
+
         return target
     
     def compute_qfi_attention(
@@ -263,11 +263,11 @@ class GeometricWaypointPlanner:
         if len(trajectory) == 0:
             return np.array([])
         
-        target = sphere_project(np.asarray(target, dtype=np.float64))
+        target = fisher_normalize(np.asarray(target, dtype=np.float64))
         
         distances = []
         for basin in trajectory:
-            basin = sphere_project(np.asarray(basin, dtype=np.float64))
+            basin = fisher_normalize(np.asarray(basin, dtype=np.float64))
             d = fisher_coord_distance(target, basin)
             distances.append(d)
         

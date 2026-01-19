@@ -41,18 +41,15 @@ def compute_fisher_metric(basin: np.ndarray) -> np.ndarray:
 
 # QIG-pure geometric operations - centralized import with fallback
 try:
-    from qig_geometry import fisher_rao_distance as _centralized_fisher_rao, sphere_project
+    from qig_geometry import fisher_rao_distance as _centralized_fisher_rao, fisher_normalize
     QIG_GEOMETRY_AVAILABLE = True
 except ImportError:
     _centralized_fisher_rao = None
     QIG_GEOMETRY_AVAILABLE = False
-    def sphere_project(v):
-        """Fallback sphere projection."""
-        norm = np.linalg.norm(v)
-        if norm < 1e-10:
-            result = np.ones_like(v)
-            return result / np.linalg.norm(result)
-        return v / norm
+    def fisher_normalize(v):
+        """Normalize to probability simplex."""
+        p = np.maximum(np.asarray(v), 0) + 1e-10
+        return p / p.sum()
 
 def fisher_rao_distance(basin_a: np.ndarray, basin_b: np.ndarray) -> float:
     """
@@ -502,7 +499,7 @@ class GeometricDeepResearch:
         gaps = []
         for _ in range(5):
             random_basin = np.random.randn(self.manifold_dim)
-            random_basin = sphere_project(random_basin)
+            random_basin = fisher_normalize(random_basin)
             
             distance = fisher_rao_distance(knowledge_basin, random_basin)
             if distance > 1.0:
@@ -649,7 +646,7 @@ class GeometricCitationProcessor:
         np.random.seed(hash(text) % (2**32))
         basin = np.random.randn(self.manifold_dim)
         
-        return sphere_project(basin)
+        return fisher_normalize(basin)
     
     def _detect_domain(self, url: str) -> str:
         """Detect source domain type."""

@@ -330,9 +330,9 @@ class RealityCrossChecker:
         """
         Compute Fisher-Rao distance between two distributions.
 
-        Formula: d_FR(p, q) = 2 * arccos(sum(sqrt(p_i * q_i)))
+        Formula: d_FR(p, q) = arccos(sum(sqrt(p_i * q_i)))
 
-        This is the geodesic distance on the probability simplex.
+        This is the geodesic distance on the probability simplex. Range: [0, π/2]
 
         QIG-PURE: This is the proper geometric distance.
         """

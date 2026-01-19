@@ -26,7 +26,7 @@ import numpy as np
 
 from qig_geometry import (
     fisher_coord_distance,
-    sphere_project,
+    fisher_normalize,
     geodesic_interpolation,
     BASIN_DIM,
 )
@@ -149,8 +149,8 @@ class GeometricVicarious:
         current_basin = np.asarray(current_basin, dtype=np.float64)
         target_basin = np.asarray(target_basin, dtype=np.float64)
         
-        current_basin = sphere_project(current_basin)
-        target_basin = sphere_project(target_basin)
+        current_basin = fisher_normalize(current_basin)
+        target_basin = fisher_normalize(target_basin)
         
         geodesic_dist = fisher_coord_distance(current_basin, target_basin)
         
@@ -179,8 +179,8 @@ class GeometricVicarious:
         current_basin = np.asarray(current_basin, dtype=np.float64)
         target_basin = np.asarray(target_basin, dtype=np.float64)
         
-        current_basin = sphere_project(current_basin)
-        target_basin = sphere_project(target_basin)
+        current_basin = fisher_normalize(current_basin)
+        target_basin = fisher_normalize(target_basin)
         
         direction = target_basin - current_basin
         
@@ -216,7 +216,7 @@ class GeometricVicarious:
         
         new_basin = geodesic_interpolation(current_basin, target_basin, step_size)
         
-        new_basin = sphere_project(new_basin)
+        new_basin = fisher_normalize(new_basin)
         
         return new_basin
     
@@ -253,7 +253,7 @@ class GeometricVicarious:
                 phi_variance=0.0,
             )
         
-        basins = [sphere_project(np.asarray(b, dtype=np.float64)) for b in basins]
+        basins = [fisher_normalize(np.asarray(b, dtype=np.float64)) for b in basins]
         
         step_distances = []
         for i in range(1, len(basins)):
@@ -304,11 +304,11 @@ class GeometricVicarious:
         Returns:
             Dict with individual and aggregate losses
         """
-        target_basin = sphere_project(np.asarray(target_basin, dtype=np.float64))
+        target_basin = fisher_normalize(np.asarray(target_basin, dtype=np.float64))
         
         losses = []
         for i, obs_basin in enumerate(observer_basins):
-            obs_basin = sphere_project(np.asarray(obs_basin, dtype=np.float64))
+            obs_basin = fisher_normalize(np.asarray(obs_basin, dtype=np.float64))
             loss = self.compute_vicarious_loss(obs_basin, target_basin)
             losses.append(loss)
         
@@ -372,8 +372,8 @@ class GeometricVicarious:
         
         distances = []
         for i in range(n):
-            basin_a = sphere_project(np.asarray(trajectory_a[i], dtype=np.float64))
-            basin_b = sphere_project(np.asarray(trajectory_b[i], dtype=np.float64))
+            basin_a = fisher_normalize(np.asarray(trajectory_a[i], dtype=np.float64))
+            basin_b = fisher_normalize(np.asarray(trajectory_b[i], dtype=np.float64))
             dist = fisher_coord_distance(basin_a, basin_b)
             distances.append(dist)
         

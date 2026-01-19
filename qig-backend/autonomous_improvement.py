@@ -26,17 +26,14 @@ except ImportError:
 
 # QIG-pure geometric operations
 try:
-    from qig_geometry import sphere_project
+    from qig_geometry import fisher_normalize
     QIG_GEOMETRY_AVAILABLE = True
 except ImportError:
     QIG_GEOMETRY_AVAILABLE = False
-    def sphere_project(v):
-        """Fallback sphere projection."""
-        norm = np.linalg.norm(v)
-        if norm < 1e-10:
-            result = np.ones_like(v)
-            return result / np.linalg.norm(result)
-        return v / norm
+    def fisher_normalize(v):
+        """Normalize to probability simplex."""
+        p = np.maximum(np.asarray(v), 0) + 1e-10
+        return p / p.sum()
         
 import asyncio
 from typing import Dict, List, Optional, Any
@@ -101,7 +98,7 @@ if not CANONICAL_PRIMITIVES_AVAILABLE:
         
         if theta < 1e-6:
             # Return normalized to unit sphere in sqrt space
-            return sphere_project(start)
+            return fisher_normalize(start)
         
         sin_theta = np.sin(theta)
         a = np.sin((1 - t) * theta) / sin_theta
@@ -441,7 +438,7 @@ class SelfDirectedResearch:
         """Encode topic to basin coordinates."""
         np.random.seed(hash(topic) % (2**32))
         basin = np.random.randn(self.manifold_dim)
-        return sphere_project(basin)
+        return fisher_normalize(basin)
     
     def _reinforce_curiosity_pattern(self, topic: str):
         """Reinforce successful curiosity pattern."""
@@ -475,7 +472,7 @@ class BasinMaintenanceLoop:
     
     def set_identity_basin(self, basin: np.ndarray):
         """Set the kernel's identity basin (reference point)."""
-        self.identity_basin = sphere_project(basin)
+        self.identity_basin = fisher_normalize(basin)
     
     async def maintain_basin(self, kernel):
         """Ongoing basin optimization when idle."""

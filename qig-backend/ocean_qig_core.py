@@ -1099,15 +1099,15 @@ class GroundingDetector:
         nearest_concept = None
 
         for concept_id, concept_basin in self.known_concepts.items():
-            # Fisher-Rao distance: d = arccos(p·q) for unit vectors
+            # Fisher-Rao distance: d = arccos(p·q) for probability simplex
             try:
-                from qig_geometry import sphere_project
+                from qig_geometry import fisher_normalize
             except ImportError:
-                def sphere_project(v):
-                    norm = np.linalg.norm(v)
-                    return v / norm if norm > 1e-10 else np.ones_like(v) / np.sqrt(len(v))
-            query_norm = sphere_project(query_basin)
-            concept_norm = sphere_project(concept_basin)
+                def fisher_normalize(v):
+                    p = np.maximum(np.asarray(v), 0) + 1e-10
+                    return p / p.sum()
+            query_norm = fisher_normalize(query_basin)
+            concept_norm = fisher_normalize(concept_basin)
             dot = np.clip(np.dot(query_norm, concept_norm), 0.0, 1.0)
             # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
             distance = np.arccos(dot)

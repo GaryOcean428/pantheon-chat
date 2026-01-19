@@ -512,27 +512,25 @@ class SelfSpawningKernel(*_kernel_base_classes):
         NEVER fall back to zero - use random values in the LINEAR regime floor.
         This prevents spawning in BREAKDOWN regime (Φ < 0.1) which causes immediate death.
         
-        GEOMETRIC PURITY: Uses sphere_project from qig_geometry for Fisher-compliant
+        GEOMETRIC PURITY: Uses fisher_normalize from qig_geometry for Fisher-compliant
         normalization instead of Euclidean basin.norm().
         """
         try:
             import torch
             import numpy as np
-            
+
             # Import Fisher geometry for geometric purity
             try:
                 import sys
                 import os
                 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-                from qig_geometry import sphere_project
+                from qig_geometry import fisher_normalize
             except ImportError:
-                # Fallback: define sphere_project locally
-                def sphere_project(v: np.ndarray) -> np.ndarray:
-                    norm = np.linalg.norm(v)
-                    if norm < 1e-10:
-                        result = np.ones_like(v)
-                        return result / np.linalg.norm(result)
-                    return v / norm
+                # Fallback: define fisher_normalize locally
+                def fisher_normalize(v: np.ndarray) -> np.ndarray:
+                    """Normalize to probability simplex."""
+                    p = np.maximum(np.asarray(v), 0) + 1e-10
+                    return p / p.sum()
             
             # Import spawning constants
             try:
@@ -549,8 +547,8 @@ class SelfSpawningKernel(*_kernel_base_classes):
             basin_dim = self.kernel.basin_coords.shape[0]
             basin_np = np.random.randn(basin_dim) * 0.1  # Small random values
             
-            # GEOMETRIC PURITY: Use Fisher-compliant sphere projection instead of Euclidean norm
-            basin_np = sphere_project(basin_np) * np.sqrt(basin_dim)
+            # GEOMETRIC PURITY: Use Fisher-compliant fisher normalization instead of Euclidean norm
+            basin_np = fisher_normalize(basin_np) * np.sqrt(basin_dim)
             
             # Scale basin to approximate target Φ (simplified heuristic)
             # Higher basin norm tends to correlate with higher Φ
@@ -570,9 +568,9 @@ class SelfSpawningKernel(*_kernel_base_classes):
             import torch.nn as nn
             import numpy as np
             try:
-                from qig_geometry import sphere_project
+                from qig_geometry import fisher_normalize
                 basin_np = np.random.randn(self.kernel.basin_coords.shape[0]) * 0.5
-                basin_np = sphere_project(basin_np)
+                basin_np = fisher_normalize(basin_np)
                 self.kernel.basin_coords = nn.Parameter(torch.from_numpy(basin_np).float().to(self.kernel.basin_coords.device))
             except:
                 self.kernel.basin_coords = nn.Parameter(torch.randn_like(self.kernel.basin_coords) * 0.5)

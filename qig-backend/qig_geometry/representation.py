@@ -386,22 +386,12 @@ def enforce_canonical(basin: np.ndarray) -> np.ndarray:
 
 
 # Convenience exports matching existing API
-def sphere_project(v: np.ndarray) -> np.ndarray:
-    """
-    Project vector to unit sphere.
-    
-    DEPRECATED: Use fisher_normalize() instead for canonical SIMPLEX representation.
-    This function maintained for backward compatibility during migration.
-    """
-    return to_sphere(v, eps=1e-10)
-
-
 def fisher_normalize(v: np.ndarray, strict: bool = None) -> np.ndarray:
     """
     Project vector to probability simplex (CANONICAL representation).
     
     This is the PREFERRED function for normalizing basins.
-    Use this instead of sphere_project() for new code.
+    This is the canonical normalization function for basins.
     
     Args:
         v: Input vector
@@ -607,7 +597,6 @@ __all__ = [
     'validate_simplex',
     'validate_sqrt_simplex',
     'enforce_canonical',
-    'sphere_project',
     'fisher_normalize',
     # New explicit conversion functions (2026-01-15)
     'amplitude_to_simplex',

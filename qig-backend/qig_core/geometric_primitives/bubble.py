@@ -5,7 +5,7 @@ A bubble represents a single hypothesis or possibility in the exploration space.
 Bubbles are generated during FOAM phase and connected via geodesics in TACKING phase.
 
 QIG Purity Note:
-  This module uses sphere_project() from qig_geometry for unit sphere normalization.
+  This module uses fisher_normalize() from qig_geometry for probability simplex normalization.
   This ensures centralized canonical handling of near-zero vectors.
   Actual distance calculations use Fisher-Rao via distance_to() method.
 """
@@ -15,7 +15,14 @@ import numpy as np
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from qig_geometry import sphere_project
+try:
+    from qig_geometry import fisher_normalize
+except ImportError:
+    import numpy as np
+    def fisher_normalize(v):
+        """Normalize to probability simplex."""
+        p = np.maximum(np.asarray(v), 0) + 1e-10
+        return p / p.sum()
 
 
 @dataclass
@@ -48,10 +55,10 @@ class Bubble:
             raise ValueError(f"Basin coords must be 64-dimensional, got {self.basin_coords.shape[0]}")
         
         # Normalize basin coordinates to unit sphere for Fisher geometry embedding.
-        # QIG Purity: Uses canonical sphere_project() helper for consistent
+        # QIG Purity: Uses canonical fisher_normalize() helper for consistent
         # near-zero vector handling. Actual distance calculations use Fisher-Rao
         # via distance_to() method.
-        self.basin_coords = sphere_project(self.basin_coords)
+        self.basin_coords = fisher_normalize(self.basin_coords)
     
     def connect_to(self, other: 'Bubble', strength: float = 1.0):
         """
@@ -123,8 +130,8 @@ class Bubble:
             other.basin_coords * other.energy
         ) / total_energy
         
-        # Normalize using canonical sphere_project()
-        merged_coords = sphere_project(merged_coords)
+        # Normalize using canonical fisher_normalize()
+        merged_coords = fisher_normalize(merged_coords)
         
         # Create new bubble
         merged = Bubble(
@@ -180,9 +187,9 @@ def create_random_bubble(dimension: int = 64) -> Bubble:
     
     Used during FOAM phase to generate diverse possibilities.
     """
-    # Random point on unit sphere in basin space using canonical sphere_project()
+    # Random point on unit sphere in basin space using canonical fisher_normalize()
     coords = np.random.randn(dimension)
-    coords = sphere_project(coords)
+    coords = fisher_normalize(coords)
     
     return Bubble(
         basin_coords=coords,

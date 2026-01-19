@@ -298,16 +298,7 @@ class TestStrictMode:
 
 class TestAPICompatibility:
     """Test API compatibility functions."""
-    
-    def test_sphere_project_alias(self):
-        """sphere_project is alias for to_sphere."""
-        from qig_geometry.representation import sphere_project
-        
-        v = np.array([1.0, 2.0, 3.0])
-        result = sphere_project(v)
-        
-        assert np.isclose(np.linalg.norm(result), 1.0)
-    
+
     def test_fisher_normalize_alias(self):
         """fisher_normalize is alias for to_simplex."""
         from qig_geometry.representation import fisher_normalize

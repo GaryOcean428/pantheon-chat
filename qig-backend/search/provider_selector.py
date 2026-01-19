@@ -27,17 +27,14 @@ import numpy as np
 
 # QIG-pure geometric operations
 try:
-    from qig_geometry import sphere_project
+    from qig_geometry import fisher_normalize
     QIG_GEOMETRY_AVAILABLE = True
 except ImportError:
     QIG_GEOMETRY_AVAILABLE = False
-    def sphere_project(v):
-        """Fallback sphere projection."""
-        norm = np.linalg.norm(v)
-        if norm < 1e-10:
-            result = np.ones_like(v)
-            return result / np.linalg.norm(result)
-        return v / norm
+    def fisher_normalize(v):
+        """Normalize to probability simplex."""
+        p = np.maximum(np.asarray(v), 0) + 1e-10
+        return p / p.sum()
 from typing import Dict, List, Optional, Any, Tuple, TYPE_CHECKING
 from datetime import datetime
 
@@ -336,7 +333,7 @@ class GeometricProviderSelector:
             basin = np.pad(basin, (0, 64 - len(basin)))
         basin = basin[:64]
         
-        basin = sphere_project(basin)
+        basin = fisher_normalize(basin)
         return basin
     
     def _fisher_rao_distance(self, p1: np.ndarray, p2: np.ndarray) -> float:

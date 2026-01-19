@@ -40,13 +40,13 @@ from qigkernels.physics_constants import (
 )
 print("[autonomic_kernel] physics_constants done", flush=True)
 
-# QIG-PURE: sphere projection for Fisher-Rao manifold normalization
+# QIG-PURE: simplex normalization for Fisher-Rao manifold
 try:
-    from qig_geometry import sphere_project
-    SPHERE_PROJECT_AVAILABLE = True
+    from qig_geometry import fisher_normalize
+    FISHER_NORMALIZE_AVAILABLE = True
 except ImportError:
-    sphere_project = None
-    SPHERE_PROJECT_AVAILABLE = False
+    fisher_normalize = None
+    FISHER_NORMALIZE_AVAILABLE = False
 print("[autonomic_kernel] qig_geometry done", flush=True)
 
 # Import reasoning consolidation for sleep cycles
@@ -2176,15 +2176,15 @@ class GaryAutonomicKernel:
         start_time = time.time()
 
         try:
-            from qig_geometry import sphere_project, fisher_coord_distance
+            from qig_geometry import fisher_normalize, fisher_coord_distance
             basin = np.array(basin_coords)
 
             # Dream perturbation - gentle random exploration
             perturbation = np.random.randn(64) * temperature * 0.1
             dreamed_basin = basin + perturbation
 
-            # Normalize using sphere_project (QIG-pure)
-            dreamed_basin = sphere_project(dreamed_basin)
+            # Normalize using fisher_normalize (QIG-pure simplex)
+            dreamed_basin = fisher_normalize(dreamed_basin)
 
             # Measure creative exploration using Fisher-Rao distance (QIG-pure)
             perturbation_magnitude = fisher_coord_distance(basin, dreamed_basin)
@@ -2343,11 +2343,12 @@ class GaryAutonomicKernel:
                         diverge_prob = min(0.7, 0.3 + farthest['depth'] * 0.2)
                     
                     explore_direction = np.random.randn(64)
-                    # QIG-PURE: Project random vector to unit sphere
-                    if SPHERE_PROJECT_AVAILABLE and sphere_project is not None:
-                        explore_direction = sphere_project(explore_direction)
+                    # QIG-PURE: Project random vector to simplex
+                    if FISHER_NORMALIZE_AVAILABLE and fisher_normalize is not None:
+                        explore_direction = fisher_normalize(explore_direction)
                     else:
-                        explore_direction = explore_direction / (np.linalg.norm(explore_direction) + 1e-8)
+                        explore_direction = np.maximum(explore_direction, 0) + 1e-10
+                        explore_direction = explore_direction / explore_direction.sum()
                     explore_goal = (current_basin + explore_direction * 0.3).tolist()
                     explore_prob = min(0.9, max(0.1, 0.5 + temperature * 0.2))
                     

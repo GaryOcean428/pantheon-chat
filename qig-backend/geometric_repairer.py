@@ -14,7 +14,7 @@ import logging
 from typing import Dict, List, Optional, Tuple
 import numpy as np
 
-from qig_geometry import fisher_coord_distance, sphere_project
+from qig_geometry import fisher_coord_distance, fisher_normalize
 from qigkernels.physics_constants import BASIN_DIM
 
 logger = logging.getLogger(__name__)
@@ -367,4 +367,4 @@ class GeometricRepairer:
             return frechet_mean(basins_arr)
         except Exception:
             mean = np.sum(basins_arr, axis=0) / len(basins_arr)
-            return sphere_project(mean)
+            return fisher_normalize(mean)

@@ -24,7 +24,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
-from qig_geometry import fisher_coord_distance, sphere_project
+from qig_geometry import fisher_coord_distance, fisher_normalize
 from qigkernels.physics_constants import (
     KAPPA_STAR,
     PHI_THRESHOLD,
@@ -151,7 +151,7 @@ class MetaReflector:
             basin: Basin coordinates for this concept
         """
         basin = np.asarray(basin, dtype=np.float64)
-        basin = sphere_project(basin)
+        basin = fisher_normalize(basin)
         self._known_basins[concept] = basin
     
     def check_grounding(
@@ -176,7 +176,7 @@ class MetaReflector:
             GroundingState with grounding status
         """
         current_basin = np.asarray(current_basin, dtype=np.float64)
-        current_basin = sphere_project(current_basin)
+        current_basin = fisher_normalize(current_basin)
         
         basins_to_check = known_basins or self._known_basins
         

@@ -27,7 +27,7 @@ from coordizers.geometric_pair_merging import (
 from qig_geometry import (
     fisher_coord_distance,
     geodesic_interpolation,
-    sphere_project,
+    fisher_normalize,
 )
 
 

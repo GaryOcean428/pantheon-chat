@@ -12,7 +12,7 @@ detecting trajectory convergence.
 import numpy as np
 from typing import List, Optional, Tuple
 
-from qig_geometry import fisher_coord_distance, sphere_project
+from qig_geometry import fisher_coord_distance, fisher_normalize
 
 
 def compute_fisher_potential(
@@ -218,8 +218,8 @@ def geodesic_step(
     # For small steps: exp_p(v) ≈ p + v
     new_point = basin + step_size * direction
     
-    # Project to valid manifold (unit sphere)
-    return sphere_project(new_point)
+    # Project to valid manifold (probability simplex)
+    return fisher_normalize(new_point)
 
 
 def find_attractors_in_region(
@@ -303,7 +303,7 @@ def sample_in_fisher_ball(
         
         # Project along geodesic
         sample = center + distance * direction
-        sample = sphere_project(sample)
+        sample = fisher_normalize(sample)
         
         # Check if within Fisher ball
         actual_distance = fisher_coord_distance(center, sample)

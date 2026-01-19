@@ -56,7 +56,6 @@ from .representation import (
     to_simplex,
     validate_basin,
     enforce_canonical,
-    sphere_project,
     fisher_normalize,
     # New explicit conversion functions (2026-01-15)
     amplitude_to_simplex,
@@ -506,7 +505,6 @@ __all__ = [
     'to_simplex',
     'validate_basin',
     'enforce_canonical',
-    'sphere_project',
     'fisher_normalize',
     # New explicit conversion functions (2026-01-15)
     'amplitude_to_simplex',

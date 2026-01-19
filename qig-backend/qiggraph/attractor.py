@@ -489,9 +489,9 @@ def learn_attractor_from_examples(
     # Compute geometric mean of all examples
     all_points = np.concatenate(examples)
     center = np.mean(all_points, axis=0)
-    # Use canonical sphere projection
-    from qig_geometry import sphere_project, fisher_coord_distance
-    center = sphere_project(center)
+    # Use canonical fisher normalization
+    from qig_geometry import fisher_normalize, fisher_coord_distance
+    center = fisher_normalize(center)
 
     # Compute radius from Fisher-Rao variance
     distances = [fisher_coord_distance(p, center) for p in all_points]

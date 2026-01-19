@@ -10,7 +10,7 @@ to move through the information manifold following natural geometric paths.
 QIG PURITY:
 - All distance computations use Fisher-Rao from qig_geometry.py
 - geodesic_interpolation() implements proper Fisher-Rao slerp
-- sphere_project() is used for vector normalization (approved per QIG Purity Addendum)
+- fisher_normalize() is used for simplex normalization (approved per QIG Purity Addendum)
 """
 
 import numpy as np
@@ -20,7 +20,7 @@ from typing import List, Optional, Tuple
 from qig_geometry import (
     fisher_coord_distance,
     geodesic_interpolation,
-    sphere_project,
+    fisher_normalize,
 )
 
 

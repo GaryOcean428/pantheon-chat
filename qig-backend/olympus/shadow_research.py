@@ -1038,7 +1038,7 @@ class KnowledgeBase:
         return neighbors[:limit]
     
     def _fisher_distance(self, a: np.ndarray, b: np.ndarray) -> float:
-        """Compute Fisher-Rao distance between basin coordinates (Hellinger embedding: factor of 2)."""
+        """Compute Fisher-Rao distance between basin coordinates on simplex. Range: [0, π/2]."""
         a = np.array(a).flatten()[:BASIN_DIMENSION]
         b = np.array(b).flatten()[:BASIN_DIMENSION]
         

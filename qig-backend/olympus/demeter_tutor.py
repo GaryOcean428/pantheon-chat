@@ -12,7 +12,7 @@ from typing import Dict, Any, Optional, List
 from dataclasses import dataclass, field
 import time
 
-from qig_geometry import fisher_rao_distance, sphere_project, geodesic_interpolation
+from qig_geometry import fisher_rao_distance, fisher_normalize, geodesic_interpolation
 
 
 @dataclass
@@ -218,10 +218,10 @@ class DemeterTutor:
         print(f"    Demonstrating: {exercise.get('type', 'exercise')}")
         
         demo_basin = np.random.randn(self.basin_dim) * 0.3
-        demo_basin = sphere_project(demo_basin)
+        demo_basin = fisher_normalize(demo_basin)
         
         target = np.random.randn(self.basin_dim) * 0.3
-        target = sphere_project(target)
+        target = fisher_normalize(target)
         
         path = []
         current = demo_basin

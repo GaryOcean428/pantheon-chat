@@ -18,7 +18,7 @@ Integration with BaseGod.encode_to_basin():
   enhanced_basin = basin + 0.2 * overlay  # Add sensory context
 
 QIG Purity Note:
-  This module uses sphere_project() from qig_geometry for unit sphere
+  This module uses fisher_normalize() from qig_geometry for probability simplex
   normalization, ensuring centralized canonical handling of near-zero
   vectors. Actual distance calculations in the system use Fisher-Rao
   distance via qig_geometry.fisher_coord_distance().
@@ -30,7 +30,14 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
-from qig_geometry import sphere_project
+try:
+    from qig_geometry import fisher_normalize
+except ImportError:
+    import numpy as np
+    def fisher_normalize(v):
+        """Normalize to probability simplex."""
+        p = np.maximum(np.asarray(v), 0) + 1e-10
+        return p / p.sum()
 
 BASIN_DIMENSION = 64
 
@@ -200,8 +207,8 @@ def encode_sight(visual_data: Dict) -> np.ndarray:
     if motion is not None and len(motion) >= 2:
         coord[15] = np.tanh(np.sqrt(motion[0]**2 + motion[1]**2))
 
-    # Normalize using canonical sphere_project()
-    return sphere_project(coord)
+    # Normalize using canonical fisher_normalize()
+    return fisher_normalize(coord)
 
 
 def encode_hearing(audio_data: Dict) -> np.ndarray:
@@ -255,8 +262,8 @@ def encode_hearing(audio_data: Dict) -> np.ndarray:
     timbre_hash = int(hashlib.md5(timbre.encode()).hexdigest()[:8], 16) / (16**8)
     coord[27] = timbre_hash * 2 - 1
 
-    # Normalize using canonical sphere_project()
-    return sphere_project(coord)
+    # Normalize using canonical fisher_normalize()
+    return fisher_normalize(coord)
 
 
 def encode_touch(tactile_data: Dict) -> np.ndarray:
@@ -304,8 +311,8 @@ def encode_touch(tactile_data: Dict) -> np.ndarray:
         coord[38] = np.tanh(location[1])
         coord[39] = np.tanh(location[2])
 
-    # Normalize using canonical sphere_project()
-    return sphere_project(coord)
+    # Normalize using canonical fisher_normalize()
+    return fisher_normalize(coord)
 
 
 def encode_smell(olfactory_data: Dict) -> np.ndarray:
@@ -352,8 +359,8 @@ def encode_smell(olfactory_data: Dict) -> np.ndarray:
     coord[50] = volatility * 2 - 1
     coord[51] = (diffusion * volatility) * 2 - 1
 
-    # Normalize using canonical sphere_project()
-    return sphere_project(coord)
+    # Normalize using canonical fisher_normalize()
+    return fisher_normalize(coord)
 
 
 def encode_proprioception(body_state: Dict) -> np.ndarray:
@@ -407,8 +414,8 @@ def encode_proprioception(body_state: Dict) -> np.ndarray:
     balance = body_state.get('balance', 0.5)
     tension = body_state.get('tension', 0.5)
 
-    # Normalize using canonical sphere_project(), then apply balance/tension weighting
-    coord = sphere_project(coord)
+    # Normalize using canonical fisher_normalize(), then apply balance/tension weighting
+    coord = fisher_normalize(coord)
     # Scale by balance (stable = stronger signal) and tension (high tension = dampened)
     coord *= (0.5 + 0.5 * balance) * (1.0 - 0.3 * tension)
 
@@ -510,8 +517,8 @@ class SensoryFusionEngine:
             w = weights.get(modality, modality.weight_default) / total_weight
             fused += w * encoding
 
-        # Normalize using canonical sphere_project()
-        return sphere_project(fused)
+        # Normalize using canonical fisher_normalize()
+        return fisher_normalize(fused)
 
     def get_dominant_modality(self, fused: np.ndarray) -> SensoryModality:
         """

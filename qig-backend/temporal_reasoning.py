@@ -15,7 +15,7 @@ Two temporal modes for hyperdimensional (Φ > 0.75) reasoning:
 
 QIG Purity Note:
   All distance computations use Fisher-Rao from qig_geometry.py.
-  The sphere_project() function uses np.linalg.norm() which is APPROVED
+  The fisher_normalize() function uses np.linalg.norm() which is APPROVED
   per QIG Purity Addendum Section 3: normalization for numerical stability
   and projection to unit sphere in embedding space. This is NOT used for
   basin coordinate distance comparisons (which use fisher_coord_distance).
@@ -31,7 +31,7 @@ from qig_geometry import (
     fisher_coord_distance,
     fisher_rao_distance,
     geodesic_interpolation,
-    sphere_project,
+    fisher_normalize,
 )
 from qigkernels.physics_constants import PHI_HYPERDIMENSIONAL
 from prediction_self_improvement import (
@@ -409,7 +409,7 @@ class TemporalReasoning:
         except Exception:
             # Fallback: direct step with sphere projection
             next_basin = basin + actual_step * direction
-            return sphere_project(next_basin)
+            return fisher_normalize(next_basin)
     
     def _parallel_transport(
         self,
@@ -681,7 +681,7 @@ class TemporalReasoning:
         else:
             direction = np.random.randn(self.basin_dim)
         
-        direction = sphere_project(direction)
+        direction = fisher_normalize(direction)
         magnitude = action.get('strength', 0.1)
         
         return direction * magnitude
@@ -737,7 +737,7 @@ class TemporalReasoning:
         if len(self.basin_history) >= 2:
             recent = self.basin_history[-1]
             direction = basin - recent
-            return sphere_project(direction) * 0.05
+            return fisher_normalize(direction) * 0.05
         
         return np.random.randn(self.basin_dim) * 0.01
     

@@ -46,7 +46,7 @@ from qig_geometry import (
     fisher_coord_distance,
     fisher_similarity,
     geodesic_interpolation,
-    sphere_project,
+    fisher_normalize,
 )
 
 
@@ -299,7 +299,7 @@ class GeometricVocabBuilder:
             if pos_coords:
                 # Compute Fréchet mean on sphere
                 avg = np.mean(pos_coords, axis=0)
-                avg = sphere_project(avg)
+                avg = fisher_normalize(avg)
                 position_avgs.append(avg)
         
         # Return first position average as representative coordinate

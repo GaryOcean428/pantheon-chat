@@ -46,7 +46,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from qig_geometry import (
     fisher_coord_distance,
     geodesic_interpolation,
-    sphere_project,
+    fisher_normalize,
     estimate_manifold_curvature,
 )
 

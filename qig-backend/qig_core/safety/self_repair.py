@@ -22,7 +22,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 
 from qig_geometry import (
-    sphere_project,
+    fisher_normalize,
     fisher_coord_distance,
     validate_basin,
     BASIN_DIM,
@@ -297,7 +297,7 @@ class SelfRepair:
         
         if np.any(np.isnan(basin)):
             if reference_basin is not None:
-                repaired = sphere_project(np.asarray(reference_basin, dtype=np.float64))
+                repaired = fisher_normalize(np.asarray(reference_basin, dtype=np.float64))
                 action = RepairAction(
                     action_type="reference_substitution",
                     description="NaN basin replaced with reference basin",
@@ -337,7 +337,7 @@ class SelfRepair:
             elif len(basin) > self.basin_dim:
                 basin = basin[:self.basin_dim]
             
-            repaired = sphere_project(basin)
+            repaired = fisher_normalize(basin)
             action = RepairAction(
                 action_type="dimension_fix",
                 description=f"Reshaped basin to {self.basin_dim}D",
@@ -360,7 +360,7 @@ class SelfRepair:
         
         if norm < 1e-10:
             if reference_basin is not None:
-                repaired = sphere_project(np.asarray(reference_basin, dtype=np.float64))
+                repaired = fisher_normalize(np.asarray(reference_basin, dtype=np.float64))
             else:
                 uniform = np.ones(self.basin_dim) / np.sqrt(self.basin_dim)
                 repaired = uniform
@@ -383,11 +383,11 @@ class SelfRepair:
             )
             return repaired, action
         
-        repaired = sphere_project(basin)
+        repaired = fisher_normalize(basin)
         
         action = RepairAction(
-            action_type="sphere_projection",
-            description=f"Projected to S^{self.basin_dim - 1} (norm: {norm:.4f} → 1.0)",
+            action_type="simplex_normalization",
+            description=f"Normalized to Δ^{self.basin_dim - 1} (simplex)",
             before_basin=original_basin,
             after_basin=repaired,
             success=True,

@@ -41,12 +41,12 @@ except ImportError:
 
 # Import QIG-pure distance
 try:
-    from qig_geometry import fisher_coord_distance, sphere_project
+    from qig_geometry import fisher_coord_distance, fisher_normalize
 except ImportError:
     def fisher_coord_distance(a: np.ndarray, b: np.ndarray) -> float:
         """
         Fallback Fisher-Rao distance.
-        
+
         UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
         """
         p = np.abs(a) / (np.sum(np.abs(a)) + 1e-10)
@@ -55,13 +55,10 @@ except ImportError:
         bhattacharyya = np.sum(np.sqrt(p) * np.sqrt(q))
         return float(np.arccos(np.clip(bhattacharyya, 0.0, 1.0)))
 
-    def sphere_project(v: np.ndarray) -> np.ndarray:
-        """Project to unit sphere."""
-        norm = np.linalg.norm(v)
-        if norm < 1e-10:
-            result = np.ones_like(v)
-            return result / np.linalg.norm(result)
-        return v / norm
+    def fisher_normalize(v):
+        """Normalize to probability simplex."""
+        p = np.maximum(np.asarray(v), 0) + 1e-10
+        return p / p.sum()
 
 
 @dataclass
@@ -169,7 +166,7 @@ class E8Constellation:
             # Project to probability simplex (basin coordinates)
             basin = np.abs(outer) + 1e-10
             basin = basin / np.sum(basin)
-            basin = sphere_project(basin)
+            basin = fisher_normalize(basin)
             root.basin = basin
             basins.append(basin)
 
@@ -202,7 +199,7 @@ class E8Constellation:
         if len(query_basin) != BASIN_DIM:
             raise ValueError(f"Query basin must be {BASIN_DIM}D, got {len(query_basin)}D")
 
-        query_basin = sphere_project(query_basin)
+        query_basin = fisher_normalize(query_basin)
 
         if use_neighbors:
             # O(56) search: find closest root, then search its neighbors

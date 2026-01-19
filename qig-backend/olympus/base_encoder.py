@@ -291,8 +291,8 @@ class BaseEncoder(ABC):
 
         distance = self.fisher_distance(basin1, basin2)
 
-        # Convert distance to similarity: s = 1 - d/(2π) (max distance is 2π with factor of 2)
-        similarity = 1.0 - distance / (2.0 * np.pi)
+        # Convert distance to similarity: s = 1 - 2d/π (max distance is π/2 on simplex)
+        similarity = 1.0 - (2.0 * distance / np.pi)
 
         return float(np.clip(similarity, 0, 1))
 
