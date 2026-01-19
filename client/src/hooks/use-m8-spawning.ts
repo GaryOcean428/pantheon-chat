@@ -305,7 +305,7 @@ import type {
   AutoCannibalizeResponse,
   AutoMergeRequest,
   AutoMergeResponse,
-} from '@/api/services/olympus';
+} from '@/api';
 
 export function useIdleKernels(threshold_seconds: number = 300) {
   const { isAuthenticated } = useAuth();

@@ -1,33 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { QUERY_KEYS } from '@/api';
-import { Tabs, TabsContent, TabsList, TabsTrigger, Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Button, ScrollArea } from '@/components/ui';
-import { 
-  Sparkles, 
-  Shield, 
-  Sword, 
-  Sun, 
-  Target, 
-  MessageSquare, 
-  Flame,
-  Wheat,
-  Wine,
-  Waves as WavesIcon,
-  Skull,
-  Crown,
-  Heart,
-  Zap,
-  Moon,
-  Eye,
-  Crosshair,
-  Ghost,
-  Bomb,
-  RefreshCw,
-  Swords,
-  Users
-} from 'lucide-react';
-import ZeusChat from '@/components/ZeusChat';
-import { KernelActivityStream } from '@/components/KernelActivityStream';
+import { Tabs, TabsContent, TabsList, TabsTrigger, Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Button, ScrollArea, ZeusChat, KernelActivityStream } from '@/components';
 
 interface GodStatus {
   name: string;
