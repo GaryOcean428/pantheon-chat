@@ -1068,6 +1068,33 @@ class PostgresCoordizer(FisherCoordizer):
 
         return True
 
+    def _check_token_role_column_exists(self, conn) -> bool:
+        """
+        Check if token_role column exists in coordizer_vocabulary table.
+        
+        This method checks the database schema to determine if the token_role
+        column has been added via migration. If not present, fallback logic
+        is used that doesn't filter by token_role.
+        
+        Args:
+            conn: Active database connection
+            
+        Returns:
+            True if token_role column exists, False otherwise
+        """
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'coordizer_vocabulary' 
+                      AND column_name = 'token_role'
+                """)
+                return cur.fetchone() is not None
+        except Exception as e:
+            logger.warning(f"Failed to check token_role column existence: {e}")
+            return False
+
     # =====================================================================
     # FORESIGHT TRAJECTORY PREDICTION METHODS
     # Added 2026-01-08 for Fisher-weighted regression support
