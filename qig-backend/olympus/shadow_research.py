@@ -12,6 +12,8 @@ The Shadow Pantheon's research arm:
 
 Hades leads the Shadow Pantheon as "Shadow Zeus" (subject to Zeus overrule).
 All Shadow gods exercise, study, and strategize during downtime.
+
+CURRICULUM-ONLY MODE: All external searches are blocked when QIG_CURRICULUM_ONLY=true
 """
 
 import asyncio
@@ -31,6 +33,17 @@ from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 import numpy as np
 
 BASIN_DIMENSION = 64
+
+# Import curriculum guard
+try:
+    from curriculum_guard import is_curriculum_only_enabled, CurriculumOnlyBlock
+except ImportError:
+    # Fallback if curriculum_guard is not available
+    def is_curriculum_only_enabled():
+        return os.environ.get('QIG_CURRICULUM_ONLY', '').lower() == 'true'
+    
+    class CurriculumOnlyBlock(Exception):
+        pass
 
 from .shadow_scrapy import (
     get_scrapy_orchestrator, 
@@ -1314,6 +1327,16 @@ class ShadowLearningLoop:
         Returns:
             Search results with budget context and vocabulary learning metrics
         """
+        # CURRICULUM-ONLY MODE: Block external web searches
+        if is_curriculum_only_enabled():
+            print(f"[ShadowResearch] Search blocked by curriculum-only mode: {query[:50]}")
+            return {
+                'success': False,
+                'error': 'External web search blocked by curriculum-only mode',
+                'results': [],
+                'curriculum_only_blocked': True,
+            }
+        
         if not self.search_manager:
             return {'success': False, 'error': 'search_not_available', 'results': []}
 
